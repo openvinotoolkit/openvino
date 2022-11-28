@@ -22,6 +22,11 @@ namespace intel_cpu {
 namespace node {
 
 namespace {
+/**
+ * Implements One Hot shape inference algorithm. The output shape is the input `indices` tensor shape, where a new axis
+ * of size `depth` is inserted at the dimension defined by the `axis` parameter.
+ *  
+ */
 class OneHotShapeInfer : public ShapeInferEmptyPads {
 public:
     explicit OneHotShapeInfer(int64_t axis) : m_axis(axis) {}

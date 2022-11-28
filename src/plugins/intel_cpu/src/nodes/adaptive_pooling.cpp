@@ -24,6 +24,11 @@ namespace intel_cpu {
 namespace node {
 
 namespace {
+/**
+ * Implements Adaptive Pooling shape inference algorithm. The output tensor shape consists of the input [N, C] dimensions and
+ * the [D_out, H_out, W_out] dimensions, which are placed in the second input parameter.
+ * 
+ */
 class AdaptivePoolingShapeInfer : public ShapeInferEmptyPads {
 public:
     explicit AdaptivePoolingShapeInfer(size_t outputs_count) : m_outputs_count(outputs_count) {}

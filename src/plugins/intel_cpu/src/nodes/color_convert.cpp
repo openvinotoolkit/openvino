@@ -966,6 +966,11 @@ public:
 
 }   // namespace i420
 
+/**
+ * Implements Color Convert shape inference algorithm. Depending on wether it has only single plain H dimension is
+ * passed through or recalculated as 2/3 of the initial size.
+ * 
+ */
 class ColorConvertShapeInfer : public ShapeInferEmptyPads {
 public:
     ColorConvertShapeInfer(bool singlePlain) : m_singlePlain(singlePlain) {}

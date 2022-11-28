@@ -13,6 +13,11 @@ namespace intel_cpu {
 namespace node {
 
 namespace {
+/**
+ * Implements Shape Of shape inference algorithm. The oput shape is simply a 1D tensor with the size of the input tensor
+ * rank.
+ *  
+ */
 class ShapeOfShapeInfer : public ShapeInferEmptyPads {
 public:
     ShapeOfShapeInfer() = default;

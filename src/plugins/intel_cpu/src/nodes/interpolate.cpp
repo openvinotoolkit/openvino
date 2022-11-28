@@ -1546,6 +1546,10 @@ bool Interpolate::isSupportedOperation(const std::shared_ptr<const ngraph::Node>
 }
 
 namespace {
+/**
+ * Interpolate shape inference factory. It defines the input mask depending on the shape calculation mode.
+ * 
+ */
 class InterpolateShapeInferFactory : public ShapeInferFactory {
 public:
     InterpolateShapeInferFactory(std::shared_ptr<ngraph::Node> op) : m_op(op) {}

@@ -21,6 +21,11 @@ namespace intel_cpu {
 namespace node {
 
 namespace {
+/**
+ * Implements Prior Box Clustered shape inference algorithm. The output shape is [2,  4 * height * width * number_of_priors].
+ * `number_of_priors` is an attribute of the operation. heigh and width are in the the first input parameter.
+ *  
+ */
 class PriorBoxClusteredShapeInfer : public ShapeInferEmptyPads {
 public:
     explicit PriorBoxClusteredShapeInfer(size_t number_of_priors) : m_number_of_priors(number_of_priors) {}

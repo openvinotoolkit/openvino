@@ -94,6 +94,11 @@ struct EltwiseEmitter<jit_power_static_emitter> {
     }
 };
 
+/**
+ * Implements Eltwise shape inference algorithm. The algorithm is based on broadcasting all the input shapes
+ * according to the NUMPY broadcast rule. This implementation is more lightweight than the ngraph one.
+ * 
+ */
 class EltwiseShapeInfer : public ShapeInferEmptyPads {
 public:
     std::vector<VectorDims> infer(

@@ -109,6 +109,11 @@ bool DeconvKey::operator==(const DeconvKey &rhs) const {
     return retVal;
 }
 
+/**
+ * Deconvolution shape inference factory. It defines the input mask depending on the existence of the `output_shape` input.
+ * Since in case it exists, plugin should pass the input data to the shape inference function.
+ * 
+ */
 class DeconfolutionShapeInferFactory : public ShapeInferFactory {
 public:
     DeconfolutionShapeInferFactory(std::shared_ptr<ngraph::Node> op) : m_op(op) {}
