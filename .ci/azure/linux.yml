@@ -399,7 +399,15 @@ jobs:
     displayName: 'OV Core UT'
     continueOnError: false
 
-  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_conditional_complilation_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ConditionalCompilation.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_inference_functional_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceFunc.xml
+    displayName: 'Inference Func Tests'
+    continueOnError: false
+
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_inference_unit_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceUnit.xml
+    displayName: 'Inference Unit Tests'
+    continueOnError: false
+
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_conditional_compilation_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ConditionalCompilation.xml
     displayName: 'Conditional Compilation Tests'
     continueOnError: false
 
@@ -417,6 +425,14 @@ jobs:
 
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Tensorflow.xml
     displayName: 'TensorFlow Frontend Unit Tests'
+    continueOnError: false
+
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_lp_transformations_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-LpTransformations.xml
+    displayName: 'Low Precision Transformations Tests'
+    continueOnError: false
+
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_transformations_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Transformations.xml
+    displayName: 'Transformations Tests'
     continueOnError: false
 
     # python3 $(WORK_DIR)/gtest-parallel/gtest_parallel.py $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --workers=16 --dump_json_test_results=InferenceEngineUnitTests.json --gtest_filter=*smoke* -- --gtest_print_time=1
@@ -542,6 +558,33 @@ jobs:
       export TEST_DEVICE=CPU
       $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow2_keras_tests/test_tf2_keras_activation.py --ir_version=11 --junitxml=./TEST-tf2_Activation.xmlTEST -k "sigmoid"
     displayName: 'TensorFlow 2 Layer Tests - Legacy FE'
+    continueOnError: false
+
+  - script: |
+      . $(PY_VENV)/bin/activate
+      python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
+      export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
+      export TEST_DEVICE=CPU
+      $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/mo_python_api_tests/test_mo_convert_complex_params.py --ir_version=11 --junitxml=./TEST-test_mo_convert_complex_params.xmlTEST
+    displayName: 'MO Python API Tests - Complex Python params'
+    continueOnError: false
+
+  - script: |
+      . $(PY_VENV)/bin/activate
+      python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
+      export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
+      export TEST_DEVICE=CPU
+      $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/mo_python_api_tests/test_mo_convert_tf.py --ir_version=11 --junitxml=./TEST-test_mo_convert_tf.xmlTEST
+    displayName: 'MO Python API Tests - Import TF model from memory'
+    continueOnError: false
+
+  - script: |
+      . $(PY_VENV)/bin/activate
+      python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
+      export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
+      export TEST_DEVICE=CPU
+      $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/mo_python_api_tests/test_mo_convert_pytorch.py --ir_version=11 --junitxml=./TEST-test_mo_convert_pytorch.xmlTEST
+    displayName: 'MO Python API Tests - Import PyTorch model from memory'
     continueOnError: false
 
   - task: PublishTestResults@2

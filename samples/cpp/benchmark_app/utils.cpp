@@ -117,8 +117,6 @@ std::vector<std::string> parse_devices(const std::string& device_string) {
         auto bracket = comma_separated_devices.find("(");  // e.g. in BATCH:GPU(4)
         comma_separated_devices = comma_separated_devices.substr(colon + 1, bracket - colon - 1);
     }
-    if ((comma_separated_devices == "MULTI") || (comma_separated_devices == "HETERO"))
-        return std::vector<std::string>();
 
     auto devices = split(comma_separated_devices, ',');
     result.insert(result.end(), devices.begin(), devices.end());
@@ -130,7 +128,7 @@ void parse_value_for_virtual_device(const std::string& device, std::map<std::str
     if (item_virtual != values_string.end() && values_string.size() > 1) {
         if (device == "MULTI") {
             // Remove the element that the key is virtual device MULTI
-            // e.g. MULTI:xxx,xxx -nstreams 2 will set nstreams 2 to CPU.
+            // e.g. MULTI:xxx -nstreams 2 will set nstreams 2 to xxx.
             values_string.erase(item_virtual);
         } else if (device == "AUTO") {
             // Just keep the element that the key is virtual device AUTO
@@ -153,13 +151,7 @@ void parse_value_for_virtual_device(const std::string& device, std::map<std::str
     if (values_string.find(device) != values_string.end()) {
         auto& nstreams = values_string[device];
         // Remove the space at the tail.
-        nstreams.erase(std::find_if(nstreams.rbegin(),
-                                    nstreams.rend(),
-                                    [](unsigned char ch) {
-                                        return !std::isspace(ch);
-                                    })
-                           .base(),
-                       nstreams.end());
+        nstreams.pop_back();
     }
     return;
 }
@@ -173,13 +165,17 @@ std::map<std::string, std::string> parse_value_per_device(const std::vector<std:
         auto device_value_vec = split(device_value_string, ':');
         if (device_value_vec.size() == 2) {
             auto device_name = device_value_vec.at(0);
-            auto nstreams = device_value_vec.at(1);
+            auto value = device_value_vec.at(1);
             auto it = std::find(devices.begin(), devices.end(), device_name);
             if (it != devices.end()) {
-                result[device_name] = nstreams;
+                result[device_name] = value;
             } else {
-                throw std::logic_error("Can't set nstreams value " + std::string(nstreams) + " for device '" +
-                                       device_name + "'! Incorrect device name!");
+                std::string devices_list = "";
+                for (auto& device : devices)
+                    devices_list += device + " ";
+                devices_list.pop_back();
+                throw std::logic_error("Failed to set property to '" + device_name +
+                                       "' which is not found whthin the target devices list '" + devices_list + "'!");
             }
         } else if (device_value_vec.size() == 1) {
             auto value = device_value_vec.at(0);
@@ -211,12 +207,6 @@ size_t get_batch_size(const benchmark_app::InputsInfo& inputs_info) {
         batch_size = 1;
     }
     return batch_size;
-}
-
-std::string get_shape_string(const ov::Shape& shape) {
-    std::stringstream ss;
-    ss << shape;
-    return ss.str();
 }
 
 std::string get_shapes_string(const benchmark_app::PartialShapes& shapes) {
@@ -266,36 +256,6 @@ std::map<std::string, std::vector<float>> parse_scale_or_mean(const std::string&
     if (!search_string.empty())
         throw std::logic_error("Can't parse input parameter string: " + scale_mean);
     return return_value;
-}
-
-std::vector<ngraph::Dimension> parse_partial_shape(const std::string& partial_shape) {
-    std::vector<ngraph::Dimension> shape;
-    for (auto& dim : split(partial_shape, ',')) {
-        if (dim == "?" || dim == "-1") {
-            shape.push_back(ngraph::Dimension::dynamic());
-        } else {
-            const std::string range_divider = "..";
-            size_t range_index = dim.find(range_divider);
-            if (range_index != std::string::npos) {
-                std::string min = dim.substr(0, range_index);
-                std::string max = dim.substr(range_index + range_divider.length());
-                shape.push_back(ngraph::Dimension(min.empty() ? 0 : std::stoi(min),
-                                                  max.empty() ? ngraph::Interval::s_max : std::stoi(max)));
-            } else {
-                shape.push_back(std::stoi(dim));
-            }
-        }
-    }
-
-    return shape;
-}
-
-ov::Shape parse_data_shape(const std::string& dataShapeStr) {
-    std::vector<size_t> shape;
-    for (auto& dim : split(dataShapeStr, ',')) {
-        shape.push_back(std::stoi(dim));
-    }
-    return shape;
 }
 
 std::pair<std::string, std::vector<std::string>> parse_input_files(const std::string& file_paths_string) {
@@ -490,7 +450,7 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
     }
 
     std::vector<benchmark_app::InputsInfo> info_maps;
-    for (size_t i = 0; i < min_size; ++i) {
+    for (size_t input_id = 0; input_id < min_size; ++input_id) {
         benchmark_app::InputsInfo info_map;
 
         bool is_there_at_least_one_batch_dim = false;
@@ -505,7 +465,6 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                         "layout command line parameter doesn't support multiple layouts for one input.");
                 }
                 info.layout = ov::Layout(layout_map.at(name)[0]);
-                // reshape_required = true;
             } else {
                 info.layout = dynamic_cast<const ov::op::v0::Parameter&>(*item.get_node()).get_layout();
             }
@@ -548,7 +507,7 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                     throw std::logic_error(
                         "shape command line parameter doesn't support multiple shapes for one input.");
                 }
-                info.partialShape = parse_partial_shape(shape_map.at(name)[0]);
+                info.partialShape = shape_map.at(name)[0];
                 reshape_required = true;
             } else {
                 info.partialShape = item.get_partial_shape();
@@ -561,7 +520,7 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
 
             // Tensor Shape
             if (info.partialShape.is_dynamic() && data_shapes_map.count(name)) {
-                info.dataShape = parse_data_shape(data_shapes_map.at(name)[i % data_shapes_map.at(name).size()]);
+                info.dataShape = data_shapes_map.at(name)[input_id % data_shapes_map.at(name).size()];
             } else if (info.partialShape.is_dynamic() && fileNames.count(filesInputName) && info.is_image()) {
                 auto& namesVector = fileNames.at(filesInputName);
                 if (contains_binaries(namesVector)) {

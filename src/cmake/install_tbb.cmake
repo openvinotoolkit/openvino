@@ -97,10 +97,6 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
     endif()
 
     if(ENABLE_SYSTEM_TBB)
-        # TODO: what's about tbbbind for cases U22 with >= TBB 20221
-        # it seems that oneTBB from U22 distro does not contains tbbbind library
-        # the same situation for conda-forge distribution of TBB / oneTBB
-
         # for system libraries we still need to install TBB libraries
         # so, need to take locations of actual libraries and install them
         foreach(tbb_target IN LISTS TBB_IMPORTED_TARGETS)
@@ -119,6 +115,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
             # to ignore from IRC / apt / yum distribution;
             # but they will be present in .wheel
             foreach(tbb_file IN LISTS tbb_files)
+                # TODO: check by what name TBB loads the libraries
                 ov_install_with_name("${tbb_file}" tbb)
             endforeach()
         endforeach()

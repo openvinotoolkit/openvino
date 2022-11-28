@@ -23,6 +23,8 @@
 #include <ie_ngraph_utils.hpp>
 #include "convolution_shape_inference.hpp"
 #include <common/primitive_hashing_utils.hpp>
+#include <common/primitive_desc.hpp>
+#include <common/primitive_desc_iface.hpp>
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -442,8 +444,7 @@ void Deconvolution::initPaddingR(const Shape &inShape, const Shape &outShape) {
         int dst = inShape.getStaticDims()[2 + i];
 
         krn = (krn - 1)*(dilation[i] + 1) + 1;
-        int calc_dst = (src - krn + paddingL[i]) / stride[i] + 1;
-        paddingR[i] = (dst - calc_dst) * stride[i];
+        paddingR[i] = (dst - 1) * stride[i] - (src - krn + paddingL[i]);
     }
 }
 
@@ -936,9 +937,14 @@ void Deconvolution::prepareParams() {
         }
         Node::appendPostOpArgs(*pAttrLocal, primArgs, postOpsArgs);
 
-        auto pd = (*(execPtr->getExecPrim())).get_primitive_desc();
+        auto pd = execPtr->getPrimitiveDesc();
         auto scratchpadMem = getScratchPadMem(pd);
         primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
+#ifdef CPU_DEBUG_CAPS
+        if (result.second == CacheEntryBase::LookUpStatus::Miss) {
+            DEBUG_LOG("verbose##", getName(), "##", pd->info(), "\n");
+        }
+#endif
     } else {
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
     }

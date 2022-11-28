@@ -79,17 +79,19 @@ def run_timetest(args: dict, log=None):
     for run_iter in range(args["niter"]):
         tmp_stats_path = tempfile.NamedTemporaryFile().name
         retcode, msg = cmd_exec(cmd_common + ["-s", str(tmp_stats_path)], log=log)
+
+        if os.path.exists(tmp_stats_path):
+            with open(tmp_stats_path, "r") as file:
+                logs.append(file.read())
+
         if retcode != 0:
             log.error(f"Run of executable '{args['executable']}' failed with return code '{retcode}'. Error: {msg}\n"
                       f"Statistics aggregation is skipped.")
-            return retcode, msg, {}, {}
+            return retcode, msg, {}, {}, logs
 
         # Read raw statistics
         with open(tmp_stats_path, "r") as file:
             raw_data = list(yaml.load_all(file, Loader=yaml.SafeLoader))
-
-        with open(tmp_stats_path, "r") as file:
-            logs.append(file.read())
 
         os.unlink(tmp_stats_path)
 

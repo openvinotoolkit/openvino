@@ -215,7 +215,8 @@ void prepare_primitive_fusing::fuse_reorders(program &p) {
             // - do not fuse if current node has mean subtract
             if (input.get_users().size() != 1 || !input.is_type<reorder>() ||
                 input.get_output_layout() != node.get_output_layout() || node.has_mean() ||
-                !node.get_primitive()->subtract_per_feature.empty())
+                !node.get_primitive()->subtract_per_feature.empty() ||
+                node.get_primitive()->has_surface_input())
                 return;
 
             p.add_optimized_primitive_info(node.id());
@@ -256,6 +257,10 @@ void prepare_primitive_fusing::fuse_activations(program &p) {
                 node.get_dependencies().size() != 1 || input.can_be_optimized() || node.is_constant() ||
                 node.has_fused_primitives())
                 return;
+
+            if (use_onednn_impls && node.get_primitive()->activation_function == cldnn::activation_func::hyperbolic_tan) {
+                return;
+            }
 
             // - limit to primitives which implementations support activation fusing
             if (input.get_users().size() != 1 ||
@@ -538,7 +543,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
     bool recalc_processing_order = false;
     std::map<primitive_id, std::vector<std::pair<primitive_id, size_t>>> fusing_history;
 
-    const uint8_t supports_immad = p.get_engine().get_device_info().supports_immad;
+    const auto supports_immad = p.get_engine().get_device_info().supports_immad;
     auto itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
         auto node_itr = itr++;
@@ -747,6 +752,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto fuse_activation_f = [&](activation_node& activation_node) {
+            if (supports_immad && activation_node.get_primitive()->activation_function == cldnn::activation_func::hyperbolic_tan) {
+                return;
+            }
+
             auto& input_data = activation_node.get_dependency(0);
             if (activation_node.get_dependencies().size() >= 3)
                 return;
@@ -989,6 +998,36 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                         can_fuse_parents[1] = false;
                     }
                 }
+            } else {
+                // In case of dynamic shapes we check that parent & peer shapes are compatible to allow merge
+                // This is required to avoid an issue when shape is partially defined and incorrectly propagated to further nodes
+                // which may ruin shape inference
+                // E.g. parent1 [?,?,768], parent2 [?,?,1]
+                // expected eltw out shape: [?,?,768]
+                // but w/o this check we can fuse eltwise to parent2 and return [?,?,1] as output shape which is unexpected
+                auto parent1_pshape = parent1->get_output_layout().get_partial_shape();
+                auto parent2_pshape = parent2->get_output_layout().get_partial_shape();
+                auto out_pshape = node.get_output_layout().get_partial_shape();
+
+                auto are_compatible = [](const ov::PartialShape& out_shape, const ov::PartialShape& in_shape) -> bool {
+                    if (out_shape.rank().get_length() != in_shape.rank().get_length())
+                        return false;
+                    bool compatible = true;
+                    for (size_t i = 0; i < out_shape.size(); i++) {
+                        auto& od = out_shape[i];
+                        auto& id = in_shape[i];
+
+                        if (od.is_static() && id.is_static()) {
+                            compatible &= od.get_length() == id.get_length();
+                        } else if (id.is_static()) {
+                            compatible &= id.get_length() != 1;
+                        }
+                    }
+                    return compatible;
+                };
+
+                can_fuse_parents[0] = can_fuse_parents[0] && are_compatible(out_pshape, parent1_pshape);
+                can_fuse_parents[1] = can_fuse_parents[1] && are_compatible(out_pshape, parent2_pshape);
             }
 
             // We should have at least one node to fuse
