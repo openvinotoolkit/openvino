@@ -32,6 +32,9 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
 
         auto input_node = getitem->input(0).get_source_output().get_node_shared_ptr();
         if (auto torch_split = cast_fw_node(input_node, "aten::split")) {
+            if (torch_split->input(1).get_partial_shape().is_dynamic()) {
+                return false;
+            }
             if ((torch_split->get_input_source_output(1).get_shape()) == Shape{}) {
                 // Based on slice_size and output index select size.
                 // Constants required by transformation.
@@ -77,14 +80,13 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
                 auto split = std::make_shared<opset8::VariadicSplit>(torch_split->get_input_source_output(0),
                                                                      torch_split->get_input_source_output(2),
                                                                      torch_split->get_input_source_output(1));
-                OutputVector res;
                 auto index = 0;
                 if (index_val[0] >= 0) {
                     index = index_val[0];
                 } else {
                     index = split->outputs().size() + index_val[0];
                 }
-                res.push_back(split->outputs()[index]);
+                OutputVector res{split->outputs()[index]};
                 copy_runtime_info({getitem, input_node}, split);
                 replace_node(getitem, res);
             }

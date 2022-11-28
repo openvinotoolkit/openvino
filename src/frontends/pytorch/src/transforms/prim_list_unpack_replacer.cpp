@@ -28,6 +28,9 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
 
         auto input_node = list_unpack->input(0).get_source_output().get_node_shared_ptr();
         if (auto torch_split = cast_fw_node(input_node, "aten::split")) {
+            if (torch_split->input(1).get_partial_shape().is_dynamic()) {
+                return false;
+            }
             if (torch_split->get_input_source_output(1).get_shape() == Shape{}) {
                 // Create split_lenghts tensor from split_size int,
                 // allow for last chunk to be smaller if data cannot equally divisible.
