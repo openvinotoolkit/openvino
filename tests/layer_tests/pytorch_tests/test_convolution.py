@@ -162,8 +162,6 @@ class TestConvolution(PytorchLayerTest):
                 self.transposed = transposed
                 self.output_padding = output_padding
                 self._op = torch._convolution
-                self._underscore = underscore
-
             def forward(self, x):
                 return self._op(
                     x, self.weight, self.bias, self.strides, self.pads, self.dilations, self.transposed, self.output_padding, self.groups, False, False, False, False
@@ -184,7 +182,6 @@ class TestConvolution(PytorchLayerTest):
                 self.transposed = transposed
                 self.output_padding = output_padding
                 self._op = torch.convolution
-                self._underscore = underscore
 
             def forward(self, x):
                 return self._op(
