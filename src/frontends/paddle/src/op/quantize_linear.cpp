@@ -40,12 +40,12 @@ NamedOutputs quantize_linear(const NodeContext& node) {
     const auto round_mode = [&](){
         if (node.has_attribute("round_type")) {
             if (node.get_attribute<int32_t>("round_type")) {
-                return default_opset::Round::RoundMode::HALF_TO_EVEN;
-            } else {
                 return default_opset::Round::RoundMode::HALF_AWAY_FROM_ZERO;
+            } else {
+                return default_opset::Round::RoundMode::HALF_TO_EVEN;
             }
         } else {
-            return default_opset::Round::RoundMode::HALF_AWAY_FROM_ZERO;
+            return default_opset::Round::RoundMode::HALF_TO_EVEN;
         }
     }();
 
