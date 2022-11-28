@@ -6,8 +6,10 @@
 
 #include <file_utils.h>
 #include "openvino/util/shared_object.hpp"
+#include "openvino/util/env_util.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include <cpp/ie_plugin.hpp>
+#include <common_test_utils/env_utils.hpp>
 
 using namespace ::testing;
 using namespace std;
@@ -61,10 +63,32 @@ TEST_F(SharedObjectOVTests, canCallExistedMethod) {
     EXPECT_NO_THROW(factory(ptr));
 }
 
-TEST_F(SharedObjectOVTests, loadSOSafelyThrowIfRelativePath) {
-    std::string libraryName = ov::util::FileTraits<char>::library_prefix() + std::string("mock_engine") + IE_BUILD_POSTFIX +
-     ov::util::FileTraits<char>::dot_symbol + ov::util::FileTraits<char>::library_ext();
+class SharedObjectOVSafeTests : public ::testing::Test {
+protected:
+    void SetUp() override {
+        m_env_old = ov::util::getenv_string(m_env_var.c_str());
+        auto env_new = CommonTestUtils::getExecutableDirectory() + m_env_sep + m_env_old;
+        CommonTestUtils::setEnvironment(m_env_var.c_str(), env_new.c_str());
+    }
 
+    void TearDown() override {
+        CommonTestUtils::setEnvironment(m_env_var.c_str(), m_env_old.c_str());
+    }
+private:
+#ifdef _WIN32
+    std::string m_env_var = "PATH";
+    std::string m_env_sep = ";";
+#else
+    std::string m_env_var = "LD_LIBRARY_PATH";
+    std::string m_env_sep = ":";
+#endif
+    std::string m_env_old;
+};
+
+TEST_F(SharedObjectOVSafeTests, loadSOSafelyThrowIfLoadFromEnv) {
+    std::string libraryName = FileUtils::makePluginLibraryName<char>({}, std::string("mock_engine") + IE_BUILD_POSTFIX);
+    
     EXPECT_NO_THROW(ov::util::load_shared_object(libraryName.c_str()));
     EXPECT_THROW(ov::util::load_shared_object_safely(libraryName.c_str()), std::runtime_error);
+    
 }
