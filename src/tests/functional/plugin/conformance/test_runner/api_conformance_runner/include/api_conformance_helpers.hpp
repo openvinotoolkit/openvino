@@ -71,7 +71,7 @@ inline const std::vector<std::map<std::string, std::string>> generate_configs(co
     return resultConfig;
 }
 
-inline const std::string generate_complex_device_name(const std::string deviceName) {
+inline const std::string generate_complex_device_name(const std::string& deviceName) {
     return deviceName + ":" + ov::test::conformance::targetDevice;
 }
 
