@@ -48,6 +48,10 @@ class GnaLog {
         return log_obj;
     }
 
+    static ov::log::Level get_log_level() {
+        return get_instance().log_level_;
+    }
+
     /**
      * @brief Set ERROR log level
      * @return GnaLog object

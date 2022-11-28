@@ -64,7 +64,8 @@ class GNADeviceHelper : public GNAPluginNS::GNADevice {
     bool isPerformanceMeasuring = false;
     bool deviceOpened = false;
 
-    bool debugLogEnabled = false;
+    bool per_request_diagnostics = false;
+    bool per_model_diagnostics = false;
     uint64_t debugLogIndexRequestEnqueue = 0;
     uint64_t debugLogIndexRequestWait = 0;
     static constexpr const char* kDumpExt = ".bin";
@@ -82,8 +83,6 @@ public:
     GNADeviceHelper(GNADeviceHelper&&) = delete;
     GNADeviceHelper& operator=(GNADeviceHelper&&) = delete;
     ~GNADeviceHelper() override;
-
-    void enableDiagnostics();
 
     /**
      * @brief Dump raw memory of each GNA allocation to files

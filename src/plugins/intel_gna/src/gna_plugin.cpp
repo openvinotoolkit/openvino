@@ -385,9 +385,6 @@ void GNAPlugin::InitGNADevice() {
                     !config.dumpXNNPath.empty());
         size_t page_size_bytes = 4096;
         gnamem = std::make_shared<gna_memory_device>(memory::GNAAllocator(gnadevice), page_size_bytes);
-        if (gnaFlags->log_level == ov::log::Level::DEBUG) {
-            gnadevice->enableDiagnostics();
-        }
     }
     graphCompiler.setGNAMemoryPtr(gnamem);
 }
