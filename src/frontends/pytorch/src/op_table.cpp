@@ -26,10 +26,13 @@ OP_CONVERTER(translate_convolution);
 OP_CONVERTER(translate_dim);
 OP_CONVERTER(translate_div);
 OP_CONVERTER(translate_elu);
+OP_CONVERTER(translate_expand);
+OP_CONVERTER(translate_expand_as);
 OP_CONVERTER(translate_embedding);
 OP_CONVERTER(translate_flatten);
 OP_CONVERTER(translate_floordiv);
 OP_CONVERTER(translate_gelu);
+OP_CONVERTER(translate_group_norm);
 OP_CONVERTER(translate_hardtanh);
 OP_CONVERTER(translate_if);
 OP_CONVERTER(translate_int);
@@ -42,6 +45,7 @@ OP_CONVERTER(translate_neg);
 OP_CONVERTER(translate_reciprocal);
 OP_CONVERTER(translate_relu6);
 OP_CONVERTER(translate_reshape);
+OP_CONVERTER(translate_reshape_as);
 OP_CONVERTER(translate_rsub);
 OP_CONVERTER(translate_select);
 OP_CONVERTER(translate_size);
@@ -83,9 +87,12 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::embedding", op::translate_embedding},
         {"aten::eq", op::translate_1to1_match_2_inputs<opset8::Equal>},
         {"aten::exp", op::translate_1to1_match_1_inputs<opset8::Exp>},
+        {"aten::expand", op::translate_expand},
+        {"aten::expand_as", op::translate_expand_as},
         {"aten::flatten", op::translate_flatten},
         {"aten::floordiv", op::translate_floordiv},
         {"aten::gelu", op::translate_gelu},
+        {"aten::group_norm", op::translate_group_norm},
         {"aten::gt", op::translate_1to1_match_2_inputs<opset8::Greater>},
         {"aten::hardsigmoid", op::translate_1to1_match_1_inputs<opset8::HSigmoid>},
         {"aten::hardswish", op::translate_1to1_match_1_inputs<opset8::HSwish>},
@@ -114,6 +121,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::relu_", op::inplace_op<op::translate_1to1_match_1_inputs<opset8::Relu>>},
         {"aten::relu6", op::translate_relu6},
         {"aten::reshape", op::translate_reshape},
+        {"aten::reshape_as", op::translate_reshape_as},
         {"aten::rsub", op::translate_rsub},
         {"aten::select", op::translate_select},
         {"aten::sigmoid", op::translate_1to1_match_1_inputs<opset8::Sigmoid>},
