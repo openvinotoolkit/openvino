@@ -9,12 +9,8 @@
 #include <intel_gpu/primitives/quantize.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/fully_connected.hpp>
-#include <intel_gpu/primitives/gemm.hpp>
-#include <intel_gpu/primitives/binary_convolution.hpp>
 #include <intel_gpu/primitives/data.hpp>
-#include <intel_gpu/primitives/resample.hpp>
 #include <intel_gpu/primitives/crop.hpp>
-#include <intel_gpu/primitives/mvn.hpp>
 #include <intel_gpu/primitives/permute.hpp>
 #include <intel_gpu/primitives/concatenation.hpp>
 
@@ -78,13 +74,19 @@ struct conv_eltw_test_params {
     data_types default_type;
     format default_format;
     size_t expected_fused_primitives;
+    size_t expected_fused_primitives_onednn;
     size_t expected_not_fused_primitives;
 };
 
 class ConvFusingTest : public BaseFusingTest<convolution_test_params> {
 public:
-    void execute(convolution_test_params& p) {
-        auto input_prim = get_mem(get_input_layout(p));
+    void execute(convolution_test_params& p, int min=0, int max=0) {
+        cldnn::memory::ptr input_prim;
+        if (min == max) {
+            input_prim = get_mem(get_input_layout(p));
+        } else {
+            input_prim = get_mem(get_input_layout(p), min, max);
+        }
         network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
         network network_fused(this->engine, this->topology_fused, bo_fused);
         network_fused.set_input_data("input", input_prim);
@@ -146,17 +148,15 @@ class ConvEltwTest : public ::BaseFusingTest<conv_eltw_test_params> {
 public:
 
     void execute(conv_eltw_test_params& p) {
+        if (engine.get_device_info().supports_immad)
+            p.expected_fused_primitives = p.expected_fused_primitives_onednn;
+
         auto input_prim = get_mem(get_input_layout(p));
         network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
         network network_fused(this->engine, this->topology_fused, bo_fused);
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
 
-        // WA: turn off grouped convolution test for onednn because fusing behavior is different with cldnn.
-        if (engine.get_device_info().supports_immad && p.groups > 1) {
-            std::cout << "SKIP" << std::endl;
-            return;
-        }
         compare(network_not_fused, network_fused, p);
         auto find_prim = [](primitive_info& p) -> bool {
             // Add more ids when needed
@@ -588,6 +588,35 @@ TEST_P(conv_fp32_wrong_bias, basic) {
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_wrong_bias, ::testing::ValuesIn(std::vector<convolution_test_params>{
     convolution_test_params{ CASE_CONV_FP32_15, 3, 3 },
+}));
+
+class conv_fp32_add_per_element_planar_const : public ConvFusingTest {};
+TEST_P(conv_fp32_add_per_element_planar_const, basic) {
+    auto p = GetParam();
+
+    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16" };
+    implementation_desc permute_impl = { format::b_fs_yx_fsv16, "" };
+    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl },
+                                                              { "permute", permute_impl } }));
+
+    auto out_layout = get_output_layout(p);
+    out_layout.format = format::bfyx;
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("data", get_mem(out_layout)),
+        convolution("conv_prim", "input", { "weights" }, std::vector<primitive_id>{}, p.groups, p.stride, p.pad, p.dilation),
+        eltwise("add", { "conv_prim", "data" }, eltwise_mode::sum),
+        permute("permute", "add", {3, 2, 1, 0}),
+        reorder("reorder_bfyx", "permute", p.default_format, data_types::f32)
+    );
+
+    tolerance = default_tolerance(p.default_type);
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_add_per_element_planar_const, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ CASE_CONV_FP32_3, 3, 4 },
 }));
 
 class conv_fp32_prelu_eltwise : public ConvFusingTest {};
@@ -1555,14 +1584,14 @@ TEST_P(conv_fp32_activation_eltwise_diff_sizes, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_activation_eltwise_diff_sizes, ::testing::ValuesIn(std::vector<conv_eltw_test_params>{
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_1, 2, 4 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_2, 2, 4 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_3, 2, 4 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_4, 2, 4 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_5, 2, 4 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_6, 2, 4 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_7, 3, 4 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_8, 3, 4 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_1, 2, 2, 4 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_2, 2, 2, 4 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_3, 2, 2, 4 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_4, 2, 2, 4 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_5, 2, 2, 4 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_6, 2, 2, 4 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_7, 3, 3, 4 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_8, 3, 3, 4 },
 }));
 
 class conv_scale_activation_eltwise_fp32_quantize_i8 : public ConvEltwTest {};
@@ -1591,14 +1620,14 @@ TEST_P(conv_scale_activation_eltwise_fp32_quantize_i8, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_scale_activation_eltwise_fp32_quantize_i8, ::testing::ValuesIn(std::vector<conv_eltw_test_params>{
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_1, 2, 6 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_2, 2, 6 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_3, 2, 6 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_4, 2, 6 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_5, 3, 6 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_6, 3, 6 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_7, 3, 6 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_8, 3, 6 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_1, 2, 2, 6 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_2, 2, 2, 6 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_3, 2, 2, 6 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_4, 2, 2, 6 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_5, 3, 2, 6 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_6, 3, 2, 6 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_7, 3, 3, 6 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_8, 3, 3, 6 },
 }));
 
 /* ----------------------------------------------------------------------------------------------------- */
@@ -1720,7 +1749,7 @@ TEST_P(conv_int8_scale_shift_swish, basic) {
 
     // high tolerance because many eltwise operations
     tolerance = default_tolerance(p.default_type) * 10;
-    execute(p);
+    execute(p, -20, 20);
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_shift_swish, ::testing::ValuesIn(std::vector<convolution_test_params>{
@@ -2718,11 +2747,11 @@ TEST_P(conv_i8_activation_eltwise_diff_sizes, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_i8_activation_eltwise_diff_sizes, ::testing::ValuesIn(std::vector<conv_eltw_test_params>{
-    conv_eltw_test_params{ CASE_CONV_ELTW_i8_1, 3, 4 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_i8_2, 2, 4 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_i8_3, 2, 4 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_i8_4, 2, 4 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_i8_5, 3, 4 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_i8_1, 3, 3, 4 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_i8_2, 2, 2, 4 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_i8_3, 2, 2, 4 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_i8_4, 2, 2, 4 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_i8_5, 3, 3, 4 },
 }));
 
 /* ----------------------------------------------------------------------------------------------------- */

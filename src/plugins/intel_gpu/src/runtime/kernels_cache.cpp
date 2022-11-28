@@ -7,12 +7,12 @@
 #include "ocl/ocl_kernel.hpp"
 #include "ocl/ocl_engine.hpp"
 #include "ocl/ocl_common.hpp"
+#include "intel_gpu/graph/serialization/set_serializer.hpp"
+#include "intel_gpu/graph/serialization/vector_serializer.hpp"
+#include "intel_gpu/graph/serialization/map_serializer.hpp"
+#include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "openvino/util/file_util.hpp"
-#include "serialization/set_serializer.hpp"
-#include "serialization/vector_serializer.hpp"
-#include "serialization/map_serializer.hpp"
-#include "serialization/string_serializer.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -447,6 +447,15 @@ std::vector<kernel_id> kernels_cache::add_kernels_source(std::vector<std::shared
     return kernel_ids;
 }
 
+void kernels_cache::add_kernels(const std::vector<std::string>& kernel_ids, const std::vector<kernel::ptr>& kernels) {
+    OPENVINO_ASSERT(kernel_ids.size() == kernels.size(), "[GPU] The sizes of kernel_ids and kernels are different.");
+
+    for (size_t i = 0; i < kernel_ids.size(); i++) {
+        const auto& kmap = std::make_pair(kernel_ids[i], kernels[i]);
+        _kernels.insert(kmap);
+    }
+}
+
 void kernels_cache::compile() {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::BuildAll");
 
@@ -477,10 +486,7 @@ void kernels_cache::compile() {
 #endif
 }
 void kernels_cache::save(BinaryOutputBuffer& ob) const {
-    OPENVINO_ASSERT(_engine.type() == engine_types::ocl, "[GPU] not supported engine type");
-
-    ob << _prog_id;
-    ob << batch_header_str;
+    OPENVINO_ASSERT(_engine.type() == engine_types::ocl, "[GPU] Not supported engine type");
 
     std::map<std::string, std::string> entry_point_to_id;
     for (auto iter = _kernels.begin(); iter != _kernels.end(); iter++) {
@@ -534,7 +540,7 @@ void kernels_cache::save(BinaryOutputBuffer& ob) const {
 }
 
 void kernels_cache::load(BinaryInputBuffer& ib) {
-    OPENVINO_ASSERT(_engine.type() == engine_types::ocl, "[GPU] not supported engine type");
+    OPENVINO_ASSERT(_engine.type() == engine_types::ocl, "[GPU] Not supported engine type");
 
     std::unique_ptr<ocl::ocl_engine> build_engine =
         cldnn::make_unique<ocl::ocl_engine>(_engine.get_device(), runtime_types::ocl, _engine.configuration(), _engine.get_task_executor());
@@ -562,8 +568,6 @@ void kernels_cache::load(BinaryInputBuffer& ib) {
                     cl_context cl_context = build_engine->get_cl_context().get();
                     kernel::ptr kernel = kernels_factory::create(_engine, cl_context, cl_kernel, entry_point);
                     _kernels.insert({k_id->second, kernel});
-                } else {
-                    throw std::runtime_error("Could not find entry point");
                 }
             }
         }

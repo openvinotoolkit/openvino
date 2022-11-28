@@ -83,7 +83,7 @@ struct reduce_impl : typed_primitive_impl_ocl<reduce> {
         auto params = get_default_params<kernel_selector::reduce_params>(impl_param);
         auto optional_params = get_default_optional_params<kernel_selector::reduce_optional_params>(impl_param.get_program());
 
-        params.reduceAxes = convert_axes(primitive->axes, impl_param.get_output_layout().get_rank());
+        params.reduceAxes = convert_axes(primitive->axes, impl_param.input_layouts[0].get_rank());
         params.keepDims = primitive->keep_dims;
         params.reduceMode = cldnn_2_reduce_mode(primitive->mode);
 
@@ -137,4 +137,4 @@ attach_reduce_impl::attach_reduce_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::reduce_impl, cldnn::object_type::REDUCE_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::reduce_impl)
