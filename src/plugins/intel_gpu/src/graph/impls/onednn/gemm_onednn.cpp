@@ -222,7 +222,10 @@ public:
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
 
-        _desc = std::make_shared<dnnl::matmul::desc>();
+        const char dummy_mem[sizeof(dnnl::matmul::desc)] = {};
+        const dnnl::matmul::desc *dummy_opdesc
+            = reinterpret_cast<const dnnl::matmul::desc *>(&dummy_mem[0]);
+        _desc = std::make_shared<dnnl::matmul::desc>(std::move(*dummy_opdesc));
         ib >> make_data(&_desc->data, sizeof(dnnl_matmul_desc_t));
 
         std::vector<uint8_t> prim_cache;
