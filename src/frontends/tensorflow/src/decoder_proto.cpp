@@ -105,9 +105,9 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
         if (tf_shape.unknown_rank()) {
             return ov::PartialShape::dynamic();
         }
-        std::vector<ov::Dimension> dims;
-        for (int i = 0; i < tf_shape.dim_size(); i++) {
-            dims.emplace_back(tf_shape.dim(i).size());
+        std::vector<ov::Dimension> dims(tf_shape.dim_size());
+        for (int i = 0; i < tf_shape.dim_size(); ++i) {
+            dims[i] = tf_shape.dim(i).size();
         }
         return ov::PartialShape(dims);
     }
