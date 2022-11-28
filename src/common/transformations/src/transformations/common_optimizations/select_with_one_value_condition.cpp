@@ -52,18 +52,15 @@ ov::pass::SelectWithOneValueCondition::SelectWithOneValueCondition() {
         if (cond_value.size() == 0) {
             return false;
         }
-        auto all_true = std::all_of(cond_value.begin(), cond_value.end(), [](bool v) {
-            return v;
+        auto cond_elem = cond_value[0];
+        auto all_equal = all_of(cond_value.begin(), cond_value.end(), [=](bool v) {
+            return v == cond_elem;
         });
-        auto all_false = std::all_of(cond_value.begin(), cond_value.end(), [](bool v) {
-            return !v;
-        });
-        if (!all_true && !all_false) {
+        if (!all_equal) {
             return false;
         }
 
         // based on the condition value, mark the selected branch and skipped branch index
-        auto cond_elem = cond_value[0];
         auto branch_index = cond_elem ? 1 : 2;
         auto other_branch_index = (branch_index == 1) ? 2 : 1;
 
@@ -77,6 +74,7 @@ ov::pass::SelectWithOneValueCondition::SelectWithOneValueCondition() {
             branch_output_shape.same_scheme(select_shape)) {
             // Broadcast is not needed if the select shape is exactly the same as the selected branch
             select->output(0).replace(branch_output);
+            replace_output_update_name(select->output(0), branch_output);
             branch_output.get_node_shared_ptr()->set_friendly_name(select->get_friendly_name());
         } else if (select_shape.is_static()) {
             // if the shape of the selected branch is not the same, it needs the broadcasting
@@ -92,6 +90,8 @@ ov::pass::SelectWithOneValueCondition::SelectWithOneValueCondition() {
             select->output(0).replace(broadcast->output(0));
             broadcast->set_friendly_name(select->get_friendly_name());
             copy_runtime_info(select, copy_to.get());
+        } else {
+            return false;
         }
 
         return true;
