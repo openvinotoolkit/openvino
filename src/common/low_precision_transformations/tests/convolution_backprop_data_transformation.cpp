@@ -23,6 +23,7 @@ namespace {
 using namespace testing;
 using namespace ngraph;
 using namespace ngraph::pass;
+using namespace ngraph::builder::subgraph;
 
 using const_node_ptr = const std::shared_ptr<const ngraph::Node>;
 using callback_function_type = std::function<bool(const_node_ptr&)>;
@@ -45,6 +46,19 @@ public:
         Actual() = default;
         Actual(
             const ngraph::element::Type& precisionBeforeDequantization,
+            const DequantizationOperations& dequantizationOnActivations,
+            const FakeQuantizeOnWeights& fakeQuantizeOnWeights,
+            const DequantizationOperations& dequantizationOnWeights,
+            const std::shared_ptr<ngraph::opset1::Constant>& weights,
+            const callback_function_type& callback = empty_callback) :
+                precisionBeforeDequantization(precisionBeforeDequantization),
+                dequantizationOnActivations(dequantizationOnActivations),
+                fakeQuantizeOnWeights(fakeQuantizeOnWeights),
+                dequantizationOnWeights(dequantizationOnWeights),
+                weights(weights),
+                callback(callback) {}
+        Actual(
+            const ngraph::element::Type& precisionBeforeDequantization,
             const ngraph::builder::subgraph::DequantizationOperations& dequantizationOnActivations,
             const builder::subgraph::FakeQuantizeOnWeights& fakeQuantizeOnWeights,
             const std::shared_ptr<ngraph::opset1::Constant>& weights,
@@ -55,16 +69,16 @@ public:
                 weights(weights),
                 callback(callback) {}
         Actual(
-            const  ngraph::element::Type& precisionBeforeDequantization,
-            const  ngraph::builder::subgraph::DequantizationOperations& dequantizationOnActivations,
-            const  builder::subgraph::DequantizationOperations& dequantizationOnWeights,
+            const ngraph::element::Type& precisionBeforeDequantization,
+            const ngraph::builder::subgraph::DequantizationOperations& dequantizationOnActivations,
+            const builder::subgraph::DequantizationOperations& dequantizationOnWeights,
             const std::shared_ptr<ngraph::opset1::Constant>& weights,
             const callback_function_type& callback = empty_callback) :
-            precisionBeforeDequantization(precisionBeforeDequantization),
-            dequantizationOnActivations(dequantizationOnActivations),
-            dequantizationOnWeights(dequantizationOnWeights),
-            weights(weights),
-            callback(callback) {}
+                precisionBeforeDequantization(precisionBeforeDequantization),
+                dequantizationOnActivations(dequantizationOnActivations),
+                dequantizationOnWeights(dequantizationOnWeights),
+                weights(weights),
+                callback(callback) {}
     };
 
     class Expected {
@@ -113,7 +127,14 @@ public:
                         element::i64,
                         Shape{ outputShape.size() },
                         Shape{ inputChannels, outputShape[1], 1, 1 }));
-        if (!testValues.actual.fakeQuantizeOnWeights.empty()) {
+        if (!testValues.actual.fakeQuantizeOnWeights.empty() && !testValues.actual.dequantizationOnWeights.empty()) {
+            actualWeights = ConvolutionBackpropDataFunction::getWeights(
+                    outputShape,
+                    netPrecision,
+                    testValues.actual.fakeQuantizeOnWeights,
+                    testValues.actual.dequantizationOnWeights,
+                    ov::as_type_ptr<opset1::Constant>(actualWeights));
+        } else if (!testValues.actual.fakeQuantizeOnWeights.empty()) {
             actualWeights = ngraph::builder::subgraph::ConvolutionBackpropDataFunction::getWeights(
                     outputShape,
                     netPrecision,
@@ -152,6 +173,7 @@ public:
                 outputShape,
                 netPrecision,
                 testValues.actual.fakeQuantizeOnWeights,
+                testValues.actual.dequantizationOnWeights,
                 ov::as_type_ptr<opset1::Constant>(refWeights));
         } else {
             refWeights = ngraph::builder::subgraph::ConvolutionBackpropDataFunction::getWeights(
@@ -449,6 +471,27 @@ const std::vector<ConvolutionBackpropDataTransformationTestValues> testValues = 
             {},
             op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ -1.25f }),
             true
+        }
+    },
+    // FQ + DQ version
+    {
+        LayerTransformation::createParamsU8I8(),
+        // ActualValues
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, { 0.02f }},
+            { 255ul, Shape({ 8, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f }, ngraph::element::i8 },
+            {{ngraph::element::f32}, {}, { {0.01f}, ngraph::element::f32, {8, 1, 1, 1} }},
+            op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ 2.f })
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, { 0.02f }},
+            {},
+            {},
+            op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ 2.f }),
+            false
         }
     },
     // QDq version
