@@ -22,6 +22,13 @@ void updateModelInputOrientationWithoutConvolution(const InferenceEngine::CNNLay
         return;
     }
 
+    auto dims = input->dims;
+    if (dims.empty()) {
+        // If input is scalar there is no sense to update orientation.
+        return;
+    }
+    auto rowsNum = dims[0];
+
     auto doesntHaveGnaMapping = [=](InferenceEngine::CNNLayerPtr l) {
         auto dnnLayer = components.findComponent(l);
         return dnnLayer == nullptr;
@@ -33,8 +40,6 @@ void updateModelInputOrientationWithoutConvolution(const InferenceEngine::CNNLay
         return;
     }
 
-    auto dims = input->dims;
-    auto rowsNum = dims[0];
     auto columnProduct = std::accumulate(std::next(std::begin(dims)), std::end(dims), 1, std::multiplies<int>());
 
     // does not make sense to check if further if any of sizes is equal to 1

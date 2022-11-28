@@ -14,11 +14,7 @@
 #include <string>
 
 namespace cldnn {
-
-primitive_type_id reorder::type_id() {
-    static primitive_type_base<reorder> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(reorder)
 
 layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_params const& impl_param) {
     auto input_layout = impl_param.get_input_layout();
@@ -33,7 +29,7 @@ layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_pa
         ofmt = ifmt;
     }
 
-    if (ifmt.is_nv12()) {
+    if (ifmt.is_nv12() && !desc->has_surface_input()) {
         auto data_size = tensor{ input_layout.batch(), input_layout.feature() * 3,
                                  input_layout.spatial(0), input_layout.spatial(1) };
         if (ofmt != ifmt)
@@ -186,9 +182,13 @@ std::string reorder_inst::to_string(reorder_node const& node) {
 
     std::stringstream primitive_description;
 
+    auto input_mem_type = desc->input_mem_type ==
+        reorder::memory_type::buffer ? "buffer" : "surface";
+
     json_composite reorder_info;
     reorder_info.add("input id", input.id());
     reorder_info.add("mean", mean);
+    reorder_info.add("input mem type", input_mem_type);
     if (desc->subtract_per_feature.size() > 0) {
         reorder_info.add("subtract per feature", desc->subtract_per_feature);
     }
@@ -254,7 +254,8 @@ void reorder_inst::update_output_memory() {
     if (static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
         return;
 
-    build_deps();
+    if (_node != nullptr)
+        build_deps();
 
     if (requires_reinterpret()) {
         _outputs[0] = _network.get_engine().reinterpret_buffer(input_memory(), get_output_layout());

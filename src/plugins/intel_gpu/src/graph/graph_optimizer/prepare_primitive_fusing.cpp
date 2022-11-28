@@ -215,7 +215,8 @@ void prepare_primitive_fusing::fuse_reorders(program &p) {
             // - do not fuse if current node has mean subtract
             if (input.get_users().size() != 1 || !input.is_type<reorder>() ||
                 input.get_output_layout() != node.get_output_layout() || node.has_mean() ||
-                !node.get_primitive()->subtract_per_feature.empty())
+                !node.get_primitive()->subtract_per_feature.empty() ||
+                node.get_primitive()->has_surface_input())
                 return;
 
             p.add_optimized_primitive_info(node.id());
@@ -256,6 +257,10 @@ void prepare_primitive_fusing::fuse_activations(program &p) {
                 node.get_dependencies().size() != 1 || input.can_be_optimized() || node.is_constant() ||
                 node.has_fused_primitives())
                 return;
+
+            if (use_onednn_impls && node.get_primitive()->activation_function == cldnn::activation_func::hyperbolic_tan) {
+                return;
+            }
 
             // - limit to primitives which implementations support activation fusing
             if (input.get_users().size() != 1 ||
@@ -333,10 +338,21 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
             continue;
 
         auto& eltw_node = node->as<eltwise>();
-        bool is_bias = eltw_node.get_primitive()->mode == eltwise_mode::sum &&
-                       eltw_node.get_dependencies().size() == 2;
+        auto get_eltw_const_dep_idx = [](typed_program_node<eltwise>& eltw_node) {
+            for (auto i = 0; i < static_cast<int32_t>(eltw_node.get_dependencies().size()); ++i) {
+                if (eltw_node.get_dependency(i).is_constant())
+                    return i;
+            }
+            return -1;
+        };
+        auto const_dep_idx = get_eltw_const_dep_idx(eltw_node);
+        auto non_const_dep_idx = 1 - const_dep_idx;
 
-        if (!is_bias)
+        bool is_bias_add = eltw_node.get_primitive()->mode == eltwise_mode::sum &&
+                           eltw_node.get_dependencies().size() == 2 &&
+                           const_dep_idx >= 0 && const_dep_idx < 2;
+
+        if (!is_bias_add)
             continue;
 
         auto is_3d_fully_connected = [](program_node& node) {
@@ -346,37 +362,51 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
             return node.as<fully_connected>().get_primitive()->input_size == 3;
         };
 
-        if (node->get_output_layout().is_dynamic())
-            continue;
 
-        cldnn::tensor::value_type out_features = node->get_output_layout().feature();
-        bool is_3d_fc = false;
+        if (node->get_output_layout().is_dynamic()) {
+            auto broadcast_type = eltw_node.get_primitive()->broadcast_spec.m_type;
+            if (!eltw_node.get_dependency(non_const_dep_idx).is_type<fully_connected>())
+                continue;
+            if (broadcast_type != ov::op::AutoBroadcastType::NUMPY && broadcast_type != ov::op::AutoBroadcastType::NONE)
+                continue;
+            // Numpy broadcast rule requires the dimension size which is not one to be same as the corresponding dimension of the other operand.
+            // So we can ensure that the feature size is same for this broadcasting rule, thereby being considered as bias.
+            auto const_shape = eltw_node.get_dependency(const_dep_idx).get_output_layout().get_shape();
+            int32_t count_elements_not_one = 0;
+            int32_t idx_element_not_one = -1;
+            for (size_t i = 0; i < const_shape.size(); ++i) {
+                if (const_shape[i] != 1) {
+                    count_elements_not_one++;
+                    idx_element_not_one = i;
+                }
+                if (count_elements_not_one > 1)
+                    break;
+            }
+            if (count_elements_not_one != 1 ||
+                (idx_element_not_one != (static_cast<int32_t>(const_shape.size()) - 1))) {
+                continue;
+            }
+        } else {
+            cldnn::tensor::value_type out_features = node->get_output_layout().feature();
+            bool is_3d_fc = false;
 
-        // Change out_features value to proper dimension for 3D FC case
-        if (is_3d_fully_connected(node->get_dependency(0))) {
-            out_features = node->get_dependency(0).get_output_layout().spatial(1);
-            is_3d_fc = true;
-        } else if (is_3d_fully_connected(node->get_dependency(1))) {
-            out_features = node->get_dependency(1).get_output_layout().spatial(1);
-            is_3d_fc = true;
-        }
-
-        int bias_idx = -1;
-        for (size_t i = 0; i < eltw_node.get_dependencies().size(); i++) {
-            auto& dep = eltw_node.get_dependency(i);
-            if (dep.is_constant() &&
-                (dep.get_output_layout().feature() == out_features || is_3d_fc) &&
-                dep.get_output_layout().count() == static_cast<size_t>(out_features)) {
-                bias_idx = static_cast<int>(i);
-                break;
+            // Change out_features value to proper dimension for 3D FC case
+            if (is_3d_fully_connected(node->get_dependency(0))) {
+                out_features = node->get_dependency(0).get_output_layout().spatial(1);
+                is_3d_fc = true;
+            } else if (is_3d_fully_connected(node->get_dependency(1))) {
+                out_features = node->get_dependency(1).get_output_layout().spatial(1);
+                is_3d_fc = true;
+            }
+            auto& const_dep = eltw_node.get_dependency(const_dep_idx);
+            if ((const_dep.get_output_layout().feature() != out_features && !is_3d_fc) ||
+                const_dep.get_output_layout().count() != static_cast<size_t>(out_features)) {
+                continue;
             }
         }
-        if (bias_idx < 0)
-            continue;
-
-        auto& bias_node = eltw_node.get_dependency(bias_idx);
+        auto& bias_node = eltw_node.get_dependency(const_dep_idx);
         primitive_id bias_name = bias_node.id();
-        auto& replace_candidate = bias_idx == 0 ? eltw_node.get_dependency(1) : eltw_node.get_dependency(0);
+        auto& replace_candidate = eltw_node.get_dependency(non_const_dep_idx);
 
         if (bias_node.get_output_layout().data_type != replace_candidate.get_output_layout().data_type)
             continue;
@@ -538,7 +568,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
     bool recalc_processing_order = false;
     std::map<primitive_id, std::vector<std::pair<primitive_id, size_t>>> fusing_history;
 
-    const uint8_t supports_immad = p.get_engine().get_device_info().supports_immad;
+    const auto supports_immad = p.get_engine().get_device_info().supports_immad;
     auto itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
         auto node_itr = itr++;
@@ -747,6 +777,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto fuse_activation_f = [&](activation_node& activation_node) {
+            if (supports_immad && activation_node.get_primitive()->activation_function == cldnn::activation_func::hyperbolic_tan) {
+                return;
+            }
+
             auto& input_data = activation_node.get_dependency(0);
             if (activation_node.get_dependencies().size() >= 3)
                 return;
@@ -989,6 +1023,36 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                         can_fuse_parents[1] = false;
                     }
                 }
+            } else {
+                // In case of dynamic shapes we check that parent & peer shapes are compatible to allow merge
+                // This is required to avoid an issue when shape is partially defined and incorrectly propagated to further nodes
+                // which may ruin shape inference
+                // E.g. parent1 [?,?,768], parent2 [?,?,1]
+                // expected eltw out shape: [?,?,768]
+                // but w/o this check we can fuse eltwise to parent2 and return [?,?,1] as output shape which is unexpected
+                auto parent1_pshape = parent1->get_output_layout().get_partial_shape();
+                auto parent2_pshape = parent2->get_output_layout().get_partial_shape();
+                auto out_pshape = node.get_output_layout().get_partial_shape();
+
+                auto are_compatible = [](const ov::PartialShape& out_shape, const ov::PartialShape& in_shape) -> bool {
+                    if (out_shape.rank().get_length() != in_shape.rank().get_length())
+                        return false;
+                    bool compatible = true;
+                    for (size_t i = 0; i < out_shape.size(); i++) {
+                        auto& od = out_shape[i];
+                        auto& id = in_shape[i];
+
+                        if (od.is_static() && id.is_static()) {
+                            compatible &= od.get_length() == id.get_length();
+                        } else if (id.is_static()) {
+                            compatible &= id.get_length() != 1;
+                        }
+                    }
+                    return compatible;
+                };
+
+                can_fuse_parents[0] = can_fuse_parents[0] && are_compatible(out_pshape, parent1_pshape);
+                can_fuse_parents[1] = can_fuse_parents[1] && are_compatible(out_pshape, parent2_pshape);
             }
 
             // We should have at least one node to fuse

@@ -20,8 +20,6 @@ if(ENABLE_ONEDNN_FOR_GPU)
         set(ONEDNN_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_build/")
         set(ONEDNN_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_install/")
         set(ONEDNN_PREFIX_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_root")
-        execute_process(COMMAND git apply --verbose ../onednn_gpu.patch
-            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu")
         if(CMAKE_COMPILER_IS_GNUCXX)
             ie_add_compiler_flags(-Wno-undef -Wno-missing-declarations)
             if(SUGGEST_OVERRIDE_SUPPORTED)

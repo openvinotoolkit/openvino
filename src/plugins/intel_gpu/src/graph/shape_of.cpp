@@ -11,10 +11,7 @@
 #include <vector>
 
 namespace cldnn {
-primitive_type_id shape_of::type_id() {
-    static primitive_type_base<shape_of> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(shape_of)
 
 layout shape_of_inst::calc_output_layout(shape_of_node const& node, kernel_impl_params const& impl_param) {
     auto prim = impl_param.typed_desc<shape_of>();
