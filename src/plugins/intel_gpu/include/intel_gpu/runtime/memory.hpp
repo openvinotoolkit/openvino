@@ -11,6 +11,8 @@
 
 #include "ngraph/runtime/host_tensor.hpp"
 
+#include <type_traits>
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include <oneapi/dnnl/dnnl.hpp>
 #endif
@@ -175,19 +177,40 @@ struct surfaces_lock {
 
 template<typename T>
 inline std::vector<T> read_vector(cldnn::memory::ptr mem, const cldnn::stream& stream) {
+    cldnn::data_types mem_dtype = mem->get_layout().data_type;
+    if (mem_dtype == data_types::f16 || mem_dtype == data_types::f32) {
+        if (!std::is_floating_point<T>::value && !std::is_same<T, half_t>::value) {
+            OPENVINO_ASSERT(false, "[GPU] read_vector: attempt to convert floating point memory to non-floating point memory");
+        }
+    }
+
     std::vector<T> out_vecs;
     if (mem->get_allocation_type() == allocation_type::usm_host || mem->get_allocation_type() == allocation_type::usm_shared) {
-        switch (mem->get_layout().data_type) {
+        switch (mem_dtype) {
             case data_types::i32: {
                 auto p_mem = reinterpret_cast<int32_t*>(mem->buffer_ptr());
-                for (size_t i = 0; i < mem->count(); i++) {
+                for (size_t i = 0; i < mem->count(); ++i) {
                     out_vecs.push_back(static_cast<T>(p_mem[i]));
                 }
                 break;
             }
             case data_types::i64: {
                 auto p_mem = reinterpret_cast<int64_t*>(mem->buffer_ptr());
-                for (size_t i = 0; i < mem->count(); i++) {
+                for (size_t i = 0; i < mem->count(); ++i) {
+                    out_vecs.push_back(static_cast<T>(p_mem[i]));
+                }
+                break;
+            }
+            case data_types::f16: {
+                auto p_mem = reinterpret_cast<uint16_t*>(mem->buffer_ptr());
+                for (size_t i = 0; i < mem->count(); ++i) {
+                    out_vecs.push_back(static_cast<T>(half_to_float(p_mem[i])));
+                }
+                break;
+            }
+            case data_types::f32: {
+                auto p_mem = reinterpret_cast<float*>(mem->buffer_ptr());
+                for (size_t i = 0; i < mem->count(); ++i) {
                     out_vecs.push_back(static_cast<T>(p_mem[i]));
                 }
                 break;
@@ -195,7 +218,7 @@ inline std::vector<T> read_vector(cldnn::memory::ptr mem, const cldnn::stream& s
             default: OPENVINO_ASSERT(false, "[GPU] read_vector: unsupported data type");
         }
     } else {
-        switch (mem->get_layout().data_type) {
+        switch (mem_dtype) {
             case data_types::i32: {
                 mem_lock<int32_t, mem_lock_type::read> lock{mem, stream};
                 out_vecs = std::move(std::vector<T>(lock.begin(), lock.end()));
@@ -203,6 +226,16 @@ inline std::vector<T> read_vector(cldnn::memory::ptr mem, const cldnn::stream& s
             }
             case data_types::i64: {
                 mem_lock<int64_t, mem_lock_type::read> lock{mem, stream};
+                out_vecs = std::move(std::vector<T>(lock.begin(), lock.end()));
+                break;
+            }
+            case data_types::f16: {
+                mem_lock<half_t, mem_lock_type::read> lock{mem, stream};
+                out_vecs = std::move(std::vector<T>(lock.begin(), lock.end()));
+                break;
+            }
+            case data_types::f32: {
+                mem_lock<float, mem_lock_type::read> lock{mem, stream};
                 out_vecs = std::move(std::vector<T>(lock.begin(), lock.end()));
                 break;
             }
