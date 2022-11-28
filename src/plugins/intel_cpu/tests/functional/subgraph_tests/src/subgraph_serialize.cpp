@@ -108,4 +108,42 @@ TEST_F(SubgraphSnippetSerializationTest, SerializeSubgraphWithScalarConst) {
 
     ASSERT_TRUE(results.valid) << results.message;
 }
+
+TEST_F(SubgraphSnippetSerializationTest, SerializeSubgraphWithResultAs1stOutput) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    auto precision = ov::element::f32;
+    auto shape = ov::Shape{1, 3, 16, 16};
+
+    auto model = [&] () -> std::shared_ptr<ov::Model> {
+        auto input1 = std::make_shared<Parameter>(precision, shape);
+        auto input2 = std::make_shared<Parameter>(precision, shape);
+        auto sinh1 = std::make_shared<Sinh>(input1);
+        auto sinh2 = std::make_shared<Sinh>(input2);
+
+        auto relu = std::make_shared<Relu>(sinh2);
+        auto sinh_out = std::make_shared<Sinh>(relu);
+        auto result1 = std::make_shared<Result>(sinh_out);
+
+        auto add = std::make_shared<Add>(sinh1, relu);
+        auto result2 = std::make_shared<Result>(add);
+
+        ov::ParameterVector params{input1, input2};
+        ov::ResultVector results{result1, result2};
+        return std::make_shared<ov::Model>(results, params);
+    }();
+    ov::Core core;
+    ov::CompiledModel compiled_model = core.compile_model(model, "CPU");
+    std::stringstream stream;
+    compiled_model.export_model(stream);
+    ov::CompiledModel imported_compiled_model = core.import_model(stream, "CPU");
+
+    auto compiled_model_runtime = ov::clone_model(*compiled_model.get_runtime_model());
+    auto imported_compiled_model_runtime = ov::clone_model(*imported_compiled_model.get_runtime_model());
+    const auto fc = FunctionsComparator::with_default()
+                                .enable(FunctionsComparator::CONST_VALUES)
+                                .enable(FunctionsComparator::ATTRIBUTES);
+    const auto results = fc.compare(compiled_model_runtime, imported_compiled_model_runtime);
+
+    ASSERT_TRUE(results.valid) << results.message;
+}
 } // namespace SubgraphTestsDefinitions
