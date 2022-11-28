@@ -26,7 +26,7 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
         if (!list_unpack)
             return false;
 
-        auto input_node = list_unpack->input(0).get_source_output().get_node_shared_ptr();
+        auto input_node = list_unpack->input_value(0).get_node_shared_ptr();
         if (auto torch_split = cast_fw_node(input_node, "aten::split")) {
             if (torch_split->input(1).get_partial_shape().is_dynamic()) {
                 return false;
