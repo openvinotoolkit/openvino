@@ -54,7 +54,7 @@ class TestSplit(PytorchLayerTest):
         (45, -1),
         ([2, 2, 2, 2, 2], 1),
         ([200, 20, 1, 1, 2], 2),
-        ([20, 200, 1, 1, 2], 3),
+        ([20, 200, 1, 1, 2], -1),
     ]
     @pytest.mark.parametrize("params", test_cases)
     @pytest.mark.parametrize("getitem", [-5, -2, -1, 0, 1, 4])

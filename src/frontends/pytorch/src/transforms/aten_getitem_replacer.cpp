@@ -48,7 +48,7 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
                 auto axis_1d = std::make_shared<opset8::Unsqueeze>(axis, const_0);
                 auto getitem_idx = getitem->input(1).get_source_output();
 
-                // Calculate number of splits based on input shape ant split_size.
+                // Calculate number of splits based on input shape and split_size.
                 auto shape = std::make_shared<opset8::ShapeOf>(input);
                 auto len_to_split = std::make_shared<opset8::Gather>(shape, axis, const_0);
                 // Convert to f64 from int to calculate reminder - last chunk can be smaller if Shape in given axis is
