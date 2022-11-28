@@ -15,6 +15,7 @@
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset8.hpp>
+#include <ngraph/opsets/opset10.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/utils/utils.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -321,6 +322,37 @@ TEST(TransformationTests, ConvertPrecision_TopK) {
 
     ASSERT_FALSE(has_type<ngraph::element::Type_t::f16>(f));
     ASSERT_FALSE(has_type<ngraph::element::Type_t::i64>(f));
+}
+
+TEST(TransformationTests, ConvertPrecision_Unique10) {
+    std::shared_ptr<ov::Model> model(nullptr);
+    {
+        auto input = std::make_shared<op::Parameter>(element::f16, Shape{15, 20, 3});
+        auto unique = std::make_shared<opset10::Unique>(input);
+
+        model = std::make_shared<ov::Model>(unique->outputs(), ParameterVector{input});
+
+        pass::Manager manager;
+
+        static const precisions_array precisions = {
+            { element::i64, element::i32 },
+            { element::f16, element::f32 }
+        };
+
+        manager.register_pass<pass::ConvertPrecision>(precisions);
+        manager.run_passes(model);
+    }
+
+    ASSERT_EQ(model->outputs().size(), 4);
+    EXPECT_EQ(model->outputs()[0].get_element_type(), element::f32);
+    EXPECT_EQ(model->outputs()[1].get_element_type(), element::i32);
+    EXPECT_EQ(model->outputs()[2].get_element_type(), element::i32);
+    EXPECT_EQ(model->outputs()[3].get_element_type(), element::i32);
+
+    EXPECT_EQ(model->get_results().size(), 4);
+
+    EXPECT_FALSE(has_type<element::Type_t::f16>(model));
+    EXPECT_FALSE(has_type<element::Type_t::i64>(model));
 }
 
 TEST(TransformationTests, ConvertPrecision_NonZero) {
