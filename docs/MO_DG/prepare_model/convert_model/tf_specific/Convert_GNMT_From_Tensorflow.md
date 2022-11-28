@@ -198,7 +198,7 @@ tgt_vocab_size -= 1
 ```sh
 mo
 --input_model /path/to/dump/model/frozen_GNMT_inference_graph.pb
---input "IteratorGetNext:1{i32}[1],IteratorGetNext:0{i32}[1 50],dynamic_seq2seq/hash_table_Lookup_1:0[1]->[2],dynamic_seq2seq/hash_table_Lookup:0[1]->[1]"
+--input "IteratorGetNext:1{i32}[1],IteratorGetNext:0{i32}[1,50],dynamic_seq2seq/hash_table_Lookup_1:0[1]->[2],dynamic_seq2seq/hash_table_Lookup:0[1]->[1]"
 --output dynamic_seq2seq/decoder/decoder/GatherTree
 --output_dir /path/to/output/IR/
 ```

@@ -32,7 +32,7 @@ For example, the most common problem of non-reshape-able models is a `Reshape` o
 You can cut-off the hard-coded second input of `Reshape` and fill it in with relaxed values.
 For the following example in the diagram below, the Model Optimizer CLI should read:
 ```sh
-mo --input_model path/to/model --input data[8,3,224,224],1:reshaped[2]->[0 -1]`
+mo --input_model path/to/model --input data[8,3,224,224],1:reshaped[2]->[0,-1]`
 ```
 
   With `1:reshaped[2]`, it is required to cut the second input (counting from zero, so `1:` means the second input) of the operation named `reshaped` and   replace it with a `Parameter` with shape `[2]`.

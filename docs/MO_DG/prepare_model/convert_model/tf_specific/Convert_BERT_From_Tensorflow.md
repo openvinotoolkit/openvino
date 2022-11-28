@@ -112,7 +112,7 @@ Run Model Optimizer with the following command line parameters to generate resha
 ```sh
  mo \
 --input_model inference_graph.pb \
---input "IteratorGetNext:0{i32}[1 128],IteratorGetNext:1{i32}[1 128],IteratorGetNext:4{i32}[1 128]"
+--input "IteratorGetNext:0{i32}[1,128],IteratorGetNext:1{i32}[1,128],IteratorGetNext:4{i32}[1,128]"
 ```
 For other applicable parameters, refer to the [Convert Model from TensorFlow](../Convert_Model_From_TensorFlow.md) guide.
 
