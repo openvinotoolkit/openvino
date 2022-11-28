@@ -7,7 +7,7 @@ from openvino.runtime import Core, Model, PartialShape, Dimension, Layout, Type,
 from openvino.preprocess import PrePostProcessor
 
 from .constants import DEVICE_DURATION_IN_SECS, UNKNOWN_DEVICE_TYPE, \
-    CPU_DEVICE_NAME, GPU_DEVICE_NAME
+    AUTO_DEVICE_NAME, MULTI_DEVICE_NAME
 from .logging import logger
 
 import json
@@ -294,11 +294,11 @@ def parse_value_per_device(devices, values_string, value_type):
 def parse_value_for_virtual_device(device, values_string):
     isExist = device in values_string.keys()
     if isExist and len(values_string) > 1:
-        if device == 'MULTI':
+        if device == MULTI_DEVICE_NAME:
             # Remove the element that the key is virtual device MULTI
             # e.g. MULTI:xxx -nstreams 2 will set nstreams 2 to xxx.
             values_string.pop(device)
-        elif device == 'AUTO':
+        elif device == AUTO_DEVICE_NAME:
             # Just keep the element that the key is virtual device AUTO
             # e.g. AUTO:xxx,xxx -nstreams 2 will trigger exception that AUTO plugin didn't support nstream property.
             value = values_string.get(device)
