@@ -71,6 +71,15 @@ bool has_node_with_type(cldnn::program& prog) {
     return false;
 }
 
+inline bool has_node(cldnn::program& prog, primitive_id id) {
+    for (auto node : prog.get_processing_order()) {
+        if (node->id() == id)
+            return true;
+    }
+
+    return false;
+}
+
 #define USE_RANDOM_SEED 0
 #if USE_RANDOM_SEED
     std::random_device rnd_device;
