@@ -118,7 +118,7 @@ jobs:
 
   - script: |
       set -e
-      $(REPO_DIR)/install_build_dependencies.sh
+      sudo -E $(REPO_DIR)/install_build_dependencies.sh
       # Move jdk into contrib
       # 'clang' compiler is to check that samples can be built using it
       sudo apt --assume-yes install openjdk-11-jdk clang

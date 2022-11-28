@@ -260,8 +260,8 @@ if(ENABLE_OPENCV)
                      CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.9") AND X86_64)
                 set(OPENCV_SUFFIX "centos7")
                 set(OPENCV_HASH "5fa76985c84fe7c64531682ef0b272510c51ac0d0565622514edf1c88b33404a")
-            elseif((LINUX_OS_NAME MATCHES "CentOS 8" OR
-                    LINUX_OS_NAME MATCHES "CentOS 9") AND X86_64)
+            elseif((LINUX_OS_NAME STREQUAL "CentOS 8" OR
+                    LINUX_OS_NAME STREQUAL "CentOS 9") AND X86_64)
                 set(OPENCV_SUFFIX "centos8")
                 set(OPENCV_HASH "db087dfd412eedb8161636ec083ada85ff278109948d1d62a06b0f52e1f04202")
             elseif(LINUX_OS_NAME STREQUAL "Ubuntu 16.04" AND X86_64)

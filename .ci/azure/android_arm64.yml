@@ -107,7 +107,7 @@ jobs:
 
   - script: |
       set -e
-      $(OPENVINO_REPO_DIR)/install_build_dependencies.sh
+      sudo -E $(OPENVINO_REPO_DIR)/install_build_dependencies.sh
       # Move into contrib install_build_dependencies.sh
       sudo apt --assume-yes install scons crossbuild-essential-arm64 libprotoc-dev protobuf-compiler default-jdk
       # Speed up build

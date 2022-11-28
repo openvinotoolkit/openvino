@@ -85,7 +85,7 @@ jobs:
 
   - script: |
       set -e
-      $(REPO_DIR)/install_build_dependencies.sh
+      sudo -E $(REPO_DIR)/install_build_dependencies.sh
       wget https://www.python.org/ftp/python/3.10.6/Python-3.10.6.tgz
       tar -xzf Python-3.10.6.tgz
       cd Python-3.10.6 || exit

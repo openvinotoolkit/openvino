@@ -77,6 +77,8 @@ if(ENABLE_SYSTEM_PUGIXML)
         else()
             message(FATAL_ERROR "Failed to detect pugixml library target name")
         endif()
+        # to property generate OpenVINO Developer packages files
+        set(PugiXML_FOUND ${PugiXML_FOUND} CACHE BOOL "" FORCE)
     elseif(PkgConfig_FOUND AND NOT ANDROID)
         # U18 case when cmake interface is not available
         pkg_search_module(pugixml QUIET
@@ -94,6 +96,17 @@ if(ENABLE_SYSTEM_PUGIXML)
                 message(WARNING "openvino.pc pkg-config file generation has turned off because it should have to depend on pugixml.pc")
             endif()
             message(STATUS "${PKG_CONFIG_EXECUTABLE}: pugixml (${pugixml_VERSION}) is found at ${pugixml_PREFIX}")
+        endif()
+    endif()
+
+    # debian 9 case: no cmake, no pkg-config files
+    if(NOT TARGET ${pugixml_target})
+        find_library(PUGIXML_LIBRARY NAMES pugixml DOC "Path to pugixml library")
+        if(PUGIXML_LIBRARY)
+            add_library(pugixml INTERFACE IMPORTED GLOBAL)
+            set_target_properties(pugixml PROPERTIES INTERFACE_LINK_LIBRARIES "${PUGIXML_LIBRARY}")
+            set(pugixml_target pugixml)
+            set(PugiXML_FOUND ON)
         endif()
     endif()
 
