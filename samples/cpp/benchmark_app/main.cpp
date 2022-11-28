@@ -24,13 +24,10 @@
 #include "benchmark_app.hpp"
 #include "infer_request_wrap.hpp"
 #include "inputs_filling.hpp"
-#include "progress_bar.hpp"
 #include "remote_tensors_filling.hpp"
 #include "statistics_report.hpp"
 #include "utils.hpp"
 // clang-format on
-
-static const size_t progressBarDefaultTotalCount = 1000;
 
 bool parse_and_check_command_line(int argc, char* argv[]) {
     // ---------------------------Parsing and validating input
@@ -976,8 +973,6 @@ int main(int argc, char* argv[]) {
         }
         // ----------------- 10. Measuring performance
         // ------------------------------------------------------------------
-        size_t progressCnt = 0;
-        size_t progressBarTotalCount = progressBarDefaultTotalCount;
         size_t iteration = 0;
 
         std::stringstream ss;
@@ -1003,9 +998,6 @@ int main(int argc, char* argv[]) {
             ss << get_duration_in_milliseconds(duration_seconds) << " ms duration";
         }
         if (niter != 0) {
-            if (duration_seconds == 0) {
-                progressBarTotalCount = niter;
-            }
             if (duration_seconds > 0) {
                 ss << ", ";
             }
@@ -1104,7 +1096,6 @@ int main(int argc, char* argv[]) {
         /** Start inference & calculate performance **/
         /** to align number if iterations to guarantee that last infer requests are
          * executed in the same conditions **/
-        ProgressBar progressBar(progressBarTotalCount, FLAGS_stream_output, FLAGS_progress);
         while ((niter != 0LL && iteration < niter) ||
                (duration_nanoseconds != 0LL && (uint64_t)execTime < duration_nanoseconds) ||
                (FLAGS_api == "async" && iteration % nireq != 0)) {
@@ -1158,19 +1149,6 @@ int main(int argc, char* argv[]) {
 
             execTime = std::chrono::duration_cast<ns>(Time::now() - startTime).count();
             processedFramesN += batchSize;
-
-            if (niter > 0) {
-                progressBar.add_progress(1);
-            } else {
-                // calculate how many progress intervals are covered by current
-                // iteration. depends on the current iteration time and time of each
-                // progress interval. Previously covered progress intervals must be
-                // skipped.
-                auto progressIntervalTime = duration_nanoseconds / progressBarTotalCount;
-                size_t newProgress = execTime / progressIntervalTime - progressCnt;
-                progressBar.add_progress(newProgress);
-                progressCnt += newProgress;
-            }
         }
 
         // wait the latest inference executions
@@ -1227,8 +1205,6 @@ int main(int argc, char* argv[]) {
             statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                        {StatisticsVariant("throughput", "throughput", fps)});
         }
-        progressBar.finish();
-
         // ----------------- 11. Dumping statistics report
         // -------------------------------------------------------------
         next_step();

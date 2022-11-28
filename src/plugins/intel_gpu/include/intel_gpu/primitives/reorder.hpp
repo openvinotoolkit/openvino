@@ -31,6 +31,12 @@ enum class reorder_mean_mode {
 struct reorder : public primitive_base<reorder> {
     CLDNN_DECLARE_PRIMITIVE(reorder)
 
+    /// @brief reorder memory types
+    enum class memory_type {
+        buffer,
+        surface
+    };
+
     /// @brief Constructs reorder primitive with directly provided mean subtract values.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -143,6 +149,13 @@ struct reorder : public primitive_base<reorder> {
     std::vector<float> subtract_per_feature;
     /// @brief Mode of mean execution
     reorder_mean_mode mean_mode;
+    /// @brief Input memory type
+    memory_type input_mem_type = memory_type::buffer;
+
+    inline bool has_surface_input() const {
+        return input.size() == 1 &&
+               input_mem_type == memory_type::surface;
+    }
 
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {

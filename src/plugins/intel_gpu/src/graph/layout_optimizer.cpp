@@ -97,7 +97,9 @@ static bool is_reduce_blocked_axes(reduce_node const& node) {
     auto num_spatial = format::spatial_num(node.get_output_layout().format);
     auto dims = node.get_output_layout().format.dimension();
 
-    if ((count(reduce_axes.begin(), reduce_axes.end(), 1) > 0 ||
+
+    if (input_layout.is_static() &&
+        (count(reduce_axes.begin(), reduce_axes.end(), 1) > 0 ||
         (count(reduce_axes.begin(), reduce_axes.end(), 0) > 0 && input_layout.batch() > 1))) {
         for (size_t idx_spatial = dims - num_spatial ; idx_spatial < dims ; idx_spatial++) {
             if (count(reduce_axes.begin(), reduce_axes.end(), idx_spatial) == 0)
@@ -320,7 +322,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         prev.is_input() && (prev_dt == data_types::u8 || prev_dt == data_types::i8))
         return true;
 
-    if (!use_onednn_impls) {
+    if (!use_onednn_impls || next.get_preferred_impl_type() == impl_types::ocl) {
         if (next.is_type<convolution>() &&
             (fmt_prev == format::bfyx || fmt_prev == format::bs_fs_yx_bsv4_fsv2) &&
             ((fmt_next == format::fs_b_yx_fsv32 && next.as<convolution>().get_primitive()->groups == 1) ||
@@ -411,17 +413,6 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
 
         if (next.is_type<quantize>() && prev.get_users().size() == 1)
             return true;
-
-        if (next.is_type<permute>()) {
-            auto& permute_order = next.as<permute>().get_primitive()->permute_order;
-            if ((fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::b_fs_yx_fsv32 || fmt_prev == format::b_fs_zyx_fsv32 ||
-                fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::b_fs_zyx_fsv16 || fmt_prev == format::bs_fs_yx_bsv16_fsv16)
-                && permute_order.back() != 1
-                && (!next.as<permute>().is_rotating_except_batch())) {
-                    return false;
-            }
-            return true;
-        }
     }
 
     return false;
@@ -1735,7 +1726,11 @@ format layout_optimizer::get_preferred_format(program_node& node) {
                 expected = format::get_default_format(layout.get_rank(), false, false);
         }
     } else if (node.is_type<reorder>() || node.is_type<input_layout>()) {
-        expected = node.get_output_layout().format;
+        if (node.is_type<reorder>() && node.as<reorder>().get_primitive()->has_surface_input()) {
+            expected = format::nv12;
+        } else {
+            expected = node.get_output_layout().format;
+        }
     } else if (node.is_type<reshape>()) {
         if (node.get_output_layout().format.dimension() == 6) {
             expected = format::bfwzyx;
@@ -1772,6 +1767,18 @@ format layout_optimizer::get_preferred_format(program_node& node) {
             if (node.as<permute>().is_rotating_except_batch() && fmt == format::fs_b_yx_fsv32) {
                 expected = format::b_fs_yx_fsv32;
             }
+        }
+    } else if (node.is_type<reduce>()) {
+        auto& reduce_node = node.as<reduce>();
+        auto input_layout = reduce_node.input().get_output_layout();
+        // TODO: Under the currnet implement, dynamic shape doesn't support blocked format. Will support in future.
+        if (!use_onednn_impls && input_layout.is_dynamic()) {
+            if (input_layout.format.dimension() == 6)
+                expected = format::bfwzyx;
+            else if (input_layout.format.dimension() == 5)
+                expected = format::bfzyx;
+            else if (input_layout.format.dimension() == 4)
+                expected = format::bfyx;
         }
     }
 

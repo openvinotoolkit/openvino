@@ -123,6 +123,50 @@ TEST_P(FuseFakeQuantizeTransformation, CompareFunctions) {
 }
 
 const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
+    // Convert: U8 -> FP32, updatePrecisions = true
+    {
+        {1, 3, 16, 16},
+        TestTransformationParams(true, {ngraph::element::u8}, {ngraph::element::i8}),
+        {
+            element::f32,
+            {},
+            element::u8,
+            { {element::f32}, {}, {} },
+            element::f32,
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+        },
+        {
+            element::f32,
+            {},
+            element::u8,
+            {{}, {}, {}},
+            element::f32,
+            element::f32,
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 }
+        }
+    },
+    // Convert: U8 -> FP32, updatePrecisions = false
+    {
+        {1, 3, 16, 16},
+        TestTransformationParams(false, {ngraph::element::u8}, {ngraph::element::i8}),
+        {
+            element::f32,
+            {},
+            element::u8,
+            { {element::f32}, {}, {} },
+            element::f32,
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+        },
+        {
+            element::f32,
+            {},
+            element::u8,
+            {{element::f32}, {}, {}},
+            element::f32,
+            element::f32,
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::f32 }
+        }
+    },
     // 1) Multiply
     {
         {1, 3, 16, 16},
