@@ -117,7 +117,7 @@ void Unique::execute(dnnl::stream strm) {
             uniqueLen = flattenTensorExec<PrecisionTrait<Precision::U8>::value_type>();
         }
 
-        const size_t srcLen = getParentEdgeAt(IN_DATA)->getMemoryPtr()->GetSize() / dataPrecision.size();
+        const size_t srcLen = getParentEdgeAt(IN_DATA)->getMemoryPtr()->GetSize() / dataTypeSize;
         redefineOutputMemory({ {uniqueLen}, {uniqueLen}, {srcLen}, {uniqueLen}});
     } else {
         size_t uniqueLen = 1lu;
@@ -147,7 +147,7 @@ size_t Unique::flattenTensorExec() {
     const T* srcDataPtr = reinterpret_cast<const T*>(getParentEdgeAt(IN_DATA)->getMemoryPtr()->GetPtr());
     const int64_t inputLen = getParentEdgeAt(IN_DATA)->getMemoryPtr()->GetSize() / sizeof(T);
     T* uniqueData = reinterpret_cast<T*>(getChildEdgesAtPort(UNIQUE_DATA)[0]->getMemoryPtr()->GetPtr());
-    int *firstPtr, *inToOutPtr, *occurPtr;
+    int *firstPtr = nullptr, *inToOutPtr = nullptr, *occurPtr = nullptr;
     if (definedOutputs[FIRST_UNIQUE_IDX]) {
         firstPtr = reinterpret_cast<int*>(getChildEdgesAtPort(FIRST_UNIQUE_IDX)[0]->getMemoryPtr()->GetPtr());
     }
@@ -225,22 +225,17 @@ size_t Unique::flattenTensorExec() {
             }
             if (!found) {
                 uniqueData[uniqLen] = srcDataPtr[i];
-
                 if (definedOutputs[FIRST_UNIQUE_IDX]) {
                     firstPtr[uniqLen] = i;
                 }
-                if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
-                    inToOutPtr[i] = j;
-                }
-
                 uniqLen++;
             } else {
-                if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
-                    inToOutPtr[i] = j;
-                }
                 if (definedOutputs[OCCURRENCES_NUM]) {
                     occurPtr[j]++;
                 }
+            }
+            if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
+                inToOutPtr[i] = j;
             }
         }
     }
@@ -316,18 +311,15 @@ size_t Unique::slicedTensorExec() {
             if (definedOutputs[FIRST_UNIQUE_IDX]) {
                 firstPtr[uniqLen] = b1;
             }
-            if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
-                inToOutPtr[b1] = b2;
-            }
 
             uniqIdx[uniqLen++] = b1;
         } else {
-            if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
-                inToOutPtr[b1] = b2;
-            }
             if (definedOutputs[OCCURRENCES_NUM]) {
                 occurPtr[b2]++;
             }
+        }
+        if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
+            inToOutPtr[b1] = b2;
         }
     }
 
