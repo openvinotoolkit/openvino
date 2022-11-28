@@ -579,7 +579,7 @@ int main(int argc, char* argv[]) {
             if (statistics)
                 statistics->add_parameters(
                     StatisticsReport::Category::EXECUTION_RESULTS,
-                    {StatisticsVariant("сompile model time (ms)", "load_model_time", duration_ms)});
+                    {StatisticsVariant("compile model time (ms)", "load_model_time", duration_ms)});
 
             convert_io_names_in_map(inputFiles, compiledModel.inputs());
             app_inputs_info = get_inputs_info(FLAGS_shape,
