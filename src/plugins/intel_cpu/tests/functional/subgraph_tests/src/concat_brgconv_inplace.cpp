@@ -23,16 +23,22 @@ namespace SubgraphTestsDefinitions {
  *             |   |
  *              \ /
  *            concat(inplace)
+ *               /\
+ *              /  \
+ *         multiply \
+ *        (subgraph)/
+ *              \  /
+ *             concat(inplace)
  *               |
  *             result
  */
 
-class ConcatBrgConvInPlaceTest : public testing::WithParamInterface<InferenceEngine::Precision>, public CPUTestsBase,
+class ConcatBrgConvInPlaceTest1 : public testing::WithParamInterface<InferenceEngine::Precision>, public CPUTestsBase,
     virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InferenceEngine::Precision> obj) {
         std::ostringstream result;
-        result << "ConcatBrgConvInPlaceTest" << obj.param.name();
+        result << "ConcatBrgConvInPlaceTest1" << obj.param.name();
         return result.str();
     }
 
@@ -60,9 +66,12 @@ public:
         auto conv2 = ngraph::builder::makeConvolution(relu, ngPrc, kernel2, stride, padBegin2,
                                                      padEnd2, dilation, ngraph::op::PadType::AUTO, convOutChannels);
 
-        auto concat = ngraph::builder::makeConcat(ngraph::OutputVector{conv1, conv2}, 1);
+        auto concat1 = ngraph::builder::makeConcat(ngraph::OutputVector{conv1, conv2}, 1);
+        auto mulConst = ngraph::builder::makeConstant(ngPrc, {1, convOutChannels * 2, 1, 1}, std::vector<float>{}, true);
+        auto mul = std::make_shared<ngraph::opset3::Multiply>(concat1, mulConst);
+        auto concat2 = ngraph::builder::makeConcat(ngraph::OutputVector{concat1, mul}, 1);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(concat)};
+        ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(concat2)};
         function = std::make_shared<ngraph::Function>(results, inputParams, "ConcatBrgconvInPlace");
         targetDevice = CommonTestUtils::DEVICE_CPU;
     }
@@ -88,12 +97,12 @@ public:
  *                result
  */
 
-class ConcatBrgConvInPlaceTest1 : public testing::WithParamInterface<InferenceEngine::Precision>, public CPUTestsBase,
+class ConcatBrgConvInPlaceTest : public testing::WithParamInterface<InferenceEngine::Precision>, public CPUTestsBase,
     virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InferenceEngine::Precision> obj) {
         std::ostringstream result;
-        result << "ConcatBrgConvInPlaceTest1" << obj.param.name();
+        result << "ConcatBrgConvInPlaceTest" << obj.param.name();
         return result.str();
     }
 
@@ -137,21 +146,45 @@ TEST_P(ConcatBrgConvInPlaceTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     if (!InferenceEngine::with_cpu_x86_avx512_core())
         GTEST_SKIP();
+    if (this->GetParam() == Precision::BF16 && !InferenceEngine::with_cpu_x86_bfloat16())
+        GTEST_SKIP();
 
     Run();
+
     if (this->GetParam() == Precision::BF16) {
-        CheckNumberOfNodesWithType(executableNetwork, "Reorder", 4);
         selectedType = "unknown_BF16";
-        CheckPluginRelatedResults(executableNetwork, "Concat");
     } else {
-        CheckNumberOfNodesWithType(executableNetwork, "Reorder", 4);
         selectedType = "unknown_FP32";
-        CheckPluginRelatedResults(executableNetwork, "Concat");
     }
+    CheckNumberOfNodesWithType(executableNetwork, "Reorder", 5);
+    CheckPluginRelatedResults(executableNetwork, "Concatenation");
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatBrgConvInPlaceTest_CPU, ConcatBrgConvInPlaceTest,
     testing::Values(Precision::FP32, Precision::BF16),
     ConcatBrgConvInPlaceTest::getTestCaseName);
-} // namespace
+
+TEST_P(ConcatBrgConvInPlaceTest1, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!InferenceEngine::with_cpu_x86_avx512_core())
+        GTEST_SKIP();
+    if (this->GetParam() == Precision::BF16 && !InferenceEngine::with_cpu_x86_bfloat16())
+        GTEST_SKIP();
+
+    Run();
+
+    if (this->GetParam() == Precision::BF16) {
+        selectedType = "unknown_BF16";
+    } else {
+        selectedType = "unknown_FP32";
+    }
+    CheckNumberOfNodesWithType(executableNetwork, "Reorder", 5);
+    CheckPluginRelatedResults(executableNetwork, "Concatenation");
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConcatBrgConvInPlaceTest1_CPU, ConcatBrgConvInPlaceTest1,
+    testing::Values(Precision::FP32, Precision::BF16),
+    ConcatBrgConvInPlaceTest::getTestCaseName);
+
+}// namespace
 } // namespace SubgraphTestsDefinitions

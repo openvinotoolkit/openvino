@@ -146,7 +146,8 @@ void Snippet::initSupportedPrimitiveDescriptors() {
             const auto equalPrecisions = getOriginalOutputPrecisions().size() == 1 &&
                     precision == getOriginalOutputPrecisionAtPort(0);
 
-            BlockedMemoryDesc::CmpMask inputMask = BLOCKED_DESC_SKIP_OFFSET_MASK;
+            BlockedMemoryDesc::CmpMask inputMask =
+                lt == ChannelsFirst ? BLOCKED_DESC_EMPTY_MASK : BLOCKED_DESC_SKIP_OFFSET_MASK;
             PortConfig portConfig;
             portConfig.inPlace((!i && canBeInPlace() && equalPrecisions) ? 0 : -1);
             portConfig.constant(false);
@@ -162,7 +163,8 @@ void Snippet::initSupportedPrimitiveDescriptors() {
             if (supportedPrecisions.count(precision) == 0)
                 IE_THROW() << "Subgraph node with name `" << getName() << "` doesn't support " << precision << " precision.";
 
-            BlockedMemoryDesc::CmpMask outputMask = BLOCKED_DESC_SKIP_OFFSET_MASK;
+            BlockedMemoryDesc::CmpMask outputMask =
+                lt == ChannelsFirst ? BLOCKED_DESC_EMPTY_MASK : BLOCKED_DESC_SKIP_OFFSET_MASK;
             PortConfig portConfig;
             portConfig.inPlace(-1);
             portConfig.constant(false);
@@ -274,6 +276,15 @@ static void offset_calculation(std::vector<size_t>& offset, const std::vector<si
     }
 }
 
+static void stride_calculation(std::vector<size_t>& offset,
+                               const std::vector<size_t>& strides,
+                               const std::vector<size_t>& dims_out) {
+    memcpy(&offset[0] + dims_out.size() - strides.size(), &strides[0], strides.size() * sizeof(size_t));
+    for (size_t i = 0; i < dims_out.size() - strides.size(); i++) {
+        offset[i] = strides[0];
+    }
+}
+
 static auto collapseLastDims(std::vector<size_t>& dims, size_t dimsToCollapse) -> void {
     if (dimsToCollapse >= dims.size() - 1)
         IE_THROW() << "Got invalid number of dims to collapse. Expected < " << dims.size() - 1 << " got " << dimsToCollapse;
@@ -296,7 +307,10 @@ void Snippet::define_schedule() {
         ngraph::Shape shape(blockedDesc->getBlockDims());
         ngraph::AxisVector blocking(blockedDesc->getOrder());
         ngraph::element::Type precision = InferenceEngine::details::convertPrecision(blockedDesc->getPrecision());
-        return ngraph::snippets::op::Subgraph::BlockedShape{shape, blocking, precision};
+        ngraph::AxisVector strides(blockedDesc->getStrides());
+        bool is_nhwc(blockedDesc->hasLayoutType(LayoutType::nspc) || shape.size() <= 2);
+        return std::tuple<ngraph::snippets::op::Subgraph::BlockedShape, ngraph::AxisVector, bool> {
+            ngraph::snippets::op::Subgraph::BlockedShape{shape, blocking, precision}, strides, is_nhwc};
     };
     auto prependWithOnes = [this](const std::vector<size_t>& dims) {
         if (tensorRank <= dims.size())
@@ -306,12 +320,43 @@ void Snippet::define_schedule() {
         return result;
     };
     ngraph::snippets::op::Subgraph::BlockedShapeVector input_blocked_shapes;
-    for (size_t i = 0; i < inputShapes.size(); i++)
-        input_blocked_shapes.push_back(edgeToBlockedShape(getParentEdgesAtPort(i)[0]));
+    std::vector<bool> input_has_strides;
+    std::vector<ngraph::AxisVector> input_strides;
+    for (size_t i = 0; i < inputShapes.size(); i++) {
+        auto infos = edgeToBlockedShape(getParentEdgesAtPort(i)[0]);
+        auto& shapes_infos = std::get<0>(infos);
+        auto& shapes = std::get<0>(shapes_infos);
+        if (std::get<2>(infos) && shapes.size() > 1) {
+            auto& strides = std::get<1>(infos);
+            // ignore batch dimension because blocked layout already takes into account
+            auto elements = std::accumulate(shapes.begin() + 1, shapes.end(), size_t{1}, std::multiplies<size_t>());
+            input_has_strides.push_back(elements != strides[0]);
+            input_strides.push_back(std::move(strides));
+        } else {
+            input_has_strides.push_back(false);
+            input_strides.push_back({});
+        }
+        input_blocked_shapes.push_back(std::move(shapes_infos));
+    }
 
     ngraph::snippets::op::Subgraph::BlockedShapeVector output_blocked_shapes;
-    for (size_t i = 0; i < outputShapes.size(); i++)
-        output_blocked_shapes.push_back(edgeToBlockedShape(getChildEdgesAtPort(i)[0]));
+    std::vector<bool> output_has_strides;
+    std::vector<ngraph::AxisVector> output_strides;
+    for (size_t i = 0; i < outputShapes.size(); i++) {
+        auto infos = edgeToBlockedShape(getChildEdgesAtPort(i)[0]);
+        auto& shapes_infos = std::get<0>(infos);
+        auto& shapes = std::get<0>(shapes_infos);
+        if (std::get<2>(infos) && shapes.size() > 1) {
+            auto& strides = std::get<1>(infos);
+            auto elements = std::accumulate(shapes.begin() + 1, shapes.end(), size_t{1}, std::multiplies<size_t>());
+            output_has_strides.push_back(elements != strides[0]);
+            output_strides.push_back(std::move(strides));
+        } else {
+            output_has_strides.push_back(false);
+            output_strides.push_back({});
+        }
+        output_blocked_shapes.push_back(std::move(shapes_infos));
+    }
 
     exec_domain = snippet->canonicalize(output_blocked_shapes, input_blocked_shapes);
 
@@ -330,13 +375,17 @@ void Snippet::define_schedule() {
     }
 
     const auto config = getSelectedPrimitiveDescriptor()->getConfig();
-    auto initOffsets = [this, config]() {
+    auto initOffsets = [this, config, &input_has_strides, &input_strides, &output_has_strides, &output_strides]() {
         // find max rank input among all outputs
         const size_t inputNum = getParentEdges().size();
         offsets_in.resize(inputNum);
         for (size_t i = 0; i < inputNum; i++) {
             offsets_in[i].resize(tensorRank, 1);
-            offset_calculation(offsets_in[i], dims_in[i], exec_domain);
+            if (input_has_strides[i]) {
+                stride_calculation(offsets_in[i], input_strides[i], exec_domain);
+            } else {
+                offset_calculation(offsets_in[i], dims_in[i], exec_domain);
+            }
             for (size_t j = 0; j < tensorRank; j++) {
                 offsets_in[i][j] *= config.inConfs[i].getMemDesc()->getPrecision().size();
             }
@@ -355,7 +404,11 @@ void Snippet::define_schedule() {
         offsets_out.resize(outputNum);
         for (size_t i = 0; i < outputNum; i++) {
             offsets_out[i].resize(tensorRank, 1);
-            offset_calculation(offsets_out[i], dims_out[i], exec_domain);
+            if (output_has_strides[i]) {
+                stride_calculation(offsets_out[i], output_strides[i], exec_domain);
+            } else {
+                offset_calculation(offsets_out[i], dims_out[i], exec_domain);
+            }
             for (size_t j = 0; j < tensorRank; j++) {
                 offsets_out[i][j] *= config.outConfs[i].getMemDesc()->getPrecision().size();
             }
@@ -371,7 +424,7 @@ void Snippet::define_schedule() {
         }
     };
 
-    auto find_dims_to_collapse = [this, config]() -> int {
+    auto find_dims_to_collapse = [this, config, &input_has_strides]() -> int {
         int collapsedDims = 0;
         size_t minimalConcurrency = parallel_get_max_threads();
         size_t minimalJitWorkAmount = 256;
@@ -383,7 +436,8 @@ void Snippet::define_schedule() {
             bool canCollapse = true;
             for (size_t i = 0; i < dims_in.size(); i++) {
                 if ((dims_in[i][dims_in[i].size() - 2] != 1 && dims_in[i][dims_in[i].size() - 1] == 1) ||
-                    (dims_in[i][dims_in[i].size() - 2] == 1 && dims_in[i][dims_in[i].size() - 1] != 1)) {
+                    (dims_in[i][dims_in[i].size() - 2] == 1 && dims_in[i][dims_in[i].size() - 1] != 1) ||
+                    input_has_strides[i]) {
                     canCollapse = false;
                     break;
                 }

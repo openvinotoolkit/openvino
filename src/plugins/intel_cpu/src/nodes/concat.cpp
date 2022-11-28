@@ -327,7 +327,8 @@ void Concat::selectOptimalPrimitiveDescriptor() {
                     continue;
 
                 if ((parent_pdesc->getImplementationType() & brgconv_avx512) != brgconv_avx512 &&
-                    parent->getType() != Type::Concatenation) {
+                    (parent->getType() != Type::Concatenation &&
+                     parent->getType() != Type::Subgraph)) {
                     allBrg = false;
                     break;
                 }
@@ -526,14 +527,29 @@ void Concat::initOptimalPrimitiveDescriptor() {
     auto config = selected_pd->getConfig();
     if (!isDynamicNode() && !isConfigDefined(config)) {
         for (size_t i = 0; i < config.outConfs.size(); i++) {
-            int num = getChildEdgeAt(i)->getOutputNum();
+            const auto& children = getChildEdgesAtPort(i);
+            int inplaceBranchIdx = 0;
+            for (size_t j = 0; j < children.size(); j++) {
+                // if one of the children is concat will try to inplace it
+                if (children[j]->getChild()->getType() == Type::Concatenation) {
+                    const auto childConcat = std::dynamic_pointer_cast<Concat>(children[j]->getChild());
+                    if (childConcat->axis == axis) {
+                        inplaceBranchIdx = j;
+                        break;
+                    }
+                }
+            }
+            auto childEdge = children[inplaceBranchIdx];
+            int num = childEdge->getOutputNum();
             if (num >= 0) {
-                auto childConf = getChildEdgeAt(i)->getChild()->getSelectedPrimitiveDescriptor()->getConfig().inConfs[num];
+                auto childConf = childEdge->getChild()->getSelectedPrimitiveDescriptor()->getConfig().inConfs[num];
                 childConf.setMemDesc(childConf.getMemDesc()->cloneWithNewPrecision(config.outConfs[i].getMemDesc()->getPrecision()));
 
-                if (getChildEdgeAt(i)->getChild()->getSelectedPrimitiveDescriptor()) {
-                    if (!childConf.getMemDesc()->isDefined() && childConf.inPlace() >= 0)
-                        getChildEdgeAt(i)->getChild()->initOptimalPrimitiveDescriptor();
+                if (childEdge->getChild()->getSelectedPrimitiveDescriptor()) {
+                    if (!childConf.getMemDesc()->isDefined() && childConf.inPlace() >= 0) {
+                        childEdge->getChild()->initOptimalPrimitiveDescriptor();
+                        childConf = childEdge->getChild()->getSelectedPrimitiveDescriptor()->getConfig().inConfs[num];
+                    }
 
                     if (childConf.getMemDesc()->isDefined() && config.outConfs[i].getPortDesc()->isCompatible(*childConf.getPortDesc())) {
                         config.outConfs[i].setMemDesc(childConf.getMemDesc());
