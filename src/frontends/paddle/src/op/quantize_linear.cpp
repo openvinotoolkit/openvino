@@ -46,6 +46,7 @@ NamedOutputs quantize_linear(const NodeContext& node) {
             }
         } else {
             return default_opset::Round::RoundMode::HALF_TO_EVEN;
+        }
     }();
 
     const auto range_node = std::make_shared<default_opset::Constant>(element::f32, Shape{1}, (1.0 / range));
