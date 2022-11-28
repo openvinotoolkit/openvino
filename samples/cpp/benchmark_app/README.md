@@ -145,20 +145,20 @@ Options:
                                 completely disable("NO") CPU inference threads pinning
 
   Statistics dumping options:
-    -report_type "<type>"       Optional. Enable collecting statistics report. "no_counters" report contains configuration options specified, resulting FPS and latency.
-                                "average_counters" report extends "no_counters" report and additionally includes average PM counters values for each layer from the network.
-                                "detailed_counters" report extends "average_counters" report and additionally includes per-layer PM counters
-                                and latency for each executed infer request.
-    -report_folder              Optional. Path to a folder where statistics report is stored.
-    -exec_graph_path            Optional. Path to a file where to store executable graph information serialized.
-    -pc                         Optional. Report performance counters.
-    -dump_config                Optional. Path to JSON file to dump IE parameters, which were set by application.
-    -load_config                Optional. Path to JSON file to load custom IE parameters. Please note, command line parameters have higher priority than parameters from configuration file.
-                                Example 1: a simple JSON file for HW device with primary properties.
+    -report_type "<type>"   Optional. Enable collecting statistics report. "no_counters" report contains configuration options specified, resulting FPS and latency. "average_counters" report extends "no_counters" report and additionally includes average PM counters values for each layer from the model. "detailed_counters" report extends "average_counters" report and additionally includes per-layer PM counters and latency for each executed infer request.
+    -report_folder            Optional. Path to a folder where statistics report is stored.
+    -json_stats               Optional. Enables JSON-based statistics output (by default reporting system will use CSV format). Should be used together with -report_folder option.
+    -exec_graph_path          Optional. Path to a file where to store executable graph information serialized.
+    -pc                       Optional. Report performance counters.
+    -pcsort                   Optional. Report performance counters and analysis the sort hotpoint opts.  "sort" Analysis opts time cost, print by hotpoint order  "no_sort" Analysis opts time cost, print by normal order  "simple_sort" Analysis opts time cost, only print EXECUTED opts by normal order
+    -pcseq                    Optional. Report latencies for each shape in -data_shape sequence.
+    -dump_config              Optional. Path to JSON file to dump IE parameters, which were set by application.
+    -load_config              Optional. Path to JSON file to load custom IE parameters. Please note, command line parameters have higher priority then parameters from configuration file.
+                              Example 1: a simple JSON file for HW device with primary properties.
                                           {
                                              "CPU": {"NUM_STREAMS": "3", "PERF_COUNT": "NO"}
                                           }
-                                Example 2: a simple JSON file for meta device(AUTO/MULTI) with HW device properties.
+                              Example 2: a simple JSON file for meta device(AUTO/MULTI) with HW device properties.
                                           {
                                           	"AUTO": {
                                           		"PERFORMANCE_HINT": "",
@@ -175,17 +175,6 @@ Options:
                                           		}
                                           	}
                                           }
-
-   Statistics dumping options:
-    -report_type "<type>"     Optional. Enable collecting statistics report. "no_counters" report contains configuration options specified, resulting FPS and latency. "average_counters" report extends "no_counters" report and additionally includes average PM counters values for each layer from the network. "detailed_counters" report extends "average_counters" report and additionally includes per-layer PM counters and latency for each executed infer request.
-    -report_folder            Optional. Path to a folder where statistics report is stored.
-    -json_stats               Optional. Enables JSON-based statistics output (by default reporting system will use CSV format). Should be used together with -report_folder option.
-    -exec_graph_path          Optional. Path to a file where to store executable graph information serialized.
-    -pc                       Optional. Report performance counters.
-    -pcsort                   Optional. Report performance counters and analysis the sort hotpoint opts.  "sort" Analysis opts time cost, print by hotpoint order  "no_sort" Analysis opts time cost, print by normal order  "simple_sort" Analysis opts time cost, only print EXECUTED opts by normal order
-    -pcseq                    Optional. Report latencies for each shape in -data_shape sequence.
-    -dump_config              Optional. Path to JSON file to dump IE parameters, which were set by application.
-    -load_config              Optional. Path to JSON file to load custom IE parameters. Please note, command line parameters have higher priority then parameters from configuration file.
     -infer_precision "<element type>"Optional. Inference precision
     -ip                       <value>     Optional. Specifies precision for all input layers of the model.
     -op                       <value>     Optional. Specifies precision for all output layers of the model.
