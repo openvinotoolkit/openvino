@@ -515,3 +515,68 @@ def test_serialize_rt_info(request):
 
     os.remove(xml_path)
     os.remove(bin_path)
+
+
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_serialize_complex_rt_info(request):
+    def check_rt_info(model):
+        assert model.has_rt_info(["config", "type_of_model"]) is True
+        assert model.has_rt_info(["config", "converter_type"]) is True
+        assert model.has_rt_info(["config", "model_parameters", "threshold"]) is True
+        assert model.has_rt_info(["config", "model_parameters", "min"]) is True
+        assert model.has_rt_info(["config", "model_parameters", "max"]) is True
+        assert model.has_rt_info(["config", "model_parameters", "labels", "label_tree", "type"]) is True
+        assert model.has_rt_info(["config", "model_parameters", "labels", "label_tree", "directed"]) is True
+        assert model.has_rt_info(["config", "model_parameters", "labels", "label_tree", "float_empty"]) is True
+        assert model.has_rt_info(["config", "model_parameters", "labels", "label_tree", "nodes"]) is True
+        assert model.has_rt_info(["config", "model_parameters", "labels", "label_groups", "ids"]) is True
+        assert model.has_rt_info(["config", "model_parameters", "mean_values"]) is True
+
+        assert model.get_rt_info(["config", "type_of_model"]) == "classification"
+        assert model.get_rt_info(["config", "converter_type"]) == "classification"
+        assert model.get_rt_info(["config", "model_parameters", "threshold"]) == 13.23
+        assert model.get_rt_info(["config", "model_parameters", "min"]) == -3.245433
+        assert model.get_rt_info(["config", "model_parameters", "max"]) == 3.2342233
+        assert model.get_rt_info(["config", "model_parameters", "labels", "label_tree", "type"]) == "tree"
+        assert model.get_rt_info(["config", "model_parameters", "labels", "label_tree", "directed"]) == True
+        assert model.get_rt_info(["config", "model_parameters", "labels", "label_tree", "float_empty"]) == []
+        assert model.get_rt_info(["config", "model_parameters", "labels", "label_tree", "nodes"]) == []
+        assert model.get_rt_info(["config", "model_parameters", "labels", "label_groups", "ids"]) == ["sasd", "fdfdfsdf"]
+        assert model.get_rt_info(["config", "model_parameters", "mean_values"]) == [22.3, 33.11, 44.0]
+
+
+    core = Core()
+    xml_path, bin_path = create_filename_for_test(request.node.name)
+    input_shape = PartialShape([1])
+    param = ops.parameter(input_shape, dtype=np.float32, name="data")
+    relu1 = ops.relu(param, name="relu1")
+    relu1.get_output_tensor(0).set_names({"relu_t1"})
+    assert "relu_t1" in relu1.get_output_tensor(0).names
+    relu2 = ops.relu(relu1, name="relu2")
+    model = Model(relu2, [param], "TestFunction")
+
+    assert model is not None
+
+    model.set_rt_info("classification", ["config", "type_of_model"])
+    model.set_rt_info("classification", ["config", "converter_type"])
+    model.set_rt_info(13.23, ["config", "model_parameters", "threshold"])
+    model.set_rt_info(-3.245433, ["config", "model_parameters", "min"])
+    model.set_rt_info(3.2342233, ["config", "model_parameters", "max"])
+    model.set_rt_info("tree", ["config", "model_parameters", "labels", "label_tree", "type"])
+    model.set_rt_info(True, ["config", "model_parameters", "labels", "label_tree", "directed"])
+    model.set_rt_info([], ["config", "model_parameters", "labels", "label_tree", "float_empty"])
+    model.set_rt_info([], ["config", "model_parameters", "labels", "label_tree", "nodes"])
+    model.set_rt_info(["sasd", "fdfdfsdf"], ["config", "model_parameters", "labels", "label_groups", "ids"])
+    model.set_rt_info([22.3, 33.11, 44.0], ["config", "model_parameters", "mean_values"])
+
+    check_rt_info(model)
+
+    serialize(model, xml_path, bin_path)
+
+    res_model = core.read_model(model=xml_path, weights=bin_path)
+
+    check_rt_info(res_model)
+
+    os.remove(xml_path)
+    os.remove(bin_path)
+    serialize(res_model, xml_path, bin_path)
