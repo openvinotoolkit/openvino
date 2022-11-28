@@ -95,9 +95,18 @@ static void CreatePReluOp(Program& p, const std::shared_ptr<ngraph::op::v0::PRel
 }
 
 static void CreateClampOp(Program& p, const std::shared_ptr<ngraph::op::v0::Clamp>& op) {
-    float min = static_cast<float>(op->get_min());
-    float max = static_cast<float>(op->get_max());
-    CreateUnaryEltwiseOp(p, op, cldnn::activation_func::clamp, {min, max});
+    double min = op->get_min();
+    double max = op->get_max();
+    if (op->get_output_element_type(0) == ov::element::i32) {
+        // Currently jitter saves all compile time constant as floats
+        // and we have a code like that: (int)(as_float(0x4f000000))
+        // So values in range (2147483583.0, 2147483647.0] are converted to  2147483648.0 due to fp32 representation error
+        // and then conversion back to int32 returns -2147483648 due to overflow
+        // So to avoid this issue we use largest representable value which doesn't cause overflow
+        // TODO: Consider improving jitter to operate with int types directly
+        max = std::min<double>(2147483583.0, max);
+    }
+    CreateUnaryEltwiseOp(p, op, cldnn::activation_func::clamp, {static_cast<float>(min), static_cast<float>(max)});
 }
 
 static void CreateExpOp(Program& p, const std::shared_ptr<ngraph::op::v0::Exp>& op) {

@@ -587,6 +587,18 @@ struct base_params : public Params {
     std::string to_cache_string_v2() const override;
     ParamsKey GetParamsKey() const override;
 
+    bool has_dynamic_inputs() const {
+        return std::any_of(inputs.begin(), inputs.end(), [](const DataTensor& t) { return t.is_dynamic(); });
+    }
+
+    bool has_dynamic_outputs() const {
+        return std::any_of(outputs.begin(), outputs.end(), [](const DataTensor& t) { return t.is_dynamic(); });
+    }
+
+    bool has_dynamic_tensors() const {
+        return has_dynamic_inputs() || has_dynamic_outputs();
+    }
+
 protected:
     explicit base_params(KernelType kt) : Params(kt, ""), inputs(1), outputs(1) {}
 };

@@ -56,65 +56,6 @@ struct implementation_key {
     }
 };
 
-template <>
-struct implementation_key<permute> {
-    typedef int32_t type;
-    type operator()(const layout&) { return -1; }
-};
-
-template <>
-struct implementation_key<shape_of> {
-    typedef int32_t type;
-    type operator()(const layout&) { return -1; }
-};
-
-template <>
-struct implementation_key<reorder> {
-    typedef int32_t type;
-    type operator()(const layout&) { return -1; }
-};
-
-template <>
-struct implementation_key<generic_layer> {
-    typedef int32_t type;
-    type operator()(const layout&) { return -1; }
-};
-
-template <>
-struct implementation_key<custom_gpu_primitive> {
-    typedef int32_t type;
-    type operator()(const layout&) { return -1; }
-};
-
-template <>
-struct implementation_key<reshape> {
-    typedef int32_t type;
-    type operator()(const layout&) { return -1; }
-};
-
-template <>
-struct implementation_key<data> {
-    typedef int32_t type;
-    type operator()(const layout&) { return -1; }
-};
-
-template <>
-struct implementation_key<mutable_data> {
-    typedef int32_t type;
-    type operator()(const layout&) { return -1; }
-};
-
-template <>
-struct implementation_key<input_layout> {
-    typedef int32_t type;
-    type operator()(const layout&) { return -1; }
-};
-template <>
-struct implementation_key<loop> {
-    typedef int32_t type;
-    type operator()(const layout&) { return -1; }
-};
-
 namespace {
 template <typename key_type>
 std::string get_key_name(const key_type &) { return std::string(""); }

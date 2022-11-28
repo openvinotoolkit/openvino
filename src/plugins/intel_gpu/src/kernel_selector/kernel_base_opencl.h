@@ -54,5 +54,7 @@ protected:
                           uint32_t number_of_inputs_for_fused_prims = 0,
                           int number_of_outputs = 1,
                           bool is_dynamic = false) const;
+
+    bool layout_is_one_of(const MultiDataTensor& tensors, const std::vector<DataLayout>& allowed_layouts) const;
 };
 }  // namespace kernel_selector

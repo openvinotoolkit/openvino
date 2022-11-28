@@ -29,6 +29,7 @@ ParamsKey MVNKernelRef::GetSupportedKey() const {
     k.EnableMVNMode(MVNMode::ACROSS_CHANNELS);
     k.EnableMVNMode(MVNMode::WITHIN_CHANNELS);
     k.EnableMVNNormalizeVariance();
+    k.EnableDynamicShapesSupport();
     return k;
 }
 

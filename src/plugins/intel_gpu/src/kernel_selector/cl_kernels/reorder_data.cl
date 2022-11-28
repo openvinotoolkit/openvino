@@ -12,7 +12,7 @@
 #define OUTPUT_TYPE4 MAKE_VECTOR_TYPE(OUTPUT_REORDER_TYPE, 4)
 
 ///////////////////////// Input Index /////////////////////////
-inline uint FUNC(get_input_index)(uint b, uint f, uint w, uint z, uint y, uint x)
+inline uint FUNC(get_input_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x)
 {
 #if INPUT0_DIMS < 5
     return INPUT0_GET_INDEX(b, f, y, x);
@@ -27,7 +27,7 @@ inline uint FUNC(get_input_index)(uint b, uint f, uint w, uint z, uint y, uint x
 
 ///////////////////////// Output Index /////////////////////////
 
-inline uint FUNC(get_output_index)(uint b, uint f, uint w, uint z, uint y, uint x)
+inline uint FUNC(get_output_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x)
 {
 #if OUTPUT_DIMS < 5
     return OUTPUT_GET_INDEX(b, f, y, x);
@@ -41,6 +41,7 @@ inline uint FUNC(get_output_index)(uint b, uint f, uint w, uint z, uint y, uint 
 }
 
 KERNEL (reorder_data)(
+    OPTIONAL_SHAPE_INFO_ARG
 #if INPUT0_LAYOUT_NV12 || INPUT0_LAYOUT_IMAGE_2D_RGBA || SURFACE_INPUT
     read_only image2d_t input,
 #else
@@ -105,19 +106,19 @@ KERNEL (reorder_data)(
     OUTPUT_TYPE4 colorRGBA = IMAGE_READ(input, (int2)(x, y));
 #elif defined OUTPUT_LAYOUT_IMAGE_2D_RGBA
     uint8 ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, f, w, z, y, x);
-    const uint input_idx_R  = FUNC_CALL(get_input_index)(b, 0, w, z, y, x);
-    const uint input_idx_G  = FUNC_CALL(get_input_index)(b, 1, w, z, y, x);
-    const uint input_idx_B  = FUNC_CALL(get_input_index)(b, 2, w, z, y, x);
+    const uint input_idx_R  = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b, 0, w, z, y, x);
+    const uint input_idx_G  = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b, 1, w, z, y, x);
+    const uint input_idx_B  = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b, 2, w, z, y, x);
 #if OUTPUT_FEATURE_NUM == 3
     INPUT_TYPE4 colorRGBA = { TO_INPUT_REORDER_TYPE(input[input_idx_R]), TO_INPUT_REORDER_TYPE(input[input_idx_G]), TO_INPUT_REORDER_TYPE(input[input_idx_B]), TO_INPUT_REORDER_TYPE(0.f) };
 #else
-    const uint input_idx_A  = FUNC_CALL(get_input_index)(b, 3, w, z, y, x);
+    const uint input_idx_A  = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b, 3, w, z, y, x);
     INPUT_TYPE4 colorRGBA = { TO_INPUT_REORDER_TYPE(input[input_idx_R]), TO_INPUT_REORDER_TYPE(input[input_idx_G]), TO_INPUT_REORDER_TYPE(input[input_idx_B]), TO_INPUT_REORDER_TYPE(input[input_idx_A]) };
 #endif
 #else
     uint8 ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, f, w, z, y, x);
-    const uint input_idx  = FUNC_CALL(get_input_index)(b, f, w, z, y, x);
-    const uint output_idx = FUNC_CALL(get_output_index)(ov.s1,ov.s2,ov.s3,ov.s4,ov.s5,ov.s6);
+    const uint input_idx  = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, x);
+    const uint output_idx = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR ov.s1,ov.s2,ov.s3,ov.s4,ov.s5,ov.s6);
 
 #if defined MEAN_SUBTRACT_INSIDE_PARAMS
     float res = TO_MEAN_TYPE(input[input_idx]);
@@ -143,27 +144,27 @@ KERNEL (reorder_data)(
 
 #if defined INPUT0_LAYOUT_NV12 && !SURFACE_INPUT
     uint8 ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, 0, w, z, y, x);
-    uint output_idx = FUNC_CALL(get_output_index)(ov.s1, ov.s2, ov.s3, ov.s4, ov.s5, ov.s6);
+    uint output_idx = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR ov.s1, ov.s2, ov.s3, ov.s4, ov.s5, ov.s6);
     output[output_idx] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(R), NL_M, NL_N);
     ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, 1, w, z, y, x);
-    output_idx = FUNC_CALL(get_output_index)(ov.s1, ov.s2, ov.s3, ov.s4, ov.s5, ov.s6);
+    output_idx = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR ov.s1, ov.s2, ov.s3, ov.s4, ov.s5, ov.s6);
     output[output_idx] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(G), NL_M, NL_N);
     ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, 2, w, z, y, x);
-    output_idx = FUNC_CALL(get_output_index)(ov.s1, ov.s2, ov.s3, ov.s4, ov.s5, ov.s6);
+    output_idx = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR ov.s1, ov.s2, ov.s3, ov.s4, ov.s5, ov.s6);
     output[output_idx] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(B), NL_M, NL_N);
 #elif INPUT0_LAYOUT_IMAGE_2D_RGBA
     uint8 ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, 0, w, z, y, x);
-    uint output_idx = FUNC_CALL(get_output_index)(ov.s1, ov.s2, ov.s3, ov.s4, ov.s5, ov.s6);
+    uint output_idx = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR ov.s1, ov.s2, ov.s3, ov.s4, ov.s5, ov.s6);
     output[output_idx] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(colorRGBA.s0), NL_M, NL_N);
     ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, 1, w, z, y, x);
-    output_idx = FUNC_CALL(get_output_index)(ov.s1, ov.s2, ov.s3, ov.s4, ov.s5, ov.s6);
+    output_idx = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR ov.s1, ov.s2, ov.s3, ov.s4, ov.s5, ov.s6);
     output[output_idx] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(colorRGBA.s1), NL_M, NL_N);
     ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, 2, w, z, y, x);
-    output_idx = FUNC_CALL(get_output_index)(ov.s1, ov.s2, ov.s3, ov.s4, ov.s5, ov.s6);
+    output_idx = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR ov.s1, ov.s2, ov.s3, ov.s4, ov.s5, ov.s6);
     output[output_idx] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(colorRGBA.s2), NL_M, NL_N);
 #if INPUT0_FEATURE_NUM == 4
     ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, 3, w, z, y, x);
-    output_idx = FUNC_CALL(get_output_index)(ov.s1, ov.s2, ov.s3, ov.s4, ov.s5, ov.s6);
+    output_idx = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR ov.s1, ov.s2, ov.s3, ov.s4, ov.s5, ov.s6);
     output[output_idx] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(colorRGBA.s3), NL_M, NL_N);
 #endif
 #elif OUTPUT_LAYOUT_IMAGE_2D_RGBA

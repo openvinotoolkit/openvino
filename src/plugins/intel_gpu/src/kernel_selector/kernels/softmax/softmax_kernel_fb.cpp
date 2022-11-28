@@ -23,9 +23,8 @@ ParamsKey SoftmaxKernel_fb::GetSupportedKey() const {
     return k;
 }
 
-SoftmaxKernel_fb::Parent::DispatchData SoftmaxKernel_fb::SetDefault(const softmax_params& params,
-                                                                    const optional_params& optParams) const {
-    auto dispatchData = Parent::SetDefault(params, optParams);
+SoftmaxKernel_fb::Parent::DispatchData SoftmaxKernel_fb::SetDefault(const softmax_params& params) const {
+    auto dispatchData = Parent::SetDefault(params);
     // start with 1 thread per data set
     dispatchData.gws[0] = dispatchData.dataSetsCount;
     dispatchData.gws[1] = 1;

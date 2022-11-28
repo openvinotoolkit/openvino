@@ -11,6 +11,8 @@
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/data.hpp>
 
+#include "eltwise_inst.h"
+
 using namespace cldnn;
 using namespace ::tests;
 
@@ -1096,6 +1098,119 @@ TEST(eltwise_gpu_f32, logicalXOR_in2_float_out1_int) {
 
     for (size_t i = 0; i < answers.size(); ++i) {
         EXPECT_EQ(answers[i], output_ptr[i]);
+    }
+}
+
+TEST(eltwise_gpu_f32, dynamic_kernel_no_broadcast) {
+    auto& engine = get_test_engine();
+
+    ov::Shape in_shape = {2, 2, 2, 2};
+    auto in_layout = layout{ov::PartialShape::dynamic(in_shape.size()), data_types::f32, format::bfyx};
+    auto in_mem_layout = layout{ov::PartialShape(in_shape), data_types::f32, format::bfyx};
+    auto input1 = engine.allocate_memory(in_mem_layout);
+    auto input2 = engine.allocate_memory(in_mem_layout);
+
+    topology topology;
+    topology.add(input_layout("input1", in_layout));
+    topology.add(input_layout("input2", in_layout));
+    topology.add(eltwise("eltwise", {"input1", "input2"}, eltwise_mode::sum));
+
+    set_values(input1, {
+        1.f,   0.f, 5.f, 1.5f,
+        2.f,   0.f, 6.f, 5.2f,
+        3.f,  0.5f, 7.f, 12.f,
+        4.f, -0.5f, 8.f,  8.f
+    });
+
+    set_values(input2, {
+        0.5f,   2.5f,  0.5f,  2.5f,
+         5.f,   7.f,    2.f,   4.f,
+        15.f,  17.f,    8.f,  10.f,
+        -2.f,  6.5f,  -0.5f, -2.5f });
+
+    build_options bo;
+    bo.set_option(build_option::allow_new_shape_infer(true));
+    network network(engine, topology, bo);
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+
+    auto inst = network.get_primitive("eltwise");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "eltwise");
+
+    auto output = outputs.at("eltwise").get_memory();
+
+    float answers[16] = { 1.5f, 2.5f,   5.5f,    4.f,
+                          7.f,   7.f,    8.f,   9.2f,
+                          18.f,17.5f,   15.f,   22.f,
+                          2.f,   6.f,   7.5f,  5.5f };
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    for (int i = 0; i < 16; i++) {
+        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+    }
+}
+
+TEST(eltwise_gpu_f32, dynamic_kernel_broadcast) {
+    auto& engine = get_test_engine();
+
+    ov::Shape in1_shape = {2, 2, 2, 2};
+    ov::Shape in2_shape = {1, 2, 1, 1};
+    auto in1_layout = layout{ov::PartialShape::dynamic(in1_shape.size()), data_types::f32, format::bfyx};
+    auto in2_layout = layout{ov::PartialShape::dynamic(in2_shape.size()), data_types::f32, format::bfyx};
+    auto in1_mem_layout = layout{ov::PartialShape(in1_shape), data_types::f32, format::bfyx};
+    auto in2_mem_layout = layout{ov::PartialShape(in2_shape), data_types::f32, format::bfyx};
+    auto input1 = engine.allocate_memory(in1_mem_layout);
+    auto input2 = engine.allocate_memory(in2_mem_layout);
+
+    topology topology;
+    topology.add(input_layout("input1", in1_layout));
+    topology.add(input_layout("input2", in2_layout));
+    topology.add(eltwise("eltwise", {"input1", "input2"}, eltwise_mode::sum));
+
+    set_values(input1, {
+        1.f,   0.f, 5.f, 1.5f,
+        2.f,   0.f, 6.f, 5.2f,
+        3.f,  0.5f, 7.f, 12.f,
+        4.f, -0.5f, 8.f,  8.f
+    });
+
+    set_values(input2, { 0.5f, -0.5f });
+
+    build_options bo;
+    bo.set_option(build_option::allow_new_shape_infer(true));
+    network network(engine, topology, bo);
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+
+    auto inst = network.get_primitive("eltwise");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "eltwise");
+
+    auto output = outputs.at("eltwise").get_memory();
+
+    float answers[16] = { 1.5f,  0.5f, 5.5f, 2.f,
+                          1.5f, -0.5f, 5.5f, 4.7f,
+                          3.5f,  1.0f, 7.5f, 12.5f,
+                          3.5f, -1.0f, 7.5f, 7.5f };
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    for (int i = 0; i < 16; i++) {
+        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 

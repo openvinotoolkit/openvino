@@ -57,16 +57,18 @@ public:
         // This primitive is being executed on CPU during network compilation.
         return make_unique<wait_for_events_impl>(prior_box);
     }
+
+    void update_dispatch_data(const kernel_impl_params& impl_param) override { }
 };
 
 namespace detail {
 
 attach_data_common::attach_data_common() {
-    implementation_map<data>::add(impl_types::common, wait_for_events_impl::create_data, {});
+    implementation_map<data>::add(impl_types::common, shape_types::any, wait_for_events_impl::create_data, {});
 }
 
 attach_input_layout_common::attach_input_layout_common() {
-    implementation_map<input_layout>::add(impl_types::common, wait_for_events_impl::create_input_layout, {});
+    implementation_map<input_layout>::add(impl_types::common, shape_types::any, wait_for_events_impl::create_input_layout, {});
 }
 
 attach_prior_box_common::attach_prior_box_common() {
