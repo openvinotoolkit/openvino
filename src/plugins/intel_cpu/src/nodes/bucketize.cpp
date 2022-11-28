@@ -23,7 +23,7 @@ bool Bucketize::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& 
             errorMessage = "Only opset3 Bucketize operation is supported";
             return false;
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
     return true;

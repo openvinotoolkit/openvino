@@ -617,7 +617,7 @@ TEST_P(OVClassNetworkTestP, DISABLED_QueryNetworkMultiThrows) {
         EXPECT_PRED_FORMAT2(testing::IsSubstring,
                             std::string("KEY_MULTI_DEVICE_PRIORITIES key is not set for"),
                             error.what());
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "query_model failed for unexpected reson.";
     }
 }
@@ -973,7 +973,7 @@ TEST_P(OVClassNetworkTestP, LoadNetworkMultiWithoutSettingDevicePrioritiesThrows
         EXPECT_PRED_FORMAT2(testing::IsSubstring,
                             std::string("KEY_MULTI_DEVICE_PRIORITIES key is not set for"),
                             error.what());
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "compile_model failed for unexpected reson.";
     }
 }

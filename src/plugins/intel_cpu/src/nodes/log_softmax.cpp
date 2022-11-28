@@ -21,7 +21,7 @@ bool LogSoftmax::isSupportedOperation(const std::shared_ptr<const ngraph::Node>&
             errorMessage = "Only opset5 LogSoftmax operation is supported";
             return false;
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
     return true;

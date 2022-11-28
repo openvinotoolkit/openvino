@@ -72,7 +72,7 @@ TEST(type_prop, range_nonconst_boolean_fails) {
         FAIL() << "Boolean element type not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Element type for start, stop, and step, must not be boolean.");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Test failed for unexpected reason";
     }
 }
@@ -98,7 +98,7 @@ TEST(type_prop, range_some_const_zero_stride_fails) {
         FAIL() << "Zero stride not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "'step' cannot be zero");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Test failed for unexpected reason";
     }
 }
@@ -114,7 +114,7 @@ TEST(type_prop, range_some_const_plus_inf_start_fails) {
         FAIL() << "+Infinity start not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "'start' cannot be nan or infinite.");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Test failed for unexpected reason";
     }
 }
@@ -130,7 +130,7 @@ TEST(type_prop, range_some_const_minus_inf_start_fails) {
         FAIL() << "-Infinity start not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "'start' cannot be nan or infinite.");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Test failed for unexpected reason";
     }
 }
@@ -145,7 +145,7 @@ TEST(type_prop, range_some_const_nan_start_fails) {
         FAIL() << "NaN start not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "'start' cannot be nan or infinite.");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Test failed for unexpected reason";
     }
 }
@@ -161,7 +161,7 @@ TEST(type_prop, range_some_const_plus_inf_stop_fails) {
         FAIL() << "+Infinity stop not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "'stop' cannot be nan or infinite.");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Test failed for unexpected reason";
     }
 }
@@ -177,7 +177,7 @@ TEST(type_prop, range_some_const_minus_inf_stop_fails) {
         FAIL() << "-Infinity stop not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "'stop' cannot be nan or infinite.");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Test failed for unexpected reason";
     }
 }
@@ -192,7 +192,7 @@ TEST(type_prop, range_some_const_nan_stio_fails) {
         FAIL() << "NaN stop not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "'stop' cannot be nan or infinite.");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Test failed for unexpected reason";
     }
 }
@@ -208,7 +208,7 @@ TEST(type_prop, range_some_const_plus_inf_stride_fails) {
         FAIL() << "+Infinity stride not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "'step' cannot be zero, nan, or infinite.");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Test failed for unexpected reason";
     }
 }
@@ -224,7 +224,7 @@ TEST(type_prop, range_some_const_minus_inf_stride_fails) {
         FAIL() << "-Infinity stride not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "'step' cannot be zero, nan, or infinite.");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Test failed for unexpected reason";
     }
 }
@@ -239,7 +239,7 @@ TEST(type_prop, range_some_const_nan_stride_fails) {
         FAIL() << "NaN stride not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "'step' cannot be zero, nan, or infinite.");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Test failed for unexpected reason";
     }
 }
@@ -254,7 +254,7 @@ TEST(type_prop, range_all_const_zero_stride_fails) {
         FAIL() << "Zero stride not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "'step' cannot be zero");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Test failed for unexpected reason";
     }
 }
@@ -451,7 +451,7 @@ TEST(type_prop, range_v4_invalid_inputs_elem_type) {
         FAIL() << "Exception expected";
     } catch (ngraph::NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("'start' input scalar should be a numeric type"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Unknown exception was thrown";
     }
 
@@ -464,7 +464,7 @@ TEST(type_prop, range_v4_invalid_inputs_elem_type) {
         FAIL() << "Exception expected";
     } catch (ngraph::NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("'stop' input scalar should be a numeric type"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Unknown exception was thrown";
     }
 
@@ -477,7 +477,7 @@ TEST(type_prop, range_v4_invalid_inputs_elem_type) {
         FAIL() << "Exception expected";
     } catch (const ngraph::NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("'step' input scalar should be a numeric type"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Unknown exception was thrown";
     }
 }
@@ -490,7 +490,7 @@ TEST(type_prop, range_v4_invalid_output_elem_type) {
         auto range = make_shared<op::v4::Range>(start, stop, step, element::boolean);
     } catch (const ngraph::NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("output tensor type should be a numeric type"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Unknown exception was thrown";
     }
 }
@@ -505,7 +505,7 @@ TEST(type_prop, range_v4_invalid_inputs_non_scalar) {
         FAIL() << "Exception expected";
     } catch (const ngraph::NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("'start' input is not a scalar"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Unknown exception was thrown";
     }
 
@@ -518,7 +518,7 @@ TEST(type_prop, range_v4_invalid_inputs_non_scalar) {
         FAIL() << "Exception expected";
     } catch (const ngraph::NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("'stop' input is not a scalar"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Unknown exception was thrown";
     }
 
@@ -531,7 +531,7 @@ TEST(type_prop, range_v4_invalid_inputs_non_scalar) {
         FAIL() << "Exception expected";
     } catch (const ngraph::NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("'step' input is not a scalar"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Unknown exception was thrown";
     }
 }
@@ -548,7 +548,7 @@ TEST(type_prop, range_v4_invalid_inputs_plus_inf) {
         FAIL() << "+Infinity start not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "'start' cannot be nan or infinite.");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Test failed for unexpected reason";
     }
 
@@ -563,7 +563,7 @@ TEST(type_prop, range_v4_invalid_inputs_plus_inf) {
         FAIL() << "+Infinity stop not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "'stop' cannot be nan or infinite.");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Test failed for unexpected reason";
     }
 
@@ -578,7 +578,7 @@ TEST(type_prop, range_v4_invalid_inputs_plus_inf) {
         FAIL() << "+Infinity step not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "'step' cannot be nan or infinite.");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Test failed for unexpected reason";
     }
 }
@@ -595,7 +595,7 @@ TEST(type_prop, range_v4_invalid_inputs_minus_inf) {
         FAIL() << "-Infinity start not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "'start' cannot be nan or infinite.");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Test failed for unexpected reason";
     }
 
@@ -610,7 +610,7 @@ TEST(type_prop, range_v4_invalid_inputs_minus_inf) {
         FAIL() << "-Infinity stop not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "'stop' cannot be nan or infinite.");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Test failed for unexpected reason";
     }
 
@@ -625,7 +625,7 @@ TEST(type_prop, range_v4_invalid_inputs_minus_inf) {
         FAIL() << "-Infinity step not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "'step' cannot be nan or infinite.");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Test failed for unexpected reason";
     }
 }
@@ -640,7 +640,7 @@ TEST(type_prop, range_v4_invalid_inputs_nan) {
         FAIL() << "NaN start not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "'start' cannot be nan or infinite.");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Test failed for unexpected reason";
     }
 
@@ -653,7 +653,7 @@ TEST(type_prop, range_v4_invalid_inputs_nan) {
         FAIL() << "NaN stop not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "'stop' cannot be nan or infinite.");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Test failed for unexpected reason";
     }
 
@@ -666,7 +666,7 @@ TEST(type_prop, range_v4_invalid_inputs_nan) {
         FAIL() << "NaN step not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "'step' cannot be nan or infinite.");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Test failed for unexpected reason";
     }
 }

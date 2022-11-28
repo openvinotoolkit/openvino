@@ -238,7 +238,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unsupported_op) {
         EXPECT_NE(what.find("OpenVINO does not support"), std::string::npos);
         EXPECT_NE(what.find("FakeOpName"), std::string::npos);
         EXPECT_NE(what.find("AnotherFakeOpName"), std::string::npos);
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Expected ngraph::ngraph_error";
     }
 }
@@ -281,7 +281,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_custom_op_register_unregister) {
     } catch (ngraph::ngraph_error const& err) {
         std::string what{err.what()};
         EXPECT_NE(what.find("Check 'unknown_operators.empty()' failed"), std::string::npos);
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Expected ngraph::ngraph_error";
     }
 }
@@ -3020,7 +3020,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_sign_f32) {
         EXPECT_HAS_SUBSTRING(
             e.what(),
             std::string("If the input type is floating point, then `fmod` attribute must be set to 1."));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Expected ngraph_error exception was not thrown";
     }
 }
@@ -3071,7 +3071,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_incorrect_fmod) {
         FAIL() << "Expected exception was not thrown";
     } catch (const ngraph::ngraph_error& e) {
         EXPECT_HAS_SUBSTRING(e.what(), std::string("Unsupported value of 'fmod' attribute (should be: 0 or 1)"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Expected ngraph_error exception was not thrown";
     }
 }
@@ -4491,7 +4491,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout12_training_mode) {
         FAIL() << "Expected exception was not thrown";
     } catch (const ngraph::ngraph_error& e) {
         EXPECT_HAS_SUBSTRING(e.what(), std::string("Training mode is not supported for Dropout op"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Expected ngraph_error exception was not thrown";
     }
 }
@@ -4505,7 +4505,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout12_not_const_training_mode) {
         FAIL() << "Expected exception was not thrown";
     } catch (const ngraph::ngraph_error& e) {
         EXPECT_HAS_SUBSTRING(e.what(), std::string("Non-constant training_mode input is not supported."));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Expected ngraph_error exception was not thrown";
     }
 }
@@ -5162,7 +5162,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_unsupported_embedding_mode) {
             e.what(),
             std::string(
                 "Unsupported mode, only `0` (sum) is supported as ATen embedding_bag `mode` attribute. Got: 1"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Other exception than expected was thrown.";
     }
 }
@@ -5179,7 +5179,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_unsupported_operator) {
             e.what(),
             std::string(
                 "Only `embedding_bag` is supported as ATen `operator` attribute. Got: test_unsupported_operator"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Other exception than expected was thrown.";
     }
 }
@@ -5452,7 +5452,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_scan15_dyn_rank_vals_neg_axes) {
                                                                 "onnx/scan15_dyn_rank_neg_axes.onnx"));
     } catch (const ngraph::ngraph_error& e) {
         EXPECT_HAS_SUBSTRING(e.what(), std::string("Rank must be static in order to normalize negative axis"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Expected exception was not thrown.";
     }
 }
@@ -5583,7 +5583,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_scan8_ND_b4_seq_lens) {
                                                                 "onnx/scan8_ND_b4_seq_lens.onnx"));
     } catch (const ngraph::ngraph_error& e) {
         EXPECT_HAS_SUBSTRING(e.what(), std::string(" ONNX Scan-8 `sequence_lens` input is not supported. "));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Expected exception was not thrown.";
     }
 }

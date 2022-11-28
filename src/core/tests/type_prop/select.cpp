@@ -40,7 +40,7 @@ TEST(type_prop, select_shape_mismatch_a) {
         FAIL() << "Did not detect incorrect element types for arithmetic operator";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Argument shapes are inconsistent"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -55,7 +55,7 @@ TEST(type_prop, select_shape_mismatch_b) {
         FAIL() << "Did not detect incorrect element types for arithmetic operator";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Argument shapes are inconsistent"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -70,7 +70,7 @@ TEST(type_prop, select_shape_mismatch_c) {
         FAIL() << "Did not detect incorrect element types for arithmetic operator";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Argument shapes are inconsistent"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -85,7 +85,7 @@ TEST(type_prop, select_elem_mismatch_a) {
         FAIL() << "Did not detect incorrect element types for arithmetic operator";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Argument 0 must have boolean element type"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -100,7 +100,7 @@ TEST(type_prop, select_elem_mismatch_bc) {
         FAIL() << "Did not detect incorrect element types for arithmetic operator";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Argument 1 and 2 element types must match"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -127,7 +127,7 @@ TEST(type_prop, select_partial_all_rank_dynamic_arg0_et_dynamic_arg1_arg2_et_mis
                   "arg0)";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Argument 1 and 2 element types must match"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -189,7 +189,7 @@ TEST(type_prop, select_partial_all_rank_static_intransitive_incompatibility) {
         FAIL() << "Did not detect intransitive partial-shape incompatibility";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Argument shapes are inconsistent"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -293,7 +293,7 @@ TEST(type_prop, select_v1_wrong_et) {
         FAIL() << "Did not detect wrong element type";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Argument 0 must have boolean element type"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -308,7 +308,7 @@ TEST(type_prop, select_v1_et_mismatch) {
         FAIL() << "Did not detect element type mismatch";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Argument 1 and 2 element types must match."));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -323,7 +323,7 @@ TEST(type_prop, select_v1_shape_mismatch) {
         FAIL() << "Did not detect shape mismatch";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Argument shapes are inconsistent."));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -338,7 +338,7 @@ TEST(type_prop, select_v1_partial_shape_mismatch) {
         FAIL() << "Did not detect shape mismatch";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Argument shapes are inconsistent."));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }

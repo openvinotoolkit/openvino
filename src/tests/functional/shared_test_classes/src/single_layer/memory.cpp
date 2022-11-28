@@ -96,7 +96,7 @@ namespace LayerTestsDefinitions {
         } catch (const std::exception &ex) {
             s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::FAILED);
             GTEST_FATAL_FAILURE_(ex.what());
-        } catch (...) {
+        } catch (std::exception&) {
             s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::FAILED);
             GTEST_FATAL_FAILURE_("Unknown failure occurred.");
         }

@@ -93,7 +93,7 @@ TEST(build_graph, function_undeclared_parameters) {
         FAIL() << "Undeclared parameter not detected.";
     } catch (const ngraph_error& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Model references undeclared parameter"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Model construction failed for unexpected reason";
     }
 }
@@ -161,7 +161,7 @@ TEST(build_graph, default_output_checks) {
     try {
         std::shared_ptr<Node> empty;
         auto nullout = Output<Node>(empty);
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "nullptr initialization of Output failed";
     }
 }

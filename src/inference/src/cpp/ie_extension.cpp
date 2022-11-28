@@ -43,7 +43,7 @@ std::shared_ptr<T> CreateExtensionFromLibrary(std::shared_ptr<void> _so) {
             using CreateF = void(std::shared_ptr<T>&);
             reinterpret_cast<CreateF*>(create)(_ptr);
         }
-    } catch (...) {
+    } catch (std::exception&) {
         details::Rethrow();
     }
 

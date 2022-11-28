@@ -216,7 +216,7 @@ bool is_valid_model(std::istream& model) {
         }
 
         return onnx_fields_found.size() == EXPECTED_FIELDS_FOUND;
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
 }

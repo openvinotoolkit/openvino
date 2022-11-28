@@ -20,7 +20,7 @@ int main() {
             if (!compiled) {
                 throw std::runtime_error("error");
             }
-    } catch (...) {
+    } catch (std::exception&) {
     }
     return 0;
 }

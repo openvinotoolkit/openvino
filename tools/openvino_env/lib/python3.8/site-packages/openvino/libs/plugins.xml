@@ -1,0 +1,24 @@
+<ie>
+    <plugins>
+        <plugin name="AUTO" location="libopenvino_auto_plugin.so">
+        </plugin>
+        <plugin name="BATCH" location="libopenvino_auto_batch_plugin.so">
+        </plugin>
+        <plugin name="CPU" location="libopenvino_intel_cpu_plugin.so">
+        </plugin>
+        <plugin name="GNA" location="libopenvino_intel_gna_plugin.so">
+        </plugin>
+        <plugin name="GPU" location="libopenvino_intel_gpu_plugin.so">
+        </plugin>
+        <plugin name="HETERO" location="libopenvino_hetero_plugin.so">
+        </plugin>
+        <plugin name="MULTI" location="libopenvino_auto_plugin.so">
+        </plugin>
+        <plugin name="MYRIAD" location="libopenvino_intel_myriad_plugin.so">
+        </plugin>
+        <plugin name="HDDL" location="libopenvino_intel_hddl_plugin.so">
+        </plugin>
+        <plugin name="VPUX" location="libopenvino_intel_vpux_plugin.so">
+        </plugin>
+    </plugins>
+</ie>

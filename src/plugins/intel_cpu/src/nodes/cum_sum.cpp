@@ -26,7 +26,7 @@ bool CumSum::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
             errorMessage = "Only opset3 CumSum operation is supported";
             return false;
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
     return true;

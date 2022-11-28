@@ -30,7 +30,7 @@ TEST(type_prop, unsqueeze_incorrect_axes_shape) {
         FAIL() << "Unsqueeze axes invalid rank not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Second input (axes) should not be of rank higher than 1");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -46,7 +46,7 @@ TEST(type_prop, unsqueeze_positive_axis_gt_ouput_rank) {
     } catch (const NodeValidationFailure& error) {
         const auto exp_msg = "Parameter axis " + std::to_string(bad_axis) + " out of the tensor rank range";
         EXPECT_HAS_SUBSTRING(error.what(), exp_msg);
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -62,7 +62,7 @@ TEST(type_prop, unsqueeze_negative_axis_gt_ouput_rank) {
     } catch (const NodeValidationFailure& error) {
         const auto exp_msg = "Parameter axis " + std::to_string(bad_axis) + " out of the tensor rank range";
         EXPECT_HAS_SUBSTRING(error.what(), exp_msg);
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -75,7 +75,7 @@ TEST(type_prop, unsqueeze_empty_axes) {
         FAIL() << "Unsqueeze axes empty not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "'axes' input is mandatory");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }

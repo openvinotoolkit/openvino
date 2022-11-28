@@ -121,7 +121,7 @@ bool Deconvolution::isSupportedOperation(const std::shared_ptr<const ngraph::Nod
             errorMessage = "Doesn't support dynamic shapes for 'weights' and 'output_shape' inputs";
             return false;
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
     return true;

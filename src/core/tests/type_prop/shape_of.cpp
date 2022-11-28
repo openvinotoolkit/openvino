@@ -82,21 +82,21 @@ TEST(type_prop, shape_of_output_type_v3) {
         auto sx = make_shared<op::v3::ShapeOf>(a, element::i8);
         FAIL() << "Invalid output_type not detected";
     } catch (const NodeValidationFailure&) {
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Node validation error not thrown";
     }
     try {
         auto sx = make_shared<op::v3::ShapeOf>(a, element::i16);
         FAIL() << "Invalid output_type not detected";
     } catch (const NodeValidationFailure&) {
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Node validation error not thrown";
     }
     try {
         auto sx = make_shared<op::v3::ShapeOf>(a, element::f32);
         FAIL() << "Invalid output_type not detected";
     } catch (const NodeValidationFailure&) {
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Node validation error not thrown";
     }
 

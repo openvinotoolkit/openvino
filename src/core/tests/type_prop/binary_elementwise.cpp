@@ -29,7 +29,7 @@ void test_binary(std::string /* node_type */,
             FAIL() << "Incompatible view arguments not detected.";
         } catch (const NodeValidationFailure& error) {
             EXPECT_HAS_SUBSTRING(error.what(), std::string("Argument shapes are inconsistent"));
-        } catch (...) {
+        } catch (std::exception&) {
             FAIL() << "Deduced type check failed for unexpected reason";
         }
     };
@@ -42,7 +42,7 @@ void test_binary(std::string /* node_type */,
             FAIL() << "Incompatible view arguments not detected.";
         } catch (const NodeValidationFailure& error) {
             EXPECT_HAS_SUBSTRING(error.what(), std::string("Arguments do not have the same element type"));
-        } catch (...) {
+        } catch (std::exception&) {
             FAIL() << "Deduced type check failed for unexpected reason";
         }
     };
@@ -81,7 +81,7 @@ void test_binary_logical(std::string /* node_type */,
             FAIL() << "Incompatible view arguments not detected.";
         } catch (const NodeValidationFailure& error) {
             EXPECT_HAS_SUBSTRING(error.what(), std::string("Argument shapes are inconsistent"));
-        } catch (...) {
+        } catch (std::exception&) {
             FAIL() << "Deduced type check failed for unexpected reason";
         }
     };
@@ -94,7 +94,7 @@ void test_binary_logical(std::string /* node_type */,
             FAIL() << "Incompatible view arguments not detected.";
         } catch (const NodeValidationFailure& error) {
             EXPECT_HAS_SUBSTRING(error.what(), std::string("Arguments do not have the same element type"));
-        } catch (...) {
+        } catch (std::exception&) {
             FAIL() << "Deduced type check failed for unexpected reason";
         }
     };
@@ -106,7 +106,7 @@ void test_binary_logical(std::string /* node_type */,
             FAIL() << "Incompatible view arguments not detected.";
         } catch (const ngraph_error& error) {
             EXPECT_HAS_SUBSTRING(error.what(), "must have boolean element type");
-        } catch (...) {
+        } catch (std::exception&) {
             FAIL() << "Deduced type check failed for unexpected reason";
         }
     };
@@ -183,7 +183,7 @@ TEST(type_prop, binary_arithmetic_bad_argument_element_types) {
         FAIL() << "Did not detect incorrect element types for arithmetic operator";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Arguments cannot have boolean element type"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -199,7 +199,7 @@ void test_binary_eltwise_bad_argument_shape(const element::Type& et) {
         FAIL() << "Did not detect incorrect element types for arithmetic operator";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Argument shapes are inconsistent"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -273,7 +273,7 @@ TEST(type_prop, binary_elementwise_arithmetic_left_rank_static_dynamic_inconsist
         FAIL() << "Inconsistent partial shapes not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Argument shapes are inconsistent");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -287,7 +287,7 @@ TEST(type_prop, binary_elementwise_arithmetic_right_rank_static_dynamic_inconsis
         FAIL() << "Inconsistent partial shapes not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Argument shapes are inconsistent");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -301,7 +301,7 @@ TEST(type_prop, binary_elementwise_arithmetic_both_rank_static_dynamic_inconsist
         FAIL() << "Inconsistent partial shapes not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Argument shapes are inconsistent");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -315,7 +315,7 @@ TEST(type_prop, binary_elementwise_arithmetic_left_rank_static_dynamic_different
         FAIL() << "Inconsistent partial shapes not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Argument shapes are inconsistent");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -329,7 +329,7 @@ TEST(type_prop, binary_elementwise_arithmetic_right_rank_static_dynamic_differen
         FAIL() << "Inconsistent partial shapes not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Argument shapes are inconsistent");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -343,7 +343,7 @@ TEST(type_prop, binary_elementwise_arithmetic_both_rank_static_dynamic_different
         FAIL() << "Inconsistent partial shapes not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Argument shapes are inconsistent");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }

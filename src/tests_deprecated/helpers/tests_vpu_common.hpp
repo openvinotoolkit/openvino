@@ -42,7 +42,7 @@ static bool hasPlatform(const std::string &environment_variable) {
     int value;
     try {
         value = std::stoi(env);
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
 

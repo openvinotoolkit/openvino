@@ -120,7 +120,7 @@ protected:
             if (!layerExist) {
                 return 0;
             }
-        } catch(...) {
+        } catch (std::exception&) {
             return 0;
         }
 
@@ -148,7 +148,7 @@ protected:
             if (!layerExist) {
                 return 0;
             }
-        } catch(...) {
+        } catch (std::exception&) {
             return 0;
         }
 

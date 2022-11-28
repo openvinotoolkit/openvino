@@ -33,7 +33,7 @@ TEST_P(OpImplCheckTest, checkPluginImplementation) {
         } catch (const std::exception &e) {
             summary.updateOPsImplStatus(function, false);
             GTEST_FAIL() << "Exception in the Core::compile_model() method call: " << e.what();
-        } catch (...) {
+        } catch (std::exception&) {
             summary.updateOPsImplStatus(function, false);
             GTEST_FAIL() << "Error in the Core::compile_model() method call!";
         }

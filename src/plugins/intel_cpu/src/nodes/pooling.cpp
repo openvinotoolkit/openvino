@@ -133,7 +133,7 @@ bool Pooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
             errorMessage = "MaxPool and AvgPool from opset1 and MaxPool from opset8 are supported";
             return false;
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
     return true;

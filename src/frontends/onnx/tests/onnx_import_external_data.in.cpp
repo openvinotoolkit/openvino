@@ -104,7 +104,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_external_invalid_external_data_exception) {
         EXPECT_PRED_FORMAT2(testing::IsSubstring,
                             std::string("not_existed_file.data, offset: 4096, data_length: 16)"),
                             error.what());
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Importing onnx model failed for unexpected reason";
     }
 }
@@ -121,7 +121,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_external_invalid_up_dir_path) {
                             std::string("tensor.data, offset: 4096, "
                                         "data_length: 16)"),
                             error.what());
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Importing onnx model failed for unexpected reason";
     }
 }
@@ -138,7 +138,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_external_invalid_data_length) {
                             std::string("tensor.data, offset: 0, "
                                         "data_length: 30000000000)"),
                             error.what());
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Importing onnx model failed for unexpected reason";
     }
 }

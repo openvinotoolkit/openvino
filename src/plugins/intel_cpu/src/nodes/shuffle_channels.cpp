@@ -59,7 +59,7 @@ bool ShuffleChannels::isSupportedOperation(const std::shared_ptr<const ngraph::N
             errorMessage = "Only opset1 ShuffleChannels operation is supported";
             return false;
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
     return true;

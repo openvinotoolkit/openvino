@@ -152,7 +152,7 @@ wd_error_t xlink_device_create(WdDeviceHndl_t** out_deviceHandle, devicePrivate_
         return WD_ERRNO;
     } catch (const std::exception& ex) {
         mvLog(MVLOG_ERROR, "error %s", ex.what());
-    } catch (...) {
+    } catch (std::exception&) {
         mvLog(MVLOG_ERROR, "unknown error");
     }
 

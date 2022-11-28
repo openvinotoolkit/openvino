@@ -42,7 +42,7 @@ TEST(type_prop, transpose_arg_static_input_order_constant_invalid_perm) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Permutation AxisVector{2, 9, 0, 3} is not valid for input shape"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -57,7 +57,7 @@ TEST(type_prop, transpose_with_not_unique_order) {
         FAIL() << "Did not detect invalid permutation";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Permutation AxisVector{1, 0, 1} is not valid for input shape"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -152,7 +152,7 @@ TEST(type_prop, transpose_arg_static_input_order_static_input_order_not_vector) 
         FAIL() << "Did not detect input order not vector";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Input order must be a vector."));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -166,7 +166,7 @@ TEST(type_prop, transpose_arg_static_input_order_rank_static_dynamic_input_order
         FAIL() << "Did not detect input order not vector";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Input order must be a vector."));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -180,7 +180,7 @@ TEST(type_prop, transpose_arg_static_input_order_static_input_order_wrong_size) 
         FAIL() << "Did not detect input order wrong size";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Input order must have shape [n], where n is the rank of arg."));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -194,7 +194,7 @@ TEST(type_prop, transpose_arg_rank_static_dynamic_input_order_static_input_order
         FAIL() << "Did not detect input order not vector";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Input order must be a vector."));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -208,7 +208,7 @@ TEST(type_prop, transpose_arg_rank_static_dynamic_input_order_rank_static_dynami
         FAIL() << "Did not detect input order not vector";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Input order must be a vector."));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -222,7 +222,7 @@ TEST(type_prop, transpose_arg_rank_dynamic_input_order_rank_static_dynamic_input
         FAIL() << "Did not detect input order not vector";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Input order must be a vector."));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -246,7 +246,7 @@ TEST(type_prop, transpose_input_order_et_wrong) {
         FAIL() << "Did not detect input element type not i64";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Input order must have an integral number element type."));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }

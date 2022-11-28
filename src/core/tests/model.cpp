@@ -1655,7 +1655,7 @@ TEST(model, get_batch_size_with_conflict) {
         EXPECT_TRUE(std::string(err.what()).find(ov::Layout("D...").to_string()) == std::string::npos) << err.what();
         EXPECT_TRUE(std::string(err.what()).find("tensor_input_0") == std::string::npos) << err.what();
         EXPECT_TRUE(std::string(err.what()).find("tensor_input_1") == std::string::npos) << err.what();
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Expected ov::Exception";
     }
 }
@@ -1671,7 +1671,7 @@ TEST(model, get_batch_size_without_batches) {
         // Verify error message contains layouts without batches
         EXPECT_TRUE(std::string(err.what()).find(ov::Layout("?C...").to_string()) != std::string::npos) << err.what();
         EXPECT_TRUE(std::string(err.what()).find(ov::Layout().to_string()) != std::string::npos) << err.what();
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Expected ov::Exception";
     }
 }
@@ -1742,7 +1742,7 @@ TEST(model, set_batch_size_with_conflict) {
         EXPECT_TRUE(std::string(err.what()).find(ov::Layout("D...").to_string()) == std::string::npos) << err.what();
         EXPECT_TRUE(std::string(err.what()).find("tensor_input_0") == std::string::npos) << err.what();
         EXPECT_TRUE(std::string(err.what()).find("tensor_input_1") == std::string::npos) << err.what();
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Expected ov::Exception";
     }
 }
@@ -1758,7 +1758,7 @@ TEST(model, set_batch_size_without_batches) {
         // Verify error message contains layouts without batches
         EXPECT_TRUE(std::string(err.what()).find(ov::Layout("?C...").to_string()) != std::string::npos) << err.what();
         EXPECT_TRUE(std::string(err.what()).find(ov::Layout().to_string()) != std::string::npos) << err.what();
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Expected ov::Exception";
     }
 }
@@ -1776,7 +1776,7 @@ TEST(model, set_batch_size_validation_throw) {
         // Verify error message contains all layouts
         EXPECT_TRUE(std::string(err.what()).find(ov::Layout("NCHW").to_string()) != std::string::npos) << err.what();
         EXPECT_TRUE(std::string(err.what()).find(ov::Layout().to_string()) != std::string::npos) << err.what();
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Expected ov::Exception";
     }
 }
@@ -1791,7 +1791,7 @@ TEST(model, incompatible_layout) {
         } catch (const ov::Exception& err) {
             // Verify error message contains conflicting layouts
             EXPECT_TRUE(std::string(err.what()).find(msg) != std::string::npos) << err.what();
-        } catch (...) {
+        } catch (std::exception&) {
             FAIL() << "Expected ov::Exception";
         }
     };

@@ -47,7 +47,7 @@ public:
                 _executor->deallocateGraph(_device, _graphDesc);
             }
         }
-        catch (...) {
+        catch (std::exception&) {
             std::cerr << "ERROR ~ExecutableNetwork():\n"
                       << "Some errors occurred during the calling of the deallocateGraph() method";
         }

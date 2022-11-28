@@ -30,7 +30,7 @@ bool Select::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
             errorMessage = "Does not support broadcast type: " + ngraph::as_string(broadcast.m_type);
             return false;
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
     return true;

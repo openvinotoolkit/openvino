@@ -20,7 +20,7 @@ bool Range::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, 
             errorMessage = "Only opset1 and opset4 Range operation is supported";
             return false;
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
     return true;

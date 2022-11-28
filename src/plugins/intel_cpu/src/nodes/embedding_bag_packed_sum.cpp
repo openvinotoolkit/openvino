@@ -21,7 +21,7 @@ bool EmbeddingBagPackedSum::isSupportedOperation(const std::shared_ptr<const ngr
             errorMessage = "Node is not an instance of the EmbeddingBagPackedSum operation from opset v3.";
             return false;
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
     return true;

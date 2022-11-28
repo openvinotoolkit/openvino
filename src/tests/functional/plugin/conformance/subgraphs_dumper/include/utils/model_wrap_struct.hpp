@@ -16,7 +16,7 @@ struct Model {
         path = model;
         try {
             size = ov::test::utils::PluginCache::get().core()->read_model(path)->get_graph_size();
-        } catch (...) {
+        } catch (std::exception&) {
             std::cout << "Impossible to read network: " << path << std::endl;
         }
     }

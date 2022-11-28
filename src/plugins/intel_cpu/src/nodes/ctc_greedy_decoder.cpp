@@ -22,7 +22,7 @@ bool CTCGreedyDecoder::isSupportedOperation(const std::shared_ptr<const ngraph::
             errorMessage = "Node is not an instance of the CTCGreedyDecoder operation from operation set v0.";
             return false;
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
     return true;

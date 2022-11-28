@@ -114,7 +114,7 @@ TEST_P(BackgroundSubtractorTest, AccuracyTest)
     {
         gapiBackSub.setSource(gapi::wip::make_src<cv::gapi::wip::GCaptureSource>(path));
     }
-    catch (...)
+    catch (std::exception&)
     { throw SkipTestException("Video file can't be opened."); }
 
     cv::Ptr<cv::BackgroundSubtractor> pOCVBackSub;

@@ -24,7 +24,7 @@ bool GatherTree::isSupportedOperation(const std::shared_ptr<const ngraph::Node>&
             errorMessage = "Node is not an instance of the GatherTree operation from operation set v1.";
             return false;
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
     return true;

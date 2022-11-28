@@ -43,7 +43,7 @@ TEST(type_prop, roll_incorrect_axis_test) {
         FAIL() << "Unexpected pass with invalid axes and shift.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Axes must be less than data tensor rank."));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Check failed for unexpected reason";
     }
 }
@@ -59,7 +59,7 @@ TEST(type_prop, roll_incorrect_negative_axis_test) {
         FAIL() << "Unexpected pass with invalid axes and shift.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Axes must be positive or equal to zero."));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Check failed for unexpected reason";
     }
 }
@@ -87,7 +87,7 @@ TEST(type_prop, roll_invalid_axes_check) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("If shift is a 1D vector, axes must be a 1D tensor of the same size."));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Check failed for unexpected reason";
     }
 }

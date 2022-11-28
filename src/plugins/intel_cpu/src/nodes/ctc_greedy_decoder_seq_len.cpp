@@ -22,7 +22,7 @@ bool CTCGreedyDecoderSeqLen::isSupportedOperation(const std::shared_ptr<const ng
             errorMessage = "Node is not an instance of the CTCGreedyDecoderSeqLen operation from operation set v6.";
             return false;
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
     return true;

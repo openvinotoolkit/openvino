@@ -59,7 +59,7 @@ std::vector<layout> one_hot_inst::calc_output_layouts(const one_hot_node& /*node
         // thus wrap this call with try/catch.
         // it's safe as shape_infer method calls normalize_axis internally
         op.set_axis(desc->one_hot_axis);
-    } catch (...) {}
+    } catch (std::exception&) {}
 
     std::vector<ShapeType> output_shapes = { ShapeType{} };
     std::vector<ShapeType> input_shapes = {

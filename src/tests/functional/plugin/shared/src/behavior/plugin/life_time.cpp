@@ -43,7 +43,7 @@ namespace BehaviorTestsDefinitions {
         std::vector<InferenceEngine::VariableState> states;
         try {
             states = request.QueryState();
-        } catch(...) {
+        } catch (std::exception&) {
             // do nothing
         }
 

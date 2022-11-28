@@ -113,7 +113,7 @@ Parameter GNAPlugin::GetAvailableDevices() const {
         if (helper.hasGnaHw()) {
             devices.push_back("GNA_HW");
         }
-    }catch(...) {}
+    }catch (std::exception&) {}
 
     return devices;
 }
