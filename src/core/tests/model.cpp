@@ -2001,11 +2001,22 @@ TEST(model, set_complex_meta_information) {
         EXPECT_FLOAT_EQ(13.23f, model->get_rt_info<float>("config", "model_parameters", "threshold"));
         EXPECT_FLOAT_EQ(-3.245433f, model->get_rt_info<float>("config", "model_parameters", "min"));
         EXPECT_FLOAT_EQ(3.2342233f, model->get_rt_info<float>("config", "model_parameters", "max"));
-        EXPECT_EQ("tree", model->get_rt_info<std::string>("config", "model_parameters", "labels", "label_tree", "type"));
+        EXPECT_EQ("tree",
+                  model->get_rt_info<std::string>("config", "model_parameters", "labels", "label_tree", "type"));
         EXPECT_EQ(true, model->get_rt_info<bool>("config", "model_parameters", "labels", "label_tree", "directed"));
-        EXPECT_EQ(std::vector<std::string>{}, model->get_rt_info<std::vector<std::string>>("config", "model_parameters", "labels", "label_tree", "nodes"));
+        EXPECT_EQ(std::vector<std::string>{},
+                  model->get_rt_info<std::vector<std::string>>("config",
+                                                               "model_parameters",
+                                                               "labels",
+                                                               "label_tree",
+                                                               "nodes"));
         std::vector<std::string> str_vec{"sasd", "fdfdfsdf"};
-        EXPECT_EQ(str_vec, model->get_rt_info<std::vector<std::string>>("config", "model_parameters", "labels", "label_groups", "ids"));
+        EXPECT_EQ(str_vec,
+                  model->get_rt_info<std::vector<std::string>>("config",
+                                                               "model_parameters",
+                                                               "labels",
+                                                               "label_groups",
+                                                               "ids"));
         std::vector<float> fl_vec{22.3f, 33.11f, 44.f};
         EXPECT_EQ(fl_vec, model->get_rt_info<std::vector<float>>("config", "model_parameters", "mean_values"));
     };
@@ -2019,7 +2030,12 @@ TEST(model, set_complex_meta_information) {
     f->set_rt_info("tree", "config", "model_parameters", "labels", "label_tree", "type");
     f->set_rt_info(true, "config", "model_parameters", "labels", "label_tree", "directed");
     f->set_rt_info(std::vector<std::string>{}, "config", "model_parameters", "labels", "label_tree", "nodes");
-    f->set_rt_info(std::vector<std::string>{"sasd", "fdfdfsdf"}, "config", "model_parameters", "labels", "label_groups", "ids");
+    f->set_rt_info(std::vector<std::string>{"sasd", "fdfdfsdf"},
+                   "config",
+                   "model_parameters",
+                   "labels",
+                   "label_groups",
+                   "ids");
     f->set_rt_info(std::vector<float>{22.3f, 33.11f, 44.f}, "config", "model_parameters", "mean_values");
 
     check_rt_info(f);

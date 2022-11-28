@@ -426,12 +426,28 @@ TEST_F(MetaDataSerialize, set_complex_meta_information) {
         EXPECT_GE(0.0001f, model->get_rt_info<float>("config", "model_parameters", "threshold") - 13.23f);
         EXPECT_GE(0.0001f, model->get_rt_info<float>("config", "model_parameters", "min") - (-3.245433f));
         EXPECT_GE(0.0001f, model->get_rt_info<float>("config", "model_parameters", "max") - 3.2342233f);
-        EXPECT_EQ("tree", model->get_rt_info<std::string>("config", "model_parameters", "labels", "label_tree", "type"));
+        EXPECT_EQ("tree",
+                  model->get_rt_info<std::string>("config", "model_parameters", "labels", "label_tree", "type"));
         EXPECT_EQ(true, model->get_rt_info<bool>("config", "model_parameters", "labels", "label_tree", "directed"));
-        EXPECT_EQ(std::vector<std::string>{}, model->get_rt_info<std::vector<std::string>>("config", "model_parameters", "labels", "label_tree", "nodes"));
-        EXPECT_EQ(std::vector<float>{}, model->get_rt_info<std::vector<float>>("config", "model_parameters", "labels", "label_tree", "float_empty"));
+        EXPECT_EQ(std::vector<std::string>{},
+                  model->get_rt_info<std::vector<std::string>>("config",
+                                                               "model_parameters",
+                                                               "labels",
+                                                               "label_tree",
+                                                               "nodes"));
+        EXPECT_EQ(std::vector<float>{},
+                  model->get_rt_info<std::vector<float>>("config",
+                                                         "model_parameters",
+                                                         "labels",
+                                                         "label_tree",
+                                                         "float_empty"));
         std::vector<std::string> str_vec{"sasd", "fdfdfsdf"};
-        EXPECT_EQ(str_vec, model->get_rt_info<std::vector<std::string>>("config", "model_parameters", "labels", "label_groups", "ids"));
+        EXPECT_EQ(str_vec,
+                  model->get_rt_info<std::vector<std::string>>("config",
+                                                               "model_parameters",
+                                                               "labels",
+                                                               "label_groups",
+                                                               "ids"));
         std::vector<float> fl_vec{22.3f, 33.11f, 44.f};
         EXPECT_EQ(fl_vec, model->get_rt_info<std::vector<float>>("config", "model_parameters", "mean_values"));
     };
@@ -452,7 +468,12 @@ TEST_F(MetaDataSerialize, set_complex_meta_information) {
         model->set_rt_info(true, "config", "model_parameters", "labels", "label_tree", "directed");
         model->set_rt_info(std::vector<float>{}, "config", "model_parameters", "labels", "label_tree", "float_empty");
         model->set_rt_info(std::vector<std::string>{}, "config", "model_parameters", "labels", "label_tree", "nodes");
-        model->set_rt_info(std::vector<std::string>{"sasd", "fdfdfsdf"}, "config", "model_parameters", "labels", "label_groups", "ids");
+        model->set_rt_info(std::vector<std::string>{"sasd", "fdfdfsdf"},
+                           "config",
+                           "model_parameters",
+                           "labels",
+                           "label_groups",
+                           "ids");
         model->set_rt_info(std::vector<float>{22.3f, 33.11f, 44.f}, "config", "model_parameters", "mean_values");
 
         check_rt_info(model);

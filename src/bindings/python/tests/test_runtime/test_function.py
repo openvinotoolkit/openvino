@@ -560,7 +560,6 @@ def test_serialize_complex_rt_info(request):
         assert m.get_rt_info(["config", "model_parameters", "labels", "label_groups", "ids"]) == ids
         assert m.get_rt_info(["config", "model_parameters", "mean_values"]) == mean
 
-
     core = Core()
     xml_path, bin_path = create_filename_for_test(request.node.name)
     input_shape = PartialShape([1])
