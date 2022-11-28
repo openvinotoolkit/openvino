@@ -89,6 +89,8 @@ public:
             params.has_padded_output = true;
         }
 
+        params.surface_input = primitive->has_surface_input();
+
         if (has_mean) {
             if (impl_param.get_input_layout(0).format == cldnn::format::nv12) {
                 const auto& mean_layout = impl_param.get_input_layout(2);
