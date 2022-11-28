@@ -856,6 +856,7 @@ public:
         std::map<std::string, std::string> config_with_batch = config;
         CleanUpProperties(device, config_with_batch, ov::auto_batch_timeout);
         CleanUpProperties(device, config_with_batch, ov::hint::allow_auto_batching);
+        // TODO: align apply-auto-batching logic with load through network
         coreConfig.flag_allow_auto_batching = false;
         auto parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch);
         auto plugin = GetCPPPluginByName(parsed._deviceName);
