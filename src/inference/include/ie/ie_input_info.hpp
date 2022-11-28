@@ -110,7 +110,7 @@ public:
     /**
      * @brief Changes the name of the input data provided by the user.
      *
-     * @param l A new name of the input data to set
+     * @param newName A new name of the input data to set
      */
     void setName(const std::string& newName) {
         if (!_inputData) {
