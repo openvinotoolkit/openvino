@@ -693,8 +693,8 @@ void dump_config(const std::string& filename, const std::map<std::string, ov::An
         std::stringstream strm;
         for (auto param_it = device_it->second.begin(); param_it != device_it->second.end(); ++param_it) {
             strm << param_it->first;
-                param_it->second.print(strm);
-            }
+            param_it->second.print(strm);
+        }
         fs << strm.str();
         fs << "}";
     }
@@ -722,7 +722,7 @@ void load_config(const std::string& filename, std::map<std::string, ov::AnyMap>&
         }
         for (auto iit = device.begin(); iit != device.end(); ++iit) {
             auto item = *iit;
-                config[opencv_to_plugin_format(device.name())][item.name()] = item.string();
+            config[opencv_to_plugin_format(device.name())][item.name()] = item.string();
         }
     }
 }
