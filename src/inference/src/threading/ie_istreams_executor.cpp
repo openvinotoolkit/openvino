@@ -54,10 +54,12 @@ int IStreamsExecutor::Config::GetDefaultNumStreams(const bool enable_hyper_threa
         return 1;
 }
 
-int IStreamsExecutor::Config::GetHybridNumStreams(std::map<std::string, std::string>& config, const int stream_mode) {
-    const int num_cores = parallel_get_max_threads();
-    const int num_cores_phy = getNumberOfCPUCores();
-    const int num_big_cores_phy = getNumberOfCPUCores(true);
+int IStreamsExecutor::Config::GetHybridNumStreams(std::map<std::string, std::string>& config,
+                                                  const int stream_mode,
+                                                  const CpuInfo* cpu_info) {
+    const int num_cores = cpu_info == nullptr ? parallel_get_max_threads() : cpu_info->num_cores;
+    const int num_cores_phy = cpu_info == nullptr ? getNumberOfCPUCores() : cpu_info->num_cores_phy;
+    const int num_big_cores_phy = cpu_info == nullptr ? getNumberOfCPUCores(true) : cpu_info->num_big_cores_phy;
     const int num_small_cores = num_cores_phy - num_big_cores_phy;
     const int num_big_cores = num_cores > num_cores_phy ? num_big_cores_phy * 2 : num_big_cores_phy;
     int big_core_streams = 0;
@@ -97,7 +99,7 @@ int IStreamsExecutor::Config::GetHybridNumStreams(std::map<std::string, std::str
         threads_per_stream_big = num_big_cores / big_core_streams;
         threads_per_stream_small = num_small_cores == 0 ? 0 : num_small_cores / small_core_streams;
     } else if (stream_mode == LESSAGGRESSIVE) {
-        big_core_streams = num_big_cores / 2;
+        big_core_streams = num_big_cores > 1 ? num_big_cores / 2 : num_big_cores;
         small_core_streams = num_small_cores / 2;
         threads_per_stream_big = num_big_cores / big_core_streams;
         threads_per_stream_small = num_small_cores == 0 ? 0 : num_small_cores / small_core_streams;
@@ -346,10 +348,10 @@ Parameter IStreamsExecutor::Config::GetConfig(const std::string& key) const {
     return {};
 }
 
-void IStreamsExecutor::Config::UpdateHybridCustomThreads(Config& config) {
-    const auto num_cores = parallel_get_max_threads();
-    const auto num_cores_phys = getNumberOfCPUCores();
-    const auto num_big_cores_phys = getNumberOfCPUCores(true);
+void IStreamsExecutor::Config::UpdateHybridCustomThreads(Config& config, const CpuInfo* cpu_info) {
+    const auto num_cores = cpu_info == nullptr ? parallel_get_max_threads() : cpu_info->num_cores;
+    const auto num_cores_phys = cpu_info == nullptr ? getNumberOfCPUCores() : cpu_info->num_cores_phy;
+    const auto num_big_cores_phys = cpu_info == nullptr ? getNumberOfCPUCores(true) : cpu_info->num_big_cores_phy;
     const auto num_big_cores = num_cores > num_cores_phys ? num_big_cores_phys * 2 : num_big_cores_phys;
     const auto num_small_cores_phys = num_cores_phys - num_big_cores_phys;
     const auto threads = config._threads ? config._threads : num_cores;
@@ -370,7 +372,7 @@ void IStreamsExecutor::Config::UpdateHybridCustomThreads(Config& config) {
         config._threads_per_stream_small = threads_per_stream;
     } else {
         const int threads_per_stream_big = std::min(num_big_cores_phys, threads_per_stream);
-        const int threads_per_stream_small = std::min(num_small_cores_phys, threads_per_stream);
+        const int threads_per_stream_small = std::max(1, std::min(num_small_cores_phys, threads_per_stream));
 
         threads_per_stream = std::min(threads_per_stream_big, threads_per_stream_small);
         while (threads_per_stream > 1) {
@@ -405,7 +407,7 @@ void IStreamsExecutor::Config::UpdateHybridCustomThreads(Config& config) {
         }
 
         config._threads_per_stream_big = threads_per_stream;
-        config._threads_per_stream_small = threads_per_stream;
+        config._threads_per_stream_small = num_small_cores_phys == 0 ? 0 : threads_per_stream;
     }
 }
 

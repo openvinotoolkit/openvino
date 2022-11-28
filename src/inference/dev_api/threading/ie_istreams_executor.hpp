@@ -84,8 +84,15 @@ public:
         static Config MakeDefaultMultiThreaded(const Config& initial, const bool fp_intesive = true);
         static int GetDefaultNumStreams(
             const bool enable_hyper_thread = true);  // no network specifics considered (only CPU's caps);
-        static int GetHybridNumStreams(std::map<std::string, std::string>& config, const int stream_mode);
-        static void UpdateHybridCustomThreads(Config& config);
+        struct CpuInfo {
+            int num_cores;
+            int num_cores_phy;
+            int num_big_cores_phy;
+        };
+        static int GetHybridNumStreams(std::map<std::string, std::string>& config,
+                                       const int stream_mode,
+                                       const CpuInfo* cpu_info = nullptr);
+        static void UpdateHybridCustomThreads(Config& config, const CpuInfo* cpu_info = nullptr);
 
         std::string _name;          //!< Used by `ITT` to name executor threads
         int _streams = 1;           //!< Number of streams.
