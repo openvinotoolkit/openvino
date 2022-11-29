@@ -130,24 +130,27 @@ bool convert_precision(ov::pass::PassBase& pass,
     };
 
     auto convert_node_output_precision = [&](const std::shared_ptr<ngraph::Node>& node) {
+        // Handle case with Constants as they can have consumers from other nGraph Function object
+        const auto it = const_to_internal_output.find(node.get());
+        if (it != const_to_internal_output.end()) {
+            return fuse_type_to_constant(node, to, it->second);
+        }
+        // Check that node type exists in map and we can fuse type into node
+        auto t2f_it = type_to_fuse.find(node->get_type_info());
+        if (t2f_it == type_to_fuse.end()) {
+            return false;
+        }
+        bool result = false;
         for (const auto& output : node->outputs()) {
             if (output.get_element_type() == from) {
-                // Handle case with Constants as they can have consumers from other nGraph
-                // Function object
-                auto it = const_to_internal_output.find(node.get());
-                if (it != const_to_internal_output.end()) {
-                    return fuse_type_to_constant(node, to, it->second);
-                }
-
-                // Check that node type exists in map and we can fuse type into node
-                auto t2f_it = type_to_fuse.find(node->get_type_info());
-                if (t2f_it != type_to_fuse.end() && t2f_it->second(node, to, output.get_index())) {
-                    // We need to break if original node was replaced
-                    return true;
+                if (output.get_index() == 0) {
+                    result = t2f_it->second(node, to, output.get_index());
+                } else {
+                    result = result && t2f_it->second(node, to, output.get_index());
                 }
             }
         }
-        return false;
+        return result;
     };
 
     auto convert_node_input_precision = [&](const std::shared_ptr<ngraph::Node>& node) {
