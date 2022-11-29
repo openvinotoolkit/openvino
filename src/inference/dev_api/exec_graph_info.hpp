@@ -104,7 +104,9 @@ public:
      * @param[in]  arguments    Inputs nodes
      * @param[in]  output_size  A number of output ports
      */
-    ExecutionNode(const ov::OutputVector& arguments, size_t output_size = 1) : ov::op::Op(arguments) {}
+    ExecutionNode(const ov::OutputVector& arguments, size_t output_size = 1) : ov::op::Op(arguments) {
+        set_output_size(output_size);
+    }
 
     /**
      * @brief      Creates a new execution node with the same state, but different input nodes
@@ -113,7 +115,7 @@ public:
      *
      * @return     A newly created execution node
      */
-    std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override {
+    std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override {
         auto cloned = std::make_shared<ExecutionNode>();
 
         cloned->set_arguments(inputs);
