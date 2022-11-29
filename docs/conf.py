@@ -87,8 +87,8 @@ html_theme_options = {
 html_context = {
     'current_language': 'English',
     'languages': (('English', '/latest'), ('Chinese', '/cn/latest')),
-    'doxygen_mapping_file': '@DOXYGEN_MAPPING_FILE@',
-    'doxygen_snippet_root': '@OpenVINO_SOURCE_DIR@'
+    'doxygen_mapping_file': '',
+    'doxygen_snippet_root': '/home/kputnam/ov2'
 }
 
 repositories = {
@@ -125,7 +125,7 @@ repositories = {
 }
 
 try:
-    doxygen_mapping_file = '@DOXYGEN_MAPPING_FILE@'
+    doxygen_mapping_file = ''
     with open(doxygen_mapping_file, 'r', encoding='utf-8') as f:
         doxygen_mapping_file = json.load(f)
 except JSONDecodeError:
@@ -164,12 +164,19 @@ def autodoc_skip_member(app, what, name, obj, skip, options):
     return name in exclude_pyapi_methods
 
 
+shutil.copy("../../../docs/home.rst",".")
+
+def replace_index_with_redirect(app,exception):
+    print(os.getcwd())
+    shutil.copy("../../docs/index.html","_build/index.html")
+
 def setup(app):
     logger = logging.getLogger(__name__)
     app.add_config_value('doxygen_mapping_file',
                          doxygen_mapping_file, rebuild=True)
     app.add_config_value('repositories', repositories, rebuild=True)
     app.connect('autodoc-skip-member', autodoc_skip_member)
+    app.connect('build-finished',replace_index_with_redirect)
     app.add_js_file('js/custom.js')
     app.add_js_file('js/graphs.js')
     app.add_js_file('js/graphs_ov_tf.js')
