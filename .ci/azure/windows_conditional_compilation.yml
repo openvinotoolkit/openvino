@@ -170,11 +170,11 @@ jobs:
     displayName: 'List bin files ON'
 
   - script: |
-      set path=%path%;$(REPO_DIR)\bin\intel64\$(BUILD_TYPE)
+      set path=%path%;$(REPO_DIR)\bin\intel64\$(BUILD_TYPE);$(REPO_DIR)\temp\tbb\bin
       set bin_path=$(REPO_DIR)\bin\intel64\$(BUILD_TYPE)
       set new_bin_path=%bin_path%\nbin_path
       mkdir %new_bin_path%
       cp %bin_path%\benchmark_app.exe %new_bin_path%
-      $(new_bin_path)\benchmark_app.exe -niter 1 -nireq 1 -m $(MODELS_PATH)\models\test_model\test_model_fp32.xml -d CPU
+      %new_bin_path%\benchmark_app.exe -niter 1 -nireq 1 -m $(MODELS_PATH)\models\test_model\test_model_fp32.xml -d CPU
     workingDirectory: $(REPO_DIR)
     displayName: 'Use OpenVINO after CC'
