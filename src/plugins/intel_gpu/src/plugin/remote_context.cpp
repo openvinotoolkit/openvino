@@ -269,6 +269,38 @@ LockedMemory<void> RemoteBlobImpl::wmap() noexcept {
     }
 }
 
+RemoteBlobImpl::~RemoteBlobImpl() {
+    #ifdef _WIN32
+            surf_key skey(m_mem, m_plane);
+    #else
+            surf_key skey(m_surf, m_plane);
+    #endif
+    #ifdef _WIN32
+    {
+        auto ptr = m_context->as<RemoteD3DContext>();
+        if (ptr) {
+            ptr->unregister_obj(m_mem);
+            ptr->unregister_surf(skey);
+        }
+    }
+    #else
+    {
+        auto ptr = m_context->as<RemoteVAContext>();
+        if (ptr) {
+            ptr->unregister_obj(m_mem);
+            ptr->unregister_surf(skey);
+        }
+    }
+    #endif
+    {
+        auto ptr = m_context->as<RemoteCLContext>();
+        if (ptr) {
+            ptr->unregister_obj(m_mem);
+            ptr->unregister_surf(skey);
+        }
+    }
+}
+
 void RemoteAllocator::regLockedBlob(void* handle, const RemoteBlobImpl* blob) {
     acquire_lock();
     auto iter = m_lockedBlobs.find(handle);

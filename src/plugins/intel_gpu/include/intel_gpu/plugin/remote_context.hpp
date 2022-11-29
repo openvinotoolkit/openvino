@@ -36,7 +36,23 @@
 namespace ov {
 namespace intel_gpu {
 class RemoteAllocator;
+template<typename T1, typename T2>
+    struct _Key {
+        T1 _surf;
+        T2 _plane;
 
+        _Key(T1 surf, T2 plane) : _surf(surf), _plane(plane) {}
+
+        bool operator<(const _Key &that) const {
+            return _surf < that._surf || (_surf == that._surf && _plane < that._plane);
+        }
+    };
+
+#ifdef _WIN32
+    using surf_key = _Key<cldnn::shared_handle, uint32_t>;
+#else
+    using surf_key = _Key<cldnn::shared_surface, uint32_t>;
+#endif
 class RemoteBlobImpl : public InferenceEngine::gpu::details::param_map_obj_getter {
     friend class RemoteAllocator;
 public:
@@ -78,6 +94,7 @@ public:
     bool is_allocated() const noexcept;
     bool is_locked() const noexcept;
     cldnn::memory::ptr getMemory() { return m_memObject; }
+    ~RemoteBlobImpl();
 
 protected:
     static RemoteAllocator m_allocator;
@@ -336,23 +353,6 @@ protected:
 
 template<typename TpublicContextAPI>
 class TypedExecutionContext : public TpublicContextAPI {
-    template<typename T1, typename T2>
-    struct _Key {
-        T1 _surf;
-        T2 _plane;
-
-        _Key(T1 surf, T2 plane) : _surf(surf), _plane(plane) {}
-
-        bool operator<(const _Key &that) const {
-            return _surf < that._surf || (_surf == that._surf && _plane < that._plane);
-        }
-    };
-
-#ifdef _WIN32
-    using surf_key = _Key<cldnn::shared_handle, uint32_t>;
-#else
-    using surf_key = _Key<cldnn::shared_surface, uint32_t>;
-#endif
     std::map<surf_key, std::weak_ptr<InferenceEngine::RemoteBlob>> shared_surf_reg;
     std::map<cldnn::shared_handle, std::weak_ptr<InferenceEngine::RemoteBlob>> shared_obj_reg;
 
@@ -553,6 +553,24 @@ public:
                 return reuse_obj(tensorDesc, mem, blob_type);
             }
         }
+    }
+
+   void unregister_obj(cldnn::shared_handle mem) {
+        _impl.acquire_lock();
+        // try to locate previously shared object
+        auto itr = shared_obj_reg.find(mem);
+        if (itr != shared_obj_reg.end())
+            shared_obj_reg.erase(itr);
+        _impl.release_lock();
+    }
+
+    void unregister_surf(surf_key mem) {
+        _impl.acquire_lock();
+        // try to locate previously shared object
+        auto itr = shared_surf_reg.find(mem);
+        if (itr != shared_surf_reg.end())
+            shared_surf_reg.erase(itr);
+        _impl.release_lock();
     }
 
     Config& GetConfig() { return _impl.GetConfig(); }
