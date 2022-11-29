@@ -7,6 +7,7 @@
 #include "pass_manager.h"
 #include "data_inst.h"
 #include "mutable_data_inst.h"
+#include "reshape_inst.h"
 #include "program_node.h"
 #include "intel_gpu/runtime/engine.hpp"
 #include "runtime/cldnn_itt.hpp"
@@ -36,6 +37,23 @@ void compile_graph::run(program& p) {
         bool can_select_impl = !node->is_type<data>() &&
                                !(node->is_type<mutable_data>() && node->get_dependencies().empty()) &&
                                (!node->is_dynamic() || node->type()->does_dynamic_implementation_exist(*node));
+
+        // TODO: Remove this WA once we have shape agnostic reshape kernel
+        if (node->is_type<reshape>() && node->is_dynamic() && !node->can_be_optimized())
+            can_select_impl = false;
+
+        // TODO: need to come up with better handling of unsupported shape agnostic cases
+        // e.g. process exceptions from choose_impl() and ignore those for dynamic parameters
+        if (node->is_type<fully_connected>() && node->is_dynamic() && node->get_output_layout().get_partial_shape().size() > 3)
+            can_select_impl = false;
+
+        bool is_planar = node->get_output_layout().format == format::bfyx ||
+                         node->get_output_layout().format == format::bfzyx ||
+                         node->get_output_layout().format == format::bfwzyx;
+
+        if (node->is_dynamic() && !is_planar)
+            can_select_impl = false;
+
         if (can_select_impl) {
             tasks.push_back([node, &p, &exception] {
                 try {
