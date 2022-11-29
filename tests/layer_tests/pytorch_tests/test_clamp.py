@@ -35,6 +35,10 @@ class TestClamp(PytorchLayerTest):
     @pytest.mark.nightly
     def test_clamp(self, minimum, maximum, as_tensors, ie_device, precision, ir_version):
         self._test(*self.create_model(minimum, maximum, as_tensors), ie_device, precision, ir_version)
+
+    @pytest.mark.xfail(reason='OpenVINO clamp does not support min > max')
+    def test_clamp_min_greater(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(1.0, 0.0), ie_device, precision, ir_version)
     
 
 class TestClampMin(PytorchLayerTest):
