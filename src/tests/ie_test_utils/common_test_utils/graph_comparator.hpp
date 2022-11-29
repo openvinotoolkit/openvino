@@ -156,15 +156,15 @@ public:
     void init_names(std::shared_ptr<Function> f) {
         // initialize function with unique friendly and tensor names
         for (auto node : f->get_ordered_ops()) {
+            const auto& node_name = generate_friendly_name();
             // this expression means that user didn't set friendly name and it was generated automatically
             if (node->get_friendly_name() == node->get_name()) {
-                const auto& node_name = generate_friendly_name();
                 node->set_friendly_name(node_name);
             }
 
             for (auto output : node->outputs()) {
+                const auto& tensor_name = generate_tensor_name();
                 if (output.get_names().empty()) {
-                    const auto& tensor_name = generate_tensor_name();
                     output.set_names({tensor_name});
                 }
             }
