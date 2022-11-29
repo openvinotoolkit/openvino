@@ -251,6 +251,7 @@ protected:
     }
 };
 
+#if defined(ENABLE_OV_IR_FRONTEND)
 TEST_F(LocaleTests, WithRULocale) {
     setlocale(LC_ALL, "ru_RU.UTF-8");
     testBody();
@@ -284,3 +285,4 @@ TEST_F(LocaleTests, DISABLED_WithUSLocaleCPP) {
     testBody();
     std::locale::global(prev);
 }
+#endif //defined(ENABLE_OV_IR_FRONTEND)

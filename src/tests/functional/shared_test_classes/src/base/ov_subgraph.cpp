@@ -3,8 +3,10 @@
 //
 
 #include <signal.h>
+#include <setjmp.h>
+
 #include <fstream>
-#include "transformations/convert_precision.hpp"
+#include <thread>
 
 #ifdef _WIN32
 #include <process.h>
@@ -12,6 +14,7 @@
 
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "transformations/convert_precision.hpp"
 
 #include "common_test_utils/graph_comparator.hpp"
 
@@ -19,14 +22,13 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/crash_handler.hpp"
-#include <common_test_utils/ov_tensor_utils.hpp>
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
 #include "shared_test_classes/base/utils/compare_results.hpp"
 
-#include <setjmp.h>
 
 namespace ov {
 namespace test {
@@ -78,7 +80,6 @@ void SubgraphBaseTest::run() {
                     throw std::runtime_error("Incorrect target static shape: " +
                                              CommonTestUtils::vec2str(targetStaticShapeVec) + " " + ex.what());
                 }
-                infer();
                 validate();
             }
             status = ov::test::utils::PassRate::Statuses::PASSED;
@@ -314,6 +315,7 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
 }
 
 std::vector<ov::Tensor> SubgraphBaseTest::get_plugin_outputs() {
+    infer();
     auto outputs = std::vector<ov::Tensor>{};
     for (const auto& output : function->outputs()) {
         outputs.push_back(inferRequest.get_tensor(output));
@@ -322,8 +324,17 @@ std::vector<ov::Tensor> SubgraphBaseTest::get_plugin_outputs() {
 }
 
 void SubgraphBaseTest::validate() {
-    auto expectedOutputs = calculate_refs();
-    const auto& actualOutputs = get_plugin_outputs();
+    std::vector<ov::Tensor> expectedOutputs, actualOutputs;
+
+#ifndef NDEBUG
+    actualOutputs = get_plugin_outputs();
+    expectedOutputs = calculate_refs();
+#else
+    std::thread t_device([&]{ actualOutputs = get_plugin_outputs(); });
+    std::thread t_ref([&]{ expectedOutputs = calculate_refs(); });
+    t_device.join();
+    t_ref.join();
+#endif
 
     if (expectedOutputs.empty()) {
         return;
