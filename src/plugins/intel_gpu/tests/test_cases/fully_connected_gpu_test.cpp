@@ -12,6 +12,8 @@
 #include <intel_gpu/primitives/quantize.hpp>
 #include <intel_gpu/primitives/data.hpp>
 
+#include "fully_connected_inst.h"
+
 #include <cmath>
 
 using namespace cldnn;
@@ -1715,6 +1717,8 @@ TEST(fully_connected_3d_onednn_gpu, no_biases_int8) {
                   output_b = 2, output_f = 4;
 
     auto& engine = get_onednn_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
 
     auto input_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { input_b, input_f, 1, input_y } });
     auto weights_prim = engine.allocate_memory({ data_types::i8, format::bfyx, { weight_o, weight_i, 1, 1 } });
@@ -1910,6 +1914,11 @@ TEST(fully_connected_gpu, dynamic_multi_inference_different_shape) {
     options.set_option(build_option::optimize_data(true));
     options.set_option(cldnn::build_option::allow_new_shape_infer(true));
     network network(engine, topology, options);
+
+    auto inst = network.get_primitive("fc");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
 
     {
         network.set_input_data("input", input_data1);
