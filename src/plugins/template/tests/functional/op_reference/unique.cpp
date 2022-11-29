@@ -19,19 +19,20 @@ std::shared_ptr<op::v0::Constant> make_axis(const int64_t axis, const element::T
 }
 
 struct UniqueParams {
-    template <typename Data_t, typename Index_t>
+    template <typename Data_t, typename Index_t, typename Count_t>
     UniqueParams(const Shape& data_shape,
                  const std::vector<Data_t>& input_data,
                  const std::vector<Data_t>& expected_unique_values,
                  const std::vector<Index_t>& expected_indices,
                  const std::vector<Index_t>& expected_rev_indices,
-                 const std::vector<int64_t>& expected_counts,
+                 const std::vector<Count_t>& expected_counts,
                  std::shared_ptr<op::v0::Constant> axis_descritptor = nullptr,
                  const bool sorted = true,
                  const std::string& tested_case = "")
         : m_data_shape{data_shape},
           m_data_type{element::from<Data_t>()},
           m_index_type{element::from<Index_t>()},
+          m_counts_type{element::from<Count_t>()},
           m_input_data{CreateTensor(m_data_type, input_data)},
           m_axis{axis_descritptor},
           m_sorted{sorted},
@@ -39,12 +40,13 @@ struct UniqueParams {
         m_expected_outputs[0] = CreateTensor(m_data_type, expected_unique_values);
         m_expected_outputs[1] = CreateTensor(m_index_type, expected_indices);
         m_expected_outputs[2] = CreateTensor(m_index_type, expected_rev_indices);
-        m_expected_outputs[3] = CreateTensor(element::i64, expected_counts);
+        m_expected_outputs[3] = CreateTensor(m_counts_type, expected_counts);
     }
 
     Shape m_data_shape;
     element::Type m_data_type;
     element::Type m_index_type;
+    element::Type m_counts_type;
     ov::Tensor m_input_data;
     ov::TensorVector m_expected_outputs = ov::TensorVector(4);
     std::shared_ptr<op::v0::Constant> m_axis = nullptr;
@@ -68,6 +70,7 @@ public:
         result << "data_shape=" << param.m_data_shape << "; ";
         result << "data_type=" << param.m_data_type << "; ";
         result << "index_type=" << param.m_index_type << "; ";
+        result << "counts_type=" << param.m_counts_type << "; ";
         result << "sorted=" << param.m_sorted << "; ";
         if (param.m_axis) {
             result << "axis=" << param.m_axis->cast_vector<int64_t>()[0] << "; ";
@@ -84,9 +87,13 @@ private:
         const auto in = std::make_shared<op::v0::Parameter>(params.m_data_type, params.m_data_shape);
         std::shared_ptr<Node> unique;
         if (params.m_axis) {
-            unique = std::make_shared<op::v10::Unique>(in, params.m_axis, params.m_sorted, params.m_index_type);
+            unique = std::make_shared<op::v10::Unique>(in,
+                                                       params.m_axis,
+                                                       params.m_sorted,
+                                                       params.m_index_type,
+                                                       params.m_counts_type);
         } else {
-            unique = std::make_shared<op::v10::Unique>(in, params.m_sorted, params.m_index_type);
+            unique = std::make_shared<op::v10::Unique>(in, params.m_sorted, params.m_index_type, params.m_counts_type);
         }
         return std::make_shared<ov::Model>(unique, ParameterVector{in});
     }
@@ -108,7 +115,7 @@ std::vector<T> flatten(std::initializer_list<std::vector<T>> test_cases) {
     return flattened;
 }
 
-template <typename Data_t, typename Index_t>
+template <typename Data_t, typename Index_t, typename Count_t>
 std::vector<UniqueParams> params_unique_int() {
     static_assert(std::numeric_limits<Data_t>::is_integer, "Integer type expected");
     std::vector<UniqueParams> scalar_and_1D{UniqueParams{Shape{},
@@ -116,7 +123,7 @@ std::vector<UniqueParams> params_unique_int() {
                                                          std::vector<Data_t>{1},
                                                          std::vector<Index_t>{0},
                                                          std::vector<Index_t>{0},
-                                                         std::vector<int64_t>{1},
+                                                         std::vector<Count_t>{1},
                                                          nullptr,
                                                          false},
                                             UniqueParams{Shape{},
@@ -124,7 +131,7 @@ std::vector<UniqueParams> params_unique_int() {
                                                          std::vector<Data_t>{1},
                                                          std::vector<Index_t>{0},
                                                          std::vector<Index_t>{0},
-                                                         std::vector<int64_t>{1},
+                                                         std::vector<Count_t>{1},
                                                          nullptr,
                                                          true},
                                             UniqueParams{Shape{1},
@@ -132,7 +139,7 @@ std::vector<UniqueParams> params_unique_int() {
                                                          std::vector<Data_t>{2},
                                                          std::vector<Index_t>{0},
                                                          std::vector<Index_t>{0},
-                                                         std::vector<int64_t>{1},
+                                                         std::vector<Count_t>{1},
                                                          nullptr,
                                                          false},
                                             UniqueParams{Shape{1},
@@ -140,7 +147,7 @@ std::vector<UniqueParams> params_unique_int() {
                                                          std::vector<Data_t>{2},
                                                          std::vector<Index_t>{0},
                                                          std::vector<Index_t>{0},
-                                                         std::vector<int64_t>{1},
+                                                         std::vector<Count_t>{1},
                                                          nullptr,
                                                          true},
                                             UniqueParams{Shape{5},
@@ -148,7 +155,7 @@ std::vector<UniqueParams> params_unique_int() {
                                                          std::vector<Data_t>{5, 4, 3, 2, 1},
                                                          std::vector<Index_t>{0, 1, 2, 3, 4},
                                                          std::vector<Index_t>{0, 1, 2, 3, 4},
-                                                         std::vector<int64_t>{1, 1, 1, 1, 1},
+                                                         std::vector<Count_t>{1, 1, 1, 1, 1},
                                                          nullptr,
                                                          false,
                                                          "1D no duplicates"},
@@ -157,7 +164,7 @@ std::vector<UniqueParams> params_unique_int() {
                                                          std::vector<Data_t>{1, 2, 3, 4, 5},
                                                          std::vector<Index_t>{4, 3, 2, 1, 0},
                                                          std::vector<Index_t>{4, 3, 2, 1, 0},
-                                                         std::vector<int64_t>{1, 1, 1, 1, 1},
+                                                         std::vector<Count_t>{1, 1, 1, 1, 1},
                                                          nullptr,
                                                          true,
                                                          "1D no duplicates"},
@@ -166,7 +173,7 @@ std::vector<UniqueParams> params_unique_int() {
                                                          std::vector<Data_t>{1, 3, 5, 2, 4},
                                                          std::vector<Index_t>{0, 1, 2, 4, 5},
                                                          std::vector<Index_t>{0, 1, 2, 1, 3, 4, 3},
-                                                         std::vector<int64_t>{1, 2, 1, 2, 1},
+                                                         std::vector<Count_t>{1, 2, 1, 2, 1},
                                                          nullptr,
                                                          false,
                                                          "1D with duplicates"},
@@ -175,7 +182,7 @@ std::vector<UniqueParams> params_unique_int() {
                                                          std::vector<Data_t>{1, 2, 3, 4, 5},
                                                          std::vector<Index_t>{0, 4, 1, 5, 2},
                                                          std::vector<Index_t>{0, 2, 4, 2, 1, 3, 1},
-                                                         std::vector<int64_t>{1, 2, 2, 1, 1},
+                                                         std::vector<Count_t>{1, 2, 2, 1, 1},
                                                          nullptr,
                                                          true,
                                                          "1D with duplicates"},
@@ -184,7 +191,7 @@ std::vector<UniqueParams> params_unique_int() {
                                                          std::vector<Data_t>{1, 2, 3, 4, 5},
                                                          std::vector<Index_t>{1, 4, 0, 5, 2},
                                                          std::vector<Index_t>{2, 0, 4, 2, 1, 3, 1},
-                                                         std::vector<int64_t>{1, 2, 2, 1, 1},
+                                                         std::vector<Count_t>{1, 2, 2, 1, 1},
                                                          nullptr,
                                                          true,
                                                          "1D with duplicates, sort 1st element"},
@@ -193,7 +200,7 @@ std::vector<UniqueParams> params_unique_int() {
                                                          std::vector<Data_t>{2, 3, 4, 5},
                                                          std::vector<Index_t>{4, 0, 5, 2},
                                                          std::vector<Index_t>{1, 1, 3, 1, 0, 2, 0},
-                                                         std::vector<int64_t>{2, 3, 1, 1},
+                                                         std::vector<Count_t>{2, 3, 1, 1},
                                                          nullptr,
                                                          true,
                                                          "1D with duplicates in row, sort 1st element"},
@@ -202,7 +209,7 @@ std::vector<UniqueParams> params_unique_int() {
                                                          std::vector<Data_t>{1, 2, 3, 4, 5},
                                                          std::vector<Index_t>{0, 4, 1, 5, 2},
                                                          std::vector<Index_t>{0, 2, 4, 2, 1, 3, 1},
-                                                         std::vector<int64_t>{1, 2, 2, 1, 1},
+                                                         std::vector<Count_t>{1, 2, 2, 1, 1},
                                                          make_axis(0),
                                                          true,
                                                          "1D with duplicates and axis"}};
@@ -212,7 +219,7 @@ std::vector<UniqueParams> params_unique_int() {
                                                       std::vector<Data_t>{3, 5, 2, 4, 1, 6},
                                                       std::vector<Index_t>{0, 1, 3, 4, 6, 11},
                                                       std::vector<Index_t>{0, 1, 0, 2, 3, 2, 4, 2, 0, 3, 1, 5},
-                                                      std::vector<int64_t>{3, 2, 3, 2, 1, 1},
+                                                      std::vector<Count_t>{3, 2, 3, 2, 1, 1},
                                                       nullptr,
                                                       false,
                                                       "2D no axis"},
@@ -221,7 +228,7 @@ std::vector<UniqueParams> params_unique_int() {
                                                       std::vector<Data_t>{1, 2, 3, 4, 1, 2, 3, 5},
                                                       std::vector<Index_t>{0, 1},
                                                       std::vector<Index_t>{0, 1},
-                                                      std::vector<int64_t>{1, 1},
+                                                      std::vector<Count_t>{1, 1},
                                                       make_axis(0),
                                                       false,
                                                       "2D no duplicates"},
@@ -230,7 +237,7 @@ std::vector<UniqueParams> params_unique_int() {
                                                       std::vector<Data_t>{1, 2, 3, 4, 1, 2, 3, 5},
                                                       std::vector<Index_t>{0, 1, 2, 3},
                                                       std::vector<Index_t>{0, 1, 2, 3},
-                                                      std::vector<int64_t>{1, 1, 1, 1},
+                                                      std::vector<Count_t>{1, 1, 1, 1},
                                                       make_axis(1),
                                                       false,
                                                       "2D no duplicates"},
@@ -239,7 +246,7 @@ std::vector<UniqueParams> params_unique_int() {
                                                       std::vector<Data_t>{1, 2, 4, 1, 2, 5},
                                                       std::vector<Index_t>{0, 1, 3},
                                                       std::vector<Index_t>{0, 1, 1, 2},
-                                                      std::vector<int64_t>{1, 2, 1},
+                                                      std::vector<Count_t>{1, 2, 1},
                                                       make_axis(1),
                                                       false,
                                                       "2D with duplicates"}};
@@ -251,7 +258,7 @@ std::vector<UniqueParams> params_unique_int() {
                      std::vector<Data_t>{1, 2, 3, 4, 5, 6},
                      std::vector<Index_t>{0},
                      std::vector<Index_t>{0, 0},
-                     std::vector<int64_t>{2},
+                     std::vector<Count_t>{2},
                      make_axis(0),
                      false,
                      "3D with duplicates"},
@@ -261,7 +268,7 @@ std::vector<UniqueParams> params_unique_int() {
                      std::vector<Data_t>{6, 5, 4, 3, 2, 1},
                      std::vector<Index_t>{0},
                      std::vector<Index_t>{0, 0},
-                     std::vector<int64_t>{2},
+                     std::vector<Count_t>{2},
                      make_axis(1),
                      false,
                      "3D with duplicates"},
@@ -271,7 +278,7 @@ std::vector<UniqueParams> params_unique_int() {
                      std::vector<Data_t>{-1, 2, 5, -3, 7, -8, 4, 4},
                      std::vector<Index_t>{0, 1},
                      std::vector<Index_t>{0, 1, 0},
-                     std::vector<int64_t>{2, 1},
+                     std::vector<Count_t>{2, 1},
                      make_axis(2),
                      false,
                      "3D with duplicates(1 & 3)"},
@@ -281,7 +288,7 @@ std::vector<UniqueParams> params_unique_int() {
                      std::vector<Data_t>{-1, 2, 5, -3, 7, -8, 4, 4},
                      std::vector<Index_t>{0, 2},
                      std::vector<Index_t>{0, 0, 1},
-                     std::vector<int64_t>{2, 1},
+                     std::vector<Count_t>{2, 1},
                      make_axis(2),
                      false,
                      "3D with duplicates (1 & 2)"},
@@ -291,7 +298,7 @@ std::vector<UniqueParams> params_unique_int() {
                      std::vector<Data_t>{2, -1, -3, 5, -8, 7, 4, 4},
                      std::vector<Index_t>{0, 1},
                      std::vector<Index_t>{0, 1, 1},
-                     std::vector<int64_t>{1, 2},
+                     std::vector<Count_t>{1, 2},
                      make_axis(2),
                      false,
                      "3D with duplicates (2 & 3)"},
@@ -301,7 +308,7 @@ std::vector<UniqueParams> params_unique_int() {
                      std::vector<Data_t>{-1, 2, 5, -3, 7, -8, 4, 4},
                      std::vector<Index_t>{1, 0},
                      std::vector<Index_t>{1, 0, 0},
-                     std::vector<int64_t>{2, 1},
+                     std::vector<Count_t>{2, 1},
                      make_axis(2),
                      true,
                      "3D with duplicates (2 & 3), output sorted"},
@@ -311,7 +318,7 @@ std::vector<UniqueParams> params_unique_int() {
                      std::vector<Data_t>{-1, -1, 2, 3, 7, 6, 4, 4},
                      std::vector<Index_t>{1, 0},
                      std::vector<Index_t>{1, 0, 0},
-                     std::vector<int64_t>{2, 1},
+                     std::vector<Count_t>{2, 1},
                      make_axis(2),
                      true,
                      "3D with duplicates (2 & 3), first elements equal, output sorted"},
@@ -327,7 +334,7 @@ std::vector<UniqueParams> params_unique_int() {
             std::vector<Index_t>{29, 2,  9,  25, 1,  24, 6,  10, 23, 32, 3,  7,  8,  5, 12, 16,
                                  4,  14, 33, 13, 26, 24, 30, 22, 23, 32, 15, 19, 8,  5, 0,  28,
                                  17, 27, 21, 13, 26, 11, 18, 10, 34, 32, 3,  31, 20, 5, 12, 28},
-            std::vector<int64_t>{1, 1, 1, 2, 1, 3, 1, 1, 2, 1, 2, 1, 2, 2, 1, 1, 1, 1,
+            std::vector<Count_t>{1, 1, 1, 2, 1, 3, 1, 1, 2, 1, 2, 1, 2, 2, 1, 1, 1, 1,
                                  1, 1, 1, 1, 1, 2, 2, 1, 2, 1, 2, 1, 1, 1, 3, 1, 1},
             nullptr,
             true,
@@ -336,7 +343,7 @@ std::vector<UniqueParams> params_unique_int() {
     return flatten({std::move(scalar_and_1D), std::move(N_C_layout), std::move(N_D_layout)});
 }
 
-template <typename Data_t, typename Index_t>
+template <typename Data_t, typename Index_t, typename Count_t>
 std::vector<UniqueParams> params_unique_float() {
     static_assert(!std::numeric_limits<Data_t>::is_integer, "Floating point type expected");
     // just some fancy numbers to be used in the input tensors
@@ -350,7 +357,7 @@ std::vector<UniqueParams> params_unique_float() {
                                                         std::vector<Data_t>{pi},
                                                         std::vector<Index_t>{0},
                                                         std::vector<Index_t>{0},
-                                                        std::vector<int64_t>{1},
+                                                        std::vector<Count_t>{1},
                                                         nullptr,
                                                         false},
                                            UniqueParams{Shape{},
@@ -358,7 +365,7 @@ std::vector<UniqueParams> params_unique_float() {
                                                         std::vector<Data_t>{pi},
                                                         std::vector<Index_t>{0},
                                                         std::vector<Index_t>{0},
-                                                        std::vector<int64_t>{1},
+                                                        std::vector<Count_t>{1},
                                                         nullptr,
                                                         true},
                                            UniqueParams{Shape{1},
@@ -366,7 +373,7 @@ std::vector<UniqueParams> params_unique_float() {
                                                         std::vector<Data_t>{-e},
                                                         std::vector<Index_t>{0},
                                                         std::vector<Index_t>{0},
-                                                        std::vector<int64_t>{1},
+                                                        std::vector<Count_t>{1},
                                                         nullptr,
                                                         false},
                                            UniqueParams{Shape{1},
@@ -374,7 +381,7 @@ std::vector<UniqueParams> params_unique_float() {
                                                         std::vector<Data_t>{-e},
                                                         std::vector<Index_t>{0},
                                                         std::vector<Index_t>{0},
-                                                        std::vector<int64_t>{1},
+                                                        std::vector<Count_t>{1},
                                                         nullptr,
                                                         true},
                                            UniqueParams{Shape{6},
@@ -382,7 +389,7 @@ std::vector<UniqueParams> params_unique_float() {
                                                         std::vector<Data_t>{pi, -pi, -e, e, sq3, sq2},
                                                         std::vector<Index_t>{0, 1, 2, 3, 4, 5},
                                                         std::vector<Index_t>{0, 1, 2, 3, 4, 5},
-                                                        std::vector<int64_t>{1, 1, 1, 1, 1, 1},
+                                                        std::vector<Count_t>{1, 1, 1, 1, 1, 1},
                                                         nullptr,
                                                         false,
                                                         "1D no duplicates"},
@@ -391,7 +398,7 @@ std::vector<UniqueParams> params_unique_float() {
                                                         std::vector<Data_t>{-pi, -e, sq2, sq3, e, pi},
                                                         std::vector<Index_t>{1, 2, 5, 4, 3, 0},
                                                         std::vector<Index_t>{5, 0, 1, 4, 3, 2},
-                                                        std::vector<int64_t>{1, 1, 1, 1, 1, 1},
+                                                        std::vector<Count_t>{1, 1, 1, 1, 1, 1},
                                                         nullptr,
                                                         true,
                                                         "1D no duplicates"}};
@@ -399,24 +406,26 @@ std::vector<UniqueParams> params_unique_float() {
     return params;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReferenceUniqueLayerTest,
-                         ReferenceUniqueLayerTest,
-                         ::testing::ValuesIn(flatten({params_unique_float<float16, int32_t>(),
-                                                      params_unique_float<float16, int64_t>(),
-                                                      params_unique_float<bfloat16, int32_t>(),
-                                                      params_unique_float<bfloat16, int64_t>(),
-                                                      params_unique_float<float, int32_t>(),
-                                                      params_unique_float<float, int64_t>(),
-                                                      params_unique_float<double, int32_t>(),
-                                                      params_unique_float<double, int64_t>(),
-                                                      params_unique_int<int16_t, int32_t>(),
-                                                      params_unique_int<int8_t, int64_t>(),
-                                                      params_unique_int<int8_t, int32_t>(),
-                                                      params_unique_int<int16_t, int64_t>(),
-                                                      params_unique_int<int32_t, int32_t>(),
-                                                      params_unique_int<int32_t, int64_t>(),
-                                                      params_unique_int<int64_t, int32_t>(),
-                                                      params_unique_int<int64_t, int64_t>()})),
-                         ReferenceUniqueLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+    smoke_ReferenceUniqueLayerTest,
+    ReferenceUniqueLayerTest,
+    ::testing::ValuesIn(
+        flatten({params_unique_float<float16, int32_t, int32_t>(),  params_unique_float<float16, int32_t, int64_t>(),
+                 params_unique_float<float16, int64_t, int32_t>(),  params_unique_float<float16, int64_t, int64_t>(),
+                 params_unique_float<bfloat16, int32_t, int32_t>(), params_unique_float<bfloat16, int32_t, int64_t>(),
+                 params_unique_float<bfloat16, int64_t, int32_t>(), params_unique_float<bfloat16, int64_t, int64_t>(),
+                 params_unique_float<float, int32_t, int32_t>(),    params_unique_float<float, int32_t, int64_t>(),
+                 params_unique_float<float, int64_t, int32_t>(),    params_unique_float<float, int64_t, int64_t>(),
+                 params_unique_float<double, int32_t, int32_t>(),   params_unique_float<double, int32_t, int64_t>(),
+                 params_unique_float<double, int64_t, int32_t>(),   params_unique_float<double, int64_t, int64_t>(),
+                 params_unique_int<int16_t, int32_t, int32_t>(),    params_unique_int<int16_t, int32_t, int64_t>(),
+                 params_unique_int<int8_t, int64_t, int32_t>(),     params_unique_int<int8_t, int64_t, int64_t>(),
+                 params_unique_int<int8_t, int32_t, int32_t>(),     params_unique_int<int8_t, int32_t, int64_t>(),
+                 params_unique_int<int16_t, int64_t, int32_t>(),    params_unique_int<int16_t, int64_t, int64_t>(),
+                 params_unique_int<int32_t, int32_t, int32_t>(),    params_unique_int<int32_t, int32_t, int64_t>(),
+                 params_unique_int<int32_t, int64_t, int32_t>(),    params_unique_int<int32_t, int64_t, int64_t>(),
+                 params_unique_int<int64_t, int32_t, int32_t>(),    params_unique_int<int64_t, int32_t, int64_t>(),
+                 params_unique_int<int64_t, int64_t, int32_t>(),    params_unique_int<int64_t, int64_t, int64_t>()})),
+    ReferenceUniqueLayerTest::getTestCaseName);
 
 }  // namespace

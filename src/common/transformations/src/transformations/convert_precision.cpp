@@ -146,10 +146,11 @@ bool convert_precision(ov::pass::PassBase& pass,
                 if (output.get_index() == 0) {
                     result = t2f_it->second(node, to, output.get_index());
                 } else {
-                    result = result && t2f_it->second(node, to, output.get_index());
+                    result |= t2f_it->second(node, to, output.get_index());
                 }
             }
         }
+
         return result;
     };
 
