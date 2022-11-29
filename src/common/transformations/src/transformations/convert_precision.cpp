@@ -196,6 +196,9 @@ bool convert_precision(ov::pass::PassBase& pass,
             bool is_output_precision_changed = false;
 
             for (auto& node : ops) {
+                // skip precision sensitive nodes
+                if (pass.transformation_callback(node))
+                    continue;
                 is_output_precision_changed |= convert_node_output_precision(node);
             }
 
