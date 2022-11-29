@@ -17,6 +17,7 @@ namespace op {
 OP_CONVERTER(translate_adaptive_max_pool2d);
 OP_CONVERTER(translate_add);
 OP_CONVERTER(translate_addcmul);
+OP_CONVERTER(translate_addmm);
 OP_CONVERTER(translate_as_tensor);
 OP_CONVERTER(translate_avg_pool2d);
 OP_CONVERTER(translate_batch_norm);
@@ -73,6 +74,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::add", op::translate_add},
         {"aten::add_", op::inplace_op<op::translate_add>},
         {"aten::addcmul", op::translate_addcmul},
+        {"aten::addmm", op::translate_addmm},
         {"aten::as_tensor", op::translate_as_tensor},
         {"aten::avg_pool2d", op::translate_avg_pool2d},
         {"aten::batch_norm", op::translate_batch_norm},
@@ -110,6 +112,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::max_pool2d", op::translate_max_pool2d},
         {"aten::mean", op::translate_mean},
         {"aten::mm", op::translate_1to1_match_2_inputs<opset8::MatMul>},
+        {"aten::bmm", op::translate_1to1_match_2_inputs<opset8::MatMul>},
+        {"aten::matmul", op::translate_1to1_match_2_inputs<opset8::MatMul>},
         {"aten::mul", op::translate_1to1_match_2_inputs<opset8::Multiply>},
         {"aten::mul_", op::inplace_op<op::translate_1to1_match_2_inputs<opset8::Multiply>>},
         {"aten::ne", op::translate_1to1_match_2_inputs<opset8::NotEqual>},
