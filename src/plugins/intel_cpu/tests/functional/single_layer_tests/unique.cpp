@@ -88,6 +88,9 @@ protected:
         if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
             selectedType = makeSelectedTypeStr(selectedType, ElementType::bf16);
         } else {
+            if (dataPrecision == ElementType::bf16) {
+                dataPrecision = ElementType::f32;
+            }
             selectedType = makeSelectedTypeStr(selectedType, dataPrecision);
         }
 

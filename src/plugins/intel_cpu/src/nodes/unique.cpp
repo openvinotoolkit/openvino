@@ -139,6 +139,18 @@ void Unique::execute(dnnl::stream strm) {
 }
 
 void Unique::executeDynamicImpl(dnnl::stream strm) {
+    const auto& srcDataDims = getParentEdgeAt(IN_DATA)->getMemoryPtr()->getStaticDims();
+    VectorDims dstDataDims;
+    Dim uniqLen = 1;
+    if (flattened) {
+        uniqLen = std::accumulate(srcDataDims.begin(), srcDataDims.end(), 1, std::multiplies<Dim>());
+        dstDataDims = { uniqLen };
+    } else {
+        uniqLen = srcDataDims[axis];
+        dstDataDims = srcDataDims;
+    }
+    redefineOutputMemory({ dstDataDims, {uniqLen}, {uniqLen}, {uniqLen}});
+
     execute(strm);
 }
 
@@ -247,7 +259,7 @@ template <typename T>
 size_t Unique::slicedTensorExec() {
     const T* srcDataPtr = reinterpret_cast<const T*>(getParentEdgeAt(IN_DATA)->getMemoryPtr()->GetPtr());
     T* uniqueData = reinterpret_cast<T*>(getChildEdgesAtPort(UNIQUE_DATA)[0]->getMemoryPtr()->GetPtr());
-    int *firstPtr, *inToOutPtr, *occurPtr;
+    int *firstPtr = nullptr, *inToOutPtr = nullptr, *occurPtr = nullptr;
     if (definedOutputs[FIRST_UNIQUE_IDX]) {
         firstPtr = reinterpret_cast<int*>(getChildEdgesAtPort(FIRST_UNIQUE_IDX)[0]->getMemoryPtr()->GetPtr());
     }
