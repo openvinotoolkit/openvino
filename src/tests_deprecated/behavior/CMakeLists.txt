@@ -4,6 +4,6 @@
 
 add_subdirectory(shared_tests)
 
-if (ENABLE_HDDL OR ENABLE_INTEL_MYRIAD)
+if (ENABLE_INTEL_MYRIAD)
     add_subdirectory(vpu)
 endif()

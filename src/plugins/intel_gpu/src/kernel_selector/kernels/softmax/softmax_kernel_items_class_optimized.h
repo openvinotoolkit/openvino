@@ -19,6 +19,6 @@ public:
 
 protected:
     JitConstants GetJitConstants(const softmax_params& params, DispatchData dispatchData) const override;
-    DispatchData SetDefault(const softmax_params& params, const optional_params& optParams) const override;
+    DispatchData SetDefault(const softmax_params& params) const override;
 };
 }  // namespace kernel_selector
