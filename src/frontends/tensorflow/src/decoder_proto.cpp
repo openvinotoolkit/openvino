@@ -67,6 +67,9 @@ void extract_compressed_tensor_content(const ::tensorflow::TensorProto& tensor_p
             case ov::element::i64:
                 val_i = tensor_proto.int64_val()[i];
                 break;
+            case ov::element::f16:
+                val_i = float16::from_bits(tensor_proto.half_val()[i]);
+                break;
             case ov::element::f32:
                 val_i = tensor_proto.float_val()[i];
                 break;
@@ -226,6 +229,10 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
             case ov::element::i64:
                 val_size = tensor_proto.int64_val_size();
                 extract_compressed_tensor_content<int64_t>(tensor_proto, val_size, &res);
+                break;
+            case ov::element::f16:
+                val_size = tensor_proto.half_val_size();
+                extract_compressed_tensor_content<float16>(tensor_proto, val_size, &res);
                 break;
             case ov::element::f32:
                 val_size = tensor_proto.float_val_size();
