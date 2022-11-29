@@ -333,11 +333,14 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     // Remove the performance hint if no setting to this property from user.
     if (!loadConfig._isSetPerHint) {
         fullConfig.erase(PluginConfigParams::KEY_PERFORMANCE_HINT);
-        loadConfig._perfHintsConfig.SetConfig(PluginConfigParams::KEY_PERFORMANCE_HINT, PluginConfigParams::THROUGHPUT);
         if (workModeAuto) {
             // set performance hint to 'LATENCY' model for AutoExecutable Network.
             loadConfig._perfHintsConfig.SetConfig(PluginConfigParams::KEY_PERFORMANCE_HINT,
                                                   PluginConfigParams::LATENCY);
+        } else {
+            // set performance hint to 'THROUGHPUT' model for MultiExecutable Network.
+            loadConfig._perfHintsConfig.SetConfig(PluginConfigParams::KEY_PERFORMANCE_HINT,
+                                                  PluginConfigParams::THROUGHPUT);
         }
     }
     if (!loadConfig._isSetCacheDir)
