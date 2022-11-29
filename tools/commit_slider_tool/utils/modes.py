@@ -15,12 +15,21 @@ class CheckOutputMode(Mode):
 
     def createCash(self):
         self.cachePath = self.cfg["commonConfig"]["cachePath"] + '/check_output_cache.json'
-        with open(self.cachePath, 'r') as cacheDump:
-            try:
-                json.load(cacheDump)
-            except json.decoder.JSONDecodeError:
-                initCacheMap = {}
+        initCacheMap = {}
+        try:
+            cacheDump = open(self.cachePath, 'r+')
+            if self.cfg["commonConfig"]["clearCache"]:
+                cacheDump.truncate(0)
                 json.dump(initCacheMap, cacheDump)
+            else:
+                try:
+                    json.load(cacheDump)
+                except json.decoder.JSONDecodeError:
+                    json.dump(initCacheMap, cacheDump)
+        except FileNotFoundError:
+            cacheDump = open(self.cachePath, 'w')
+            json.dump(initCacheMap, cacheDump)
+
         cacheDump.close()
 
     def checkCfg(self, cfg):

@@ -39,8 +39,8 @@ def runCommandList(commit, cfgData):
                 "name" in cfgData["specialConfig"]["preprocess"].keys()):
                 raise CfgError("No preprocess provided")
             prePrName = cfgData["specialConfig"]["preprocess"]["name"]
-            mod =  importlib.import_module("utils.preprocess.{pp}".format(pp=prePrName))
-            preProcess = getattr(mod, 'test_preprocess')
+            mod = importlib.import_module("utils.preprocess.{pp}".format(pp=prePrName))
+            preProcess = getattr(mod, prePrName)
             preProcess(cfgData)
             continue
         strCommand = cmd["cmd"].format(commit = commit)

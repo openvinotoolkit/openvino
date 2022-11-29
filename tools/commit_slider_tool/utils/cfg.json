@@ -7,6 +7,7 @@
             "firstBadVersion" : "FirstBadVersion"
         },
         "commandList" : [
+            {"cmd" : "git checkout -- .", "path" : "{gitPath}"},
             {"cmd" : "git clean -fxd", "path" : "{gitPath}", "tag" : "clean"},
             {"cmd" : "mkdir build", "path" : "{gitPath}", "tag" : "clean"},
             {"cmd" : "git checkout {commit}", "catchMsg" : "error", "path" : "{gitPath}"},
@@ -14,7 +15,8 @@
             {"cmd" : "git submodule update --recursive", "path" : "{buildPath}"},
             {"tag" : "preprocess"},
             {"cmd" : "cmake ../", "catchMsg" : "Error", "path" : "{buildPath}"},
-            {"cmd" : "make --jobs=4", "path" : "{buildPath}"}
+            {"cmd" : "make --jobs=4", "path" : "{buildPath}"},
+            {"cmd" : "git checkout -- .", "path" : "{gitPath}"}
         ],
         "gitPath" : "samples/sample3",
         "buildPath" : "samples/sample3/build",
@@ -22,7 +24,7 @@
         "logPath" : "log",
         "appCmd" : "./sample3 --some_arg",
         "appPath" : "samples/sample3/build",
-        "clearLog" : true,
+        "clearCache" : true,
         "checkBorders" : false,
         "noCleanInterval" : 4
     },
@@ -37,8 +39,14 @@
         "mode" : "checkOutput",
         "traversal" : "firstBadVersion",
         "stopPattern" : "(.)*failed(.)*",
-        "preprocess" : {
+        "preprocess_" : {
             "name" : "test_preprocess",
+            "file" : "samples/sample3/main.cpp",
+            "pattern" : "(.*std::cout << \\\")(.*)",
+            "replacement" : "\\1[PREPROCESSED]\\2"
+        },
+        "preprocess" : {
+            "name" : "replace",
             "file" : "samples/sample3/main.cpp",
             "pattern" : "(.*std::cout << \\\")(.*)",
             "replacement" : "\\1[PREPROCESSED]\\2"

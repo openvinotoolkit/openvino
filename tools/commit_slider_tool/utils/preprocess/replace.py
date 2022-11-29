@@ -1,9 +1,13 @@
 import re
-filePath = "../../samples/sample3/main.cpp"
-with open (filePath, 'r+' ) as f:
-    content = f.read()
-    a = '\\1[PREPROCESSED]\\2'
-    contentNew = re.sub('(.*std::cout << \")(.*)', r'{}'.format(a), content, flags = re.M)
-    f.seek(0)
-    f.write(contentNew)
-    f.close()
+def replace(cfg):
+    prepCfg = cfg["specialConfig"]["preprocess"]
+    filePath = prepCfg["file"]
+    pattern = prepCfg["pattern"]
+    replacement = prepCfg["replacement"]
+    with open (filePath, 'r+' ) as f:
+        content = f.read()
+        contentNew = re.sub(pattern, r'{}'.format(replacement), content, flags = re.M)
+        f.seek(0)
+        f.write(contentNew)
+        f.close()
+    
