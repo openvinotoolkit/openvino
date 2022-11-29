@@ -16,8 +16,7 @@ OutputVector translate_rsqrt(NodeContext& context) {
     auto input_shape = context.mark_node(std::make_shared<opset8::ShapeOf>(data));
     auto one_const = context.mark_node(opset8::Constant::create(element::f32, Shape({}), {1}));
     auto sqrt_data = context.mark_node(std::make_shared<opset8::Sqrt>(data));
-    auto divisor = context.mark_node(std::make_shared<opset8::Broadcast>(one_const, input_shape));
-    return {context.mark_node(std::make_shared<opset8::Divide>(divisor, sqrt_data))};
+    return {context.mark_node(std::make_shared<opset8::Divide>(one_const, sqrt_data))};
 };
 
 }  // namespace op
