@@ -41,7 +41,7 @@
 #include <transformations/op_conversions/convert_divide.hpp>
 #include <transformations/op_conversions/convert_minimum_to_power_and_max.hpp>
 #include <transformations/op_conversions/convert_subtract.hpp>
-
+#include <transformations/serialize.hpp>
 #include "legacy/transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp"
 #include "legacy/transformations/convert_opset1_to_legacy/convert_convolutions.hpp"
 #include <transformations/op_conversions/convert_previous_nms_to_nms_5.hpp>
@@ -70,26 +70,32 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_model(const std::shared_ptr<ngr
     decomp->add_matcher<ngraph::pass::ConvertNegative>();
     decomp->set_name("ngraph::pass::LegacyDecompositions");
 
+    manager.register_pass<ngraph::pass::Serialize>("set1_legacy_0_matmultofc_before.xml", "set1_legacy_matmultofc_before.bin");
     auto convert_matmul = manager.register_pass<ngraph::pass::GraphRewrite>();
     convert_matmul->add_matcher<ngraph::pass::ConvertMatMulToFC>();
     convert_matmul->add_matcher<ngraph::pass::PullTransposeThroughFQUp>();
     convert_matmul->add_matcher<ngraph::pass::ConvertMatMulToGemm>();
     convert_matmul->set_name("ngraph::pass::ConvertMatMul");
-
+    manager.register_pass<ngraph::pass::Serialize>("set1_legacy_0_matmultofc_after.xml",
+                                                   "set1_legacy_0_matmultofc_after.bin");
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
     // Convolution/Deconvolution/FullyConnected fusions
     manager.register_pass<ngraph::pass::ConvertConvolutions>();
 
     // Convolution/Deconvolution/FullyConnected fusions
+    manager.register_pass<ngraph::pass::Serialize>("set1_legacy_1_bias_fusion__before.xml", "set1_legacy_1_bias_fusion_before.bin");
     auto fusion = manager.register_pass<ngraph::pass::GraphRewrite>();
     fusion->add_matcher<ngraph::pass::ConvAddFusion>();
     fusion->add_matcher<ngraph::pass::DeconvAddFusion>();
     fusion->add_matcher<ngraph::pass::FullyConnectedBiasFusion>();
+    fusion->add_matcher<ngraph::pass::FullyConnectedBiasWithTransposeAndReshapeFusion>();
     fusion->set_name("ngraph::pass::BiasFusions");
+    manager.register_pass<ngraph::pass::Serialize>("set1_legacy_1_bias_fusion_after.xml", "set1_legacy_1_bias_fusion_after.bin");
 
     // CF is required after fusions
     manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<ngraph::pass::Serialize>("set1_legacy_1_bias_fusion_after_with_constantfalding.xml", "set1_legacy_1_bias_fusion_after_with_constantfalding.bin");
 
     // List of passes that convert opset1 operations to legacy
     // plus transformations that are required by InferenceEngine

@@ -56,6 +56,7 @@
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include <transformations/init_node_info.hpp>
+#include <transformations/serialize.hpp>
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 #include "transformations/common_optimizations/concat_reduce_fusion.hpp"
@@ -69,6 +70,7 @@
 #include "transformations/disable_decompression_convert_constant_folding.hpp"
 #include "transformations/op_conversions/softsign_decomposition.hpp"
 #include <transformations/utils/utils.hpp>
+#include <transformations/serialize.hpp>
 
 #include "transformations/pwl_approximation.hpp"
 #include "transformations/remove_extra_reshapes.hpp"
@@ -681,7 +683,8 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         const auto& graph = clonedNetwork.getFunction();
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-
+        manager.register_pass<ngraph::pass::Serialize>("graph_before_ngraph_passes.xml",
+                                                       "graph_before_ngraph_passes.bin");
         fake_quantized = ngraph::op::util::has_op_with_type<ngraph::opset7::FakeQuantize>(graph);
         // In OV API 2.0(IRv10) default convertion to fp32 (inputs, outputs and weights) is disabled
         // and we need to run the ConvertPrecision transformation to support old networks.
@@ -728,7 +731,9 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         manager.register_pass<ov::intel_gna::pass::SubstituteSoftsign>();
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
+        manager.register_pass<ngraph::pass::Serialize>("opset_1_before.xml", "opset_1_before.bin");
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+        manager.register_pass<ngraph::pass::Serialize>("opset_1_after.xml", "opset_1_after.bin");
         manager.register_pass<ov::intel_gna::pass::MarkupFusableTranspose>();
         manager.register_pass<ov::intel_gna::pass::RemoveExtraReshapes>();
         /*
@@ -764,6 +769,8 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeConcatLayer>();
         manager.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>();
         manager.register_pass<ov::intel_gna::pass::HandleNonFunctionalSubgraphs>();
+        manager.register_pass<ngraph::pass::Serialize>("graph_after_ngraph_passes.xml",
+                                                                   "graph_after_ngraph_passes.bin");
         const auto& pass_config = manager.get_pass_config();
 
         // Allowing FP16 Converts to be folded and FP16 constants to upgrade to FP32 data type
