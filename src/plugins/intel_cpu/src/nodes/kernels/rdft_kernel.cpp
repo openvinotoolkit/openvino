@@ -225,22 +225,22 @@ void jit_dft_kernel_f32<isa>::generate() {
     };
 
     auto nonsimd_loop = [&] {
-        xorps(xmm_output, xmm_output);
+        uni_vxorps(xmm_output, xmm_output, xmm_output);
 
         auto c2r_kernel = [&] (bool backwards) {
             // if backwards == false:
             //     output_real += input_real * cos(..) - input_imag * sin(..)
             // else:
             //     output_real += input_real * cos(..) + input_imag * sin(..)
-            movq(xmm_input, ptr[input_ptr]);
-            movq(xmm_twiddles, ptr[twiddles_ptr]);
-            mulps(xmm_input, xmm_twiddles);
+            uni_vmovq(xmm_input, ptr[input_ptr]);
+            uni_vmovq(xmm_twiddles, ptr[twiddles_ptr]);
+            uni_vmulps(xmm_input, xmm_input, xmm_twiddles);
             if (!backwards) {
-                hsubps(xmm_input, xmm_input);
+                uni_vhsubps(xmm_input, xmm_input, xmm_input);
             } else {
-                haddps(xmm_input, xmm_input);
+                uni_vhaddps(xmm_input, xmm_input, xmm_input);
             }
-            addss(xmm_output, xmm_input);
+            uni_vaddss(xmm_output, xmm_output, xmm_input);
         };
 
         auto c2c_kernel = [&] (bool backwards) {
@@ -250,18 +250,18 @@ void jit_dft_kernel_f32<isa>::generate() {
             // else:
             //     output_real += input_real * cos(..) + input_imag * sin(..)
             //     output_imag += input_imag * cos(..) - input_real * sin(..)
-            movq(xmm_input, ptr[input_ptr]);
-            shufps(xmm_input, xmm_input, 0b00010100);
-            movq(xmm_twiddles, ptr[twiddles_ptr]);
-            shufps(xmm_twiddles, xmm_twiddles, 0b01000100);
-            xorps(xmm_twiddles, neg_mask);
-            mulps(xmm_input, xmm_twiddles);
+            uni_vmovq(xmm_input, ptr[input_ptr]);
+            uni_vshufps(xmm_input, xmm_input, xmm_input, 0b00010100);
+            uni_vmovq(xmm_twiddles, ptr[twiddles_ptr]);
+            uni_vshufps(xmm_twiddles, xmm_twiddles, xmm_twiddles, 0b01000100);
+            uni_vxorps(xmm_twiddles, xmm_twiddles, neg_mask);
+            uni_vmulps(xmm_input, xmm_input, xmm_twiddles);
             if (!backwards) {
-                haddps(xmm_input, xmm_input);
+                uni_vhaddps(xmm_input, xmm_input, xmm_input);
             } else {
-                hsubps(xmm_input, xmm_input);
+                uni_vhsubps(xmm_input, xmm_input, xmm_input);
             }
-            addps(xmm_output, xmm_input);
+            uni_vaddps(xmm_output, xmm_output, xmm_input);
         };
 
         Label loop;
@@ -270,11 +270,11 @@ void jit_dft_kernel_f32<isa>::generate() {
             if (kernel_type_ == real_to_complex) {
                 // output_real += input_real * cos(..)
                 // output_imag += input_real * sin(..)
-                movq(xmm_twiddles, ptr[twiddles_ptr]);
-                movd(xmm_input, ptr[input_ptr]);
-                shufps(xmm_input, xmm_input, 0);
+                uni_vmovq(xmm_twiddles, ptr[twiddles_ptr]);
+                uni_vmovd(xmm_input, ptr[input_ptr]);
+                uni_vshufps(xmm_input, xmm_input, xmm_input, 0);
                 uni_vmulps(xmm_input, xmm_input, xmm_twiddles);
-                addps(xmm_output, xmm_input);
+                uni_vaddps(xmm_output, xmm_output, xmm_input);
             } else if (kernel_type_ == complex_to_real) {
                 c2r_kernel(false);
             } else if (kernel_type_ == complex_to_complex) {
@@ -324,10 +324,10 @@ void jit_dft_kernel_f32<isa>::generate() {
 
         if (kernel_type_ == complex_to_real) {
             if (is_inverse_) {
-                divss(xmm_output, xmm_signal_size);
+                uni_vdivss(xmm_output, xmm_output, xmm_signal_size);
             }
             // store the result
-            movss(ptr[output_ptr], xmm_output);
+            uni_vmovss(ptr[output_ptr], xmm_output);
         } else {
             if (is_inverse_) {
                 uni_vdivps(xmm_output, xmm_output, xmm_signal_size);
@@ -370,10 +370,10 @@ void jit_dft_kernel_f32<isa>::generate() {
 // real = [1, 2, 3, 4, 5, 6, 7, 8]
 // imag = [11, 12, 13, 14, 15, 16, 17, 18]
 // interleaved = [1, 11, 2, 12, 3, 13, 4, 14, 5, 15, 6, 16, 7, 17, 8, 18]
-template <cpu_isa_t isa>
-void jit_dft_kernel_f32<isa>::interleave_and_store(const Xbyak::Zmm& real, const Xbyak::Zmm& imag, const Xbyak::RegExp& reg_exp, const Xbyak::Zmm& tmp) {
-    const Xbyak::Zmm& low = tmp;
-    const Xbyak::Zmm& high = real;
+template <>
+void jit_dft_kernel_f32<avx512_core>::interleave_and_store(const Vmm& real, const Vmm& imag, const Xbyak::RegExp& reg_exp, const Vmm& tmp) {
+    const Vmm& low = tmp;
+    const Vmm& high = real;
     uni_vmovups(low, real);
     vpermt2ps(low, perm_low, imag);
     vpermt2ps(high, perm_high, imag);
@@ -381,10 +381,10 @@ void jit_dft_kernel_f32<isa>::interleave_and_store(const Xbyak::Zmm& real, const
     uni_vmovups(ptr[reg_exp + vlen], high);
 }
 
-template <cpu_isa_t isa>
-void jit_dft_kernel_f32<isa>::interleave_and_store(const Xbyak::Ymm& real, const Xbyak::Ymm& imag, const Xbyak::RegExp& reg_exp, const Xbyak::Ymm& tmp) {
-    const Xbyak::Ymm& low = real;
-    const Xbyak::Ymm& high = imag;
+template <>
+void jit_dft_kernel_f32<avx2>::interleave_and_store(const Vmm& real, const Vmm& imag, const Xbyak::RegExp& reg_exp, const Vmm& tmp) {
+    const Vmm& low = real;
+    const Vmm& high = imag;
     vunpcklps(tmp, real, imag);
     vunpckhps(high, real, imag);
     vinsertf128(low, tmp, Xbyak::Xmm(high.getIdx()), 1);
@@ -393,11 +393,11 @@ void jit_dft_kernel_f32<isa>::interleave_and_store(const Xbyak::Ymm& real, const
     uni_vmovups(ptr[reg_exp + vlen], high);
 }
 
-template <cpu_isa_t isa>
-void jit_dft_kernel_f32<isa>::interleave_and_store(const Xbyak::Xmm& real, const Xbyak::Xmm& imag, const Xbyak::RegExp& reg_exp, const Xbyak::Xmm& tmp) {
-    const Xbyak::Xmm& low = tmp;
-    const Xbyak::Xmm& high = real;
-    movaps(low, real);
+template <>
+void jit_dft_kernel_f32<sse41>::interleave_and_store(const Vmm& real, const Vmm& imag, const Xbyak::RegExp& reg_exp, const Vmm& tmp) {
+    const Vmm& low = tmp;
+    const Vmm& high = real;
+    uni_vmovups(low, real);
     unpcklps(low, imag);
     unpckhps(high, imag);
     uni_vmovups(ptr[reg_exp], low);

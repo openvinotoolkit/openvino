@@ -80,9 +80,10 @@ struct jit_dft_kernel_f32 : public jit_dft_kernel, public jit_generator {
         void generate() override;
 
     private:
-        void interleave_and_store(const Xbyak::Zmm& real, const Xbyak::Zmm& imag, const Xbyak::RegExp& reg_exp, const Xbyak::Zmm& tmp);
-        void interleave_and_store(const Xbyak::Ymm& real, const Xbyak::Ymm& imag, const Xbyak::RegExp& reg_exp, const Xbyak::Ymm& tmp);
-        void interleave_and_store(const Xbyak::Xmm& real, const Xbyak::Xmm& imag, const Xbyak::RegExp& reg_exp, const Xbyak::Xmm& tmp);
+        using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm,
+                                          isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+
+        void interleave_and_store(const Vmm& real, const Vmm& imag, const Xbyak::RegExp& reg_exp, const Vmm& tmp);
 
         static constexpr int type_size = sizeof(float);
         static constexpr int vlen = cpu_isa_traits<isa>::vlen;
@@ -99,8 +100,6 @@ struct jit_dft_kernel_f32 : public jit_dft_kernel, public jit_generator {
         std::vector<int> perm_low_values;
         std::vector<int> perm_high_values;
 
-        using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm,
-                                          isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
         Vmm perm_low;
         Vmm perm_high;
 };
