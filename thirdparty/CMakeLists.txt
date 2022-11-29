@@ -189,7 +189,7 @@ endif()
 #
 
 if(ENABLE_SAMPLES OR ENABLE_COMPILE_TOOL OR ENABLE_TESTS)
-    foreach(component nothreads_shared nothreads_static shared static)
+    foreach(component nothreads_static nothreads_shared shared static)
         find_package(gflags QUIET OPTIONAL_COMPONENTS nothreads_shared)
 
         if(gflags_FOUND)

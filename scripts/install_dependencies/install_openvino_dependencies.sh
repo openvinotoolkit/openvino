@@ -183,18 +183,26 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
      [ "$os" == "fedora36" ] || [ "$os" == "fedora38" ] ; then
 
     arch=$(uname -m)
-    pkgs_core=(tbb.$arch pugixml.$arch)
-    pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake3 json-devel.$arch zlib-devel.$arch curl sudo)
+    pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake3 json-devel.$arch zlib-devel.$arch sudo)
+
+    if [ "$os" == "rhel9.1" ] ; then
+        pkgs_dev+=(curl-minimal)
+    else
+        pkgs_dev+=(curl)
+    fi
 
     if [ "$os" == "fedora35" ] || [ "$os" == "fedora35" ] || [ "$os" == "fedora36" ] ||
        [ "$os" == "fedora36" ] || [ "$os" == "fedora38" ] ; then
+        pkgs_core=(tbb.$arch pugixml.$arch gflags.$arch)
+        pkgs_python=(python3 python3-pip)
+        pkgs_dev+=(gflags-devel.$arch)
         pkgs_myriad=(libusb1.$arch)
     else
         pkgs_myriad=(libusbx.$arch)
     fi
 
     if [ "$os" == "centos7" ] ; then
-        extra_repos+=(https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm)
+        pkgs_core=(tbb.$arch pugixml.$arch gflags.$arch)
         pkgs_dev+=(gflags-devel.$arch)
         pkgs_opencv_opt=(
             gstreamer1.$arch
@@ -202,13 +210,14 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
             gstreamer1-plugins-good.$arch
             gstreamer1-plugins-bad-free.$arch
         )
+        extra_repos+=(https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm)
     elif [ "$os" == "centos8" ] || [ "$os" == "rhel8" ] ; then
-        pkgs_python+=(python38 python38-pip)
         pkgs_core+=(
             https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/tbb-2018.2-9.el8.$arch.rpm
             https://download-ib01.fedoraproject.org/pub/epel/8/Everything/$arch/Packages/p/pugixml-1.13-1.el8.$arch.rpm
             https://vault.centos.org/centos/8/PowerTools/$arch/os/Packages/gflags-2.1.2-6.el8.$arch.rpm
         )
+        pkgs_python+=(python38 python38-pip)
         pkgs_dev+=(https://vault.centos.org/centos/8/PowerTools/$arch/os/Packages/gflags-devel-2.1.2-6.el8.$arch.rpm)
         pkgs_opencv_req=(gtk3)
         pkgs_opencv_opt=(
@@ -248,12 +257,15 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
         )
         extra_repos+=(https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm)
     elif [ "$os" == "rhel9.1" ] ; then
+        pkgs_core=(
+            http://mirror.stream.centos.org/9-stream/AppStream/$arch/os/Packages/tbb-2020.3-8.el9.$arch.rpm
+            https://download-ib01.fedoraproject.org/pub/epel/9/Everything/$arch/Packages/p/pugixml-1.13-1.el9.$arch.rpm
+            https://download-ib01.fedoraproject.org/pub/epel/9/Everything/$arch/Packages/g/gflags-2.2.2-9.el9.$arch.rpm
+        )
         pkgs_python=(python3 python3-pip)
-        pkgs_dev+=(gflags-devel.$arch)
+        pkgs_dev+=(https://download-ib01.fedoraproject.org/pub/epel/9/Everything/$arch/Packages/g/gflags-devel-2.2.2-9.el9.$arch.rpm)
         extra_repos+=(https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm)
     fi
-    extra_repos+=(https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm)
-
 else
     echo "Internal script error: invalid OS (${os}) after check (package selection)" >&2
     exit 3
