@@ -32,10 +32,11 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
 
         auto input_node = getitem->input_value(0).get_node_shared_ptr();
         if (auto torch_split = cast_fw_node(input_node, "aten::split")) {
-            if (torch_split->input(1).get_partial_shape().is_dynamic()) {
+            auto rank = torch_split->input(1).get_partial_shape().rank();
+            if (rank.is_dynamic()) {
                 return false;
             }
-            if ((torch_split->get_input_source_output(1).get_shape()) == Shape{}) {
+            if (rank.get_length() == 0) {
                 // Based on slice_size and output index select size.
                 // Constants required by transformation.
                 auto const_1 = opset8::Constant::create(element::i64, Shape{1}, {1});
