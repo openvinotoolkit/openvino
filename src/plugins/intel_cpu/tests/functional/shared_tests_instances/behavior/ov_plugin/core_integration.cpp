@@ -286,12 +286,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_AUTO_MULTI_ReturnDefaultHintTest,
                          OVClassLoadNetWorkReturnDefaultHintTest,
                          ::testing::Combine(::testing::Values("AUTO:CPU", "MULTI:CPU"),
                                             ::testing::ValuesIn(auto_multi_default_properties)));
-// For AUTO, User sets perf_hint and secondary prop, AUTO's perf_hint should not return default value LATENCY
+// For AUTO, User sets perf_hint or secondary prop, AUTO's perf_hint should not return default value LATENCY
 const std::vector<ov::AnyMap> default_auto_properties = {
     {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
     {ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED)},
     {ov::device::properties("CPU", ov::hint::allow_auto_batching(true))}};
-// For MULIT, User sets perf_hint, secondary prop, Affinity, num_streams and infer_num_threads, MULTI's perf_hint should
+// For MULIT, User sets perf_hint or secondary prop or Affinity or num_streams or infer_num_threads, MULTI's perf_hint should
 // not return default value THROUGHPUT
 const std::vector<ov::AnyMap> default_multi_properties = {
     {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
