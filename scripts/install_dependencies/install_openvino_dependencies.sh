@@ -119,7 +119,7 @@ elif [ "$os" == "ubuntu18.04" ] ; then
 
     pkgs_core=(libtbb2 libpugixml1v5)
     pkgs_opencv_req=(libgtk-3-0 libgl1)
-    pkgs_python=(python3 libpython3.6 python3-venv python3-pip)
+    pkgs_python=(python3.8 python3.8-venv python3-pip)
     pkgs_dev=(cmake pkg-config g++ gcc libc6-dev libgflags-dev zlib1g-dev nlohmann-json-dev make curl sudo)
     pkgs_myriad=(libusb-1.0-0)
     pkgs_cl_compiler=(libtinfo5)
@@ -204,7 +204,11 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
         )
     elif [ "$os" == "centos8" ] || [ "$os" == "rhel8" ] ; then
         pkgs_python+=(python38 python38-pip)
-        pkgs_core+=(https://vault.centos.org/centos/8/PowerTools/$arch/os/Packages/gflags-2.1.2-6.el8.$arch.rpm)
+        pkgs_core+=(
+            https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/tbb-2018.2-9.el8.$arch.rpm
+            https://download-ib01.fedoraproject.org/pub/epel/8/Everything/$arch/Packages/p/pugixml-1.13-1.el8.$arch.rpm
+            https://vault.centos.org/centos/8/PowerTools/$arch/os/Packages/gflags-2.1.2-6.el8.$arch.rpm
+        )
         pkgs_dev+=(https://vault.centos.org/centos/8/PowerTools/$arch/os/Packages/gflags-devel-2.1.2-6.el8.$arch.rpm)
         pkgs_opencv_req=(gtk3)
         pkgs_opencv_opt=(
@@ -248,6 +252,7 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
         pkgs_dev+=(gflags-devel.$arch)
         extra_repos+=(https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm)
     fi
+    extra_repos+=(https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm)
 
 else
     echo "Internal script error: invalid OS (${os}) after check (package selection)" >&2
