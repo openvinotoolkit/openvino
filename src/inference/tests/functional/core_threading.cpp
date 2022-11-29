@@ -158,6 +158,7 @@ TEST_F(CoreThreadingTests, GetAvailableDevices) {
     }, 30);
 }
 
+#if defined(ENABLE_OV_IR_FRONTEND)
 // tested function: ReadNetwork, AddExtension
 TEST_F(CoreThreadingTests, ReadNetwork) {
     InferenceEngine::Core ie;
@@ -168,3 +169,4 @@ TEST_F(CoreThreadingTests, ReadNetwork) {
         (void)ie.ReadNetwork(modelName, weightsName);
     }, 100, 12);
 }
+#endif //defined(ENABLE_OV_IR_FRONTEND)
