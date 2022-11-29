@@ -14,7 +14,7 @@ namespace node {
 
 namespace {
 /**
- * Implements Shape Of shape inference algorithm. The oput shape is simply a 1D tensor with the size of the input tensor
+ * Implements Shape Of shape inference algorithm. The output shape is simply a 1D tensor with the size of the input tensor
  * rank.
  *  
  */

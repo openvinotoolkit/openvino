@@ -9,6 +9,11 @@
 namespace ov {
 namespace intel_cpu {
 
+/**
+ * Specific shape inference implementation designed to cover cases where there are no actual output shape calculation
+ * and all the output shapes are equal to the input tensor shapes.
+ * 
+ */
 class ShapeInferPassThrough final : public ShapeInferEmptyPads {
 public:
     ShapeInferPassThrough() = default;

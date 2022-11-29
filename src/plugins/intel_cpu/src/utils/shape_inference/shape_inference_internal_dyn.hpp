@@ -9,6 +9,11 @@
 namespace ov {
 namespace intel_cpu {
 
+/**
+ * Shape inference class for operations with internal dynamism. To reflect the fact that the output shapes may only be
+ * calculated after the operation has been performed, the data dependency mask is fully set.
+ * 
+ */
 class InternalDynShapeInfer final : public ShapeInferEmptyPads {
 public:
     InternalDynShapeInfer() = default;

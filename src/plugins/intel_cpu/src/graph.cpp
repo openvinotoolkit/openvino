@@ -415,7 +415,7 @@ void Graph::InitGraph() {
         if (node->isDynamicNode()) {
             haveDynNodes = true;
             if (node->outputShapeDataDependency() ||
-                // WA: for convolution plus summ(broadcast). Due to the fact that a convolution with sum use the same meory for second sum term and the output
+                // WA: for convolution plus summ(broadcast). Due to the fact that a convolution with sum use the same memory for second sum term and the output
                 // tensors (inPlace) resizing the output tensor, may lead to reallocation of this second term memory and possible data lost. The reallocation
                 // may happen when the second term shape is broadcasted to the output tensor shape. To avoid the data loss, we have a special processing for
                 // such cases inside the convolution node, but it works properly only when dynamic shapes inference, preparation and execution a called
@@ -426,7 +426,7 @@ void Graph::InitGraph() {
         }
     }
 
-    // In case of dynamic shapes, tensors may be resized due to the shapes variasions.
+    // In case of dynamic shapes, tensors may be resized due to the shapes variations.
     // If the input tensor is included to memory reuse, that means its memory manager is shared with other tensors in the graph, which in turn may cause data
     // loss when one of the tensor dow the graph requested mem resize, while the input data have not been yet read by the consumers. To avoid such situations
     // we disalbe io mem reuse for the case of dynamic shapes.

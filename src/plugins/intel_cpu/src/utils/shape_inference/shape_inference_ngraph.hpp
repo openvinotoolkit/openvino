@@ -11,6 +11,10 @@
 namespace ov {
 namespace intel_cpu {
 
+/**
+ * This class wraps ngraph specific shape inference class to implement CPU plugin specific interface.
+ * 
+ */
 class NgraphShapeInfer : public IShapeInfer {
 public:
     NgraphShapeInfer(std::shared_ptr<IShapeInferCommon> shape_infer, IShapeInfer::port_mask_t port_mask) :
