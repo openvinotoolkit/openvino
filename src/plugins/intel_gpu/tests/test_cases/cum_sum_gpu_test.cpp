@@ -334,7 +334,7 @@ TEST(cum_sum_gpu_fp32, dynamic) {
 
     topology topology;
     topology.add(input_layout("input", in_layout));
-    topology.add(cum_sum("cum_sum", "input"));
+    topology.add(cum_sum("cum_sum", input_info("input")));
 
     build_options bo;
     bo.set_option(build_option::allow_new_shape_infer(true));

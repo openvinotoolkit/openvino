@@ -870,8 +870,8 @@ TEST(reshape_gpu_f32, basic_runtime_dynamic_shape_with_const_optimized_out) {
     topology topology;
     topology.add(input_layout("input", layout{ov::PartialShape::dynamic(6), data_types::f32, format::bfwzyx}));
     topology.add(data("const", const_shape));
-    topology.add(reshape("reshape", "input", "const", false, ov::PartialShape::dynamic(2)));
-    topology.add(reorder("reorder", "reshape", format::bfyx, data_types::f32));
+    topology.add(reshape("reshape", input_info("input"), input_info("const"), false, ov::PartialShape::dynamic(2)));
+    topology.add(reorder("reorder", input_info("reshape"), format::bfyx, data_types::f32));
 
     // clang-format off
     std::vector<float> input_data = {

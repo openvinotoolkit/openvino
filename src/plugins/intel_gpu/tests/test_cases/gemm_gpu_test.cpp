@@ -318,7 +318,7 @@ TEST(gemm_gpu, dynamic) {
     topology topology;
     topology.add(input_layout("input1", in1_layout),
                  input_layout("input2", in2_layout),
-                 gemm("gemm", { "input1", "input2" }, data_types::f32, false, true, 1.0f, 0.0f, 4, 2)
+                 gemm("gemm", { input_info("input1"), input_info("input2") }, data_types::f32, false, true, 1.0f, 0.0f, 4, 2)
     );
 
     build_options options;

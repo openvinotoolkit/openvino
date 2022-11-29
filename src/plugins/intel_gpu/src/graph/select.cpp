@@ -143,7 +143,7 @@ select_inst::typed_primitive_inst(network& network, select_node const& node) : p
         auto dep2_size = deps[2].first->get_output_layout().get_tensor();
         cldnn::tensor output_tensor = tensor::max(dep1_size, dep2_size);
         // Cond input0 also can be broadcasted.
-        auto dep0_size = deps[0]->get_output_layout().get_tensor();
+        auto dep0_size = deps[0].first->get_output_layout().get_tensor();
         output_tensor = tensor::max(dep0_size, output_tensor);
 
         auto max_dim_count = output_tensor.raw.size();

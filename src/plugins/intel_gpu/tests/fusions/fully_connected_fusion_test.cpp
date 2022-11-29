@@ -184,9 +184,9 @@ TEST_P(fc_fp32_activation_dynamic, basic) {
         input_layout("input", dynamic_input_layout),
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
-        fully_connected("fc_prim", "input", "weights", "bias", padding(), get_output_dim_size(p)),
-        activation("activation", "fc_prim", activation_func::abs),
-        reorder("reorder_bfyx", "activation", p.default_format, data_types::f32)
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", padding(), get_output_dim_size(p)),
+        activation("activation", input_info("fc_prim"), activation_func::abs),
+        reorder("reorder_bfyx", input_info("activation"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;
@@ -235,9 +235,9 @@ TEST_P(fc_fp32_bias_dynamic, basic) {
         input_layout("input", dynamic_input_layout),
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
-        fully_connected("fc_prim", "input", "weights", "", padding(), get_output_dim_size(p)),
-        eltwise("bias_add", { "fc_prim", "bias" }, eltwise_mode::sum),
-        reorder("reorder_bfyx", "bias_add", p.default_format, data_types::f32)
+        fully_connected("fc_prim", input_info("input"), "weights", "", padding(), get_output_dim_size(p)),
+        eltwise("bias_add", { input_info("fc_prim"), input_info("bias") }, eltwise_mode::sum),
+        reorder("reorder_bfyx", input_info("bias_add"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;

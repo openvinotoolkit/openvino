@@ -1242,7 +1242,7 @@ TEST(reorder_gpu_f32, dynamic_bfyx_to_bfzyx) {
 
     topology topology(
         input_layout("input", in_layout),
-        reorder("reorder", "input", format::bfzyx, data_types::f32));
+        reorder("reorder", input_info("input"), format::bfzyx, data_types::f32));
 
     build_options options;
     options.set_option(build_option::optimize_data(true));

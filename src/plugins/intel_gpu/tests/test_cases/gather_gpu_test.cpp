@@ -1887,7 +1887,7 @@ TEST(gather_gpu_fp32, dynamic_322_axisF) {
     topology topology;
     topology.add(input_layout("input1", in1_layout));
     topology.add(input_layout("input2", in2_layout));
-    topology.add(gather("gather", "input1", "input2", axis, ov::Shape{}));
+    topology.add(gather("gather", input_info("input1"), input_info("input2"), axis, ov::Shape{}));
 
     build_options bo;
     bo.set_option(build_option::allow_new_shape_infer(true));

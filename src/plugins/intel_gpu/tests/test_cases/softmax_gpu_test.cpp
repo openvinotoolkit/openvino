@@ -994,7 +994,7 @@ TEST(softmax_gpu_bfyx_f32, normalize_f_dynamic) {
     auto input = engine.allocate_memory(input_layout_static);
     topology topology;
     topology.add(input_layout("input", input_layout_dynamic));
-    topology.add(softmax("softmax", "input", 1));
+    topology.add(softmax("softmax", input_info("input"), 1));
 
     vector<float> input_vec = {
         //y0x0  y0x1   y1x0    y1x1

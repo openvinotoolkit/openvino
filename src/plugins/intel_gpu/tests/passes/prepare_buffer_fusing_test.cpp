@@ -71,10 +71,10 @@ TEST(prepare_buffer_fusing, static_node_after_optimized_out_dyn_reshape) {
     topology topology;
     topology.add(input_layout("input", in_layout));
     topology.add(data("weights", weights_memory));
-    topology.add(permute("permute1", "input", {0, 2, 1}));
-    topology.add(reshape("reshape", "permute1", false, {2, 4}, ov::PartialShape{2, 4}));
-    topology.add(fully_connected("fc", "reshape", "weights", "", {}, 2));
-    topology.add(reorder("reorder", "fc", format::bfyx, data_types::f32));
+    topology.add(permute("permute1", input_info("input"), {0, 2, 1}));
+    topology.add(reshape("reshape", input_info("permute1"), false, {2, 4}, ov::PartialShape{2, 4}));
+    topology.add(fully_connected("fc", input_info("reshape"), "weights", "", {}, 2));
+    topology.add(reorder("reorder", input_info("fc"), format::bfyx, data_types::f32));
 
     build_options build_opts;
     build_opts.set_option(build_option::allow_new_shape_infer(true));

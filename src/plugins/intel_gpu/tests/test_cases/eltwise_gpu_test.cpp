@@ -1113,7 +1113,7 @@ TEST(eltwise_gpu_f32, dynamic_kernel_no_broadcast) {
     topology topology;
     topology.add(input_layout("input1", in_layout));
     topology.add(input_layout("input2", in_layout));
-    topology.add(eltwise("eltwise", {"input1", "input2"}, eltwise_mode::sum));
+    topology.add(eltwise("eltwise", { input_info("input1"), input_info("input2") }, eltwise_mode::sum));
 
     set_values(input1, {
         1.f,   0.f, 5.f, 1.5f,
@@ -1173,7 +1173,7 @@ TEST(eltwise_gpu_f32, dynamic_kernel_broadcast) {
     topology topology;
     topology.add(input_layout("input1", in1_layout));
     topology.add(input_layout("input2", in2_layout));
-    topology.add(eltwise("eltwise", {"input1", "input2"}, eltwise_mode::sum));
+    topology.add(eltwise("eltwise", { input_info("input1"), input_info("input2") }, eltwise_mode::sum));
 
     set_values(input1, {
         1.f,   0.f, 5.f, 1.5f,

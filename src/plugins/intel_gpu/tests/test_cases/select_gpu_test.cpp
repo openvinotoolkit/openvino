@@ -2252,7 +2252,7 @@ TEST(select_gpu_fp32, select_numpy_broadcast_mask_u8_1x1x3) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
 
     set_values(input, {
         1.f,    0.f,    2.f

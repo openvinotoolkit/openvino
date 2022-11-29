@@ -117,9 +117,9 @@ void start_broadcast_test_dynamic(format input_format,
     topology topology;
     topology.add(input_layout("input", in_layout));
     topology.add(input_layout("target_shape", target_shape_layout));
-    topology.add(reorder("reorder", "input", input_format, input_data_type));
-    topology.add(broadcast("broadcast", "reorder", "target_shape", ov::AxisSet(broadcast_axes)));
-    topology.add(reorder("output", "broadcast", fmt, input_data_type));
+    topology.add(reorder("reorder", input_info("input"), input_format, input_data_type));
+    topology.add(broadcast("broadcast", input_info("reorder"), input_info("target_shape"), ov::AxisSet(broadcast_axes)));
+    topology.add(reorder("output", input_info("broadcast"), fmt, input_data_type));
 
     build_options bo;
     bo.set_option(build_option::allow_new_shape_infer(true));
