@@ -119,7 +119,7 @@ JitConstants KernelBase::MakeBaseParamsJitConstants(const base_params& params) c
     if (dyn_tensor_idx > 0) {
         jit.AddConstant(MakeJitConstant("IS_DYNAMIC", 1));
         jit.AddConstant(MakeJitConstant("OPTIONAL_SHAPE_INFO_ARG", "__global const int* shape_info,"));
-        jit.AddConstant(MakeJitConstant("OPTIONAL_SHAPE_INFO_TENSOR", "shape_info"));
+        jit.AddConstant(MakeJitConstant("OPTIONAL_SHAPE_INFO_TENSOR", "shape_info,"));
     } else {
         jit.AddConstant(MakeJitConstant("OPTIONAL_SHAPE_INFO_ARG", ""));
         jit.AddConstant(MakeJitConstant("OPTIONAL_SHAPE_INFO_TENSOR", ""));
