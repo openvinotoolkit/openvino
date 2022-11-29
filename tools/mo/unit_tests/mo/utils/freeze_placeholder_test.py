@@ -1,24 +1,23 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import argparse
+import os
 import unittest
 from unittest.mock import patch, Mock
-import pytest
 
-from openvino.runtime import Core
-from openvino.tools.mo.convert_impl import prepare_ir
+import numpy as np
+import onnx
+from generator import generator, generate
+from onnx.helper import make_graph, make_model, make_tensor_value_info
+
 from openvino.frontend import (
     FrontEndManager,
     FrontEnd,
 )  # pylint: disable=no-name-in-module,import-error
+from openvino.runtime import Core
+from openvino.tools.mo.convert_impl import prepare_ir
 from openvino.tools.mo.utils.error import Error
-from onnx.helper import make_graph, make_model, make_tensor_value_info
-import argparse
-import os
-from os import environ
-import onnx
-import numpy as np
-from generator import generator, generate
 
 
 def base_args_config(use_legacy_fe: bool = None, use_new_fe: bool = None):
@@ -116,36 +115,37 @@ class TestMoFreezePlaceholder(unittest.TestCase):
     @generate(
         *[
             (
-                "in1[1 4]{f32}->[1.0 2.0 3.0 4.0],in2[1 4]{f32}->[1.0 2.0 3.0 4.0]",
-                True,
-                {},
-                np.array([2.0, 4.0, 6.0, 8.0]),
-                np.float32,
+                    "in1[1 4]{f32}->[1.0 2.0 3.0 4.0],in2[1 4]{f32}->[1.0 2.0 3.0 4.0]",
+                    True,
+                    {},
+                    np.array([2.0, 4.0, 6.0, 8.0]),
+                    np.float32,
             ),
             (
-                "in2->[0.0 0.0 0.0 0.0]",
-                True,
-                {"in1": np.array([[1.0, 2.0], [3.0, 4.0]])},
-                np.array([[1.0, 2.0], [3.0, 4.0]]),
-                np.float32,
+                    "in2{f32}->[0.0 0.0 0.0 0.0]",
+                    True,
+                    {"in1": np.array([[1.0, 2.0], [3.0, 4.0]])},
+                    np.array([[1.0, 2.0], [3.0, 4.0]]),
+                    np.float32,
             ),
             (
-                "in2->[1.0 15.0 15.5 1.0]",
-                True,
-                {"in1": np.array([[2.0, 4.0], [12.0, 8.0]])},
-                np.array([[3.0, 19.0], [27.5, 9.0]]),
-                np.float32,
+                    "in2{f32}->[1.0 15.0 15.5 1.0]",
+                    True,
+                    {"in1": np.array([[2.0, 4.0], [12.0, 8.0]])},
+                    np.array([[3.0, 19.0], [27.5, 9.0]]),
+                    np.float32,
             ),
             (
-                "in1[1 4]{i32}->[1 2 3 4],in2[1 4]{i32}->[1 2 3 4]",
-                True,
-                {},
-                np.array([2.0, 4.0, 6.0, 8.0]),
-                np.int32,
+                    "in1[1 4]{i32}->[1 2 3 4],in2[1 4]{i32}->[1 2 3 4]",
+                    True,
+                    {},
+                    np.array([2.0, 4.0, 6.0, 8.0]),
+                    np.int32,
             ),
         ],
     )
-    def test_freeze_placeholder_with_value_onnx_fe(self, input_freezing_value, use_new_fe, inputs, expected, dtype=None):
+    def test_freeze_placeholder_with_value_onnx_fe(self, input_freezing_value, use_new_fe, inputs, expected,
+                                                   dtype=None):
         with patch("openvino.tools.mo.convert_impl.get_default_frontends") as default_fe:
             default_fe.return_value = get_test_default_frontends()
             args = base_args_config(use_new_fe=use_new_fe)
@@ -166,76 +166,58 @@ class TestMoFreezePlaceholder(unittest.TestCase):
     @generate(
         *[
             (
-                "in1->[1.0 15.0 1.0]",
-                None,
-                True,
-                {"in2": np.array([2])},
-                np.array([2.0, 30.0, 2.0]),
-                np.float32,
+                    "in1{f32}->[1.0 15.0 1.0]",
+                    True,
+                    {"in2": np.array([2])},
+                    np.array([2.0, 30.0, 2.0]),
+                    np.float32,
             ),
             (
-                "in1->[7.0 11.0 -1.0]",
-                "in2->3.0",
-                True,
-                {},
-                np.array([21.0, 33.0, -3.0]),
-                np.float32,
+                    "in1{f32}->[7.0 11.0 -1.0],in2{f32}->3.0",
+                    True,
+                    {},
+                    np.array([21.0, 33.0, -3.0]),
+                    np.float32,
             ),
             (
-                None,
-                None,
-                True,
-                {
-                    "in1": np.array([2.0, 2.0, 2.0]).reshape(1, 1, 3),
-                    "in2": np.array([-1.0]),
-                },
-                np.array([-2.0, -2.0, -2.0]),
-                np.float32,
-            ),
-            (
-                    "in1",
-                    "in2->[-1.0]",
+                    None,
                     True,
                     {
-                        "in1": np.array([2.0, 2.0, 2.0]).reshape(1, 1, 3)
+                        "in1": np.array([2.0, 2.0, 2.0]).reshape(1, 1, 3),
+                        "in2": np.array([-1.0]),
                     },
                     np.array([-2.0, -2.0, -2.0]),
                     np.float32,
             ),
             (
-                "in1[3 1]{f32}->[7.0 11.0 -1.0],in2{f32}->3.0",
-                None,
-                True,
-                {},
-                np.array([21.0, 33.0, -3.0]).reshape(3, 1),
-                np.float32,
+                    "in1[3 1]{f32}->[7.0 11.0 -1.0],in2{f32}->3.0",
+                    True,
+                    {},
+                    np.array([21.0, 33.0, -3.0]).reshape(3, 1),
+                    np.float32,
             ),
             (
-                "in1[3 1]{f16}->[7.0 11.0 -1.0],in2{f16}->3.0",
-                None,
-                True,
-                {},
-                np.array([21.0, 33.0, -3.0]).reshape(3, 1),
-                np.float16,
+                    "in1[3 1]{f16}->[7.0 11.0 -1.0],in2{f16}->3.0",
+                    True,
+                    {},
+                    np.array([21.0, 33.0, -3.0]).reshape(3, 1),
+                    np.float16,
             ),
             (
-                "in1[3 1]{i32}->[7 11 -1],in2{i32}->3.0",
-                None,
-                True,
-                {},
-                np.array([21, 33, -3]).reshape(3, 1),
-                np.int32,
+                    "in1[3 1]{i32}->[7 11 -1],in2{i32}->3.0",
+                    True,
+                    {},
+                    np.array([21, 33, -3]).reshape(3, 1),
+                    np.int32,
             ),
         ],
     )
-    def test_freeze_placeholder_with_value_mul(self, input_freezing_value, freeze_placeholder_value,
-                                               use_new_fe, inputs, expected, dtype=None):
+    def test_freeze_placeholder_with_value_mul(self, input_freezing_value, use_new_fe, inputs, expected, dtype=None):
         with patch("openvino.tools.mo.convert_impl.get_default_frontends") as default_fe:
             default_fe.return_value = get_test_default_frontends()
             args = base_args_config(use_new_fe=use_new_fe)
             args.input_model = "test_model_2.onnx"
             args.input = input_freezing_value
-            args.freeze_placeholder_with_value = freeze_placeholder_value
 
             _, model = prepare_ir(args)
 
@@ -247,3 +229,25 @@ class TestMoFreezePlaceholder(unittest.TestCase):
             if dtype is not None:
                 assert values.dtype == dtype
             assert np.allclose(values, expected)
+
+    @generate(
+        *[
+            (
+                    "in1->[1.0 15.0 1.0]",
+                    True,
+                    {"in2": np.array([2])},
+                    np.array([2.0, 30.0, 2.0]),
+                    np.float32,
+            ),
+        ],
+    )
+    def test_value_without_type(self, input_freezing_value, use_new_fe, inputs, expected,
+                                dtype=None):
+        with patch("openvino.tools.mo.convert_impl.get_default_frontends") as default_fe:
+            default_fe.return_value = get_test_default_frontends()
+            args = base_args_config(use_new_fe=use_new_fe)
+            args.input_model = "test_model_2.onnx"
+            args.input = input_freezing_value
+            self.assertRaisesRegex(Error, "Please specify type for value freezing in1 node explicitly "
+                                          "because the frontend does not support automatic type detection.",
+                                   prepare_ir, args)
