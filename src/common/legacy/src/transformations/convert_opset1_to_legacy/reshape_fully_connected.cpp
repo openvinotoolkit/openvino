@@ -27,7 +27,7 @@ ngraph::pass::ReshapeFullyConnected::ReshapeFullyConnected() {
         }
 
         auto input_shape = fc->input_value(0).get_shape();
-        auto output_shape = fc->get_shape();        
+        auto output_shape = fc->get_shape();
         auto reshape_dim = fc->input_value(1).get_shape();
 
         if (input_shape.size() == 2) {
