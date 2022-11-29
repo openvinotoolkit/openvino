@@ -17,7 +17,7 @@ OutputVector translate_clamp(NodeContext& context) {
         auto min_clip = context.get_input(1);
         x = context.mark_node(std::make_shared<opset8::Maximum>(x, min_clip));
     }
-    if (!context.input_is_none(2)){
+    if (!context.input_is_none(2)) {
         auto max_clip = context.get_input(2);
         x = context.mark_node(std::make_shared<opset8::Minimum>(x, max_clip));
     }
