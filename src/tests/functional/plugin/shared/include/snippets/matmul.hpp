@@ -36,6 +36,26 @@ protected:
     void SetUp() override;
 };
 
+class MatMulBias : public MatMul {
+protected:
+    void SetUp() override;
+};
+
+class ExplicitTransposeMatMul : public MatMul {
+protected:
+    void SetUp() override;
+};
+
+class ExplicitTransposeMatMulBias : public MatMul {
+protected:
+    void SetUp() override;
+};
+
+class ExplicitTransposeMulMatMulBias : public MatMul {
+protected:
+    void SetUp() override;
+};
+
 class TransposeMatMul : public testing::WithParamInterface<ov::test::snippets::TransposeMatMulParams>,
                virtual public ov::test::SnippetsTestsCommon {
 public:

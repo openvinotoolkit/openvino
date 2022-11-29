@@ -20,7 +20,7 @@ namespace op {
 class MatMulCPU : public ngraph::op::v0::MatMul {
 public:
     OPENVINO_OP("MatMulCPU", "SnippetsOpset", ngraph::op::v0::MatMul);
-    MatMulCPU(const Output<Node>& A, const Output<Node>& B);
+    MatMulCPU(const Output<Node>& A, const Output<Node>& B, size_t offset_a = 0, size_t offset_b = 0, size_t offset_c = 0);
     MatMulCPU() = default;
 
     bool visit_attributes(AttributeVisitor& visitor) override;
@@ -29,9 +29,20 @@ public:
 
     bool has_evaluate() const override { return false; }
 
+    size_t get_offset_a() const { return m_offset_a; }
+    size_t get_offset_b() const { return m_offset_b; }
+    size_t get_offset_c() const { return m_offset_c; }
+
+    void set_offset_a(size_t offset) { m_offset_a = offset; }
+    void set_offset_b(size_t offset) { m_offset_b = offset; }
+    void set_offset_c(size_t offset) { m_offset_c = offset; }
+
 private:
-    MatMulCPU(const Output<Node>& A, const Output<Node>& B, std::vector<size_t> output_layout);
+    MatMulCPU(const Output<Node>& A, const Output<Node>& B, std::vector<size_t> output_layout, size_t offset_a = 0, size_t offset_b = 0, size_t offset_c = 0);
     std::vector<size_t> m_output_layout;
+    size_t m_offset_a = 0lu;
+    size_t m_offset_b = 0lu;
+    size_t m_offset_c = 0lu;
 };
 
 } // namespace op

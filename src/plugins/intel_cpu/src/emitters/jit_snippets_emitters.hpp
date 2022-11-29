@@ -479,7 +479,8 @@ private:
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_brgemm_kernel_call(const brgemm_kernel_t *brg_kernel, int bs,
                                  Reg64 addr_A, Reg64 addr_B,
-                                 const brgemm_batch_element_t *batch, Reg64 addr_C, void *scratch) const;
+                                 const brgemm_batch_element_t *batch, Reg64 addr_C, void *scratch,
+                                 const size_t in0_kernel_offset, const size_t in1_kernel_offset, const size_t out0_kernel_offset) const;
 
     static constexpr size_t MHA_BRGEMM_KERNELS_NUM = 8;
     static constexpr size_t matmulOptimalM = 32;
@@ -490,6 +491,10 @@ private:
     size_t M, M_blk, M_tail;
     size_t K0, K0_blk, K0_tail, N0, N0_blk, N0_tail;
     size_t brg0VnniFactor;
+
+    size_t load_offset_a = 0lu;
+    size_t load_offset_b = 0lu;
+    size_t store_offset_c = 0lu;
 };
 
 }   // namespace intel_cpu

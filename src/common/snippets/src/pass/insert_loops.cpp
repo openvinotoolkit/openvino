@@ -48,8 +48,7 @@ std::vector<int64_t> InsertLoops::calculate_finalization_offsets(const ov::Parti
     return inner_finalization_offsets;
 }
 
-void insert_explicitly_loops(const ov::NodeVector& ops, const ov::PartialShape& master_shape,
-                             size_t inner_work_amount, size_t outer_work_amount, size_t vector_size) {
+void insert_explicitly_loops(const ov::NodeVector& ops, const ov::PartialShape& master_shape, size_t vector_size) {
     ov::NodeVector body;
     ov::OutputVector body_parameters;
     std::vector<ov::Input<ov::Node>> body_results;
@@ -67,6 +66,11 @@ void insert_explicitly_loops(const ov::NodeVector& ops, const ov::PartialShape& 
 
         auto apply_increments = InsertLoops::calculate_inner_apply_increments(master_shape, body_shapes);
         std::vector<int64_t> inner_finalization_offsets(body_shapes.size(), 0);
+        auto body_master_shape = body_shapes.front();
+        for (const auto& shape : body_shapes)
+            PartialShape::broadcast_merge_into(body_master_shape, shape, ::ngraph::op::AutoBroadcastType::NUMPY);
+        const auto inner_work_amount = utils::get_inner_dim(body_master_shape).get_length();
+        const auto outer_work_amount = utils::get_outer_dim(body_master_shape).get_length();
         if (outer_work_amount > 1) {
             inner_finalization_offsets = InsertLoops::calculate_finalization_offsets(master_shape, body_shapes);
         }
@@ -236,7 +240,7 @@ bool InsertLoops::run_on_model(const std::shared_ptr<ov::Model> &model) {
                 op::insertLoopEnd(commonResults, outer_loop_begin, 1lu, outer_work_amount, 1lu, apply_increments);
             }
         } else {
-            insert_explicitly_loops(ops, m_master_shape, inner_work_amount, outer_work_amount, m_vector_size);
+            insert_explicitly_loops(ops, m_master_shape, m_vector_size);
         }
     }
 

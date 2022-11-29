@@ -56,6 +56,9 @@ void snippets::op::Buffer::set_offset(const size_t offset) {
         }
         if (auto store = std::dynamic_pointer_cast<snippets::op::Store>(parent)) {
             store->set_offset(m_offset);
+        } else if (auto matmul = std::dynamic_pointer_cast<snippets::op::MatMulCPU>(parent)) {
+            // MatMul encapsulates work with Loops inside himself
+            matmul->set_offset_c(m_offset);
         } else {
             throw ngraph_error("Buffer::set_offset() was called when Buffer didn't have the corresponding Store op for offset propagation");
         }
@@ -73,6 +76,13 @@ void snippets::op::Buffer::set_offset(const size_t offset) {
                 }
             } else if (const auto load = std::dynamic_pointer_cast<snippets::op::Load>(child)) {
                 load->set_offset(m_offset);
+            } else if (auto matmul = std::dynamic_pointer_cast<snippets::op::MatMulCPU>(child)) {
+                // MatMul encapsulates work with Loops inside himself
+                if (target_input.get_index() == 0) {
+                    matmul->set_offset_a(m_offset);
+                } else {
+                    matmul->set_offset_b(m_offset);
+                }
             } else {
                 throw ngraph_error("Buffer::set_offset() was called when Buffer didn't have the corresponding Load op for offset propagation");
             }

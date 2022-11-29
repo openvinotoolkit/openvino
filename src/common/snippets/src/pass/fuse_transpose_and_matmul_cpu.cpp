@@ -49,7 +49,7 @@ FuseTransposeMatMulCPU::FuseTransposeMatMulCPU() {
     auto matmul_out0 = pattern::wrap_type<opset1::Transpose>({matmul_any, constant});
     auto matmul_or_transpose = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{matmul_in0, matmul_in1, matmul_out0});
 
-    auto callback = [](pattern::Matcher& m) {
+    auto callback = [&transpose_is_supported](pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::FuseTransposeMatMulCPU")
         auto set_layout_from_order = [](const std::shared_ptr<opset1::Transpose>& node, const ov::Output<Node>& port) {
             const auto& const_order = as_type_ptr<opset1::Constant>(node->get_input_node_shared_ptr(1));
@@ -72,8 +72,10 @@ FuseTransposeMatMulCPU::FuseTransposeMatMulCPU() {
         for (int i = 0; i < matmul->get_input_size(); i++) {
             const auto& in_value = matmul->input_value(i);
             if (const auto& transpose = as_type_ptr<opset1::Transpose>(in_value.get_node_shared_ptr())) {
-                set_layout_from_order(transpose, transpose->input_value(0));
-                matmul->set_argument(i, transpose->input_value(0));
+                if (transpose_is_supported(transpose)) {
+                    set_layout_from_order(transpose, transpose->input_value(0));
+                    matmul->set_argument(i, transpose->input_value(0));
+                }
             }
         }
         // need to run validate_and_infer_types manually: either input shapes were updated or

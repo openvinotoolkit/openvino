@@ -1024,6 +1024,10 @@ MatMulEmitter::MatMulEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
             }
         }
     }
+
+    load_offset_a = matmul_node->get_offset_a();
+    load_offset_b = matmul_node->get_offset_b();
+    store_offset_c = matmul_node->get_offset_c();
 }
 
 void MatMulEmitter::initBrgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKernel, bool use_amx) const {
@@ -1070,7 +1074,8 @@ void MatMulEmitter::emit_impl(const std::vector<size_t>& in,
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void MatMulEmitter::emit_brgemm_kernel_call(const brgemm_kernel_t *brgKernel, int bs,
                                             Reg64 addr_A, Reg64 addr_B,
-                                            const brgemm_batch_element_t *batch, Reg64 addr_C, void *scratch) const {
+                                            const brgemm_batch_element_t *batch, Reg64 addr_C, void *scratch,
+                                            const size_t in0_kernel_offset, const size_t in1_kernel_offset, const size_t out0_kernel_offset) const {
     using Vmm = typename dnnl::impl::utils::conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     size_t gpr_size = 8;
     Xbyak::Operand gprs_to_save[] = {h->r8, h->r9, h->r10, h->r11, h->rax,
@@ -1120,8 +1125,15 @@ void MatMulEmitter::emit_brgemm_kernel_call(const brgemm_kernel_t *brgKernel, in
     // todo: Windows ABI : requires different num of arguments passed in regs and on the stack. Need to align.
     h->mov(abi_param1, reinterpret_cast<uintptr_t>(brgKernel));
     h->mov(abi_param2, bs);
-    h->uni_vmovq(abi_param3, Xmm(0));
-    h->uni_vmovq(abi_param4, Xmm(1));
+
+    const auto data_ptr = [&](Xmm xmm, Xbyak::Reg64 reg, size_t memory_bytes_offset, size_t kernel_bytes_offset) {
+        h->uni_vmovq(reg, xmm);
+        if (memory_bytes_offset) h->add(reg, memory_bytes_offset);
+        if (kernel_bytes_offset) h->add(reg, kernel_bytes_offset);
+    };
+    data_ptr(Xmm(0), abi_param3, load_offset_a, in0_kernel_offset);
+    data_ptr(Xmm(1), abi_param4, load_offset_b, in1_kernel_offset);
+
     size_t num_args_passed_on_stack = 1;
 #ifdef _WIN32
         num_args_passed_on_stack = 3;
@@ -1130,9 +1142,11 @@ void MatMulEmitter::emit_brgemm_kernel_call(const brgemm_kernel_t *brgKernel, in
     h->mov(h->qword[h->rsp], reinterpret_cast<uint64_t>(scratch));
     h->mov(h->qword[h->rsp + gpr_size], reinterpret_cast<uintptr_t>(batch));
     h->mov(h->qword[h->rsp + 2 * gpr_size], Xmm(2));
+    if (store_offset_c) h->add(h->qword[h->rsp + 2 * gpr_size], store_offset_c);
+    if (out0_kernel_offset) h->add(h->qword[h->rsp + 2 * gpr_size], out0_kernel_offset);
 #else
     h->mov(abi_param5, reinterpret_cast<uintptr_t>(batch));
-    h->uni_vmovq(abi_param6, Xmm(2));
+    data_ptr(Xmm(2), abi_param6, store_offset_c, out0_kernel_offset);
     h->sub(h->rsp, gpr_size);
     h->mov(h->qword[h->rsp], reinterpret_cast<uint64_t>(scratch));
 #endif
@@ -1194,25 +1208,17 @@ void MatMulEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<si
                     const size_t in0_offset = (k * K0_step0 + mb * M_blk * brgemmCtx.LDA) * io_data_size[0];
                     const size_t in1_offset = (k * K0_step1 + n * N0_step0) * io_data_size[1];
                     const size_t out0_offset = (n * N0_step1 + mb * M_blk * brgemmCtx.LDC) * io_data_size[2];
-                    if (in0_offset != 0)
-                        h->add(input_0, in0_offset);
-                    if (in1_offset != 0)
-                        h->add(input_1, in1_offset);
-                    if (out0_offset != 0)
-                        h->add(output_0, out0_offset);
+
                     emit_brgemm_kernel_call<isa>(brgKernels0[getBrgIdx(mIdx, k, n)].get(),
                                                  1,
                                                  input_0,
                                                  input_1,
                                                  nullptr,
                                                  output_0,
-                                                 nullptr);
-                    if (in0_offset != 0)
-                        h->sub(input_0, in0_offset);
-                    if (in1_offset != 0)
-                        h->sub(input_1, in1_offset);
-                    if (out0_offset != 0)
-                        h->sub(output_0, out0_offset);
+                                                 nullptr,
+                                                 in0_offset,
+                                                 in1_offset,
+                                                 out0_offset);
                 }
             }
         }

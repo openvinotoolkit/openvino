@@ -12,17 +12,24 @@ namespace snippets {
 
 typedef std::tuple<
         std::vector<ov::Shape>,          // Input shapes
+        std::vector<int64_t>,            // Transpose Order
+        int64_t,                         // Softmax Axis
         size_t,                          // Expected num nodes
         size_t,                          // Expected num subgraphs
         std::string                      // Target Device
-> MHAParams;
+> TransposeSoftmaxParams;
 
 
-class MHA : public testing::WithParamInterface<ov::test::snippets::MHAParams>,
-                   virtual public ov::test::SnippetsTestsCommon {
+class TransposeSoftmax : public testing::WithParamInterface<ov::test::snippets::TransposeSoftmaxParams>,
+                         virtual public ov::test::SnippetsTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::MHAParams> obj);
+    static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::TransposeSoftmaxParams> obj);
 
+protected:
+    void SetUp() override;
+};
+
+class TransposeSoftmaxEltwise : public TransposeSoftmax {
 protected:
     void SetUp() override;
 };

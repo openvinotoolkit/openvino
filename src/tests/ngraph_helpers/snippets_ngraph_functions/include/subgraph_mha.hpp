@@ -23,6 +23,15 @@ protected:
     std::shared_ptr<ov::Model> initReference() const override;
 };
 
+// As same as MHAFunction but with sinh on inputs
+// TODO: Remove sin when snippet will be able to tokenize after parameters
+class MHASinFunction : public MHAFunction {
+public:
+    explicit MHASinFunction(const std::vector<PartialShape>& inputShapes) : MHAFunction(inputShapes) {}
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+};
+
 // TODO: Write Graph
 class MHAMatMul0TransposeFunction : public MHAFunction {
 public:

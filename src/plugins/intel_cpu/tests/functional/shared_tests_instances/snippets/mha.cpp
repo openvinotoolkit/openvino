@@ -12,29 +12,17 @@ namespace snippets {
 
 namespace {
 
-const std::vector<ov::Shape> inputShape = {
-    ov::Shape{1, 128, 3, 16},
+const std::vector<ov::Shape> inputShapes = {
+        {1, 128, 12, 64}, {1, 128, 12, 64}, {1, 12, 128, 128}, {1, 128, 12, 64},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_TransposeSoftmax, TransposeSoftmax,
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA, MHA,
                      ::testing::Combine(
-                             ::testing::Values(inputShape),
-                             ::testing::Values(std::vector<int64_t>{0, 2, 3, 1}),
-                             ::testing::Values(-1),
-                             ::testing::Values(2),  // Subgraph + Sin
+                             ::testing::Values(inputShapes),
+                             ::testing::Values(5),  // Subgraph + 4xSin
                              ::testing::Values(1),
                              ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                     TransposeSoftmax::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_TransposeSoftmaxEltwise, TransposeSoftmaxEltwise,
-                         ::testing::Combine(
-                                 ::testing::Values(inputShape),
-                                 ::testing::Values(std::vector<int64_t>{0, 2, 3, 1}),
-                                 ::testing::Values(-1),
-                                 ::testing::Values(2),  // Subgraph + Sin
-                                 ::testing::Values(1),
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                         TransposeSoftmax::getTestCaseName);
+                     MHA::getTestCaseName);
 
 } // namespace
 } // namespace snippets

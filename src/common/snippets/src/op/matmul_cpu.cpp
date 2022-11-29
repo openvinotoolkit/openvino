@@ -12,14 +12,15 @@ namespace ngraph {
 namespace snippets {
 namespace op {
 
-MatMulCPU::MatMulCPU(const Output<Node>& A, const Output<Node>& B) : MatMul(), m_output_layout({}) {
+MatMulCPU::MatMulCPU(const Output<Node>& A, const Output<Node>& B, size_t offset_a, size_t offset_b, size_t offset_c)
+    : MatMul(), m_output_layout({}), m_offset_a(offset_a), m_offset_b(offset_b), m_offset_c(offset_c) {
     set_arguments({A, B});
     set_output_size(1);
     constructor_validate_and_infer_types();
 }
 
-MatMulCPU::MatMulCPU(const Output<Node>& A, const Output<Node>& B, std::vector<size_t> output_layout)
-    : MatMul(), m_output_layout(std::move(output_layout)) {
+MatMulCPU::MatMulCPU(const Output<Node>& A, const Output<Node>& B, std::vector<size_t> output_layout, size_t offset_a, size_t offset_b, size_t offset_c)
+    : MatMul(), m_output_layout(std::move(output_layout)), m_offset_a(offset_a), m_offset_b(offset_b), m_offset_c(offset_c) {
     set_arguments({A, B});
     set_output_size(1);
     constructor_validate_and_infer_types();
@@ -27,6 +28,9 @@ MatMulCPU::MatMulCPU(const Output<Node>& A, const Output<Node>& B, std::vector<s
 
 bool MatMulCPU::visit_attributes(AttributeVisitor& visitor) {
     INTERNAL_OP_SCOPE(MatMulCPU_visit_attributes);
+    visitor.on_attribute("offset_a", m_offset_a);
+    visitor.on_attribute("offset_b", m_offset_b);
+    visitor.on_attribute("offset_c", m_offset_c);
     // todo: should we visit planar shapes?
     //visitor.on_attribute("leading_dimensions", m_leading_dimensions);
     return true;
@@ -81,11 +85,7 @@ void MatMulCPU::validate_and_infer_types() {
 std::shared_ptr<Node> MatMulCPU::clone_with_new_inputs(const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(MatMulCPU_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-//    auto new_matmul = std::make_shared<MatMulCPU>(new_args.at(0), new_args.at(1));
-    return std::shared_ptr<Node>(new MatMulCPU(new_args.at(0), new_args.at(1), m_output_layout));
-//    new_matmul->output_layout = output_layout;
-//    return new_matmul;
-//    return std::make_shared<MatMulCPU>(new_args.at(0), new_args.at(1));
+    return std::shared_ptr<Node>(new MatMulCPU(new_args.at(0), new_args.at(1), m_output_layout, m_offset_a, m_offset_b, m_offset_c));
 }
 
 } // namespace op
