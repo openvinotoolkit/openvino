@@ -7,7 +7,7 @@ from openvino.runtime import Core, Model, PartialShape, Dimension, Layout, Type,
 from openvino.preprocess import PrePostProcessor
 
 from .constants import DEVICE_DURATION_IN_SECS, UNKNOWN_DEVICE_TYPE, \
-    CPU_DEVICE_NAME, GPU_DEVICE_NAME
+    AUTO_DEVICE_NAME, MULTI_DEVICE_NAME
 from .logging import logger
 
 import json
@@ -255,15 +255,13 @@ def can_measure_as_static(app_input_info):
 
 
 def parse_devices(device_string):
-    if device_string in ['MULTI', 'HETERO']:
-        return list()
-    if device_string.find("AUTO") != -1:
-        return ['AUTO']
-    devices = device_string
-    if ':' in devices:
-        devices = devices.partition(':')[2]
-    return [d for d in devices.split(',')]
-
+    result = []
+    target_device = device_string.partition(":")[0]
+    result.append(target_device)
+    if device_string.find(":") != -1:
+        hw_devices_str = device_string.partition(":")[-1]
+        result.extend(hw_devices_str.split(','))
+    return result
 
 def parse_value_per_device(devices, values_string, value_type):
     # Format: <device1>:<value1>,<device2>:<value2> or just <value>
@@ -279,8 +277,12 @@ def parse_value_per_device(devices, values_string, value_type):
             if device_name in devices:
                 result[device_name] = value
             else:
-                raise Exception(f"Can't set {value_type} for {device_name}!" \
-                                 " Incorrect device name!")
+                devices_str = ""
+                for device in devices:
+                    devices_str += device + " "
+                devices_str = devices_str.strip()
+                raise Exception(f"Failed to set property to '{device_name}' " \
+                                f"which is not found in the target devices list '{devices_str}'!")
         elif len(device_value_vec) == 1:
             value = device_value_vec[0]
             for device in devices:
@@ -289,6 +291,28 @@ def parse_value_per_device(devices, values_string, value_type):
             raise Exception('Unknown string format: ' + values_string)
     return result
 
+def parse_value_for_virtual_device(device, values_string):
+    isExist = device in values_string.keys()
+    if isExist and len(values_string) > 1:
+        if device == MULTI_DEVICE_NAME:
+            # Remove the element that the key is virtual device MULTI
+            # e.g. MULTI:xxx -nstreams 2 will set nstreams 2 to xxx.
+            values_string.pop(device)
+        elif device == AUTO_DEVICE_NAME:
+            # Just keep the element that the key is virtual device AUTO
+            # e.g. AUTO:xxx,xxx -nstreams 2 will trigger exception that AUTO plugin didn't support nstream property.
+            value = values_string.get(device)
+            values_string.clear()
+            values_string[device] = value
+    keys = values_string.keys()
+    for key in list(values_string):
+        if device not in list(values_string):
+            values_string[device] = ''
+        values_string[device] += key + " " + values_string.get(key) + " "
+        del values_string[key]
+    if device in values_string.keys():
+        values_string[device] = values_string[device].strip()
+    return
 
 def process_help_inference_string(benchmark_app, device_number_streams):
     output_string = f'Start inference {benchmark_app.api_type}hronously'
