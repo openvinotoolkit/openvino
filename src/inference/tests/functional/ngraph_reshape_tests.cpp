@@ -218,6 +218,7 @@ public:
 private:
 };
 
+#if defined(ENABLE_OV_IR_FRONTEND)
 TEST_F(NGraphReshapeTests, ReshapeNewIRWithNewExtension1) {
     std::string model = R"V0G0N(
 <net name="Activation" version="10">
@@ -351,6 +352,7 @@ TEST_F(NGraphReshapeTests, ReshapeNewIRWithNewExtension2) {
     SizeVector outDims = output["activation"]->getTensorDesc().getDims();
     ASSERT_EQ(outDims, refAfterReshape);
 }
+#endif //defined(ENABLE_OV_IR_FRONTEND)
 
 class BadExtension : public InferenceEngine::IExtension {
 public:
@@ -402,6 +404,7 @@ TEST_F(NGraphReshapeTests, TestInterpParameters) {
     cnn.reshape(inShape);
 }
 
+#ifdef ENABLE_OV_IR_FRONTEND
 TEST_F(NGraphReshapeTests, ReshapeWithDefaultGenericOps) {
     // the RNNCEll was initially marked as "experimental" operation but later was added to opset
     // the test checks that IR reader properly instantiate the "experimental" RNNCell as "opset6" RNNCell
@@ -1277,3 +1280,4 @@ TEST_F(NGraphReshapeTests, ReshapeEDTopKROIs) {
     newShapes["in1"] = {10000};
     ASSERT_NO_THROW(network.reshape(newShapes));
 }
+#endif

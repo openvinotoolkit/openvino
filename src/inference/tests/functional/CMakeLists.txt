@@ -25,17 +25,40 @@ if(NOT MSVC)
     ie_add_compiler_flags(-Wno-suggest-override)
 endif()
 
+set(DEPENDENCIES
+    mock_engine
+    template_extension
+    openvino_template_extension
+)
+
+set(COMPILE_DEFINITIONS "")
+
+if(ENABLE_OV_IR_FRONTEND)
+    list(APPEND DEPENDENCIES openvino_ir_frontend)
+    list(APPEND COMPILE_DEFINITIONS ENABLE_OV_IR_FRONTEND)
+endif()
+
+if(ENABLE_HETERO)
+    list(APPEND DEPENDENCIES openvino_hetero_plugin)
+    list(APPEND COMPILE_DEFINITIONS ENABLE_HETERO)
+endif()
+
+if(ENABLE_AUTO AND ENABLE_MULTI)
+    list(APPEND DEPENDENCIES openvino_auto_plugin)
+    list(APPEND COMPILE_DEFINITIONS ENABLE_AUTO)
+endif()
+
+if(ENABLE_AUTO_BATCH)
+    list(APPEND DEPENDENCIES openvino_auto_batch_plugin)
+    list(APPEND COMPILE_DEFINITIONS ENABLE_AUTO_BATCH)
+endif()
+
+
 ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDENCIES
-            openvino_ir_frontend
-            mock_engine
-            template_extension
-            openvino_template_extension
-            openvino_hetero_plugin
-            openvino_auto_plugin
-            openvino_auto_batch_plugin
+            ${DEPENDENCIES}
         LINK_LIBRARIES
             gmock
             funcTestUtils
@@ -44,3 +67,5 @@ ov_add_test_target(
         LABELS
             OV
 )
+
+add_compile_definitions(${TARGET_NAME} ${COMPILE_DEFINITIONS})
