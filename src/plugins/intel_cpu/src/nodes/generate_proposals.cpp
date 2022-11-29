@@ -168,19 +168,19 @@ void refine_anchors_jit(const jit_refine_anchors_kernel& refine_anchors_kernel,
     const Indexer4d score_idx(anchors_num, 1, bottom_H, bottom_W);
     const Indexer4d proposal_idx(bottom_H, bottom_W, anchors_num, 6);
 
-    const uint32_t anchor_anchor_offset   =   anchor_idx(0, 0, 1, 0) - anchor_idx(0, 0, 0, 0);
-    const uint32_t anchor_idx_offset      =   anchor_idx(0, 0, 0, 1) - anchor_idx(0, 0, 0, 0);
-    const uint32_t delta_anchor_offset    =    delta_idx(1, 0, 0, 0) - delta_idx(0, 0, 0, 0);
-    const uint32_t delta_idx_offset       =    delta_idx(0, 1, 0, 0) - delta_idx(0, 0, 0, 0);
-    const uint32_t score_anchor_offset    =    score_idx(1, 0, 0, 0) - score_idx(0, 0, 0, 0);
-    const uint32_t proposal_anchor_offset = proposal_idx(0, 0, 1, 0) - proposal_idx(0, 0, 0, 0);
-    const uint32_t proposal_idx_offset    = proposal_idx(0, 0, 0, 1) - proposal_idx(0, 0, 0, 0);
+    const uint32_t anchor_anchor_offset   =   (anchor_idx(0, 0, 1, 0) - anchor_idx(0, 0, 0, 0)) * sizeof(float);
+    const uint32_t anchor_idx_offset      =   (anchor_idx(0, 0, 0, 1) - anchor_idx(0, 0, 0, 0)) * sizeof(float);
+    const uint32_t delta_anchor_offset    =    (delta_idx(1, 0, 0, 0) - delta_idx(0, 0, 0, 0)) * sizeof(float);
+    const uint32_t delta_idx_offset       =    (delta_idx(0, 1, 0, 0) - delta_idx(0, 0, 0, 0)) * sizeof(float);
+    const uint32_t score_anchor_offset    =    (score_idx(1, 0, 0, 0) - score_idx(0, 0, 0, 0)) * sizeof(float);
+    const uint32_t proposal_anchor_offset = (proposal_idx(0, 0, 1, 0) - proposal_idx(0, 0, 0, 0)) * sizeof(float);
+    const uint32_t proposal_idx_offset    = (proposal_idx(0, 0, 0, 1) - proposal_idx(0, 0, 0, 0)) * sizeof(float);
 
     parallel_for2d(bottom_H, bottom_W, [&](int h, int w) {
-        const uint32_t anchor_start_idx = anchor_idx(h, w, 0, 0);
-        const uint32_t delta_start_idx = delta_idx(0, 0, h, w);
-        const uint32_t score_start_idx = score_idx(0, 0, h, w);
-        const uint32_t proposal_start_idx = proposal_idx(h, w, 0, 0);
+        const uint32_t anchor_start_idx = anchor_idx(h, w, 0, 0) * sizeof(float);
+        const uint32_t delta_start_idx = delta_idx(0, 0, h, w) * sizeof(float);
+        const uint32_t score_start_idx = score_idx(0, 0, h, w) * sizeof(float);
+        const uint32_t proposal_start_idx = proposal_idx(h, w, 0, 0) * sizeof(float);
         refine_anchors_kernel(jit_refine_anchors_call_args{
                 deltas, scores, anchors,
                 reinterpret_cast<float *>(&proposals[0]),
@@ -284,11 +284,13 @@ GenerateProposals::GenerateProposals
     for (int i = 0; i < 16; ++i) {
         refine_anchor_indices_.push_back(i);
     }
-    for (int i = 0; i < 16; ++i) {
-        refine_anchor_masks_.push_back(0xFFFFFFFF);
-    }
-    for (int i = 0; i < 16; ++i) {
-        refine_anchor_masks_.push_back(0x0000);
+    if (!mayiuse(x64::avx512_core)) {
+        for (int i = 0; i < 16; ++i) {
+            refine_anchor_masks_.push_back(0xFFFFFFFF);
+        }
+        for (int i = 0; i < 16; ++i) {
+            refine_anchor_masks_.push_back(0x0000);
+        }
     }
 
     if (op->output(0).get_element_type() == ov::element::f32) {

@@ -87,6 +87,32 @@ class jit_refine_anchors_kernel_fp32 : public jit_refine_anchors_kernel {
  private:
     void update_input_output_ptrs();
 
+    inline void gather1(Vmm dst,
+                        Xbyak::Reg64 src,
+                        Vmm idx,
+                        int k_mask_idx,
+                        const StackAllocator::RegAddress<Vmm>& vmm_mask);
+
+    inline void gather4(std::array<Vmm, 4> dst,
+                        Xbyak::Reg64 src,
+                        Vmm idx,
+                        Vmm idx_offset,
+                        int k_mask_idx,
+                        const StackAllocator::RegAddress<Vmm>& vmm_mask);
+
+    inline void scatter1(Xbyak::Reg64 dst,
+                         Vmm idx,
+                         Vmm src,
+                         int k_mask_idx,
+                         const StackAllocator::RegAddress<Vmm>& vmm_mask);
+
+    inline void scatter4(Xbyak::Reg64 dst,
+                         Vmm idx,
+                         std::array<Vmm, 4> src,
+                         Vmm idx_offset,
+                         int k_mask_idx,
+                         const StackAllocator::RegAddress<Vmm>& vmm_mask);
+
     template<typename Tmm>
     void uni_expf(const Tmm& arg) {
         exp_injector->compute_vector(arg.getIdx());

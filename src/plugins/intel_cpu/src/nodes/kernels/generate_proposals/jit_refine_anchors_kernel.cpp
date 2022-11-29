@@ -142,37 +142,41 @@ void jit_refine_anchors_kernel_fp32<isa>::generate_impl() {
             uni_vpaddd(vmm_anchor_idx, vmm_anchor_idx, vmm_anchor_anchor_offset);
 
             // Prepare mask
-            RegistersPool::Reg<Vmm> vmm_anchor_mask{registersPool};
-            mov(rax.cvt32(), this->SIMD_WIDTH);
-            sub(rax, reg_anchors_chunk);
-            add(rax, 16);
-            sub(rax.cvt32(), this->SIMD_WIDTH);
-            mov(rbx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, refine_anchor_masks)]);
-            uni_vmovdqu(vmm_anchor_mask, ptr[rbx + rax * sizeof(float)]);
-            uni_vmovdqu(vmm_anchor_mask_addr, vmm_anchor_mask);
+            int k_mask_idx = 2;
+            if (is_valid_isa(x64::avx512_core)) {
+                RegistersPool::Reg<Xbyak::Opmask> k_mask{registersPool, k_mask_idx};
 
-            mov(rax, 16);
+                push(cx);
+                mov(cl, reg_anchors_chunk.cvt8());
+                mov(rbx, 1);
+                shl(rbx, cl);
+                sub(rbx, 1);
+                pop(cx);
 
-            {
-                // float x0 = anchors[a_idx + 0 * a_idx_offset];
-                emu_vgatherdps(vmm_x0, reg_anchors_ptr, vmm_anchor_idx, sizeof(float), 0, vmm_anchor_mask);
-                // float y0 = anchors[a_idx + 1 * a_idx_offset];
-                uni_vmovdqu(vmm_anchor_mask, vmm_anchor_mask_addr);
-                uni_vpaddd(vmm_anchor_idx, vmm_anchor_idx, vmm_anchor_idx_offset);
-                emu_vgatherdps(vmm_y0, reg_anchors_ptr, vmm_anchor_idx, sizeof(float), 0, vmm_anchor_mask);
-                // float x1 = anchors[a_idx + 2 * a_idx_offset];
-                uni_vmovdqu(vmm_anchor_mask, vmm_anchor_mask_addr);
-                uni_vpaddd(vmm_anchor_idx, vmm_anchor_idx, vmm_anchor_idx_offset);
-                emu_vgatherdps(vmm_x1, reg_anchors_ptr, vmm_anchor_idx, sizeof(float), 0, vmm_anchor_mask);
-                // float y1 = anchors[a_idx + 3 * a_idx_offset];
-                uni_vmovdqu(vmm_anchor_mask, vmm_anchor_mask_addr);
-                uni_vpaddd(vmm_anchor_idx, vmm_anchor_idx, vmm_anchor_idx_offset);
-                emu_vgatherdps(vmm_y1, reg_anchors_ptr, vmm_anchor_idx, sizeof(float), 0, vmm_anchor_mask);
+                kmovw(k_mask, ebx);
+            } else {
+                mov(rax.cvt32(), this->SIMD_WIDTH);
+                sub(rax, reg_anchors_chunk);
+                add(rax, 16);
+                sub(rax.cvt32(), this->SIMD_WIDTH);
+                mov(rbx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, refine_anchor_masks)]);
+
+                RegistersPool::Reg<Vmm> vmm_anchor_mask{registersPool};
+                uni_vmovdqu(vmm_anchor_mask, ptr[rbx + rax * sizeof(float)]);
+                uni_vmovdqu(vmm_anchor_mask_addr, vmm_anchor_mask);
             }
+
+            std::array<Vmm, 4> anchor_dsts{vmm_x0, vmm_y0, vmm_x1, vmm_y1};
+            gather4(anchor_dsts,
+                    reg_anchors_ptr,
+                    vmm_anchor_idx,
+                    vmm_anchor_idx_offset,
+                    k_mask_idx,
+                    vmm_anchor_mask_addr);
+
             vmm_anchor_idx.release();
             vmm_anchor_anchor_offset.release();
             vmm_anchor_idx_offset.release();
-            vmm_anchor_mask.release();
 
             /** @code
                 const int d_idx = delta_idx(anchor, 0, h, w);
@@ -194,30 +198,12 @@ void jit_refine_anchors_kernel_fp32<isa>::generate_impl() {
             uni_vpmulld(vmm_delta_anchor_offset, vmm_delta_anchor_offset, ptr[rbx]);
             uni_vpaddd(vmm_delta_idx, vmm_delta_idx, vmm_delta_anchor_offset);
 
-            // Prepare mask
-            RegistersPool::Reg<Vmm> vmm_delta_mask{registersPool};
-            uni_vmovdqu(vmm_delta_mask, vmm_anchor_mask_addr);
+            std::array<Vmm, 4> delta_dsts{vmm_dx, vmm_dy, vmm_d_log_w, vmm_d_log_h};
+            gather4(delta_dsts, reg_deltas_ptr, vmm_delta_idx, vmm_delta_idx_offset, k_mask_idx, vmm_anchor_mask_addr);
 
-            {
-                // const float dx = deltas[d_idx + 0 * d_idx_offset];
-                emu_vgatherdps(vmm_dx, reg_deltas_ptr, vmm_delta_idx, sizeof(float), 0, vmm_delta_mask);
-                // const float dy = deltas[d_idx + 1 * d_idx_offset];
-                uni_vmovdqu(vmm_delta_mask, vmm_anchor_mask_addr);
-                uni_vpaddd(vmm_delta_idx, vmm_delta_idx, vmm_delta_idx_offset);
-                emu_vgatherdps(vmm_dy, reg_deltas_ptr, vmm_delta_idx, sizeof(float), 0, vmm_delta_mask);
-                // const float d_log_w = deltas[d_idx + 2 * d_idx_offset];
-                uni_vmovdqu(vmm_delta_mask, vmm_anchor_mask_addr);
-                uni_vpaddd(vmm_delta_idx, vmm_delta_idx, vmm_delta_idx_offset);
-                emu_vgatherdps(vmm_d_log_w, reg_deltas_ptr, vmm_delta_idx, sizeof(float), 0, vmm_delta_mask);
-                // const float d_log_h = deltas[d_idx + 3 * d_idx_offset];
-                uni_vmovdqu(vmm_delta_mask, vmm_anchor_mask_addr);
-                uni_vpaddd(vmm_delta_idx, vmm_delta_idx, vmm_delta_idx_offset);
-                emu_vgatherdps(vmm_d_log_h, reg_deltas_ptr, vmm_delta_idx, sizeof(float), 0, vmm_delta_mask);
-            }
             vmm_delta_idx.release();
             vmm_delta_anchor_offset.release();
             vmm_delta_idx_offset.release();
-            vmm_delta_mask.release();
 
             RegistersPool::Reg<Vmm> vmm_temp{registersPool};
 
@@ -392,26 +378,14 @@ void jit_refine_anchors_kernel_fp32<isa>::generate_impl() {
             uni_vpmulld(vmm_proposals_anchor_offset, vmm_proposals_anchor_offset, ptr[rbx]);
             uni_vpaddd(vmm_proposals_idx, vmm_proposals_idx, vmm_proposals_anchor_offset);
 
-            // Prepare mask
-            RegistersPool::Reg<Vmm> vmm_proposals_mask{registersPool};
-            uni_vmovdqu(vmm_proposals_mask, vmm_anchor_mask_addr);
+            std::array<Vmm, 4> srcs{vmm_x0, vmm_y0, vmm_x1, vmm_y1};
+            scatter4(reg_proposals_ptr,
+                     vmm_proposals_idx,
+                     srcs,
+                     vmm_proposals_idx_offset,
+                     k_mask_idx,
+                     vmm_anchor_mask_addr);
 
-            {
-                // proposals[p_idx + 0] = x0;
-                emu_vscatterdps(reg_proposals_ptr, vmm_proposals_idx, sizeof(float), 0, vmm_x0, vmm_proposals_mask);
-                // proposals[p_idx + 1] = y0;
-                uni_vmovdqu(vmm_proposals_mask, vmm_anchor_mask_addr);
-                uni_vpaddd(vmm_proposals_idx, vmm_proposals_idx, vmm_proposals_idx_offset);
-                emu_vscatterdps(reg_proposals_ptr, vmm_proposals_idx, sizeof(float), 0, vmm_y0, vmm_proposals_mask);
-                // proposals[p_idx + 2] = x1;
-                uni_vmovdqu(vmm_proposals_mask, vmm_anchor_mask_addr);
-                uni_vpaddd(vmm_proposals_idx, vmm_proposals_idx, vmm_proposals_idx_offset);
-                emu_vscatterdps(reg_proposals_ptr, vmm_proposals_idx, sizeof(float), 0, vmm_x1, vmm_proposals_mask);
-                // proposals[p_idx + 3] = y1;
-                uni_vmovdqu(vmm_proposals_mask, vmm_anchor_mask_addr);
-                uni_vpaddd(vmm_proposals_idx, vmm_proposals_idx, vmm_proposals_idx_offset);
-                emu_vscatterdps(reg_proposals_ptr, vmm_proposals_idx, sizeof(float), 0, vmm_y1, vmm_proposals_mask);
-            }
             vmm_proposals_anchor_offset.release();
 
             /** @code
@@ -428,17 +402,11 @@ void jit_refine_anchors_kernel_fp32<isa>::generate_impl() {
             uni_vpmulld(vmm_score_anchor_offset, vmm_score_anchor_offset, ptr[rbx]);
             uni_vpaddd(vmm_score_idx, vmm_score_idx, vmm_score_anchor_offset);
 
-            // Prepare mask
-            RegistersPool::Reg<Vmm> vmm_score_mask{registersPool};
-            uni_vmovdqu(vmm_score_mask, vmm_anchor_mask_addr);
+            // const float score = scores[score_idx(anchor, 0, h, w)];
+            gather1(vmm_score, reg_scores_ptr, vmm_score_idx, k_mask_idx, vmm_anchor_mask_addr);
 
-            {
-                // const float score = scores[score_idx(anchor, 0, h, w)];
-                emu_vgatherdps(vmm_score, reg_scores_ptr, vmm_score_idx, sizeof(float), 0, vmm_score_mask);
-            }
             vmm_score_idx.release();
             vmm_score_anchor_offset.release();
-            vmm_score_mask.release();
 
             /** @code
                 int p_idx = proposal_idx(h, w, anchor, 0);
@@ -448,9 +416,8 @@ void jit_refine_anchors_kernel_fp32<isa>::generate_impl() {
              */
             {
                 // proposals[p_idx + 4] = score;
-                uni_vmovdqu(vmm_proposals_mask, vmm_anchor_mask_addr);
                 uni_vpaddd(vmm_proposals_idx, vmm_proposals_idx, vmm_proposals_idx_offset);
-                emu_vscatterdps(reg_proposals_ptr, vmm_proposals_idx, sizeof(float), 0, vmm_score, vmm_proposals_mask);
+                scatter1(reg_proposals_ptr, vmm_proposals_idx, vmm_score, k_mask_idx, vmm_anchor_mask_addr);
             }
             vmm_score.release();
 
@@ -487,14 +454,13 @@ void jit_refine_anchors_kernel_fp32<isa>::generate_impl() {
                 uni_vcmpps(vmm_box_w, vmm_min_box_w, vmm_box_w, VCMPPS_LE);
                 uni_vcmpps(vmm_box_h, vmm_min_box_h, vmm_box_h, VCMPPS_LE);
             }
-            uni_vpmulld(vmm_box_h, vmm_box_w, vmm_box_h);
+            uni_vpmulld(vmm_box_h, vmm_box_h, vmm_box_w);
             uni_vcvtdq2ps(vmm_box_h, vmm_box_h);
 
             {
                 // proposals[p_idx + 5] = (min_box_w <= box_w) * (min_box_h <= box_h) * 1.0;
-                uni_vmovdqu(vmm_proposals_mask, vmm_anchor_mask_addr);
                 uni_vpaddd(vmm_proposals_idx, vmm_proposals_idx, vmm_proposals_idx_offset);
-                emu_vscatterdps(reg_proposals_ptr, vmm_proposals_idx, sizeof(float), 0, vmm_box_h, vmm_proposals_mask);
+                scatter1(reg_proposals_ptr, vmm_proposals_idx, vmm_box_h, k_mask_idx, vmm_anchor_mask_addr);
             }
 
             this->update_input_output_ptrs();
@@ -511,26 +477,90 @@ void jit_refine_anchors_kernel_fp32<isa>::update_input_output_ptrs() {
     xor_(reg_num_proc_elem, reg_num_proc_elem);
     mov(reg_num_proc_elem, reg_anchors_chunk);
     imul(reg_num_proc_elem.cvt32(), dword[reg_params + offsetof(jit_refine_anchors_call_args, anchor_anchor_offset)]);
-    imul(reg_num_proc_elem, reg_num_proc_elem, sizeof(float));
     add(reg_anchors_ptr, reg_num_proc_elem);
 
     xor_(reg_num_proc_elem, reg_num_proc_elem);
     mov(reg_num_proc_elem, reg_anchors_chunk);
     imul(reg_num_proc_elem.cvt32(), dword[reg_params + offsetof(jit_refine_anchors_call_args, delta_anchor_offset)]);
-    imul(reg_num_proc_elem, reg_num_proc_elem, sizeof(float));
     add(reg_deltas_ptr, reg_num_proc_elem);
 
     xor_(reg_num_proc_elem, reg_num_proc_elem);
     mov(reg_num_proc_elem, reg_anchors_chunk);
     imul(reg_num_proc_elem.cvt32(), dword[reg_params + offsetof(jit_refine_anchors_call_args, score_anchor_offset)]);
-    imul(reg_num_proc_elem, reg_num_proc_elem, sizeof(float));
     add(reg_scores_ptr, reg_num_proc_elem);
 
     xor_(reg_num_proc_elem, reg_num_proc_elem);
     mov(reg_num_proc_elem, reg_anchors_chunk);
     imul(reg_num_proc_elem.cvt32(), dword[reg_params + offsetof(jit_refine_anchors_call_args, proposal_anchor_offset)]);
-    imul(reg_num_proc_elem, reg_num_proc_elem, sizeof(float));
     add(reg_proposals_ptr, reg_num_proc_elem);
+}
+
+template <x64::cpu_isa_t isa>
+void jit_refine_anchors_kernel_fp32<isa>::gather1(Vmm dst,
+                                                  Xbyak::Reg64 src,
+                                                  Vmm idx,
+                                                  int k_mask_idx,
+                                                  const StackAllocator::RegAddress<Vmm>& vmm_mask) {
+    if (is_valid_isa(x64::avx512_core)) {
+        RegistersPool::Reg<Xbyak::Opmask> k_mask_orig{registersPool, k_mask_idx};
+        RegistersPool::Reg<Xbyak::Opmask> k_mask{registersPool, k_mask_idx + 1};
+
+        kmovw(k_mask, k_mask_orig);
+        gatherdd(dst, src, idx, k_mask);
+    } else {
+        RegistersPool::Reg<Vmm> vmm_mask_copy{registersPool};
+
+        uni_vmovdqu(vmm_mask_copy, vmm_mask);
+        gatherdd(dst, src, idx, vmm_mask_copy);
+    }
+}
+
+template <x64::cpu_isa_t isa>
+void jit_refine_anchors_kernel_fp32<isa>::gather4(std::array<Vmm, 4> dst,
+                                                  Xbyak::Reg64 src,
+                                                  Vmm idx,
+                                                  Vmm idx_offset,
+                                                  int k_mask_idx,
+                                                  const StackAllocator::RegAddress<Vmm>& vmm_mask) {
+    gather1(dst[0], src, idx, k_mask_idx, vmm_mask);
+    for (int i = 1; i < dst.size(); ++i) {
+        uni_vpaddd(idx, idx, idx_offset);
+        gather1(dst[i], src, idx, k_mask_idx, vmm_mask);
+    }
+}
+
+template <x64::cpu_isa_t isa>
+void jit_refine_anchors_kernel_fp32<isa>::scatter1(Xbyak::Reg64 dst,
+                                                   Vmm idx,
+                                                   Vmm src,
+                                                   int k_mask_idx,
+                                                   const StackAllocator::RegAddress<Vmm>& vmm_mask) {
+    if (is_valid_isa(x64::avx512_core)) {
+        RegistersPool::Reg<Xbyak::Opmask> k_mask_orig{registersPool, k_mask_idx};
+        RegistersPool::Reg<Xbyak::Opmask> k_mask{registersPool, k_mask_idx + 1};
+
+        kmovw(k_mask, k_mask_orig);
+        vscatterdps(ptr[dst + idx], src | k_mask);
+    } else {
+        RegistersPool::Reg<Vmm> vmm_mask_copy{registersPool};
+
+        uni_vmovdqu(vmm_mask_copy, vmm_mask);
+        emu_vscatterdps(dst, idx, src, vmm_mask_copy);
+    }
+}
+
+template <x64::cpu_isa_t isa>
+void jit_refine_anchors_kernel_fp32<isa>::scatter4(Xbyak::Reg64 dst,
+                                                   Vmm idx,
+                                                   std::array<Vmm, 4> src,
+                                                   Vmm idx_offset,
+                                                   int k_mask_idx,
+                                                   const StackAllocator::RegAddress<Vmm>& vmm_mask) {
+    scatter1(dst, idx, src[0], k_mask_idx, vmm_mask);
+    for (int i = 1; i < src.size(); ++i) {
+        uni_vpaddd(idx, idx, idx_offset);
+        scatter1(dst, idx, src[i], k_mask_idx, vmm_mask);
+    }
 }
 
 template class jit_refine_anchors_kernel_fp32<x64::avx512_core>;
