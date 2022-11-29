@@ -198,16 +198,14 @@ class TransposeTensorIteratorLSTM(MiddleReplacementPattern):
 
         isomorphism['input_unsqueezed_i'].shape = isomorphism['input_unsqueezed_i'].shape[[1, 0, 2]]
         isomorphism['input_unsqueezed_i'].infer(isomorphism['input_unsqueezed_i'])
-        squeeze = isomorphism['squeeze']
-        squeeze_dim = Const(squeeze.graph, {'value': ti.input_port_map[data_input_port]['axis'],
+        squeeze_dim = Const(squeeze.graph, {'value': [ti.input_port_map[data_input_port]['axis']],
                                             'need_shape_inference': True,
                                             'override_output_shape': True}).create_node()
         squeeze.in_port(1).get_connection().set_source(squeeze_dim.out_port(0))
         squeeze['need_shape_inference'] = True
 
-        unsqueeze = isomorphism['unsqueeze']
-        unsqueeze_dim = Const(unsqueeze.graph, {'value': ti.output_port_map[data_output_port]['axis'],
+        unsqueeze_dim = Const(unsqueeze.graph, {'value': [ti.output_port_map[data_output_port]['axis']],
                                                 'need_shape_inference': True,
                                                 'override_output_shape': True}).create_node()
         unsqueeze.in_port(1).get_connection().set_source(unsqueeze_dim.out_port(0))
-        unsqueeze['need_shape_inference'] = True
+        unsqueeze.infer(unsqueeze)
