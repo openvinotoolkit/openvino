@@ -26,37 +26,6 @@ void jit_kernel_base::generate() {
     }
 }
 
-void jit_kernel_base::emu_vgatherdps(const Xbyak::Xmm& vDst,
-                                     const Xbyak::Reg64& rSrcPtr,
-                                     const Xbyak::Xmm& vSrcShift,
-                                     const Xbyak::Xmm& vReadMask,
-                                     const bool useMask,
-                                     const bool zeroFill) {
-    std::vector<Xbyak::Xmm> not_available_xmm{vSrcShift, vDst, vReadMask};
-
-    if (is_valid_isa(x64::avx512_core)) {
-        RegistersPool::Reg<Xbyak::Opmask> avx512_mask{registersPool, 1};
-        if (useMask) {
-            const Xbyak::Zmm zmm_zero_val = registersPool->getInplaceFree<Xbyak::Zmm>(not_available_xmm);
-            push(zmm_zero_val);
-            uni_vxorps(zmm_zero_val, zmm_zero_val, zmm_zero_val);
-
-            vpcmpud(avx512_mask, Xbyak::Zmm{vReadMask.getIdx()}, zmm_zero_val, VCMPPS_GT);
-            pop(zmm_zero_val);
-        }
-
-        gatherdd(vDst, rSrcPtr, vSrcShift, avx512_mask, useMask, zeroFill);
-    } else if (vDst.isYMM()) {
-        Xbyak::Ymm yDst{vDst.getIdx()};
-        Xbyak::Ymm yIndex{vSrcShift.getIdx()};
-        Xbyak::Ymm yMask{vReadMask.getIdx()};
-
-        gatherdd(yDst, rSrcPtr, yIndex, yMask, useMask, zeroFill);
-    } else {
-        gatherdd(vDst, rSrcPtr, vSrcShift, vReadMask, useMask, zeroFill);
-    }
-}
-
 void jit_kernel_base::emu_vscatterdps(const Xbyak::Reg64& reg_addr,
                                     const Xbyak::Xmm& xmm_index,
                                     const Xbyak::Xmm& xmm_val,
@@ -190,8 +159,8 @@ void jit_kernel_base::gatherdd(const Xbyak::Xmm&   vDst,
             Xbyak::Label lLoopNext;
             if (useMask) {
                 uni_vpextrd(r32Aux, vReadMask, i);
-                cmp(r32Aux, 0); // TODO: check significant bit
-                je(lLoopNext, T_NEAR);
+                and_(r32Aux, 0x80000000);
+                jz(lLoopNext, T_NEAR);
             }
             uni_vpextrd(r32Aux, vSrcShift, i);
             pinsrd(vDst, ptr[rSrcPtr + rAux], i);
