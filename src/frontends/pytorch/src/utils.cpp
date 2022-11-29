@@ -35,6 +35,20 @@ Output<Node> make_optional_bias(const Output<Node>& base_op,
     }
 }
 
+Output<ov::Node> reshape_conv_bias(NodeContext& context, Output<ov::Node> bias, Output<ngraph::Node> conv) {
+    auto conv_shape = context.mark_node(std::make_shared<opset8::ShapeOf>(conv));
+    auto conv_rank = context.mark_node(std::make_shared<opset8::ShapeOf>(conv_shape));
+    auto one_const = context.mark_node(opset8::Constant::create(element::i64, Shape{1}, {1}));
+    auto two_const = context.mark_node(opset8::Constant::create(element::i64, Shape{1}, {2}));
+    auto tail_shape_rank = context.mark_node(std::make_shared<opset8::Subtract>(conv_rank, two_const));
+    auto tail_shape = context.mark_node(std::make_shared<opset8::Broadcast>(one_const, tail_shape_rank));
+    auto channels_dim = context.mark_node(std::make_shared<opset8::ShapeOf>(bias));
+    auto new_shape =
+        context.mark_node(std::make_shared<opset8::Concat>(OutputVector{one_const, channels_dim, tail_shape}, 0));
+
+    return context.mark_node(std::make_shared<opset8::Reshape>(bias, new_shape, false));
+}
+
 std::shared_ptr<Node> get_rank_node(const Output<Node>& node) {
     auto shape = std::make_shared<opset8::ShapeOf>(node);
     return std::make_shared<opset8::ShapeOf>(shape);

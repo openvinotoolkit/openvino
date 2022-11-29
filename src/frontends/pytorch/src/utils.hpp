@@ -30,10 +30,15 @@ const std::map<int, element::Type> TORCH_TO_OV_TYPE{
     {7, element::f64},
 };
 
+const std::unordered_multimap<std::string, ov::op::PadType> TORCH_AUTO_PAD_TO_OV{{"valid", ov::op::PadType::VALID},
+                                                                                 {"same", ov::op::PadType::SAME_UPPER}};
+
 Output<Node> make_optional_bias(const Output<Node>& base_op,
                                 const NodeContext& context,
                                 size_t bias_input_idx,
                                 const std::vector<int>& unsqueeze_dims = {});
+
+Output<ov::Node> reshape_conv_bias(NodeContext& context, Output<ov::Node> bias, Output<ngraph::Node> conv);
 
 std::shared_ptr<ov::Node> get_rank_node(const Output<Node>& node);
 

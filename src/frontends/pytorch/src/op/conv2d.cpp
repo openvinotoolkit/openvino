@@ -18,12 +18,8 @@ OutputVector translate_conv2d(NodeContext& context) {
     auto pad_type = ov::op::PadType::EXPLICIT;
     try {
         auto pad_mode = context.const_input<std::string>(4);
-        static std::unordered_multimap<std::string, ov::op::PadType> auto_pad_values{
-            {"valid", ov::op::PadType::VALID},
-            {"same", ov::op::PadType::SAME_UPPER}};
-
-        const auto auto_pad_type_ptr = auto_pad_values.find(pad_mode);
-        FRONT_END_OP_CONVERSION_CHECK(auto_pad_type_ptr != auto_pad_values.end(),
+        const auto auto_pad_type_ptr = TORCH_AUTO_PAD_TO_OV.find(pad_mode);
+        FRONT_END_OP_CONVERSION_CHECK(auto_pad_type_ptr != TORCH_AUTO_PAD_TO_OV.end(),
                                       "Provided `padding` value: '",
                                       pad_mode,
                                       "' is invalid.");
