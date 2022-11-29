@@ -52,7 +52,7 @@ struct UniqueParams {
     std::string m_tested_case;
 };
 
-class ReferenceUniqueLayerTest_NoAxis : public testing::TestWithParam<UniqueParams>, public CommonReferenceTest {
+class ReferenceUniqueLayerTest : public testing::TestWithParam<UniqueParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
         const auto& params = GetParam();
@@ -92,7 +92,7 @@ private:
     }
 };
 
-TEST_P(ReferenceUniqueLayerTest_NoAxis, CompareWithHardcodedRefs) {
+TEST_P(ReferenceUniqueLayerTest, CompareWithHardcodedRefs) {
     Exec();
 }
 
@@ -244,93 +244,94 @@ std::vector<UniqueParams> params_unique_int() {
                                                       false,
                                                       "2D with duplicates"}};
 
-    std::vector<UniqueParams> N_D_layout{UniqueParams{Shape{2, 2, 3},
-                                                      // 2 identical 2D slices over axis 0
-                                                      std::vector<Data_t>{1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6},
-                                                      std::vector<Data_t>{1, 2, 3, 4, 5, 6},
-                                                      std::vector<Index_t>{0},
-                                                      std::vector<Index_t>{0, 0},
-                                                      std::vector<int64_t>{2},
-                                                      make_axis(0),
-                                                      false,
-                                                      "3D with duplicates"},
-                                         UniqueParams{Shape{2, 2, 3},
-                                                      // 2 identical 2D slices over axis 1
-                                                      std::vector<Data_t>{6, 5, 4, 6, 5, 4, 3, 2, 1, 3, 2, 1},
-                                                      std::vector<Data_t>{6, 5, 4, 3, 2, 1},
-                                                      std::vector<Index_t>{0},
-                                                      std::vector<Index_t>{0, 0},
-                                                      std::vector<int64_t>{2},
-                                                      make_axis(1),
-                                                      false,
-                                                      "3D with duplicates"},
-                                         UniqueParams{Shape{2, 2, 3},
-                                                      // the first and the last slice over axis 2 are equal
-                                                      std::vector<Data_t>{-1, 2, -1, 5, -3, 5, 7, -8, 7, 4, 4, 4},
-                                                      std::vector<Data_t>{-1, 2, 5, -3, 7, -8, 4, 4},
-                                                      std::vector<Index_t>{0, 1},
-                                                      std::vector<Index_t>{0, 1, 0},
-                                                      std::vector<int64_t>{2, 1},
-                                                      make_axis(2),
-                                                      false,
-                                                      "3D with duplicates(1 & 3)"},
-                                         UniqueParams{Shape{2, 2, 3},
-                                                      // the first and the second slice over axis 2 are equal
-                                                      std::vector<Data_t>{-1, -1, 2, 5, 5, -3, 7, 7, -8, 4, 4, 4},
-                                                      std::vector<Data_t>{-1, 2, 5, -3, 7, -8, 4, 4},
-                                                      std::vector<Index_t>{0, 2},
-                                                      std::vector<Index_t>{0, 0, 1},
-                                                      std::vector<int64_t>{2, 1},
-                                                      make_axis(2),
-                                                      false,
-                                                      "3D with duplicates (1 & 2)"},
-                                         UniqueParams{Shape{2, 2, 3},
-                                                      // the second and the third slice over axis 2 are equal
-                                                      std::vector<Data_t>{2, -1, -1, -3, 5, 5, -8, 7, 7, 4, 4, 4},
-                                                      std::vector<Data_t>{2, -1, -3, 5, -8, 7, 4, 4},
-                                                      std::vector<Index_t>{0, 1},
-                                                      std::vector<Index_t>{0, 1, 1},
-                                                      std::vector<int64_t>{1, 2},
-                                                      make_axis(2),
-                                                      false,
-                                                      "3D with duplicates (2 & 3)"},
-                                         UniqueParams{Shape{2, 2, 3},
-                                                      // the second and the third slice over axis 2 are equal
-                                                      std::vector<Data_t>{2, -1, -1, -3, 5, 5, -8, 7, 7, 4, 4, 4},
-                                                      std::vector<Data_t>{-1, 2, 5, -3, 7, -8, 4, 4},
-                                                      std::vector<Index_t>{1, 0},
-                                                      std::vector<Index_t>{1, 0, 0},
-                                                      std::vector<int64_t>{2, 1},
-                                                      make_axis(2),
-                                                      true,
-                                                      "3D with duplicates (2 & 3), output sorted"},
-                                         UniqueParams{Shape{2, 2, 3},
-                                                      // the second and the third slice over axis 2 are equal
-                                                      std::vector<Data_t>{-1, -1, -1, 3, 2, 2, 6, 7, 7, 4, 4, 4},
-                                                      std::vector<Data_t>{-1, -1, 2, 3, 7, 6, 4, 4},
-                                                      std::vector<Index_t>{1, 0},
-                                                      std::vector<Index_t>{1, 0, 0},
-                                                      std::vector<int64_t>{2, 1},
-                                                      make_axis(2),
-                                                      true,
-                                                      "3D with duplicates (2 & 3), first elements equal, output sorted"},
-                                         UniqueParams{
-                                                      Shape{1, 3, 16},
-                                                      std::vector<Data_t>{15,  -20, -11, 10, -21, 8,  -15, -10, 7,  20, -19, -14, -13, -16, -7,  -2,
-                                                                          -17, -4,  21,  -6, 11,  8,  17,  6,   7,  20, -3,  2,   -13, -16, -23, 14,
-                                                                          -1,  12,  5,   -6, 11,  -8, 1,   -10, 23, 20, -19, 18,  3,   -16, -7,  14},
-                                                      std::vector<Data_t>{-23, -21, -20, -19, -17, -16, -15, -14, -13, -11, -10, -8, -7, -6, -4, -3, -2, -1,
-                                                                          1,   2,   3,   5,   6,   7,   8,   10,  11,  12,  14,  15, 17, 18, 20, 21, 23},
-                                                      std::vector<Index_t>{30, 4,  1,  10, 16, 13, 6, 11, 12, 2,  7,  37, 14, 19, 17, 26, 15, 32,
-                                                                           38, 27, 44, 34, 23, 8,  5, 3,  20, 33, 31, 0,  22, 43, 9,  18, 40},
-                                                      std::vector<Index_t>{29, 2,  9,  25, 1,  24, 6,  10, 23, 32, 3,  7,  8,  5, 12, 16,
-                                                                           4,  14, 33, 13, 26, 24, 30, 22, 23, 32, 15, 19, 8,  5, 0,  28,
-                                                                           17, 27, 21, 13, 26, 11, 18, 10, 34, 32, 3,  31, 20, 5, 12, 28},
-                                                      std::vector<int64_t>{1, 1, 1, 2, 1, 3, 1, 1, 2, 1, 2, 1, 2, 2, 1, 1, 1, 1,
-                                                                           1, 1, 1, 1, 1, 2, 2, 1, 2, 1, 2, 1, 1, 1, 3, 1, 1},
-                                                      nullptr,
-                                                      true,
-                                                      "3D flattened with duplicates, output sorted"}};
+    std::vector<UniqueParams> N_D_layout{
+        UniqueParams{Shape{2, 2, 3},
+                     // 2 identical 2D slices over axis 0
+                     std::vector<Data_t>{1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6},
+                     std::vector<Data_t>{1, 2, 3, 4, 5, 6},
+                     std::vector<Index_t>{0},
+                     std::vector<Index_t>{0, 0},
+                     std::vector<int64_t>{2},
+                     make_axis(0),
+                     false,
+                     "3D with duplicates"},
+        UniqueParams{Shape{2, 2, 3},
+                     // 2 identical 2D slices over axis 1
+                     std::vector<Data_t>{6, 5, 4, 6, 5, 4, 3, 2, 1, 3, 2, 1},
+                     std::vector<Data_t>{6, 5, 4, 3, 2, 1},
+                     std::vector<Index_t>{0},
+                     std::vector<Index_t>{0, 0},
+                     std::vector<int64_t>{2},
+                     make_axis(1),
+                     false,
+                     "3D with duplicates"},
+        UniqueParams{Shape{2, 2, 3},
+                     // the first and the last slice over axis 2 are equal
+                     std::vector<Data_t>{-1, 2, -1, 5, -3, 5, 7, -8, 7, 4, 4, 4},
+                     std::vector<Data_t>{-1, 2, 5, -3, 7, -8, 4, 4},
+                     std::vector<Index_t>{0, 1},
+                     std::vector<Index_t>{0, 1, 0},
+                     std::vector<int64_t>{2, 1},
+                     make_axis(2),
+                     false,
+                     "3D with duplicates(1 & 3)"},
+        UniqueParams{Shape{2, 2, 3},
+                     // the first and the second slice over axis 2 are equal
+                     std::vector<Data_t>{-1, -1, 2, 5, 5, -3, 7, 7, -8, 4, 4, 4},
+                     std::vector<Data_t>{-1, 2, 5, -3, 7, -8, 4, 4},
+                     std::vector<Index_t>{0, 2},
+                     std::vector<Index_t>{0, 0, 1},
+                     std::vector<int64_t>{2, 1},
+                     make_axis(2),
+                     false,
+                     "3D with duplicates (1 & 2)"},
+        UniqueParams{Shape{2, 2, 3},
+                     // the second and the third slice over axis 2 are equal
+                     std::vector<Data_t>{2, -1, -1, -3, 5, 5, -8, 7, 7, 4, 4, 4},
+                     std::vector<Data_t>{2, -1, -3, 5, -8, 7, 4, 4},
+                     std::vector<Index_t>{0, 1},
+                     std::vector<Index_t>{0, 1, 1},
+                     std::vector<int64_t>{1, 2},
+                     make_axis(2),
+                     false,
+                     "3D with duplicates (2 & 3)"},
+        UniqueParams{Shape{2, 2, 3},
+                     // the second and the third slice over axis 2 are equal
+                     std::vector<Data_t>{2, -1, -1, -3, 5, 5, -8, 7, 7, 4, 4, 4},
+                     std::vector<Data_t>{-1, 2, 5, -3, 7, -8, 4, 4},
+                     std::vector<Index_t>{1, 0},
+                     std::vector<Index_t>{1, 0, 0},
+                     std::vector<int64_t>{2, 1},
+                     make_axis(2),
+                     true,
+                     "3D with duplicates (2 & 3), output sorted"},
+        UniqueParams{Shape{2, 2, 3},
+                     // the second and the third slice over axis 2 are equal
+                     std::vector<Data_t>{-1, -1, -1, 3, 2, 2, 6, 7, 7, 4, 4, 4},
+                     std::vector<Data_t>{-1, -1, 2, 3, 7, 6, 4, 4},
+                     std::vector<Index_t>{1, 0},
+                     std::vector<Index_t>{1, 0, 0},
+                     std::vector<int64_t>{2, 1},
+                     make_axis(2),
+                     true,
+                     "3D with duplicates (2 & 3), first elements equal, output sorted"},
+        UniqueParams{
+            Shape{1, 3, 16},
+            std::vector<Data_t>{15,  -20, -11, 10, -21, 8,  -15, -10, 7,  20, -19, -14, -13, -16, -7,  -2,
+                                -17, -4,  21,  -6, 11,  8,  17,  6,   7,  20, -3,  2,   -13, -16, -23, 14,
+                                -1,  12,  5,   -6, 11,  -8, 1,   -10, 23, 20, -19, 18,  3,   -16, -7,  14},
+            std::vector<Data_t>{-23, -21, -20, -19, -17, -16, -15, -14, -13, -11, -10, -8, -7, -6, -4, -3, -2, -1,
+                                1,   2,   3,   5,   6,   7,   8,   10,  11,  12,  14,  15, 17, 18, 20, 21, 23},
+            std::vector<Index_t>{30, 4,  1,  10, 16, 13, 6, 11, 12, 2,  7,  37, 14, 19, 17, 26, 15, 32,
+                                 38, 27, 44, 34, 23, 8,  5, 3,  20, 33, 31, 0,  22, 43, 9,  18, 40},
+            std::vector<Index_t>{29, 2,  9,  25, 1,  24, 6,  10, 23, 32, 3,  7,  8,  5, 12, 16,
+                                 4,  14, 33, 13, 26, 24, 30, 22, 23, 32, 15, 19, 8,  5, 0,  28,
+                                 17, 27, 21, 13, 26, 11, 18, 10, 34, 32, 3,  31, 20, 5, 12, 28},
+            std::vector<int64_t>{1, 1, 1, 2, 1, 3, 1, 1, 2, 1, 2, 1, 2, 2, 1, 1, 1, 1,
+                                 1, 1, 1, 1, 1, 2, 2, 1, 2, 1, 2, 1, 1, 1, 3, 1, 1},
+            nullptr,
+            true,
+            "3D flattened with duplicates, output sorted"}};
 
     return flatten({std::move(scalar_and_1D), std::move(N_C_layout), std::move(N_D_layout)});
 }
@@ -398,8 +399,8 @@ std::vector<UniqueParams> params_unique_float() {
     return params;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReferenceUniqueLayerTest_NoAxis,
-                         ReferenceUniqueLayerTest_NoAxis,
+INSTANTIATE_TEST_SUITE_P(smoke_ReferenceUniqueLayerTest,
+                         ReferenceUniqueLayerTest,
                          ::testing::ValuesIn(flatten({params_unique_float<float16, int32_t>(),
                                                       params_unique_float<float16, int64_t>(),
                                                       params_unique_float<bfloat16, int32_t>(),
@@ -416,7 +417,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReferenceUniqueLayerTest_NoAxis,
                                                       params_unique_int<int32_t, int64_t>(),
                                                       params_unique_int<int64_t, int32_t>(),
                                                       params_unique_int<int64_t, int64_t>()})),
-
-                         ReferenceUniqueLayerTest_NoAxis::getTestCaseName);
+                         ReferenceUniqueLayerTest::getTestCaseName);
 
 }  // namespace
