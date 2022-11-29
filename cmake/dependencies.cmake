@@ -260,8 +260,8 @@ if(ENABLE_OPENCV)
                      CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.9") AND X86_64)
                 set(OPENCV_SUFFIX "centos7")
                 set(OPENCV_HASH "5fa76985c84fe7c64531682ef0b272510c51ac0d0565622514edf1c88b33404a")
-            elseif((LINUX_OS_NAME MATCHES "CentOS 8" OR
-                    LINUX_OS_NAME MATCHES "CentOS 9") AND X86_64)
+            elseif((LINUX_OS_NAME STREQUAL "CentOS 8" OR
+                    LINUX_OS_NAME STREQUAL "CentOS 9") AND X86_64)
                 set(OPENCV_SUFFIX "centos8")
                 set(OPENCV_HASH "db087dfd412eedb8161636ec083ada85ff278109948d1d62a06b0f52e1f04202")
             elseif(LINUX_OS_NAME STREQUAL "Ubuntu 16.04" AND X86_64)
@@ -312,8 +312,8 @@ if(ENABLE_INTEL_GNA)
             GNA_LIB_DIR
             libGNA_INCLUDE_DIRS
             libGNA_LIBRARIES_BASE_PATH)
-        set(GNA_VERSION "03.00.00.1815.1")
-        set(GNA_HASH "682eb01e5a148ea03b90ee12b7fd67afb1479f35ccf2966f83b208e50e91633c")
+        set(GNA_VERSION "03.00.00.1910")
+        set(GNA_HASH "894ddbc0ae3459f04513b853b0cabc32890dd4ea37228a022b6a32101bdbb7f8")
 
         set(FILES_TO_EXTRACT_LIST gna_${GNA_VERSION}/include)
         if(WIN32)
@@ -323,7 +323,7 @@ if(ENABLE_INTEL_GNA)
         endif()
 
         RESOLVE_DEPENDENCY(GNA_EXT_DIR
-                ARCHIVE_UNIFIED "gna/GNA_${GNA_VERSION}.zip"
+                ARCHIVE_UNIFIED "gna/gna_${GNA_VERSION}.zip"
                 TARGET_PATH "${TEMP}/gna_${GNA_VERSION}"
                 VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
                 FILES_TO_EXTRACT FILES_TO_EXTRACT_LIST
