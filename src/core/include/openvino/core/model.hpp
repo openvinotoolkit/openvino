@@ -54,8 +54,6 @@ public:
     const ::ov::DiscreteTypeInfo& get_type_info() const {
         return get_type_info_static();
     }
-    OPENVINO_DEPRECATED("This member was deprecated. Please use ::get_type_info_static() instead.")
-    static const ov::DiscreteTypeInfo type_info;
 
     Model(const ov::NodeVector& results, const ov::ParameterVector& parameters, const std::string& name = "");
 
