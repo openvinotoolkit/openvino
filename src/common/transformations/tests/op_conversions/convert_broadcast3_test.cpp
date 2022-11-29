@@ -420,8 +420,9 @@ TEST(TransformationTests, ConvertBroadcast3WithExplicitModeToBroadcast1) {
     ASSERT_TRUE(broadcast_node->get_friendly_name() == "broadcast") << "Transformation ConvertBroadcast3 should keep output names.\n";
 }
 
-// Broadcast-3 with mode BIDIRECTIONAL is converted to Multiply with constant with 1s of the corresponding type
-TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToBroadcast1) {
+// Broadcast-3 with mode BIDIRECTIONAL is converted to Broadcast-1,
+// when target shape input is Constant and data input has static dimensions at the axis corresponding to "1" in the target.
+TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToBroadcast1ConstTargetDataF32) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1, 2});
@@ -445,6 +446,121 @@ TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToBroadcast1) {
         broadcast->set_friendly_name("broadcast");
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{broadcast}, ngraph::ParameterVector{input});
+    }
+
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+
+    auto result_node_of_converted_f = f->get_output_op(0);
+    auto result_node = result_node_of_converted_f->input(0).get_source_output().get_node_shared_ptr();
+    auto crop_node = result_node->input(0).get_source_output().get_node_shared_ptr();
+    ASSERT_TRUE(result_node->get_friendly_name() == "broadcast") << "Transformation ConvertBroadcast3 should keep output names.\n";
+}
+
+TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToBroadcast1ConstTargetDataBoolean) {
+    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+    {
+        auto input1 = std::make_shared<opset1::Parameter>(element::boolean, Shape{1, 1, 2});
+        auto target_shape = opset1::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{3, 5, 1});
+        auto broadcast = std::make_shared<opset3::Broadcast>(input1, target_shape, op::BroadcastType::BIDIRECTIONAL);
+        broadcast->set_friendly_name("broadcast");
+
+        f = std::make_shared<Function>(NodeVector{broadcast}, ParameterVector{input1});
+
+        pass::Manager manager;
+        manager.register_pass<pass::InitNodeInfo>();
+        manager.register_pass<pass::ConvertBroadcast3>();
+        manager.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+
+    {
+        auto input = std::make_shared<opset1::Parameter>(element::boolean, Shape{1, 1, 2});
+        auto target_shape = std::make_shared<opset1::Constant>(element::i64, Shape{3}, std::vector<int64_t>{3, 5, 2});
+        auto broadcast = std::make_shared<opset1::Broadcast>(input, target_shape, op::AutoBroadcastType::NUMPY);
+        broadcast->set_friendly_name("broadcast");
+
+        f_ref = std::make_shared<Function>(NodeVector{broadcast}, ParameterVector{input});
+    }
+
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+
+    auto result_node_of_converted_f = f->get_output_op(0);
+    auto result_node = result_node_of_converted_f->input(0).get_source_output().get_node_shared_ptr();
+    auto crop_node = result_node->input(0).get_source_output().get_node_shared_ptr();
+    ASSERT_TRUE(result_node->get_friendly_name() == "broadcast") << "Transformation ConvertBroadcast3 should keep output names.\n";
+}
+
+// Broadcast-3 with mode BIDIRECTIONAL is converted to Multiply for not boolean element types,
+// when target shape input is Constant and data input has dynamic dimensions at the axis corresponding to "1" in the target.
+TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToMultiply) {
+    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+    {
+        auto input1 = std::make_shared<opset1::Parameter>(element::f32, PartialShape{1, -1, -1});
+        auto const_target_shape = std::make_shared<opset1::Constant>(element::i64, Shape{3}, std::vector<int64_t>{3, 5, 1});
+        auto broadcast = std::make_shared<opset3::Broadcast>(input1, const_target_shape, op::BroadcastType::BIDIRECTIONAL);
+        broadcast->set_friendly_name("broadcast");
+
+        f = std::make_shared<Function>(NodeVector{broadcast}, ParameterVector{input1});
+
+        pass::Manager manager;
+        manager.register_pass<pass::InitNodeInfo>();
+        manager.register_pass<pass::ConvertBroadcast3>();
+        manager.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+
+    {
+        auto input = std::make_shared<opset1::Parameter>(element::f32, PartialShape{1, -1, -1});
+        auto const_target_shape = std::make_shared<opset1::Constant>(element::i64, Shape{3}, std::vector<int64_t>{3, 5, 1});
+        const auto& target_shape = const_target_shape->cast_vector<size_t>();
+        auto broadcast = std::make_shared<opset1::Multiply>(
+                            input,
+                            opset1::Constant::create(element::f32, target_shape, {1}));
+        broadcast->set_friendly_name("broadcast");
+
+        f_ref = std::make_shared<Function>(NodeVector{broadcast}, ParameterVector{input});
+    }
+
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+
+    auto result_node_of_converted_f = f->get_output_op(0);
+    auto result_node = result_node_of_converted_f->input(0).get_source_output().get_node_shared_ptr();
+    auto crop_node = result_node->input(0).get_source_output().get_node_shared_ptr();
+    ASSERT_TRUE(result_node->get_friendly_name() == "broadcast") << "Transformation ConvertBroadcast3 should keep output names.\n";
+}
+
+// Broadcast-3 with mode BIDIRECTIONAL is converted to LogicalAnd for boolean element types,
+// when target shape input is Constant and data input has dynamic dimensions at the axis corresponding to "1" in the target.
+TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToLogicalAnd) {
+    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+    {
+        auto input1 = std::make_shared<opset1::Parameter>(element::boolean, PartialShape{1, -1, -1});
+        auto const_target_shape = std::make_shared<opset1::Constant>(element::i64, Shape{3}, std::vector<int64_t>{3, 5, 1});
+        auto broadcast = std::make_shared<opset3::Broadcast>(input1, const_target_shape, op::BroadcastType::BIDIRECTIONAL);
+        broadcast->set_friendly_name("broadcast");
+
+        f = std::make_shared<Function>(NodeVector{broadcast}, ParameterVector{input1});
+
+        pass::Manager manager;
+        manager.register_pass<pass::InitNodeInfo>();
+        manager.register_pass<pass::ConvertBroadcast3>();
+        manager.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+
+    {
+        auto input = std::make_shared<opset1::Parameter>(element::boolean, PartialShape{1, -1, -1});
+        auto const_target_shape = std::make_shared<opset1::Constant>(element::i64, Shape{3}, std::vector<int64_t>{3, 5, 1});
+        const auto& target_shape = const_target_shape->cast_vector<size_t>();
+        auto broadcast = std::make_shared<opset1::LogicalAnd>(
+                            input,
+                            opset1::Constant::create(element::boolean, target_shape, {1}));
+        broadcast->set_friendly_name("broadcast");
+
+        f_ref = std::make_shared<Function>(NodeVector{broadcast}, ParameterVector{input});
     }
 
     auto res = compare_functions(f, f_ref);

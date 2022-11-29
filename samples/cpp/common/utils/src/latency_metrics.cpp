@@ -21,13 +21,13 @@ void LatencyMetrics::write_to_stream(std::ostream& stream) const {
 
 void LatencyMetrics::write_to_slog() const {
     std::string percentileStr = (percentile_boundary == 50)
-                                    ? "   Median:     "
+                                    ? "   Median:           "
                                     : "   " + std::to_string(percentile_boundary) + " percentile:     ";
 
     slog::info << percentileStr << double_to_string(median_or_percentile) << " ms" << slog::endl;
-    slog::info << "   Average:    " << double_to_string(avg) << " ms" << slog::endl;
-    slog::info << "   Min:        " << double_to_string(min) << " ms" << slog::endl;
-    slog::info << "   Max:        " << double_to_string(max) << " ms" << slog::endl;
+    slog::info << "   Average:          " << double_to_string(avg) << " ms" << slog::endl;
+    slog::info << "   Min:              " << double_to_string(min) << " ms" << slog::endl;
+    slog::info << "   Max:              " << double_to_string(max) << " ms" << slog::endl;
 }
 
 void LatencyMetrics::fill_data(std::vector<double> latencies, size_t percentile_boundary) {

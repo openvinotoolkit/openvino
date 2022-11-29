@@ -10,6 +10,12 @@
 
 namespace GNAPluginNS {
 namespace GNAConvolutionLayer {
+
+bool should_transpose_h_w(const uint32_t in_height,
+                          const uint32_t kernel_height,
+                          const uint32_t in_channels,
+                          const uint32_t stride_height);
+
 bool isMappableFrom2DTo1D(const uint32_t inHeight, const uint32_t inWidth, const uint32_t inChannels,
                           const uint32_t kernelHeight, const uint32_t kernelWidth,
                           const uint32_t strideHeight, const uint32_t strideWidth);
