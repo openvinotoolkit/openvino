@@ -164,7 +164,7 @@ public:
         core.UnregisterPlugin("mock");
     }
 };
-
+#if defined(ENABLE_OV_IR_FRONTEND)
 TEST_F(CNNNetworkTests_LoadFromFileTest, throwsHasDynamicInputs_fromPath) {
     try {
         core.LoadNetwork(modelName, "mock");
@@ -179,3 +179,5 @@ TEST_F(CNNNetworkTests_LoadFromFileTest, throwsHasDynamicInputs_fromPath) {
         EXPECT_TRUE(std::string(e.what()).find("p3_2") == std::string::npos) << e.what();
     }
 }
+#endif //defined(ENABLE_OV_IR_FRONTEND)
+
