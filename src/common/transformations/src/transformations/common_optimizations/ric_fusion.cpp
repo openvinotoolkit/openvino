@@ -66,7 +66,8 @@ public:
 
     // Apply callback to materialize RIC inside graph
     void materialize(Input<Node> input, const ov::NodeVector& nodes) const {
-        if (get_axis() >= input.get_partial_shape().size()) {
+        // Despite of m_axis is signed integer this transformartion does not handle negative axes values
+        if (get_axis() < 0 || get_axis() >= static_cast<int64_t>(input.get_partial_shape().size())) {
             NGRAPH_DEBUG << "Axis calculated to materialize RIC on input: " << input << " is out of range";
             return;
         }
