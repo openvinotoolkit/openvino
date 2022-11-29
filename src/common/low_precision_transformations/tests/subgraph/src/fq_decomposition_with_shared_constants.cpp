@@ -24,9 +24,10 @@ using namespace ngraph;
 using namespace ngraph::builder::subgraph;
 
 
-class FQDecompositionWithSharedConstants : public LayerTransformation {
+class FQDecompositionWithSharedConstants : public LayerTransformation, public WithParamInterface<bool> {
 public:
     void SetUp() override {
+        const bool addIntervalsAlignment = GetParam();
         const auto shape = ngraph::Shape{1, 3, 40, 40};
         const auto input_precision = ngraph::element::f32;
         
@@ -38,7 +39,12 @@ public:
             auto shared_oh = opset1::Constant::create(input_precision, {}, {25.5f});
             auto fq_before = std::make_shared<opset1::FakeQuantize>(input, shared_il, shared_ih, shared_ol, shared_oh, 256);
             auto fq_after = std::make_shared<opset1::FakeQuantize>(fq_before, shared_il, shared_ih, shared_ol, shared_oh, 256);
-            ResultVector results{ std::make_shared<opset1::Result>(fq_after) };
+            auto relu = std::make_shared<opset1::Relu>(fq_after);
+            if (addIntervalsAlignment) {
+                addAttributes({fq_before, fq_after}, {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)});
+                addAttributes({fq_after, relu}, {QuantizationAlignmentAttribute(true)});
+            }
+            ResultVector results{ std::make_shared<opset1::Result>(relu) };
             actualFunction = std::make_shared<Function>(results, ParameterVector{ input }, "FakeQuantizeFunction");
         }
         
@@ -54,14 +60,19 @@ public:
             auto dq_before = makeDequantization(fq_before, deqStructure);
             auto fq_after = makeFakeQuantizeTypeRelaxed(dq_before, input_precision, fqStructure);
             auto dq_after = makeDequantization(fq_after, deqStructure);
-            ResultVector results{ std::make_shared<opset1::Result>(dq_after) };
+            auto relu = std::make_shared<opset1::Relu>(dq_after);
+            ResultVector results{ std::make_shared<opset1::Result>(relu) };
             referenceFunction = std::make_shared<Function>(results, ParameterVector{ input }, "FakeQuantizeFunction");
         }
     }
+
+    static std::string getTestCaseName(testing::TestParamInfo<bool> obj) {
+        const bool addIntervalsAlignment = obj.param;
+        return addIntervalsAlignment ? "with_IntervalsAlignment" : "without_IntervalsAlignment";
+    }
 };
 
-namespace {
-TEST_F(FQDecompositionWithSharedConstants, FQDecompositionWithSharedConstants) {
+TEST_P(FQDecompositionWithSharedConstants, FQDecompositionWithSharedConstants) {
     actualFunction->validate_nodes_and_infer_types();
 
     auto comparator = FunctionsComparator::no_default();
@@ -77,4 +88,10 @@ TEST_F(FQDecompositionWithSharedConstants, FQDecompositionWithSharedConstants) {
             EXPECT_EQ(n->get_output_target_inputs(0).size(), 1);
     }
 }
+namespace {
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    FQDecompositionWithSharedConstants,
+    ::testing::ValuesIn(std::vector<bool>{false, true}),
+        FQDecompositionWithSharedConstants::getTestCaseName);
 } // namespace

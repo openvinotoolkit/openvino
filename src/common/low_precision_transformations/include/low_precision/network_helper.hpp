@@ -257,7 +257,7 @@ public:
         float& updatedOutputLowValue,
         float& updatedOutputHighValue);
 
-    static ov::Output<ov::Node> getOutputWithSingleConsumer(const ov::Output<ov::Node>& output);
+    static ov::Output<ov::Node> getSingleConsumerConstant(const ov::Output<ov::Node>& output);
 
 private:
     static std::shared_ptr<Node> foldFakeQuantize(

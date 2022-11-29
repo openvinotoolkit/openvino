@@ -1060,8 +1060,8 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
     std::shared_ptr<ngraph::Node> newFQ = fold_fake_quantize(
         std::make_shared<op::TypeRelaxed<opset1::FakeQuantize>>(
             fq->input_value(0),
-            getOutputWithSingleConsumer(fq->get_input_node_shared_ptr(1)),
-            getOutputWithSingleConsumer(fq->get_input_node_shared_ptr(2)),
+            getSingleConsumerConstant(fq->input_value(1)),
+            getSingleConsumerConstant(fq->input_value(2)),
             newMin->output(0),
             newMax->output(0),
             fq->get_levels(),
@@ -1124,10 +1124,10 @@ std::shared_ptr<opset1::FakeQuantize> NetworkHelper::updateFakeQuantize(
     float min,
     float max,
     const bool replace) {
+    auto newInMin = getSingleConsumerConstant(fq->input_value(1));
+    auto newInMax = getSingleConsumerConstant(fq->input_value(2));
     auto newOutMin = std::make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, min);
     auto newOutMax = std::make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, max);
-    auto newInMin = getOutputWithSingleConsumer(fq->get_input_node_shared_ptr(1));
-    auto newInMax = getOutputWithSingleConsumer(fq->get_input_node_shared_ptr(2));
 
     std::shared_ptr<opset1::FakeQuantize> newFQ = std::make_shared<ngraph::op::TypeRelaxed<opset1::FakeQuantize>>(
             fq->input_value(0),
@@ -2002,11 +2002,13 @@ void NetworkHelper::insertDequantizationAfter(
     }
 }
 
-ov::Output<ov::Node> NetworkHelper::getOutputWithSingleConsumer(const ov::Output<ov::Node>& output) {
-    auto node = output.get_node_shared_ptr();
-    if (node->get_output_size() > 1 || node->output(0).get_target_inputs().size() == 1)
-        return output;
-    return node->clone_with_new_inputs(node->input_values())->output(0);
+ov::Output<ov::Node> NetworkHelper::getSingleConsumerConstant(const ov::Output<ov::Node>& output) {
+    const auto node = output.get_node();
+    if (!ngraph::is_type<opset1::Constant>(node))
+        THROW_IE_LPT_EXCEPTION(*node) << "getSingleConsumerConstant Expected Constant node type";
+    return output.get_target_inputs().size() == 1
+        ? output
+        : node->clone_with_new_inputs(node->input_values())->output(0);
 }
 } // namespace low_precision
 } // namespace pass
