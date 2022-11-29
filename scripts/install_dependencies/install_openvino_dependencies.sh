@@ -184,11 +184,10 @@ elif [ "$os" == "rhel8" ] || [ "$os" == "rhel9.1" ] ; then
         pkgs_python=(python38 python38-pip)
     fi
 
-    pkgs_core=(tbb pugixml)
+    pkgs_core=(tbb pugixml gflags)
     pkgs_opencv_req=(gtk3)
     pkgs_dev=(
         gcc gcc-c++ make glibc libstdc++ libgcc cmake pkg-config zlib-devel curl sudo
-        https://vault.centos.org/centos/8/PowerTools/x86_64/os/Packages/gflags-2.1.2-6.el8.x86_64.rpm
     )
     pkgs_myriad=()
     pkgs_opencv_opt=(
