@@ -341,7 +341,7 @@ std::vector<ov::Tensor> SubgraphBaseTest::get_plugin_outputs() {
         std::cout << "[ PLUGIN ] `SubgraphBaseTest::get_plugin_outputs()`is started"<< std::endl;
     }
     auto start_time = std::chrono::system_clock::now();
-    
+
     infer();
     auto outputs = std::vector<ov::Tensor>{};
     for (const auto& output : function->outputs()) {
