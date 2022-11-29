@@ -82,6 +82,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
                                               // we assume all tensors are contiguous
         {"aten::conv2d", op::translate_conv2d},
         {"aten::convolution", op::translate_convolution},
+        {"aten::cumsum", op::translate_1to1_match_2_inputs<opset8::CumSum>},
         {"aten::dim", op::translate_dim},
         {"aten::div", op::translate_div},
         {"aten::div_", op::inplace_op<op::translate_div>},
@@ -139,6 +140,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::sub", op::translate_sub},
         {"aten::sum", op::translate_sum},
         {"aten::tanh", op::translate_1to1_match_1_inputs<opset8::Tanh>},
+        {"aten::type_as", op::translate_1to1_match_2_inputs<opset8::ConvertLike>}, // TODO: overflow semantics is different
         {"aten::to", op::translate_to},
         {"aten::transpose", op::translate_transpose},
         {"aten::unsqueeze", op::translate_1to1_match_2_inputs<opset8::Unsqueeze>},
