@@ -16,7 +16,8 @@ class PytorchLayerTest:
     _type_map = {
         "float64": Type.f64,
         "float32": Type.f32,
-        "int32": Type.i32
+        "int32": Type.i32,
+        "int64": Type.i64,
     }
 
     @staticmethod
@@ -106,7 +107,7 @@ class PytorchLayerTest:
             print(f"fw_re: {cur_fw_res};\n ov_res: {cur_ov_res}")
             if not np.allclose(cur_ov_res, cur_fw_res,
                                atol=fw_eps,
-                               rtol=fw_eps):
+                               rtol=fw_eps, equal_nan=True):
                 is_ok = False
                 print("Max diff is {}".format(
                     np.array(
