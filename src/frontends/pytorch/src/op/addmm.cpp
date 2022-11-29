@@ -17,7 +17,7 @@ OutputVector translate_addmm(NodeContext& context) {
     auto m2 = context.get_input(2);
     auto beta = context.get_input(3);
     auto alpha = context.get_input(4);
-    auto mm  = context.mark_node(std::make_shared<opset8::MatMul>(m1, m2));
+    auto mm = context.mark_node(std::make_shared<opset8::MatMul>(m1, m2));
     auto input_beta = context.mark_node(std::make_shared<opset8::Multiply>(input, beta));
     auto mm_alpha = context.mark_node(std::make_shared<opset8::Multiply>(mm, alpha));
     return {context.mark_node(std::make_shared<opset8::Add>(input_beta, mm_alpha))};
