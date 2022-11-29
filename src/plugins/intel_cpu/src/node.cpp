@@ -1481,23 +1481,23 @@ bool Node::needShapeInfer() const {
 }
 
 std::vector<VectorDims> Node::shapeInferGeneric(const std::vector<Shape>& shapes) const {
-    std::vector<std::reference_wrapper<const VectorDims>> input_shapes;
-    auto input_value_port_mask = shapeInference->get_port_mask();
+    try {
+        std::vector<std::reference_wrapper<const VectorDims>> input_shapes;
+        auto input_value_port_mask = shapeInference->get_port_mask();
 
-    input_shapes.reserve(shapes.size());
-    for (size_t i = 0; i < shapes.size(); i++)
-        input_shapes.emplace_back(std::ref(shapes[i].getStaticDims()));
+        input_shapes.reserve(shapes.size());
+        for (size_t i = 0; i < shapes.size(); i++)
+            input_shapes.emplace_back(std::ref(shapes[i].getStaticDims()));
 
-    std::unordered_map<size_t, MemoryPtr> input_values;
-    if (input_value_port_mask) {
-        for (size_t port = 0; port < inputShapes.size(); ++port) {
-            if (input_value_port_mask & (1 << port)) {
-                input_values[port] = getParentEdgesAtPort(port)[0]->getMemoryPtr();
+        std::unordered_map<size_t, MemoryPtr> input_values;
+        if (input_value_port_mask) {
+            for (size_t port = 0; port < inputShapes.size(); ++port) {
+                if (input_value_port_mask & (1 << port)) {
+                    input_values[port] = getParentEdgesAtPort(port)[0]->getMemoryPtr();
+                }
             }
         }
-    }
 
-    try {
         return shapeInference->infer(input_shapes, input_values);
     }
     catch (const std::runtime_error& exp) {
@@ -1506,23 +1506,23 @@ std::vector<VectorDims> Node::shapeInferGeneric(const std::vector<Shape>& shapes
 }
 
 std::vector<VectorDims> Node::shapeInfer() const {
-    std::vector<std::reference_wrapper<const VectorDims>> input_shapes;
-    auto input_value_port_mask = shapeInference->get_port_mask();
+    try {
+        std::vector<std::reference_wrapper<const VectorDims>> input_shapes;
+        auto input_value_port_mask = shapeInference->get_port_mask();
 
-    input_shapes.reserve(inputShapes.size());
-    for (size_t port = 0; port < inputShapes.size(); ++port)
-        input_shapes.emplace_back(std::ref(getParentEdgesAtPort(port)[0]->getMemory().getStaticDims()));
+        input_shapes.reserve(inputShapes.size());
+        for (size_t port = 0; port < inputShapes.size(); ++port)
+            input_shapes.emplace_back(std::ref(getParentEdgesAtPort(port)[0]->getMemory().getStaticDims()));
 
-    std::unordered_map<size_t, MemoryPtr> input_values;
-    if (input_value_port_mask) {
-        for (size_t port = 0; port < inputShapes.size(); ++port) {
-            if (input_value_port_mask & (1 << port)) {
-                input_values[port] = getParentEdgesAtPort(port)[0]->getMemoryPtr();
+        std::unordered_map<size_t, MemoryPtr> input_values;
+        if (input_value_port_mask) {
+            for (size_t port = 0; port < inputShapes.size(); ++port) {
+                if (input_value_port_mask & (1 << port)) {
+                    input_values[port] = getParentEdgesAtPort(port)[0]->getMemoryPtr();
+                }
             }
         }
-    }
 
-    try {
         return shapeInference->infer(input_shapes, input_values);
     }
     catch (const std::runtime_error& exp) {
