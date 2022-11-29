@@ -36,7 +36,7 @@ def parse_and_check_command_line():
                         "should explicitely set -hint option to none. This is not OpenVINO limitation " \
                         "(those options can be used in OpenVINO together), but a benchmark_app UI rule.")
 
-    if args.report_type == "average_counters" and "MULTI" in args.target_device:
+    if args.report_type == "average_counters" and MULTI_DEVICE_NAME in args.target_device:
         raise Exception("only detailed_counters report type is supported for MULTI device")
 
     _, ext = os.path.splitext(args.path_to_model)
@@ -187,7 +187,7 @@ def main():
             ## insert or append multiple pairs of <key ,value> into dict
             def update_configs(key, property_name, property_value):
                 if key not in config[device].keys():
-                    config[device][key] = property_name + " " + property_value
+                    config[device][key] = ' '.join([property_name, property_value])
                 else:
                     config[device][key] += " " + property_name + " " + property_value
 
@@ -264,27 +264,23 @@ def main():
                     device_number_streams[device] = config[device][key]
                 return
 
-            def set_nthreads_pin(key):
-                property_name = "INFERENCE_NUM_THREADS" if key == "nthreads" else "AFFINITY"
-                property_value = str(args.number_threads) if key == "nthreads" else args.infer_threads_pinning
+            def set_nthreads_pin(property_name, property_value):
                 if property_name in supported_properties or device_name == AUTO_DEVICE_NAME:
                     # create nthreads/pin primary property for HW device or AUTO if -d is AUTO directly.
                     config[device][property_name] = property_value
                 elif if_auto or if_multi:
                     # Create secondary property of -nthreads/-pin only for CPU if CPU device appears in the devices
                     # list specified by -d.
-                    for hw_device in hw_devices_list:
-                        if hw_device != CPU_DEVICE_NAME:
-                            continue
+                    if CPU_DEVICE_NAME in hw_devices_list:
                         update_configs(CPU_DEVICE_NAME, property_name, property_value)
                 return
 
             if args.number_threads and is_flag_set_in_command_line("nthreads"):
                 # limit threading for CPU portion of inference
-                set_nthreads_pin('nthreads')
+                set_nthreads_pin('INFERENCE_NUM_THREADS', str(args.number_threads))
             if is_flag_set_in_command_line('pin'):
                 ## set for CPU to user defined value
-                set_nthreads_pin('pin')
+                set_nthreads_pin('AFFINITY', args.infer_threads_pinning)
             if CPU_DEVICE_NAME in device: # CPU supports few special performance-oriented keys
                 ## for CPU execution, more throughput-oriented execution via streams
                 set_throughput_streams()
