@@ -10,17 +10,14 @@
 #include "primitive_type_base.h"
 
 namespace cldnn {
-primitive_type_id experimental_detectron_detection_output::type_id() {
-    static primitive_type_base<experimental_detectron_detection_output> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(experimental_detectron_detection_output)
 
 layout experimental_detectron_detection_output_inst::calc_output_layout(
     const experimental_detectron_detection_output_node& node, kernel_impl_params const& impl_param) {
     const layout data_layout = impl_param.get_input_layout();
     auto desc = impl_param.typed_desc<experimental_detectron_detection_output>();
 
-    return layout(data_layout.data_type, format::bfyx, {static_cast<int>(desc->max_detections_per_image), 4, 1, 1});
+    return layout(data_layout.data_type, data_layout.format, {static_cast<int>(desc->max_detections_per_image), 4, 1, 1});
 }
 
 std::string experimental_detectron_detection_output_inst::to_string(

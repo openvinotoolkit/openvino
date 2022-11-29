@@ -127,7 +127,8 @@ protected:
 };
 
 jit_uni_converter::jit_uni_converter()
-    : _consts(*this) {
+    : jit_kernel(jit_name()),
+      _consts(*this) {
 }
 
 void jit_uni_converter::init() {

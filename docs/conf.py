@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.abspath('doxyrest-sphinx'))
 # -- Project information -----------------------------------------------------
 
 project = 'OpenVINO™'
-copyright = '2021, Intel®'
+copyright = '2022, Intel®'
 author = 'Intel®'
 
 language = 'en'
@@ -63,8 +63,7 @@ templates_path = ['_templates']
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['_build', 'Thumbs.db',
-                    '.DS_Store', 'openvino/inference-engine']
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 
 panels_add_bootstrap_css = False
@@ -82,6 +81,7 @@ html_theme_options = {
     "navigation_depth": 5,
     "use_edit_page_button": True,
     "github_url": "https://github.com/openvinotoolkit/openvino",
+    "footer_items": ["footer_info"],
 }
 
 html_context = {

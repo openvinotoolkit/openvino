@@ -16,6 +16,7 @@ using namespace cldnn;
 using namespace ::tests;
 using namespace testing;
 
+namespace {
 void verify_float(const float& output_value, const float& value) {
     EXPECT_FLOAT_EQ(output_value, value);
 }
@@ -127,6 +128,7 @@ void generic_reshape_test(format fmt, tensor const& input_size, tensor const& re
         }
     }
 }
+}  // namespace
 
 TEST(reshape_gpu_f32, basic_2dim_in_place) {
     generic_reshape_test<float>(
@@ -777,6 +779,7 @@ TEST(reshape_gpu_f32, basic_runtime_dynamic_shape) {
 
     build_options bo;
     bo.set_option(build_option::allow_new_shape_infer(true));
+    bo.set_option(build_option::optimize_data(true));
     network network(engine, topology, bo);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -827,6 +830,7 @@ TEST(reshape_gpu_f32, basic_runtime_dynamic_shape_with_const) {
 
     build_options bo;
     bo.set_option(build_option::allow_new_shape_infer(true));
+    bo.set_option(build_option::optimize_data(true));
     network network(engine, topology, bo);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -835,6 +839,63 @@ TEST(reshape_gpu_f32, basic_runtime_dynamic_shape_with_const) {
     EXPECT_EQ(outputs.begin()->first, "reshape");
 
     auto output = outputs.at("reshape").get_memory();
+
+    EXPECT_EQ(output->get_layout().data_type, input->get_layout().data_type);
+    EXPECT_EQ(output->get_layout().format, format::bfyx);
+    EXPECT_TRUE(output->get_layout().is_static());
+    std::vector<int32_t> ref_dims = {12, 3, 1, 1};
+    EXPECT_EQ(output->get_layout().get_dims(), ref_dims);
+    ov::PartialShape ref_pshape = {12, 3};
+    EXPECT_EQ(output->get_layout().get_partial_shape(), ref_pshape);
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    ASSERT_EQ(output_ptr.size(), input_data.size());
+
+    for (size_t i = 0; i < input_data.size(); i++) {
+        ASSERT_TRUE(are_equal(input_data[i], output_ptr[i]));
+    }
+}
+
+TEST(reshape_gpu_f32, basic_runtime_dynamic_shape_with_const_optimized_out) {
+    // input:  bfwzyx, (3, 3, 2, 2, 1, 1)
+    // reshape: (1, 1, 2, 2, 3, 3), pad (0, 0, 0, 0, 0, 1)
+
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory(layout{ov::PartialShape{3, 3, 2, 2, 1, 1}, data_types::f32, format::bfwzyx});
+    auto const_shape = engine.allocate_memory({ov::PartialShape{2}, data_types::i32, format::bfyx});
+
+    set_values<int32_t>(const_shape, {-1, 3});
+
+    topology topology;
+    topology.add(input_layout("input", layout{ov::PartialShape::dynamic(6), data_types::f32, format::bfwzyx}));
+    topology.add(data("const", const_shape));
+    topology.add(reshape("reshape", "input", "const", false, ov::PartialShape::dynamic(2)));
+    topology.add(reorder("reorder", "reshape", format::bfyx, data_types::f32));
+
+    // clang-format off
+    std::vector<float> input_data = {
+        1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+        1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+        1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+        1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+    };
+
+    // clang-format on
+
+    set_values(input, input_data);
+
+    build_options bo;
+    bo.set_option(build_option::allow_new_shape_infer(true));
+    bo.set_option(build_option::optimize_data(true));
+    network network(engine, topology, bo);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "reorder");
+
+    auto output = outputs.at("reorder").get_memory();
 
     EXPECT_EQ(output->get_layout().data_type, input->get_layout().data_type);
     EXPECT_EQ(output->get_layout().format, format::bfyx);

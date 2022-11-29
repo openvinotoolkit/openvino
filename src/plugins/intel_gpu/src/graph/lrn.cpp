@@ -9,10 +9,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id lrn::type_id() {
-    static primitive_type_base<lrn> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(lrn)
 
 layout lrn_inst::calc_output_layout(lrn_node const& node, kernel_impl_params const& impl_param) {
     assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
@@ -61,7 +58,7 @@ std::string lrn_inst::to_string(lrn_node const& node) {
 lrn_inst::typed_primitive_inst(network& network, lrn_node const& desc) : parent(network, desc) {
     CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc.id(),
                                    "LRN argument size",
-                                   argument.size,
+                                   argument->size,
                                    "value",
                                    static_cast<uint32_t>(0),
                                    "LRN size must be greater than 0!");

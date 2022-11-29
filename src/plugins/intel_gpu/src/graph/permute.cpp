@@ -13,11 +13,7 @@
 #include <vector>
 
 namespace cldnn {
-
-primitive_type_id permute::type_id() {
-    static primitive_type_base<permute> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(permute)
 
 layout permute_inst::calc_output_layout(permute_node const& node, kernel_impl_params const& impl_param) {
     assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
@@ -108,7 +104,7 @@ std::string permute_inst::to_string(permute_node const& node) {
 }
 
 permute_inst::typed_primitive_inst(network& network, permute_node const& node) : parent(network, node) {
-    auto permute_order = argument.permute_order;
+    auto permute_order = argument->permute_order;
 
     auto required_order_values_size = static_cast<uint32_t>(permute_order.size());
 

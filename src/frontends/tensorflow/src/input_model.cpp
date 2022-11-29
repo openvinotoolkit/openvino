@@ -12,6 +12,7 @@
 #include "openvino/frontend/tensorflow/graph_iterator.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/opsets/opset7.hpp"
+#include "openvino/util/log.hpp"
 #include "place.hpp"
 #include "utils.hpp"
 
@@ -115,8 +116,21 @@ void InputModel::InputModelTFImpl::loadPlaces() {
         m_op_places.push_back(op_place);
         m_op_places_map[op_name] = op_place;
         if (op_type == "Placeholder") {
-            auto pshape = node_decoder->get_attribute("shape").as<ov::PartialShape>();
-            auto type = node_decoder->get_attribute("dtype").as<ov::element::Type>();
+            auto pshape = ov::PartialShape::dynamic();
+            auto shape_any = node_decoder->get_attribute("shape");
+            if (shape_any.is<ov::PartialShape>()) {
+                // sometimes shape attribute can be absent in the graph
+                // so we need to check if Any object is initialized first
+                pshape = shape_any.as<ov::PartialShape>();
+            } else {
+                OPENVINO_DEBUG << "TensorFlow Frontend: Placeholder " << op_name << " does not have 'shape' attribute";
+            }
+            auto dtype_any = node_decoder->get_attribute("dtype");
+            auto placeholder_name = node_decoder->get_op_name();
+            FRONT_END_GENERAL_CHECK(
+                dtype_any.is<ov::element::Type>(),
+                "Incorrect input model: Placeholder node " + placeholder_name + " has unspecified type.");
+            auto type = dtype_any.as<ov::element::Type>();
             std::vector<std::string> names = {op_name};
             auto tensor_place = std::make_shared<TensorPlace>(m_input_model, pshape, type, names);
             m_tensor_places[op_name] = tensor_place;
@@ -171,6 +185,7 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::get_op_place
 std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::determine_cut_nodes() const {
     std::vector<std::shared_ptr<OpPlace>> topologically_sorted_ops;
     std::stack<std::shared_ptr<OpPlace>> ops_to_do;
+    std::unordered_set<std::shared_ptr<OpPlace>> ops_set_to_do;
     std::unordered_set<std::shared_ptr<OpPlace>> ops_done;
 
     for (const auto& output_place : m_outputs) {
@@ -184,6 +199,7 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::determine_cu
                                 "Custom specified output is incorrect: " + output_place_name);
         auto output_operation_place = m_op_places_map.at(operation_name);
         ops_to_do.push(output_operation_place);
+        ops_set_to_do.insert(output_operation_place);
     }
 
     // the traversing algorithm to compute topologically sorted nodes is taken from topological_sort in
@@ -195,12 +211,13 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::determine_cu
         if (ops_done.count(current_operation_place) == 0) {
             bool can_add = true;
             auto input_count = current_operation_decoder->get_input_size();
+
             for (size_t input_port_idx = 0; input_port_idx < input_count; ++input_port_idx) {
                 std::string producer_name;
                 size_t producer_output_port_idx;
                 try {
                     current_operation_decoder->get_input_node(input_port_idx, producer_name, producer_output_port_idx);
-                } catch (const std::exception& e) {
+                } catch (const std::exception&) {
                     FRONT_END_THROW("[ ERROR ] Exception happened when preparing input " +
                                     std::to_string(input_port_idx) + " for op '" +
                                     current_operation_decoder->get_op_name() + "', expected input name: '" +
@@ -240,9 +257,14 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::determine_cu
                     is_input |= tensor_place->is_input();
                 }
 
-                if (!is_input && ops_done.count(producer_operation_place) == 0) {
+                // in case presence of NextIteration in the graph (or cycle created by other operation),
+                // we break the cycle by outputs from the NextIteration operation
+                // otherwise, the operations nodes in the cycle will be added to ops_to_do infinitely
+                if (!is_input && ops_done.count(producer_operation_place) == 0 &&
+                    ops_set_to_do.count(producer_operation_place) == 0) {
                     can_add = false;
                     ops_to_do.push(producer_operation_place);
+                    ops_set_to_do.insert(producer_operation_place);
                 }
             }
 

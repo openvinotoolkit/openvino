@@ -41,7 +41,14 @@ set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Release;%INTEL_
 
 :: TBB
 if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb (
-   set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\bin;%OPENVINO_LIB_PATHS%"
+
+   if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\redist (
+      set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\redist\intel64\vc14;%OPENVINO_LIB_PATHS%"
+   ) else if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\bin\intel64\vc14 (
+      set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\bin\intel64\vc14;%OPENVINO_LIB_PATHS%"
+   ) else if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\bin (
+      set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\bin;%OPENVINO_LIB_PATHS%"
+   )
 
    if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\cmake (
       set "TBB_DIR=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\cmake"
@@ -49,6 +56,8 @@ if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb (
       set "TBB_DIR=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\lib\cmake\TBB"
    ) else if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\lib64\cmake\TBB (
       set "TBB_DIR=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\lib64\cmake\TBB"
+   ) else if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\lib\cmake\tbb (
+      set "TBB_DIR=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\lib\cmake\tbb"
    )
 )
 
@@ -62,15 +71,21 @@ set "PATH=%OPENVINO_LIB_PATHS%;%PATH%"
 
 :: Check if Python is installed
 set PYTHON_VERSION_MAJOR=3
-set MIN_REQUIRED_PYTHON_VERSION_MINOR=6
-set MAX_SUPPORTED_PYTHON_VERSION_MINOR=9
+set MIN_REQUIRED_PYTHON_VERSION_MINOR=7
+set MAX_SUPPORTED_PYTHON_VERSION_MINOR=10
 
 python --version 2>NUL
-if errorlevel 1 (
-   echo Error^: Python is not installed. Please install one of Python %PYTHON_VERSION_MAJOR%.%MIN_REQUIRED_PYTHON_VERSION_MINOR% - %PYTHON_VERSION_MAJOR%.%MAX_SUPPORTED_PYTHON_VERSION_MINOR% ^(64-bit^) from https://www.python.org/downloads/
-   exit /B 1
-)
+if errorlevel 1 (call :python_not_installed) else (call :check_python_version)
 
+echo [setupvars.bat] OpenVINO environment initialized
+
+exit /B 0
+
+:python_not_installed
+echo Warning^: Python is not installed. Please install one of Python %PYTHON_VERSION_MAJOR%.%MIN_REQUIRED_PYTHON_VERSION_MINOR% - %PYTHON_VERSION_MAJOR%.%MAX_SUPPORTED_PYTHON_VERSION_MINOR% ^(64-bit^) from https://www.python.org/downloads/
+exit /B 0
+
+:check_python_version
 :: Check Python version if user did not pass -pyver
 if "%python_version%" == "" (
     for /F "tokens=* USEBACKQ" %%F IN (`python -c "import sys; print(str(sys.version_info[0])+'.'+str(sys.version_info[1]))" 2^>^&1`) DO (
@@ -83,9 +98,9 @@ for /F "tokens=1,2 delims=. " %%a in ("%python_version%") do (
    set pyversion_minor=%%b
 )
 
-if "%pyversion_major%" equ "%PYTHON_VERSION_MAJOR%" (
-   if "%pyversion_minor%" geq "%MIN_REQUIRED_PYTHON_VERSION_MINOR%" (
-      if "%pyversion_minor%" leq "%MAX_SUPPORTED_PYTHON_VERSION_MINOR%" (
+if %pyversion_major% equ %PYTHON_VERSION_MAJOR% (
+   if %pyversion_minor% geq %MIN_REQUIRED_PYTHON_VERSION_MINOR% (
+      if %pyversion_minor% leq %MAX_SUPPORTED_PYTHON_VERSION_MINOR% (
          set "check_pyversion=true"
       )
    )   
@@ -93,14 +108,14 @@ if "%pyversion_major%" equ "%PYTHON_VERSION_MAJOR%" (
 
 if not "%check_pyversion%"=="true" (
    echo Unsupported Python version. Please install one of Python %PYTHON_VERSION_MAJOR%.%MIN_REQUIRED_PYTHON_VERSION_MINOR% - %PYTHON_VERSION_MAJOR%.%MAX_SUPPORTED_PYTHON_VERSION_MINOR% ^(64-bit^) from https://www.python.org/downloads/
-   exit /B 1
+   exit /B 0
 )
 
 :: Check Python bitness
 python -c "import sys; print(64 if sys.maxsize > 2**32 else 32)" 2 > NUL
 if errorlevel 1 (
-   echo Error^: Error during installed Python bitness detection
-   exit /B 1
+   echo Warning^: Cannot determine installed Python bitness
+   exit /B 0
 )
 
 for /F "tokens=* USEBACKQ" %%F IN (`python -c "import sys; print(64 if sys.maxsize > 2**32 else 32)" 2^>^&1`) DO (
@@ -109,13 +124,10 @@ for /F "tokens=* USEBACKQ" %%F IN (`python -c "import sys; print(64 if sys.maxsi
 
 if not "%bitness%"=="64" (
    echo Unsupported Python bitness. Please install one of Python %PYTHON_VERSION_MAJOR%.%MIN_REQUIRED_PYTHON_VERSION_MINOR% - %PYTHON_VERSION_MAJOR%.%MAX_SUPPORTED_PYTHON_VERSION_MINOR%^(64-bit^) from https://www.python.org/downloads/
-   exit /B 1
+   exit /B 0
 )
 
 set PYTHONPATH=%INTEL_OPENVINO_DIR%\python\python%pyversion_major%.%pyversion_minor%;%INTEL_OPENVINO_DIR%\python\python3;%PYTHONPATH%
-
-echo [setupvars.bat] OpenVINO environment initialized
-
 exit /B 0
 
 :GetFullPath

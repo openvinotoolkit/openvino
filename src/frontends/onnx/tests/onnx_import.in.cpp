@@ -3105,6 +3105,29 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatterND_const_i32_indices) {
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatterND_opset16_reduction_none) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/scatter_nd_opset16_reduction_none.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f});
+    test_case.add_input<int64_t>({4, 3, 1, 7});
+    test_case.add_input<float>({9.f, 10.f, 11.f, 12.f});
+    test_case.add_expected_output<float>(Shape{8}, {1.f, 11.f, 3.f, 10.f, 9.f, 6.f, 7.f, 12.f});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatterND_opset16_reduction_add) {
+    EXPECT_THROW(onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                     SERIALIZED_ZOO,
+                                                                     "onnx/scatter_nd_opset16_reduction_add.onnx")),
+                 ngraph_error)
+        << "Unsupported type of attribute: `reduction`. Only `none` is supported";
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gather_float_1D) {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/gather_float_1D.onnx"));
@@ -3316,6 +3339,19 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_pad_constant) {
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_pad_non_scalar_values) {
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                              SERIALIZED_ZOO,
+                                                                              "onnx/pad_non_scalar_values.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+
+    test_case.add_input<float>({1.f, 1.2f, 2.3f, 3.4f, 4.5f, 5.7f});
+    test_case.add_expected_output<float>(Shape{3, 4},
+                                         {44.f, 44.f, 1.f, 1.2f, 44.f, 44.f, 2.3f, 3.4f, 44.f, 44.f, 4.5f, 5.7f});
+
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_pad_optional_constant) {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
@@ -3427,6 +3463,28 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_import_only) {
     EXPECT_EQ(scatter_fn->get_output_shape(0), data_shape);
     EXPECT_EQ(count_ops_of_type<op::v3::ScatterElementsUpdate>(scatter_fn), 1);
     EXPECT_EQ(count_ops_of_type<op::v0::Constant>(scatter_fn), 4);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_opset16_reduction_none) {
+    const auto scatter_fn =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/scatter_elements_opset16_reduction_none.onnx"));
+
+    const Shape data_shape{1, 5};
+
+    EXPECT_EQ(scatter_fn->get_output_size(), 1);
+    EXPECT_EQ(scatter_fn->get_output_shape(0), data_shape);
+    EXPECT_EQ(count_ops_of_type<op::v3::ScatterElementsUpdate>(scatter_fn), 1);
+    EXPECT_EQ(count_ops_of_type<op::v0::Constant>(scatter_fn), 4);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_opset16_reduction_add) {
+    const auto path = file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                           SERIALIZED_ZOO,
+                                           "onnx/scatter_elements_opset16_reduction_add.onnx");
+    EXPECT_THROW(onnx_import::import_onnx_model(path), ngraph_error)
+        << "Unsupported type of attribute: `reduction`. Only `none` is supported";
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample6_nearest_infer) {
@@ -5912,20 +5970,174 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_trilu_dynamic_shapes) {
     // clang-format on
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_is_nan) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/is_nan.onnx"));
+NGRAPH_TEST(${BACKEND_NAME}, onnx_is_finite) {
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/is_finite.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
     // clang-format off
-    
+
+    test_case.add_input<float>(Shape{1, 2, 3}, {std::nanf(""), std::numeric_limits<float>::infinity(), -0.6000f, -1.0000f, std::nanf(""), -1.0000f});
+
+    test_case.add_expected_output<bool>(
+        Shape{1, 2, 3},
+        {false, false, true, true, false, true});
+
+    test_case.run();
+
+    // clang-format on
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_is_inf_default) {
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/is_inf.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+
+    // clang-format off
+
+    test_case.add_input<float>(
+        Shape{2, 2, 2},
+        std::vector<float>{ std::numeric_limits<float>::infinity(), 0.0000f,
+                            std::numeric_limits<float>::max(), -0.5000f,
+                            -std::numeric_limits<float>::infinity(), 1.0000f,
+                            std::numeric_limits<float>::min(), std::nanf("")});
+    test_case.add_expected_output<bool>(
+        Shape{2, 2, 2},
+        std::vector<bool>{true, false,
+                          false, false,
+                          true, false,
+                          false, false});
+    test_case.run();
+
+    // clang-format on
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_is_inf_negative_only) {
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/is_inf_negative.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+
+    // clang-format off
+
+    test_case.add_input<float>(
+        Shape{2, 2, 2},
+        std::vector<float>{ std::numeric_limits<float>::infinity(), 0.0000f,
+                            std::numeric_limits<float>::max(), -0.5000f,
+                            -std::numeric_limits<float>::infinity(), 1.0000f,
+                            std::numeric_limits<float>::min(), std::nanf("")});
+    test_case.add_expected_output<bool>(
+        Shape{2, 2, 2},
+        std::vector<bool>{false, false,
+                          false, false,
+                          true, false,
+                          false, false});
+    test_case.run();
+
+    // clang-format on
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_is_inf_positive_only) {
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/is_inf_positive.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+
+    // clang-format off
+
+    test_case.add_input<float>(
+        Shape{2, 2, 2},
+        std::vector<float>{ std::numeric_limits<float>::infinity(), 0.0000f,
+                            std::numeric_limits<float>::max(), -0.5000f,
+                            -std::numeric_limits<float>::infinity(), 1.0000f,
+                            std::numeric_limits<float>::min(), std::nanf("")});
+    test_case.add_expected_output<bool>(
+        Shape{2, 2, 2},
+        std::vector<bool>{true, false,
+                          false, false,
+                          false, false,
+                          false, false});
+    test_case.run();
+
+    // clang-format on
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_is_inf_detect_none) {
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/is_inf_none.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+
+    // clang-format off
+
+    test_case.add_input<float>(
+        Shape{2, 2, 2},
+        std::vector<float>{ std::numeric_limits<float>::infinity(), 0.0000f,
+                            std::numeric_limits<float>::max(), -0.5000f,
+                            -std::numeric_limits<float>::infinity(), 1.0000f,
+                            std::numeric_limits<float>::min(), std::nanf("")});
+    test_case.add_expected_output<bool>(
+        Shape{2, 2, 2},
+        std::vector<bool>{false, false,
+                          false, false,
+                          false, false,
+                          false, false});
+    test_case.run();
+
+    // clang-format on
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_is_nan) {
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/is_nan.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+
+    // clang-format off
+
     test_case.add_input<float>(Shape{1, 2, 3}, {std::nanf(""), std::nanf(""), -0.6000f, -1.0000f, std::nanf(""), -1.0000f});
 
-    test_case.add_expected_output<float>(
+    test_case.add_expected_output<bool>(
         Shape{1, 2, 3},
         {true, true, false, false, true, false});
 
     test_case.run();
 
     // clang-format on
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_squeeze_default_domain_opset13) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/squeeze_default_domain_opset13.onnx"));
+
+    auto input =
+        test::NDArray<float, 3>({{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}}).get_vector();
+    auto expected_output =
+        test::NDArray<float, 2>({{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}).get_vector();
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input(input);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_of_shape_empty_init) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/constant_of_shape_empty_init.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_expected_output<int32_t>(Shape{}, {1});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_of_shape_null_node) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/constant_of_shape_null_node.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_expected_output<int32_t>(Shape{}, {1});
+    test_case.run();
 }

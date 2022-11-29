@@ -26,6 +26,8 @@ ParamsKey ReverseKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableAllInputLayout();
     k.EnableAllOutputLayout();
+    k.EnableTensorOffset();
+    k.EnableTensorPitches();
     k.EnableBatching();
     k.EnableDifferentTypes();
     return k;

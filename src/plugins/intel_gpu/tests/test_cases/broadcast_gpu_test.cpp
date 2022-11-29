@@ -9,6 +9,8 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/broadcast.hpp>
 
+#include "broadcast_inst.h"
+
 #include <cstddef>
 
 using namespace cldnn;
@@ -27,8 +29,8 @@ void start_broadcast_test(format cldnn_format, data_types cldnn_data_type, std::
     size_t output_data_size = accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>());
     EXPECT_GE(output_data_size, (size_t)1);
     std::vector<T> output_data(output_data_size);
-    ngraph::runtime::reference::broadcast(reinterpret_cast<const char*>(input_data.data()), reinterpret_cast<char*>(output_data.data()), 
-                                          ov::Shape(input_shape.begin(), input_shape.end()), ov::Shape(output_shape.begin(), output_shape.end()), 
+    ngraph::runtime::reference::broadcast(reinterpret_cast<const char*>(input_data.data()), reinterpret_cast<char*>(output_data.data()),
+                                          ov::Shape(input_shape.begin(), input_shape.end()), ov::Shape(output_shape.begin(), output_shape.end()),
                                           ov::AxisSet(broadcast_axes), sizeof(T));
 
     EXPECT_EQ(output_data.size(), accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>()));
@@ -80,10 +82,74 @@ void start_broadcast_test(format cldnn_format, data_types cldnn_data_type, std::
         }
     }
 }
+template<typename T>
+void start_broadcast_test_dynamic(format input_format,
+                                  data_types input_data_type,
+                                  ov::Shape output_shape,
+                                  ov::Shape input_data_shape,
+                                  ov::AxisSet broadcast_axes) {
+    size_t input_data_size = accumulate(input_data_shape.rbegin(), input_data_shape.rend(), (size_t)1, std::multiplies<size_t>());
+    EXPECT_GE(input_data_size, (size_t)1);
+    std::vector<T> input_data = {};
+    for (size_t i = 1; i <= input_data_size; ++i) {
+        input_data.push_back((T)i);
+    }
+
+    size_t output_data_size = accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>());
+    EXPECT_GE(output_data_size, (size_t)1);
+    std::vector<T> output_data(output_data_size);
+    ngraph::runtime::reference::broadcast(reinterpret_cast<const char*>(input_data.data()), reinterpret_cast<char*>(output_data.data()),
+                                          ov::Shape(input_data_shape.begin(), input_data_shape.end()), ov::Shape(output_shape.begin(), output_shape.end()),
+                                          ov::AxisSet(broadcast_axes), sizeof(T));
+
+    EXPECT_EQ(output_data.size(), accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>()));
+
+    int64_t input_rank = input_data_shape.size();
+    ASSERT_EQ(input_rank, broadcast_axes.size());
+    auto fmt = format::get_default_format(input_rank);
+
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ov::PartialShape(input_data_shape), input_data_type, fmt});
+
+    auto in_layout = layout(ov::PartialShape::dynamic(input_rank), input_data_type, fmt);
+    auto target_shape_layout = layout(ov::PartialShape{input_rank}, data_types::i32, fmt);
+    auto target_shape_mem = engine.allocate_memory(target_shape_layout);
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(input_layout("target_shape", target_shape_layout));
+    topology.add(reorder("reorder", "input", input_format, input_data_type));
+    topology.add(broadcast("broadcast", "reorder", "target_shape", ov::AxisSet(broadcast_axes)));
+    topology.add(reorder("output", "broadcast", fmt, input_data_type));
+
+    build_options bo;
+    bo.set_option(build_option::allow_new_shape_infer(true));
+
+    set_values(input, input_data);
+    std::vector<int32_t> target_shape_data(output_shape.begin(), output_shape.end());
+    set_values<int32_t>(target_shape_mem, target_shape_data);
+
+    network network(engine, topology, bo);
+    network.set_input_data("input", input);
+    network.set_input_data("target_shape", target_shape_mem);
+
+    auto inst = network.get_primitive("broadcast");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("output").get_memory();
+    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+
+    for (size_t i = 0; i < output_data_size; ++i) {
+        EXPECT_EQ(output_ptr[i], output_data[i]);
+    }
+}
 
 template<typename T>
 void start_broadcast_test_5d(format cldnn_format, data_types cldnn_data_type, std::vector<size_t> output_shape,
-                             std::vector<size_t> input_shape, std::vector<size_t> broadcast_axes)
+                             std::vector<size_t> input_shape, std::vector<size_t> broadcast_axes, bool is_caching_test=false)
 {
     size_t input_data_size = accumulate(input_shape.rbegin(), input_shape.rend(), (size_t)1, std::multiplies<size_t>());
     EXPECT_GE(input_data_size, (size_t)1);
@@ -95,8 +161,8 @@ void start_broadcast_test_5d(format cldnn_format, data_types cldnn_data_type, st
     size_t output_data_size = accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>());
     EXPECT_GE(output_data_size, (size_t)1);
     std::vector<T> output_data(output_data_size);
-    ngraph::runtime::reference::broadcast(reinterpret_cast<const char*>(input_data.data()), reinterpret_cast<char*>(output_data.data()), 
-                                          ov::Shape(input_shape.begin(), input_shape.end()), ov::Shape(output_shape.begin(), output_shape.end()), 
+    ngraph::runtime::reference::broadcast(reinterpret_cast<const char*>(input_data.data()), reinterpret_cast<char*>(output_data.data()),
+                                          ov::Shape(input_shape.begin(), input_shape.end()), ov::Shape(output_shape.begin(), output_shape.end()),
                                           ov::AxisSet(broadcast_axes), sizeof(T));
 
     EXPECT_EQ(output_data.size(), accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>()));
@@ -130,9 +196,27 @@ void start_broadcast_test_5d(format cldnn_format, data_types cldnn_data_type, st
 
     set_values(input, input_data);
 
-    network network(engine, topology);
-    network.set_input_data("input", input);
-    auto outputs = network.execute();
+    cldnn::network::ptr network;
+
+    if (is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topology);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+        }
+    } else {
+        network = std::make_shared<cldnn::network>(engine, topology);
+    }
+
+    network->set_input_data("input", input);
+    auto outputs = network->execute();
 
     auto output = outputs.at("output").get_memory();
     cldnn::mem_lock<T> output_ptr(output, get_test_stream());
@@ -177,6 +261,19 @@ TEST(broadcast_gpu_uint8_t, bfyx_1_to_4x5_w_b_axes_0x1) {
 
 TEST(broadcast_gpu_int64_t, bfyx_1_to_4x5_w_b_axes_0x1) {
     start_broadcast_test<int64_t>(format::bfyx, data_types::i64, {4, 5}, {1}, {0, 1});
+}
+
+// dynamic kernel
+TEST(broadcast_gpu_float, bfyx_1_to_4x5_w_b_axes_0x1_dynamic) {
+    start_broadcast_test_dynamic<float>(format::bfyx, data_types::f32, {4, 5}, {1, 1}, {0, 1});
+}
+
+TEST(broadcast_gpu_uint8_t, bfyx_1_to_4x5_w_b_axes_0x1_dynamic) {
+    start_broadcast_test_dynamic<uint8_t>(format::bfyx, data_types::u8, {4, 5}, {1, 1}, {0, 1});
+}
+
+TEST(broadcast_gpu_int64_t, bfyx_1_to_4x5_w_b_axes_0x1_dynamic) {
+    start_broadcast_test_dynamic<int64_t>(format::bfyx, data_types::i64, {4, 5}, {1, 1}, {0, 1});
 }
 
 
@@ -2090,4 +2187,8 @@ TEST(broadcast_gpu_int8_t, b_fs_zyx_fsv32_1_to_2x3x4x5x2_w_b_axes_0x1x2x3x4) {
 
 TEST(broadcast_gpu_fp16, b_fs_zyx_fsv16_1_to_2x3x4x5x2_w_b_axes_0x1x2x3x4) {
     start_broadcast_test_5d<FLOAT16>(format::b_fs_zyx_fsv16, data_types::f16, { 2, 3, 4, 5, 2 }, { 1 }, { 0, 1, 2, 3, 4 });
+}
+
+TEST(export_import_broadcast_gpu_fp16, b_fs_zyx_fsv16_1_to_2x3x4x5x2_w_b_axes_0x1x2x3x4) {
+    start_broadcast_test_5d<FLOAT16>(format::b_fs_zyx_fsv16, data_types::f16, { 2, 3, 4, 5, 2 }, { 1 }, { 0, 1, 2, 3, 4 }, true);
 }

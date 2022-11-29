@@ -163,13 +163,6 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v4::CTCLoss> &
                                        "CTCLossGraph");
 }
 
-std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::Clamp> &node) {
-    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{10, 120, 28});
-    const auto clampNode = std::make_shared<ov::op::v0::Clamp>(data, 0.0, 2.1);
-    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(clampNode)};
-    return std::make_shared<ov::Model>(results, ov::ParameterVector{data}, "ClampGraph");
-}
-
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::Concat> &node) {
     const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 3, 4}, {2, 7, 4}, {2, 2, 4}});
     const auto concatNode = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{params[0], params[1], params[2]}, 1);
@@ -266,13 +259,6 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v7::Einsum> &n
     const auto einsumNode = std::make_shared<ov::op::v7::Einsum>(ov::OutputVector{params.front(), params.back()}, "i,i->");
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(einsumNode)};
     return std::make_shared<ov::Model>(results, params, "EinsumGraph");
-}
-
-std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::Elu> &node) {
-    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{3, 2}});
-    const auto elu = std::make_shared<ov::op::v0::Elu>(params[0], 0.5f);
-    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(elu)};
-    return std::make_shared<ov::Model>(results, params, "ElueGraph");
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v3::EmbeddingSegmentsSum> &node) {
@@ -394,13 +380,6 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::FakeQuanti
     return std::make_shared<ov::Model>(results, params, "FakeQuantize");
 }
 
-std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::GRN> &node) {
-    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{3, 4}});
-    const auto grn = std::make_shared<ov::op::v0::GRN>(params[0], 1e-6);
-    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(grn)};
-    return std::make_shared<ov::Model>(results, params, "GRN");
-}
-
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v5::GRUSequence> &node) {
     const auto params =
         ngraph::builder::makeDynamicParams({ov::element::f32, ov::element::f32, ov::element::i64},
@@ -434,20 +413,6 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v1::GatherTree
     const auto gather_tree = std::make_shared<ov::op::v1::GatherTree>(params[0], params[1], params[2], params[3]);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(gather_tree)};
     return std::make_shared<ov::Model>(results, params, "GatherTree");
-}
-
-std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::Gelu> &node) {
-    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{8}});
-    const auto gelu = std::make_shared<ov::op::v0::Gelu>(params[0]);
-    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(gelu)};
-    return std::make_shared<ov::Model>(results, params, "Gelu");
-}
-
-std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v7::Gelu> &node) {
-    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{8}});
-    const auto gelu = std::make_shared<ov::op::v7::Gelu>(params[0]);
-    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(gelu)};
-    return std::make_shared<ov::Model>(results, params, "Gelu");
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v1::GroupConvolution> &node) {
@@ -609,13 +574,6 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::MatMul> &n
     const auto matmul = std::make_shared<ov::op::v0::MatMul>(params[0], params[1], false, false);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(matmul)};
     return std::make_shared<ov::Model>(results, params, "MatMul-1");
-}
-
-std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v4::Mish> &node) {
-    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 2}});
-    const auto mish = std::make_shared<ov::op::v4::Mish>(params[0]);
-    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(mish)};
-    return std::make_shared<ov::Model>(results, params, "Mish-4");
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v1::NonMaxSuppression> &node) {
@@ -964,13 +922,6 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v7::Roll> &nod
     return std::make_shared<ov::Model>(results, params, "RollGraph");
 }
 
-std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v5::Round> &node) {
-    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{10}});
-    auto Node = std::make_shared<ov::op::v5::Round>(params.at(0), op::v5::Round::RoundMode::HALF_TO_EVEN);
-    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(Node)};
-    return std::make_shared<ov::Model>(results, params, "RoundGraph");
-}
-
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v3::ScatterElementsUpdate> &node) {
     const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 2}, {2, 2}});
     const auto indices = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {2, 2}, {1, 1, 0, 0});
@@ -1027,20 +978,6 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v8::Slice> &no
     auto Node = std::make_shared<ov::op::v8::Slice>(params.at(0), start, stop, step, axes);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(Node)};
     return std::make_shared<ov::Model>(results, params, "SliceGraph");
-}
-
-std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v4::SoftPlus> &node) {
-    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{4, 4}});
-    auto Node = std::make_shared<ov::op::v4::SoftPlus>(params.at(0));
-    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(Node)};
-    return std::make_shared<ov::Model>(results, params, "SoftPlusGraph");
-}
-
-std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v9::SoftSign> &node) {
-    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{4, 4}});
-    auto Node = std::make_shared<ov::op::v9::SoftSign>(params.at(0));
-    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(Node)};
-    return std::make_shared<ov::Model>(results, params, "SoftSignGraph");
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v1::Softmax> &node) {
@@ -1184,6 +1121,35 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v9::GridSample
     return std::make_shared<ov::Model>(results, ov::ParameterVector{data, grid}, "GridSampleGraph");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v10::Unique>& node) {
+    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 10, 10});
+    const auto axis = ov::op::v0::Constant::create(element::i32, Shape{}, {-1});
+    const auto unique = std::make_shared<ov::op::v10::Unique>(data, axis);
+    return std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(unique)},
+                                       ov::ParameterVector{data}, "UniqueGraph");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v10::IsFinite> &node) {
+    const auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2});
+    auto is_finite = std::make_shared<ov::op::v10::IsFinite>(param);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(is_finite)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{param}, "is_finite_graph");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v10::IsInf> &node) {
+    const auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2});
+    auto is_finite = std::make_shared<ov::op::v10::IsInf>(param);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(is_finite)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{param}, "is_inf_graph");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v10::IsNaN> &node) {
+    const auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2});
+    auto is_finite = std::make_shared<ov::op::v10::IsNaN>(param);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(is_finite)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{param}, "is_nan_graph");
+}
+
 std::shared_ptr<ov::Model> generateArithmeticReductionKeepDims(const std::shared_ptr<ov::op::Op> &node) {
     const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{3, 3});
     const auto axes = ov::op::v0::Constant::create(ov::element::i32, {1}, {1});
@@ -1298,28 +1264,40 @@ std::shared_ptr<ov::Model> generateUnaryEltwise(const std::shared_ptr<ov::op::Op
         eltwiseNode = std::make_shared<ov::op::v3::Atanh>(param);
     } else if (ov::is_type<ov::op::v0::Ceiling>(node)) {
         eltwiseNode = std::make_shared<ov::op::v0::Ceiling>(param);
+    } else if (ov::is_type<ov::op::v0::Clamp>(node)) {
+        eltwiseNode = std::make_shared<ov::op::v0::Clamp>(param, 0.0, 2.1);
     } else if (ov::is_type<ov::op::v0::Cos>(node)) {
         eltwiseNode = std::make_shared<ov::op::v0::Cos>(param);
     } else if (ov::is_type<ov::op::v0::Cosh>(node)) {
         eltwiseNode = std::make_shared<ov::op::v0::Cosh>(param);
+    } else if (ov::is_type<ov::op::v0::Elu>(node)) {
+        eltwiseNode = std::make_shared<ov::op::v0::Elu>(param, 0.5f);
     } else if (ov::is_type<ov::op::v0::Erf>(node)) {
         eltwiseNode = std::make_shared<ov::op::v0::Erf>(param);
     } else if (ov::is_type<ov::op::v0::Exp>(node)) {
         eltwiseNode = std::make_shared<ov::op::v0::Exp>(param);
     } else if (ov::is_type<ov::op::v0::Floor>(node)) {
         eltwiseNode = std::make_shared<ov::op::v0::Floor>(param);
+    } else if (ov::is_type<ov::op::v0::Gelu>(node)) {
+        eltwiseNode = std::make_shared<ov::op::v0::Gelu>(param);
+    } else if (ov::is_type<ov::op::v7::Gelu>(node)) {
+        eltwiseNode = std::make_shared<ov::op::v7::Gelu>(param);
+    } else if (ov::is_type<ov::op::v0::GRN>(node)) {
+        eltwiseNode = std::make_shared<ov::op::v0::GRN>(param, 1e-6);
     } else if (ov::is_type<ov::op::v5::HSigmoid>(node)) {
         eltwiseNode = std::make_shared<ov::op::v5::HSigmoid>(param);
     } else if (ov::is_type<ov::op::v4::HSwish>(node)) {
         eltwiseNode = std::make_shared<ov::op::v4::HSwish>(param);
-    } else if (ov::is_type<ov::op::v10::IsNaN>(node)) {
-        eltwiseNode = std::make_shared<ov::op::v10::IsNaN>(param);
     } else if (ov::is_type<ov::op::v0::Log>(node)) {
         eltwiseNode = std::make_shared<ov::op::v0::Log>(param);
+    } else if (ov::is_type<ov::op::v4::Mish>(node)) {
+        eltwiseNode = std::make_shared<ov::op::v4::Mish>(param);
     } else if (ov::is_type<ov::op::v0::Negative>(node)) {
         eltwiseNode = std::make_shared<ov::op::v0::Negative>(param);
     } else if (ov::is_type<ov::op::v0::Relu>(node)) {
         eltwiseNode = std::make_shared<ov::op::v0::Relu>(param);
+    } else if (ov::is_type<ov::op::v5::Round>(node)) {
+        eltwiseNode = std::make_shared<ov::op::v5::Round>(param, op::v5::Round::RoundMode::HALF_TO_EVEN);
     } else if (ov::is_type<ov::op::v0::Sigmoid>(node)) {
         eltwiseNode = std::make_shared<ov::op::v0::Sigmoid>(param);
     } else if (ov::is_type<ov::op::v0::Sign>(node)) {
@@ -1328,6 +1306,10 @@ std::shared_ptr<ov::Model> generateUnaryEltwise(const std::shared_ptr<ov::op::Op
         eltwiseNode = std::make_shared<ov::op::v0::Sin>(param);
     } else if (ov::is_type<ov::op::v0::Sinh>(node)) {
         eltwiseNode = std::make_shared<ov::op::v0::Sinh>(param);
+    } else if (ov::is_type<ov::op::v9::SoftSign>(node)) {
+        eltwiseNode = std::make_shared<ov::op::v9::SoftSign>(param);
+    } else if (ov::is_type<ov::op::v4::SoftPlus>(node)) {
+        eltwiseNode = std::make_shared<ov::op::v4::SoftPlus>(param);
     } else if (ov::is_type<ov::op::v0::Sqrt>(node)) {
         eltwiseNode = std::make_shared<ov::op::v0::Sqrt>(param);
     } else if (ov::is_type<ov::op::v0::Tan>(node)) {
@@ -1863,6 +1845,7 @@ OpGenerator getOpGeneratorMap() {
 #include "openvino/opsets/opset7_tbl.hpp"
 #include "openvino/opsets/opset8_tbl.hpp"
 #include "openvino/opsets/opset9_tbl.hpp"
+#include "openvino/opsets/opset10_tbl.hpp"
 #undef _OPENVINO_OP_REG
     };
     return opGeneratorMap;

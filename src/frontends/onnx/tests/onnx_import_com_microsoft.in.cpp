@@ -1161,6 +1161,129 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_fusedgemm_abc) {
     test_case.run_with_tolerance_as_fp(1e-6);
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_hard_sigmoid) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/com.microsoft/fused_conv_hard_sigmoid.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+
+    const std::vector<float> X{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f};
+    const std::vector<float> W{0.125f, 0.125f, 0.125f, 0.125f, -0.125f, -0.125f, -0.125f, -0.125f};
+    const std::vector<float> expected{0.8f, 0.9f, 1.0f, 1.0f, 0.2f, 0.1f, 0.0f, 0.0f};
+
+    test_case.add_input<float>(Shape{1, 1, 3, 3}, X);
+    test_case.add_input<float>(Shape{2, 1, 2, 2}, W);
+    test_case.add_expected_output<float>(Shape{1, 2, 2, 2}, expected);
+    test_case.run_with_tolerance_as_fp();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_relu) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/com.microsoft/fused_conv_relu.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+
+    const std::vector<float> X{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f};
+    const std::vector<float> W{1.0f, 1.0f, 1.0f, 1.0f, -1.0f, -1.0f, -1.0f, -1.0f};
+    const std::vector<float> expected{12.0f, 16.0f, 24.0f, 28.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+
+    test_case.add_input<float>(Shape{1, 1, 3, 3}, X);
+    test_case.add_input<float>(Shape{2, 1, 2, 2}, W);
+    test_case.add_expected_output<float>(Shape{1, 2, 2, 2}, expected);
+    test_case.run_with_tolerance_as_fp();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_tanh) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/com.microsoft/fused_conv_tanh.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+
+    const std::vector<float> X{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f};
+    const std::vector<float> W{1.0f, 1.0f, 1.0f, 1.0f, -1.0f, -2.0f, -1.0f, -2.0f};
+    const std::vector<float> expected{1.f, 1.f, 1.f, 1.f, -1.f, -1.f, -1.f, -1.f};
+
+    test_case.add_input<float>(Shape{1, 1, 3, 3}, X);
+    test_case.add_input<float>(Shape{2, 1, 2, 2}, W);
+    test_case.add_expected_output<float>(Shape{1, 2, 2, 2}, expected);
+    test_case.run_with_tolerance_as_fp();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_sigmoid) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/com.microsoft/fused_conv_sigmoid.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+
+    const std::vector<float> X{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f};
+    const std::vector<float> W{1.0f, 1.0f, 5.0f, 1.0f, -1.0f, -2.0f, -5.0f, -2.0f};
+    const std::vector<float> expected{1.f, 1.f, 1.f, 1.f, 0.f, 0.f, 0.f, 0.f};
+
+    test_case.add_input<float>(Shape{1, 1, 3, 3}, X);
+    test_case.add_input<float>(Shape{2, 1, 2, 2}, W);
+    test_case.add_expected_output<float>(Shape{1, 2, 2, 2}, expected);
+    test_case.run_with_tolerance_as_fp();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_clip) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/com.microsoft/fused_conv_clip.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+
+    const std::vector<float> X{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f};
+    const std::vector<float> W{1.0f, 1.0f, 5.0f, 1.0f, -1.0f, -2.0f, -5.0f, -2.0f};
+    const std::vector<float> expected{8.f, 8.f, 8.f, 8.f, 2.f, 2.f, 2.f, 2.f};
+
+    test_case.add_input<float>(Shape{1, 1, 3, 3}, X);
+    test_case.add_input<float>(Shape{2, 1, 2, 2}, W);
+    test_case.add_expected_output<float>(Shape{1, 2, 2, 2}, expected);
+    test_case.run_with_tolerance_as_fp();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_leaky_relu) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/com.microsoft/fused_conv_leaky_relu.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+
+    const std::vector<float> X{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f};
+    const std::vector<float> W{1.0f, 1.0f, 1.0f, 1.0f, -1.0f, -1.0f, -1.0f, -1.0f};
+    const std::vector<float> expected{12.0f, 16.0f, 24.0f, 28.0f, -1.2f, -1.6f, -2.4f, -2.8f};
+
+    test_case.add_input<float>(Shape{1, 1, 3, 3}, X);
+    test_case.add_input<float>(Shape{2, 1, 2, 2}, W);
+    test_case.add_expected_output<float>(Shape{1, 2, 2, 2}, expected);
+    test_case.run_with_tolerance_as_fp();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_relu_z_input) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/com.microsoft/fused_conv_relu_z_input.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+
+    const std::vector<float> X{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f};
+    const std::vector<float> W{1.0f, -1.0f, 1.0f, -1.0f, 1.0f, -1.0f, 1.0f, -1.0f};
+    const std::vector<float> B{1.0f, -1.0f};
+    const std::vector<float> Z{0.0f, -10.0f, 0.0f, 10.0f, 0.0f, -10.0f, 0.0f, 10.0f};
+    const std::vector<float> expected{.0f, .0f, .0f, 9.0f, .0f, .0f, .0f, 7.0f};
+
+    test_case.add_input<float>(Shape{1, 1, 3, 3}, X);
+    test_case.add_input<float>(Shape{2, 1, 2, 2}, W);
+    test_case.add_input<float>(Shape{2}, B);
+    test_case.add_input<float>(Shape{1, 2, 2, 2}, Z);
+    test_case.add_expected_output<float>(Shape{1, 2, 2, 2}, expected);
+    test_case.run_with_tolerance_as_fp();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_com_microsoft_trilu_lower) {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,

@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
+import io
 import logging as log
 from typing import List
 import sys
@@ -27,7 +28,11 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     :param: moc_front_end: Loaded Frontend for converting input model
     :return: converted nGraph function ready for serialization
     """
-    input_model = moc_front_end.load(argv.input_model)
+    if isinstance(argv.input_model, io.BytesIO):
+        raise Exception("ONNX frontend does not support input model as BytesIO object. "
+                        "Please use use_legacy_frontend=True to convert the model.")
+    else:
+        input_model = moc_front_end.load(argv.input_model)
 
     user_shapes, outputs, freeze_placeholder = fe_user_data_repack(
         input_model, argv.placeholder_shapes, argv.placeholder_data_types,
@@ -80,6 +85,9 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         inputs_equal, outputs_equal))
 
     def create_target_input_shapes(new_input_places):
+        if isinstance(new_input_places, list) and len(new_input_places) > 1 \
+                and isinstance(new_input_places[0], tuple):
+            return new_input_places
         new_input_place_names = [x.get_names()[0] for x in new_input_places]
         shapes = [shape for shape in argv.placeholder_shapes.values()]
         return dict(zip(new_input_place_names, shapes))
@@ -120,7 +128,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         for user_shape in user_shapes:
             if user_shape.get('shape') is not None:
                 input_model.set_partial_shape(
-                    user_shape['node'], partial_shape_from_tuple(user_shape['shape']))
+                    user_shape['node'], user_shape['shape'])
             if user_shape.get('data_type') is not None:
                 data_type = get_element_type(user_shape['data_type'])
                 log.debug('Set data type: {}'.format(data_type))
@@ -132,8 +140,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
                 if node.get('input_name') == name:
                     place = node['node']
                     if node.get('shape'):
-                        shape = [int(val) for val in node['shape']]
-                        input_model.set_partial_shape(place, PartialShape(shape))
+                        input_model.set_partial_shape(place, node['shape'])
                     if node.get('data_type'):
                         value = np.array(value, dtype=node['data_type'])
                         input_model.set_element_type(place, Type(node['data_type']))
@@ -166,16 +173,3 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
 
     ngraph_function = moc_front_end.convert(input_model)
     return ngraph_function
-
-
-def partial_shape_from_tuple(shape: tuple):
-    new_shape = []
-    for dim in shape:
-        if isinstance(dim, tuple):
-            assert len(dim) == 2, "Incorrect boundaries of dimension {} in shape {}".format(dim, shape)
-            assert dim[0] >= 0, "Incorrect min value of dimension {} in shape".format(dim, shape)
-            new_shape.append(Dimension(dim[0], dim[1]))
-        else:
-            assert isinstance(dim, np.int64), "Incorrect type of dimension {} in shape".format(dim, shape)
-            new_shape.append(Dimension(dim))
-    return PartialShape(new_shape)
