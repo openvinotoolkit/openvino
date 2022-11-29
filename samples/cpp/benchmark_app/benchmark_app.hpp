@@ -170,8 +170,29 @@ static const char use_device_mem_message[] =
 // @brief message for load config option
 static const char load_config_message[] =
     "Optional. Path to JSON file to load custom IE parameters."
-    " Please note, command line parameters have higher priority then parameters from configuration "
-    "file.";
+    " Please note, command line parameters have higher priority then parameters from configuration file.\n"
+    "                              Example 1: a simple JSON file for HW device with primary properties.\n"
+    "                                       {\n"
+    "                                            \"CPU\": {\"NUM_STREAMS\": \"3\", \"PERF_COUNT\": \"NO\"}\n"
+    "                                       }\n"
+    "                              Example 2: a simple JSON file for meta device(AUTO/MULTI) with HW device "
+    "properties.\n"
+    "                                       {\n"
+    "                                       	    \"AUTO\": {\n"
+    "                                       	            \"PERFORMANCE_HINT\": \"\",\n"
+    "                                       	            \"PERF_COUNT\": \"NO\",\n"
+    "                                       	            \"DEVICE_PROPERTIES\": {\n"
+    "                                       	            \"CPU\": {\n"
+    "                                       	            	\"INFERENCE_PRECISION_HINT\": \"f32\",\n"
+    "                                       	            	\"NUM_STREAMS\": \"3\"\n"
+    "                                       	            },\n"
+    "                                       	            \"GPU\": {\n"
+    "                                       	            	\"INFERENCE_PRECISION_HINT\": \"f32\",\n"
+    "                                       	            	\"NUM_STREAMS\": \"5\"\n"
+    "                                       	            }\n"
+    "                                       	    	}\n"
+    "                                       	    }\n"
+    "                                       }\n";
 
 // @brief message for dump config option
 static const char dump_config_message[] =
