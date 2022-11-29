@@ -8,6 +8,7 @@
 #include <cstdint>
 
 namespace CPUTestUtils {
+const char* CPUTestsBase::any_type = "any_type";
 
 const char *CPUTestsBase::cpu_fmt2str(cpu_memory_format_t v) {
 #define CASE(_fmt) do { \
@@ -116,6 +117,8 @@ std::string CPUTestsBase::impls2str(const std::vector<std::string> &priority) {
 
 void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, const std::string& nodeType) const {
     if (nodeType.empty()) return;
+
+    ASSERT_TRUE(!selectedType.empty()) << "Node type is not defined.";
     InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
     auto function = execGraphInfo.getFunction();
     CheckPluginRelatedResultsImpl(function, nodeType);
@@ -123,6 +126,8 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
 
 void CPUTestsBase::CheckPluginRelatedResults(const ov::CompiledModel &execNet, const std::string& nodeType) const {
     if (nodeType.empty()) return;
+
+    ASSERT_TRUE(!selectedType.empty()) << "Node type is not defined.";
     auto function = execNet.get_runtime_model();
     CheckPluginRelatedResultsImpl(function, nodeType);
 }
@@ -209,16 +214,15 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
                 ASSERT_EQ(outFmts[i], cpu_str2fmt(actualOutputMemoryFormats[i].c_str()));
             }
 
-            if (!selectedType.empty()) {
-                auto primType = getExecValue(ExecGraphInfoSerialization::IMPL_TYPE);
-                ASSERT_TRUE(primTypeCheck(primType)) << "primType is unexpected: " << primType << " Expected: " << selectedType;
-            }
+            auto primType = getExecValue(ExecGraphInfoSerialization::IMPL_TYPE);
+
+            ASSERT_TRUE(primTypeCheck(primType)) << "primType is unexpected: " << primType << " Expected: " << selectedType;
         }
     }
 }
 
 bool CPUTestsBase::primTypeCheck(std::string primType) const {
-    return selectedType == primType;
+    return selectedType == CPUTestsBase::any_type || selectedType == primType;
 }
 
 std::string CPUTestsBase::getTestCaseName(CPUSpecificParams params) {

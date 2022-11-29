@@ -21,7 +21,7 @@ public:
     void SetUp() override {
         targetDevice = CommonTestUtils::DEVICE_CPU;
         fusedOps = std::vector<std::string>{"FakeQuantize"};
-        std::tie(inFmts, outFmts, priority, selectedType) = CPUSpecificParams{{}, {}, {}, {}};
+        std::tie(inFmts, outFmts, priority, selectedType) = CPUSpecificParams{{}, {}, {}, CPUTestsBase::any_type};
         const auto precision = element::f32;
         const auto input_static_shape = Shape{1, 3, 40, 40};
 
