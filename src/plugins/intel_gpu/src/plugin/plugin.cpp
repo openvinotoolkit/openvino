@@ -21,6 +21,7 @@
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
 #include "intel_gpu/plugin/custom_layer.hpp"
+#include "intel_gpu/plugin/internal_properties.hpp"
 #include "intel_gpu/plugin/itt.hpp"
 #include "gpu/gpu_config.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
@@ -968,21 +969,26 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
     } else if (name == ov::caching_properties) {
         std::vector<ov::PropertyName> cachingProperties;
-        cachingProperties.push_back(ov::PropertyName(uarch_version.name(), PropertyMutability::RO));
-        cachingProperties.push_back(ov::PropertyName(execution_units_count.name(), PropertyMutability::RO));
-        cachingProperties.push_back(ov::PropertyName("GPU_DRIVER_VERSION", PropertyMutability::RO));
+        cachingProperties.push_back(ov::PropertyName(ov::intel_gpu::uarch_version.name(), PropertyMutability::RO));
+        cachingProperties.push_back(ov::PropertyName(ov::intel_gpu::execution_units_count.name(), PropertyMutability::RO));
+        cachingProperties.push_back(ov::PropertyName(ov::intel_gpu::driver_version.name(), PropertyMutability::RO));
+        cachingProperties.push_back(ov::PropertyName(ov::intel_gpu::device_id.name(), PropertyMutability::RO));
         return decltype(ov::caching_properties)::value_type(cachingProperties);
-    } else if (name == "GPU_DRIVER_VERSION") {
-        return device_info.driver_version;
+    } else if (name == ov::intel_gpu::driver_version) {
+        return decltype(ov::intel_gpu::driver_version)::value_type {device_info.driver_version};
+    } else if (name == ov::intel_gpu::device_id) {
+        std::stringstream s;
+        s << "0x" << std::hex << device_info.device_id;
+        return decltype(ov::intel_gpu::device_id)::value_type {s.str()};
     } else if (name == ov::device::architecture) {
         std::stringstream s;
-        s << "GPU.";
+        s << "GPU: ";
         if (device_info.gfx_ver.major == 0 && device_info.gfx_ver.minor == 0) {
             s << device_info.dev_name;
         } else {
-            s << static_cast<int>(device_info.gfx_ver.major) << "."
-              << static_cast<int>(device_info.gfx_ver.minor) << "."
-              << static_cast<int>(device_info.gfx_ver.revision);
+            s << "v" << static_cast<int>(device_info.gfx_ver.major)
+              << "." << static_cast<int>(device_info.gfx_ver.minor)
+              << "." << static_cast<int>(device_info.gfx_ver.revision);
         }
         return decltype(ov::device::architecture)::value_type {s.str()};
     } else {

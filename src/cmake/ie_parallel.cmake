@@ -136,7 +136,7 @@ macro(ov_find_package_tbb)
 
         # WA for oneTBB: it does not define TBB_IMPORTED_TARGETS
         if(TBB_FOUND AND NOT TBB_IMPORTED_TARGETS)
-            foreach(target TBB::tbb TBB::tbbmalloc)
+            foreach(target TBB::tbb TBB::tbbmalloc TBB::tbbbind_2_5)
                 if(TARGET ${target})
                     list(APPEND TBB_IMPORTED_TARGETS ${target})
                 endif()

@@ -2359,7 +2359,7 @@ def test_unique_opset10():
     assert node.get_output_element_type(3) == Type.i64
 
     # Axis default, means flattened result
-    node = ng_opset10.unique(input_node, None, False, "i32")
+    node = ng_opset10.unique(input_node, None, False, "i32", "i32")
 
     assert node.get_type_name() == "Unique"
     assert node.get_sorted() is False
@@ -2373,7 +2373,7 @@ def test_unique_opset10():
     assert node.get_output_element_type(0) == Type.f32
     assert node.get_output_element_type(1) == Type.i32
     assert node.get_output_element_type(2) == Type.i32
-    assert node.get_output_element_type(3) == Type.i64
+    assert node.get_output_element_type(3) == Type.i32
 
     # All arguments default
     node = ng_opset10.unique(input_node)
