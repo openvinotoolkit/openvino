@@ -55,6 +55,31 @@ body {
     border-color: rgb(var(--ost-color-primary));
 }
 
+/* Scrollbox Extension */
+
+.scrollbox table {
+    border-collapse: separate;
+    border-spacing: 0;
+    display: table!important;
+    margin: 0px;
+    width: 100%;
+    height:inherit;
+    overflow-y:scroll;
+ }
+ .scrollbox table thead {
+    position: -webkit-sticky!important;
+    position: sticky!important;
+    top: 0!important;
+ }
+ .scrollbox table th {
+    background: white;
+    position: -webkit-sticky!important;
+    position: sticky!important;
+    top: 0!important;
+    border-top: solid 1px #dee2e6!important;
+    border-bottom: solid 1px #dee2e6!important;
+ }
+
 /* Syntax Highlighting */
 
 code {

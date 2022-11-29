@@ -63,105 +63,113 @@ model_creation_sample lenet.bin GPU
 
 The sample application logs each step in a standard output stream and outputs top-10 inference results.
 
-```
-[ INFO ] OpenVINO Runtime version ......... <version>
-[ INFO ] Build ........... <build>
-[ INFO ]
-[ INFO ] Device info:
-[ INFO ] GPU
-[ INFO ] Intel GPU plugin version ......... <version>
-[ INFO ] Build ........... <build>
-[ INFO ]
-[ INFO ]
-[ INFO ] Create model from weights: lenet.bin
-[ INFO ] model name: lenet
-[ INFO ]     inputs
-[ INFO ]         input name: NONE
-[ INFO ]         input type: f32
-[ INFO ]         input shape: {64, 1, 28, 28}
-[ INFO ]     outputs
-[ INFO ]         output name: output_tensor
-[ INFO ]         output type: f32
-[ INFO ]         output shape: {64, 10}
-[ INFO ] Batch size is 10
-[ INFO ] model name: lenet
-[ INFO ]     inputs
-[ INFO ]         input name: NONE
-[ INFO ]         input type: u8
-[ INFO ]         input shape: {10, 28, 28, 1}
-[ INFO ]     outputs
-[ INFO ]         output name: output_tensor
-[ INFO ]         output type: f32
-[ INFO ]         output shape: {10, 10}
-[ INFO ] Compiling a model for the GPU device
-[ INFO ] Create infer request
-[ INFO ] Combine images in batch and set to input tensor
-[ INFO ] Start sync inference
-[ INFO ] Processing output tensor
+@sphinxdirective
 
-Top 1 results:
+.. scrollbox::
+   :height:300px
+   :bar:0px
 
-Image 0
+   .. ref-code-block:: cpp
+   
+      [ INFO ] OpenVINO Runtime version ......... <version>
+      [ INFO ] Build ........... <build>
+      [ INFO ]
+      [ INFO ] Device info:
+      [ INFO ] GPU
+      [ INFO ] Intel GPU plugin version ......... <version>
+      [ INFO ] Build ........... <build>
+      [ INFO ]
+      [ INFO ]
+      [ INFO ] Create model from weights: lenet.bin
+      [ INFO ] model name: lenet
+      [ INFO ]     inputs
+      [ INFO ]         input name: NONE
+      [ INFO ]         input type: f32
+      [ INFO ]         input shape: {64, 1, 28, 28}
+      [ INFO ]     outputs
+      [ INFO ]         output name: output_tensor
+      [ INFO ]         output type: f32
+      [ INFO ]         output shape: {64, 10}
+      [ INFO ] Batch size is 10
+      [ INFO ] model name: lenet
+      [ INFO ]     inputs
+      [ INFO ]         input name: NONE
+      [ INFO ]         input type: u8
+      [ INFO ]         input shape: {10, 28, 28, 1}
+      [ INFO ]     outputs
+      [ INFO ]         output name: output_tensor
+      [ INFO ]         output type: f32
+      [ INFO ]         output shape: {10, 10}
+      [ INFO ] Compiling a model for the GPU device
+      [ INFO ] Create infer request
+      [ INFO ] Combine images in batch and set to input tensor
+      [ INFO ] Start sync inference
+      [ INFO ] Processing output tensor
+   
+      Top 1 results:
+   
+      Image 0
+   
+      classid probability label
+      ------- ----------- -----
+      0       1.0000000   0
+   
+      Image 1
+   
+      classid probability label
+      ------- ----------- -----
+      1       1.0000000   1
+   
+      Image 2
+   
+      classid probability label
+      ------- ----------- -----
+      2       1.0000000   2
+   
+      Image 3
+   
+      classid probability label
+      ------- ----------- -----
+      3       1.0000000   3
+   
+      Image 4
+   
+      classid probability label
+      ------- ----------- -----
+      4       1.0000000   4
+   
+      Image 5
+   
+      classid probability label
+      ------- ----------- -----
+      5       1.0000000   5
+   
+      Image 6
+   
+      classid probability label
+      ------- ----------- -----
+      6       1.0000000   6
+   
+      Image 7
+   
+      classid probability label
+      ------- ----------- -----
+      7       1.0000000   7
+   
+      Image 8
+   
+      classid probability label
+      ------- ----------- -----
+      8       1.0000000   8
+   
+      Image 9
+   
+      classid probability label
+      ------- ----------- -----
+      9       1.0000000   9
 
-classid probability label
-------- ----------- -----
-0       1.0000000   0
 
-Image 1
-
-classid probability label
-------- ----------- -----
-1       1.0000000   1
-
-Image 2
-
-classid probability label
-------- ----------- -----
-2       1.0000000   2
-
-Image 3
-
-classid probability label
-------- ----------- -----
-3       1.0000000   3
-
-Image 4
-
-classid probability label
-------- ----------- -----
-4       1.0000000   4
-
-Image 5
-
-classid probability label
-------- ----------- -----
-5       1.0000000   5
-
-Image 6
-
-classid probability label
-------- ----------- -----
-6       1.0000000   6
-
-Image 7
-
-classid probability label
-------- ----------- -----
-7       1.0000000   7
-
-Image 8
-
-classid probability label
-------- ----------- -----
-8       1.0000000   8
-
-Image 9
-
-classid probability label
-------- ----------- -----
-9       1.0000000   9
-
-```
+@endsphinxdirective
 
 ## Deprecation Notice
 
