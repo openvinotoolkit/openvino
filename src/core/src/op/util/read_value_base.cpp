@@ -3,4 +3,3 @@
 //
 
 #include "openvino/op/util/read_value_base.hpp"
-

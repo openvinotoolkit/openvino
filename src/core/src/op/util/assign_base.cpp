@@ -3,4 +3,3 @@
 //
 
 #include "openvino/op/util/assign_base.hpp"
-
