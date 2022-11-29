@@ -121,7 +121,7 @@ ov_rpm_specific_settings()
 
 # needed to add triggers for packages with libraries
 set(def_triggers "${OpenVINO_BINARY_DIR}/_CPack_Packages/triggers")
-set(triggers_content "-p /sbin/ldconfig\n")
+set(triggers_content "# /bin/sh -p\n/sbin/ldconfig\n")
 file(WRITE "${def_triggers}" "${triggers_content}")
 
 #

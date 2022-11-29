@@ -97,38 +97,36 @@ if(NOT DEFINED CMAKE_CXX_STANDARD)
 endif()
 ####################################
 
-if(NOT TARGET gflags)
-    if(APPLE OR DEFINED ENV{CONDA_PREFIX} OR DEFINED ENV{HOMEBREW_PREFIX})
-        # conda-forge and brew contains only shared version of gflags
-        if(ENV{CONDA_PREFIX} AND WIN32)
-            # conda-forge windows compiled as gflags
-            find_package(gflags QUIET COMPONENTS shared)
-        else()
-            find_package(gflags QUIET COMPONENTS nothreads_shared)
-        endif()
-    else()
-        find_package(gflags QUIET COMPONENTS nothreads_static)
-    endif()
+if(TARGET gflags)
+    set(GFLAGS_TARGET gflags)
+else()
+    foreach(component nothreads_shared nothreads_static shared static)
+        find_package(gflags QUIET OPTIONAL_COMPONENTS ${component})
 
-    if(gflags_FOUND)
-        if(NOT TARGET ${GFLAGS_TARGET})
-            if(TARGET gflags_nothreads-static)
-                # arm cross-compilation
-                set(GFLAGS_TARGET gflags_nothreads-static)
+        if(gflags_FOUND)
+            if(TARGET ${GFLAGS_TARGET})
+                # nothing
             elseif(TARGET gflags_nothreads-shared)
-                # centos/rhel8
-                set(GFLAGS_TARGET gflags_nothreads-shared)    
+                # gflags shared case for CentOS/RHEL/Fedora
+                set_target_properties(gflags_nothreads-shared PROPERTIES IMPORTED_GLOBAL ON)
+                add_library(gflags ALIAS gflags_nothreads-shared)
+            elseif(TARGET gflags_nothreads-static)
+                # Debian case
+                set_target_properties(gflags_nothreads-static PROPERTIES IMPORTED_GLOBAL ON)
+                add_library(gflags ALIAS gflags_nothreads-static)
             else()
-                message(FATAL_ERROR "Failed to set GFLAGS_TARGET target")
+                message(FATAL_ERROR "Internal error: failed to find imported target 'gflags' using '${component}' component")
             endif()
+
+            message(STATUS "gflags (${gflags_VERSION}) is found at ${gflags_DIR} using '${component}' component")
+            break()
         endif()
-        message(STATUS "gflags (${gflags_VERSION}) is found at ${gflags_DIR}")
-    elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
+    endforeach()
+
+    if(NOT gflags_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
         add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
         set(GFLAGS_TARGET gflags_nothreads_static)
     endif()
-else()
-    set(GFLAGS_TARGET gflags)
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/utils")
