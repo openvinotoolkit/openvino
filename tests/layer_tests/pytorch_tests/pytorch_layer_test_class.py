@@ -18,6 +18,9 @@ class PytorchLayerTest:
         "float32": Type.f32,
         "int32": Type.i32,
         "int64": Type.i64,
+        "int16": Type.i16,
+        "int8": Type.i8,
+        "uint8": Type.u8
     }
 
     @staticmethod
