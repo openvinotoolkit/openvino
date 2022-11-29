@@ -20,15 +20,14 @@ OutputVector translate_adaptive_avg_pool3d(NodeContext& context) {
     auto input_tensor = context.get_input(0);
     auto given_shape = context.get_input(1);
 
-    auto input_shape = context.mark_node(std::make_shared<opset8::ShapeOf>(input_tensor));
-    auto slice =
+    auto input_shape = context.mark_node(std::make_shared<opset8::ShapeOf>(input_tensor, element::i32));
+    auto shape_begin =
         context.mark_node(std::make_shared<opset8::Slice>(input_shape, const_0, const_neg_3, const_1, const_0));
-    auto shape_begin = context.mark_node(std::make_shared<opset8::Convert>(slice, element::i32));
     auto output_shape = context.mark_node(std::make_shared<opset8::Concat>(OutputVector{shape_begin, given_shape}, 0));
 
     auto tile = context.mark_node(std::make_shared<opset8::Tile>(input_tensor, const_tile_params));
-    auto adaptive_max_pool = context.mark_node(std::make_shared<opset8::AdaptiveAvgPool>(tile, given_shape));
-    auto reshape = context.mark_node(std::make_shared<opset8::Reshape>(adaptive_max_pool, output_shape, false));
+    auto adaptive_avg_pool = context.mark_node(std::make_shared<opset8::AdaptiveAvgPool>(tile, given_shape));
+    auto reshape = context.mark_node(std::make_shared<opset8::Reshape>(adaptive_avg_pool, output_shape, false));
 
     return {reshape};
 };
