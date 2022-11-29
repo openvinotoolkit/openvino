@@ -807,7 +807,7 @@ bool FullyConnected::canBeExecutedInConv1x1() const {
         K = srcDims[inRank - 1];
         N = weightDims[0];
 
-        if (!(M >= 49 && M <= 3136 &&
+        if (!(M >= 2 && M <= 3136 &&
               K >= 96 && K <= 4096 &&
               N >= 96 && N <= K * 4))
             retVal = false;
