@@ -17,6 +17,7 @@ namespace intel_cpu {
 class IShapeInfer {
 public:
     using port_mask_t = uint32_t;
+
 public:
     ~IShapeInfer() = default;
 

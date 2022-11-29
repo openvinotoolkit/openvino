@@ -1501,7 +1501,7 @@ std::vector<VectorDims> Node::shapeInferGeneric(const std::vector<Shape>& shapes
         return shapeInference->infer(input_shapes, input_values);
     }
     catch (const std::runtime_error& exp) {
-        IE_THROW() << "Shape inference of " << getTypeStr()  << " node with name " << getName() << " failed: " << exp.what(); 
+        IE_THROW() << "Shape inference of " << getTypeStr()  << " node with name " << getName() << " failed: " << exp.what();
     }
 }
 
@@ -1526,9 +1526,8 @@ std::vector<VectorDims> Node::shapeInfer() const {
         return shapeInference->infer(input_shapes, input_values);
     }
     catch (const std::runtime_error& exp) {
-        IE_THROW() << "Shape inference of " << getTypeStr()  << " node with name " << getName() << " failed: " << exp.what(); 
+        IE_THROW() << "Shape inference of " << getTypeStr()  << " node with name " << getName() << " failed: " << exp.what();
     }
-    
 }
 
 void Node::updateLastInputDims() {
