@@ -133,11 +133,7 @@ ov::util::FilePath getPluginPath(const std::string& pluginName, bool needAddSuff
 
     // 2. in the openvino.so location
     absFilePath = FileUtils::makePath(ieLibraryPath, pluginPath);
-    if (FileUtils::fileExist(absFilePath))
-        return absFilePath;
-
-    // Failed to find plugin in expected places, so save as is in order to load later
-    return pluginPath;
+    return absFilePath;
 }
 
 template <typename T = ie::Parameter>
