@@ -189,18 +189,15 @@ void setDeviceProperty(ov::Core& core,
     }
 }
 
-void warn_no_batch_for_dynamic(const std::vector<benchmark_app::InputsInfo>& app_inputs_info) {
-    for (const benchmark_app::InputsInfo& inputs : app_inputs_info) {
-        if (!std::any_of(inputs.begin(),
-                         inputs.end(),
-                         [](const std::pair<const std::string, benchmark_app::InputInfo>& info) {
-                             return ov::layout::has_batch(info.second.layout);
-                         })) {
-            slog::warn
-                << "No batch dimension was found, asssuming batch to be 1. Beware: this might affect FPS calculation."
-                << slog::endl;
-            break;
-        }
+void warn_if_no_batch(const benchmark_app::InputsInfo& first_inputs) {
+    if (!std::any_of(first_inputs.begin(),
+                     first_inputs.end(),
+                     [](const std::pair<const std::string, benchmark_app::InputInfo>& info) {
+                         return ov::layout::has_batch(info.second.layout);
+                     })) {
+        slog::warn
+            << "No batch dimension was found, asssuming batch to be 1. Beware: this might affect FPS calculation."
+            << slog::endl;
     }
 }
 }  // namespace
@@ -784,17 +781,9 @@ int main(int argc, char* argv[]) {
 
             topology_name = model->get_friendly_name();
 
-            // Calculate batch size according to provided layout and shapes (static case)
-            if (!isDynamicNetwork && app_inputs_info.size()) {
-                batchSize = get_batch_size(app_inputs_info.front());
-
-                slog::info << "Model batch size: " << batchSize << slog::endl;
-            } else {
-                warn_no_batch_for_dynamic(app_inputs_info);
-                if (batchSize == 0) {
-                    batchSize = 1;
-                }
-            }
+            batchSize = get_batch_size(app_inputs_info.at(0));
+            warn_if_no_batch(app_inputs_info.at(0));
+            slog::info << "Model batch size: " << batchSize << slog::endl;
 
             printInputAndOutputsInfoShort(*model);
             // ----------------- 7. Loading the model to the device

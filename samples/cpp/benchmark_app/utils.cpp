@@ -437,8 +437,6 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
         }
     }
 
-    slog::info << "Model batch size: " << batch_size << slog::endl;
-
     reshape_required = false;
 
     std::map<std::string, int> currentFileCounters;
