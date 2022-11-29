@@ -323,10 +323,14 @@ void prepare_buffer_fusing::run(program& p) {
                          node->get_output_layout().format == format::bfzyx ||
                          node->get_output_layout().format == format::bfwzyx;
         bool no_pad = !node->get_output_layout().data_padding && !node->get_input_layouts().empty() && !node->get_input_layouts()[0].data_padding;
-        if (node->is_type<reshape>() && is_dynamic && is_planar && no_pad && !node->is_output() && node->get_fused_activations_funcs().empty())
-            return false;
+        // The condition below check only output layout as cases like
+        // (dyn_shape) -> reshape -> (static_shape) -> some_static_primitive
+        // may have invalid set_arguments call as output memory of reshape won't be available until reshape primitive is executed
+        if (node->is_type<reshape>() && is_dynamic && is_planar && no_pad && !node->is_output() && node->get_fused_activations_funcs().empty()) {
+            return true;
+        }
 
-        if (is_dynamic || node->is_output() || (!node->get_fused_activations_funcs().empty())) {
+        if (node->is_dynamic() || node->is_output() || (!node->get_fused_activations_funcs().empty())) {
             return false;
         }
         return true;
