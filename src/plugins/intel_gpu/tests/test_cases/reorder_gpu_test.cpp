@@ -14,6 +14,8 @@
 #include "intel_gpu/primitives/resample.hpp"
 #include <intel_gpu/primitives/data.hpp>
 
+#include "reorder_inst.h"
+
 #include <cmath>
 #include <limits>
 
@@ -1214,6 +1216,73 @@ TEST(reorder_gpu_f32, basic_bfyx_to_bfzyx)
     for (int i = 0; i < 16; i++)
     {
         EXPECT_FLOAT_EQ(answers[i], output_ptr[i]);
+    }
+}
+
+TEST(reorder_gpu_f32, dynamic_bfyx_to_bfzyx) {
+    auto& engine = get_test_engine();
+
+    ov::Shape in_shape{ 1, 2, 4, 2 };
+    layout in_layout{ov::PartialShape::dynamic(in_shape.size()), data_types::f16, format::bfyx};
+    auto input = engine.allocate_memory({ov::PartialShape(in_shape), data_types::f16, format::bfyx});
+
+    set_values<FLOAT16>(input, {
+        FLOAT16(1.f), FLOAT16(0.f),
+        FLOAT16(5.f), FLOAT16(1.5f),
+
+        FLOAT16(2.f), FLOAT16(0.f),
+        FLOAT16(6.f), FLOAT16(5.2f),
+
+        FLOAT16(3.f), FLOAT16(0.5f),
+        FLOAT16(7.f), FLOAT16(12.f),
+
+        FLOAT16(4.f), FLOAT16(-0.5f),
+        FLOAT16(8.f), FLOAT16(8.f)
+    });
+
+    topology topology(
+        input_layout("input", in_layout),
+        reorder("reorder", "input", format::bfzyx, data_types::f32));
+
+    build_options options;
+    options.set_option(build_option::optimize_data(true));
+    options.set_option(build_option::allow_new_shape_infer(true));
+    network network(engine, topology, options);
+
+    auto inst = network.get_primitive("reorder");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "reorder");
+
+    auto output = outputs.begin()->second.get_memory();
+    EXPECT_TRUE(output->get_layout().format == format::bfzyx);
+    auto l = output->get_layout();
+    auto expected_shape = ov::PartialShape(in_shape);
+    EXPECT_EQ(l.get_partial_shape(), expected_shape);
+
+    float answers[16] = {
+        1.f, 0.f,
+        5.f, 1.5f,
+
+        2.f, 0.f,
+        6.f, 5.2f,
+
+        3.f, 0.5f,
+        7.f, 12.f,
+
+        4.f, -0.5f,
+        8.f, 8.f
+    };
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    for (int i = 0; i < 16; i++) {
+        ASSERT_NEAR(answers[i], output_ptr[i], 1e-2f);
     }
 }
 

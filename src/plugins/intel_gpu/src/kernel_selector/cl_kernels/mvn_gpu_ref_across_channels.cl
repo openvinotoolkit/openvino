@@ -7,6 +7,7 @@
 
 
 KERNEL (mvn_gpu_ref_across_channels)(
+    OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* restrict output
 #if HAS_FUSED_OPS_DECLS
