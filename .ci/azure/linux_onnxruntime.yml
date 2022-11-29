@@ -92,7 +92,7 @@ jobs:
 
   - script: |
       set -e
-      $(REPO_DIR)/install_build_dependencies.sh
+      sudo -E $(REPO_DIR)/install_build_dependencies.sh
       wget https://www.python.org/ftp/python/"$PYTHON_VERSION"/Python-"$PYTHON_VERSION".tgz
       tar -xzf Python-"$PYTHON_VERSION".tgz
       cd Python-"$PYTHON_VERSION" || exit

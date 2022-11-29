@@ -58,12 +58,22 @@ cldnn::engine& get_test_engine(const cldnn::engine_configuration& configuration)
 #ifdef ENABLE_ONEDNN_FOR_GPU
 cldnn::engine& get_onednn_test_engine();
 #endif
+cldnn::stream_ptr get_test_stream_ptr();
 cldnn::stream& get_test_stream();
 
 template<typename T>
 bool has_node_with_type(cldnn::program& prog) {
     for (auto node : prog.get_processing_order()) {
         if (node->is_type<T>())
+            return true;
+    }
+
+    return false;
+}
+
+inline bool has_node(cldnn::program& prog, primitive_id id) {
+    for (auto node : prog.get_processing_order()) {
+        if (node->id() == id)
             return true;
     }
 
@@ -571,6 +581,25 @@ T div_up(const T a, const U b) {
 
 double default_tolerance(data_types dt);
 
+class membuf : public std::streambuf
+{
+public:
+    membuf() : _pos(0) { }
+
+protected:
+    virtual int_type overflow (int_type c) {
+        _buf.emplace_back(c);
+        return c;
+    }
+
+    virtual int_type uflow() {
+        return (_pos < _buf.size()) ? _buf[_pos++] : EOF;
+    }
+
+private:
+    std::vector<int_type> _buf;
+    size_t _pos;
+};
 // inline void print_bin_blob(cldnn::memory& mem, std::string name)
 // {
 //     auto&& size = mem.get_layout().get_tensor();

@@ -12,10 +12,7 @@
 #include "select_shape_inference.hpp"
 
 namespace cldnn {
-primitive_type_id select::type_id() {
-    static primitive_type_base<select> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(select)
 
 layout select_inst::calc_output_layout(select_node const& node, kernel_impl_params const& impl_param) {
     assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
@@ -28,6 +25,9 @@ layout select_inst::calc_output_layout(select_node const& node, kernel_impl_para
         auto input1_size = impl_param.get_input_layout(1).get_tensor();
         auto input2_size = impl_param.get_input_layout(2).get_tensor();
         output_size = tensor::max(input1_size, input2_size);
+        // Cond input0 also can be broadcasted.
+        auto input0_size = impl_param.get_input_layout(0).get_tensor();
+        output_size = tensor::max(input0_size, output_size);
     }
 
     return layout(in_layout.data_type, in_layout.format, output_size);
@@ -142,6 +142,10 @@ select_inst::typed_primitive_inst(network& network, select_node const& node) : p
         auto dep1_size = deps[1]->get_output_layout().get_tensor();
         auto dep2_size = deps[2]->get_output_layout().get_tensor();
         cldnn::tensor output_tensor = tensor::max(dep1_size, dep2_size);
+        // Cond input0 also can be broadcasted.
+        auto dep0_size = deps[0]->get_output_layout().get_tensor();
+        output_tensor = tensor::max(dep0_size, output_tensor);
+
         auto max_dim_count = output_tensor.raw.size();
 
         for (size_t i = 0; i < deps.size(); i++) {

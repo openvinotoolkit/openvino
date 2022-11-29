@@ -11,6 +11,8 @@
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/data.hpp>
 
+#include "eltwise_inst.h"
+
 using namespace cldnn;
 using namespace ::tests;
 
@@ -1096,6 +1098,119 @@ TEST(eltwise_gpu_f32, logicalXOR_in2_float_out1_int) {
 
     for (size_t i = 0; i < answers.size(); ++i) {
         EXPECT_EQ(answers[i], output_ptr[i]);
+    }
+}
+
+TEST(eltwise_gpu_f32, dynamic_kernel_no_broadcast) {
+    auto& engine = get_test_engine();
+
+    ov::Shape in_shape = {2, 2, 2, 2};
+    auto in_layout = layout{ov::PartialShape::dynamic(in_shape.size()), data_types::f32, format::bfyx};
+    auto in_mem_layout = layout{ov::PartialShape(in_shape), data_types::f32, format::bfyx};
+    auto input1 = engine.allocate_memory(in_mem_layout);
+    auto input2 = engine.allocate_memory(in_mem_layout);
+
+    topology topology;
+    topology.add(input_layout("input1", in_layout));
+    topology.add(input_layout("input2", in_layout));
+    topology.add(eltwise("eltwise", {"input1", "input2"}, eltwise_mode::sum));
+
+    set_values(input1, {
+        1.f,   0.f, 5.f, 1.5f,
+        2.f,   0.f, 6.f, 5.2f,
+        3.f,  0.5f, 7.f, 12.f,
+        4.f, -0.5f, 8.f,  8.f
+    });
+
+    set_values(input2, {
+        0.5f,   2.5f,  0.5f,  2.5f,
+         5.f,   7.f,    2.f,   4.f,
+        15.f,  17.f,    8.f,  10.f,
+        -2.f,  6.5f,  -0.5f, -2.5f });
+
+    build_options bo;
+    bo.set_option(build_option::allow_new_shape_infer(true));
+    network network(engine, topology, bo);
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+
+    auto inst = network.get_primitive("eltwise");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "eltwise");
+
+    auto output = outputs.at("eltwise").get_memory();
+
+    float answers[16] = { 1.5f, 2.5f,   5.5f,    4.f,
+                          7.f,   7.f,    8.f,   9.2f,
+                          18.f,17.5f,   15.f,   22.f,
+                          2.f,   6.f,   7.5f,  5.5f };
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    for (int i = 0; i < 16; i++) {
+        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+    }
+}
+
+TEST(eltwise_gpu_f32, dynamic_kernel_broadcast) {
+    auto& engine = get_test_engine();
+
+    ov::Shape in1_shape = {2, 2, 2, 2};
+    ov::Shape in2_shape = {1, 2, 1, 1};
+    auto in1_layout = layout{ov::PartialShape::dynamic(in1_shape.size()), data_types::f32, format::bfyx};
+    auto in2_layout = layout{ov::PartialShape::dynamic(in2_shape.size()), data_types::f32, format::bfyx};
+    auto in1_mem_layout = layout{ov::PartialShape(in1_shape), data_types::f32, format::bfyx};
+    auto in2_mem_layout = layout{ov::PartialShape(in2_shape), data_types::f32, format::bfyx};
+    auto input1 = engine.allocate_memory(in1_mem_layout);
+    auto input2 = engine.allocate_memory(in2_mem_layout);
+
+    topology topology;
+    topology.add(input_layout("input1", in1_layout));
+    topology.add(input_layout("input2", in2_layout));
+    topology.add(eltwise("eltwise", {"input1", "input2"}, eltwise_mode::sum));
+
+    set_values(input1, {
+        1.f,   0.f, 5.f, 1.5f,
+        2.f,   0.f, 6.f, 5.2f,
+        3.f,  0.5f, 7.f, 12.f,
+        4.f, -0.5f, 8.f,  8.f
+    });
+
+    set_values(input2, { 0.5f, -0.5f });
+
+    build_options bo;
+    bo.set_option(build_option::allow_new_shape_infer(true));
+    network network(engine, topology, bo);
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+
+    auto inst = network.get_primitive("eltwise");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "eltwise");
+
+    auto output = outputs.at("eltwise").get_memory();
+
+    float answers[16] = { 1.5f,  0.5f, 5.5f, 2.f,
+                          1.5f, -0.5f, 5.5f, 4.7f,
+                          3.5f,  1.0f, 7.5f, 12.5f,
+                          3.5f, -1.0f, 7.5f, 7.5f };
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    for (int i = 0; i < 16; i++) {
+        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -3911,6 +4026,7 @@ struct eltwise_random_test_params {
     format::type in_format_second;  // For testing 1x1x1x1 bfyx
     format::type out_format;
     eltwise_mode mode;
+    bool         is_caching_test;
 };
 
 struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
@@ -3995,6 +4111,7 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
 
         auto in_layout1 = layout(params.input_type, params.in_format, params.first_input_size);
         auto in_layout2 = layout(params.input_type, params.in_format_second, params.second_input_size);
+        bool is_caching_test = params.is_caching_test;
         auto input1 = engine.allocate_memory(in_layout1);
         auto input2 = engine.allocate_memory(in_layout2);
         fill_random(input1);
@@ -4026,11 +4143,29 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
         auto buildops_opt = build_options();
         buildops_opt.set_option(build_option::outputs({"eltwise_opt"}));
 
-        cldnn::network net_opt(engine, topo_opt, buildops_opt);
-        net_opt.set_input_data("input1", input1);
-        net_opt.set_input_data("input2", input2);
+        std::shared_ptr<cldnn::network> net_opt;
 
-        auto result_opt = net_opt.execute();
+        if (is_caching_test) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, topo_opt, buildops_opt);
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                net_opt = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+            }
+        } else {
+            net_opt = std::make_shared<cldnn::network>(engine, topo_opt, buildops_opt);
+        }
+
+        net_opt->set_input_data("input1", input1);
+        net_opt->set_input_data("input2", input2);
+
+        auto result_opt = net_opt->execute();
         auto output_opt = result_opt.at("eltwise_opt").get_memory();
 
         if (check_result == true) {
@@ -4057,17 +4192,17 @@ struct eltwise_random_test_param_generator : std::vector<eltwise_random_test_par
     }
 
     eltwise_random_test_param_generator& broadcast_params(data_types type, format::type input_format, format::type output_format) {
-        push_back(eltwise_random_test_params{ type, {1, 1, 48, 64},  {1, 10, 48, 64}, input_format, input_format, output_format, eltwise_mode::sum});
-        push_back(eltwise_random_test_params{ type, {1, 16, 48, 64}, {1, 1, 48, 64},  input_format, input_format, output_format, eltwise_mode::sum});
-        push_back(eltwise_random_test_params{ type, {1, 5, 4, 4},    {1, 1, 4, 4},    input_format, input_format, output_format, eltwise_mode::sum});
-        push_back(eltwise_random_test_params{ type, {1, 8, 4, 4},    {1, 1, 1, 1},    input_format, format::bfyx, output_format, eltwise_mode::sum});
+        push_back(eltwise_random_test_params{ type, {1, 1, 48, 64},  {1, 10, 48, 64}, input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {1, 16, 48, 64}, {1, 1, 48, 64},  input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {1, 5, 4, 4},    {1, 1, 4, 4},    input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {1, 8, 4, 4},    {1, 1, 1, 1},    input_format, format::bfyx, output_format, eltwise_mode::sum, false });
         return *this;
     }
 
     eltwise_random_test_param_generator& simple_params(data_types type, format::type input_format, format::type output_format) {
-        push_back(eltwise_random_test_params{ type, {1, 10, 10, 10}, {1, 10, 10, 10}, input_format, input_format, output_format, eltwise_mode::sum});
-        push_back(eltwise_random_test_params{ type, {1, 5, 4, 4},    {1, 5, 4, 4},    input_format, input_format, output_format, eltwise_mode::sum});
-        push_back(eltwise_random_test_params{ type, {1, 20, 16, 16}, {1, 20, 16, 16}, input_format, input_format, output_format, eltwise_mode::sum});
+        push_back(eltwise_random_test_params{ type, {1, 10, 10, 10}, {1, 10, 10, 10}, input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {1, 5, 4, 4},    {1, 5, 4, 4},    input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {1, 20, 16, 16}, {1, 20, 16, 16}, input_format, input_format, output_format, eltwise_mode::sum, false });
         return *this;
     }
 };
@@ -4090,3 +4225,11 @@ INSTANTIATE_TEST_SUITE_P(eltwise_smoke_fsv4,
                             .simple_params(data_types::i8, format::b_fs_yx_fsv4, format::b_fs_yx_fsv4)
                             .simple_params(data_types::u8, format::b_fs_yx_fsv4, format::b_fs_yx_fsv4)
                         ));
+
+INSTANTIATE_TEST_SUITE_P(export_import,
+                         eltwise_random_test,
+                         testing::ValuesIn(
+                            eltwise_random_test_param_generator()
+                            .add(eltwise_random_test_params{ data_types::f16, {1, 1, 48, 64}, {1, 10, 48, 64}, format::b_fs_yx_fsv4,
+                                                             format::b_fs_yx_fsv4, format::b_fs_yx_fsv4, eltwise_mode::sum, true })
+                         ));

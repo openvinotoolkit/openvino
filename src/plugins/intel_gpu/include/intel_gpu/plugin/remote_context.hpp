@@ -82,6 +82,8 @@ public:
 protected:
     static RemoteAllocator m_allocator;
     std::weak_ptr<InferenceEngine::gpu::ClContext> m_context;
+    // retain engine ptr to ensure that memory object can be released properly in cases when RemoteContext if deleted before RemoteTensor
+    std::shared_ptr<cldnn::engine> m_engine;
     cldnn::stream& m_stream;
 
     // constructor stuff
