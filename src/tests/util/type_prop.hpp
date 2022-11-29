@@ -26,6 +26,13 @@ struct PrintToDummyParamName {
 void set_shape_labels(ov::PartialShape& p_shape, const size_t first_label);
 std::vector<size_t> get_shape_labels(const ov::PartialShape& p_shape);
 
+/**
+ * \brief Set labels on all shape dimensions start from first label.
+ *
+ * \param p_shape      Shape to set labels.
+ * \param first_label  Vale of first label (can't be 0)
+ */
+void set_shape_labels(ov::PartialShape& p_shape, const size_t first_label);
 void set_shape_labels(ov::PartialShape& p_shape, const std::vector<size_t>& labels);
 
 /**

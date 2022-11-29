@@ -15,7 +15,10 @@
     #define IDX_ORDER idx_b,idx_f,idx_w,idx_z,idx_y,idx_x
 #endif
 
-KERNEL(broadcast_gpu_ref)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE* output)
+KERNEL(broadcast_gpu_ref)(
+    OPTIONAL_SHAPE_INFO_ARG
+    const __global INPUT0_TYPE* input,
+    __global OUTPUT_TYPE* output)
 {
 
 #if OUTPUT_DIMS >= 5

@@ -4,8 +4,6 @@
 
 ///  @rationale aot tests aim to test network export/import  functionality
 
-#if defined(ENABLE_INTEL_MYRIAD)
-
 #include <behavior_test_plugin.h>
 #include <mvnc.h>
 #include <vpu/backend/blob_format.hpp>
@@ -202,5 +200,3 @@ const BehTestParams vpuValues[] = {
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest, AOTBehaviorTests, ValuesIn(vpuValues), getTestCaseName);
-
-#endif
