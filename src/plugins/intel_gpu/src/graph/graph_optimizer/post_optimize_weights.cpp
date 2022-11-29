@@ -35,6 +35,9 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
     if (!impl)
         return;
 
+    if (impl->is_dynamic())
+        return;
+
     auto output_layout = node.get_output_layout();
     auto& weights_reorder_params = impl->_weights_reorder_params;
 
