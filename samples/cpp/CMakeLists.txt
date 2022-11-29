@@ -100,7 +100,7 @@ endif()
 if(TARGET gflags)
     set(GFLAGS_TARGET gflags)
 else()
-    foreach(component nothreads_shared nothreads_static shared static)
+    foreach(component nothreads_static nothreads_shared shared static)
         find_package(gflags QUIET OPTIONAL_COMPONENTS ${component})
 
         if(gflags_FOUND)
