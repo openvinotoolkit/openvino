@@ -123,8 +123,8 @@ ov::intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_
     jitters[ngraph::op::v7::Gelu::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_gelu_v7_emitter);
 
     jitters[ngraph::snippets::op::Kernel::get_type_info_static()] = CREATE_EMITTER(KernelEmitter);
-    jitters[ngraph::snippets::op::Tile::get_type_info_static()] = CREATE_EMITTER(TileEmitter);
-    jitters[ngraph::snippets::op::TileScheduler::get_type_info_static()] = CREATE_EMITTER(TileSchedulerEmitter);
+    jitters[ngraph::snippets::op::LoopBegin::get_type_info_static()] = CREATE_EMITTER(LoopBeginEmitter);
+    jitters[ngraph::snippets::op::LoopEnd::get_type_info_static()] = CREATE_EMITTER(LoopEndEmitter);
 }
 
 size_t ov::intel_cpu::CPUTargetMachine::get_lanes() const {
@@ -141,7 +141,9 @@ bool ov::intel_cpu::CPUTargetMachine::is_supported() const {
 }
 
 code ov::intel_cpu::CPUTargetMachine::get_snippet() const {
-    h->create_kernel();
+    if (h->create_kernel() != status::success) {
+        IE_THROW() << "Failed to create jit_kernel in get_snippet()";
+    }
     return h->jit_ker();
 }
 

@@ -47,17 +47,19 @@ std::shared_ptr<ov::Model> AddSinhFunction::initReference() const {
     return std::make_shared<ov::Model>(NodeVector{add}, ParameterVector{data0, data1});
 }
 std::shared_ptr<ov::Model> AddSinhConstFunction::initOriginal() const {
+    Shape static_input_shape = input_shapes[0].get_shape();
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
-    const std::vector<float> const_values = CommonTestUtils::generate_float_numbers(shape_size(input_shapes[0]), -10., 10.);
-    auto const_data1 = std::make_shared<op::v0::Constant>(precision, input_shapes[0], const_values);
+    const std::vector<float> const_values = CommonTestUtils::generate_float_numbers(shape_size(static_input_shape), -10., 10.);
+    auto const_data1 = std::make_shared<op::v0::Constant>(precision, static_input_shape, const_values);
     auto sin0 = std::make_shared<ov::op::v0::Sinh>(data0);
     auto add = std::make_shared<op::v1::Add>(sin0, const_data1);
     return std::make_shared<ov::Model>(NodeVector{add}, ParameterVector{data0});
 }
 std::shared_ptr<ov::Model> AddRollConstFunction::initOriginal() const {
-    auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
-    const std::vector<float> const_values = CommonTestUtils::generate_float_numbers(shape_size(input_shapes[0]), -10., 10.);
-    auto const_data1 = std::make_shared<op::v0::Constant>(precision, input_shapes[0], const_values);
+    const auto input_shape = input_shapes[0].get_shape();
+    auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shape);
+    const std::vector<float> const_values = CommonTestUtils::generate_float_numbers(shape_size(input_shape), -10., 10.);
+    auto const_data1 = std::make_shared<op::v0::Constant>(precision, input_shape, const_values);
     auto shift = std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<float>{1});
     auto axes = std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<float>{0});
     auto roll0 = std::make_shared<ov::op::v7::Roll>(data0, shift, axes);
@@ -70,7 +72,7 @@ std::shared_ptr<ov::Model> AddRollConstFunction::initOriginal() const {
 std::shared_ptr<ov::Model> EltwiseFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
-    const std::vector<float> const_values = CommonTestUtils::generate_float_numbers(shape_size(input_shapes[1]), -10., 10.);
+    const std::vector<float> const_values = CommonTestUtils::generate_float_numbers(1, -10., 10.);
     auto const_data = std::make_shared<op::v0::Constant>(precision, data1->get_shape(), const_values);
     auto add = std::make_shared<op::v1::Add>(data0, data1);
     auto sub = std::make_shared<op::v1::Subtract>(add, const_data);
@@ -80,7 +82,7 @@ std::shared_ptr<ov::Model> EltwiseFunction::initOriginal() const {
 std::shared_ptr<ov::Model> EltwiseFunction::initReference() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
-    const std::vector<float> const_values = CommonTestUtils::generate_float_numbers(shape_size(input_shapes[1]), -10., 10.);
+    const std::vector<float> const_values = CommonTestUtils::generate_float_numbers(1, -10., 10.);
     auto const_data = std::make_shared<op::v0::Constant>(precision, data1->get_shape(), const_values);
     auto indata0 = std::make_shared<op::v0::Parameter>(precision, data0->get_shape());
     auto indata1 = std::make_shared<op::v0::Parameter>(precision, data1->get_shape());
@@ -177,8 +179,8 @@ std::shared_ptr<ov::Model> MatMulEltwiseBranchesFunction::initReference() const 
     auto sub_const_2 = std::make_shared<ngraph::snippets::op::Scalar>(precision, Shape{1}, const_values[3]);
 
     // snippet function
-    Shape matMulOutShape = input_shapes[0];
-    matMulOutShape.back() = input_shapes[1].back();
+    Shape matMulOutShape = input_shapes[0].get_shape();
+    matMulOutShape.back() = input_shapes[1].get_shape().back();
     auto snippet_input = std::make_shared<op::v0::Parameter>(precision, matMulOutShape);
 
     auto mul_1 = std::make_shared<op::v1::Multiply>(snippet_input, mul_const_1);

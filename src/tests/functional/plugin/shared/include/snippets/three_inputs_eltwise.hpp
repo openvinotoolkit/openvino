@@ -19,6 +19,15 @@ typedef std::tuple<
         std::string                  // Target Device
 > ThreeInputsEltwiseParams;
 
+typedef std::tuple<
+    InputShape,                   // Input 0 Shape
+    InputShape,                   // Input 1 Shape
+    InputShape,                   // Input 2 Shape
+    size_t,                      // Expected num nodes
+    size_t,                      // Expected num subgraphs
+    std::string                  // Target Device
+    > ThreeInputsEltwiseDynamicParams;
+
 class ThreeInputsEltwise : public testing::WithParamInterface<ov::test::snippets::ThreeInputsEltwiseParams>,
                    virtual public ov::test::SnippetsTestsCommon {
 public:
@@ -32,7 +41,6 @@ class ThreeInputsEltwiseSinh : public ThreeInputsEltwise {
 protected:
     void SetUp() override;
 };
-
 
 } // namespace snippets
 } // namespace test
