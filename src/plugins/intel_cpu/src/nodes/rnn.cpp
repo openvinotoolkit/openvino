@@ -232,8 +232,8 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
                 errorMessage = "Node expects constants as W, R, B inputs.";
                 return false;
             }
-            if (ov::is_type<ov::op::v0::LSTMCell>(op) && op->get_input_size() == 7) {
-                errorMessage = "Node does not support 7 inputs";
+            if (ov::is_type<ov::op::v0::LSTMCell>(op) && op->get_input_size() != 6) {
+                errorMessage = "Node expects 6 inputs. Actual: " + std::to_string(op->get_input_size());
                 return false;
             }
         } else if (one_of(op->get_type_info(),
