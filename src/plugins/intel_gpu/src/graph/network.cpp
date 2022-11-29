@@ -33,6 +33,7 @@
 #include "program_helpers.h"
 #include "runtime/cldnn_itt.hpp"
 #include "kernels_cache.hpp"
+#include "compilation_context.hpp"
 
 #include <algorithm>
 #include <string>
@@ -308,6 +309,7 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
                                                                         kernel_selector::KernelBase::get_db().get_batch_header_str()));
         _impls_cache = std::unique_ptr<ImplementationsCache>(new ImplementationsCache(_impls_cache_capacity));
         _in_mem_kernels_cache = std::unique_ptr<KernelsCache>(new KernelsCache(_in_mem_kernels_cache_capacity));
+        _compilation_context = std::move(ICompilationContext::create(program->get_engine(), program->get_id()));
     }
 }
 
@@ -425,6 +427,8 @@ network::network(cldnn::BinaryInputBuffer& ib, stream::ptr stream, engine& engin
 }
 
 network::~network() {
+    if (_compilation_context)
+        _compilation_context->cancel();
     _memory_pool->clear_pool_for_network(net_id);
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
@@ -803,7 +807,7 @@ void network::allocate_primitives() {
 
     // Update the output memory address of optimized-out layer if it is not valid.
     for (auto const& node : po) {
-        if (node->can_be_optimized()) {
+        if (node->can_be_optimized() && !node->is_dynamic()) {
             auto opt_inst = _primitives.at(node->id());
             opt_inst->update_output_memory();
         }
