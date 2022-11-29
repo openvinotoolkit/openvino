@@ -200,7 +200,7 @@ void SubgraphBaseTest::configure_model() {
 
 void SubgraphBaseTest::compile_model() {
     if (is_report_stages) {
-        std::cout << "[ PLUGIN ] `SubgraphBaseTest::compile_model()`is started" << std::endl;
+        std::cout << "[ PLUGIN      ] `SubgraphBaseTest::compile_model()` is started" << std::endl;
     }
     auto start_time = std::chrono::system_clock::now();
 
@@ -220,7 +220,7 @@ void SubgraphBaseTest::compile_model() {
     if (is_report_stages) {
         auto end_time = std::chrono::system_clock::now();
         std::chrono::duration<double> duration = end_time - start_time;
-        std::cout << "[ PLUGIN ] `SubgraphBaseTest::compile_model()`is finished successfully. Duration is " << duration.count() << "s" << std::endl;
+        std::cout << "[ PLUGIN      ] `SubgraphBaseTest::compile_model()`is finished successfully. Duration is " << duration.count() << "s" << std::endl;
     }
 }
 
@@ -267,7 +267,7 @@ void SubgraphBaseTest::infer() {
 
 std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
     if (is_report_stages) {
-        std::cout << "[ REFERENCE ] `SubgraphBaseTest::calculate_refs()`is started"<< std::endl;
+        std::cout << "[ REFERENCE   ] `SubgraphBaseTest::calculate_refs()`is started"<< std::endl;
     }
     auto start_time = std::chrono::system_clock::now();
 
@@ -331,14 +331,14 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
     if (is_report_stages) {
         auto end_time = std::chrono::system_clock::now();
         std::chrono::duration<double> duration = end_time - start_time;
-        std::cout << "[ REFERENCE ] `SubgraphBaseTest::calculate_refs()`is finished successfully. Duration is " << duration.count() << "s" << std::endl;
+        std::cout << "[ REFERENCE   ] `SubgraphBaseTest::calculate_refs()` is finished successfully. Duration is " << duration.count() << "s" << std::endl;
     }
     return results;
 }
 
 std::vector<ov::Tensor> SubgraphBaseTest::get_plugin_outputs() {
     if (is_report_stages) {
-        std::cout << "[ PLUGIN ] `SubgraphBaseTest::get_plugin_outputs()`is started"<< std::endl;
+        std::cout << "[ PLUGIN      ] `SubgraphBaseTest::get_plugin_outputs()` is started"<< std::endl;
     }
     auto start_time = std::chrono::system_clock::now();
 
@@ -350,7 +350,7 @@ std::vector<ov::Tensor> SubgraphBaseTest::get_plugin_outputs() {
     if (is_report_stages) {
         auto end_time = std::chrono::system_clock::now();
         std::chrono::duration<double> duration = end_time - start_time;
-        std::cout << "[ PLUGIN ] `SubgraphBaseTest::get_plugin_outputs()`is finished successfully. Duration is " << duration.count() << "s" << std::endl;
+        std::cout << "[ PLUGIN      ] `SubgraphBaseTest::get_plugin_outputs()` is finished successfully. Duration is " << duration.count() << "s" << std::endl;
     }
     return outputs;
 }
@@ -375,7 +375,7 @@ void SubgraphBaseTest::validate() {
     ASSERT_EQ(actualOutputs.size(), expectedOutputs.size())
         << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
     if (is_report_stages) {
-        std::cout << "[ COMPARATION ] `ov_tensor_utils.hpp::compare()`is started"<< std::endl;
+        std::cout << "[ COMPARATION ] `ov_tensor_utils.hpp::compare()` is started"<< std::endl;
     }
     auto start_time = std::chrono::system_clock::now();
 
@@ -383,7 +383,7 @@ void SubgraphBaseTest::validate() {
     if (is_report_stages) {
         auto end_time = std::chrono::system_clock::now();
         std::chrono::duration<double> duration = end_time - start_time;
-        std::cout << "[ COMPARATION ] `ov_tensor_utils.hpp::compare()`is finished successfully. Duration is " << duration.count() << "s" << std::endl;
+        std::cout << "[ COMPARATION ] `ov_tensor_utils.hpp::compare()` is finished successfully. Duration is " << duration.count() << "s" << std::endl;
     }
 }
 
