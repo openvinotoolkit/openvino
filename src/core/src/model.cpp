@@ -31,8 +31,6 @@
 
 using namespace std;
 
-BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<std::shared_ptr<ov::Model>>);
-
 atomic<size_t> ov::Model::m_next_instance_id(0);
 
 namespace {

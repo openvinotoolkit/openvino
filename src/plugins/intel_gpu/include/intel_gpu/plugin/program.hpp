@@ -14,7 +14,6 @@
 
 #include <cpp/ie_cnn_network.h>
 #include <ngraph/ngraph.hpp>
-#include <ngraph/compatibility.hpp>
 
 #include "intel_gpu/plugin/device_config.hpp"
 

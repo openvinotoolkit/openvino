@@ -17,7 +17,6 @@ namespace op {
 class Eltwise : public Op {
 public:
     OPENVINO_OP("Eltwise", "legacy");
-    BWDCMP_RTTI_DECLARATION;
 
     Eltwise(const Output<Node>& data1,
             const Output<Node>& data2,

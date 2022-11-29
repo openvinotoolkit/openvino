@@ -578,7 +578,6 @@ public:
     AttributeAdapter(std::shared_ptr<ov::Model>& value) : DirectValueAccessor<std::shared_ptr<ov::Model>>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<Model>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Helper method to get associated batch size for a Model

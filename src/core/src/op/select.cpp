@@ -17,8 +17,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v1::Select);
-
 op::v1::Select::Select(const Output<Node>& arg0,
                        const Output<Node>& arg1,
                        const Output<Node>& arg2,

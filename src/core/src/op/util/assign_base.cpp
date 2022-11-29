@@ -4,4 +4,3 @@
 
 #include "openvino/op/util/assign_base.hpp"
 
-BWDCMP_RTTI_DEFINITION(ov::op::util::AssignBase);
