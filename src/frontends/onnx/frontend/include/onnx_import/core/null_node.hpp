@@ -31,7 +31,9 @@ namespace onnx_import {
 class ONNX_IMPORTER_API NullNode : public ov::op::Op {
 public:
     OPENVINO_OP("NullNode");
-    NullNode() {}
+    NullNode() {
+        set_output_size(1);
+    }
 
     virtual std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 };
