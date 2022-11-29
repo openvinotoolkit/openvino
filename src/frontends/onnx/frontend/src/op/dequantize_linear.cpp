@@ -47,6 +47,19 @@ OutputVector dequantize_linear(const Node& node) {
 
     common::validate_scalar_input("Dequantization scale", scale.get_node_shared_ptr(), {element::f32});
 
+    auto scale_const = ov::as_type_ptr<default_opset::Constant>(scale.get_node_shared_ptr());
+    if (scale_const) {
+        const auto& scale_values = scale_const->cast_vector<float>();
+        if (std::all_of(std::begin(scale_values), std::end(scale_values), [](const float& s) {
+                return s == 0;
+            })) {
+            // DequantizeLinear with zero scale implies constant zero tensor
+            const auto zero_of_dest_type_const = std::make_shared<default_opset::Constant>(element::f32, Shape{1}, 0);
+            const auto data_shape_node = std::make_shared<default_opset::ShapeOf>(x);
+            return {std::make_shared<default_opset::Broadcast>(zero_of_dest_type_const, data_shape_node)};
+        }
+    }
+
     const auto converted_x = std::make_shared<default_opset::Convert>(x, element::f32);
 
     if (zero_point) {

@@ -1896,6 +1896,7 @@ static float roundHalfToEven(float f) {
 }
 
 void FakeQuantize::updateOptimizedFormula(bool do_rounding) {
+    static const float simInfinity = std::pow(2, 100);
     auto& f = optimizedFormula;
 
     auto isPerTensor =
@@ -1954,10 +1955,33 @@ void FakeQuantize::updateOptimizedFormula(bool do_rounding) {
         const auto& osc = f.osc[f.osc.size() == 1 ? 0 : i];
         const auto& osh = f.osh[f.osh.size() == 1 ? 0 : i];
 
-        clo = roundHalfToEven(clo * isc + ish);
-        chi = roundHalfToEven(chi * isc + ish);
-        if (clo > chi)
-            std::swap(clo, chi);
+        // by definition, when inputLow == inputHigh, FQ becomes a Binarization operation
+        //
+        //    if x <= inputLow
+        //          y = outputLow
+        //    elif x > inputHigh
+        //          y = output_high
+        //    else
+        //           y = generic_FQ(x)
+        //
+        // when handling this case with generic_FQ(), infinite input scale and nan input shift
+        // will be generated which violates the whole generic computation procedure, and even worse,
+        // this could happen on per channel basis which creates huge difficulty for implementation
+        // with oneDNN post-Ops.
+        //
+        // to make it simpler, we simulate this binarization operation with generic_FQ by using
+        // with very small input range.
+        if (clo == chi) {
+            isc = simInfinity;  // a very large number which simulates infinity
+            ish = -clo * isc;   // make sure (x-inputLow)*s = x*s - (inputShift) roughly holds
+            clo = 0;
+            chi = levels - 1;
+        } else {
+            clo = roundHalfToEven(clo * isc + ish);
+            chi = roundHalfToEven(chi * isc + ish);
+            if (clo > chi)
+                std::swap(clo, chi);
+        }
 
         if (!do_rounding) {
             // when no rounding is needed, outputScale/outputShift can be
