@@ -201,14 +201,14 @@ public:
     ///
     /// \param     index sub-graph's index in op
     /// \return pointer to Model with sub-graph
-    virtual const std::shared_ptr<Model>& get_function(size_t index) const {
+    virtual const std::shared_ptr<Model>& get_function(int index) const {
         return m_bodies[index];
     };
     /// \brief     Adds sub-graph to MultiSubGraphOp
     ///
     /// \param index   index of new sub-graph
     /// \param func    func new sub_graph as Model
-    virtual void set_function(size_t index, const std::shared_ptr<Model>& func) {
+    virtual void set_function(int index, const std::shared_ptr<Model>& func) {
         m_bodies[index] = func;
     }
     /// \brief     Gets vector with connections beewtwen operation inputs
