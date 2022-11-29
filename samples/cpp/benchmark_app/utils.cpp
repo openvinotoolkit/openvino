@@ -201,9 +201,6 @@ size_t get_batch_size(const benchmark_app::InputsInfo& inputs_info) {
         }
     }
     if (batch_size == 0) {
-        slog::warn << "No batch dimension was found at any input, assuming batch to be 1. Beware: this might affect "
-                      "FPS calculation."
-                   << slog::endl;
         batch_size = 1;
     }
     return batch_size;

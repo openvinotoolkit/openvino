@@ -29,6 +29,7 @@
 #include "utils.hpp"
 // clang-format on
 
+namespace {
 bool parse_and_check_command_line(int argc, char* argv[]) {
     // ---------------------------Parsing and validating input
     // arguments--------------------------------------
@@ -92,7 +93,7 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
     return true;
 }
 
-static void next_step(const std::string additional_info = "") {
+void next_step(const std::string additional_info = "") {
     static size_t step_id = 0;
     static const std::map<size_t, std::string> step_names = {{1, "Parsing and validating input arguments"},
                                                              {2, "Loading OpenVINO Runtime"},
@@ -187,6 +188,22 @@ void setDeviceProperty(ov::Core& core,
         properties.emplace(device_property);
     }
 }
+
+void warn_no_batch_for_dynamic(const std::vector<benchmark_app::InputsInfo>& app_inputs_info) {
+    for (const benchmark_app::InputsInfo& inputs : app_inputs_info) {
+        if (!std::any_of(inputs.begin(),
+                         inputs.end(),
+                         [](const std::pair<const std::string, benchmark_app::InputInfo>& info) {
+                             return ov::layout::has_batch(info.second.layout);
+                         })) {
+            slog::warn
+                << "No batch dimension was found, asssuming batch to be 1. Beware: this might affect FPS calculation."
+                << slog::endl;
+            break;
+        }
+    }
+}
+}  // namespace
 
 /**
  * @brief The entry point of the benchmark application
@@ -772,8 +789,11 @@ int main(int argc, char* argv[]) {
                 batchSize = get_batch_size(app_inputs_info.front());
 
                 slog::info << "Model batch size: " << batchSize << slog::endl;
-            } else if (batchSize == 0) {
-                batchSize = 1;
+            } else {
+                warn_no_batch_for_dynamic(app_inputs_info);
+                if (batchSize == 0) {
+                    batchSize = 1;
+                }
             }
 
             printInputAndOutputsInfoShort(*model);
