@@ -1147,11 +1147,11 @@ void primitive_inst::save(cldnn::BinaryOutputBuffer& ob) const {
     const auto _allocation_type = _outputs[0]->get_allocation_type();
     ob << make_data(&_allocation_type, sizeof(_allocation_type));
 
-    bool memory_reuse_by_user = true;
+    bool can_reuse_memory = true;
     if (user_requesting_mem_reuse_false(*_node)) {
-        memory_reuse_by_user = false;
+        can_reuse_memory = false;
     }
-    ob << memory_reuse_by_user;
+    ob << can_reuse_memory;
 
     ob << _node->get_memory_dependencies();
 
@@ -1257,8 +1257,8 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
     allocation_type _allocation_type;
     ib >> make_data(&_allocation_type, sizeof(_allocation_type));
 
-    bool memory_reuse_by_user;
-    ib >> memory_reuse_by_user;
+    bool can_reuse_memory;
+    ib >> can_reuse_memory;
 
     std::set<primitive_id> _node_mem_deps;
     ib >> _node_mem_deps;
@@ -1286,12 +1286,10 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
             _outputs[0] = get_network().get_engine().allocate_memory(output_layout, _allocation_type);
         }
     } else {
-        if (memory_reuse_by_user == false) {
-            _outputs[0] = get_network().get_memory_pool().get_memory(output_layout, id(), get_network_id(), _node_mem_deps, _allocation_type, false);
-        } else if ((!can_share_buffer()) || can_be_optimized() || is_output()) {
+        if ((!can_share_buffer()) || can_be_optimized() || is_output()) {
             _outputs[0] = get_network().get_engine().allocate_memory(output_layout, _allocation_type);
         } else {
-            _outputs[0] = get_network().get_memory_pool().get_memory(output_layout, id(), get_network_id(), _node_mem_deps, _allocation_type, true);
+            _outputs[0] = get_network().get_memory_pool().get_memory(output_layout, id(), get_network_id(), _node_mem_deps, _allocation_type, can_reuse_memory);
         }
     }
     _output_changed = false;
