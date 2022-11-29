@@ -16,7 +16,9 @@ class PytorchLayerTest:
     _type_map = {
         "float64": Type.f64,
         "float32": Type.f32,
-        "int32": Type.i32
+        "int32": Type.i32,
+        "bool": Type.boolean,
+        "uint8": Type.u8
     }
 
     @staticmethod

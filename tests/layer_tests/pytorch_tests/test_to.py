@@ -50,6 +50,7 @@ class TestAtenTo(PytorchLayerTest):
             [torch.int64, True],
             [torch.float32, True],
             [torch.float64, True],
+            [torch.bool, True]
     ])
     @pytest.mark.nightly
     def test_aten_to_non_blocking_arg(self, input_type, output_type, non_blocking, ie_device, precision, ir_version):

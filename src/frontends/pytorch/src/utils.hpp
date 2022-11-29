@@ -28,6 +28,7 @@ const std::map<int, element::Type> TORCH_TO_OV_TYPE{
     {5, element::f16},
     {6, element::f32},
     {7, element::f64},
+    {11, element::boolean}
 };
 
 Output<Node> make_optional_bias(const Output<Node>& base_op,
