@@ -54,6 +54,55 @@ TEST(dimension, broadcast_merge_static_0_12_and_1_15) {
     EXPECT_EQ(result, Dimension(0, 15));
 }
 
+TEST(dimension, dimension_mul_operator_ordinary_intervals) {
+    Dimension interval_1(0, 10);
+    Dimension interval_2(2, 100);
+    Dimension ref_value(0, 1000);
+    EXPECT_EQ(ref_value, interval_1 * interval_2);
+}
+
+TEST(dimension, dimension_mul_operator_1) {
+    Dimension fully_dynamic_dim(-1);
+    Dimension two(2);
+    Dimension ref_value(-1);
+    EXPECT_EQ(ref_value, fully_dynamic_dim * two);
+}
+
+TEST(dimension, dimension_mul_operator_2) {
+    Dimension large_interval(2, 9223372036854775806);
+    Dimension two(2);
+    Dimension ref_value(4, 9223372036854775807);
+    EXPECT_EQ(ref_value, large_interval * two);
+}
+
+TEST(dimension, dimension_mul_operator_3) {
+    // no overflow
+    Dimension large_interval(2, 4611686018427387903);
+    Dimension two(2);
+    Dimension ref_value(4, 9223372036854775806);
+    EXPECT_EQ(ref_value, large_interval * two);
+}
+
+TEST(dimension, dimension_mul_operator_4) {
+    // overflow happens and clip_times keeps result within in64 limits
+    // 4611686018427387904 * 2 = 9223372036854775808 = int64_max - 1
+    // 9223372036854775808 does not fin into int64, is clipped into int64_max
+    Dimension large_interval(2, 4611686018427387904);
+    Dimension two(2);
+    Dimension ref_value(4, 9223372036854775807);
+    EXPECT_EQ(ref_value, large_interval * two);
+}
+
+TEST(dimension, dimension_mul_operator_5) {
+    // overflow happens and clip_times keeps result within in64 limits
+    // 3074457345618258604 * 3 = 9223372036854775812
+    // 9223372036854775812 does not fit into int64, is clipped into int64_max
+    Dimension large_interval(2, 3074457345618258604);
+    Dimension three(3);
+    Dimension ref_value(6, 9223372036854775807);
+    EXPECT_EQ(ref_value, large_interval * three);
+}
+
 TEST(dimension, division_of_static_dims_twenty_three_div_three_eq_seven) {
     Dimension twenty_three(23);
     Dimension::value_type three(3);
