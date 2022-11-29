@@ -447,8 +447,16 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     if (priorities->second.empty()) {
         IE_THROW() << "KEY_MULTI_DEVICE_PRIORITIES key is not set for " << GetName() << " device";
     } else {  // for use case -d MULTI:xPU or -d AUTO:xPU
-        metaDevices = ParseMetaDevices(priorities->second, fullConfig);
-        multiNetworkConfig.insert(*priorities);
+        auto metaDevicesByConfig = ParseMetaDevices(priorities->second, fullConfig);
+        metaDevices = network.getFunction() ? FilterDeviceByNetwork(metaDevicesByConfig, network)
+                                            : metaDevicesByConfig;
+        if (metaDevicesByConfig.size() != metaDevices.size()) {
+            LOG_DEBUG_TAG("stateful/dynamic model, loaded to single device");
+            multiNetworkConfig[MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES]
+                    = metaDevices[0].deviceName;
+        } else {
+            multiNetworkConfig.insert(*priorities);
+        }
     }
     auto multiSContext = std::make_shared<MultiScheduleContext>();
     DeviceMap<SoExecutableNetworkInternal> executableNetworkPerDevice;
