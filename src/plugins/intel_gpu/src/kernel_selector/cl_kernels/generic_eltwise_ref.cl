@@ -14,6 +14,7 @@
 #endif
 
 KERNEL(eltwise)(
+    OPTIONAL_SHAPE_INFO_ARG
     INPUTS_DECLS
     __global OUTPUT_TYPE* output
 #if HAS_FUSED_OPS_DECLS

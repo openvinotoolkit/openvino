@@ -3,7 +3,7 @@
 //
 
 #include "multiclass_nms.hpp"
-#include "ngraph_ops/multiclass_nms_ie_internal.hpp"
+#include "ov_ops/multiclass_nms_ie_internal.hpp"
 
 #include <algorithm>
 #include <cassert>

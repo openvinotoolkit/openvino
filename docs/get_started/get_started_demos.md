@@ -249,12 +249,12 @@ Create an `<ir_dir>` directory to contain the model's Intermediate Representatio
 
 @endsphinxdirective
 
-The OpenVINO Runtime can infer models where floating-point weights are [compressed to FP16](../MO_DG/prepare_model/FP16_Compression.md). To generate an IR with a specific precision, run the Model Optimizer with the appropriate `--data_type` option.
+To save disk space for your IR file, you can apply [weights compression to FP16](../MO_DG/prepare_model/FP16_Compression.md). To generate an IR with FP16 weights, run the Model Optimizer with the `--compress_to_fp16` option.
 
 Generic Model Optimizer script:
 
 ``` sh
-   mo --input_model <model_dir>/<model_file> --data_type <model_precision> --output_dir <ir_dir>
+   mo --input_model <model_dir>/<model_file>
 ```
 
 IR files produced by the script are written to the <ir_dir> directory.
@@ -267,19 +267,19 @@ The command with most placeholders filled in and FP16 precision:
 
    .. code-block:: sh
 
-      mo --input_model ~/models/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP16 --output_dir ~/ir
+      mo --input_model ~/models/public/googlenet-v1/googlenet-v1.caffemodel --compress_to_fp16 --output_dir ~/ir
 
 .. tab:: Windows
 
    .. code-block:: bat
 
-      mo --input_model %USERPROFILE%\Documents\models\public\googlenet-v1\googlenet-v1.caffemodel --data_type FP16 --output_dir %USERPROFILE%\Documents\ir
+      mo --input_model %USERPROFILE%\Documents\models\public\googlenet-v1\googlenet-v1.caffemodel --compress_to_fp16 --output_dir %USERPROFILE%\Documents\ir
 
 .. tab:: macOS
 
    .. code-block:: sh
 
-      mo --input_model ~/models/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP16 --output_dir ~/ir
+      mo --input_model ~/models/public/googlenet-v1/googlenet-v1.caffemodel --compress_to_fp16 --output_dir ~/ir
 
 @endsphinxdirective
 

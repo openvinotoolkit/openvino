@@ -137,6 +137,8 @@ public:
     /// Returns service stream which can be used during program build and optimizations
     virtual stream& get_program_stream() const = 0;
 
+    virtual allocation_type detect_usm_allocation_type(const void* memory) const = 0;
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
     /// Returns onednn engine object which shares device and context with current engine
     virtual dnnl::engine& get_onednn_engine() const = 0;

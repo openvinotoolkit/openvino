@@ -14,10 +14,7 @@
 #include "matmul_shape_inference.hpp"
 
 namespace cldnn {
-primitive_type_id fully_connected::type_id() {
-    static primitive_type_base<fully_connected> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(fully_connected)
 
 namespace {
 bool is_batch_after_spatial(const std::string order) {
@@ -171,7 +168,7 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
     // fc_tiled_opt kernel is optimized for row shape aligned by 16.
     // Thus, use fake aligned shape at kernel execution for better performance.
     auto orig_input_layout = orig_impl_param.get_input_layout();
-    auto orig_output_layout = orig_impl_param.output_layout;
+    auto orig_output_layout = orig_impl_param.get_output_layout();
     OPENVINO_ASSERT(orig_input_layout.is_static() && orig_output_layout.is_static(),
                     "in/out layouts should be static for fake alignment!");
     if (orig_input_layout.format == format::bfyx && orig_output_layout.format == format::bfyx) {
@@ -187,7 +184,7 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
                                                 orig_input_layout.data_type,
                                                 orig_input_layout.format,
                                                 orig_input_layout.data_padding);
-        updated_param.output_layout = layout(ov::PartialShape(output_shape),
+        updated_param.output_layouts[0] = layout(ov::PartialShape(output_shape),
                                              orig_output_layout.data_type,
                                              orig_output_layout.format,
                                              orig_output_layout.data_padding);

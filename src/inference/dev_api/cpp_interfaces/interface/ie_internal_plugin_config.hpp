@@ -104,6 +104,21 @@ DECLARE_CONFIG_KEY(FORCE_DISABLE_CACHE);
  */
 DECLARE_CONFIG_KEY(CONFIG_DEVICE_ID);
 
+/**
+ * @brief enable hyper thread
+ */
+DECLARE_CONFIG_KEY(ENABLE_HYPER_THREAD);
 }  // namespace PluginConfigInternalParams
 
 }  // namespace InferenceEngine
+
+namespace ov {
+
+/**
+ * @brief Read-only property to get a std::vector<PropertyName> of properties
+ * which should affect the hash calculation for model cache
+ * @ingroup ie_dev_api_plugin_api
+ */
+static constexpr Property<std::vector<PropertyName>, PropertyMutability::RO> caching_properties{"CACHING_PROPERTIES"};
+
+}  // namespace ov

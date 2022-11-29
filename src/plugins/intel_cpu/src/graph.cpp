@@ -50,6 +50,8 @@
 #include <transformations/utils/utils.hpp>
 #include <low_precision/low_precision.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include <common/primitive_desc.hpp>
+#include <common/primitive_desc_iface.hpp>
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -82,6 +84,7 @@ void Graph::CreateGraph(NET &net, const ExtensionManager::Ptr& extMgr,
     rtScratchPad = std::make_shared<DnnlScratchPad>(getEngine());
 
     Replicate(net, extMgr);
+
     InitGraph();
 
     status = Ready;
@@ -842,6 +845,13 @@ void Graph::CreatePrimitives() {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, node->profiling.createPrimitive);
         DEBUG_LOG(*node);
         node->createPrimitive();
+#ifdef CPU_DEBUG_CAPS
+        if (node->prim) {
+            auto pd_c = (*node->prim).get_primitive_desc();
+            auto* pd = reinterpret_cast<const dnnl_primitive_desc*>(pd_c);
+            DEBUG_LOG("verbose##", node->getName(), "##", pd->info(), "\n");
+        }
+#endif
     }
 }
 

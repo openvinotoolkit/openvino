@@ -25,7 +25,6 @@ from openvino._pyopenvino import Place
 
 # extensions
 from openvino._pyopenvino import DecoderTransformationExtension
-from openvino._pyopenvino import JsonConfigExtension
 from openvino._pyopenvino import ConversionExtension
 from openvino._pyopenvino import OpExtension
 from openvino._pyopenvino import ProgressReporterExtension

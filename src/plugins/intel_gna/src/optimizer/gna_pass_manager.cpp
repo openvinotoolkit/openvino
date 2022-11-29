@@ -48,7 +48,6 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 using namespace GNAPluginNS;
 using namespace ov::intel_gna::frontend;
-using namespace ov::intel_gna::common;
 
 #define pass_trace() log::debug() << "[" << getName() << "] "
 
@@ -468,18 +467,18 @@ void SubstituteSoftSignPass::run() {
         auto powerLayer = LayerInfo(addition).as<PowerLayer*>();
 
         // first layer after abs must have scale of 1, offset of 1 and power of either 1 or -1
-        if (!are_fp_eq(powerLayer->scale, 1.0f) || !are_fp_eq(powerLayer->offset, 1.0f) ||
-            !are_fp_eq(std::abs(powerLayer->power), 1.0f)) continue;
+        if (!common::fp32eq(powerLayer->scale, 1.0f) || !common::fp32eq(powerLayer->offset, 1.0f) ||
+            !common::fp32eq(std::abs(powerLayer->power), 1.0f)) continue;
         // power == -1, offset = 1, scale = 1
-        if (are_fp_eq(powerLayer->power, -1.0f)) {
+        if (common::fp32eq(powerLayer->power, -1.0f)) {
             std::swap(addition, power);
         } else { // power = 1, offset = 1, scale - 1
             power = getNthChild(addition, 0);
             if (!LayerInfo(power).isPower()) continue;
             auto powerLayer_1 = LayerInfo(power).as<PowerLayer*>();
             // layer after addition must have power of -1, offset of 0 and scale of 1
-            if (!are_fp_eq(powerLayer_1->power, -1.0f) || !are_fp_eq(powerLayer_1->offset, 0.0f) ||
-                !are_fp_eq(powerLayer_1->scale, 1.0f))
+            if (!common::fp32eq(powerLayer_1->power, -1.0f) || !common::fp32eq(powerLayer_1->offset, 0.0f) ||
+                !common::fp32eq(powerLayer_1->scale, 1.0f))
                 continue;
         }
 
@@ -810,7 +809,7 @@ void InsertIdentityLayerPass::run() {
             // check if prev layer have id layer already connected to output
             // if so reuse it instead of create new one
             bool reconnected = false;
-            for (auto prev_layer_output : prev->outData) {
+            for (auto& prev_layer_output : prev->outData) {
                 // prev ---------+--> identity --> layer XYZ
                 //               |
                 //               |  <= here we want to inject identity
@@ -954,7 +953,7 @@ void InsertCopyLayerPass::run() {
         }
 
         // Layer -> multiple concat/memory case
-        for (auto output : l->outData) {
+        for (auto& output : l->outData) {
             std::vector<std::pair<CNNLayerPtr, size_t>> MemoryLayers;
             std::vector<std::pair<CNNLayerPtr, size_t>> ConcatLayers;
             auto& inputTo = getInputTo(output);
@@ -1646,7 +1645,7 @@ void SubstituteScaleShiftBroadCastPass::run() {
 
 void BroadcastConstPass::run() {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "BroadcastConstPass");
-    for (auto constLayer : *pLayers) {
+    for (auto& constLayer : *pLayers) {
         if (!LayerInfo(constLayer).isConst()) {
             continue;
         }
@@ -1672,9 +1671,9 @@ void BroadcastConstPass::run() {
             }
         }
 
-        auto constDims = constLayer->outData.front()->getTensorDesc().getDims();
+        auto& constDims = constLayer->outData.front()->getTensorDesc().getDims();
         auto constDimsSize = product(constDims.begin(), constDims.end());
-        auto eltwiseDims = nextLayer->outData.front()->getTensorDesc().getDims();
+        auto& eltwiseDims = nextLayer->outData.front()->getTensorDesc().getDims();
         auto eltwiseDimsSize = product(eltwiseDims.begin(), eltwiseDims.end());
         if (constDimsSize == eltwiseDimsSize || eltwiseDimsSize % constDimsSize) {
             continue;
@@ -1700,7 +1699,7 @@ void BroadcastConstPass::run() {
 void BreakFusingOfOutputLayersPass::run() {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "BreakFusingOfOutputLayersPass");
     OutputsDataMap outputsMap = this->getPassManager()->getNetwork().getOutputsInfo();
-    for (auto layer : *pLayers) {
+    for (auto& layer : *pLayers) {
         /* Inserion of the second activation after pooling will break Conv - Pooling - Activation component
          * since scaleshift layers will be inserted between the pooling and activations
          */
@@ -1791,7 +1790,7 @@ void RemoveSingleInputConcatPass::run() {
 
                 auto out = concat->outData[0];
 
-                for (auto out_layer : getInputTo(out)) {
+                for (auto& out_layer : getInputTo(out)) {
                     for (int i = 0; i < out_layer.second->insData.size(); i++) {
                         if (out_layer.second->insData[i].lock() == out) {
                             out_layer.second->insData[i] = in;
@@ -2164,8 +2163,8 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
             THROW_GNA_LAYER_EXCEPTION(fqLayer) << " unsupported per-channel quantisation";
         }
 
-        if (!LayerInfo(prevLayer).isConst() && !are_fp_eq(inputRange.first.front(), outputRange.first.front()) &&
-            !are_fp_eq(inputRange.second.front(), outputRange.second.front())) {
+        if (!LayerInfo(prevLayer).isConst() && !common::fp32eq(inputRange.first.front(), outputRange.first.front()) &&
+            !common::fp32eq(inputRange.second.front(), outputRange.second.front())) {
             THROW_GNA_LAYER_EXCEPTION(fqLayer) << " unsupported data range conversion. Input: (" <<
                 inputRange.first.front() << "," << inputRange.second.front() << "), output: (" <<
                 outputRange.first.front() << "," << outputRange.second.front() << ")";

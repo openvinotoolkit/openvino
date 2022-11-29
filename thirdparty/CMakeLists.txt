@@ -15,7 +15,9 @@ if(ENABLE_PROFILING_ITT)
     add_subdirectory(itt_collector EXCLUDE_FROM_ALL)
 endif()
 
-add_subdirectory(cnpy EXCLUDE_FROM_ALL)
+if(ENABLE_SAMPLES OR ENABLE_TESTS)
+    add_subdirectory(cnpy EXCLUDE_FROM_ALL)
+endif()
 
 if(ENABLE_INTEL_GPU)
     add_subdirectory(ocl)
@@ -29,21 +31,23 @@ ov_install_static_lib(xbyak ${OV_CPACK_COMP_CORE})
 # zlib
 #
 
-if(NOT ANDROID)
-    find_package(PkgConfig QUIET)
-    if(PkgConfig_FOUND)
-        pkg_search_module(zlib QUIET
-                          IMPORTED_TARGET GLOBAL
-                          zlib)
-        if(zlib_FOUND)
-            add_library(zlib::zlib ALIAS PkgConfig::zlib)
-            message(STATUS "${PKG_CONFIG_EXECUTABLE}: zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
+if(ENABLE_SAMPLES OR ENABLE_TESTS)
+    if(NOT ANDROID)
+        find_package(PkgConfig QUIET)
+        if(PkgConfig_FOUND)
+            pkg_search_module(zlib QUIET
+                              IMPORTED_TARGET GLOBAL
+                              zlib)
+            if(zlib_FOUND)
+                add_library(zlib::zlib ALIAS PkgConfig::zlib)
+                message(STATUS "${PKG_CONFIG_EXECUTABLE}: zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
+            endif()
         endif()
     endif()
-endif()
 
-if(NOT zlib_FOUND)
-    add_subdirectory(zlib EXCLUDE_FROM_ALL)
+    if(NOT zlib_FOUND)
+        add_subdirectory(zlib EXCLUDE_FROM_ALL)
+    endif()
 endif()
 
 #
@@ -73,6 +77,8 @@ if(ENABLE_SYSTEM_PUGIXML)
         else()
             message(FATAL_ERROR "Failed to detect pugixml library target name")
         endif()
+        # to property generate OpenVINO Developer packages files
+        set(PugiXML_FOUND ${PugiXML_FOUND} CACHE BOOL "" FORCE)
     elseif(PkgConfig_FOUND AND NOT ANDROID)
         # U18 case when cmake interface is not available
         pkg_search_module(pugixml QUIET
@@ -90,6 +96,17 @@ if(ENABLE_SYSTEM_PUGIXML)
                 message(WARNING "openvino.pc pkg-config file generation has turned off because it should have to depend on pugixml.pc")
             endif()
             message(STATUS "${PKG_CONFIG_EXECUTABLE}: pugixml (${pugixml_VERSION}) is found at ${pugixml_PREFIX}")
+        endif()
+    endif()
+
+    # debian 9 case: no cmake, no pkg-config files
+    if(NOT TARGET ${pugixml_target})
+        find_library(PUGIXML_LIBRARY NAMES pugixml DOC "Path to pugixml library")
+        if(PUGIXML_LIBRARY)
+            add_library(pugixml INTERFACE IMPORTED GLOBAL)
+            set_target_properties(pugixml PROPERTIES INTERFACE_LINK_LIBRARIES "${PUGIXML_LIBRARY}")
+            set(pugixml_target pugixml)
+            set(PugiXML_FOUND ON)
         endif()
     endif()
 
@@ -171,7 +188,7 @@ endif()
 # Gflags
 #
 
-if(ENABLE_SAMPLES OR ENABLE_COMPILE_TOOL)
+if(ENABLE_SAMPLES OR ENABLE_COMPILE_TOOL OR ENABLE_TESTS)
     if(NOT APPLE OR CPACK_GENERATOR MATCHES "^(BREW|CONDA-FORGE)$")
         # - on Apple only dynamic libraries are available
         #   also, we can easily mix arm64 and x86_64 binaries when cross-compile for Intel CPU
@@ -282,13 +299,13 @@ endif()
 # nlohmann json
 #
 
-add_subdirectory(json)
+if(ENABLE_SAMPLES)
+    add_subdirectory(json)
 
-openvino_developer_export_targets(COMPONENT openvino_common
-                                  TARGETS nlohmann_json nlohmann_json_schema_validator)
-
-ov_install_static_lib(nlohmann_json ${OV_CPACK_COMP_CORE})
-ov_install_static_lib(nlohmann_json_schema_validator ${OV_CPACK_COMP_CORE})
+    # this is required only because of VPUX plugin reused this
+    openvino_developer_export_targets(COMPONENT openvino_common
+                                      TARGETS nlohmann_json)
+endif()
 
 #
 # Install
@@ -297,11 +314,13 @@ ov_install_static_lib(nlohmann_json_schema_validator ${OV_CPACK_COMP_CORE})
 if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$")
     # These libraries are dependencies for openvino-samples package
 
-    if((ENABLE_SAMPLES OR ENABLE_COMPILE_TOOL) AND NOT gflags_FOUND)
-        message(FATAL_ERROR "gflags must be used as a ${CPACK_GENERATOR} package. Install libgflags-dev / gflags-devel")
-    endif()
-    if(NOT zlib_FOUND)
-        message(FATAL_ERROR "zlib must be used as a ${CPACK_GENERATOR} package. Install zlib1g-dev / zlib-devel")
+    if(ENABLE_SAMPLES OR ENABLE_COMPILE_TOOL OR ENABLE_TESTS)
+        if(NOT gflags_FOUND)
+            message(FATAL_ERROR "gflags must be used as a ${CPACK_GENERATOR} package. Install libgflags-dev / gflags-devel")
+        endif()
+        if(NOT zlib_FOUND)
+            message(FATAL_ERROR "zlib must be used as a ${CPACK_GENERATOR} package. Install zlib1g-dev / zlib-devel")
+        endif()
     endif()
     if(NOT ENABLE_SYSTEM_PUGIXML AND NOT LINUX_OS_NAME STREQUAL "CentOS 7")
         message(FATAL_ERROR "Pugixml must be used as a ${CPACK_GENERATOR} package. Install libpugixml-dev / pugixml-devel")

@@ -5,6 +5,7 @@ import os
 import tempfile
 from copy import deepcopy
 from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_ir, save_restored_graph
 from openvino.tools.mo.utils.logger import init_logger
 from openvino.runtime import Core  # pylint: disable=E0401,E0611
@@ -23,7 +24,7 @@ def load_graph(model_config, target_device='ANY'):
     """ Loads model from specified path
     :return NetworkX model
      """
-    special_transform_devices = ['GNA']
+    special_transform_devices = ['GNA', 'GNA3.5']
     serialized_bin_path = os.path.join(tempfile.gettempdir(), 'serialized_ir.bin')
     serialized_xml_path = os.path.join(tempfile.gettempdir(), 'serialized_ir.xml')
     bin_path = model_config.weights
@@ -57,7 +58,7 @@ def load_graph(model_config, target_device='ANY'):
     meta_data['quantization_parameters'] = model_config.quantization_info
     graph_from_ir.meta_data = meta_data
     graph_from_ir.graph['cmd_params'] = orig_graph_from_ir.graph['cmd_params']
-    remove_converts(graph_from_ir)
+    for_graph_and_each_sub_graph_recursively(graph_from_ir, remove_converts)
     model_preprocessing(graph_from_ir)
     if os.path.exists(serialized_xml_path):
         os.remove(serialized_xml_path)
@@ -66,7 +67,7 @@ def load_graph(model_config, target_device='ANY'):
     return graph_from_ir
 
 
-def save_graph(graph: Graph, save_path, model_name=None, rename_results=False):
+def save_graph(graph: Graph, save_path, model_name=None):
     """ Save model as IR in specified path
     :param graph: NetworkX model to save
     :param save_path: path to save the model
@@ -85,7 +86,7 @@ def save_graph(graph: Graph, save_path, model_name=None, rename_results=False):
     graph_copy = deepcopy(graph)
     add_removed_converts(graph_copy)
     save_restored_graph(graph=graph_copy, path=save_path, meta_data=graph.meta_data,
-                        name=model_name, rename_results=rename_results)
+                        name=model_name)
 
 
 def model_preprocessing(model):
