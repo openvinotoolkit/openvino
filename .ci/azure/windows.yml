@@ -174,7 +174,7 @@ jobs:
 
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
-      call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) -G "Ninja Multi-Config" ^
+      call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) -G "Visual Studio 16 2019" -A x64 ^
         -DENABLE_ONEDNN_FOR_GPU=$(CMAKE_BUILD_SHARED_LIBS) ^
         -DBUILD_SHARED_LIBS=$(CMAKE_BUILD_SHARED_LIBS) ^
         -DENABLE_REQUIREMENTS_INSTALL=OFF ^
@@ -199,9 +199,9 @@ jobs:
 
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
-      call "$(MSVS_VARS_PATH)" && ninja
+      call "$(MSVS_VARS_PATH)" &&  $(CMAKE_CMD) --build . --config $(BUILD_TYPE) -j12
     workingDirectory: $(BUILD_DIR)
-    displayName: 'Build Win - Ninja'
+    displayName: 'Build Win'
 
   - script: dir $(REPO_DIR)\bin\ /s
     displayName: 'List bin files'
