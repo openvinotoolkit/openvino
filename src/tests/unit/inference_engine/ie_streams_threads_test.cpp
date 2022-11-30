@@ -5,7 +5,6 @@
 #include <gtest/gtest.h>
 #include <vector>
 #include "threading/ie_istreams_executor.hpp"
-#include <fstream>
 
 using DefaultParams = std::tuple<int,  // num_cores
                                 int,  // num_cores_phy
