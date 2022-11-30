@@ -52,9 +52,15 @@ ov::pass::TransposeSinkingConcatForward::TransposeSinkingConcatForward() {
 ov::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
     MATCHER_SCOPE(TransposeSinkingConcatBackward);
 
-    auto main_node_label = wrap_type<Concat>(consumers_count(1));
+    auto IfSinkingEnabled = [](const Output<Node>& output) -> bool {
+        static auto consumers_check = consumers_count(1);
+        static auto rank_check = has_static_rank();
+        return consumers_check(output) && rank_check(output);
+    };
 
-    auto transpose_const_label = wrap_type<Constant>(consumers_count(1));
+    auto main_node_label = wrap_type<Concat>(IfSinkingEnabled);
+
+    auto transpose_const_label = wrap_type<Constant>(IfSinkingEnabled);
     auto transpose_label = wrap_type<Transpose>({main_node_label, transpose_const_label}, consumers_count(1));
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
