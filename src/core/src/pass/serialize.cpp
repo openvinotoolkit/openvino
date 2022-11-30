@@ -14,9 +14,14 @@
 #include <unordered_set>
 
 #include "meta_data.hpp"
+#include "ngraph/op/avg_pool.hpp"
+#include "ngraph/op/binary_convolution.hpp"
+#include "ngraph/op/convolution.hpp"
+#include "ngraph/op/deformable_convolution.hpp"
+#include "ngraph/op/group_conv.hpp"
+#include "ngraph/op/lstm_cell.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/opsets/opset.hpp"
-#include "ngraph/opsets/opset1.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/util/file_util.hpp"

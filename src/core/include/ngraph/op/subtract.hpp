@@ -14,3 +14,7 @@ using ov::op::v1::Subtract;
 }  // namespace v1
 }  // namespace op
 }  // namespace ngraph
+
+#define OPERATION_DEFINED_Subtract 1
+#include "ngraph/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_Subtract

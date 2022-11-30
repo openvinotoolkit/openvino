@@ -10,5 +10,9 @@
 
 #pragma once
 
+#ifdef IN_OV_CORE_LIBRARY
+#    error("openvino/openvino.hpp is for external use only")
+#endif
+
 #include "openvino/core/core.hpp"
 #include "openvino/runtime/runtime.hpp"

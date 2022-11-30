@@ -16,7 +16,6 @@
 #include "ngraph/graph_util.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/ops.hpp"
-#include "ngraph/opsets/opset7.hpp"
 #include "ngraph/validation_util.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/except.hpp"
@@ -80,7 +79,7 @@ ngraph::ParameterVector auto_detect_parameters(const std::vector<std::shared_ptr
     OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Model::auto_detect_parameters");
     ngraph::ParameterVector parameter_vector;
     for (const auto& op : ordered_ops) {
-        if (const auto& param = dynamic_pointer_cast<ngraph::opset7::Parameter>(op)) {
+        if (const auto& param = dynamic_pointer_cast<ov::opset7::Parameter>(op)) {
             parameter_vector.push_back(param);
         }
     }

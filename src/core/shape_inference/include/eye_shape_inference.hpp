@@ -3,7 +3,7 @@
 //
 #pragma once
 #include <openvino/core/validation_util.hpp>
-#include <openvino/opsets/opset9.hpp>
+#include <openvino/op/eye.hpp>
 
 #include "utils.hpp"
 

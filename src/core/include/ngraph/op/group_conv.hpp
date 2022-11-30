@@ -17,3 +17,9 @@ using ov::op::v1::GroupConvolutionBackpropData;
 }  // namespace v1
 }  // namespace op
 }  // namespace ngraph
+
+#define OPERATION_DEFINED_GroupConvolution             1
+#define OPERATION_DEFINED_GroupConvolutionBackpropData 1
+#include "ngraph/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_GroupConvolution
+#undef OPERATION_DEFINED_GroupConvolutionBackpropData

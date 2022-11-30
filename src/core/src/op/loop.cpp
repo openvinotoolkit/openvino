@@ -10,7 +10,8 @@
 #include "itt.hpp"
 #include "ngraph/factory.hpp"
 #include "ngraph/graph_util.hpp"
-#include "ngraph/opsets/opset5.hpp"
+#include "ngraph/op/parameter.hpp"
+#include "ngraph/op/tensor_iterator.hpp"
 #include "ngraph/runtime/reference/loop.hpp"
 
 using namespace std;
@@ -184,7 +185,7 @@ void op::v5::Loop::validate_and_infer_types() {
             body_parameter->set_partial_shape(input_partial_shape);
             back_edges[merged_input_description->m_body_value_index] = merged_input_description->m_body_parameter_index;
         } else if (auto invariant_input_description =
-                       ov::as_type_ptr<v0::TensorIterator::InvariantInputDescription>(input_description)) {
+                       ov::as_type_ptr<op::v0::TensorIterator::InvariantInputDescription>(input_description)) {
             auto body_parameter = m_bodies[0]->get_parameters().at(invariant_input_description->m_body_parameter_index);
 
             auto body_param_partial_shape = body_parameter->get_partial_shape();
@@ -207,7 +208,7 @@ void op::v5::Loop::validate_and_infer_types() {
                 auto body_value = m_bodies[0]->get_results().at(output_description->m_body_value_index)->input_value(0);
 
                 if (auto body_output_description =
-                        ov::as_type_ptr<v0::TensorIterator::BodyOutputDescription>(output_description)) {
+                        ov::as_type_ptr<op::v0::TensorIterator::BodyOutputDescription>(output_description)) {
                     if (!back_edges.count(output_description->m_body_value_index))
                         continue;
                     const ov::PartialShape& body_value_shape = body_value.get_partial_shape();
@@ -270,7 +271,7 @@ void op::v5::Loop::validate_and_infer_types() {
         auto body_value = m_bodies[0]->get_results().at(output_description->m_body_value_index)->input_value(0);
 
         if (auto concat_output_description =
-                ov::as_type_ptr<v0::TensorIterator::ConcatOutputDescription>(output_description)) {
+                ov::as_type_ptr<op::v0::TensorIterator::ConcatOutputDescription>(output_description)) {
             const auto& body_value_partial_shape = body_value.get_partial_shape();
             auto out_shape = body_value_partial_shape;
             if (zero_number_of_iter) {
@@ -292,7 +293,7 @@ void op::v5::Loop::validate_and_infer_types() {
         }
 
         else if (auto body_output_description =
-                     ov::as_type_ptr<v0::TensorIterator::BodyOutputDescription>(output_description)) {
+                     ov::as_type_ptr<op::v0::TensorIterator::BodyOutputDescription>(output_description)) {
             const ov::PartialShape& body_value_shape = body_value.get_partial_shape();
             if (body_value_shape.is_dynamic()) {
                 set_output_type(index, body_value.get_element_type(), body_value_shape);

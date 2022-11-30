@@ -15,3 +15,7 @@ using ov::op::v1::VariadicSplit;
 using v1::VariadicSplit;
 }  // namespace op
 }  // namespace ngraph
+
+#define OPERATION_DEFINED_VariadicSplit 1
+#include "ngraph/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_VariadicSplit

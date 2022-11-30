@@ -12,9 +12,11 @@
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/clamp.hpp"
+#include "ngraph/op/concat.hpp"
+#include "ngraph/op/constant.hpp"
 #include "ngraph/op/multiply.hpp"
+#include "ngraph/op/split.hpp"
 #include "ngraph/op/subtract.hpp"
-#include "ngraph/opsets/opset4.hpp"
 #include "ngraph/util.hpp"
 
 using namespace std;

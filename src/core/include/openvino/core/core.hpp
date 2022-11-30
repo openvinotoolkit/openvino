@@ -5,6 +5,9 @@
 //
 // The public OpenVINO core API
 //
+#ifdef IN_OV_CORE_LIBRARY
+#    error("openvino/core/core.hpp is for external use only")
+#endif
 
 #include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/attribute_visitor.hpp"

@@ -14,15 +14,14 @@
 #include "openvino/op/util/rnn_cell_base.hpp"
 
 namespace ov {
-namespace op {
-namespace v3 {
+namespace opset3 {
 ///
 /// \brief      Class for GRU cell node.
 ///
 /// \note       Note this class represents only single *cell* and not whole GRU *layer*.
 ///
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API GRUCell : public util::RNNCellBase {
+class OPENVINO_API GRUCell : public op::util::RNNCellBase {
 public:
     OPENVINO_OP("GRUCell", "opset3", op::util::RNNCellBase, 3);
     BWDCMP_RTTI_DECLARATION;
@@ -142,11 +141,11 @@ private:
     ///
     /// \brief The Activation function f.
     ///
-    util::ActivationFunction m_activation_f;
+    op::util::ActivationFunction m_activation_f;
     ///
     /// \brief The Activation function g.
     ///
-    util::ActivationFunction m_activation_g;
+    op::util::ActivationFunction m_activation_g;
 
     static constexpr std::size_t s_gates_count{3};
     ///
@@ -157,6 +156,14 @@ private:
     ///
     bool m_linear_before_reset;
 };
+}  // namespace opset3
+namespace op {
+namespace v3 {
+using ov::opset3::GRUCell;
 }  // namespace v3
 }  // namespace op
 }  // namespace ov
+
+#define OPERATION_DEFINED_GRUCell 1
+#include "openvino/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_GRUCell

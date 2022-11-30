@@ -101,7 +101,7 @@ void op::v3::GRUCell::validate_and_infer_types() {
 
     const auto input_shapes = get_node_input_partial_shapes(*this);
     std::vector<ov::PartialShape> output_shapes{ov::PartialShape::dynamic(2)};
-    shape_infer(this, input_shapes, output_shapes);
+    op::v3::shape_infer(this, input_shapes, output_shapes);
 
     set_output_type(0, result_et, output_shapes[0]);
 }

@@ -7,8 +7,7 @@
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
 
 namespace ov {
-namespace op {
-namespace v1 {
+namespace opset1 {
 // clang-format off
 /// \brief Elementwise exponentiation operation.
 ///
@@ -26,12 +25,12 @@ namespace v1 {
 /// | \f$N[d_1,\dots,d_n]\f$ | The tensor \f$T\f$, where \f$T[i_1,\dots,i_n] = \texttt{arg0}[i_1,\dots,i_n]^{\texttt{arg1}[i_1,\dots,i_n]}\f$ |
 /// \ingroup ov_ops_cpp_api
 // clang-format on
-class OPENVINO_API Power : public util::BinaryElementwiseArithmetic {
+class OPENVINO_API Power : public op::util::BinaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Power", "opset1", op::util::BinaryElementwiseArithmetic, 1);
     BWDCMP_RTTI_DECLARATION;
 
-    Power() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}
+    Power() : op::util::BinaryElementwiseArithmetic(op::AutoBroadcastType::NUMPY) {}
 
     /// \brief Constructs an exponentiation operation.
     ///
@@ -40,7 +39,7 @@ public:
     /// \param auto_broadcast Auto broadcast specification
     Power(const Output<Node>& arg0,
           const Output<Node>& arg1,
-          const AutoBroadcastSpec& auto_broadcast = AutoBroadcastSpec(AutoBroadcastType::NUMPY));
+          const op::AutoBroadcastSpec& auto_broadcast = op::AutoBroadcastSpec(op::AutoBroadcastType::NUMPY));
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     OPENVINO_SUPPRESS_DEPRECATED_START
@@ -48,6 +47,14 @@ public:
     OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 };
+}  // namespace opset1
+namespace op {
+namespace v1 {
+using ::ov::opset1::Power;
 }  // namespace v1
 }  // namespace op
 }  // namespace ov
+
+#define OPERATION_DEFINED_Power 1
+#include "openvino/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_Power

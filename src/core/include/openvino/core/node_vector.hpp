@@ -16,17 +16,13 @@ class Output;
 
 class Node;
 
-namespace op {
-namespace v0 {
-
+namespace opset1 {
 class Result;
-
-}  // namespace v0
-}  // namespace op
+}  // namespace opset1
 
 using NodeVector = std::vector<std::shared_ptr<Node>>;
 using OutputVector = std::vector<Output<Node>>;
-using ResultVector = std::vector<std::shared_ptr<ov::op::v0::Result>>;
+using ResultVector = std::vector<std::shared_ptr<ov::opset1::Result>>;
 
 OPENVINO_API
 OutputVector as_output_vector(const NodeVector& args);

@@ -8,13 +8,19 @@
 #include "openvino/op/util/variable.hpp"
 
 namespace ov {
-namespace op {
+namespace opset3 {
+class Assign;
+}
 namespace v3 {
+template <class T>
+void shape_infer(const ov::opset3::Assign* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes);
+}
+namespace opset3 {
 /// \brief Assign operation sets an input value to the variable with `variable_id`
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API Assign : public util::AssignBase {
+class OPENVINO_API Assign : public op::util::AssignBase {
 public:
-    OPENVINO_OP("Assign", "opset3", util::AssignBase, 3);
+    OPENVINO_OP("Assign", "opset3", op::util::AssignBase, 3);
     BWDCMP_RTTI_DECLARATION;
     Assign() = default;
 
@@ -36,16 +42,23 @@ public:
 private:
     std::string m_variable_id;
     template <class T>
-    friend void shape_infer(const Assign* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes);
+    friend void ov::v3::shape_infer(const ov::opset3::Assign* op,
+                                    const std::vector<T>& input_shapes,
+                                    std::vector<T>& output_shapes);
 };
+}  // namespace opset3
+namespace op {
+namespace v3 {
+using ::ov::opset3::Assign;
 }  // namespace v3
+}  // namespace op
 
-namespace v6 {
+namespace opset6 {
 /// \brief Assign operation sets an input value to the variable with `variable_id`
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API Assign : public util::AssignBase {
+class OPENVINO_API Assign : public op::util::AssignBase {
 public:
-    OPENVINO_OP("Assign", "opset6", util::AssignBase, 6);
+    OPENVINO_OP("Assign", "opset6", op::util::AssignBase, 6);
     BWDCMP_RTTI_DECLARATION;
     Assign() = default;
 
@@ -55,7 +68,7 @@ public:
     /// \param variable Class for storing and synchronizing element types, shapes and
     /// identifiers
     /// between pairs of Assign/ReadValue nodes.
-    Assign(const Output<Node>& new_value, const std::shared_ptr<util::Variable>& variable);
+    Assign(const Output<Node>& new_value, const std::shared_ptr<op::util::Variable>& variable);
 
     void validate_and_infer_types() override;
 
@@ -79,6 +92,14 @@ private:
     template <class T>
     friend void shape_infer(const Assign* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes);
 };
+}  // namespace opset6
+namespace op {
+namespace v6 {
+using ::ov::opset6::Assign;
 }  // namespace v6
 }  // namespace op
 }  // namespace ov
+
+#define OPERATION_DEFINED_Assign 1
+#include "openvino/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_Assign

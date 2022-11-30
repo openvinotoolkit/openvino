@@ -21,8 +21,6 @@
 #include "ngraph/op/result.hpp"
 #include "ngraph/op/tensor_iterator.hpp"
 #include "ngraph/op/util/op_types.hpp"
-#include "ngraph/opsets/opset5.hpp"
-#include "ngraph/opsets/opset8.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/rt_info.hpp"

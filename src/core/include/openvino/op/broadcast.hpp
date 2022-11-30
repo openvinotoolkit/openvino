@@ -10,12 +10,11 @@
 #include "openvino/op/util/broadcast_base.hpp"
 
 namespace ov {
-namespace op {
-namespace v3 {
+namespace opset3 {
 /// \brief Operation which "adds" axes to an input tensor, replicating elements from the
 ///        input as needed along the new axes.
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API Broadcast : public util::BroadcastBase {
+class OPENVINO_API Broadcast : public op::util::BroadcastBase {
 public:
     OPENVINO_OP("Broadcast", "opset3", op::util::BroadcastBase, 3);
     BWDCMP_RTTI_DECLARATION;
@@ -38,7 +37,7 @@ public:
     Broadcast(const Output<Node>& arg,
               const Output<Node>& target_shape,
               const Output<Node>& axes_mapping,
-              const BroadcastModeSpec& broadcast_spec = BroadcastType::EXPLICIT);
+              const op::BroadcastModeSpec& broadcast_spec = op::BroadcastType::EXPLICIT);
 
     /// \brief Constructs a broadcast operation.
     ///
@@ -48,17 +47,17 @@ public:
     ///                       axes
     Broadcast(const Output<Node>& arg,
               const Output<Node>& target_shape,
-              const BroadcastModeSpec& broadcast_spec = BroadcastType::NUMPY);
+              const op::BroadcastModeSpec& broadcast_spec = op::BroadcastType::NUMPY);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     // \return Broadcast Specification.
-    const BroadcastModeSpec& get_broadcast_spec() const {
+    const op::BroadcastModeSpec& get_broadcast_spec() const {
         return m_mode;
     }
-    void set_broadcast_spec(const BroadcastModeSpec& broadcast_spec) {
+    void set_broadcast_spec(const op::BroadcastModeSpec& broadcast_spec) {
         m_mode = broadcast_spec;
     }
 
@@ -74,13 +73,18 @@ public:
 private:
     bool broadcast_evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
 };
-}  // namespace v3
+}  // namespace opset3
+namespace op {
+namespace v3 {
+using ::ov::opset3::Broadcast;
+}
+}  // namespace op
 
-namespace v1 {
+namespace opset1 {
 /// \brief Operation which "adds" axes to an input tensor, replicating elements from the
 ///        input as needed along the new axes.
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API Broadcast : public util::BroadcastBase {
+class OPENVINO_API Broadcast : public op::util::BroadcastBase {
 public:
     OPENVINO_OP("Broadcast", "opset1", op::util::BroadcastBase, 1);
     BWDCMP_RTTI_DECLARATION;
@@ -103,7 +107,7 @@ public:
     Broadcast(const Output<Node>& arg,
               const Output<Node>& target_shape,
               const Output<Node>& axes_mapping,
-              const AutoBroadcastSpec& broadcast_spec = AutoBroadcastSpec());
+              const op::AutoBroadcastSpec& broadcast_spec = op::AutoBroadcastSpec());
 
     /// \brief Constructs a broadcast operation.
     ///
@@ -113,17 +117,17 @@ public:
     ///                       axes
     Broadcast(const Output<Node>& arg,
               const Output<Node>& target_shape,
-              const AutoBroadcastSpec& broadcast_spec = AutoBroadcastSpec(AutoBroadcastType::NUMPY));
+              const op::AutoBroadcastSpec& broadcast_spec = op::AutoBroadcastSpec(op::AutoBroadcastType::NUMPY));
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     /// \return Broadcast Specification.
-    const AutoBroadcastSpec& get_broadcast_spec() const {
+    const op::AutoBroadcastSpec& get_broadcast_spec() const {
         return m_broadcast_spec;
     }
-    void set_broadcast_spec(const AutoBroadcastSpec& broadcast_spec) {
+    void set_broadcast_spec(const op::AutoBroadcastSpec& broadcast_spec) {
         m_broadcast_spec = broadcast_spec;
     }
 
@@ -134,8 +138,16 @@ public:
     bool has_evaluate() const override;
 
 protected:
-    AutoBroadcastSpec m_broadcast_spec;
+    op::AutoBroadcastSpec m_broadcast_spec;
 };
+}  // namespace opset1
+namespace op {
+namespace v1 {
+using ::ov::opset1::Broadcast;
 }  // namespace v1
 }  // namespace op
 }  // namespace ov
+
+#define OPERATION_DEFINED_Broadcast 1
+#include "openvino/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_Broadcast

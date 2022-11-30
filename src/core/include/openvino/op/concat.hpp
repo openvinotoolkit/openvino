@@ -9,11 +9,10 @@
 #include "openvino/op/op.hpp"
 
 namespace ov {
-namespace op {
-namespace v0 {
+namespace opset1 {
 /// \brief Concatenation operation.
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API Concat : public Op {
+class OPENVINO_API Concat : public op::Op {
 public:
     OPENVINO_OP("Concat", "opset1");
     BWDCMP_RTTI_DECLARATION;
@@ -67,6 +66,17 @@ protected:
     /// \brief m_concat_axis stores m_axis plus the number of rank for each iteration
     int64_t m_concat_axis = -1;
 };
-}  // namespace v0
+}  // namespace opset1
+
+namespace op {
+namespace v0 {
+
+using ::ov::opset1::Concat;
+
+}
 }  // namespace op
 }  // namespace ov
+
+#define OPERATION_DEFINED_Concat 1
+#include "openvino/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_Concat

@@ -19,3 +19,7 @@ using ov::op::v1::StridedSlice;
 }  // namespace v1
 }  // namespace op
 }  // namespace ngraph
+
+#define OPERATION_DEFINED_StridedSlice 1
+#include "ngraph/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_StridedSlice

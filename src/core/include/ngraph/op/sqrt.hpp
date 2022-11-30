@@ -15,3 +15,7 @@ using ov::op::v0::Sqrt;
 using v0::Sqrt;
 }  // namespace op
 }  // namespace ngraph
+
+#define OPERATION_DEFINED_Sqrt 1
+#include "ngraph/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_Sqrt

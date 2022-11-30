@@ -19,3 +19,7 @@ using ov::op::v0::Unsqueeze;
 using v0::Unsqueeze;
 }  // namespace op
 }  // namespace ngraph
+
+#define OPERATION_DEFINED_Unsqueeze 1
+#include "ngraph/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_Unsqueeze

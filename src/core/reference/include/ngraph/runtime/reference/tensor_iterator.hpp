@@ -5,7 +5,8 @@
 #pragma once
 
 #include <cmath>
-#include <ngraph/opsets/opset5.hpp>
+#include <ngraph/function.hpp>
+#include <ngraph/op/util/sub_graph_base.hpp>
 
 namespace ngraph {
 namespace runtime {

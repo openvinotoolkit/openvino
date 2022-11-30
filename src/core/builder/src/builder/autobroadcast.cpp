@@ -11,9 +11,12 @@
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/check.hpp"
+#include "ngraph/op/add.hpp"
 #include "ngraph/op/broadcast.hpp"
+#include "ngraph/op/convert.hpp"
+#include "ngraph/op/range.hpp"
 #include "ngraph/op/reshape.hpp"
-#include "ngraph/opsets/opset7.hpp"
+#include "ngraph/op/shape_of.hpp"
 #include "ngraph/util.hpp"
 
 using namespace std;

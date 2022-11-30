@@ -40,11 +40,9 @@
 #include "openvino/core/node.hpp"
 
 namespace ov {
-namespace op {
-namespace v0 {
+namespace opset1 {
 class Result;
-}
-}  // namespace op
+}  // namespace opset1
 }  // namespace ov
 namespace ngraph {
 
@@ -62,7 +60,7 @@ using TensorLabelVector = std::vector<TensorLabel>;
 namespace op {
 
 namespace v0 {
-using ov::op::v0::Result;
+using ov::opset1::Result;
 }
 }  // namespace op
 

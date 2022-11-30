@@ -17,3 +17,7 @@ using ov::op::v1::Transpose;
 using v1::Transpose;
 }  // namespace op
 }  // namespace ngraph
+
+#define OPERATION_DEFINED_Transpose 1
+#include "ngraph/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_Transpose

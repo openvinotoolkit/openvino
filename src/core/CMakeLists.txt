@@ -5,8 +5,6 @@
 # enable LTO globally for all libraries below
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
-add_definitions(-DIN_OV_CORE_LIBRARY)
-
 set(OV_CORE_INCLUDE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 if(CMAKE_COMPILER_IS_GNUCXX)

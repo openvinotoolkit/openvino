@@ -6,7 +6,6 @@
 
 #include <cstring>
 
-#include "ngraph/opsets/opset5.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/concat.hpp"
 #include "ngraph/runtime/tensor.hpp"

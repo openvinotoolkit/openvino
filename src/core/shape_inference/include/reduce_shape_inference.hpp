@@ -5,7 +5,6 @@
 #include <openvino/core/validation_util.hpp>
 #include <openvino/op/util/arithmetic_reductions_keep_dims.hpp>
 #include <openvino/op/util/logical_reduction_keep_dims.hpp>
-#include <openvino/opsets/opset1.hpp>
 
 #include "utils.hpp"
 

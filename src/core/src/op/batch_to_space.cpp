@@ -15,7 +15,6 @@
 #include "itt.hpp"
 #include "ngraph/builder/make_constant.hpp"
 #include "ngraph/node.hpp"
-#include "ngraph/opsets/opset3.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
 #include "ngraph/runtime/reference/strided_slice.hpp"
 #include "ngraph/shape.hpp"

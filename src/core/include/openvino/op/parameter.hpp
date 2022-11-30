@@ -8,8 +8,7 @@
 #include "openvino/op/op.hpp"
 
 namespace ov {
-namespace op {
-namespace v0 {
+namespace opset1 {
 /// \brief A model parameter.
 ///
 /// Parameters are nodes that represent the arguments that will be passed to
@@ -66,6 +65,10 @@ protected:
     element::Type m_element_type;
     bool m_is_relevant_to_shapes{false};
 };
+}  // namespace opset1
+namespace op {
+namespace v0 {
+using ::ov::opset1::Parameter;
 }  // namespace v0
 }  // namespace op
 using ParameterVector = std::vector<std::shared_ptr<op::v0::Parameter>>;
@@ -85,3 +88,7 @@ protected:
 };
 
 }  // namespace ov
+
+#define OPERATION_DEFINED_Parameter 1
+#include "openvino/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_Parameter

@@ -66,23 +66,25 @@ TEST(op, opset_multi_thread) {
 }
 
 TEST(op, cos_op_use_different_opsets) {
-    ov::op::opset1::Cos op1;
-    ov::op::opset2::Cos op2;
-    ov::op::opset3::Cos op3;
-    ov::op::opset4::Cos op4;
-    ov::op::opset5::Cos op5;
-    ov::op::opset6::Cos op6;
-    ov::op::opset7::Cos op7;
-    ov::op::opset8::Cos op8;
+    ov::opset1::Cos op1;
+    ov::opset2::Cos op2;
+    ov::opset3::Cos op3;
+    ov::opset4::Cos op4;
+    ov::opset5::Cos op5;
+    ov::opset6::Cos op6;
+    ov::opset7::Cos op7;
+    ov::opset8::Cos op8;
+    ov::opset9::Cos op9;
+    ov::opset10::Cos op10;
 }
 
 TEST(op, sin_op_use_different_opsets) {
-    ov::op::opset1::Sin op1;
-    ov::op::opset2::Sin op2;
-    ov::op::opset3::Sin op3;
-    ov::op::opset4::Sin op4;
-    ov::op::opset5::Sin op5;
-    ov::op::opset6::Sin op6;
-    ov::op::opset7::Sin op7;
-    ov::op::opset8::Sin op8;
+    ov::opset1::Sin op1;
+    ov::opset2::Sin op2;
+    ov::opset3::Sin op3;
+    ov::opset4::Sin op4;
+    ov::opset5::Sin op5;
+    ov::opset6::Sin op6;
+    ov::opset7::Sin op7;
+    ov::opset8::Sin op8;
 }

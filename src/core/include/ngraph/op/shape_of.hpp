@@ -10,12 +10,16 @@
 namespace ngraph {
 namespace op {
 namespace v3 {
-using ov::op::v3::ShapeOf;
+using ::ov::op::v3::ShapeOf;
 }  // namespace v3
 
 namespace v0 {
-using ov::op::v0::ShapeOf;
+using ::ov::op::v0::ShapeOf;
 }  // namespace v0
 using v0::ShapeOf;
 }  // namespace op
 }  // namespace ngraph
+
+#define OPERATION_DEFINED_ShapeOf 1
+#include "ngraph/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_ShapeOf

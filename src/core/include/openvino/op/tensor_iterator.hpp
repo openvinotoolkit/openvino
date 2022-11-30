@@ -11,8 +11,7 @@
 #include "openvino/op/util/sub_graph_base.hpp"
 
 namespace ov {
-namespace op {
-namespace v0 {
+namespace opset1 {
 /// \brief  Iterate a body over tensors, accumulating into tensors.
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API TensorIterator : public op::util::SubGraphOp {
@@ -40,6 +39,16 @@ public:
 private:
     void try_to_set_num_iterations_if_no_slice_inputs();
 };
-}  // namespace v0
+}  // namespace opset1
+namespace op {
+namespace v0 {
+
+using ::ov::opset1::TensorIterator;
+
+}
 }  // namespace op
 }  // namespace ov
+
+#define OPERATION_DEFINED_TensorIterator 1
+#include "openvino/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_TensorIterator

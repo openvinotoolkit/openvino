@@ -7,17 +7,16 @@
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
 
 namespace ov {
-namespace op {
-namespace v1 {
+namespace opset1 {
 /// \brief Elementwise maximum operation.
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API Maximum : public util::BinaryElementwiseArithmetic {
+class OPENVINO_API Maximum : public op::util::BinaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Maximum", "opset1", op::util::BinaryElementwiseArithmetic, 1);
     BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a maximum operation.
-    Maximum() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}
+    Maximum() : op::util::BinaryElementwiseArithmetic(op::AutoBroadcastType::NUMPY) {}
 
     /// \brief Constructs a maximum operation.
     ///
@@ -26,7 +25,7 @@ public:
     /// \param auto_broadcast Auto broadcast specification
     Maximum(const Output<Node>& arg0,
             const Output<Node>& arg1,
-            const AutoBroadcastSpec& auto_broadcast = AutoBroadcastSpec(AutoBroadcastType::NUMPY));
+            const op::AutoBroadcastSpec& auto_broadcast = op::AutoBroadcastSpec(op::AutoBroadcastType::NUMPY));
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
@@ -35,6 +34,14 @@ public:
     OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 };
+}  // namespace opset1
+namespace op {
+namespace v1 {
+using ::ov::opset1::Maximum;
 }  // namespace v1
 }  // namespace op
 }  // namespace ov
+
+#define OPERATION_DEFINED_Maximum 1
+#include "openvino/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_Maximum

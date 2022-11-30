@@ -4,6 +4,8 @@
 
 #include "ngraph/runtime/reference/tensor_iterator.hpp"
 
+#include "ngraph/op/loop.hpp"
+#include "ngraph/op/tensor_iterator.hpp"
 #include "ngraph/runtime/reference/concat.hpp"
 #include "ngraph/runtime/reference/function.hpp"
 #include "ngraph/runtime/reference/split.hpp"

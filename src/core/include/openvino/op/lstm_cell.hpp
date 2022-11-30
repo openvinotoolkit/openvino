@@ -14,6 +14,12 @@
 #include "openvino/op/util/rnn_cell_base.hpp"
 
 namespace ov {
+namespace opset1 {
+class LSTMCell;
+}
+namespace opset4 {
+class LSTMCell;
+}
 namespace op {
 enum class LSTMWeightsFormat {
     FICO,  // IE
@@ -26,6 +32,16 @@ enum class LSTMWeightsFormat {
 ov::op::util::LSTMWeightsFormat convert_lstm_weights_enums(LSTMWeightsFormat format);
 
 namespace v0 {
+template <class T>
+void shape_infer(const ov::opset1::LSTMCell* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes);
+}
+namespace v4 {
+template <class T>
+void shape_infer(const ov::opset4::LSTMCell* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes);
+}  // namespace v4
+}  // namespace op
+
+namespace opset1 {
 ///
 /// \brief      Class for single lstm cell node.
 ///
@@ -53,7 +69,7 @@ namespace v0 {
 /// \sa         LSTMSequence, RNNCell, GRUCell
 ///
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API LSTMCell : public util::RNNCellBase {
+class OPENVINO_API LSTMCell : public op::util::RNNCellBase {
 public:
     OPENVINO_OP("LSTMCell", "opset1", op::util::RNNCellBase);
     BWDCMP_RTTI_DECLARATION;
@@ -94,7 +110,7 @@ public:
              const Output<Node>& W,
              const Output<Node>& R,
              std::size_t hidden_size,
-             LSTMWeightsFormat weights_format = LSTMWeightsFormat::IFCO,
+             op::LSTMWeightsFormat weights_format = op::LSTMWeightsFormat::IFCO,
              const std::vector<std::string>& activations = std::vector<std::string>{"sigmoid", "tanh", "tanh"},
              const std::vector<float>& activations_alpha = {},
              const std::vector<float>& activations_beta = {},
@@ -139,7 +155,7 @@ public:
              const Output<Node>& R,
              const Output<Node>& B,
              std::size_t hidden_size,
-             LSTMWeightsFormat weights_format = LSTMWeightsFormat::IFCO,
+             op::LSTMWeightsFormat weights_format = op::LSTMWeightsFormat::IFCO,
              const std::vector<std::string>& activations = std::vector<std::string>{"sigmoid", "tanh", "tanh"},
              const std::vector<float>& activations_alpha = {},
              const std::vector<float>& activations_beta = {},
@@ -188,7 +204,7 @@ public:
              const Output<Node>& B,
              const Output<Node>& P,
              std::size_t hidden_size,
-             LSTMWeightsFormat weights_format = LSTMWeightsFormat::IFCO,
+             op::LSTMWeightsFormat weights_format = op::LSTMWeightsFormat::IFCO,
              const std::vector<std::string>& activations = std::vector<std::string>{"sigmoid", "tanh", "tanh"},
              const std::vector<float>& activations_alpha = {},
              const std::vector<float>& activations_beta = {},
@@ -202,7 +218,7 @@ public:
     bool get_input_forget() const {
         return m_input_forget;
     }
-    LSTMWeightsFormat get_weights_format() const {
+    op::LSTMWeightsFormat get_weights_format() const {
         return m_weights_format;
     }
 
@@ -223,15 +239,15 @@ private:
     ///
     /// \brief The Activation function f.
     ///
-    util::ActivationFunction m_activation_f;
+    op::util::ActivationFunction m_activation_f;
     ///
     /// \brief The Activation function g.
     ///
-    util::ActivationFunction m_activation_g;
+    op::util::ActivationFunction m_activation_g;
     ///
     /// \brief The Activation function h.
     ///
-    util::ActivationFunction m_activation_h;
+    op::util::ActivationFunction m_activation_h;
     ///
     /// \brief      Controls whether to couple input and forget gates.
     ///
@@ -240,16 +256,22 @@ private:
     ///
     /// \brief The order of gates in weights tensors.
     ///
-    LSTMWeightsFormat m_weights_format;
+    op::LSTMWeightsFormat m_weights_format;
 
     static constexpr std::size_t s_gates_count{4};
     static constexpr std::size_t s_peepholes_count{3};
     template <class T>
-    friend void shape_infer(const LSTMCell* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes);
+    friend void op::v0::shape_infer(const LSTMCell* op,
+                                    const std::vector<T>& input_shapes,
+                                    std::vector<T>& output_shapes);
 };
+}  // namespace opset1
+namespace op {
+namespace v0 {
+using ::ov::opset1::LSTMCell;
 }  // namespace v0
-
-namespace v4 {
+}  // namespace op
+namespace opset4 {
 ///
 /// \brief      Class for single lstm cell node.
 ///
@@ -277,7 +299,7 @@ namespace v4 {
 /// \sa         LSTMSequence, RNNCell, GRUCell
 ///
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API LSTMCell : public util::RNNCellBase {
+class OPENVINO_API LSTMCell : public op::util::RNNCellBase {
 public:
     OPENVINO_OP("LSTMCell", "opset4", op::util::RNNCellBase, 4);
     BWDCMP_RTTI_DECLARATION;
@@ -373,20 +395,26 @@ private:
     ///
     /// \brief The Activation function f.
     ///
-    util::ActivationFunction m_activation_f;
+    op::util::ActivationFunction m_activation_f;
     ///
     /// \brief The Activation function g.
     ///
-    util::ActivationFunction m_activation_g;
+    op::util::ActivationFunction m_activation_g;
     ///
     /// \brief The Activation function h.
     ///
-    util::ActivationFunction m_activation_h;
+    op::util::ActivationFunction m_activation_h;
 
     static constexpr std::size_t s_gates_count{4};
     template <class T>
-    friend void shape_infer(const LSTMCell* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes);
+    friend void op::v4::shape_infer(const LSTMCell* op,
+                                    const std::vector<T>& input_shapes,
+                                    std::vector<T>& output_shapes);
 };
+}  // namespace opset4
+namespace op {
+namespace v4 {
+using ::ov::opset4::LSTMCell;
 }  // namespace v4
 }  // namespace op
 
@@ -403,3 +431,7 @@ public:
 };
 
 }  // namespace ov
+
+#define OPERATION_DEFINED_LSTMCell 1
+#include "openvino/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_LSTMCell

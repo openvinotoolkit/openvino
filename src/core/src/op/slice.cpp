@@ -246,13 +246,13 @@ std::shared_ptr<Node> op::v8::Slice::clone_with_new_inputs(const OutputVector& n
     OV_OP_SCOPE(v8_Slice_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 4) {
-        return std::make_shared<v8::Slice>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
+        return std::make_shared<op::v8::Slice>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
     } else {
-        return std::make_shared<v8::Slice>(new_args.at(0),
-                                           new_args.at(1),
-                                           new_args.at(2),
-                                           new_args.at(3),
-                                           new_args.at(4));
+        return std::make_shared<op::v8::Slice>(new_args.at(0),
+                                               new_args.at(1),
+                                               new_args.at(2),
+                                               new_args.at(3),
+                                               new_args.at(4));
     }
 }
 

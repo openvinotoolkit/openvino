@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+remove_definitions(-DIN_OV_CORE_LIBRARY)
+
 set(TARGET_NAME ov_core_unit_tests)
 
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)

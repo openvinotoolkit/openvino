@@ -9,7 +9,6 @@
 #include "embedding_segments_sum_shape_inference.hpp"
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/opsets/opset3.hpp"
 
 using namespace std;
 using namespace ngraph;

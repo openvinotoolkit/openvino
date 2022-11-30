@@ -8,11 +8,10 @@
 #include "openvino/op/util/unary_elementwise_arithmetic.hpp"
 
 namespace ov {
-namespace op {
-namespace v0 {
+namespace opset1 {
 /// \brief Elementwise type conversion operation.
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API Convert : public Op {
+class OPENVINO_API Convert : public op::Op {
 public:
     OPENVINO_OP("Convert", "opset1");
     BWDCMP_RTTI_DECLARATION;
@@ -54,6 +53,14 @@ public:
 protected:
     ov::element::Type m_destination_type;
 };
+}  // namespace opset1
+namespace op {
+namespace v0 {
+using ::ov::opset1::Convert;
 }  // namespace v0
 }  // namespace op
 }  // namespace ov
+
+#define OPERATION_DEFINED_Convert 1
+#include "openvino/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_Convert

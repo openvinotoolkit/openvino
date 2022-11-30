@@ -28,3 +28,7 @@ using ov::op::v4::LSTMCell;
 }  // namespace v4
 }  // namespace op
 }  // namespace ngraph
+
+#define OPERATION_DEFINED_LSTMCell 1
+#include "ngraph/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_LSTMCell

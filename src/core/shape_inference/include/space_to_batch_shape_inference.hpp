@@ -7,7 +7,6 @@
 #include <cstdint>
 #include <openvino/core/validation_util.hpp>
 #include <openvino/op/space_to_batch.hpp>
-#include <openvino/opsets/opset2.hpp>
 
 #include "utils.hpp"
 

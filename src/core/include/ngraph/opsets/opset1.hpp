@@ -3,6 +3,9 @@
 //
 
 #pragma once
+#ifdef IN_OV_CORE_LIBRARY
+#    error("ngraph/opsets/opset1.hpp is for external use only")
+#endif
 
 #include "ngraph/ops.hpp"
 

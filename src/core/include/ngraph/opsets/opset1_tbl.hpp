@@ -34,10 +34,20 @@
 // It's that easy. You can use this for fun and profit.
 
 #ifndef NGRAPH_OP
+#ifndef _REGISTER_NGRAPH_OP
 #    warning "NGRAPH_OP not defined"
 #    define NGRAPH_OP(x, y)
+#else
+#    define _NGRAPH_AUTO_OPSET_REGISTRATOR
+#    define NGRAPH_OP(x, y) _REGISTER_NGRAPH_OP(opset1, x, y)
+#endif
 #endif
 
 #define _OPENVINO_OP_REG NGRAPH_OP
 #include "openvino/opsets/opset1_tbl.hpp"
 #undef _OPENVINO_OP_REG
+
+#ifdef _NGRAPH_AUTO_OPSET_REGISTRATOR
+#undef _NGRAPH_AUTO_OPSET_REGISTRATOR
+#undef NGRAPH_OP
+#endif

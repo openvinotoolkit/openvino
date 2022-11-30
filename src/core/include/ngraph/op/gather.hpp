@@ -20,3 +20,7 @@ using ov::op::v8::Gather;
 }  // namespace v8
 }  // namespace op
 }  // namespace ngraph
+
+#define OPERATION_DEFINED_Gather 1
+#include "ngraph/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_Gather

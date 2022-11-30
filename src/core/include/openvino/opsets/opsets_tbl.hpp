@@ -3,6 +3,8 @@
 //
 
 #include "openvino/core/pp_utils.hpp"
+
+// clang-format off
 #include "openvino/opsets/opset1_tbl.hpp"
 #include "openvino/opsets/opset2_tbl.hpp"
 #include "openvino/opsets/opset3_tbl.hpp"
@@ -11,3 +13,6 @@
 #include "openvino/opsets/opset6_tbl.hpp"
 #include "openvino/opsets/opset7_tbl.hpp"
 #include "openvino/opsets/opset8_tbl.hpp"
+#include "openvino/opsets/opset9_tbl.hpp"
+#include "openvino/opsets/opset10_tbl.hpp"
+// clang-format on

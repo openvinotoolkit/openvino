@@ -7,12 +7,11 @@
 #include "openvino/op/op.hpp"
 
 namespace ov {
-namespace op {
-namespace v8 {
+namespace opset8 {
 /// \brief Slice operation.
 ///
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API Slice : public Op {
+class OPENVINO_API Slice : public op::Op {
 public:
     OPENVINO_OP("Slice", "opset8");
 
@@ -63,6 +62,14 @@ public:
                                         const std::vector<int64_t>& axes,
                                         const PartialShape& data_shape) const;
 };
+}  // namespace opset8
+namespace op {
+namespace v8 {
+using ::ov::opset8::Slice;
 }  // namespace v8
 }  // namespace op
 }  // namespace ov
+
+#define OPERATION_DEFINED_Slice 1
+#include "openvino/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_Slice

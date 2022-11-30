@@ -35,7 +35,7 @@ void op::Squeeze::validate_and_infer_types() {
 
     const auto input_shapes = get_node_input_partial_shapes(*this);
     auto output_shapes = std::vector<ov::PartialShape>(1);
-    shape_infer(this, input_shapes, output_shapes);
+    op::v0::shape_infer(this, input_shapes, output_shapes);
 
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
@@ -72,7 +72,7 @@ bool op::v0::Squeeze::evaluate(const HostTensorVector& outputs, const HostTensor
             constant_data.emplace(1, inputs[1]);
         }
 
-        shape_infer(this, input_shapes, output_shapes, constant_data);
+        op::v0::shape_infer(this, input_shapes, output_shapes, constant_data);
 
         auto out_shape = output_shapes[0].get_shape();
         outputs[0]->set_shape(out_shape);

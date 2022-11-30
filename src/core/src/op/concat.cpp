@@ -70,7 +70,7 @@ void op::Concat::validate_and_infer_types() {
 
     std::vector<PartialShape> output_shapes(1, PartialShape{});
 
-    shape_infer(this, input_shapes, output_shapes);
+    op::v0::shape_infer(this, input_shapes, output_shapes);
     set_output_type(0, inputs_et, output_shapes.front());
 }
 

@@ -17,3 +17,9 @@ using ov::op::v1::ConvolutionBackpropData;
 }  // namespace v1
 }  // namespace op
 }  // namespace ngraph
+
+#define OPERATION_DEFINED_Convolution             1
+#define OPERATION_DEFINED_ConvolutionBackpropData 1
+#include "ngraph/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_ConvolutionBackpropData
+#undef OPERATION_DEFINED_Convolution

@@ -8,12 +8,11 @@
 #include "openvino/op/op.hpp"
 
 namespace ov {
-namespace op {
-namespace v0 {
+namespace opset1 {
 /// \brief Result operation.
 ///
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API Result : public Op {
+class OPENVINO_API Result : public op::Op {
 public:
     OPENVINO_OP("Result", "opset1");
     BWDCMP_RTTI_DECLARATION;
@@ -54,6 +53,10 @@ public:
     /// \param layout Layout to set. If empty (default constructed), layout runtime information is erased.
     void set_layout(const Layout& layout);
 };
+}  // namespace opset1
+namespace op {
+namespace v0 {
+using ::ov::opset1::Result;
 }  // namespace v0
 }  // namespace op
 using ResultVector = std::vector<std::shared_ptr<op::v0::Result>>;
@@ -73,3 +76,7 @@ protected:
 };
 
 }  // namespace ov
+
+#define OPERATION_DEFINED_Result 1
+#include "openvino/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_Result

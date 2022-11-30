@@ -9,12 +9,11 @@
 #include "openvino/op/op.hpp"
 
 namespace ov {
-namespace op {
-namespace v0 {
+namespace opset1 {
 /// \brief Unsqueeze operation.
 ///
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API Unsqueeze : public Op {
+class OPENVINO_API Unsqueeze : public op::Op {
 public:
     OPENVINO_OP("Unsqueeze", "opset1");
     BWDCMP_RTTI_DECLARATION;
@@ -38,6 +37,14 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };
+}  // namespace opset1
+namespace op {
+namespace v0 {
+using ::ov::opset1::Unsqueeze;
 }  // namespace v0
 }  // namespace op
 }  // namespace ov
+
+#define OPERATION_DEFINED_Unsqueeze 1
+#include "openvino/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_Unsqueeze

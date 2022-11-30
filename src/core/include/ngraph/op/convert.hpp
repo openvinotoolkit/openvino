@@ -16,3 +16,7 @@ using ov::op::v0::Convert;
 using v0::Convert;
 }  // namespace op
 }  // namespace ngraph
+
+#define OPERATION_DEFINED_Convert 1
+#include "ngraph/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_Convert

@@ -45,7 +45,7 @@ void op::v3::Assign::validate_and_infer_types() {
     }
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
     std::vector<ov::PartialShape> input_shapes = {input_shape};
-    shape_infer(this, input_shapes, output_shapes);
+    v3::shape_infer(this, input_shapes, output_shapes);
     set_output_type(0, arg_t, output_shapes[0]);
 }
 

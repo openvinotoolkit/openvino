@@ -23,15 +23,15 @@ BWDCMP_RTTI_DEFINITION(op::v3::Broadcast);
 op::v3::Broadcast::Broadcast(const Output<Node>& arg,
                              const Output<Node>& target_shape,
                              const Output<Node>& axes_mapping,
-                             const BroadcastModeSpec& broadcast_spec)
-    : util::BroadcastBase{arg, target_shape, axes_mapping, broadcast_spec} {
+                             const op::BroadcastModeSpec& broadcast_spec)
+    : op::util::BroadcastBase{arg, target_shape, axes_mapping, broadcast_spec} {
     constructor_validate_and_infer_types();
 }
 
 op::v3::Broadcast::Broadcast(const Output<Node>& arg,
                              const Output<Node>& target_shape,
-                             const BroadcastModeSpec& broadcast_spec)
-    : util::BroadcastBase{arg, target_shape, broadcast_spec} {
+                             const op::BroadcastModeSpec& broadcast_spec)
+    : op::util::BroadcastBase{arg, target_shape, broadcast_spec} {
     constructor_validate_and_infer_types();
 }
 
@@ -52,7 +52,7 @@ std::pair<bool, AxisSet> get_broadcast_axes_bidirectional(const ov::Shape& arg_s
 }  // namespace
 
 std::pair<bool, AxisSet> op::v3::Broadcast::get_broadcast_axes() const {
-    if (m_mode.m_type == BroadcastType::BIDIRECTIONAL) {
+    if (m_mode.m_type == op::BroadcastType::BIDIRECTIONAL) {
         AxisSet broadcast_axes;
         bool axes_known = false;
 
@@ -64,7 +64,7 @@ std::pair<bool, AxisSet> op::v3::Broadcast::get_broadcast_axes() const {
         return std::make_pair(axes_known, broadcast_axes);
     }
 
-    return util::BroadcastBase::get_broadcast_axes();
+    return op::util::BroadcastBase::get_broadcast_axes();
 }
 
 namespace {
@@ -132,7 +132,7 @@ bool op::v3::Broadcast::broadcast_evaluate(const HostTensorVector& outputs, cons
 
 void op::v3::Broadcast::validate_and_infer_types() {
     OV_OP_SCOPE(v3_Broadcast_validate_and_infer_types);
-    if (m_mode.m_type == BroadcastType::NONE) {
+    if (m_mode.m_type == op::BroadcastType::NONE) {
         NODE_VALIDATION_CHECK(this,
                               get_input_size() == 3,
                               "axes_mapping input should be provided if explicit mode is used");
@@ -147,7 +147,7 @@ void op::v3::Broadcast::validate_and_infer_types() {
                           shape_et.is_integral_number(),
                           "Broadcast shape must be an integral number, but is: ",
                           shape_et);
-    if (m_mode.m_type == BroadcastType::NONE) {
+    if (m_mode.m_type == op::BroadcastType::NONE) {
         // axes_mapping node should have integer data type. For now we only allow i64
         const auto& axes_et = get_input_element_type(2);
         NODE_VALIDATION_CHECK(this,
@@ -167,7 +167,7 @@ void op::v3::Broadcast::validate_and_infer_types() {
         input_shapes = {arg_shape, target_shape, axes_mapping};
     }
 
-    shape_infer(this, input_shapes, output_shapes);
+    op::v3::shape_infer(this, input_shapes, output_shapes);
 
     set_input_is_relevant_to_shape(0);  // arg - Result element type
     set_input_is_relevant_to_shape(1);  // target_shape - Result shape
@@ -181,9 +181,9 @@ shared_ptr<Node> op::v3::Broadcast::clone_with_new_inputs(const OutputVector& ne
     OV_OP_SCOPE(v3_Broadcast_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 2) {
-        return make_shared<v3::Broadcast>(new_args.at(0), new_args.at(1), m_mode);
+        return make_shared<op::v3::Broadcast>(new_args.at(0), new_args.at(1), m_mode);
     } else if (new_args.size() == 3) {
-        return make_shared<v3::Broadcast>(new_args.at(0), new_args.at(1), new_args.at(2), m_mode);
+        return make_shared<op::v3::Broadcast>(new_args.at(0), new_args.at(1), new_args.at(2), m_mode);
     } else {
         throw ngraph_error("Not supported number of Broadcast:v3 args");
     }
@@ -202,8 +202,8 @@ bool op::v3::Broadcast::evaluate(const HostTensorVector& outputs, const HostTens
 
 bool op::v3::Broadcast::has_evaluate() const {
     OV_OP_SCOPE(v3_Broadcast_has_evaluate);
-    return m_mode.m_type == BroadcastType::NONE || m_mode.m_type == BroadcastType::PDPD ||
-           m_mode.m_type == BroadcastType::NUMPY || m_mode.m_type == BroadcastType::BIDIRECTIONAL;
+    return m_mode.m_type == op::BroadcastType::NONE || m_mode.m_type == op::BroadcastType::PDPD ||
+           m_mode.m_type == op::BroadcastType::NUMPY || m_mode.m_type == op::BroadcastType::BIDIRECTIONAL;
 }
 
 namespace {
@@ -232,7 +232,7 @@ op::v1::Broadcast::Broadcast(const Output<Node>& arg,
                              const Output<Node>& target_shape,
                              const Output<Node>& axes_mapping,
                              const AutoBroadcastSpec& broadcast_spec)
-    : util::BroadcastBase{arg, target_shape, axes_mapping, to_broadcast_mode(broadcast_spec)},
+    : op::util::BroadcastBase{arg, target_shape, axes_mapping, to_broadcast_mode(broadcast_spec)},
       m_broadcast_spec{broadcast_spec} {
     constructor_validate_and_infer_types();
 }
@@ -240,10 +240,10 @@ op::v1::Broadcast::Broadcast(const Output<Node>& arg,
 op::v1::Broadcast::Broadcast(const Output<Node>& arg,
                              const Output<Node>& target_shape,
                              const AutoBroadcastSpec& broadcast_spec)
-    : util::BroadcastBase{arg,
-                          target_shape,
-                          op::v0::Constant::create(element::u8, ov::Shape{}, {0})->output(0),
-                          to_broadcast_mode(broadcast_spec)},
+    : op::util::BroadcastBase{arg,
+                              target_shape,
+                              op::v0::Constant::create(element::u8, ov::Shape{}, {0})->output(0),
+                              to_broadcast_mode(broadcast_spec)},
       m_broadcast_spec{broadcast_spec} {
     constructor_validate_and_infer_types();
 }
@@ -264,8 +264,8 @@ void op::v1::Broadcast::validate_and_infer_types() {
 
     // update the base class' mode spec
     auto base_spec = to_broadcast_mode(m_broadcast_spec);
-    if (util::BroadcastBase::m_mode.m_type != base_spec.m_type) {
-        util::BroadcastBase::m_mode = base_spec;
+    if (op::util::BroadcastBase::m_mode.m_type != base_spec.m_type) {
+        op::util::BroadcastBase::m_mode = base_spec;
     }
 
     const auto& shape_et = get_input_element_type(1);
@@ -288,7 +288,7 @@ void op::v1::Broadcast::validate_and_infer_types() {
 
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape()};
     std::vector<ov::PartialShape> input_shapes = {arg_shape, target_shape, axes_mapping};
-    shape_infer(this, input_shapes, output_shapes);
+    op::v1::shape_infer(this, input_shapes, output_shapes);
 
     set_input_is_relevant_to_shape(0);  // arg - Result element type
     set_input_is_relevant_to_shape(1);  // target_shape - Result shape

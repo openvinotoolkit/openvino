@@ -16,3 +16,7 @@ using v0::Parameter;
 }  // namespace op
 using ParameterVector = std::vector<std::shared_ptr<op::Parameter>>;
 }  // namespace ngraph
+
+#define OPERATION_DEFINED_Parameter 1
+#include "ngraph/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_Parameter

@@ -58,7 +58,7 @@ bool evaluate_add(const HostTensorPtr& arg0,
 
 BWDCMP_RTTI_DEFINITION(ov::op::v1::Add);
 
-op::v1::Add::Add(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
+op::v1::Add::Add(const Output<Node>& arg0, const Output<Node>& arg1, const op::AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast) {
     constructor_validate_and_infer_types();
 }

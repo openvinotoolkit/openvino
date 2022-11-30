@@ -48,10 +48,10 @@ class HostTensor;
 }  // namespace ngraph
 
 namespace ov {
-namespace op {
-namespace v0 {
+namespace opset1 {
 class Result;
-}  // namespace v0
+}  // namespace opset1
+namespace op {
 struct AutoBroadcastSpec;
 }  // namespace op
 namespace pass {

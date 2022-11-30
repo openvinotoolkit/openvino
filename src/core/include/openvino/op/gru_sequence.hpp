@@ -12,12 +12,11 @@
 #include "openvino/op/util/rnn_cell_base.hpp"
 
 namespace ov {
-namespace op {
-namespace v5 {
+namespace opset5 {
 /// \brief GRUSequence operation.
 ///
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API GRUSequence : public util::RNNCellBase {
+class OPENVINO_API GRUSequence : public op::util::RNNCellBase {
 public:
     OPENVINO_OP("GRUSequence", "opset5", op::Op, 5);
     BWDCMP_RTTI_DECLARATION;
@@ -53,6 +52,14 @@ protected:
     op::RecurrentSequenceDirection m_direction;
     bool m_linear_before_reset;
 };
+}  // namespace opset5
+namespace op {
+namespace v5 {
+using ::ov::opset5::GRUSequence;
 }  // namespace v5
 }  // namespace op
 }  // namespace ov
+
+#define OPERATION_DEFINED_GRUSequence 1
+#include "openvino/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_GRUSequence

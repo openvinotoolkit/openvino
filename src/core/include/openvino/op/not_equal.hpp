@@ -7,16 +7,15 @@
 #include "openvino/op/util/binary_elementwise_comparison.hpp"
 
 namespace ov {
-namespace op {
-namespace v1 {
+namespace opset1 {
 /// \brief Elementwise not-equal operation.
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API NotEqual : public util::BinaryElementwiseComparison {
+class OPENVINO_API NotEqual : public op::util::BinaryElementwiseComparison {
 public:
     OPENVINO_OP("NotEqual", "opset1", op::util::BinaryElementwiseComparison, 1);
     BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a not-equal operation.
-    NotEqual() : util::BinaryElementwiseComparison(AutoBroadcastType::NUMPY) {}
+    NotEqual() : op::util::BinaryElementwiseComparison(op::AutoBroadcastType::NUMPY) {}
     /// \brief Constructs a not-equal operation.
     ///
     /// \param arg0 Node that produces the first input tensor.
@@ -24,7 +23,7 @@ public:
     /// \param auto_broadcast Auto broadcast specification
     NotEqual(const Output<Node>& arg0,
              const Output<Node>& arg1,
-             const AutoBroadcastSpec& auto_broadcast = AutoBroadcastSpec(AutoBroadcastType::NUMPY));
+             const op::AutoBroadcastSpec& auto_broadcast = op::AutoBroadcastSpec(op::AutoBroadcastType::NUMPY));
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
@@ -34,6 +33,14 @@ public:
     bool has_evaluate() const override;
     bool visit_attributes(AttributeVisitor& visitor) override;
 };
+}  // namespace opset1
+namespace op {
+namespace v1 {
+using ::ov::opset1::NotEqual;
 }  // namespace v1
 }  // namespace op
 }  // namespace ov
+
+#define OPERATION_DEFINED_NotEqual 1
+#include "openvino/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_NotEqual

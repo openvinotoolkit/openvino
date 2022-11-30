@@ -29,7 +29,7 @@ void op::v3::ReadValue::validate_and_infer_types() {
 
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
     std::vector<ov::PartialShape> input_shapes = {input_shape};
-    shape_infer(this, input_shapes, output_shapes);
+    op::v3::shape_infer(this, input_shapes, output_shapes);
 
     const auto& output_shape = output_shapes[0];
     VariableInfo info = {output_shape, arg_t, m_variable_id};
@@ -64,7 +64,7 @@ void op::v6::ReadValue::validate_and_infer_types() {
     auto input_shape = get_input_partial_shape(0);
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
     std::vector<ov::PartialShape> input_shapes = {input_shape};
-    shape_infer(this, input_shapes, output_shapes);
+    op::v6::shape_infer(this, input_shapes, output_shapes);
     const auto& output_shape = output_shapes[0];
     NGRAPH_CHECK(m_variable, "Variable is not initialized.");
     VariableInfo var_info = {output_shape, element::dynamic, m_variable->get_info().variable_id};
@@ -109,7 +109,7 @@ bool op::v6::ReadValue::evaluate(const HostTensorVector& outputs,
     bool use_context = var_value != variable_values.end() && !var_value->second->get_reset();
 
     // initial value (inputs[0]) is not supported, use zeros
-    auto zero_const = make_shared<v0::Constant>(inputs[0]->get_element_type(), inputs[0]->get_shape(), 0);
+    auto zero_const = make_shared<op::v0::Constant>(inputs[0]->get_element_type(), inputs[0]->get_shape(), 0);
     auto zero_tensor = make_shared<HostTensor>(zero_const);
     const auto& input_tensor = use_context ? var_value->second->get_value() : zero_tensor;
     outputs[0]->set_unary(input_tensor);

@@ -16,8 +16,7 @@
 #include "openvino/op/util/rnn_cell_base.hpp"
 
 namespace ov {
-namespace op {
-namespace v0 {
+namespace opset1 {
 
 ///
 /// \brief      Class for lstm sequence node.
@@ -29,13 +28,13 @@ namespace v0 {
 ///
 ///
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API LSTMSequence : public Op {
+class OPENVINO_API LSTMSequence : public op::Op {
 public:
     OPENVINO_OP("LSTMSequence", "opset1");
     BWDCMP_RTTI_DECLARATION;
     LSTMSequence();
 
-    using direction = RecurrentSequenceDirection;
+    using direction = op::RecurrentSequenceDirection;
 
     size_t get_default_output_index() const override {
         return no_default_index();
@@ -50,7 +49,7 @@ public:
                           const Output<Node>& P,
                           const std::int64_t hidden_size,
                           const direction lstm_direction,
-                          LSTMWeightsFormat weights_format = LSTMWeightsFormat::IFCO,
+                          op::LSTMWeightsFormat weights_format = op::LSTMWeightsFormat::IFCO,
                           const std::vector<float> activations_alpha = {},
                           const std::vector<float> activations_beta = {},
                           const std::vector<std::string> activations = {"sigmoid", "tanh", "tanh"},
@@ -66,7 +65,7 @@ public:
                           const Output<Node>& B,
                           const std::int64_t hidden_size,
                           const direction lstm_direction,
-                          LSTMWeightsFormat weights_format = LSTMWeightsFormat::IFCO,
+                          op::LSTMWeightsFormat weights_format = op::LSTMWeightsFormat::IFCO,
                           const std::vector<float>& activations_alpha = {},
                           const std::vector<float>& activations_beta = {},
                           const std::vector<std::string>& activations = {"sigmoid", "tanh", "tanh"},
@@ -99,7 +98,7 @@ public:
     bool get_input_forget() const {
         return m_input_forget;
     }
-    LSTMWeightsFormat get_weights_format() const {
+    op::LSTMWeightsFormat get_weights_format() const {
         return m_weights_format;
     }
 
@@ -111,11 +110,16 @@ private:
     direction m_direction;
     std::int64_t m_hidden_size;
     bool m_input_forget;
-    LSTMWeightsFormat m_weights_format;
+    op::LSTMWeightsFormat m_weights_format;
 };
+}  // namespace opset1
+namespace op {
+namespace v0 {
+using ::ov::opset1::LSTMSequence;
 }  // namespace v0
+}  // namespace op
 
-namespace v5 {
+namespace opset5 {
 ///
 /// \brief      Class for lstm sequence node.
 ///
@@ -126,13 +130,13 @@ namespace v5 {
 ///
 ///
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API LSTMSequence : public util::RNNCellBase {
+class OPENVINO_API LSTMSequence : public op::util::RNNCellBase {
 public:
-    OPENVINO_OP("LSTMSequence", "opset5", util::RNNCellBase, 5);
+    OPENVINO_OP("LSTMSequence", "opset5", op::util::RNNCellBase, 5);
     BWDCMP_RTTI_DECLARATION;
     LSTMSequence() = default;
 
-    using direction = RecurrentSequenceDirection;
+    using direction = op::RecurrentSequenceDirection;
 
     size_t get_default_output_index() const override {
         return no_default_index();
@@ -172,6 +176,14 @@ public:
 private:
     direction m_direction{direction::FORWARD};
 };
+}  // namespace opset5
+namespace op {
+namespace v5 {
+using ::ov::opset5::LSTMSequence;
 }  // namespace v5
 }  // namespace op
 }  // namespace ov
+
+#define OPERATION_DEFINED_LSTMSequence 1
+#include "openvino/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_LSTMSequence

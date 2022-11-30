@@ -10,7 +10,6 @@
 
 #include "itt.hpp"
 #include "ngraph/op/util/recurrent_sequence.hpp"
-#include "ngraph/opsets/opset4.hpp"
 
 using namespace std;
 using namespace ngraph;

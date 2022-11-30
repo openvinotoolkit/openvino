@@ -7,12 +7,11 @@
 #include "openvino/op/op.hpp"
 
 namespace ov {
-namespace op {
-namespace v0 {
+namespace opset1 {
 /// \brief Squeeze operation.
 ///
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API Squeeze : public Op {
+class OPENVINO_API Squeeze : public op::Op {
 public:
     OPENVINO_OP("Squeeze", "opset1");
     BWDCMP_RTTI_DECLARATION;
@@ -41,6 +40,14 @@ public:
 private:
     Output<Node> get_default_axes_input() const;
 };
+}  // namespace opset1
+namespace op {
+namespace v0 {
+using ::ov::opset1::Squeeze;
 }  // namespace v0
 }  // namespace op
 }  // namespace ov
+
+#define OPERATION_DEFINED_Squeeze 1
+#include "openvino/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_Squeeze

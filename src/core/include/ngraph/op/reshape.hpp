@@ -17,3 +17,7 @@ using ov::op::v1::Reshape;
 }  // namespace v1
 }  // namespace op
 }  // namespace ngraph
+
+#define OPERATION_DEFINED_Reshape 1
+#include "ngraph/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_Reshape

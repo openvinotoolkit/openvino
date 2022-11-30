@@ -7,8 +7,7 @@
 #include "openvino/op/util/unary_elementwise_arithmetic.hpp"
 
 namespace ov {
-namespace op {
-namespace v0 {
+namespace opset1 {
 // clang-format off
 /// \brief Elementwise square root operation.
 ///
@@ -25,9 +24,9 @@ namespace v0 {
 /// | \f$N[d_1,\dots,d_n]\f$ | The tensor \f$T\f$, where \f$T[i_1,\dots,i_n] = \sqrt{\texttt{arg}[i_1,\dots,i_n]}\f$ |
 /// \ingroup ov_ops_cpp_api
 // clang-format on
-class OPENVINO_API Sqrt : public util::UnaryElementwiseArithmetic {
+class OPENVINO_API Sqrt : public op::util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_OP("Sqrt", "opset1", util::UnaryElementwiseArithmetic);
+    OPENVINO_OP("Sqrt", "opset1", op::util::UnaryElementwiseArithmetic);
     BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a square operation.
@@ -43,6 +42,14 @@ public:
     OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 };
+}  // namespace opset1
+namespace op {
+namespace v0 {
+using ::ov::opset1::Sqrt;
 }  // namespace v0
 }  // namespace op
 }  // namespace ov
+
+#define OPERATION_DEFINED_Sqrt 1
+#include "openvino/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_Sqrt

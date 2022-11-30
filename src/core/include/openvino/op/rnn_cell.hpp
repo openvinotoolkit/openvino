@@ -14,8 +14,7 @@
 #include "openvino/op/util/rnn_cell_base.hpp"
 
 namespace ov {
-namespace op {
-namespace v0 {
+namespace opset1 {
 ///
 /// \brief      Class for single RNN cell node.
 ///
@@ -35,9 +34,9 @@ namespace v0 {
 /// \sa         LSTMSequence, LSTMCell, GRUCell
 ///
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API RNNCell : public util::RNNCellBase {
+class OPENVINO_API RNNCell : public op::util::RNNCellBase {
 public:
-    OPENVINO_OP("RNNCell", "opset1", util::RNNCellBase);
+    OPENVINO_OP("RNNCell", "opset1", op::util::RNNCellBase);
     BWDCMP_RTTI_DECLARATION;
 
     RNNCell();
@@ -125,10 +124,18 @@ private:
     ///
     /// \brief The Activation function f.
     ///
-    util::ActivationFunction m_activation_f;
+    op::util::ActivationFunction m_activation_f;
 
     static constexpr std::size_t s_gates_count{1};
 };
+}  // namespace opset1
+namespace op {
+namespace v0 {
+using ::ov::opset1::RNNCell;
 }  // namespace v0
 }  // namespace op
 }  // namespace ov
+
+#define OPERATION_DEFINED_RNNCell 1
+#include "openvino/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_RNNCell

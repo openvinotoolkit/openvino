@@ -10,8 +10,6 @@
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/builder/split.hpp"
 #include "ngraph/op/util/recurrent_sequence.hpp"
-#include "ngraph/opsets/opset4.hpp"
-#include "openvino/opsets/opset1.hpp"
 
 using namespace ngraph;
 using namespace std;
@@ -40,7 +38,7 @@ op::v0::LSTMSequence::LSTMSequence(const Output<Node>& X,
                                    const Output<Node>& P,
                                    const std::int64_t hidden_size,
                                    const LSTMSequence::direction lstm_direction,
-                                   LSTMWeightsFormat weights_format,
+                                   op::LSTMWeightsFormat weights_format,
                                    const std::vector<float> activations_alpha,
                                    const std::vector<float> activations_beta,
                                    const std::vector<std::string> activations,
@@ -67,7 +65,7 @@ op::v0::LSTMSequence::LSTMSequence(const Output<Node>& X,
                                    const Output<Node>& B,
                                    const std::int64_t hidden_size,
                                    const LSTMSequence::direction lstm_direction,
-                                   LSTMWeightsFormat weights_format,
+                                   op::LSTMWeightsFormat weights_format,
                                    const std::vector<float>& activations_alpha,
                                    const std::vector<float>& activations_beta,
                                    const std::vector<std::string>& activations,

@@ -5,7 +5,7 @@
 #include "ngraph/op/util/sub_graph_base.hpp"
 
 #include "ngraph/graph_util.hpp"
-#include "ngraph/opsets/opset5.hpp"
+#include "ngraph/op/tensor_iterator.hpp"
 
 BWDCMP_RTTI_DEFINITION(ov::op::util::SubGraphOp);
 

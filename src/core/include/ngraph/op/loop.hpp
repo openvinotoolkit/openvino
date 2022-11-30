@@ -21,3 +21,7 @@ using ov::op::v5::Loop;
 }  // namespace v5
 }  // namespace op
 }  // namespace ngraph
+
+#define OPERATION_DEFINED_Loop 1
+#include "ngraph/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_Loop

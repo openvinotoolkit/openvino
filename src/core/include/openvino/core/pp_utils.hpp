@@ -32,9 +32,7 @@
 #define _REG_OP_0(NAMESPACE, NAME, ORIG_NAMESPACE)
 #define _REG_OP_1(NAMESPACE, NAME, ORIG_NAMESPACE) \
     namespace ov {                                 \
-    namespace op {                                 \
     namespace NAMESPACE {                          \
     using ORIG_NAMESPACE::NAME;                    \
-    }                                              \
     }                                              \
     }

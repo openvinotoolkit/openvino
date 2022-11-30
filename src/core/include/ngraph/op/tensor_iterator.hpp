@@ -19,3 +19,7 @@ using ov::op::v0::TensorIterator;
 using v0::TensorIterator;
 }  // namespace op
 }  // namespace ngraph
+
+#define OPERATION_DEFINED_TensorIterator 1
+#include "ngraph/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_TensorIterator

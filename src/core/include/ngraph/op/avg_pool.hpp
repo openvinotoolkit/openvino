@@ -17,3 +17,7 @@ using ov::op::v1::AvgPool;
 using v1::AvgPool;
 }  // namespace op
 }  // namespace ngraph
+
+#define OPERATION_DEFINED_AvgPool 1
+#include "ngraph/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_AvgPool

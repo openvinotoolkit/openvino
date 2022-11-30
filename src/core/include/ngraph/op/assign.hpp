@@ -21,3 +21,7 @@ using ov::op::v6::Assign;
 }  // namespace v6
 }  // namespace op
 }  // namespace ngraph
+
+#define OPERATION_DEFINED_Assign 1
+#include "ngraph/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_Assign

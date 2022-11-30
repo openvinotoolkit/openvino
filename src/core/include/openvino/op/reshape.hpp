@@ -7,15 +7,14 @@
 #include "openvino/op/op.hpp"
 
 namespace ov {
-namespace op {
-namespace v1 {
+namespace opset1 {
 /// \brief Tensor dynamic reshape operation.
 ///
 /// "Converts" an input tensor into a new shape with the same number of elements.
 /// This op does not touch the actual data. If needed, use Transpose for that purpose.
 ///
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API Reshape : public Op {
+class OPENVINO_API Reshape : public op::Op {
 public:
     OPENVINO_OP("Reshape", "opset1", op::Op, 1);
     BWDCMP_RTTI_DECLARATION;
@@ -68,6 +67,14 @@ private:
                                 const PartialShape& input_pshape,
                                 std::vector<Dimension>& output_shape) const;
 };
+}  // namespace opset1
+namespace op {
+namespace v1 {
+using ::ov::opset1::Reshape;
 }  // namespace v1
 }  // namespace op
 }  // namespace ov
+
+#define OPERATION_DEFINED_Reshape 1
+#include "openvino/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_Reshape

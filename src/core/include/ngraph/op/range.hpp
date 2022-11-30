@@ -19,3 +19,7 @@ using ov::op::v0::Range;
 using v0::Range;
 }  // namespace op
 }  // namespace ngraph
+
+#define OPERATION_DEFINED_Range 1
+#include "ngraph/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_Range

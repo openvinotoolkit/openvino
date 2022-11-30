@@ -25,3 +25,7 @@ using ov::op::v0::Constant;
 using v0::Constant;
 }  // namespace op
 }  // namespace ngraph
+
+#define OPERATION_DEFINED_Constant 1
+#include "ngraph/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_Constant

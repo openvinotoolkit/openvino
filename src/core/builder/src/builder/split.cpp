@@ -4,7 +4,9 @@
 
 #include "ngraph/builder/split.hpp"
 
-#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/op/constant.hpp"
+#include "ngraph/op/split.hpp"
+#include "ngraph/op/variadic_split.hpp"
 
 using namespace ngraph;
 

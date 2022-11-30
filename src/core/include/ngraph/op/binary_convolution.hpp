@@ -16,3 +16,7 @@ using ov::op::v1::BinaryConvolution;
 }  // namespace v1
 }  // namespace op
 }  // namespace ngraph
+
+#define OPERATION_DEFINED_BinaryConvolution 1
+#include "ngraph/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_BinaryConvolution

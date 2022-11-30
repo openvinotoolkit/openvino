@@ -18,3 +18,7 @@ using v0::Result;
 }  // namespace op
 using ResultVector = std::vector<std::shared_ptr<op::Result>>;
 }  // namespace ngraph
+
+#define OPERATION_DEFINED_Result 1
+#include "ngraph/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_Result

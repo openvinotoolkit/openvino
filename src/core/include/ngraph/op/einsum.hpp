@@ -15,3 +15,7 @@ using ov::op::v7::Einsum;
 }  // namespace v7
 }  // namespace op
 }  // namespace ngraph
+
+#define OPERATION_DEFINED_Einsum 1
+#include "ngraph/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_Einsum

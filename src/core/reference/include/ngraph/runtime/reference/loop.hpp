@@ -5,7 +5,8 @@
 #pragma once
 
 #include <cmath>
-#include <ngraph/opsets/opset5.hpp>
+#include <ngraph/op/loop.hpp>
+#include <ngraph/op/util/sub_graph_base.hpp>
 
 namespace ngraph {
 namespace runtime {
@@ -13,7 +14,7 @@ namespace reference {
 void loop(const std::shared_ptr<Function>& body,
           const op::util::OutputDescriptionVector& out_descs,
           const op::util::InputDescriptionVector& input_descs,
-          const opset5::Loop::SpecialBodyPorts& special_ports,
+          const ov::opset5::Loop::SpecialBodyPorts& special_ports,
           const HostTensorVector& out,
           const HostTensorVector& args);
 }

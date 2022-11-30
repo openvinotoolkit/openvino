@@ -20,19 +20,17 @@
 #include "openvino/core/graph_util.hpp"
 
 namespace ov {
-namespace op {
-namespace v0 {
+namespace opset1 {
 class Parameter;
 class Result;
-}  // namespace v0
-}  // namespace op
+}  // namespace opset1
 }  // namespace ov
 namespace ngraph {
 
 namespace op {
 namespace v0 {
-using ov::op::v0::Parameter;
-using ov::op::v0::Result;
+using ov::opset1::Parameter;
+using ov::opset1::Result;
 }  // namespace v0
 }  // namespace op
 

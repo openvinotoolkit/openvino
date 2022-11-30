@@ -8,14 +8,13 @@
 #include "openvino/op/util/variable.hpp"
 
 namespace ov {
-namespace op {
-namespace v3 {
+namespace opset3 {
 /// \brief ReadValue operation creates the variable with `variable_id` and returns value
 /// of this variable.
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API ReadValue : public util::ReadValueBase {
+class OPENVINO_API ReadValue : public op::util::ReadValueBase {
 public:
-    OPENVINO_OP("ReadValue", "opset3", util::ReadValueBase, 3);
+    OPENVINO_OP("ReadValue", "opset3", op::util::ReadValueBase, 3);
     BWDCMP_RTTI_DECLARATION;
     ReadValue() = default;
 
@@ -38,15 +37,20 @@ public:
 private:
     std::string m_variable_id;
 };
+}  // namespace opset3
+namespace op {
+namespace v3 {
+using ::ov::opset3::ReadValue;
 }  // namespace v3
+}  // namespace op
 
-namespace v6 {
+namespace opset6 {
 /// \brief ReadValue operation gets an input value from the variable with `variable_id`
 /// and returns it as an output.
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API ReadValue : public util::ReadValueBase {
+class OPENVINO_API ReadValue : public op::util::ReadValueBase {
 public:
-    OPENVINO_OP("ReadValue", "opset6", util::ReadValueBase, 6);
+    OPENVINO_OP("ReadValue", "opset6", op::util::ReadValueBase, 6);
     BWDCMP_RTTI_DECLARATION;
     ReadValue() = default;
 
@@ -56,7 +60,7 @@ public:
     /// \param variable Class for storing and synchronizing element types, shapes and
     /// identifiers
     /// between pairs of Assign/ReadValue nodes.
-    ReadValue(const Output<Node>& init_value, const std::shared_ptr<util::Variable>& variable);
+    ReadValue(const Output<Node>& init_value, const std::shared_ptr<op::util::Variable>& variable);
 
     void validate_and_infer_types() override;
 
@@ -80,6 +84,14 @@ public:
 
     bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override;
 };
+}  // namespace opset6
+namespace op {
+namespace v6 {
+using ::ov::opset6::ReadValue;
 }  // namespace v6
 }  // namespace op
 }  // namespace ov
+
+#define OPERATION_DEFINED_ReadValue 1
+#include "openvino/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_ReadValue

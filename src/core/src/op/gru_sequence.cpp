@@ -11,7 +11,6 @@
 #include "gru_sequence_shape_inference.hpp"
 #include "itt.hpp"
 #include "ngraph/op/util/recurrent_sequence.hpp"
-#include "ngraph/opsets/opset4.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -62,7 +61,7 @@ void op::v5::GRUSequence::validate_and_infer_types() {
 
     const auto input_shapes = get_node_input_partial_shapes(*this);
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic(4), ov::PartialShape::dynamic(3)};
-    shape_infer(this, input_shapes, output_shapes);
+    op::v5::shape_infer(this, input_shapes, output_shapes);
 
     // Set output size, type and shape
     set_output_size(2);

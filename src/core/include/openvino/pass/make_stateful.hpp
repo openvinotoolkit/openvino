@@ -7,7 +7,9 @@
 #include <memory>
 #include <vector>
 
-#include "ngraph/opsets/opset8.hpp"
+#include "ngraph/function.hpp"
+#include "ngraph/op/parameter.hpp"
+#include "ngraph/op/result.hpp"
 #include "openvino/pass/pass.hpp"
 
 namespace ov {

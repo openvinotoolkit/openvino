@@ -6,12 +6,11 @@
 #include <openvino/op/assign.hpp>
 
 #include "utils.hpp"
-namespace ov {
-namespace op {
-namespace v3 {
 
 template <class T>
-void shape_infer(const Assign* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
+void ov::v3::shape_infer(const ov::opset3::Assign* op,
+                         const std::vector<T>& input_shapes,
+                         std::vector<T>& output_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 1 && output_shapes.size() == 1);
     const auto& input_shape = input_shapes[0];
     const auto& variable_info = op->m_variable->get_info();
@@ -28,8 +27,9 @@ void shape_infer(const Assign* op, const std::vector<T>& input_shapes, std::vect
     }
     copy_shape_infer(op, input_shapes, output_shapes);
 }
-}  // namespace v3
 
+namespace ov {
+namespace op {
 namespace v6 {
 
 template <class T>

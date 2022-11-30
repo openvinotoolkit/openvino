@@ -12,8 +12,7 @@
 #include "openvino/op/util/sub_graph_base.hpp"
 
 namespace ov {
-namespace op {
-namespace v5 {
+namespace opset5 {
 /// \brief  Iterate a body over tensors, accumulating into tensors.
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Loop : public op::util::SubGraphOp {
@@ -75,7 +74,14 @@ private:
 
     SpecialBodyPorts m_special_body_ports;
 };
-}  // namespace v5
+}  // namespace opset5
+
+namespace op {
+namespace v5 {
+
+using ::ov::opset5::Loop;
+
+}
 }  // namespace op
 
 template <>
@@ -90,3 +96,7 @@ public:
 };
 
 }  // namespace ov
+
+#define OPERATION_DEFINED_Loop 1
+#include "openvino/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_Loop

@@ -11,16 +11,15 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/shared_buffer.hpp"
 #include "openvino/core/coordinate_diff.hpp"
-#include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/op/op.hpp"
 
 namespace ov {
-namespace op {
-namespace v0 {
+namespace opset1 {
 /// \brief Class for constants.
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API Constant : public Op {
+class OPENVINO_API Constant : public op::Op {
 public:
     OPENVINO_OP("Constant", "opset1");
     BWDCMP_RTTI_DECLARATION;
@@ -748,6 +747,17 @@ private:
     mutable std::atomic_bool m_all_elements_bitwise_identical_checked{false};
     bool m_alloc_buffer_on_visit_attributes = true;
 };
-}  // namespace v0
+}  // namespace opset1
+
+namespace op {
+namespace v0 {
+
+using ::ov::opset1::Constant;
+
+}
 }  // namespace op
 }  // namespace ov
+
+#define OPERATION_DEFINED_Constant 1
+#include "openvino/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_Constant

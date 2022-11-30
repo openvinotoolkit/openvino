@@ -9,12 +9,16 @@
 #include "ngraph/axis_set.hpp"
 #include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/op/convert.hpp"
 #include "ngraph/op/divide.hpp"
+#include "ngraph/op/gather.hpp"
 #include "ngraph/op/multiply.hpp"
+#include "ngraph/op/reduce_prod.hpp"
+#include "ngraph/op/reduce_sum.hpp"
 #include "ngraph/op/reshape.hpp"
+#include "ngraph/op/shape_of.hpp"
 #include "ngraph/op/sqrt.hpp"
 #include "ngraph/op/subtract.hpp"
-#include "ngraph/opsets/opset1.hpp"
 #include "ngraph/util.hpp"
 
 namespace ngraph {

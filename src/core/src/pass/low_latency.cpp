@@ -6,17 +6,30 @@
 
 #include <memory>
 #include <ngraph/log.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset6.hpp>
-#include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/variant.hpp>
 #include <openvino/cc/pass/itt.hpp>
 #include <openvino/op/util/variable.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset9.hpp>
 #include <openvino/util/log.hpp>
+
+#include "ngraph/op/assign.hpp"
+#include "ngraph/op/loop.hpp"
+#include "ngraph/op/read_value.hpp"
+#include "ngraph/op/tensor_iterator.hpp"
+#include "ngraph/op/unsqueeze.hpp"
+#include "openvino/op/assign.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/gru_cell.hpp"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/lstm_cell.hpp"
+#include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/read_value.hpp"
+#include "openvino/op/rnn_cell.hpp"
+#include "openvino/op/rnn_sequence.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 NGRAPH_RTTI_DEFINITION(ngraph::pass::LowLatency, "LowLatency", 0);

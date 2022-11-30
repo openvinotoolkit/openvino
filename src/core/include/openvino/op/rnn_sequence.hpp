@@ -11,14 +11,13 @@
 #include "openvino/op/util/rnn_cell_base.hpp"
 
 namespace ov {
-namespace op {
-namespace v5 {
+namespace opset5 {
 /// \brief RNNSequence operation.
 ///
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API RNNSequence : public util::RNNCellBase {
+class OPENVINO_API RNNSequence : public op::util::RNNCellBase {
 public:
-    OPENVINO_OP("RNNSequence", "opset5", util::RNNCellBase, 4);
+    OPENVINO_OP("RNNSequence", "opset5", op::util::RNNCellBase, 4);
     BWDCMP_RTTI_DECLARATION;
 
     RNNSequence();
@@ -49,6 +48,14 @@ public:
 protected:
     op::RecurrentSequenceDirection m_direction;
 };
+}  // namespace opset5
+namespace op {
+namespace v5 {
+using ::ov::opset5::RNNSequence;
 }  // namespace v5
 }  // namespace op
 }  // namespace ov
+
+#define OPERATION_DEFINED_RNNSequence 1
+#include "openvino/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_RNNSequence

@@ -10,15 +10,18 @@
 #include <numeric>
 
 #include "ngraph/axis_vector.hpp"
+#include "ngraph/op/add.hpp"
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/op/range.hpp"
 #include "ngraph/op/reduce_prod.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/op/shape_of.hpp"
 #include "ngraph/op/squeeze.hpp"
+#include "ngraph/op/strided_slice.hpp"
+#include "ngraph/op/subtract.hpp"
 #include "ngraph/op/transpose.hpp"
 #include "ngraph/op/variadic_split.hpp"
-#include "ngraph/opsets/opset1.hpp"
 #include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
 

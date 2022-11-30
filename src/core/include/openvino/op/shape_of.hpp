@@ -7,11 +7,10 @@
 #include "openvino/op/op.hpp"
 
 namespace ov {
-namespace op {
-namespace v3 {
+namespace opset3 {
 /// \brief Operation that returns the shape of its input argument as a tensor.
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API ShapeOf : public Op {
+class OPENVINO_API ShapeOf : public op::Op {
 public:
     OPENVINO_OP("ShapeOf", "opset3", op::Op, 3);
     BWDCMP_RTTI_DECLARATION;
@@ -47,12 +46,17 @@ public:
 private:
     element::Type m_output_type;
 };
+}  // namespace opset3
+namespace op {
+namespace v3 {
+using ::ov::opset3::ShapeOf;
 }  // namespace v3
+}  // namespace op
 
-namespace v0 {
+namespace opset1 {
 /// \brief Operation that returns the shape of its input argument as a tensor.
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API ShapeOf : public Op {
+class OPENVINO_API ShapeOf : public op::Op {
 public:
     OPENVINO_OP("ShapeOf", "opset1");
     BWDCMP_RTTI_DECLARATION;
@@ -76,6 +80,14 @@ public:
     bool evaluate_label(TensorLabelVector& output_labels) const override;
     bool constant_fold(OutputVector& output_values, const OutputVector& input_values) override;
 };
+}  // namespace opset1
+namespace op {
+namespace v0 {
+using ::ov::opset1::ShapeOf;
 }  // namespace v0
 }  // namespace op
 }  // namespace ov
+
+#define OPERATION_DEFINED_ShapeOf 1
+#include "openvino/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_ShapeOf

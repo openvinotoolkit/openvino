@@ -4,7 +4,7 @@
 #pragma once
 
 #include <openvino/core/validation_util.hpp>
-#include <openvino/opsets/opset1.hpp>
+#include <openvino/op/constant.hpp>
 
 template <class OpType, class T>
 void copy_shape_infer(const OpType* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {

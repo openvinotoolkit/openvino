@@ -7,8 +7,7 @@
 #include "openvino/op/util/arithmetic_reductions_keep_dims.hpp"
 
 namespace ov {
-namespace op {
-namespace v1 {
+namespace opset1 {
 // clang-format off
 /// \brief Tensor sum operation.
 ///
@@ -59,9 +58,9 @@ namespace v1 {
 /// | \f$N[\textit{delete}(A,d_1,\dots,d_n)]\f$ | The tensor \f$T\f$, where \f$T\f$ is the input tensor with the `reduction_axes` \f$A\f$ eliminated by summation. |
 /// \ingroup ov_ops_cpp_api
 // clang-format on
-class OPENVINO_API ReduceSum : public util::ArithmeticReductionKeepDims {
+class OPENVINO_API ReduceSum : public op::util::ArithmeticReductionKeepDims {
 public:
-    OPENVINO_OP("ReduceSum", "opset1", util::ArithmeticReductionKeepDims, 1);
+    OPENVINO_OP("ReduceSum", "opset1", op::util::ArithmeticReductionKeepDims, 1);
     BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a summation operation.
     ReduceSum() = default;
@@ -84,6 +83,17 @@ public:
     OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 };
+}  // namespace opset1
+
+namespace op {
+namespace v1 {
+
+using ::ov::opset1::ReduceSum;
+
 }  // namespace v1
 }  // namespace op
 }  // namespace ov
+
+#define OPERATION_DEFINED_ReduceSum 1
+#include "openvino/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_ReduceSum

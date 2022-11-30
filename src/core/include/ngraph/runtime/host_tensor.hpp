@@ -14,16 +14,14 @@
 
 namespace ov {
 class Node;
-namespace op {
-namespace v0 {
+namespace opset1 {
 class Constant;
 }
-}  // namespace op
 }  // namespace ov
 namespace ngraph {
 namespace op {
 namespace v0 {
-using ov::op::v0::Constant;
+using ov::opset1::Constant;
 }
 }  // namespace op
 namespace runtime {

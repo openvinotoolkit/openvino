@@ -57,7 +57,7 @@ bool evaluate_power(const HostTensorPtr& arg0,
 
 BWDCMP_RTTI_DEFINITION(op::v1::Power);
 
-op::v1::Power::Power(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
+op::v1::Power::Power(const Output<Node>& arg0, const Output<Node>& arg1, const op::AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast) {
     constructor_validate_and_infer_types();
 }

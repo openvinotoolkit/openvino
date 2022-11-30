@@ -6,7 +6,6 @@
 
 #include <openvino/core/preprocess/input_info.hpp>
 #include <openvino/core/preprocess/output_info.hpp>
-#include <openvino/opsets/opset8.hpp>
 
 #include "color_utils.hpp"
 #include "preprocess_steps_impl.hpp"

@@ -21,7 +21,7 @@ using namespace ngraph;
 BWDCMP_RTTI_DEFINITION(op::v0::LSTMCell);
 BWDCMP_RTTI_DEFINITION(op::v4::LSTMCell);
 
-op::v0::LSTMCell::LSTMCell() : m_input_forget(false), m_weights_format(LSTMWeightsFormat::IFCO) {
+op::v0::LSTMCell::LSTMCell() : m_input_forget(false), m_weights_format(op::LSTMWeightsFormat::IFCO) {
     m_activations = {"sigmoid", "tanh", "tanh"};
     m_activation_f = get_activation_function(0);
     m_activation_g = get_activation_function(1);
@@ -164,7 +164,7 @@ void op::v0::LSTMCell::validate_and_infer_types() {
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}, ov::PartialShape{}};
     std::vector<ov::PartialShape> input_shapes =
         {x_pshape, ht_pshape, ct_pshape, w_pshape, r_pshape, b_pshape, p_pshape};
-    shape_infer(this, input_shapes, output_shapes);
+    op::v0::shape_infer(this, input_shapes, output_shapes);
     // Mark inputs which are relevant to output parameters
     set_input_is_relevant_to_shape(0);
     set_input_is_relevant_to_shape(1);
@@ -359,7 +359,7 @@ void op::v4::LSTMCell::validate_and_infer_types() {
 
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}, ov::PartialShape{}};
     std::vector<ov::PartialShape> input_shapes = {x_pshape, ht_pshape, ct_pshape, w_pshape, r_pshape, b_pshape};
-    shape_infer(this, input_shapes, output_shapes);
+    op::v4::shape_infer(this, input_shapes, output_shapes);
 
     // Mark inputs which are relevant to output parameters
     set_input_is_relevant_to_shape(0);

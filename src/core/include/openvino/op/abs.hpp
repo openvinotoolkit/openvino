@@ -9,14 +9,13 @@
 #include "openvino/op/util/unary_elementwise_arithmetic.hpp"
 
 namespace ov {
-namespace op {
-namespace v0 {
+namespace opset1 {
 /// \brief Elementwise absolute value operation.
 ///
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API Abs : public util::UnaryElementwiseArithmetic {
+class OPENVINO_API Abs : public op::util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_OP("Abs", "opset1", util::UnaryElementwiseArithmetic);
+    OPENVINO_OP("Abs", "opset1", op::util::UnaryElementwiseArithmetic);
     BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs an absolute value operation.
     Abs() = default;
@@ -39,6 +38,14 @@ public:
     OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 };
+}  // namespace opset1
+namespace op {
+namespace v0 {
+using ::ov::opset1::Abs;
 }  // namespace v0
 }  // namespace op
 }  // namespace ov
+
+#define OPERATION_DEFINED_Abs 1
+#include "openvino/opsets/opsets_tbl.hpp"
+#undef OPERATION_DEFINED_Abs

@@ -5,8 +5,8 @@
 #include "ngraph/runtime/reference/einsum.hpp"
 
 #include <algorithm>
-#include <ngraph/opsets/opset7.hpp>
 
+#include "ngraph/op/einsum.hpp"
 #include "ngraph/runtime/reference/broadcast.hpp"
 #include "ngraph/runtime/reference/matmul.hpp"
 #include "ngraph/runtime/reference/multiply.hpp"
@@ -15,6 +15,7 @@
 #include "ngraph/runtime/reference/transpose.hpp"
 #include "ngraph/runtime/reference/utils/span.hpp"
 #include "ngraph/shape.hpp"
+#include "ngraph/util.hpp"
 
 namespace ngraph {
 namespace runtime {
