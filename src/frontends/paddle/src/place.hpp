@@ -116,7 +116,7 @@ public:
     std::shared_ptr<InPortPlace> get_input_port_paddle(const std::string& inputName, int inputPortIndex) const;
     const ::paddle::framework::proto::OpDesc& get_desc() const;
     const std::shared_ptr<DecoderBase> get_decoder() const;
-    void set_decoder(std::shared_ptr<DecoderBase> op_decoder);
+    void set_decoder(const std::shared_ptr<DecoderBase> op_decoder);
 
     // External API methods
     std::vector<Place::Ptr> get_consuming_ports() const override;
@@ -152,7 +152,7 @@ public:
     Ptr get_target_tensor(const std::string& outputName, int outputPortIndex) const override;
 
 private:
-    const ::paddle::framework::proto::OpDesc& m_op_desc;
+    const ::paddle::framework::proto::OpDesc& m_op_desc; // TODO: to conceal it behind decoder.
     std::shared_ptr<DecoderBase> m_op_decoder;
     std::map<std::string, std::vector<std::shared_ptr<InPortPlace>>> m_input_ports;
     std::map<std::string, std::vector<std::shared_ptr<OutPortPlace>>> m_output_ports;

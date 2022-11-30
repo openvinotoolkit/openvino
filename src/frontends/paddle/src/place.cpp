@@ -65,7 +65,7 @@ const std::shared_ptr<DecoderBase> OpPlace::get_decoder() const {
     return m_op_decoder;
 }
 
-void OpPlace::set_decoder(std::shared_ptr<DecoderBase> op_decoder) {
+void OpPlace::set_decoder(const std::shared_ptr<DecoderBase> op_decoder) {
     m_op_decoder = op_decoder;
 }
 
