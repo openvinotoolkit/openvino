@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <map>
-#include <nlohmann/json.hpp>
 #include <regex>
 #include <string>
 #include <utility>
@@ -19,6 +18,12 @@
 
 #include "utils.hpp"
 // clang-format on
+
+#ifdef JSON_HEADER
+#     include <json.hpp>
+#else
+#     include <nlohmann/json.hpp>
+# endif
 
 #ifdef USE_OPENCV
 #    include <opencv2/core.hpp>

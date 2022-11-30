@@ -51,7 +51,8 @@ if(NOT TARGET nlohmann_json::nlohmann_json)
             add_library(nlohmann_json::nlohmann_json INTERFACE IMPORTED)
             get_filename_component(nlohmann_include_dir "${nlohmann_include_file}" PATH)
             set_target_properties(nlohmann_json::nlohmann_json PROPERTIES
-                                  INTERFACE_INCLUDE_DIRECTORIES "${nlohmann_include_dir}")
+                                  INTERFACE_INCLUDE_DIRECTORIES "${nlohmann_include_dir}"
+                                  INTERFACE_COMPILE_DEFINITIONS JSON_HEADER)
             set(nlohmann_json_FOUND ON)
         endif()
     endif()
