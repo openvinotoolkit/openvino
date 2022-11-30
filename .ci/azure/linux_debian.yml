@@ -424,8 +424,7 @@ jobs:
       export IE_APP_PYTHON_PATH=$(PYTHON_SAMPLES_INSTALL_DIR)/
       export SHARE=$(INSTALL_TEST_DIR)/smoke_tests/samples_smoke_tests_data/
       export WORKSPACE=$(INSTALL_DIR)
-      # GNA isn't a part of Debian package, so filter out that tests
-      python3 -m pytest $(INSTALL_TEST_DIR)/smoke_tests/ -k "not GNA" --env_conf $(INSTALL_TEST_DIR)/smoke_tests/env_config.yml -s --junitxml=$(INSTALL_TEST_DIR)/TEST-SamplesSmokeTests.xml
+      python3 -m pytest $(INSTALL_TEST_DIR)/smoke_tests/  --env_conf $(INSTALL_TEST_DIR)/smoke_tests/env_config.yml -s --junitxml=$(INSTALL_TEST_DIR)/TEST-SamplesSmokeTests.xml
     displayName: 'Samples Smoke Tests'
     continueOnError: false
 

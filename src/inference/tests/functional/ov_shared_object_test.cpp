@@ -60,9 +60,3 @@ TEST_F(SharedObjectOVTests, canCallExistedMethod) {
     std::shared_ptr<InferenceEngine::IInferencePlugin> ptr;
     EXPECT_NO_THROW(factory(ptr));
 }
-
-TEST_F(SharedObjectOVTests, loadSOSafelyThrowIfOnlyLibName) {
-    std::string libraryName = FileUtils::makePluginLibraryName<char>({}, std::string("mock_engine") + IE_BUILD_POSTFIX);
-
-    EXPECT_THROW(ov::util::load_shared_object_safely(libraryName.c_str()), std::runtime_error);
-}

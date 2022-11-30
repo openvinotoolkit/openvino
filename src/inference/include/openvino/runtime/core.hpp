@@ -603,10 +603,10 @@ public:
      * @param plugin_name Name of a plugin. Depending on platform, `plugin_name` is wrapped with shared library suffix
      * and prefix to identify library full name.
      * For example, on Linux platform, plugin name specified as `plugin_name` will be wrapped as `libplugin_name.so`.
-     * Note that plugin should be located in one of next places:
-     * - the same directory as OpenVINO runtime library as is
-     * - the same directory as OpenVINO runtime library inside openvino-<version> subdirectory
-     * (environment variables like PATH/LD_LIBRARY_PATH/DYLD_LIBRARY_PATH are ignored)
+     * Plugin search algorithm:
+     * - If plugin is located in the same directory as OpenVINO runtime library, it will be used.
+     * - If no, plugin is tried to be loaded from paths pointed by PATH/LD_LIBRARY_PATH/DYLD_LIBRARY_PATH
+     *   environment variables depending on the platform.
      *
      * @param device_name Device name to register a plugin for.
      */
