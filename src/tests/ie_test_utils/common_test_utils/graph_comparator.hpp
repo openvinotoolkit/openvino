@@ -27,7 +27,8 @@ public:
         PRECISIONS = 1 << 4,
         ATTRIBUTES = 1 << 5,
         TENSOR_NAMES = 1 << 6,
-        ACCURACY = 1 << 7
+        ACCURACY = 1 << 7,
+        SUBGRAPH_DESCRIPTORS = 1 << 8
     };
 
     struct Result {
@@ -50,6 +51,7 @@ public:
         fc.enable(NODES);
         fc.enable(PRECISIONS);
         fc.enable(TENSOR_NAMES);
+        fc.enable(SUBGRAPH_DESCRIPTORS);
         return fc;
     }
 
@@ -155,11 +157,16 @@ public:
         // initialize function with unique friendly and tensor names
         for (auto node : f->get_ordered_ops()) {
             const auto& node_name = generate_friendly_name();
-            node->set_friendly_name(node_name);
+            // this expression means that user didn't set friendly name and it was generated automatically
+            if (node->get_friendly_name() == node->get_name()) {
+                node->set_friendly_name(node_name);
+            }
 
             for (auto output : node->outputs()) {
                 const auto& tensor_name = generate_tensor_name();
-                output.set_names({tensor_name});
+                if (output.get_names().empty()) {
+                    output.set_names({tensor_name});
+                }
             }
         }
 
