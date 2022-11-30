@@ -5,7 +5,6 @@
 #include "place.hpp"
 
 #include "decoder_proto.hpp"
-#include "framework.pb.h"
 
 namespace ov {
 namespace frontend {
@@ -28,14 +27,9 @@ bool Place::is_output() const {
     return std::find_if(model_outs.begin(), model_outs.end(), cmp) != model_outs.end();
 }
 
-OpPlace::OpPlace(const ov::frontend::InputModel& input_model,
-                 const ::paddle::framework::proto::OpDesc& op_desc,
-                 const std::vector<std::string>& names)
-    : Place(input_model, names),
-      m_op_desc(op_desc) {}
-
-OpPlace::OpPlace(const ov::frontend::InputModel& input_model, const ::paddle::framework::proto::OpDesc& op_desc)
-    : OpPlace(input_model, op_desc, {}) {}
+OpPlace::OpPlace(const ov::frontend::InputModel& input_model, std::shared_ptr<DecoderBase> op_decoder)
+    : Place(input_model, {}),  // Any way to get op name? There looks no such info in OpDesc.
+      m_op_decoder(op_decoder) {}
 
 const std::map<std::string, std::vector<std::shared_ptr<OutPortPlace>>>& OpPlace::get_output_ports() const {
     return m_output_ports;
@@ -55,18 +49,6 @@ std::shared_ptr<OutPortPlace> OpPlace::get_output_port_paddle(const std::string&
 std::shared_ptr<InPortPlace> OpPlace::get_input_port_paddle(const std::string& inputName, int inputPortIndex) const {
     FRONT_END_GENERAL_CHECK(inputPortIndex <= m_input_ports.at(inputName).size(), "inputPortIndex is out of bounds.");
     return m_input_ports.at(inputName)[inputPortIndex];
-}
-
-const ::paddle::framework::proto::OpDesc& OpPlace::get_desc() const {
-    return m_op_desc;
-}
-
-const std::shared_ptr<DecoderBase> OpPlace::get_decoder() const {
-    return m_op_decoder;
-}
-
-void OpPlace::set_decoder(const std::shared_ptr<DecoderBase> op_decoder) {
-    m_op_decoder = op_decoder;
 }
 
 void OpPlace::add_out_port(const std::shared_ptr<OutPortPlace>& output, const std::string& name) {
@@ -204,21 +186,14 @@ Place::Ptr OpPlace::get_target_tensor(int outputPortIndex) const {
 }
 
 TensorPlace::TensorPlace(const ov::frontend::InputModel& input_model,
-                         const std::vector<std::string>& names,
-                         const ::paddle::framework::proto::VarDesc& var_desc)
-    : Place(input_model, names),
-      m_var_desc(var_desc) {
-    const auto& var_type = var_desc.type();
-    if (var_type.type() == ::paddle::framework::proto::VarType::LOD_TENSOR) {
-        const auto& tensor_desc = var_type.lod_tensor().tensor();
-        m_type = TYPE_MAP[tensor_desc.data_type()];
-        m_pshape = PartialShape(std::vector<Dimension>(tensor_desc.dims().begin(), tensor_desc.dims().end()));
+                         const std::shared_ptr<VarDecoderBase> var_decoder)
+    : Place(input_model, {var_decoder->get_name()}),
+      m_var_decoder(var_decoder) {
+    if (var_decoder->is_lod_tensor()) { // FIXME: relax the vartype?
+        m_type = var_decoder->get_data_type();
+        m_pshape = var_decoder->get_tensor_dims();
     }
 }
-
-TensorPlace::TensorPlace(const ov::frontend::InputModel& input_model,
-                         const ::paddle::framework::proto::VarDesc& var_desc)
-    : TensorPlace(input_model, {var_desc.name()}, var_desc) {}
 
 std::vector<Place::Ptr> TensorPlace::get_consuming_ports() const {
     std::vector<Place::Ptr> consuming_ports;
@@ -246,10 +221,6 @@ void TensorPlace::add_producing_port(const std::shared_ptr<OutPortPlace>& out_po
 
 void TensorPlace::add_consuming_port(const std::shared_ptr<InPortPlace>& in_port) {
     m_consuming_ports.push_back(in_port);
-}
-
-const ::paddle::framework::proto::VarDesc& TensorPlace::get_desc() const {
-    return m_var_desc;
 }
 
 std::vector<Place::Ptr> TensorPlace::get_consuming_operations() const {

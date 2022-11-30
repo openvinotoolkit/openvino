@@ -88,12 +88,11 @@ void InputModel::InputModelImpl::loadPlaces() {
         const auto& block = blocks[block_idx];
 
         for (const auto& var : block.vars()) {
-            m_var_places[var.name()] = std::make_shared<TensorPlace>(m_input_model, var);
+            m_var_places[var.name()] = std::make_shared<TensorPlace>(m_input_model, std::make_shared<VarDecoderProto>(var));
         }
 
         for (const auto& op : block.ops()) {
-            auto op_place = std::make_shared<OpPlace>(m_input_model, op);
-            op_place->set_decoder(std::make_shared<DecoderProto>(op_place));
+            auto op_place = std::make_shared<OpPlace>(m_input_model, std::make_shared<DecoderProto>(m_input_model, op));
 
             if (m_telemetry) {
                 op_statistics[op.type()]++;
@@ -133,16 +132,13 @@ void InputModel::InputModelImpl::loadPlaces() {
 
             // Determine outputs and inputs
             if (op.type() == "feed") {
+                // FIXME: what kind of variables are for "feed"? Why not set data_type and shape when construt it?
                 const auto& place = op_place->get_output_port_paddle("Out", 0);
                 const auto& var_place = std::dynamic_pointer_cast<TensorPlace>(place->get_target_tensor_paddle());
-                const auto& tensor_desc = var_place->get_desc().type().lod_tensor().tensor();
-                const auto& dims = tensor_desc.dims();
-
-                var_place->set_element_type(TYPE_MAP[tensor_desc.data_type()]);
-                var_place->set_partial_shape(PartialShape(std::vector<Dimension>(dims.begin(), dims.end())));
                 m_inputs.push_back(var_place);
             } else if (op.type() == "fetch") {
                 auto place = op_place->get_input_port_paddle("X", 0);
+                const auto& var_place = std::dynamic_pointer_cast<TensorPlace>(place->get_source_tensor_paddle());
                 m_outputs.push_back(place->get_source_tensor_paddle());
             }
         }
@@ -271,17 +267,17 @@ template <typename T>
 void InputModel::InputModelImpl::loadConsts(const std::basic_string<T>& folder_with_weights,
                                             std::istream* weight_stream) {
     for (const auto& item : m_var_places) {
-        const auto& var_desc = item.second->get_desc();
+        const auto& var_decoder = item.second->get_decoder();
         const auto& name = item.first;
-        if (ov::util::ends_with(name, std::string{"feed"}) || ov::util::ends_with(name, std::string{"fetch"}))
+        if (ov::util::ends_with(name, std::string{"feed"}) || ov::util::ends_with(name, std::string{"fetch"}))  // FIXME: check op type?
             continue;
-        if (!var_desc.persistable())
+        if (!var_decoder->is_persistable())
             continue;
 
-        FRONT_END_GENERAL_CHECK(var_desc.type().type() == ::paddle::framework::proto::VarType::LOD_TENSOR);
-        const auto& tensor = var_desc.type().lod_tensor().tensor();
-        Shape shape(tensor.dims().cbegin(), tensor.dims().cend());
-        const auto& type = TYPE_MAP[tensor.data_type()];
+        FRONT_END_GENERAL_CHECK(var_decoder->is_lod_tensor()); // FIXME: need the check?
+        FRONT_END_GENERAL_CHECK(var_decoder->get_tensor_dims().is_static());
+        Shape shape = var_decoder->get_tensor_dims().get_shape();
+        const auto& type = var_decoder->get_data_type();
         const auto& data_length = shape_size(shape) * type.size();
         std::vector<uint8_t> tensor_data(data_length);
 
@@ -339,9 +335,9 @@ InputModel::InputModelImpl::InputModelImpl(const std::basic_string<T>& path,
 void InputModel::InputModelImpl::createTempConsts() {
     for (const auto& item : m_var_places) {
         const auto& var_place = item.second;
-        const auto& var_desc = var_place->get_desc();
-        const auto& name = item.first;
-        if (var_desc.persistable())
+        const auto& var_decoder = var_place->get_decoder();
+
+        if (var_decoder->is_persistable())
             continue;
 
         // The node with tensorarray as its input may be created before the node with this tensorarray
@@ -351,14 +347,12 @@ void InputModel::InputModelImpl::createTempConsts() {
         // Since the models (faster/mask rcnn) are either concating tensors in tensorarray along the dynamic
         // dimension, or concating static shape tensors. So we make the dynamic dimension to be 0. In case of static
         // shape, we simply the the first dimension be 0.
-        if (var_desc.type().has_tensor_array()) {
-            const auto& tensor = var_desc.type().tensor_array().tensor();
-            const auto& type = TYPE_MAP[tensor.data_type()];
-
+        if (var_decoder->is_tensor_array()) {
             std::cout << "WARNING: The PaddlePaddle model has \"TENSOR_ARRAY\" variables, which is supported "
-                      << " under limited situations.\n";
+                      << "under limited situations.\n";
 
-            PartialShape tensor_ps(std::vector<Dimension>(tensor.dims().cbegin(), tensor.dims().cend()));
+            const auto& type = var_decoder->get_data_type();
+            auto tensor_ps = var_decoder->get_tensor_dims();
             tensor_ps.insert(tensor_ps.begin(), 1);  // unsqueeze
             // also update the place for following initialize the graph connection
             var_place->set_element_type(type);
@@ -380,6 +374,7 @@ void InputModel::InputModelImpl::createTempConsts() {
             }
 
             auto node = opset7::Constant::create(type, shape, {0});
+            const auto& name = item.first;
             node->set_friendly_name(name);
             node->output(0).get_tensor().add_names({name});
 

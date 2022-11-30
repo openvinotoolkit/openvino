@@ -11,9 +11,10 @@
 #include <string>
 #include <vector>
 
+#include "framework.pb.h"
+
 #include "decoder_proto.hpp"
 #include "default_opset.hpp"
-#include "framework.pb.h"
 #include "input_model.hpp"
 #include "internal/pass/transform_if.hpp"
 #include "internal/pass/transform_tensorarray.hpp"
@@ -39,22 +40,36 @@ namespace {
 NamedOutputs make_ng_node(const std::map<paddle::TensorName, Output<Node>>& nodes,
                           const std::shared_ptr<OpPlace>& op_place,
                           const std::map<std::string, CreatorFunction>& CREATORS_MAP) {
-    const auto& op_desc = op_place->get_desc();
+    const auto& op_decoder = op_place->get_decoder();
+    const auto& op_type = op_decoder->get_op_type();
 
-    auto creator_it = CREATORS_MAP.find(op_desc.type());
-    FRONT_END_OP_CONVERSION_CHECK(creator_it != CREATORS_MAP.end(), "No creator found for ", op_desc.type(), " node.");
+    auto creator_it = CREATORS_MAP.find(op_decoder->get_op_type());
+    FRONT_END_OP_CONVERSION_CHECK(creator_it != CREATORS_MAP.end(), "No creator found for ", op_type, " node.");
     NamedInputs named_inputs;
-    for (const auto& input_port : op_desc.inputs()) {
-        for (const auto& in_tensor_name : input_port.arguments()) {
+    // for (const auto& input_port : op_desc.inputs()) {
+    //     for (const auto& in_tensor_name : input_port.arguments()) {
+    //         auto node_it = nodes.find(in_tensor_name);
+    //         // general check, because in case of error partial conversion should fail
+    //         FRONT_END_GENERAL_CHECK(node_it != nodes.end(),
+    //                                 "Input ",
+    //                                 in_tensor_name,
+    //                                 " for node with type ",
+    //                                 op_desc.type(),
+    //                                 " wasn't found. It may happen if model was cut incorrectly.");
+    //         named_inputs[input_port.parameter()].push_back(node_it->second);
+    //     }
+    // }
+    for (const auto& input_port : op_decoder->get_input_names()) {
+        for (const auto& in_tensor_name : op_decoder->get_input_var_names(input_port)) {
             auto node_it = nodes.find(in_tensor_name);
             // general check, because in case of error partial conversion should fail
             FRONT_END_GENERAL_CHECK(node_it != nodes.end(),
                                     "Input ",
                                     in_tensor_name,
                                     " for node with type ",
-                                    op_desc.type(),
+                                    op_type,
                                     " wasn't found. It may happen if model was cut incorrectly.");
-            named_inputs[input_port.parameter()].push_back(node_it->second);
+            named_inputs[input_port].push_back(node_it->second);
         }
     }
     NamedOutputs outputs;
@@ -62,7 +77,7 @@ NamedOutputs make_ng_node(const std::map<paddle::TensorName, Output<Node>>& node
     try {
         outputs = creator_it->second(paddle::NodeContext(op_place->get_decoder(), named_inputs));
     } catch (std::exception& ex) {
-        FRONT_END_OP_CONVERSION_CHECK(false, "Fail to convert " + op_desc.type() + " Exception " + ex.what());
+        FRONT_END_OP_CONVERSION_CHECK(false, "Fail to convert " + op_type + " Exception " + ex.what());
     }
 
     return outputs;
@@ -70,20 +85,21 @@ NamedOutputs make_ng_node(const std::map<paddle::TensorName, Output<Node>>& node
 
 NamedOutputs make_framework_node(const std::map<paddle::TensorName, Output<Node>>& nodes,
                                  const std::shared_ptr<OpPlace>& op_place) {
-    const auto& op_desc = op_place->get_desc();
+    const auto& op_decoder = op_place->get_decoder();
+    const auto& op_type = op_decoder->get_op_type();
 
     OutputVector inputs_vector;
     std::vector<std::string> inputs_names;
     NamedOutputs named_outputs;
-    for (const auto& input_port : op_desc.inputs()) {
-        for (const auto& in_tensor_name : input_port.arguments()) {
+    for (const auto& input_port : op_decoder->get_input_names()) {
+        for (const auto& in_tensor_name : op_decoder->get_input_var_names(input_port)) {
             auto it = nodes.find(in_tensor_name);
             // general check, because in case of error partial conversion should fail
             FRONT_END_GENERAL_CHECK(it != nodes.end(),
                                     "Input ",
                                     in_tensor_name,
                                     " for node with type ",
-                                    op_desc.type(),
+                                    op_type,
                                     " wasn't found. It may happen if model was cut incorrectly.");
             inputs_vector.push_back(it->second);
             inputs_names.push_back(in_tensor_name);
@@ -177,8 +193,9 @@ using SubblockInfo = std::map<
     int32_t,
     std::tuple<std::string, std::vector<std::shared_ptr<TensorPlace>>, std::vector<std::shared_ptr<TensorPlace>>>>;
 void try_update_sublock_info(const std::shared_ptr<OpPlace>& op_place, SubblockInfo& subblock_info) {
-    const auto& op_desc = op_place->get_desc();
-    if (op_desc.type() == "conditional_block") {
+    const auto& op_decoder = op_place->get_decoder();
+    const auto& op_type = op_decoder->get_op_type();
+    if (op_type == "conditional_block") {
         std::vector<std::shared_ptr<TensorPlace>> outp_tensors;
         std::vector<std::shared_ptr<TensorPlace>> inp_tensors;
 
@@ -198,8 +215,8 @@ void try_update_sublock_info(const std::shared_ptr<OpPlace>& op_place, SubblockI
         auto tmp_node = paddle::NodeContext(op_place->get_decoder(), paddle::NamedInputs());
         auto block_idx = tmp_node.get_attribute<int32_t>("sub_block");
 
-        subblock_info[block_idx] = std::make_tuple(op_desc.type(), inp_tensors, outp_tensors);
-    } else if (op_desc.type() == "while") {
+        subblock_info[block_idx] = std::make_tuple(op_type, inp_tensors, outp_tensors);
+    } else if (op_type == "while") {
         std::vector<std::shared_ptr<TensorPlace>> outp_tensors;
         std::vector<std::shared_ptr<TensorPlace>> inp_tensors;
 
@@ -220,7 +237,7 @@ void try_update_sublock_info(const std::shared_ptr<OpPlace>& op_place, SubblockI
         auto tmp_node = paddle::NodeContext(op_place->get_decoder(), paddle::NamedInputs());
         auto block_idx = tmp_node.get_attribute<int32_t>("sub_block");
 
-        subblock_info[block_idx] = std::make_tuple(op_desc.type(), inp_tensors, outp_tensors);
+        subblock_info[block_idx] = std::make_tuple(op_type, inp_tensors, outp_tensors);
     }
 }
 
@@ -242,20 +259,22 @@ std::map<int32_t, std::shared_ptr<ov::Model>> FrontEnd::convert_each_node_recurs
 
     for (const auto& _inp_place : input_tensors) {
         const auto& inp_place = std::dynamic_pointer_cast<TensorPlace>(_inp_place);
-        const auto& var = inp_place->get_desc();
+        const auto& var_decoder = inp_place->get_decoder();
+        const auto& var_name = var_decoder->get_name();
         const auto& shape = inp_place->get_partial_shape();
         const auto& type = inp_place->get_element_type();
         auto param = std::make_shared<Parameter>(type, shape);
-        param->set_friendly_name(var.name());
-        param->output(0).get_tensor().add_names({var.name()});
-        nodes_dict[var.name()] = param;
+        param->set_friendly_name(var_name);
+        param->output(0).get_tensor().add_names({var_name});
+        nodes_dict[var_name] = param;
         parameter_nodes.push_back(param);
     }
 
     const auto& op_places = model->get_op_places(block_idx);
     for (const auto& op_place : op_places) {
-        const auto& op_desc = op_place->get_desc();
-        if (op_desc.type() == "feed" || op_desc.type() == "fetch") {
+        const auto& op_decoder = op_place->get_decoder();
+        const auto& op_type = op_decoder->get_op_type();
+        if (op_type == "feed" || op_type == "fetch") {
             // inputs and outputs are stored in the model already
             continue;
         } else {
@@ -264,22 +283,29 @@ std::map<int32_t, std::shared_ptr<ov::Model>> FrontEnd::convert_each_node_recurs
             paddle::NamedOutputs named_outputs = func(nodes_dict, op_place);
 
             if (!named_outputs.empty()) {
-                if (!op_desc.outputs().begin()->arguments().empty()) {
-                    const auto& tensor_name = op_desc.outputs().begin()->arguments()[0];
+                // Name ov node with its output tensor name.
+                // as there looks no op name in OpDesc.
+                const auto& port_name = op_decoder->get_output_names(0);
+                const auto& var_names = op_decoder->get_output_var_names(port_name);
+                if (!var_names.empty()) {
                     auto node = named_outputs.begin()->second[0].get_node_shared_ptr();
-                    node->set_friendly_name(tensor_name);
+                    node->set_friendly_name(var_names[0]);
                 }
 
-                const auto& out_ports = op_desc.outputs();
-                for (const auto& port : out_ports) {
+                // Pair paddle output tensor and ov OutputNode.     
+                for (const auto& port_name : op_decoder->get_output_names()) {
                     // TODO: figure a way to safely handle unused outputs
-                    if (named_outputs.count(port.parameter())) {
-                        const auto& ng_outputs = named_outputs.at(port.parameter());
-                        FRONT_END_OP_CONVERSION_CHECK(ng_outputs.size() == port.arguments_size(),
+                    if (named_outputs.count(port_name)) {
+                        const auto& ng_outputs = named_outputs.at(port_name);
+                        FRONT_END_OP_CONVERSION_CHECK(ng_outputs.size() == op_decoder->get_output_size(port_name),
                                                       "The number of output tensors must be equal to "
                                                       "the number of outputs of the OV node.");
+                        const auto& port_vars = op_decoder->get_output_var_names(port_name);
+                        // There could be more than one arguments correspond to one parameter in OpDesc.
+                        // That means the same output port could have more than one output tensors.
+                        // NOTE: the op mapper should make sure the same order.
                         for (size_t idx = 0; idx < ng_outputs.size(); ++idx) {
-                            const auto& var_name = port.arguments()[static_cast<int>(idx)];
+                            const auto& var_name = port_vars[static_cast<int>(idx)];
                             ng_outputs[idx].get_tensor().set_names({var_name});
                             // if nodes_dict already has node mapped to this tensor name it
                             // usually means that it was overwritten using setTensorValue
@@ -293,8 +319,8 @@ std::map<int32_t, std::shared_ptr<ov::Model>> FrontEnd::convert_each_node_recurs
 
     for (const auto& _outp_place : output_tensors) {
         const auto& outp_place = std::dynamic_pointer_cast<TensorPlace>(_outp_place);
-        auto var = outp_place->get_desc();
-        auto input_var_name = var.name();
+        const auto& var_decoder = outp_place->get_decoder();
+        const auto input_var_name = var_decoder->get_name();
         auto result = std::make_shared<Result>(nodes_dict.at(input_var_name));
         result->set_friendly_name(input_var_name + "/Result");
         result_nodes.push_back(result);
@@ -369,7 +395,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     else if (variants[0].is<std::istream*>()) {
         // Validating first stream, it must contain a model
         auto p_model_stream = variants[0].as<std::istream*>();
-        ::paddle::framework::proto::ProgramDesc fw;
+        ::paddle::framework::proto::ProgramDesc fw; // TODO: to conceal and remove dependency to paddle proto.
         return fw.ParseFromIstream(p_model_stream);
     }
     return false;

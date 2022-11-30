@@ -31,14 +31,32 @@ public:
     /// \return Shared pointer to appropriate value if it exists, 'nullptr' otherwise
     virtual ov::Any convert_attribute(const ov::Any& data, const std::type_info& type_info) const = 0;
 
-    /// \brief Get the output names
+    /// \brief Get the type of the operation
+    virtual std::string get_op_type() const = 0;
+
+    /// \brief Get the output port names
     virtual std::vector<OutPortName> get_output_names() const = 0;
-    virtual std::vector<TensorName> get_output_var_names(const std::string& var_name) const = 0;
-    virtual std::vector<TensorName> get_input_var_names(const std::string& var_name) const = 0;
+    virtual const OutPortName& get_output_names(size_t idx) const = 0;
+
+    /// \brief Get the input port names
+    virtual std::vector<InPortName> get_input_names() const = 0;
+    virtual const InPortName& get_input_names(size_t idx) const = 0;
+
+    /// \brief Get the output tensor names
+    virtual std::vector<TensorName> get_output_var_names(const std::string& port_name) const = 0;
+    virtual std::vector<TensorName> get_output_var_names() const = 0;
+
+    /// \brief Get the input tensor names
+    virtual std::vector<TensorName> get_input_var_names(const std::string& port_name) const = 0;
+    virtual std::vector<TensorName> get_input_var_names() const = 0;
 
     /// \brief Get the output size
     virtual size_t get_output_size() const = 0;
     virtual size_t get_output_size(const std::string& port_name) const = 0;
+
+    /// \brief Get the input size
+    virtual size_t get_input_size() const = 0;
+    virtual size_t get_input_size(const std::string& port_name) const = 0;
 
     /// \brief Get output port type
     ///
@@ -52,9 +70,25 @@ public:
     virtual ov::element::Type get_out_port_type(const std::string& port_name) const = 0;
     virtual std::vector<std::pair<ov::element::Type, ov::PartialShape>> get_output_port_infos(
         const std::string& port_name) const = 0;
+};
 
-    /// \brief Get the type of the operation
-    virtual std::string get_op_type() const = 0;
+class VarDecoderBase {
+public:
+    /// \brief Get the name of the variable
+    virtual std::string get_name() const = 0;
+
+    /// \brief Get the tensor data type
+    virtual ov::element::Type get_data_type() const = 0;
+    /// \brief Get the tensor partial shape
+    virtual ov::PartialShape get_tensor_dims() const = 0;
+
+    /// \brief check if the variable is persistable
+    virtual bool is_persistable() const = 0;
+
+    /// \brief check if the variable is LOD_TENSOR
+    virtual bool is_lod_tensor() const = 0;
+    /// \brief check if the variable is TENSOR_ARRAY
+    virtual bool is_tensor_array() const = 0;
 };
 }  // namespace paddle
 }  // namespace frontend
