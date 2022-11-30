@@ -62,6 +62,16 @@ protected:
     virtual std::vector<ov::Tensor> get_plugin_outputs();
 };
 
+inline std::vector<InputShape> dynamic_shapes_to_test_representation(const std::vector<ov::PartialShape>& shapes) {
+    std::vector<InputShape> result;
+    for (const auto& staticShape : shapes) {
+        if (staticShape.is_dynamic())
+            throw std::runtime_error("dynamic_shapes_to_test_representation can process only static shapes");
+        result.push_back({{staticShape}, {staticShape.get_shape()}});
+    }
+    return result;
+}
+
 inline std::vector<std::vector<InputShape>> static_shapes_to_test_representation(const std::vector<std::vector<ov::Shape>>& shapes) {
     std::vector<std::vector<InputShape>> result;
     for (const auto& staticShapes : shapes) {
