@@ -39,7 +39,7 @@ bool ov::pass::ConvertCompressedOnlyToLegacy::run_on_model(const std::shared_ptr
         // callback skips (returns true) for nodes marked as precision sensitive/disabled_f16_compression.
         // Skipping was done by callback in order to impact behavior of ConvertPrecision as little as possible
         manager.register_pass<ov::pass::MarkPrecisionSensitiveSubgraphs>();
-        get_pass_config()->set_callback<ngraph::pass::ConvertPrecision>(
+        get_pass_config()->set_callback<ConvertPrecision>(
             [](const std::shared_ptr<const Node>& node) -> bool {
                 auto const const_node = std::dynamic_pointer_cast<const ov::opset8::Constant>(node);
                 if (!const_node)
@@ -48,7 +48,7 @@ bool ov::pass::ConvertCompressedOnlyToLegacy::run_on_model(const std::shared_ptr
             });
 
         const precisions_array convert_precision_list{{ov::element::f32, ov::element::f16}};
-        manager.register_pass<ngraph::pass::ConvertPrecision>(convert_precision_list);
+        manager.register_pass<ConvertPrecision>(convert_precision_list);
         using namespace ov::pass;
         REGISTER_PASS(manager, EnableDecompressionConvertConstantFolding)
         REGISTER_PASS(manager, ConstantFolding)

@@ -468,8 +468,8 @@ TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToBroadcast1Cons
         f = std::make_shared<Function>(NodeVector{broadcast}, ParameterVector{input1});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::ConvertBroadcast3>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::ConvertBroadcast3>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -505,8 +505,8 @@ TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToMultiply) {
         f = std::make_shared<Function>(NodeVector{broadcast}, ParameterVector{input1});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::ConvertBroadcast3>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::ConvertBroadcast3>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -545,8 +545,8 @@ TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToLogicalAnd) {
         f = std::make_shared<Function>(NodeVector{broadcast}, ParameterVector{input1});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::ConvertBroadcast3>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::ConvertBroadcast3>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }

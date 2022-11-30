@@ -341,7 +341,7 @@ TEST(TransformationTests, ConvertPrecision_Unique10) {
             { element::f16, element::f32 }
         };
 
-        manager.register_pass<pass::ConvertPrecision>(precisions);
+        manager.register_pass<ov::pass::ConvertPrecision>(precisions);
         manager.run_passes(model);
     }
 
@@ -826,12 +826,12 @@ TEST(TransformationTests, ConvertPrecision_skip_precision_sensitive) {
         pass::Manager manager;
 
         manager.register_pass<ov::pass::MarkPrecisionSensitiveSubgraphs>();
-        manager.get_pass_config()->set_callback<ngraph::pass::ConvertPrecision>(
+        manager.get_pass_config()->set_callback<ov::pass::ConvertPrecision>(
                 [](const std::shared_ptr<const Node>& node) -> bool {
                     return ov::fp16_compression_is_disabled(node) && node->get_element_type() == element::f32;
                 });
 
-        manager.register_pass<pass::ConvertPrecision>(precisions_array {{ element::f32, element::f16 }});
+        manager.register_pass<ov::pass::ConvertPrecision>(precisions_array {{ element::f32, element::f16 }});
         manager.run_passes(model);
     }
 
@@ -863,7 +863,7 @@ TEST(TransformationTests, ConvertPrecision_without_callback) {
         pass::Manager manager;
 
         manager.register_pass<ov::pass::MarkPrecisionSensitiveSubgraphs>();
-        manager.register_pass<pass::ConvertPrecision>(precisions_array {{ element::f32, element::f16 }});
+        manager.register_pass<ov::pass::ConvertPrecision>(precisions_array {{ element::f32, element::f16 }});
         manager.run_passes(model);
     }
 

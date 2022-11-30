@@ -148,9 +148,8 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
       _new_api(newAPI) {
     {
         ov::pass::Manager m;
-        using namespace ngraph::pass;
-        REGISTER_PASS(m, FixRtInfo)
         using namespace ov::pass;
+        REGISTER_PASS(m, FixRtInfo)
         REGISTER_PASS(m, EliminateScatterUpdate)
         REGISTER_PASS(m, RemoveConcatZeroDimInput)
         REGISTER_PASS(m, RemoveMultiSubGraphOpDanglingParams)
@@ -215,7 +214,7 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const CNNNetwork& network) {
     _ngraph_function = ngraph::clone_function(*network.getFunction());
     {
         ov::pass::Manager m;
-        using namespace ngraph::pass;
+        using namespace ov::pass;
         REGISTER_PASS(m, FixRtInfo)
         m.run_passes(_ngraph_function);
     }
@@ -399,7 +398,7 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::Par
 
         try {
             ngraph::pass::Manager ssr_manager;
-            using namespace ngraph::pass;
+            using namespace ov::pass;
             REGISTER_PASS(ssr_manager, SmartReshape)
             ssr_manager.run_passes(_ngraph_function);
 
@@ -681,8 +680,8 @@ StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* respons
                 std::ceil(size * static_cast<float>(shape[0]) / static_cast<float>(getBatchSize())))};
             inShapes[parameter->get_friendly_name()] = shape;
         }
-        ngraph::pass::Manager ssr_manager;
-        using namespace ngraph::pass;
+        ov::pass::Manager ssr_manager;
+        using namespace ov::pass;
         REGISTER_PASS(ssr_manager, SetBatchSize)
         ssr_manager.run_passes(_ngraph_function);
 
