@@ -6,6 +6,10 @@
 
 #pragma once
 
+#if defined(IN_OV_CORE_LIBRARY) && !defined(NEED_ALL_OPS)
+#    error("openvino/op/ops.hpp is for external use only")
+#endif
+
 #include "openvino/op/abs.hpp"
 #include "openvino/op/acos.hpp"
 #include "openvino/op/acosh.hpp"

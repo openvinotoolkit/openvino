@@ -15,7 +15,6 @@
 #include "ngraph/function.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/log.hpp"
-#include "ngraph/ops.hpp"
 #include "ngraph/validation_util.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/except.hpp"

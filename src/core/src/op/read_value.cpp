@@ -8,7 +8,6 @@
 
 #include "itt.hpp"
 #include "ngraph/op/util/variable_context.hpp"
-#include "ngraph/ops.hpp"
 
 using namespace std;
 using namespace ngraph;

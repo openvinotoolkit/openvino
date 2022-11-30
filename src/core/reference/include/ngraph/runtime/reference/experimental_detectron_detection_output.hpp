@@ -23,8 +23,8 @@
 #include <vector>
 
 #include "ngraph/node.hpp"
+#include "ngraph/op/experimental_detectron_detection_output.hpp"
 #include "ngraph/op/util/op_types.hpp"
-#include "ngraph/ops.hpp"
 #include "ngraph/shape_util.hpp"
 
 namespace ngraph {

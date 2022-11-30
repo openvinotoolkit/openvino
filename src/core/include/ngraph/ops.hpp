@@ -6,6 +6,10 @@
 
 #pragma once
 
+#if defined(IN_OV_CORE_LIBRARY)
+#    error("ngraph/ops.hpp is for external use only")
+#endif
+
 #include "ngraph/op/abs.hpp"
 #include "ngraph/op/acos.hpp"
 #include "ngraph/op/acosh.hpp"

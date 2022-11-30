@@ -6,21 +6,28 @@
 
 #include <algorithm>
 #include <dimension_tracker.hpp>
-#include <ngraph/ops.hpp>
 #include <ngraph/rt_info.hpp>
 #include <numeric>
 
 #include "compare.hpp"
 #include "ngraph/evaluator.hpp"
+#include "ngraph/op/and.hpp"
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/convert.hpp"
+#include "ngraph/op/equal.hpp"
 #include "ngraph/op/gather.hpp"
+#include "ngraph/op/greater.hpp"
+#include "ngraph/op/max.hpp"
 #include "ngraph/op/min.hpp"
 #include "ngraph/op/minimum.hpp"
+#include "ngraph/op/or.hpp"
+#include "ngraph/op/reduce_logical_and.hpp"
 #include "ngraph/op/reshape.hpp"
+#include "ngraph/op/select.hpp"
 #include "ngraph/op/shape_of.hpp"
 #include "ngraph/op/squeeze.hpp"
 #include "ngraph/op/unsqueeze.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "ngraph/util.hpp"

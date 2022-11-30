@@ -4,10 +4,11 @@
 
 #pragma once
 
-#include "openvino/op/ops.hpp"
 #ifdef IN_OV_CORE_LIBRARY
 #    error("openvino/opsets/opset5.hpp is for external use only")
 #endif
+
+#include "openvino/op/ops.hpp"
 
 namespace ov {
 namespace opset5 {

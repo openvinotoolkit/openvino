@@ -9,7 +9,6 @@
 #include <depth_to_space_shape_inference.hpp>
 #include <memory>
 #include <ngraph/op/constant.hpp>
-#include <ngraph/ops.hpp>
 
 #include "itt.hpp"
 #include "ngraph/runtime/reference/depth_to_space.hpp"

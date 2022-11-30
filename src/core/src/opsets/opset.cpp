@@ -6,7 +6,9 @@
 
 #include "itt.hpp"
 #include "ngraph/log.hpp"
-#include "ngraph/ops.hpp"
+#define NEED_ALL_OPS
+#include "openvino/op/ops.hpp"
+#undef NEED_ALL_OPS
 #include "openvino/opsets/opset.hpp"
 
 ngraph::OpSet::OpSet(const ov::OpSet& opset) : ov::OpSet(opset) {}

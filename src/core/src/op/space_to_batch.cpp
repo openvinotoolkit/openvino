@@ -14,7 +14,6 @@
 #include "itt.hpp"
 #include "ngraph/builder/make_constant.hpp"
 #include "ngraph/node.hpp"
-#include "ngraph/ops.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
 #include "ngraph/runtime/reference/pad.hpp"
 #include "ngraph/shape.hpp"

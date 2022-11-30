@@ -8,7 +8,6 @@
 #include <cmath>
 #include <cstddef>
 #include <memory>
-#include <ngraph/ops.hpp>
 #include <ngraph/validation_util.hpp>
 #include <numeric>
 
