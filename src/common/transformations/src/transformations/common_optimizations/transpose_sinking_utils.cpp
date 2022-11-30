@@ -194,9 +194,9 @@ NodeVector InsertTransposeBeforeNode(NodePtr main_node, std::shared_ptr<Constant
     for (size_t i = 0; i < main_node->get_input_size(); ++i) {
         auto input_node = main_node->input_value(i);
         {
-            const ov::Rank::value_type output_rank_len = input_node.get_partial_shape().rank().get_length();
-            if (output_rank_len < max_input_rank)
-                input_node = InsertUnsqueeze(input_node, max_input_rank - output_rank_len);
+            const ov::Rank::value_type output_rank = input_node.get_partial_shape().rank().get_length();
+            if (output_rank < max_input_rank)
+                input_node = InsertUnsqueeze(input_node, max_input_rank - output_rank);
         }
         auto new_transpose_const = std::make_shared<Constant>(transpose_element_type,
                                                               Shape{transpose_axis_order.size()},
