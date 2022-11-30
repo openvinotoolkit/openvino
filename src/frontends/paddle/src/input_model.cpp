@@ -93,6 +93,8 @@ void InputModel::InputModelImpl::loadPlaces() {
 
         for (const auto& op : block.ops()) {
             auto op_place = std::make_shared<OpPlace>(m_input_model, op);
+            auto op_decoder = std::make_shared<DecoderProto>(op_place);
+            op_place->set_decoder(op_decoder);
 
             if (m_telemetry) {
                 op_statistics[op.type()]++;
