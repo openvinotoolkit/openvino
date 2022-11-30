@@ -2,26 +2,25 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from dataclasses import dataclass, field
+from functools import singledispatchmethod
 from typing import List, Optional, Any, Dict
-from openvino.runtime.exceptions import UserInputError
+from openvino.runtime.exceptions import UserInputError, OVTypeError
 
 
+@dataclass
 class BasePipelineStep:
-    def __init__(self) -> None:
-        self._params: Dict[str, Any] = {}
-        self._pipeline: Optional["TokenizerPipeline"] = None
-
-    def __setattr__(self, key: str, value: Any) -> None:
-        if not key.startswith("_"):
-            self._params[key] = value
-        super().__setattr__(key, value)
+    _pipeline: Optional["TokenizerPipeline"] = field(default=None, init=False)
 
     def __str__(self) -> str:
-        params_string = ", ".join(f"{key}={val!r}" for key, val in self._params.items())
+        params_string = ", ".join(f"{key}={val!r}" for key, val in self.get_config().items())
         return f"{self.__class__.__name__}({params_string})"
 
     def get_config(self) -> Dict[str, Any]:
-        return self._params
+        config = {key: value for key, value in vars(self).items() if not key.startswith("_")}
+        properties = {key: getattr(self, key) for key in dir(type(self)) if not key.startswith("_") and isinstance(getattr(type(self), key), property)}
+        config.update(properties)
+        return config
 
     def get_pipeline(self) -> Optional["TokenizerPipeline"]:
         return self._pipeline
@@ -30,23 +29,48 @@ class BasePipelineStep:
         self._pipeline = pipeline
 
 
-class NormalizationPipelineStep(BasePipelineStep):
+@dataclass
+class NormalizationStep(BasePipelineStep):
     pass
 
 
-class NFDNormalizationStep(NormalizationPipelineStep):
+@dataclass
+class NFCNormalizationStep(NormalizationStep):
     pass
 
 
-class LowercaseStep(NormalizationPipelineStep):
+@dataclass
+class NFDNormalizationStep(NormalizationStep):
     pass
 
 
-class RegExpNormalizationStep(NormalizationPipelineStep):
-    def __init__(self, regex_search_pattern: str, replace_term: str) -> None:
-        super().__init__()
-        self.regex_search_pattern = regex_search_pattern
-        self.replace_term = replace_term
+@dataclass
+class NFKCNormalizationStep(NormalizationStep):
+    pass
+
+
+@dataclass
+class NFKDNormalizationStep(NormalizationStep):
+    pass
+
+
+@dataclass
+class NMTNormalizationStep(NormalizationStep):
+    """Normaization based on NMT task.
+
+    https://github.com/huggingface/tokenizers/blob/28cd3dce2a75d106572392194ff2564574c33235/tokenizers/src/normalizers/unicode.rs#L44
+    """
+
+
+@dataclass
+class LowercaseStep(NormalizationStep):
+    pass
+
+
+@dataclass
+class RegExpNormalizationStep(NormalizationStep):
+    regex_search_pattern: str
+    replace_term: str
 
     @classmethod
     def strip_accents_regex(cls) -> "RegExpNormalizationStep":
@@ -57,26 +81,44 @@ class RegExpNormalizationStep(NormalizationPipelineStep):
         return cls(regex_search_pattern=r"\p{Cc}|\p{Cf}", replace_term=" ")
 
 
-class StripAccentsStep(NormalizationPipelineStep):
+@dataclass
+class StripAccentsStep(NormalizationStep):
     pass
 
 
-class DelControlCharsStep(NormalizationPipelineStep):
+@dataclass
+class DelControlCharsStep(NormalizationStep):
     pass
 
 
+@dataclass
+class StripStringStep(NormalizationStep):
+    left: bool
+    right: bool
+
+
+@dataclass
 class PreTokenizatinStep(BasePipelineStep):
     pass
 
 
+@dataclass
 class WhitespaceSplitStep(PreTokenizatinStep):
-    pass
+    """Works like python `str.split`."""
 
 
+@dataclass
+class PunctuationSplitStep(PreTokenizatinStep):
+    """Splits string on punctuation chars."""
+
+    behaviour: str = "Isolated"
+
+
+@dataclass
 class RegExpSplitStep(PreTokenizatinStep):
-    def __init__(self, split_pattern: str) -> None:
-        super().__init__()
-        self.split_pattern = split_pattern
+    split_pattern: str
+    invert: bool = False
+    behaviour: str = "Remove"
 
     @classmethod
     def bert_splitter(cls) -> "RegExpSplitStep":
@@ -114,32 +156,37 @@ class RegExpSplitStep(PreTokenizatinStep):
             ),
         )
 
+    @classmethod
+    def whitespace_splitter(cls) -> "RegExpSplitStep":
+        return cls(r"\w+|[^\w\s]+")
 
+
+@dataclass
 class TokenizationModelStep(BasePipelineStep):
     pass
 
 
+@dataclass
 class WordPieceTokenizationStep(TokenizationModelStep):
-    def __init__(
-        self,
-        vocab: List[str],
-        unk_token: str = "[UNK]",
-        subword_prefix: str = "##",
-        max_chars_per_word: int = 100,
-    ) -> None:
-        super().__init__()
-        self.vocab = vocab
-        self.unk_token = unk_token
+    vocab: List[str]
+    unk_token: str = "[UNK]"
+    subword_prefix: str = "##"
+    max_chars_per_word: int = 100
+    unk_token_idx: int = field(init=False)
+
+    def __post_init__(self) -> None:
         try:
-            self.unk_token_idx = self.vocab.index(unk_token)
+            self.unk_token_idx = self.vocab.index(self.unk_token)
         except ValueError:
-            raise UserInputError(f"Unknown token {self.token} is not in vocab")
-        self.subword_prefix = subword_prefix
-        self.max_chars_per_word = max_chars_per_word
+            raise UserInputError(f"Unknown token '{self.unk_token}' is not in vocab")
 
     def __str__(self) -> str:
-        params_string = ", ".join(f"{key}={val!r}" for key, val in self._params.items() if key != "vocab")
+        params_string = ", ".join(f"{key}={val!r}" for key, val in self.get_config().items() if key != "vocab")
         return f"{self.__class__.__name__}({params_string})"
+
+    @property
+    def vocab_size(self) -> int:
+        return len(self.vocab)
 
     @classmethod
     def from_hf_json(cls, tokenizer_json: Dict[str, Any]) -> "WordPieceTokenizationStep":
@@ -150,43 +197,59 @@ class WordPieceTokenizationStep(TokenizationModelStep):
         )
 
 
+@dataclass
 class PostTokenizationStep(BasePipelineStep):
     pass
 
 
-class AddTokenStep(PostTokenizationStep):
-    def __init__(self, token: str, token_type_id: Optional[int] = None) -> None:
-        super().__init__()
-        self.token = token
+@dataclass
+class SpecialTokenWithIdx(PostTokenizationStep):
+    token: str
+    _token_idx: Optional[int] = None
 
-        self.token_type_id = token_type_id
+    @property
+    def token_idx(self) -> Optional[int]:
+        if self._token_idx is not None:
+            return self._token_idx
 
-        self.token_idx: Optional[int] = None
-        self.set_token_idx()
-
-    def set_token_idx(self) -> None:
         pipeline = self.get_pipeline()
         if pipeline is None or pipeline.vocab is None:
-            return
+            return None
         try:
-            self.token_idx = pipeline.vocab.index(self.token)
+            self._token_idx = pipeline.vocab.index(self.token)
         except ValueError:
             raise UserInputError(f"Special token {self.token} is not in vocab")
 
+        return self._token_idx
 
+
+@dataclass
+class AddTokenStep(SpecialTokenWithIdx):
+    token: str
+    token_type_id: Optional[int] = None
+
+
+@dataclass
 class SequenceStep(PostTokenizationStep):
-    def __init__(self, token_type_id: Optional[int] = None):
-        super().__init__()
-        self.token_type_id = token_type_id
+    token_type_id: Optional[int]
 
 
-class AddPaddingStep(PostTokenizationStep):
-    def __init__(self, padding_token: str, pad_right: bool = True) -> None:
-        super().__init__()
-        self.padding_token = padding_token
-        self.pad_right = pad_right
+@dataclass
+class AddPaddingStep(SpecialTokenWithIdx):
+    pad_right: bool = True
+    token_type_id: Optional[int] = None
+
+    @classmethod
+    def from_hf_json(cls, tokenizer_json: Dict[str, Any]) -> "AddPaddingStep":
+        padding_dict = tokenizer_json["padding"]
+        return cls(
+            token=padding_dict["pad_token"],
+            pad_right=padding_dict["direction"] == "Right",
+            token_type_id=padding_dict["pad_type_id"],
+        )
 
 
+@dataclass
 class TruncationStep(PostTokenizationStep):
     def __init__(self, max_length: int, truncate_right: bool = True) -> None:
         super().__init__()
@@ -208,17 +271,28 @@ class TruncationStep(PostTokenizationStep):
         )
 
 
+@dataclass
 class TokenizerPipeline:
-    def __init__(self, steps: Optional[List[BasePipelineStep]] = None) -> None:
-        self.steps = steps or []
-        self.vocab: Optional[List[str]] = None
+    steps: List[BasePipelineStep] = field(default_factory=list)
+    vocab: Optional[List[str]] = None
 
-    def generate_config(self) -> Dict[str, Dict[str, Any]]:
+    def get_config(self) -> Dict[str, Dict[str, Any]]:
         return {type(step).__name__: step.get_config() for step in self.steps}
 
-    def add_step(self, step: BasePipelineStep) -> None:
-        self.steps.append(step)
-        step.set_pipeline(self)
+    @singledispatchmethod
+    def add_steps(self, steps: Any) -> None:
+        raise OVTypeError(f"Type {type(steps)} is not supported")
+
+    @add_steps.register
+    def _(self, steps: BasePipelineStep) -> None:
+        self.steps.append(steps)
+        steps.set_pipeline(self)
+
+    @add_steps.register
+    def _(self, steps: list) -> None:
+        for step in steps:
+            self.steps.append(step)
+            step.set_pipeline(self)
 
     def __str__(self) -> str:
         steps = "\n\t".join(str(step) for step in self.steps)
