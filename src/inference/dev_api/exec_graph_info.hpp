@@ -104,7 +104,8 @@ public:
      * @param[in]  arguments    Inputs nodes
      * @param[in]  output_size  A number of output ports
      */
-    ExecutionNode(const ov::OutputVector& arguments, size_t output_size = 1) : ov::op::Op(arguments) {
+    ExecutionNode(const ov::OutputVector& arguments, size_t output_size = 1) : ov::op::Op() {
+        set_arguments(arguments);
         set_output_size(output_size);
     }
 
