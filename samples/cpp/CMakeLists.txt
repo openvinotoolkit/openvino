@@ -100,14 +100,17 @@ endif()
 if(TARGET gflags)
     set(GFLAGS_TARGET gflags)
 else()
-    foreach(component nothreads_static nothreads_shared shared static)
-        find_package(gflags QUIET OPTIONAL_COMPONENTS ${component})
+    if(NOT APPLE)
+        set(gflags_components nothreads_shared nothreads_static static shared)
+    endif()
+    foreach(gflag_component IN LISTS gflags_components)
+        find_package(gflags QUIET OPTIONAL_COMPONENTS ${gflag_component})
 
         if(gflags_FOUND)
             if(TARGET ${GFLAGS_TARGET})
                 # nothing
             elseif(TARGET gflags_nothreads-shared)
-                # gflags shared case for CentOS/RHEL/Fedora
+                # gflags shared case for CentOS / RHEL / Fedora
                 set_target_properties(gflags_nothreads-shared PROPERTIES IMPORTED_GLOBAL ON)
                 add_library(gflags ALIAS gflags_nothreads-shared)
             elseif(TARGET gflags_nothreads-static)

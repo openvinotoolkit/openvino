@@ -189,18 +189,21 @@ endif()
 #
 
 if(ENABLE_SAMPLES OR ENABLE_COMPILE_TOOL OR ENABLE_TESTS)
-    foreach(component nothreads_static nothreads_shared shared static)
-        find_package(gflags QUIET OPTIONAL_COMPONENTS nothreads_shared)
+    if(NOT APPLE)
+        set(gflags_components nothreads_shared nothreads_static static shared)
+    endif()
+    foreach(gflag_component IN LISTS gflags_components)
+        find_package(gflags QUIET OPTIONAL_COMPONENTS ${gflag_component})
 
         if(gflags_FOUND)
             if(TARGET gflags)
                 set_target_properties(gflags PROPERTIES IMPORTED_GLOBAL ON)
             elseif(TARGET gflags_nothreads-shared)
-                # gflags shared case for CentOS/RHEL/Fedora
+                # gflags shared case for CentOS / RHEL / Fedora
                 set_target_properties(gflags_nothreads-shared PROPERTIES IMPORTED_GLOBAL ON)
                 add_library(gflags ALIAS gflags_nothreads-shared)
             elseif(TARGET gflags_nothreads-static)
-                # debian_9_arm case
+                # Debian 9 case
                 set_target_properties(gflags_nothreads-static PROPERTIES IMPORTED_GLOBAL ON)
                 add_library(gflags ALIAS gflags_nothreads-static)
             elseif(TARGET ${GFLAGS_TARGET})
@@ -321,7 +324,7 @@ if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$")
     if(NOT ENABLE_SYSTEM_PUGIXML)
         message(FATAL_ERROR "Pugixml must be used as a ${CPACK_GENERATOR} package. Install libpugixml-dev / pugixml-devel")
     endif()
-else()
+elseif(WIN32 OR APPLE)
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
             COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
