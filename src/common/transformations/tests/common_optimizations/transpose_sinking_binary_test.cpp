@@ -312,7 +312,7 @@ public:
         test_name << "pass_factory=" << pass_factory->getTypeName() << "_";
         test_name << "num_binary_ops=" << num_binary_ops << "_";
         test_name << "input_type=" << input_type << "_";
-        test_name << "binary_transpose_input_idx=" << binary_transpose_input_idx << "_";
+        test_name << "binary_transpose_input_idx=" << binary_transpose_input_idx;
 
         return test_name.str();
     }
