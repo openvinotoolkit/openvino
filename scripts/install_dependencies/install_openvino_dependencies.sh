@@ -119,7 +119,7 @@ elif [ "$os" == "ubuntu18.04" ] ; then
 
     pkgs_core=(libtbb2 libpugixml1v5)
     pkgs_opencv_req=(libgtk-3-0 libgl1)
-    pkgs_python=(python3.8 python3.8-venv python3-pip)
+    pkgs_python=(python3.8 libpython3.8 python3.8-venv python3-pip)
     pkgs_dev=(cmake pkg-config g++ gcc libc6-dev libgflags-dev zlib1g-dev nlohmann-json-dev make curl sudo)
     pkgs_myriad=(libusb-1.0-0)
     pkgs_cl_compiler=(libtinfo5)
