@@ -232,12 +232,19 @@ std::shared_ptr<ov::Model> EltwiseLogLoopFunction::initReference() const {
 
 std::shared_ptr<ov::Model> EltwiseTwoResultsFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
+    data0->set_friendly_name("data0");
     auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
+    data1->set_friendly_name("data1");
     auto sinh0 = std::make_shared<op::v0::Sinh>(data0);
+    sinh0->set_friendly_name("sinh0");
     auto sinh1 = std::make_shared<op::v0::Sinh>(data1);
+    sinh1->set_friendly_name("sinh1");
     auto add = std::make_shared<op::v1::Add>(sinh0, sinh1);
+    add->set_friendly_name("add");
     auto hswish = std::make_shared<op::v4::HSwish>(add);
+    hswish->set_friendly_name("hswish");
     auto relu = std::make_shared<op::v0::Relu>(hswish);
+    relu->set_friendly_name("relu");
 
     NGRAPH_SUPPRESS_DEPRECATED_START
     auto& out_tensor0 = add->get_output_tensor(0);
@@ -249,25 +256,38 @@ std::shared_ptr<ov::Model> EltwiseTwoResultsFunction::initOriginal() const {
     out_tensor1.set_names({"relu_out", "y1"});
     NGRAPH_SUPPRESS_DEPRECATED_END
 
-    return std::make_shared<Model>(NodeVector{add, relu}, ParameterVector{data0, data1});
+    auto res0 = std::make_shared<op::v0::Result>(add);
+    res0->set_friendly_name("res0");
+    auto res1 = std::make_shared<op::v0::Result>(relu);
+    res1->set_friendly_name("res1");
+    return std::make_shared<Model>(ResultVector{res0, res1}, ParameterVector{data0, data1});
 }
 std::shared_ptr<ov::Model> EltwiseTwoResultsFunction::initReference() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
+    data0->set_friendly_name("data0");
     auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
+    data1->set_friendly_name("data1");
     auto sinh0 = std::make_shared<op::v0::Sinh>(data0);
+    sinh0->set_friendly_name("sinh0");
     auto sinh1 = std::make_shared<op::v0::Sinh>(data1);
+    sinh1->set_friendly_name("sinh1");
     auto indata0 = std::make_shared<op::v0::Parameter>(precision, sinh0->get_shape());
     auto indata1 = std::make_shared<op::v0::Parameter>(precision, sinh1->get_shape());
     auto add = std::make_shared<op::v1::Add>(indata0, indata1);
+    add->set_friendly_name("add");
     auto hswish = std::make_shared<op::v4::HSwish>(add);
+    hswish->set_friendly_name("hswish");
     auto subgraph0 = std::make_shared<ngraph::snippets::op::Subgraph>(NodeVector{sinh0, sinh1},
                                         std::make_shared<ov::Model>(NodeVector{add, hswish},
                                                                     ParameterVector{indata0, indata1}));
+    subgraph0->set_friendly_name("add");
     auto indata2 = std::make_shared<op::v0::Parameter>(precision, subgraph0->get_output_shape(1));
     auto relu = std::make_shared<op::v0::Relu>(indata2);
+    relu->set_friendly_name("relu");
     auto subgraph1 = std::make_shared<ngraph::snippets::op::Subgraph>(OutputVector{subgraph0->output(1)},
                                         std::make_shared<ov::Model>(NodeVector{relu},
                                                                     ParameterVector{indata2}));
+    subgraph1->set_friendly_name("relu");
     NGRAPH_SUPPRESS_DEPRECATED_START
     auto& out_tensor0 = subgraph0->get_output_tensor(0);
     out_tensor0.set_name("add_out");
@@ -277,7 +297,12 @@ std::shared_ptr<ov::Model> EltwiseTwoResultsFunction::initReference() const {
     out_tensor1.set_name("relu_out");
     out_tensor1.set_names({"relu_out", "y1"});
     NGRAPH_SUPPRESS_DEPRECATED_END
-    return std::make_shared<Model>(OutputVector{subgraph0->output(0), subgraph1->output(0)}, ParameterVector{data0, data1});
+
+    auto res0 = std::make_shared<op::v0::Result>(subgraph0->output(0));
+    res0->set_friendly_name("res0");
+    auto res1 = std::make_shared<op::v0::Result>(subgraph1->output(0));
+    res1->set_friendly_name("res1");
+    return std::make_shared<Model>(ResultVector{res0, res1}, ParameterVector{data0, data1});
 }
 
 std::shared_ptr<ov::Model> TwoInputsAndOutputsFunction::initOriginal() const {

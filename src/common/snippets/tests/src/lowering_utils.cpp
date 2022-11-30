@@ -34,6 +34,13 @@ DummyTargetMachine::DummyTargetMachine() {
     jitters[ngraph::snippets::op::TileScheduler::get_type_info_static()] = dummy_functor;
 }
 
+LoweringTests::LoweringTests() : TransformationTestsF() {
+    // external subgraph input shape and internal parameters shapes
+    // might differ due to the blocked layout
+    // so input & output descriptors shouldn't be checked
+    comparator.disable(FunctionsComparator::CmpValues::SUBGRAPH_DESCRIPTORS);
+}
+
 std::shared_ptr<ngraph::snippets::op::Subgraph> LoweringTests::getSubgraph(const std::shared_ptr<Model>& f) {
     std::shared_ptr<ngraph::snippets::op::Subgraph> subgraph;
     for (const auto &op : f->get_ops()) {

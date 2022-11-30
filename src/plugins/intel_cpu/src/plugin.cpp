@@ -867,13 +867,10 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     } else {
         enableBF16 = engConfig.enforceBF16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);
     }
-    const auto& modelCacheProp = config.find(InferenceEngine::PluginConfigParams::KEY_CACHE_DIR);
-    const bool enableModelCache = (modelCacheProp != config.end() && !modelCacheProp->second.empty())
-            || !engConfig.cache_dir.empty();
     const auto& dynamicBatchProp = config.find(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED);
     const bool enableDynamicBatch = (dynamicBatchProp != config.end() && dynamicBatchProp->second == PluginConfigParams::YES)
             || engConfig.enableDynamicBatch;
-    const bool enableSnippets = !(enableModelCache || enableDynamicBatch);
+    const bool enableSnippets = !enableDynamicBatch;
     auto nGraphFunc = clonedNetwork.getFunction();
 
     DEBUG_LOG(PrintableModel(*nGraphFunc, "org_"));
@@ -1122,7 +1119,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
     const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
     const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
                         || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
-    const bool enableSnippets = !(conf.cache_dir.empty() || conf.enableDynamicBatch);
+    const bool enableSnippets = !conf.enableDynamicBatch;
 
     auto model = network.getFunction();
     if (model == nullptr) {

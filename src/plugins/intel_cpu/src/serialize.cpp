@@ -41,28 +41,22 @@ namespace {
         IE_THROW(NetworkNotRead) << "Unknown layout with name '" << name << "'";
     }
 
-    template<typename T>
-    void setPrecisionsAndLayouts(
-        pugi::xml_object_range<pugi::xml_named_node_iterator> && nodes,
-        T && info) {
-        for (auto n : nodes) {
-            auto name_attr = n.attribute("name");
-            auto precision_attr = n.attribute("precision");
-            auto layout_attr = n.attribute("layout");
+    template <typename T>
+    void setInfo(pugi::xml_object_range<pugi::xml_named_node_iterator>&& nodes, T&& info) {
+        auto nodes_it = nodes.begin();
+        auto info_iter = info.begin();
+        for (; nodes_it != nodes.end(); ++nodes_it, ++info_iter) {
+            auto name_attr = nodes_it->attribute("name");
+            auto precision_attr = nodes_it->attribute("precision");
+            auto layout_attr = nodes_it->attribute("layout");
 
-            if (!name_attr
-                || !precision_attr
-                || !layout_attr) {
+            if (!name_attr || !precision_attr || !layout_attr || info_iter == info.end()) {
                 IE_THROW(NetworkNotRead) << "The inputs/outputs information is invalid.";
             }
 
-            auto it = info.find(name_attr.value());
-            if (it == info.end()) {
-                IE_THROW(NetworkNotRead) << "The input/output with name '" << name_attr.value() << "' not found";
-            }
-
-            it->second->setPrecision(Precision::FromStr(precision_attr.value()));
-            it->second->setLayout(layout_from_string(layout_attr.value()));
+            info_iter->second->setName(name_attr.value());
+            info_iter->second->setPrecision(Precision::FromStr(precision_attr.value()));
+            info_iter->second->setLayout(layout_from_string(layout_attr.value()));
         }
     }
 };  // namespace
@@ -170,8 +164,8 @@ void CNNNetworkDeserializer::operator >> (InferenceEngine::CNNNetwork & network)
     pugi::xml_node inputs = root.child("inputs");
     pugi::xml_node outputs = root.child("outputs");
 
-    setPrecisionsAndLayouts(inputs.children("in"), network.getInputsInfo());
-    setPrecisionsAndLayouts(outputs.children("out"), network.getOutputsInfo());
+    setInfo(inputs.children("in"), network.getInputsInfo());
+    setInfo(outputs.children("out"), network.getOutputsInfo());
 }
 
 }   // namespace intel_cpu

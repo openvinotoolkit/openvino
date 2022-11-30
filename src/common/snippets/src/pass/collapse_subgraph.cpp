@@ -162,7 +162,7 @@ auto update_out_tensor_name(std::shared_ptr<ngraph::snippets::op::Subgraph> &sub
     for (unsigned int i = 0; i < subgraph->get_output_size() && not_set; i++) {
         for (const auto &in : subgraph->get_output_target_inputs(i)) {
             if (ov::is_type<opset1::Result>(in.get_node())) {
-                const auto& body_result = subgraph->get_body()->get_output_op(i);
+                const auto& body_result = subgraph->body_ptr()->get_output_op(i);
                 const auto& body_result_input = body_result->get_input_source_output(0);
                 op::Subgraph::fill_empty_output_names(subgraph->output(i), body_result_input);
                 not_set = false;
@@ -318,8 +318,8 @@ TokenizeSnippets::TokenizeSnippets() {
         for (const auto &input_node : ngraph::as_node_vector(input_values)) {
             if (auto subgraph = ov::as_type_ptr<op::Subgraph>(input_node)) {
                 if (!clones.count(input_node)) {
-                    auto f = ov::clone_model(*subgraph->get_body().get());
-                    f->set_friendly_name(subgraph->get_body()->get_friendly_name());
+                    auto f = ov::clone_model(subgraph->body());
+                    f->set_friendly_name(subgraph->body_ptr()->get_friendly_name());
                     clones[input_node] = f;
                 }
             }
@@ -332,6 +332,7 @@ TokenizeSnippets::TokenizeSnippets() {
                       << " outputs" << std::endl;
             return true;
         }
+        std::string subgraph_name = node->get_friendly_name();
         std::string fusedNames{};
         size_t num_result_children = 0;
         std::pair<int64_t, int64_t> currentTopoBounds {-1, LONG_MAX};
@@ -347,7 +348,12 @@ TokenizeSnippets::TokenizeSnippets() {
 
                     fusedNames += getFusedNames(subgraph);
 
-                    num_result_children += has_result_child(subgraph);
+                    if (has_result_child(subgraph)) {
+                        // we set input subgraph name to the current subgraph
+                        // in order to save node friendly name before result
+                        subgraph_name = subgraph->get_friendly_name();
+                        num_result_children += 1;
+                    }
                     auto f = clones[input_node];
                     const auto& input_body_parameters = f->get_parameters();
                     // Todo:
@@ -546,10 +552,10 @@ TokenizeSnippets::TokenizeSnippets() {
         for (size_t i = 0; i < body->get_parameters().size(); i++) {
             body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
         }
-        auto subgraph = op::build_subgraph(node, external_inputs, body);
-        auto act_body = subgraph->get_body();
-        for (size_t i = 0; i < act_body->get_parameters().size(); i++) {
-            act_body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
+        auto subgraph = op::build_subgraph(node, external_inputs, body, subgraph_name);
+        const auto & act_body = subgraph->body();
+        for (size_t i = 0; i < act_body.get_parameters().size(); i++) {
+            act_body.get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
         }
 
         if (subgraph->get_output_size() != subgraph_result_inputs.size()) {
@@ -568,9 +574,9 @@ TokenizeSnippets::TokenizeSnippets() {
 
         subgraph->validate_and_infer_types();
 
-        auto act_body1 = subgraph->get_body();
-        for (size_t i = 0; i < act_body1->get_parameters().size(); i++) {
-            act_body1->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
+        const auto & act_body1 = subgraph->body();
+        for (size_t i = 0; i < act_body1.get_parameters().size(); i++) {
+            act_body1.get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
         }
         subgraph->get_rt_info()["originalLayersNames"] = fusedNames;
         subgraph->set_non_scalar_constants_count(hidden_non_scalar_constant_count);
@@ -579,7 +585,7 @@ TokenizeSnippets::TokenizeSnippets() {
                     << subgraph->get_friendly_name()
                     << " with " << subgraph->inputs().size()
                     << " inputs and " << subgraph->outputs().size()
-                    << " outputs and " << subgraph->get_body()->get_ops().size() << " ops total\n";
+                    << " outputs and " << subgraph->body_ptr()->get_ops().size() << " ops total\n";
 
         return true;
     };
