@@ -42,8 +42,10 @@ OP_CONVERTER(translate_linear);
 OP_CONVERTER(translate_list_construct);
 OP_CONVERTER(translate_loop);
 OP_CONVERTER(translate_max_pool2d);
+OP_CONVERTER(translate_masked_fill);
 OP_CONVERTER(translate_mean);
 OP_CONVERTER(translate_neg);
+OP_CONVERTER(translate_pad);
 OP_CONVERTER(translate_reciprocal);
 OP_CONVERTER(translate_relu6);
 OP_CONVERTER(translate_reshape);
@@ -83,6 +85,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::contiguous", op::skip_node},  // In openvino how tensors are stored in memory is internal plugin detail,
                                               // we assume all tensors are contiguous
         {"aten::conv2d", op::translate_conv2d},
+        {"aten::convolution", op::translate_convolution},
+        {"aten::cumsum", op::translate_1to1_match_2_inputs<opset8::CumSum>},
         {"aten::dim", op::translate_dim},
         {"aten::div", op::translate_div},
         {"aten::div_", op::inplace_op<op::translate_div>},
@@ -113,12 +117,15 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::lt", op::translate_1to1_match_2_inputs<opset8::Less>},
         {"aten::matmul", op::translate_1to1_match_2_inputs<opset8::MatMul>},
         {"aten::max_pool2d", op::translate_max_pool2d},
+        {"aten::masked_fill", op::translate_masked_fill},
+        {"aten::masked_fill_", op::inplace_op<op::translate_masked_fill>},
         {"aten::mean", op::translate_mean},
         {"aten::mm", op::translate_1to1_match_2_inputs<opset8::MatMul>},
         {"aten::mul", op::translate_1to1_match_2_inputs<opset8::Multiply>},
         {"aten::mul_", op::inplace_op<op::translate_1to1_match_2_inputs<opset8::Multiply>>},
         {"aten::ne", op::translate_1to1_match_2_inputs<opset8::NotEqual>},
         {"aten::neg", op::translate_neg},
+        {"aten::pad", op::translate_pad},
         {"aten::permute", op::translate_1to1_match_2_inputs<opset8::Transpose>},
         {"aten::pow", op::translate_1to1_match_2_inputs<opset8::Power>},
         {"aten::reciprocal", op::translate_reciprocal},
@@ -141,6 +148,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::sub", op::translate_sub},
         {"aten::sum", op::translate_sum},
         {"aten::tanh", op::translate_1to1_match_1_inputs<opset8::Tanh>},
+        {"aten::type_as", op::translate_1to1_match_2_inputs<opset8::ConvertLike>}, // TODO: overflow semantics is different
         {"aten::to", op::translate_to},
         {"aten::transpose", op::translate_transpose},
         {"aten::unsqueeze", op::translate_1to1_match_2_inputs<opset8::Unsqueeze>},

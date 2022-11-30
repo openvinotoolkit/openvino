@@ -72,13 +72,15 @@ pt_to_ov_type_map = {
     "torch.FloatTensor": OVType.f32,
     "torch.IntTensor": OVType.i32,
     "torch.LongTensor": OVType.i64,
+    "torch.BoolTensor": OVType.boolean
 }
 
 pt_to_py_type_map = {
     'float': 'float',
     'int': 'int',
     'torch.float32': 'float',
-    'torch.int32': 'int'
+    'torch.int32': 'int',
+    'torch.bool': 'bool'
 }
 
 np_to_ov_type_map = {
