@@ -851,14 +851,7 @@ public:
                                                 const std::map<std::string, std::string>& config,
                                                 const std::function<void(const CNNNetwork&)>& val = nullptr) override {
         OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::LoadNetwork::Path");
-        // disable auto-batch related when loading from modelPath
-        std::string device = deviceName;
-        std::map<std::string, std::string> config_with_batch = config;
-        CleanUpProperties(device, config_with_batch, ov::auto_batch_timeout);
-        CleanUpProperties(device, config_with_batch, ov::hint::allow_auto_batching);
-        // TODO: align apply-auto-batching logic with load through network
-        coreConfig.flag_allow_auto_batching = false;
-        auto parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch);
+        auto parsed = parseDeviceNameIntoConfig(deviceName, config);
         auto plugin = GetCPPPluginByName(parsed._deviceName);
         ov::SoPtr<ie::IExecutableNetworkInternal> res;
         auto cacheManager =
