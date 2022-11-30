@@ -312,7 +312,7 @@ TEST_P(pooling_scale_activation_quantize, per_channel) {
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / 16.0f)),
         pooling("pooling", input_info("input"), p.pool_mode, kernel, stride, pads_begin, pads_end),
         eltwise("scale", { input_info("pooling"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
-        activation("activation", input_info("scale"), activation_func::hyperbolic_tan),
+        activation("activation", input_info("scale"), activation_func::relu),
         quantize("quantize", input_info("activation"), input_info("in_lo"), input_info("in_hi"),
                  input_info("out_lo"), input_info("out_hi"), 255, data_types::u8),
         reorder("output_reorder", input_info("quantize"), p.default_format, data_types::f32)

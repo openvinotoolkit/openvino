@@ -100,7 +100,7 @@ TEST_P(mvn_activation, basic) {
     create_topologies(
         input_layout("input", get_input_layout(p)),
         mvn("mvn", input_info("input"), p.normalize_variance, 1e-10f, false, false),
-        activation("act", input_info("mvn"), activation_func::hyperbolic_tan),
+        activation("act", input_info("mvn"), activation_func::relu),
         reorder("reorder_bfyx", input_info("act"), format::bfyx, data_types::f32)
     );
 
@@ -184,7 +184,7 @@ TEST_P(mvn_scale_activation_eltwise_fp32_quantize_i8, basic) {
         mvn("mvn", input_info("input"), p.normalize_variance, 1e-10f, false, false),
         data("scale_data", get_mem(get_per_channel_layout(p))),
         eltwise("scale", { input_info("mvn"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
-        activation("act", input_info("scale"), activation_func::hyperbolic_tan),
+        activation("act", input_info("scale"), activation_func::relu),
         data("eltw_data", get_mem(layout{ p.input_type, p.default_format, p.elwise_size })),
         eltwise("eltw", { input_info("act"), input_info("eltw_data") }, eltwise_mode::sum, data_types::f32),
         data("in_low", get_mem(get_per_channel_layout(p), min_random, 0)),
