@@ -10,8 +10,6 @@
 #include <transformations/init_node_info.hpp>
 #include "common_test_utils/ngraph_test_utils.hpp"
 
-#include "ngraph/pass/visualize_tree.hpp" // DEBUG
-
 #include <functional>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
@@ -95,9 +93,7 @@ class PassFactory : public IPassFactory {
 public:
     PassFactory(const std::string& type_name) : IPassFactory(type_name) {}
     void registerPass(ov::pass::Manager& pass_manager) const override {
-        pass_manager.register_pass<ngraph::pass::VisualizeTree>("./0before.png");
         pass_manager.register_pass<PassT>();
-        pass_manager.register_pass<ngraph::pass::VisualizeTree>("./1after.png");
     }
 };
 
