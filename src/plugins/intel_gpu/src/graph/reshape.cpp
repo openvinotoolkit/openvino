@@ -22,6 +22,14 @@ layout reshape_inst::calc_output_layout(reshape_node const& node, kernel_impl_pa
            "Output data type forcing is not supported for reshape_node!");
     auto input_layout = impl_param.get_non_padded_input_layout();
     auto desc = impl_param.typed_desc<reshape>();
+    if (desc->output_shape.count() == 0) {
+        if (desc->output_partial_shape.size() != 0) {
+            return layout{desc->output_partial_shape, input_layout.data_type, input_layout.format};
+        } else {
+            OPENVINO_ASSERT("[GPU] Output shape is not provided");
+        }
+    }
+
     auto sizes = desc->output_shape.sizes();
     auto input_sizes = input_layout.get_tensor().sizes();
     size_t need_recalc = 0;
