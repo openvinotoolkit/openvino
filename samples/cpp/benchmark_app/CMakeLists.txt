@@ -19,7 +19,17 @@ if(NOT ANDROID)
 endif()
 
 if(NOT TARGET nlohmann_json::nlohmann_json)
-    find_package(nlohmann_json QUIET)
+    find_package(nlohmann_json QUIET
+                 # exception for Ubuntu 18.04, where cmake files for nlohmann_json
+                 # are located in a wrong directory
+                 HINTS /usr/lib/cmake)
+    if(TARGET nlohmann_json)
+        # Ubuntu 18.04 case where target 'nlohmann_json' is here, but nlohmann_json_FOUND is OFF
+        if(NOT TARGET nlohmann_json::nlohmann_json)
+            add_library(nlohmann_json::nlohmann_json ALIAS nlohmann_json)
+        endif()
+        set(nlohmann_json_FOUND ON)
+    endif()
     if(nlohmann_json_FOUND)
         message(STATUS "nlohmann_json (${nlohmann_json_VERSION}) is found at ${nlohmann_json_DIR}")
     elseif(PkgConfig_FOUND)
