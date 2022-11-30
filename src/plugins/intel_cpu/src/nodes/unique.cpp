@@ -7,6 +7,7 @@
 
 #include "unique.hpp"
 #include <ngraph/opsets/opset1.hpp>
+#include <utils/shape_inference/shape_inference_internal_dyn.hpp>
 
 using namespace InferenceEngine;
 using namespace ov::intel_cpu;
@@ -32,7 +33,7 @@ bool Unique::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
 }
 
 Unique::Unique(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache) {
+        Node(op, eng, cache, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
