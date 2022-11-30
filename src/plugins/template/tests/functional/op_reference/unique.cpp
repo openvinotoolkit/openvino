@@ -313,6 +313,15 @@ std::vector<UniqueParams> params_unique_int() {
                      true,
                      "3D with duplicates (2 & 3), output sorted"},
         UniqueParams{Shape{2, 2, 3},
+                     std::vector<Data_t>{2, -1, -1, -3, 5, 5, -8, 7, 7, 4, 4, 4},
+                     std::vector<Data_t>{-1, 2, 5, -3, 7, -8, 4, 4},
+                     std::vector<Index_t>{1, 0},
+                     std::vector<Index_t>{1, 0, 0},
+                     std::vector<Count_t>{2, 1},
+                     make_axis(-1),
+                     true,
+                     "3D with duplicates (2 & 3), output sorted"},
+        UniqueParams{Shape{2, 2, 3},
                      // the second and the third slice over axis 2 are equal
                      std::vector<Data_t>{-1, -1, -1, 3, 2, 2, 6, 7, 7, 4, 4, 4},
                      std::vector<Data_t>{-1, -1, 2, 3, 7, 6, 4, 4},
@@ -340,6 +349,17 @@ std::vector<UniqueParams> params_unique_int() {
             true,
             "3D flattened with duplicates, output sorted"}};
 
+    std::vector<UniqueParams> sorted_test{UniqueParams{Shape{2, 3, 2},
+                                                       std::vector<Data_t>{-3, -2, -5, 4, -3, 2, 3, -4, 1, 2, -1, 4},
+                                                       std::vector<Data_t>{-3, -2, -5, 4, -3, 2, 3, -4, 1, 2, -1, 4},
+                                                       std::vector<Index_t>{0, 1},
+                                                       std::vector<Index_t>{0, 1},
+                                                       std::vector<Count_t>{1, 1},
+                                                       make_axis(0),
+                                                       true,
+                                                       "my_test"}};
+
+    // return flatten({std::move(scalar_and_1D), std::move(N_C_layout), std::move(N_D_layout), std::move(sorted_test)});
     return flatten({std::move(scalar_and_1D), std::move(N_C_layout), std::move(N_D_layout)});
 }
 
@@ -401,7 +421,25 @@ std::vector<UniqueParams> params_unique_float() {
                                                         std::vector<Count_t>{1, 1, 1, 1, 1, 1},
                                                         nullptr,
                                                         true,
-                                                        "1D no duplicates"}};
+                                                        "1D no duplicates"},
+                                           UniqueParams{Shape{2, 2, 3},
+                                                        std::vector<Data_t>{1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6},
+                                                        std::vector<Data_t>{1, 2, 3, 4, 5, 6},
+                                                        std::vector<Index_t>{0},
+                                                        std::vector<Index_t>{0, 0},
+                                                        std::vector<Count_t>{2},
+                                                        make_axis(-3),
+                                                        false,
+                                                        "3D with duplicates"},
+                                           UniqueParams{Shape{2, 2, 3},
+                                                        std::vector<Data_t>{2, -1, -1, -3, 5, 5, -8, 7, 7, 4, 4, 4},
+                                                        std::vector<Data_t>{-1, 2, 5, -3, 7, -8, 4, 4},
+                                                        std::vector<Index_t>{1, 0},
+                                                        std::vector<Index_t>{1, 0, 0},
+                                                        std::vector<Count_t>{2, 1},
+                                                        make_axis(2),
+                                                        true,
+                                                        "3D with duplicates (2 & 3), output sorted"}};
 
     return params;
 }
