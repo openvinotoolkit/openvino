@@ -178,3 +178,24 @@ TEST_F(TransformationTestsF, RemoveConcatZeroDimTwoInputs) {
         function_ref = std::make_shared<ov::Model>(ov::NodeVector{concat}, ov::ParameterVector{input1});
     }
 }
+
+TEST_F(TransformationTestsF, RemoveConcatZeroDimAllInputsEmpty) {
+    {
+        auto input1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32,
+                                                              ov::PartialShape{1, 0, 1});
+        auto input2 = std::make_shared<ov::opset8::Parameter>(ov::element::f32,
+            ov::PartialShape{1, 0, 1});
+
+        int64_t axis = -1;
+        auto concat = std::make_shared<ov::opset8::Concat>(ov::OutputVector{input1, input2}, axis);
+
+        function = std::make_shared<ov::Model>(ov::NodeVector{concat}, ov::ParameterVector{input1, input2});
+
+        manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
+    }
+
+    {
+        auto concat = std::make_shared<ov::opset8::Constant>(ov::element::f32, ov::Shape{1, 0, 2}, std::vector<float>{});
+        function_ref = std::make_shared<ov::Model>(ov::NodeVector{concat}, ov::ParameterVector{});
+    }
+}
