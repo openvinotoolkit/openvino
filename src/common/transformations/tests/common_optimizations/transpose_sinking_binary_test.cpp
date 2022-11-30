@@ -10,6 +10,8 @@
 #include <openvino/pass/manager.hpp>
 #include "common_test_utils/ngraph_test_utils.hpp"
 
+#include "ngraph/pass/visualize_tree.hpp" // DEBUG
+
 #include <functional>
 
 #include "gtest/gtest.h"
@@ -81,7 +83,9 @@ class PassFactory : public IPassFactory {
 public:
     PassFactory(const std::string & type_name) : IPassFactory(type_name) {}
     void registerPass(ov::pass::Manager& pass_manager) const override {
+        pass_manager.register_pass<ngraph::pass::VisualizeTree>("./0before.png");
         pass_manager.register_pass<PassT>();
+        pass_manager.register_pass<ngraph::pass::VisualizeTree>("./1after.png");
     }
 };
 
@@ -472,20 +476,29 @@ std::shared_ptr<ov::Model> CreateReferenceFunction(BinaryFactoryPtr binary_facto
                                           size_t binary_transpose_input_idx) {
     auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
 
-    auto in_constant = std::make_shared<ov::opset9::Constant>(input_type, constant_shape, ov::Shape{1});
     auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
-    auto transpose0 = std::make_shared<ov::opset9::Transpose>(in_constant, ng_order0);
+    auto transpose0 = std::make_shared<ov::opset9::Transpose>(X, ng_order0);
+
+    auto in_constant = std::make_shared<ov::opset9::Constant>(input_type, constant_shape, ov::Shape{1});
+
+    std::vector<size_t> dims(input_shape.size() - constant_shape.size());
+    std::iota(dims.begin(), dims.end(), 0);
+    auto unsqueeze_const = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{dims.size()}, dims);
+    auto unsqeeze = std::make_shared<ov::opset9::Unsqueeze>(in_constant, unsqueeze_const);
+
+    auto ng_order1 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
+    auto transpose1 = std::make_shared<ov::opset9::Transpose>(unsqeeze, ng_order1);
 
     NodePtr binary_op;
     if (!binary_transpose_input_idx)
-        binary_op = binary_factory->create(transpose0, in_constant);
+        binary_op = binary_factory->create(transpose0, transpose1);
     else
-        binary_op = binary_factory->create(in_constant, transpose0);
+        binary_op = binary_factory->create(transpose1, transpose0);
 
     return std::make_shared<ov::Model>(ov::OutputVector{binary_op}, ov::ParameterVector{X});
 }
 
-std::vector<ov::Shape> constant_shapes = {ov::Shape{1, 96, 55}, ov::Shape{1}};
+std::vector<ov::Shape> constant_shapes = {ov::Shape{96, 55, 55}, ov::Shape{1}};
 
 } // namespace incompat_shapes
 } // namespace backward
