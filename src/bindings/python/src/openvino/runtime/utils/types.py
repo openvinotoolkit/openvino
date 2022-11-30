@@ -106,7 +106,7 @@ def get_dtype(openvino_type: Type) -> np.dtype:
     raise OVTypeError("Unidentified data type %s", openvino_type)
 
 
-def get_numpy_ctype(openvino_type: Type) -> np.dtype:
+def get_numpy_ctype(openvino_type: Type):
     """Return numpy ctype for an openvino element type."""
     np_type = next(
         (np_type for (ov_type, np_type) in openvino_to_numpy_types_map if ov_type == openvino_type),
