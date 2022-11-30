@@ -65,7 +65,7 @@ const auto ComparisonTestParamsIs = ::testing::Combine(
         ::testing::ValuesIn(CommonTestUtils::combineParams(inputShapes)),
         ::testing::Values(InferenceEngine::Precision::FP32),
         ::testing::ValuesIn(comparisonOpTypesIs),
-        ::testing::ValuesIn(secondInputTypes),
+        ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),

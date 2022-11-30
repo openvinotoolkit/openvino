@@ -74,8 +74,6 @@ public:
         float alpha;
         float beta;
         float gamma;
-        bool detectNegative;
-        bool detectPositive;
 
         bool operator==(const EltwiseData& rhs) const noexcept;
     };
@@ -110,8 +108,6 @@ public:
     float getAlpha() const { return alpha; }
     float getBeta() const { return beta; }
     float getGamma() const { return gamma; }
-    bool getNegative() const { return detectNegative; }
-    bool getPositive() const { return detectPositive; }
 
     dnnl::algorithm getOneDnnAlgorithm() const { return onednnAlgorithm; }
 
@@ -154,9 +150,6 @@ private:
     float alpha = 0;
     float beta = 0;
     float gamma = 0;
-
-    bool detectNegative = true;
-    bool detectPositive = true;
 
     std::vector<float> scales = {};
     std::vector<float> shifts = {};
