@@ -19,16 +19,15 @@ class FrameworkNode;
 namespace frontend {
 namespace pytorch {
 
-const std::map<int, element::Type> TORCH_TO_OV_TYPE{
-    {0, element::u8},
-    {1, element::i8},
-    {2, element::i16},
-    {3, element::i32},
-    {4, element::i64},
-    {5, element::f16},
-    {6, element::f32},
-    {7, element::f64},
-};
+const std::map<int, element::Type> TORCH_TO_OV_TYPE{{0, element::u8},
+                                                    {1, element::i8},
+                                                    {2, element::i16},
+                                                    {3, element::i32},
+                                                    {4, element::i64},
+                                                    {5, element::f16},
+                                                    {6, element::f32},
+                                                    {7, element::f64},
+                                                    {11, element::boolean}};
 
 Output<Node> make_optional_bias(const Output<Node>& base_op,
                                 const NodeContext& context,
