@@ -17,13 +17,13 @@ git clone https://git.openembedded.org/meta-openembedded --branch langdale
 git clone https://github.com/kraj/meta-clang.git
 ```
 
-3. Set up the OpenEmbedded build environment.
+2. Set up the OpenEmbedded build environment.
 
 ```sh
 source poky/oe-init-build-env
 ```
 
-4. Add BitBake layers.
+3. Add BitBake layers.
 
 ```sh
 bitbake-layers add-layer ../meta-intel
@@ -32,13 +32,13 @@ bitbake-layers add-layer ../meta-openembedded/meta-python
 bitbake-layers add-layer ../meta-clang
 ```
 
-5. Verify if layers were added (optional step).
+4. Verify if layers were added (optional step).
 
 ```sh
 bitbake-layers show-layers
 ```
 
-6. Set up BitBake configurations.
+5. Set up BitBake configurations.
 
 Include extra configuration in the `conf/local.conf` file in your build directory as required.
 
