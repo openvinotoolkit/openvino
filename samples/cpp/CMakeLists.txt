@@ -100,31 +100,20 @@ endif()
 if(TARGET gflags)
     set(GFLAGS_TARGET gflags)
 else()
-    if(NOT APPLE)
-        set(gflags_components nothreads_shared nothreads_static static shared)
-    endif()
-    foreach(gflag_component IN LISTS gflags_components)
-        find_package(gflags QUIET OPTIONAL_COMPONENTS ${gflag_component})
-
-        if(gflags_FOUND)
-            if(TARGET ${GFLAGS_TARGET})
-                # nothing
-            elseif(TARGET gflags_nothreads-shared)
-                # gflags shared case for CentOS / RHEL / Fedora
-                set_target_properties(gflags_nothreads-shared PROPERTIES IMPORTED_GLOBAL ON)
-                add_library(gflags ALIAS gflags_nothreads-shared)
-            elseif(TARGET gflags_nothreads-static)
-                # Debian case
-                set_target_properties(gflags_nothreads-static PROPERTIES IMPORTED_GLOBAL ON)
-                add_library(gflags ALIAS gflags_nothreads-static)
-            else()
-                message(FATAL_ERROR "Internal error: failed to find imported target 'gflags' using '${component}' component")
-            endif()
-
-            message(STATUS "gflags (${gflags_VERSION}) is found at ${gflags_DIR} using '${component}' component")
-            break()
+    find_package(gflags QUIET OPTIONAL_COMPONENTS shared)
+    if(gflags_FOUND)
+        if(TARGET ${GFLAGS_TARGET})
+            # nothing
+        elseif(TARGET gflags_nothreads-shared)
+            # gflags shared case for CentOS / RHEL / Fedora
+            set_target_properties(gflags_nothreads-shared PROPERTIES IMPORTED_GLOBAL ON)
+            add_library(gflags ALIAS gflags_nothreads-shared)
+        else()
+            message(FATAL_ERROR "Internal error: failed to find imported target 'gflags' using '${component}' component")
         endif()
-    endforeach()
+
+        message(STATUS "gflags (${gflags_VERSION}) is found at ${gflags_DIR} using '${component}' component")
+    endif()
 
     if(NOT gflags_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
         add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)

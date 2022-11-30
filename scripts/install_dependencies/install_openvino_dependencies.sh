@@ -109,7 +109,7 @@ if [ "$os" == "raspbian9" ] || [ "$os" == "debian9" ] ; then
     # - cmake version is 3.7.2
     # which are not supported by OpenVINO
 
-    pkgs_core=()
+    pkgs_core=(libpugixml1v5)
     pkgs_python=()
     pkgs_dev=(pkg-config g++ gcc libc6-dev libgflags-dev zlib1g-dev nlohmann-json-dev make curl sudo)
     pkgs_myriad=(libusb-1.0-0)
