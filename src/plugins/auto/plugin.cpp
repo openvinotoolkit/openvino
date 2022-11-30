@@ -81,7 +81,7 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
 
         // set TPUT for MULTI if no above propertis were set by user
         if (GetName() == "MULTI") {
-            if (isSetPerHint || !isSetDeviceProperties)
+            if (isSetPerHint || isSetDeviceProperties)
                 return;
             for (auto&& kvp : mergedConfig) {
                 if (kvp.first == ov::affinity || kvp.first == ov::num_streams ||
