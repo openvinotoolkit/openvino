@@ -187,7 +187,7 @@ def main():
             if is_flag_set_in_command_line('nireq'):
                 config[device]['PERFORMANCE_HINT_NUM_REQUESTS'] = str(args.number_infer_requests)
 
-            ## insert or append multiple pairs of <key ,value> into dict
+            ## insert or append property into hw device properties list
             def update_configs(hw_device, property_name, property_value):
                 is_set_streams_auto = property_name == 'NUM_STREAMS' and property_value == 'AUTO'
                 if not is_set_streams_auto and is_load_config and is_dev_set_property[hw_device] and hw_device in config[device].keys():
@@ -197,7 +197,7 @@ def main():
                     # 3. device properties in config[device] is loaded from configuration file, and never setting device properties before
                     is_dev_set_property[hw_device] = False
                     del config[device][hw_device]
-                # Add inference_precision setting into device properties.
+                # add property into hw device properties list.
                 if hw_device not in config[device].keys():
                     config[device][hw_device] = ' '.join([property_name, property_value])
                 else:
