@@ -201,9 +201,6 @@ size_t get_batch_size(const benchmark_app::InputsInfo& inputs_info) {
         }
     }
     if (batch_size == 0) {
-        slog::warn << "No batch dimension was found at any input, asssuming batch to be 1. Beware: this might affect "
-                      "FPS calculation."
-                   << slog::endl;
         batch_size = 1;
     }
     return batch_size;
@@ -439,8 +436,6 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                        << min_size << ")" << slog::endl;
         }
     }
-
-    slog::info << "Model batch size: " << batch_size << slog::endl;
 
     reshape_required = false;
 

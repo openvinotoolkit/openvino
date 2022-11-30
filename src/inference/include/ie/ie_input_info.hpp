@@ -108,6 +108,18 @@ public:
     }
 
     /**
+     * @brief Changes the name of the input data provided by the user.
+     *
+     * @param newName A new name of the input data to set
+     */
+    void setName(const std::string& newName) {
+        if (!_inputData) {
+            IE_THROW() << "Data is empty!";
+        }
+        _inputData->setName(newName);
+    }
+
+    /**
      * @brief Gets the input data
      *
      * @return A smart pointer to the input data

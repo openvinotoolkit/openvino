@@ -28,7 +28,7 @@ bool LogSoftmax::isSupportedOperation(const std::shared_ptr<const ngraph::Node>&
 }
 
 LogSoftmax::LogSoftmax(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-                                     WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
+                                     WeightsSharing::Ptr &cache) : Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
