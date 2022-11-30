@@ -267,7 +267,7 @@ void SubgraphBaseTest::infer() {
 
 std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
     if (is_report_stages) {
-        std::cout << "[ REFERENCE   ] `SubgraphBaseTest::calculate_refs()`is started"<< std::endl;
+        std::cout << "[ REFERENCE   ] `SubgraphBaseTest::calculate_refs()` is started"<< std::endl;
     }
     auto start_time = std::chrono::system_clock::now();
 
