@@ -24,7 +24,7 @@ namespace pass {
 // Move up Constants which aren't scalars from body to Subgraph and replace them with Parameters inside body
 void ConvertConstantsToParameters(const std::shared_ptr<ngraph::snippets::op::Subgraph>& subgraph) {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::ConvertConstantsToParameters");
-    auto body = subgraph->get_body();
+    auto body = subgraph->body_ptr();
 
     ParameterVector new_parameters;
     OutputVector new_external_inputs = subgraph->input_values();
@@ -60,7 +60,7 @@ CommonOptimizations::CommonOptimizations() {
             return false;
         }
 
-        auto body = subgraph->get_body();
+        auto body = subgraph->body_ptr();
         const auto is_quantized = subgraph->is_quantized();
 
         // Firsly we should transform all original Converts inside body to ConvertTruncation to save original behavior.
