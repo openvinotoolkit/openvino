@@ -24,7 +24,6 @@
 
 namespace cldnn {
 namespace ocl {
-
 /*
 Base class for all GPU implementation of specified primitive type.
 For example, all gpu convolution implementations should derive from typed_primitive_impl_ocl<convolution>.
@@ -97,6 +96,13 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<ImplType>(arg, best_kernel);
+    }
+
+    template<typename ImplType>
+    static size_t get_impl_key(const typed_program_node<PType>& /*arg*/, const kernel_impl_params& impl_param) {
+        auto kernel_params = ImplType::get_kernel_params(impl_param);
+        auto params = kernel_params.first;
+        return params.hash();
     }
 
 protected:

@@ -18,6 +18,8 @@ struct generate_proposals_params : public base_params {
     bool normalized{true};
     float nms_eta{1.0f};
     Datatype roi_num_type = Datatype::INT64;
+
+    size_t hash() const override;
 };
 
 struct generate_proposals_optional_params : public optional_params {

@@ -67,6 +67,8 @@ attach_eye_impl::attach_eye_impl() {
         format::bs_fs_zyx_bsv32_fsv16,
     };
     implementation_map<eye>::add(impl_types::ocl, typed_primitive_impl_ocl<eye>::create<eye_impl>, types, formats);
+
+    impl_hash_key<eye>::add(typed_primitive_impl_ocl<eye>::get_impl_key<eye_impl>);
 }
 
 }  // namespace detail

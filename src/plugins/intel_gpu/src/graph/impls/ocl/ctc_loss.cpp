@@ -51,6 +51,8 @@ attach_ctc_loss_impl::attach_ctc_loss_impl() {
                     format::bs_fs_yx_bsv32_fsv16};
 
     implementation_map<ctc_loss>::add(impl_types::ocl, typed_primitive_impl_ocl<ctc_loss>::create<ctc_loss_impl>, types, formats);
+
+    impl_hash_key<ctc_loss>::add(typed_primitive_impl_ocl<ctc_loss>::get_impl_key<ctc_loss_impl>);
 }
 
 }  // namespace detail

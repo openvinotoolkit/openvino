@@ -16,6 +16,8 @@ struct grn_params : public base_params {
     grn_params() : base_params(KernelType::GRN) {}
 
     float bias = 1.0f;
+
+    size_t hash() const override;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

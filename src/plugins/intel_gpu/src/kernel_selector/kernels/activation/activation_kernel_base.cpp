@@ -96,4 +96,12 @@ KernelsData ActivationKernelBase::GetCommonKernelsData(const Params& params, con
 
     return {kd};
 }
+
+size_t activation_params::hash() const {
+    auto seed = base_params::hash();
+    for (auto& dt : inputActivationParams) {
+        seed = hash_combine_dt(seed, dt);
+    }
+    return seed;
+}
 }  // namespace kernel_selector

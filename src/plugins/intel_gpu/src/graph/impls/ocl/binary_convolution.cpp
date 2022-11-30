@@ -148,6 +148,8 @@ attach_binary_convolution_impl::attach_binary_convolution_impl() {
     implementation_map<binary_convolution>::add(impl_types::ocl, typed_primitive_impl_ocl<binary_convolution>::create<binary_convolution_impl>, {
         std::make_tuple(data_types::bin, format::b_fs_yx_32fp),
     });
+
+    impl_hash_key<binary_convolution>::add(typed_primitive_impl_ocl<binary_convolution>::get_impl_key<binary_convolution_impl>);
 }
 
 }  // namespace detail

@@ -15,6 +15,7 @@ struct ctc_loss_params : base_params {
     bool preprocess_collapse_repeated = false;
     bool ctc_merge_repeated = true;
     bool unique = false;
+    size_t hash() const override;
 };
 
 /**

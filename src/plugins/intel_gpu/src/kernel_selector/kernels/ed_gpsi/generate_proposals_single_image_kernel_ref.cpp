@@ -175,4 +175,12 @@ KernelsData ExperimentalDetectronGenerateProposalsSingleImageRef::GetKernelsData
 
     return {kd};
 }
+size_t experimental_detectron_generate_proposals_single_image_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, min_size);
+    seed = hash_combine(seed, nms_threshold);
+    seed = hash_combine(seed, pre_nms_count);
+    seed = hash_combine(seed, post_nms_count);
+    return seed;
+}
 }  // namespace kernel_selector

@@ -93,4 +93,12 @@ Datatype NormalizeKernelBase::GetActivationType(const normalize_params& params) 
         return Datatype::F16;
     return Datatype::F32;
 }
+
+size_t normalize_params::hash() const {
+    auto seed = base_params::hash();
+    seed = cldnn::hash_combine(seed, normMode);
+    seed = cldnn::hash_combine(seed, epsilon);
+    seed = hash_combine_dt(seed, scaleTable);
+    return seed;
+}
 }  // namespace kernel_selector

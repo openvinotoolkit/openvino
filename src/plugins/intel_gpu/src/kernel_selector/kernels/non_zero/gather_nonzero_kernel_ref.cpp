@@ -75,4 +75,10 @@ bool GatherNonzeroKernelRef::Validate(const Params& p, const optional_params& op
 
     return Tensor::SimpleLayout(rp.inputs[0].GetLayout());
 }
+
+size_t gather_nonzero_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, ov_input_rank);
+    return seed;
+}
 }  // namespace kernel_selector

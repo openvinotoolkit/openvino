@@ -249,4 +249,12 @@ KernelsData ReduceKernelBase::GetCommonKernelsData(const Params& p,
 
     return {kd};
 }
+
+size_t reduce_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, reduceMode);
+    seed = hash_combine_vec(seed, reduceAxes);
+    seed = hash_combine(seed, keepDims);
+    return seed;
+}
 }  // namespace kernel_selector

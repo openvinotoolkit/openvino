@@ -71,6 +71,8 @@ struct quantize_params : public base_params {
             k.EnableQuantizeScaleShiftOpt();
         return k;
     }
+
+    size_t hash() const override;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

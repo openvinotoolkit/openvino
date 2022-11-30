@@ -16,6 +16,8 @@ struct gather_params : public base_params {
     GatherAxis axis;
     int64_t batch_dim;
     bool support_neg_ind;
+
+    size_t hash() const override;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

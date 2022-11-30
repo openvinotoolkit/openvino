@@ -14,6 +14,8 @@ struct gather_elements_params : public base_params {
     gather_elements_params() : base_params(KernelType::GATHER_ELEMENTS), axis(GatherAxis::BATCH) {}
 
     GatherAxis axis;
+
+    size_t hash() const override;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

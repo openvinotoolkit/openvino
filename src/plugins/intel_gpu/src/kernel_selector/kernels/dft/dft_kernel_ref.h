@@ -20,6 +20,7 @@ struct dft_params : public base_params {
         real,
     } mode = Mode::complex;
     dft_params() : base_params{KernelType::DFT} {}
+    size_t hash() const override;
 };
 
 struct dft_optional_params : optional_params {

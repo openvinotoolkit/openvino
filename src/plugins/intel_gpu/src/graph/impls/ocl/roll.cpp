@@ -62,6 +62,8 @@ attach_roll_impl::attach_roll_impl() {
         }
     }
     implementation_map<roll>::add(impl_types::ocl, typed_primitive_impl_ocl<roll>::create<roll_impl>, keys);
+
+    impl_hash_key<roll>::add(typed_primitive_impl_ocl<roll>::get_impl_key<roll_impl>);
 }
 
 }  // namespace detail

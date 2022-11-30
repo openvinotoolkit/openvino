@@ -99,4 +99,9 @@ bool RollKernelRef::Validate(const Params& params, const optional_params& option
     return true;
 }
 
+size_t roll_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine_dim_tensor(seed, shift);
+    return seed;
+}
 }  // namespace kernel_selector

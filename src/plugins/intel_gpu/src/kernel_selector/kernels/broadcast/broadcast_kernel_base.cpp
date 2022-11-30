@@ -91,4 +91,10 @@ KernelsData BroadcastKernelBase::GetCommonKernelsData(const Params& params,
 
     return {k_data};
 }
+
+size_t broadcast_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine_vec(seed, input_order);
+    return seed;
+}
 }  // namespace kernel_selector

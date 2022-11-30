@@ -3,6 +3,7 @@
 //
 
 #include "average_unpooling_kernel_base.h"
+#include "kernel_selector_utils.h"
 #include <algorithm>
 
 namespace kernel_selector {
@@ -72,5 +73,12 @@ KernelsData AverageUnpoolingKernelBase::GetCommonKernelsData(const Params& param
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
 
     return {kd};
+}
+
+size_t average_unpooling_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine_usize(seed, unpoolSize);
+    seed = hash_combine_usize(seed, unpoolStride);
+    return seed;
 }
 }  // namespace kernel_selector

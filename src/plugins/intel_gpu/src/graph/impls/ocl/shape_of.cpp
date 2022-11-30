@@ -66,6 +66,8 @@ attach_shape_of_impl::attach_shape_of_impl() {
                                       typed_primitive_impl_ocl<shape_of>::create<shape_of_impl>,
                                       dyn_types,
                                       dyn_formats);
+
+    impl_hash_key<shape_of>::add(typed_primitive_impl_ocl<shape_of>::get_impl_key<shape_of_impl>);
 }
 
 }  // namespace detail

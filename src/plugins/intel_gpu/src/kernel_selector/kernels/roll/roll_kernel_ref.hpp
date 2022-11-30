@@ -10,6 +10,8 @@ namespace kernel_selector {
 struct roll_params : base_params {
     roll_params() : base_params(KernelType::ROLL) {}
     DimTensor<> shift;
+
+    size_t hash() const override;
 };
 
 struct roll_optional_params : optional_params {

@@ -3,6 +3,7 @@
 //
 
 #include "roi_pooling_kernel_base.h"
+#include "kernel_selector_utils.h"
 #include <algorithm>
 
 namespace kernel_selector {
@@ -60,5 +61,21 @@ KernelsData ROIPoolingKernelBase::GetCommonKernelsData(const Params& params,
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
 
     return {kd};
+}
+
+size_t roi_pooling_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, mode);
+    seed = hash_combine(seed, position_sensitive);
+    seed = hash_combine(seed, pooled_width);
+    seed = hash_combine(seed, pooled_height);
+    seed = hash_combine(seed, spatial_bins_x);
+    seed = hash_combine(seed, spatial_bins_y);
+    seed = hash_combine(seed, spatial_scale);
+    seed = hash_combine(seed, trans_std);
+    seed = hash_combine(seed, no_trans);
+    seed = hash_combine(seed, part_size);
+    seed = hash_combine(seed, group_size);
+    return seed;
 }
 }  // namespace kernel_selector

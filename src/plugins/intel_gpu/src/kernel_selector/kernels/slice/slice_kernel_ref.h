@@ -15,6 +15,8 @@ struct slice_params: public base_params {
     std::vector<std::int32_t> start;
     std::vector<std::int32_t> end;
     std::vector<std::int32_t> step;
+
+    size_t hash() const override;
 };
 
 struct slice_optional_params : optional_params {

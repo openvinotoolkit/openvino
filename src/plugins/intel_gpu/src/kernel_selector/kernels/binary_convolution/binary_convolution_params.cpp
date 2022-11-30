@@ -3,6 +3,7 @@
 //
 
 #include "binary_convolution_params.h"
+#include "kernel_selector_utils.h"
 #include <sstream>
 #include <string>
 
@@ -56,5 +57,20 @@ ParamsKey binary_convolution_params::GetParamsKey() const {
     }
 
     return k;
+}
+
+size_t binary_convolution_params::hash() const {
+    auto seed = weight_bias_params::hash();
+
+    seed = hash_combine_usize(seed, filterSize);
+    seed = hash_combine_usize(seed, stride);
+    seed = hash_combine_usize(seed, dilation);
+    seed = hash_combine_usize(seed, padding);
+    seed = hash_combine(seed, out_dt);
+    seed = hash_combine(seed, split);
+    seed = hash_combine(seed, depthwise_separable_opt);
+    seed = hash_combine(seed, pad_value);
+    seed = hash_combine(seed, groups);
+    return seed;
 }
 }  // namespace kernel_selector

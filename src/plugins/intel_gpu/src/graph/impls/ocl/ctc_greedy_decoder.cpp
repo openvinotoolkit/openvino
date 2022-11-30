@@ -56,6 +56,8 @@ attach_ctc_greedy_decoder_impl::attach_ctc_greedy_decoder_impl() {
         std::make_tuple(data_types::i32, format::bfyx),
         std::make_tuple(data_types::i64, format::bfyx),
     });
+
+    impl_hash_key<ctc_greedy_decoder>::add(typed_primitive_impl_ocl<ctc_greedy_decoder>::get_impl_key<ctc_greedy_decoder_impl>);
 }
 
 }  // namespace detail

@@ -108,4 +108,11 @@ CommonDispatchData SliceKernelRef::SetDefault(const slice_params &params,
     return dispatchData;
 }
 
+size_t slice_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine_vec(seed, start);
+    seed = hash_combine_vec(seed, end);
+    seed = hash_combine_vec(seed, step);
+    return seed;
+}
 } // namespace kernel_selector

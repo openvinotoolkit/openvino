@@ -188,4 +188,11 @@ KernelsData GatherNDKernelRef::GetKernelsData(const Params& params, const option
     return { kd };
 }
 
+size_t gather_nd_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, indices_rank);
+    seed = hash_combine(seed, batch_dims);
+    seed = hash_combine(seed, batch_merged_output);
+    return seed;
+}
 }  // namespace kernel_selector

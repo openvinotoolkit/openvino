@@ -101,4 +101,14 @@ KernelsData RegionYoloKernelRef::GetKernelsData(const Params& params, const opti
 KernelsPriority RegionYoloKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_9;
 }
+
+size_t region_yolo_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, coords);
+    seed = hash_combine(seed, classes);
+    seed = hash_combine(seed, num);
+    seed = hash_combine(seed, mask_size);
+    seed = hash_combine(seed, do_softmax);
+    return seed;
+}
 }  // namespace kernel_selector

@@ -104,4 +104,12 @@ JitConstants ROIAlignKernelRef::GetJitConstants(const roi_align_params& params) 
     return jit;
 }
 
+size_t roi_align_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, sampling_ratio);
+    seed = hash_combine(seed, spatial_scale);
+    seed = hash_combine(seed, pooling_mode);
+    seed = hash_combine(seed, aligned_mode);
+    return seed;
+}
 }  // namespace kernel_selector

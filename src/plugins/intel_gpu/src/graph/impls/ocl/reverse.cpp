@@ -69,6 +69,8 @@ attach_reverse_impl::attach_reverse_impl() {
         }
     }
     implementation_map<reverse>::add(impl_types::ocl, typed_primitive_impl_ocl<reverse>::create<reverse_impl>, keys);
+
+    impl_hash_key<reverse>::add(typed_primitive_impl_ocl<reverse>::get_impl_key<reverse_impl>);
 }
 
 }  // namespace detail

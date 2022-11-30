@@ -51,6 +51,8 @@ attach_reorg_yolo_impl::attach_reorg_yolo_impl() {
     };
 
     implementation_map<reorg_yolo>::add(impl_types::ocl, typed_primitive_impl_ocl<reorg_yolo>::create<reorg_yolo_impl>, types, formats);
+
+    impl_hash_key<reorg_yolo>::add(typed_primitive_impl_ocl<reorg_yolo>::get_impl_key<reorg_yolo_impl>);
 }
 
 }  // namespace detail

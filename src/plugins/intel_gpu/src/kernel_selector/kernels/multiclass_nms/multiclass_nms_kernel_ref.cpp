@@ -163,4 +163,19 @@ KernelsData MulticlassNmsKernelRef::GetKernelsData(const Params& params, const o
 
     return {kd};
 }
+size_t multiclass_nms_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, sort_result_type);
+    seed = hash_combine(seed, sort_result_across_batch);
+    seed = hash_combine(seed, indices_output_type);
+    seed = hash_combine(seed, iou_threshold);
+    seed = hash_combine(seed, score_threshold);
+    seed = hash_combine(seed, nms_top_k);
+    seed = hash_combine(seed, keep_top_k);
+    seed = hash_combine(seed, background_class);
+    seed = hash_combine(seed, normalized);
+    seed = hash_combine(seed, nms_eta);
+    seed = hash_combine(seed, has_roisnum);
+    return seed;
+}
 }  // namespace kernel_selector

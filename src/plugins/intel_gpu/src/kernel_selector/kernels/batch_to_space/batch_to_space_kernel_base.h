@@ -17,6 +17,8 @@ struct batch_to_space_params : public base_params {
     DimTensor<uint32_t> block_shape;
     DimTensor<uint32_t> crops_begin;
     DimTensor<uint32_t> crops_end;
+
+    size_t hash() const override;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

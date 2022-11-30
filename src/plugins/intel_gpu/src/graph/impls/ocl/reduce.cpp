@@ -139,6 +139,8 @@ attach_reduce_impl::attach_reduce_impl() {
         std::make_tuple(data_types::i8, format::b_fs_yx_fsv32),
         std::make_tuple(data_types::u8, format::b_fs_yx_fsv32),
     });
+
+    impl_hash_key<reduce>::add(typed_primitive_impl_ocl<reduce>::get_impl_key<reduce_impl>);
 }
 
 }  // namespace detail

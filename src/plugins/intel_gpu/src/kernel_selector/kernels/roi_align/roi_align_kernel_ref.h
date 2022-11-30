@@ -22,6 +22,8 @@ struct roi_align_params : public base_params {
         k.EnablePoolType(pooling_mode);
         return k;
     }
+
+    size_t hash() const override;
 };
 
 struct roi_align_optional_params : optional_params {

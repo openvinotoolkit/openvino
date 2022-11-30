@@ -26,9 +26,10 @@ struct arg_max_min_params : public base_params {
     ParamsKey GetParamsKey() const override {
         ParamsKey k = base_params::GetParamsKey();
         k.EnableArgMaxMinAxis(argMaxMinAxis);
-
         return k;
     }
+
+    size_t hash() const override;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

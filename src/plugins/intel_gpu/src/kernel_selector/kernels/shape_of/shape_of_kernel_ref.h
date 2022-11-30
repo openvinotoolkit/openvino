@@ -15,6 +15,8 @@ struct shape_of_params: public base_params {
 
     size_t input_rank = 0;
     std::vector<int32_t> input_dims = {};
+
+    size_t hash() const override;
 };
 
 struct shape_of_optional_params: optional_params {

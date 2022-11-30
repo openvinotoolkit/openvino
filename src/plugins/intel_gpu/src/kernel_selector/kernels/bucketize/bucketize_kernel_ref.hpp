@@ -13,6 +13,7 @@ namespace kernel_selector {
 struct bucketize_params : base_params {
     bucketize_params() : base_params(KernelType::BUCKETIZE) {}
     bool with_right_bound = true;
+    size_t hash() const override;
 };
 
 /**

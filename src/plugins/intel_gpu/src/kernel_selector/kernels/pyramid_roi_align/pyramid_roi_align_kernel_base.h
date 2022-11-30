@@ -21,6 +21,8 @@ struct PyramidROIAlign_params : public base_params {
     int sampling_ratio_x;
     int sampling_ratio_y;
     int pyramid_starting_level;
+
+    size_t hash() const override;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -72,6 +72,8 @@ attach_lstm_dynamic_input_impl::attach_lstm_dynamic_input_impl() {
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
     });
+
+    impl_hash_key<lstm_dynamic_input>::add(typed_primitive_impl_ocl<lstm_dynamic_input>::get_impl_key<lstm_dynamic_input_impl>);
 }
 
 }  // namespace detail

@@ -14,6 +14,8 @@ struct scatter_elements_update_params : public base_params {
     scatter_elements_update_params() : base_params(KernelType::SCATTER_ELEMENTS_UPDATE), axis(ScatterUpdateAxis::BATCH) {}
 
     ScatterUpdateAxis axis;
+
+    size_t hash() const override;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -73,4 +73,10 @@ KernelsData LSTM_DynamicInputKernelBase::GetCommonKernelsData(const Params& para
 
     return {k_data};
 }
+
+size_t lstm_dynamic_input_params::hash() const {
+    auto seed = weight_bias_params::hash();
+    seed = hash_combine(seed, direction);
+    return seed;
+}
 }  // namespace kernel_selector

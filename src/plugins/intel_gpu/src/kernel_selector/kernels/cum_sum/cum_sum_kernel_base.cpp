@@ -120,4 +120,12 @@ Datatype CumSumKernelBase::GetActivationType(const cum_sum_params& params) const
         return Datatype::F16;
     return Datatype::F32;
 }
+
+size_t cum_sum_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, axis);
+    seed = hash_combine(seed, exclusive);
+    seed = hash_combine(seed, reverse);
+    return seed;
+}
 }  // namespace kernel_selector

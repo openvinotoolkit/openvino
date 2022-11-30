@@ -88,4 +88,11 @@ bool ShapeOfKernelRef::Validate(const Params &p, const optional_params &o) const
     return true;
 }
 
+size_t shape_of_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, input_rank);
+    for (auto& dim : input_dims)
+        seed = hash_combine(seed, dim);
+    return seed;
+}
 }  // namespace kernel_selector

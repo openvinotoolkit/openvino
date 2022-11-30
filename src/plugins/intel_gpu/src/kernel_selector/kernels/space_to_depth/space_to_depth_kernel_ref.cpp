@@ -111,4 +111,11 @@ KernelsData SpaceToDepthKernelRef::GetKernelsData(const Params& params, const op
 KernelsPriority SpaceToDepthKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
+
+size_t space_to_depth_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, depth_mode);
+    seed = hash_combine(seed, block_size);
+    return seed;
+}
 }  // namespace kernel_selector

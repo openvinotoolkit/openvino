@@ -12,6 +12,8 @@ struct range_params: public base_params {
     range_params() :
         base_params { KernelType::RANGE } {
     }
+
+    size_t hash() const override { return base_params::hash(); }
 };
 
 struct range_optional_params: optional_params {

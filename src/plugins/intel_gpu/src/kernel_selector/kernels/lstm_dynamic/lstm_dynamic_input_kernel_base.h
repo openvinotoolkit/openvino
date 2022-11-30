@@ -15,6 +15,8 @@ struct lstm_dynamic_input_params : public weight_bias_params {
     lstm_dynamic_input_params() : weight_bias_params(KernelType::LSTM_DYNAMIC_INPUT) {}
 
     int32_t direction = 1;
+
+    size_t hash() const override;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -134,4 +134,16 @@ ParamsKey ExperimentalDetectronROIFeatureExtractorRef::GetSupportedKey() const {
     return key;
 }
 
+size_t experimental_detectron_roi_feature_extractor_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, output_dim);
+    seed = hash_combine(seed, pooled_height);
+    seed = hash_combine(seed, pooled_width);
+    seed = hash_combine_vec(seed, pyramid_scales);
+    seed = hash_combine(seed, sampling_ratio);
+    seed = hash_combine(seed, aligned);
+    seed = hash_combine(seed, number_of_inputs);
+    return seed;
+}
+
 }  // namespace kernel_selector

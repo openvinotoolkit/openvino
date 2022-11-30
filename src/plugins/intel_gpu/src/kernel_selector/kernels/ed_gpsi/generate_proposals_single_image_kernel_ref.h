@@ -15,6 +15,8 @@ struct experimental_detectron_generate_proposals_single_image_params : public ba
     float nms_threshold{0.0f};
     size_t pre_nms_count{0};
     size_t post_nms_count{0};
+
+    size_t hash() const override;
 };
 
 struct experimental_detectron_generate_proposals_single_image_optional_params : public optional_params {

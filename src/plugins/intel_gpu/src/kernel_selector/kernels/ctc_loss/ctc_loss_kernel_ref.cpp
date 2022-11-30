@@ -91,4 +91,12 @@ JitConstants CTCLossKernelRef::GetJitConstants(const ctc_loss_params& kernel_par
     return jit_constants;
 }
 
+size_t ctc_loss_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, preprocess_collapse_repeated);
+    seed = hash_combine(seed, ctc_merge_repeated);
+    seed = hash_combine(seed, unique);
+    return seed;
+}
+
 }  // namespace kernel_selector

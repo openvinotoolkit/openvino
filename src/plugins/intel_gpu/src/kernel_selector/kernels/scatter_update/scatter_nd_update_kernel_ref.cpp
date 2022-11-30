@@ -169,4 +169,10 @@ KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params, const
 
     return {kd};
 }
+
+size_t scatter_nd_update_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, indices_rank);
+    return seed;
+}
 }  // namespace kernel_selector

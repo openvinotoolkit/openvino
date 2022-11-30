@@ -76,6 +76,8 @@ struct eltwise_params : public base_params {
     bool broadcast = false;
 
     ParamsKey GetParamsKey() const override;
+
+    size_t hash() const override;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

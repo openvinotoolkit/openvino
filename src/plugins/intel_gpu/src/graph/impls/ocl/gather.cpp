@@ -230,6 +230,8 @@ attach_gather_impl::attach_gather_impl() {
         std::make_tuple(data_types::i8, format::fs_b_yx_fsv32),
         std::make_tuple(data_types::u8, format::fs_b_yx_fsv32),
     });
+
+    impl_hash_key<gather>::add(typed_primitive_impl_ocl<gather>::get_impl_key<gather_impl>);
 }
 
 }  // namespace detail

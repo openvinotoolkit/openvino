@@ -18,6 +18,8 @@ struct depth_to_space_params : public base_params {
     , mode(DepthToSpaceMode::DEPTH_FIRST) {}
     size_t block_size;
     DepthToSpaceMode mode;
+
+    size_t hash() const override;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

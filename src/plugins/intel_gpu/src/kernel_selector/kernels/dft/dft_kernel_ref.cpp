@@ -246,4 +246,13 @@ JitConstants DFTKernelRef::GetJitConstants(const dft_params& params) const {
     return jit;
 }
 
+size_t dft_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine_vec(seed, axes);
+    seed = hash_combine_vec(seed, signal_size);
+    seed = hash_combine(seed, direction);
+    seed = hash_combine(seed, mode);
+    return seed;
+}
+
 }  // namespace kernel_selector

@@ -53,4 +53,14 @@ KernelsData PyramidROIAlignKernelBase::GetCommonKernelsData(const Params& params
 
     return {k_data};
 }
+
+size_t PyramidROIAlign_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, image_size_x);
+    seed = hash_combine(seed, image_size_y);
+    seed = hash_combine(seed, sampling_ratio_x);
+    seed = hash_combine(seed, sampling_ratio_y);
+    seed = hash_combine(seed, pyramid_starting_level);
+    return seed;
+}
 }  // namespace kernel_selector

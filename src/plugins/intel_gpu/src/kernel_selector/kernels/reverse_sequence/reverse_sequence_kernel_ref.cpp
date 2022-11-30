@@ -77,4 +77,11 @@ KernelsData ReverseSequenceKernelRef::GetKernelsData(const Params& params, const
 KernelsPriority ReverseSequenceKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
+
+size_t reverse_sequence_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, seq_axis);
+    seed = hash_combine(seed, batch_axis);
+    return seed;
+}
 }  // namespace kernel_selector

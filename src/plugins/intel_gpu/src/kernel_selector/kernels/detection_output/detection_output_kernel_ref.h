@@ -47,6 +47,8 @@ struct detection_output_params : public base_params {
         auto k = base_params::GetParamsKey();
         return k;
     }
+
+    size_t hash() const override;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

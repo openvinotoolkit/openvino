@@ -47,7 +47,7 @@ protected:
     }
 
 public:
-    static std::unique_ptr<primitive_impl> create(const quantize_node& arg, const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const quantize_node& arg, const kernel_impl_params& impl_param) {
         auto quantize_params = get_default_params<kernel_selector::quantize_params>(impl_param);
         auto quantize_optional_params =
             get_default_optional_params<kernel_selector::quantize_optional_params>(impl_param.get_program());
@@ -84,10 +84,21 @@ public:
         const auto& output_layout = impl_param.get_output_layout();
         quantize_params.outputs = { convert_data_tensor(output_layout) };
 
+        return {quantize_params, quantize_optional_params};
+    }
+
+    static std::unique_ptr<primitive_impl> create(const quantize_node& arg, const kernel_impl_params& impl_param) {
+        auto kernel_params = get_kernel_params(arg, impl_param);
         auto& kernel_selector = kernel_selector::quantize_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(quantize_params, quantize_optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<quantize_impl>(arg, best_kernel);
+    }
+
+    static size_t get_impl_key(const quantize_node& arg, const kernel_impl_params& impl_param) {
+        auto kernel_params = get_kernel_params(arg, impl_param);
+        auto params = kernel_params.first;
+        return params.hash();
     }
 };
 
@@ -197,6 +208,8 @@ attach_quantize_impl::attach_quantize_impl() {
         std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv32_fsv16),
         std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv32_fsv16),
     });
+
+    impl_hash_key<quantize>::add(quantize_impl::get_impl_key);
 }
 
 }  // namespace detail

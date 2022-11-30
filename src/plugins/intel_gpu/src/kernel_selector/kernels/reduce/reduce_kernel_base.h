@@ -17,6 +17,8 @@ struct reduce_params : public base_params {
     ReduceMode reduceMode;
     std::vector<uint16_t> reduceAxes;
     int32_t keepDims;
+
+    size_t hash() const override;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

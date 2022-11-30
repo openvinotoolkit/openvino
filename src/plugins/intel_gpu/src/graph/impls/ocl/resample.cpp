@@ -202,6 +202,8 @@ attach_resample_impl::attach_resample_impl() {
     keys.emplace(data_types::f16, format::fs_b_yx_fsv32);
 
     implementation_map<resample>::add(impl_types::ocl, typed_primitive_impl_ocl<resample>::create<resample_impl>, keys);
+
+    impl_hash_key<resample>::add(typed_primitive_impl_ocl<resample>::get_impl_key<resample_impl>);
 }
 
 }  // namespace detail

@@ -29,6 +29,34 @@
 
 namespace cldnn {
 
+class primtive_impl;
+
+template <typename primitive_kind>
+class impl_hash_key {
+    using hash_function_type = std::function<size_t(const typed_program_node<primitive_kind>&, const kernel_impl_params&)>;
+
+    impl_hash_key() {}
+    impl_hash_key(impl_hash_key const&) = delete;
+    void operator=(impl_hash_key const&) = delete;
+
+    hash_function_type hash_function_;
+
+public:
+    static impl_hash_key& instance() {
+        static impl_hash_key instance_;
+        return instance_;
+    }
+
+    static hash_function_type get() {
+        return impl_hash_key::instance().hash_function_;
+    }
+
+    static void add(hash_function_type func) {
+        impl_hash_key::instance().hash_function_ = func;
+    }
+};
+
+
 // checks if any user in a list is a cpu primitive
 bool is_any_user_cpu(const std::list<const program_node*>& users);
 

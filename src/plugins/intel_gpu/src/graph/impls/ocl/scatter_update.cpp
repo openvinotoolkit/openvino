@@ -88,6 +88,8 @@ attach_scatter_update_impl::attach_scatter_update_impl() {
     };
 
     implementation_map<scatter_update>::add(impl_types::ocl, typed_primitive_impl_ocl<scatter_update>::create<scatter_update_impl>, types, formats);
+
+    impl_hash_key<scatter_update>::add(typed_primitive_impl_ocl<scatter_update>::get_impl_key<scatter_update_impl>);
 }
 
 }  // namespace detail

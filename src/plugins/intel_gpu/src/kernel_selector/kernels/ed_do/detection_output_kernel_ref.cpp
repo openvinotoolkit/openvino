@@ -204,4 +204,16 @@ KernelsData ExperimentalDetectronDetectionOutputKernelRef::GetKernelsData(const 
     return {kd};
 }
 
+size_t experimental_detectron_detection_output_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, score_threshold);
+    seed = hash_combine(seed, nms_threshold);
+    seed = hash_combine(seed, max_delta_log_wh);
+    seed = hash_combine(seed, num_classes);
+    seed = hash_combine(seed, post_nms_count);
+    seed = hash_combine(seed, max_detections_per_image);
+    seed = hash_combine(seed, class_agnostic_box_regression);
+    seed = hash_combine_vec(seed, deltas_weights);
+    return seed;
+}
 }  // namespace kernel_selector

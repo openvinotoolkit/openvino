@@ -195,6 +195,8 @@ attach_concatenation_impl::attach_concatenation_impl() {
         std::make_tuple(data_types::i64, format::bfwzyx),
         std::make_tuple(data_types::f16, format::fs_b_yx_fsv32),
     });
+
+    impl_hash_key<concatenation>::add(typed_primitive_impl_ocl<concatenation>::get_impl_key<concatenation_impl>);
 }
 
 }  // namespace detail

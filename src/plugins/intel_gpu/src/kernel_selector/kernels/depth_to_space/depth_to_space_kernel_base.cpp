@@ -60,4 +60,10 @@ KernelsData DepthToSpaceKernelBase::GetCommonKernelsData(const Params& params, c
 
     return { kd };
 }
+size_t depth_to_space_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, block_size);
+    seed = hash_combine(seed, mode);
+    return seed;
+}
 }  // namespace kernel_selector

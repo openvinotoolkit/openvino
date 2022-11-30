@@ -310,4 +310,30 @@ KernelsData NonMaxSuppressionKernelRef::GetKernelsData(const Params& params, con
 KernelsPriority NonMaxSuppressionKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_9;
 }
+
+size_t non_max_suppression_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, num_select_per_class_type);
+    if (num_select_per_class_type == kernel_selector::NmsArgType::Input)
+        seed = hash_combine(seed, num_select_per_class);
+
+    seed = hash_combine(seed, iou_threshold_type);
+    if (iou_threshold_type == kernel_selector::NmsArgType::Input)
+        seed = hash_combine(seed, iou_threshold);
+
+    seed = hash_combine(seed, score_threshold_type);
+    if (score_threshold_type == kernel_selector::NmsArgType::Input)
+        seed = hash_combine(seed, score_threshold);
+
+    seed = hash_combine(seed, soft_nms_sigma_type);
+    if (soft_nms_sigma_type == kernel_selector::NmsArgType::Input)
+        seed = hash_combine(seed, soft_nms_sigma);
+
+    seed = hash_combine(seed, has_second_output);
+    seed = hash_combine(seed, has_third_output);
+    seed = hash_combine(seed, use_multiple_outputs);
+    seed = hash_combine(seed, sort_result_descending);
+    seed = hash_combine(seed, box_encoding);
+    return seed;
+}
 }  // namespace kernel_selector

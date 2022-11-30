@@ -14,6 +14,8 @@ struct eye_params : public base_params {
     eye_params() : base_params(KernelType::EYE) {}
 
     std::int32_t diagonal_index;
+
+    size_t hash() const override;
 };
 
 struct eye_optional_params : optional_params {

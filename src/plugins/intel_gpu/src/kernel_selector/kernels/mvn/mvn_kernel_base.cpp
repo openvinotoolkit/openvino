@@ -97,4 +97,12 @@ Datatype MVNKernelBase::GetActivationType(const mvn_params& params) const {
     return Datatype::F32;
 }
 
+size_t mvn_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, mvnMode);
+    seed = hash_combine(seed, mvnNormalizeVariance);
+    seed = hash_combine(seed, epsilon);
+    seed = hash_combine(seed, mvnEpsMode);
+    return seed;
+}
 }  // namespace kernel_selector

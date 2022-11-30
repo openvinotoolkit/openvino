@@ -101,6 +101,8 @@ attach_gemm_impl::attach_gemm_impl() {
     implementation_map<gemm>::add(impl_types::ocl,
                                   shape_types::dynamic_shape,
                                   typed_primitive_impl_ocl<gemm>::create<gemm_impl>, types, dyn_formats);
+
+    impl_hash_key<gemm>::add(typed_primitive_impl_ocl<gemm>::get_impl_key<gemm_impl>);
 }
 
 }  // namespace detail

@@ -18,6 +18,7 @@ struct weight_bias_params : public base_params {
     MultiDataTensor bias;
 
     ParamsKey GetParamsKey() const override;
+    size_t hash() const override;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -32,6 +33,7 @@ struct weight_bias_zero_point_params : public weight_bias_params {
 
     bool HasCompensation() const { return !compensation.empty(); }
     std::string to_cache_string_v2() const override;
+    size_t hash() const override;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

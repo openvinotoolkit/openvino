@@ -212,4 +212,17 @@ KernelsData StridedSliceKernelRef::GetKernelsData(const Params& params, const op
 KernelsPriority StridedSliceKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
+
+size_t strided_slice_params::hash() const {
+    auto seed = base_params::hash();
+    for (auto stride : striding_params) {
+        seed = hash_combine_vec(seed, stride);
+    }
+    seed = hash_combine_vec(seed, begin_mask);
+    seed = hash_combine_vec(seed, end_mask);
+    seed = hash_combine_vec(seed, ellipsis_mask);
+    seed = hash_combine_vec(seed, new_axis_mask);
+    seed = hash_combine_vec(seed, shrink_axis_mask);
+    return seed;
+}
 }  // namespace kernel_selector

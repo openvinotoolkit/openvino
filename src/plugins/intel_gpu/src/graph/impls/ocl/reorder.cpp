@@ -12,7 +12,6 @@
 
 namespace cldnn {
 namespace ocl {
-
 struct reorder_impl : typed_primitive_impl_ocl<reorder> {
     using parent = typed_primitive_impl_ocl<reorder>;
     using parent::parent;
@@ -167,6 +166,8 @@ attach_reorder_impl::attach_reorder_impl() {
         format::bfwzyx,
     };
     implementation_map<reorder>::add(impl_types::ocl, shape_types::dynamic_shape, typed_primitive_impl_ocl<reorder>::create<reorder_impl>, types, formats);
+
+    impl_hash_key<reorder>::add(typed_primitive_impl_ocl<reorder>::get_impl_key<reorder_impl>);
 }
 
 }  // namespace detail

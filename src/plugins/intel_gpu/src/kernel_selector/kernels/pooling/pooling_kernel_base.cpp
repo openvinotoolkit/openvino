@@ -3,6 +3,7 @@
 //
 
 #include "pooling_kernel_base.h"
+#include "kernel_selector_utils.h"
 #include <algorithm>
 
 namespace kernel_selector {
@@ -209,5 +210,23 @@ KernelsData PoolingKernelBase::GetCommonKernelsData(const Params& params,
     }
 
     return {kd};
+}
+
+size_t pooling_params::hash() const {
+    auto seed = base_params::hash();
+    seed = cldnn::hash_combine(seed, poolType);
+    seed = cldnn::hash_combine(seed, remainderAction);
+    seed = cldnn::hash_combine(seed, divMode);
+    seed = cldnn::hash_combine(seed, quantization);
+    seed = hash_combine_usize(seed, poolSize);
+    seed = hash_combine_usize(seed, poolStride);
+    seed = hash_combine_usize(seed, poolPad);
+    seed = cldnn::hash_combine(seed, maxPoolOpset8Features);
+    if (maxPoolOpset8Features) {
+        seed = hash_combine_usize(seed, poolDilation);
+        seed = cldnn::hash_combine(seed, poolIndexElementType);
+    }
+    seed = cldnn::hash_combine(seed, poolAxis);
+    return seed;
 }
 }  // namespace kernel_selector

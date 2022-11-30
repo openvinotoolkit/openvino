@@ -193,4 +193,16 @@ KernelsData GenerateProposalsRef::GetKernelsData(const Params& params, const opt
 
     return {kd};
 }
+
+size_t generate_proposals_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, min_size);
+    seed = hash_combine(seed, nms_threshold);
+    seed = hash_combine(seed, pre_nms_count);
+    seed = hash_combine(seed, post_nms_count);
+    seed = hash_combine(seed, normalized);
+    seed = hash_combine(seed, nms_eta);
+    seed = hash_combine(seed, roi_num_type);
+    return seed;
+}
 }  // namespace kernel_selector

@@ -62,4 +62,13 @@ KernelsData OneHotKernelBase::GetCommonKernelsData(const Params& params,
 
     return {k_data};
 }
+
+size_t one_hot_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, one_hot_axis);
+    seed = hash_combine(seed, on_value);
+    seed = hash_combine(seed, off_value);
+    seed = hash_combine(seed, one_hot_limit);
+    return seed;
+}
 }  // namespace kernel_selector

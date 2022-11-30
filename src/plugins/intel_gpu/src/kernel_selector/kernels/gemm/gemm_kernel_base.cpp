@@ -6,6 +6,8 @@
 #include <vector>
 #include "kernel_selector_utils.h"
 
+using namespace cldnn;
+
 namespace kernel_selector {
 JitConstants GemmKernelBase::GetJitConstants(const gemm_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
@@ -107,4 +109,13 @@ Datatype GemmKernelBase::GetActivationType(const gemm_params& params) const {
     return GetUnitType(params);
 }
 
+size_t gemm_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, alpha);
+    seed = hash_combine(seed, beta);
+    seed = hash_combine(seed, transpose_input0);
+    seed = hash_combine(seed, transpose_input1);
+    seed = hash_combine(seed, quantization);
+    return seed;
+}
 }  // namespace kernel_selector

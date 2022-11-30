@@ -13,6 +13,8 @@ namespace kernel_selector {
 struct gather_nonzero_params : public base_params {
     gather_nonzero_params() : base_params(KernelType::GATHER_NONZERO) {}
     int32_t ov_input_rank = -1;
+
+    size_t hash() const override;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

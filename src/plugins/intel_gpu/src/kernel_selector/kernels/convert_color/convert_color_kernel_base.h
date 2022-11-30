@@ -17,6 +17,8 @@ struct convert_color_params : public base_params {
     color_format input_color_format = color_format::BGR;
     color_format output_color_format = color_format::BGR;
     memory_type mem_type = memory_type::buffer;
+
+    size_t hash() const override;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

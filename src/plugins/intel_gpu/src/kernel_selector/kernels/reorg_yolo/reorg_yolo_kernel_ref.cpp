@@ -91,4 +91,9 @@ bool ReorgYoloKernelRef::Validate(const Params& p, const optional_params& o) con
     return true;
 }
 
+size_t reorg_yolo_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, stride);
+    return seed;
+}
 }  // namespace kernel_selector

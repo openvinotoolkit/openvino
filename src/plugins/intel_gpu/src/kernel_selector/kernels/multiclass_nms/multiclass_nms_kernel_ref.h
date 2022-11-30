@@ -23,6 +23,8 @@ struct multiclass_nms_params : public base_params {
     bool normalized;
     float nms_eta;
     bool has_roisnum;
+
+    size_t hash() const override;
 };
 
 struct multiclass_nms_optional_params : public optional_params {

@@ -43,6 +43,8 @@ struct matrix_nms_params : public base_params {
     float post_threshold = 0.0f;
     // specifies whether boxes are normalized or not
     bool normalized = true;
+
+    size_t hash() const override;
 };
 
 struct matrix_nms_optional_params : optional_params {

@@ -76,11 +76,11 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
         return make_unique<slice_impl>(*this);
     }
 
-    static std::unique_ptr<primitive_impl> create(const slice_node& arg, const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const slice_node& arg, const kernel_impl_params& impl_param) {
         auto params = get_default_params<kernel_selector::slice_params>(impl_param);
         auto op_params = get_default_optional_params<kernel_selector::slice_optional_params>(arg.get_program());
         const auto& inputs = arg.get_dependencies();
-        const stream& stream = arg.get_program().get_stream();
+        const stream& stream = impl_param.get_program().get_stream();
         auto start_elts = extractIntegerData(inputs[InputIndices::kStart].first->as<data>(), stream);
         auto end_elts = extractIntegerData(inputs[InputIndices::kEnd].first->as<data>(), stream);
         auto step_elts = extractIntegerData(inputs[InputIndices::kStep].first->as<data>(), stream);
@@ -105,11 +105,23 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
         params.start = std::move(selected_start);
         params.end = std::move(selected_end);
         params.step = std::move(selected_step);
+
+        return {params, op_params};
+    }
+
+    static std::unique_ptr<primitive_impl> create(const slice_node& arg, const kernel_impl_params& impl_param) {
+        auto kernel_params = get_kernel_params(arg, impl_param);
         auto &kernel_selector =
                 kernel_selector::slice_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(params, op_params);
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<slice_impl>(arg, best_kernel);
+    }
+
+    static size_t get_impl_key(const slice_node& arg, const kernel_impl_params& impl_param) {
+        auto kernel_params = get_kernel_params(arg, impl_param);
+        auto params = kernel_params.first;
+        return params.hash();
     }
 };
 
@@ -130,6 +142,8 @@ attach_slice_impl::attach_slice_impl() {
         std::make_tuple(data_types::i32, format::bfzyx),
         std::make_tuple(data_types::i64, format::bfzyx),
     });
+
+    impl_hash_key<slice>::add(slice_impl::get_impl_key);
 }
 
 }  // namespace detail

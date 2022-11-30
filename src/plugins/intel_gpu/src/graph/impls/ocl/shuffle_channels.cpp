@@ -68,6 +68,8 @@ attach_shuffle_channels_impl::attach_shuffle_channels_impl() {
         std::make_tuple(data_types::f32, format::fs_b_yx_fsv32),
         std::make_tuple(data_types::f16, format::fs_b_yx_fsv32),
     });
+
+    impl_hash_key<shuffle_channels>::add(typed_primitive_impl_ocl<shuffle_channels>::get_impl_key<shuffle_channels_impl>);
 }
 
 }  // namespace detail

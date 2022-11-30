@@ -8,6 +8,8 @@
 #include <algorithm>
 #include <vector>
 
+using namespace cldnn;
+
 namespace kernel_selector {
 Tensor::DataChannelName ConcatenationKernelBase::GetConcatChannel(const concatenation_params& params) const {
     switch (params.axis) {
@@ -126,5 +128,13 @@ KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, 
     }
 
     return {kd};
+}
+
+size_t concatenation_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, axis);
+    seed = hash_combine(seed, isAligned);
+    seed = hash_combine(seed, misalignment);
+    return seed;
 }
 }  // namespace kernel_selector

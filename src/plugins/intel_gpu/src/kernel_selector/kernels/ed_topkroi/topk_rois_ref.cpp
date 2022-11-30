@@ -95,4 +95,10 @@ bool ExperimentalDetectronTopKROIRef::Validate(const Params &params, const optio
     return true;
 }
 
+size_t experimental_detectron_topk_roi_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, max_rois);
+    return seed;
+}
+
 }  // namespace kernel_selector

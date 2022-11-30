@@ -119,6 +119,8 @@ attach_mvn_impl::attach_mvn_impl() {
 
         std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
     });
+
+    impl_hash_key<mvn>::add(typed_primitive_impl_ocl<mvn>::get_impl_key<mvn_impl>);
 }
 
 }  // namespace detail

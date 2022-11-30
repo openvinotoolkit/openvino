@@ -102,6 +102,8 @@ attach_roi_pooling_impl::attach_roi_pooling_impl() {
     auto types = {data_types::f16, data_types::f32};
 
     implementation_map<roi_pooling>::add(impl_types::ocl, typed_primitive_impl_ocl<roi_pooling>::create<roi_pooling_impl>, types, formats);
+
+    impl_hash_key<roi_pooling>::add(typed_primitive_impl_ocl<roi_pooling>::get_impl_key<roi_pooling_impl>);
 }
 
 }  // namespace detail

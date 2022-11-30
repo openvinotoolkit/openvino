@@ -59,20 +59,37 @@ public:
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override { }
+
+    template<typename PType>
+    static size_t get_impl_key(const typed_program_node<PType>& arg, const kernel_impl_params& impl_param) {
+        size_t seed = 0;
+        for (auto& layout : impl_param.input_layouts) {
+            for (auto& d : layout.get_shape()) {
+                seed = hash_combine(seed, d);
+            }
+        }
+        for (auto& d : impl_param.get_output_layout().get_shape()) {
+            seed = hash_combine(seed, d);
+        }
+        return seed;
+    }
 };
 
 namespace detail {
 
 attach_data_common::attach_data_common() {
     implementation_map<data>::add(impl_types::common, shape_types::any, wait_for_events_impl::create_data, {});
+    impl_hash_key<data>::add(wait_for_events_impl::get_impl_key<data>);
 }
 
 attach_input_layout_common::attach_input_layout_common() {
     implementation_map<input_layout>::add(impl_types::common, shape_types::any, wait_for_events_impl::create_input_layout, {});
+    impl_hash_key<input_layout>::add(wait_for_events_impl::get_impl_key<input_layout>);
 }
 
 attach_prior_box_common::attach_prior_box_common() {
     implementation_map<prior_box>::add(impl_types::common, wait_for_events_impl::create_prior_box, {});
+    impl_hash_key<prior_box>::add(wait_for_events_impl::get_impl_key<prior_box>);
 }
 
 }  // namespace detail

@@ -43,7 +43,7 @@ protected:
     }
 
 public:
-    static std::unique_ptr<primitive_impl> create(const lstm_dynamic_timeloop_node& arg, const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const lstm_dynamic_timeloop_node& arg, const kernel_impl_params& impl_param) {
         auto dlstm_timeloop_params = get_default_params<kernel_selector::lstm_dynamic_timeloop_params>(impl_param);
 
         // dyn length
@@ -80,10 +80,21 @@ public:
         auto dlstm_timeloop_optional_params =
             get_default_optional_params<kernel_selector::lstm_dynamic_optional_params>(impl_param.get_program());
 
+        return {dlstm_timeloop_params, dlstm_timeloop_optional_params};
+    }
+
+    static std::unique_ptr<primitive_impl> create(const lstm_dynamic_timeloop_node& arg, const kernel_impl_params& impl_param) {
+        auto kernel_params = get_kernel_params(arg, impl_param);
         auto& kernel_selector = kernel_selector::lstm_dynamic_timeloop_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(dlstm_timeloop_params, dlstm_timeloop_optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<lstm_dynamic_timeloop_impl>(arg, best_kernel);
+    }
+
+    static size_t get_impl_key(const lstm_dynamic_timeloop_node& arg, const kernel_impl_params& impl_param) {
+        auto kernel_params = lstm_dynamic_timeloop_impl::get_kernel_params(arg, impl_param);
+        auto params = kernel_params.first;
+        return params.hash();
     }
 };
 
@@ -94,6 +105,8 @@ attach_lstm_dynamic_timeloop_impl::attach_lstm_dynamic_timeloop_impl() {
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
     });
+
+    impl_hash_key<lstm_dynamic_timeloop>::add(lstm_dynamic_timeloop_impl::get_impl_key);
 }
 
 }  // namespace detail

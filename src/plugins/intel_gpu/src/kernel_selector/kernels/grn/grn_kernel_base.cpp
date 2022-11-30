@@ -62,4 +62,10 @@ KernelsData GRNKernelBase::GetCommonKernelsData(const Params& params,
     return {kd};
 }
 
+size_t grn_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, bias);
+    return seed;
+}
+
 }  // namespace kernel_selector

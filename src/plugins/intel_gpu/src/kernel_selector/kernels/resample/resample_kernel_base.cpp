@@ -243,4 +243,20 @@ Datatype ResampleKernelBase::GetAccumulatorType(const resample_params& params) c
     return Datatype::F32;
 }
 
+size_t resample_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine_vec(seed, pads_begin);
+    seed = hash_combine_vec(seed, pads_end);
+    seed = hash_combine(seed, resampleType);
+    seed = hash_combine(seed, nearestMode);
+    seed = hash_combine(seed, coordTransMode);
+    seed = hash_combine(seed, shapeCalculationMode);
+    seed = hash_combine(seed, antialias);
+    seed = hash_combine(seed, cube_coeff);
+    for (auto iter = axesAndScales.begin(); iter != axesAndScales.end(); iter++) {
+        seed = hash_combine(seed, iter->first);
+        seed = hash_combine(seed, iter->second);
+    }
+    return seed;
+}
 }  // namespace kernel_selector

@@ -259,4 +259,21 @@ KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_params& params
 
     return {kd};
 }
+
+size_t reorder_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, has_padded_output);
+    seed = hash_combine(seed, surface_input);
+    seed = hash_combine_dt(seed, mean);
+    seed = hash_combine(seed, mode);
+    seed = hash_combine_vec(seed, meanValues);
+    seed = hash_combine(seed, mean_op);
+    seed = hash_combine(seed, winograd);
+    if (winograd) {
+        seed = hash_combine(seed, winograd_input_offset_x);
+        seed = hash_combine(seed, winograd_input_offset_y);
+        seed = hash_combine(seed, winograd_nr_tiles_x);
+    }
+    return seed;
+}
 }  // namespace kernel_selector

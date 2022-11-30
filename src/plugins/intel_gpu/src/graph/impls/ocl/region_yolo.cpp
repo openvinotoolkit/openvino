@@ -53,6 +53,8 @@ attach_region_yolo_impl::attach_region_yolo_impl() {
         std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
         std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
     });
+
+    impl_hash_key<region_yolo>::add(typed_primitive_impl_ocl<region_yolo>::get_impl_key<region_yolo_impl>);
 }
 
 }  // namespace detail

@@ -193,4 +193,19 @@ void MatrixNmsKernelRef::SetKernelArguments(const matrix_nms_params& params, clK
     }
 }
 
+size_t matrix_nms_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, sort_type);
+    seed = hash_combine(seed, sort_result_across_batch);
+    seed = hash_combine(seed, score_threshold);
+    seed = hash_combine(seed, nms_top_k);
+    seed = hash_combine(seed, keep_top_k);
+    seed = hash_combine(seed, background_class);
+    seed = hash_combine(seed, decay);
+    seed = hash_combine(seed, gaussian_sigma);
+    seed = hash_combine(seed, post_threshold);
+    seed = hash_combine(seed, normalized);
+    return seed;
+}
+
 }  // namespace kernel_selector

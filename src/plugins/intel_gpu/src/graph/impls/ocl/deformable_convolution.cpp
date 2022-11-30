@@ -179,6 +179,8 @@ attach_deformable_conv_impl::attach_deformable_conv_impl() {
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
     });
+
+    impl_hash_key<deformable_conv>::add(typed_primitive_impl_ocl<deformable_conv>::get_impl_key<deformable_conv_impl>);
 }
 
 attach_deformable_interp_impl::attach_deformable_interp_impl() {
@@ -186,6 +188,8 @@ attach_deformable_interp_impl::attach_deformable_interp_impl() {
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
     });
+
+    impl_hash_key<deformable_interp>::add(typed_primitive_impl_ocl<deformable_interp>::get_impl_key<deformable_interp_impl>);
 }
 
 }  // namespace detail

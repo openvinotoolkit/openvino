@@ -79,4 +79,11 @@ KernelsData CTCGreedyDecoderKernelBase::GetCommonKernelsData(const Params& param
     return {kd};
 }
 
+size_t ctc_greedy_decoder_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, merge_repeated);
+    seed = hash_combine(seed, blank_index);
+    seed = hash_combine(seed, outputs_num);
+    return seed;
+}
 }  // namespace kernel_selector

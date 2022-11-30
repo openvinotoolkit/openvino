@@ -304,4 +304,11 @@ KernelsData GatherKernelRef::GetKernelsData(const Params& params, const optional
 KernelsPriority GatherKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
+size_t gather_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, axis);
+    seed = hash_combine(seed, batch_dim);
+    seed = hash_combine(seed, support_neg_ind);
+    return seed;
+}
 }  // namespace kernel_selector

@@ -38,19 +38,19 @@ protected:
     }
 
 public:
-    static std::unique_ptr<primitive_impl> create(const lstm_elt_node& arg, const kernel_impl_params& impl_param) {
-        const auto& prim = arg.get_primitive();
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& prim = impl_param.typed_desc<lstm_elt>();
         auto lstm_elt_params = get_default_params<kernel_selector::lstm_elt_params>(impl_param);
         auto lstm_elt_optional_params =
-            get_default_optional_params<kernel_selector::lstm_elt_optional_params>(arg.get_program());
+            get_default_optional_params<kernel_selector::lstm_elt_optional_params>(impl_param.get_program());
 
-        if (arg.cell_term()) {
+        if (!prim->cell.empty()) {
             const auto& cell_idx = 1;
             const auto& cell_layout = impl_param.input_layouts[cell_idx];
             lstm_elt_params.SetCell(convert_data_tensor(cell_layout));
             // TODO: make a generic function to get the direction
             if (cell_layout.spatial(1) > 1) {
-                lstm_elt_params.cell_direction = arg.direction();
+                lstm_elt_params.cell_direction = prim->direction;
             }
         }
 
@@ -58,7 +58,7 @@ public:
             auto a_sz = prim->activations.size();
             auto param_sz = prim->activation_params.size();
             if (param_sz) {
-                CLDNN_ERROR_NOT_EQUAL(arg.id(),
+                CLDNN_ERROR_NOT_EQUAL(prim->id,
                                       "number of activations",
                                       a_sz,
                                       "number of activation parameters",
@@ -76,27 +76,26 @@ public:
             lstm_elt_params.activations.emplace_back(get_kernel_selector_activation_param(activation_func::clamp), -prim->clip, prim->clip);
         }
 
-        lstm_elt_params.SetOffsetOrder(static_cast<int32_t>(arg.offset_order()));
-        lstm_elt_params.clip = arg.clip();
-        lstm_elt_params.input_forget = arg.input_forget();
-        lstm_elt_params.direction = arg.direction();
+        lstm_elt_params.SetOffsetOrder(static_cast<int32_t>(prim->offset_order));
+        lstm_elt_params.clip = prim->clip;
+        lstm_elt_params.input_forget = prim->input_forget;
+        lstm_elt_params.direction = prim->direction;
 
-        auto& kernel_selector = kernel_selector::lstm_elt_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(lstm_elt_params, lstm_elt_optional_params);
-
-        return make_unique<lstm_elt_impl>(arg, best_kernel);
+        return {lstm_elt_params, lstm_elt_optional_params};
     }
 };
 
 namespace detail {
 
 attach_lstm_elt_impl::attach_lstm_elt_impl() {
-    implementation_map<lstm_elt>::add(impl_types::ocl, lstm_elt_impl::create, {
+    implementation_map<lstm_elt>::add(impl_types::ocl, typed_primitive_impl_ocl<lstm_elt>::create<lstm_elt_impl>, {
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::f32, format::fyxb),
         std::make_tuple(data_types::f16, format::fyxb),
     });
+
+    impl_hash_key<lstm_elt>::add(typed_primitive_impl_ocl<lstm_elt>::get_impl_key<lstm_elt_impl>);
 }
 
 }  // namespace detail

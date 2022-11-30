@@ -15,6 +15,7 @@ namespace kernel_selector {
 struct broadcast_params : public base_params {
     broadcast_params() : base_params(KernelType::BROADCAST) {}
     std::vector<uint16_t> input_order;
+    size_t hash() const override;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

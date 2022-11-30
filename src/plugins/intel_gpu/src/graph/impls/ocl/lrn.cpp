@@ -87,6 +87,8 @@ attach_lrn_impl::attach_lrn_impl() {
         std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv16),
         std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv16),
     });
+
+    impl_hash_key<lrn>::add(typed_primitive_impl_ocl<lrn>::get_impl_key<lrn_impl>);
 }
 
 }  // namespace detail

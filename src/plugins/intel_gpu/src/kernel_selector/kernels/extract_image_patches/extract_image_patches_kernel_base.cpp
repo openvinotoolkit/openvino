@@ -86,4 +86,12 @@ bool ExtractImagePatchesKernelBase::Validate(const Params& p, const optional_par
 
     return true;
 }
+size_t extract_image_patches_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine_vec(seed, sizes);
+    seed = hash_combine_vec(seed, strides);
+    seed = hash_combine_vec(seed, rates);
+    seed = hash_combine(seed, auto_pad);
+    return seed;
+}
 }  // namespace kernel_selector

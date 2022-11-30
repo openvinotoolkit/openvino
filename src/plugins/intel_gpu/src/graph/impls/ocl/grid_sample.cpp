@@ -81,6 +81,8 @@ attach_grid_sample_impl::attach_grid_sample_impl() {
                     format::bs_fs_yx_bsv32_fsv16};
 
     implementation_map<grid_sample>::add(impl_types::ocl, typed_primitive_impl_ocl<grid_sample>::create<grid_sample_impl>, types, formats);
+
+    impl_hash_key<grid_sample>::add(typed_primitive_impl_ocl<grid_sample>::get_impl_key<grid_sample_impl>);
 }
 
 }  // namespace detail

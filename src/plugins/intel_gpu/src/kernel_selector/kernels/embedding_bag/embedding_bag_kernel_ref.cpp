@@ -121,4 +121,11 @@ bool EmbeddingBagKernelRef::Validate(const Params& p, const optional_params& o) 
 
     return true;
 }
+
+size_t embedding_bag_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, type);
+    seed = hash_combine(seed, default_index);
+    return seed;
+}
 }  // namespace kernel_selector

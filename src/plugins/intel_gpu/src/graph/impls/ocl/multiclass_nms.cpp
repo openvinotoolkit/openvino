@@ -111,6 +111,8 @@ attach_multiclass_nms_impl::attach_multiclass_nms_impl() {
     };
 
     implementation_map<multiclass_nms>::add(impl_types::ocl, typed_primitive_impl_ocl<multiclass_nms>::create<multiclass_nms_impl>, types, formats);
+
+    impl_hash_key<multiclass_nms>::add(typed_primitive_impl_ocl<multiclass_nms>::get_impl_key<multiclass_nms_impl>);
 }
 }  // namespace detail
 }  // namespace ocl

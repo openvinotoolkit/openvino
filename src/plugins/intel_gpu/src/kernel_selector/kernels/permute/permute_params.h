@@ -5,6 +5,7 @@
 #pragma once
 
 #include "kernel_selector_params.h"
+#include "kernel_selector_utils.h"
 #include <vector>
 
 namespace kernel_selector {
@@ -15,6 +16,12 @@ struct permute_params : public base_params {
     permute_params() : base_params(KernelType::PERMUTE) {}
 
     std::vector<uint16_t> order;
+
+    size_t hash() const override {
+        auto seed = base_params::hash();
+        seed = hash_combine_vec(seed, order);
+        return seed;
+    }
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

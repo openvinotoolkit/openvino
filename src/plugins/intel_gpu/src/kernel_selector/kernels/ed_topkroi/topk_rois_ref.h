@@ -15,6 +15,8 @@ struct experimental_detectron_topk_roi_params : public base_params {
     experimental_detectron_topk_roi_params() : base_params(KernelType::EXPERIMENTAL_DETECTRON_TOPK_ROIS) {}
 
     size_t max_rois = 0; // maximal numbers of output ROIs.
+
+    size_t hash() const override;
 };
 
 struct experimental_detectron_topk_roi_optional_params : public optional_params {

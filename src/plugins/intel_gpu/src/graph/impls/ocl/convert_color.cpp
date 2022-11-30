@@ -64,6 +64,8 @@ attach_convert_color_impl::attach_convert_color_impl() {
         std::make_tuple(data_types::f16, format::byxf),
         std::make_tuple(data_types::u8,  format::byxf),
     });
+
+    impl_hash_key<convert_color>::add(typed_primitive_impl_ocl<convert_color>::get_impl_key<convert_color_impl>);
 }
 
 }  // namespace detail

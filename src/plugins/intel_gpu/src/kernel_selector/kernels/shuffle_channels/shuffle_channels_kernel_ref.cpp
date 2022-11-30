@@ -108,4 +108,11 @@ KernelsData ShuffleChannelsKernelRef::GetKernelsData(const Params& params, const
 KernelsPriority ShuffleChannelsKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
+
+size_t shuffle_channels_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, group);
+    seed = hash_combine(seed, axis);
+    return seed;
+}
 }  // namespace kernel_selector

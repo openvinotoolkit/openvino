@@ -40,9 +40,7 @@ struct generic_layer_impl : typed_primitive_impl<generic_layer> {
 
     generic_layer_impl(const generic_layer_node& arg)
         : _cl_kernel_data(*arg.get_primitive()->generic_params.clKernel.get())
-        , _kernels() {
-        _kernel_id = arg.get_program().add_kernel(arg.get_primitive()->generic_params.clKernel->code.kernelString);
-    }
+        , _kernels() {}
 
     void save(BinaryOutputBuffer& ob) const override {
         ob <<_cl_kernel_data;
@@ -56,6 +54,14 @@ struct generic_layer_impl : typed_primitive_impl<generic_layer> {
 
     void init_kernels(const kernels_cache& kernels_cache) override {
         _kernels.push_back(std::move(kernels_cache.get_kernel(_kernel_id)));
+    }
+
+    std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() override {
+        return {_cl_kernel_data.code.kernelString};
+    }
+
+    void set_kernel_ids(std::vector<kernel_id> kernel_ids) override {
+        _kernel_id = kernel_ids[0];
     }
 
     void set_arguments_impl(generic_layer_inst& instance) override {
@@ -128,9 +134,29 @@ static std::unique_ptr<primitive_impl> create(const generic_layer_node& arg, con
     }
 }
 
+static size_t get_impl_key(const generic_layer_node& arg, const kernel_impl_params& impl_param) {
+    size_t seed = 0;
+    auto& id = impl_param.desc->id;
+    for (size_t i = 0; i < id.size(); i++) {
+        seed = hash_combine(seed, id[i]);
+    }
+    seed = hash_combine(seed, arg.get_unique_id());
+    for (auto& layout : impl_param.input_layouts) {
+        for (auto& d : layout.get_shape()) {
+            seed = hash_combine(seed, d);
+        }
+    }
+    for (auto& d : impl_param.get_output_layout().get_shape()) {
+        seed = hash_combine(seed, d);
+    }
+    return seed;
+}
+
 namespace detail {
 attach_generic_layer_impl::attach_generic_layer_impl() {
     implementation_map<generic_layer>::add(cldnn::impl_types::ocl, create, {});
+
+    impl_hash_key<generic_layer>::add(get_impl_key);
 }
 
 }  // namespace detail

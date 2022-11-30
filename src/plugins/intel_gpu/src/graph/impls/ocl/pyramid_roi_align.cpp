@@ -67,6 +67,8 @@ attach_pyramid_roi_align_impl::attach_pyramid_roi_align_impl() {
         std::make_tuple(data_types::f16, format::yxfb),
         std::make_tuple(data_types::f16, format::byxf),
     });
+
+    impl_hash_key<pyramid_roi_align>::add(typed_primitive_impl_ocl<pyramid_roi_align>::get_impl_key<pyramid_roi_align_impl>);
 }
 
 }  // namespace detail

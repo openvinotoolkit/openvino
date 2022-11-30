@@ -134,6 +134,8 @@ struct kernel_impl_params {
 
     memory::ptr reordered_weights = nullptr;
 
+    bool transposed = false;
+
     kernel_impl_params() {}
 
     kernel_impl_params(program& _prog,

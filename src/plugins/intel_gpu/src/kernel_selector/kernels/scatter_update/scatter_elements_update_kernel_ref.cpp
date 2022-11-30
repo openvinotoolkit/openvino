@@ -182,4 +182,10 @@ KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params,
 
     return {kd};
 }
+
+size_t scatter_elements_update_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, axis);
+    return seed;
+}
 }  // namespace kernel_selector

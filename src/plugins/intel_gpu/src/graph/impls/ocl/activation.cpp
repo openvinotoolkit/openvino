@@ -150,6 +150,8 @@ attach_activation_impl::attach_activation_impl() {
         // fs_b_yx_fsv32
         std::make_tuple(data_types::f16, format::fs_b_yx_fsv32),
     });
+
+    impl_hash_key<activation>::add(typed_primitive_impl_ocl<activation>::get_impl_key<activation_impl>);
 }
 
 }  // namespace detail

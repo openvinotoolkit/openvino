@@ -90,4 +90,10 @@ KernelsPriority ReverseKernelRef::GetKernelsPriority(const Params& /*params*/,
                                                      const optional_params& /*options*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
+
+size_t reverse_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, reverseMode);
+    return seed;
+}
 }  // namespace kernel_selector

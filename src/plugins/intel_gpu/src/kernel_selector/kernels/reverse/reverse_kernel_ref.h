@@ -17,6 +17,8 @@ struct reverse_params : public base_params {
     reverse_params() : base_params(KernelType::REVERSE) {}
 
     reverse_mode reverseMode = reverse_mode::index;
+
+    size_t hash() const override;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -161,4 +161,15 @@ Datatype DeconvolutionKernelBase::GetActivationType(const deconvolution_params& 
     return accumulator_dt;
 }
 
+size_t deconvolution_params::hash() const {
+    auto seed = weight_bias_params::hash();
+    seed = hash_combine_usize(seed, filterSize);
+    seed = hash_combine_usize(seed, stride);
+    seed = hash_combine_usize(seed, dilation);
+    seed = hash_combine_usize(seed, padding);
+    seed = hash_combine(seed, split);
+    seed = hash_combine(seed, groups);
+    seed = hash_combine(seed, depthwise_separable_opt);
+    return seed;
+}
 }  // namespace kernel_selector

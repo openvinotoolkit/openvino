@@ -106,4 +106,11 @@ bool RandomUniformKernelRef::Validate(const Params &params, const optional_param
     return true;
 }
 
+size_t random_uniform_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, global_seed);
+    seed = hash_combine(seed, op_seed);
+    return seed;
+}
+
 }  // namespace kernel_selector

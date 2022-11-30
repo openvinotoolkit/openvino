@@ -305,6 +305,8 @@ attach_eltwise_impl::attach_eltwise_impl() {
         std::make_tuple(data_types::i32, format::bs_fs_zyx_bsv32_fsv16),
         std::make_tuple(data_types::i64, format::bs_fs_zyx_bsv32_fsv16),
     });
+
+    impl_hash_key<eltwise>::add(typed_primitive_impl_ocl<eltwise>::get_impl_key<eltwise_impl>);
 }
 
 }  // namespace detail

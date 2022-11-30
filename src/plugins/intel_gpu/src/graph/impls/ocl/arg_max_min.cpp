@@ -60,14 +60,14 @@ protected:
     }
 
 public:
-    static std::unique_ptr<primitive_impl> create(const arg_max_min_node& arg, const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<arg_max_min>();
         const auto& axis = primitive->axis;
         const auto& top_k = primitive->top_k;
         const auto& mode = primitive->mode;
         const auto& sort_type = primitive->sort;
         const auto& values_first = primitive->values_first;
-        const auto& outputs_num = arg.get_output_nums();  // second output passed as input for TOP_K layer
+        const auto& outputs_num = (primitive->input_size() == 3 ? 2 : primitive->output_size());  // second output passed as input for TOP_K layer
 
         auto argm_params = get_default_params<kernel_selector::arg_max_min_params>(impl_param);
         auto argm_optional_params =
@@ -75,7 +75,7 @@ public:
 
         argm_params.outputs_num = outputs_num;
         argm_params.topK = top_k;
-        argm_params.argMaxMinAxis = GetArgMaxMinAxis(axis, arg.get_output_layout().get_rank());
+        argm_params.argMaxMinAxis = GetArgMaxMinAxis(axis, impl_param.get_output_layout().get_rank());
 
         if (mode == ov::op::TopKMode::MAX)
             argm_params.argMaxMinOut = kernel_selector::argm_output::MAX;
@@ -87,9 +87,9 @@ public:
         else
             argm_params.argMaxMinSortType = kernel_selector::argm_sort::INDEX;
 
-        if (arg.has_second_output()) {  // for backward compatibility
+        if (outputs_num == 2) {  // for backward compatibility
             argm_params.has_second_output = true;
-            if (arg.use_multiple_outputs()) {
+            if (primitive->output_size() == 3) {
                 argm_params.use_multiple_outputs = true;
                 argm_params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout(1)));
             } else {
@@ -99,10 +99,7 @@ public:
 
         argm_params.values_first = values_first;
 
-        auto& kernel_selector = kernel_selector::arg_max_min_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(argm_params, argm_optional_params);
-
-        return make_unique<arg_max_min_impl>(arg, best_kernel);
+        return {argm_params, argm_optional_params};
     }
 };
 
@@ -120,7 +117,9 @@ attach_arg_max_min_impl::attach_arg_max_min_impl() {
 
                     format::bfzyx};
 
-    implementation_map<arg_max_min>::add(impl_types::ocl, arg_max_min_impl::create, types, formats);
+    implementation_map<arg_max_min>::add(impl_types::ocl, typed_primitive_impl_ocl<arg_max_min>::create<arg_max_min_impl>, types, formats);
+
+    impl_hash_key<arg_max_min>::add(typed_primitive_impl_ocl<arg_max_min>::get_impl_key<arg_max_min_impl>);
 }
 }  // namespace detail
 }  // namespace ocl

@@ -20,6 +20,8 @@ struct experimental_detectron_prior_grid_generator_params : public base_params {
     size_t layer_width = 0;
     float step_x = 0;
     float step_y = 0;
+
+    size_t hash() const override;
 };
 
 /**

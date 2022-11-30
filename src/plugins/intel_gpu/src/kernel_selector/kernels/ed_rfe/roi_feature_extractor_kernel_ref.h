@@ -17,6 +17,8 @@ struct experimental_detectron_roi_feature_extractor_params : public base_params 
     int sampling_ratio = 0;
     bool aligned = false;
     std::size_t number_of_inputs = 0;
+
+    size_t hash() const override;
 };
 
 struct experimental_detectron_roi_feature_extractor_optional_params : public optional_params {

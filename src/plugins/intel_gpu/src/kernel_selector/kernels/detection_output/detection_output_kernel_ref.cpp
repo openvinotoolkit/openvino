@@ -338,4 +338,34 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
 KernelsPriority DetectionOutputKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_9;
 }
+
+size_t detection_output_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, detectOutParams.num_images);
+    seed = hash_combine(seed, detectOutParams.num_classes);
+    seed = hash_combine(seed, detectOutParams.keep_top_k);
+    seed = hash_combine(seed, detectOutParams.top_k);
+    seed = hash_combine(seed, detectOutParams.background_label_id);
+    seed = hash_combine(seed, detectOutParams.code_type);
+    seed = hash_combine(seed, detectOutParams.conf_size_x);
+    seed = hash_combine(seed, detectOutParams.conf_size_y);
+    seed = hash_combine(seed, detectOutParams.conf_padding_x);
+    seed = hash_combine(seed, detectOutParams.conf_padding_y);
+    seed = hash_combine(seed, detectOutParams.elements_per_thread);
+    seed = hash_combine(seed, detectOutParams.input_width);
+    seed = hash_combine(seed, detectOutParams.input_heigh);
+    seed = hash_combine(seed, detectOutParams.prior_coordinates_offset);
+    seed = hash_combine(seed, detectOutParams.prior_info_size);
+    seed = hash_combine(seed, detectOutParams.prior_is_normalized);
+    seed = hash_combine(seed, detectOutParams.share_location);
+    seed = hash_combine(seed, detectOutParams.variance_encoded_in_target);
+    seed = hash_combine(seed, detectOutParams.decrease_label_id);
+    seed = hash_combine(seed, detectOutParams.clip_before_nms);
+    seed = hash_combine(seed, detectOutParams.clip_after_nms);
+    seed = hash_combine(seed, detectOutParams.nms_threshold);
+    seed = hash_combine(seed, detectOutParams.eta);
+    seed = hash_combine(seed, detectOutParams.confidence_threshold);
+
+    return seed;
+}
 }  // namespace kernel_selector

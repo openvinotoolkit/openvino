@@ -132,6 +132,7 @@ public:
             params->activations_zero_points_layout = optional_layout(activations_zero_points().get_output_layout());
         if (compensation_term())
             params->compensation_layout = optional_layout(compensation().get_output_layout());
+        params->transposed = get_transposed();
         return params;
     }
 

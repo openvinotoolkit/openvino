@@ -71,6 +71,8 @@ attach_normalize_impl::attach_normalize_impl() {
         format::bs_fs_yx_bsv32_fsv16,
     };
     implementation_map<normalize>::add(impl_types::ocl, typed_primitive_impl_ocl<normalize>::create<normalize_impl>, types, formats);
+
+    impl_hash_key<normalize>::add(typed_primitive_impl_ocl<normalize>::get_impl_key<normalize_impl>);
 }
 
 }  // namespace detail

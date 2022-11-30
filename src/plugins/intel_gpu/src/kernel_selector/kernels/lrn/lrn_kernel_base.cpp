@@ -106,4 +106,15 @@ KernelsData LRNKernelBase::GetCommonKernelsData(const Params& params,
 
     return {kd};
 }
+
+size_t lrn_params::hash() const {
+    auto seed = base_params::hash();
+    seed = cldnn::hash_combine(seed, alpha);
+    seed = cldnn::hash_combine(seed, beta);
+    seed = cldnn::hash_combine(seed, k);
+    seed = cldnn::hash_combine(seed, localSize);
+    seed = cldnn::hash_combine(seed, divMode);
+    seed = cldnn::hash_combine(seed, normMode);
+    return seed;
+}
 }  // namespace kernel_selector

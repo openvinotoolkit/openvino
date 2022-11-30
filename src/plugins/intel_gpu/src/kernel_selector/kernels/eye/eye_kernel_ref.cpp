@@ -81,4 +81,10 @@ CommonDispatchData EyeKernelRef::SetDefault(const eye_params& params, const opti
     return dispatchData;
 }
 
+size_t eye_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, diagonal_index);
+    return size_t();
+}
+
 }  // namespace kernel_selector

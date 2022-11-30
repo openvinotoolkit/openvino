@@ -252,10 +252,30 @@ static std::unique_ptr<primitive_impl> create(const custom_gpu_primitive_node& a
     return cldnn::make_unique<custom_gpu_primitive_impl>(arg, cl_kernel);
 }
 
+static size_t get_impl_key(const custom_gpu_primitive_node& arg, const kernel_impl_params& impl_param) {
+    size_t seed = 0;
+    auto& id = impl_param.desc->id;
+    for (size_t i = 0; i < id.size(); i++) {
+        seed = hash_combine(seed, id[i]);
+    }
+    seed = hash_combine(seed, arg.get_unique_id());
+    for (auto& layout : impl_param.input_layouts) {
+        for (auto& d : layout.get_shape()) {
+            seed = hash_combine(seed, d);
+        }
+    }
+    for (auto& d : impl_param.get_output_layout().get_shape()) {
+        seed = hash_combine(seed, d);
+    }
+    return seed;
+}
+
 namespace detail {
 
 attach_custom_gpu_primitive_impl::attach_custom_gpu_primitive_impl() {
     implementation_map<custom_gpu_primitive>::add(cldnn::impl_types::ocl, create, {});
+
+    impl_hash_key<custom_gpu_primitive>::add(get_impl_key);
 }
 
 }  // namespace detail

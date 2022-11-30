@@ -3,6 +3,9 @@
 //
 
 #include "weight_bias_params.h"
+#include "kernel_selector_common.h"
+#include "intel_gpu/runtime/utils.hpp"
+#include "kernel_selector_utils.h"
 #include <sstream>
 
 namespace kernel_selector {
@@ -39,6 +42,25 @@ std::string weight_bias_zero_point_params::to_cache_string_v2() const {
         s << ";compensation";
 
     return s.str();
+}
+
+size_t weight_bias_params::hash() const {
+    size_t seed = base_params::hash();
+    seed = hash_combine_wt(seed, weights);
+    for (auto& dt : bias)
+        seed = hash_combine_dt(seed, dt);
+    return seed;
+}
+
+size_t weight_bias_zero_point_params::hash() const {
+    size_t seed = weight_bias_params::hash();
+    for (auto& dt : weights_zero_points)
+        seed = hash_combine_dt(seed, dt);
+    for (auto& dt : activations_zero_points)
+        seed = hash_combine_dt(seed, dt);
+    for (auto& dt : compensation)
+        seed = hash_combine_dt(seed, dt);
+    return seed;
 }
 
 }  // namespace kernel_selector

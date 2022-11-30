@@ -35,6 +35,7 @@ struct convolution_params : public weight_bias_zero_point_params {
     std::string to_string() const override;
     std::string to_cache_string_v2() const override;
     ParamsKey GetParamsKey() const override;
+    size_t hash() const override;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -5,7 +5,10 @@
 #pragma once
 
 #include "jitter.h"
+#include "intel_gpu/runtime/utils.hpp"
 #include <vector>
+
+using namespace cldnn;
 
 namespace kernel_selector {
 struct weight_bias_params;
@@ -30,4 +33,18 @@ std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const
                                                        { Tensor::DataChannelName::FEATURE },
                                                        { Tensor::DataChannelName::BATCH }});
 bool CheckInputsOutputNoPitchSameDims(const base_params& params);
+
+template<typename T = std::uint32_t>
+size_t hash_combine_dim_tensor(size_t seed, const DimTensor<T>& dt);
+size_t hash_combine_dim(size_t seed, const Tensor::Dim& dim);
+size_t hash_combine_dt(size_t seed, const DataTensor& dt);
+size_t hash_combine_wt(size_t seed, const WeightsTensor& wt);
+size_t hash_combine_usize(size_t s, const kernel_selector::uSize& u_size);
+template <typename T>
+size_t hash_combine_vec(size_t seed, const std::vector<T> vec) {
+    for (auto v : vec) {
+        seed = hash_combine(seed, v);
+    }
+    return seed;
+}
 }  // namespace kernel_selector

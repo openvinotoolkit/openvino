@@ -74,6 +74,32 @@ ParamsKey eltwise_params::GetParamsKey() const {
     return k;
 }
 
+size_t eltwise_params::hash() const {
+    auto seed = base_params::hash();
+    hash_combine_vec(seed, coefficients);
+    for (auto& s : stride) {
+        seed = hash_combine_usize(seed, s);
+    }
+    seed = hash_combine(seed, layoutBased);
+    seed = hash_combine(seed, broadcast);
+    seed = hash_combine(seed, int8_quantization);
+    for (auto& op : operations) {
+        seed = hash_combine(seed, op.mode);
+        for (auto& in : op.inputs) {
+            seed = hash_combine(seed, in.mode);
+            seed = hash_combine(seed, in.index);
+            seed = hash_combine(seed, in.tmpIndex);
+            seed = hash_combine(seed, in.scalar);
+        }
+    }
+
+    for (auto& uid : updateInputIds) {
+        seed = hash_combine(seed, uid.inputId);
+        seed = hash_combine(seed, uid.tmpId);
+    }
+    return seed;
+}
+
 Datatype EltwiseKernelBase::GetAccumulatorType(const eltwise_params &params) const {
     if (params.int8_quantization)
         return Datatype::INT32;

@@ -3,7 +3,6 @@
 //
 
 #include "bucketize_kernel_ref.hpp"
-
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {
@@ -101,6 +100,12 @@ JitConstants BucketizeKernelRef::GetJitConstants(const bucketize_params& kernel_
         jit_constants.AddConstant(MakeJitConstant("WITH_RIGHT_BOUND", true));
     }
     return jit_constants;
+}
+
+size_t bucketize_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, with_right_bound);
+    return seed;
 }
 
 }  // namespace kernel_selector

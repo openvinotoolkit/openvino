@@ -53,4 +53,23 @@ KernelsData BorderKernelBase::GetCommonKernelsData(const Params& params,
 
     return {k_data};
 }
+
+size_t border_params::hash() const {
+    auto seed = base_params::hash();
+    auto hash_combine_dimtensor = [&](size_t s, kernel_selector::DimTensor<> tensor) -> size_t {
+        s = hash_combine(s, tensor.b);
+        s = hash_combine(s, tensor.f);
+        s = hash_combine(s, tensor.w);
+        s = hash_combine(s, tensor.x);
+        s = hash_combine(s, tensor.y);
+        s = hash_combine(s, tensor.x);
+        return s;
+    };
+
+    seed = hash_combine_dimtensor(seed, lt_sizes);
+    seed = hash_combine_dimtensor(seed, rb_sizes);
+    seed = hash_combine(seed, border_value);
+    seed = hash_combine(seed, b_type);
+    return seed;
+}
 }  // namespace kernel_selector

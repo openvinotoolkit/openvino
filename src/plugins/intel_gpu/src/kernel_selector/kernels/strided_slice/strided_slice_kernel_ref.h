@@ -50,6 +50,8 @@ struct strided_slice_params : public base_params {
         if (stride_type == StridedSliceArgType::Input) input_idx++;
         return input_idx;
     }
+
+    size_t hash() const override;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

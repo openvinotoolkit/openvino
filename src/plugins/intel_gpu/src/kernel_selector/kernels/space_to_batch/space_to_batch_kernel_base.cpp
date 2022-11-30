@@ -97,4 +97,12 @@ KernelsData SpaceToBatchKernelBase::GetCommonKernelsData(const Params& params, c
 
     return { kd };
 }
+
+size_t space_to_batch_params::hash() const {
+    auto seed = base_params::hash();
+    hash_combine_dim_tensor<uint32_t>(seed, block_shape);
+    hash_combine_dim_tensor<uint32_t>(seed, pads_begin);
+    hash_combine_dim_tensor<uint32_t>(seed, pads_end);
+    return seed;
+}
 }  // namespace kernel_selector

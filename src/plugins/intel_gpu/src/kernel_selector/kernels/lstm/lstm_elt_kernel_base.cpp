@@ -90,4 +90,22 @@ KernelsData LSTMEltKernelBase::GetCommonKernelsData(const Params& params, const 
 
     return {kd};
 }
+
+size_t lstm_elt_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, has_cell);
+    if (has_cell)
+        seed = hash_combine_dt(seed, cell);
+    seed = hash_combine(seed, gate_order);
+    seed = hash_combine(seed, clip);
+    seed = hash_combine(seed, input_forget);
+    seed = hash_combine(seed, direction);
+    seed = hash_combine(seed, cell_direction);
+
+    seed = hash_combine(seed, GetOffsetIndexI());
+    seed = hash_combine(seed, GetOffsetIndexO());
+    seed = hash_combine(seed, GetOffsetIndexF());
+    seed = hash_combine(seed, GetOffsetIndexZ());
+    return seed;
+}
 }  // namespace kernel_selector

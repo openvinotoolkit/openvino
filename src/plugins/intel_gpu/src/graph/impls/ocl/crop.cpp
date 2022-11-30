@@ -151,6 +151,8 @@ attach_crop_impl::attach_crop_impl() {
         std::make_tuple(data_types::i32, format::bs_fs_yx_bsv32_fsv16),
         std::make_tuple(data_types::i64, format::bs_fs_yx_bsv32_fsv16),
     });
+
+    impl_hash_key<crop>::add(typed_primitive_impl_ocl<crop>::get_impl_key<crop_impl>);
 }
 
 }  // namespace detail

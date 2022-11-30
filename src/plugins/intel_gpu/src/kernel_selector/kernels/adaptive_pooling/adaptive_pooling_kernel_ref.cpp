@@ -112,4 +112,11 @@ KernelsData AdaptivePoolingRef::GetKernelsData(const Params& params, const optio
     kernelsData.push_back(std::move(kd));
     return kernelsData;
 }
+
+size_t adaptive_pooling_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, mode);
+    seed = hash_combine(seed, poolIndexElementType);
+    return seed;
+}
 }  // namespace kernel_selector

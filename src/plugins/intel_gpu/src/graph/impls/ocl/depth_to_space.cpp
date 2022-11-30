@@ -58,6 +58,8 @@ attach_depth_to_space_impl::attach_depth_to_space_impl() {
         format::bs_fs_yx_bsv32_fsv32,
     };
     implementation_map<depth_to_space>::add(impl_types::ocl, typed_primitive_impl_ocl<depth_to_space>::create<depth_to_space_impl>, dt, fmt);
+
+    impl_hash_key<depth_to_space>::add(typed_primitive_impl_ocl<depth_to_space>::get_impl_key<depth_to_space_impl>);
 }
 
 }  // namespace detail

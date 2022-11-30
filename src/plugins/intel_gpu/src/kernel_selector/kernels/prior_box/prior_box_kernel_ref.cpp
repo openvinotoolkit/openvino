@@ -127,4 +127,31 @@ JitConstants PriorBoxKernelRef::GetJitConstants(const prior_box_params& params) 
     return jit;
 }
 
+size_t prior_box_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine_vec(seed, min_size);
+    seed = hash_combine_vec(seed, max_size);
+    seed = hash_combine_vec(seed, density);
+    seed = hash_combine_vec(seed, fixed_ratio);
+    seed = hash_combine_vec(seed, fixed_size);
+    seed = hash_combine(seed, clip);
+    seed = hash_combine(seed, flip);
+    seed = hash_combine(seed, step);
+    seed = hash_combine(seed, offset);
+    seed = hash_combine(seed, scale_all_sizes);
+    seed = hash_combine(seed, min_max_aspect_ratios_order);
+    seed = hash_combine_vec(seed, widths);
+    seed = hash_combine_vec(seed, heights);
+    seed = hash_combine_vec(seed, aspect_ratio);
+    seed = hash_combine_vec(seed, variance);
+    seed = hash_combine(seed, reverse_image_width);
+    seed = hash_combine(seed, reverse_image_height);
+    seed = hash_combine(seed, step_x);
+    seed = hash_combine(seed, step_y);
+    seed = hash_combine(seed, width);
+    seed = hash_combine(seed, height);
+    seed = hash_combine(seed, num_priors_4);
+    return seed;
+}
+
 }  // namespace kernel_selector

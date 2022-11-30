@@ -73,6 +73,8 @@ namespace detail {
                                                             std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv16),
                                                             std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv16),
                                                             std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32)});
+
+        impl_hash_key<generate_proposals>::add(typed_primitive_impl_ocl<generate_proposals>::get_impl_key<generate_proposals_impl>);
     }
 }  // namespace detail
 }  // namespace ocl

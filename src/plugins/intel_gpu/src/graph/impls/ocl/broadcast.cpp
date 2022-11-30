@@ -188,6 +188,8 @@ attach_broadcast_impl::attach_broadcast_impl() {
         std::make_tuple(data_types::i32, format::bs_fs_yx_bsv32_fsv32),
         std::make_tuple(data_types::i64, format::bs_fs_yx_bsv32_fsv32),
     });
+
+    impl_hash_key<broadcast>::add(typed_primitive_impl_ocl<broadcast>::get_impl_key<broadcast_impl>);
 }
 
 }  // namespace detail

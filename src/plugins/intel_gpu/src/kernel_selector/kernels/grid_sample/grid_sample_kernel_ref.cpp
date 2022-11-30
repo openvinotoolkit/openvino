@@ -91,6 +91,14 @@ JitConstants GridSampleKernelRef::GetJitConstants(const grid_sample_params& kern
     return jit_constants;
 }
 
+size_t grid_sample_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, align_corners);
+    seed = hash_combine(seed, interpolation_mode);
+    seed = hash_combine(seed, padding_mode);
+    return seed;
+}
+
 }  // namespace kernel_selector
 
 namespace ov {

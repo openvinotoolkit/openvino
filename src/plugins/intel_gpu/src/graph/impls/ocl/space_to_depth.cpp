@@ -62,6 +62,8 @@ attach_space_to_depth_impl::attach_space_to_depth_impl() {
         std::make_tuple(data_types::u8, format::b_fs_yx_fsv4),
         std::make_tuple(data_types::i8, format::b_fs_yx_fsv4),
     });
+
+    impl_hash_key<space_to_depth>::add(typed_primitive_impl_ocl<space_to_depth>::get_impl_key<space_to_depth_impl>);
 }
 
 }  // namespace detail

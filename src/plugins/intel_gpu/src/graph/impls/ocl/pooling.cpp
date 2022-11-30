@@ -200,6 +200,8 @@ attach_pooling_impl::attach_pooling_impl() {
     keys.emplace(data_types::f32, format::fs_b_yx_fsv32);
 
     implementation_map<pooling>::add(impl_types::ocl, typed_primitive_impl_ocl<pooling>::create<pooling_impl>, keys);
+
+    impl_hash_key<pooling>::add(typed_primitive_impl_ocl<pooling>::get_impl_key<pooling_impl>);
 }
 
 }  // namespace detail

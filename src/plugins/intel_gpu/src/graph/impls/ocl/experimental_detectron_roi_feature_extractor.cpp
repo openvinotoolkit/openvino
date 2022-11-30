@@ -76,6 +76,9 @@ attach_experimental_detectron_roi_feature_extractor_impl::attach_experimental_de
             std::make_tuple(data_types::f16, format::bfyx),
             std::make_tuple(data_types::f32, format::bfyx)
         });
+
+    impl_hash_key<experimental_detectron_roi_feature_extractor>::add(
+        typed_primitive_impl_ocl<experimental_detectron_roi_feature_extractor>::get_impl_key<experimental_detectron_roi_feature_extractor_impl>);
 }
 
 }  // namespace detail

@@ -24,6 +24,8 @@ struct grid_sample_params : public base_params {
         BORDER,
         REFLECTION,
     } padding_mode = PaddingMode::ZEROS;
+
+    size_t hash() const override;
 };
 
 /**

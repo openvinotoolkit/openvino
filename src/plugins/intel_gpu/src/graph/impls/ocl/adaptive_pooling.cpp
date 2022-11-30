@@ -87,6 +87,8 @@ attach_adaptive_pooling_impl::attach_adaptive_pooling_impl() {
     };
 
     implementation_map<adaptive_pooling>::add(impl_types::ocl, typed_primitive_impl_ocl<adaptive_pooling>::create<adaptive_pooling_impl>, types, formats);
+
+    impl_hash_key<adaptive_pooling>::add(typed_primitive_impl_ocl<adaptive_pooling>::get_impl_key<adaptive_pooling_impl>);
 }
 }  // namespace detail
 }  // namespace ocl

@@ -87,6 +87,8 @@ attach_gather_elements_impl::attach_gather_elements_impl() {
         std::make_tuple(data_types::f16, format::bfwzyx),
         std::make_tuple(data_types::i32, format::bfwzyx),
     });
+
+    impl_hash_key<gather_elements>::add(typed_primitive_impl_ocl<gather_elements>::get_impl_key<gather_elements_impl>);
 }
 
 }  // namespace detail

@@ -36,6 +36,8 @@ struct prior_box_params : public base_params {
     float step_x, step_y;
     uint32_t width, height;
     uint32_t num_priors_4;
+
+    size_t hash() const override;
 };
 
 /**

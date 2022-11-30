@@ -76,6 +76,8 @@ struct non_max_suppression_params : public base_params {
         if (has_second_output) input_idx++;
         return input_idx;
     }
+
+    size_t hash() const override;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

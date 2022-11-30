@@ -19,6 +19,8 @@ struct experimental_detectron_detection_output_params : public base_params {
     int max_detections_per_image{0};
     bool class_agnostic_box_regression{false};
     std::vector<float> deltas_weights;
+
+    size_t hash() const override;
 };
 
 struct experimental_detectron_detection_output_optional_params : public optional_params {

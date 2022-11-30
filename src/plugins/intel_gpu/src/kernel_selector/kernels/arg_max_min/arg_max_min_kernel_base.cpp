@@ -3,6 +3,7 @@
 //
 
 #include "arg_max_min_kernel_base.h"
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 bool ArgMaxMinKernelBase::Validate(const Params& p, const optional_params& o) const {
@@ -52,5 +53,17 @@ KernelsData ArgMaxMinKernelBase::GetCommonKernelsData(const Params& params, cons
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
 
     return {kd};
+}
+
+size_t arg_max_min_params::hash() const {
+    auto seed = base_params::hash();
+    seed = hash_combine(seed, argMaxMinAxis);
+    seed = hash_combine(seed, argMaxMinOut);
+    seed = hash_combine(seed, argMaxMinSortType);
+    seed = hash_combine(seed, topK);
+    seed = hash_combine(seed, values_first);
+    seed = hash_combine(seed, has_second_output);
+    seed = hash_combine(seed, use_multiple_outputs);
+    return seed;
 }
 }  // namespace kernel_selector
