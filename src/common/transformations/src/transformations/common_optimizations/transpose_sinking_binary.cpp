@@ -46,7 +46,9 @@ ov::pass::TransposeSinkingBinaryElementwiseForward::TransposeSinkingBinaryElemen
     register_matcher(m, matcher_pass_callback);
 }
 
-pass::TransposeSinkingBinaryElementwiseBackward::TransposeSinkingBinaryElementwiseBackward() {
+// TODO: add check input shapes are static otherwise we cannot determine if need to insert unsqueeze node
+
+ov::pass::TransposeSinkingBinaryElementwiseBackward::TransposeSinkingBinaryElementwiseBackward() {
     MATCHER_SCOPE(TransposeSinkingBinaryElementwiseBackward);
 
     auto main_node_label = wrap_type<op::util::BinaryElementwiseArithmetic>(consumers_count(1));
