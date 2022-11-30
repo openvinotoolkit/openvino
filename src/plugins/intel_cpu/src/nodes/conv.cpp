@@ -951,28 +951,26 @@ void Convolution::initDescriptor(const NodeConfig& config) {
         return;
     }
 
-    // Strided blobs feature support.
-    // Works only for FP32 convolutions for now.
-    bool isStridedBlobsSupported = true;
-
-    // TODO [NM]: refactor via using global executionPrecision.
-    if (canBeExecutedInInt8()) {
-        isStridedBlobsSupported = false;
-    }
-
-    if (isStridedBlobsSupported) {
-        createDescriptor({config.inConfs[0].getMemDesc()}, {config.outConfs[0].getMemDesc()});
-    }
+    createDescriptor({config.inConfs[0].getMemDesc()}, {config.outConfs[0].getMemDesc()});
 
     auto rightConfig = selectedPD->getConfig();
     size_t selected_count = 0;
 
     bool containJitImpl = false;
+    size_t bestDescIdx = descs.size();
 
     for (size_t i = 0; i < descs.size(); i++) {
         auto& desc = descs[i];
         if (containJitImpl && isPossibleToSkipInitConfig(desc))
             continue;
+        // if no inplace the last desc should be same with the best one
+        if (i == descs.size() - 1 && bestDescIdx != descs.size()) {
+            std::shared_ptr<dnnl::convolution_forward::desc> curDesc = desc;
+            std::shared_ptr<dnnl::convolution_forward::desc> bestDesc = descs[bestDescIdx];
+            if (memcmp(&(*curDesc), &(*bestDesc), sizeof(*curDesc)) == 0)
+                continue;
+        }
+
         //Attributes support level differs in fork onednn.
         for (int n = 0; n < attrs.size(); n++) {
             auto &attr = attrs[n];
@@ -1036,8 +1034,9 @@ void Convolution::initDescriptor(const NodeConfig& config) {
                     //attr[0] for legacy zero point.
                     //attr[1] for stock per-tensor zero point.
                     preferLegacyZeroPoint = (n == 0);
+                    bestDescIdx = i;
                 }
-                if (i == descs.size() - 1 && isStridedBlobsSupported) {
+                if (i == descs.size() - 1) {
                     if (impl_type == selectedPD->getImplementationType()) {
                         rightConfig = config;
                     }

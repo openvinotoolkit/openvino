@@ -328,7 +328,6 @@ void Snippet::define_schedule() {
         auto& shapes = std::get<0>(shapes_infos);
         if (std::get<2>(infos) && shapes.size() > 1) {
             auto& strides = std::get<1>(infos);
-            // ignore batch dimension because blocked layout already takes into account
             auto elements = std::accumulate(shapes.begin() + 1, shapes.end(), size_t{1}, std::multiplies<size_t>());
             input_has_strides.push_back(elements != strides[0]);
             input_strides.push_back(std::move(strides));
