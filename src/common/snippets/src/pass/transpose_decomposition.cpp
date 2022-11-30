@@ -5,7 +5,7 @@
 #include <snippets/pass/transpose_decomposition.hpp>
 #include <snippets/itt.hpp>
 #include <snippets/snippets_isa.hpp>
-#include <snippets/op/loop_helpers.hpp>
+#include <snippets/pass/loop_helpers.hpp>
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset5.hpp>
@@ -73,11 +73,9 @@ ngraph::snippets::pass::TransposeDecomposition::TransposeDecomposition() {
         const std::vector<int64_t> ptr_increments_C {size_H * size_W, 1};
         const std::vector<int64_t> finalization_offsets_C {1 - size_H * size_W * size_C, 0};
         auto loop_C_end = std::make_shared<op::LoopEnd>(OutputVector{store->output(0), loop_C_begin->output(1)},
-                                                      dim_C_idx, size_C, 1,
-                                                      ptr_increments_C, finalization_offsets_C);
+                                                        size_C, 1, ptr_increments_C, finalization_offsets_C);
         auto loop_W_end = std::make_shared<op::LoopEnd>(OutputVector{loop_C_end->output(0), loop_W_begin->output(1)},
-                                                        dim_W_idx, size_W, 1,
-                                                        std::vector<int64_t>{0, 0}, std::vector<int64_t>{0, 0});
+                                                        size_W, 1, std::vector<int64_t>{0, 0}, std::vector<int64_t>{0, 0});
 
         for (auto& input : transpose->output(0).get_target_inputs()) {
             input.replace_source_output(loop_W_end->output(0));

@@ -211,7 +211,7 @@ void KernelEmitter::validate_arguments(const std::vector<size_t> &in,
     const auto num_params = num_inputs + num_outputs;
     // The number of used gpr may be >= num_params since LoopBegin+LoopEnd could also use gpr to store work_amount
     if (data_ptr_regs_idx.size() != num_params)
-        IE_THROW() << "KernelEmitter arguments are inconsistent with the gpr_regs_used size: in[0] + in[1] = "
+        IE_THROW() << "KernelEmitter: number of inputs and outputs is inconsisnent with the number of allocated registers"
         << num_params << " data_ptr_regs_idx.size() = " << data_ptr_regs_idx.size();
 }
 

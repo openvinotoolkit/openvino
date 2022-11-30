@@ -10,8 +10,8 @@ namespace ngraph {
 namespace snippets {
 namespace op {
 
-LoopBase::LoopBase(const std::vector<Output<Node>> &args, size_t work_amount, size_t wa_increment)
-        : Op(args), work_amount(work_amount), increment(wa_increment), evaluate_once(false) {
+LoopBase::LoopBase(const std::vector<Output<Node>> &args, size_t work_amount, size_t increment)
+        : Op(args), work_amount(work_amount), wa_increment(increment), evaluate_once(false) {
 }
 
 bool LoopBase::visit_attributes(AttributeVisitor &visitor) {
@@ -33,7 +33,7 @@ size_t LoopBase::get_increment() const {
 }
 
 LoopBegin::LoopBegin(const std::vector<Output<Node>> &args, size_t work_amount, size_t wa_increment)
-        : LoopBase(args, work_amount, increment),
+        : LoopBase(args, work_amount, wa_increment),
         begin_address(nullptr), input_regs({}) {
     // We can only call a reduced validate_and_infer types from the constructor, since LoopEnd might not be attached
     // to the LoopBegin at this point (which is usually the case: create LoopBegin first => then attach LoopEnd to it)
