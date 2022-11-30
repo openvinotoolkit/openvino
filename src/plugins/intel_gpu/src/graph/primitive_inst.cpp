@@ -789,6 +789,12 @@ event::ptr primitive_inst::update_weights() {
         }
 
         return ev;
+    } else {
+        // If kernel doesn't says that it doesn't require weights reorder, but weights were reordered previously, then
+        // incorrect memory buffer may be assigned, so reset cached weights for such case
+        if (weights_params.engine == kernel_selector::GenericKernelParams::Engine::NONE) {
+            _impl_params->reordered_weights.reset();
+        }
     }
     GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
 
