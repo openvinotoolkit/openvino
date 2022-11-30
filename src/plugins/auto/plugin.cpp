@@ -65,19 +65,23 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
     std::vector<std::string> devicesWithRequests = _pluginConfig.ParsePrioritiesDevices(priorities);
 
     auto setDefaultHint = [&](const std::string& targetDevice,
-                                std::map<std::string, std::string>& deviceConfig,
-                                const std::map<std::string, std::string>& mergedConfig) {
+                              std::map<std::string, std::string>& deviceConfig,
+                              const std::map<std::string, std::string>& mergedConfig) {
         auto isSetPerHint = mergedConfig.find(PluginConfigParams::KEY_PERFORMANCE_HINT) != mergedConfig.end();
-        if (GetName() == "AUTO" && !isSetPerHint && mergedConfig.find(targetDevice) == mergedConfig.end()) {
-            // setting latency as the default performance mode if no hints setting for AUTO plugin and no properties
-            // specified for target device.
+        auto isSetDeviceProperties = mergedConfig.find(targetDevice) != mergedConfig.end();
+        auto isSetNumStreams = deviceConfig.find(ov::num_streams.name()) != deviceConfig.end();
+        if (GetName() == "AUTO" && !isSetPerHint && !isSetDeviceProperties && !isSetNumStreams) {
+            // setting latency as the default performance mode if
+            // 1. no hints setting for AUTO plugin
+            // 2. no ov::device::properties setting for target device
+            // 3. no ov::num_streams setting for target device
             deviceConfig[PluginConfigParams::KEY_PERFORMANCE_HINT] = PluginConfigParams::LATENCY;
             return;
         }
 
         // set TPUT for MULTI if no above propertis were set by user
         if (GetName() == "MULTI") {
-            if (isSetPerHint || mergedConfig.find(targetDevice) != mergedConfig.end())
+            if (isSetPerHint || !isSetDeviceProperties)
                 return;
             for (auto&& kvp : mergedConfig) {
                 if (kvp.first == ov::affinity || kvp.first == ov::num_streams ||
