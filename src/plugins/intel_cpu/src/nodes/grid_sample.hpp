@@ -55,7 +55,6 @@ public:
 protected:
     void executeDynamicImpl(dnnl::stream strm) override;
     void prepareParams() override;
-    std::vector<VectorDims> shapeInfer() const override;
 
 private:
     bool alignCorners = false;

@@ -18,7 +18,7 @@ namespace intel_cpu {
 namespace node {
 
 Generic::Generic(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-    : Node(op, eng, cache), ngraphOp(op) {
+    : Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)), ngraphOp(op) {
 }
 
 void Generic::getSupportedDescriptors() {

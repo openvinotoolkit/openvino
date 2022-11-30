@@ -25,7 +25,6 @@ public:
     bool isExecutable() const override;
 
     bool needShapeInfer() const override;
-    std::vector<VectorDims> shapeInfer() const override;
     bool needPrepareParams() const override { return false; }
     void executeDynamicImpl(dnnl::stream strm) override;
     void execute(dnnl::stream strm) override;

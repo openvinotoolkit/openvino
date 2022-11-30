@@ -62,7 +62,7 @@ bool Transpose::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
 }
 
 Transpose::Transpose(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache) {
+        : Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

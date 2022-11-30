@@ -13,6 +13,7 @@
 #include "ie_parallel.hpp"
 #include "ngraph/opsets/opset8.hpp"
 #include "utils/general_utils.h"
+#include <utils/shape_inference/shape_inference_internal_dyn.hpp>
 
 using namespace InferenceEngine;
 
@@ -48,7 +49,7 @@ bool MatrixNms::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& 
 }
 
 MatrixNms::MatrixNms(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr& cache)
-    : Node(op, eng, cache) {
+    : Node(op, eng, cache, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

@@ -28,7 +28,7 @@ bool EmbeddingSegmentsSum::isSupportedOperation(const std::shared_ptr<const ngra
 }
 
 EmbeddingSegmentsSum::EmbeddingSegmentsSum(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache), EmbeddingBagSum(op, 4lu, 1lu, 5lu, 4lu) {
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache, NgraphShapeInferFactory(op, PortMask(NUM_SEGMENTS_IDX))), EmbeddingBagSum(op, 4lu, 1lu, 5lu, 4lu) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -135,10 +135,6 @@ bool EmbeddingSegmentsSum::needShapeInfer() const {
     }
 
     return false;
-}
-
-std::vector<VectorDims> EmbeddingSegmentsSum::shapeInfer() const {
-    return Node::shapeInferGeneric(PortMask(NUM_SEGMENTS_IDX));
 }
 
 void EmbeddingSegmentsSum::executeDynamicImpl(dnnl::stream strm) {

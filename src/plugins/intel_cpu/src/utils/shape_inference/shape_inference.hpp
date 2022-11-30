@@ -18,7 +18,7 @@ void shape_inference(ov::Node* op,
                      std::vector<StaticShape>& output_shapes,
                      const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {});
 
-class IShapeInfer {
+class IShapeInferCommon {
 public:
     virtual std::vector<StaticShape> infer(
         const std::vector<StaticShape>& input_shapes,
@@ -31,7 +31,7 @@ public:
     virtual const std::vector<int64_t>& get_input_ranks() = 0;
 };
 
-std::shared_ptr<IShapeInfer> make_shape_inference(const std::shared_ptr<ngraph::Node>& op);
+std::shared_ptr<IShapeInferCommon> make_shape_inference(const std::shared_ptr<ngraph::Node>& op);
 
 }   // namespace intel_cpu
 }   // namespace ov

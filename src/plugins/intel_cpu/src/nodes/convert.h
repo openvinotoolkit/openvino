@@ -40,7 +40,6 @@ public:
     const MemoryDesc& getInput() const { return *input; }
     const MemoryDesc& getOutput() const { return *output; }
 
-    std::vector<VectorDims> shapeInfer() const override;
     bool needPrepareParams() const override { return false; }
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;

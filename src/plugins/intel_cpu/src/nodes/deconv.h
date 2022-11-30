@@ -49,7 +49,6 @@ public:
     void execute(dnnl::stream strm) override;
     void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
     bool needShapeInfer() const override;
-    std::vector<VectorDims> shapeInfer() const override;
 
     void setDynamicBatchLim(int lim) override;
     bool canBeExecutedInInt8() const;

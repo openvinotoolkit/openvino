@@ -20,7 +20,6 @@ public:
     void execute(dnnl::stream strm) override;
     bool created() const override;
 
-    std::vector<VectorDims> shapeInfer() const override;
     bool needShapeInfer() const override;
     bool needPrepareParams() const override { return false; }
     void executeDynamicImpl(dnnl::stream strm) override;

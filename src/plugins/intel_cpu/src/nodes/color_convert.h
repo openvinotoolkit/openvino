@@ -27,7 +27,6 @@ public:
     void createPrimitive() override;
     void execute(dnnl::stream strm) override;
     bool created() const override;
-    std::vector<VectorDims> shapeInfer() const override;
     bool needPrepareParams() const override;
     void executeDynamicImpl(dnnl::stream strm) override;
 
@@ -71,7 +70,6 @@ public:
     const void * input(size_t idx) const;
     void * output(size_t idx) const;
     const VectorDims & inputDims(size_t idx) const;
-    virtual Shapes shapeInfer() const = 0;
     virtual void execute(dnnl::stream strm) = 0;
 
 protected:

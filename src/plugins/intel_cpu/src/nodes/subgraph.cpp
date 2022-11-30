@@ -37,7 +37,7 @@ namespace node {
 
 
 Snippet::Snippet(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache) {
+        : Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     host_isa = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ?
         dnnl::impl::cpu::x64::avx512_core : dnnl::impl::cpu::x64::avx2;
     original_snippet = ov::as_type_ptr<ngraph::snippets::op::Subgraph>(op);

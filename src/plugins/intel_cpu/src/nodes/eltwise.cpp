@@ -94,6 +94,60 @@ struct EltwiseEmitter<jit_power_static_emitter> {
     }
 };
 
+/**
+ * Implements Eltwise shape inference algorithm. The algorithm is based on broadcasting all the input shapes
+ * according to the NUMPY broadcast rule. This implementation is more lightweight than the ngraph one.
+ * 
+ */
+class EltwiseShapeInfer : public ShapeInferEmptyPads {
+public:
+    std::vector<VectorDims> infer(
+        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+        size_t max_rank = 0;
+        size_t max_rank_idx = 0;
+        for (size_t i = 0; i < input_shapes.size(); ++i) {
+            auto item_rank = input_shapes[i].get().size();
+            if (item_rank > max_rank) {
+                max_rank = item_rank;
+                max_rank_idx = i;
+            }
+        }
+        auto output_shape = input_shapes[max_rank_idx].get();
+        // use NUMPY broadcast rule
+        for (size_t i = 0; i < input_shapes.size(); i++) {
+            if (i == max_rank_idx)
+                continue;
+
+            auto& input_shape = input_shapes[i].get();
+            if (input_shape.size() > output_shape.size()) {
+                IE_THROW() << "Eltwise shape infer input and output shapes rank mismatch";
+            }
+            size_t offset = output_shape.size() - input_shape.size();
+            for (size_t j = 0; j < input_shape.size(); ++j) {
+                if (input_shape[j] != output_shape[offset + j]) {
+                    if (output_shape[offset + j] == 1) {
+                        output_shape[offset + j] = input_shape[j];
+                    } else {
+                        if (input_shape[j] != 1) IE_THROW() << "Eltwise shape infer input shapes dim index: " << j << " mismatch";
+                    }
+                }
+            }
+        }
+        return { output_shape };
+    }
+    port_mask_t get_port_mask() const override {
+        return EMPTY_PORT_MASK;
+    }
+};
+
+class EltwiseShapeInferFactory : public ShapeInferFactory {
+public:
+    ShapeInferPtr makeShapeInfer() const override {
+        return std::make_shared<EltwiseShapeInfer>();
+    }
+};
+
 }   // namespace
 
 template <cpu_isa_t isa>
@@ -1582,7 +1636,7 @@ bool Eltwise::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
 }
 
 Eltwise::Eltwise(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-    Node(op, eng, cache), broadcastingPolicy(Undefined) {
+    Node(op, eng, cache, EltwiseShapeInferFactory()), broadcastingPolicy(Undefined) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -1883,27 +1937,6 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 
     inputNum = getParentEdges().size();
     currentInBlkDims.resize(inputNum);
-}
-
-std::vector<VectorDims> Eltwise::shapeInfer() const {
-    ov::PartialShape outShape = getParentEdgesAtPort(0)[0]->getMemory().GetShape().toPartialShape();
-    for (size_t i = 1; i < getParentEdges().size(); i++) {
-        ov::PartialShape::broadcast_merge_into(outShape, getParentEdgesAtPort(i)[0]->getMemory().GetShape().toPartialShape(),
-        ov::op::AutoBroadcastType::NUMPY);
-    }
-
-    if (outShape.is_dynamic()) {
-        std::ostringstream errorMessage;
-        errorMessage << "Can't compute static output shape for Eltwise node with name: " << getName();
-        errorMessage << ". Input shapes = ( ";
-        for (size_t i = 0; i < getParentEdges().size(); i++) {
-            errorMessage << i << " port = " << getParentEdgesAtPort(i)[0]->getMemory().GetShape().toString() << ", ";
-        }
-        errorMessage << "). Output shape = ( " << outShape << " )";
-        OPENVINO_ASSERT(false, errorMessage.str());
-    }
-
-    return {outShape.get_shape()};
 }
 
 void Eltwise::prepareParams() {
