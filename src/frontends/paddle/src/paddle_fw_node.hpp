@@ -14,7 +14,9 @@ class FrameworkNode : public ov::op::util::FrameworkNode {
 public:
     OPENVINO_OP("FrameworkNode", "util", ov::op::util::FrameworkNode);
 
-    FrameworkNode(const std::shared_ptr<DecoderProto>& decoder, const OutputVector& inputs, const std::vector<std::string>& inputs_names)
+    FrameworkNode(const std::shared_ptr<DecoderProto>& decoder,
+                  const OutputVector& inputs,
+                  const std::vector<std::string>& inputs_names)
         : ov::op::util::FrameworkNode(inputs, decoder->get_output_size()),
           m_decoder{decoder},
           m_inputs_names{inputs_names} {
