@@ -143,7 +143,7 @@ def parse_args():
                            "             {"
                            "                \"CPU\": {\"NUM_STREAMS\": \"3\", \"PERF_COUNT\": \"NO\"}\n"
                            "             }."
-                           " Example 2: a simple JSON file for meta device(AUTO/MULTI) with HW device properties.\n"
+                           "Example 2: a simple JSON file for meta device(AUTO/MULTI) with HW device properties.\n"
                            "             {\n"
                            "             	\"AUTO\": {\n"
                            "             		\"PERFORMANCE_HINT\": \"\",\n"
