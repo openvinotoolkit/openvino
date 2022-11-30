@@ -69,8 +69,8 @@ inline std::string get_version() {
     return version.buildNumber;
 }
 
-PYBIND11_MODULE(pyopenvino, m) {
-    m.doc() = "Package openvino.pyopenvino which wraps openvino C++ APIs";
+PYBIND11_MODULE(_pyopenvino, m) {
+    m.doc() = "Package openvino._pyopenvino which wraps openvino C++ APIs";
     std::string pyopenvino_version = CI_BUILD_NUMBER;
     std::string runtime_version = get_version();
     bool is_custom_pyopenvino_version = pyopenvino_version.empty() || pyopenvino_version.find("custom_") == 0;
@@ -92,7 +92,7 @@ PYBIND11_MODULE(pyopenvino, m) {
     m.def(
         "set_batch",
         [](const std::shared_ptr<ov::Model>& model, int64_t value) {
-            return ov::set_batch(model, ov::Dimension(value));
+            ov::set_batch(model, ov::Dimension(value));
         },
         py::arg("model"),
         py::arg("batch_size") = -1);
@@ -235,7 +235,6 @@ PYBIND11_MODULE(pyopenvino, m) {
     // frontend extensions
     regclass_frontend_TelemetryExtension(m);
     regclass_frontend_DecoderTransformationExtension(m);
-    regclass_frontend_JsonConfigExtension(m);
     regclass_frontend_ConversionExtensionBase(m);
     regclass_frontend_ConversionExtension(m);
     regclass_frontend_ProgressReporterExtension(m);

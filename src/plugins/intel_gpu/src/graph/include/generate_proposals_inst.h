@@ -33,6 +33,7 @@ template <>
 class typed_primitive_inst<generate_proposals>
         : public typed_primitive_inst_base<generate_proposals> {
     using parent = typed_primitive_inst_base<generate_proposals>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(const generate_proposals_node& node, kernel_impl_params const& impl_param);

@@ -82,10 +82,3 @@ onnx_clip_no_min_no_max_int64
 # z node not found in graph cache - ticket: 81976
 INTERPRETER.onnx_expand_context_dependent_function
 INTERPRETER.onnx_softmax_crossentropy_loss_mean
-
-onnx_is_inf_default
-onnx_is_inf_positive_only
-onnx_is_inf_negative_only
-onnx_is_inf_detect_none
-
-onnx_is_nan

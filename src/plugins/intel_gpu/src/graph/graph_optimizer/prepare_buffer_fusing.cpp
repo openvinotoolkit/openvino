@@ -67,6 +67,8 @@ struct concat_in_place_optimization : pattern_match_optimization_typed<concat_in
 bool concat_noop_optimization::match(concatenation_node& node) {
     if (node.is_output() && !get_program().is_debug_build())
         return false;
+    if (node.is_dynamic())
+        return false;
     return node.get_dependencies().size() == 1 &&
         !node.has_fused_primitives() &&
         node.get_fused_activations_funcs().empty();
@@ -86,6 +88,8 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
         return false;
     if (node.has_fused_primitives() || !node.get_fused_activations_funcs().empty())
         return false;
+    if (node.is_dynamic())
+        return false;
 
     bool is_onednn_impl = false;
 
@@ -98,7 +102,10 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
                 else
                     continue;
             }
-            is_onednn_impl = true;
+
+            // Optimized-out input node is no longer onednn impl.
+            if (!input->can_be_optimized())
+                is_onednn_impl = true;
         }
     }
 
@@ -311,7 +318,15 @@ void prepare_buffer_fusing::run(program& p) {
     If crop is before concat there can be padding mismtach, since concat changes padding.
     */
     auto can_optimize = [](const program_node* node) {
-        if (node->is_output() || (!node->get_fused_activations_funcs().empty())) {
+        bool is_dynamic = node->get_output_layout().is_dynamic();
+        bool is_planar = node->get_output_layout().format == format::bfyx ||
+                         node->get_output_layout().format == format::bfzyx ||
+                         node->get_output_layout().format == format::bfwzyx;
+        bool no_pad = !node->get_output_layout().data_padding && !node->get_input_layouts().empty() && !node->get_input_layouts()[0].data_padding;
+        if (node->is_type<reshape>() && is_dynamic && is_planar && no_pad && !node->is_output() && node->get_fused_activations_funcs().empty())
+            return false;
+
+        if (is_dynamic || node->is_output() || (!node->get_fused_activations_funcs().empty())) {
             return false;
         }
         return true;
@@ -325,6 +340,9 @@ void prepare_buffer_fusing::run(program& p) {
     auto node_itr = p.get_processing_order().begin();
     while (node_itr != p.get_processing_order().end()) {
         auto& node = (*node_itr++);
+        if (!node->is_valid_output_layout())
+            continue;
+
         if (!can_optimize(node))
             continue;
         // zero copy
@@ -418,6 +436,9 @@ void prepare_buffer_fusing::run(program& p) {
     node_itr = p.get_processing_order().begin();
     while (node_itr != p.get_processing_order().end()) {
         auto& node = (*node_itr++);
+        if (!node->is_valid_output_layout())
+            continue;
+
         if (!can_optimize(node))
             continue;
 

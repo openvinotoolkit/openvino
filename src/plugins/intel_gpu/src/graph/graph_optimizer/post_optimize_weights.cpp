@@ -35,6 +35,9 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
     if (!impl)
         return;
 
+    if (impl->is_dynamic())
+        return;
+
     auto output_layout = node.get_output_layout();
     auto& weights_reorder_params = impl->_weights_reorder_params;
 
@@ -53,8 +56,13 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
 
             // Don't run impl selection to avoid double compilation of reorder kernels
             // in main program and internal program for constant propagation
-            if (!g_node.is_constant())
-                g_node.selected_impl = g_node.type()->choose_impl(g_node);
+            if (!g_node.is_constant()) {
+                g_node.set_selected_impl(g_node.type()->choose_impl(g_node));
+                if (auto impl = g_node.get_selected_impl()) {
+                    auto kernel_ids = p.get_kernels_cache().add_kernels_source(impl->get_kernels_source());
+                    impl->set_kernel_ids(kernel_ids);
+                }
+            }
         }
     }
 

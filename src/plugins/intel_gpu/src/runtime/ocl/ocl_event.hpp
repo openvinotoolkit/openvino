@@ -20,7 +20,7 @@ public:
         : ocl_base_event(queue_stamp)
         , _event(ev) {}
 
-    cl::Event get() override { return _event; }
+    cl::Event& get() override { return _event; }
 
 private:
     bool _callback_set = false;
@@ -47,7 +47,7 @@ public:
         process_events(ev);
     }
 
-    cl::Event get() override { return _last_ocl_event; }
+    cl::Event& get() override { return _last_ocl_event; }
 
     void reset() override {
         event::reset();

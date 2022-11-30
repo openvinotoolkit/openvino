@@ -4,6 +4,8 @@
 
 #include <shared_test_classes/base/ov_subgraph.hpp>
 #include "ngraph/ops.hpp"
+#include "ov_ops/augru_cell.hpp"
+#include "ov_ops/augru_sequence.hpp"
 
 #include <common_test_utils/ov_tensor_utils.hpp>
 
@@ -548,6 +550,16 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v4::Proposal>& no
                              const ov::Shape& targetShape) {
     if (port == 1) {
         return ov::test::utils::create_and_fill_tensor_normal_distribution(elemType, targetShape, 0.0f, 0.2f, 7235346);
+    } else if (port == 2) {
+        ov::Tensor tensor = ov::Tensor(elemType, targetShape);
+
+        auto *dataPtr = tensor.data<float>();
+        dataPtr[0] = dataPtr[1] = 225.0f;
+        dataPtr[2] = 1.0f;
+        if (tensor.get_size() == 4)
+            dataPtr[3] = 1.0f;
+
+        return tensor;
     }
     return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
 }
@@ -656,6 +668,54 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v9::NonMaxSuppres
     }
 }
 
+ov::runtime::Tensor generate(const std::shared_ptr<ov::op::internal::AUGRUSequence>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    if (port == 6) {
+        ov::runtime::Tensor tensor = ov::runtime::Tensor(elemType, targetShape);
+
+        const size_t range = 1;
+        const size_t startFrom = 0;
+        const size_t k = 1000;
+        const int seed = 1;
+        std::default_random_engine random(seed);
+        std::uniform_int_distribution<int32_t> distribution(k * startFrom, k * (startFrom + range));
+
+        auto *dataPtr = tensor.data<float>();
+        for (size_t i = 0; i < tensor.get_size(); i++) {
+            auto value = static_cast<float>(distribution(random));
+            dataPtr[i] = value / static_cast<float>(k);
+        }
+        return tensor;
+    }
+    return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
+}
+
+ov::runtime::Tensor generate(const std::shared_ptr<ov::op::internal::AUGRUCell>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    if (port == 5) {
+        ov::runtime::Tensor tensor = ov::runtime::Tensor(elemType, targetShape);
+
+        const size_t range = 1;
+        const size_t startFrom = 0;
+        const size_t k = 1000;
+        const int seed = 1;
+        std::default_random_engine random(seed);
+        std::uniform_int_distribution<int32_t> distribution(k * startFrom, k * (startFrom + range));
+
+        auto *dataPtr = tensor.data<float>();
+        for (size_t i = 0; i < tensor.get_size(); i++) {
+            auto value = static_cast<float>(distribution(random));
+            dataPtr[i] = value / static_cast<float>(k);
+        }
+        return tensor;
+    }
+    return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
+}
+
 template<ov::element::Type_t elemType>
 ov::runtime::Tensor generate_unique_possibilities(const ov::Shape &targetShape) {
     using value_type = typename element_type_traits<elemType>::value_type;
@@ -691,7 +751,6 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v6::ExperimentalD
     return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
 }
 
-
 ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v5::RNNSequence>& node,
                              size_t port,
                              const ov::element::Type& elemType,
@@ -721,19 +780,21 @@ ov::runtime::Tensor generateInput(const std::shared_ptr<ov::Node>& node,
 
 InputsMap getInputMap() {
     static InputsMap inputsMap{
-#define NGRAPH_OP(NAME, NAMESPACE) {NAMESPACE::NAME::get_type_info_static(), generateInput<NAMESPACE::NAME>},
+#define _OPENVINO_OP_REG(NAME, NAMESPACE) {NAMESPACE::NAME::get_type_info_static(), generateInput<NAMESPACE::NAME>},
 
-#include "ngraph/opsets/opset1_tbl.hpp"
-#include "ngraph/opsets/opset2_tbl.hpp"
-#include "ngraph/opsets/opset3_tbl.hpp"
-#include "ngraph/opsets/opset4_tbl.hpp"
-#include "ngraph/opsets/opset5_tbl.hpp"
-#include "ngraph/opsets/opset6_tbl.hpp"
-#include "ngraph/opsets/opset7_tbl.hpp"
-#include "ngraph/opsets/opset8_tbl.hpp"
-#include "ngraph/opsets/opset9_tbl.hpp"
+#include "openvino/opsets/opset1_tbl.hpp"
+#include "openvino/opsets/opset2_tbl.hpp"
+#include "openvino/opsets/opset3_tbl.hpp"
+#include "openvino/opsets/opset4_tbl.hpp"
+#include "openvino/opsets/opset5_tbl.hpp"
+#include "openvino/opsets/opset6_tbl.hpp"
+#include "openvino/opsets/opset7_tbl.hpp"
+#include "openvino/opsets/opset8_tbl.hpp"
+#include "openvino/opsets/opset9_tbl.hpp"
+#include "openvino/opsets/opset10_tbl.hpp"
 
-#undef NGRAPH_OP
+#include "ov_ops/opset_private_tbl.hpp"
+#undef _OPENVINO_OP_REG
     };
     return inputsMap;
 }

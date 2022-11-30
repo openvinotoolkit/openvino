@@ -262,10 +262,21 @@ void Graph::remove_dangling_parameters() {
     }
 }
 
+void Graph::set_metadata(std::shared_ptr<ov::Model>& model) const {
+    const std::string framework_section = "framework";
+    const auto metadata = m_model->get_metadata();
+
+    for (const auto& pair : metadata) {
+        model->set_rt_info(pair.second, framework_section, pair.first);
+    }
+}
+
 std::shared_ptr<Function> Graph::convert() {
     convert_to_ngraph_nodes();
     remove_dangling_parameters();
-    return create_function();
+    auto function = create_function();
+    set_metadata(function);
+    return function;
 }
 
 OutputVector Graph::make_framework_nodes(const Node& onnx_node) {
@@ -372,6 +383,21 @@ OutputVector Graph::make_ng_nodes(const Node& onnx_node) {
         NGRAPH_ERR << msg_prefix + "Unhandled exception type. \n";
         std::rethrow_exception(std::current_exception());
     }
+
+    const size_t outputs_size = std::accumulate(std::begin(ng_subgraph_outputs),
+                                                std::end(ng_subgraph_outputs),
+                                                0,
+                                                [](const size_t lhs, const Output<ov::Node>& rhs) {
+                                                    return lhs + rhs.get_node()->get_output_size();
+                                                });
+    NGRAPH_CHECK(onnx_node.get_outputs_size() <= outputs_size,
+                 "Expected output number of ",
+                 onnx_node.op_type(),
+                 " node is ",
+                 onnx_node.get_outputs_size(),
+                 " while the implementation provides ",
+                 outputs_size,
+                 " outputs");
 
     set_friendly_names(onnx_node, ng_subgraph_outputs);
 

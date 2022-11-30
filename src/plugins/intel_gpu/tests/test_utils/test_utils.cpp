@@ -288,7 +288,7 @@ std::vector<std::shared_ptr<test_params>> generic_test::generate_generic_test_pa
     return all_generic_params;
 }
 
-cldnn::engine_configuration get_test_engine_config(cldnn::queue_types queue_type) {
+static cldnn::engine_configuration get_test_engine_config(cldnn::queue_types queue_type) {
     const bool enable_profiling = false;
     std::string sources_dumps_dir = "";
     priority_mode_types priority_mode = priority_mode_types::disabled;
@@ -310,6 +310,14 @@ cldnn::engine& get_test_engine() {
     return *test_engine;
 }
 
+cldnn::engine& get_test_engine(const cldnn::engine_configuration& configuration) {
+   static std::shared_ptr<cldnn::engine> test_engine = nullptr;
+   if (!test_engine) {
+       test_engine = cldnn::engine::create(engine_types::ocl, runtime_types::ocl, configuration);
+   }
+   return *test_engine;
+}
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
 cldnn::engine& get_onednn_test_engine() {
     static std::shared_ptr<cldnn::engine> test_engine = nullptr;
@@ -320,11 +328,15 @@ cldnn::engine& get_onednn_test_engine() {
 }
 #endif
 
-cldnn::stream& get_test_stream() {
+cldnn::stream_ptr get_test_stream_ptr() {
     static std::shared_ptr<cldnn::stream> test_stream = nullptr;
     if (!test_stream)
         test_stream = get_test_engine().create_stream();
-    return *test_stream;
+    return test_stream;
+}
+
+cldnn::stream& get_test_stream() {
+    return *get_test_stream_ptr();
 }
 
 const std::string test_dump::name() const {

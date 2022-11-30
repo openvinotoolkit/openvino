@@ -12,10 +12,7 @@
 #include <list>
 
 namespace cldnn {
-primitive_type_id concatenation::type_id() {
-    static primitive_type_base<concatenation> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(concatenation)
 
 layout concatenation_inst::calc_output_layout(concatenation_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<concatenation>();
@@ -82,7 +79,10 @@ std::string concatenation_inst::to_string(concatenation_node const& node) {
 
     for (size_t i = 0; i < node.inputs_count(); ++i) {
         ss_inputs << node.input(i).id();
-        ss_inputs << ", count: " << node.input(i).get_output_layout().count();
+        if (node.input(i).get_output_layout().is_static())
+            ss_inputs << ", count: " << node.input(i).get_output_layout().count();
+        else
+            ss_inputs << ", count: " << "?";
         i != (node.inputs_count() - 1) ? ss_inputs << ", " : ss_inputs << "";
     }
 
@@ -99,7 +99,9 @@ std::string concatenation_inst::to_string(concatenation_node const& node) {
 
 concatenation_inst::typed_primitive_inst(network& network, concatenation_node const& node)
     : parent(network, node) {
+    if (node.is_dynamic()) return;
     auto input_layout = node.input().get_output_layout();
+
     auto output_layout = node.get_output_layout();
 
     tensor::value_type concat_count = 0;

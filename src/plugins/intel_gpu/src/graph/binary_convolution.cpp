@@ -12,10 +12,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id binary_convolution::type_id() {
-    static primitive_type_base<binary_convolution> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(binary_convolution)
 
 layout binary_convolution_inst::calc_output_layout(binary_convolution_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<binary_convolution>();
@@ -66,8 +63,8 @@ std::string binary_convolution_inst::to_string(binary_convolution_node const& no
 
 binary_convolution_inst::typed_primitive_inst(network& network, binary_convolution_node const& node)
     : parent(network, node) {
-    auto stride = argument.stride;
-    auto pad = argument.pad;
+    auto stride = argument->stride;
+    auto pad = argument->pad;
 
     auto input_layout = node.input().get_output_layout();
     auto output_layout = node.get_output_layout();

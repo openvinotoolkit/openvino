@@ -110,6 +110,7 @@ protected:
         ngraph::helpers::resize_function(funcRef, targetInputStaticShapes);
     }
     void validate() override {
+            auto actualOutputs = get_plugin_outputs();
         if (function->get_parameters().size() == 2) {
             auto pos = std::find_if(inputs.begin(), inputs.end(),
                                     [](const std::pair<std::shared_ptr<ov::Node>, ov::Tensor> &params) {
@@ -118,7 +119,14 @@ protected:
             IE_ASSERT(pos != inputs.end());
             inputs.erase(pos);
         }
-        SubgraphBaseTest::validate();
+        auto expectedOutputs = calculate_refs();
+        if (expectedOutputs.empty()) {
+                return;
+        }
+        ASSERT_EQ(actualOutputs.size(), expectedOutputs.size())
+                << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
+
+        compare(expectedOutputs, actualOutputs);
     }
     std::shared_ptr<ngraph::Function> createFunction(bool depthConst) {
         auto params = ngraph::builder::makeDynamicParams(ngraph::element::i32, {inputDynamicShapes.front()});
@@ -160,8 +168,8 @@ namespace {
 const std::vector<Precision> outPrc = {
         Precision::FP32,
         Precision::BF16,
-        Precision::I8,
-        Precision::U8
+        Precision::I8
+        // Precision::U8  // Precision cannot be wrapped to constant one hot
 };
 
 std::vector<std::pair<ngraph::helpers::InputLayerType, bool>> secondaryInputTypesStaticCase = {
