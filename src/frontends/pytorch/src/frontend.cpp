@@ -57,7 +57,6 @@ std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
     }
     FRONT_END_OP_CONVERSION_CHECK(unconverted_ops_types.size() == 0,
                                   "Model wasn't fully converted. Unconverted operation types:\n" + ops_str.str());
-
     return converted_model;
 }
 
