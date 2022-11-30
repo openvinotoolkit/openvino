@@ -68,8 +68,10 @@ def main():
         ireqs.start_async(encoded)
     ireqs.wait_all()
     end = perf_counter()
+    duration = end - start
     log.info(f'Average sequence length: {sum_seq_len / len(sst2_sentences):.2f}')
-    log.info(f'Average processing time: {(end - start) / len(sst2_sentences) * 1e3:.2f} ms')
+    log.info(f'Average processing time: {duration / len(sst2_sentences) * 1e3:.2f} ms')
+    log.info(f'Duration:                {duration:.2f} seconds')
 
 
 if __name__ == '__main__':

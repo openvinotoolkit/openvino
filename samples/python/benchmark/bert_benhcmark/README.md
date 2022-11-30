@@ -18,11 +18,21 @@ The sample downloads a model and a tokenizer, export the model to onnx, reads th
 You can see the explicit description of
 each sample step at [Integration Steps](../../../../docs/OV_Runtime_UG/integrate_with_your_application.md) section of "Integrate OpenVINO™ Runtime with Your Application" guide.
 
-## Building
-
-To build the sample, please use instructions available at [Build the Sample Applications](../../../../docs/OV_Runtime_UG/Samples_Overview.md) section in OpenVINO™ Toolkit Samples guide.
-
 ## Running
+
+Install the `openvino` Python package:
+
+```
+python -m pip install openvino
+```
+
+Install packages from `requirements.txt`:
+
+```
+python -m pip install -r requirements.txt
+```
+
+Run the sample
 
 ```
 python bert_benhcmark.py

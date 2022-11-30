@@ -69,7 +69,7 @@ ffmpeg -i cat.jpg -pix_fmt nv12 car.yuv
 
 1. Install openvino-dev python package if you don't have it to use Open Model Zoo Tools:
    ```
-   python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
+   python -m pip install openvino-dev[caffe]
    ```
 
 2. Download a pre-trained model:

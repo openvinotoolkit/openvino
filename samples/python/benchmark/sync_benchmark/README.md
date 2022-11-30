@@ -26,10 +26,6 @@ The sample compiles a model for a given device, randomly generates input data, p
 You can see the explicit description of
 each sample step at [Integration Steps](../../../../docs/OV_Runtime_UG/integrate_with_your_application.md) section of "Integrate OpenVINO™ Runtime with Your Application" guide.
 
-## Building
-
-To build the sample, please use instructions available at [Build the Sample Applications](../../../../docs/OV_Runtime_UG/Samples_Overview.md) section in OpenVINO™ Toolkit Samples guide.
-
 ## Running
 
 ```
@@ -50,7 +46,7 @@ To run the sample, you need to specify a model:
 1. Install the `openvino-dev` Python package to use Open Model Zoo Tools:
 
 ```
-python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
+python -m pip install openvino-dev[caffe]
 ```
 
 2. Download a pre-trained model using:
