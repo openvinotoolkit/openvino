@@ -6,7 +6,7 @@
 
 #pragma once
 
-#if defined(IN_OV_CORE_LIBRARY)
+#if defined(IN_OPENVINO_LIBRARY)
 #    error("ngraph/ops.hpp is for external use only")
 #endif
 

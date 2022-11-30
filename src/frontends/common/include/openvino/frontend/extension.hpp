@@ -8,7 +8,7 @@
 
 #pragma once
 
-#ifdef IN_OV_CORE_LIBRARY
+#ifdef IN_OPENVINO_LIBRARY
 #    error("extension.hpp is for external use only")
 #endif
 

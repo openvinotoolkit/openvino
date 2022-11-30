@@ -3,7 +3,7 @@
 #
 
 add_definitions(-DPROJECT_ROOT_DIR="${OpenVINO_SOURCE_DIR}")
-add_definitions(-DIN_OV_CORE_LIBRARY)
+add_definitions(-DIN_OPENVINO_LIBRARY)
 
 include(cmake/install_tbb.cmake)
 
