@@ -38,7 +38,8 @@ TEST_P(GnaLogTest, LogLevel) {
     ov::log::Level log_level, message_level;
     std::tie(log_level, message_level) = GetParam();
 
-    GnaLog log(log_level);
+    const auto prev_log_level = GnaLog::get_log_level();
+    GnaLog::set_log_level(log_level);
 
     switch (message_level) {
     case ov::log::Level::ERR :
@@ -74,6 +75,7 @@ TEST_P(GnaLogTest, LogLevel) {
 
     std::cout.rdbuf(sbuf);
     std::cerr.rdbuf(ebuf);
+    GnaLog::set_log_level(prev_log_level);
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_GnaLogTest,

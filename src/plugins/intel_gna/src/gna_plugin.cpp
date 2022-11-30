@@ -356,8 +356,8 @@ GNAPlugin::GNAPlugin(const std::map<std::string, std::string>& configMap) :
     graphCompiler(config) {
     Init();
     SetConfig(configMap);
+    log::set_log_level(gnaFlags->log_level);
     InitGNADevice();
-    GnaLog(gnaFlags->log_level);
 }
 
 void GNAPlugin::Init() {
