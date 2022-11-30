@@ -180,6 +180,27 @@ Options:
                         Optional. Path to JSON file to dump OpenVINO parameters, which were set by application.
   -load_config LOAD_CONFIG
                         Optional. Path to JSON file to load custom OpenVINO parameters. Please note, command line parameters have higher priority then parameters from configuration file.
+                        Example 1: a simple JSON file for HW device with primary properties.
+                                    {
+                                       "CPU": {"NUM_STREAMS": "3", "PERF_COUNT": "NO"}
+                                    }
+                        Example 2: a simple JSON file for meta device(AUTO/MULTI) with HW device properties.
+                                    {
+                                    	"AUTO": {
+                                    		"PERFORMANCE_HINT": "",
+                                    		"PERF_COUNT": "NO",
+                                    		"DEVICE_PROPERTIES": {
+                                    			"CPU": {
+                                    				"INFERENCE_PRECISION_HINT": "f32",
+                                    				"NUM_STREAMS": "3"
+                                    			},
+                                    			"GPU": {
+                                    				"INFERENCE_PRECISION_HINT": "f32",
+                                    				"NUM_STREAMS": "5"
+                                    			}
+                                    		}
+                                    	}
+                                    }
   -infer_precision INFER_PRECISION
                         Optional. Hint to specifies inference precision. Example: -infer_precision CPU:bf16,GPU:f32
   -ip {u8,U8,f16,FP16,f32,FP32}, --input_precision {u8,U8,f16,FP16,f32,FP32}
