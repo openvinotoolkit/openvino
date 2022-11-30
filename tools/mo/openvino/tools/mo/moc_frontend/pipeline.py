@@ -142,8 +142,9 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
                 if node_cur.get('input_name') == name:
                     node = node_cur
                     break
-            assert node is not None, "Please check correctness of the command-line. " \
-                                     "Place (operation or tensor) with name {} is not found.".format(name)
+            if node is None:
+                raise Error("Please check correctness of the command-line. "
+                            "Place (operation or tensor) with name {} is not found.".format(name))
             place = node.get('node')
 
             if node.get('shape'):
@@ -151,6 +152,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
 
             if node.get('data_type'):
                 dtype = node['data_type']
+                ov_type = Type(dtype)
             else:
                 # we need to detect type of Placeholder
                 try:
@@ -164,7 +166,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
                     ov_type = Type.f32
                 dtype = get_numpy_ctype(ov_type)
 
-            input_model.set_element_type(place, Type(dtype))
+            input_model.set_element_type(place, ov_type)
             # prepare and cast value to dtype
             from openvino.tools.mo.front.tf.common import tf_data_type_cast
             from openvino.tools.mo.front.common.partial_infer.utils import mo_array
