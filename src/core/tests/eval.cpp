@@ -27,6 +27,7 @@
 #include "ngraph/op/cosh.hpp"
 #include "ngraph/op/erf.hpp"
 #include "ngraph/op/exp.hpp"
+#include "ngraph/op/fake_quantize.hpp"
 #include "ngraph/op/floor.hpp"
 #include "ngraph/op/gather.hpp"
 #include "ngraph/op/log.hpp"
@@ -59,6 +60,7 @@
 #include "ngraph/op/unsqueeze.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/validation_util.hpp"
+#include "sequnce_generator.hpp"
 #include "util/all_close_f.hpp"
 #include "util/ndarray.hpp"
 #include "util/test_tools.hpp"
@@ -1813,4 +1815,30 @@ TEST(eval, evaluate_softsign_9) {
     auto result_data = result_tensor[0].data<float>();
     for (size_t i = 0; i < result_tensor[0].get_size(); ++i)
         EXPECT_NEAR(result_data[i], out[i], 1e-6F);
+}
+
+TEST(eval, evaluate_fake_quantize_dynamic_input) {
+    using namespace testing;
+    constexpr auto et = element::f32;
+
+    auto param = make_shared<op::Parameter>(et, PartialShape::dynamic());
+    auto in_low = op::v0::Constant::create(et, Shape{}, {0.f});
+    auto in_high = op::v0::Constant::create(et, Shape{}, {5.f});
+    auto out_low = op::v0::Constant::create(et, Shape{}, {2.f});
+    auto out_high = op::v0::Constant::create(et, Shape{}, {4.f});
+
+    auto op = make_shared<op::v0::FakeQuantize>(param, in_low, in_high, out_low, out_high, 4);
+    auto f = make_shared<Function>(OutputVector{op}, ParameterVector{param});
+
+    const auto exp_shape = Shape{1, 3, 2};
+    std::vector<float> input_data;
+    std::generate_n(std::back_inserter(input_data), shape_size(exp_shape), ov::SeqGen<float>(0.f));
+
+    auto result = make_shared<HostTensor>();
+    ASSERT_TRUE(f->evaluate({result}, {make_host_tensor<et>(exp_shape, input_data)}));
+
+    EXPECT_EQ(result->get_element_type(), et);
+    EXPECT_EQ(result->get_shape(), exp_shape);
+    EXPECT_THAT(read_vector<float>(result),
+                Pointwise(FloatEq(), std::vector<float>{2.f, 2.6666667f, 2.6666667f, 3.3333333f, 3.3333333f, 4.f}));
 }
