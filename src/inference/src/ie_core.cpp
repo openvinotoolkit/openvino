@@ -103,26 +103,27 @@ ov::util::FilePath getPluginPath(const std::string& pluginName, bool needAddSuff
 
     auto pluginPath = ov::util::to_file_path(pluginName.c_str());
 
-    // 0. user can provide a full path
-
-#ifndef _WIN32
-    try {
+    // pluginName contains path (absolute or relative) to plugin, e.g.
+    //    1) /path/to/libexample.so
+    //    2) ./libexample.so
+    //    3) libexample.so
+    if (ov::util::get_file_ext(pluginName) == ov::util::FileTraits<char>::library_ext()) {
         pluginPath = ov::util::to_file_path(ov::util::get_absolute_file_path(pluginName));
-    } catch (const std::runtime_error&) {
-        // failed to resolve absolute path; not critical
+        if (FileUtils::fileExist(pluginPath))
+            return pluginPath;
     }
-#endif  // _WIN32
+    // otherwise pluginName contains library name w/ or w/o extension, e.g.
+    //    1) libexample.so
+    //    2) example
 
-    if (FileUtils::fileExist(pluginPath))
-        return pluginPath;
-
+    // explicitly convert pluginName to plugin file name (example -> libexample.so)
     // ov::Core::register_plugin(plugin_name, device_name) case
     if (needAddSuffixes)
         pluginPath = FileUtils::makePluginLibraryName({}, pluginPath);
 
-    // plugin can be found either:
+    // if plugin wasn't found before, it can be found either:
 
-    // 1. in openvino-X.Y.Z folder relative to libopenvino.so
+    // 1. in openvino-X.Y.Z folder relative to openvino library
     std::ostringstream str;
     str << "openvino-" << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH;
     const auto subFolder = ov::util::to_file_path(str.str());
@@ -131,7 +132,7 @@ ov::util::FilePath getPluginPath(const std::string& pluginName, bool needAddSuff
     if (FileUtils::fileExist(absFilePath))
         return absFilePath;
 
-    // 2. in the openvino.so location
+    // 2. in the openvino library location
     absFilePath = FileUtils::makePath(ieLibraryPath, pluginPath);
     return absFilePath;
 }
