@@ -109,10 +109,10 @@ else()
     if(gflags_FOUND)
         if(TARGET ${GFLAGS_TARGET})
             # nothing
-        elseif(TARGET gflags_nothreads-shared)
+        elseif(TARGET gflags-shared)
             # gflags shared case for CentOS / RHEL / Fedora
-            set_target_properties(gflags_nothreads-shared PROPERTIES IMPORTED_GLOBAL ON)
-            add_library(gflags ALIAS gflags_nothreads-shared)
+            set_target_properties(gflags-shared PROPERTIES IMPORTED_GLOBAL ON)
+            add_library(gflags ALIAS gflags-shared)
         else()
             message(FATAL_ERROR "Internal error: failed to find imported target 'gflags' using '${gflags_component}' component")
         endif()
