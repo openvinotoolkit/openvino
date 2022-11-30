@@ -1097,7 +1097,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             //  follow the legacy checking rule
             if (!supports_immad && fused_node->is_type<convolution>() && fused_node->get_users().size() > 1) {
                 // Allowed new pattern: Elt1, Act, Elt2, Elt3, Elt4 are fused to Conv1
-                // * Conv1 -> Eltw1(Add) -> Act(Clamp) -> Eltw2(Mul) -> Eltw3(Mul) -> Eltw4(Add) -> Conv2
+                // * Conv1 -> Eltw1(Add) -> Act(Clamp) -> Eltw2(Mul) -> Eltw3(Mul) -> Eltw4(Add) -> Conv2
                 // *   \–----------------------------------->/                          \---------> Eltw5(Div)
                 //
                 // Extended eltwise fusiblity checking rules

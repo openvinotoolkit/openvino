@@ -29,6 +29,7 @@
 #include "utils.hpp"
 // clang-format on
 
+namespace {
 bool parse_and_check_command_line(int argc, char* argv[]) {
     // ---------------------------Parsing and validating input
     // arguments--------------------------------------
@@ -92,7 +93,7 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
     return true;
 }
 
-static void next_step(const std::string additional_info = "") {
+void next_step(const std::string additional_info = "") {
     static size_t step_id = 0;
     static const std::map<size_t, std::string> step_names = {{1, "Parsing and validating input arguments"},
                                                              {2, "Loading OpenVINO Runtime"},
@@ -187,6 +188,19 @@ void setDeviceProperty(ov::Core& core,
         properties.emplace(device_property);
     }
 }
+
+void warn_if_no_batch(const benchmark_app::InputsInfo& first_inputs) {
+    if (!std::any_of(first_inputs.begin(),
+                     first_inputs.end(),
+                     [](const std::pair<const std::string, benchmark_app::InputInfo>& info) {
+                         return ov::layout::has_batch(info.second.layout);
+                     })) {
+        slog::warn
+            << "No batch dimension was found, asssuming batch to be 1. Beware: this might affect FPS calculation."
+            << slog::endl;
+    }
+}
+}  // namespace
 
 /**
  * @brief The entry point of the benchmark application
@@ -608,7 +622,7 @@ int main(int argc, char* argv[]) {
             if (statistics)
                 statistics->add_parameters(
                     StatisticsReport::Category::EXECUTION_RESULTS,
-                    {StatisticsVariant("сompile model time (ms)", "load_model_time", duration_ms)});
+                    {StatisticsVariant("compile model time (ms)", "load_model_time", duration_ms)});
 
             convert_io_names_in_map(inputFiles, compiledModel.inputs());
             app_inputs_info = get_inputs_info(FLAGS_shape,
@@ -767,14 +781,9 @@ int main(int argc, char* argv[]) {
 
             topology_name = model->get_friendly_name();
 
-            // Calculate batch size according to provided layout and shapes (static case)
-            if (!isDynamicNetwork && app_inputs_info.size()) {
-                batchSize = get_batch_size(app_inputs_info.front());
-
-                slog::info << "Model batch size: " << batchSize << slog::endl;
-            } else if (batchSize == 0) {
-                batchSize = 1;
-            }
+            batchSize = get_batch_size(app_inputs_info.at(0));
+            warn_if_no_batch(app_inputs_info.at(0));
+            slog::info << "Model batch size: " << batchSize << slog::endl;
 
             printInputAndOutputsInfoShort(*model);
             // ----------------- 7. Loading the model to the device
@@ -1136,16 +1145,6 @@ int main(int argc, char* argv[]) {
 
                 if (isDynamicNetwork) {
                     batchSize = get_batch_size(inputs);
-                    if (!std::any_of(inputs.begin(),
-                                     inputs.end(),
-                                     [](const std::pair<const std::string, benchmark_app::InputInfo>& info) {
-                                         return ov::layout::has_batch(info.second.layout);
-                                     })) {
-                        slog::warn
-                            << "No batch dimension was found, asssuming batch to be 1. Beware: this might affect "
-                               "FPS calculation."
-                            << slog::endl;
-                    }
                 }
 
                 for (auto& item : inputs) {
