@@ -429,9 +429,6 @@ std::vector<VectorDims> Snippet::shapeInfer() const {
 }
 
 void Snippet::prepareParams() {
-    // here must be all the stuff that could only be done for static shapes, e.g. offset calculation
-    // Here it must be all the stuff that could be done once for both static and dynamic shapes
-
     masterShape = getNormalizedDimsBySize(masterShape, tensorRank);
     for (auto& pshape : normInputShapes)
         pshape = getNormalizedDimsBySize(pshape, tensorRank);

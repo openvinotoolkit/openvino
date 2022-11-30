@@ -10,12 +10,11 @@ namespace ngraph {
 namespace snippets {
 namespace op {
 
-LoopBase::LoopBase(const std::vector<Output<Node>> &args, size_t dimension, size_t work_amount, size_t increment)
-        : Op(args), dimension(dimension), work_amount(work_amount), increment(increment), evaluate_once(false) {
+LoopBase::LoopBase(const std::vector<Output<Node>> &args, size_t work_amount, size_t wa_increment)
+        : Op(args), work_amount(work_amount), increment(wa_increment), evaluate_once(false) {
 }
 
 bool LoopBase::visit_attributes(AttributeVisitor &visitor) {
-    visitor.on_attribute("dimension", dimension);
     visitor.on_attribute("work_amount", work_amount);
     visitor.on_attribute("increment", increment);
     return true;
@@ -33,12 +32,8 @@ size_t LoopBase::get_increment() const {
     return increment;
 }
 
-size_t LoopBase::get_dimension() const {
-    return dimension;
-}
-
-LoopBegin::LoopBegin(const std::vector<Output<Node>> &args, size_t dimension, size_t work_amount, size_t increment)
-        : LoopBase(args, dimension, work_amount, increment),
+LoopBegin::LoopBegin(const std::vector<Output<Node>> &args, size_t work_amount, size_t increment)
+        : LoopBase(args, work_amount, increment),
         begin_address(nullptr), input_regs({}) {
     // We can only call a reduced validate_and_infer types from the constructor, since LoopEnd might not be attached
     // to the LoopBegin at this point (which is usually the case: create LoopBegin first => then attach LoopEnd to it)
@@ -46,12 +41,12 @@ LoopBegin::LoopBegin(const std::vector<Output<Node>> &args, size_t dimension, si
 }
 
 LoopBegin::LoopBegin(const std::vector<Output<Node>> &args)
-        : LoopBase(args, 0, 0, 0), begin_address(nullptr), input_regs({}) {
+        : LoopBase(args, 0, 0), begin_address(nullptr), input_regs({}) {
     validate_and_infer_types_except_LoopEnd();
 }
 
 std::shared_ptr<Node> LoopBegin::clone_with_new_inputs(const OutputVector& inputs) const {
-    return std::shared_ptr<LoopBegin>(new LoopBegin(inputs, dimension, work_amount, increment));
+    return std::shared_ptr<LoopBegin>(new LoopBegin(inputs, work_amount, increment));
 }
 
 
@@ -70,7 +65,6 @@ void LoopBegin::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this, last_output_inputs.size() == 1, "LoopBegin must have exactly one input attached to the last output");
     const auto& loop_end = ov::as_type_ptr<LoopEnd>(last_output_inputs.begin()->get_node()->shared_from_this());
     NODE_VALIDATION_CHECK(this, loop_end != nullptr, "LoopBegin must have LoopEnd connected to its last output");
-    dimension = loop_end->get_dimension();
     work_amount = loop_end->get_work_amount();
     increment = loop_end->get_increment();
 }
@@ -85,15 +79,15 @@ std::shared_ptr<LoopEnd> LoopBegin::get_loop_end() {
     return  loop_end;
 }
 
-LoopEnd::LoopEnd(const std::vector<Output<Node>> &args, size_t dimension, size_t work_amount, size_t increment,
+LoopEnd::LoopEnd(const std::vector<Output<Node>> &args, size_t work_amount, size_t increment,
                  std::vector<bool> apply_increment, std::vector<int64_t> finalization_offsets)
-        : LoopBase(args, dimension, work_amount, increment), apply_increment(std::move(apply_increment)),
+        : LoopBase(args, work_amount, increment), apply_increment(std::move(apply_increment)),
         finalization_offsets(std::move(finalization_offsets)), has_outer_loop(true) {
     constructor_validate_and_infer_types();
 }
 
 std::shared_ptr<Node> LoopEnd::clone_with_new_inputs(const OutputVector& inputs) const {
-    return std::make_shared<LoopEnd>(inputs, dimension, work_amount, increment, apply_increment, finalization_offsets);
+    return std::make_shared<LoopEnd>(inputs, work_amount, increment, apply_increment, finalization_offsets);
 }
 
 std::shared_ptr<LoopBegin> LoopEnd::get_loop_begin() {

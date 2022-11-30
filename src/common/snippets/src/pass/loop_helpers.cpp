@@ -3,7 +3,7 @@
 //
 
 #include "ngraph/op/op.hpp"
-#include "snippets/op/loop_helpers.hpp"
+#include "snippets/pass/loop_helpers.hpp"
 
 namespace ngraph {
 namespace snippets {
@@ -26,7 +26,7 @@ std::shared_ptr<LoopBegin> insertLoopBeginAfterOutputs(const OutputVector& origi
 
 std::shared_ptr<LoopEnd> insertLoopEndBeforeInputs(const std::vector<Input<Node>>& originalInputs,
                                                    const std::shared_ptr<LoopBegin>& loopBegin,
-                                                   size_t dimension, size_t work_amount, size_t increment,
+                                                   size_t work_amount, size_t increment,
                                                    std::vector<bool> apply_increment,
                                                    std::vector<int64_t> finalization_offsets) {
     OutputVector originalParentOutputs;
@@ -34,7 +34,7 @@ std::shared_ptr<LoopEnd> insertLoopEndBeforeInputs(const std::vector<Input<Node>
         originalParentOutputs.push_back(in.get_source_output());
     }
     originalParentOutputs.push_back(loopBegin->output(loopBegin->get_output_size() - 1));
-    auto loop_end = std::make_shared<LoopEnd>(originalParentOutputs, dimension, work_amount, increment,
+    auto loop_end = std::make_shared<LoopEnd>(originalParentOutputs, work_amount, increment,
                                              std::move(apply_increment), std::move(finalization_offsets));
 
     for (int i = 0; i < originalInputs.size(); i++) {

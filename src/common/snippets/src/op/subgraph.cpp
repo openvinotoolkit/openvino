@@ -296,16 +296,6 @@ ov::PartialShape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& 
     return master_shape;
 }
 
-PartialShape snippets::op::Subgraph::get_master_shape() {
-    auto results = m_body->get_results();
-    PartialShape outPShape = results[0]->get_input_partial_shape(0);
-    for (const auto& r : results)
-        PartialShape::broadcast_merge_into(outPShape, r->get_input_shape(0),
-                                           ::ngraph::op::AutoBroadcastType::NUMPY);
-    master_shape = outPShape;
-    return master_shape;
-}
-
 void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outputShapes,
                                                  const BlockedShapeVector& inputShapes) {
     // We should insert Convert before Results to set original output element type if needed
@@ -367,7 +357,7 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
     manager.register_pass<snippets::pass::InsertStore>(count);
     // todo: presently dynamic pipeline is activated even if the last two dimension are static
     //  In general, we can use static kernels in this case, but several parameters (src and dst memory pointers for example)
-    //  should be passed as run-time args, so it's a mixed regime: kernel is shape-aware, but some additional runtime args are required
+    //  should be passed as run-time args, so it's a mixed mode: kernel is shape-aware, but some additional runtime args are required
     // Presently Broadcasting is organized in the following way:
     // * ALL last dims are static => broadcasting is handled via MoveBroadcast and pointer arithmetics (even for dynamic upper dims)
     if (!inputs_has_dynamic_last_dims) {

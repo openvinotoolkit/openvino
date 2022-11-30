@@ -12,9 +12,10 @@ namespace op {
 
 /**
  * @interface MemoryAccess
- * @brief This is an ubre
- *        where number of elements to store is determined by "count"
- *        Default value is "1" - to store one element
+ * @brief This is a base class for memory access operations (like Load and Store).
+ *        It provides universal set/get interface to manipulate the number
+ *        of elements accessed during one operation call ("count").
+ *        Default "count" value is "1" - it means to load/store one element
  * @ingroup snippets
  */
 

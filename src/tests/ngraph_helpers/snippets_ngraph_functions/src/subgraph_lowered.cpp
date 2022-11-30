@@ -6,7 +6,7 @@
 #include "common_test_utils/data_utils.hpp"
 #include <snippets/snippets_isa.hpp>
 #include "ngraph_functions/builders.hpp"
-#include <snippets/op/loop_helpers.hpp>
+#include "snippets/pass/loop_helpers.hpp"
 
 namespace ov {
 namespace test {
@@ -38,14 +38,14 @@ std::shared_ptr<ov::Model> AddFunctionLoweredBroadcast::initLowered() const {
     ResultVector results({model->get_results()[0]});
     const auto& inner_loop_begin = ngraph::snippets::op::insertLoopBegin(input_params);
     std::vector<bool> apply_increments(input_params.size() + results.size(), true);
-    insertLoopEnd(results, inner_loop_begin, 1, 1, 1, apply_increments);
+    insertLoopEnd(results, inner_loop_begin, 1, 1, apply_increments);
     auto outer_WA = std::accumulate(input_shapes.begin(), input_shapes.end(), 0,
                    [](int64_t max_val, const PartialShape& ps) {
                         return std::max(ps[ps.size() - 2].get_length(), max_val);
                     });
     if (outer_WA > 1) {
         const auto& outer_loop_begin = ngraph::snippets::op::insertLoopBegin(input_params);
-        insertLoopEnd(results, outer_loop_begin, 0, 1, 1, apply_increments);
+        insertLoopEnd(results, outer_loop_begin, 1, 1, apply_increments);
     }
     return model;
 }
@@ -94,14 +94,14 @@ std::shared_ptr<ov::Model> EltwiseThreeInputsLoweredFunction::initLowered() cons
     ResultVector results({model->get_results()[0]});
     const auto& inner_loop_begin = ngraph::snippets::op::insertLoopBegin(input_params);
     std::vector<bool> apply_increments(input_params.size() + results.size(), true);
-    const auto& inner_loop_end = insertLoopEnd(results, inner_loop_begin, 1, 1, 1, apply_increments);
+    const auto& inner_loop_end = insertLoopEnd(results, inner_loop_begin, 1, 1, apply_increments);
     auto outer_WA = std::accumulate(input_shapes.begin(), input_shapes.end(), 0,
                                     [](int64_t max_val, const PartialShape& ps) {
                                         return std::max(ps[ps.size() - 2].get_length(), max_val);
                                     });
     if (outer_WA > 1) {
         const auto& outer_loop_begin = ngraph::snippets::op::insertLoopBegin(input_params);
-        insertLoopEnd(results, outer_loop_begin, 0, 1, 1, apply_increments);
+        insertLoopEnd(results, outer_loop_begin, 1, 1, apply_increments);
     }
     return model;
 }

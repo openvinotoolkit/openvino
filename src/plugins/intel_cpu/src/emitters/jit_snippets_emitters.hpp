@@ -54,7 +54,7 @@ protected:
 };
 ///
 /// \brief    Kernel is the only entry point to Codogen Jit compilation. Kernel perform abstract-to-physical register
-/// mapping and creates pools of available gpr and vec registers. Kernel usually to contains (at least one)
+/// mapping and creates a pools of available gpr and vec registers. Kernel usually contains (at least one)
 /// LoopBeginEmitter and LoopEndEmitter pair. In general the enclosed emitters should be organized in the following way:
 /// KernelEmitter {                 /* entry point, maps registers, creates pools of available registers */
 ///     1.S LoopBeginEmitter        /* Scalar Loop over the outer dimension [START] */

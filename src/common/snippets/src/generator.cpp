@@ -105,8 +105,10 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
     const auto& ops = m->get_ordered_ops();
     for (auto op = ops.begin(); op < ops.end(); op++) {
         const auto& loop_begin = ov::as_type_ptr<ngraph::snippets::op::LoopBegin>(*op);
-        // ignore outer loops and possible manual tail loops
+
+        // ignore outer loops and possible manual scalar loops
         if (loop_begin && loop_begin->get_increment() != 1) {
+            OV_ITT_TASK_NEXT(GENERATE, "::VectorLoop")
             NodeVector vector_loop, tail_loop;
             std::shared_ptr<op::LoopEnd> vector_loop_end, tail_loop_end;
             vector_loop_end = loop_begin->get_loop_end();

@@ -4,7 +4,7 @@
 
 #include <snippets/itt.hpp>
 #include "snippets/pass/insert_loops.hpp"
-#include "snippets/op/loop_helpers.hpp"
+#include "snippets/pass/loop_helpers.hpp"
 
 #include <ngraph/rt_info.hpp>
 
@@ -52,8 +52,8 @@ bool ngraph::snippets::pass::InsertLoops::run_on_model(const std::shared_ptr<ov:
                            });
         }
         const auto& inner_loop_begin = op::insertLoopBegin(commonParams);
-        const auto& inner_loop_end = insertLoopEnd(commonResults, inner_loop_begin, inner_dim, inner_work_amount,
-                                                   vector_size, apply_increments, inner_finalization_offsets);
+        const auto& inner_loop_end = insertLoopEnd(commonResults, inner_loop_begin, inner_work_amount,
+                                                   vector_size, apply_increments,  inner_finalization_offsets);
         // set internal flag to enable scalar vs vector loop optimizations
         inner_loop_end->has_outer_loop = outer_work_amount > 1;
         // Due to features of topological sort, some Constants (Scalars) may appear right after Parameters in
@@ -78,7 +78,7 @@ bool ngraph::snippets::pass::InsertLoops::run_on_model(const std::shared_ptr<ov:
                            return ps[outer_dim] != 1 && ps[inner_dim] == 1;
                        });
         const auto& outer_loop_begin = op::insertLoopBegin(commonParams);
-        insertLoopEnd(commonResults, outer_loop_begin, outer_dim, outer_work_amount, 1, apply_increments);
+        insertLoopEnd(commonResults, outer_loop_begin, outer_work_amount, 1, apply_increments);
     }
 
     return true;

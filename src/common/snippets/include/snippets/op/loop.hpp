@@ -14,40 +14,37 @@ namespace op {
 
 /**
  * @interface LoopBase
- * @brief Inserted during scheduling generation and represents Loop in affine notation
+ * @brief Base class for LoopBegin and LoopEnd
  * @ingroup snippets
  */
 class LoopBase : public ngraph::op::Op {
 public:
     OPENVINO_OP("LoopBase", "SnippetsOpset");
-    LoopBase(const std::vector<Output<Node>>& args, size_t dimension, size_t work_amount, size_t increment);
+    LoopBase(const std::vector<Output<Node>>& args, size_t work_amount, size_t increment);
     LoopBase() = delete;
     bool visit_attributes(AttributeVisitor& visitor) override;
     size_t get_work_amount() const;
     size_t get_increment() const;
-    size_t get_dimension() const;
     bool get_evaluate_once() const;
 
 protected:
-    size_t dimension;
     size_t work_amount;
     size_t increment;
     bool evaluate_once; // true if the Loop is executed only once, used to skip setting and testing the loop counter
 };
 class LoopEnd;
+/**
+ * @interface LoopBegin
+ * @brief Marks the start of the Loop region.
+ *        Number of outputs always equals to the number of inputs (bypassed values) + 1 (edge to the corresponding LoopEnd)
+ * @param args - vector of input values, they are passed directly to output.
+ * @ingroup snippets
+ */
 class LoopBegin : public LoopBase {
     friend LoopEnd;
 public:
     OPENVINO_OP("LoopBegin", "SnippetsOpset");
-    /// \brief Construct an Loop
-    /// \param region The vector of pairs: emitters and the corresponding registers
-    /// \param increment Loop size - count of elements to load and store.
-    ///                  Vector Loop should have size of vector register and Scalar Loop should have 1
-    /// \param num_inputs Count of inputs
-    /// \param num_outputs Count of outputs
-    /// \param io_dims Vector of last dimensions of inputs and outputs
-    /// \param io_data_sizes Vector of data type sizes of inputs and outputs
-    explicit LoopBegin(const std::vector<Output<Node>>& args);
+    explicit LoopBegin(const OutputVector& args);
     LoopBegin() = delete;
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs)  const override;
@@ -55,15 +52,31 @@ public:
     // begin_address and input_regs are needed to communicate information between LoopBegin and LoopEnd emitters
     const uint8_t* begin_address;
     std::vector<size_t> input_regs;
+
 private:
     void validate_and_infer_types_except_LoopEnd();
-    LoopBegin(const std::vector<Output<Node>>& args, size_t dimension, size_t work_amount, size_t increment);
+    LoopBegin(const std::vector<Output<Node>>& args, size_t work_amount, size_t increment);
 };
 
+/**
+ * @interface LoopEnd
+ * @brief Marks the end of the Loop region and defines the loop properties.
+ *        Number of outputs always equals to the number of inputs (bypassed values) - 1 (edge to the corresponding LoopEnd)
+ * @param args vector of input values + LoopBegin, all values except for the LoopBegin are passed directly to output.
+ * @param work_amount total number of evaluations to be processed by the loop
+ * @param increment number of evaluations processed in one iteration of the loop.
+ * @param apply_increment describes which data pointers attributed to the loop should be incremented on every iteration.
+ * should be used when Loop is connected to Parameters and/or Results. If apply_increment[i] == true then i-th i/o data
+ * pointer will be incremented by work_amount*data_size on every iteration.
+ * @param ptr_increments specifies i/o pointer increment performed on every iteration. This is an alternative to
+ * apply_increments, which enables more flexibility.
+ * @param finalization_offsets pointer increments that are be applied to i/o pointers before exiting the loop
+ * @ingroup snippets
+ */
 class LoopEnd : public LoopBase {
 public:
     OPENVINO_OP("LoopEnd", "SnippetsOpset");
-    LoopEnd(const std::vector<Output<Node>>& args, size_t dimension, size_t work_amount, size_t increment,
+    LoopEnd(const std::vector<Output<Node>>& args, size_t work_amount, size_t increment,
               std::vector<bool> apply_increment, std::vector<int64_t> finalization_offsets);
     LoopEnd() = delete;
     std::shared_ptr<LoopBegin> get_loop_begin();

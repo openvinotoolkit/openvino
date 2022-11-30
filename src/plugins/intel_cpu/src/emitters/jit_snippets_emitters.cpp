@@ -307,7 +307,7 @@ LoopEndEmitter::LoopEndEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::imp
     for (int i = 0; i < num_inputs; i++)
         io_data_size.push_back(loop_begin->get_input_element_type(i).size());
     for (int i = 0; i < num_outputs; i++)
-        io_data_size.push_back(loop_end->get_input_element_type(i).size());
+        io_data_size.push_back(loop_end->get_output_element_type(i).size());
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
 
