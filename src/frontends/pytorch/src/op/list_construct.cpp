@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "helper_ops/list_construct.hpp"
-
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "utils.hpp"

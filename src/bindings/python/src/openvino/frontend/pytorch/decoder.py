@@ -13,14 +13,25 @@ import torch
 def make_constant(*args, **kwargs):
     return op.Constant(*args, **kwargs)
 
+def get_type_from_py_type(value):
+    if isinstance(value, float):
+        return OVType.f32
+    if isinstance(value, int):
+        return OVType.i32
+    if isinstance(value, bool):
+        return OVType.boolean
+    return OVType.dynamic
 
 def ivalue_to_constant(ivalue):
-    if isinstance(ivalue, float):
-        return make_constant(OVType.f32, Shape([]), [ivalue]).outputs()
-    if isinstance(ivalue, int):
-        return make_constant(OVType.i32, Shape([]), [ivalue]).outputs()
-    if isinstance(ivalue, bool):
-        return make_constant(OVType.boolean, Shape([]), [ivalue]).outputs()
+    ov_type = get_type_from_py_type(ivalue)
+    if ov_type.is_static():
+        return make_constant(ov_type, Shape([]), [ivalue]).outputs()
+
+    if isinstance(ivalue, list):
+        assert len(ivalue) > 0, "Can't deduce type for empty list"
+        ov_type = get_type_from_py_type(ivalue[0])
+        assert ov_type.is_static(), "Can't deduce type for list"
+        return make_constant(ov_type, Shape([len(ivalue)]), ivalue).outputs()
 
     if ivalue.type() in pt_to_ov_type_map:
         try:

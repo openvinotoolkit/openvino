@@ -68,6 +68,7 @@ OP_CONVERTER(translate_view);
 
 const std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
+        {"aten::__not__", op::translate_1to1_match_1_inputs<opset8::LogicalNot>},
         {"aten::_convolution", op::translate_convolution},
         {"aten::abs", op::translate_1to1_match_1_inputs<opset8::Abs>},
         {"aten::adaptive_avg_pool2d", op::translate_1to1_match_2_inputs<opset8::AdaptiveAvgPool>},
