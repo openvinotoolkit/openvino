@@ -27,7 +27,7 @@ It defines domains for conditional compilation, which contains three macros to d
 
 [Open the code](https://github.com/openvinotoolkit/openvino/blob/713eb9683f67a5eb07374e96b7bbbfcd971ca69e/src/common/conditional_compilation/include/openvino/cc/selective_build.h#L113-L116)
 
-> **NOTE**: macro `OV_PP_CAT` will connect two symbols together, and macro `OV_ITT_DOMAIN` is used to declare a domain with a given name for ITT profiling. 
+> **NOTE**: macro `OV_PP_CAT` connects two symbols together, and macro `OV_ITT_DOMAIN` is used to declare a domain with a given name for ITT profiling. 
 
 #### OV_SCOPE
 It leverages `OV_ITT_SCOPED_TASK` to help annotate a code region until the scope exit, which will be profiled depending on whether the active code area needs to be set or not. The active code region will generate a macro definition with the prefix “SIMPLE_” in the header file so that it can be built in the `SELECTIVE_BUILD` mode, while the inactive code region will be excluded in the following build.
@@ -36,7 +36,7 @@ It leverages `OV_ITT_SCOPED_TASK` to help annotate a code region until the scope
 
 
 #### OV_SWITCH
-It is mainly used for the template class to verify whether the specified input parameter matches template parameter types. It checks each template parameter type (`Cases`) and returns true if it matches or false if there is no match. If matched, it is labeled as an active code region. The `Cases` can be defined by macro *OV_CASE*, which is a `case_wrapper` structure to store data type and its value. In most cases, `OV_SWITCH` will combine `OV_CASE` to work together:
+It is mainly used for the template class to verify whether the specified input parameter matches template parameter types. It checks each template parameter type (`Cases`) and returns true if it matches or false if there is no match. If matched, it is labeled as an active code region. The `Cases` can be defined by macro *OV_CASE*, which is a `case_wrapper` structure to store data type and its value. In most cases, `OV_SWITCH` combines `OV_CASE` to work together:
 
 [Open the code](https://github.com/openvinotoolkit/openvino/blob/34b76584f724ad07ed27c8ea27777ac46df92c23/src/plugins/intel_cpu/src/nodes/one_hot.cpp#L158-L161)
 
@@ -57,13 +57,13 @@ They are very similar except for different region suffix. One is run on function
 ### 2. Macro in SELECTIVE_BUILD mode
 
 #### OV_CC_DOMAINS
-It is empty in this mode.
+Empty in this mode.
 
 #### OV_CC_SCOPE_IS_ENABLED
 It checks whether the condition is true or false. It is always embedded in **OV_SCOPE** or **MATCHER_SCOPE** to decide whether the following code region needs to be excluded from the final binaries.
 
 #### OV_SCOPE
-It will check whether the code region in this module is active or inactive by the macros in the header file(`conditional_compilation_gen.h`) generated in the previous analyzed mode. The generated macros name format is <module>_<region>, in which the module name is passed by the parameters of OV_SCOPE.
+It checks whether the code region in this module is active or inactive by the macros in the header file(`conditional_compilation_gen.h`) generated in the previous analyzed mode. The generated macros name format is <module>_<region>, in which the module name is passed by the parameters of OV_SCOPE.
 
 [Open the code](https://github.com/openvinotoolkit/openvino/blob/34b76584f724ad07ed27c8ea27777ac46df92c23/src/common/conditional_compilation/include/openvino/cc/selective_build.h#L181-L183)
 
@@ -109,19 +109,19 @@ They are very similar, and functionality are the same with MATCHER_SCOPE plus th
 It means that conditional compilation is disabled.
 
 #### OV_CC_DOMAINS
-It is empty in this mode.
+Empty in this mode.
 
 #### OV_SCOPE
-It is empty in this mode.
+Empty in this mode.
 
 #### OV_SCOPE and OV_CASE
-They will do the match operation without the itt scope task.
+They do the match operation without the itt scope task.
 
 #### MATCHER_SCOPE
-It is empty.
+Empty.
 
 #### RUN_ON_FUNCTION_SCOPE and RUN_ON_MODEL_SCOPE
-They are empty.
+Empty.
 
 ## Enable conditional compilation for a new component or domain
 
@@ -184,7 +184,7 @@ In the `SELECTIVE_BUILD=COLLECT` stage, or if it was not called, in the `SELECTI
             -S .
     cmake --build build -j `nproc`
 ```
-> **NOTE**: It is more beneficial to build OpenVINO static library with conditional compilation. To do that, you can add the `-DBUILD_SHARED_LIBS=OFF` option.
+> **NOTE**: It is more beneficial to build OpenVINO static library with conditional compilation. For that, add the `-DBUILD_SHARED_LIBS=OFF` option.
 
 #### Run a test sample 
 
