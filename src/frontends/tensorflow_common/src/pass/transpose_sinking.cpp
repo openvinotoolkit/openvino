@@ -224,7 +224,7 @@ static void materialize_shapes(const shared_ptr<Node>& n,
     }
 }
 
-static void sink_transpose(const shared_ptr<Transpose>& transpose,
+static bool sink_transpose(const shared_ptr<Transpose>& transpose,
                            TransposeMap& reorders,
                            set<shared_ptr<Node>>& transposes_to_delete) {
     OPENVINO_DEBUG << "Sinking Transpose :" << describe<Transpose>(transpose);
@@ -240,18 +240,25 @@ static void sink_transpose(const shared_ptr<Transpose>& transpose,
         replace_node(transpose, new_transpose);
         mark_transpose_for_deletion(new_transpose, transposes_to_delete);
         write_transposemap(reorders, new_transpose, new_transpose);
+    } else {
+        // combine_transposes failed
+        // transpose remains in the graph
+        OPENVINO_DEBUG << "CombineTranspose has failed. Writing original transpose to the transpose map.";
+        return false;
     }
+    return true;
 }
 
-static void sink_unary(const shared_ptr<Node>& n,
+static bool sink_unary(const shared_ptr<Node>& n,
                        TransposeMap& reorders,
                        set<shared_ptr<Node>>& /* transposes_to_delete */) {
     auto arg_transpose = read_transposemap(reorders, n->input_value(0));
     OPENVINO_DEBUG << "Propagating " << describe<Transpose>(arg_transpose) << " for " << n->get_name();
     write_transposemap(reorders, n, arg_transpose);
+    return true;
 }
 
-static void sink_binary(const shared_ptr<Node>& binary,
+static bool sink_binary(const shared_ptr<Node>& binary,
                         TransposeMap& reorders,
                         set<shared_ptr<Node>>& transposes_to_delete) {
     auto left = binary->input_value(0);
@@ -263,20 +270,22 @@ static void sink_binary(const shared_ptr<Node>& binary,
     if (!(left_const && right_const)) {
         OPENVINO_DEBUG << "TransposeSinking failed for binary op " << binary->get_name()
                        << "2nd inputs to Transposes must be constants.";
-        return;
+        return false;
     }
 
     auto left_order = left_const->get_axis_vector_val();
     auto right_order = right_const->get_axis_vector_val();
 
-    auto left_mismatch = left_order != get_default_order(left.get_shape().size());
-    auto right_mismatch = right_order != get_default_order(right.get_shape().size());
+    auto left_rank = get_static_rank(left);
+    auto right_rank = get_static_rank(right);
+    auto left_mismatch = left_order != get_default_order(left_rank);
+    auto right_mismatch = right_order != get_default_order(right_rank);
 
     OPENVINO_DEBUG << "Sink binary " << binary->get_name()
                    << " left transpose: " << ov::util::vector_to_string(left_order)
-                   << " left default: " << ov::util::vector_to_string(get_default_order(left.get_shape().size()))
+                   << " left default: " << ov::util::vector_to_string(get_default_order(left_rank))
                    << " right transpose: " << ov::util::vector_to_string(right_order)
-                   << " right default: " << ov::util::vector_to_string(get_default_order(right.get_shape().size()));
+                   << " right default: " << ov::util::vector_to_string(get_default_order(right_rank));
 
     if ((left_order.size() == right_order.size() && left_order == right_order) || (!left_mismatch && !right_mismatch)) {
         // Propagate the reshape which matches the shape of the binary node
@@ -296,12 +305,13 @@ static void sink_binary(const shared_ptr<Node>& binary,
                 }
             }
         } catch (const std::exception&) {
-            throw std::runtime_error("");
+            return false;
         }
     }
+    return true;
 }
 
-static void sink_pad(shared_ptr<Pad> n, TransposeMap& reorders, set<shared_ptr<Node>>& /* transposes_to_delete */) {
+static bool sink_pad(shared_ptr<Pad> n, TransposeMap& reorders, set<shared_ptr<Node>>& /* transposes_to_delete */) {
     auto n_in = n->input_value(0);
     auto arg_transpose = read_transposemap(reorders, n_in);
     describe<Transpose>(arg_transpose);
@@ -333,10 +343,12 @@ static void sink_pad(shared_ptr<Pad> n, TransposeMap& reorders, set<shared_ptr<N
     } else {
         OPENVINO_DEBUG << "TransposeSinking failed for Pad op " << n->get_name()
                        << " . Output shape of Transpose op must be static.";
+        return false;
     }
+    return true;
 }
 
-static void sink_concat(const shared_ptr<Concat>& n,
+static bool sink_concat(const shared_ptr<Concat>& n,
                         TransposeMap& reorders,
                         set<shared_ptr<Node>>& transposes_to_delete) {
     auto n_in = n->input_value(0);
@@ -364,15 +376,14 @@ static void sink_concat(const shared_ptr<Concat>& n,
             auto iorder = iarg_transpose_order->get_axis_vector_val();
             if (iorder != order) {
                 OPENVINO_DEBUG << " input order at " << i << "-th arg is different from first arg";
-                materialize_shapes(n, reorders, transposes_to_delete);
-                return;
+                return false;
             }
 
             if (iarg_transpose->get_output_partial_shape(0).is_dynamic()) {
                 OPENVINO_DEBUG << "TransposeSinking failed for Concat op " << n->get_name()
                                << " . Input Transpose ops"
                                   " must have static shapes. ";
-                return;
+                return false;
             }
             auto iinput_shape = apply_permutation(iarg_transpose->get_shape(), def_order);
 
@@ -397,10 +408,12 @@ static void sink_concat(const shared_ptr<Concat>& n,
     } else {
         OPENVINO_DEBUG << "TransposeSinking failed for Concat op " << n->get_name()
                        << " . Output shape of Transpose op must be static.";
+        return false;
     }
+    return true;
 }
 
-static void sink_prelu(const shared_ptr<PRelu>& prelu,
+static bool sink_prelu(const shared_ptr<PRelu>& prelu,
                        TransposeMap& reorders,
                        set<shared_ptr<Node>>& transposes_to_delete) {
     FRONT_END_GENERAL_CHECK(prelu, "Null pointer is given to PRelu node.");
@@ -412,9 +425,9 @@ static void sink_prelu(const shared_ptr<PRelu>& prelu,
         OPENVINO_DEBUG << "Propagating " << describe<Transpose>(arg_transpose) << " for " << prelu->get_name();
         write_transposemap(reorders, prelu, arg_transpose);
     } else {
-        // TODO: handle other cases with non-scalar slope
-        materialize_shapes(prelu, reorders, transposes_to_delete);
+        return false;
     }
+    return true;
 }
 
 void purge_transposes(const set<shared_ptr<Node>>& transposes_to_delete) {
@@ -445,22 +458,26 @@ bool ov::frontend::tensorflow::pass::TransposeSinking::run_on_model(const shared
             if (ov::op::util::is_output(n)) {
                 orig_result_out_shape[n->get_name()] = n->get_output_partial_shape(0);
             }
+
+            bool sink_res = false;
             if (auto transpose = as_type_ptr<opset8::Transpose>(n)) {
-                sink_transpose(transpose, reorders, transposes_to_delete);
+                sink_res = sink_transpose(transpose, reorders, transposes_to_delete);
             } else if (ov::op::util::is_unary_elementwise_arithmetic(n) || as_type_ptr<Clamp>(n) ||
                        as_type_ptr<Elu>(n) || as_type_ptr<SoftPlus>(n) || as_type_ptr<LogicalNot>(n)) {
                 // Some unary operations are inherrited from Op class
                 // so we need explicitly to check them
-                sink_unary(n, reorders, transposes_to_delete);
+                sink_res = sink_unary(n, reorders, transposes_to_delete);
             } else if (ov::op::util::is_binary_elementwise_arithmetic(n)) {
-                sink_binary(n, reorders, transposes_to_delete);
+                sink_res = sink_binary(n, reorders, transposes_to_delete);
             } else if (auto pad = as_type_ptr<Pad>(n)) {
-                sink_pad(pad, reorders, transposes_to_delete);
+                sink_res = sink_pad(pad, reorders, transposes_to_delete);
             } else if (auto concat = as_type_ptr<Concat>(n)) {
-                sink_concat(concat, reorders, transposes_to_delete);
+                sink_res = sink_concat(concat, reorders, transposes_to_delete);
             } else if (auto prelu = as_type_ptr<PRelu>(n)) {
-                sink_prelu(prelu, reorders, transposes_to_delete);
-            } else {
+                sink_res = sink_prelu(prelu, reorders, transposes_to_delete);
+            }
+
+            if (!sink_res) {
                 materialize_shapes(n, reorders, transposes_to_delete);
             }
         }
