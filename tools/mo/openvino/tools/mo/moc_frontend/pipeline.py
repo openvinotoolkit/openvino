@@ -12,7 +12,8 @@ import numpy as np
 from openvino.frontend import FrontEnd, InputModel, NotImplementedFailure, \
     Place  # pylint: disable=no-name-in-module,import-error
 from openvino.runtime import Dimension, PartialShape, Type  # pylint: disable=no-name-in-module,import-error
-from openvino.runtime.utils.types import get_element_type, get_dtype  # pylint: disable=no-name-in-module,import-error
+from openvino.runtime.utils.types import get_element_type, \
+    get_numpy_ctype  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.mo.middle.passes.infer import validate_batch_in_shape
 from openvino.tools.mo.moc_frontend.analysis import json_model_analysis_dump
 from openvino.tools.mo.moc_frontend.extractor import fe_user_data_repack
@@ -135,28 +136,48 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
 
     if freeze_placeholder:
         for name, value in freeze_placeholder.items():
-            for node in user_shapes:
-                if node.get('input_name') == name:
-                    place = node['node']
-                    if node.get('shape'):
-                        input_model.set_partial_shape(place, node['shape'])
-                    if node.get('data_type'):
-                        value = np.array(value, dtype=node['data_type'])
-                        input_model.set_element_type(place, Type(node['data_type']))
-                    else:
-                        # we need to detect type of Placeholder
-                        try:
-                            ov_type = input_model.get_element_type(place)
-                        except NotImplementedFailure:
-                            raise Error("Please specify type for value freezing {} node explicitly "
-                                        "because the frontend does not support automatic type detection.".format(name))
-                        # in case of cutting graph (or using custom inputs) and unspecified type,
-                        # the default type is fp32
-                        if ov_type == Type.undefined:
-                            ov_type = Type.f32
-                        dtype = get_dtype(ov_type)
-                        value = np.array(value, dtype=dtype)
-                    input_model.set_tensor_value(place, value)
+            node = None
+            # look for the certain place in user_shapes
+            for node_cur in user_shapes:
+                if node_cur.get('input_name') == name:
+                    node = node_cur
+                    break
+            assert node is not None, "Please check correctness of the command-line. " \
+                                     "Place (operation or tensor) with name {} is not found.".format(name)
+            place = node.get('node')
+
+            if node.get('shape'):
+                input_model.set_partial_shape(place, node['shape'])
+
+            if node.get('data_type'):
+                dtype = node['data_type']
+            else:
+                # we need to detect type of Placeholder
+                try:
+                    ov_type = input_model.get_element_type(place)
+                except NotImplementedFailure:
+                    raise Error("Please specify type for value freezing {} node explicitly "
+                                "because the frontend does not support automatic type detection.".format(name))
+                # in case of cutting graph (or using custom inputs) and unspecified type,
+                # the default type is fp32
+                if ov_type == Type.undefined:
+                    ov_type = Type.f32
+                dtype = get_numpy_ctype(ov_type)
+
+            input_model.set_element_type(place, Type(dtype))
+            # prepare and cast value to dtype
+            from openvino.tools.mo.front.tf.common import tf_data_type_cast
+            from openvino.tools.mo.front.common.partial_infer.utils import mo_array
+            if isinstance(value, list):
+                casted_list = list()
+                for v in mo_array(value):
+                    casted_list.append(tf_data_type_cast[dtype](v))
+                value = mo_array(casted_list, dtype=dtype)
+            else:
+                value = tf_data_type_cast[dtype](value)
+
+            value = np.array(value, dtype=dtype)
+            input_model.set_tensor_value(place, value)
 
     def shape_to_array(shape: PartialShape):
         return [shape.get_dimension(i) for i in range(shape.rank.get_length())]
