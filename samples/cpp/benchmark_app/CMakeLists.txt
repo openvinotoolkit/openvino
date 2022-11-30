@@ -42,11 +42,26 @@ if(NOT TARGET nlohmann_json::nlohmann_json)
     endif()
 
     if(NOT nlohmann_json_FOUND)
+        # try to find header file json.hpp
+        # for example, on debian 9 there is no cmake / pkgconfig files
+        find_file(nlohmann_include_file
+                  NAMES "json.hpp"
+                  "Path to json.hpp (nlohmann-json-dev )")
+        if(nlohmann_include_file)
+            add_library(nlohmann_json::nlohmann_json INTERFACE IMPORTED)
+            get_filename_component(nlohmann_include_dir "${nlohmann_include_file}" PATH)
+            set_target_properties(nlohmann_json::nlohmann_json PROPERTIES
+                                  INTERFACE_INCLUDE_DIRECTORIES "${nlohmann_include_dir}")
+            set(nlohmann_json_FOUND ON)
+        endif()
+    endif()
+
+    if(NOT nlohmann_json_FOUND)
         if(EXISTS "${Samples_SOURCE_DIR}/thirdparty/nlohmann_json")
             # suppress shadowing names warning
             set(JSON_SystemInclude ON CACHE BOOL "" FORCE)
             add_subdirectory("${Samples_SOURCE_DIR}/thirdparty/nlohmann_json"
-                            "${Samples_BINARY_DIR}/thirdparty/nlohmann_json" EXCLUDE_FROM_ALL)
+                             "${Samples_BINARY_DIR}/thirdparty/nlohmann_json" EXCLUDE_FROM_ALL)
         else()
             message(FATAL_ERROR "Failed to find / build nlohmann_json library")
         endif()
