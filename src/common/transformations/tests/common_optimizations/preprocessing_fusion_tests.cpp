@@ -16,7 +16,7 @@
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
 #include <openvino/core/preprocess/pre_post_process.hpp>
 #include <ngraph/pass/constant_folding.hpp>
-#include <transformations/serialize.hpp>
+#include <openvino/pass/serialize.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
