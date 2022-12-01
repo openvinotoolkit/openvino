@@ -7,23 +7,23 @@
             "firstBadVersion" : "FirstBadVersion"
         },
         "commandList" : [
-            {"cmd" : "git checkout -- .", "path" : "{gitPath}"},
+            {"cmd" : "git checkout -- main.cpp", "path" : "{gitPath}"},
             {"cmd" : "git clean -fxd", "path" : "{gitPath}", "tag" : "clean"},
             {"cmd" : "mkdir build", "path" : "{gitPath}", "tag" : "clean"},
             {"cmd" : "git checkout {commit}", "catchMsg" : "error", "path" : "{gitPath}"},
             {"cmd" : "git submodule init", "path" : "{gitPath}"},
             {"cmd" : "git submodule update --recursive", "path" : "{buildPath}"},
-            {"tag" : "preprocess"},
             {"cmd" : "cmake ../", "catchMsg" : "Error", "path" : "{buildPath}"},
             {"cmd" : "make --jobs=4", "path" : "{buildPath}"},
-            {"cmd" : "git checkout -- .", "path" : "{gitPath}"}
+            {"cmd" : "git checkout -- main.cpp", "path" : "{gitPath}"}
         ],
-        "gitPath" : "samples/sample3",
-        "buildPath" : "samples/sample3/build",
-        "cachePath" : "slider_cache/",
-        "logPath" : "log",
+        "gitPath" : "/home/openvino-ci-35/Documents/ov/openvino/tools/commit_slider_tool/samples/sample3",
+        "buildPath" : "/home/openvino-ci-35/Documents/ov/openvino/tools/commit_slider_tool/samples/sample3/build",
+        "cachePath" : "{workPath}/slider_cache/",
+        "logPath" : "{workPath}/log",
         "appCmd" : "./sample3 --some_arg",
-        "appPath" : "samples/sample3/build",
+        "appPath" : "/home/openvino-ci-35/Documents/ov/openvino/tools/commit_slider_tool/samples/sample3/build",
+        "workPath" : "/home/openvino-ci-35/commit_slider_tool",
         "clearCache" : true,
         "checkBorders" : false,
         "noCleanInterval" : 4

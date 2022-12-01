@@ -1,5 +1,5 @@
 from abc import ABC
-from utils.helpers import setupLogger
+from utils.helpers import getActualPath, setupLogger
 from utils.helpers import checkAndGetClassnameByConfig
 from utils.helpers import checkAndGetSubclass
 from utils.helpers import CfgError
@@ -15,9 +15,8 @@ class Mode(ABC):
         traversalClass = checkAndGetSubclass(traversalClassName, self.Traversal)
         self.traversal = traversalClass(self)
         self.cfg = cfg
-        self.commonLogger = setupLogger(
-            'commonLogger',
-            '{logPath}/common_log.log'.format(logPath=cfg["commonConfig"]["logPath"]))
+        logPath = getActualPath("logPath", cfg) + '/common_log.log'
+        self.commonLogger = setupLogger('commonLogger', logPath)
     def createCash(self):
         raise NotImplementedError("createCash() not implemented")
     def getCommitIfCashed(self, commit):
@@ -30,6 +29,7 @@ class Mode(ABC):
     def isBadVersion(commit, cfg):
         raise NotImplementedError("isBadVersion() is not implemented")
     def run(self, i1, i2, list, cfg) -> int:
+        # todo: add preparation step for compare blobs for example
         cfg["serviceConfig"] = {} # prepare service data
         return self.traversal.bypass(i1, i2, list, cfg, self.isBadVersion)
 

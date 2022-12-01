@@ -14,7 +14,10 @@ class CheckOutputMode(Mode):
         self.createCash()
 
     def createCash(self):
-        self.cachePath = self.cfg["commonConfig"]["cachePath"] + '/check_output_cache.json'
+        wp = self.cfg["commonConfig"]["workPath"]
+        cp = self.cfg["commonConfig"]["cachePath"]
+        cp = cp.format(workPath=wp)
+        self.cachePath = cp + '/check_output_cache.json'
         initCacheMap = {}
         try:
             cacheDump = open(self.cachePath, 'r+')

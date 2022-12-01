@@ -31,18 +31,18 @@ def runCommandList(commit, cfgData):
     buildPath = cfgData["commonConfig"]["buildPath"]
     defRepo = gitPath
     for cmd in commandList:
-        # todo: tag handling
-        if skipCleanInterval and "tag" in cmd.keys() and cmd["tag"] == "clean":
-            continue
-        if "tag" in cmd.keys() and cmd["tag"] == "preprocess":
-            if not ("preprocess" in cfgData["specialConfig"].keys() and 
-                "name" in cfgData["specialConfig"]["preprocess"].keys()):
-                raise CfgError("No preprocess provided")
-            prePrName = cfgData["specialConfig"]["preprocess"]["name"]
-            mod = importlib.import_module("utils.preprocess.{pp}".format(pp=prePrName))
-            preProcess = getattr(mod, prePrName)
-            preProcess(cfgData)
-            continue
+        if "tag" in cmd.keys():
+            if cmd["tag"] == "clean" and skipCleanInterval:
+                continue
+            elif cmd["tag"] == "preprocess":
+                if not ("preprocess" in cfgData["specialConfig"].keys() and 
+                    "name" in cfgData["specialConfig"]["preprocess"].keys()):
+                    raise CfgError("No preprocess provided")
+                prePrName = cfgData["specialConfig"]["preprocess"]["name"]
+                mod = importlib.import_module("utils.preprocess.{pp}".format(pp=prePrName))
+                preProcess = getattr(mod, prePrName)
+                preProcess(cfgData)
+                continue
         strCommand = cmd["cmd"].format(commit = commit)
         formattedCmd = strCommand.split()
         cwd = defRepo
@@ -87,12 +87,16 @@ def getCommitLogger(cfg, commit):
     logName = 'commitLogger_{c}'.format(c=commit)
     if log.getLogger(logName).hasHandlers():
         return log.getLogger(logName)
-
-    logPath=cfg["commonConfig"]["logPath"]
-    commitLogger = setupLogger(
-        logName,
-        '{logPath}/commit_{c}.log'.format(c=commit, logPath=logPath))
+    logPath = getActualPath("logPath", cfg) + '/commit_{c}.log'
+    logPath = logPath.format(c=commit, logPath=logPath)
+    commitLogger = setupLogger(logName, logPath)
     return commitLogger
+def getActualPath(pathName, cfg):
+    workPath = cfg["commonConfig"]["workPath"]
+    curPath = cfg["commonConfig"][pathName]
+    return curPath.format(workPath=workPath)
+def getSafeClearDirProc(path):
+    return subprocess.Popen("rm -rf *", cwd=path, stdout=subprocess.PIPE, shell=True)
 class CfgError(Exception):
     pass
 class CashError(Exception):
