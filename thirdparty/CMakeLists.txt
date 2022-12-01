@@ -198,14 +198,14 @@ if(ENABLE_SAMPLES OR ENABLE_COMPILE_TOOL OR ENABLE_TESTS)
     if(gflags_FOUND)
         if(TARGET gflags)
             set_target_properties(gflags PROPERTIES IMPORTED_GLOBAL ON)
+        elseif(TARGET gflags_nothreads-static)
+            # Debian 9: gflag_component is ignored
+            set_target_properties(gflags_nothreads-static PROPERTIES IMPORTED_GLOBAL ON)
+            add_library(gflags ALIAS gflags_nothreads-static)
         elseif(TARGET gflags_nothreads-shared)
             # CentOS / RHEL / Fedora case
             set_target_properties(gflags_nothreads-shared PROPERTIES IMPORTED_GLOBAL ON)
             add_library(gflags ALIAS gflags_nothreads-shared)
-        elseif(TARGET gflags_nothreads-static)
-            # Debian 9
-            set_target_properties(gflags_nothreads-static PROPERTIES IMPORTED_GLOBAL ON)
-            add_library(gflags ALIAS gflags_nothreads-static)
         elseif(TARGET ${GFLAGS_TARGET})
             set_target_properties(${GFLAGS_TARGET} PROPERTIES IMPORTED_GLOBAL ON)
             add_library(gflags ALIAS ${GFLAGS_TARGET})

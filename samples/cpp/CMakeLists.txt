@@ -113,10 +113,12 @@ elseif(gflags_required)
     if(gflags_FOUND)
         if(TARGET ${GFLAGS_TARGET})
             # nothing
+        elseif(TARGET gflags_nothreads-static)
+            # Debian 9: gflag_component is ignored
+            set(GFLAGS_TARGET gflags_nothreads-static)
         elseif(TARGET gflags-shared)
             # gflags shared case for CentOS / RHEL / Fedora
-            set_target_properties(gflags-shared PROPERTIES IMPORTED_GLOBAL ON)
-            add_library(gflags ALIAS gflags-shared)
+            set(GFLAGS_TARGET gflags-shared)
         else()
             message(FATAL_ERROR "Internal error: failed to find imported target 'gflags' using '${gflags_component}' component")
         endif()
