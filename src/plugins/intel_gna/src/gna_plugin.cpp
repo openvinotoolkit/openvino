@@ -127,6 +127,7 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 using namespace GNAPluginNS;
 using namespace GNAPluginNS::memory;
+using namespace ov::intel_gna::frontend;
 
 namespace InferenceEngine {
     template<>
@@ -607,7 +608,7 @@ void GNAPlugin::AddDebugProperties(const InferenceEngine::CNNLayerPtr layer,
     InferenceEngine::ordered_properties& printed_properties,
     InferenceEngine::ordered_properties& node_properties) {
     // printing quantized params
-    auto quantized = InferenceEngine::getInjectedData<ov::intel_gna::frontend::QuantizedLayerParams>(layer);
+    auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
     if (!quantized) {
         return;
     }
