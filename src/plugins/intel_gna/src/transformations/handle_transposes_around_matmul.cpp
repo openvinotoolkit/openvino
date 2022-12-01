@@ -72,7 +72,7 @@ void InsertTranspose(std::shared_ptr<ngraph::Node> prev_node, const std::string&
 
     ngraph::copy_runtime_info(prev_node, new_ops);
 
-    for (auto input : consumers) {
+    for (auto& input : consumers) {
         input.replace_source_output(node);
     }
 }
@@ -80,6 +80,20 @@ void InsertTranspose(std::shared_ptr<ngraph::Node> prev_node, const std::string&
 bool VerifyReshape(const ngraph::Output<ngraph::Node>& reshape_out) {
     auto in_shape = reshape_out.get_node_shared_ptr()->get_input_shape(0);
     auto out_shape = reshape_out.get_node_shared_ptr()->get_output_shape(0);
+
+    const auto is_input_scalar = in_shape.empty();
+    const auto is_output_scalar = out_shape.empty();
+
+    if (is_input_scalar && is_output_scalar) {
+        // If both are scalar it means we don't need reshape.
+        return false;
+    }
+
+    if (is_input_scalar || is_output_scalar) {
+        // If one is scalar it means we need reshape.
+        return true;
+    }
+
     return in_shape[0] != out_shape[0];
 }
 

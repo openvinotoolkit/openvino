@@ -35,7 +35,7 @@ bool GridSample::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
 }
 
 GridSample::GridSample(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache, NgraphShapeInferFactory(op, PortMask(1))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -301,10 +301,6 @@ void GridSample::execute(dnnl::stream strm) {
 
 void GridSample::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
-}
-
-std::vector<VectorDims> GridSample::shapeInfer() const {
-    return Node::shapeInferGeneric(PortMask(1));
 }
 
 bool GridSample::created() const {

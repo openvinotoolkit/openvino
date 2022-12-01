@@ -137,5 +137,4 @@ xfail_issue_82039 = xfail_test(reason="Unsupported data type Optional, RuntimeEr
 
 xfail_issue_86911 = xfail_test(reason="LSTM_Seq_len_unpacked - AssertionError: zoo models results mismatch")
 xfail_issue_91151 = xfail_test(reason="RuntimeError: model input (shape={3,4}) and blob (shape=(1)) are incompatible")
-xfail_issue_91152 = xfail_test(reason="RuntimeError: Error validating node '<Node(DequantizeLinear): y>'")
 xfail_issue_91490 = xfail_test(reason="y has zero dimension which is not allowed")
