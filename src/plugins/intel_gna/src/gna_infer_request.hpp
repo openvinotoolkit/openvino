@@ -97,7 +97,7 @@ class GNAInferRequest : public InferenceEngine::IInferRequestInternal {
                         InferenceEngine::details::ThrowNow<ExceptionType>{}
                             <<= std::stringstream{} << IE_LOCATION
                             <<  InferenceEngine::details::ExceptionTraits<ExceptionType>::string());
-                } catch (std::exception&) {
+                } catch (...) {
                     exceptionPtr = std::current_exception();
                 }
             }

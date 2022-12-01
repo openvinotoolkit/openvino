@@ -185,7 +185,7 @@ TestCase::TestCase(const std::shared_ptr<Function>& function, const std::string&
             ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
                                                std::string("openvino_template_plugin") + IE_BUILD_POSTFIX),
             "TEMPLATE");
-    } catch (std::exception&) {
+    } catch (...) {
     }
     m_request = m_core.compile_model(function, dev).create_infer_request();
 }

@@ -23,7 +23,7 @@ struct BlobAllocator : public IAllocator {
     void* alloc(const size_t size) noexcept override {
         try {
             return size_map.emplace(_impl->allocate(size), size).first->first;
-        } catch (std::exception&) {
+        } catch (...) {
             return nullptr;
         }
     }
@@ -34,7 +34,7 @@ struct BlobAllocator : public IAllocator {
             size_map.erase(handle);
             _impl->deallocate(handle, size);
             return true;
-        } catch (std::exception&) {
+        } catch (...) {
             return false;
         }
     }

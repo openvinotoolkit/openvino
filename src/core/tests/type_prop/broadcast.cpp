@@ -114,7 +114,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_fail_rank) {
         FAIL() << "Broadcast: target shape mismatch with input rank not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Broadcast axes_mapping shape {3} doesn't match rank of input tensor 2");
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -131,7 +131,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_fail_transpose) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              "Broadcast doesn't permit transposes. axes_mapping AxisVector{2, 1} "
                              "not in sorted order");
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -146,7 +146,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_fail_axes_map) {
         FAIL() << "Broadcast: wrong axes_map not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Broadcast axes_mapping[1]: 3 exceeds target rank 3");
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -161,7 +161,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_fail_axes_map_shape) {
         FAIL() << "Broadcast: wrong target shape not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Broadcast target[axes_mapping[1]] Expected 2. Got 3");
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -176,7 +176,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_axes_wrong_rank) {
         FAIL() << "Broadcast: axes shape rank not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Broadcast axes rank must be 1");
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -217,7 +217,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_broadcast_shape_et_wrong) {
         FAIL() << "Broadcast: did not detect shape element type not integral number";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Broadcast shape must be an integral number"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -233,7 +233,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_axes_et_wrong) {
         FAIL() << "Broadcast: did not detect axes element type not integral numbers";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Broadcast axes must be integral numbers, but are:"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -336,7 +336,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_explicit_const_target_shape_static_rank_i
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Broadcast axes_mapping shape {4} doesn't match rank of input tensor 3"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -518,7 +518,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_numpy_static_dims_incorrect) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              "Input shape dimension equal 999 cannot be broadcasted (numpy mode) "
                              "to 2. Allowed input dimension value would be 1 or 2");
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 
@@ -531,7 +531,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_numpy_static_dims_incorrect) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              "Input shape dimension equal 888 cannot be broadcasted (numpy mode) "
                              "to 4. Allowed input dimension value would be 1 or 4");
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 
@@ -544,7 +544,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_numpy_static_dims_incorrect) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              "Input shape dimension equal 5 cannot be broadcasted (numpy mode) to "
                              "1. Allowed input dimension value would be 1");
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -628,7 +628,7 @@ TEST(type_prop, broadcast_v3_shape_unexpected_axes_mapping_input) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("axes_mapping input should not be provided for mode other than explicit"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -644,7 +644,7 @@ TEST(type_prop, broadcast_v3_not_provided_axes_input_for_explicit_mode) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("axes_mapping input should be provided if explicit mode is used"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -744,7 +744,7 @@ TEST(type_prop, broadcast_v3_incorrect_target_shape) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Broadcast incorrect target shape. Expecting either 1 or 4. Got 8"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -760,7 +760,7 @@ TEST(type_prop, broadcast_v3_incorrect_target_shape_2) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Broadcast incorrect target shape. Expecting either 1 or 2. Got 3"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }

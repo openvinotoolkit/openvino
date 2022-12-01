@@ -82,7 +82,7 @@ void ReadIRTest::query_model() {
         try {
             SubgraphBaseTest::query_model();
             s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::PASSED);
-        } catch (std::exception&) {
+        } catch (...) {
             s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::FAILED);
         }
     } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {

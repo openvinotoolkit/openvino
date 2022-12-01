@@ -280,7 +280,7 @@ TEST(type_prop, group_convolution_invalid_et_inputs) {
         FAIL() << "Invalid element type of inputs not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Element types for data batch and filters do not match");
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Element types of data batch and filters validation check failed for unexpected "
                   "reason.";
     }
@@ -299,7 +299,7 @@ TEST(type_prop, group_convolution_invalid_et_inputs) {
         FAIL() << "Boolean element type of inputs not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Element type of inputs must be numeric");
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Numeric element types of data batch and filters validation check failed for "
                   "unexpected reason.";
     }
@@ -323,7 +323,7 @@ TEST(type_prop, group_convolution_invalid_input_ranks) {
         FAIL() << "Incompatible input ranks not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Data batch and filters rank do not match"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Rank validation check of inputs failed for unexpected reason";
     }
 
@@ -342,7 +342,7 @@ TEST(type_prop, group_convolution_invalid_input_ranks) {
         FAIL() << "Incompatible input ranks not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Data batch and filters rank do not match"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Rank validation check of inputs failed for unexpected reason";
     }
 }
@@ -367,7 +367,7 @@ TEST(type_prop, group_convolution_invalid_input_channel_dims) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              "Input channels dimension of data batch has incompatible value "
                              "with filter shape.");
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Input channels dimension of data batch validation check failed for unexpected "
                   "reason.";
     }
@@ -389,7 +389,7 @@ TEST(type_prop, group_convolution_invalid_input_channel_dims) {
         FAIL() << "Invalid input channels dimension of data batch not detected.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Input channels dimension of data batch not a multiple of group size");
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Input channels dimension of data batch validation check failed for unexpected "
                   "reason.";
     }
@@ -414,7 +414,7 @@ TEST(type_prop, group_convolution_invalid_conv_param_spatial_dims) {
         FAIL() << "Invalid strides spatial dimensions not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Strides should be defined for all and only spatial dimensions.");
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Strides spatial dimensions validation check failed for unexpected reason";
     }
     try {
@@ -430,7 +430,7 @@ TEST(type_prop, group_convolution_invalid_conv_param_spatial_dims) {
         FAIL() << "Invalid strides spatial dimensions not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Strides should be defined for all and only spatial dimensions.");
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Strides spatial dimensions validation check failed for unexpected reason";
     }
 
@@ -448,7 +448,7 @@ TEST(type_prop, group_convolution_invalid_conv_param_spatial_dims) {
         FAIL() << "Invalid dilations spatial dimensions not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Dilations should be defined for all and only spatial dimensions.");
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Dilations spatial dimensions validation check failed for unexpected reason";
     }
     try {
@@ -464,7 +464,7 @@ TEST(type_prop, group_convolution_invalid_conv_param_spatial_dims) {
         FAIL() << "Invalid dilations spatial dimensions not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Dilations should be defined for all and only spatial dimensions.");
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Dilations spatial dimensions validation check failed for unexpected reason";
     }
 
@@ -482,7 +482,7 @@ TEST(type_prop, group_convolution_invalid_conv_param_spatial_dims) {
         FAIL() << "Invalid padding spatial dimensions not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Pads begin should be defined for all and only spatial dimensions.");
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Padding spatial dimensions validation check failed for unexpected reason";
     }
     try {
@@ -498,7 +498,7 @@ TEST(type_prop, group_convolution_invalid_conv_param_spatial_dims) {
         FAIL() << "Invalid padding spatial dimensions not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Pads end should be defined for all and only spatial dimensions.");
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Padding spatial dimensions validation check failed for unexpected reason";
     }
 }

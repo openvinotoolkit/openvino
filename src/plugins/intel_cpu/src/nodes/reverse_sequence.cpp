@@ -22,7 +22,7 @@ bool ReverseSequence::isSupportedOperation(const std::shared_ptr<const ngraph::N
             errorMessage = "Only opset1 ReverseSequence operation is supported";
             return false;
         }
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
     return true;

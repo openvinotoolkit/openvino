@@ -28,7 +28,7 @@ bool Reshape::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
             errorMessage = "Only opset1 Reshape, Squeeze, Unsqueeze operations are supported";
             return false;
         }
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
     return true;

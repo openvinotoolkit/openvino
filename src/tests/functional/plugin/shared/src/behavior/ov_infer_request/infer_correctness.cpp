@@ -110,7 +110,7 @@ bool OVInferConsistencyTest::IsEqual(std::vector<ov::Tensor>& a,
             // if not equal will throw exception
             LayerTestsUtils::LayerTestsCommon::Compare(
                 a[j].data<float>(), b[j].data<float>(), a[j].get_size(), 1e-2f);
-        } catch (std::exception&) {
+        } catch (...) {
             isEqual = false;
             break;
         }

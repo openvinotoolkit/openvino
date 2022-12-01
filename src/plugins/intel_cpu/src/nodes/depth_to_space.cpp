@@ -61,7 +61,7 @@ bool DepthToSpace::isSupportedOperation(const std::shared_ptr<const ngraph::Node
             errorMessage = "Does not support mode: " + ngraph::as_string(mode);
             return false;
         }
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
     return true;

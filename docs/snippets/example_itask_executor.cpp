@@ -28,7 +28,7 @@ void example1() {
         std::exception_ptr currentException;
         try {
             task();
-        } catch (std::exception&) {
+        } catch(...) {
             // If there is some exceptions store the pointer to current exception
             currentException = std::current_exception();
         }

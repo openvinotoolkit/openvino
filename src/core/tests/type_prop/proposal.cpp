@@ -25,7 +25,7 @@ TEST(type_prop, proposal_v0_invalid_class_probs_rank) {
         FAIL() << "Invalid input tensor rank.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Proposal layer shape class_probs should be rank 4 compatible"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -42,7 +42,7 @@ TEST(type_prop, proposal_v0_invalid_anchor_count) {
         FAIL() << "Invalid input tensor rank.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Anchor number inconsistent between"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -59,7 +59,7 @@ TEST(type_prop, proposal_v0_invalid_class_bbox_deltas_rank) {
         FAIL() << "Invalid input tensor rank.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Proposal layer shape bbox_deltas should be rank 4 compatible"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -76,7 +76,7 @@ TEST(type_prop, proposal_v0_invalid_image_shape_rank) {
         FAIL() << "Invalid input tensor rank.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Proposal layer shape image_shape should be rank 1 compatible"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -95,7 +95,7 @@ TEST(type_prop, proposal_v0_invalid_image_shape_size) {
         EXPECT_HAS_SUBSTRING(
             error.what(),
             std::string("Image_shape 1D tensor must have => 3 and <= 4 elements (image_shape_shape[0]"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -220,7 +220,7 @@ TEST(type_prop, proposal_v0_invalid_class_probs_dynamic) {
         FAIL() << "Invalid input tensor rank.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Proposal layer shape class_probs should be rank 4 compatible"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -237,7 +237,7 @@ TEST(type_prop, proposal_v0_invalid_bbox_deltas_dynamic) {
         FAIL() << "Invalid input tensor rank.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Proposal layer shape bbox_deltas should be rank 4 compatible"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -254,7 +254,7 @@ TEST(type_prop, proposal_v0_invalid_image_shape_dynamic) {
         FAIL() << "Invalid input tensor rank.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Proposal layer shape image_shape should be rank 1 compatible"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -272,7 +272,7 @@ TEST(type_prop, proposal_v0_invalid_class_probs_type) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Proposal layer input class_probs should have floating point type"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -290,7 +290,7 @@ TEST(type_prop, proposal_v0_invalid_bbox_deltas_type) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Proposal layer input bbox_deltas should have floating point type"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -308,7 +308,7 @@ TEST(type_prop, proposal_v0_invalid_image_shape_type) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Proposal layer input image_shape should have floating point type"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -326,7 +326,7 @@ TEST(type_prop, proposal_v4_invalid_class_probs_rank) {
         FAIL() << "Invalid input tensor rank.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Proposal layer shape class_probs should be rank 4 compatible"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -343,7 +343,7 @@ TEST(type_prop, proposal_v4_invalid_class_bbox_deltas_rank) {
         FAIL() << "Invalid input tensor rank.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Proposal layer shape bbox_deltas should be rank 4 compatible"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -360,7 +360,7 @@ TEST(type_prop, proposal_v4_invalid_image_shape_rank) {
         FAIL() << "Invalid input tensor rank.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Proposal layer shape image_shape should be rank 1 compatible"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -379,7 +379,7 @@ TEST(type_prop, proposal_v4_invalid_image_shape_size) {
         EXPECT_HAS_SUBSTRING(
             error.what(),
             std::string("Image_shape 1D tensor must have => 3 and <= 4 elements (image_shape_shape[0]"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -511,7 +511,7 @@ TEST(type_prop, proposal_v4_invalid_class_probs_dynamic) {
         FAIL() << "Invalid input tensor rank.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Proposal layer shape class_probs should be rank 4 compatible"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -528,7 +528,7 @@ TEST(type_prop, proposal_v4_invalid_bbox_deltas_dynamic) {
         FAIL() << "Invalid input tensor rank.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Proposal layer shape bbox_deltas should be rank 4 compatible"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -545,7 +545,7 @@ TEST(type_prop, proposal_v4_invalid_image_shape_dynamic) {
         FAIL() << "Invalid input tensor rank.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Proposal layer shape image_shape should be rank 1 compatible"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -563,7 +563,7 @@ TEST(type_prop, proposal_v4_invalid_class_probs_type) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Proposal layer input class_probs should have floating point type"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -581,7 +581,7 @@ TEST(type_prop, proposal_v4_invalid_bbox_deltas_type) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Proposal layer input bbox_deltas should have floating point type"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -599,7 +599,7 @@ TEST(type_prop, proposal_v4_invalid_image_shape_type) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Proposal layer input image_shape should have floating point type"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }

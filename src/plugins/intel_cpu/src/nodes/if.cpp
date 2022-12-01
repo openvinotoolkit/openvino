@@ -51,7 +51,7 @@ bool If::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::st
                     " with name '" + op->get_friendly_name() + "'. Node If supports only opset8 version.";
             return false;
         }
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
     return true;

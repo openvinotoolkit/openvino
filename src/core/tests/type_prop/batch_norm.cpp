@@ -181,7 +181,7 @@ TYPED_TEST_P(BatchNormTest, batch_norm_inference_invalid_inputs_element_types) {
             FAIL() << "Invalid input element types not detected";
         } catch (const NodeValidationFailure& error) {
             EXPECT_HAS_SUBSTRING(error.what(), "Input element types must be floating-point");
-        } catch (std::exception&) {
+        } catch (...) {
             FAIL() << "Input element types check failed for unexpected reason";
         }
     }
@@ -216,7 +216,7 @@ TYPED_TEST_P(BatchNormTest, batch_norm_inference_incompatible_inputs_element_typ
             FAIL() << "Incompatible input element types not detected";
         } catch (const NodeValidationFailure& error) {
             EXPECT_HAS_SUBSTRING(error.what(), "Input element types do not match");
-        } catch (std::exception&) {
+        } catch (...) {
             FAIL() << "Input element types check failed for unexpected reason";
         }
     }
@@ -239,7 +239,7 @@ TYPED_TEST_P(BatchNormTest, batch_norm_inference_invalid_data_batch_input_rank) 
         FAIL() << "Data batch input with invalid rank 1 not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Input argument must have rank of at least 2 (input argument shape: {?})");
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Data batch input rank check failed for unexpected reason";
     }
 }
@@ -261,7 +261,7 @@ TYPED_TEST_P(BatchNormTest, batch_norm_inference_incompatible_channel_input_rank
         FAIL() << "Incompatible gamma/beta/mean/variance input ranks not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Shapes for gamma/beta/mean/variance do not match");
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "gamma/beta/mean/variance input ranks check failed for unexpected reason";
     }
 }
@@ -283,7 +283,7 @@ TYPED_TEST_P(BatchNormTest, batch_norm_inference_incompatible_channel_inputs_cha
         FAIL() << "Incompatible gamma/beta/mean/variance inputs channel count not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Shapes for gamma/beta/mean/variance do not match");
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "gamma/beta/mean/variance inputs channel count check failed for unexpected reason";
     }
 }
@@ -306,7 +306,7 @@ TYPED_TEST_P(BatchNormTest, batch_norm_inference_invalid_channel_inputs_rank) {
         FAIL() << "Invalid rank of gamma/beta/mean/variance inputs not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Shape for gamma/beta/mean/variance ({?,?}) does not have rank 1");
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "gamma/beta/mean/variance inputs rank check failed for unexpected reason";
     }
 }
@@ -330,7 +330,7 @@ TYPED_TEST_P(BatchNormTest, batch_norm_inference_incompatible_data_batch_and_cha
         EXPECT_HAS_SUBSTRING(error.what(),
                              "Input channel dimension (4) does not match "
                              "shape for gamma/beta/mean/variance ({3})");
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Data batch and gamma/beta/mean/variance channel count check failed for "
                   "unexpected reason";
     }
@@ -353,7 +353,7 @@ TYPED_TEST_P(BatchNormTest, batch_norm_inference_invalid_input_channels_count_ze
         FAIL() << "Data batch channel count zero not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Channel count must be at least 1");
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Data batch channel count check failed for unexpected reason";
     }
 }
@@ -375,7 +375,7 @@ TYPED_TEST_P(BatchNormTest, batch_norm_inference_invalid_epsilon) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              "Attribute 'epsilon' must be a floating-point value greater than or equal to zero.");
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Non-negative 'epsilon' attribute value check failed for unexpected reason";
     }
 }

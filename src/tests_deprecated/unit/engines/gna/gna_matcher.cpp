@@ -435,7 +435,7 @@ void GNAPropagateMatcher :: match() {
             FAIL() << ex.what();
         }
     }
-    catch (std::exception&) {
+    catch(...) {
         if (!_env.matchThrows) {
             FAIL() << "unknown exception thrown";
         }
@@ -644,7 +644,7 @@ void GNADumpXNNMatcher::match() {
             FAIL() << ex.what();
         }
     }
-    catch (std::exception&) {
+    catch(...) {
         if (!_env.matchThrows) {
             FAIL() << "unknown exception thrown";
         }

@@ -19,7 +19,7 @@ public:
         try {
             auto handle = reinterpret_cast<void*>(new char[size]);
             return handle;
-        } catch (std::exception&) {
+        } catch (...) {
             return nullptr;
         }
     }
@@ -27,7 +27,7 @@ public:
     bool free(void* handle) noexcept override {
         try {
             delete[] reinterpret_cast<char*>(handle);
-        } catch (std::exception&) {
+        } catch (...) {
         }
         return true;
     }

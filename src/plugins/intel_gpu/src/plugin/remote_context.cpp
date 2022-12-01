@@ -228,7 +228,7 @@ LockedMemory<void> RemoteBlobImpl::buffer() noexcept {
     try {
         lock();
         return LockedMemory<void>(reinterpret_cast<IAllocator*>(&m_allocator), _handle, 0);
-    } catch (std::exception&) {
+    } catch (...) {
         return LockedMemory<void>(nullptr, nullptr, 0);
     }
 }
@@ -237,7 +237,7 @@ LockedMemory<const void> RemoteBlobImpl::cbuffer() const noexcept {
     try {
         lock();
         return LockedMemory<const void>(reinterpret_cast<IAllocator*>(&m_allocator), _handle, 0);
-    } catch (std::exception&) {
+    } catch (...) {
         return LockedMemory<const void>(nullptr, nullptr, 0);
     }
 }
@@ -246,7 +246,7 @@ LockedMemory<void> RemoteBlobImpl::rwmap() noexcept {
     try {
         lock();
         return LockedMemory<void>(reinterpret_cast<IAllocator *>(&m_allocator), _handle, 0);
-    } catch (std::exception&) {
+    } catch (...) {
         return LockedMemory<void>(nullptr, nullptr, 0);
     }
 }
@@ -255,7 +255,7 @@ LockedMemory<const void> RemoteBlobImpl::rmap() const noexcept {
     try {
         lock();
         return LockedMemory<const void>(reinterpret_cast<IAllocator *>(&m_allocator), _handle, 0);
-    } catch (std::exception&) {
+    } catch (...) {
         return LockedMemory<const void>(nullptr, nullptr, 0);
     }
 }
@@ -264,7 +264,7 @@ LockedMemory<void> RemoteBlobImpl::wmap() noexcept {
     try {
         lock();
         return LockedMemory<void>(reinterpret_cast<IAllocator *>(&m_allocator), _handle, 0);
-    } catch (std::exception&) {
+    } catch (...) {
         return LockedMemory<void>(nullptr, nullptr, 0);
     }
 }
@@ -393,7 +393,7 @@ std::string ExecutionContextImpl::getDeviceName() const noexcept {
             if (current_device->is_same(kv.second))
                 return devName + "." + kv.first;
         }
-    } catch (std::exception&) { }
+    } catch (...) { }
 
     if (!m_config.device_id.empty())
         devName += "." + m_config.device_id;

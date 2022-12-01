@@ -48,7 +48,7 @@ std::string NetworkCompilationContext::calculateFileInfo(const std::string& file
     auto absPath = filePath;
     try {
         absPath = FileUtils::absoluteFilePath(filePath);
-    } catch (std::exception&) {
+    } catch (...) {
         // can't get absolute path, will use filePath for hash
     }
 
@@ -130,7 +130,7 @@ std::string NetworkCompilationContext::computeHash(const std::string& modelName,
     uint64_t seed = 0;
     try {
         seed = hash_combine(seed, FileUtils::absoluteFilePath(modelName));
-    } catch (std::exception&) {
+    } catch (...) {
         // can't get absolute path, use modelName for hash calculation
         seed = hash_combine(seed, modelName);
     }

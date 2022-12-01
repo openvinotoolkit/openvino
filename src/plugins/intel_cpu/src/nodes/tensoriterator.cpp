@@ -343,7 +343,7 @@ bool TensorIterator::isSupportedOperation(const std::shared_ptr<const ov::Node>&
             errorMessage = "Only opset1 TensorIterator or opset5 Loop operations are supported.";
             return false;
         }
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
     return true;

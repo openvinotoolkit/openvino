@@ -553,7 +553,7 @@ void GNADeviceHelper::close() {
     for (auto requestId : requestsToClose) {
         try {
             waitForRequest(requestId);
-        } catch (std::exception&) {
+        } catch (...) {
             log::warning() << "Request with Id " << requestId << " was not awaited successfully";
         }
     }

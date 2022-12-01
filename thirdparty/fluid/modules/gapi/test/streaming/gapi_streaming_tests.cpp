@@ -413,7 +413,7 @@ TEST_P(GAPI_Streaming, SmokeTest_VideoInput_GMat)
     auto path = findDataFile("cv/video/768x576.avi");
     try {
         ccomp.setSource(gapi::wip::make_src<cv::gapi::wip::GCaptureSource>(path));
-    } catch (std::exception&) {
+    } catch(...) {
         throw SkipTestException("Video file can not be opened");
     }
     ccomp.start();
@@ -490,7 +490,7 @@ TEST_P(GAPI_Streaming, SmokeTest_StartRestart)
     std::size_t num_frames1 = 0u;
     try {
         ccomp.setSource(gapi::wip::make_src<cv::gapi::wip::GCaptureSource>(path));
-    } catch (std::exception&) {
+    } catch(...) {
         throw SkipTestException("Video file can not be opened");
     }
     ccomp.start();
@@ -505,7 +505,7 @@ TEST_P(GAPI_Streaming, SmokeTest_StartRestart)
     std::size_t num_frames2 = 0u;
     try {
         ccomp.setSource(gapi::wip::make_src<cv::gapi::wip::GCaptureSource>(path));
-    } catch (std::exception&) {
+    } catch(...) {
         throw SkipTestException("Video file can not be opened");
     }
     ccomp.start();
@@ -531,7 +531,7 @@ TEST_P(GAPI_Streaming, SmokeTest_VideoConstSource_NoHang)
     auto path = findDataFile("cv/video/768x576.avi");
     try {
         refc.setSource(gapi::wip::make_src<cv::gapi::wip::GCaptureSource>(path));
-    } catch (std::exception&) {
+    } catch(...) {
         throw SkipTestException("Video file can not be opened");
     }
     refc.start();
@@ -578,7 +578,7 @@ TEST_P(GAPI_Streaming, SmokeTest_AutoMeta)
     auto path = findDataFile("cv/video/768x576.avi");
     try {
         testc.setSource(cv::gin(in_const, gapi::wip::make_src<cv::gapi::wip::GCaptureSource>(path)));
-    } catch (std::exception&) {
+    } catch(...) {
         throw SkipTestException("Video file can not be opened");
     }
     testc.start();
@@ -591,7 +591,7 @@ TEST_P(GAPI_Streaming, SmokeTest_AutoMeta)
     path = findDataFile("cv/video/1920x1080.avi");
     try {
         testc.setSource(cv::gin(in_const, gapi::wip::make_src<cv::gapi::wip::GCaptureSource>(path)));
-    } catch (std::exception&) {
+    } catch(...) {
         throw SkipTestException("Video file can not be opened");
     }
     testc.start();
@@ -649,7 +649,7 @@ TEST_P(GAPI_Streaming, SmokeTest_AutoMeta_VideoScalar)
     auto path = findDataFile("cv/video/768x576.avi");
     try {
         testc.setSource(cv::gin(gapi::wip::make_src<cv::gapi::wip::GCaptureSource>(path), cv::Scalar{1.25}));
-    } catch (std::exception&) {
+    } catch(...) {
         throw SkipTestException("Video file can not be opened");
     }
     testc.start();
@@ -662,7 +662,7 @@ TEST_P(GAPI_Streaming, SmokeTest_AutoMeta_VideoScalar)
     path = findDataFile("cv/video/1920x1080.avi");
     try {
         testc.setSource(cv::gin(gapi::wip::make_src<cv::gapi::wip::GCaptureSource>(path), cv::Scalar{0.75}));
-    } catch (std::exception&) {
+    } catch(...) {
         throw SkipTestException("Video file can not be opened");
     }
     testc.start();
@@ -772,7 +772,7 @@ TEST_P(GAPI_Streaming, SmokeTest_AutoMeta_VideoArray)
     std::vector<int> first_in_vec(768*3, 1);
     try {
         testc.setSource(cv::gin(gapi::wip::make_src<cv::gapi::wip::GCaptureSource>(path), first_in_vec));
-    } catch (std::exception&) {
+    } catch(...) {
         throw SkipTestException("Video file can not be opened");
     }
     testc.start();
@@ -786,7 +786,7 @@ TEST_P(GAPI_Streaming, SmokeTest_AutoMeta_VideoArray)
     std::vector<int> second_in_vec(1920*3, 1);
     try {
         testc.setSource(cv::gin(gapi::wip::make_src<cv::gapi::wip::GCaptureSource>(path), second_in_vec));
-    } catch (std::exception&) {
+    } catch(...) {
         throw SkipTestException("Video file can not be opened");
     }
     testc.start();
@@ -909,7 +909,7 @@ TEST(GAPI_Streaming_Types, XChangeScalar)
     auto path = findDataFile("cv/video/768x576.avi");
     try {
         sc.setSource(gapi::wip::make_src<cv::gapi::wip::GCaptureSource>(path));
-    } catch (std::exception&) {
+    } catch(...) {
         throw SkipTestException("Video file can not be opened");
     }
     sc.start();
@@ -973,7 +973,7 @@ TEST(GAPI_Streaming_Types, XChangeVector)
     try {
         sc.setSource(cv::gin(gapi::wip::make_src<cv::gapi::wip::GCaptureSource>(path),
                              in_eye));
-    } catch (std::exception&) {
+    } catch(...) {
         throw SkipTestException("Video file can not be opened");
     }
     sc.start();
@@ -1005,7 +1005,7 @@ TEST(GAPI_Streaming_Types, OutputScalar)
     video_path = findDataFile("cv/video/768x576.avi");
     try {
         sc.setSource(gapi::wip::make_src<cv::gapi::wip::GCaptureSource>(video_path));
-    } catch (std::exception&) {
+    } catch(...) {
         throw SkipTestException("Video file can not be opened");
     }
     sc.start();
@@ -1055,7 +1055,7 @@ TEST(GAPI_Streaming_Types, OutputVector)
     video_path = findDataFile("cv/video/768x576.avi");
     try {
         sc.setSource(cv::gin(in_eye, gapi::wip::make_src<cv::gapi::wip::GCaptureSource>(video_path)));
-    } catch (std::exception&) {
+    } catch(...) {
         throw SkipTestException("Video file can not be opened");
     }
     sc.start();
@@ -1220,7 +1220,7 @@ TEST(GAPI_Streaming, TestTwoVideosDifferentLength)
     try {
         sc.setSource(cv::gin(gapi::wip::make_src<cv::gapi::wip::GCaptureSource>(path1),
                              gapi::wip::make_src<cv::gapi::wip::GCaptureSource>(path2)));
-    } catch (std::exception&) {
+    } catch(...) {
         throw SkipTestException("Video file can not be found");
     }
     sc.start();
@@ -1307,7 +1307,7 @@ TEST_F(GAPI_Streaming_Unit, StartStopStress_Video)
         sc.stop();
         try {
             sc.setSource(cv::gin(cv::gapi::wip::make_src<cv::gapi::wip::GCaptureSource>(path), m));
-        } catch (std::exception&) {
+        } catch(...) {
             throw SkipTestException("Video file can not be opened");
         }
         sc.start();
@@ -1481,7 +1481,7 @@ TEST(GAPI_Streaming_Desync, SmokeTest_Streaming)
     auto path = findDataFile("cv/video/768x576.avi");
     try {
         sc.setSource(cv::gin(gapi::wip::make_src<cv::gapi::wip::GCaptureSource>(path)));
-    } catch (std::exception&) {
+    } catch(...) {
         throw SkipTestException("Video file can not be opened");
     }
     sc.start();
@@ -1518,7 +1518,7 @@ TEST(GAPI_Streaming_Desync, SmokeTest_Streaming_TwoParts)
     auto path = findDataFile("cv/video/768x576.avi");
     try {
         sc.setSource(cv::gin(gapi::wip::make_src<cv::gapi::wip::GCaptureSource>(path)));
-    } catch (std::exception&) {
+    } catch(...) {
         throw SkipTestException("Video file can not be opened");
     }
     sc.start();
@@ -1647,7 +1647,7 @@ TEST(GAPI_Streaming_Desync, Negative_SynchronizedPull)
     auto path = findDataFile("cv/video/768x576.avi");
     try {
         sc.setSource(cv::gin(gapi::wip::make_src<cv::gapi::wip::GCaptureSource>(path)));
-    } catch (std::exception&) {
+    } catch(...) {
         throw SkipTestException("Video file can not be opened");
     }
     sc.start();
@@ -1670,7 +1670,7 @@ TEST(GAPI_Streaming_Desync, UseSpecialPull)
     auto path = findDataFile("cv/video/768x576.avi");
     try {
         sc.setSource(cv::gin(gapi::wip::make_src<cv::gapi::wip::GCaptureSource>(path)));
-    } catch (std::exception&) {
+    } catch(...) {
         throw SkipTestException("Video file can not be opened");
     }
     sc.start();
@@ -1824,7 +1824,7 @@ TEST(GAPI_Streaming, CopyFrame)
     auto cc = comp.compileStreaming();
     try {
         cc.setSource<BGRSource>(filepath);
-    } catch (std::exception&) {
+    } catch(...) {
         throw SkipTestException("Video file can not be opened");
     }
 
@@ -1862,7 +1862,7 @@ TEST(GAPI_Streaming, CopyMat)
     auto cc = comp.compileStreaming();
     try {
         cc.setSource<cv::gapi::wip::GCaptureSource>(filepath);
-    } catch (std::exception&) {
+    } catch(...) {
         throw SkipTestException("Video file can not be opened");
     }
 
@@ -1898,7 +1898,7 @@ TEST(GAPI_Streaming, Reshape)
     auto cc = comp.compileStreaming();
     try {
         cc.setSource<BGRSource>(filepath);
-    } catch (std::exception&) {
+    } catch(...) {
         throw SkipTestException("Video file can not be opened");
     }
 
@@ -1928,7 +1928,7 @@ TEST(GAPI_Streaming, Reshape)
     cc.stop();
     try {
         cc.setSource<BGRSource>(filepath);
-    } catch (std::exception&) {
+    } catch(...) {
         throw SkipTestException("Video file can not be opened");
     }
 
@@ -1978,7 +1978,7 @@ namespace {
                 try {
                     ptr = cv::gapi::wip::make_src<BGRSource>(pipeline);
                 }
-                catch (std::exception&) {
+                catch(...) {
                     throw SkipTestException(std::string("BGRSource for '") + pipeline +
                                             "' couldn't be created!");
                 }
@@ -1988,7 +1988,7 @@ namespace {
                 try {
                     ptr = cv::gapi::wip::make_src<NV12Source>(pipeline);
                 }
-                catch (std::exception&) {
+                catch(...) {
                     throw SkipTestException(std::string("NV12Source for '") + pipeline +
                                             "' couldn't be created!");
                 }
@@ -2336,7 +2336,7 @@ TEST(GAPI_Streaming, TestDesyncMediaFrame) {
     std::string filepath = findDataFile("cv/video/768x576.avi");
     try {
         pipe.setSource<BGRSource>(filepath);
-    } catch (std::exception&) {
+    } catch(...) {
         throw SkipTestException("Video file can not be opened");
     }
     pipe.start();

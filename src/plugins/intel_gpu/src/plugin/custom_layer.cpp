@@ -195,7 +195,7 @@ bool CustomLayer::IsLegalSizeRule(const std::string & rule) {
 
     try {
         expr.Evaluate();
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
     return true;

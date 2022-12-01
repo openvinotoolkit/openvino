@@ -93,7 +93,7 @@ TEST_P(ctor_test, basic) {
         }
         ASSERT_NE(nullptr, mem.get());
     }
-    catch (std::exception&) {
+    catch (...) {
         FAIL() << "Test failed, ctor of usm mems failed.";
     }
 }

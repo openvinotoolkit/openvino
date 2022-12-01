@@ -354,7 +354,7 @@ bool kernels_cache::validate_simple_kernel_execution(kernel::ptr krl) {
 
         ev.wait();
         return true;
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
 }
@@ -383,7 +383,7 @@ void kernels_cache::build_all() {
         tasks.push_back([this, &_build_engine, &batch, &exception] {
             try {
                 build_batch(*_build_engine, batch);
-            } catch (std::exception&) {
+            } catch(...) {
                 exception = std::current_exception();
             }
         });

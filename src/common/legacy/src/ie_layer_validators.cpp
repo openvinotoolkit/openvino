@@ -246,7 +246,7 @@ void PoolingValidator::parseParams(CNNLayer* layer) {
 
                 poolLayer->_pads_end.insert(X_AXIS, 0u);
                 poolLayer->_pads_end.insert(Y_AXIS, 0u);
-            } catch (std::exception&) {
+            } catch (...) {
             }
 
             std::string alg = poolLayer->GetParamAsString("pool", "caffe.PoolingParameter.MAX");

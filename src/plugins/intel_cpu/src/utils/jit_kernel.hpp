@@ -199,7 +199,7 @@ public:
         try {
             if (!_is_exit_valid)
                 _expr._kernel.assignL(_exit, _else);
-        } catch (std::exception&) {}
+        } catch(...) {}
     }
 
     template<typename F>
@@ -882,7 +882,7 @@ shared_reg<Reg> make_shared(Reg & reg, jit_kernel & kernel) {
     std::shared_ptr<Reg> ptr(&reg, [&kernel](Reg *preg) {
         try {
             kernel.free(*preg);
-        } catch (std::exception&) {}
+        } catch(...) {}
     });
     return std::move(ptr);
 }

@@ -39,7 +39,7 @@ TEST(type_prop, grn_invalid_data_rank) {
         FAIL() << "Invalid input tensor rank.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Input tensor rank must be 2, 3 or 4 dimensional"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 
@@ -51,7 +51,7 @@ TEST(type_prop, grn_invalid_data_rank) {
         FAIL() << "Invalid input tensor rank.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Input tensor rank must be 2, 3 or 4 dimensional"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }

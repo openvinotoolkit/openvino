@@ -40,7 +40,7 @@ bool PriorBox::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& o
             errorMessage = "Only opset1 PriorBox operation is supported";
             return false;
         }
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
     return true;

@@ -55,7 +55,7 @@ bool Transpose::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
             errorMessage = "Constant expected as the second input for static shapes.";
             return false;
         }
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
     return true;

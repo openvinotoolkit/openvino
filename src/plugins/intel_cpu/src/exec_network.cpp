@@ -182,7 +182,7 @@ ExecNetwork::GraphGuard::Lock ExecNetwork::GetGraph() const {
                     graphLock._graph.setConfig(_cfg);
                 }
                 graphLock._graph.CreateGraph(_network, extensionManager, _numaNodesWeights[numaNodeId], _mutex);
-            } catch (std::exception&) {
+            } catch(...) {
                 exception = std::current_exception();
             }
         };

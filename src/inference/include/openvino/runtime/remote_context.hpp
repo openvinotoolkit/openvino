@@ -108,7 +108,7 @@ public:
                       "Could not check type that is not inherited from RemoteContext");
         try {
             T::type_check(*this);
-        } catch (std::exception&) {
+        } catch (...) {
             return false;
         }
         return true;

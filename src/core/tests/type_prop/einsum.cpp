@@ -238,7 +238,7 @@ TEST(type_prop, einsum_incorrectequation_subscriptnumber) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Equation must contain a number of subscripts equal to a "
                                          "number of Einsum inputs."));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Equation format check failed";
     }
 }
@@ -258,7 +258,7 @@ TEST(type_prop, einsum_incorrectequation_invalidlabels) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Input subscript of Einsum equation must consist of either only alphabetic "
                                          "letters or alphabetic letters with one ellipsis."));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Equation format check failed";
     }
 }
@@ -278,7 +278,7 @@ TEST(type_prop, einsum_incorrectequation_incompatibleshapes) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Different input dimensions indicated by the same labels "
                                          "for Einsum must be compatible."));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Equation format check failed";
     }
 }
@@ -297,7 +297,7 @@ TEST(type_prop, einsum_incorrectequation_notbroadcastableshapes) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Input dimensions labeled with ellipsis for Einsum must be broadcastable."));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Equation format check failed";
     }
 }
@@ -317,7 +317,7 @@ TEST(type_prop, einsum_incorrectequation_missedellipsis) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Output subscript of Einsum equation must contain one "
                                          "ellipsis if ellipsis is met in any input subscript."));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Equation format check failed";
     }
 }

@@ -471,7 +471,7 @@ TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_incorrect_sli
         FAIL() << "Loop was created with incorrect axis of concatenated slices output.";
     } catch (const std::exception& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("out of the tensor rank range"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Construction loop operator failed for unexpected reason.";
     }
 }

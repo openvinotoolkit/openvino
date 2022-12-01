@@ -34,7 +34,7 @@ TEST(type_prop, psroi_pooling_invalid_type) {
         FAIL() << "Exception expected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Feature maps' data type must be floating point"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Unknown exception was thrown";
     }
 
@@ -45,7 +45,7 @@ TEST(type_prop, psroi_pooling_invalid_type) {
         FAIL() << "Exception expected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Coords' data type must be floating point"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Unknown exception was thrown";
     }
 }
@@ -58,7 +58,7 @@ TEST(type_prop, psroi_pooling_invalid_mode) {
         FAIL() << "Exception expected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Expected 'average' or 'bilinear' mode"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Unknown exception was thrown";
     }
 }
@@ -71,7 +71,7 @@ TEST(type_prop, psroi_pooling_invalid_shapes) {
         FAIL() << "Exception expected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("PSROIPooling expects 4 dimensions for input"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Unknown exception was thrown";
     }
 
@@ -82,7 +82,7 @@ TEST(type_prop, psroi_pooling_invalid_shapes) {
         FAIL() << "Exception expected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("PSROIPooling expects 2 dimensions for box coordinates"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Unknown exception was thrown";
     }
 }
@@ -95,7 +95,7 @@ TEST(type_prop, psroi_pooling_invalid_group_size) {
         FAIL() << "Exception expected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("group_size has to be greater than 0"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Unknown exception was thrown";
     }
 
@@ -107,7 +107,7 @@ TEST(type_prop, psroi_pooling_invalid_group_size) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Number of input's channels must be a multiply of group_size * group_size"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Unknown exception was thrown";
     }
 }
@@ -122,7 +122,7 @@ TEST(type_prop, psroi_pooling_invalid_output_dim) {
         EXPECT_HAS_SUBSTRING(
             error.what(),
             std::string("output_dim must be equal to input channels divided by group_size * group_size"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Unknown exception was thrown";
     }
 }
@@ -135,7 +135,7 @@ TEST(type_prop, psroi_pooling_invalid_spatial_bins) {
         FAIL() << "Exception expected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("spatial_bins_x has to be greater than 0"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Unknown exception was thrown";
     }
 
@@ -146,7 +146,7 @@ TEST(type_prop, psroi_pooling_invalid_spatial_bins) {
         FAIL() << "Exception expected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("spatial_bins_y has to be greater than 0"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Unknown exception was thrown";
     }
 
@@ -159,7 +159,7 @@ TEST(type_prop, psroi_pooling_invalid_spatial_bins) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Number of input's channels must be a multiply of "
                                          "spatial_bins_x * spatial_bins_y"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Unknown exception was thrown";
     }
 
@@ -172,7 +172,7 @@ TEST(type_prop, psroi_pooling_invalid_spatial_bins) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("output_dim must be equal to input channels divided by "
                                          "spatial_bins_x * spatial_bins_y"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Unknown exception was thrown";
     }
 }

@@ -35,7 +35,7 @@ bool MultiClassNms::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
             errorMessage = "Node is not an instance of MulticlassNms from opset v8 or v9.";
             return false;
         }
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
     return true;

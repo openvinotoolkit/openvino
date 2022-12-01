@@ -60,7 +60,7 @@ TEST(type_prop, selu_incompatible_input_type_boolean) {
         FAIL() << "Invalid input type not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Input element types must be floating-point"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Input type check failed for unexpected reason";
     }
 }
@@ -76,7 +76,7 @@ TEST(type_prop, selu_incompatible_input_type_i32) {
         FAIL() << "Invalid input type not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Input element types must be floating-point"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Input type check failed for unexpected reason";
     }
 }
@@ -92,7 +92,7 @@ TEST(type_prop, selu_incompatible_input_type_u16) {
         FAIL() << "Invalid input type not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Input element types must be floating-point"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Input type check failed for unexpected reason";
     }
 }
@@ -108,7 +108,7 @@ TEST(type_prop, selu_incompatible_input_types) {
         FAIL() << "Inavlid input types not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Input element types do not match"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Input type check failed for unexpected reason";
     }
 }

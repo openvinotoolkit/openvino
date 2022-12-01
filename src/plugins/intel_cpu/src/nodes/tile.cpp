@@ -26,7 +26,7 @@ bool Tile::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::
             errorMessage = "Only constant 'Repeats' input is supported with static shapes.";
             return false;
         }
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
     return true;

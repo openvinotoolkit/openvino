@@ -539,7 +539,7 @@ TEST_P(IEClassNetworkTestP, DISABLED_QueryNetworkMultiThrows) {
         EXPECT_PRED_FORMAT2(testing::IsSubstring,
                             std::string("KEY_MULTI_DEVICE_PRIORITIES key is not set for"),
                             error.what());
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "QueryNetwork failed for unexpected reson.";
     }
 }
@@ -941,7 +941,7 @@ TEST_P(IEClassNetworkTestP, LoadNetworkMultiWithoutSettingDevicePrioritiesThrows
         EXPECT_PRED_FORMAT2(testing::IsSubstring,
                             std::string("KEY_MULTI_DEVICE_PRIORITIES key is not set for"),
                             error.what());
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "LoadNetowrk failed for unexpected reson.";
     }
 }

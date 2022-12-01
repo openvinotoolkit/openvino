@@ -121,7 +121,7 @@ TEST(type_prop, ctc_loss_fail_inputs_dim) {
         FAIL() << "Invalid inputs not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Expected a 3D tensor for logits."));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Inputs shape check failed for unexpected reason";
     }
 }
@@ -142,7 +142,7 @@ TEST(type_prop, ctc_loss_fail_logit_length_dim) {
         FAIL() << "Invalid logit length not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Expected a 1D tensor for logit length."));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Logit length shape check failed for unexpected reason";
     }
 }
@@ -163,7 +163,7 @@ TEST(type_prop, ctc_loss_fail_labels_dim) {
         FAIL() << "Invalid labels not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Expected a 2D tensor for labels."));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Labels shape check failed for unexpected reason";
     }
 }
@@ -184,7 +184,7 @@ TEST(type_prop, ctc_loss_fail_label_length_dim) {
         FAIL() << "Invalid labels not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Expected a 1D tensor for label length."));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Label length shape check failed for unexpected reason";
     }
 }
@@ -205,7 +205,7 @@ TEST(type_prop, ctc_loss_fail_blank_index_dim) {
         FAIL() << "Invalid labels not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Expected a scalar for blank index."));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Blank index shape check failed for unexpected reason";
     }
 }
@@ -228,7 +228,7 @@ TEST(type_prop, ctc_loss_fail_batch_dim_mismatch) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("The first dimension of label length must be equal to the first dimension "
                                          "of the logits, the logit length and labels."));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Batch dimension matching check failed for unexpected reason";
     }
 }
@@ -251,7 +251,7 @@ TEST(type_prop, ctc_loss_fail_time_dim_mismatch) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("The second dimension of labels must be equal to the second dimension "
                                          "of logits."));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Time dimension matching check failed for unexpected reason";
     }
 }

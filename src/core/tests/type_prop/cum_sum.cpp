@@ -78,7 +78,7 @@ TEST(type_prop, cum_sum_op_data_shapes) {
             auto cum_sum = std::make_shared<op::v0::CumSum>(A, axis);
 
             EXPECT_EQ(cum_sum->get_output_partial_shape(0), shape);
-        } catch (std::exception&) {
+        } catch (...) {
             FAIL() << "Data input shape validation check failed for unexpected reason";
         }
     }
@@ -92,7 +92,7 @@ TEST(type_prop, cum_sum_op_incorrect_axis_shapes) {
             auto axis = std::make_shared<op::Parameter>(element::i32, shape);
             auto A = std::make_shared<op::Parameter>(element::f32, data_shape);
             auto cum_sum = std::make_shared<op::v0::CumSum>(A, axis);
-        } catch (std::exception&) {
+        } catch (...) {
             FAIL() << "CumSum axis input shape validation shouldn't throw for backward compatibility";
         }
     }
@@ -119,7 +119,7 @@ TEST(type_prop, cum_sum_op_element_types) {
             auto A = std::make_shared<op::Parameter>(et, data_shape);
 
             EXPECT_NO_THROW(const auto unused = std::make_shared<op::v0::CumSum>(A, axis));
-        } catch (std::exception&) {
+        } catch (...) {
             FAIL() << "Data input element type validation check failed for unexpected reason";
         }
     }
@@ -139,7 +139,7 @@ TEST(type_prop, cum_sum_op_incorrect_axis_element_type) {
             FAIL() << "Invalid element type of axis input not detected";
         } catch (const NodeValidationFailure& error) {
             EXPECT_HAS_SUBSTRING(error.what(), "axis element type must be either int64_t or int32_t");
-        } catch (std::exception&) {
+        } catch (...) {
             FAIL() << "Axis input element type validation check failed for unexpected reason";
         }
     }

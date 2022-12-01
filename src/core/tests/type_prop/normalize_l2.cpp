@@ -46,7 +46,7 @@ TEST(type_prop, normalize_l2_axes_input_not_constant) {
         FAIL() << "Invalid input tensor rank.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Input axes must be Constant type"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -64,7 +64,7 @@ TEST(type_prop, normalize_l2_invalid_axes_rank) {
         FAIL() << "Invalid input tensor rank.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Input axes must be scalar or have rank equal to 1"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -82,7 +82,7 @@ TEST(type_prop, normalize_l2_axes_out_of_bounds) {
         FAIL() << "Invalid input tensor rank.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Reduction axis ("));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }

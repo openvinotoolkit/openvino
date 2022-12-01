@@ -12,7 +12,7 @@
         IE_THROW(NotAllocated) << "VariableState was not initialized."; \
     try {                                                               \
         __VA_ARGS__;                                                    \
-    } catch (std::exception&) {                                                     \
+    } catch (...) {                                                     \
         ::InferenceEngine::details::Rethrow();                          \
     }
 
@@ -22,7 +22,7 @@
         __VA_ARGS__;                                                         \
     } catch (const std::exception& ex) {                                     \
         throw ov::Exception(ex.what());                                      \
-    } catch (std::exception&) {                                                          \
+    } catch (...) {                                                          \
         OPENVINO_ASSERT(false, "Unexpected exception");                      \
     }
 

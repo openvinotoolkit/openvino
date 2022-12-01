@@ -184,7 +184,7 @@ public:
         try {  // unexpected exceptions of external onnx lib
             ONNX_NAMESPACE::shape_inference::InferShapes(*m_model_proto);
             m_infer_shapes_was_run = true;
-        } catch (std::exception&) {
+        } catch (...) {
             release();
         }
         return m_infer_shapes_was_run;
@@ -193,7 +193,7 @@ public:
     void release() {
         try {
             m_model_proto->mutable_graph()->clear_value_info();
-        } catch (std::exception&) {
+        } catch (...) {
         }
     }
 

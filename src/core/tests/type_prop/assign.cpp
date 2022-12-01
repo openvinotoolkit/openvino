@@ -20,7 +20,7 @@ TEST(type_prop, assign_variable_not_found) {
         FAIL() << "Should not find variable with variable_id";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Can't find variable with id = variable_id"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }

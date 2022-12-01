@@ -65,7 +65,7 @@ TEST(type_prop, random_uniform_invalid_out_shape_type) {
         FAIL() << "Unexpected pass with invalid output shape.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Type of the input should be int32 or int64."));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Check failed for unexpected reason.";
     }
 }
@@ -81,7 +81,7 @@ TEST(type_prop, random_uniform_invalid_out_shape_rank) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("The rank of the tensor defining output shape must be equal to 1."));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Check failed for unexpected reason.";
     }
 }
@@ -97,7 +97,7 @@ TEST(type_prop, random_uniform_invalid_min_val) {
         FAIL() << "Unexpected pass with invalid min value.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("'min_val' should have 1 element."));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Check failed for unexpected reason.";
     }
 }
@@ -113,7 +113,7 @@ TEST(type_prop, random_uniform_invalid_max_val) {
         FAIL() << "Unexpected pass with invalid max value.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("'max_val' should have 1 element."));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Check failed for unexpected reason.";
     }
 }
@@ -129,7 +129,7 @@ TEST(type_prop, random_uniform_invalid_min_max_val_type_case1) {
         FAIL() << "Unexpected pass with invalid min value type.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("'min_val' should have the same type as 'max_val'."));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Check failed for unexpected reason";
     }
 }
@@ -146,7 +146,7 @@ TEST(type_prop, random_uniform_invalid_min_max_val_type_case2) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("'min_val' and 'max_val' should have the same type as 'out_type' attribute."));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Check failed for unexpected reason";
     }
 }
@@ -162,7 +162,7 @@ TEST(type_prop, random_uniform_invalid_min_max_values_case1) {
         FAIL() << "Unexpected pass with invalid min and max values.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Min value must be less than max value."));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Check failed for unexpected reason";
     }
 }
@@ -178,7 +178,7 @@ TEST(type_prop, random_uniform_invalid_min_max_values_case2) {
         FAIL() << "Unexpected pass with invalid min and max values.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Min value must be less than max value."));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Check failed for unexpected reason";
     }
 }

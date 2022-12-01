@@ -142,7 +142,7 @@ void Logger::printHeader(LogLevel msgLevel) const {
         for (size_t i = 0; i < _ident; ++i) {
             _out->get() << singleIdent;
         }
-    } catch (std::exception&) {
+    } catch (...) {
         std::cerr << "[VPU] Cannot print header\n";
         std::abort();
     }
@@ -155,7 +155,7 @@ void Logger::printFooter() const {
         }
 
         _out->get() << std::endl;
-    } catch (std::exception&) {
+    } catch (...) {
         std::cerr << "[VPU] Cannot print footer\n";
         std::abort();
     }

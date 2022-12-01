@@ -642,7 +642,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         std::shared_ptr<ngraph::Function> model;
         try {
             model = model_param->second.as<std::shared_ptr<ngraph::Function>>();
-        } catch (std::exception&) {
+        } catch (...) {
             IE_THROW() << "[GPU_OPTIMAL_BATCH_SIZE] ov::hint::model should be std::shared_ptr<ov::Model> type";
         }
         GPU_DEBUG_IF(debug_config->verbose >= 1) {
@@ -887,7 +887,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
                 for (const auto& input : batched_inputs)
                     shapes[input.first][input.second] = base_batch_size;
                 cloned_network.reshape(shapes);
-            } catch (std::exception&) {
+            } catch (...) {
                 GPU_DEBUG_IF(debug_config->verbose >= 1) {
                     GPU_DEBUG_COUT << "[MAX_BATCH_SIZE] Error at reshape to " << base_batch_size << std::endl;
                 }

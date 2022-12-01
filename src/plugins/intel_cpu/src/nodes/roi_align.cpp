@@ -668,7 +668,7 @@ bool ROIAlign::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& o
             errorMessage = "Doesn't support mode: " + ngraph::as_string(alignedMode);
             return false;
         }
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
     return true;

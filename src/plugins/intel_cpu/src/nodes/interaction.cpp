@@ -188,7 +188,7 @@ bool Interaction::isSupportedOperation(const std::shared_ptr<const ngraph::Node>
             errorMessage = "Only Interaction operation is supported";
             return false;
         }
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
     return true;

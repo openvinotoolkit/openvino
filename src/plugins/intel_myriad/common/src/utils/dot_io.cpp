@@ -37,7 +37,7 @@ DotLabel::~DotLabel() {
             _parent->_ostr << _ostr.str();
         }
     }
-    catch (std::exception&) {
+    catch (...) {
         std::cerr << "ERROR in ~DotLabel()" << std::endl;
     }
 }

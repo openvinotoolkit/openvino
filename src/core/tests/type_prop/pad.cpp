@@ -24,7 +24,7 @@ TEST(type_prop, pad_v1_arg_pad_value_type_mismatch) {
         FAIL() << "Incorrect arg_pad_value type exception not handled";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Argument element types do not match (input arg element type:"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -42,7 +42,7 @@ TEST(type_prop, pad_v1_arg_pad_value_shape_not_compatible) {
         FAIL() << "Incorrect arg_pad_value shape exception not handled";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Argument for padding value is not a scalar (shape:"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -59,7 +59,7 @@ TEST(type_prop, pad_v1_pads_begin_shape_not_1D) {
         FAIL() << "Incorrect pads_begin shape exception not handled";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Argument for pads_begin is not 1D (shape:"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -76,7 +76,7 @@ TEST(type_prop, pad_v1_pads_end_shape_not_1D) {
         FAIL() << "Incorrect pads_end shape exception not handled";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Argument for pads_end is not 1D (shape:"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -95,7 +95,7 @@ TEST(type_prop, pad_v1_pads_begin_size_not_correct) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Number of elements of pads_begin must be >= 0 and <= arg "
                                          "rank (pads_begin_shape[0]:"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -115,7 +115,7 @@ TEST(type_prop, pad_v1_pads_end_size_not_correct) {
         EXPECT_HAS_SUBSTRING(
             error.what(),
             std::string("Number of elements of pads_end must be >= 0 and <= arg rank (pads_end_shape[0]:"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -132,7 +132,7 @@ TEST(type_prop, pad_v1_arg_pads_begin_incompatible_type) {
         FAIL() << "Incorrect pad_begin type exception not handled";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("pads_begin must be an integral number, but is:"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -149,7 +149,7 @@ TEST(type_prop, pad_v1_arg_pads_end_incompatible_type) {
         FAIL() << "Incorrect pads_end type exception not thrown";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("pads_end must be an integral number, but is:"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -169,7 +169,7 @@ TEST(type_prop, pad_v1_deduce_too_small_for_edge) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("EDGE padding mode requires an input of dimension of at "
                                          "least 1 at each spatial axis"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -189,7 +189,7 @@ TEST(type_prop, pad_v1_deduce_too_small_for_reflect) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("REFLECT padding mode requires an input of dimension of "
                                          "at least 2 at each spatial axis"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }

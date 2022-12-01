@@ -48,7 +48,7 @@ bool RDFT::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, s
             errorMessage = "Only opset9 RDFT/IRDFT operation is supported";
             return false;
         }
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
     return true;

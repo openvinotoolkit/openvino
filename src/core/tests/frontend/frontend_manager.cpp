@@ -283,7 +283,7 @@ TEST(FrontEndExceptionTest, frontend_assert_throw_check_info) {
         std::string caught_msg(ex.what());
         EXPECT_NE(caught_msg.find(msg), std::string::npos);
         return;
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Not expected exception type.";
     }
     FAIL() << "Test is expected to throw an exception.";
@@ -297,7 +297,7 @@ TEST(FrontEndExceptionTest, frontend_not_implemented_throw_check_info) {
         std::string caught_msg(ex.what());
         EXPECT_NE(caught_msg.find("TestClass"), std::string::npos);
         return;
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Not expected exception type.";
     }
     FAIL() << "Test is expected to throw an exception.";
@@ -311,7 +311,7 @@ TEST(FrontEndExceptionTest, frontend_general_error_throw_info) {
         std::string caught_msg(ex.what());
         EXPECT_NE(caught_msg.find(msg), std::string::npos);
         return;
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Not expected exception type.";
     }
     FAIL() << "Test is expected to throw an exception.";
@@ -325,7 +325,7 @@ TEST(FrontEndExceptionTest, frontend_op_conversion_error_throw_info) {
         std::string caught_msg(ex.what());
         EXPECT_NE(caught_msg.find(msg), std::string::npos);
         return;
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Not expected exception type.";
     }
     FAIL() << "Test is expected to throw an exception.";
@@ -339,7 +339,7 @@ TEST(FrontEndExceptionTest, frontend_initialization_error_throw_info) {
         std::string caught_msg(ex.what());
         EXPECT_NE(caught_msg.find(msg), std::string::npos);
         return;
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Not expected exception type.";
     }
     FAIL() << "Test is expected to throw an exception.";
@@ -356,7 +356,7 @@ TEST(FrontEndExceptionTest, frontend_initialization_error_throw_info) {
         FAIL() << "Throw was expected";                                                                 \
     } catch (ov::frontend::GeneralFailure & error) {                                                    \
         EXPECT_NE(std::string(error.what()).find("Test exception"), std::string::npos) << error.what(); \
-    } catch (std::exception&) {                                                                                     \
+    } catch (...) {                                                                                     \
         FAIL() << "Unexpected error is thrown";                                                         \
     }
 
@@ -417,7 +417,7 @@ TEST(FrontEndManagerTest, Exception_Safety_FrontEnd_Decode) {
         FAIL() << "Throw was expected";                                                                 \
     } catch (ov::frontend::GeneralFailure & error) {                                                    \
         EXPECT_NE(std::string(error.what()).find("Test exception"), std::string::npos) << error.what(); \
-    } catch (std::exception&) {                                                                                     \
+    } catch (...) {                                                                                     \
         FAIL() << "Unexpected error is thrown";                                                         \
     }
 

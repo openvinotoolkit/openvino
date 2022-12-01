@@ -22,7 +22,7 @@ TEST(type_prop, scatter_nd_update_v3_fail_indices_element_type) {
         FAIL() << "Incorrect indices element type";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Indices element type must be i64 or i32"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -43,7 +43,7 @@ TEST(type_prop, scatter_nd_update_v3_fail_updates_rank) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Rank of updates must be rank of inputs + rank of indices "
                                          "- last dimension of indices - 1"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -62,7 +62,7 @@ TEST(type_prop, scatter_nd_update_fail_updates_element_type) {
         FAIL() << "Created ScatterND op with incorrect updates element type.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Updates element type must be the same as inputs"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -83,7 +83,7 @@ TEST(type_prop, scatter_nd_update_fail_updates_shape) {
         EXPECT_HAS_SUBSTRING(
             error.what(),
             std::string("updates_shape[indices_rank-1:] shape must be input_shape[indices_shape[-1]:]"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -102,7 +102,7 @@ TEST(type_prop, scatter_nd_update_fail_indices_last_dim) {
         FAIL() << "Incorrect indices innermost dim";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Last dimension of indices can be at most the rank of inputs"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }

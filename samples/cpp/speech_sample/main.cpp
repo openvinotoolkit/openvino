@@ -680,7 +680,7 @@ int main(int argc, char* argv[]) {
     } catch (const std::exception& error) {
         slog::err << error.what() << slog::endl;
         return 1;
-    } catch (std::exception&) {
+    } catch (...) {
         slog::err << "Unknown/internal exception happened" << slog::endl;
         return 1;
     }

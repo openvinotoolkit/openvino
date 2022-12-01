@@ -140,7 +140,7 @@ TEST(type_prop, reverse_3d_deduce_oob) {
         EXPECT_HAS_SUBSTRING(
             error.what(),
             std::string("Some of the provided axes (AxisSet{0, 2, 3}) are out of bounds (input rank: 3)."));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -187,7 +187,7 @@ TEST(type_prop, reverse_partial_rank_static_dynamic_axes_oob) {
         EXPECT_HAS_SUBSTRING(
             error.what(),
             std::string("Some of the provided axes (AxisSet{0, 2, 4}) are out of bounds (input rank: 4)."));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }

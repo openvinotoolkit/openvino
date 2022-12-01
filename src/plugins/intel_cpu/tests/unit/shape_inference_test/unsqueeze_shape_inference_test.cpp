@@ -32,7 +32,7 @@ TEST_F(UnsqueezeStaticShapeInferenceAssertTest, no_axes) {
         FAIL() << "Axes nullptr not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_THAT(error.what(), HasSubstr("Check 'constant != nullptr'"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -46,7 +46,7 @@ TEST_F(UnsqueezeStaticShapeInferenceAssertTest, empty_axes) {
         FAIL() << "Empty axes not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_THAT(error.what(), HasSubstr("'axes' input is mandatory"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }

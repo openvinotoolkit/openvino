@@ -26,7 +26,7 @@
         const auto message = std::string(MESSAGE "\n") + e.what();  \
         OPENVINO_ASSERT(false, message);                            \
     }                                                               \
-    catch (std::exception&) {                                                   \
+    catch (...) {                                                   \
         OPENVINO_ASSERT(false, (MESSAGE));                          \
     }
 
@@ -45,7 +45,7 @@
         const auto message = std::string(MESSAGE "\n") + e.what();  \
         OPENVINO_ASSERT(false, message);                            \
     }                                                               \
-    catch (std::exception&) {                                                   \
+    catch (...) {                                                   \
         OPENVINO_ASSERT(false, (MESSAGE));                          \
     }
 

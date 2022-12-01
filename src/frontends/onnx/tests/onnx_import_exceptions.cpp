@@ -32,7 +32,7 @@ TEST(onnx_importer, exception_msg_ngraph_error) {
         FAIL() << "ONNX Importer did not detected incorrect model!";
     } catch (const ngraph_error& e) {
         EXPECT_HAS_SUBSTRING(e.what(), std::string("must be a multiple of divisor"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "The ONNX model importer failed for unexpected reason";
     }
 }
@@ -51,7 +51,7 @@ TEST(onnx_importer, exception_msg_onnx_node_validation_failure) {
     // thus below workaround.
     catch (const std::exception& e) {
         EXPECT_HAS_SUBSTRING(e.what(), std::string("While validating ONNX node '<Node(InstanceNormalization)"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "The ONNX model importer failed for unexpected reason";
     }
 }
@@ -67,7 +67,7 @@ TEST(onnx_importer, exception_msg_std_err_wrapped) {
         FAIL() << "ONNX Importer did not detected incorrect model!";
     } catch (const std::exception& e) {
         EXPECT_HAS_SUBSTRING(e.what(), std::string("While validating ONNX node '<Node(EyeLike): y"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "The ONNX model importer failed for unexpected reason";
     }
 }

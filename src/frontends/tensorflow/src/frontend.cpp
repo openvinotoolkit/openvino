@@ -175,7 +175,7 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
             NodeContext node_context(operation_decoder, ng_inputs);
             // generate OV node output vector using translator for given operation type
             ng_outputs = (*op_fun)(node_context);
-        } catch (std::exception&) {
+        } catch (...) {
             if (fail_fast) {
                 // re-throw any exception
                 throw;

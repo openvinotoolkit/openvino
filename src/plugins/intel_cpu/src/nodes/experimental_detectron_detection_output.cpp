@@ -230,7 +230,7 @@ bool ExperimentalDetectronDetectionOutput::isSupportedOperation(const std::share
             errorMessage = "Node is not an instance of the ExperimentalDetectronDetectionOutput from the operations set v6.";
             return false;
         }
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
     return true;

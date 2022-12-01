@@ -676,7 +676,7 @@ bool DeformableConvolution::isSupportedOperation(const std::shared_ptr<const ngr
             errorMessage = "Node is not an instance of DeformableConvolution form the operation set v1 or v8.";
             return false;
         }
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
     return true;

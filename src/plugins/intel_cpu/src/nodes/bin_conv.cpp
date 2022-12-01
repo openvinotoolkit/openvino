@@ -891,7 +891,7 @@ bool BinaryConvolution::isSupportedOperation(const std::shared_ptr<const ngraph:
             errorMessage = "Doesn't support mode: " + ngraph::as_string(binConv->get_mode());
             return false;
         }
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
     return true;

@@ -67,7 +67,7 @@ VPUScalesOption::value_type VPUScalesOption::parse(const std::string& value) {
         try {
             vpuScaleMap.insert({std::string(vpuScale.substr(0, delimeterPos)),
                                 std::stof(vpuScale.substr(delimeterPos + 1))});
-        } catch (std::exception&) {
+        } catch (...) {
             VPU_THROW_EXCEPTION << "Cannot convert string to float. Wrong input";
         }
     }

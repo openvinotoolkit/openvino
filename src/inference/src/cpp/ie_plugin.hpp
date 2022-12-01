@@ -31,7 +31,7 @@
     if (!_ptr) IE_THROW() << "Wrapper used in the PLUGIN_CALL_STATEMENT was not initialized.";    \
     try {                                                                                         \
         __VA_ARGS__;                                                                              \
-    } catch (std::exception&) {::InferenceEngine::details::Rethrow();}
+    } catch(...) {::InferenceEngine::details::Rethrow();}
 
 namespace InferenceEngine {
 /**
@@ -134,7 +134,7 @@ namespace ov {
     OPENVINO_ASSERT(_ptr != nullptr, "InferencePlugin was not initialized."); \
     try {                                                                     \
         __VA_ARGS__;                                                          \
-    } catch (std::exception&) {                                                           \
+    } catch (...) {                                                           \
         ::InferenceEngine::details::Rethrow();                                \
     }
 

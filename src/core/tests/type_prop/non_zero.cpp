@@ -72,7 +72,7 @@ TEST(type_prop, non_zero_fail_index_element_type) {
         FAIL() << "Invalid output type not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Output type must be i32 or i64"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }

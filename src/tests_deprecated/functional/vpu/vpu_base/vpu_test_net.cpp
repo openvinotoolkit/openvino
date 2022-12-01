@@ -18,7 +18,7 @@ std::vector<double> GetParamAsDoubles(const std::string& vals) {
     while (getline(stream, str, ',')) {
         try {
             result.push_back(std::stod(str));
-        } catch (std::exception&) {
+        } catch (...) {
             IE_THROW() << "Cannot parse parameter " << str
                                << ". Value " << vals << " cannot be casted to double.";
         }

@@ -21,7 +21,7 @@ bool CTCLoss::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
             errorMessage = "Node is not an instance of the CTCLoss operation from operation set v4.";
             return false;
         }
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
     return true;

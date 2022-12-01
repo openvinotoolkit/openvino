@@ -38,7 +38,7 @@ bool DFT::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
             errorMessage = "Only opset7 DFT/IDFT operation is supported";
             return false;
         }
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
     return true;

@@ -228,7 +228,7 @@ int main(int argc, char* argv[]) {
     } catch (const std::exception& ex) {
         slog::err << ex.what() << slog::endl;
         return EXIT_FAILURE;
-    } catch (std::exception&) {
+    } catch (...) {
         slog::err << "Unknown/internal exception happened." << slog::endl;
         return EXIT_FAILURE;
     }

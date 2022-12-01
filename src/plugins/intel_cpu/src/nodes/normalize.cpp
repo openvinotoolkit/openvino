@@ -745,7 +745,7 @@ bool NormalizeL2::isSupportedOperation(const std::shared_ptr<const ngraph::Node>
             errorMessage = "Doesn't support eps_mode: " + ngraph::as_string(mode);
             return false;
         }
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
     return true;

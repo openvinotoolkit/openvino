@@ -28,7 +28,7 @@ TEST(type_prop, strided_slice_begin_incorrect_type) {
         FAIL() << "Incorrect begin type exception not thrown.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Begin mask must be an integral number"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -47,7 +47,7 @@ TEST(type_prop, strided_slice_end_incorrect_type) {
         FAIL() << "Incorrect end type exception not thrown.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("End mask must be an integral number"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -67,7 +67,7 @@ TEST(type_prop, strided_slice_incompatible_size_of_masks_attr) {
         FAIL() << "Incompatible size od masks exception not thrown.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("All masks of StridedSlice must have the same size"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -86,7 +86,7 @@ TEST(type_prop, strided_slice_mask_incorrect_value) {
         FAIL() << "Incorrect values of StridedSlice mask exception not thrown.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("All masks of StridedSlice must have be 0 or 1"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -105,7 +105,7 @@ TEST(type_prop, strided_slice_begin_incorrect_shape) {
         FAIL() << "Incorrect shape of begin exception not thrown.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Begin input must be 1D (begin rank:"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -124,7 +124,7 @@ TEST(type_prop, strided_slice_end_incorrect_shape) {
         FAIL() << "Incorrect shape of end exception not thrown.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("End input must be 1D (end rank:"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -146,7 +146,7 @@ TEST(type_prop, strided_slice_default_stride_dynamic_shape_input) {
         FAIL() << "Unknown data to calculate default strides exception not thrown.";
     } catch (const CheckFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Begin input must be 1D"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }

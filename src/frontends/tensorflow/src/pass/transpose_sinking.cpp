@@ -406,7 +406,7 @@ bool ov::frontend::tensorflow::pass::TransposeSinking::run_on_model(const shared
                 materialize_shapes(n, reorders, transposes_to_delete);
             }
         }
-    } catch (std::exception&) {
+    } catch (...) {
         OPENVINO_DEBUG << "Caught exception while sinking op";
         return false;
     }

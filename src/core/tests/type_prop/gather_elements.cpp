@@ -157,7 +157,7 @@ TEST(type_prop, gather_elements_type_inconsistency) {
         FAIL() << "the indices tensor type check failed";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("indices must be of int32 or int64 type. But instead got"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "type check failed for unexpected reason";
     }
 }
@@ -175,7 +175,7 @@ TEST(type_prop, gather_elements_out_of_bounds_axis) {
         FAIL() << "axis out of bounds check failed";
     } catch (const ov::AssertFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("out of the tensor rank range"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "axis out of bounds check failed for unexpected reason";
     }
 }
@@ -193,7 +193,7 @@ TEST(type_prop, gather_elements_rank_consistency_check) {
         FAIL() << "rank consistency check failed";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("data and indices rank must be equal"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "rank consistency check failed for unexpected reason";
     }
 }
@@ -212,7 +212,7 @@ TEST(type_prop, gather_elements_shape_inconsistency) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("data and indices must have equal or intersecting sizes, except for axis"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Shape inconsistency check failed for unexpected reason";
     }
 }
@@ -231,7 +231,7 @@ TEST(type_prop, gather_elements_dynamic_inconsistent_shapes) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("data and indices must have equal or intersecting sizes, except for axis"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Shape inconsistency check for dynamic PartialShape failed for unexpected reason";
     }
 }
@@ -249,7 +249,7 @@ TEST(type_prop, gather_elements_incosistent_interval_shapes) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("data and indices must have equal or intersecting sizes, except for axis"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Shape inconsistency check for dynamic PartialShape failed for unexpected reason";
     }
 }

@@ -125,7 +125,7 @@ RangeType MyriadMetrics::RangeForAsyncInferRequests(
                 return RangeType(throughput_streams + 1, throughput_streams * 3, 1);
             }
         }
-        catch (std::exception&) {
+        catch(...) {
             IE_THROW() << "Invalid config value for MYRIAD_THROUGHPUT_STREAMS, can't cast to int";
         }
     }

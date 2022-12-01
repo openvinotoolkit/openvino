@@ -43,7 +43,7 @@ PerformanceHintNumRequestsOption::value_type PerformanceHintNumRequestsOption::p
         } else {
             throw std::logic_error("wrong val");
         }
-    } catch (std::exception&) {
+    } catch (...) {
         VPU_THROW_EXCEPTION << "Wrong value of " << value << " for property key " << ov::hint::num_requests.name()
                             << ". Expected only positive integer numbers";
     }

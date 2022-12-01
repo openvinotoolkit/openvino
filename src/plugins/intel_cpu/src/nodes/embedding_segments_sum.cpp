@@ -21,7 +21,7 @@ bool EmbeddingSegmentsSum::isSupportedOperation(const std::shared_ptr<const ngra
             errorMessage = "Node is not an instance of the EmbeddingSegmentsSum operation from opset v3.";
             return false;
         }
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
     return true;

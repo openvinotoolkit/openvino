@@ -22,7 +22,7 @@ bool ExperimentalDetectronPriorGridGenerator::isSupportedOperation(const std::sh
             errorMessage = "Only opset6 ExperimentalDetectronPriorGridGenerator operation is supported";
             return false;
         }
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
     return true;

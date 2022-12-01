@@ -66,7 +66,7 @@ int main() {
         part1();
         part2();
         part3();
-    } catch (std::exception&) {
+    } catch (...) {
     }
     return 0;
 }

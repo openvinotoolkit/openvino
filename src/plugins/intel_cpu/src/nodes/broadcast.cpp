@@ -43,7 +43,7 @@ bool Broadcast::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
             errorMessage = "Only constant target shapes and axis mapping inputs are supported for static shapes.";
             return false;
         }
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
     return true;

@@ -290,7 +290,7 @@ bool GStreamerSource::Priv::retrieveFrame(cv::Mat& data)
 
         cv::cvtColorTwoPlane(y, uv, data, cv::COLOR_YUV2BGR_NV12);
     }
-    catch (std::exception&)
+    catch (...)
     {
         gst_video_frame_unmap(&videoFrame);
         cv::util::throw_error(std::runtime_error("NV12 buffer conversion to BGR is failed!"));

@@ -135,7 +135,7 @@ TEST_P(IncorrectIRTests, loadIncorrectLayer) {
         InferenceEngine::Core ie;
         auto network = ie.ReadNetwork(model, GetNetworkWeights(param));
         auto exec = ie.LoadNetwork(network, param.device_name);
-    } catch (std::exception&) {
+    } catch(...) {
         return;
     }
     FAIL() << "Topology was loaded successfully.";

@@ -725,7 +725,7 @@ static cv::GRunArgs run_py_kernel(cv::detail::PyObjectHolder kernel,
             GAPI_Assert(false);
         }
     }
-    catch (std::exception&)
+    catch (...)
     {
         PyGILState_Release(gstate);
         throw;
@@ -816,7 +816,7 @@ static GMetaArgs run_py_meta(cv::detail::PyObjectHolder out_meta,
         out_metas = PyTuple_Check(result.get()) ? get_meta_args(result.get())
                                                 : cv::GMetaArgs{get_meta_arg(result.get())};
     }
-    catch (std::exception&)
+    catch (...)
     {
         PyGILState_Release(gstate);
         throw;
@@ -951,7 +951,7 @@ bool pyopencv_to(PyObject* obj, cv::detail::ExtractArgsCallback& value, const Ar
         {
             args = extract_run_args(info, holder.get());
         }
-        catch (std::exception&)
+        catch (...)
         {
             PyGILState_Release(gstate);
             throw;
@@ -976,7 +976,7 @@ bool pyopencv_to(PyObject* obj, cv::detail::ExtractMetaCallback& value, const Ar
         {
             args = extract_meta_args(info, holder.get());
         }
-        catch (std::exception&)
+        catch (...)
         {
             PyGILState_Release(gstate);
             throw;
@@ -1003,7 +1003,7 @@ struct PyOpenCV_Converter<cv::GArray<T>>
             {
                 value = cv::util::get<cv::GArray<T>>(array.arg());
             }
-            catch (std::exception&)
+            catch (...)
             {
                 return false;
             }
@@ -1029,7 +1029,7 @@ struct PyOpenCV_Converter<cv::GOpaque<T>>
             {
                 value = cv::util::get<cv::GOpaque<T>>(opaque.arg());
             }
-            catch (std::exception&)
+            catch (...)
             {
                 return false;
             }
@@ -1047,7 +1047,7 @@ bool pyopencv_to(PyObject* obj, cv::GProtoInputArgs& value, const ArgInfo& info)
         value = extract_proto_args<cv::GProtoInputArgs>(obj);
         return true;
     }
-    catch (std::exception&)
+    catch (...)
     {
         failmsg("Can't parse cv::GProtoInputArgs");
         return false;
@@ -1062,7 +1062,7 @@ bool pyopencv_to(PyObject* obj, cv::GProtoOutputArgs& value, const ArgInfo& info
         value = extract_proto_args<cv::GProtoOutputArgs>(obj);
         return true;
     }
-    catch (std::exception&)
+    catch (...)
     {
         failmsg("Can't parse cv::GProtoOutputArgs");
         return false;

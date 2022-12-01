@@ -144,7 +144,7 @@ void LoadNetworkCacheTestBase::SetUp() {
     m_functionName = std::get<1>(funcPair);
     try {
         function = fGen(m_precision, m_batchSize);
-    } catch (std::exception&) {
+    } catch (...) {
         GTEST_SKIP();
     }
 
@@ -194,7 +194,7 @@ void LoadNetworkCacheTestBase::Run() {
         GTEST_COUT << "Can't loadNetwork without cache for " << m_functionName << " with precision " << m_precision.get_type_name() << std::endl;
         GTEST_COUT << "Exception [" << ex.what() << "]" << std::endl;
         GTEST_SKIP();
-    } catch (std::exception&) {
+    } catch (...) {
         GTEST_COUT << "Can't loadNetwork without cache for " << m_functionName << " with precision " << m_precision.get_type_name() << std::endl;
         GTEST_SKIP(); // skip caching test if such network is not supported by device at all
     }

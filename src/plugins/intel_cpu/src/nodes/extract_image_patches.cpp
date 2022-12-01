@@ -287,7 +287,7 @@ bool ExtractImagePatches::isSupportedOperation(const std::shared_ptr<const ngrap
             errorMessage = "Doesn't support 'sizes', 'strides', 'rates', attributes with rank != 2";
             return false;
         }
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
     return true;

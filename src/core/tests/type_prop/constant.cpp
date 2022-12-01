@@ -42,7 +42,7 @@ TEST(type_prop, tensor_constant_bad_count) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Did not get the expected number of literals for a "
                                          "constant of shape {2, 2} (got 3, expected 1 or 4)"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }

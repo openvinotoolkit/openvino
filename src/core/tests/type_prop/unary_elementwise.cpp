@@ -17,7 +17,7 @@ TEST(type_prop, unary_arithmetic_bad_argument_element_types) {
         FAIL() << "Did not detect incorrect element types for arithmetic operator";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Arguments cannot have boolean element type"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }

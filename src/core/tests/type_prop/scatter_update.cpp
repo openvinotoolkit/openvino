@@ -42,7 +42,7 @@ void incorrect_type_check(const type& refType,
         FAIL() << "Incorrect element type of the input";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), errorStr);
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -66,7 +66,7 @@ void incorrect_shape_check(const Shape& refShape,
         FAIL() << "Incorrect shape of the input";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), errorStr);
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }

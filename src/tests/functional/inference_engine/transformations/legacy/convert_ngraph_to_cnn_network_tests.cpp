@@ -147,7 +147,7 @@ TEST(ConvertFunctionToCNNNetworkTests, OpsShouldBeConvertedToIERepresentation) {
             EXPECT_TRUE(is_messages_match) << "failed node: " << type_name << std::endl
                         << "Exception massage: " << err.what() << std::endl
                         << "Expected message: " << expected_error_message << std:: endl;
-        } catch (std::exception&) {
+        } catch (...) {
             FAIL() << "ERROR: Unexpected exception thrown: " << std::current_exception << std::endl;
         }
     }

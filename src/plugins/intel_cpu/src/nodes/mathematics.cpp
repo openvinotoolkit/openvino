@@ -32,7 +32,7 @@ bool Math::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, s
                 return false;
             }
         }
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
     return true;

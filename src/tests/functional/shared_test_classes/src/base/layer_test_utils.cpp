@@ -63,7 +63,7 @@ void LayerTestsCommon::Run() {
         } catch (const std::exception &ex) {
             s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::FAILED);
             GTEST_FATAL_FAILURE_(ex.what());
-        } catch (std::exception&) {
+        } catch (...) {
             s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::FAILED);
             GTEST_FATAL_FAILURE_("Unknown failure occurred.");
         }

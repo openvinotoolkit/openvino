@@ -379,7 +379,7 @@ std::map<std::string, float> parse_scale_factors(const ov::OutputVector& inputs,
         float sf;
         try {
             sf = std::stof(sf_string);
-        } catch (std::exception&) {
+        } catch (...) {
             throw std::logic_error("Can't get float scale factor from: " + sf_string);
         }
         if (sf <= 0.0f) {

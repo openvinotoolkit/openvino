@@ -72,7 +72,7 @@ TEST_P(OVHoldersTest, LoadedState) {
         auto request = compiled_model.create_infer_request();
         try {
             states = request.query_state();
-        } catch (std::exception&) {}
+        } catch(...) {}
     }
 }
 
@@ -104,7 +104,7 @@ TEST_P(OVHoldersTest, LoadedRemoteContext) {
         auto compiled_model = core.compile_model(function, target_device);
         try {
             ctx = compiled_model.get_context();
-        } catch (std::exception&) {}
+        } catch(...) {}
     }
 }
 

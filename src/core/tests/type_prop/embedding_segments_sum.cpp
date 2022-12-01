@@ -68,7 +68,7 @@ TEST(type_prop, ess_fail_indices_element_type) {
         FAIL() << "Invalid indices type not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("INDICES type must be i32 or i64"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "INDICES type check failed for unexpected reason";
     }
 }
@@ -91,7 +91,7 @@ TEST(type_prop, ess_fail_segment_ids_element_type) {
         FAIL() << "Invalid segment_ids type not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("SEGMENT_IDS type must be i32 or i64"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "SEGMENT_IDS type check failed for unexpected reason";
     }
 }
@@ -114,7 +114,7 @@ TEST(type_prop, ess_fail_number_segments_element_type) {
         FAIL() << "Invalid segment_ids type not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("NUM_SEGMENTS type must be i32 or i64"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "NUM_SEGMENTS type check failed for unexpected reason";
     }
 }
@@ -137,7 +137,7 @@ TEST(type_prop, ess_fail_default_index_element_type) {
         FAIL() << "Invalid default_index type not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("DEFAULT_INDEX type must be i32 or i64"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "DEFAULT_INDEX type check failed for unexpected reason";
     }
 }
@@ -161,7 +161,7 @@ TEST(type_prop, ess_fail_mismatch_element_type) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Segment_ids element type (i64) must match indices element type (i32)"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Element type check failed for unexpected reason";
     }
 }
@@ -185,7 +185,7 @@ TEST(type_prop, ess_fail_mismatch_element_type_1) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Default_index element type (i32) must match indices element type (i64)"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Element type check failed for unexpected reason";
     }
 }
@@ -210,7 +210,7 @@ TEST(type_prop, ess_fail_mismatch_element_type_2) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Per sample weight element type (i64) must "
                                          "match embedding table element type (f32)"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Element type check failed for unexpected reason";
     }
 }
@@ -234,7 +234,7 @@ TEST(type_prop, ess_fail_mismatch_element_type_3) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Num_segments element type (i32) must match Segment_ids element type (i64)"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Element type check failed for unexpected reason";
     }
 }
@@ -257,7 +257,7 @@ TEST(type_prop, ess_fail_mismatch_shape) {
         FAIL() << "Invalid mismatch of shapes not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("INDICES and PER_SAMPLE_WEIGHTS shape must be same"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Shapes check failed for unexpected reason";
     }
 }
@@ -280,7 +280,7 @@ TEST(type_prop, ess_fail_num_segments_scalar) {
         FAIL() << "Invalid mismatch of shapes not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("NUM_SEGMENTS must be a scalar"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Shapes check failed for unexpected reason";
     }
 }
@@ -303,7 +303,7 @@ TEST(type_prop, ess_fail_default_index_scalar) {
         FAIL() << "Invalid mismatch of shapes not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("DEFAULT_INDEX must be a scalar"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Shapes check failed for unexpected reason";
     }
 }
@@ -326,7 +326,7 @@ TEST(type_prop, ess_fail_indices_1d) {
         FAIL() << "Invalid mismatch of shapes not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("INDICES must be 1D"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Shapes check failed for unexpected reason";
     }
 }
@@ -349,7 +349,7 @@ TEST(type_prop, ess_fail_segment_ids_1d) {
         FAIL() << "Invalid mismatch of shapes not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("SEGMENT_IDS must be 1D"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Shapes check failed for unexpected reason";
     }
 }
@@ -372,7 +372,7 @@ TEST(type_prop, ess_fail_per_sample_weights_1d) {
         FAIL() << "Invalid mismatch of shapes not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("PER_SAMPLE_WEIGHTS must be 1D"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Shapes check failed for unexpected reason";
     }
 }
@@ -401,7 +401,7 @@ TEST(type_prop, ess_fail_indices_element_type_4_args_api) {
         FAIL() << "Invalid indices type not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("INDICES type must be i32 or i64"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "INDICES type check failed for unexpected reason";
     }
 }

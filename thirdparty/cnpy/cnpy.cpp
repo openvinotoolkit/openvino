@@ -369,7 +369,7 @@ cnpy::NpyArray cnpy::npy_load(std::string fname) {
         NpyArray arr = load_the_npy_file(fp);
         fclose(fp);
         return arr;
-    } catch (std::exception&) {
+    } catch (...) {
         fclose(fp);
         throw;
     }

@@ -30,7 +30,7 @@ bool BatchToSpace::isSupportedOperation(const std::shared_ptr<const ngraph::Node
             errorMessage = "Only constant 'block_shape', 'crops_begin', 'crops_end' are supported";
             return false;
         }
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
     return true;

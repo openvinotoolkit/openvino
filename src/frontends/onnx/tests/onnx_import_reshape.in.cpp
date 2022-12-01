@@ -280,7 +280,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_bad_mode) {
     } catch (const ngraph::ngraph_error& e) {
         std::string msg{e.what()};
         EXPECT_NE(msg.find("only 'DCR' and 'CRD' modes are supported"), std::string::npos);
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Expected ngraph_error exception";
     }
 }
@@ -294,7 +294,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_bad_input_shape) {
     } catch (const ngraph::ngraph_error& e) {
         std::string msg{e.what()};
         EXPECT_NE(msg.find("Input must be 4-dimensional"), std::string::npos);
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Expected ngraph_error exception";
     }
 }
@@ -327,7 +327,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_invalid_input_shape) {
         std::string msg{e.what()};
         EXPECT_NE(msg.find("Input must be 4-dimensional"), std::string::npos)
             << "Could not find \"Input must be 4-dimensional\" in exception message: \"" << msg << "\"";
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Expected ngraph_error exception, got another type of exception";
     }
 }

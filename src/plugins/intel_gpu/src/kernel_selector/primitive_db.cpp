@@ -57,7 +57,7 @@ std::vector<code> primitive_db::get(const primitive_id& id) const {
         }
 
         return temp;
-    } catch (std::exception&) {
+    } catch (...) {
         throw std::runtime_error("cannot find the kernel " + id + " in primitive database.");
     }
 }

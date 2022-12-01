@@ -79,7 +79,7 @@ TEST(type_prop, depth_to_space_input_rank_not_supported) {
         FAIL() << "Not supported input shape for DepthToSpace exception not thrown";
     } catch (const ngraph_error& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "The input tensor with rank lower than 3 is not supported (input rank: 2)");
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "DepthToSpace decomposition failed for unexpected reason";
     }
 }
@@ -91,7 +91,7 @@ TEST(type_prop, depth_to_space_blocksize_not_matched) {
         FAIL() << "Not matched blocksize for DepthToSpace exception not thrown";
     } catch (const ngraph_error& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Dimension value: [ 7, 7] must be a multiple of divisor: 4");
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "DepthToSpace decomposition failed for unexpected reason";
     }
 }

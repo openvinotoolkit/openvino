@@ -74,7 +74,7 @@ TEST(type_prop, scatter_elements_update_axis_validation) {
         FAIL() << "Not detected axis with value out of the range";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Axis value has to be in range"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -95,7 +95,7 @@ TEST(type_prop, scatter_elements_updates_indices_shape) {
         FAIL() << "Not detected incompatibile indices and updates shape";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Indices and updates input shapes are required to be equal"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -116,7 +116,7 @@ TEST(type_prop, scatter_elements_updates_indices_rank) {
         FAIL() << "Not detected incompatibile indices and updates shape";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Indices and updates input shapes are required to be equal"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -137,7 +137,7 @@ TEST(type_prop, scatter_elements_data_indices_rank) {
         FAIL() << "Not detected incompatibile indices and data rank";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Indices rank and data rank are required to be equal"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }

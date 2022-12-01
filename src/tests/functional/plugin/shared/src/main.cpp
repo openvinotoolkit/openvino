@@ -30,7 +30,7 @@ int main(int argc, char *argv[]) {
             size_t timeout;
             try {
                 timeout = std::stoi(std::string(argv[i]).substr(std::string("--save_report_timeout").length() + 1));
-            } catch (std::exception&) {
+            } catch (...) {
                 throw std::runtime_error("Incorrect value of \"--save_report_timeout\" argument");
             }
             ov::test::utils::OpSummary::setSaveReportTimeout(timeout);

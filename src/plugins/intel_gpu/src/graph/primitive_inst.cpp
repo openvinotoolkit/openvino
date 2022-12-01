@@ -899,7 +899,7 @@ std::string primitive_inst::get_implementation_name() const {
     try {
         auto kernel_name = _impl ? _impl->get_kernel_name() : "";
         return !kernel_name.empty() ? kernel_name : "undef";
-    } catch (std::exception&) { }
+    } catch (...) { }
 
     return "undef";
 }

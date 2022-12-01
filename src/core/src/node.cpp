@@ -97,7 +97,7 @@ ov::Node::~Node() {
                 input.remove_output();
             }
         }
-    } catch (std::exception&) {
+    } catch (...) {
     }
 }
 

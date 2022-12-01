@@ -27,7 +27,7 @@ bool GridSample::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
             errorMessage = "Not supported CPU instructions set.";
             return false;
         }
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
 

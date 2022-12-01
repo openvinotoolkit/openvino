@@ -21,7 +21,7 @@ bool GRN::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
             errorMessage = "Only opset1 GRN operation is supported";
             return false;
         }
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
     return true;

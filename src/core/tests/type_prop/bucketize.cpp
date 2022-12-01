@@ -64,7 +64,7 @@ TEST(type_prop, bucketize_invalid_input_types) {
         FAIL() << "Invalid input type not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Data input type must be numeric"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Input type check failed for unexpected reason";
     }
 
@@ -77,7 +77,7 @@ TEST(type_prop, bucketize_invalid_input_types) {
         FAIL() << "Invalid input type not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Buckets input type must be numeric"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Input type check failed for unexpected reason";
     }
 }
@@ -103,7 +103,7 @@ TEST(type_prop, bucketize_invalid_output_types) {
             FAIL() << "Invalid output type not detected";
         } catch (const NodeValidationFailure& error) {
             EXPECT_HAS_SUBSTRING(error.what(), std::string("Output type must be i32 or i64"));
-        } catch (std::exception&) {
+        } catch (...) {
             FAIL() << "Deduced type check failed for unexpected reason";
         }
     }
@@ -118,7 +118,7 @@ TEST(type_prop, bucketize_invalid_buckets_dim) {
         FAIL() << "Invalid output type not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Buckets input must be a 1D tensor"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Buckets dimension check failed for unexpected reason";
     }
 }

@@ -83,7 +83,7 @@ TEST(GraphMeta, Streaming_AccessInput) {
     const auto path = findDataFile("cv/video/768x576.avi");
     try {
         ccomp.setSource<cv::gapi::wip::GCaptureSource>(path);
-    } catch (std::exception&) {
+    } catch(...) {
         throw SkipTestException("Video file can not be opened");
     }
     ccomp.start();
@@ -109,7 +109,7 @@ TEST(GraphMeta, Streaming_AccessOutput) {
     const auto path = findDataFile("cv/video/768x576.avi");
     try {
         ccomp.setSource<cv::gapi::wip::GCaptureSource>(path);
-    } catch (std::exception&) {
+    } catch(...) {
         throw SkipTestException("Video file can not be opened");
     }
     ccomp.start();
@@ -145,7 +145,7 @@ TEST(GraphMeta, Streaming_AccessDesync) {
     const auto path = findDataFile("cv/video/768x576.avi");
     try {
         ccomp.setSource<cv::gapi::wip::GCaptureSource>(path);
-    } catch (std::exception&) {
+    } catch(...) {
         throw SkipTestException("Video file can not be opened");
     }
     ccomp.start();

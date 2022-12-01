@@ -663,7 +663,7 @@ int main(int argc, char* argv[]) {
                     // -iop option will not work for those tensors.
                     name = item.get_any_name();
                     iop_precision = getPrecision2(user_precisions_map.at(item.get_any_name()));
-                } catch (std::exception&) {
+                } catch (...) {
                 }
 
                 if (iop_precision != ov::element::undefined) {
@@ -699,7 +699,7 @@ int main(int argc, char* argv[]) {
                     // Some tensors might have no names, get_any_name will throw exception in that case.
                     // -iop option will not work for those tensors.
                     iop_precision = getPrecision2(user_precisions_map.at(item.get_any_name()));
-                } catch (std::exception&) {
+                } catch (...) {
                 }
 
                 if (iop_precision != ov::element::undefined) {

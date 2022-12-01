@@ -692,7 +692,7 @@ TEST(pre_post_process, set_layout_out_of_bounds) {
         EXPECT_TRUE(std::string(err.what()).find(to.to_string()) != std::string::npos) << err.what();
         // Verify that error message contains 'shape' word
         EXPECT_TRUE(std::string(err.what()).find(shape_str.str()) != std::string::npos) << err.what();
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Expected ov::Exception";
     }
 }
@@ -1310,7 +1310,7 @@ TEST(pre_post_process, preprocess_crop_wrong_dims) {
     } catch (const ov::Exception& err) {
         EXPECT_TRUE(std::string(err.what()).find(begin_dump) != std::string::npos) << err.what();
         EXPECT_TRUE(std::string(err.what()).find(end_dump) != std::string::npos) << err.what();
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Expected ov::Exception";
     }
 }
@@ -1332,7 +1332,7 @@ TEST(pre_post_process, preprocess_crop_wrong_dims_not_aligned) {
     } catch (const ov::Exception& err) {
         EXPECT_TRUE(std::string(err.what()).find(exp_dump.str()) != std::string::npos) << err.what();
         EXPECT_TRUE(std::string(err.what()).find(act_dump.str()) != std::string::npos) << err.what();
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Expected ov::Exception";
     }
 }

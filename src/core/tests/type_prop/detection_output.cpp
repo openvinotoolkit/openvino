@@ -227,7 +227,7 @@ void detection_output_invalid_data_type_test(element::Type box_logits_et,
         FAIL() << "Exception expected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), expected_msg);
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Unknown exception was thrown";
     }
 }
@@ -287,7 +287,7 @@ TEST(type_prop_layers, detection_output_mismatched_batch_size) {
         } catch (const NodeValidationFailure& error) {
             EXPECT_HAS_SUBSTRING(error.what(),
                                  std::string("Class predictions' first dimension is not compatible with batch size."));
-        } catch (std::exception&) {
+        } catch (...) {
             FAIL() << "Unknown exception was thrown";
         }
     }
@@ -310,7 +310,7 @@ TEST(type_prop_layers, detection_output_mismatched_batch_size) {
             EXPECT_HAS_SUBSTRING(error.what(),
                                  std::string("Proposals' first dimension is must be equal to "
                                              "either batch size (4) or 1. Got: 5."));
-        } catch (std::exception&) {
+        } catch (...) {
             FAIL() << "Unknown exception was thrown";
         }
     }
@@ -334,7 +334,7 @@ TEST(type_prop_layers, detection_output_invalid_ranks) {
             FAIL() << "Exception expected";
         } catch (const NodeValidationFailure& error) {
             EXPECT_HAS_SUBSTRING(error.what(), std::string("Box logits rank must be 2. Got 3"));
-        } catch (std::exception&) {
+        } catch (...) {
             FAIL() << "Unknown exception was thrown";
         }
     }
@@ -355,7 +355,7 @@ TEST(type_prop_layers, detection_output_invalid_ranks) {
             FAIL() << "Exception expected";
         } catch (const NodeValidationFailure& error) {
             EXPECT_HAS_SUBSTRING(error.what(), std::string("Class predictions rank must be 2. Got 3"));
-        } catch (std::exception&) {
+        } catch (...) {
             FAIL() << "Unknown exception was thrown";
         }
     }
@@ -376,7 +376,7 @@ TEST(type_prop_layers, detection_output_invalid_ranks) {
             FAIL() << "Exception expected";
         } catch (const NodeValidationFailure& error) {
             EXPECT_HAS_SUBSTRING(error.what(), std::string("Proposals rank must be 3. Got 2"));
-        } catch (std::exception&) {
+        } catch (...) {
             FAIL() << "Unknown exception was thrown";
         }
     }
@@ -405,7 +405,7 @@ TEST(type_prop_layers, detection_output_invalid_box_logits_shape) {
             EXPECT_HAS_SUBSTRING(
                 error.what(),
                 std::string("Box logits' second dimension must be a multiply of num_loc_classes * 4 (4)"));
-        } catch (std::exception&) {
+        } catch (...) {
             FAIL() << "Unknown exception was thrown";
         }
     }
@@ -431,7 +431,7 @@ TEST(type_prop_layers, detection_output_invalid_box_logits_shape) {
             EXPECT_HAS_SUBSTRING(
                 error.what(),
                 std::string("Box logits' second dimension must be a multiply of num_loc_classes * 4 (12)"));
-        } catch (std::exception&) {
+        } catch (...) {
             FAIL() << "Unknown exception was thrown";
         }
     }
@@ -455,7 +455,7 @@ TEST(type_prop_layers, detection_output_invalid_class_preds_shape) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Class predictions' second dimension must be equal to "
                                          "num_prior_boxes * num_classes (9). Current value is: 10."));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Unknown exception was thrown";
     }
 }
@@ -483,7 +483,7 @@ TEST(type_prop_layers, detection_output_invalid_proposals_shape) {
             EXPECT_HAS_SUBSTRING(
                 error.what(),
                 std::string("Proposals' second dimension is mismatched. Current value is: 1, expected: 2"));
-        } catch (std::exception&) {
+        } catch (...) {
             FAIL() << "Unknown exception was thrown";
         }
     }
@@ -509,7 +509,7 @@ TEST(type_prop_layers, detection_output_invalid_proposals_shape) {
             EXPECT_HAS_SUBSTRING(
                 error.what(),
                 std::string("Proposals' second dimension is mismatched. Current value is: 2, expected: 1"));
-        } catch (std::exception&) {
+        } catch (...) {
             FAIL() << "Unknown exception was thrown";
         }
     }
@@ -535,7 +535,7 @@ TEST(type_prop_layers, detection_output_invalid_proposals_shape) {
             EXPECT_HAS_SUBSTRING(error.what(),
                                  std::string("Proposals' third dimension must be equal to num_prior_boxes * "
                                              "prior_box_size (15). Current value is: 16."));
-        } catch (std::exception&) {
+        } catch (...) {
             FAIL() << "Unknown exception was thrown";
         }
     }
@@ -561,7 +561,7 @@ TEST(type_prop_layers, detection_output_invalid_proposals_shape) {
             EXPECT_HAS_SUBSTRING(error.what(),
                                  std::string("Proposals' third dimension must be equal to num_prior_boxes * "
                                              "prior_box_size (12). Current value is: 13."));
-        } catch (std::exception&) {
+        } catch (...) {
             FAIL() << "Unknown exception was thrown";
         }
     }
@@ -590,7 +590,7 @@ TEST(type_prop_layers, detection_output_invalid_aux_class_preds) {
             EXPECT_HAS_SUBSTRING(error.what(),
                                  std::string("Additional class predictions' first dimension must "
                                              "be compatible with batch size."));
-        } catch (std::exception&) {
+        } catch (...) {
             FAIL() << "Unknown exception was thrown";
         }
     }
@@ -617,7 +617,7 @@ TEST(type_prop_layers, detection_output_invalid_aux_class_preds) {
                 error.what(),
                 std::string("Additional class predictions' second dimension must "
                             "be compatible with num_prior_boxes * 2. Current value is: 7, expected: 6."));
-        } catch (std::exception&) {
+        } catch (...) {
             FAIL() << "Unknown exception was thrown";
         }
     }
@@ -646,7 +646,7 @@ TEST(type_prop_layers, detection_output_invalid_aux_box_preds) {
             EXPECT_HAS_SUBSTRING(
                 error.what(),
                 std::string("Additional box predictions' shape must be compatible with box logits shape."));
-        } catch (std::exception&) {
+        } catch (...) {
             FAIL() << "Unknown exception was thrown";
         }
     }
@@ -672,7 +672,7 @@ TEST(type_prop_layers, detection_output_invalid_aux_box_preds) {
             EXPECT_HAS_SUBSTRING(
                 error.what(),
                 std::string("Additional box predictions' shape must be compatible with box logits shape."));
-        } catch (std::exception&) {
+        } catch (...) {
             FAIL() << "Unknown exception was thrown";
         }
     }

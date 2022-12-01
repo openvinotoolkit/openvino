@@ -54,7 +54,7 @@ bool Pad::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
             errorMessage =  "Doesn't support 'pads_begin' or 'pads_end' with negative values";
             return false;
         }
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
     return true;

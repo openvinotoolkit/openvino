@@ -128,7 +128,7 @@ TEST(type_prop, space_to_batch_invalid_element_type_block_shape) {
         FAIL() << "Invalid f32 element type for block_shape not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "block_shape must be an integral number");
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Integral element type node validation check failed for unexpected reason";
     }
 }
@@ -145,7 +145,7 @@ TEST(type_prop, space_to_batch_invalid_element_type_pads_begin) {
         FAIL() << "Invalid f32 element type for pads_begin not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "pads_begin must be an integral number but got");
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Integral element type node validation check failed for unexpected reason";
     }
 }
@@ -162,7 +162,7 @@ TEST(type_prop, space_to_batch_invalid_element_type_pads_end) {
         FAIL() << "Invalid f32 element type for pads_end not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "pads_end must be an integral number but got");
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Integral element type node validation check failed for unexpected reason";
     }
 }
@@ -179,7 +179,7 @@ TEST(type_prop, space_to_batch_invalid_value_block_shape) {
         FAIL() << "Invalid block_shape value not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "block_shape values must be greater than 0");
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "block_shape value node validation check failed for unexpected reason";
     }
 }

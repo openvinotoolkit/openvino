@@ -188,7 +188,7 @@ void program::load_tuning_cache() {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::LoadTuningCache");
     try {
         tuning_cache = kernel_selector::CreateTuningCacheFromFile(get_engine().configuration().tuning_cache_path);
-    } catch (std::exception&) {
+    } catch (...) {
         tuning_cache = std::make_shared<kernel_selector::TuningCache>();
     }
 }
@@ -224,7 +224,7 @@ program::ptr program::build_program(engine& engine,
 program_node& program::get_node(primitive_id const& id) {
     try {
         return *nodes_map.at(id);
-    } catch (std::exception&) {
+    } catch (...) {
         throw std::runtime_error("Program doesn't contain primitive node: " + id);
     }
 }
@@ -232,7 +232,7 @@ program_node& program::get_node(primitive_id const& id) {
 program_node const& program::get_node(primitive_id const& id) const {
     try {
         return *nodes_map.at(id);
-    } catch (std::exception&) {
+    } catch (...) {
         throw std::runtime_error("Program doesn't contain primitive node: " + id);
     }
 }
@@ -408,7 +408,7 @@ void program::add_node_dependencies(program_node* node) {
             auto dep_node = nodes_map.at(dep);
             node->dependencies.push_back(dep_node.get());
             dep_node->users.push_back(node);
-        } catch (std::exception&) {
+        } catch (...) {
             throw std::runtime_error("Program doesn't contain primitive: " + dep +
                                      " that is input to: " + node->get_primitive()->id);
         }
@@ -418,7 +418,7 @@ void program::add_node_dependencies(program_node* node) {
         try {
             auto dep_node = nodes_map.at(dep.pid);
             node->dependencies_new.push_back({dep_node.get(), dep.idx});
-        } catch (std::exception&) {
+        } catch (...) {
             throw std::runtime_error("Program doesn't contain primitive: " + dep.pid +
                                      " that is input to: " + node->get_primitive()->id);
         }
@@ -444,7 +444,7 @@ void program::copy_node_dependencies(program_node* dest_node, program_node* src_
             auto dest_dep = nodes_map.at(src_dep->get_primitive()->id);
             dest_node->dependencies.push_back(dest_dep.get());
             dest_dep->users.push_back(dest_node);
-        } catch (std::exception&) {
+        } catch (...) {
             throw std::runtime_error("Program doesn't contain primitive: " + src_dep->get_primitive()->id +
                                      " that is input to: " + src_node->get_primitive()->id);
         }
@@ -519,7 +519,7 @@ void program::query_local_block_io_supported() {
 
         _kernels_cache_device_query->remove_kernel(id);
         return;
-    } catch (std::exception&) {
+    } catch (...) {
         is_subgroup_local_block_io_supported = static_cast<int8_t>(false);
         return;
     }
@@ -1318,7 +1318,7 @@ std::string program::get_implementation_info(const primitive_id& id) const {
         auto impl = node.get_selected_impl();
         auto kernel_name = impl ? impl->get_kernel_name() : "";
         return !kernel_name.empty() ? (kernel_name + "__" + dt_to_str(get_inference_precision(node))) : "undef";
-    } catch (std::exception&) { }
+    } catch (...) { }
 
     return "undef";
 }

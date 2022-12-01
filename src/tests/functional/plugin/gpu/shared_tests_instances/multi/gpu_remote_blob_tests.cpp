@@ -37,7 +37,7 @@ TEST_P(MultiDevice_Test, cannotInferRemoteBlobIfNotInitializedForDevice) {
     InferenceEngine::ExecutableNetwork exec_net_multi;
     try {
         exec_net_multi = ie->LoadNetwork(net, device_names);
-    } catch (std::exception&) {
+    } catch(...) {
         // device is unavailable (e.g. for the "second GPU" test) or other (e.g. env) issues not related to the test
         return;
     }

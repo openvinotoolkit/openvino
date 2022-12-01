@@ -1732,7 +1732,7 @@ bool Reduce::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
             errorMessage = "Only const 'reduce_indexes' input is supported";
             return false;
         }
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
     return true;

@@ -41,7 +41,7 @@ bool MatrixNms::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& 
             errorMessage = "Does not support DcayFunction " + ngraph::as_string(decayType);
             return false;
         }
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
     return true;

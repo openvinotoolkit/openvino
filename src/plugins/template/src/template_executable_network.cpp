@@ -40,7 +40,7 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<const
         throw;
     } catch (const std::exception& e) {
         IE_THROW(Unexpected) << "Standard exception from compilation library: " << e.what();
-    } catch (std::exception&) {
+    } catch (...) {
         IE_THROW(Unexpected) << "Generic exception is thrown";
     }
 }
@@ -90,7 +90,7 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream& model,
         throw;
     } catch (const std::exception& e) {
         IE_THROW(Unexpected) << "Standard exception from compilation library: " << e.what();
-    } catch (std::exception&) {
+    } catch (...) {
         IE_THROW(Unexpected) << "Generic exception is thrown";
     }
 }

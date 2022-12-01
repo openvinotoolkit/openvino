@@ -44,7 +44,7 @@ catch (const InferenceEngine::ExceptionType& ex) {                              
         return OK;                                                                                              \
     } CATCH_IE_EXCEPTIONS_TO_STATUS catch (const std::exception& ex) {                                          \
         return InferenceEngine::DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();                            \
-    } catch (std::exception&) {                                                                                             \
+    } catch (...) {                                                                                             \
         return InferenceEngine::DescriptionBuffer(UNEXPECTED);                                                  \
     }
 

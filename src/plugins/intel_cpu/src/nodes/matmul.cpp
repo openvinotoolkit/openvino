@@ -104,7 +104,7 @@ bool MatMul::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
             errorMessage = "Unsupported rank: " + std::to_string(outShapeRank) + " on output";
             return false;
         }
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
     return true;

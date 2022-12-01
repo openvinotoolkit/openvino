@@ -12,7 +12,7 @@ void MyriadLoadNetworkTestCase::SetUp() {
     try {
         ie = std::make_shared<InferenceEngine::Core>();
     }
-    catch (std::exception&) {
+    catch (...) {
         std::cerr << "create core error";
     }
 

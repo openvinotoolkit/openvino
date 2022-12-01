@@ -731,7 +731,7 @@ bool MHA::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
             errorMessage = "Doesn't support inputs with rank != 4";
             return false;
         }
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
 

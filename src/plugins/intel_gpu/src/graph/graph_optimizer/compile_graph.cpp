@@ -41,7 +41,7 @@ void compile_graph::run(program& p) {
                         auto kernel_ids = p.get_kernels_cache().add_kernels_source(node->selected_impl->get_kernels_source());
                         node->selected_impl->set_kernel_ids(kernel_ids);
                     }
-                } catch (std::exception&) {
+                } catch(...) {
                     exception = std::current_exception();
                 }
             });

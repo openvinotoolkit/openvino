@@ -25,7 +25,7 @@ bool NonZero::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
             errorMessage = "Node is not an instance of NonZero from the operation set v3.";
             return false;
         }
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
     return true;

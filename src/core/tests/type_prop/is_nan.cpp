@@ -64,7 +64,7 @@ TEST(type_prop, isnan_bad_input_type) {
     } catch (const ov::AssertFailure& error) {
         const auto exp_msg = "The element type of the input tensor must be a floating point number.";
         EXPECT_HAS_SUBSTRING(error.what(), exp_msg);
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }

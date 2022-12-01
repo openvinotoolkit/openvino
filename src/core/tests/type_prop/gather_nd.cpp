@@ -100,7 +100,7 @@ TEST(type_prop, gather_nd_fail_batch_dims_greater_indices_rank) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Number of batch dimensions must not exceed a rank of indices."));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -117,7 +117,7 @@ TEST(type_prop, gather_nd_fail_unequal_batch_dims) {
         FAIL() << "Incorrect indices rank";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Batch dimensions of data and indices must be the same."));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -136,7 +136,7 @@ TEST(type_prop, gather_nd_fail_indices_tuple_greater_data_rank_batch_dims2) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Length of a tuple with indices must not exceed a rank of "
                                          "data tensor excluding batch dimensions."));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -276,7 +276,7 @@ TEST(type_prop, gather_nd_fail_params_rank) {
         FAIL() << "Incorrect params rank";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Data rank must be at least 1."));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -294,7 +294,7 @@ TEST(type_prop, gather_nd_fail_indices_rank) {
         FAIL() << "Incorrect indices rank";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Indices rank must be at least 1."));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -312,7 +312,7 @@ TEST(type_prop, gather_nd_fail_indices_element_type) {
         FAIL() << "Incorrect indices element type";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("The indices type is expected to be an integer type."));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -408,7 +408,7 @@ TEST(type_prop, gather_nd_8_fail_batch_dims_greater_indices_rank) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Number of batch dimensions must not exceed a rank of indices."));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -425,7 +425,7 @@ TEST(type_prop, gather_nd_8_fail_unequal_batch_dims) {
         FAIL() << "Incorrect indices rank";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Batch dimensions of data and indices must be the same."));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -444,7 +444,7 @@ TEST(type_prop, gather_nd_8_fail_indices_tuple_greater_data_rank_batch_dims2) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Length of a tuple with indices must not exceed a rank of "
                                          "data tensor excluding batch dimensions."));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }

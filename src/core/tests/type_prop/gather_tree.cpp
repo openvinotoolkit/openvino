@@ -54,7 +54,7 @@ TEST(type_prop, gather_tree_invalid_input_element_type) {
         FAIL() << "Invalid element types for inputs not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Element type of inputs must be numeric.");
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Element type check for inputs failed for unexpected reason";
     }
 }
@@ -94,7 +94,7 @@ TEST(type_prop, gather_tree_incompatible_input_element_types) {
             FAIL() << "Incompatible element types for inputs not detected";
         } catch (const NodeValidationFailure& error) {
             EXPECT_HAS_SUBSTRING(error.what(), "Inputs must have the same element type.");
-        } catch (std::exception&) {
+        } catch (...) {
             FAIL() << "Element type check for inputs failed for unexpected reason";
         }
     }
@@ -127,7 +127,7 @@ TEST(type_prop, gather_tree_input_element_types) {
     for (const auto& test_case : test_cases) {
         try {
             EXPECT_NO_THROW(makeGatherTreeOp(test_case));
-        } catch (std::exception&) {
+        } catch (...) {
             FAIL() << "Inputs element type validation check failed for unexpected reason";
         }
     }
@@ -159,7 +159,7 @@ TEST(type_prop, gather_tree_invalid_step_ids_and_parent_idx_input_shapes) {
             FAIL() << "Incompatible shapes for inputs step_ids and parent_idx not detected";
         } catch (const NodeValidationFailure& error) {
             EXPECT_HAS_SUBSTRING(error.what(), "step_ids and parent_idx inputs must have the same shape with rank 3.");
-        } catch (std::exception&) {
+        } catch (...) {
             FAIL() << "Shape check for step_ids and parent_idx inputs failed for unexpected reason";
         }
     }
@@ -187,7 +187,7 @@ TEST(type_prop, gather_tree_invalid_max_seq_len_rank) {
             FAIL() << "Invalid shapes for max_seq_len input not detected";
         } catch (const NodeValidationFailure& error) {
             EXPECT_HAS_SUBSTRING(error.what(), "max_seq_len input must have rank 1.");
-        } catch (std::exception&) {
+        } catch (...) {
             FAIL() << "Shape check for max_seq_len input failed for unexpected reason";
         }
     }
@@ -217,7 +217,7 @@ TEST(type_prop, gather_tree_incompatible_step_ids_and_max_seq_len_shapes) {
             EXPECT_HAS_SUBSTRING(error.what(),
                                  "Number of elements of max_seq_len input must match BATCH_SIZE dimension of "
                                  "step_ids/parent_idx inputs.");
-        } catch (std::exception&) {
+        } catch (...) {
             FAIL() << "Shape check for step_ids and max_seq_len inputs failed for unexpected reason";
         }
     }
@@ -256,7 +256,7 @@ TEST(type_prop, gather_tree_output_shape) {
             }
             ASSERT_EQ(gather_tree->get_output_partial_shape(0), result_shape);
             ASSERT_EQ(gather_tree->get_output_element_type(0), et);
-        } catch (std::exception&) {
+        } catch (...) {
             FAIL() << "Output shape check failed for unexpected reason";
         }
     }
@@ -284,7 +284,7 @@ TEST(type_prop, gather_tree_invalid_end_token_rank) {
             FAIL() << "Invalid shapes for end_token input not detected";
         } catch (const NodeValidationFailure& error) {
             EXPECT_HAS_SUBSTRING(error.what(), "end_token input must be scalar.");
-        } catch (std::exception&) {
+        } catch (...) {
             FAIL() << "Shape check for end_token input failed for unexpected reason";
         }
     }

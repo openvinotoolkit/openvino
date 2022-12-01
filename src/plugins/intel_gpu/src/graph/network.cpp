@@ -136,7 +136,7 @@ size_t get_x_pitch(const layout& layout) {
         auto x0 = layout.get_linear_offset(tensor_x0);
         auto x1 = layout.get_linear_offset(tensor_x1);
         return (x1 - x0);
-    } catch (std::exception&) {
+    } catch (...) {
         // When spatial size of x=0, x_pitch is meaningless
         return 0;
     }

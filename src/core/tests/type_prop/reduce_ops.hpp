@@ -208,7 +208,7 @@ TYPED_TEST_P(ReduceTest, reduce_invalid_axis_out_of_range) {
         FAIL() << "Invalid axes values not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "out of the tensor rank range");
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Axes input values validation check failed for unexpected reason";
     }
 }
@@ -229,7 +229,7 @@ TYPED_TEST_P(ReduceTest, reduce_invalid_axes_shape) {
         FAIL() << "Invalid shape of axes input not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Axes input must be a scalar or 1D input.");
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Axes input shape validation check failed for unexpected reason";
     }
 }
@@ -250,7 +250,7 @@ TYPED_TEST_P(ReduceTest, reduce_invalid_axes_et) {
         FAIL() << "Invalid element type of axes input not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Element type of axes input must be integer.");
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Axes input element type validation check failed for unexpected reason";
     }
 }
@@ -290,7 +290,7 @@ TYPED_TEST_P(ReduceArithmeticTest, reduce_arithmetic_invalid_data_et) {
         FAIL() << "Invalid element type of data input not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Element type of data input must be numeric.");
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Data input element type validation check failed for unexpected reason";
     }
 }
@@ -319,7 +319,7 @@ TYPED_TEST_P(ReduceLogicalTest, reduce_logical_invalid_data_et) {
             FAIL() << "Invalid element type of data input not detected";
         } catch (const NodeValidationFailure& error) {
             EXPECT_HAS_SUBSTRING(error.what(), "Element type of data input must be boolean.");
-        } catch (std::exception&) {
+        } catch (...) {
             FAIL() << "Data input element type validation check failed for unexpected reason";
         }
     }

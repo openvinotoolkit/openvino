@@ -21,7 +21,7 @@ bool ReorgYolo::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& 
             errorMessage = "Only opset2 ReorgYolo operation is supported";
             return false;
         }
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
     return true;

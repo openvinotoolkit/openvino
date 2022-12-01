@@ -402,7 +402,7 @@ StatusCode CNNNetworkImpl::serialize(const std::string& xmlPath, const std::stri
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
     } catch (const std::exception& e) {
         return DescriptionBuffer(UNEXPECTED, resp) << e.what();
-    } catch (std::exception&) {
+    } catch (...) {
         return DescriptionBuffer(UNEXPECTED, resp);
     }
 
@@ -463,7 +463,7 @@ StatusCode CNNNetworkImpl::setBatchSize(size_t size, ResponseDesc* responseDesc)
         return DescriptionBuffer(GENERAL_ERROR, responseDesc) << e.what();
     } catch (const std::exception& e) {
         return DescriptionBuffer(UNEXPECTED, responseDesc) << e.what();
-    } catch (std::exception&) {
+    } catch (...) {
         return DescriptionBuffer(UNEXPECTED, responseDesc);
     }
 }
@@ -487,7 +487,7 @@ StatusCode CNNNetworkImpl::setBatchSizeReshape(size_t size, ResponseDesc* respon
         return DescriptionBuffer(GENERAL_ERROR, responseDesc) << e.what();
     } catch (const std::exception& e) {
         return DescriptionBuffer(UNEXPECTED, responseDesc) << e.what();
-    } catch (std::exception&) {
+    } catch (...) {
         return DescriptionBuffer(UNEXPECTED, responseDesc);
     }
 }

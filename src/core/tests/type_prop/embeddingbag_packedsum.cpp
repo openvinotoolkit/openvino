@@ -63,7 +63,7 @@ TEST(type_prop, ebps_fail_indices_element_type) {
         FAIL() << "Invalid indices type not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("INDICES type must be i32 or i64"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "INDICES type check failed for unexpected reason";
     }
 }
@@ -80,7 +80,7 @@ TEST(type_prop, ebps_fail_mismatch_element_type) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Per sample weight element type (i64) must "
                                          "match embedding table element type (f32)"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Element type check failed for unexpected reason";
     }
 }
@@ -95,7 +95,7 @@ TEST(type_prop, ebps_fail_mismatch_shape) {
         FAIL() << "Invalid mismatch of shapes not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("INDICES and PER_SAMPLE_WEIGHTS shape must be same"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Shapes check failed for unexpected reason";
     }
 }
@@ -110,7 +110,7 @@ TEST(type_prop, ebps_fail_indices_1d) {
         FAIL() << "Invalid mismatch of shapes not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("INDICES must be 2D"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Shapes check failed for unexpected reason";
     }
 }
@@ -125,7 +125,7 @@ TEST(type_prop, ebps_fail_per_sample_weights_1d) {
         FAIL() << "Invalid mismatch of shapes not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("PER_SAMPLE_WEIGHTS must be 2D"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Shapes check failed for unexpected reason";
     }
 }
@@ -149,7 +149,7 @@ TEST(type_prop, ebps_fail_indices_element_type_2_args_api) {
         FAIL() << "Invalid indices type not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("INDICES type must be i32 or i64"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "INDICES type check failed for unexpected reason";
     }
 }

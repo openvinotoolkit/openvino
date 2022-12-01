@@ -268,7 +268,7 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
             errorMessage = "Unsupported sequence direction.";
             return false;
         }
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
     return true;

@@ -183,7 +183,7 @@ TEST(TransformationTests, make_stateful_dynamic_shapes) {
             manager.run_passes(f);
         } catch (::ov::AssertFailure ex) {
             EXPECT_STR_CONTAINS(ex.what(), "MakeStateful transformation doesn't support dynamic shapes.");
-        } catch (std::exception&) {
+        } catch (...) {
             FAIL() << "Expected ::ov::AssertFailure";
         }
     }

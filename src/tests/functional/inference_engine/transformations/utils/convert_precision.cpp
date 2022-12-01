@@ -789,7 +789,7 @@ void constant_convert_test(element::Type type_from, element::Type type_to, const
     std::vector<To> actual;
     try {
         actual = c->cast_vector<To>();
-    } catch (std::exception&) {
+    } catch(...) {
         size_t dst_size = (type_to.bitwidth() * size + 7) / 8;
         actual.assign(c->get_data_ptr<uint8_t>(), c->get_data_ptr<uint8_t>() + dst_size);
     }

@@ -102,7 +102,7 @@ TEST_P(ConvWithPaddingTestNeg, CompareWithRefImpl) {
         what.assign(re.what());
     } catch (const std::exception& e) {
         what.assign(e.what());
-    } catch (std::exception&) {
+    } catch (...) {
         what.assign("Unknown failure occurred.");
     }
     EXPECT_HAS_SUBSTRING(what, std::string("Convolution's input padding is not supported"));

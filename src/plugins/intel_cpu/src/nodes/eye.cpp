@@ -23,7 +23,7 @@ bool Eye::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
             errorMessage = "Node is not an instance of Eye form the operation set v9.";
             return false;
         }
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
     return true;

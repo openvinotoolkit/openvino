@@ -18,7 +18,7 @@ namespace ov {
         __VA_ARGS__;                                                  \
     } catch (const std::exception& ex) {                              \
         throw ov::Exception(ex.what());                               \
-    } catch (std::exception&) {                                                   \
+    } catch (...) {                                                   \
         OPENVINO_ASSERT(false, "Unexpected exception");               \
     }
 
@@ -75,7 +75,7 @@ Tensor::Tensor(const element::Type element_type, const Shape& shape, void* host_
                                          host_ptr);
     } catch (const std::exception& ex) {
         throw ov::Exception(ex.what());
-    } catch (std::exception&) {
+    } catch (...) {
         OPENVINO_ASSERT(false, "Unexpected exception");
     }
 }
@@ -88,7 +88,7 @@ Tensor::Tensor(const Tensor& owner, const Coordinate& begin, const Coordinate& e
         _impl = owner._impl->createROI(begin, end);
     } catch (const std::exception& ex) {
         throw ov::Exception(ex.what());
-    } catch (std::exception&) {
+    } catch (...) {
         OPENVINO_ASSERT(false, "Unexpected exception");
     }
 }

@@ -55,7 +55,7 @@ TEST(type_prop, reverse_sequence_data_et) {
             auto seq_lengths = std::make_shared<op::Parameter>(element::i32, PartialShape{4});
 
             EXPECT_NO_THROW(const auto unused = std::make_shared<op::ReverseSequence>(data, seq_lengths));
-        } catch (std::exception&) {
+        } catch (...) {
             FAIL() << "Data input element type validation check failed for unexpected reason";
         }
     }
@@ -72,7 +72,7 @@ TEST(type_prop, reverse_sequence_invalid_seq_lengths_et) {
         FAIL() << "Invalid element type of seq_lengths input not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Sequence lengths element type must be numeric type."));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Element type validation check of seq_lengths input failed for unexpected reason";
     }
 }
@@ -87,7 +87,7 @@ TEST(type_prop, reverse_sequence_invalid_data_rank) {
             FAIL() << "Invalid rank of data input not detected";
         } catch (const NodeValidationFailure& error) {
             EXPECT_HAS_SUBSTRING(error.what(), std::string("Data input rank should be equal or greater than 2."));
-        } catch (std::exception&) {
+        } catch (...) {
             FAIL() << "Rank check of data input failed for unexpected reason";
         }
     }
@@ -105,7 +105,7 @@ TEST(type_prop, reverse_sequence_invalid_seq_lengths_rank) {
             FAIL() << "Invalid rank of seq_lengths input not detected";
         } catch (const NodeValidationFailure& error) {
             EXPECT_HAS_SUBSTRING(error.what(), std::string("Sequence lengths rank must be equal to 1."));
-        } catch (std::exception&) {
+        } catch (...) {
             FAIL() << "Rank check of seq_lengths input failed for unexpected reason";
         }
     }
@@ -121,7 +121,7 @@ TEST(type_prop, reverse_sequence_invalid_batch_axis_value) {
         FAIL() << "Invalid value of batch_axis attribute not detected";
     } catch (const ngraph_error& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter axis 3 out of the tensor rank"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Out of bounds check of batch_axis attribute failed for unexpected reason";
     }
 }
@@ -136,7 +136,7 @@ TEST(type_prop, reverse_sequence_invalid_seq_axis_value) {
         FAIL() << "Invalid value of seq_axis attribute not detected";
     } catch (const ngraph_error& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter axis 3 out of the tensor rank"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Out of bounds check of seq_axis attribute failed for unexpected reason";
     }
 }
@@ -151,7 +151,7 @@ TEST(type_prop, reverse_sequence_incompatible_seq_len_size_with_batch_dim) {
         EXPECT_HAS_SUBSTRING(
             error.what(),
             std::string("Sequence lengths input size (3) is not equal to batch axis dimension of data input (4)"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Number of elements of input seq_lengths check with respect batch dimension of input failed for "
                   "unexpected reason";
     }
@@ -218,7 +218,7 @@ TEST(type_prop, reverse_sequence_dynamic_invalid_batch_axis) {
         FAIL() << "Invalid batch_axis attribute value not detected (rank-static dynamic shape)";
     } catch (const ngraph_error& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter axis 4 out of the tensor rank"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Out of bounds check of batch_axis attribute failed for unexpected reason";
     }
 }
@@ -235,7 +235,7 @@ TEST(type_prop, reverse_sequence_dynamic_invalid_seq_axis) {
         FAIL() << "Invalid seq_axis attribute value not detected (rank-static dynamic shape)";
     } catch (const ngraph_error& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter axis 4 out of the tensor rank"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Out of bounds check of seq_axis attribute failed for unexpected reason";
     }
 }
@@ -297,7 +297,7 @@ TEST(type_prop, reverse_sequence_dynamic_incompatible_data_input_static_rank_wit
         EXPECT_HAS_SUBSTRING(
             error.what(),
             std::string("Sequence lengths input size (4) is not equal to batch axis dimension of data input (3)"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Number of elements of input seq_lengths check with respect batch dimension of input failed for "
                   "unexpected reason";
     }
@@ -313,7 +313,7 @@ TEST(type_prop, reverse_sequence_dynamic_invalid_negative_axis_and_data_input_dy
         FAIL() << "Dynamic rank of data input for negative axis not detected";
     } catch (const CheckFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Rank must be static in order to normalize negative axis=-2"));
-    } catch (std::exception&) {
+    } catch (...) {
         FAIL() << "Static rank of data input for negative axis validation check failed for unexpected reason";
     }
 }

@@ -31,7 +31,7 @@ bool ScatterUpdate::isSupportedOperation(const std::shared_ptr<const ngraph::Nod
             errorMessage = "Only opset" + opType == "ScatterNDUpdate" ? "4 " : "3 " + opType + " operation is supported";
             return false;
         }
-    } catch (std::exception&) {
+    } catch (...) {
         return false;
     }
     return true;

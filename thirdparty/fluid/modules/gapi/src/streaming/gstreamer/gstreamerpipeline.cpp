@@ -58,7 +58,7 @@ IStreamSource::Ptr GStreamerPipeline::Priv::getStreamingSource(
         src = cv::gapi::wip::make_src<cv::gapi::wip::GStreamerSource>(m_pipeline, appsinkName,
                                                                       outputType);
     }
-    catch (std::exception&) {
+    catch(...) {
         m_appsinkNamesToUse[appsinkName] = true; /* free */
         cv::util::throw_error(std::runtime_error(std::string("Error during creation of ") +
             "GStreamerSource on top of '" + appsinkName + "' appsink element!"));

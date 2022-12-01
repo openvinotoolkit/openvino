@@ -24,7 +24,7 @@ TEST_P(MultiDeviceMultipleGPU_Test, canCreateRemoteTensorThenInferWithAffinity) 
     ov::CompiledModel exec_net;
     try {
         exec_net = ie.compile_model(function, device_names, ov::hint::allow_auto_batching(false));
-    } catch (std::exception&) {
+    } catch (...) {
         // device is unavailable (e.g. for the "second GPU" test) or other (e.g. env) issues not related to the test
         return;
     }
@@ -51,7 +51,7 @@ TEST_P(MultiDeviceMultipleGPU_Test, canCreateRemoteTensorThenInferWithAffinity) 
                 ocl_instance->_queue.enqueueWriteBuffer(shared_buffer, true, 0, imSize, buffer);
             }
             cldnn_tensor.emplace_back(cldnn_context.create_tensor(input->get_element_type(), input->get_shape(), shared_buffer));
-        } catch (std::exception&) {
+        } catch(...) {
             // device does not support remote context
             continue;
         }
