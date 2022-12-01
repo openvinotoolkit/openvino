@@ -32,12 +32,12 @@ struct embedding_bag : public primitive_base<embedding_bag> {
     /// @param output_shape Tensor with shape of output layout
     /// @param default_index default index in embedding table to fill empty "bags"
     embedding_bag(const primitive_id& id,
-                  const std::vector<primitive_id>& inputs,
+                  const std::vector<input_info>& inputs,
                   const embedding_bag_type& type,
                   const tensor& output_shape,
                   const int32_t default_index = -1,
                   const padding& output_padding = padding())
-        : primitive_base(id, inputs, output_padding), type(type), output_shape(output_shape), default_index(default_index) {}
+        : primitive_base(id, inputs, {output_padding}), type(type), output_shape(output_shape), default_index(default_index) {}
 
     /// @brief Type of EmbeddingBag operation
     embedding_bag_type type;
