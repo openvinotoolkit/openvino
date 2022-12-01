@@ -448,8 +448,8 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         IE_THROW() << "KEY_MULTI_DEVICE_PRIORITIES key is not set for " << GetName() << " device";
     } else {  // for use case -d MULTI:xPU or -d AUTO:xPU
         auto metaDevicesByConfig = ParseMetaDevices(priorities->second, fullConfig);
-        metaDevices = network.getFunction() ? FilterDeviceByNetwork(metaDevicesByConfig, network)
-                                            : metaDevicesByConfig;
+        metaDevices = modelPath.empty() ? FilterDeviceByNetwork(metaDevicesByConfig, network)
+                                        : metaDevicesByConfig;
         if (metaDevicesByConfig.size() != metaDevices.size()) {
             LOG_DEBUG_TAG("stateful/dynamic model, loaded to single device");
             multiNetworkConfig[MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES]
