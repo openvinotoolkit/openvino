@@ -777,20 +777,20 @@ void load_config(const std::string& filename, std::map<std::string, ov::AnyMap>&
     }
 
     for (auto item = jsonConfig.cbegin(), end = jsonConfig.cend(); item != end; ++item) {
-        const std::string deviceName = item.key();
-        const auto itemValue = item.value();
+        const std::string& deviceName = item.key();
+        const auto& itemValue = item.value();
         for (auto option = itemValue.cbegin(), itemValueEnd = itemValue.cend(); option != itemValueEnd; ++option) {
             if (option.key() != "DEVICE_PROPERTIES") {
                 config[deviceName][option.key()] = option.value().get<std::string>();
                 continue;
             }
-            const auto optionValue = option.value();
+            const auto& optionValue = option.value();
             for (auto hw_properties = optionValue.cbegin(), optionValueEnd = optionValue.cend();
                  hw_properties != optionValueEnd;
                  ++hw_properties) {
-                const std::string hw_device_name = hw_properties.key();
+                const std::string& hw_device_name = hw_properties.key();
                 std::map<std::string, ov::Any> hw_device_properties;
-                const auto hw_propertiesValue = hw_properties.value();
+                const auto& hw_propertiesValue = hw_properties.value();
                 for (auto property = hw_propertiesValue.cbegin(), hw_propertiesEnd = hw_propertiesValue.cend();
                      property != hw_propertiesEnd;
                      ++property)
