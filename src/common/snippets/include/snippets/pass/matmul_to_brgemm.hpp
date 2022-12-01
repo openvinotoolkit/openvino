@@ -17,10 +17,10 @@ namespace pass {
  *        Fuse Load and ConvertTruncation into one op LoadConvertTruncation
  * @ingroup snippets
  */
-class MatMulToMatMulCPU: public ngraph::pass::MatcherPass {
+class MatMulToBrgemm: public ngraph::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MatMulToMatMulCPU", "0");
-    MatMulToMatMulCPU();
+    OPENVINO_RTTI("MatMulToBrgemm", "0");
+    MatMulToBrgemm();
 };
 
 

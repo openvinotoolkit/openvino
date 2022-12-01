@@ -24,7 +24,7 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
                 std::dynamic_pointer_cast<opset1::Result>(op) ||
                 std::dynamic_pointer_cast<op::LoopBegin>(op) ||
                 std::dynamic_pointer_cast<op::LoopEnd>(op) ||
-                std::dynamic_pointer_cast<op::MatMulCPU>(op))
+                std::dynamic_pointer_cast<op::Brgemm>(op))
             return gpr2gpr;
         else if (std::dynamic_pointer_cast<snippets::op::Load>(op) ||
                  std::dynamic_pointer_cast<snippets::op::BroadcastLoad>(op))

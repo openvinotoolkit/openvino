@@ -17,10 +17,10 @@ namespace pass {
  *        Fuse Load and ConvertTruncation into one op LoadConvertTruncation
  * @ingroup snippets
  */
-class FuseTransposeMatMulCPU: public ngraph::pass::MatcherPass {
+class FuseTransposeBrgemm: public ngraph::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("FuseTransposeMatMulCPU", "0");
-    FuseTransposeMatMulCPU();
+    OPENVINO_RTTI("FuseTransposeBrgemm", "0");
+    FuseTransposeBrgemm();
     static const std::set<std::vector<int>> supported_cases;
 };
 

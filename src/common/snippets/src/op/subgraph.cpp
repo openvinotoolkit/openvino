@@ -18,8 +18,8 @@
 #include "snippets/pass/transpose_decomposition.hpp"
 #include "snippets/pass/transform_convert.hpp"
 #include "snippets/pass/align_element_type.hpp"
-#include "snippets/pass/matmul_to_matmul_cpu.hpp"
-#include "snippets/pass/fuse_transpose_and_matmul_cpu.hpp"
+#include "snippets/pass/matmul_to_brgemm.hpp"
+#include "snippets/pass/fuse_transpose_brgemm.hpp"
 #include "snippets/utils.hpp"
 
 #include "transformations/common_optimizations/nop_elimination.hpp"
@@ -320,7 +320,7 @@ ov::PartialShape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& 
     const auto& result_parent = body_results[0]->get_input_node_shared_ptr(0);
     if (body_results.size() == 1 &&
         ov::is_type<opset1::Transpose>(result_parent) &&
-        ov::is_type<snippets::op::MatMulCPU>(result_parent->get_input_node_shared_ptr(0)))
+        ov::is_type<snippets::op::Brgemm>(result_parent->get_input_node_shared_ptr(0)))
         outPShape = result_parent->get_input_partial_shape(0);
     master_shape = outPShape;
     return master_shape;
@@ -383,8 +383,8 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
     ngraph::pass::Manager manager;
     manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
     manager.register_pass<snippets::pass::ConvertPowerToPowerStatic>();
-    manager.register_pass<snippets::pass::MatMulToMatMulCPU>();
-    manager.register_pass<snippets::pass::FuseTransposeMatMulCPU>();
+    manager.register_pass<snippets::pass::MatMulToBrgemm>();
+    manager.register_pass<snippets::pass::FuseTransposeBrgemm>();
     manager.register_pass<snippets::pass::TransposeDecomposition>();
     manager.register_pass<snippets::pass::InsertLoad>(count);
     manager.register_pass<snippets::pass::InsertStore>(count);

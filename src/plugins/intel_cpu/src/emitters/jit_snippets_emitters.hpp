@@ -361,9 +361,9 @@ private:
     std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
 };
 
-class MatMulEmitter : public jit_emitter {
+class BrgemmEmitter : public jit_emitter {
 public:
-    MatMulEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
+    BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override {return 2;}
 

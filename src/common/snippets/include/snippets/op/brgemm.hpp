@@ -12,16 +12,15 @@ namespace snippets {
 namespace op {
 
 /**
- * @interface LoadConvertSaturation
- * @brief Fused operation to represent computations equal to consecutive Load and ConvertSaturation operations.
- *        The operation is used for peephole optimization during subgraph lowering.
+ * @interface Brgemm
+ * @brief Brgemm is a matrix multiplication, but it allows for strided input-output access
  * @ingroup snippets
  */
-class MatMulCPU : public ngraph::op::v0::MatMul {
+class Brgemm : public ngraph::op::v0::MatMul {
 public:
-    OPENVINO_OP("MatMulCPU", "SnippetsOpset", ngraph::op::v0::MatMul);
-    MatMulCPU(const Output<Node>& A, const Output<Node>& B);
-    MatMulCPU() = default;
+    OPENVINO_OP("Brgemm", "SnippetsOpset", ngraph::op::v0::MatMul);
+    Brgemm(const Output<Node>& A, const Output<Node>& B);
+    Brgemm() = default;
 
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;

@@ -7,7 +7,7 @@
 #include <cpu/x64/jit_generator.hpp>
 
 #include "jit_snippets_emitters.hpp"
-#include "snippets/op/matmul_cpu.hpp"
+#include "snippets/op/brgemm.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/utils.hpp"
 
@@ -65,7 +65,7 @@ void jit_container_emitter::map_abstract_registers(mapping_info& gpr_map_pool,  
                 //  where all utility emitters align with conventional Op emitters
                 if (std::dynamic_pointer_cast<LoopBeginEmitter>(emitter) ||
                     std::dynamic_pointer_cast<LoopEndEmitter>(emitter) ||
-                    std::dynamic_pointer_cast<MatMulEmitter>(emitter))
+                    std::dynamic_pointer_cast<BrgemmEmitter>(emitter))
                     in_physical_regs = std::move(map_regs(in_abstract_regs, gpr_map_pool));
                 else
                     in_physical_regs = std::move(in_abstract_regs);
@@ -176,11 +176,11 @@ KernelEmitter::KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
                            [](const AllocatedEmitter& code){
                                    const auto& emitter = code.first;
                                    const auto emitter_type = std::dynamic_pointer_cast<jit_emitter>(emitter)->get_in_out_type();
-                                   // todo: how this will be handled if Matmul in & out are op::Buffer
-                                   // Matmul is a special case since it incorporates input and output (we use onednn kernel)
+                                   // todo: how this will be handled if Brgemm in & out are op::Buffer
+                                   // Brgemm is a special case since it incorporates input and output (we use onednn kernel)
                                    // Just like Load & Store it requires offsets calculation
-                                   const auto is_matmul = std::dynamic_pointer_cast<MatMulEmitter>(emitter) != nullptr;
-                                   return emitter_type == gpr_to_vec || emitter_type == vec_to_gpr || is_matmul;
+                                   const auto is_brgemm = std::dynamic_pointer_cast<BrgemmEmitter>(emitter) != nullptr;
+                                   return emitter_type == gpr_to_vec || emitter_type == vec_to_gpr || is_brgemm;
                            });
     // Note that we can't use reg_indexes_idx or reg_const_params_idx to store data pointers because these two
     // regs are used to calculate offsets for the data pointers
@@ -721,16 +721,16 @@ void StoreConvertEmitter::emit_isa(const std::vector<size_t> &in, const std::vec
 void StoreConvertEmitter::emit_data() const {
     store_emitter->emit_data();
 }
-size_t MatMulEmitter::getBrgIdx(size_t mIdx, size_t kIdx, size_t nIdx) const {
+size_t BrgemmEmitter::getBrgIdx(size_t mIdx, size_t kIdx, size_t nIdx) const {
     return mIdx * 4 + kIdx * 2 + nIdx;
 }
-MatMulEmitter::MatMulEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
+BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
                                          const std::shared_ptr<ov::Node>& node) : jit_emitter(h, isa, node) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
-    const auto& matmul_node = as_type_ptr<ngraph::snippets::op::MatMulCPU>(node);
-    if (matmul_node->is_dynamic())
-        IE_THROW() << "Snippets don't support code generation for dynamic MatmulCPU";
-    const OutputVector io_values {matmul_node->input_value(0), matmul_node->input_value(1), matmul_node->output(0)};
+    const auto& brgemm_node = as_type_ptr<ngraph::snippets::op::Brgemm>(node);
+    if (brgemm_node->is_dynamic())
+        IE_THROW() << "Snippets don't support code generation for dynamic Brgemm";
+    const OutputVector io_values {brgemm_node->input_value(0), brgemm_node->input_value(1), brgemm_node->output(0)};
     std::vector<size_t> leading_dimensions;
     std::vector<std::vector<size_t>> io_layouts;
     for (const auto& val : io_values) {
@@ -748,7 +748,7 @@ MatMulEmitter::MatMulEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
             // counting from the end since shape could be prepended with ones
             const int64_t num_last_dims = layout.end() - std::find(layout.begin(), layout.end(), layout.size() - 2) - 1;
             if (layout.back() != layout.size() - 1 || num_last_dims < 1)
-                IE_THROW() << "MatMulEmitter detected invalid layout values: " <<
+                IE_THROW() << "BrgemmEmitter detected invalid layout values: " <<
                     "check that this shape + layout combination is schedulable";
             leading_dimensions.emplace_back(
                     std::accumulate(io_shape.end() - num_last_dims, io_shape.end(), 1, std::multiplies<size_t>()));
@@ -773,9 +773,9 @@ MatMulEmitter::MatMulEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
     // B_shape[B_layout[3]]
     N0 = C_shape[C_layout[3]];
 
-    auto brg0Prc = InferenceEngine::details::convertPrecision(matmul_node->get_input_element_type(0));
-    auto brg1Prc = InferenceEngine::details::convertPrecision(matmul_node->get_input_element_type(1));
-    io_data_size = {brg0Prc.size(), brg1Prc.size(), matmul_node->get_output_element_type(0).size()};
+    auto brg0Prc = InferenceEngine::details::convertPrecision(brgemm_node->get_input_element_type(0));
+    auto brg1Prc = InferenceEngine::details::convertPrecision(brgemm_node->get_input_element_type(1));
+    io_data_size = {brg0Prc.size(), brg1Prc.size(), brgemm_node->get_output_element_type(0).size()};
     brg0VnniFactor = 4 / brg0Prc.size();
     bool brg0WithAMX = isAMXSupported && brg0Prc != Precision::FP32 && (K0 % brg0VnniFactor == 0) && (N0 % brg0VnniFactor == 0);
 
@@ -819,14 +819,14 @@ MatMulEmitter::MatMulEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
     }
 }
 
-void MatMulEmitter::initBrgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKernel, bool use_amx) const {
+void BrgemmEmitter::initBrgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKernel, bool use_amx) const {
     brgemm_t brgDesc;
     brgemm_strides_t strides {static_cast<dnnl_dim_t>(ctx.M * ctx.K), static_cast<dnnl_dim_t>(ctx.K * ctx.N)};
     // When implementing int8 support, note that isa logics is more complicated in the MHA node
     auto status = brgemm_desc_init(&brgDesc, host_isa_, brgemm_strd, ctx.dt_in0, ctx.dt_in1,
                                    false, false, brgemm_row_major, 1.f, ctx.beta, ctx.LDA, ctx.LDB, ctx.LDC, ctx.M, ctx.N, ctx.K, &strides);
     if (status != dnnl_success)
-        IE_THROW() << "MatMulEmitter cannot initialize brgemm descriptor due to invalid params";
+        IE_THROW() << "BrgemmEmitter cannot initialize brgemm descriptor due to invalid params";
 
     ctx.is_with_amx = use_amx;
     status = brgemm_init_tiles(brgDesc, ctx.palette);
@@ -838,11 +838,11 @@ void MatMulEmitter::initBrgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>&
     brgemm_kernel_t* brgKernel_ = nullptr;
     status = brgemm_kernel_create(&brgKernel_, brgDesc);
     if (status != dnnl_success)
-        IE_THROW() << "MatMulEmitter cannot create brgemm kernel due to invalid params";
+        IE_THROW() << "BrgemmEmitter cannot create brgemm kernel due to invalid params";
     brgKernel.reset(brgKernel_);
 }
 
-void MatMulEmitter::emit_impl(const std::vector<size_t>& in,
+void BrgemmEmitter::emit_impl(const std::vector<size_t>& in,
                               const std::vector<size_t>& out,
                               const std::vector<size_t>& pool,
                               const std::vector<size_t>& gpr,
@@ -858,7 +858,7 @@ void MatMulEmitter::emit_impl(const std::vector<size_t>& in,
     }
 }
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-void MatMulEmitter::emit_brgemm_kernel_call(const brgemm_kernel_t *brgKernel, int bs,
+void BrgemmEmitter::emit_brgemm_kernel_call(const brgemm_kernel_t *brgKernel, int bs,
                                    Reg64 addr_A, Reg64 addr_B,
                                    const brgemm_batch_element_t *batch, Reg64 addr_C, void *scratch) const {
     using Vmm = typename dnnl::impl::utils::conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
@@ -960,7 +960,7 @@ void MatMulEmitter::emit_brgemm_kernel_call(const brgemm_kernel_t *brgKernel, in
 }
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-void MatMulEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
+void BrgemmEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
     using Vmm = typename dnnl::impl::utils::conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Reg64 input_0(static_cast<int>(in[0]));
     Reg64 input_1(static_cast<int>(in[1]));
