@@ -73,7 +73,6 @@ def test_main_error_log():
     assert status.stderr == b'[ WARNING ]  warning\r\n[ FRAMEWORK ERROR ]  FW ERROR MESSAGE\r\n'
 
 
-
 def test_mo_extensions_test():
     setup_env()
     args = [sys.executable, '-m', 'pytest',
