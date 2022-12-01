@@ -1164,13 +1164,16 @@ bool ScaleFactorCalculator::ScaleFactorPerLayerWeightable(InferenceEngine::Weigh
         THROW_GNA_EXCEPTION << "Incorrect weight value for " << wl->name << ":" << wl->type << "\n";
     }
 
+    auto quant = InferenceEngine::getInjectedData<QuantizedLayerParams>(*wl);
     int inputsSize = GetInputPrecision().size();
+    const auto weights_prec = GetWeightsPrecision(LayerInfo(wl), *quant, gna_config);
+    const auto is_bias_compound = IsBiasCompound(LayerInfo(wl), *quant, gna_config);
     auto prevLayer = CNNNetPrevLayer(wl);
     auto quantDataForInputLayer =
-        InferenceEngine::getInjectedData<QuantizedLayerParams>(*InferenceEngine::CNNNetPrevLayer(wl).get());
+        InferenceEngine::getInjectedData<QuantizedLayerParams>(*prevLayer.get());
 
-    auto quant = InferenceEngine::getInjectedData<QuantizedLayerParams>(*wl);
     quant->_src_quant = quantDataForInputLayer->_dst_quant;
+
     if (quant->_weights_quant.IsStatsSet() && !quant->_weights_quant.IsScaleSet()) {
         auto getScale = [&quant](size_t i) {
             return CalculateScaleFactorFromStats(quant->_weights_quant.GetLevels(),
@@ -1183,8 +1186,8 @@ bool ScaleFactorCalculator::ScaleFactorPerLayerWeightable(InferenceEngine::Weigh
         }
 
         auto multiplier = 1.0f;
-        if (quant->_weights_quant.GetLevels() <= std::numeric_limits<uint8_t>::max()) {
-            // GNA supports additional multiplier for only 8bit weights.
+        if (is_bias_compound) {
+            // GNA supports additional multiplier only for weights used in combination with compound bias.
             // The multipler is used to extend dynamic range.
             multiplier = MAX_OUT_MULTIPLIER;
         }
@@ -1192,8 +1195,6 @@ bool ScaleFactorCalculator::ScaleFactorPerLayerWeightable(InferenceEngine::Weigh
         // Common weights scale calculation
         quant->_weights_quant.SetScale(min_channel_scale * multiplier);
     }
-
-    auto weights_prec = GetWeightsPrecision(LayerInfo(wl), *quant, gna_config);
 
     if (!quant->_weights_quant.IsScaleSet()) {
         size_t scaleRange = 0;
@@ -1224,7 +1225,7 @@ bool ScaleFactorCalculator::ScaleFactorPerLayerWeightable(InferenceEngine::Weigh
 
         // use the MAX_OUT_MULTIPLIER only for int8_t weigths with compound bias (for now handled here only with int16_t inputs)
         // it gives the possibility to exetend the output dynamic range
-        if (weights_prec == InferenceEngine::Precision::I8 && inputsSize == 2) {
+        if (is_bias_compound) {
             quant->_weights_quant.SetScale(quant->_weights_quant.GetScale() * MAX_OUT_MULTIPLIER);
         }
 
@@ -1238,8 +1239,9 @@ bool ScaleFactorCalculator::ScaleFactorPerLayerWeightable(InferenceEngine::Weigh
         }
         quant->_weights_quant.SetScale(quant->_weights_quant.GetScale() / weights_reducer);
     }
+
     double tmp_dst_quant_scale = quant->_weights_quant.GetScale() * quant->_src_quant.GetScale();
-    if (weights_prec == InferenceEngine::Precision::I8) {
+    if (weights_prec == InferenceEngine::Precision::I8 && !(LayerInfo(wl).isConvolution() || LayerInfo(wl).isConvolutionFilter())) {
         auto itt = thresholds.begin();
         auto limit = std::numeric_limits<int32_t>::max();
 

@@ -22,7 +22,7 @@ struct PluginConfig {
                 _disableAutoBatching(false),
                 _batchTimeout("1000"),
                 _devicePriority(""),
-                _modelPriority(0),
+                _modelPriority(1),
                 _deviceBindBuffer(false),
                 _logLevel("LOG_NONE") {
         adjustKeyMapValues();

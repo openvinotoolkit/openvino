@@ -71,12 +71,17 @@ public:
         params.reverse = primitive->reverse;
         return {params, optional_params};
     }
+
+    void update_dispatch_data(const kernel_impl_params& impl_param) override {
+        auto kernel_params = get_kernel_params(impl_param);
+        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+    }
 };
 
 namespace detail {
 
 attach_cum_sum_impl::attach_cum_sum_impl() {
-    implementation_map<cum_sum>::add(impl_types::ocl, typed_primitive_impl_ocl<cum_sum>::create<cum_sum_impl>, {
+    implementation_map<cum_sum>::add(impl_types::ocl, shape_types::any, typed_primitive_impl_ocl<cum_sum>::create<cum_sum_impl>, {
         std::make_tuple(data_types::i32, format::bfyx),
         std::make_tuple(data_types::i32, format::bfzyx),
         std::make_tuple(data_types::i32, format::bfwzyx),
@@ -96,4 +101,4 @@ attach_cum_sum_impl::attach_cum_sum_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::cum_sum_impl, cldnn::object_type::CUM_SUM_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::cum_sum_impl)
