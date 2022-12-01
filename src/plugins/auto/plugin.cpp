@@ -297,9 +297,9 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::stri
 }
 
 // Is called only when caching is enabled
-IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetwork(const std::string& modelPath,
+ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> MultiDeviceInferencePlugin::LoadNetwork(const std::string& modelPath,
                                                                         const std::map<std::string, std::string>& config) {
-    return LoadNetworkImpl(modelPath, {}, config);
+    return {LoadNetworkImpl(modelPath, {}, config), nullptr};
 }
 
 IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(const CNNNetwork &network,
