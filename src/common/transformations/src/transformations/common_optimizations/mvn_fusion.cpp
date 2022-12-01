@@ -18,7 +18,7 @@ template <class T>
 std::function<bool(ngraph::Output<ngraph::Node>)> value_is_equal_to(const std::vector<T>& ref_values) {
     return [ref_values](ngraph::Output<ngraph::Node> output) -> bool {
         auto node = output.get_node_shared_ptr();
-        if (auto const_node = std::dynamic_pointer_cast<ngraph::op::Constant>(node)) {
+        if (auto const_node = std::dynamic_pointer_cast<ov::opset6::Constant>(node)) {
             return const_node->template cast_vector<T>() == ref_values;
         }
         return false;

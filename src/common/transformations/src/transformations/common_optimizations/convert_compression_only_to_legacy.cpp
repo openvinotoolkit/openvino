@@ -7,6 +7,7 @@
 #include "itt.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/common_optimizations/mark_precision_sensitive_subgraphs.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"

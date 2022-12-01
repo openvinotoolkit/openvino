@@ -102,7 +102,6 @@ pass::GRUBlockCellReplacer::GRUBlockCellReplacer() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(gru_block_cell,
-                                                        "ov::frontend::tensorflow::pass::GRUBlockCellReplacer");
+    auto m = std::make_shared<pattern::Matcher>(gru_block_cell, "ov::frontend::tensorflow::pass::GRUBlockCellReplacer");
     register_matcher(m, callback);
 }

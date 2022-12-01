@@ -266,7 +266,7 @@ ov::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
     //      4) 'axes' input as a constant with the value [1, 2, ..., r - 2].
     //
     // Of course, the replacement shouldn't be done, if all S_i are equal to 1.
-    auto input = ngraph::pattern::any_input(pattern::has_static_shape());
+    auto input = pass::pattern::any_input(pattern::has_static_shape());
     auto concat_1 = pattern::wrap_type<opset8::Concat>();
     auto concat_2 = pattern::wrap_type<opset8::Concat>();
     auto reshape_1 = pattern::wrap_type<opset8::Reshape>({input, concat_1});

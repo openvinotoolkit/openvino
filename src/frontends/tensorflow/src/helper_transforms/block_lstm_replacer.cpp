@@ -228,6 +228,6 @@ pass::BlockLSTMReplacer::BlockLSTMReplacer() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(root, "ov::frontend::tensorflow::pass::BlockLSTMReplacer");
+    auto m = std::make_shared<pattern::Matcher>(root, "ov::frontend::tensorflow::pass::BlockLSTMReplacer");
     register_matcher(m, callback);
 }

@@ -5,6 +5,7 @@
 
 #include "itt.hpp"
 #include "openvino/opsets/opset9.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace {
 

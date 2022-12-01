@@ -8,6 +8,7 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <numeric>
+#include <openvino/core/validation_util.hpp>
 #include <openvino/opsets/opset6.hpp>
 #include <openvino/opsets/opset7.hpp>
 #include <vector>
@@ -160,9 +161,9 @@ ov::pass::TransposeReduction::TransposeReduction() {
         if (!transpose_order || !reduction_axes)
             return false;
 
-        const auto& non_negative_axes = ngraph::normalize_axes(reduction->get_friendly_name(),
-                                                               reduction_axes->cast_vector<int64_t>(),
-                                                               reduction->get_input_partial_shape(0).rank());
+        const auto& non_negative_axes = normalize_axes(reduction->get_friendly_name(),
+                                                       reduction_axes->cast_vector<int64_t>(),
+                                                       reduction->get_input_partial_shape(0).rank());
         reduction_axes = opset6::Constant::create(ngraph::element::i64, {non_negative_axes.size()}, non_negative_axes);
 
         ngraph::NodeVector new_ops;

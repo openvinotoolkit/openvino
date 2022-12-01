@@ -7,6 +7,7 @@
 #include "transformations/rt_info/gna_precision_change_flag.hpp"
 
 #include <ngraph/opsets/opset9.hpp>
+#include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>

@@ -4,11 +4,9 @@
 
 #pragma once
 
-#include <ngraph/ngraph.hpp>
 #include <openvino/pass/graph_rewrite.hpp>
+#include <openvino/pass/pattern/matcher.hpp>
 #include <transformations_visibility.hpp>
-
-#include "ngraph/pattern/matcher.hpp"
 
 namespace ov {
 namespace pass {

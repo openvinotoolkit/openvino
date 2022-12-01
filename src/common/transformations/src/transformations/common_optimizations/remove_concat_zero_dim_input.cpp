@@ -61,7 +61,7 @@ ov::pass::RemoveConcatZeroDimInput::RemoveConcatZeroDimInput() {
         }
         return inputs_removed;
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(concat_pattern, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(concat_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
 
