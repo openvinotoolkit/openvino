@@ -260,9 +260,9 @@ void CompileModelLoadFromFileTestBase::SetUp() {
 }
 
 void CompileModelLoadFromFileTestBase::TearDown() {
-    //CommonTestUtils::removeFilesWithExt(m_cacheFolderName, "blob");
+    CommonTestUtils::removeFilesWithExt(m_cacheFolderName, "blob");
     CommonTestUtils::removeIRFiles(m_modelName, m_weightsName);
-    //std::remove(m_cacheFolderName.c_str());
+    std::remove(m_cacheFolderName.c_str());
     core->set_property(ov::cache_dir());
     APIBaseTest::TearDown();
 }
