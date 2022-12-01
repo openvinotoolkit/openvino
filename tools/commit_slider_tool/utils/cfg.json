@@ -4,29 +4,39 @@
             "checkOutput" : "CheckOutputMode"
         },
         "traversalMap" : {
-            "firstBadVersion" : "FirstBadVersion"
+            "firstFailedVersion" : "FirstFailedVersion",
+            "firstFixedVersion" : "FirstFixedVersion"
         },
         "commandList" : [
-            {"cmd" : "git checkout -- main.cpp", "path" : "{gitPath}"},
+            {"cmd" : "git checkout -- .", "path" : "{gitPath}"},
             {"cmd" : "git clean -fxd", "path" : "{gitPath}", "tag" : "clean"},
             {"cmd" : "mkdir build", "path" : "{gitPath}", "tag" : "clean"},
             {"cmd" : "git checkout {commit}", "catchMsg" : "error", "path" : "{gitPath}"},
             {"cmd" : "git submodule init", "path" : "{gitPath}"},
             {"cmd" : "git submodule update --recursive", "path" : "{buildPath}"},
-            {"cmd" : "cmake ../", "catchMsg" : "Error", "path" : "{buildPath}"},
+            {"cmd" : "cmake ../", "catchMsg" : "CMake Error", "path" : "{buildPath}"},
             {"cmd" : "make --jobs=4", "path" : "{buildPath}"},
-            {"cmd" : "git checkout -- main.cpp", "path" : "{gitPath}"}
+            {"cmd" : "git checkout -- .", "path" : "{gitPath}"}
         ],
-        "gitPath" : "/home/openvino-ci-35/Documents/ov/openvino/tools/commit_slider_tool/samples/sample3",
-        "buildPath" : "/home/openvino-ci-35/Documents/ov/openvino/tools/commit_slider_tool/samples/sample3/build",
+        "_returnCmd" : "git checkout master",
+        "returnCmd" : "git checkout commit_stroller",
+        "gitPath" : "/home/openvino-ci-35/Documents/lbv/",
+        "buildPath" : "/home/openvino-ci-35/Documents/lbv/build/",
+        "_gitPath" : "/home/openvino-ci-35/Documents/ov/openvino/",
+        "_buildPath" : "/home/openvino-ci-35/Documents/ov/openvino/build",
         "cachePath" : "{workPath}/slider_cache/",
-        "logPath" : "{workPath}/log",
-        "appCmd" : "./sample3 --some_arg",
-        "appPath" : "/home/openvino-ci-35/Documents/ov/openvino/tools/commit_slider_tool/samples/sample3/build",
-        "workPath" : "/home/openvino-ci-35/commit_slider_tool",
-        "clearCache" : true,
+        "logPath" : "{workPath}/log/",
+        "_appCmd" : "./benchmark_app -m /home/openvino-ci-35/Documents/tmp/dumps/tmp/SemiSupSegmentAtten.xml -niter 1",
+        "appCmd" : "./sample --some_arg",
+        "__appCmd" : "./cpuFuncTests --gtest_filter=*SetScalePreProcessGetBlob*netPRC=FP32_targetDevice=AUTO*",
+        "appPath" : "/home/openvino-ci-35/Documents/lbv/build/",
+        "_appPath" : "/home/openvino-ci-35/Documents/ov/openvino/bin/intel64/Release/",
+        
+        "_workPath" : "/home/openvino-ci-35/commit_slider_tool",
+        "workPath" : "/tmp/commit_slider_tool",
+        "clearCache" : false,
         "checkBorders" : false,
-        "noCleanInterval" : 4
+        "noCleanInterval" : 0
     },
     "serviceConfig" : {
         "comment" : "For inner purpose. Data will be overwritten during script running."
@@ -34,10 +44,15 @@
     "specialConfig" : {
         "commitList" : {
             "_getCommitListCmd" : "git log -6 --pretty=format:\"%h\"",
-            "getCommitListCmd" : "git log 573fbff..818dd27 --boundary --pretty=\"%h\""
+            "___getCommitListCmd" : "git log 573fbff..818dd27 --boundary --pretty=\"%h\"",
+            "__getCommitListCmd" : "git log dfc738b49..0dfdadb --boundary --pretty=\"%h\"",
+            "____getCommitListCmd" : "git log 1471419..master --boundary --pretty=\"%h\"",
+            "getCommitListCmd" : "git log e2b2be..master --boundary --pretty=\"%h\"",
+            "_____getCommitListCmd" : "git log e29169db475881..e4cf8aea402c0ffd37 --boundary --pretty=\"%h\""
+
         },
         "mode" : "checkOutput",
-        "traversal" : "firstBadVersion",
+        "traversal" : "firstFixedVersion",
         "stopPattern" : "(.)*failed(.)*",
         "preprocess_" : {
             "name" : "test_preprocess",
@@ -45,11 +60,17 @@
             "pattern" : "(.*std::cout << \\\")(.*)",
             "replacement" : "\\1[PREPROCESSED]\\2"
         },
-        "preprocess" : {
+        "preprocess__" : {
             "name" : "replace",
             "file" : "samples/sample3/main.cpp",
             "pattern" : "(.*std::cout << \\\")(.*)",
             "replacement" : "\\1[PREPROCESSED]\\2"
+        },
+        "preprocess" : {
+            "name" : "replace",
+            "file" : "/home/openvino-ci-35/Documents/ov/openvino/inference-engine/tests/functional/plugin/cpu/shared_tests_instances/skip_tests_config.cpp",
+            "pattern" : "(\\s)*(.)*(SetScalePreProcessGetBlob)(.)*(\\s)",
+            "replacement" : ""
         }
     }
 }

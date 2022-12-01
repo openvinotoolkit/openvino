@@ -1,4 +1,6 @@
 import importlib
+import os
+import sys
 import subprocess
 import re
 import logging as log
@@ -52,7 +54,15 @@ def runCommandList(commit, cfgData):
         proc = subprocess.Popen(formattedCmd,
             cwd = cwd,
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        for line in proc.stdout:
+            # decode if line is byte-type
+            try:
+                line = line.decode('utf-8')
+            except (UnicodeDecodeError, AttributeError):
+                pass
+            sys.stdout.write(line)
         proc.wait()
+        i = input("wait for you")
         checkOut, err = proc.communicate()
         commitLogger.info(checkOut)
         if "catchMsg" in cmd.keys():
@@ -72,11 +82,19 @@ def handleCommit(commit, cfgData):
     except(NoCleanFailedError):
         cfgData["trySkipClean"] = False
         runCommandList(commit, cfgData)
-def handleTag():
-    pass
-def setupLogger(name, logFile, level=log.INFO):
-    open(logFile, "w").close() # clear old log
-    handler = log.FileHandler(logFile)
+def returnToActualVersion(cfg):
+    cmd = cfg["commonConfig"]["returnCmd"]
+    cwd = cfg["commonConfig"]["gitPath"]
+    proc = subprocess.Popen(cmd.split(), cwd = cwd,
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    proc.wait()
+    return
+def setupLogger(name, logPath, logFileName, level=log.INFO):
+    if not os.path.exists(logPath):
+        os.makedirs(logPath)
+    logFileName = logPath + logFileName
+    open(logFileName, "w").close() # clear old log
+    handler = log.FileHandler(logFileName)
     formatter = log.Formatter('%(asctime)s %(levelname)s %(message)s')
     handler.setFormatter(formatter)
     logger = log.getLogger(name)
@@ -87,16 +105,20 @@ def getCommitLogger(cfg, commit):
     logName = 'commitLogger_{c}'.format(c=commit)
     if log.getLogger(logName).hasHandlers():
         return log.getLogger(logName)
-    logPath = getActualPath("logPath", cfg) + '/commit_{c}.log'
-    logPath = logPath.format(c=commit, logPath=logPath)
-    commitLogger = setupLogger(logName, logPath)
+    logPath = getActualPath("logPath", cfg)
+    logFileName = 'commit_{c}.log'.format(c=commit)
+    commitLogger = setupLogger(logName, logPath, logFileName)
     return commitLogger
 def getActualPath(pathName, cfg):
     workPath = cfg["commonConfig"]["workPath"]
     curPath = cfg["commonConfig"][pathName]
     return curPath.format(workPath=workPath)
-def getSafeClearDirProc(path):
-    return subprocess.Popen("rm -rf *", cwd=path, stdout=subprocess.PIPE, shell=True)
+def safeClearDir(path):
+    if not os.path.exists(path):
+        os.makedirs(path)
+    p = subprocess.Popen("rm -rf *", cwd=path, stdout=subprocess.PIPE, shell=True)
+    p.wait()
+    return
 class CfgError(Exception):
     pass
 class CashError(Exception):

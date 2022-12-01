@@ -1,3 +1,4 @@
+import os
 from utils.helpers import handleCommit
 from utils.helpers import getCommitLogger
 from utils.helpers import CashError
@@ -17,7 +18,9 @@ class CheckOutputMode(Mode):
         wp = self.cfg["commonConfig"]["workPath"]
         cp = self.cfg["commonConfig"]["cachePath"]
         cp = cp.format(workPath=wp)
-        self.cachePath = cp + '/check_output_cache.json'
+        if not os.path.exists(cp):
+            os.makedirs(cp)
+        self.cachePath = os.path.join(cp, 'check_output_cache.json')
         initCacheMap = {}
         try:
             cacheDump = open(self.cachePath, 'r+')

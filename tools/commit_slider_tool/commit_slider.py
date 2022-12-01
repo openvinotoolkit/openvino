@@ -1,9 +1,10 @@
 import subprocess
 from argparse import ArgumentParser
 import os
+import shutil
 import sys
 from distutils.dir_util import copy_tree
-from utils.helpers import getSafeClearDirProc
+from utils.helpers import safeClearDir
 import json
 
 parser = ArgumentParser()
@@ -26,23 +27,27 @@ if not isWorkingDir:
     if not os.path.exists(workPath):
         os.mkdir(workPath)
     else:
-        p = getSafeClearDirProc(workPath)
-        p.wait()
+        safeClearDir(workPath)
     curPath = os.getcwd()
     copy_tree(curPath, workPath)
     scriptName = os.path.basename(__file__)
     argString = ' '.join(sys.argv)
-    str = "python3.8 {workPath}/{argString} -wd true".format(workPath=workPath,
+    formattedCmd = "python3 {workPath}/{argString} -wd true".format(
+        workPath=workPath,
         argString=argString)
-    os.system(str)
-    # copy logs back
+    subprocess.call(formattedCmd.split())
+    # copy logs and cache back to general repo
     tempLogPath = cfgData["commonConfig"]["logPath"].format(workPath=workPath)
     permLogPath = cfgData["commonConfig"]["logPath"].format(workPath=curPath)
-    p = getSafeClearDirProc(permLogPath)
-    p.wait()
+    safeClearDir(permLogPath)
     copy_tree(tempLogPath, permLogPath)
-    p = getSafeClearDirProc(workPath)
-    p.wait()
+    tempCachePath = cfgData["commonConfig"]["cachePath"].format(workPath=workPath)
+    permCachePath = cfgData["commonConfig"]["cachePath"].format(workPath=curPath)
+    safeClearDir(permCachePath)
+    copy_tree(tempCachePath, permCachePath)
+    cfgPath = 'utils/cfg.json'
+    shutil.copyfile(os.path.join(workPath, cfgPath), os.path.join(curPath, cfgPath), follow_symlinks=True)
+    safeClearDir(workPath)
     exit()
 
 # prevent cross import
@@ -65,4 +70,5 @@ else:
 
 commitList.reverse()
 p = Mode.factory(cfgData)
-print ("Commit found: {c}".format(c=commitList[p.run(0, len(commitList) - 1, commitList, cfgData)]))
+p.run(0, len(commitList) - 1, commitList, cfgData)
+p.getResult()
