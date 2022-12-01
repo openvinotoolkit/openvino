@@ -32,7 +32,7 @@ struct jit_snippets_call_args {
 
 struct jit_snippets_compile_args {
     std::vector<size_t> master_shape{};
-    int64_t data_offsets[SNIPPETS_MAX_SNIPPETS_DIMS * SNIPPETS_MAX_HARNESS_DIMS] = {};
+    size_t tile_rank = 0;
 };
 ///
 /// \brief jit_container_emitter designed to wrap Emitters that contain other Emitters (for example, KernelEmitter)
@@ -93,6 +93,15 @@ private:
 
     jit_snippets_compile_args jcp;
     std::vector<size_t> gp_regs_pool;
+    size_t num_inputs;
+    size_t num_outputs;
+    // Vector of indices (lenght = input tensor rank) per every input and output that describes in which order
+    // corresponding tensor dimensions are accessed (default: consecutive dense, e.g. 0,1,2,3 for 4D tensor).
+    // Needed to calc i/o offsets.
+    std::vector<std::vector<size_t>> data_access_pattern;
+    std::vector<std::vector<size_t>> io_shapes = {};
+    std::vector<size_t> io_data_size {};
+
     // gpr's used to store data pointers, track them to apply offsets in Kernel
     std::vector<size_t> data_ptr_regs_idx;
     std::vector<size_t> vec_regs_pool;
@@ -154,11 +163,12 @@ private:
 
     size_t num_inputs = 0;
     size_t num_outputs = 0;
-    std::vector<size_t> io_data_size {};
-    size_t increment = 0;
+    // keep data_size int64_t to avoid conversion to size_t (and overflow) when multiplied by negative increments or offsets
+    std::vector<int64_t> io_data_size {};
+    size_t wa_increment = 0;
     size_t work_amount = 0;
     bool evaluate_once = false;
-    std::vector<bool> apply_increments;
+    std::vector<int64_t> ptr_increments;
     std::vector<int64_t> finalization_offsets;
 };
 

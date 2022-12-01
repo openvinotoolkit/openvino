@@ -212,28 +212,7 @@ InferenceEngine::Precision Snippet::getRuntimePrecision() const {
     return getMaxPrecision(inputPrecisions);
 }
 
-void Snippet::calcJITParams(std::vector<int64_t>& offsets) const {
-    const size_t numInputs = normInputShapes.size();
-    const size_t numParams = numInputs + normOutputShapes.size();
-
-    // Note that we don't need offset for the last dim, since it's handled directly by Tile emitter
-    const size_t offset_rank = masterShape.size() - 1;
-    offsets.resize(numParams * (offset_rank), 1);
-    auto offset_calculation = [offset_rank, this](int64_t *off, const std::vector<size_t>& dims, const size_t data_size) {
-        size_t k = dims.back();
-        for (int i = offset_rank - 1; i >= 0; i--) {
-            auto tmp = (dims[i] == masterShape[i] && masterShape[i] != 1) ? k : 0;
-            off[i] = tmp * data_size;
-            k *= dims[i];
-        }
-    };
-    for (size_t i = 0; i < numParams; i++) {
-            offset_calculation(&offsets[i * offset_rank],
-                           i < numInputs ? normInputShapes[i] : normOutputShapes[i - numInputs],
-                           dataSize[i]);
-    }
-}
-void Snippet::optimizeExecDomain(std::vector<VectorDims>& inputShapes, std::vector<VectorDims>& outputShapes,
+bool Snippet::optimizeExecDomain(std::vector<VectorDims>& inputShapes, std::vector<VectorDims>& outputShapes,
                                  VectorDims &domain, size_t& TileRank) const {
     const size_t minimalConcurrency = parallel_get_max_threads();
     const size_t minimalJitWorkAmount = 256;
@@ -241,7 +220,7 @@ void Snippet::optimizeExecDomain(std::vector<VectorDims>& inputShapes, std::vect
     if ( ds <= 2 || // not enough dimensions to collapse
          domain[ds-1] >= minimalJitWorkAmount || // There is enough work for 1D Tiles, no need to collapse
          domain[ds-1] * domain[ds-2] >= fullWorkAmount / minimalConcurrency) // There won't be enough work for every thread (even one iter) if we collapse
-        return;
+        return false;
     auto findDimsToCollapse = [&]() {
         auto collapseLastDims = [](VectorDims& dims, size_t dimsToCollapse) {
             if (dimsToCollapse >= dims.size() - 1)
@@ -296,9 +275,9 @@ void Snippet::optimizeExecDomain(std::vector<VectorDims>& inputShapes, std::vect
                 break;
             }
         }
-        return domain;
+        return collapsedDims > 0;
     };
-    findDimsToCollapse();
+    return findDimsToCollapse();
 }
 ov::PartialShape Snippet::canonicalizeBody() {
     auto edgeToBlockedShape = [](const EdgePtr& edge) {
@@ -364,7 +343,7 @@ void Snippet::createPrimitive() {
 
     prepareParams();
     jcp.master_shape = masterShape;
-    std::copy(data_offsets.begin(), data_offsets.end(), jcp.data_offsets);
+    jcp.tile_rank = tileRank;
     generate(&jcp);
 }
 
@@ -437,12 +416,16 @@ void Snippet::prepareParams() {
 
     tileRank = 1;
     fullWorkAmount = std::accumulate(masterShape.begin(), masterShape.end(), 1, std::multiplies<size_t>());
-    // optimizeExecDomain will collapse shape dimensions and adjust tile Rank
-    optimizeExecDomain(normInputShapes, normOutputShapes, masterShape, tileRank);
+    // todo: domain-sensitive ops presently support only 2D tiles. Relax this limitation in future
+    bool execDomainIsUpdated = false;
+    if (snippet->has_domain_sensitive_ops()) {
+        tileRank = 2;
+    } else {
+        // optimizeExecDomain will collapse shape dimensions and adjust tile Rank
+        execDomainIsUpdated = optimizeExecDomain(normInputShapes, normOutputShapes, masterShape, tileRank);
+    }
     exec_domain = masterShape;
 
-    // todo: probably better to pass a call_args instance
-    calcJITParams(data_offsets);
     auto initStartMemoryOffsets = [this]() {
         const auto config = getSelectedPrimitiveDescriptor()->getConfig();
         const size_t numInputs = inputShapes.size();
@@ -476,18 +459,12 @@ void Snippet::prepareParams() {
         dim = 1;
     }
 
-    std::vector<ov::Shape> new_shapes;
-    for (const auto& s : normInputShapes) {
-        ov::Shape ns(tileRank, 0);
-        const int offset = s.size() - tileRank;
-        // todo: this check is excessive, remove it before merge
-        if (offset < 0)
-            IE_THROW() << "Error during creating reduced body shapes: tileRank is larger than the input size";
-        std::copy(s.begin() + offset, s.end(), ns.begin());
-        new_shapes.emplace_back(std::move(ns));
-    }
-    snippet->set_master_shape(PartialShape(scheduler_work_amounts));
-    snippet->reshape_body(new_shapes);
+    auto& body_rt_info = snippet->get_body()->get_rt_info();
+    std::vector<std::vector<size_t>> new_shapes(normInputShapes);
+    std::copy(normOutputShapes.begin(), normOutputShapes.end(), std::back_inserter(new_shapes));
+    body_rt_info["PluginShapesOverride"] = new_shapes;
+    snippet->set_master_shape(ov::PartialShape(masterShape));
+    snippet->tileRank = tileRank;
 }
 
 bool Snippet::needPrepareParams() const {

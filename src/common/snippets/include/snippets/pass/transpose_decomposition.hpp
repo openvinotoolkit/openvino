@@ -16,16 +16,11 @@ namespace pass {
  * @brief Insert explicit Loop operations into the body to process multiple data entities during one kernel execution
  * @ingroup snippets
  */
-class InsertLoops: public ngraph::pass::FunctionPass {
+class TransposeDecomposition: public ngraph::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("InsertLoops", "0");
-    InsertLoops(ov::PartialShape master_shape, size_t loop_depth, size_t vector_size);
-    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
-
-private:
-    ov::PartialShape m_master_shape;
-    size_t m_loop_depth;
-    size_t m_vector_size;
+    OPENVINO_RTTI("TransposeDecomposition", "0");
+    TransposeDecomposition();
+    static const std::set<std::vector<int>> supported_cases;
 };
 
 }  // namespace pass

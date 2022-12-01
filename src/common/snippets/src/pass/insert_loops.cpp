@@ -8,20 +8,22 @@
 
 #include <ngraph/rt_info.hpp>
 
-ngraph::snippets::pass::InsertLoops::InsertLoops(ov::PartialShape master_shape, size_t vector_size)
-: master_shape(std::move(master_shape)), vector_size(vector_size) {
+ngraph::snippets::pass::InsertLoops::InsertLoops(ov::PartialShape master_shape, size_t loop_depth, size_t vector_size)
+: m_master_shape(std::move(master_shape)), m_loop_depth(loop_depth), m_vector_size(vector_size) {
+    if (m_master_shape.size() < m_loop_depth)
+        throw ngraph_error("InsertLoops can't insert loops: master shape rank is too small");
 }
 
 bool ngraph::snippets::pass::InsertLoops::run_on_model(const std::shared_ptr<ov::Model> &model) {
     RUN_ON_FUNCTION_SCOPE(InsertLoops);
-    if (master_shape.is_dynamic())
+    if (m_master_shape.is_dynamic())
         throw ngraph_error("InsertLoops doesn't support dynamic shapes yet");
 
-    const auto inner_dim = master_shape.size() - 1;
-    // Note: outer_dim could overflow if master_shape.size() < 2
-    const auto outer_dim = master_shape.size() - 2;
-    const auto inner_work_amount = master_shape[inner_dim].get_length();
-    const auto outer_work_amount = master_shape.size() >= 2 ? master_shape[outer_dim].get_length() : 1;
+    const auto inner_dim = m_master_shape.size() - 1;
+    // Note: outer_dim will not be used if m_master_shape.size() < 2
+    const auto outer_dim = m_loop_depth == 2 ? m_master_shape.size() - 2 : -1;
+    const auto inner_work_amount = m_master_shape[inner_dim].get_length();
+    const auto outer_work_amount = m_loop_depth == 2 ? m_master_shape[outer_dim].get_length() : 1;
 
     ParameterVector commonParams = model->get_parameters();
     // Note that topological sort parses node arguments in reversed order, but results are added  - in direct order
@@ -29,11 +31,21 @@ bool ngraph::snippets::pass::InsertLoops::run_on_model(const std::shared_ptr<ov:
     const auto& orig_results = model->get_results();
     ResultVector commonResults(orig_results.rbegin(), orig_results.rend());
     std::vector<PartialShape> ioShapes;
-    ioShapes.reserve(commonParams.size() + commonResults.size());
-    std::transform(commonParams.begin(), commonParams.end(), std::back_inserter(ioShapes),
-                   [](const std::shared_ptr<Node>& n) { return n->get_output_partial_shape(0); });
-    std::transform(commonResults.begin(), commonResults.end(), std::back_inserter(ioShapes),
-                   [](const std::shared_ptr<Node>& n) { return n->get_input_partial_shape(0); });
+
+    const auto& body_rt_info = model->get_rt_info();
+    const auto& plugin_shapes = body_rt_info.find("PluginShapesOverride");
+    if (plugin_shapes == body_rt_info.end()) {
+        throw ngraph_error("InsertLoops requires PluginShapesOverride rt_info field");
+    } else {
+        const auto& new_shapes = plugin_shapes->second.as<std::vector<std::vector<size_t>>>();
+        if (new_shapes.size() != commonResults.size() + commonParams.size())
+            throw ngraph_error("InsertLoops got invalid number of plugin-overriden shapes");
+        for (int i = 0; i < commonParams.size(); i++)
+            ioShapes.emplace_back(new_shapes[i]);
+        // reverse overriden_shapes for results since commonResults are reversed with respect to model->get_parameters()
+        for (int i = 0; i < commonResults.size(); i++)
+            ioShapes.emplace_back(new_shapes[new_shapes.size() - 1 - i]);
+    }
 
     if (inner_work_amount > 0) {
         std::vector<bool> apply_increments;
@@ -41,7 +53,7 @@ bool ngraph::snippets::pass::InsertLoops::run_on_model(const std::shared_ptr<ov:
         // Inner Loop applies increments if a dimension is not broadcasted
         std::transform(ioShapes.begin(), ioShapes.end(), std::back_inserter(apply_increments),
                        [=](const PartialShape& ps) {
-                           return ps[inner_dim] != 1 && master_shape[inner_dim] != 1;
+                           return ps[inner_dim] != 1 && m_master_shape[inner_dim] != 1;
                        });
         std::vector<int64_t> inner_finalization_offsets(ioShapes.size(), 0);
         if (outer_work_amount > 1) {
@@ -53,7 +65,7 @@ bool ngraph::snippets::pass::InsertLoops::run_on_model(const std::shared_ptr<ov:
         }
         const auto& inner_loop_begin = op::insertLoopBegin(commonParams);
         const auto& inner_loop_end = insertLoopEnd(commonResults, inner_loop_begin, inner_work_amount,
-                                                   vector_size, apply_increments,  inner_finalization_offsets);
+                                                   m_vector_size, apply_increments,  inner_finalization_offsets);
         // set internal flag to enable scalar vs vector loop optimizations
         inner_loop_end->has_outer_loop = outer_work_amount > 1;
         // Due to features of topological sort, some Constants (Scalars) may appear right after Parameters in

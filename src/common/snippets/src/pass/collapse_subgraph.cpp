@@ -6,6 +6,7 @@
 #include <snippets/itt.hpp>
 
 #include "snippets/pass/collapse_subgraph.hpp"
+#include "snippets/pass/transpose_decomposition.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/utils.hpp"
 
@@ -46,6 +47,23 @@ auto outputs_are_not_broadcastable(const std::shared_ptr<const Node>& node) -> b
 
 auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::is_supported_op")
+    auto is_supported_transpose = [](const std::shared_ptr<const Node>& n) -> bool {
+        const auto& transpose = as_type_ptr<const opset1::Transpose>(n);
+        const auto& out_shape = n->get_output_partial_shape(0);
+        // todo: we need to create a general way to tokenize only MHA transposes
+        if (transpose && out_shape.is_static() && out_shape.size() == 4 && n->get_input_size() == 2) {
+            const auto& order = as_type_ptr<const opset1::Constant>(n->get_input_node_shared_ptr(1));
+            if (order && order->get_output_element_type(0) == element::i32) {
+                const auto order_value = order->get_vector<int>();
+                // todo: {0, 2, 1, 3} Transpose should also be tokenized to support MHA pattern.
+                //  It's disabled because {0, 2, 1, 3} Transposes to be fused with MatMuls, that are
+                //  not tokenized yet. Enable tokenization of {0, 2, 1, 3} after ticket 95631 is implemented.
+                return TransposeDecomposition::supported_cases.count(order_value) != 0;
+            }
+        }
+        return false;
+    };
+
     auto is_supported_fq_op = [](const std::shared_ptr<const Node>& n) -> bool {
         // TODO [92179]: Add support of FakeQuantize with non-constants inputs and with binarization algorithm.
         const auto fq = ov::as_type_ptr<const opset1::FakeQuantize>(n);
@@ -101,14 +119,19 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
             || ov::is_type<ngraph::op::v4::Swish>(n)
             || ov::is_type<ngraph::op::v4::HSwish>(n);
     };
-    return is_supported_fq_op(n) || is_supported_unary_eltwise_op(n) || is_supported_binary_eltwise_op(n);
+    return is_supported_unary_eltwise_op(n) || is_supported_binary_eltwise_op(n) ||
+           is_supported_transpose(n) || is_supported_fq_op(n);
 }
 
 auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {
-    auto supported = [](descriptor::Tensor& t) -> bool {
+    auto supported = [&n](descriptor::Tensor& t) -> bool {
         static const std::set<ngraph::element::Type> supported_data_types =
                 { ngraph::element::f32, ngraph::element::bf16, ngraph::element::i8, ngraph::element::u8 };
-        return t.get_partial_shape().is_static() && supported_data_types.count(t.get_element_type()) != 0;
+        // Todo: int32 isn't supported in general because i32 emitters are required for bit-exact i32 calculations in some cases
+        //  So i32 is supported exclusively for transposes
+        return t.get_partial_shape().is_static() &&
+                (supported_data_types.count(t.get_element_type()) != 0 ||
+                (ov::is_type<const opset1::Transpose>(n) && t.get_element_type() == ngraph::element::i32));
     };
     const auto & inputs = n->inputs();
     const auto & outputs = n->outputs();
@@ -434,10 +457,15 @@ TokenizeSnippets::TokenizeSnippets() {
                 // Result op has a single input
                 internal_inputs.push_back(source_result->input_value(0));
             } else {
-                // We have to save explicitly FQ Constants to call ConstantFolding after Tokenization.
-                // After ConstantFolding we will move remaining non-scalar Constants from body using ConvertConstantsToParameters pass
-                if ((utils::is_scalar_constant(input_node)) ||
-                    (ov::is_type<ov::op::v0::Constant>(input_node) && ov::is_type<ov::op::v0::FakeQuantize>(node))) {
+                // We need some non-scalar constants inside Subgraph in the following cases:
+                // [*] We have to save explicitly FQ Constants to call ConstantFolding after Tokenization.
+                //     After ConstantFolding we will move remaining non-scalar Constants from body using ConvertConstantsToParameters pass
+                // [*] We support Transpose with second Constant input (represents order). This Constant will not be scheduled
+                //     and will only be used to decompose Transpose into a proper Load, Store and Loop combination.
+                if (ov::is_type<ngraph::opset1::Constant>(input_node) &&
+                        (ngraph::shape_size(input_value.get_shape()) == 1 ||
+                         ov::is_type<ov::op::v0::FakeQuantize>(node) ||
+                         ov::is_type<ov::op::v1::Transpose>(node))) {
                     internal_inputs.push_back(input_node->output(0));
                 } else {
                     external_inputs.push_back(input_value);
