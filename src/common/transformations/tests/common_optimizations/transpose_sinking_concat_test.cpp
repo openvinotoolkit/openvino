@@ -20,38 +20,30 @@ using NodePtr = std::shared_ptr<ov::Node>;
 using ModelPtr = std::shared_ptr<ov::Model>;
 using Output = ov::Output<ov::Node>;
 
-// ----------------------------------------------------------------------------
-
-class IBinaryFactory {
-public:
-    IBinaryFactory() = default;
-    virtual ~IBinaryFactory() = default;
-    virtual NodePtr create(NodePtr parent_left_node, NodePtr parent_right_node) const = 0;
-};
-
-using BinaryFactoryPtr = std::shared_ptr<IBinaryFactory>;
-
-template <typename BinaryT>
-class BinaryFactory : public IBinaryFactory {
-public:
-    BinaryFactory() = default;
-    NodePtr create(NodePtr parent_left_node, NodePtr parent_right_node) const override {
-        return std::make_shared<BinaryT>(parent_left_node, parent_right_node);
+namespace {
+    std::string to_string(const ov::Shape & shape) {
+        std::ostringstream result;
+        result << "{";
+        for (size_t idx = 0; idx < shape.size(); ++idx) {
+            if (idx)
+                result << ",";
+            result << shape[idx];
+        }
+        result << "}";
+        return result.str();
     }
-};
-
-template <typename BinaryT>
-BinaryFactoryPtr CreateBinaryFactory() {
-    return std::make_shared<BinaryFactory<BinaryT>>();
 }
 
 // ----------------------------------------------------------------------------
 
 class IPassFactory {
 public:
-    IPassFactory() = default;
+    IPassFactory(const std::string & type_name) : type_name_(type_name) {}
     virtual ~IPassFactory() = default;
     virtual void registerPass(ov::pass::Manager& pass_manager) const = 0;
+    const std::string & getTypeName() const { return type_name_; }
+private:
+    const std::string type_name_;
 };
 
 using PassFactoryPtr = std::shared_ptr<IPassFactory>;
@@ -59,31 +51,13 @@ using PassFactoryPtr = std::shared_ptr<IPassFactory>;
 template <typename PassT>
 class PassFactory : public IPassFactory {
 public:
+    PassFactory(const std::string & type_name) : IPassFactory(type_name) {}
     void registerPass(ov::pass::Manager& pass_manager) const override {
         pass_manager.register_pass<PassT>();
     }
 };
 
-template <typename PassT>
-PassFactoryPtr CreatePassFactory() {
-    return std::make_shared<PassFactory<PassT>>();
-}
-
-std::vector<BinaryFactoryPtr> binary_factories = {
-    CreateBinaryFactory<ov::opset9::Add>(),
-    CreateBinaryFactory<ov::opset9::Divide>(),
-    CreateBinaryFactory<ov::opset9::Maximum>(),
-    CreateBinaryFactory<ov::opset9::Minimum>(),
-    CreateBinaryFactory<ov::opset9::Mod>(),
-    CreateBinaryFactory<ov::opset9::Multiply>(),
-    CreateBinaryFactory<ov::opset9::Power>(),
-    CreateBinaryFactory<ov::opset9::SquaredDifference>(),
-    CreateBinaryFactory<ov::opset9::Subtract>()
-};
-
-std::vector<size_t> binary_operations_numbers = {1, 10};
-
-std::vector<size_t> binary_transpose_input_indexes = {0, 1};
+#define CREATE_PASS_FACTORY(pass_name) std::make_shared<PassFactory<ov::pass::pass_name>>(#pass_name)
 
 } // namespace
 
@@ -295,7 +269,7 @@ std::shared_ptr<ov::Model> CreateReferenceFunction(size_t num_concat_ops,
                     concat_inputs.push_back(in_op);
                 } else {
                     auto in_constant = std::make_shared<ov::opset9::Constant>(input_type, input_shape, ov::Shape{1});
-
+                    // FIXME: name that is not reversed
                     auto transpose_reversed_const = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
                     auto transpose_reversed = std::make_shared<ov::opset9::Transpose>(in_constant, transpose_reversed_const);
 
@@ -335,7 +309,7 @@ TEST_P(TransposeSinkingConcatTestFixture, CompareFunctions) {
 }
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingConcatForwardTestSuite, TransposeSinkingConcatTestFixture,
-                         ::testing::Combine(::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingConcatForward>()),
+                         ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingConcatForward)),
                                             ::testing::ValuesIn(concat_operations_numbers),
                        ::testing::Values(single_consumer::forward::one_input_transpose::CreateFunction),
                        ::testing::Values(single_consumer::forward::one_input_transpose::CreateReferenceFunction),
@@ -344,7 +318,7 @@ INSTANTIATE_TEST_SUITE_P(TransposeSinkingConcatForwardTestSuite, TransposeSinkin
                                             ::testing::Values(5)));
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingConcatBackwardTestSuite, TransposeSinkingConcatTestFixture,
-                         ::testing::Combine(::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingConcatBackward>()),
+                         ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingConcatBackward)),
                                             ::testing::ValuesIn(concat_operations_numbers),
                                             ::testing::Values(single_consumer::backward::CreateFunction),
                                             ::testing::Values(single_consumer::backward::CreateReferenceFunction),
@@ -392,9 +366,157 @@ TEST_P(TransposeSinkingConcatAllTransposesInputTestFixture, CompareFunctions) {
 INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingConcatForwardAllTransposesTestSuite,
     TransposeSinkingConcatAllTransposesInputTestFixture,
-    ::testing::Combine(::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingConcatForward>()),
+    ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingConcatForward)),
                        ::testing::ValuesIn(concat_operations_numbers),
                        ::testing::Values(single_consumer::forward::double_transpose::CreateFunction),
                        ::testing::Values(single_consumer::forward::double_transpose::CreateReferenceFunction),
                        ::testing::Values(ov::element::f32),
                        ::testing::Values(5)));
+
+// --------------------------------------------------------------------------------------
+
+
+using CreateGraphConcatIncompatShapesF = std::function<std::shared_ptr<ov::Model>(ov::element::Type input_type,
+                                                                    ov::Shape input_shape,
+                                                                    ov::Shape constant_shape,
+                                                                    size_t concat_transpose_input_idx)>;
+
+using TesConcatIncompatShapesParams = std::tuple<PassFactoryPtr,
+                                    ov::Shape,          /* input shape */
+                                    ov::Shape,          /* constant_shape */
+                                    CreateGraphConcatIncompatShapesF, /* model_factory */
+                                    CreateGraphConcatIncompatShapesF, /* reference_model_factory */
+                                    ov::element::Type,  /* input type */
+                                    size_t>;            /* concat_transpose_input_idx */
+
+class TransposeSinkingConcatIncompatShapesTestFixture : public ::testing::WithParamInterface<TesConcatIncompatShapesParams>,
+                                          public TransformationTestsF {
+public:
+    static std::string get_test_name(const testing::TestParamInfo<TesConcatIncompatShapesParams>& obj) {
+        PassFactoryPtr pass_factory;
+        ov::Shape input_shape;
+        ov::Shape constant_shape;
+        CreateGraphConcatIncompatShapesF model_factory;
+        CreateGraphConcatIncompatShapesF reference_model_factory;
+        ov::element::Type input_type;
+        size_t concat_transpose_input_idx;
+        std::tie(pass_factory,
+             input_shape,
+             constant_shape,
+             model_factory,
+             reference_model_factory,
+             input_type,
+             concat_transpose_input_idx) = obj.param;
+        
+        std::ostringstream test_name;
+        test_name << "pass_factory=" << pass_factory->getTypeName() << "_";
+        test_name << "input_shape=" << to_string(input_shape) << "_";
+        test_name << "constant_shape=" << to_string(constant_shape) << "_";
+        test_name << "input_type=" << input_type << "_";
+        test_name << "concat_transpose_input_idx=" << concat_transpose_input_idx;
+
+        return test_name.str();
+    }
+};
+
+TEST_P(TransposeSinkingConcatIncompatShapesTestFixture, CompareFunctions) {
+    PassFactoryPtr pass_factory;
+    ov::Shape input_shape;
+    ov::Shape constant_shape;
+    CreateGraphConcatIncompatShapesF model_factory;
+    CreateGraphConcatIncompatShapesF reference_model_factory;
+    ov::element::Type input_type;
+    size_t concat_transpose_input_idx;
+    std::tie(pass_factory,
+             input_shape,
+             constant_shape,
+             model_factory,
+             reference_model_factory,
+             input_type,
+             concat_transpose_input_idx) = this->GetParam();
+
+    model = model_factory(input_type, input_shape, constant_shape, concat_transpose_input_idx);
+    model_ref = reference_model_factory(input_type, input_shape, constant_shape, concat_transpose_input_idx);
+    pass_factory->registerPass(manager);
+}
+
+namespace concat {
+namespace single_consumer {
+namespace backward {
+namespace incompat_shapes {
+
+std::shared_ptr<ov::Model> CreateFunction(ov::element::Type input_type,
+                                          ov::Shape input_shape,
+                                          ov::Shape constant_shape,
+                                          size_t num_concat_inputs,
+                                          size_t concat_transpose_input_idx) {
+    auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
+
+    auto in_constant = std::make_shared<ov::opset9::Constant>(input_type, constant_shape, ov::Shape{1});
+    
+    ov::OutputVector concat_inputs;
+    for (size_t j = 0; j < num_concat_inputs; ++j) {
+        if (j == concat_transpose_input_idx)
+            concat_inputs.push_back(X);
+        else
+            concat_inputs.push_back(std::make_shared<ov::opset9::Constant>(input_type, constant_shape, ov::Shape{1}));
+    }
+    auto concat = std::make_shared<ov::opset9::Concat>(concat_inputs, 1);
+
+    auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
+    auto transpose0 = std::make_shared<ov::opset9::Transpose>(concat, ng_order0);
+
+    return std::make_shared<ov::Model>(ov::OutputVector{transpose0}, ov::ParameterVector{X});
+}
+
+std::shared_ptr<ov::Model> CreateReferenceFunction(ov::element::Type input_type,
+                                          ov::Shape input_shape,
+                                          ov::Shape constant_shape,
+                                          size_t num_concat_inputs,
+                                          size_t concat_transpose_input_idx) {
+    auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
+
+    auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
+    auto transpose0 = std::make_shared<ov::opset9::Transpose>(X, ng_order0);
+
+    ov::OutputVector concat_inputs;
+    for (size_t j = 0; j < num_concat_inputs; ++j) {
+        if (j == concat_transpose_input_idx) {
+            concat_inputs.push_back(transpose0);
+        } else {
+            auto in_constant = std::make_shared<ov::opset9::Constant>(input_type, input_shape, ov::Shape{1});
+
+            std::vector<size_t> dims(input_shape.size() - constant_shape.size());
+            std::iota(dims.begin(), dims.end(), 0);
+            auto unsqueeze_const = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{dims.size()}, dims);
+            auto unsqeeze = std::make_shared<ov::opset9::Unsqueeze>(in_constant, unsqueeze_const);
+            // FIXME: name that is not reversed
+            auto transpose_reversed_const = std::make_shared<ov::opset9::Constant>(ov::element::u64, constant_shape, ov::Shape{0, 2, 3, 1});
+            auto transpose_reversed = std::make_shared<ov::opset9::Transpose>(unsqeeze, transpose_reversed_const);
+
+            concat_inputs.push_back(transpose_reversed);
+        }
+    }
+    auto concat = std::make_shared<ov::opset9::Concat>(concat_inputs, 1);
+
+    return std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{X});
+}
+
+std::vector<ov::Shape> constant_shapes = {ov::Shape{96, 55, 55}, ov::Shape{1}};
+
+} // namespace incompat_shapes
+} // namespace backward
+} // namespace single_consumer
+} // namespace concat
+
+/*
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingBinaryIncompatShapesTestSuite, TransposeSinkingBinaryIncompatShapesTestFixture,
+                         ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingBinaryElementwiseBackward)),
+                                            ::testing::Values(ov::Shape{1, 96, 55, 55}),
+                                            ::testing::ValuesIn(binary::single_consumer::backward::incompat_shapes::constant_shapes),
+                       ::testing::Values(binary::single_consumer::backward::incompat_shapes::CreateFunction),
+                       ::testing::Values(binary::single_consumer::backward::incompat_shapes::CreateReferenceFunction),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::ValuesIn(binary_transpose_input_indexes)),
+                                            TransposeSinkingBinaryIncompatShapesTestFixture::get_test_name);
+*/
