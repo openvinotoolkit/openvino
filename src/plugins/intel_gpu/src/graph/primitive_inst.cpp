@@ -789,10 +789,31 @@ event::ptr primitive_inst::update_weights() {
         }
 
         return ev;
+    } else {
+        // If kernel doesn't says that it doesn't require weights reorder, but weights were reordered previously, then
+        // incorrect memory buffer may be assigned, so reset cached weights for such case
+        if (weights_params.engine == kernel_selector::GenericKernelParams::Engine::NONE) {
+            _impl_params->reordered_weights.reset();
+        }
     }
     GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
 
     return nullptr;
+}
+
+static bool user_requesting_mem_reuse_false(const program_node& node) {
+    for (auto& user : node.get_users()) {
+        if (user->is_dynamic())
+            return true;
+        if ((user->get_selected_impl() != nullptr) && (user->get_selected_impl()->can_reuse_memory == false)) {
+            return true;
+        } else if (user->get_selected_impl() == nullptr) {
+            if (user_requesting_mem_reuse_false(*user)) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, const program_node& _node, const kernel_impl_params& impl_params,
@@ -821,21 +842,6 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
         usm_device_allocatable = false;
 
     bool memory_reuse_by_user = true;
-
-    std::function<bool(const program_node&)> user_requesting_mem_reuse_false = [&user_requesting_mem_reuse_false](const program_node& node) {
-        for (auto& user : node.get_users()) {
-            if (user->is_dynamic())
-                return true;
-            if ((user->get_selected_impl() != nullptr) && (user->get_selected_impl()->can_reuse_memory == false)) {
-                return true;
-            } else if (user->get_selected_impl() == nullptr) {
-                if (user_requesting_mem_reuse_false(*user)) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    };
 
     if (user_requesting_mem_reuse_false(_node)) {
         memory_reuse_by_user = false;
@@ -1147,6 +1153,12 @@ void primitive_inst::save(cldnn::BinaryOutputBuffer& ob) const {
     const auto _allocation_type = _outputs[0]->get_allocation_type();
     ob << make_data(&_allocation_type, sizeof(_allocation_type));
 
+    bool can_reuse_memory = true;
+    if (user_requesting_mem_reuse_false(*_node)) {
+        can_reuse_memory = false;
+    }
+    ob << can_reuse_memory;
+
     ob << _node->get_memory_dependencies();
 
     ob << _deps.size();
@@ -1251,6 +1263,9 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
     allocation_type _allocation_type;
     ib >> make_data(&_allocation_type, sizeof(_allocation_type));
 
+    bool can_reuse_memory;
+    ib >> can_reuse_memory;
+
     std::set<primitive_id> _node_mem_deps;
     ib >> _node_mem_deps;
 
@@ -1280,7 +1295,7 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
         if ((!can_share_buffer()) || can_be_optimized() || is_output()) {
             _outputs[0] = get_network().get_engine().allocate_memory(output_layout, _allocation_type);
         } else {
-            _outputs[0] = get_network().get_memory_pool().get_memory(output_layout, id(), get_network_id(), _node_mem_deps, _allocation_type, true);
+            _outputs[0] = get_network().get_memory_pool().get_memory(output_layout, id(), get_network_id(), _node_mem_deps, _allocation_type, can_reuse_memory);
         }
     }
     _output_changed = false;

@@ -118,7 +118,7 @@ elif [ "$os" == "ubuntu18.04" ] ; then
 
     pkgs_core=(libtbb2 libpugixml1v5)
     pkgs_opencv_req=(libgtk-3-0 libgl1)
-    pkgs_python=(python3 libpython3.6 python3-venv python3-pip)
+    pkgs_python=(python3.8 libpython3.8 python3.8-venv python3-pip)
     pkgs_dev=(cmake pkg-config g++ gcc libc6-dev libgflags-dev zlib1g-dev nlohmann-json-dev make curl sudo)
     pkgs_myriad=(libusb-1.0-0)
     pkgs_cl_compiler=(libtinfo5)
@@ -184,11 +184,14 @@ elif [ "$os" == "rhel8" ] || [ "$os" == "rhel9.1" ] ; then
         pkgs_python=(python38 python38-pip)
     fi
 
-    pkgs_core=(libtbb2 libpugixml1v5)
+    pkgs_core=(
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/tbb-2018.2-9.el8.x86_64.rpm
+	https://download-ib01.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/p/pugixml-1.13-1.el8.x86_64.rpm
+	https://vault.centos.org/centos/8/PowerTools/x86_64/os/Packages/gflags-2.1.2-6.el8.x86_64.rpm
+    )
     pkgs_opencv_req=(gtk3)
     pkgs_dev=(
         gcc gcc-c++ make glibc libstdc++ libgcc cmake pkg-config zlib-devel curl sudo
-        https://vault.centos.org/centos/8/PowerTools/x86_64/os/Packages/gflags-2.1.2-6.el8.x86_64.rpm
     )
     pkgs_myriad=()
     pkgs_opencv_opt=(
