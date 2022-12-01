@@ -27,13 +27,13 @@ struct mvn : public primitive_base<mvn> {
     /// @param epsilon Epsilon for not dividing by zero while normalizing.
     /// @param eps_inside_sqrt The mode of applying epsilon.
     mvn(const primitive_id& id,
-        const primitive_id& input,
+        const input_info& input,
         const bool normalize_variance,
         const float epsilon,
         const bool eps_inside_sqrt,
         const bool across_channels = false,
         const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           normalize_variance(normalize_variance),
           epsilon(epsilon),
           eps_inside_sqrt(eps_inside_sqrt),

@@ -71,8 +71,8 @@ layout gemm_inst::calc_output_layout(gemm_node const& node, kernel_impl_params c
     output_shape.insert(output_shape.begin(), ones_to_add, 1);
 
     auto output_type = input0_layout.data_type;
-    if ((output_type == data_types::u8 || output_type == data_types::i8) && prim->output_data_type)
-        output_type = *prim->output_data_type;
+    if ((output_type == data_types::u8 || output_type == data_types::i8) && prim->output_data_types[0])
+        output_type = *prim->output_data_types[0];
 
     if (impl_param.has_fused_primitives()) {
         output_type = impl_param.get_fused_output_layout().data_type;
@@ -80,7 +80,7 @@ layout gemm_inst::calc_output_layout(gemm_node const& node, kernel_impl_params c
 
     auto output_format = input0_layout.format;
 
-    return layout(output_shape, output_type, output_format, prim->output_padding);
+    return layout(output_shape, output_type, output_format, prim->output_paddings[0]);
 }
 
 template<typename ShapeType>
@@ -90,7 +90,7 @@ std::vector<layout> gemm_inst::calc_output_layouts(gemm_node const& /*node*/, co
     auto input1_layout = impl_param.get_input_layout(1);
 
     auto default_out_dt = data_type_traits::is_floating_point(input0_layout.data_type) ? input0_layout.data_type : data_types::f32;
-    auto output_type = prim->output_data_type.value_or(default_out_dt);
+    auto output_type = prim->output_data_types[0].value_or(default_out_dt);
 
     if (impl_param.has_fused_primitives()) {
         output_type = impl_param.get_fused_output_layout().data_type;
@@ -108,7 +108,7 @@ std::vector<layout> gemm_inst::calc_output_layouts(gemm_node const& /*node*/, co
 
     ov::op::v0::shape_infer(&op, input_shapes, output_shapes);
 
-    return { layout{output_shapes[0], output_type, input0_layout.format, prim->output_padding} };
+    return { layout{output_shapes[0], output_type, input0_layout.format, prim->output_paddings[0]} };
 }
 
 template std::vector<layout> gemm_inst::calc_output_layouts<ov::PartialShape>(gemm_node const& node, const kernel_impl_params& impl_param);
