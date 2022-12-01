@@ -171,7 +171,7 @@ macro(ie_cpack)
         set(CPACK_GENERATOR "TGZ")
     endif()
     set(CPACK_SOURCE_GENERATOR "") # not used
-    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "OpenVINO™ Toolkit for Deep Learning Inference")
+    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "OpenVINO™ Toolkit")
     set(CPACK_COMPONENT_UNSPECIFIED_REQUIRED OFF)
     set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY OFF)
     set(CPACK_PACKAGE_VENDOR "Intel Corporation")
