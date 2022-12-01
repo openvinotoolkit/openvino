@@ -24,5 +24,9 @@ class TRANSFORMATIONS_API MarkPrecisionSensitiveSubgraphs;
 class ov::pass::MarkPrecisionSensitiveSubgraphs : public ModelPass {
 public:
     OPENVINO_RTTI("MarkPrecisionSensitiveSubgraphs", "0");
+    explicit MarkPrecisionSensitiveSubgraphs(bool mark_only_consts=true): m_mark_only_consts(mark_only_consts) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& f) override;
+
+private:
+    bool m_mark_only_consts=true;
 };
