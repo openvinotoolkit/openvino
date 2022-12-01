@@ -45,8 +45,9 @@ protected:
 // todo: remove Sinh once "no subgraph after input" limitation is relaxed
 class Transpose0213MatMulSinhFunction : public SnippetsFunctionBase {
 public:
-    explicit Transpose0213MatMulSinhFunction(const std::vector<PartialShape>& inputShapes, size_t position = 0)
-    : SnippetsFunctionBase(inputShapes), transpose_position(position)  {
+    explicit Transpose0213MatMulSinhFunction(const std::vector<PartialShape>& inputShapes, size_t position = 0,
+                                             bool insert_guard = true)
+    : SnippetsFunctionBase(inputShapes), transpose_position(position), insert_guard(insert_guard)  {
         NGRAPH_CHECK(input_shapes.size() == 2, "Got invalid number of input shapes");
         NGRAPH_CHECK(input_shapes[0].rank().get_length() == 4 && input_shapes[1].rank().get_length() == 4,
                      "Only rank 4 input shapes are supported by this test");
@@ -55,6 +56,7 @@ public:
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     size_t transpose_position;
+    bool insert_guard; // true if Sinh ops should be inserted after inputs
 };
 
 }  // namespace snippets

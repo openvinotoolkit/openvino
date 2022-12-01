@@ -8,8 +8,9 @@
 #include "snippets_helpers.hpp"
 #include "subgraph_simple.hpp"
 #include "subgraph_converts.hpp"
+#include "subgraph_matmul.hpp"
 
-/* This file provides lowered representations (after the generate() was calles) for some simple functions.
+/* This file provides lowered representations (after the generate() was called) for some simple functions.
  * This is required to test snippets lowering and optimization passes. All the functions are expected to be direct
  * descendants of SnippetsFunctionCustomizable (defined here) and one of the SnippetsFunctionBase derived classes
  * (declared in subgraph_simple.hpp). Note that the corresponding SnippetsFunctionBase child should use virtual inheritance
@@ -49,6 +50,16 @@ protected:
     std::shared_ptr<ov::Model> initLowered() const override;
 private:
     std::vector<Shape> broadcast_shapes;
+};
+
+class Transpose0213MatMulSinhLoweredFunction : public Transpose0213MatMulSinhFunction {
+public:
+    explicit Transpose0213MatMulSinhLoweredFunction(const std::vector<PartialShape>& inputShapes, size_t position = 0) :
+            Transpose0213MatMulSinhFunction(inputShapes, position, false) {
+    }
+
+protected:
+    std::shared_ptr<ov::Model> initLowered() const override;
 };
 
 }  // namespace snippets

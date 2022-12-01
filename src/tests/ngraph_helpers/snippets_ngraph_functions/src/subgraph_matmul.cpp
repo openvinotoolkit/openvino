@@ -31,22 +31,22 @@ std::shared_ptr<ov::Model> MatMulSinhFunction::initReference() const {
 }
 std::shared_ptr<ov::Model> Transpose0213MatMulSinhFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
-    auto sinh0 = std::make_shared<ov::op::v0::Sinh>(data0);
+    auto data0_guarded = insert_guard ? std::make_shared<ov::op::v0::Sinh>(data0)->output(0) : data0->output(0);
     auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
-    auto sinh1 = std::make_shared<ov::op::v0::Sinh>(data1);
+    auto data1_guarded = insert_guard ? std::make_shared<ov::op::v0::Sinh>(data1)->output(0) : data1->output(0);
     auto const_order = std::make_shared<op::v0::Constant>(ov::element::i32, Shape {4}, std::vector<int>{0, 2, 1, 3});
     std::shared_ptr<Node> result;
     switch (transpose_position) {
         case 0: {
-            auto transpose = std::make_shared<op::v1::Transpose>(sinh0, const_order);
-            result = std::make_shared<op::v0::MatMul>(transpose, sinh1);
+            auto transpose = std::make_shared<op::v1::Transpose>(data0_guarded, const_order);
+            result = std::make_shared<op::v0::MatMul>(transpose, data1_guarded);
             break;
         } case 1: {
-            auto transpose = std::make_shared<op::v1::Transpose>(sinh1, const_order);
-            result = std::make_shared<op::v0::MatMul>(sinh0, transpose);
+            auto transpose = std::make_shared<op::v1::Transpose>(data1_guarded, const_order);
+            result = std::make_shared<op::v0::MatMul>(data0_guarded, transpose);
             break;
         } case 2: {
-            auto matmul = std::make_shared<op::v0::MatMul>(sinh0, sinh1);
+            auto matmul = std::make_shared<op::v0::MatMul>(data0_guarded, data1_guarded);
             result = std::make_shared<op::v1::Transpose>(matmul, const_order);
             break;
         }

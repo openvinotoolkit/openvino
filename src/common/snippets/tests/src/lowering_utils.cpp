@@ -32,6 +32,7 @@ DummyTargetMachine::DummyTargetMachine() {
     jitters[ngraph::snippets::op::Kernel::get_type_info_static()] = dummy_functor;
     jitters[ngraph::snippets::op::LoopBegin::get_type_info_static()] = dummy_functor;
     jitters[ngraph::snippets::op::LoopEnd::get_type_info_static()] = dummy_functor;
+    jitters[ngraph::snippets::op::Brgemm::get_type_info_static()] = dummy_functor;
 }
 
 void LoweringTests::SetUp() {
