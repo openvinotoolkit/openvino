@@ -483,7 +483,6 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     pass_config->disable<ngraph::pass::SoftPlusDecomposition>();
     pass_config->disable<ngraph::pass::HSigmoidDecomposition>();
     pass_config->disable<ngraph::pass::ConvertMod>();
-    pass_config->disable<ngraph::pass::LogSoftmaxDecomposition>();
     pass_config->disable<ngraph::pass::ConvertShuffleChannels3>();
     pass_config->disable<ngraph::pass::WeightsDequantizeToFakeQuantize>();
     pass_config->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
@@ -729,7 +728,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
             engConfig.streamExecutorConfig._threadBindingType ==
                     InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
                 ? IStreamsExecutor::Config::GetHybridNumStreams(config, IStreamsExecutor::Config::StreamMode::DEFAULT)
-                : IStreamsExecutor::Config::GetDefaultNumStreams();
+                : IStreamsExecutor::Config::GetDefaultNumStreams(engConfig.streamExecutorConfig._enable_hyper_thread);
         int num_streams = default_num_streams;
         if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
             if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL)
@@ -803,13 +802,24 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
     hints_props.insert({tput_name, tput_hints.second});
     ngraphFunc->set_rt_info(hints_props, "intel_cpu_hints_config");
 
+    auto resetHybridParam = [&]() {
+        config[CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)] = std::to_string(0);
+        config[CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)] = std::to_string(0);
+        config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)] = std::to_string(0);
+        config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL)] = std::to_string(0);
+        config[CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)] = std::to_string(0);
+    };
+
     const auto perf_hint_name = getPerfHintName();
     if (perf_hint_name == CONFIG_VALUE(LATENCY)) {
         config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = latency_hints.first;
         config[ov::num_streams.name()] = latency_hints.second;
+        resetHybridParam();
     } else if (perf_hint_name == CONFIG_VALUE(THROUGHPUT)) {
         config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = tput_hints.first;
         config[ov::num_streams.name()] = tput_hints.first;
+    } else {
+        resetHybridParam();
     }
 }
 
@@ -857,13 +867,10 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     } else {
         enableBF16 = engConfig.enforceBF16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);
     }
-    const auto& modelCacheProp = config.find(InferenceEngine::PluginConfigParams::KEY_CACHE_DIR);
-    const bool enableModelCache = (modelCacheProp != config.end() && !modelCacheProp->second.empty())
-            || !engConfig.cache_dir.empty();
     const auto& dynamicBatchProp = config.find(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED);
     const bool enableDynamicBatch = (dynamicBatchProp != config.end() && dynamicBatchProp->second == PluginConfigParams::YES)
             || engConfig.enableDynamicBatch;
-    const bool enableSnippets = !(enableModelCache || enableDynamicBatch);
+    const bool enableSnippets = !enableDynamicBatch;
     auto nGraphFunc = clonedNetwork.getFunction();
 
     DEBUG_LOG(PrintableModel(*nGraphFunc, "org_"));
@@ -1112,7 +1119,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
     const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
     const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
                         || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
-    const bool enableSnippets = !(conf.cache_dir.empty() || conf.enableDynamicBatch);
+    const bool enableSnippets = !conf.enableDynamicBatch;
 
     auto model = network.getFunction();
     if (model == nullptr) {

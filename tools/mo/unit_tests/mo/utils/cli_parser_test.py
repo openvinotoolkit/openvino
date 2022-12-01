@@ -738,11 +738,6 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
         input_shapes = "(1,22,333,123), (-1,45,7,1), (-1,456,7,1)"
         self.assertRaises(Error, get_placeholder_shapes, argv_input, input_shapes)
 
-    def test_get_shapes_several_shapes_no_input(self):
-        argv_input = ""
-        input_shapes = "(1,22,333,123), (-1,45,7,1), (-1,456,7,1)"
-        self.assertRaises(Error, get_placeholder_shapes, argv_input, input_shapes)
-
     def test_get_shapes_one_input_one_shape(self):
         argv_input = "inp1"
         input_shapes = "(1,22,333,123)"
@@ -774,10 +769,6 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
         exp_res = np.array([12, 4, 1])
         assert np.array_equal(result, exp_res)
 
-    def test_get_shapes_no_input_two_shapes(self):
-        argv_input = ""
-        input_shapes = "(12,4,1),(5,4,3)"
-        self.assertRaises(Error, get_placeholder_shapes, argv_input, input_shapes)
 
     def test_get_shapes_one_input_no_shape(self):
         argv_input = "inp1"
@@ -1570,6 +1561,16 @@ class TestLayoutParsing(unittest.TestCase):
         for i in exp_res.keys():
             assert np.array_equal(result[i], exp_res[i])
 
+    def test_get_layout_source_target_layout_6(self):
+        argv_source_layout = "name1.0:a/b(nhwc),name2\\d\\[n,h,w,c]"
+        argv_target_layout = "name1.0:a/b(nchw),name2\\d\\[n,c,h,w]"
+        result = get_layout_values(argv_source_layout=argv_source_layout, argv_target_layout=argv_target_layout)
+        exp_res = {'name1.0:a/b': {'source_layout': 'nhwc', 'target_layout': 'nchw'},
+                   'name2\\d\\': {'source_layout': '[n,h,w,c]', 'target_layout': '[n,c,h,w]'}}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+
     def test_get_layout_source_target_layout_scalar(self):
         argv_source_layout = "name1(nhwc),name2[]"
         argv_target_layout = "name1(nchw),name2[]"
@@ -1606,20 +1607,351 @@ class TestLayoutParsing(unittest.TestCase):
             res = get_layout_values(argv_layout=argv_layout)
             print(res)
 
-    def test_get_layout_raises_multiple_layouts_without_names(self):
-        argv_layout = "nhwc->nchw,nhwc->nchw"
-        with self.assertRaises(Error):
-            res = get_layout_values(argv_layout=argv_layout)
-            print(res)
 
-    def test_get_layout_raises_multiple_layouts_without_names_source_layout(self):
+class TestLayoutParsingEmptyNames(unittest.TestCase):
+    def test_get_layout_1(self):
+        argv_layout = "([n,h,w,c]),([n,h,w,c]->[n,c,h,w])"
+        result = get_layout_values(argv_layout)
+        exp_res = [{'source_layout': '[n,h,w,c]', 'target_layout': None},
+                   {'source_layout': '[n,h,w,c]', 'target_layout': '[n,c,h,w]'}]
+        self.assertEqual(exp_res, result)
+        for i in range(len(exp_res)):
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_2(self):
+        argv_layout = "(nhwc),(nhwc->nchw)"
+        result = get_layout_values(argv_layout)
+        exp_res = [{'source_layout': 'nhwc', 'target_layout': None},
+                   {'source_layout': 'nhwc', 'target_layout': 'nchw'}]
+        self.assertEqual(exp_res, result)
+        for i in range(len(exp_res)):
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_3(self):
+        argv_layout = "(n...c),(n...c->nc...)"
+        result = get_layout_values(argv_layout)
+        exp_res = [{'source_layout': 'n...c', 'target_layout': None},
+                   {'source_layout': 'n...c', 'target_layout': 'nc...'}]
+        self.assertEqual(exp_res, result)
+        for i in range(len(exp_res)):
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_scalar(self):
+        argv_layout = "(nhwc),([])"
+        result = get_layout_values(argv_layout)
+        exp_res = [{'source_layout': 'nhwc', 'target_layout': None},
+                   {'source_layout': '[]', 'target_layout': None}]
+        self.assertEqual(exp_res, result)
+        for i in range(len(exp_res)):
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_source_layout_3(self):
+        argv_source_layout = "(nhwc),(nchw)"
+        result = get_layout_values(argv_source_layout=argv_source_layout)
+        exp_res = [{'source_layout': 'nhwc', 'target_layout': None},
+                   {'source_layout': 'nchw', 'target_layout': None}]
+        self.assertEqual(exp_res, result)
+        for i in range(len(exp_res)):
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_source_layout_4(self):
+        argv_source_layout = "([n,h,w,c]),([n,c,h,w])"
+        result = get_layout_values(argv_source_layout=argv_source_layout)
+        exp_res = [{'source_layout': '[n,h,w,c]', 'target_layout': None},
+                   {'source_layout': '[n,c,h,w]', 'target_layout': None}]
+        self.assertEqual(exp_res, result)
+        for i in range(len(exp_res)):
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_source_layout_5(self):
+        argv_source_layout = "(nhwc),([n,c,h,w])"
+        result = get_layout_values(argv_source_layout=argv_source_layout)
+        exp_res = [{'source_layout': 'nhwc', 'target_layout': None},
+                   {'source_layout': '[n,c,h,w]', 'target_layout': None}]
+        self.assertEqual(exp_res, result)
+        for i in range(len(exp_res)):
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_source_layout_6(self):
+        argv_source_layout = "(nhwc),[n,c,h,w]"
+        result = get_layout_values(argv_source_layout=argv_source_layout)
+        exp_res = [{'source_layout': 'nhwc', 'target_layout': None},
+                   {'source_layout': '[n,c,h,w]', 'target_layout': None}]
+        self.assertEqual(exp_res, result)
+        for i in range(len(exp_res)):
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_source_layout_scalar(self):
+        argv_source_layout = "(nhwc),([])"
+        result = get_layout_values(argv_source_layout=argv_source_layout)
+        exp_res =  [{'source_layout': 'nhwc', 'target_layout': None},
+                   {'source_layout': '[]', 'target_layout': None}]
+        self.assertEqual(exp_res, result)
+        for i in range(len(exp_res)):
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_target_layout_3(self):
+        argv_target_layout = "(nhwc),(nchw)"
+        result = get_layout_values(argv_target_layout=argv_target_layout)
+        exp_res = [{'source_layout': None, 'target_layout': 'nhwc'},
+                   {'source_layout': None, 'target_layout': 'nchw'}]
+        self.assertEqual(exp_res, result)
+        for i in range(len(exp_res)):
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_target_layout_4(self):
+        argv_target_layout = "([n,h,w,c]),([n,c,h,w])"
+        result = get_layout_values(argv_target_layout=argv_target_layout)
+        exp_res = [{'source_layout': None, 'target_layout': '[n,h,w,c]'},
+                   {'source_layout': None, 'target_layout': '[n,c,h,w]'}]
+        self.assertEqual(exp_res, result)
+        for i in range(len(exp_res)):
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_target_layout_5(self):
+        argv_target_layout = "(nhwc),([n,c,h,w])"
+        result = get_layout_values(argv_target_layout=argv_target_layout)
+        exp_res = [{'source_layout': None, 'target_layout': 'nhwc'},
+                   {'source_layout': None, 'target_layout': '[n,c,h,w]'}]
+        self.assertEqual(exp_res, result)
+        for i in range(len(exp_res)):
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_target_layout_6(self):
+        argv_target_layout = "(nhwc),[n,c,h,w]"
+        result = get_layout_values(argv_target_layout=argv_target_layout)
+        exp_res = [{'source_layout': None, 'target_layout': 'nhwc'},
+                   {'source_layout': None, 'target_layout': '[n,c,h,w]'}]
+        self.assertEqual(exp_res, result)
+        for i in range(len(exp_res)):
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_target_layout_scalar(self):
+        argv_target_layout = "(nhwc),[]"
+        result = get_layout_values(argv_target_layout=argv_target_layout)
+        exp_res = [{'source_layout': None, 'target_layout': 'nhwc'},
+                   {'source_layout': None, 'target_layout': '[]'}]
+        self.assertEqual(exp_res, result)
+        for i in range(len(exp_res)):
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_source_target_layout_3(self):
+        argv_source_layout = "(nhwc),(nhwc)"
+        argv_target_layout = "(nchw),(nchw)"
+        result = get_layout_values(argv_source_layout=argv_source_layout, argv_target_layout=argv_target_layout)
+        exp_res = [{'source_layout': 'nhwc', 'target_layout': 'nchw'},
+                   {'source_layout': 'nhwc', 'target_layout': 'nchw'}]
+        self.assertEqual(exp_res, result)
+        for i in range(len(exp_res)):
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_source_target_layout_4(self):
+        argv_source_layout = "([n,h,w,c]),([n,h,w,c])"
+        argv_target_layout = "([n,c,h,w]),([n,c,h,w])"
+        result = get_layout_values(argv_source_layout=argv_source_layout, argv_target_layout=argv_target_layout)
+        exp_res = [{'source_layout': '[n,h,w,c]', 'target_layout': '[n,c,h,w]'},
+                   {'source_layout': '[n,h,w,c]', 'target_layout': '[n,c,h,w]'}]
+        self.assertEqual(exp_res, result)
+        for i in range(len(exp_res)):
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_source_target_layout_5(self):
+        argv_source_layout = "(nhwc),[n,h,w,c]"
+        argv_target_layout = "(nchw),[n,c,h,w]"
+        result = get_layout_values(argv_source_layout=argv_source_layout, argv_target_layout=argv_target_layout)
+        exp_res = [{'source_layout': 'nhwc', 'target_layout': 'nchw'},
+                   {'source_layout': '[n,h,w,c]', 'target_layout': '[n,c,h,w]'}]
+        self.assertEqual(exp_res, result)
+        for i in range(len(exp_res)):
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_source_target_layout_scalar(self):
+        argv_source_layout = "(nhwc),[]"
+        argv_target_layout = "(nchw),[]"
+        result = get_layout_values(argv_source_layout=argv_source_layout, argv_target_layout=argv_target_layout)
+        exp_res = [{'source_layout': 'nhwc', 'target_layout': 'nchw'},
+                   {'source_layout': '[]', 'target_layout': '[]'}]
+        self.assertEqual(exp_res, result)
+        for i in range(len(exp_res)):
+            assert np.array_equal(result[i], exp_res[i])
+
+
+class TestLayoutParsingEmptyNamesNoBrackets(unittest.TestCase):
+    def test_get_layout_1(self):
+        argv_layout = "[n,h,w,c],[n,h,w,c]->[n,c,h,w]"
+        result = get_layout_values(argv_layout)
+        exp_res = [{'source_layout': '[n,h,w,c]', 'target_layout': None},
+                   {'source_layout': '[n,h,w,c]', 'target_layout': '[n,c,h,w]'}]
+        self.assertEqual(exp_res, result)
+        for i in range(len(exp_res)):
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_2(self):
+        argv_layout = "nhwc,nhwc->nchw"
+        result = get_layout_values(argv_layout)
+        exp_res = [{'source_layout': 'nhwc', 'target_layout': None},
+                   {'source_layout': 'nhwc', 'target_layout': 'nchw'}]
+        self.assertEqual(exp_res, result)
+        for i in range(len(exp_res)):
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_3(self):
+        argv_layout = "n...c,n...c->nc..."
+        result = get_layout_values(argv_layout)
+        exp_res = [{'source_layout': 'n...c', 'target_layout': None},
+                   {'source_layout': 'n...c', 'target_layout': 'nc...'}]
+        self.assertEqual(exp_res, result)
+        for i in range(len(exp_res)):
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_scalar(self):
+        argv_layout = "nhwc,[]"
+        result = get_layout_values(argv_layout)
+        exp_res = [{'source_layout': 'nhwc', 'target_layout': None},
+                   {'source_layout': '[]', 'target_layout': None}]
+        self.assertEqual(exp_res, result)
+        for i in range(len(exp_res)):
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_source_layout_3(self):
+        argv_source_layout = "nhwc,nchw"
+        result = get_layout_values(argv_source_layout=argv_source_layout)
+        exp_res = [{'source_layout': 'nhwc', 'target_layout': None},
+                   {'source_layout': 'nchw', 'target_layout': None}]
+        self.assertEqual(exp_res, result)
+        for i in range(len(exp_res)):
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_source_layout_4(self):
+        argv_source_layout = "[n,h,w,c],[n,c,h,w]"
+        result = get_layout_values(argv_source_layout=argv_source_layout)
+        exp_res = [{'source_layout': '[n,h,w,c]', 'target_layout': None},
+                   {'source_layout': '[n,c,h,w]', 'target_layout': None}]
+        self.assertEqual(exp_res, result)
+        for i in range(len(exp_res)):
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_source_layout_5(self):
+        argv_source_layout = "nhwc,[n,c,h,w]"
+        result = get_layout_values(argv_source_layout=argv_source_layout)
+        exp_res = [{'source_layout': 'nhwc', 'target_layout': None},
+                   {'source_layout': '[n,c,h,w]', 'target_layout': None}]
+        self.assertEqual(exp_res, result)
+        for i in range(len(exp_res)):
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_source_layout_6(self):
+        argv_source_layout = "nhwc,[n,c,h,w]"
+        result = get_layout_values(argv_source_layout=argv_source_layout)
+        exp_res = [{'source_layout': 'nhwc', 'target_layout': None},
+                   {'source_layout': '[n,c,h,w]', 'target_layout': None}]
+        self.assertEqual(exp_res, result)
+        for i in range(len(exp_res)):
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_source_layout_scalar(self):
+        argv_source_layout = "nhwc,[]"
+        result = get_layout_values(argv_source_layout=argv_source_layout)
+        exp_res =  [{'source_layout': 'nhwc', 'target_layout': None},
+                   {'source_layout': '[]', 'target_layout': None}]
+        self.assertEqual(exp_res, result)
+        for i in range(len(exp_res)):
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_target_layout_3(self):
+        argv_target_layout = "nhwc,nchw"
+        result = get_layout_values(argv_target_layout=argv_target_layout)
+        exp_res = [{'source_layout': None, 'target_layout': 'nhwc'},
+                   {'source_layout': None, 'target_layout': 'nchw'}]
+        self.assertEqual(exp_res, result)
+        for i in range(len(exp_res)):
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_target_layout_4(self):
+        argv_target_layout = "[n,h,w,c],[n,c,h,w]"
+        result = get_layout_values(argv_target_layout=argv_target_layout)
+        exp_res = [{'source_layout': None, 'target_layout': '[n,h,w,c]'},
+                   {'source_layout': None, 'target_layout': '[n,c,h,w]'}]
+        self.assertEqual(exp_res, result)
+        for i in range(len(exp_res)):
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_target_layout_5(self):
+        argv_target_layout = "nhwc,[n,c,h,w]"
+        result = get_layout_values(argv_target_layout=argv_target_layout)
+        exp_res = [{'source_layout': None, 'target_layout': 'nhwc'},
+                   {'source_layout': None, 'target_layout': '[n,c,h,w]'}]
+        self.assertEqual(exp_res, result)
+        for i in range(len(exp_res)):
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_target_layout_6(self):
+        argv_target_layout = "nhwc,[n,c,h,w]"
+        result = get_layout_values(argv_target_layout=argv_target_layout)
+        exp_res = [{'source_layout': None, 'target_layout': 'nhwc'},
+                   {'source_layout': None, 'target_layout': '[n,c,h,w]'}]
+        self.assertEqual(exp_res, result)
+        for i in range(len(exp_res)):
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_target_layout_scalar(self):
+        argv_target_layout = "nhwc,[]"
+        result = get_layout_values(argv_target_layout=argv_target_layout)
+        exp_res = [{'source_layout': None, 'target_layout': 'nhwc'},
+                   {'source_layout': None, 'target_layout': '[]'}]
+        self.assertEqual(exp_res, result)
+        for i in range(len(exp_res)):
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_source_target_layout_3(self):
         argv_source_layout = "nhwc,nhwc"
-        with self.assertRaises(Error):
-            res = get_layout_values(argv_source_layout=argv_source_layout)
-            print(res)
-
-    def test_get_layout_raises_multiple_layouts_without_names_target_layout(self):
         argv_target_layout = "nchw,nchw"
-        with self.assertRaises(Error):
-            res = get_layout_values(argv_target_layout=argv_target_layout)
-            print(res)
+        result = get_layout_values(argv_source_layout=argv_source_layout, argv_target_layout=argv_target_layout)
+        exp_res = [{'source_layout': 'nhwc', 'target_layout': 'nchw'},
+                   {'source_layout': 'nhwc', 'target_layout': 'nchw'}]
+        self.assertEqual(exp_res, result)
+        for i in range(len(exp_res)):
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_source_target_layout_4(self):
+        argv_source_layout = "[n,h,w,c],[n,h,w,c]"
+        argv_target_layout = "[n,c,h,w],[n,c,h,w]"
+        result = get_layout_values(argv_source_layout=argv_source_layout, argv_target_layout=argv_target_layout)
+        exp_res = [{'source_layout': '[n,h,w,c]', 'target_layout': '[n,c,h,w]'},
+                   {'source_layout': '[n,h,w,c]', 'target_layout': '[n,c,h,w]'}]
+        self.assertEqual(exp_res, result)
+        for i in range(len(exp_res)):
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_source_target_layout_5(self):
+        argv_source_layout = "nhwc,[n,h,w,c]"
+        argv_target_layout = "nchw,[n,c,h,w]"
+        result = get_layout_values(argv_source_layout=argv_source_layout, argv_target_layout=argv_target_layout)
+        exp_res = [{'source_layout': 'nhwc', 'target_layout': 'nchw'},
+                   {'source_layout': '[n,h,w,c]', 'target_layout': '[n,c,h,w]'}]
+        self.assertEqual(exp_res, result)
+        for i in range(len(exp_res)):
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_source_target_layout_scalar(self):
+        argv_source_layout = "nhwc,[]"
+        argv_target_layout = "nchw,[]"
+        result = get_layout_values(argv_source_layout=argv_source_layout, argv_target_layout=argv_target_layout)
+        exp_res = [{'source_layout': 'nhwc', 'target_layout': 'nchw'},
+                   {'source_layout': '[]', 'target_layout': '[]'}]
+        self.assertEqual(exp_res, result)
+        for i in range(len(exp_res)):
+            assert np.array_equal(result[i], exp_res[i])
+
+    def wrong_case_1(self):
+        argv_source_layout = "[n,h,w,c]),[n,h,w,c]"
+        argv_target_layout = "[n,c,h,w],[n,c,h,w]"
+        self.assertRaises(get_layout_values(argv_source_layout=argv_source_layout, argv_target_layout=argv_target_layout))
+
+    def wrong_case_2(self):
+        argv_source_layout = "[nchv"
+        self.assertRaises(get_layout_values(argv_source_layout=argv_source_layout))
+
+    def wrong_case_3(self):
+        argv_source_layout = "nchv->"
+        self.assertRaises(get_layout_values(argv_source_layout=argv_source_layout))

@@ -181,7 +181,7 @@ public:
 
     void on_adapter(const std::string& name, ngraph::ValueAccessor<int64_t>& adapter) override {
         check_attribute_name(name);
-        m_node.append_attribute(name.c_str()).set_value(adapter.get());
+        m_node.append_attribute(name.c_str()).set_value(static_cast<long long>(adapter.get()));
     }
 
     void on_adapter(const std::string& name, ngraph::ValueAccessor<double>& adapter) override {
@@ -275,17 +275,18 @@ class XmlSerializer : public ngraph::AttributeVisitor {
 
         for (const auto& input_description : input_descriptions) {
             pugi::xml_node input = port_map.append_child("input");
-            input.append_attribute("external_port_id").set_value(input_description->m_input_index);
+            input.append_attribute("external_port_id")
+                .set_value(static_cast<unsigned long long>(input_description->m_input_index));
             input.append_attribute("internal_layer_id")
                 .set_value(parameter_mapping[input_description->m_body_parameter_index].c_str());
 
             if (auto slice_input =
                     ov::as_type_ptr<ngraph::op::util::SubGraphOp::SliceInputDescription>(input_description)) {
-                input.prepend_attribute("axis").set_value(slice_input->m_axis);
-                input.append_attribute("start").set_value(slice_input->m_start);
-                input.append_attribute("end").set_value(slice_input->m_end);
-                input.append_attribute("stride").set_value(slice_input->m_stride);
-                input.append_attribute("part_size").set_value(slice_input->m_part_size);
+                input.prepend_attribute("axis").set_value(static_cast<long long>(slice_input->m_axis));
+                input.append_attribute("start").set_value(static_cast<long long>(slice_input->m_start));
+                input.append_attribute("end").set_value(static_cast<long long>(slice_input->m_end));
+                input.append_attribute("stride").set_value(static_cast<long long>(slice_input->m_stride));
+                input.append_attribute("part_size").set_value(static_cast<long long>(slice_input->m_part_size));
             } else if (auto merged_input =
                            ov::as_type_ptr<ngraph::op::util::SubGraphOp::MergedInputDescription>(input_description)) {
                 pugi::xml_node back_edges = m_xml_node.parent().child("back_edges");
@@ -314,17 +315,18 @@ class XmlSerializer : public ngraph::AttributeVisitor {
 
         for (const auto& output_description : output_descriptions) {
             pugi::xml_node output = port_map.append_child("output");
-            output.append_attribute("external_port_id").set_value(input_count + output_description->m_output_index);
+            output.append_attribute("external_port_id")
+                .set_value(static_cast<unsigned long long>(input_count + output_description->m_output_index));
             output.append_attribute("internal_layer_id")
                 .set_value(result_mapping[output_description->m_body_value_index].c_str());
 
             if (auto concat_output =
                     ov::as_type_ptr<ngraph::op::util::SubGraphOp::ConcatOutputDescription>(output_description)) {
-                output.prepend_attribute("axis").set_value(concat_output->m_axis);
-                output.append_attribute("start").set_value(concat_output->m_start);
-                output.append_attribute("end").set_value(concat_output->m_end);
-                output.append_attribute("stride").set_value(concat_output->m_stride);
-                output.append_attribute("part_size").set_value(concat_output->m_part_size);
+                output.prepend_attribute("axis").set_value(static_cast<long long>(concat_output->m_axis));
+                output.append_attribute("start").set_value(static_cast<long long>(concat_output->m_start));
+                output.append_attribute("end").set_value(static_cast<long long>(concat_output->m_end));
+                output.append_attribute("stride").set_value(static_cast<long long>(concat_output->m_stride));
+                output.append_attribute("part_size").set_value(static_cast<long long>(concat_output->m_part_size));
             }
         }
     }
@@ -426,8 +428,8 @@ public:
                 const int64_t size = a->get()->size();
                 int64_t offset = m_constant_write_handler.write(static_cast<const char*>(a->get()->get_ptr()), size);
 
-                m_xml_node.append_attribute("offset").set_value(offset);
-                m_xml_node.append_attribute("size").set_value(size);
+                m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
+                m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(size));
             }
         } else if (const auto& a =
                        ngraph::as_type<ngraph::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
@@ -480,7 +482,7 @@ public:
         m_xml_node.append_attribute(name.c_str()).set_value(adapter.get().c_str());
     }
     void on_adapter(const std::string& name, ngraph::ValueAccessor<int64_t>& adapter) override {
-        m_xml_node.append_attribute(name.c_str()).set_value(adapter.get());
+        m_xml_node.append_attribute(name.c_str()).set_value(static_cast<long long>(adapter.get()));
     }
     void on_adapter(const std::string& name, ngraph::ValueAccessor<double>& adapter) override {
         m_xml_node.append_attribute(name.c_str()).set_value(adapter.get());
@@ -793,7 +795,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
     if (!deterministic || !is_name_auto_generated(f)) {
         netXml.append_attribute("name").set_value(f.get_friendly_name().c_str());
     }
-    netXml.append_attribute("version").set_value(version);
+    netXml.append_attribute("version").set_value(static_cast<long long>(version));
     pugi::xml_node layers = netXml.append_child("layers");
 
     const std::unordered_map<ngraph::Node*, int> layer_ids = create_layer_ids(f);

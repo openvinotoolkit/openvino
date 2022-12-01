@@ -94,6 +94,18 @@ bool op::v3::ScatterUpdate::evaluate(const HostTensorVector& outputs, const Host
     return evaluate_scatter_update(outputs, inputs);
 }
 
+bool op::v3::ScatterUpdate::evaluate_lower(const HostTensorVector& outputs) const {
+    OV_OP_SCOPE(v3_ScatterUpdate_evaluate_lower);
+    return get_input_tensor(1).has_and_set_bound() && get_input_tensor(3).has_and_set_bound() &&
+           default_lower_bound_evaluator(this, outputs);
+}
+
+bool op::v3::ScatterUpdate::evaluate_upper(const HostTensorVector& outputs) const {
+    OV_OP_SCOPE(v3_ScatterUpdate_evaluate_upper);
+    return get_input_tensor(1).has_and_set_bound() && get_input_tensor(3).has_and_set_bound() &&
+           default_upper_bound_evaluator(this, outputs);
+}
+
 bool op::v3::ScatterUpdate::has_evaluate() const {
     OV_OP_SCOPE(v3_ScatterUpdate_has_evaluate);
 

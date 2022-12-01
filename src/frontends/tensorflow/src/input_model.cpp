@@ -12,6 +12,7 @@
 #include "openvino/frontend/tensorflow/graph_iterator.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/opsets/opset7.hpp"
+#include "openvino/util/log.hpp"
 #include "place.hpp"
 #include "utils.hpp"
 
@@ -65,6 +66,7 @@ public:
     void setPartialShape(ov::frontend::Place::Ptr place, const ov::PartialShape&);
     ov::PartialShape getPartialShape(ov::frontend::Place::Ptr place) const;
     void setElementType(ov::frontend::Place::Ptr place, const ov::element::Type&);
+    ov::element::Type getElementType(ov::frontend::Place::Ptr place) const;
     void setTensorValue(ov::frontend::Place::Ptr place, const void* value);
 
     std::vector<std::shared_ptr<OpPlace>> get_op_places() const;
@@ -115,8 +117,21 @@ void InputModel::InputModelTFImpl::loadPlaces() {
         m_op_places.push_back(op_place);
         m_op_places_map[op_name] = op_place;
         if (op_type == "Placeholder") {
-            auto pshape = node_decoder->get_attribute("shape").as<ov::PartialShape>();
-            auto type = node_decoder->get_attribute("dtype").as<ov::element::Type>();
+            auto pshape = ov::PartialShape::dynamic();
+            auto shape_any = node_decoder->get_attribute("shape");
+            if (shape_any.is<ov::PartialShape>()) {
+                // sometimes shape attribute can be absent in the graph
+                // so we need to check if Any object is initialized first
+                pshape = shape_any.as<ov::PartialShape>();
+            } else {
+                OPENVINO_DEBUG << "TensorFlow Frontend: Placeholder " << op_name << " does not have 'shape' attribute";
+            }
+            auto dtype_any = node_decoder->get_attribute("dtype");
+            auto placeholder_name = node_decoder->get_op_name();
+            FRONT_END_GENERAL_CHECK(
+                dtype_any.is<ov::element::Type>(),
+                "Incorrect input model: Placeholder node " + placeholder_name + " has unspecified type.");
+            auto type = dtype_any.as<ov::element::Type>();
             std::vector<std::string> names = {op_name};
             auto tensor_place = std::make_shared<TensorPlace>(m_input_model, pshape, type, names);
             m_tensor_places[op_name] = tensor_place;
@@ -171,6 +186,7 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::get_op_place
 std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::determine_cut_nodes() const {
     std::vector<std::shared_ptr<OpPlace>> topologically_sorted_ops;
     std::stack<std::shared_ptr<OpPlace>> ops_to_do;
+    std::unordered_set<std::shared_ptr<OpPlace>> ops_set_to_do;
     std::unordered_set<std::shared_ptr<OpPlace>> ops_done;
 
     for (const auto& output_place : m_outputs) {
@@ -184,6 +200,7 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::determine_cu
                                 "Custom specified output is incorrect: " + output_place_name);
         auto output_operation_place = m_op_places_map.at(operation_name);
         ops_to_do.push(output_operation_place);
+        ops_set_to_do.insert(output_operation_place);
     }
 
     // the traversing algorithm to compute topologically sorted nodes is taken from topological_sort in
@@ -195,6 +212,7 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::determine_cu
         if (ops_done.count(current_operation_place) == 0) {
             bool can_add = true;
             auto input_count = current_operation_decoder->get_input_size();
+
             for (size_t input_port_idx = 0; input_port_idx < input_count; ++input_port_idx) {
                 std::string producer_name;
                 size_t producer_output_port_idx;
@@ -240,9 +258,14 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::determine_cu
                     is_input |= tensor_place->is_input();
                 }
 
-                if (!is_input && ops_done.count(producer_operation_place) == 0) {
+                // in case presence of NextIteration in the graph (or cycle created by other operation),
+                // we break the cycle by outputs from the NextIteration operation
+                // otherwise, the operations nodes in the cycle will be added to ops_to_do infinitely
+                if (!is_input && ops_done.count(producer_operation_place) == 0 &&
+                    ops_set_to_do.count(producer_operation_place) == 0) {
                     can_add = false;
                     ops_to_do.push(producer_operation_place);
+                    ops_set_to_do.insert(producer_operation_place);
                 }
             }
 
@@ -351,6 +374,10 @@ void InputModel::InputModelTFImpl::setElementType(ov::frontend::Place::Ptr place
     castToTensorPlace(place)->set_element_type(type);
 }
 
+ov::element::Type InputModel::InputModelTFImpl::getElementType(ov::frontend::Place::Ptr place) const {
+    return castToTensorPlace(place)->get_element_type();
+}
+
 void InputModel::InputModelTFImpl::setTensorValue(ov::frontend::Place::Ptr place, const void* value) {
     m_graph_changed = true;
     auto tensor_place = castToTensorPlace(place);
@@ -412,6 +439,10 @@ ov::PartialShape InputModel::get_partial_shape(const ov::frontend::Place::Ptr& p
 
 void InputModel::set_element_type(const ov::frontend::Place::Ptr& place, const ov::element::Type& type) {
     _impl->setElementType(place, type);
+}
+
+ov::element::Type InputModel::get_element_type(const ov::frontend::Place::Ptr& place) const {
+    return _impl->getElementType(place);
 }
 
 void InputModel::set_tensor_value(const ov::frontend::Place::Ptr& place, const void* value) {

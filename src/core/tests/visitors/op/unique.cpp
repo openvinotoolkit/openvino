@@ -19,9 +19,14 @@ TEST(attributes, unique_default_attributes) {
 
     const auto op = make_shared<opset10::Unique>(data);
     NodeBuilder builder(op);
+    auto g_unique = ov::as_type_ptr<opset10::Unique>(builder.create());
 
-    const auto expected_attr_count = 2;
+    constexpr auto expected_attr_count = 3;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
+
+    EXPECT_EQ(op->get_sorted(), g_unique->get_sorted());
+    EXPECT_EQ(op->get_index_element_type(), g_unique->get_index_element_type());
+    EXPECT_EQ(op->get_count_element_type(), g_unique->get_count_element_type());
 }
 
 TEST(attributes, unique_sorted_false) {
@@ -33,7 +38,12 @@ TEST(attributes, unique_sorted_false) {
     NodeBuilder builder(op);
     auto g_unique = ov::as_type_ptr<opset10::Unique>(builder.create());
 
+    constexpr auto expected_attr_count = 3;
+    EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
+
     EXPECT_EQ(op->get_sorted(), g_unique->get_sorted());
+    EXPECT_EQ(op->get_index_element_type(), g_unique->get_index_element_type());
+    EXPECT_EQ(op->get_count_element_type(), g_unique->get_count_element_type());
 }
 
 TEST(attributes, unique_index_et_non_default) {
@@ -41,9 +51,14 @@ TEST(attributes, unique_index_et_non_default) {
     const auto data = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 10, 10});
     const auto grid = make_shared<opset10::Parameter>(element::f32, Shape{1, 5, 5, 2});
 
-    const auto op = make_shared<opset10::Unique>(data, true, element::i32);
+    const auto op = make_shared<opset10::Unique>(data, true, element::i32, element::i32);
     NodeBuilder builder(op);
     auto g_unique = ov::as_type_ptr<opset10::Unique>(builder.create());
 
+    constexpr auto expected_attr_count = 3;
+    EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
+
+    EXPECT_EQ(op->get_sorted(), g_unique->get_sorted());
     EXPECT_EQ(op->get_index_element_type(), g_unique->get_index_element_type());
+    EXPECT_EQ(op->get_count_element_type(), g_unique->get_count_element_type());
 }
