@@ -178,7 +178,7 @@ class WordPieceTokenizationStep(TokenizationModelStep):
         try:
             self.unk_token_idx = self.vocab.index(self.unk_token)
         except ValueError:
-            raise UserInputError(f"Unknown token '{self.unk_token}' is not in vocab")
+            raise UserInputError(f"Cannot find unknown token '{self.unk_token}' in the vocab")
 
     def __str__(self) -> str:
         params_string = ", ".join(f"{key}={val!r}" for key, val in self.get_config().items() if key != "vocab")
@@ -225,7 +225,6 @@ class SpecialTokenWithIdx(PostTokenizationStep):
 
 @dataclass
 class AddTokenStep(SpecialTokenWithIdx):
-    token: str
     token_type_id: Optional[int] = None
 
 

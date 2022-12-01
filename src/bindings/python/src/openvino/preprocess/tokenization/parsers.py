@@ -5,7 +5,7 @@
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Optional, Dict, List, Callable, Union, Sequence
+from typing import Any, Optional, Dict, Callable, Union, List
 
 from openvino.runtime.exceptions import OVTypeError
 from .tokenizer_pipeline import (
@@ -27,7 +27,8 @@ from .tokenizer_pipeline import (
     AddTokenStep,
     SequenceStep,
     TruncationStep,
-    AddPaddingStep, PostTokenizationStep,
+    AddPaddingStep,
+    PostTokenizationStep,
 )
 
 
@@ -39,8 +40,8 @@ def parse_replace_normalizer(normalizer_dict: Dict[str, Any]) -> RegExpNormaliza
     )
 
 
-def parse_bert_normalizer(normalizer_dict: Dict[str, Any]) -> Sequence[NormalizationStep]:
-    steps: Sequence[NormalizationStep] = [NFDNormalizationStep()]
+def parse_bert_normalizer(normalizer_dict: Dict[str, Any]) -> List[NormalizationStep]:
+    steps: List[NormalizationStep] = [NFDNormalizationStep()]
 
     if normalizer_dict["lowercase"] is True:
         steps.append(LowercaseStep())
@@ -95,7 +96,7 @@ class TransformersTokenizerPipelineParser:
 
         return self.pipeline
 
-    normalizers_map: Dict[str, Callable[[Dict[str, Any]], Union[NormalizationStep, Sequence[NormalizationStep]]]] = {
+    normalizers_map: Dict[str, Callable[[Dict[str, Any]], Union[NormalizationStep, List[NormalizationStep]]]] = {
         "NFC": lambda step_dict: NFCNormalizationStep(),
         "NFD": lambda step_dict: NFDNormalizationStep(),
         "NFKC": lambda step_dict: NFKCNormalizationStep(),
@@ -124,12 +125,12 @@ class TransformersTokenizerPipelineParser:
         else:
             self.parse_normalizer_step(self.tokenizer_json["normalizer"])
 
-    pre_tokenization_map: Dict[str, Callable[[Dict[str, Any]], Union[PreTokenizatinStep, Sequence[PreTokenizatinStep]]]] = {
+    pre_tokenization_map: Dict[str, Callable[[Dict[str, Any]], Union[PreTokenizatinStep, List[PreTokenizatinStep]]]] = {
         "BertPreTokenizer": lambda step_dict: RegExpSplitStep.bert_splitter(),
         "Whitespace": lambda step_dict: RegExpSplitStep.whitespace_splitter(),
         "WhitespaceSplit": lambda step_dict: WhitespaceSplitStep(),
         "Split": parse_split_step,
-        "Punctuation": lambda step_dict: PunctuationSplitStep(step_dict["behaviour"]),
+        "Punctuation": lambda step_dict: PunctuationSplitStep(step_dict["behavior"]),
     }
 
     def parse_pre_tokenization_step(self, step_dict: Dict[str, Any]) -> None:
@@ -169,7 +170,7 @@ class TransformersTokenizerPipelineParser:
         self.add_padding()
 
     def parse_template_postprocessor(self) -> None:
-        add_tokens_steps: Sequence[Union[AddTokenStep, SequenceStep]] = []
+        add_tokens_steps: List[PostTokenizationStep] = []
         if self.number_of_inputs == 1:
             post_processor = self.tokenizer_json["post_processor"]["single"]
         else:
