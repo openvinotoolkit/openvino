@@ -33,6 +33,7 @@ RUN apt-get update && apt-get -y --no-install-recommends install \
         unzip \
         libtbb-dev \
         libpugixml-dev \
+        libgflags-dev \
         wget \
 # Python dependencies
         python3 \
