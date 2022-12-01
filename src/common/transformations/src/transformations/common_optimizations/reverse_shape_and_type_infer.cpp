@@ -65,6 +65,7 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ngra
         const auto& op = *it;
         auto output_shape = op->get_output_partial_shape(0);
         auto output_type = op->get_output_element_type(0);
+        std::cout << op->get_type_name() << std::endl;
         if (std::dynamic_pointer_cast<Convolution>(op) || std::dynamic_pointer_cast<GroupConvolutionBackpropData>(op) ||
             std::dynamic_pointer_cast<ConvolutionBackpropData>(op) || std::dynamic_pointer_cast<GroupConvolution>(op)) {
             is_changed |= inherit_output_rank(op, {0, 1});

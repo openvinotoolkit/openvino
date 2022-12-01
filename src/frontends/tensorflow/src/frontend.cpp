@@ -10,7 +10,6 @@
 #include "helper_transforms/gru_block_cell_replacer.hpp"
 #include "input_model.hpp"
 #include "op_table.hpp"
-#include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
 #include "openvino/frontend/tensorflow/extension/conversion.hpp"
 #include "openvino/frontend/tensorflow/graph_iterator.hpp"
 #include "openvino/pass/manager.hpp"
@@ -19,6 +18,7 @@
 #include "pass/transpose_sinking.hpp"
 #include "so_extension.hpp"
 #include "tf_framework_node.hpp"
+#include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
 #include "utils.hpp"
 
 using namespace ov;
