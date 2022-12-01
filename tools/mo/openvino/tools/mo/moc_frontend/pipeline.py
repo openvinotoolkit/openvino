@@ -168,15 +168,15 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
 
             input_model.set_element_type(place, ov_type)
             # prepare and cast value to dtype
-            from openvino.tools.mo.front.tf.common import tf_data_type_cast
+            from openvino.tools.mo.utils.type_utils import np_map_cast
             from openvino.tools.mo.front.common.partial_infer.utils import mo_array
             if isinstance(value, list):
                 casted_list = list()
                 for v in mo_array(value):
-                    casted_list.append(tf_data_type_cast[dtype](v))
+                    casted_list.append(np_map_cast[dtype](v))
                 value = mo_array(casted_list, dtype=dtype)
             else:
-                value = tf_data_type_cast[dtype](value)
+                value = np_map_cast[dtype](value)
 
             value = np.array(value, dtype=dtype)
             input_model.set_tensor_value(place, value)

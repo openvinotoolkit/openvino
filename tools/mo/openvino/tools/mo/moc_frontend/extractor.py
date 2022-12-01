@@ -233,10 +233,12 @@ def fe_input_user_data_repack(
         # but it can be used along with `freeze_placeholder_with_value` option
         # for example, --input_shape [3] --freeze_placeholder_with_value "is_training->False"
         # means the model has two inputs: one is is_training to be frozen, the other to re-write the shape
-        # TODO: explore if we can have model with original inputs that have multiple names and support this case
+        # NOTE: the logic relies on parameters with the single name
         model_inputs = input_model.get_inputs()
         frozen_names = freeze_placeholder.keys()
-        assert len(model_inputs) == len(frozen_names) + 1
+        assert len(model_inputs) == len(frozen_names) + 1, "Please check the conversion command-line. " \
+                                                           "Total number of model inputs must match to a number " \
+                                                           "of input shapes along with frozen inputs."
         for node in model_inputs:
             assert len(node.get_names()) > 0, "Original input models must have names."
             input_name = node.get_names()[0]
@@ -248,24 +250,25 @@ def fe_input_user_data_repack(
                         "input_name": input_name
                     }
                 )
+                _input_names.append(input_name)
                 break
     else:
-        # this case means that we use original inputs of the model and
-        # they should not be changed and their properties (shape and type) should not be over-written
-        # TODO: explore if we can have model with original inputs that have multiple names and support this case
+        # this case means that we use original inputs of the model
+        # and they should not be changed and their properties (shape and type) should not be over-written
+        # NOTE: the logic relies on parameters with the single name
         assert input_user_shapes is None
         for node in input_model.get_inputs():
             assert len(node.get_names()) > 0, "Original input models must have names."
+            input_name = node.get_names()[0]
             _input_shapes.append(
                 {
                     "node": node,
-                    "input_name": node.get_names()[0]
+                    "input_name": input_name
                 }
             )
             # mark-up Place names we already put into the _input_names
             # to avoid duplicates in updates by freeze_placeholder below
-            for input_name in node.get_names():
-                _input_names.append(input_name)
+            _input_names.append(input_name)
 
     if freeze_placeholder:
         # in case freezing via freeze_placeholder_with_value option, _input_shapes can miss some frozen places
