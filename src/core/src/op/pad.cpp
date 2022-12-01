@@ -102,7 +102,7 @@ void op::v1::Pad::validate_and_infer_types() {
     for (size_t i = 0; i < get_input_size(); i++)
         input_shapes.push_back(get_input_partial_shape(i));
     shape_infer(this, input_shapes, output_shapes);
-    set_output_type(0, get_input_element_type(0), output_shapes[0]);
+    set_output_type(0, result_et, output_shapes[0]);
 }
 
 shared_ptr<Node> op::v1::Pad::clone_with_new_inputs(const OutputVector& new_args) const {
