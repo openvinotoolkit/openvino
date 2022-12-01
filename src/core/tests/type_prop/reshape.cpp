@@ -306,7 +306,7 @@ TEST(type_prop, reshape_deduce_wrong_output_shape) {
         FAIL() << "No exception was thrown";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("is incompatible with input shape"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }

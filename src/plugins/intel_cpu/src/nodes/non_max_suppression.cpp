@@ -568,7 +568,7 @@ bool NonMaxSuppression::isSupportedOperation(const std::shared_ptr<const ngraph:
                 return false;
             }
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
     return true;

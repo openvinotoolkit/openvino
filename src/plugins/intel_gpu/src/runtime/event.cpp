@@ -68,7 +68,7 @@ void event::call_handlers() {
     for (auto& pair : _handlers) {
         try {
             pair.first(pair.second);
-        } catch (...) {
+        } catch (std::exception&) {
         }
     }
     _handlers.clear();

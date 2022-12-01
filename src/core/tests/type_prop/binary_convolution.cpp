@@ -207,7 +207,7 @@ TEST(type_prop, bin_convolution_invalid_inputs_et) {
         FAIL() << "Incompatible element type of data batch input not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Data batch element type must be numeric");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Data batch element type validation check failed for unexpected reason";
     }
     // TODO: Add test with check filters element type once u1 is supported in nGraph Python API
@@ -235,7 +235,7 @@ TEST(type_prop, bin_convolution_incompatible_input_channels) {
         FAIL() << "Incompatible input channel dimension in data batch and filters not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Data batch channel count"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Data batch and filters input channel count validation check failed for "
                   "unexpected reason";
     }
@@ -264,7 +264,7 @@ TEST(type_prop, bin_convolution_invalid_input_ranks) {
         FAIL() << "Incompatible input ranks not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Data batch and filters inputs must have same rank");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Rank validation check of inputs failed for unexpected reason";
     }
 
@@ -286,7 +286,7 @@ TEST(type_prop, bin_convolution_invalid_input_ranks) {
         FAIL() << "Incompatible input ranks not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Data batch and filters inputs must have same rank");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Rank validation check of inputs failed for unexpected reason";
     }
 }
@@ -321,7 +321,7 @@ TEST(type_prop, bin_convolution_invalid_spatial_dims_parameters) {
         FAIL() << "Incompatible stride number of spatial dimensions not detected.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Strides should be defined for all and only spatial features."));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Strides validation check failed for unexpected reason.";
     }
 
@@ -342,7 +342,7 @@ TEST(type_prop, bin_convolution_invalid_spatial_dims_parameters) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Dilations should be defined for all and only spatial features."));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Dilations validation check failed for unexpected reason.";
     }
 
@@ -362,7 +362,7 @@ TEST(type_prop, bin_convolution_invalid_spatial_dims_parameters) {
         FAIL() << "Incompatible pads number of spatial dimensions not detected.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Pads should be defined for all and only spatial features."));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Pads validation check failed for unexpected reason.";
     }
 }

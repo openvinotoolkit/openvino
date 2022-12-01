@@ -87,7 +87,7 @@ bool Proposal::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& o
             errorMessage = "Unsupported framework attribute: " + proposalOp->get_attrs().framework;
             return false;
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
     return true;

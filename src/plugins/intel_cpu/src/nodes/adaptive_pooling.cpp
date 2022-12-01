@@ -41,7 +41,7 @@ bool AdaptivePooling::isSupportedOperation(const std::shared_ptr<const ngraph::N
             errorMessage = "Unsupported Adaptive pooling mode";
             return false;
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
     return true;

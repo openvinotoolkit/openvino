@@ -229,7 +229,7 @@ struct TBBStreamsExecutor::Impl {
                             Task task = std::move(_task);
                             task();
                         } while (_shared->_taskQueue.try_pop(_task));
-                    } catch (...) {
+                    } catch (std::exception&) {
                     }
                     if (_shared->_streamQueue.try_push(_stream)) {
                         if (_shared->_taskQueue.try_pop(_task)) {

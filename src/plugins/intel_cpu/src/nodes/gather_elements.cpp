@@ -25,7 +25,7 @@ bool GatherElements::isSupportedOperation(const std::shared_ptr<const ov::Node>&
             errorMessage = "Node is not an instance of the GatherElements operation from operation set v6.";
             return false;
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
 

@@ -19,7 +19,7 @@
         __VA_ARGS__;                                                         \
     } catch (const std::exception& ex) {                                     \
         throw ov::Exception(ex.what());                                      \
-    } catch (...) {                                                          \
+    } catch (std::exception&) {                                                          \
         OPENVINO_ASSERT(false, "Unexpected exception");                      \
     }
 

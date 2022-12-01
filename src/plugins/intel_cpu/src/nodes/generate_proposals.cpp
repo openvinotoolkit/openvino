@@ -282,7 +282,7 @@ bool GenerateProposals::isSupportedOperation
             errorMessage = "Node is not an instance of the Proposal from the operations set v0.";
             return false;
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
     return true;

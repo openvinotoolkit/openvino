@@ -53,7 +53,7 @@ TEST(type_prop, one_hot_v1_indices_elem_not_integral) {
         FAIL() << "Incorrect indices element type not detected";
     } catch (const ngraph_error& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Indices must be integral element type."));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -70,7 +70,7 @@ TEST(type_prop, one_hot_v1_depth_elem_not_integral) {
         FAIL() << "Incorrect depth element type not detected";
     } catch (const ngraph_error& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Depth must be integral element type."));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -88,7 +88,7 @@ TEST(type_prop, one_hot_v1_on_off_values_not_compatible) {
     } catch (const ngraph_error& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("on_value element type must be compatible with off_value element type."));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -105,7 +105,7 @@ TEST(type_prop, one_hot_v1_depth_not_scalar) {
         FAIL() << "Not scalar depth input not detected.";
     } catch (const ngraph_error& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("depth input must be scalar."));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -122,7 +122,7 @@ TEST(type_prop, one_hot_v1_on_value_not_scalar) {
         FAIL() << "Not scalar on_value input not detected.";
     } catch (const ngraph_error& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("on_value input must be scalar."));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -139,7 +139,7 @@ TEST(type_prop, one_hot_v1_off_value_not_scalar) {
         FAIL() << "Not scalar off_value input not detected.";
     } catch (const ngraph_error& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("off_value input must be scalar."));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }

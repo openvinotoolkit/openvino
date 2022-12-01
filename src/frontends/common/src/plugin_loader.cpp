@@ -77,7 +77,7 @@ static std::vector<std::string> list_files(const std::string& path) {
             },
             false,
             true);
-    } catch (...) {
+    } catch (std::exception&) {
         // Ignore exceptions
     }
     return res;

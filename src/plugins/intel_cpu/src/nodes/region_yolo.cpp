@@ -234,7 +234,7 @@ bool RegionYolo::isSupportedOperation(const std::shared_ptr<const ngraph::Node>&
             errorMessage = "Only opset1 RegionYolo operation is supported";
             return false;
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
     return true;

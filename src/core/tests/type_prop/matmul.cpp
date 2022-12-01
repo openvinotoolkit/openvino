@@ -186,7 +186,7 @@ TEST(type_prop, matmul_1D_x_1D_incompatible) {
         FAIL() << "Incompatible matrix dimensions not detected. ";
     } catch (const ngraph_error& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Incompatible MatMul matrix dimension"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "MatMul shape validation failed for unexpected reason";
     }
 }
@@ -222,7 +222,7 @@ TEST(type_prop, matmul_2D_x_1D_true_false) {
         FAIL() << "Incompatible matrix dimensions not detected. ";
     } catch (const ngraph_error& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Incompatible MatMul matrix dimension"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "MatMul shape validation failed for unexpected reason";
     }
 }
@@ -237,7 +237,7 @@ TEST(type_prop, matmul_2D_x_1D_true_true) {
         FAIL() << "Incompatible matrix dimensions not detected. ";
     } catch (const ngraph_error& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Incompatible MatMul matrix dimension"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "MatMul shape validation failed for unexpected reason";
     }
 }
@@ -263,7 +263,7 @@ TEST(type_prop, matmul_1D_x_2D_false_true) {
         FAIL() << "Incompatible matrix dimensions not detected. ";
     } catch (const ngraph_error& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Incompatible MatMul matrix dimension"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "MatMul shape validation failed for unexpected reason";
     }
 }
@@ -287,7 +287,7 @@ TEST(type_prop, matmul_1D_x_2D_true_true) {
         FAIL() << "Incompatible matrix dimensions not detected. ";
     } catch (const ngraph_error& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Incompatible MatMul matrix dimension"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "MatMul shape validation failed for unexpected reason";
     }
 }
@@ -355,7 +355,7 @@ TEST(type_prop, matmul_incompatible_batch_dims) {
         FAIL() << "Incompatible batch dimensions not detected. ";
     } catch (const ngraph_error& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Incompatible MatMul batch dimension"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "MatMul shape validation failed for unexpected reason";
     }
 }

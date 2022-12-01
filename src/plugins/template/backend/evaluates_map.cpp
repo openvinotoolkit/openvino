@@ -692,7 +692,7 @@ bool evaluate(const shared_ptr<op::v8::If>& op, const HostTensorVector& outputs,
     }
     try {
         runtime::reference::if_reference(bodies, out_descs, in_descs, outputs, inputs);
-    } catch (...) {
+    } catch (std::exception&) {
         if_op::if_reference(bodies, out_descs, in_descs, outputs, inputs);
     }
     return true;

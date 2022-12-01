@@ -69,7 +69,7 @@ TEST(type_prop, reorg_yolo_catch_small_shape_stride) {
         FAIL() << "Incompatible stride was not detected.";
     } catch (const ngraph_error& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("stride"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Stride size check failed for unexpected reason.";
     }
 }

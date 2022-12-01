@@ -99,7 +99,7 @@ bool Lrn::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
                 }
             }
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
     return true;

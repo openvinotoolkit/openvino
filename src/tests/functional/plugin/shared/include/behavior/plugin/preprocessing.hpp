@@ -130,7 +130,7 @@ public:
             GTEST_FATAL_FAILURE_(re.what());
         } catch (const std::exception &ex) {
             GTEST_FATAL_FAILURE_(ex.what());
-        } catch (...) {
+        } catch (std::exception&) {
             GTEST_FATAL_FAILURE_("Unknown failure occurred.");
         }
     }

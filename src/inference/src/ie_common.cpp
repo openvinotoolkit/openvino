@@ -73,7 +73,7 @@ void Rethrow() {
         throw e;
     } catch (const std::exception& e) {
         IE_THROW() << e.what();
-    } catch (...) {
+    } catch (std::exception&) {
         IE_THROW(Unexpected);
     }
 }

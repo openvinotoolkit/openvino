@@ -318,7 +318,7 @@ bool ExperimentalDetectronROIFeatureExtractor::isSupportedOperation(const std::s
             errorMessage = "Only opset6 ExperimentalDetectronROIFeatureExtractor operation is supported";
             return false;
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
     return true;

@@ -45,7 +45,7 @@ bool DetectionOutput::isSupportedOperation(const std::shared_ptr<const ov::Node>
             errorMessage = "Unsupported code_type attribute: " + doOp->get_attrs().code_type;
             return false;
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
     return true;

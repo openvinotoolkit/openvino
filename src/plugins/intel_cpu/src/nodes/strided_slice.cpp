@@ -45,7 +45,7 @@ bool StridedSlice::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
             errorMessage = "Only Constant 'begin', 'end', 'stride' and 'axis' inputs are supported.";
             return false;
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
     return true;

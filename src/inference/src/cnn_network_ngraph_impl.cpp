@@ -302,7 +302,7 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName,
                 // Check that we cannot add Result to layer with non unique friendly name
                 try {
                     validateFunctionNames();
-                } catch (...) {
+                } catch (std::exception&) {
                     _ngraph_function->remove_result(result);
                     throw;
                 }
@@ -313,7 +313,7 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName,
                 return OK;
             }
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return GENERAL_ERROR;
     }
     return DescriptionBuffer(NOT_FOUND, resp) << "Cannot add output! Layer " << layerName << " wasn't found!";
@@ -411,7 +411,7 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::Par
         return DescriptionBuffer(GENERAL_ERROR, responseDesc) << ex.what();
     } catch (const std::out_of_range& ex) {
         return DescriptionBuffer(OUT_OF_BOUNDS, responseDesc) << ex.what();
-    } catch (...) {
+    } catch (std::exception&) {
         return GENERAL_ERROR;
     }
 }
@@ -551,7 +551,7 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
     } catch (const std::exception& e) {
         return DescriptionBuffer(UNEXPECTED, resp) << e.what();
-    } catch (...) {
+    } catch (std::exception&) {
         return DescriptionBuffer(UNEXPECTED, resp);
     }
     return OK;
@@ -572,7 +572,7 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, std::ostream& b
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
     } catch (const std::exception& e) {
         return DescriptionBuffer(UNEXPECTED, resp) << e.what();
-    } catch (...) {
+    } catch (std::exception&) {
         return DescriptionBuffer(UNEXPECTED, resp);
     }
     return OK;
@@ -603,7 +603,7 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, Blob::Ptr& binB
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
     } catch (const std::exception& e) {
         return DescriptionBuffer(UNEXPECTED, resp) << e.what();
-    } catch (...) {
+    } catch (std::exception&) {
         return DescriptionBuffer(UNEXPECTED, resp);
     }
     return OK;

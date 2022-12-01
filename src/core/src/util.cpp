@@ -272,7 +272,7 @@ void ngraph::parse_version_string(std::string version, size_t& major, size_t& mi
         if (err != patch_str.size()) {
             error = true;
         }
-    } catch (...) {
+    } catch (std::exception&) {
         error = true;
     }
     if (error) {

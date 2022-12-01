@@ -36,7 +36,7 @@ TEST(type_prop, prior_box_clustered_float_layer_shape) {
         FAIL() << "Incorrect prior_box_clustered value type exception not handled";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("layer shape input must be an integral number"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -55,7 +55,7 @@ TEST(type_prop, prior_box_clustered_float_image_shape) {
         FAIL() << "Incorrect prior_box_clustered value type exception not handled";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("image shape input must be an integral number"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -74,7 +74,7 @@ TEST(type_prop, prior_box_clustered_widths_heights_different) {
         FAIL() << "Incorrect prior_box_clustered value type exception not handled";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Size of heights vector:"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -93,7 +93,7 @@ TEST(type_prop, prior_box_clustered_not_rank_2) {
         FAIL() << "Incorrect prior_box_clustered value type exception not handled";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Layer shape must have rank 2"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }

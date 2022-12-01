@@ -21,7 +21,7 @@ namespace InferenceEngine {
         IE_THROW(NotAllocated) << "ExecutableNetwork was not initialized."; \
     try {                                                                   \
         __VA_ARGS__;                                                        \
-    } catch (...) {                                                         \
+    } catch (std::exception&) {                                                         \
         InferenceEngine::details::Rethrow();                                \
     }
 
@@ -31,7 +31,7 @@ namespace InferenceEngine {
         __VA_ARGS__;                                                             \
     } catch (const std::exception& ex) {                                         \
         throw ov::Exception(ex.what());                                          \
-    } catch (...) {                                                              \
+    } catch (std::exception&) {                                                              \
         OPENVINO_ASSERT(false, "Unexpected exception");                          \
     }
 

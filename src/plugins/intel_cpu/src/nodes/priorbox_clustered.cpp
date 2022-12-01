@@ -27,7 +27,7 @@ bool PriorBoxClustered::isSupportedOperation(const std::shared_ptr<const ngraph:
             errorMessage = "Only opset1 PriorBoxClustered operation is supported";
             return false;
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
     return true;

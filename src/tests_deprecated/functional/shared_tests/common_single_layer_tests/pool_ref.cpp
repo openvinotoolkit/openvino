@@ -49,7 +49,7 @@ void Pool_parseParams(InferenceEngine::CNNLayer* layer) {
 
                 poolLayer->_pads_end.insert(InferenceEngine::X_AXIS, 0u);
                 poolLayer->_pads_end.insert(InferenceEngine::Y_AXIS, 0u);
-            } catch (...) {
+            } catch (std::exception&) {
             }
 
             std::string alg = poolLayer->GetParamAsString("pool", "caffe.PoolingParameter.MAX");

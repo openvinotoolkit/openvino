@@ -883,7 +883,7 @@ bool FakeQuantize::isSupportedOperation(const std::shared_ptr<const ngraph::Node
             errorMessage = "Doesn't support broadcast type: " + ngraph::as_string(fq->get_auto_broadcast().m_type);
             return false;
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
     return true;

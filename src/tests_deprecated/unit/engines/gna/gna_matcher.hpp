@@ -38,7 +38,7 @@ expr;\
 }catch(std::exception & e) {\
     FAIL() << e.what();\
 }\
-catch(...) {\
+catch (std::exception&) {\
     FAIL() << "unknown exception";\
 }}while(false)
 

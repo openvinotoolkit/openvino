@@ -103,7 +103,7 @@ TEST(type_prop, eye_invalid_num_rows_value) {
         FAIL() << "Unexpected pass with invalid num rows value.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("'num_rows' must be non-negative value. Got: -6"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Check failed for unexpected reason";
     }
 }
@@ -119,7 +119,7 @@ TEST(type_prop, eye_invalid_num_columns_value) {
         FAIL() << "Unexpected pass with invalid num columns value.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("'num_columns' must be non-negative value. Got: -6"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Check failed for unexpected reason";
     }
 }
@@ -135,7 +135,7 @@ TEST(type_prop, eye_invalid_num_rows_type) {
         FAIL() << "Unexpected pass with invalid num rows value.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Type of the 'num_rows' should be int32 or int64. Got: bf16"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Check failed for unexpected reason";
     }
 }
@@ -152,7 +152,7 @@ TEST(type_prop, eye_invalid_num_columns_type) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Type of the 'num_columns' should be int32 or int64. Got: bf16"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Check failed for unexpected reason";
     }
 }
@@ -169,7 +169,7 @@ TEST(type_prop, eye_invalid_diagonal_index_type) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Type of the 'diagonal_index' should be int32 or int64. Got: bf16"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Check failed for unexpected reason";
     }
 }
@@ -185,7 +185,7 @@ TEST(type_prop, eye_invalid_num_rows_shape) {
         FAIL() << "Unexpected pass with invalid num rows value.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("'num_columns' value input should have 1 element."));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Check failed for unexpected reason";
     }
 }
@@ -201,7 +201,7 @@ TEST(type_prop, eye_invalid_num_columns_shape) {
         FAIL() << "Unexpected pass with invalid num columns value.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("'num_columns' value input should have 1 element."));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Check failed for unexpected reason";
     }
 }
@@ -217,7 +217,7 @@ TEST(type_prop, eye_invalid_diagonal_index_shape) {
         FAIL() << "Unexpected pass with invalid diagonal index value.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("'diagonal_index' value input should have 1 element."));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Check failed for unexpected reason";
     }
 }
@@ -233,7 +233,7 @@ TEST(type_prop, eye_invalid_num_rows_rank) {
         FAIL() << "Unexpected pass with invalid num rows value.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("'num_rows' value must be a scalar or 1D tensor."));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Check failed for unexpected reason";
     }
 }
@@ -249,7 +249,7 @@ TEST(type_prop, eye_invalid_num_columns_rank) {
         FAIL() << "Unexpected pass with invalid num columns value.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("'num_columns' value must be a scalar or 1D tensor."));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Check failed for unexpected reason";
     }
 }
@@ -265,7 +265,7 @@ TEST(type_prop, eye_invalid_diagonal_index_rank) {
         FAIL() << "Unexpected pass with invalid diagonal index value.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("'diagonal_index' value must be a scalar or 1D tensor."));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Check failed for unexpected reason";
     }
 }
@@ -306,7 +306,7 @@ TEST(type_prop, eye_dynamic_batch_shape_invalid_rank) {
         FAIL() << "Unexpected pass with invalid 'batch_shape' value.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("'batch_shape' input must be a 1D tensor."));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Check failed for unexpected reason";
     }
 }

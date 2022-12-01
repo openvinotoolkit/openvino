@@ -1538,7 +1538,7 @@ bool Interpolate::isSupportedOperation(const std::shared_ptr<const ngraph::Node>
             errorMessage = "Only const 'axes' input is supported";
             return false;
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
     return true;

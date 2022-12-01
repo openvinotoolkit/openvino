@@ -45,7 +45,7 @@ TEST(type_prop, softplus_invalid_element_type) {
         FAIL() << "Invalid int element type for input not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Input element type must be float");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Numeric element type node validation check failed for unexpected reason";
     }
 }

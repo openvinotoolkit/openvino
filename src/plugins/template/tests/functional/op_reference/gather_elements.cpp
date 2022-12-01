@@ -77,7 +77,7 @@ TEST_P(ReferenceGatherElementsTestNegative, CompareWithRefs) {
         Exec();
     } catch (const std::domain_error& error) {
         ASSERT_EQ(error.what(), std::string("indices values of GatherElement exceed data size"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Evaluate out ouf bound indices check failed";
     }
 }

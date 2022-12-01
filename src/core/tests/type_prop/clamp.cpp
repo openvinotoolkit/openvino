@@ -58,7 +58,7 @@ TEST(type_prop, clamp_invalid_element_type) {
         FAIL() << "Invalid boolean element type for input not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Input element type must be numeric");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Numeric element type node validation check failed for unexpected reason";
     }
 }
@@ -82,7 +82,7 @@ TEST(type_prop, clamp_invalid_attributes) {
         FAIL() << "Attribute 'min' bigger than 'max' not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Attribute 'min' must be less or equal than 'max'");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "'min' and 'max' attributes node validation check failed for unexpected reason";
     }
 }

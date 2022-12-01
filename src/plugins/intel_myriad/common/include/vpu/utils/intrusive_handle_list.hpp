@@ -192,7 +192,7 @@ public:
         try {
             clear();
         }
-        catch (...) {
+        catch (std::exception&) {
             std::cerr << "ERROR ~IntrusiveHandleList(): can not clear data\n";
             std::abort();
         }
@@ -268,7 +268,7 @@ IntrusiveHandleListNode<Base>::~IntrusiveHandleListNode() {
             _list = nullptr;
         }
     }
-    catch (...) {
+    catch (std::exception&) {
         std::cerr << "ERROR ~IntrusiveHandleListNode(): can not clear data\n";
         std::abort();
     }

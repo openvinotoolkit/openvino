@@ -136,7 +136,7 @@ TEST(type_prop, deformable_psroi_pooling_invalid_group_size) {
         FAIL() << "Invalid group_size not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Value of `group_size` attribute has to be greater than 0"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Unknown exception was thrown";
     }
 }
@@ -160,7 +160,7 @@ TEST(type_prop, deformable_psroi_pooling_invalid_output_dim) {
         FAIL() << "Invalid output_dim not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Value of `output_dim` attribute has to be greater than 0"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Unknown exception was thrown";
     }
 }
@@ -195,7 +195,7 @@ TEST(type_prop, deformable_psroi_pooling_invalid_data_input_rank) {
         FAIL() << "Invalid first input rank not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("First input rank must be compatible with 4 (input rank: 3)"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -219,7 +219,7 @@ TEST(type_prop, deformable_psroi_pooling_invalid_box_coordinates_rank) {
         FAIL() << "Invalid second input rank not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Second input rank must be compatible with 2 (input rank: 3)"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -253,7 +253,7 @@ TEST(type_prop, deformable_psroi_pooling_invalid_offstes_rank) {
         FAIL() << "Invalid third input rank not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Third input rank must be compatible with 4 (input rank: 5)"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }

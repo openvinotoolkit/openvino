@@ -96,7 +96,7 @@ TEST_P(ReferenceTransposeLayerTest, CompareWithRefs) {
             EXPECT_HAS_SUBSTRING(error.what(), params.expectedException.first);
         } catch (const std::exception& error) {
             FAIL() << "Failed for unexpected reason: " << error.what();
-        } catch (...) {
+        } catch (std::exception&) {
             FAIL() << "Failed for unknown reason";
         }
     }

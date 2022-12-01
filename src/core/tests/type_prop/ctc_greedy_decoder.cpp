@@ -87,7 +87,7 @@ TEST(type_prop, ctc_greedy_decoder_incorrect_rank) {
         FAIL() << "Incorrect indices rank";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("The rank of logits tensor must be equal to 3."));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Rank check failed for unexpected reason";
     }
 }
@@ -104,7 +104,7 @@ TEST(type_prop, ctc_greedy_decoder_incorrect_rank2) {
         FAIL() << "Incorrect indices rank";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("The rank of sequence mask tensor must be equal to 2."));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Rank check failed for unexpected reason";
     }
 }
@@ -121,7 +121,7 @@ TEST(type_prop, ctc_greedy_decoder_mismatched_dim1) {
         FAIL() << "Incorrect indices rank";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("The second dimensions of input tensors must match."));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Rank check failed for unexpected reason";
     }
 }
@@ -138,7 +138,7 @@ TEST(type_prop, ctc_greedy_decoder_mismatched_dim2) {
         FAIL() << "Incorrect indices rank";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("The first dimensions of input tensors must match."));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Rank check failed for unexpected reason";
     }
 }

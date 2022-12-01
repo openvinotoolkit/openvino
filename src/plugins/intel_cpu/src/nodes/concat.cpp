@@ -44,7 +44,7 @@ bool Concat::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
             errorMessage = "Node is not an instance of the Concat operation.";
             return false;
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
     return true;

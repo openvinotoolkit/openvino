@@ -19,7 +19,7 @@ TEST(type_prop, softsign_incorrect_type) {
         FAIL() << "Incorrect begin type exception not thrown.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Input element type must be float, instead got"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason.";
     }
 }

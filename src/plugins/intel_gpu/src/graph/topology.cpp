@@ -27,7 +27,7 @@ void topology::add_primitive(std::shared_ptr<primitive> desc) {
 const std::shared_ptr<primitive>& topology::at(primitive_id id) const {
     try {
         return _primitives.at(id);
-    } catch (...) {
+    } catch (std::exception&) {
         throw std::runtime_error("Topology doesn't contain primtive: " + id);
     }
 }

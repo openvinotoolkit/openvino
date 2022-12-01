@@ -138,7 +138,7 @@ public:
 #undef CASE
 #undef CASE2
             }
-        } catch (...) {
+        } catch (std::exception&) {
             return false;
         }
     }

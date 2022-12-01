@@ -1575,7 +1575,7 @@ bool Eltwise::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
                 return false;
             }
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
     return true;

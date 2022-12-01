@@ -14,7 +14,7 @@ void MyriadProtocolTests::SetUpTestCase() {
     try {
         ie = std::make_shared<InferenceEngine::Core>();
     }
-    catch (...)
+    catch (std::exception&)
     {
         std::cerr << "Create core error";
     }

@@ -42,7 +42,7 @@ bool MemoryOutput::isSupportedOperation(const std::shared_ptr<const ngraph::Node
             errorMessage = "Node is not an instance of Assign from the operation set v3 or v6.";
             return false;
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
     return true;
@@ -100,7 +100,7 @@ bool MemoryInput::isSupportedOperation(const std::shared_ptr<const ngraph::Node>
             errorMessage = "Node is not an instance of ReadValue from the operation set v3 or v6.";
             return false;
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
     return true;

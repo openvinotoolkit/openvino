@@ -71,7 +71,7 @@ public:
             Load(std::integral_constant<bool, HasRelease::value>{});
         } catch (const std::runtime_error& ex) {
             IE_THROW() << ex.what();
-        } catch (...) {
+        } catch (std::exception&) {
             details::Rethrow();
         }
     }
@@ -166,7 +166,7 @@ protected:
                 using CreateF = void(std::shared_ptr<T>&);
                 reinterpret_cast<CreateF*>(create)(_ptr);
             }
-        } catch (...) {
+        } catch (std::exception&) {
             details::Rethrow();
         }
     }
@@ -178,7 +178,7 @@ protected:
         try {
             using CreateF = void(std::shared_ptr<T>&);
             reinterpret_cast<CreateF*>(_so.get_symbol(SOCreatorTrait<T>::name))(_ptr);
-        } catch (...) {
+        } catch (std::exception&) {
             details::Rethrow();
         }
     }
