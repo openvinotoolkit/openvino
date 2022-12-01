@@ -6,7 +6,12 @@ if (NOT ENABLE_INTEL_GNA)
     return()
 endif()
 
+
 set(TARGET_NAME "openvino_intel_gna_plugin")
+
+if (ENABLE_INTEL_GNA_DEBUG)
+    add_definitions(-DGNA_DEBUG=1)
+endif()
 
 if(CMAKE_COMPILER_IS_GNUCC)
     ie_add_compiler_flags(-Wno-all)
