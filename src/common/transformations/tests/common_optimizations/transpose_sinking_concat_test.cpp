@@ -44,7 +44,26 @@ public:
     }
 };
 
-#define CREATE_PASS_FACTORY(pass_name) std::make_shared<PassFactory<ov::pass::pass_name>>(#pass_name)
+template <typename PassT>
+PassFactoryPtr CreatePassFactory() {
+    return std::make_shared<PassFactory<PassT>>();
+}
+
+std::vector<BinaryFactoryPtr> binary_factories = {
+    CreateBinaryFactory<ov::opset9::Add>(),
+    CreateBinaryFactory<ov::opset9::Divide>(),
+    CreateBinaryFactory<ov::opset9::Maximum>(),
+    CreateBinaryFactory<ov::opset9::Minimum>(),
+    CreateBinaryFactory<ov::opset9::Mod>(),
+    CreateBinaryFactory<ov::opset9::Multiply>(),
+    CreateBinaryFactory<ov::opset9::Power>(),
+    CreateBinaryFactory<ov::opset9::SquaredDifference>(),
+    CreateBinaryFactory<ov::opset9::Subtract>()
+};
+
+std::vector<size_t> binary_operations_numbers = {1, 10};
+
+std::vector<size_t> binary_transpose_input_indexes = {0, 1};
 
 }  // namespace
 
@@ -440,7 +459,7 @@ TEST_P(TransposeSinkingConcatAllTransposesInputTestFixture, CompareFunctions) {
 INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingConcatForwardAllTransposesTestSuite,
     TransposeSinkingConcatAllTransposesInputTestFixture,
-    ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingConcatForward)),
+    ::testing::Combine(::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingConcatForward>()),
                        ::testing::ValuesIn(concat_operations_numbers),
                        ::testing::Values(single_consumer::forward::double_transpose::CreateFunction),
                        ::testing::Values(single_consumer::forward::double_transpose::CreateReferenceFunction),
