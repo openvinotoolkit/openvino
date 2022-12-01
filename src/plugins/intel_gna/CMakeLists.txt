@@ -9,8 +9,8 @@ endif()
 
 set(TARGET_NAME "openvino_intel_gna_plugin")
 
-if (ENABLE_INTEL_GNA_DEBUG)
-    add_definitions(-DGNA_DEBUG=1)
+if (ENABLE_INTEL_GNA_DEBUG AND (CMAKE_BUILD_TYPE STREQUAL "Debug"))
+    add_compile_definitions(GNA_DEBUG)
 endif()
 
 if(CMAKE_COMPILER_IS_GNUCC)
