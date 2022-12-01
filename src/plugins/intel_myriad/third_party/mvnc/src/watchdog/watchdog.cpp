@@ -131,7 +131,7 @@ WatchdogImpl::~WatchdogImpl() {
         }
     } catch (const std::exception & ex) {
         mvLog(MVLOG_ERROR, "error %s", ex.what());
-    } catch (...) {
+    } catch (std::exception&) {
         mvLog(MVLOG_ERROR, "unknown error");
     }
 
@@ -314,7 +314,7 @@ void WatchdogImpl::watchdogRoutine() noexcept {
         } while (threadRunning);
     } catch (const std::exception &ex) {
         mvLog(MVLOG_ERROR, "error %s", ex.what());
-    } catch (...) {
+    } catch (std::exception&) {
         mvLog(MVLOG_ERROR, "unknown error");
     }
 
@@ -345,7 +345,7 @@ wd_error_t watchdog_create(WatchdogHndl_t** out_watchdogHndl) {
         return WD_ERRNO;
     } catch (const std::exception& ex) {
         mvLog(MVLOG_ERROR, "error %s", ex.what());
-    } catch (...) {
+    } catch (std::exception&) {
         mvLog(MVLOG_ERROR, "unknown error");
     }
 
@@ -391,7 +391,7 @@ wd_error_t watchdog_register_device(WatchdogHndl_t* watchdogHndl, WdDeviceHndl_t
         return WD_ERRNO;
     } catch (const std::exception & ex) {
         mvLog(MVLOG_ERROR, "failed to register device: %s\n", ex.what());
-    } catch (...) {
+    } catch (std::exception&) {
         mvLog(MVLOG_ERROR, "failed to register device (%p)\n", deviceHandle);
     }
 
@@ -424,7 +424,7 @@ wd_error_t watchdog_unregister_device(WatchdogHndl_t* watchdogHndl, WdDeviceHndl
         return WD_ERRNO;
     } catch (const std::exception & ex) {
         mvLog(MVLOG_ERROR, "error %s", ex.what());
-    } catch (...) {
+    } catch (std::exception&) {
         mvLog(MVLOG_ERROR, "unknown error");
     }
 

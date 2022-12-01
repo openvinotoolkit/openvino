@@ -27,7 +27,7 @@ TEST(type_prop, reshape_v1_arg_rank_static_pattern_zero) {
         FAIL() << "Expected failure on reshape construction";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("is incompatible with input shape"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }

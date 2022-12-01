@@ -24,7 +24,7 @@ bool ExperimentalDetectronTopKROIs::isSupportedOperation(const std::shared_ptr<c
             errorMessage = "Only opset6 ExperimentalDetectronTopKROIs operation is supported";
             return false;
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
     return true;

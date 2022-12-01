@@ -45,7 +45,7 @@ AnyMap RemoteTensor::get_params() const {
         return paramMap;
     } catch (const std::exception& ex) {
         throw ov::Exception(ex.what());
-    } catch (...) {
+    } catch (std::exception&) {
         OPENVINO_ASSERT(false, "Unexpected exception");
     }
 }
@@ -58,7 +58,7 @@ std::string RemoteTensor::get_device_name() const {
         return remote_impl->getDeviceName();
     } catch (const std::exception& ex) {
         throw ov::Exception(ex.what());
-    } catch (...) {
+    } catch (std::exception&) {
         OPENVINO_ASSERT(false, "Unexpected exception");
     }
 }

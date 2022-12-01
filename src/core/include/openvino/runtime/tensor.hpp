@@ -189,7 +189,7 @@ public:
     typename std::enable_if<std::is_base_of<Tensor, T>::value, bool>::type is() const noexcept {
         try {
             T::type_check(*this);
-        } catch (...) {
+        } catch (std::exception&) {
             return false;
         }
         return true;

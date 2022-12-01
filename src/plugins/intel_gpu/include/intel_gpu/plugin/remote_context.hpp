@@ -124,7 +124,7 @@ public:
         try {
             if (!_impl.is_allocated())
                 _impl.allocate();
-        } catch (...) {}
+        } catch (std::exception&) {}
     }
     bool deallocate() noexcept override { return _impl.deallocate(); }
     InferenceEngine::ParamMap getParams() const override { return _impl.getParams(); }
@@ -246,7 +246,7 @@ public:
             return nullptr;
         try {
             return _usm_host_blob->get();
-        } catch (...) {
+        } catch (std::exception&) {
             return nullptr;
         }
     };
@@ -273,7 +273,7 @@ public:
                 return nullptr;
             }
             return _usm_host_blob->get();
-        } catch (...) {
+        } catch (std::exception&) {
             return nullptr;
         }
     }
@@ -285,7 +285,7 @@ public:
     bool free(void* handle) noexcept override {
         try {
             _usm_host_blob = nullptr;
-        } catch(...) { }
+        } catch (std::exception&) { }
         return true;
     }
 };

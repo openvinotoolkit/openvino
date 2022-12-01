@@ -34,7 +34,7 @@ bool Gather::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
             errorMessage = "Only Constant operation on 'axis' input is supported for static node.";
             return false;
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
 

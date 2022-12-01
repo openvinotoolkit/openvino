@@ -43,7 +43,7 @@ namespace InferenceEngine {
         IE_THROW(NotAllocated) << "Inference Request is not initialized"; \
     try {                                                                 \
         __VA_ARGS__                                                       \
-    } catch (...) {                                                       \
+    } catch (std::exception&) {                                                       \
         ::InferenceEngine::details::Rethrow();                            \
     }
 
@@ -55,7 +55,7 @@ namespace InferenceEngine {
         throw ov::Busy(ex.what());                                          \
     } catch (const std::exception& ex) {                                    \
         throw ov::Exception(ex.what());                                     \
-    } catch (...) {                                                         \
+    } catch (std::exception&) {                                                         \
         OPENVINO_ASSERT(false, "Unexpected exception");                     \
     }
 
@@ -167,7 +167,7 @@ void InferRequest::SetCompletionCallbackImpl(std::function<void(InferRequest, St
                     CATCH_IE_EXCEPTIONS_RETURN catch (const std::exception&) {
                         return GENERAL_ERROR;
                     }
-                    catch (...) {
+                    catch (std::exception&) {
                         return UNEXPECTED;
                     }
                 }();
@@ -190,7 +190,7 @@ void InferRequest::SetCompletionCallbackImpl(IInferRequest::CompletionCallback c
                     CATCH_IE_EXCEPTIONS_RETURN catch (const std::exception&) {
                         return GENERAL_ERROR;
                     }
-                    catch (...) {
+                    catch (std::exception&) {
                         return UNEXPECTED;
                     }
                 }();
@@ -471,7 +471,7 @@ void InferRequest::wait() {
         throw Cancelled{e.what()};
     } catch (const std::exception& ex) {
         throw Exception(ex.what());
-    } catch (...) {
+    } catch (std::exception&) {
         OPENVINO_UNREACHABLE("Unexpected exception");
     }
 }
@@ -484,7 +484,7 @@ bool InferRequest::wait_for(const std::chrono::milliseconds timeout) {
         throw Cancelled{e.what()};
     } catch (const std::exception& ex) {
         throw Exception(ex.what());
-    } catch (...) {
+    } catch (std::exception&) {
         OPENVINO_UNREACHABLE("Unexpected exception");
     }
 }

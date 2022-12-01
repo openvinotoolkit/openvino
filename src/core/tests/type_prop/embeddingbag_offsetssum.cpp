@@ -78,7 +78,7 @@ TEST(type_prop, ebos_fail_indices_element_type) {
         FAIL() << "Invalid indices type not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("INDICES type must be i32 or i64"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "INDICES type check failed for unexpected reason";
     }
 }
@@ -96,7 +96,7 @@ TEST(type_prop, ebos_fail_offsets_element_type) {
         FAIL() << "Invalid offsets type not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("OFFSETS type must be i32 or i64"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "OFFSETS type check failed for unexpected reason";
     }
 }
@@ -114,7 +114,7 @@ TEST(type_prop, ebos_fail_default_index_element_type) {
         FAIL() << "Invalid default_index type not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("DEFAULT_INDEX type must be i32 or i64"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "DEFAULT_INDEX type check failed for unexpected reason";
     }
 }
@@ -133,7 +133,7 @@ TEST(type_prop, ebos_fail_mismatch_element_type) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Offsets element type (i64) must match indices element type (i32)"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Element type check failed for unexpected reason";
     }
 }
@@ -152,7 +152,7 @@ TEST(type_prop, ebos_fail_mismatch_element_type_1) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Default_index element type (i32) must match indices element type (i64)"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Element type check failed for unexpected reason";
     }
 }
@@ -172,7 +172,7 @@ TEST(type_prop, ebos_fail_mismatch_element_type_2) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Per sample weight element type (i64) must "
                                          "match embedding table element type (f32)"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Element type check failed for unexpected reason";
     }
 }
@@ -190,7 +190,7 @@ TEST(type_prop, ebos_fail_mismatch_shape) {
         FAIL() << "Invalid mismatch of shapes not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("INDICES and PER_SAMPLE_WEIGHTS shape must be same"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Shapes check failed for unexpected reason";
     }
 }
@@ -208,7 +208,7 @@ TEST(type_prop, ebos_fail_default_index_scalar) {
         FAIL() << "Invalid mismatch of shapes not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("DEFAULT_INDEX must be a scalar"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Shapes check failed for unexpected reason";
     }
 }
@@ -226,7 +226,7 @@ TEST(type_prop, ebos_fail_indices_1d) {
         FAIL() << "Invalid mismatch of shapes not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("INDICES must be 1D"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Shapes check failed for unexpected reason";
     }
 }
@@ -244,7 +244,7 @@ TEST(type_prop, ebos_fail_offsets_1d) {
         FAIL() << "Invalid mismatch of shapes not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("OFFSETS must be 1D"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Shapes check failed for unexpected reason";
     }
 }
@@ -262,7 +262,7 @@ TEST(type_prop, ebos_fail_per_sample_weights_1d) {
         FAIL() << "Invalid mismatch of shapes not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("PER_SAMPLE_WEIGHTS must be 1D"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Shapes check failed for unexpected reason";
     }
 }
@@ -289,7 +289,7 @@ TEST(type_prop, ebos_fail_indices_element_type_3_args_api) {
         FAIL() << "Invalid indices type not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("INDICES type must be i32 or i64"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "INDICES type check failed for unexpected reason";
     }
 }

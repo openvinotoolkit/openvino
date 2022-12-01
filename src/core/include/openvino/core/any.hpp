@@ -991,7 +991,7 @@ struct AsTypePtr<Any> {
     static std::shared_ptr<T> call(const Any& any) {
         try {
             return any.as<std::shared_ptr<T>>();
-        } catch (...) {
+        } catch (std::exception&) {
             return {};
         }
     }
@@ -1019,7 +1019,7 @@ OPENVINO_DEPRECATED("Please use ov::Any::as() method")
 std::shared_ptr<T> dynamic_pointer_cast(const ::ov::Any& any) {
     try {
         return any.as<std::shared_ptr<T>>();
-    } catch (...) {
+    } catch (std::exception&) {
         return {};
     }
 }

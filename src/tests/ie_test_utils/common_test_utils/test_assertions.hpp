@@ -67,7 +67,7 @@ inline bool strDoesnotContain(const std::string & str, const std::string & subst
     }  catch (const std::exception& e) { \
       fail("Expected: " #statement " doesn't throw an exception.\n" \
            "  Actual: it throws.") << e.what(); \
-    }  catch (...) { \
+    }  catch (std::exception&) { \
       fail("Expected: " #statement " doesn't throw an exception.\n" \
            "  Actual: it throws."); \
     } \
@@ -79,7 +79,7 @@ inline bool strDoesnotContain(const std::string & str, const std::string & subst
         FAIL() << "Expected exception " << OV_PP_TOSTRING(exception); \
     } catch (const exception& ex) {                                   \
         EXPECT_THAT(ex.what(), exception_what_matcher);               \
-    } catch (...) {                                                   \
+    } catch (std::exception&) {                                                   \
         FAIL() << "Unknown exception";                                \
     }
 

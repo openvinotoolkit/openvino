@@ -105,7 +105,7 @@ int main(int argc, char *argv[]) {
         std::cerr << error.what() << std::endl;
         return 1;
     }
-    catch (...) {
+    catch (std::exception&) {
         std::cerr << "Unknown/internal exception happened" << std::endl;
         return 1;
     }

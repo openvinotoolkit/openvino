@@ -323,7 +323,7 @@ struct CPUStreamsExecutor::Impl {
                     Execute(stream._taskQueue.front(), stream);
                     stream._taskQueue.pop();
                 }
-            } catch (...) {
+            } catch (std::exception&) {
             }
             stream._execute = false;
         }

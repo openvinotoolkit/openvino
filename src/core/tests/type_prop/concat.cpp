@@ -38,7 +38,7 @@ TEST(type_prop, concat_deduce_wrong_rank) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Argument shapes are inconsistent; they must have the same rank, and must "
                                          "have equal dimension everywhere except on the concatenation axis"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -55,7 +55,7 @@ TEST(type_prop, concat_deduce_wrong_shape) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Argument shapes are inconsistent; they must have the same rank, and must "
                                          "have equal dimension everywhere except on the concatenation axis"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -70,7 +70,7 @@ TEST(type_prop, concat_deduce_axis_oob) {
         FAIL() << "Deduced type should disagree with specified type";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Concatenation axis (3) is out of bounds"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -95,7 +95,7 @@ TEST(type_prop, concat_deduce_elem_type_mismatch) {
         FAIL() << "Deduced type should disagree with specified type";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Argument element types are inconsistent"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -120,7 +120,7 @@ TEST(type_prop, concat_partial_et_inconsistent) {
         FAIL() << "Inconsistent element types not detected (some dynamic)";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Argument element types are inconsistent"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -138,7 +138,7 @@ TEST(type_prop, concat_partial_some_rank_dynamic_others_rank_static_dynamic_rank
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Argument shapes are inconsistent; they must have the same rank, and must "
                                          "have equal dimension everywhere except on the concatenation axis"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -156,7 +156,7 @@ TEST(type_prop, concat_partial_some_rank_dynamic_others_rank_static_dynamic_dims
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Argument shapes are inconsistent; they must have the same rank, and must "
                                          "have equal dimension everywhere except on the concatenation axis"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -175,7 +175,7 @@ TEST(type_prop, concat_partial_some_rank_dynamic_others_rank_static_dynamic_dims
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Argument shapes are inconsistent; they must have the same rank, and must "
                                          "have equal dimension everywhere except on the concatenation axis"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -194,7 +194,7 @@ TEST(type_prop, concat_partial_some_rank_dynamic_others_rank_static_with_concat_
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Argument shapes are inconsistent; they must have the same rank, and must "
                                          "have equal dimension everywhere except on the concatenation axis"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -221,7 +221,7 @@ TEST(type_prop, concat_partial_all_static_with_concat_axis_static_dims_incompati
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Argument shapes are inconsistent; they must have the same rank, and must "
                                          "have equal dimension everywhere except on the concatenation axis"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -248,7 +248,7 @@ TEST(type_prop, concat_partial_negative_axis_incorrect) {
         FAIL() << "Incorrect negative axis value not detected (out of bounds)";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Concatenation axis (-1) is out of bounds"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }

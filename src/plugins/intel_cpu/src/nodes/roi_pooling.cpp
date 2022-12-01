@@ -377,7 +377,7 @@ bool ROIPooling::isSupportedOperation(const std::shared_ptr<const ngraph::Node>&
             errorMessage = "Doesn't support method: " + mode;
             return false;
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
     return true;

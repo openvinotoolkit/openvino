@@ -20,7 +20,7 @@ TEST(type_prop, lrn_invalid_axes_rank) {
         FAIL() << "Invalid input tensor rank not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Input axes must have rank equals 1"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 
@@ -31,7 +31,7 @@ TEST(type_prop, lrn_invalid_axes_rank) {
         FAIL() << "Invalid input tensor rank not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Number of elements of axes must be >= 0 and <= argument rank"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
@@ -47,7 +47,7 @@ TEST(type_prop, lrn_incorrect_axes_value) {
         FAIL() << "Invalid input tensor rank not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Reduction axis ("));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }

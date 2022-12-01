@@ -67,7 +67,7 @@ TEST_P(OneVPL_Source_MFPAsyncDispatcherTest, open_and_decode_file)
     std::unique_ptr<MFPAsyncDemuxDataProvider> provider_ptr;
     try {
         provider_ptr.reset(new MFPAsyncDemuxDataProvider(path));
-    } catch (...) {
+    } catch (std::exception&) {
         EXPECT_FALSE(dd_result);
         GTEST_SUCCEED();
         return;
@@ -131,7 +131,7 @@ TEST_P(OneVPL_Source_MFPAsyncDispatcherTest, choose_dmux_provider)
     // choose demux provider for empty CfgParams
     try {
         provider_ptr = DataProviderDispatcher::create(path);
-    } catch (...) {
+    } catch (std::exception&) {
         EXPECT_FALSE(dd_result);
         provider_ptr = DataProviderDispatcher::create(path,
                                 { CfgParam::create<std::string>(

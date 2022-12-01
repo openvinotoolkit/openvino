@@ -97,7 +97,7 @@ bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ngraph::No
                            " and 'weight' input with rank: " + std::to_string(weightRank);
             return false;
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
     return true;

@@ -62,7 +62,7 @@ std::shared_ptr<InferenceEngine::Core> PluginCache::ie(const std::string &device
         std::string pluginName = "openvino_template_plugin";
         pluginName += IE_BUILD_POSTFIX;
         ie_core->RegisterPlugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(), pluginName), "TEMPLATE");
-    } catch (...) {}
+    } catch (std::exception&) {}
 
     if (!deviceToCheck.empty()) {
         std::vector<std::string> metrics;

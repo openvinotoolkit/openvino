@@ -70,7 +70,7 @@ TEST(type_prop, batch_to_space_incompatible_input_element_types) {
         } catch (const NodeValidationFailure& error) {
             EXPECT_HAS_SUBSTRING(error.what(),
                                  "block_shape, crops_begin and crops_end inputs must have same element type.");
-        } catch (...) {
+        } catch (std::exception&) {
             FAIL() << "Element type check for block_shape/crops_begin/crops_end inputs failed for unexpected reason";
         }
     }
@@ -92,7 +92,7 @@ TEST(type_prop, batch_to_space_invalid_input_element_types) {
         FAIL() << "Invalid non-integer element type for block_shape/crops_begin/crops_end inputs not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "block_shape and crops inputs must have integer element type.");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Element type check for block_shape/crops_begin/crops_end inputs failed for unexpected reason";
     }
 }
@@ -114,7 +114,7 @@ TEST(type_prop, batch_to_space_invalid_data_input_rank) {
         FAIL() << "Invalid rank of data input not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "data input must have rank greater or equal than 2.");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Rank check for data input failed for unexpected reason";
     }
 }
@@ -150,7 +150,7 @@ TEST(type_prop, batch_to_space_incompatible_secondary_inputs_shapes) {
         } catch (const NodeValidationFailure& error) {
             EXPECT_HAS_SUBSTRING(error.what(),
                                  "block_shape, crops_begin and crops_end inputs must have the same shape.");
-        } catch (...) {
+        } catch (std::exception&) {
             FAIL() << "Shapes check for block_shape/crops_begin/crops_end inputs failed for unexpected reason";
         }
     }
@@ -173,7 +173,7 @@ TEST(type_prop, batch_to_space_invalid_secondary_inputs_rank) {
         FAIL() << "Invalid rank for block_shape/crops_begin/crops_end inputs not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "block_shape and crops inputs must have rank 1.");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Rank check for block_shape/crops_begin/crops_end inputs failed for unexpected reason";
     }
 }
@@ -197,7 +197,7 @@ TEST(type_prop, batch_to_space_incompatible_data_and_secondary_inputs_shapes) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              "block_shape and crop inputs must have same number of elements "
                              "as data input rank.");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Compatibility shape check for data and block_shape/crops_begin/crops_end inputs failed for "
                   "unexpected reason";
     }
@@ -220,7 +220,7 @@ TEST(type_prop, batch_to_space_invalid_block_shape_input) {
         FAIL() << "Invalid elements of block_shape input not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Elements of block_shape input must be greater or equal to one.");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Greater than zero elements of block_shape input check failed for unexpected reason";
     }
 }
@@ -242,7 +242,7 @@ TEST(type_prop, batch_to_space_invalid_crops_input_values) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              "Elements of crops_begin and crops_end inputs must be greater or equal to zero.");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Non-negative element check of crops_begin input values failed for unexpected reason";
     }
 
@@ -256,7 +256,7 @@ TEST(type_prop, batch_to_space_invalid_crops_input_values) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              "Elements of crops_begin and crops_end inputs must be greater or equal to zero.");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Non-negative element check of crops_end input values failed for unexpected reason";
     }
 }
@@ -278,7 +278,7 @@ TEST(type_prop, batch_to_space_incompatible_block_shape_input_values_with_data_s
         FAIL() << "Incompatible data shape and block_shape input values not detected";
     } catch (const ov::Exception& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "[ 80, 80] must be a multiple of divisor: 50");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Data shape and block_shape input values check failed for unexpected reason";
     }
 }
@@ -301,7 +301,7 @@ TEST(type_prop, batch_to_space_invalid_crops_out_of_bounds) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              "crops_begin[i] + crops_end[i] must be less or equal to block_shape[i] * input_shape[i]");
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Crops values check failed for unexpected reason";
     }
 }

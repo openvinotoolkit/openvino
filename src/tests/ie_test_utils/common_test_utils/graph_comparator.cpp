@@ -1009,7 +1009,7 @@ AccuracyCheckResult accuracy_check(const std::shared_ptr<ov::Model>& ref_functio
         return AccuracyCheckResult{false, re.what()};
     } catch (const std::exception &ex) {
         return AccuracyCheckResult{false, ex.what()};
-    } catch (...) {
+    } catch (std::exception&) {
         return AccuracyCheckResult{false, ""};
     }
     return AccuracyCheckResult{true, ""};

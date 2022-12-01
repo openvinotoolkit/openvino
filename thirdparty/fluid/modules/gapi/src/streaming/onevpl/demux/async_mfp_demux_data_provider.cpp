@@ -352,7 +352,7 @@ bool MFPAsyncDemuxDataProvider::select_supported_video_stream(
                 out_codec_id = convert_to_mfx_codec_id(subtype);
                 is_stream_selected = true;
                 is_codec_supported = "selected!";
-            } catch (...) {}
+            } catch (std::exception&) {}
 
             GAPI_LOG_INFO(nullptr, "[" << source_id << "] " <<
                           "video stream index: " << stream_index <<

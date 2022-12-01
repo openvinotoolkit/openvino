@@ -19,7 +19,7 @@ bool ShapeOf::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
             errorMessage = "Node is not an instance of ShapeOf form the operation set v1 or v3.";
             return false;
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
     return true;

@@ -166,7 +166,7 @@ StatusCode CNNNetReaderImpl::ReadNetwork(const pugi::xml_node& const_root, Respo
         description = e.what();
         parseSuccess = false;
         return DescriptionBuffer(desc) << e.what();
-    } catch (...) {
+    } catch (std::exception&) {
         parseSuccess = false;
         return DescriptionBuffer(UNEXPECTED, desc) << "Unknown exception thrown";
     }
@@ -190,7 +190,7 @@ StatusCode CNNNetReaderImpl::ReadNetwork() {
         description = e.what();
         parseSuccess = false;
         return GENERAL_ERROR;
-    } catch (...) {
+    } catch (std::exception&) {
         description = "Unknown exception thrown";
         parseSuccess = false;
         return UNEXPECTED;

@@ -541,7 +541,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                 num_plugins_supporting_perf_counters +=
                         n.second->GetConfig(PluginConfigParams::KEY_PERF_COUNT).as<std::string>() ==
                         PluginConfigParams::YES;
-            } catch (...) {
+            } catch (std::exception&) {
             }
     }
     // MULTI can enable the perf counters only if all  devices support/enable that

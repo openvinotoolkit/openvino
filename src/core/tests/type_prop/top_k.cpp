@@ -49,7 +49,7 @@ TYPED_TEST_P(topk_type_prop, topk_negative_axis_dynamic_rank) {
         topk->get_axis();
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Normalized axis of TopK is unknown"));
-    } catch (...) {
+    } catch (std::exception&) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }

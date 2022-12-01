@@ -71,7 +71,7 @@ TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromStringException) {
             std::string("data/tensor.data, offset: 0, data_length: 0)"),
             e.what());
     }
-    catch(...) {
+    catch (std::exception&) {
         FAIL() << "Reading network failed for unexpected reason";
     }
 }

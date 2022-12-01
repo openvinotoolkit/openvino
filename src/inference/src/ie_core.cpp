@@ -430,7 +430,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
                         ie::NetworkCompilationContext::calculateFileInfo(cacheContent.modelPath));
                     execNetwork->Export(networkStream);
                 });
-            } catch (...) {
+            } catch (std::exception&) {
                 cacheContent.cacheManager->removeCacheEntry(cacheContent.blobId);
                 throw;
             }
@@ -465,7 +465,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
                         // Original file is changed, don't use cache
                         throw ie::NetworkNotRead("Original model file is changed");
                     }
-                } catch (...) {
+                } catch (std::exception&) {
                     throw HeaderException();
                 }
 
@@ -477,7 +477,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
             // For these exceptions just remove old cache and set that import didn't work
             cacheContent.cacheManager->removeCacheEntry(cacheContent.blobId);
             networkIsImported = false;
-        } catch (...) {
+        } catch (std::exception&) {
             cacheContent.cacheManager->removeCacheEntry(cacheContent.blobId);
             networkIsImported = false;
             // TODO: temporary disabled by #54335. In future don't throw only for new 'blob_outdated' exception
@@ -1060,7 +1060,7 @@ public:
             } catch (const std::exception& ex) {
                 IE_THROW() << "An exception is thrown while trying to create the " << deviceName
                            << " device and call GetMetric: " << ex.what();
-            } catch (...) {
+            } catch (std::exception&) {
                 IE_THROW() << "Unknown exception is thrown while trying to create the " << deviceName
                            << " device and call GetMetric";
             }
@@ -1520,7 +1520,7 @@ private:
         for (auto& plugin : plugins) {
             try {
                 plugin.second.add_extension(extension);
-            } catch (...) {
+            } catch (std::exception&) {
             }
         }
         extensions.emplace_back(extension);
@@ -1898,7 +1898,7 @@ namespace ov {
         __VA_ARGS__;                                    \
     } catch (const std::exception& ex) {                \
         throw ov::Exception(ex.what());                 \
-    } catch (...) {                                     \
+    } catch (std::exception&) {                                     \
         OPENVINO_ASSERT(false, "Unexpected exception"); \
     }
 

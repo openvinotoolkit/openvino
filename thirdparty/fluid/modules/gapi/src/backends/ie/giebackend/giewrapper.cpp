@@ -86,7 +86,7 @@ IE::InferencePlugin giewrap::getPlugin(const GIEParam& params) {
                 CV_LOG_INFO(NULL, "DNN-IE: Loaded extension plugin: " << extlib);
                 break;
             }
-            catch(...)
+            catch (std::exception&)
             {
                 CV_LOG_INFO(NULL, "Failed to load IE extension: " << extlib);
             }
@@ -143,7 +143,7 @@ IE::Core giewrap::getPlugin(const GIEParam& params) {
                 CV_LOG_INFO(NULL, "DNN-IE: Loaded extension plugin: " << extlib);
                 break;
             }
-            catch(...)
+            catch (std::exception&)
             {
                 CV_LOG_INFO(NULL, "Failed to load IE extension: " << extlib);
             }

@@ -213,7 +213,7 @@ bool Convolution::isSupportedOperation(const std::shared_ptr<const ngraph::Node>
             errorMessage = "Doesn't support dynamic weights shape";
             return false;
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
 
@@ -828,7 +828,7 @@ createDescriptorInternal(const dnnl::memory::desc& inputDesc,
                                                           dnnl::memory::dims(paddingL.begin(), paddingL.end()),
                                                           dnnl::memory::dims(paddingR.begin(), paddingR.end())));
         }
-    } catch (...) {
+    } catch (std::exception&) {
         IE_THROW() << "Cannot create convolution forward descriptor";
     }
     return conv_desc;

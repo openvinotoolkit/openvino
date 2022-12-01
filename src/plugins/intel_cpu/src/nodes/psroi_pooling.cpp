@@ -51,7 +51,7 @@ bool PSROIPooling::isSupportedOperation(const std::shared_ptr<const ngraph::Node
                 return false;
             }
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
     return true;

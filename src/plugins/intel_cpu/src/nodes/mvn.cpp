@@ -727,7 +727,7 @@ bool MVN::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
             errorMessage = "Node is not an instance of the MVN operation.";
             return false;
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
     return true;

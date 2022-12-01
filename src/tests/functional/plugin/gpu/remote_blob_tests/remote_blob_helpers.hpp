@@ -48,7 +48,7 @@ template <typename T>
 T try_load_entrypoint(const cl_platform_id platform, const std::string name) {
     try {
         return load_entrypoint<T>(platform, name);
-    } catch (...) {
+    } catch (std::exception&) {
         return nullptr;
     }
 }

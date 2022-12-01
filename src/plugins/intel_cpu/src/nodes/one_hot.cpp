@@ -36,7 +36,7 @@ bool OneHot::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
             errorMessage = "Only const 'off_value' input is supported";
             return false;
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
     return true;

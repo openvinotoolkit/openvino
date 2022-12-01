@@ -27,7 +27,7 @@ bool GatherND::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& o
             errorMessage = "Node is not an instance of the GatherND operation from operation set v5 and v8.";
             return false;
         }
-    } catch (...) {
+    } catch (std::exception&) {
         return false;
     }
 
