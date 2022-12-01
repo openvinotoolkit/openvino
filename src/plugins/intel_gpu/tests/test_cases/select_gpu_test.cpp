@@ -2240,3 +2240,57 @@ TEST(select_gpu_u8, select_basic_mask_i8_1x1x2x2) {
         EXPECT_EQ(answers[i], output_ptr[i]);
     }
 }
+
+TEST(select_gpu_fp32, select_numpy_broadcast_mask_u8_1x1x3) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 3, 1, 1 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 3, 1, 1, 1 } });
+    auto mask = engine.allocate_memory({ data_types::u8, format::bfyx, { 1, 1, 3, 1 } });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("input2", input2->get_layout()));
+    topology.add(input_layout("mask", mask->get_layout()));
+    topology.add(cldnn::select("select", "mask", "input", "input2"));
+
+    set_values(input, {
+        1.f,    0.f,    2.f
+    });
+
+    set_values(input2, {
+        0.5f,    2.5f,    5.f
+    });
+
+    set_values<unsigned char>(mask, {
+        1,   0,   1
+    });
+
+    network network(engine, topology);
+
+    network.set_input_data("input", input);
+    network.set_input_data("input2", input2);
+    network.set_input_data("mask", mask);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("select").get_memory();
+
+    float answers[27] = {
+        1.f, 0.5f, 1.f,
+        0.f, 0.5f, 0.f,
+        2.f, 0.5f, 2.f,
+        1.f, 2.5f, 1.f,
+        0.f, 2.5f, 0.f,
+        2.f, 2.5f, 2.f,
+        1.f, 5.f, 1.f,
+        0.f, 5.f, 0.f,
+        2.f, 5.f, 2.f
+    };
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    for (int i = 0; i < 27; i++)
+    {
+        EXPECT_EQ(answers[i], output_ptr[i]);
+    }
+}

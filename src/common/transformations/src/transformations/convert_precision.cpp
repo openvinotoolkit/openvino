@@ -196,6 +196,9 @@ bool convert_precision(ov::pass::PassBase& pass,
             bool is_output_precision_changed = false;
 
             for (auto& node : ops) {
+                // skip precision sensitive nodes
+                if (pass.transformation_callback(node))
+                    continue;
                 is_output_precision_changed |= convert_node_output_precision(node);
             }
 
@@ -286,6 +289,7 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ngraph::Func
         {opset4::LogicalOr::get_type_info_static(), fuse_type_to_logical<opset4::LogicalOr>},
         {opset4::LogicalXor::get_type_info_static(), fuse_type_to_logical<opset4::LogicalXor>},
         {opset4::LogicalNot::get_type_info_static(), fuse_type_to_logical<opset4::LogicalNot>},
+        {opset1::Xor::get_type_info_static(), fuse_type_to_logical<opset1::Xor>},
         {opset4::ReduceLogicalAnd::get_type_info_static(), fuse_type_to_reduce_logical<opset4::ReduceLogicalAnd>},
         {opset4::ReduceLogicalOr::get_type_info_static(), fuse_type_to_reduce_logical<opset4::ReduceLogicalOr>},
         {opset1::ShapeOf::get_type_info_static(), fuse_type_to_shapeof_v0},

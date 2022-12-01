@@ -958,7 +958,14 @@ TEST_P(LLT2Sequence, RNNLowLatency_v2) {
         if (p.rnn_type == RNNType::LSTM) {
             params.push_back(C);
         }
-        model = make_shared<ov::Model>(outputs, params);
+        ResultVector results;
+        for (size_t i = 0; i < outputs.size(); ++i) {
+            auto result = std::make_shared<Result>(outputs[i]);
+            auto result_name = "output_" + std::to_string(i);
+            result->set_friendly_name(result_name);
+            results.push_back(result);
+        }
+        model = make_shared<ov::Model>(results, params);
         manager.register_pass<pass::LowLatency2>();
     }
 
@@ -990,7 +997,15 @@ TEST_P(LLT2Sequence, RNNLowLatency_v2) {
             assign_c->add_control_dependency(read_val_C);
             sinks.push_back(assign_c);
         }
-        model_ref = make_shared<ov::Model>(outputs, sinks, params);
+
+        ResultVector results;
+        for (size_t i = 0; i < outputs.size(); ++i) {
+            auto result = std::make_shared<Result>(outputs[i]);
+            auto result_name = "output_" + std::to_string(i);
+            result->set_friendly_name(result_name);
+            results.push_back(result);
+        }
+        model_ref = make_shared<ov::Model>(results, sinks, params);
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
