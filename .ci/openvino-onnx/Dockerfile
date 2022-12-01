@@ -25,16 +25,11 @@ ENV LC_ALL en_US.UTF-8
 
 RUN apt-get update && apt-get -y --no-install-recommends install \
 # OpenVINO dependencies
-        autoconf \
-        automake \
         build-essential \
         ninja-build \
         cmake \
         curl \
         git \
-        libtool \
-        ocl-icd-opencl-dev \
-        pkg-config \
         unzip \
         libtbb-dev \
         libpugixml-dev \
@@ -61,16 +56,21 @@ RUN cmake .. \
     -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
     -DENABLE_INTEL_MYRIAD_COMMON=OFF \
     -DENABLE_INTEL_GNA=OFF \
+    -DENABLE_INTEL_GPU=OFF \
+    -DENABLE_HETERO=OFF \
+    -DENABLE_MULTI=OFF \
+    -DENABLE_AUTO=OFF \
+    -DENABLE_BATCH=OFF \
+    -DENABLE_GAPI_PREPROCESSING=OFF \
     -DENABLE_CPPLINT=OFF \
     -DENABLE_NCC_STYLE=OFF \
-    -DENABLE_TESTS=OFF \
-    -DENABLE_INTEL_CPU=ON \
-    -DENABLE_INTEL_GPU=OFF \
     -DENABLE_PROFILING_ITT=OFF \
+    -DENABLE_COMPILE_TOOL=OFF \
     -DENABLE_SAMPLES=OFF \
     -DENABLE_OV_PADDLE_FRONTEND=OFF \
     -DENABLE_OV_TF_FRONTEND=OFF \
     -DENABLE_OPENVINO_DEBUG=OFF \
+    -DENABLE_SYSTEM_PROTOBUF=ON \
     -DCMAKE_INSTALL_PREFIX=/openvino/dist
 RUN ninja install
 
