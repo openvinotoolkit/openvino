@@ -67,10 +67,13 @@ def test_main_error_log():
             os.path.join(os.path.dirname(__file__), 'main_test_error_log.py')]
 
     status = subprocess.run(args, env=os.environ, capture_output=True)
+    test_log = status.stderr.decode("utf-8").replace("\r\n", "\n")
 
     # Check that log has exactly one warning from parse_args and
     # exactly one error message "FW ERROR"
-    assert status.stderr == b'[ WARNING ]  warning\r\n[ FRAMEWORK ERROR ]  FW ERROR MESSAGE\r\n'
+    ref_log = "[ WARNING ]  warning\n[ FRAMEWORK ERROR ]  FW ERROR MESSAGE\n"
+
+    assert test_log == ref_log
 
 
 def test_mo_extensions_test():
