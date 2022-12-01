@@ -423,7 +423,8 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
         return false;
 
     // Ref kernels are the main for depth_to_space, region_yolo and detection_output. It can do anything. Should not see next.
-    if (prev.is_type<depth_to_space>() || prev.is_type<region_yolo>() || prev.is_type<detection_output>())
+    if (prev.is_type<depth_to_space>() || prev.is_type<region_yolo>()
+        || (prev.is_type<detection_output>() && prev.get_preferred_impl_type() != cldnn::impl_types::cpu))
         return true;
 
     if (node.get_users().empty())
