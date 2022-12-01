@@ -34,4 +34,4 @@ class TestNorm(PytorchLayerTest):
     @pytest.mark.nightly
     def test_norm(self, ie_device, precision, ir_version, p, dim, keepdim):
         self._test(*self.create_model(p, dim, keepdim),
-                   'CPU', precision, ir_version)
+                   ie_device, precision, ir_version)
