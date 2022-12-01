@@ -48,7 +48,7 @@ public:
 
 private:
     bool evaluate_variadic_split(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
-    bool have_axis_and_splits_bound_set() const;
+    bool has_axis_and_splits_bound_set() const;
 };
 }  // namespace v1
 }  // namespace op

@@ -22,11 +22,13 @@ inline uint FUNC(get_positive_index)(int in)
 #define GET_INDICES_INDEX(idx_order) INPUT1_GET_INDEX(idx_order)
 #define GET_INDEX(prefix, num, idx_order) CAT(CAT(prefix, num), _GET_INDEX)(idx_order)
 
-KERNEL(gather_ref)(const __global INPUT0_TYPE* dictionary,
-                   const __global INPUT1_TYPE* indices,
-                   __global OUTPUT_TYPE* output
+KERNEL(gather_ref)(
+    OPTIONAL_SHAPE_INFO_ARG
+    const __global INPUT0_TYPE* dictionary,
+    const __global INPUT1_TYPE* indices,
+    __global OUTPUT_TYPE* output
 #if HAS_FUSED_OPS_DECLS
-                   , FUSED_OPS_DECLS
+    , FUSED_OPS_DECLS
 #endif
 )
 {

@@ -137,4 +137,4 @@ attach_slice_impl::attach_slice_impl() {
 } // namespace ocl
 } // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::slice_impl, cldnn::object_type::SLICE_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::slice_impl)
