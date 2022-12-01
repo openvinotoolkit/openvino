@@ -33,19 +33,13 @@ RUN apt-get update && apt-get -y --no-install-recommends install \
         unzip \
         libtbb-dev \
         libpugixml-dev \
-        libgflags-dev \
         wget \
 # Python dependencies
         python3 \
         python3-pip \
         python3-dev \
         python3-virtualenv \
-        cython3 \
-        tox \
-# ONNX dependencies
-        git-lfs \
-        protobuf-compiler \
-        libprotobuf-dev && \
+        tox && \
     apt-get clean autoclean && \
     apt-get autoremove -y
 
@@ -65,7 +59,6 @@ RUN cmake .. \
     -DENABLE_CPPLINT=OFF \
     -DENABLE_NCC_STYLE=OFF \
     -DENABLE_PROFILING_ITT=OFF \
-    -DENABLE_COMPILE_TOOL=OFF \
     -DENABLE_SAMPLES=OFF \
     -DENABLE_OV_PADDLE_FRONTEND=OFF \
     -DENABLE_OV_TF_FRONTEND=OFF \
