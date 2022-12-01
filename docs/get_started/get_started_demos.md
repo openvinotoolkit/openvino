@@ -76,7 +76,7 @@ This guide used the following model to run the Image Classification Sample:
 
 .. dropdown:: Click to view how to download the GoogleNet v1 Caffe model
 
-To download the GoogleNet v1 Caffe model to the `models` folder:
+   To download the GoogleNet v1 Caffe model to the `models` folder:
 
    .. tab:: Linux
 
@@ -97,7 +97,7 @@ To download the GoogleNet v1 Caffe model to the `models` folder:
          omz_downloader --name googlenet-v1 --output_dir ~/models
 
 
-Your screen will look similar to this after the download and show the paths of downloaded files:
+   Your screen will look similar to this after the download and show the paths of downloaded files:
 
    .. tab:: Linux
 
