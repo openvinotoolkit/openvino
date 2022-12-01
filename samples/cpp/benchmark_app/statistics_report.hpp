@@ -10,10 +10,10 @@
 #include <vector>
 
 #ifdef JSON_HEADER
-#     include <json.hpp>
+#    include <json.hpp>
 #else
-#     include <nlohmann/json.hpp>
-# endif
+#    include <nlohmann/json.hpp>
+#endif
 
 // clang-format off
 #include "samples/common.hpp"
