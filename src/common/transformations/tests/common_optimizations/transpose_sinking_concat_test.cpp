@@ -380,6 +380,7 @@ INSTANTIATE_TEST_SUITE_P(
 using CreateGraphConcatIncompatShapesF = std::function<std::shared_ptr<ov::Model>(ov::element::Type input_type,
                                                                     ov::Shape input_shape,
                                                                     ov::Shape constant_shape,
+                                                                    size_t num_concat_inputs,
                                                                     size_t concat_transpose_input_idx)>;
 
 using TesConcatIncompatShapesParams = std::tuple<PassFactoryPtr,
@@ -388,6 +389,7 @@ using TesConcatIncompatShapesParams = std::tuple<PassFactoryPtr,
                                     CreateGraphConcatIncompatShapesF, /* model_factory */
                                     CreateGraphConcatIncompatShapesF, /* reference_model_factory */
                                     ov::element::Type,  /* input type */
+                                    size_t,             /* num_concat_inputs */
                                     size_t>;            /* concat_transpose_input_idx */
 
 class TransposeSinkingConcatIncompatShapesTestFixture : public ::testing::WithParamInterface<TesConcatIncompatShapesParams>,
@@ -400,6 +402,7 @@ public:
         CreateGraphConcatIncompatShapesF model_factory;
         CreateGraphConcatIncompatShapesF reference_model_factory;
         ov::element::Type input_type;
+        size_t num_concat_inputs;
         size_t concat_transpose_input_idx;
         std::tie(pass_factory,
              input_shape,
@@ -407,6 +410,7 @@ public:
              model_factory,
              reference_model_factory,
              input_type,
+             num_concat_inputs,
              concat_transpose_input_idx) = obj.param;
         
         std::ostringstream test_name;
@@ -414,6 +418,7 @@ public:
         test_name << "input_shape=" << to_string(input_shape) << "_";
         test_name << "constant_shape=" << to_string(constant_shape) << "_";
         test_name << "input_type=" << input_type << "_";
+        test_name << "num_concat_inputs=" << num_concat_inputs << "_";
         test_name << "concat_transpose_input_idx=" << concat_transpose_input_idx;
 
         return test_name.str();
@@ -427,6 +432,7 @@ TEST_P(TransposeSinkingConcatIncompatShapesTestFixture, CompareFunctions) {
     CreateGraphConcatIncompatShapesF model_factory;
     CreateGraphConcatIncompatShapesF reference_model_factory;
     ov::element::Type input_type;
+    size_t num_concat_inputs;
     size_t concat_transpose_input_idx;
     std::tie(pass_factory,
              input_shape,
@@ -434,10 +440,11 @@ TEST_P(TransposeSinkingConcatIncompatShapesTestFixture, CompareFunctions) {
              model_factory,
              reference_model_factory,
              input_type,
+             num_concat_inputs,
              concat_transpose_input_idx) = this->GetParam();
 
-    model = model_factory(input_type, input_shape, constant_shape, concat_transpose_input_idx);
-    model_ref = reference_model_factory(input_type, input_shape, constant_shape, concat_transpose_input_idx);
+    model = model_factory(input_type, input_shape, constant_shape, num_concat_inputs, concat_transpose_input_idx);
+    model_ref = reference_model_factory(input_type, input_shape, constant_shape, num_concat_inputs, concat_transpose_input_idx);
     pass_factory->registerPass(manager);
 }
 
@@ -504,20 +511,21 @@ std::shared_ptr<ov::Model> CreateReferenceFunction(ov::element::Type input_type,
 }
 
 std::vector<ov::Shape> constant_shapes = {ov::Shape{96, 55, 55}, ov::Shape{1}};
+std::vector<size_t> concat_transpose_input_indexes = {0, 2};
+std::vector<size_t> num_concat_inputs = {3, 5};
 
 } // namespace incompat_shapes
 } // namespace backward
 } // namespace single_consumer
 } // namespace concat
 
-/*
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingBinaryIncompatShapesTestSuite, TransposeSinkingBinaryIncompatShapesTestFixture,
-                         ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingBinaryElementwiseBackward)),
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingConcatIncompatShapesTestSuite, TransposeSinkingConcatIncompatShapesTestFixture,
+                         ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingConcatBackward)),
                                             ::testing::Values(ov::Shape{1, 96, 55, 55}),
-                                            ::testing::ValuesIn(binary::single_consumer::backward::incompat_shapes::constant_shapes),
-                       ::testing::Values(binary::single_consumer::backward::incompat_shapes::CreateFunction),
-                       ::testing::Values(binary::single_consumer::backward::incompat_shapes::CreateReferenceFunction),
+                                            ::testing::ValuesIn(concat::single_consumer::backward::incompat_shapes::constant_shapes),
+                       ::testing::Values(concat::single_consumer::backward::incompat_shapes::CreateFunction),
+                       ::testing::Values(concat::single_consumer::backward::incompat_shapes::CreateReferenceFunction),
                                             ::testing::Values(ov::element::f32),
-                                            ::testing::ValuesIn(binary_transpose_input_indexes)),
-                                            TransposeSinkingBinaryIncompatShapesTestFixture::get_test_name);
-*/
+                                            ::testing::ValuesIn(concat::single_consumer::backward::incompat_shapes::num_concat_inputs),
+                                            ::testing::ValuesIn(concat::single_consumer::backward::incompat_shapes::concat_transpose_input_indexes)),
+                                            TransposeSinkingConcatIncompatShapesTestFixture::get_test_name);
