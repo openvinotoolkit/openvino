@@ -43,13 +43,13 @@ You must have a model that is specific for your inference task. Example model ty
 - Object Detection (SSD, YOLO): Draws bounding boxes around multiple types of objects in an image
 - Custom: Often based on SSD
 
-Options to find a model suitable for OpenVINO toolkit:
+You can use one of the following options to find a model suitable for OpenVINO:
 
 - Download public or Intel pre-trained models from [Open Model Zoo](@ref model_zoo) using [Model Downloader tool](@ref omz_tools_downloader)
 - Download from GitHub, Caffe Zoo, TensorFlow Zoo, etc.
 - Train your own model with machine learning tools
   
-This guide uses OpenVINO Model Downloader to get pre-trained models. You can use one of the following commands to find a model:
+This guide uses OpenVINO Model Downloader to get pre-trained models. You can use one of the following commands to find a model with this method:
 
 * List the models available in the downloader.
   ``` sh
@@ -62,104 +62,89 @@ This guide uses OpenVINO Model Downloader to get pre-trained models. You can use
   ```
 
 * Use Model Downloader to download models. Replace `<models_dir>` with the directory to download the model to and `<model_name>` with the name of the model.
-
   ``` sh
      omz_downloader --name <model_name> --output_dir <models_dir>
   ```
 
-Download the following model to run the Image Classification Sample:
+This guide used the following model to run the Image Classification Sample:
 
   |Model Name                                     | Code Sample or Demo App                  |
   |-----------------------------------------------|------------------------------------------|
   |`googlenet-v1`                                 | Image Classification Sample              |
 
 @sphinxdirective
-.. raw:: html
 
-   <div class="collapsible-section" data-title="Click for an example of downloading the GoogleNet v1 Caffe* model">
-
-@endsphinxdirective
+.. dropdown:: Click to view how to download the GoogleNet v1 Caffe model
 
 To download the GoogleNet v1 Caffe model to the `models` folder:
 
-@sphinxdirective
+   .. tab:: Linux
 
-.. tab:: Linux
+      .. code-block:: sh
 
-   .. code-block:: sh
+         omz_downloader --name googlenet-v1 --output_dir ~/models
 
-      omz_downloader --name googlenet-v1 --output_dir ~/models
+   .. tab:: Windows
 
-.. tab:: Windows
+      .. code-block:: bat
 
-   .. code-block:: bat
+         omz_downloader --name googlenet-v1 --output_dir %USERPROFILE%\Documents\models
 
-      omz_downloader --name googlenet-v1 --output_dir %USERPROFILE%\Documents\models
+   .. tab:: macOS
 
-.. tab:: macOS
+      .. code-block:: sh
 
-   .. code-block:: sh
+         omz_downloader --name googlenet-v1 --output_dir ~/models
 
-      omz_downloader --name googlenet-v1 --output_dir ~/models
 
-@endsphinxdirective
+Your screen will look similar to this after the download and show the paths of downloaded files:
 
-Your screen looks similar to this after the download and shows the paths of downloaded files:
+   .. tab:: Linux
 
-@sphinxdirective
-.. tab:: Linux
+      .. code-block:: sh
 
-   .. code-block:: sh
+         ###############|| Downloading models ||###############
 
-      ###############|| Downloading models ||###############
+         ========= Downloading /home/username/models/public/googlenet-v1/googlenet-v1.prototxt
 
-      ========= Downloading /home/username/models/public/googlenet-v1/googlenet-v1.prototxt
+         ========= Downloading /home/username/models/public/googlenet-v1/googlenet-v1.caffemodel
+         ... 100%, 4834 KB, 3157 KB/s, 1 seconds passed
 
-      ========= Downloading /home/username/models/public/googlenet-v1/googlenet-v1.caffemodel
-      ... 100%, 4834 KB, 3157 KB/s, 1 seconds passed
+         ###############|| Post processing ||###############
 
-      ###############|| Post processing ||###############
+         ========= Replacing text in /home/username/models/public/googlenet-v1/googlenet-v1.prototxt =========
 
-      ========= Replacing text in /home/username/models/public/googlenet-v1/googlenet-v1.prototxt =========
+   .. tab:: Windows
 
-.. tab:: Windows
+      .. code-block:: bat
 
-   .. code-block:: bat
+         ################|| Downloading models ||################
 
-      ################|| Downloading models ||################
+         ========== Downloading C:\Users\username\Documents\models\public\googlenet-v1\googlenet-v1.prototxt
+         ... 100%, 9 KB, ? KB/s, 0 seconds passed
 
-      ========== Downloading C:\Users\username\Documents\models\public\googlenet-v1\googlenet-v1.prototxt
-      ... 100%, 9 KB, ? KB/s, 0 seconds passed
+         ========== Downloading C:\Users\username\Documents\models\public\googlenet-v1\googlenet-v1.caffemodel
+         ... 100%, 4834 KB, 571 KB/s, 8 seconds passed
 
-      ========== Downloading C:\Users\username\Documents\models\public\googlenet-v1\googlenet-v1.caffemodel
-      ... 100%, 4834 KB, 571 KB/s, 8 seconds passed
+         ################|| Post-processing ||################
 
-      ################|| Post-processing ||################
+         ========== Replacing text in C:\Users\username\Documents\models\public\googlenet-v1\googlenet-v1.prototxt
 
-      ========== Replacing text in C:\Users\username\Documents\models\public\googlenet-v1\googlenet-v1.prototxt
+   .. tab:: macOS
 
-.. tab:: macOS
+      .. code-block:: sh
 
-   .. code-block:: sh
+         ###############|| Downloading models ||###############
 
-      ###############|| Downloading models ||###############
+         ========= Downloading /Users/username/models/public/googlenet-v1/googlenet-v1.prototxt
+         ... 100%, 9 KB, 44058 KB/s, 0 seconds passed
 
-      ========= Downloading /Users/username/models/public/googlenet-v1/googlenet-v1.prototxt
-      ... 100%, 9 KB, 44058 KB/s, 0 seconds passed
+         ========= Downloading /Users/username/models/public/googlenet-v1/googlenet-v1.caffemodel
+         ... 100%, 4834 KB, 4877 KB/s, 0 seconds passed
 
-      ========= Downloading /Users/username/models/public/googlenet-v1/googlenet-v1.caffemodel
-      ... 100%, 4834 KB, 4877 KB/s, 0 seconds passed
+         ###############|| Post processing ||###############
 
-      ###############|| Post processing ||###############
-
-      ========= Replacing text in /Users/username/models/public/googlenet-v1/googlenet-v1.prototxt =========
-
-@endsphinxdirective
-
-@sphinxdirective
-.. raw:: html
-
-   </div>
+         ========= Replacing text in /Users/username/models/public/googlenet-v1/googlenet-v1.prototxt =========
 
 @endsphinxdirective
 
@@ -246,9 +231,6 @@ As an alternative, OpenVINO also provides several sample images and videos for y
 
 ## <a name="run-image-classification"></a>Step 4: Run Inference on a Sample
 
-
-### Run the Image Classification Code Sample
-
 To run the **Image Classification** code sample with an input image using the IR model:
 
 1. Set up the OpenVINO environment variables:
@@ -318,9 +300,9 @@ To run the **Image Classification** code sample with an input image using the IR
 
 @endsphinxdirective
 
-#### Examples
+### Examples
 
-**CPU:**
+#### Running a Sample on CPU
 
 The following command shows how to run the Image Classification Code Sample using the [dog.bmp](https://storage.openvinotoolkit.org/data/test_data/images/224x224/dog.bmp) file as an input image, the model in IR format from the `ir` directory, and the CPU as the target hardware:
 
@@ -374,7 +356,8 @@ When the sample application is complete, you are given the label and confidence 
 
 The following two examples show how to run the same sample using GPU or MYRIAD as the target device.
 
-**GPU:**
+#### Running a Sample on GPU
+
    > **NOTE**: Running inference on Intel® Processor Graphics (GPU) requires [additional hardware configuration steps](../install_guides/configurations-for-intel-gpu.md), as described earlier on this page. Running on GPU is not compatible with macOS.
 
 @sphinxdirective
@@ -392,7 +375,8 @@ The following two examples show how to run the same sample using GPU or MYRIAD a
 
 @endsphinxdirective
 
-   **MYRIAD:**
+#### Running a Sample on MYRIAD
+
    > **NOTE**: Running inference on VPU devices (Intel® Movidius™ Neural Compute Stick or Intel® Neural Compute Stick 2) with the MYRIAD plugin requires [additional hardware configuration steps](../install_guides/configurations-for-ncs2.md), as described earlier on this page.
 
 @sphinxdirective
