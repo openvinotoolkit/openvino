@@ -138,6 +138,9 @@ jobs:
   - script: dir $(BUILD_DIR)\ /s
     displayName: 'List csv files'
 
+  - script: cat $(BUILD_DIR)\itt_stat\*.log /s
+    displayName: 'Cat csv log files'
+
   - script: |
       call "$(MSVS_VARS_PATH)" && cmake -G"Visual Studio 16 2019" ^
         -DVERBOSE_BUILD=ON ^
