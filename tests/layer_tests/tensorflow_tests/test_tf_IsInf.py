@@ -35,7 +35,6 @@ class TestIsInf(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.xfail(reason="94753")
     @pytest.mark.precommit_tf_fe
     def test_is_inf_basic(self, params, ie_device, precision, ir_version, temp_dir,
                           use_new_frontend, use_old_api):

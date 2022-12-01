@@ -940,6 +940,18 @@ const std::map<const ngraph::DiscreteTypeInfo, Eltwise::Initializer> Eltwise::in
     {ngraph::op::v1::NotEqual::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseNotEqual;
     }},
+    {ov::op::v10::IsFinite::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+        node.algorithm = Algorithm::EltwiseIsFinite;
+    }},
+    {ov::op::v10::IsInf::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+        node.algorithm = Algorithm::EltwiseIsInf;
+        const auto& attributes = ov::as_type_ptr<ov::op::v10::IsInf>(op)->get_attributes();
+        node.alpha = attributes.detect_negative;
+        node.beta  = attributes.detect_positive;
+    }},
+    {ov::op::v10::IsNaN::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+        node.algorithm = Algorithm::EltwiseIsNaN;
+    }},
     {ngraph::op::v1::Greater::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseGreater;
     }},
@@ -1562,6 +1574,12 @@ public:
                     case Algorithm::EltwisePrelu:             *dst_ptr_f = src_f[0] > 0 ? src_f[0] : src_f[0] * src_f[1]; break;
                     case Algorithm::EltwiseErf:               *dst_ptr_f = std::erf(src_f[0]); break;
                     case Algorithm::EltwiseSoftSign:          *dst_ptr_f = src_f[0] / (1 + std::fabs(src_f[0])); break;
+                    case Algorithm::EltwiseIsFinite:          *dst_ptr_f = std::isfinite(src_f[0]); break;
+                    case Algorithm::EltwiseIsInf:
+                        *dst_ptr_f = _opData.alpha && (src_f[0] == -std::numeric_limits<float>::infinity()) ||
+                                     _opData.beta  && (src_f[0] == std::numeric_limits<float>::infinity());
+                        break;
+                    case Algorithm::EltwiseIsNaN:             *dst_ptr_f = std::isnan(src_f[0]); break;
                     default: IE_THROW() << "Unsupported operation type for Eltwise executor";
                 }
             }
@@ -1646,6 +1664,9 @@ Eltwise::Eltwise(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& en
 
 size_t Eltwise::getOpInputsNum() const {
     switch (getAlgorithm()) {
+        case Algorithm::EltwiseIsFinite:
+        case Algorithm::EltwiseIsInf:
+        case Algorithm::EltwiseIsNaN:
         case Algorithm::EltwiseRelu:
         case Algorithm::EltwiseGelu:
         case Algorithm::EltwiseElu:
@@ -1729,6 +1750,8 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 
     // if dim rank is greater than the maximum possible, we should use the reference execution
     canUseOptimizedImpl = mayiuse(x64::sse41) && getInputShapeAtPort(0).getRank() <= MAX_ELTWISE_DIM_RANK;
+    // 98206 to add JIT implementation.
+    canUseOptimizedImpl &= !one_of(getAlgorithm(), Algorithm::EltwiseIsFinite, Algorithm::EltwiseIsInf, Algorithm::EltwiseIsNaN);
 
     if (!canUseOptimizedImpl && !fusedWith.empty()) {
         IE_THROW(Unexpected) << "Eltwise node with name '" << getName() << "' uses reference impl, but unexpectedly fused with other ops";

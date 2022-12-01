@@ -32,10 +32,12 @@ typedef std::tuple<
 
 class ComparisonLayerTest : public testing::WithParamInterface<ComparisonTestParams>,
     virtual public LayerTestsUtils::LayerTestsCommon {
+    ngraph::helpers::ComparisonTypes comparisonOpType;
 protected:
     void SetUp() override;
 
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ComparisonTestParams> &obj);
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &inputInfo) const override;
 };
 } // namespace LayerTestsDefinitions

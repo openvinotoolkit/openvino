@@ -26,6 +26,9 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "AdaptiveMaxPool", Type::AdaptivePooling},
         { "AdaptiveAvgPool", Type::AdaptivePooling},
         { "Add", Type::Eltwise },
+        { "IsFinite", Type::Eltwise },
+        { "IsInf", Type::Eltwise },
+        { "IsNaN", Type::Eltwise },
         { "Subtract", Type::Eltwise },
         { "Multiply", Type::Eltwise },
         { "Divide", Type::Eltwise },
@@ -416,6 +419,9 @@ std::string algToString(const Algorithm alg) {
     CASE(DeconvolutionCommon);
     CASE(DeconvolutionGrouped);
     CASE(EltwiseAdd);
+    CASE(EltwiseIsFinite);
+    CASE(EltwiseIsInf);
+    CASE(EltwiseIsNaN);
     CASE(EltwiseMultiply);
     CASE(EltwiseSubtract);
     CASE(EltwiseDivide);
