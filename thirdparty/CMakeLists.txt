@@ -302,6 +302,14 @@ if(ENABLE_SAMPLES)
     # this is required only because of VPUX plugin reused this
     openvino_developer_export_targets(COMPONENT openvino_common
                                       TARGETS nlohmann_json)
+
+    # for nlohmann library version v3.0.0 and later
+    if(NOT TARGET nlohmann_json::nlohmann_json)
+        add_library(nlohmann_json::nlohmann_json INTERFACE IMPORTED GLOBAL)
+        set_target_properties(nlohmann_json::nlohmann_json PROPERTIES
+            INTERFACE_LINK_LIBRARIES nlohmann_json
+            INTERFACE_COMPILE_DEFINITIONS JSON_HEADER)
+    endif()
 endif()
 
 #

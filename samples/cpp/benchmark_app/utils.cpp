@@ -772,7 +772,7 @@ void load_config(const std::string& filename, std::map<std::string, ov::AnyMap>&
     nlohmann::json jsonConfig;
     try {
         ifs >> jsonConfig;
-    } catch (const nlohmann::json::parse_error& e) {
+    } catch (const std::exception& e) {
         throw std::runtime_error("Can't parse config file \"" + filename + "\".\n" + e.what());
     }
 
