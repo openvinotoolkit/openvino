@@ -61,6 +61,19 @@ def test_main_test():
     assert not status.returncode
 
 
+def test_main_error_log():
+    setup_env()
+    args = [sys.executable,
+            os.path.join(os.path.dirname(__file__), 'main_test_error_log.py')]
+
+    status = subprocess.run(args, env=os.environ, capture_output=True)
+
+    # Check that log has exactly one warning from parse_args and
+    # exactly one error message "FW ERROR"
+    assert status.stderr == b'[ WARNING ]  warning\r\n[ FRAMEWORK ERROR ]  FW ERROR MESSAGE\r\n'
+
+
+
 def test_mo_extensions_test():
     setup_env()
     args = [sys.executable, '-m', 'pytest',
