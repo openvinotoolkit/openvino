@@ -11,19 +11,19 @@ Once the prerequisites have been installed, perform the following steps:
 3. <a href="#download-media">Download media files to run inference.</a>
 4. <a href="#run-image-classification">Run inference with the Image Classification sample application and see the results.</a>
 
-### <a name="prerequisites"></a>Prerequisites
+## <a name="prerequisites"></a>Prerequisites
 
-#### Install OpenVINO Runtime
+### Install OpenVINO Runtime
 
-To use sample applications, Install OpenVINO Runtime via one of the following distribution channels (other distributions do not include sample files):
+To use sample applications, install OpenVINO Runtime via one of the following distribution channels (other distributions do not include sample files):
 
 * Archive files (recommended) - [Linux](@ref openvino_docs_install_guides_installing_openvino_from_archive_linux) | [Windows](@ref openvino_docs_install_guides_installing_openvino_from_archive_windows) | [macOS](@ref openvino_docs_install_guides_installing_openvino_from_archive_macos)
 * Docker image - [Linux](@ref openvino_docs_install_guides_installing_openvino_docker_linux) | [Windows](@ref openvino_docs_install_guides_installing_openvino_docker_windows)
 * [Build from source](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode)
 
-Make sure to [install OpenCV](https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO). It is required for running sample applications.
+Make sure that you also [install OpenCV](https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO), as it's required for running sample applications.
 
-#### Install OpenVINO Development Tools
+### Install OpenVINO Development Tools
 
 To install OpenVINO Development Tools, follow the [instructions for C++ developers on the Install OpenVINO Development Tools page](../install_guides/installing-model-dev-tools.md#cpp-developers). This guide uses the `googlenet-v1` model from the Caffe framework, therefore, when you get to Step 4 of the installation, run the following command to install OpenVINO with the Caffe requirements:
 
@@ -31,9 +31,9 @@ To install OpenVINO Development Tools, follow the [instructions for C++ develope
    pip install openvino-dev[caffe]
 ```
 
-#### Build Samples
+### Build Samples
 
-To build OpenVINO samples, follow the build instructions for your operating system in the [OpenVINO Samples](../OV_Runtime_UG/Samples_Overview.md) page. The build will take about 5-10 minutes, depending on your system.
+To build OpenVINO samples, follow the build instructions for your operating system on the [OpenVINO Samples](../OV_Runtime_UG/Samples_Overview.md) page. The build will take about 5-10 minutes, depending on your system.
 
 ## <a name="download-models"></a> Step 1: Download the Models
 
@@ -49,19 +49,19 @@ Options to find a model suitable for OpenVINO toolkit:
 - Download from GitHub, Caffe Zoo, TensorFlow Zoo, etc.
 - Train your own model with machine learning tools
   
-This guide uses OpenVINO Model Downloader to get pre-trained models. You can use one of the following commands to find a model (replace `<models_dir>` with the directory to download the model to and `<model_name>` with the name of the model):
+This guide uses OpenVINO Model Downloader to get pre-trained models. You can use one of the following commands to find a model:
 
-* List the models available in the downloader
+* List the models available in the downloader.
   ``` sh
      omz_info_dumper --print_all
   ```
 
-* Use `grep` to list models that have a specific name pattern (e.g. `ssd-mobilenet`, `yolo`)
+* Use `grep` to list models that have a specific name pattern (e.g. `ssd-mobilenet`, `yolo`). Replace `<model_name>` with the name of the model.
   ``` sh
      omz_info_dumper --print_all | grep <model_name>
   ```
 
-* Use Model Downloader to download models.
+* Use Model Downloader to download models. Replace `<models_dir>` with the directory to download the model to and `<model_name>` with the name of the model.
 
   ``` sh
      omz_downloader --name <model_name> --output_dir <models_dir>
@@ -239,7 +239,7 @@ The command with most placeholders filled in and FP16 precision:
 
 Most of the samples require you to provide an image or a video as the input to run the model on. You can get them from sites like [Pexels](https://pexels.com) or [Google Images](https://images.google.com).
 
-As an alternative, OpenVINO toolkit also provides several sample images and videos for you to run code samples and demo applications:
+As an alternative, OpenVINO also provides several sample images and videos for you to run code samples and demo applications:
 
    - [Sample images and video](https://storage.openvinotoolkit.org/data/test_data/)
    - [Sample videos](https://github.com/intel-iot-devkit/sample-videos)
@@ -374,7 +374,7 @@ When the sample application is complete, you are given the label and confidence 
 
 The following two examples show how to run the same sample using GPU or MYRIAD as the target device.
 
-   **GPU:**
+**GPU:**
    > **NOTE**: Running inference on Intel® Processor Graphics (GPU) requires [additional hardware configuration steps](../install_guides/configurations-for-intel-gpu.md), as described earlier on this page. Running on GPU is not compatible with macOS.
 
 @sphinxdirective
