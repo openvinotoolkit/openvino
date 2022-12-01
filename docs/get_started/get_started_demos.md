@@ -302,7 +302,7 @@ To run the **Image Classification** code sample with an input image using the IR
 
 ### Examples
 
-#### Running a Sample on CPU
+#### Running Inference on CPU
 
 The following command shows how to run the Image Classification Code Sample using the [dog.bmp](https://storage.openvinotoolkit.org/data/test_data/images/224x224/dog.bmp) file as an input image, the model in IR format from the `ir` directory, and the CPU as the target hardware:
 
@@ -356,7 +356,7 @@ When the sample application is complete, you are given the label and confidence 
 
 The following two examples show how to run the same sample using GPU or MYRIAD as the target device.
 
-#### Running a Sample on GPU
+#### Running Inference on GPU
 
    > **NOTE**: Running inference on Intel® Processor Graphics (GPU) requires [additional hardware configuration steps](../install_guides/configurations-for-intel-gpu.md), as described earlier on this page. Running on GPU is not compatible with macOS.
 
@@ -375,7 +375,7 @@ The following two examples show how to run the same sample using GPU or MYRIAD a
 
 @endsphinxdirective
 
-#### Running a Sample on MYRIAD
+#### Running Inference on MYRIAD
 
    > **NOTE**: Running inference on VPU devices (Intel® Movidius™ Neural Compute Stick or Intel® Neural Compute Stick 2) with the MYRIAD plugin requires [additional hardware configuration steps](../install_guides/configurations-for-ncs2.md), as described earlier on this page.
 
