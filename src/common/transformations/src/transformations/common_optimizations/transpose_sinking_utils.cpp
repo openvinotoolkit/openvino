@@ -216,11 +216,11 @@ void UpdateForwardSinkingAbility(NodePtr node) {
         SetNoSinking(node);
 }
 
-bool IsSinkingEnable(NodePtr node) {
+bool IsSinkingEnabled(NodePtr node) {
     return node->get_rt_info().count(NO_TRANSPOSE_SINKING_KEY) == 0;
 }
 
-bool IsSinkingEnable(Node* node) {
+bool IsSinkingEnabled(Node* node) {
     return node->get_rt_info().count(NO_TRANSPOSE_SINKING_KEY) == 0;
 }
 

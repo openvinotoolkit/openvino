@@ -66,7 +66,7 @@ std::shared_ptr<Constant> GetTransposeConstant(Input<Node> input) {
     if (!transpose_node)
         return {};
 
-    if (!transpose_sinking::IsSinkingEnable(input.get_node()))
+    if (!transpose_sinking::IsSinkingEnabled(input.get_node()))
         return {};
 
     auto constant_node = as_type_ptr<Constant>(transpose_node->input_value(1).get_node_shared_ptr());
