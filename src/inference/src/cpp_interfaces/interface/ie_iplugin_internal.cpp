@@ -193,9 +193,8 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
     return impl;
 }
 
-ov::SoPtr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
-    const std::string& modelPath,
-    const std::map<std::string, std::string>& config) {
+ov::SoPtr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(const std::string& modelPath,
+                                                                    const std::map<std::string, std::string>& config) {
     auto cnnNet = GetCore()->ReadNetwork(modelPath, std::string());
     return GetCore()->LoadNetwork(cnnNet, GetName(), config);
 }

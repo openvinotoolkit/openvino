@@ -200,7 +200,7 @@ public:
      * @return Created Executable Network object
      */
     virtual ov::SoPtr<IExecutableNetworkInternal> LoadNetwork(const std::string& modelPath,
-                                                                    const std::map<std::string, std::string>& config);
+                                                              const std::map<std::string, std::string>& config);
 
     /**
      * @brief Registers extension within plugin
