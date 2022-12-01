@@ -12,10 +12,7 @@
 #include <list>
 
 namespace cldnn {
-primitive_type_id concatenation::type_id() {
-    static primitive_type_base<concatenation> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(concatenation)
 
 layout concatenation_inst::calc_output_layout(concatenation_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<concatenation>();
@@ -102,8 +99,8 @@ std::string concatenation_inst::to_string(concatenation_node const& node) {
 
 concatenation_inst::typed_primitive_inst(network& network, concatenation_node const& node)
     : parent(network, node) {
+    if (node.is_dynamic()) return;
     auto input_layout = node.input().get_output_layout();
-    if (input_layout.is_dynamic()) return;
 
     auto output_layout = node.get_output_layout();
 

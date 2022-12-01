@@ -10,11 +10,7 @@
 #include <string>
 
 namespace cldnn {
-
-primitive_type_id custom_gpu_primitive::type_id() {
-    static primitive_type_base<custom_gpu_primitive> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(custom_gpu_primitive)
 
 std::string custom_gpu_primitive_inst::to_string(custom_gpu_primitive_node const& node) {
     auto desc = node.get_primitive();

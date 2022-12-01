@@ -89,15 +89,22 @@ static size_t get_post_ops_count(const program_node& node) {
     return onednn_post_ops_count;
 }
 
+// Return true if one of blocked axes (b or f) is reduced and one of spatial axes is NOT reduced
 static bool is_reduce_blocked_axes(reduce_node const& node) {
     auto prim = node.get_primitive();
     auto reduce_axes = prim->axes;
     auto input_layout = node.input().get_output_layout();
+    auto num_spatial = format::spatial_num(node.get_output_layout().format);
+    auto dims = node.get_output_layout().format.dimension();
 
-    if (prim->keep_dims == false &&
+
+    if (input_layout.is_static() &&
         (count(reduce_axes.begin(), reduce_axes.end(), 1) > 0 ||
         (count(reduce_axes.begin(), reduce_axes.end(), 0) > 0 && input_layout.batch() > 1))) {
-        return true;
+        for (size_t idx_spatial = dims - num_spatial ; idx_spatial < dims ; idx_spatial++) {
+            if (count(reduce_axes.begin(), reduce_axes.end(), idx_spatial) == 0)
+                return true;
+        }
     }
 
     return false;
@@ -236,6 +243,37 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     if (next.is_type<reorder>())
         return true;
 
+    // Check whether the reorder between prev and next is the first input of next.
+    auto is_input_reorder = [](program_node& prev, program_node& next) {
+        auto found_reorder = std::find_if(next.get_dependencies().begin(), next.get_dependencies().end(), [](cldnn::program_node* node){
+            return node->is_type<reorder>();
+        });
+        // if there is no reorder between prev and next, it returns true.
+        // This case is needed for can_fuse_reorder in reorder_inputs pass.
+        if (found_reorder == std::end(next.get_dependencies()) && next.get_dependency_index(prev) == 0)
+            return true;
+        auto& next_dep = next.get_dependency(0);
+        if (!next_dep.is_type<reorder>())
+            return false;
+        for (auto& prev_usr : prev.get_users()) {
+            if (!prev_usr->is_type<reorder>())
+                continue;
+            if (&next_dep == prev_usr && next.get_dependency_index(next_dep) == 0) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    // Errata for onednn layout selection. First conv can receive both bfyx and byxf directly.
+    if (next.is_type<convolution>() &&
+        next.get_preferred_impl_type() == impl_types::onednn &&
+        ((fmt_prev == format::byxf && fmt_next == format::byxf) ||
+         (fmt_prev == format::bfyx && fmt_next == format::byxf &&
+            (prev_dt == data_types::f16 && next.get_dependency(0).get_output_layout().feature() <= 8))) &&
+        is_input_reorder(prev, next))
+        return true;
+
     // Do not remove reorder if it is necessary to fulfill required_input
     auto& reorder_node = next.get_dependency(0);
     auto reorder_layout = reorder_node.get_output_layout();
@@ -284,7 +322,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         prev.is_input() && (prev_dt == data_types::u8 || prev_dt == data_types::i8))
         return true;
 
-    if (!use_onednn_impls) {
+    if (!use_onednn_impls || next.get_preferred_impl_type() == impl_types::ocl) {
         if (next.is_type<convolution>() &&
             (fmt_prev == format::bfyx || fmt_prev == format::bs_fs_yx_bsv4_fsv2) &&
             ((fmt_next == format::fs_b_yx_fsv32 && next.as<convolution>().get_primitive()->groups == 1) ||
@@ -325,6 +363,12 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         (fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::bfyx)  && prev_output_layout.feature() == 3 &&
         (fmt_next == format::b_fs_yx_fsv4 ||
          fmt_next == format::bs_fs_yx_bsv16_fsv16))
+        return true;
+
+    if (next.is_type<convolution>() &&
+        fmt_prev == format::bfyx &&
+        ((fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::bs_fs_yx_bsv16_fsv16) &&
+            next_output_layout.feature() >= 16 && prev_output_layout.feature() == 3))
         return true;
 
     if (next.is_type<convolution>() &&
@@ -369,17 +413,6 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
 
         if (next.is_type<quantize>() && prev.get_users().size() == 1)
             return true;
-
-        if (next.is_type<permute>()) {
-            auto& permute_order = next.as<permute>().get_primitive()->permute_order;
-            if ((fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::b_fs_yx_fsv32 || fmt_prev == format::b_fs_zyx_fsv32 ||
-                fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::b_fs_zyx_fsv16 || fmt_prev == format::bs_fs_yx_bsv16_fsv16)
-                && permute_order.back() != 1
-                && (!next.as<permute>().is_rotating_except_batch())) {
-                    return false;
-            }
-            return true;
-        }
     }
 
     return false;
@@ -424,7 +457,7 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
         return true;
 
     if (prev.is_type<quantize>() &&
-        (fmt_next == format::b_fs_yx_fsv4 || fmt_next == format::b_fs_zyx_fsv32 || (fmt_next == format::b_fs_yx_fsv32 && !use_onednn_impls) ||
+        (fmt_next == format::b_fs_yx_fsv4 || fmt_next == format::b_fs_zyx_fsv32 || fmt_next == format::b_fs_yx_fsv32 ||
          fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_zyx_fsv16 ||fmt_next == format::bs_fs_yx_bsv16_fsv16))
         return true;
 
@@ -803,7 +836,7 @@ static bool is_node_for_onednn(reduce_node const& node, format preferred_format)
 
     // Onednn reduction does NOT support reordering of unreduced-axes.
     // Currently, an Onednn reduce layer which contains reduction of blocked axes(b-f) is expected to select planar format.
-    if (is_reduce_blocked_axes(node))
+    if (reduce_prim->keep_dims == false && is_reduce_blocked_axes(node))
         return false;
 
     return true;
@@ -1025,12 +1058,20 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
                                              convolution_node const& node,
                                              layout const& weights_layout) {
     auto prim = node.get_primitive();
-    auto expected_tensor = current_layout.get_tensor();
     auto expected_data_type = current_layout.data_type;
     auto expected_format = current_layout.format;
     auto input_layout = node.get_dependency(0).get_output_layout();
     auto output_layout = node.calc_output_layout();
 
+    if (input_layout.is_dynamic() || output_layout.is_dynamic()) {
+        if (input_layout.get_partial_shape().size() <= 4)
+            expected_format = format::b_fs_yx_fsv16;
+        else if (input_layout.get_partial_shape().size() == 5)
+            expected_format = format::b_fs_zyx_fsv16;
+        return layout(current_layout.get_partial_shape(), expected_data_type, expected_format);
+    }
+
+    auto expected_tensor = current_layout.get_tensor();
     const float cond_denom = _total_conv > 0 ? 1.0f / static_cast<float>(_total_conv) : 1.0f;
 
     bool onednn_valid_post_ops = get_post_ops_count(node) <= 32;
@@ -1351,13 +1392,17 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             preferred_impl = impl_types::ocl;
         } else {
             auto& nms_node = node.as<non_max_suppression>();
-            auto scoresTensor = convert_data_tensor(nms_node.input_scores().get_output_layout());
-            const size_t kBatchNum = scoresTensor.Batch().v;
-            const size_t kClassNum = scoresTensor.Feature().v;
-            const size_t kNStreams =
-                static_cast<size_t>(node.get_program().get_engine().configuration().throughput_streams);
-            const size_t kKeyValue = kBatchNum * std::min(kClassNum, static_cast<size_t>(8)) * kNStreams;
-            preferred_impl = (kKeyValue > 64) ? impl_types::ocl : impl_types::cpu;
+            auto scores_layout = nms_node.input_scores().get_output_layout();
+            if (scores_layout.is_dynamic()) {
+                preferred_impl = impl_types::ocl;
+            } else {
+                const size_t kBatchNum = scores_layout.batch();
+                const size_t kClassNum = scores_layout.feature();
+                const size_t kNStreams =
+                    static_cast<size_t>(node.get_program().get_engine().configuration().throughput_streams);
+                const size_t kKeyValue = kBatchNum * std::min(kClassNum, static_cast<size_t>(8)) * kNStreams;
+                preferred_impl = (kKeyValue > 64) ? impl_types::ocl : impl_types::cpu;
+            }
         }
     } else if (node.is_type<reorder>()) {
         if (!_optimization_attributes.use_onednn_impls)
@@ -1681,7 +1726,11 @@ format layout_optimizer::get_preferred_format(program_node& node) {
                 expected = format::get_default_format(layout.get_rank(), false, false);
         }
     } else if (node.is_type<reorder>() || node.is_type<input_layout>()) {
-        expected = node.get_output_layout().format;
+        if (node.is_type<reorder>() && node.as<reorder>().get_primitive()->has_surface_input()) {
+            expected = format::nv12;
+        } else {
+            expected = node.get_output_layout().format;
+        }
     } else if (node.is_type<reshape>()) {
         if (node.get_output_layout().format.dimension() == 6) {
             expected = format::bfwzyx;
@@ -1721,10 +1770,9 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         }
     } else if (node.is_type<reduce>()) {
         auto& reduce_node = node.as<reduce>();
-        // if blocked axes are reduced, it will have huge memory overhead. A clDNN reduce reorders un-reduced axes to b-f and w-x axis for this.
-        // But oneDNN does not allow this. So planar format is used for this case.
-        if (is_reduce_blocked_axes(reduce_node) && use_onednn_impls) {
-            auto input_layout = reduce_node.input().get_output_layout();
+        auto input_layout = reduce_node.input().get_output_layout();
+        // TODO: Under the currnet implement, dynamic shape doesn't support blocked format. Will support in future.
+        if (!use_onednn_impls && input_layout.is_dynamic()) {
             if (input_layout.format.dimension() == 6)
                 expected = format::bfwzyx;
             else if (input_layout.format.dimension() == 5)
@@ -1856,6 +1904,8 @@ bool layout_optimizer::is_format_optimized(const convolution_node& node, const f
     auto output_layout = node.calc_output_layout();
     auto prim = node.get_primitive();
 
+    if (input_layout.is_dynamic() || output_layout.is_dynamic())
+        return true;
     switch (format) {
         case format::b_fs_yx_fsv16:
             return convolution_b_fs_yx_fsv16_opt(input_layout, output_layout, weights_layout, prim, use_weak_restrictions) &&

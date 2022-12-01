@@ -124,6 +124,10 @@ add_library(${TARGET_NAME}_obj OBJECT
             ${LIBRARY_HEADERS}
             ${PUBLIC_HEADERS})
 
+if(NOT BUILD_SHARED_LIBS)
+    target_compile_definitions(${TARGET_NAME}_obj PUBLIC OPENVINO_STATIC_LIBRARY)
+endif()
+
 ie_faster_build(${TARGET_NAME}_obj
     UNITY PCH PRIVATE "src/precomp.hpp"
 )
@@ -222,3 +226,7 @@ ov_install_static_lib(${TARGET_NAME}_plugin_api ${OV_CPACK_COMP_CORE})
 install(DIRECTORY "${PUBLIC_HEADERS_DIR}/"
         DESTINATION ${OV_CPACK_INCLUDEDIR}
         COMPONENT ${OV_CPACK_COMP_CORE_DEV})
+
+if(ENABLE_TESTS)
+add_subdirectory(tests)
+endif()

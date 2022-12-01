@@ -94,6 +94,60 @@ struct EltwiseEmitter<jit_power_static_emitter> {
     }
 };
 
+/**
+ * Implements Eltwise shape inference algorithm. The algorithm is based on broadcasting all the input shapes
+ * according to the NUMPY broadcast rule. This implementation is more lightweight than the ngraph one.
+ * 
+ */
+class EltwiseShapeInfer : public ShapeInferEmptyPads {
+public:
+    std::vector<VectorDims> infer(
+        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+        size_t max_rank = 0;
+        size_t max_rank_idx = 0;
+        for (size_t i = 0; i < input_shapes.size(); ++i) {
+            auto item_rank = input_shapes[i].get().size();
+            if (item_rank > max_rank) {
+                max_rank = item_rank;
+                max_rank_idx = i;
+            }
+        }
+        auto output_shape = input_shapes[max_rank_idx].get();
+        // use NUMPY broadcast rule
+        for (size_t i = 0; i < input_shapes.size(); i++) {
+            if (i == max_rank_idx)
+                continue;
+
+            auto& input_shape = input_shapes[i].get();
+            if (input_shape.size() > output_shape.size()) {
+                IE_THROW() << "Eltwise shape infer input and output shapes rank mismatch";
+            }
+            size_t offset = output_shape.size() - input_shape.size();
+            for (size_t j = 0; j < input_shape.size(); ++j) {
+                if (input_shape[j] != output_shape[offset + j]) {
+                    if (output_shape[offset + j] == 1) {
+                        output_shape[offset + j] = input_shape[j];
+                    } else {
+                        if (input_shape[j] != 1) IE_THROW() << "Eltwise shape infer input shapes dim index: " << j << " mismatch";
+                    }
+                }
+            }
+        }
+        return { output_shape };
+    }
+    port_mask_t get_port_mask() const override {
+        return EMPTY_PORT_MASK;
+    }
+};
+
+class EltwiseShapeInferFactory : public ShapeInferFactory {
+public:
+    ShapeInferPtr makeShapeInfer() const override {
+        return std::make_shared<EltwiseShapeInfer>();
+    }
+};
+
 }   // namespace
 
 template <cpu_isa_t isa>
@@ -1582,7 +1636,7 @@ bool Eltwise::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
 }
 
 Eltwise::Eltwise(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-    Node(op, eng, cache), broadcastingPolicy(Undefined) {
+    Node(op, eng, cache, EltwiseShapeInferFactory()), broadcastingPolicy(Undefined) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -1885,27 +1939,6 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     currentInBlkDims.resize(inputNum);
 }
 
-std::vector<VectorDims> Eltwise::shapeInfer() const {
-    ov::PartialShape outShape = getParentEdgesAtPort(0)[0]->getMemory().GetShape().toPartialShape();
-    for (size_t i = 1; i < getParentEdges().size(); i++) {
-        ov::PartialShape::broadcast_merge_into(outShape, getParentEdgesAtPort(i)[0]->getMemory().GetShape().toPartialShape(),
-        ov::op::AutoBroadcastType::NUMPY);
-    }
-
-    if (outShape.is_dynamic()) {
-        std::ostringstream errorMessage;
-        errorMessage << "Can't compute static output shape for Eltwise node with name: " << getName();
-        errorMessage << ". Input shapes = ( ";
-        for (size_t i = 0; i < getParentEdges().size(); i++) {
-            errorMessage << i << " port = " << getParentEdgesAtPort(i)[0]->getMemory().GetShape().toString() << ", ";
-        }
-        errorMessage << "). Output shape = ( " << outShape << " )";
-        OPENVINO_ASSERT(false, errorMessage.str());
-    }
-
-    return {outShape.get_shape()};
-}
-
 void Eltwise::prepareParams() {
     if (memPtrs.empty()) {
         for (auto i = 0; i < inputNum; i++)
@@ -2132,6 +2165,16 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDim
         default: IE_THROW() << errorPrefix << "as post operation is not supported";
         }
     } else {
+        // per-tensor EltwisePowerStatic can be implemented with more well-supported eltwise postOps
+        if (getAlgorithm() == Algorithm::EltwisePowerStatic) {
+            // d = s*beta + gamma
+            ops.append_eltwise(1.0, dnnl::algorithm::eltwise_linear, getBeta(), getGamma());
+            if (getAlpha() != 1.0f) {
+                // d = 1 * s^alpha
+                ops.append_eltwise(1.0, dnnl::algorithm::eltwise_pow, 1.0f, getAlpha());
+            }
+            return;
+        }
         int channelSize = 1;
         if (channelAxis >= 0) {
             const auto chIdx = postOpDims.size() > 1 ? channelAxis : 0;
@@ -2194,61 +2237,82 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDim
     }
 }
 
-void Eltwise::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem, const int channelAxis) {
-    appendPostOpsImpl(ops, postOpDims, postOpsMem, channelAxis);
+void Eltwise::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::unordered_map<int, MemoryPtr>& postOpsMem, const int channelAxis) {
+    std::vector<MemoryPtr> postOpsMemPtrs;
+    appendPostOpsImpl(ops, postOpDims, postOpsMemPtrs, channelAxis);
+
+    IE_ASSERT(postOpsMemPtrs.size() <= 1) << "at most 1 post ops memory args can be appended.";
+
+    if (!postOpsMemPtrs.empty()) {
+        postOpsMem[DNNL_ARG_ATTR_MULTIPLE_POST_OP(ops.len() - 1) | DNNL_ARG_SRC_1] = postOpsMemPtrs[0];
+    }
 }
 
 void Eltwise::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis) {
     appendPostOpsImpl(ops, postOpDims, postOpsMem, channelAxis);
 }
 
-void Eltwise::appendBinPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::vector<MemoryPtr>& binaryPostOpsMem) {
+bool Eltwise::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc, bool isLastPostOp, dnnl::memory::data_type outDataType, bool allowBinary) {
     const std::string errorPrefix = "Appending Eltwise node with name '" + getName() + "' as binary post op ";
-    VectorDims broadcastBinaryShape(postOpDims.size(), 1);
 
-    auto appendBinary = [&](const dnnl::algorithm alg, MemoryPtr &memPtr, const std::vector<float> &data) {
-        if (data.empty())
-            IE_THROW() << errorPrefix << "cannot be performed since buffers are not allocated";
-        if (broadcastingPolicy == Undefined)
-            IE_THROW() << errorPrefix << "cannot be performed since policy is Undefined";
-
-        DnnlBlockedMemoryDesc memoryDesc(Precision::FP32, broadcastingPolicy == PerTensor ? Shape(broadcastBinaryShape) : Shape(postOpDims));
-
-        ops.append_binary(alg, memoryDesc.getDnnlDesc());
-
-        if (!memPtr) {
-            memPtr.reset(new Memory(getEngine()));
-            memPtr->Create(memoryDesc, &data[0]);
-
-            binaryPostOpsMem.push_back(memPtr);
+    if (getOneDnnAlgorithm() != dnnl::algorithm::undef) {
+        switch (getOneDnnAlgorithm()) {
+        case dnnl::algorithm::eltwise_relu:
+        case dnnl::algorithm::eltwise_tanh:
+        case dnnl::algorithm::eltwise_elu:
+        case dnnl::algorithm::eltwise_square:
+        case dnnl::algorithm::eltwise_abs:
+        case dnnl::algorithm::eltwise_sqrt:
+        case dnnl::algorithm::eltwise_bounded_relu:
+        case dnnl::algorithm::eltwise_soft_relu:
+        case dnnl::algorithm::eltwise_logistic:
+        case dnnl::algorithm::eltwise_exp:
+        case dnnl::algorithm::eltwise_gelu_erf:
+        case dnnl::algorithm::eltwise_gelu_tanh:
+        case dnnl::algorithm::eltwise_clip:
+        case dnnl::algorithm::eltwise_swish:
+        case dnnl::algorithm::eltwise_hardswish:
+        case dnnl::algorithm::eltwise_mish:
+        case dnnl::algorithm::eltwise_hsigmoid:
+        case dnnl::algorithm::eltwise_round_half_to_even:
+        case dnnl::algorithm::eltwise_round_half_away_from_zero:
+            dnnlpoc.appendEltwise(1.0, getOneDnnAlgorithm(), getAlpha(), getBeta());
+            break;
+        case dnnl::algorithm::eltwise_linear:
+            // call dnnlpoc's specialized API to generate optimized postOps sequence
+            dnnlpoc.appendLinear({getAlpha()}, {getBeta()});
+            break;
+        default: IE_THROW() << errorPrefix << "as post operation is not supported";
         }
-    };
-
-    switch (getAlgorithm()) {
-    case Algorithm::EltwiseAdd:
-    case Algorithm::EltwiseSubtract:
-        appendBinary(dnnl::algorithm::binary_add, shiftsMemory, shifts);
-        break;
-    case Algorithm::EltwiseDivide:
-    case Algorithm::EltwiseMultiply:
-        appendBinary(dnnl::algorithm::binary_mul, scalesMemory, scales);
-        break;
-    case Algorithm::EltwiseMulAdd:
-        appendBinary(dnnl::algorithm::binary_mul, scalesMemory, scales);
-        appendBinary(dnnl::algorithm::binary_add, shiftsMemory, shifts);
-        break;
-    case Algorithm::EltwisePowerStatic:
-        if (beta != 1.0f) // Multiply if has scales
-            appendBinary(dnnl::algorithm::binary_mul, scalesMemory, scales);
-        if (gamma != 0.0f) // Add only if has shifts
-            appendBinary(dnnl::algorithm::binary_add, shiftsMemory, shifts);
-        break;
-    case Algorithm::EltwisePrelu:
-        appendBinary(dnnl::algorithm::binary_prelu, scalesMemory, scales);
-        break;
-    default:
-        IE_THROW() << errorPrefix << "as post operation is not supported";
+    } else {
+        switch (getAlgorithm()) {
+        case Algorithm::EltwiseAdd:
+        case Algorithm::EltwiseSubtract:
+            return dnnlpoc.appendShift(shifts, allowBinary);
+        case Algorithm::EltwiseDivide:
+        case Algorithm::EltwiseMultiply:
+            return dnnlpoc.appendScale(scales, allowBinary);
+        case Algorithm::EltwiseMulAdd:
+            return dnnlpoc.appendLinear(scales, shifts, allowBinary);
+        case Algorithm::EltwisePowerStatic:
+            if (beta != 1.0f && gamma != 0.0f) {
+                return dnnlpoc.appendLinear(scales, shifts, allowBinary);
+            } else if (beta != 1.0f) {// Multiply if has scales
+                return dnnlpoc.appendScale(scales, allowBinary);
+            } else if (gamma != 0.0f) {// Add only if has shifts
+                return dnnlpoc.appendShift(shifts, allowBinary);
+            }
+            break;
+        case Algorithm::EltwisePrelu:
+            if (!allowBinary)
+                return false;
+            dnnlpoc.appendBinary(dnnl::algorithm::binary_prelu, scales);
+            break;
+        default:
+            IE_THROW() << errorPrefix << "as post operation is not supported";
+        }
     }
+    return true;
 }
 
 bool Eltwise::canFuse(const NodePtr& node) const {

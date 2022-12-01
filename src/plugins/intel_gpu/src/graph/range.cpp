@@ -18,10 +18,7 @@ std::string lexical_cast(const json_base& j, int offset = 1) {
 }
 }  // namespace
 
-primitive_type_id range::type_id() {
-    static primitive_type_base<range> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(range)
 
 layout range_inst::calc_output_layout(range_node const& node, kernel_impl_params const& impl_param) {
     return impl_param.typed_desc<range>()->output_layout;
@@ -56,7 +53,7 @@ std::vector<layout> range_inst::calc_output_layouts(range_node const& /*node*/, 
         shape_infer(&op, input_shapes, output_shapes, const_data);
     }
 
-    return {layout({output_shapes[0], output_data_type, impl_param.output_layout.format})};
+    return {layout({output_shapes[0], output_data_type, impl_param.get_output_layout().format})};
 }
 
 template std::vector<layout> range_inst::calc_output_layouts<ov::PartialShape>(range_node const& node, const kernel_impl_params& impl_param);

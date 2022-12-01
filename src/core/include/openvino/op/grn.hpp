@@ -6,16 +6,16 @@
 
 #include <memory>
 
-#include "openvino/op/op.hpp"
+#include "openvino/op/util/unary_elementwise_arithmetic.hpp"
 
 namespace ov {
 namespace op {
 namespace v0 {
 /// \brief  Global Response Normalization with L2 norm (across channels only).
 ///
-class OPENVINO_API GRN : public Op {
+class OPENVINO_API GRN : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_OP("GRN", "opset1");
+    OPENVINO_OP("GRN", "opset1", util::UnaryElementwiseArithmetic);
     BWDCMP_RTTI_DECLARATION;
 
     GRN() = default;
@@ -32,6 +32,9 @@ public:
 
     float get_bias() const {
         return m_bias;
+    }
+    void set_bias(const float& bias) {
+        m_bias = bias;
     }
 
 protected:

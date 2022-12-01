@@ -7,7 +7,7 @@
 
 #include <gna2-model-api.h>
 #include "gna2_model_helper.hpp"
-#include "gna2_model_debug_log.hpp"
+#include "log/dump.hpp"
 
 #ifndef _NO_MKL_
 #include <mkl_dnn.h>
@@ -15,10 +15,9 @@
 
 #include "runtime/floatmath.h"
 #include "dnn.hpp"
-#include "gna_plugin_log.hpp"
+
 #include "runtime/pwl.h"
 #include "runtime/cnn.h"
-
 
 void GNAPluginNS::backend::ClearScoreError(intel_score_error_t *error) {
     error->num_scores = 0;
@@ -67,7 +66,7 @@ void GNAPluginNS::backend::SoftmaxGoogle(float *ptr_output, float *ptr_input, co
         fprintf(stderr, "Warning:  attempt to take log(0) in SoftmaxGoogle()!\n");
         sum = 1.0e-20f;
     }
-    diff = max_score + log(sum);
+    diff = max_score + std::log(sum);
     for (uint32_t i = 0; i < num_outputs; i++) {
         ptr_output[i] = ptr_input[i] - diff;
     }

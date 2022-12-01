@@ -4,7 +4,7 @@
 
 #include "intel_gpu/primitives/generate_proposals.hpp"
 
-#include <ngraph_ops/generate_proposals_ie_internal.hpp>
+#include <ov_ops/generate_proposals_ie_internal.hpp>
 
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program.hpp"

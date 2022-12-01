@@ -2,9 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-#
-# Common vars used by setup.py
-#
+# define version (syncronize with tools/openvino_dev/CMakeLists.txt)
 
 if(DEFINED ENV{CI_BUILD_DEV_TAG} AND NOT "$ENV{CI_BUILD_DEV_TAG}" STREQUAL "")
     set(WHEEL_VERSION "${OpenVINO_VERSION}.$ENV{CI_BUILD_DEV_TAG}" CACHE STRING "Version of this release" FORCE)
@@ -13,6 +11,11 @@ else()
     set(WHEEL_VERSION ${OpenVINO_VERSION} CACHE STRING "Version of this release" FORCE)
 endif()
 set(WHEEL_BUILD "${OpenVINO_VERSION_BUILD}" CACHE STRING "Build number of this release" FORCE)
+
+
+#
+# Common vars used by setup.py
+#
 
 set(PY_PACKAGES_DIR ${OV_CPACK_PYTHONDIR})
 set(TBB_LIBS_DIR runtime/3rdparty/tbb/lib)
@@ -59,7 +62,7 @@ execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import wheel.vendored.packaging
                 OUTPUT_VARIABLE PYTHON_TAG OUTPUT_STRIP_TRAILING_WHITESPACE)
 execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import wheel.bdist_wheel ; print(f'{wheel.bdist_wheel.get_abi_tag()}')"
                 OUTPUT_VARIABLE ABI_TAG OUTPUT_STRIP_TRAILING_WHITESPACE)
-execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import wheel.vendored.packaging.tags as tags ; print(f'{next(tags._platform_tags())}')"
+execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import wheel.vendored.packaging.tags as tags ; print(f'{next(tags.platform_tags())}')"
                 OUTPUT_VARIABLE PLATFORM_TAG OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 # defines wheel architecture part of `PLATFORM_TAG`
