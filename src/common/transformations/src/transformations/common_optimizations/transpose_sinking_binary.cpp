@@ -58,6 +58,12 @@ pass::TransposeSinkingBinaryElementwiseBackward::TransposeSinkingBinaryElementwi
     auto main_node_label = wrap_type<op::util::BinaryElementwiseArithmetic>(consumers_count(1));
 
     auto transpose_const_label = wrap_type<Constant>(consumers_count(1));
+
+    auto IfSinkingEnable = [](const Output<Node>& output) -> bool {
+        static auto consumers_check = consumers_count(1);
+        return consumers_check(output) && transpose_sinking::IsSinkingEnabled(output.get_node_shared_ptr());
+    };
+
     auto transpose_label = wrap_type<Transpose>({main_node_label, transpose_const_label}, IfSinkingEnable);
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
