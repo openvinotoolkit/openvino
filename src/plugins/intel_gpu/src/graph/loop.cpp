@@ -27,14 +27,13 @@ static bool check_if_axis_is_set_properly(loop_node const & node) {
     }
 
     // check all iteration axis has the same size
-    const std::vector<cldnn::program_node *>& dependencies = node.get_dependencies();
+    const std::vector<std::pair<program_node*, int32_t>>& dependencies = node.get_dependencies();
     int32_t iteration_size = -1;
     for (const auto& pm : input_with_axis_iteration) {
-        auto found = std::find_if(dependencies.begin(), dependencies.end(), [&pm](const cldnn::program_node * node){
-            return node->id() == pm.get().external_id;
-        });
+        auto found = std::find_if(dependencies.begin(), dependencies.end(),
+            [&pm](const std::pair<program_node*, int32_t>& dep){ return dep.first->id() == pm.get().external_id; });
         assert(found != dependencies.end());
-        const layout input_layout = (*found)->get_output_layout();
+        const layout input_layout = (*found).first->get_output_layout();
         const auto shape = input_layout.get_tensor().sizes(input_layout.format);
         const size_t iteration_axis = node.convert_to_raw_axis(pm.get().axis, static_cast<int32_t>(shape.size()));
         if (iteration_size < 0) {
@@ -50,7 +49,7 @@ static bool check_if_axis_is_set_properly(loop_node const & node) {
     for (const auto& input_ref : input_with_axis_iteration) {
         const loop::io_primitive_map& input = input_ref.get();
         auto dep = std::find_if(dependencies.begin(), dependencies.end(),
-            [&input](const cldnn::program_node *dep) { return input.external_id == dep->id(); });
+            [&input](const std::pair<program_node*, int>& dep) { return input.external_id == dep.first->id(); });
 
         // if corresponding external id is not found
         if (dep == dependencies.end()) {
@@ -210,7 +209,7 @@ void loop_inst::update_mapped_memory() {
     }
     // update input memory
     for (size_t memory_num = 0; memory_num < inputs_memory_count(); memory_num++) {
-        const primitive_id& input_external_id = dependencies().at(memory_num)->id();
+        const primitive_id& input_external_id = dependencies().at(memory_num).first->id();
         auto input_map_ptrs = node->find_io_primitive_maps(input_external_id, true);
         if (input_map_ptrs.empty()) {
             if (input_external_id == node->get_trip_count_id() ||
@@ -258,7 +257,7 @@ void loop_inst::update_mapped_memory() {
                     memory::ptr backedge_mem;
                     if (output_mapping.empty()) {
                         // from and to primitives in backedge are connected directly
-                        if (backedge_to_prim == backedge_from_prim->dependencies().front()) {
+                        if (backedge_to_prim == backedge_from_prim->dependencies().front().first) {
                             backedge_mapping.initial_mem = initial_mem;
                             continue;
                         } else {
@@ -330,7 +329,7 @@ void loop_inst::preprocess_input_memory() {
     auto& engine = _network.get_engine();
     auto& iteration_mem = concatenated_input_mem_mappings;
     for (size_t memory_num = 0; memory_num < inputs_memory_count(); memory_num++) {
-        const primitive_id& input_external_id = dependencies().at(memory_num)->id();
+        const primitive_id& input_external_id = dependencies().at(memory_num).first->id();
         auto input_map_ptrs = node->find_io_primitive_maps(input_external_id, true);
         if (input_map_ptrs.size() == 0) {
             if (input_external_id == node->get_trip_count_id() ||
@@ -404,7 +403,7 @@ void loop_inst::preprocess_backedge_memory() {
             memory::ptr backedge_mem;
             if (output_mapping.empty()) {
                 // from and to primitives in backedge are connected directly
-                if (backedge_to_prim == backedge_from_prim->dependencies().front()) {
+                if (backedge_to_prim == backedge_from_prim->dependencies().front().first) {
                     backedge_memory_mappings.emplace_back(
                         backedge_from_prim, backedge_to_prim, initial_mem, body_network->get_stream());
                     continue;
