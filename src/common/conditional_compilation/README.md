@@ -10,7 +10,7 @@ People from [openvino-ie-maintainers](https://github.com/orgs/openvinotoolkit/te
 
 * [docs](./docs/) contains documentation for conditional compilation.
 * [include](./include/) contains header files that define class and macros for conditional compilation.
-* [scripts](./scripts/) script tools used in condition compilation.
+* [scripts](./scripts/) script tools used in conditional compilation.
 
 ## Tutorials
 
