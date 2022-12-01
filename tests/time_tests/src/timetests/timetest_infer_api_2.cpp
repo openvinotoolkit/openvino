@@ -106,7 +106,7 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
         std::cerr << "Inference Engine pipeline failed with exception:\n"
                   << ex.what();
         return 2;
-    } catch (...) {
+    } catch (std::exception&) {
         std::cerr << "Inference Engine pipeline failed\n";
         return 3;
     }

@@ -67,7 +67,7 @@ GStreamerPipelineFacade::~GStreamerPipelineFacade()
         {
             setState(GST_STATE_NULL);
         }
-        catch(...)
+        catch (std::exception&)
         {
             GAPI_LOG_WARNING(NULL, "Unable to stop pipeline in destructor.\n");
         }

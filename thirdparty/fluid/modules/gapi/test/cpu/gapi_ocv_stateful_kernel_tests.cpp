@@ -177,7 +177,7 @@ TEST(StatefulKernel, StateIsAutoResetForNewStream)
     auto path = findDataFile("cv/video/768x576.avi");
     try {
         ccomp.setSource(gapi::wip::make_src<cv::gapi::wip::GCaptureSource>(path));
-    } catch(...) {
+    } catch (std::exception&) {
         throw SkipTestException("Video file can not be opened");
     }
     ccomp.start();
@@ -193,7 +193,7 @@ TEST(StatefulKernel, StateIsAutoResetForNewStream)
     path = findDataFile("cv/video/1920x1080.avi");
     try {
         ccomp.setSource(gapi::wip::make_src<cv::gapi::wip::GCaptureSource>(path));
-    } catch(...) {
+    } catch (std::exception&) {
         throw SkipTestException("Video file can not be opened");
     }
     ccomp.start();
@@ -326,7 +326,7 @@ TEST(StatefulKernel, StateIsInitViaCompArgsInStreaming)
     auto path = findDataFile("cv/video/768x576.avi");
     try {
         gapiBackSub.setSource(gapi::wip::make_src<cv::gapi::wip::GCaptureSource>(path));
-    } catch(...) {
+    } catch (std::exception&) {
         throw SkipTestException("Video file can not be opened");
     }
     // Allowing 1% difference of all pixels between G-API and reference OpenCV results
@@ -336,7 +336,7 @@ TEST(StatefulKernel, StateIsInitViaCompArgsInStreaming)
     try {
         // Additionally, test the case when the new stream happens
         gapiBackSub.setSource(gapi::wip::make_src<cv::gapi::wip::GCaptureSource>(path));
-    } catch(...) {
+    } catch (std::exception&) {
         throw SkipTestException("Video file can not be opened");
     }
     // Allowing 5% difference of all pixels between G-API and reference OpenCV results

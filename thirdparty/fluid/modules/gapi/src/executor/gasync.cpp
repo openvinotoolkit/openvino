@@ -120,7 +120,7 @@ std::exception_ptr call_and_catch(f_t&& f, context_t&& ctx){
     std::exception_ptr eptr;
     try {
         std::forward<f_t>(f)();
-    } catch(...) {
+    } catch (std::exception&) {
         eptr = std::current_exception();
     }
 
