@@ -14,7 +14,7 @@ namespace intel_gpu {
 
 static void CreateRegionYoloOp(Program& p, const std::shared_ptr<ngraph::op::v0::RegionYolo>& op) {
     validate_inputs_count(op, {1});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     uint32_t coords = op->get_num_coords();
@@ -24,7 +24,7 @@ static void CreateRegionYoloOp(Program& p, const std::shared_ptr<ngraph::op::v0:
     uint32_t mask_size = op->get_mask().size();
 
     auto regionPrim = cldnn::region_yolo(layerName,
-                                         inputPrimitives[0],
+                                         inputs[0],
                                          coords,
                                          classes,
                                          num,

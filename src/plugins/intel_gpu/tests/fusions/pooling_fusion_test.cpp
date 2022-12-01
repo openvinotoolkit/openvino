@@ -153,9 +153,9 @@ TEST_P(pooling_f32_activation, basic) {
 
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        pooling("pooling", "input", p.pool_mode, kernel, stride, pads_begin, pads_end),
-        activation("act", "pooling", activation_func::relu),
-        reorder("output_reorder", "act", format::bfyx, data_types::f32)
+        pooling("pooling", input_info("input"), p.pool_mode, kernel, stride, pads_begin, pads_end),
+        activation("act", input_info("pooling"), activation_func::relu),
+        reorder("output_reorder", input_info("act"), format::bfyx, data_types::f32)
     );
 
     tolerance = 1e-05f;
@@ -192,9 +192,9 @@ TEST_P(pooling_f32_scale, basic) {
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / 9.0f)),
-        pooling("pooling", "input", p.pool_mode, kernel, stride, pads_begin, pads_end),
-        eltwise("scale", { "pooling", "scale_data" }, eltwise_mode::prod, p.default_type),
-        reorder("output_reorder", "scale", format::bfyx, data_types::f32)
+        pooling("pooling", input_info("input"), p.pool_mode, kernel, stride, pads_begin, pads_end),
+        eltwise("scale", { input_info("pooling"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
+        reorder("output_reorder", input_info("scale"), format::bfyx, data_types::f32)
     );
 
     tolerance = 1e-05f;
@@ -213,9 +213,9 @@ TEST_P(pooling_f32_scale, fp16_scale_out) {
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / 9.0f)),
-        pooling("pooling", "input", p.pool_mode, kernel, stride, pads_begin, pads_end),
-        eltwise("scale", { "pooling", "scale_data" }, eltwise_mode::prod, data_types::f16),
-        reorder("output_reorder", "scale", format::bfyx, data_types::f32)
+        pooling("pooling", input_info("input"), p.pool_mode, kernel, stride, pads_begin, pads_end),
+        eltwise("scale", { input_info("pooling"), input_info("scale_data") }, eltwise_mode::prod, data_types::f16),
+        reorder("output_reorder", input_info("scale"), format::bfyx, data_types::f32)
     );
 
     tolerance = 1e-5f;
@@ -254,11 +254,12 @@ TEST_P(pooling_scale_activation_quantize, basic) {
         data("out_lo", get_mem(get_single_element_layout(p), 0)),
         data("out_hi", get_mem(get_single_element_layout(p), 255)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / 16.0f)),
-        pooling("pooling", "input", p.pool_mode, kernel, stride, pads_begin, pads_end),
-        eltwise("scale", { "pooling", "scale_data" }, eltwise_mode::prod, p.default_type),
-        activation("activation", "scale", activation_func::relu),
-        quantize("quantize", "activation", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::u8),
-        reorder("output_reorder", "quantize", p.default_format, data_types::f32)
+        pooling("pooling", input_info("input"), p.pool_mode, kernel, stride, pads_begin, pads_end),
+        eltwise("scale", { input_info("pooling"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
+        activation("activation", input_info("scale"), activation_func::relu),
+        quantize("quantize", input_info("activation"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 255, data_types::u8),
+        reorder("output_reorder", input_info("quantize"), p.default_format, data_types::f32)
     );
 
     tolerance = 1.0f;
@@ -281,11 +282,12 @@ TEST_P(pooling_scale_activation_quantize, i8_output_data_type) {
         data("out_lo", get_mem(get_single_element_layout(p), -127, 127)),
         data("out_hi", get_mem(get_single_element_layout(p), -127, 127)),
         data("scale_data",  get_mem(get_per_channel_layout(p), 1.0f / 16.0f)),
-        pooling("pooling", "input", p.pool_mode, kernel, stride, pads_begin, pads_end),
-        eltwise("scale", { "pooling", "scale_data" }, eltwise_mode::prod, p.default_type),
-        activation("activation", "scale", activation_func::relu),
-        quantize("quantize", "activation", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
-        reorder("output_reorder", "quantize", p.default_format, data_types::f32)
+        pooling("pooling", input_info("input"), p.pool_mode, kernel, stride, pads_begin, pads_end),
+        eltwise("scale", { input_info("pooling"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
+        activation("activation", input_info("scale"), activation_func::relu),
+        quantize("quantize", input_info("activation"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
+        reorder("output_reorder", input_info("quantize"), p.default_format, data_types::f32)
     );
 
     tolerance = 1.0f;
@@ -308,11 +310,12 @@ TEST_P(pooling_scale_activation_quantize, per_channel) {
         data("out_lo", get_mem(get_single_element_layout(p), 0)),
         data("out_hi", get_mem(get_single_element_layout(p), 255)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / 16.0f)),
-        pooling("pooling", "input", p.pool_mode, kernel, stride, pads_begin, pads_end),
-        eltwise("scale", { "pooling", "scale_data" }, eltwise_mode::prod, p.default_type),
-        activation("activation", "scale", activation_func::hyperbolic_tan),
-        quantize("quantize", "activation", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::u8),
-        reorder("output_reorder", "quantize", p.default_format, data_types::f32)
+        pooling("pooling", input_info("input"), p.pool_mode, kernel, stride, pads_begin, pads_end),
+        eltwise("scale", { input_info("pooling"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
+        activation("activation", input_info("scale"), activation_func::hyperbolic_tan),
+        quantize("quantize", input_info("activation"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 255, data_types::u8),
+        reorder("output_reorder", input_info("quantize"), p.default_format, data_types::f32)
     );
 
     tolerance = 1.0f;
@@ -374,10 +377,10 @@ TEST_P(pooling_scale_activation, basic) {
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / 16.0f)),
-        pooling("pooling", "input", p.pool_mode, kernel, stride, pads_begin, pads_end),
-        eltwise("scale", { "pooling", "scale_data" }, eltwise_mode::prod, p.default_type),
-        activation("activation", "scale", activation_func::relu),
-        reorder("output_reorder", "activation", p.default_format, data_types::f32)
+        pooling("pooling", input_info("input"), p.pool_mode, kernel, stride, pads_begin, pads_end),
+        eltwise("scale", { input_info("pooling"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
+        activation("activation", input_info("scale"), activation_func::relu),
+        reorder("output_reorder", input_info("activation"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-05f;
@@ -396,10 +399,10 @@ TEST_P(pooling_scale_activation, eltwise_mul) {
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("scale_data", get_mem(get_per_channel_layout(p))),
-        pooling("pooling", "input", p.pool_mode, kernel, stride, pads_begin, pads_end),
-        eltwise("scale", { "pooling", "scale_data" }, eltwise_mode::prod, p.default_type),
-        activation("activation", "scale", activation_func::relu),
-        reorder("output_reorder", "activation", p.default_format, data_types::f32)
+        pooling("pooling", input_info("input"), p.pool_mode, kernel, stride, pads_begin, pads_end),
+        eltwise("scale", { input_info("pooling"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
+        activation("activation", input_info("scale"), activation_func::relu),
+        reorder("output_reorder", input_info("activation"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-05f;
@@ -590,9 +593,9 @@ TEST_P(pooling_onednn_activation1, basic) {
 
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        pooling("pooling", "input", p.pool_mode, kernel, stride, pads_begin, pads_end),
-        activation("act", "pooling", activation_func::relu),
-        reorder("output_reorder", "act", format::bfyx, data_types::f32)
+        pooling("pooling", input_info("input"), p.pool_mode, kernel, stride, pads_begin, pads_end),
+        activation("act", input_info("pooling"), activation_func::relu),
+        reorder("output_reorder", input_info("act"), format::bfyx, data_types::f32)
     );
 
     tolerance = 1e-05f;
@@ -611,9 +614,9 @@ TEST_P(pooling_onednn_activation2, basic) {
 
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        pooling("pooling", "input", p.pool_mode, kernel, stride, pads_begin, pads_end),
-        activation("act", "pooling", activation_func::relu),
-        reorder("output_reorder", "act", format::bfyx, data_types::f32)
+        pooling("pooling", input_info("input"), p.pool_mode, kernel, stride, pads_begin, pads_end),
+        activation("act", input_info("pooling"), activation_func::relu),
+        reorder("output_reorder", input_info("act"), format::bfyx, data_types::f32)
     );
 
     tolerance = 1e-05f;

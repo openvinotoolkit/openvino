@@ -14,12 +14,12 @@ namespace intel_gpu {
 namespace {
 
 void CreateRandomUniformOp(Program &p, const std::shared_ptr<ngraph::op::v8::RandomUniform> &op) {
-    auto input_primitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     auto output_shape = op->get_output_shape(0);
     cldnn::format outputFormat = cldnn::format::get_default_format(output_shape.size());
 
     auto random_uniform_prim = cldnn::random_uniform(layer_type_name_ID(op),
-                                                     input_primitives,
+                                                     inputs,
                                                      cldnn::element_type_to_data_type(op->get_out_type()),
                                                      op->get_global_seed(),
                                                      op->get_op_seed(),

@@ -148,11 +148,11 @@ public:
         std::string input_id = input_data_id;
         if (need_reorder) {
             const std::string reorder_input_id = input_data_id + "_reordered";
-            topology.add(reorder(reorder_input_id, input_data_id, target_layout, data_type));
+            topology.add(reorder(reorder_input_id, input_info(input_data_id), target_layout, data_type));
             input_id = reorder_input_id;
         }
 
-        topology.add(adaptive_pooling(adaptive_max_pooling_id, input_id, params.outputTensor, indices_id,
+        topology.add(adaptive_pooling(adaptive_max_pooling_id, input_info(input_id), params.outputTensor, indices_id,
                                       data_types::i32));
 
         std::string result_id = adaptive_max_pooling_id;
@@ -209,7 +209,7 @@ public:
         const auto get_reordered_indices_mem = [&]() {
             cldnn::topology reorder_topology;
             reorder_topology.add(input_layout("indices", indices_layout));
-            reorder_topology.add(reorder("plane_indices", "indices", plain_layout, data_types::i32));
+            reorder_topology.add(reorder("plane_indices", input_info("indices"), plain_layout, data_types::i32));
             cldnn::network reorder_net{engine, reorder_topology};
             reorder_net.set_input_data("indices", indices_mem);
             const auto second_output_result = reorder_net.execute();

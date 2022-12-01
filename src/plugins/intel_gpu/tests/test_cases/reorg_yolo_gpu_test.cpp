@@ -316,9 +316,9 @@ private:
 
         topology topology;
         topology.add(input_layout("input", input->get_layout()));
-        topology.add(reorder("input_reordered", "input", target_format, data_type));
-        topology.add(reorg_yolo("reorg_yolo", "input_reordered", params.stride));
-        topology.add(reorder("reorg_yolo_reordered", "reorg_yolo", plain_format, data_type));
+        topology.add(reorder("input_reordered", input_info("input"), target_format, data_type));
+        topology.add(reorg_yolo("reorg_yolo", input_info("input_reordered"), params.stride));
+        topology.add(reorder("reorg_yolo_reordered", input_info("reorg_yolo"), plain_format, data_type));
 
         network network(engine, topology);
         network.set_input_data("input", input);

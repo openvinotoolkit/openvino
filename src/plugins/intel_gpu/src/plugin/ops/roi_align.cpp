@@ -40,7 +40,7 @@ cldnn::roi_align::AlignedMode from(ngraph::op::v9::ROIAlign::AlignedMode mode) {
 void CreateROIAlignOp(Program& p, const std::shared_ptr<ngraph::op::v3::ROIAlign>& op) {
     validate_inputs_count(op, {3});
     auto roi_align_prim = cldnn::roi_align(layer_type_name_ID(op),
-                                           p.GetInputPrimitiveIDs(op),
+                                           p.GetInputInfo(op),
                                            op->get_pooled_h(),
                                            op->get_pooled_w(),
                                            op->get_sampling_ratio(),
@@ -53,7 +53,7 @@ void CreateROIAlignOp(Program& p, const std::shared_ptr<ngraph::op::v3::ROIAlign
 void CreateROIAlignOp(Program& p, const std::shared_ptr<ngraph::op::v9::ROIAlign>& op) {
     validate_inputs_count(op, {3});
     auto roi_align_prim = cldnn::roi_align(layer_type_name_ID(op),
-                                           p.GetInputPrimitiveIDs(op),
+                                           p.GetInputInfo(op),
                                            op->get_pooled_h(),
                                            op->get_pooled_w(),
                                            op->get_sampling_ratio(),

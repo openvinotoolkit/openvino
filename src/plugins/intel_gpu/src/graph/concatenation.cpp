@@ -21,7 +21,7 @@ layout concatenation_inst::calc_output_layout(concatenation_node const& node, ke
     auto output_format = input_layout.format;
     auto result_sizes = input_layout.get_dims();
 
-    auto output_dt = desc->output_data_type ? *desc->output_data_type : input_layout.data_type;
+    auto output_dt = desc->output_data_types[0].value_or(input_layout.data_type);
 
     auto axis_index = desc->axis;
 
@@ -46,7 +46,7 @@ std::vector<layout> concatenation_inst::calc_output_layouts(const concatenation_
 
     auto input_layout = impl_param.get_input_layout();
 
-    auto output_dt = desc->output_data_type.value_or(input_layout.data_type);
+    auto output_dt = desc->output_data_types[0].value_or(input_layout.data_type);
     auto output_format = input_layout.format;
     for (size_t i = 0; i < desc->input.size(); ++i) {
         if (impl_param.get_input_layout(i).format == format::b_fs_yx_fsv16)
@@ -108,7 +108,7 @@ concatenation_inst::typed_primitive_inst(network& network, concatenation_node co
     auto input_size = input_layout.get_dims();
     auto output_size = output_layout.get_dims();
     for (const auto& i : node.get_dependencies()) {
-        auto input_i_layout = i->get_output_layout();
+        auto input_i_layout = i.first->get_output_layout();
         auto input_mem_size = input_i_layout.get_dims();
         for (int64_t dim = 0; dim < static_cast<int64_t>(output_layout.get_rank()); ++dim) {
             if (dim == node.get_primitive()->axis) {
@@ -144,12 +144,13 @@ concatenation_inst::typed_primitive_inst(network& network, concatenation_node co
 
     if (node.can_be_optimized()) {
         build_deps();
-        std::list<std::vector<std::shared_ptr<primitive_inst>>*> stack = {&_deps};
+        std::list<std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>>*> stack = {&_deps};
         while (!stack.empty()) {
             auto nodes_list = stack.front();
             stack.pop_front();
 
-            for (auto processed_node : *nodes_list) {
+            for (auto processed_nodes : *nodes_list) {
+                auto processed_node = processed_nodes.first;
                 processed_node->_outputs = _outputs;
                 if (processed_node->type() == concatenation::type_id() && processed_node->can_be_optimized()) {
                     if (!processed_node->_deps.empty())

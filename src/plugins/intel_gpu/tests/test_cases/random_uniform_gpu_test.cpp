@@ -47,7 +47,7 @@ public:
 
         topology topology;
         topology.add(
-                random_uniform("random_uniform", {"shape", "min_val", "max_val"}, data_type, params.global_seed,
+                random_uniform("random_uniform", { input_info("shape"), input_info("min_val"), input_info("max_val") }, data_type, params.global_seed,
                                params.op_seed, params.output_tensor,
                                params.f));
         topology.add(input_layout("shape", shape->get_layout()));

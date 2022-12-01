@@ -35,7 +35,7 @@ struct roi_align : public primitive_base<roi_align> {
     /// @param pooling_mode Method to perform pooling to produce output feature map elements.
     /// @param aligned_mode Method to coordinates alignment.
     roi_align(const primitive_id& id,
-              const std::vector<primitive_id>& inputs,
+              const std::vector<input_info>& inputs,
               int pooled_h,
               int pooled_w,
               int sampling_ratio,
@@ -43,7 +43,7 @@ struct roi_align : public primitive_base<roi_align> {
               PoolingMode pooling_mode,
               AlignedMode aligned_mode,
               const padding& output_padding = padding())
-        : primitive_base(id, inputs, output_padding),
+        : primitive_base(id, inputs, {output_padding}),
           pooled_h{pooled_h},
           pooled_w{pooled_w},
           sampling_ratio{sampling_ratio},

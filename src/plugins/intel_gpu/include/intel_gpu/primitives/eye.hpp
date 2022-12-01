@@ -25,11 +25,11 @@ struct eye : public primitive_base<eye> {
     /// @param shift Eye diagonal
     /// @param output_type Tensor output type
     eye(const primitive_id& id,
-        const std::vector<primitive_id>& inputs,
+        const std::vector<input_info>& inputs,
         const tensor& output_shape,
         const int32_t shift,
         const cldnn::data_types output_type)
-        : primitive_base{id, inputs, padding(), optional_data_type(output_type)},
+        : primitive_base{id, inputs, {padding()}, {optional_data_type(output_type)}},
           output_shape{output_shape},
           shift{shift} {}
 

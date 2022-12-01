@@ -66,7 +66,7 @@ void pre_replace_deconv::run(program& p) {
                 auto stride = deconv_prim->stride;
                 auto pad = deconv_prim->pad;
                 ov::Strides dilation(spatial_rank, 1);
-                auto output_padding = deconv_prim->output_padding;
+                auto output_padding = deconv_prim->output_paddings[0];
                 auto grouped_weights_shape = deconv_prim->grouped_weights_shape;
 
                 // remove deconvolution node and its connections to weights and biases, rename it and move to the optimized
@@ -210,7 +210,7 @@ void pre_replace_deconv::run(program& p) {
                 ov::Strides stride(spatial_rank, 1);
                 ov::CoordinateDiff pad(spatial_rank, scale_factor);
                 ov::Strides dilation(spatial_rank, 1);
-                auto output_padding = deconv_prim->output_padding;
+                auto output_padding = deconv_prim->output_paddings[0];
                 auto grouped_weights_shape = deconv_prim->grouped_weights_shape;
 
                 // remove deconvolution node and its connections to weights and biases,

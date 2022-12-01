@@ -41,14 +41,14 @@ struct condition : public primitive_base<condition> {
     /// @param offset             Offset for compare data.
     /// @param output_padding     Optional padding for output from primitive.
     condition(const primitive_id& id,
-              const primitive_id& input,
+              const input_info& input,
               const topology& topology_true,
               const topology& topology_false,
               const primitive_id& compare_data,
               const cond_functions& func,
               const tensor& offset = {0, 0, 0, 0, 0},
               const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           topology_true(topology_true),
           topology_false(topology_false),
           compare_data(compare_data),

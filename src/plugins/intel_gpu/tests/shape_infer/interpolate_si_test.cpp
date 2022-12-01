@@ -53,7 +53,7 @@ TEST_P(interpolate_test_three_inputs, shape_infer) {
     auto input_prim = std::make_shared<input_layout>("input", p.in_layout);
     auto sizes_prim = std::make_shared<input_layout>("sizes", p.sizes_layout);
     auto scales_prim = std::make_shared<input_layout>("scales", p.scales_layout);
-    auto resample_prim = std::make_shared<resample>("output", "input", "sizes", "scales", p.axes,
+    auto resample_prim = std::make_shared<resample>("output", input_info("input"), input_info("sizes"), input_info("scales"), p.axes,
                                                     p.attrs.pads_begin, p.attrs.pads_end,
                                                     p.attrs.antialias, p.attrs.cube_coeff,
                                                     p.attrs.mode, p.attrs.shape_calc_mode,
@@ -121,7 +121,7 @@ TEST_P(interpolate_test_single_input, shape_infer) {
     auto& engine = get_test_engine();
 
     auto input_prim = std::make_shared<input_layout>("input", p.in_layout);
-    auto resample_prim = std::make_shared<resample>("output", "input", p.sizes, p.scales, p.axes,
+    auto resample_prim = std::make_shared<resample>("output", input_info("input"), p.sizes, p.scales, p.axes,
                                                     p.attrs.pads_begin, p.attrs.pads_end,
                                                     p.attrs.antialias, p.attrs.cube_coeff,
                                                     p.attrs.mode, p.attrs.shape_calc_mode,

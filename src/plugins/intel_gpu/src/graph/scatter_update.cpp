@@ -36,7 +36,7 @@ std::vector<layout> scatter_update_inst::calc_output_layouts(scatter_update_node
 
     auto output_format = input_layout.format;
     auto output_shape = input_layout.get<ShapeType>();
-    auto output_type = desc->output_data_type.value_or(input_layout.data_type);
+    auto output_type = desc->output_data_types[0].value_or(input_layout.data_type);
     if (impl_param.has_fused_primitives()) {
         output_type = impl_param.get_fused_output_layout().data_type;
     }

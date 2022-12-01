@@ -154,18 +154,18 @@ public:
             inputs.emplace_back("offsets", offsets);
         }
 
-        std::vector<primitive_id> inputs_ids;
+        std::vector<input_info> inputs_ids;
         std::transform(inputs.begin(),
                        inputs.end(),
                        std::back_inserter(inputs_ids),
                        [](const decltype(inputs)::value_type& pair) {
-                           return "reordered_" + pair.first;
+                           return input_info("reordered_" + pair.first);
                        });
 
         topology topology;
         for (auto& input : inputs) {
             topology.add(input_layout(input.first, input.second->get_layout()));
-            topology.add(reorder("reordered_" + input.first, input.first, fmt, type_to_data_type<T>::value));
+            topology.add(reorder("reordered_" + input.first, input_info(input.first), fmt, type_to_data_type<T>::value));
         }
 
         topology.add(roi_pooling("roi_pooling",
@@ -183,7 +183,7 @@ public:
                                  p.spatial_bins_x,
                                  p.spatial_bins_y));
 
-        topology.add(reorder("reordered_roi_pooling", "roi_pooling", plane_format, type_to_data_type<T>::value));
+        topology.add(reorder("reordered_roi_pooling", input_info("roi_pooling"), plane_format, type_to_data_type<T>::value));
 
         network network(engine, topology);
         for (auto& input : inputs) {

@@ -15,37 +15,37 @@ namespace intel_gpu {
 
 static void CreateGatherTreeOp(Program& p, const std::shared_ptr<ngraph::op::v1::GatherTree>& op) {
     validate_inputs_count(op, {4});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
-    std::vector<cldnn::primitive_id> reorderedInputs;
-    reorderedInputs.resize(inputPrimitives.size());
+    std::vector<cldnn::input_info> reordered_inputs;
+    reordered_inputs.resize(inputs.size());
 
-    for (size_t portIndex = 0; portIndex < inputPrimitives.size(); portIndex++) {
+    for (size_t portIndex = 0; portIndex < inputs.size(); portIndex++) {
         auto inputDataType = cldnn::element_type_to_data_type(op->get_input_element_type(portIndex));
         if (inputDataType == cldnn::data_types::i64) {
             // GPU primitive does not support i64 inputs,
             // so we need additional reorders to convert them to i32
-            auto reorderPrimName = inputPrimitives[portIndex] + "_" + op->get_friendly_name() + Program::m_preProcessTag;
+            auto reorderPrimName = inputs[portIndex].pid + "_" + op->get_friendly_name() + Program::m_preProcessTag;
             auto targetFormat = cldnn::format::get_default_format(op->get_input_shape(portIndex).size());
             auto preprocessPrim = cldnn::reorder(reorderPrimName,
-                                                 inputPrimitives[portIndex],
+                                                 inputs[portIndex],
                                                  targetFormat,
                                                  cldnn::data_types::i32,
                                                  std::vector<float>(),
                                                  cldnn::reorder_mean_mode::subtract);
             p.add_primitive(*op, preprocessPrim);
-            reorderedInputs[portIndex] = reorderPrimName;
+            reordered_inputs[portIndex] = cldnn::input_info(reorderPrimName);
         } else {
-            reorderedInputs[portIndex] = inputPrimitives[portIndex];
+            reordered_inputs[portIndex] = inputs[portIndex];
         }
     }
 
     auto gatherTreePrim = cldnn::gather_tree(layerName,
-                                             reorderedInputs[0],
-                                             reorderedInputs[1],
-                                             reorderedInputs[2],
-                                             reorderedInputs[3]);
+                                             reordered_inputs[0],
+                                             reordered_inputs[1],
+                                             reordered_inputs[2],
+                                             reordered_inputs[3]);
 
     p.add_primitive(*op, gatherTreePrim);
 }

@@ -41,7 +41,7 @@ TEST(extract_image_patches_gpu, basic) {
 
     topology topology;
     topology.add(input_layout("Input0", input->get_layout()));
-    topology.add(extract_image_patches("extract_image_patches", "Input0", sizes, strides, rates, auto_pad, output_shape));
+    topology.add(extract_image_patches("extract_image_patches", input_info("Input0"), sizes, strides, rates, auto_pad, output_shape));
 
     network network(engine, topology);
     network.set_input_data("Input0", input);
@@ -115,7 +115,7 @@ TEST(extract_image_patches_gpu, basic2) {
 
     topology topology;
     topology.add(input_layout("Input0", input->get_layout()));
-    topology.add(extract_image_patches("extract_image_patches", "Input0", sizes, strides, rates, auto_pad, output_shape));
+    topology.add(extract_image_patches("extract_image_patches", input_info("Input0"), sizes, strides, rates, auto_pad, output_shape));
 
     network network(engine, topology);
     network.set_input_data("Input0", input);
@@ -179,7 +179,7 @@ TEST(extract_image_patches_gpu, basic3) {
 
     topology topology;
     topology.add(input_layout("Input0", input->get_layout()));
-    topology.add(extract_image_patches("extract_image_patches", "Input0", sizes, strides, rates, auto_pad, output_shape));
+    topology.add(extract_image_patches("extract_image_patches", input_info("Input0"), sizes, strides, rates, auto_pad, output_shape));
 
     network network(engine, topology);
     network.set_input_data("Input0", input);
@@ -274,7 +274,7 @@ TEST(extract_image_patches_gpu, basic3_same_lower) {
 
     topology topology;
     topology.add(input_layout("Input0", input->get_layout()));
-    topology.add(extract_image_patches("extract_image_patches", "Input0", sizes, strides, rates, auto_pad, output_shape));
+    topology.add(extract_image_patches("extract_image_patches", input_info("Input0"), sizes, strides, rates, auto_pad, output_shape));
 
     network network(engine, topology);
     network.set_input_data("Input0", input);
@@ -369,7 +369,7 @@ TEST(extract_image_patches_gpu, basic3_enough_space) {
 
     topology topology;
     topology.add(input_layout("Input0", input->get_layout()));
-    topology.add(extract_image_patches("extract_image_patches", "Input0", sizes, strides, rates, auto_pad, output_shape));
+    topology.add(extract_image_patches("extract_image_patches", input_info("Input0"), sizes, strides, rates, auto_pad, output_shape));
 
     network network(engine, topology);
     network.set_input_data("Input0", input);
@@ -443,7 +443,7 @@ TEST(extract_image_patches_gpu, basic4) {
 
     topology topology;
     topology.add(input_layout("Input0", input->get_layout()));
-    topology.add(extract_image_patches("extract_image_patches", "Input0", sizes, strides, rates, auto_pad, output_shape));
+    topology.add(extract_image_patches("extract_image_patches", input_info("Input0"), sizes, strides, rates, auto_pad, output_shape));
 
     network network(engine, topology);
     network.set_input_data("Input0", input);
@@ -518,7 +518,7 @@ void test_extract_image_patches_gpu_basic5(bool is_caching_test) {
 
     topology topology;
     topology.add(input_layout("Input0", input->get_layout()));
-    topology.add(extract_image_patches("extract_image_patches", "Input0", sizes, strides, rates, auto_pad, output_shape));
+    topology.add(extract_image_patches("extract_image_patches", input_info("Input0"), sizes, strides, rates, auto_pad, output_shape));
 
     cldnn::network::ptr network;
 

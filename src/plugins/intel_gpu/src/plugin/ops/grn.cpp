@@ -14,11 +14,11 @@ namespace intel_gpu {
 
 static void CreateGRNOp(Program& p, const std::shared_ptr<ngraph::op::v0::GRN>& op) {
     validate_inputs_count(op, {1});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     auto primitive = cldnn::grn(layerName,
-                                inputPrimitives[0],
+                                inputs[0],
                                 op->get_bias(),
                                 cldnn::element_type_to_data_type(op->get_output_element_type(0)));
 

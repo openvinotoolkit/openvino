@@ -122,7 +122,7 @@ void start_cl_mem_check_2_inputs(bool is_caching_test) {
     topology topology;
     topology.add(input);
     topology.add(input2);
-    topology.add(reorder("reorder", "input", "input2", output_layout));
+    topology.add(reorder("reorder", input_info("input"), input_info("input2"), output_layout));
 
     cldnn::network::ptr network;
 
@@ -258,7 +258,7 @@ TEST(cl_mem_check, check_input) {
     topology topology;
 
     topology.add(input);
-    topology.add(reorder("reorder", "input", output_layout));
+    topology.add(reorder("reorder", input_info("input"), output_layout));
 
     network network(*engine, topology);
     network.set_input_data("input", input_memory);

@@ -19,7 +19,7 @@ void createDft(Program& p,
                cldnn::dft_mode mode) {
     validate_inputs_count(op, {2, 3});
 
-    const auto inputs = p.GetInputPrimitiveIDs(op);
+    const auto inputs = p.GetInputInfo(op);
     const auto layer_name = layer_type_name_ID(op);
     const auto& friendly_name = op->get_friendly_name();
     const auto& out_shape = op->get_output_shape(0);

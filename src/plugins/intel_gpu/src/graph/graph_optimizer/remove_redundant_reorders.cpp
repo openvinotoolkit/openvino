@@ -182,7 +182,7 @@ void remove_redundant_reorders::run(program& p) {
             auto output_layout = r_node.get_output_layout();
             auto dep_prim = std::const_pointer_cast<reorder>(r_dep_node.get_primitive());
             dep_prim->output_format = output_layout.format;
-            dep_prim->output_data_type = output_layout.data_type;
+            dep_prim->output_data_types = {output_layout.data_type};
 
             LOG_NODE_REMOVAL(r_node.id());
             r_node.can_be_optimized(true);

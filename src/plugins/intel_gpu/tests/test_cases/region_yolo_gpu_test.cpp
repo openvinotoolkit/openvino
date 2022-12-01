@@ -175,10 +175,10 @@ void runRegionTest(region_yolo_test_params& params) {
 
     topology topology;
     topology.add(input_layout("InputData", inputPrim->get_layout()));
-    topology.add(reorder("reorder_pre", "InputData", params.fmt, params.dataType));
-    topology.add(region_yolo("region_yolo", "reorder_pre", params.coords, params.classes,
+    topology.add(reorder("reorder_pre", input_info("InputData"), params.fmt, params.dataType));
+    topology.add(region_yolo("region_yolo", input_info("reorder_pre"), params.coords, params.classes,
                              params.regionNum, static_cast<uint32_t>(params.mask.size()), params.softMax));
-    topology.add(reorder("reorder_post", "region_yolo", format::bfyx, params.dataType));
+    topology.add(reorder("reorder_post", input_info("region_yolo"), format::bfyx, params.dataType));
 
     network network(engine, topology);
     network.set_input_data("InputData", inputPrim);

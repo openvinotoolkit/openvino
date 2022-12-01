@@ -40,11 +40,11 @@ TEST(add_reorders_gpu, two_convolutions_and_concatenation) {
     topology.add(data("weights1", weights1));
     topology.add(data("weights2", weights2));
 
-    topology.add(cldnn::convolution("conv1", { "input" }, { "weights1" }));
-    topology.add(cldnn::reorder("reorder", "input", cldnn::layout(data_types::f32, format::byxf, tensor(4))));
-    topology.add(cldnn::convolution("conv2", { "reorder" }, { "weights2" }));
+    topology.add(cldnn::convolution("conv1", { input_info("input") }, { "weights1" }));
+    topology.add(cldnn::reorder("reorder", input_info("input"), cldnn::layout(data_types::f32, format::byxf, tensor(4))));
+    topology.add(cldnn::convolution("conv2", { input_info("reorder") }, { "weights2" }));
 
-    topology.add(cldnn::concatenation("concat", { "conv1", "conv2" }, 1));
+    topology.add(cldnn::concatenation("concat", { input_info("conv1"), input_info("conv2") }, 1));
 
     network network(engine, topology, build_opt);
     network.set_input_data("input", input);
@@ -116,8 +116,8 @@ void test_add_reorders_gpu_basic_reshape_and_tile(bool is_caching_test) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(reshape("reshape", "input", tensor(2, 1, 2, 1)));
-    topology.add(tile("tile", "reshape", std::vector<int64_t>{ 1, 1, 4, 1 }));
+    topology.add(reshape("reshape", input_info("input"), tensor(2, 1, 2, 1)));
+    topology.add(tile("tile", input_info("reshape"), std::vector<int64_t>{ 1, 1, 4, 1 }));
 
     std::vector<T> input_vec = { 1.f, 0.f, 5.f, 1.5f };
     set_values(input, input_vec);

@@ -20,11 +20,11 @@ struct reverse : public primitive_base<reverse> {
     /// @param axes Axes to reverse primitive id.
     /// @param mode Axes interpretation mode (indices/mask).
     reverse(const primitive_id& id,
-            const primitive_id& input,
-            const primitive_id& axes,
+            const input_info& input,
+            const input_info& axes,
             const reverse_mode mode,
             const padding& output_padding = padding())
-        : primitive_base{id, {input, axes}, output_padding},
+        : primitive_base{id, {input, axes}, {output_padding}},
           mode{mode} {}
 
     reverse_mode mode{reverse_mode::index};

@@ -167,13 +167,13 @@ public:
 
     layout calc_body_input_layout(const loop::io_primitive_map& inputDesc) const {
         const auto& dependency_list = this->get_dependencies();
-        auto input = std::find_if(dependency_list.begin(), dependency_list.end(), [&inputDesc](const program_node* p){
-            return p->id() == inputDesc.external_id;
+        auto input = std::find_if(dependency_list.begin(), dependency_list.end(), [&inputDesc](const std::pair<program_node*, int32_t>& dep){
+            return dep.first->id() == inputDesc.external_id;
         });
         if (input == dependency_list.end()) {
             throw std::runtime_error("Can't find input from dependency_list");
         }
-        layout calculated_layout = (*input)->get_output_layout();
+        layout calculated_layout = (*input).first->get_output_layout();
         auto shape = calculated_layout.get_tensor().sizes(calculated_layout.format);
 
         if (inputDesc.axis >= 0) {

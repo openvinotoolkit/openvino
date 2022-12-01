@@ -67,7 +67,7 @@ TEST(scatter_elements_update_gpu_fp16, d2411_axisF) {
     topology.add(input_layout("InputIndices", input2->get_layout()));
     topology.add(input_layout("InputUpdates", input3->get_layout()));
     topology.add(
-        scatter_elements_update("scatter_elements_update", "InputData", "InputIndices", "InputUpdates", axis)
+        scatter_elements_update("scatter_elements_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), axis)
     );
 
     network network(engine, topology);
@@ -282,14 +282,14 @@ public:
         topology.add(input_layout("Data", data->get_layout()));
         topology.add(input_layout("Indices", indices->get_layout()));
         topology.add(input_layout("Updates", updates->get_layout()));
-        topology.add(reorder("DataReordered", "Data", target_data_format, data_type));
-        topology.add(reorder("IndicesReordered", "Indices", target_indices_format, data_type));
-        topology.add(reorder("UpdatesReordered", "Updates", target_updates_format, data_type));
+        topology.add(reorder("DataReordered", input_info("Data"), target_data_format, data_type));
+        topology.add(reorder("IndicesReordered", input_info("Indices"), target_indices_format, data_type));
+        topology.add(reorder("UpdatesReordered", input_info("Updates"), target_updates_format, data_type));
         topology.add(
-            scatter_elements_update("ScatterEelementsUpdate", "DataReordered", "IndicesReordered",
-                                    "UpdatesReordered", params.axis)
+            scatter_elements_update("ScatterEelementsUpdate", input_info("DataReordered"), input_info("IndicesReordered"),
+                                    input_info("UpdatesReordered"), params.axis)
         );
-        topology.add(reorder("ScatterEelementsUpdatePlain", "ScatterEelementsUpdate", plain_format, data_type));
+        topology.add(reorder("ScatterEelementsUpdatePlain", input_info("ScatterEelementsUpdate"), plain_format, data_type));
 
         network network{engine, topology};
 

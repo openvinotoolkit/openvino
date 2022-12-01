@@ -25,7 +25,7 @@ void test_count_non_zero(layout in_layout, std::vector<T> in_data) {
 
     topology topology;
     topology.add(input_layout("InputData", in_layout));
-    topology.add(count_nonzero("count_nonzero", "InputData")
+    topology.add(count_nonzero("count_nonzero", input_info("InputData"))
     );
 
     network network(engine, topology);
@@ -74,7 +74,7 @@ void test_gather_non_zero(layout in_layout, std::vector<T> in_data) {
     topology.add(input_layout("InputData", in_layout));
     topology.add(input_layout("OutputShape", output_shape_layout));
     topology.add(
-        gather_nonzero("gather_nonzero", "InputData", "OutputShape")
+        gather_nonzero("gather_nonzero", input_info("InputData"), input_info("OutputShape"))
     );
 
     network network(engine, topology);
@@ -181,8 +181,8 @@ void test_non_zero(layout in_layout, std::vector<T> in_data) {
 
     topology topology;
     topology.add(input_layout("InputData", in_layout));
-    topology.add(count_nonzero("count_nonzero", "InputData"));
-    topology.add(gather_nonzero("gather_nonzero", "InputData", "count_nonzero"));
+    topology.add(count_nonzero("count_nonzero", input_info("InputData")));
+    topology.add(gather_nonzero("gather_nonzero", input_info("InputData"), input_info("count_nonzero")));
 
     network network(engine, topology);
 

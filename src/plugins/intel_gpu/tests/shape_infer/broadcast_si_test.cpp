@@ -38,7 +38,7 @@ TEST_P(broadcast_test_two_inputs, shape_infer) {
 
     auto data_layout_prim = std::make_shared<input_layout>("data", p.data_layout);
     auto target_shape_layout_prim = std::make_shared<input_layout>("target_shape", p.target_shape_layout);
-    auto broadcast_prim = std::make_shared<broadcast>("output", "data", "target_shape", p.axes_mapping_data, p.mode);
+    auto broadcast_prim = std::make_shared<broadcast>("output", input_info("data"), input_info("target_shape"), p.axes_mapping_data, p.mode);
 
     cldnn::program prog(engine);
 
@@ -89,7 +89,7 @@ TEST_P(broadcast_test_single_input, shape_infer) {
     auto& engine = get_test_engine();
 
     auto data_layout_prim = std::make_shared<input_layout>("data", p.data_layout);
-    auto broadcast_prim = std::make_shared<broadcast>("output", "data", p.target_shape_data, p.axes_mapping_data, p.mode);
+    auto broadcast_prim = std::make_shared<broadcast>("output", input_info("data"), p.target_shape_data, p.axes_mapping_data, p.mode);
 
     cldnn::program prog(engine);
 

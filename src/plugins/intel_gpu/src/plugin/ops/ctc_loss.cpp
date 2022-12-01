@@ -17,7 +17,7 @@ void CreateCTCLossOp(Program& p, const std::shared_ptr<ngraph::op::v4::CTCLoss>&
     validate_inputs_count(op, {4, 5});
 
     const cldnn::ctc_loss ctc_loss_prim(layer_type_name_ID(op),
-                                        p.GetInputPrimitiveIDs(op),
+                                        p.GetInputInfo(op),
                                         op->get_preprocess_collapse_repeated(),
                                         op->get_ctc_merge_repeated(),
                                         op->get_unique());

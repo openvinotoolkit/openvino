@@ -110,22 +110,22 @@ struct multiclass_nms : public primitive_base<multiclass_nms> {
     /// @param attrs Attributes
     /// @param nms_eta Parameter for adaptive non-max-suppression
     multiclass_nms(const primitive_id& id,
-                   const std::vector<primitive_id> inputs,
+                   const std::vector<input_info> inputs,
                    const multiclass_nms::attributes& attrs,
                    const primitive_id& ext_prim_id = "",
                    const padding& output_padding = {})
         : primitive_base{id,
-                         inputs[InputIdx::RoisNum].empty()
-                             ? std::vector<primitive_id>({inputs[InputIdx::Boxes],
-                                                          inputs[InputIdx::Scores],
-                                                          inputs[InputIdx::OutputSelectedIndices],
-                                                          inputs[InputIdx::OutputSelectedNum]})
+                         inputs[InputIdx::RoisNum].pid.empty()
+                             ? std::vector<input_info>({inputs[InputIdx::Boxes],
+                                                        inputs[InputIdx::Scores],
+                                                        inputs[InputIdx::OutputSelectedIndices],
+                                                        inputs[InputIdx::OutputSelectedNum]})
                              : inputs,
-                         output_padding},
-          output_selected_indices(inputs[InputIdx::OutputSelectedIndices]),
-          output_selected_num(inputs[InputIdx::OutputSelectedNum]),
+                         {output_padding}},
+          output_selected_indices(inputs[InputIdx::OutputSelectedIndices].pid),
+          output_selected_num(inputs[InputIdx::OutputSelectedNum].pid),
           attrs(attrs),
-          has_roisnum(!inputs[InputIdx::RoisNum].empty()) {}
+          has_roisnum(!inputs[InputIdx::RoisNum].pid.empty()) {}
 
     primitive_id output_selected_indices{};
     primitive_id output_selected_num{};

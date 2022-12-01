@@ -98,11 +98,11 @@ TYPED_TEST(pyramid_roi_align_typed_test, smoke_4levels) {
     topo.add(data("P5", P5_mem));
     topo.add(input_layout("rois", rois_lay));
     topo.add(pyramid_roi_align("pyramid",
-                               "rois",
-                               "P2",
-                               "P3",
-                               "P4",
-                               "P5",
+                               input_info("rois"),
+                               input_info("P2"),
+                               input_info("P3"),
+                               input_info("P4"),
+                               input_info("P5"),
                                output_size,
                                sampling_points,
                                { P2_scale, P3_scale, P4_scale, P5_scale },

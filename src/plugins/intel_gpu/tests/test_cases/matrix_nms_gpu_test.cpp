@@ -95,16 +95,16 @@ public:
         topology.add(mutable_data("selected_boxes", selected_boxes));
         topology.add(mutable_data("valid_outputs", valid_outputs));
 
-        topology.add(reorder("reordered_boxes", "boxes", blocked_format, data_type));
-        topology.add(reorder("reordered_scores", "scores", blocked_format, data_type));
+        topology.add(reorder("reordered_boxes", input_info("boxes"), blocked_format, data_type));
+        topology.add(reorder("reordered_scores", input_info("scores"), blocked_format, data_type));
 
         topology.add(matrix_nms("reordered_matrix_nms",
-                                "reordered_boxes",
-                                "reordered_scores",
-                                "selected_boxes",
-                                "valid_outputs",
+                                input_info("reordered_boxes"),
+                                input_info("reordered_scores"),
+                                input_info("selected_boxes"),
+                                input_info("valid_outputs"),
                                 attrs));
-        topology.add(reorder("matrix_nms", "reordered_matrix_nms", plain_format, data_type));
+        topology.add(reorder("matrix_nms", input_info("reordered_matrix_nms"), plain_format, data_type));
 
         network network(engine, topology);
         network.set_input_data("boxes", boxes);

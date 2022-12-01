@@ -19,11 +19,11 @@ namespace intel_gpu {
 
 static void CreateEmbeddingBagOffsetsSumOp(Program& p, const std::shared_ptr<ngraph::op::v3::EmbeddingBagOffsetsSum>& op) {
     validate_inputs_count(op, {3, 4, 5});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     int32_t defaultIndex = -1;
-    if (inputPrimitives.size() > 3) {
+    if (inputs.size() > 3) {
         auto index_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(3));
         if (!index_node) {
             IE_THROW() << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
@@ -34,34 +34,34 @@ static void CreateEmbeddingBagOffsetsSumOp(Program& p, const std::shared_ptr<ngr
              IE_THROW() << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
 
         defaultIndex = static_cast<int32_t>(val);
-        inputPrimitives.erase(inputPrimitives.begin() + 3); // Remove "default_index"
+        inputs.erase(inputs.begin() + 3); // Remove "default_index"
     }
 
-    std::vector<cldnn::primitive_id> reorderedInputs;
-    reorderedInputs.resize(inputPrimitives.size());
+    std::vector<cldnn::input_info> reordered_inputs;
+    reordered_inputs.resize(inputs.size());
 
-    for (size_t portIndex = 0; portIndex < inputPrimitives.size(); portIndex++) {
+    for (size_t portIndex = 0; portIndex < inputs.size(); portIndex++) {
         auto inputDataType = cldnn::element_type_to_data_type(op->get_input_element_type(portIndex));
         if (((portIndex == 1) || (portIndex == 2)) && (inputDataType == cldnn::data_types::i64)) {
             // GPU primitive supports only i32 data type for indices inputs,
             // so we need additional reorders if they are provided as i64
-            auto reorderPrimName = inputPrimitives[portIndex] + "_" + op->get_friendly_name() + Program::m_preProcessTag;
+            auto reorderPrimName = inputs[portIndex].pid + "_" + op->get_friendly_name() + Program::m_preProcessTag;
             auto targetFormat = cldnn::format::get_default_format(op->get_input_shape(portIndex).size());
             auto preprocessPrim = cldnn::reorder(reorderPrimName,
-                                                 inputPrimitives[portIndex],
+                                                 inputs[portIndex],
                                                  targetFormat,
                                                  cldnn::data_types::i32,
                                                  std::vector<float>(),
                                                  cldnn::reorder_mean_mode::subtract);
             p.add_primitive(*op, preprocessPrim);
-            reorderedInputs[portIndex] = (reorderPrimName);
+            reordered_inputs[portIndex] = cldnn::input_info(reorderPrimName);
         } else {
-            reorderedInputs[portIndex] = inputPrimitives[portIndex];
+            reordered_inputs[portIndex] = inputs[portIndex];
         }
     }
 
     auto embeddingBagPrim = cldnn::embedding_bag(layerName,
-                                                 reorderedInputs,
+                                                 reordered_inputs,
                                                  cldnn::embedding_bag::offsets_sum,
                                                  tensor_from_dims(op->get_output_shape(0)),
                                                  defaultIndex);
@@ -71,34 +71,34 @@ static void CreateEmbeddingBagOffsetsSumOp(Program& p, const std::shared_ptr<ngr
 
 static void CreateEmbeddingBagPackedSumOp(Program& p, const std::shared_ptr<ngraph::op::v3::EmbeddingBagPackedSum>& op) {
     validate_inputs_count(op, {2, 3});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
-    std::vector<cldnn::primitive_id> reorderedInputs;
-    reorderedInputs.resize(inputPrimitives.size());
+    std::vector<cldnn::input_info> reordered_inputs;
+    reordered_inputs.resize(inputs.size());
 
-    for (size_t portIndex = 0; portIndex < inputPrimitives.size(); portIndex++) {
+    for (size_t portIndex = 0; portIndex < inputs.size(); portIndex++) {
         auto inputDataType = cldnn::element_type_to_data_type(op->get_input_element_type(portIndex));
         if ((portIndex == 1) && (inputDataType == cldnn::data_types::i64)) {
             // GPU primitive supports only i32 data type for indices input,
             // so we need additional reorder if it's provided as i64
-            auto reorderPrimName = inputPrimitives[portIndex] + "_" + op->get_friendly_name() + Program::m_preProcessTag;
+            auto reorderPrimName = inputs[portIndex].pid + "_" + op->get_friendly_name() + Program::m_preProcessTag;
             auto targetFormat = cldnn::format::get_default_format(op->get_input_shape(portIndex).size());
             auto preprocessPrim = cldnn::reorder(reorderPrimName,
-                                                 inputPrimitives[portIndex],
+                                                 inputs[portIndex],
                                                  targetFormat,
                                                  cldnn::data_types::i32,
                                                  std::vector<float>(),
                                                  cldnn::reorder_mean_mode::subtract);
             p.add_primitive(*op, preprocessPrim);
-            reorderedInputs[portIndex] = (reorderPrimName);
+            reordered_inputs[portIndex] = cldnn::input_info(reorderPrimName);
         } else {
-            reorderedInputs[portIndex] = inputPrimitives[portIndex];
+            reordered_inputs[portIndex] = inputs[portIndex];
         }
     }
 
     auto embeddingBagPrim = cldnn::embedding_bag(layerName,
-                                                 reorderedInputs,
+                                                 reordered_inputs,
                                                  cldnn::embedding_bag::packed_sum,
                                                  tensor_from_dims(op->get_output_shape(0)),
                                                  -1);
@@ -108,14 +108,14 @@ static void CreateEmbeddingBagPackedSumOp(Program& p, const std::shared_ptr<ngra
 
 static void CreateEmbeddingSegmentsSumOp(Program& p, const std::shared_ptr<ngraph::op::v3::EmbeddingSegmentsSum>& op) {
     validate_inputs_count(op, {4, 5, 6});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
-    inputPrimitives.erase(inputPrimitives.begin() + 3); // Remove "num_segments"
+    inputs.erase(inputs.begin() + 3); // Remove "num_segments"
 
     int32_t defaultIndex = -1;
     // port of default_index is 4 by default, but we removed "num_segments" above, so now it's equal to 3
-    if (inputPrimitives.size() > 3) {
+    if (inputs.size() > 3) {
         auto index_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(4));
         if (!index_node) {
             IE_THROW() << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
@@ -126,34 +126,34 @@ static void CreateEmbeddingSegmentsSumOp(Program& p, const std::shared_ptr<ngrap
              IE_THROW() << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
 
         defaultIndex = static_cast<int32_t>(val);
-        inputPrimitives.erase(inputPrimitives.begin() + 3); // Remove "default_index"
+        inputs.erase(inputs.begin() + 3); // Remove "default_index"
     }
 
-    std::vector<cldnn::primitive_id> reorderedInputs;
-    reorderedInputs.resize(inputPrimitives.size());
+    std::vector<cldnn::input_info> reordered_inputs;
+    reordered_inputs.resize(inputs.size());
 
-    for (size_t portIndex = 0; portIndex < inputPrimitives.size(); portIndex++) {
+    for (size_t portIndex = 0; portIndex < inputs.size(); portIndex++) {
         auto inputDataType = cldnn::element_type_to_data_type(op->get_input_element_type(portIndex));
         if (((portIndex == 1) || (portIndex == 2)) && (inputDataType == cldnn::data_types::i64)) {
             // GPU primitive supports only i32 data type for indices inputs,
             // so we need additional reorders if they are provided as i64
-            auto reorderPrimName = inputPrimitives[portIndex] + "_" + op->get_friendly_name() + Program::m_preProcessTag;
+            auto reorderPrimName = inputs[portIndex].pid + "_" + op->get_friendly_name() + Program::m_preProcessTag;
             auto targetFormat = cldnn::format::get_default_format(op->get_input_shape(portIndex).size());
             auto preprocessPrim = cldnn::reorder(reorderPrimName,
-                                                 inputPrimitives[portIndex],
+                                                 inputs[portIndex],
                                                  targetFormat,
                                                  cldnn::data_types::i32,
                                                  std::vector<float>(),
                                                  cldnn::reorder_mean_mode::subtract);
             p.add_primitive(*op, preprocessPrim);
-            reorderedInputs[portIndex] = (reorderPrimName);
+            reordered_inputs[portIndex] = cldnn::input_info(reorderPrimName);
         } else {
-            reorderedInputs[portIndex] = inputPrimitives[portIndex];
+            reordered_inputs[portIndex] = inputs[portIndex];
         }
     }
 
     auto embeddingBagPrim = cldnn::embedding_bag(layerName,
-                                                 reorderedInputs,
+                                                 reordered_inputs,
                                                  cldnn::embedding_bag::segments_sum,
                                                  tensor_from_dims(op->get_output_shape(0)),
                                                  defaultIndex);

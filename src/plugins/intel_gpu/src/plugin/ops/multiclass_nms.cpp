@@ -17,9 +17,9 @@ namespace intel_gpu {
 static void CreateMulticlassNmsIEInternalOp(Program& p, const std::shared_ptr<ngraph::op::internal::MulticlassNmsIEInternal>& op) {
     validate_inputs_count(op, {2, 3});
 
-    auto inputs = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     if (inputs.size() == 2) {
-        inputs.push_back("");  // roisnum dummy id
+        inputs.push_back(cldnn::input_info(""));  // roisnum dummy id
     }
 
     const auto op_friendly_name = op->get_friendly_name();
@@ -37,7 +37,7 @@ static void CreateMulticlassNmsIEInternalOp(Program& p, const std::shared_ptr<ng
     const auto mutable_id_w1 = layer_type_name + "_md_write.1";
     const cldnn::mutable_data mutable_prim_w{mutable_id_w1, shared_memory1};
     p.add_primitive(*op, mutable_prim_w);
-    inputs.push_back(mutable_id_w1);
+    inputs.push_back(cldnn::input_info(mutable_id_w1));
 
     const auto mutable_precision2 = op->get_output_element_type(2);
     const auto output_shape2 = op->get_output_shape(2);
@@ -49,7 +49,7 @@ static void CreateMulticlassNmsIEInternalOp(Program& p, const std::shared_ptr<ng
     const auto mutable_id_w2 = layer_type_name + "_md_write.2";
     const cldnn::mutable_data mutable_prim_w2{mutable_id_w2, shared_memory2};
     p.add_primitive(*op, mutable_prim_w2);
-    inputs.push_back(mutable_id_w2);
+    inputs.push_back(cldnn::input_info(mutable_id_w2));
 
     constexpr auto expected_inputs_count = 3 + 2;  // 3 operation inputs plus 2 additional outputs
     if (inputs.size() != expected_inputs_count) {
@@ -64,11 +64,11 @@ static void CreateMulticlassNmsIEInternalOp(Program& p, const std::shared_ptr<ng
     p.add_primitive(*op, prim);
 
     const auto mutable_id_r1 = layer_type_name + ".out1";
-    const cldnn::mutable_data mutable_prim_r1{mutable_id_r1, {layer_name}, shared_memory1};
+    const cldnn::mutable_data mutable_prim_r1{mutable_id_r1, {cldnn::input_info(layer_name)}, shared_memory1};
     p.add_primitive(*op, mutable_prim_r1);
 
     const auto mutable_id_r2 = layer_type_name + ".out2";
-    const cldnn::mutable_data mutable_prim_r2{mutable_id_r2, {layer_name}, shared_memory2};
+    const cldnn::mutable_data mutable_prim_r2{mutable_id_r2, {cldnn::input_info(layer_name)}, shared_memory2};
     p.add_primitive(*op, mutable_prim_r2);
 }
 

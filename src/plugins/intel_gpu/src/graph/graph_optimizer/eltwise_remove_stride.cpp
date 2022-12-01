@@ -27,9 +27,9 @@ void eltwise_remove_stride::conv_stride_extend(program& p, program_node& node, c
     if (filter_size.spatial[0] == 1 && filter_size.spatial[1] == 1) {
         auto deps = node.get_dependencies();
         for (auto dep : deps) {
-            if (dep->is_type<convolution>()) {
-                conv_stride_extend(p, *dep, tensor);
-                dep->recalc_output_layout(true);
+            if (dep.first->is_type<convolution>()) {
+                conv_stride_extend(p, *dep.first, tensor);
+                dep.first->recalc_output_layout(true);
                 break;
             }
         }
@@ -73,9 +73,9 @@ void eltwise_remove_stride::run(program& p) {
                 for (size_t i = 0; i < deps.size(); i++) {
                     auto dep = deps[i];
                     // TODO: add other primitives beside convolution here
-                    if (dep->is_type<convolution>()) {
+                    if (dep.first->is_type<convolution>()) {
                         auto e = const_cast<eltwise*>(&(*eltw));
-                        conv_stride_extend(p, *dep, e->stride[i]);
+                        conv_stride_extend(p, *dep.first, e->stride[i]);
                     }
                 }
             }

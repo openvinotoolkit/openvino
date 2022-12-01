@@ -24,12 +24,12 @@ struct cum_sum : public primitive_base<cum_sum> {
     /// @param exclusive If set to true then the top element is not included in sum.
     /// @param reverse If set to true will perform the sums in reverse direction.
     cum_sum(const primitive_id& id,
-            const primitive_id& input,
+            const input_info& input,
             const int64_t axis = 0,
             const bool exclusive = false,
             const bool reverse = false,
             const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding), axis(axis), exclusive(exclusive), reverse(reverse)
+        : primitive_base(id, {input}, {output_padding}), axis(axis), exclusive(exclusive), reverse(reverse)
     {}
 
     /// @brief Scalar axis.
