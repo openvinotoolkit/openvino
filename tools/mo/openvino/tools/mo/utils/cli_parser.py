@@ -1457,7 +1457,8 @@ def get_shape_from_input_value(input_value: str):
     if len(shape) == 0:
         shape = None
     elif len(shape) == 1 and shape[0] in ['', ' ']:
-        shape = ()
+        # this shape corresponds to scalar
+        shape = PartialShape([])
     elif len(shape) == 1:
         dims = re.split(r', *| +', shape[0])
         dims = list(filter(None, dims))

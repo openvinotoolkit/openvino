@@ -140,6 +140,11 @@ void InputModel::set_element_type(const Place::Ptr& place, const element::Type& 
     FRONTEND_CALL_STATEMENT("set_element_type", m_actual->set_element_type(place, type))
 }
 
+element::Type InputModel::get_element_type(const Place::Ptr& place) const {
+    FRONT_END_CHECK_IMPLEMENTED(m_actual, get_element_type);
+    FRONTEND_RETURN_STATEMENT("get_element_type", m_actual->get_element_type(place))
+}
+
 void InputModel::set_tensor_value(const Place::Ptr& place, const void* value) {
     FRONT_END_CHECK_IMPLEMENTED(m_actual, set_tensor_value);
     FRONTEND_CALL_STATEMENT("set_tensor_value", m_actual->set_tensor_value(place, value))
