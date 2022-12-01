@@ -30,6 +30,19 @@ bool inherit_output_shape(std::shared_ptr<ov::Node> node, std::vector<size_t> in
     return is_changed;
 }
 
+bool inherit_output_rank(std::shared_ptr<ov::Node> node, std::vector<size_t> input_idxs) {
+    auto is_changed = false;
+    auto output_shape = node->get_output_partial_shape(0);
+
+    for (auto idx : input_idxs) {
+        if (idx < node->get_input_size() && node->get_input_partial_shape(idx).rank().is_dynamic()) {
+            node->get_input_tensor(idx).set_partial_shape(ov::PartialShape::dynamic(output_shape.rank()));
+            is_changed = true;
+        }
+    }
+    return is_changed;
+}
+
 bool inherit_output_type(std::shared_ptr<ov::Node> node, std::vector<size_t> input_idxs) {
     auto is_changed = false;
     auto output_type = node->get_output_element_type(0);
@@ -52,12 +65,13 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ngra
         const auto& op = *it;
         auto output_shape = op->get_output_partial_shape(0);
         auto output_type = op->get_output_element_type(0);
-        if (std::dynamic_pointer_cast<Convolution>(op)) {
-            if (op->get_input_partial_shape(0).rank().is_dynamic() && output_shape.rank().is_static()) {
-                op->get_input_tensor(0).set_partial_shape(PartialShape::dynamic(output_shape.rank().get_length()));
-                is_changed = true;
-            }
-            is_changed |= inherit_output_type(op, {0});
+        if (std::dynamic_pointer_cast<Convolution>(op) || std::dynamic_pointer_cast<GroupConvolutionBackpropData>(op) ||
+            std::dynamic_pointer_cast<ConvolutionBackpropData>(op) || std::dynamic_pointer_cast<GroupConvolution>(op)) {
+            is_changed |= inherit_output_rank(op, {0, 1});
+            is_changed |= inherit_output_type(op, {0, 1});
+        } else if (std::dynamic_pointer_cast<DeformableConvolution>(op)) {
+            is_changed |= inherit_output_rank(op, {0, 1, 2, 3});
+            is_changed |= inherit_output_type(op, {0, 1, 2, 3});
         } else if (std::dynamic_pointer_cast<Pad>(op)) {
             // Shape of pads_begin and pads_end must match rank of input
             if (op->get_input_partial_shape(0).rank().is_dynamic()) {

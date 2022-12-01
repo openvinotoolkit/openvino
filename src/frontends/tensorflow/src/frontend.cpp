@@ -10,6 +10,7 @@
 #include "helper_transforms/gru_block_cell_replacer.hpp"
 #include "input_model.hpp"
 #include "op_table.hpp"
+#include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
 #include "openvino/frontend/tensorflow/extension/conversion.hpp"
 #include "openvino/frontend/tensorflow/graph_iterator.hpp"
 #include "openvino/pass/manager.hpp"
@@ -442,6 +443,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
 
     // TODO: reimplement TransposeSinking that does not corrupt filters for Convolution
     manager.register_pass<ov::frontend::tensorflow::pass::TransposeSinking>();
+    manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
     manager.run_passes(function);
 }
 
