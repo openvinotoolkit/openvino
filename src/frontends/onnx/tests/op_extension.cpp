@@ -155,5 +155,5 @@ TEST(ONNXOpExtensionViaCommonConstructor, onnx_op_extension_with_custom_domain) 
         ov::util::path_join({TEST_ONNX_MODELS_DIRNAME, "relu_custom_domain.onnx"})));
 
     std::shared_ptr<ov::Model> model;
-    fe->convert(input_model);
+    EXPECT_NO_THROW(fe->convert(input_model));
 }
