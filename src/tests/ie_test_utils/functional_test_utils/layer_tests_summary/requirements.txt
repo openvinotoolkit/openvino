@@ -1,3 +1,4 @@
 jinja2==3.1.2
 gitpython
 defusedxml>=0.7.1
+xlsxwriter==3.0.3
