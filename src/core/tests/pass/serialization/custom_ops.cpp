@@ -8,7 +8,7 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "openvino/runtime/core.hpp"
-#include "transformations/serialize.hpp"
+#include "ngraph/pass/serialize.hpp"
 
 class CustomOpsSerializationTest : public ::testing::Test {
 protected:
