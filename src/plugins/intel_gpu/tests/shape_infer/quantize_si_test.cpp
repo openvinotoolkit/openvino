@@ -42,7 +42,8 @@ TEST_P(quantize_test, shape_infer) {
     auto in_hi_prim = std::make_shared<data>("in_hi", in_hi_mem);
     auto out_lo_prim = std::make_shared<data>("out_lo", out_lo_mem);
     auto out_hi_prim = std::make_shared<data>("out_hi", out_hi_mem);
-    auto quantize_prim = std::make_shared<quantize>("output", "data", "in_lo", "in_hi", "out_lo", "out_hi", 255, p.expected_layout.data_type);
+    auto quantize_prim = std::make_shared<quantize>("output", input_info("data"), input_info("in_lo"), input_info("in_hi"),
+                                                    input_info("out_lo"), input_info("out_hi"), 255, p.expected_layout.data_type);
 
     cldnn::program prog(engine);
 

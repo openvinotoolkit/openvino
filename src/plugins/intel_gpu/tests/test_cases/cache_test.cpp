@@ -207,7 +207,7 @@ public:
         auto topology = cldnn::topology(
             cldnn::input_layout("input", cldnn::layout(cldnn::data_types::f32, cldnn::format::bfyx, { 1, 16, 3, 3 })),
             cldnn::data("weights", w_mem),
-            cldnn::convolution("conv", "input", { "weights" })
+            cldnn::convolution("conv", input_info("input"), { "weights" })
         );
 
         auto tune_conf = cldnn::tuning_config_options();

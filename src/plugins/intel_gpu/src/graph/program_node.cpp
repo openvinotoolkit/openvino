@@ -36,7 +36,7 @@ program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
         num_outputs = prim->num_outputs;
         for (size_t i = 0 ; i < num_outputs; ++i) {
             layout output_layout = layout{ov::PartialShape{}, data_types::f32, format::bfyx};
-            output_layout.data_padding = prim->output_padding;
+            output_layout.data_padding = prim->output_paddings[i];
             output_layouts.push_back(output_layout);
             valid_output_layouts.push_back(false);
         }
@@ -46,43 +46,35 @@ program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
 void program_node::replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling) {
     if (idx >= dependencies.size())
         return;
-    if (dependencies[idx] == &new_dep)
+    if (dependencies[idx].first == &new_dep)
         return;
 
     if (is_type<loop>()) {
         loop_node& loop = *this;
-        loop.update_primitive_map(dependencies[idx]->id(), new_dep.id(), true);
+        loop.update_primitive_map(dependencies[idx].first->id(), new_dep.id(), true);
     }
 
-    auto it = std::find(dependencies[idx]->users.begin(), dependencies[idx]->users.end(), this);
-    if (it != dependencies[idx]->users.end()) {
-        dependencies[idx]->users.erase(it);
-    }
-    if (!dependencies_new.empty()) {
-        it = std::find(dependencies_new[idx].first->users.begin(), dependencies_new[idx].first->users.end(), this);
-        if (it != dependencies_new[idx].first->users.end()) {
-            dependencies_new[idx].first->users.erase(it);
-        }
+    auto it = std::find(dependencies[idx].first->users.begin(), dependencies[idx].first->users.end(), this);
+    if (it != dependencies[idx].first->users.end()) {
+        dependencies[idx].first->users.erase(it);
     }
 
     if (remove_if_dangling)
-        myprog.remove_if_dangling(*dependencies[idx]);
+        myprog.remove_if_dangling(*dependencies[idx].first);
 
-    dependencies[idx] = &new_dep;
-    if (!dependencies_new.empty())
-        dependencies_new[idx].first = &new_dep;
+    dependencies[idx].first = &new_dep;
     new_dep.users.push_back(this);
 }
 
 void program_node::replace_dependency(program_node const& old_dep, program_node& new_dep, bool remove_if_dangling) {
     for (size_t i = 0; i < dependencies.size(); ++i)
-        if (dependencies[i] == &old_dep)
+        if (dependencies[i].first == &old_dep)
             return replace_dependency(i, new_dep, remove_if_dangling);
 }
 
 std::vector<primitive_id> program_node::get_dependencies_ids() const {
     std::vector<primitive_id> dep_ids;
-    for (auto& dependency : dependencies) dep_ids.push_back(dependency->get_primitive()->id);
+    for (auto& dependency : dependencies) dep_ids.push_back(dependency.first->get_primitive()->id);
     return dep_ids;
 }
 
@@ -90,8 +82,8 @@ void program_node::remove_dependency(size_t idx) {
     if (idx >= dependencies.size())
         return;
 
-    dependencies[idx]->users.remove(this);
-    myprog.remove_if_dangling(*dependencies[idx]);
+    dependencies[idx].first->users.remove(this);
+    myprog.remove_if_dangling(*dependencies[idx].first);
     dependencies.erase(dependencies.begin() + idx);
 }
 
@@ -178,7 +170,8 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
             if (empty) {
                 empty = false;
             }
-            deps_ptrs.push_back(std::to_string(reinterpret_cast<uintptr_t>(*itr++)));
+            deps_ptrs.push_back(std::to_string(reinterpret_cast<uintptr_t>(itr->first)));
+            itr++;
         }
         if (deps_ptrs.empty()) {
             deps_ptrs.push_back("null");
@@ -220,7 +213,7 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
 
 void program_node::remove_dependency(program_node& node) {
     for (size_t i = 0; i < dependencies.size(); ++i)
-        if (dependencies[i] == &node)
+        if (dependencies[i].first == &node)
             remove_dependency(i);
 }
 
@@ -238,7 +231,7 @@ size_t program_node::get_user_index(program_node& node) const {
 
 size_t program_node::get_dependency_index(program_node& node) const {
     for (size_t i = 0; i < dependencies.size(); ++i)
-        if (dependencies[i] == &node)
+        if (dependencies[i].first == &node)
             return i;
 
     OPENVINO_ASSERT(false, "Search invalid dependency node" + node.id() + " node");
@@ -370,8 +363,8 @@ bool program_node::is_dynamic() const {
                 return true;
         }
     }
-    for (const auto* input : get_dependencies()) {
-        if (input->is_dynamic_output_layout())
+    for (const auto& input : get_dependencies()) {
+        if (input.first->is_dynamic_output_layout())
             return true;
     }
 
@@ -395,7 +388,7 @@ bool program_node::is_dynamic() {
     }
 
     for (auto& input : get_dependencies()) {
-        if (input->is_dynamic_output_layout())
+        if (input.first->is_dynamic_output_layout())
             return true;
     }
 
@@ -415,14 +408,14 @@ bool program_node::is_dynamic_output_layout(size_t idx) {
 }
 
 bool program_node::has_padded_dependency() {
-    return std::any_of(get_dependencies().begin(), get_dependencies().end(), [](program_node* node) {
-        return node->is_padded();
+    return std::any_of(get_dependencies().begin(), get_dependencies().end(), [](const std::pair<program_node*, int32_t>& dep) {
+        return dep.first->is_padded();
     });
 }
 
 bool program_node::has_padded_dependency() const {
-    return std::any_of(get_dependencies().begin(), get_dependencies().end(), [](const program_node* node) {
-        return node->is_padded();
+    return std::any_of(get_dependencies().begin(), get_dependencies().end(), [](const std::pair<program_node*, int32_t>& dep) {
+        return dep.first->is_padded();
     });
 }
 
