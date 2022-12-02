@@ -5,6 +5,7 @@
 #include <memory>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/slice_plan.hpp>
 #include <openvino/opsets/opset1.hpp>
 #include <transformations/common_optimizations/optimize_strided_slice.hpp>
 #include <vector>

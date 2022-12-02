@@ -7,6 +7,7 @@
 #include <memory>
 
 #include <openvino/core/model.hpp>
+#include <openvino/op/util/sub_graph_base.hpp>
 #include <ngraph/op/op.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -22,9 +23,10 @@ namespace op {
  * @brief An operation that is implemented by a model
  * @ingroup snippets
  */
-class Subgraph : public ngraph::op::Op {
+class Subgraph : public ov::op::util::SubGraphOp {
 public:
-    OPENVINO_OP("Subgraph", "SnippetsOpset");
+    OPENVINO_OP("Subgraph", "SnippetsOpset", ov::op::util::SubGraphOp);
+    BWDCMP_RTTI_DECLARATION;
 
     // < 1, 42, 17, 15, 16> < 0, 1, 2, 3, 1>
     // should be:
@@ -70,6 +72,8 @@ public:
     using BlockedShape = std::tuple<ngraph::Shape, ngraph::AxisVector, ngraph::element::Type>;
     using BlockedShapeVector = std::vector<BlockedShape>;
 
+    Subgraph() = default;
+
     Subgraph(const OutputVector& args, std::shared_ptr<ov::Model> body);
 
     Subgraph(const NodeVector& args, std::shared_ptr<ov::Model> body);
@@ -80,11 +84,29 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 
-    std::shared_ptr<ov::Model> get_body() const {
-        return m_body;
+    // we introduce this method instead of using SubGraphOp::get_function()
+    // to align naming with other methods
+    const std::shared_ptr<ov::Model> & body_ptr() const {
+        return m_bodies[0];
     }
 
-    std::shared_ptr<ngraph::snippets::Generator> get_generator() const {
+    std::shared_ptr<ov::Model> & body_ptr() {
+        return m_bodies[0];
+    }
+
+    const ov::Model & body() const {
+        return *m_bodies[0];
+    }
+
+    ov::Model & body() {
+        return *m_bodies[0];
+    }
+
+    const std::shared_ptr<ngraph::snippets::Generator> & get_generator() const {
+        return m_generator;
+    }
+
+    std::shared_ptr<ngraph::snippets::Generator> & get_generator() {
         return m_generator;
     }
 
@@ -123,13 +145,13 @@ public:
 private:
     void align_element_types(const BlockedShapeVector& outputShapes, const BlockedShapeVector& inputShapes);
     void convert_to_snippet_dialect();
+
     // Count of potentional non-scalar Consants that will be created after some tranformations
     // At the moment it's relevant only for FakeQuantize decomposition
     // NOTE: To avoid overheads in each calcution of this count (for example, in validate_and_type_infer()),
     //       we should MANUALLY calculate it where it needed.
     size_t m_non_scalar_constants_count = 0;
     Shape exec_domain = {};
-    std::shared_ptr<ov::Model> m_body = nullptr;
     std::shared_ptr<ngraph::snippets::Generator> m_generator = nullptr;
 
     // TODO: Change logic of insert Converts. This exec element type can be different for plugins

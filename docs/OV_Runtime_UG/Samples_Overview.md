@@ -8,7 +8,7 @@
    :maxdepth: 1
    :hidden:
    
-   Basic OpenVINO Workflow <openvino_docs_get_started_get_started_demos>
+   Get Started with C++ Samples <openvino_docs_get_started_get_started_demos>
    openvino_inference_engine_samples_classification_sample_async_README
    openvino_inference_engine_ie_bridges_python_sample_classification_sample_async_README
    openvino_inference_engine_samples_hello_classification_README
@@ -130,7 +130,7 @@ make
 ```
 
 For the release configuration, the sample application binaries are in `<path_to_build_directory>/intel64/Release/`;
-for the debug configuration — in `<path_to_build_directory>/intel64/Debug/`.
+for the debug configuration — in `<path_to_build_directory>/intel64/Debug/`.
 
 ### <a name="build-samples-windows"></a>Build the Sample Applications on Microsoft Windows
 
@@ -139,7 +139,7 @@ The recommended Windows build environment is the following:
 * Microsoft Visual Studio 2019
 * CMake version 3.10 or higher
 
-> **NOTE**: If you want to use Microsoft Visual Studio 2019, you are required to install CMake 3.14 or higher.
+> **NOTE**: If you want to use Microsoft Visual Studio 2019, you are required to install CMake 3.14 or higher.
 
 To build the C or C++ sample applications on Windows, go to the `<INSTALL_DIR>\samples\c` or `<INSTALL_DIR>\samples\cpp` directory, respectively, and run the `build_samples_msvc.bat` batch file:
 ```sh
@@ -211,7 +211,7 @@ make
 ```
 
 For the release configuration, the sample application binaries are in `<path_to_build_directory>/intel64/Release/`;
-for the debug configuration — in `<path_to_build_directory>/intel64/Debug/`.
+for the debug configuration — in `<path_to_build_directory>/intel64/Debug/`.
 
 ## Get Ready for Running the Sample Applications
 
