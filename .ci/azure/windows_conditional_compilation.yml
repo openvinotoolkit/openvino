@@ -131,15 +131,13 @@ jobs:
     displayName: 'List bin files'
 
   - script: |
+      set path=%path%;$(REPO_DIR)\temp\tbb\bin
       call "$(MSVS_VARS_PATH)" && python thirdparty\itt_collector\runtool\sea_runtool.py --bindir $(REPO_DIR)\bin\intel64\$(BUILD_TYPE) -o $(BUILD_DIR)\itt_stat ! $(REPO_DIR)\bin\intel64\$(BUILD_TYPE)\benchmark_app.exe -niter 1 -nireq 1 -m $(MODELS_PATH)\models\test_model\test_model_fp32.xml -d CPU
     workingDirectory: $(REPO_DIR)
     displayName: 'Code usage analysis'
 
-  - script: dir $(BUILD_DIR)\ /s /p
+  - script: dir $(BUILD_DIR)\*.csv /s /p
     displayName: 'List csv files'
-
-  - script: type $(BUILD_DIR)\itt_stat\*.log
-    displayName: 'Cat csv log files'
 
   - script: |
       call "$(MSVS_VARS_PATH)" && cmake -G"Visual Studio 16 2019" ^
@@ -174,9 +172,6 @@ jobs:
 
   - script: dir $(REPO_DIR)\bin\ /s
     displayName: 'List bin files ON'
-
-  - script: dir $(BUILD_DIR_2)\ /s /p
-    displayName: 'List BUILD_DIR_2 files ON'
 
   - script: type $(BUILD_DIR_2)\src\common\conditional_compilation\conditional_compilation_gen.h
     displayName: 'Display cc header'
