@@ -109,8 +109,7 @@ program::program(engine& engine_ref,
       options(options),
       processing_order(),
       tuning_cache(nullptr),
-      is_body_program(is_body_program),
-      is_subgroup_local_block_io_supported(-1) {
+      is_body_program(is_body_program) {
     init_primitives();
     set_options();
     query_local_block_io_supported();
@@ -136,8 +135,7 @@ program::program(engine& engine_ref,
       _stream(_engine.create_stream()),
       options(options),
       processing_order(),
-      tuning_cache(nullptr),
-      is_subgroup_local_block_io_supported(-1) {
+      tuning_cache(nullptr) {
     init_primitives();
     set_options();
     query_local_block_io_supported();
@@ -154,8 +152,7 @@ program::program(engine& engine)
       _stream(_engine.create_stream()),
       options(build_options()),
       processing_order(),
-      tuning_cache(nullptr),
-      is_subgroup_local_block_io_supported(-1) { }
+      tuning_cache(nullptr) { }
 program::~program() {
     query_local_block_io_supported();
 }
@@ -463,19 +460,23 @@ void program::set_options() {
 }
 
 bool program::is_local_block_io_supported() const {
-    if (is_subgroup_local_block_io_supported == -1)
+    auto device_info = _engine.get_device()->get_info();
+
+    if (device_info.supports_subgroup_local_block_io == -1)
         throw std::invalid_argument("subgroup_local_block_io_supported has NOT been initialized!");
 
-    return  static_cast<bool>(is_subgroup_local_block_io_supported);
+    return  static_cast<bool>(device_info.supports_subgroup_local_block_io);
 }
 
 void program::query_local_block_io_supported() {
     auto& device = _engine.get_device();
     auto device_info = device->get_info();
-    if (device_info.supports_local_block_io == false)
-        is_subgroup_local_block_io_supported = static_cast<int8_t>(false);
+    if (device_info.supports_local_block_io == false) {
+        device_info.supports_subgroup_local_block_io = static_cast<int8_t>(false);
+        device->set_info(device_info);
+    }
 
-    if (is_subgroup_local_block_io_supported != -1)
+    if (device_info.supports_subgroup_local_block_io != -1)
         return;
 
     std::shared_ptr<kernel_selector::KernelString> kernel_string = std::make_shared<kernel_selector::KernelString>();
@@ -505,12 +506,14 @@ void program::query_local_block_io_supported() {
 
         auto kernel = _kernels_cache_device_query->get_kernel(id);
         bool is_valid = _kernels_cache_device_query->validate_simple_kernel_execution(kernel);
-        is_subgroup_local_block_io_supported = static_cast<int8_t>(is_valid);
+        device_info.supports_subgroup_local_block_io = static_cast<int8_t>(is_valid);
+        device->set_info(device_info);
 
         _kernels_cache_device_query->remove_kernel(id);
         return;
     } catch (...) {
-        is_subgroup_local_block_io_supported = static_cast<int8_t>(false);
+        device_info.supports_subgroup_local_block_io = static_cast<int8_t>(false);
+        device->set_info(device_info);
         return;
     }
 }

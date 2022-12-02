@@ -268,7 +268,6 @@ private:
     std::unique_ptr<pass_manager> pm;
     std::shared_ptr<kernel_selector::TuningCache> tuning_cache;
     bool is_body_program;
-    int8_t is_subgroup_local_block_io_supported;
 
     std::map<primitive_id, std::shared_ptr<program_node>> nodes_map;
     std::list<primitive_id> optimized_out;

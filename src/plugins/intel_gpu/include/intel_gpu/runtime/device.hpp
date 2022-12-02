@@ -19,6 +19,7 @@ struct device {
 public:
     using ptr = std::shared_ptr<device>;
     virtual device_info get_info() const = 0;
+    virtual void set_info(device_info info) {}
     virtual memory_capabilities get_mem_caps() const = 0;
 
     virtual bool is_same(const device::ptr other) = 0;

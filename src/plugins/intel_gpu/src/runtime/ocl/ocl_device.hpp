@@ -21,6 +21,7 @@ public:
     ocl_device(const cl::Device dev, const cl::Context& ctx, const cl_platform_id platform);
 
     device_info get_info() const override { return _info; }
+    void set_info(device_info info) override { _info = info; }
     memory_capabilities get_mem_caps() const override { return _mem_caps; }
 
     const cl::Device& get_device() const { return _device; }

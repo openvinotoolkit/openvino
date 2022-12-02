@@ -59,6 +59,7 @@ struct device_info {
     bool supports_subgroups_short;              ///< Does engine support cl_intel_subgroups_short extension.
     bool supports_subgroups_char;               ///< Does engine support cl_intel_subgroups_char extension.
     bool supports_local_block_io;               ///< Does engine support cl_intel_subgroup_local_block_io extension. Check program build with this option.
+    int8_t supports_subgroup_local_block_io;    ///< Does engine support subgroup_local_block_io. Will be checked by program build.
     bool supports_queue_families;               ///< Does engine support cl_intel_command_queue_families extension.
     bool supports_image;                        ///< Does engine support images (CL_DEVICE_IMAGE_SUPPORT cap).
 
