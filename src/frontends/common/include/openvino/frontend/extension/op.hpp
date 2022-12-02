@@ -46,6 +46,12 @@ public:
     OpExtensionBase(const std::string& fw_type_name,
                     const std::map<std::string, std::string>& attr_names_map = {},
                     const std::map<std::string, ov::Any>& attr_values_map = {});
+
+    // Maps op with a given type and domain in FW and OV type given in template parameter
+    OpExtensionBase(const std::string& fw_type_name,
+                    const std::string& fw_domain,
+                    const std::map<std::string, std::string>& attr_names_map = {},
+                    const std::map<std::string, ov::Any>& attr_values_map = {});
 };
 
 template <typename BaseConversionType>
@@ -214,6 +220,20 @@ OpExtensionBase<BaseConversionType, OVOpType>::OpExtensionBase(const std::string
                                                                const std::map<std::string, std::string>& attr_names_map,
                                                                const std::map<std::string, ov::Any>& attr_values_map)
     : BaseConversionType(fw_type_name,
+                         OpConversionFunction(
+                             []() {
+                                 return std::make_shared<OVOpType>();
+                             },
+                             attr_names_map,
+                             attr_values_map)) {}
+
+template <typename BaseConversionType, typename OVOpType>
+OpExtensionBase<BaseConversionType, OVOpType>::OpExtensionBase(const std::string& fw_type_name,
+                                                               const std::string& fw_domain,
+                                                               const std::map<std::string, std::string>& attr_names_map,
+                                                               const std::map<std::string, ov::Any>& attr_values_map)
+    : BaseConversionType(fw_type_name,
+                         fw_domain,
                          OpConversionFunction(
                              []() {
                                  return std::make_shared<OVOpType>();
