@@ -262,6 +262,24 @@ std::vector<UniqueParams> params_unique_int() {
                      make_axis(0),
                      false,
                      "3D with duplicates"},
+        UniqueParams{Shape{2, 3, 2},
+                     std::vector<Data_t>{-3, -2, -5, 4, -3, 2, 3, -4, 1, 2, -1, 4},
+                     std::vector<Data_t>{-3, -2, -5, 4, -3, 2, 3, -4, 1, 2, -1, 4},
+                     std::vector<Index_t>{0, 1},
+                     std::vector<Index_t>{0, 1},
+                     std::vector<Count_t>{1, 1},
+                     make_axis(0),
+                     true,
+                     "3D, already sorted, no duplicates"},
+        UniqueParams{Shape{2, 3, 2},
+                     std::vector<Data_t>{-3, -2, -5, 4, -3, 2, 3, -4, 1, 2, -1, 4},
+                     std::vector<Data_t>{-3, -2, -5, 4, -3, 2, 3, -4, 1, 2, -1, 4},
+                     std::vector<Index_t>{0, 1},
+                     std::vector<Index_t>{0, 1},
+                     std::vector<Count_t>{1, 1},
+                     make_axis(0),
+                     false,
+                     "3D, already sorted, no duplicates"},
         UniqueParams{Shape{2, 2, 3},
                      // 2 identical 2D slices over axis 1
                      std::vector<Data_t>{6, 5, 4, 6, 5, 4, 3, 2, 1, 3, 2, 1},
@@ -349,17 +367,6 @@ std::vector<UniqueParams> params_unique_int() {
             true,
             "3D flattened with duplicates, output sorted"}};
 
-    std::vector<UniqueParams> sorted_test{UniqueParams{Shape{2, 3, 2},
-                                                       std::vector<Data_t>{-3, -2, -5, 4, -3, 2, 3, -4, 1, 2, -1, 4},
-                                                       std::vector<Data_t>{-3, -2, -5, 4, -3, 2, 3, -4, 1, 2, -1, 4},
-                                                       std::vector<Index_t>{0, 1},
-                                                       std::vector<Index_t>{0, 1},
-                                                       std::vector<Count_t>{1, 1},
-                                                       make_axis(0),
-                                                       true,
-                                                       "my_test"}};
-
-    // return flatten({std::move(scalar_and_1D), std::move(N_C_layout), std::move(N_D_layout), std::move(sorted_test)});
     return flatten({std::move(scalar_and_1D), std::move(N_C_layout), std::move(N_D_layout)});
 }
 

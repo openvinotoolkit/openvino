@@ -134,6 +134,10 @@ UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
 
             if (*(data + lhs_elem_idx) < *(data + rhs_elem_idx)) {
                 return true;
+            } else if (*(data + lhs_elem_idx) > *(data + rhs_elem_idx)) {
+                return false;
+            } else {
+                continue;
             }
         }
 
