@@ -23,7 +23,7 @@ function adjustWidthforNavbarSelectors() {
 
 function sortableTables() {
 
-    var tables = $('.sortable-table').find('table');
+    var tables = $('table.sortable-table');
     tables.each(function () {
         var table = $(this);
         var headings = table.find('th');
