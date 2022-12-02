@@ -5,6 +5,7 @@
 #include "transformations/op_conversions/convert_reduce_to_reshape.hpp"
 
 #include "itt.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 bool CvtReduceBase::is_redundant(ngraph::Shape input, ngraph::Shape output) {
     if (shape_size(input) != shape_size(output))
@@ -20,8 +21,8 @@ bool CvtReduceBase::is_redundant(ngraph::Shape input, ngraph::Shape output) {
 
 ov::pass::ConvertReduceMeanToReshape::ConvertReduceMeanToReshape() {
     MATCHER_SCOPE(ConvertReduceMeanToReshape);
-    auto m = std::make_shared<ngraph::pattern::Matcher>(
-        ngraph::pattern::wrap_type<opset1::ReduceMean>(
+    auto m = std::make_shared<pattern::Matcher>(
+        pattern::wrap_type<opset1::ReduceMean>(
             {pattern::any_input(pattern::has_static_shape()), pattern::wrap_type<opset1::Constant>()},
             pattern::has_static_shape()),
         matcher_name);
@@ -30,8 +31,8 @@ ov::pass::ConvertReduceMeanToReshape::ConvertReduceMeanToReshape() {
 
 ov::pass::ConvertReduceSumToReshape::ConvertReduceSumToReshape() {
     MATCHER_SCOPE(ConvertReduceSumToReshape);
-    auto m = std::make_shared<ngraph::pattern::Matcher>(
-        ngraph::pattern::wrap_type<opset1::ReduceSum>(
+    auto m = std::make_shared<pattern::Matcher>(
+        pattern::wrap_type<opset1::ReduceSum>(
             {pattern::any_input(pattern::has_static_shape()), pattern::wrap_type<opset1::Constant>()},
             pattern::has_static_shape()),
         matcher_name);
@@ -40,8 +41,8 @@ ov::pass::ConvertReduceSumToReshape::ConvertReduceSumToReshape() {
 
 ov::pass::ConvertReduceMaxToReshape::ConvertReduceMaxToReshape() {
     MATCHER_SCOPE(ConvertReduceMaxToReshape);
-    auto m = std::make_shared<ngraph::pattern::Matcher>(
-        ngraph::pattern::wrap_type<opset1::ReduceMax>(
+    auto m = std::make_shared<pattern::Matcher>(
+        pattern::wrap_type<opset1::ReduceMax>(
             {pattern::any_input(pattern::has_static_shape()), pattern::wrap_type<opset1::Constant>()},
             pattern::has_static_shape()),
         matcher_name);
@@ -50,8 +51,8 @@ ov::pass::ConvertReduceMaxToReshape::ConvertReduceMaxToReshape() {
 
 ov::pass::ConvertReduceMinToReshape::ConvertReduceMinToReshape() {
     MATCHER_SCOPE(ConvertReduceMinToReshape);
-    auto m = std::make_shared<ngraph::pattern::Matcher>(
-        ngraph::pattern::wrap_type<opset1::ReduceMin>(
+    auto m = std::make_shared<pattern::Matcher>(
+        pattern::wrap_type<opset1::ReduceMin>(
             {pattern::any_input(pattern::has_static_shape()), pattern::wrap_type<opset1::Constant>()},
             pattern::has_static_shape()),
         matcher_name);
@@ -60,8 +61,8 @@ ov::pass::ConvertReduceMinToReshape::ConvertReduceMinToReshape() {
 
 ov::pass::ConvertReduceLogicalAndToReshape::ConvertReduceLogicalAndToReshape() {
     MATCHER_SCOPE(ConvertReduceLogicalAndToReshape);
-    auto m = std::make_shared<ngraph::pattern::Matcher>(
-        ngraph::pattern::wrap_type<opset1::ReduceLogicalAnd>(
+    auto m = std::make_shared<pattern::Matcher>(
+        pattern::wrap_type<opset1::ReduceLogicalAnd>(
             {pattern::any_input(pattern::has_static_shape()), pattern::wrap_type<opset1::Constant>()},
             pattern::has_static_shape()),
         matcher_name);
@@ -70,8 +71,8 @@ ov::pass::ConvertReduceLogicalAndToReshape::ConvertReduceLogicalAndToReshape() {
 
 ov::pass::ConvertReduceLogicalOrToReshape::ConvertReduceLogicalOrToReshape() {
     MATCHER_SCOPE(ConvertReduceLogicalOrToReshape);
-    auto m = std::make_shared<ngraph::pattern::Matcher>(
-        ngraph::pattern::wrap_type<opset1::ReduceLogicalOr>(
+    auto m = std::make_shared<pattern::Matcher>(
+        pattern::wrap_type<opset1::ReduceLogicalOr>(
             {pattern::any_input(pattern::has_static_shape()), pattern::wrap_type<opset1::Constant>()},
             pattern::has_static_shape()),
         matcher_name);

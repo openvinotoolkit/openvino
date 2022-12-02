@@ -346,6 +346,8 @@ protected:
         fillData(parentEdge->getMemory(), prec);
     }
     void infer() {
+        reorderNode->updateShapes();
+        reorderNode->updateDynamicParams();
         reorderNode->executeDynamic(stream);
     }
     void validate(void) {
