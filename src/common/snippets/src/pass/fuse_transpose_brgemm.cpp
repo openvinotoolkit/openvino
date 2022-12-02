@@ -26,10 +26,9 @@ FuseTransposeBrgemm::FuseTransposeBrgemm() {
         const auto& constant = as_type_ptr<ngraph::opset1::Constant>(transpose_node->get_input_node_shared_ptr(1));
         // if Transpose in and out layout is not empty => something was already fused on this port
         if (!utils::get_node_output_layout(transpose_node).empty() ||
-            !utils::get_node_output_layout(transpose_node->get_input_node_shared_ptr(0)).empty() ||
-            constant->get_output_element_type(0) != ngraph::element::i32)
+            !utils::get_node_output_layout(transpose_node->get_input_node_shared_ptr(0)).empty())
             return false;
-        const auto& transpose_order = constant->get_vector<int>();
+        const auto& transpose_order = constant->cast_vector<int>();
         // todo: this limitation is due to the fact that offsets are calculated in Kernel, and the only way
         //  to calc them non-default way is to set Parameter rt_info field. This limitation can be removed if
         //  the rt_info is properly propagated to the corresponding parameter
@@ -52,10 +51,8 @@ FuseTransposeBrgemm::FuseTransposeBrgemm() {
         OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "FuseTransposeBrgemm")
         auto set_layout_from_order = [](const std::shared_ptr<opset1::Transpose>& node, const ov::Output<Node>& port) {
             const auto& const_order = as_type_ptr<opset1::Constant>(node->get_input_node_shared_ptr(1));
-            const auto& transpose_order = const_order->get_vector<int>();
-            std::vector<size_t> layout;
-            std::copy(transpose_order.begin(), transpose_order.end(), std::back_inserter(layout));
-             auto& rt_info = port.get_node_shared_ptr()->get_rt_info();
+            std::vector<size_t> layout = const_order->cast_vector<size_t>();
+            auto& rt_info = port.get_node_shared_ptr()->get_rt_info();
             rt_info["Layout"] = layout;
         };
         auto brgemm = as_type_ptr<op::Brgemm>(m.get_match_root());

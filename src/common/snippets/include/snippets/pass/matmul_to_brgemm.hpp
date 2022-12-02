@@ -12,9 +12,8 @@ namespace snippets {
 namespace pass {
 
 /**
- * @interface FuseLoadConvert
- * @brief Fuse Load and ConvertSaturation into one op LoadConvertSaturation
- *        Fuse Load and ConvertTruncation into one op LoadConvertTruncation
+ * @interface MatMulToBrgemm
+ * @brief Replaces ngraph::MatMul with snippets::op::Brgemm operation (only non-trasposing MatMuls are currently supported)
  * @ingroup snippets
  */
 class MatMulToBrgemm: public ngraph::pass::MatcherPass {

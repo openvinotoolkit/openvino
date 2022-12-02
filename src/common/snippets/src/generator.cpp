@@ -41,7 +41,7 @@ auto getRegisters(const std::shared_ptr<ngraph::Node> &n) -> RegInfo {
 }
 
 ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov::Model>& m,
-                                                             const SubgraphConfig& config,
+                                                             const GeneratorConfig& config,
                                                              const void* compile_params) {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::Generator::generate")
     if (!target->is_supported())
@@ -162,7 +162,7 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
 
     // todo: we save lowered to access compiled brgemm kernels on execution time (normally lowered is destructed by then)
     //  remove this when kernel caching is implemented. Don't forget to make generate const method.
-    if (config.m_has_domain_sensitive_ops)
+    if (config.m_save_lowered_code)
         lowered_saved = lowered;
 
     return target->get_snippet();

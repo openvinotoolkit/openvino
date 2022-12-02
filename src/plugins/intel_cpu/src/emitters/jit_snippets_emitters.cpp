@@ -762,29 +762,26 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
     const auto& A_layout = io_layouts[0];
     const auto& C_shape = io_values[2].get_shape();
     const auto& C_layout = io_layouts[2];
-    // Batch could be broadcasted, so must be read from the out shape
-    batch0 = C_shape[C_layout[0]];
-    batch1 = C_shape[C_layout[1]];
 
     M = C_shape[C_layout[2]];
-    K0 = A_shape[A_layout[3]];
+    K = A_shape[A_layout[3]];
     M_blk = matmulOptimalM;
     M_tail = M % M_blk;
     // B_shape[B_layout[3]]
-    N0 = C_shape[C_layout[3]];
+    N = C_shape[C_layout[3]];
 
     auto brg0Prc = InferenceEngine::details::convertPrecision(brgemm_node->get_input_element_type(0));
     auto brg1Prc = InferenceEngine::details::convertPrecision(brgemm_node->get_input_element_type(1));
     io_data_size = {brg0Prc.size(), brg1Prc.size(), brgemm_node->get_output_element_type(0).size()};
     brg0VnniFactor = 4 / brg0Prc.size();
-    bool brg0WithAMX = isAMXSupported && brg0Prc != Precision::FP32 && (K0 % brg0VnniFactor == 0) && (N0 % brg0VnniFactor == 0);
+    bool brg0WithAMX = isAMXSupported && brg0Prc != Precision::FP32 && (K % brg0VnniFactor == 0) && (N % brg0VnniFactor == 0);
 
-    N0_blk = brg0Prc == Precision::FP32 ? N0 :
+    N_blk = brg0Prc == Precision::FP32 ? N :
              brg0Prc == Precision::BF16 ? 32 : 64;
-    N0_tail = N0 % N0_blk;
-    K0_blk = brg0WithAMX ? brg0Prc == Precision::BF16 ? 32 : 64
-                         : K0;
-    K0_tail = K0 % K0_blk;
+    N_tail = N % N_blk;
+    K_blk = brg0WithAMX ? brg0Prc == Precision::BF16 ? 32 : 64
+                         : K;
+    K_tail = K % K_blk;
 
     size_t brg0BaseIdx = -1;
     for (size_t m = 0; m < 2; m++) {
@@ -794,8 +791,8 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
 
                 auto M_ = m ? M_tail
                             : M < M_blk ? 0 : M_blk;
-                auto N_ = n ? N0_tail : N0 - N0_tail;
-                auto K_ = k ? K0_tail : K0 - K0_tail;
+                auto N_ = n ? N_tail : N - N_tail;
+                auto K_ = k ? K_tail : K - K_tail;
                 auto beta = k && brgCtxs0[getBrgIdx(m, 0, n)].K != 0 ? 1.0f : 0.0f;
 
                 brgemmCtx.M = M_;
@@ -847,10 +844,8 @@ void BrgemmEmitter::emit_impl(const std::vector<size_t>& in,
                               const std::vector<size_t>& pool,
                               const std::vector<size_t>& gpr,
                               const ov::intel_cpu::emitter_context *emit_context) const {
-    if (host_isa_ == cpu::x64::sse41) {
-        emit_isa<cpu::x64::sse41>(in, out);
-    } else if (host_isa_ == cpu::x64::avx2) {
-        emit_isa<cpu::x64::avx2>(in, out);
+    if (host_isa_ == cpu::x64::sse41 || host_isa_ == cpu::x64::avx2) {
+        IE_THROW() << "BrgemmEmitter requires at least avx512_core instruction set";
     } else if (host_isa_ == cpu::x64::avx512_core) {
         emit_isa<cpu::x64::avx512_core>(in, out);
     } else {

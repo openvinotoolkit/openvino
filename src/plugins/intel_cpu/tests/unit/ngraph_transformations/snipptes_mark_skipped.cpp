@@ -19,7 +19,8 @@ public:
         manager.register_pass<ov::intel_cpu::SnippetsMarkSkipped>();
         manager.register_pass<ngraph::snippets::pass::EnumerateNodes>();
         manager.register_pass<ngraph::snippets::pass::TokenizeSnippets>();
-        // todo: This is a temprorary work-around. remove when custom MHA tokenization pass is implemented
+        //
+        // todo: This is a temporary work-around. remove when MatMul tokenization is supported through general pipeline
         manager.get_pass_config()->set_callback<ngraph::snippets::pass::TokenizeSnippets>(
                 [](const std::shared_ptr<const ov::Node>& n) -> bool {
                         return ov::is_type<const ov::op::v0::MatMul>(n);

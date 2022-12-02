@@ -7,6 +7,7 @@
 
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "snippets/pass/transpose_decomposition.hpp"
+#include "snippets/pass/fuse_transpose_brgemm.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/utils.hpp"
 
@@ -60,7 +61,7 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
             if (order) {
                 const auto order_value = order->cast_vector<int>();
                 return TransposeDecomposition::supported_cases.count(order_value) != 0 ||
-                       order_value == std::vector<int>{0, 2, 1, 3};
+                       FuseTransposeBrgemm::supported_cases.count(order_value) != 0;
             }
         }
         return false;
@@ -236,11 +237,12 @@ TokenizeSnippets::TokenizeSnippets() {
     continuation_strategy strategy = continuation_strategy::reset;
     auto label = std::make_shared<pattern::op::Label>(pattern::any_input(),
         [](const std::shared_ptr<const Node> &n) {
-            // todo: This is a temprorary work-around. remove when custom MHA tokenization pass is implemented
+            // todo: MatMul and Transpose ops are always skipped by the SnippetsMarkSkipped pass.
+            //  This is a temporary solution. Either modify SnippetsMarkSkipped
+            //  or align this with the custom MHA tokenization pass.
             return (GetSnippetsNodeType(n) != SnippetsNodeType::SkippedByPlugin ||
                     ov::is_type<opset1::MatMul>(n) || ov::is_type<opset1::Transpose>(n))
                     && AppropriateForSubgraph(n);
-            // return GetSnippetsNodeType(n) != SnippetsNodeType::SkippedByPlugin && AppropriateForSubgraph(n);
         });
     ngraph::graph_rewrite_callback callback = [&, strategy](ngraph::pattern::Matcher &m) -> bool {
         OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::CreateSubgraph_callback")

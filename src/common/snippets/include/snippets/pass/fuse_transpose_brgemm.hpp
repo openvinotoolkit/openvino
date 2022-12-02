@@ -12,9 +12,10 @@ namespace snippets {
 namespace pass {
 
 /**
- * @interface FuseLoadConvert
- * @brief Fuse Load and ConvertSaturation into one op LoadConvertSaturation
- *        Fuse Load and ConvertTruncation into one op LoadConvertTruncation
+ * @interface FuseTransposeBrgemm
+ * @brief Fuses Transpose with Brgemm node, fusing on both Brgemm inputs and output is supported. Applicable to
+ *        Transposes that don't change the position of the last dimension (since Brgemm supports strided rows i/o),
+ *        but only 0213 Transpose is currently supported.
  * @ingroup snippets
  */
 class FuseTransposeBrgemm: public ngraph::pass::MatcherPass {

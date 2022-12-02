@@ -394,14 +394,14 @@ private:
                                              Reg64 addr_A, Reg64 addr_B,
                                               const brgemm_batch_element_t *batch, Reg64 addr_C, void *scratch) const;
 
-    static constexpr size_t MHA_BRGEMM_KERNELS_NUM = 8;
+    static constexpr size_t BRGEMM_KERNELS_NUM = 8;
     static constexpr size_t matmulOptimalM = 32;
-    brgemmCtx brgCtxs0[MHA_BRGEMM_KERNELS_NUM];
-    std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgKernels0[MHA_BRGEMM_KERNELS_NUM];
+    brgemmCtx brgCtxs0[BRGEMM_KERNELS_NUM];
+    std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgKernels0[BRGEMM_KERNELS_NUM];
 
-    size_t batch0, batch1;
     size_t M, M_blk, M_tail;
-    size_t K0, K0_blk, K0_tail, N0, N0_blk, N0_tail;
+    size_t K, K_blk, K_tail;
+    size_t N, N_blk, N_tail;
     size_t brg0VnniFactor;
 };
 

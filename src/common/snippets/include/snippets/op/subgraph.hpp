@@ -12,7 +12,6 @@
 #include <ngraph/pass/manager.hpp>
 
 #include "snippets/generator.hpp"
-#include "snippets/config.hpp"
 
 namespace ngraph {
 namespace snippets {
@@ -146,9 +145,29 @@ private:
     // TODO: Change logic of insert Converts. This exec element type can be different for plugins
     const ov::element::Type execution_element_type = ov::element::f32;
 
-    SubgraphConfig config;
     ov::PartialShape master_shape;
     size_t tileRank = 0; // set by plugin to specify the number of dimensions processed in a single kernel call
+
+    /**
+    * @interface SubgraphConfig
+    * @brief Config to optimize IR transformation pipeline. It indicates which transformations are necessary
+    *       so the irrelevant ones could be skipped.
+    */
+    class SubgraphConfig {
+    public:
+        // True if Subgraph contains FakeQuantize -> FQ decomposition should be called
+        bool m_is_quantized = false;
+        // True if we should align element types indise body
+        bool m_is_needed_to_align_precision = false;
+        // True if Subgraph contains TypeRelaxed nodes -> for several streams in tp mode we should copy body using mutexes
+        // because TypeRelaxed::copy_with_new_inputs() isn't save-thread method
+        bool m_has_type_relaxed_ops = false;
+        // True if we should check runtime info for nodes to call specific needed transformations
+        bool m_need_fill_tail_register = false;
+        // True if body has operations that don't support plugin-side domain optimizations
+        // (e.g. Transpose, Softmax, MatMul in general doesn't support dimensions collapsing)
+        bool m_has_domain_sensitive_ops = false;
+    } config;
 };
 
 static inline std::ostream& operator<<(std::ostream& os, const op::Subgraph::BlockedShape& blocked_shape) {

@@ -65,8 +65,6 @@ void snippets::op::Subgraph::init_config() {
                                             ov::is_type<ov::op::v8::Softmax>(op) ||
                                             ov::is_type<ov::op::v0::MatMul>(op);
     }
-    // Domain sensitive ops are decomposed with explicit Loops. So, we should explicitly insert Loops in Subgraph if it contains these ops
-    config.m_explicit_loop_insertion = config.m_has_domain_sensitive_ops;
 }
 
 snippets::op::Subgraph::Subgraph(const OutputVector& args, std::shared_ptr<ov::Model> body)
@@ -296,32 +294,37 @@ ov::PartialShape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& 
     // Check that output shapes are broadcastable => can be scheduled
     const auto& body_results = m_body->get_results();
     PartialShape outPShape = body_results[0]->get_input_partial_shape(0);
-    for (size_t i = 0; i < body_results.size(); i++) {
-        auto shape_i = body_results[i]->get_input_partial_shape(0);
-        auto outputShape_i = std::get<0>(outputShapes[i]);
-        // Check that the produced output shape corresponds to the passed shape
-        // Some produced shapes may have been changed to be broadcastable (e.g. blocked + planar outputs),
-        // so we need to remove leading and trailing "1" before the comparison
-        PartialShape pShape_i(skipStartEndOnes(shape_i));
-        bool compatibleWithPassedShape = PartialShape::broadcast_merge_into(pShape_i, skipStartEndOnes(outputShape_i),
-                                                                              ::ngraph::op::AutoBroadcastType::NUMPY);
-        NODE_VALIDATION_CHECK(this, compatibleWithPassedShape, "Inferred and passed results shapes are incompatible for snippet ");
-        // Check that output shapes are broadcastable to each other => can be scheduled
-        bool compatibleWithOtherOutputs = PartialShape::broadcast_merge_into(outPShape, shape_i,
-                                                               ::ngraph::op::AutoBroadcastType::NUMPY);
-        NODE_VALIDATION_CHECK(this, compatibleWithOtherOutputs, "Snippets output shapes must be numpy broadcastable");
+    // todo: we need a slightly more general approach for backward ROI propagation
+    const auto& result_parent = body_results[0]->get_input_node_shared_ptr(0);
+    if (body_results.size() == 1 &&
+        ov::is_type<opset1::Transpose>(result_parent) &&
+        ov::is_type<snippets::op::Brgemm>(result_parent->get_input_node_shared_ptr(0))) {
+        outPShape = result_parent->get_input_partial_shape(0);
+    } else {
+        for (size_t i = 0; i < body_results.size(); i++) {
+            auto shape_i = body_results[i]->get_input_partial_shape(0);
+            auto outputShape_i = std::get<0>(outputShapes[i]);
+            // Check that the produced output shape corresponds to the passed shape
+            // Some produced shapes may have been changed to be broadcastable (e.g. blocked + planar outputs),
+            // so we need to remove leading and trailing "1" before the comparison
+            PartialShape pShape_i(skipStartEndOnes(shape_i));
+            bool compatibleWithPassedShape = PartialShape::broadcast_merge_into(pShape_i,
+                                                                                skipStartEndOnes(outputShape_i),
+                                                                                ::ngraph::op::AutoBroadcastType::NUMPY);
+            NODE_VALIDATION_CHECK(this, compatibleWithPassedShape,
+                                  "Inferred and passed results shapes are incompatible for snippet ");
+            // Check that output shapes are broadcastable to each other => can be scheduled
+            bool compatibleWithOtherOutputs = PartialShape::broadcast_merge_into(outPShape, shape_i,
+                                                                                 ::ngraph::op::AutoBroadcastType::NUMPY);
+            NODE_VALIDATION_CHECK(this, compatibleWithOtherOutputs,
+                                  "Snippets output shapes must be numpy broadcastable");
+        }
     }
 
     // We should insert Converts after Parameters and Constant and before Results
     // to align precision inside Subgraph body that is supported by Plugin
     align_element_types(outputShapes, inputShapes);
 
-    // todo: we need a slightly more general approach for backward ROI propagation
-    const auto& result_parent = body_results[0]->get_input_node_shared_ptr(0);
-    if (body_results.size() == 1 &&
-        ov::is_type<opset1::Transpose>(result_parent) &&
-        ov::is_type<snippets::op::Brgemm>(result_parent->get_input_node_shared_ptr(0)))
-        outPShape = result_parent->get_input_partial_shape(0);
     master_shape = outPShape;
     return master_shape;
 }
@@ -458,9 +461,11 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
     convert_to_snippet_dialect();
     opt.run_passes(m_body);
     snippets::pass::AssignRegisters().run_on_model(m_body);
-    // schedule generation should go here and be target agnostic
+
+    ngraph::snippets::Generator::GeneratorConfig generatorConfig;
+    generatorConfig.m_save_lowered_code = config.m_has_domain_sensitive_ops;
     // actual code emission
-    ngraph::snippets::code ptr = m_generator->generate(m_body, config, compile_params);
+    ngraph::snippets::code ptr = m_generator->generate(m_body, generatorConfig, compile_params);
 
     // check that body doesn't have constants for scheduling
     std::vector<std::shared_ptr<opset1::Constant>> constants;

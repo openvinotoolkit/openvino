@@ -13,7 +13,7 @@ namespace op {
 
 /**
  * @interface Brgemm
- * @brief Brgemm is a matrix multiplication, but it allows for strided input-output access
+ * @brief Brgemm is a batch-reduced matrix multiplication with the support of arbitrary strides between matrices rows
  * @ingroup snippets
  */
 class Brgemm : public ngraph::op::v0::MatMul {

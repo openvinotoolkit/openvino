@@ -21,11 +21,11 @@ ngraph::snippets::pass::InsertLoad::InsertLoad(const size_t count) {
             auto root = m.get_match_root();
 
             // check if already has Load as an output
-            for (auto output : root->outputs()) {
-                for (auto consumer : output.get_target_inputs()) {
+            for (const auto& output : root->outputs()) {
+                for (const auto& consumer : output.get_target_inputs()) {
                     // if a parameter is connected to a Load => we don't need another one
                     // if a parameter is connected to LoopBegin => there must be Load inside the Loop
-                    // if a parameter is connected to MatMul => we don't need Load (read/write is inside onednn kernel)
+                    // if a parameter is connected to MatMul => we don't need Load (read/write is encapsulated into the brgemm emitter)
                     // (it's the responsibility of transformation that inserted the Loops)
                     const auto& consumer_node = consumer.get_node();
                     if (ov::is_type<ngraph::snippets::op::Load>(consumer_node) ||
@@ -41,8 +41,8 @@ ngraph::snippets::pass::InsertLoad::InsertLoad(const size_t count) {
             ngraph::copy_runtime_info(root, load);
 
             bool rewritten = false;
-            for (auto output : root->outputs()) {
-                for (auto consumer : output.get_target_inputs()) {
+            for (const auto& output : root->outputs()) {
+                for (const auto& consumer : output.get_target_inputs()) {
                     if (consumer.get_node()->shared_from_this() != load) {
                         consumer.replace_source_output(load);
                         rewritten |= true;
@@ -63,7 +63,7 @@ ngraph::snippets::pass::InsertStore::InsertStore(const size_t count) {
             auto root = m.get_match_root();
 
             // check if already has Store as an input
-            for (auto input : root->inputs()) {
+            for (const auto& input : root->inputs()) {
                 const auto& parent_node = input.get_source_output().get_node();
                 if (ov::is_type<ngraph::snippets::op::Store>(parent_node) ||
                     ov::is_type<ngraph::snippets::op::LoopEnd>(parent_node) ||
