@@ -113,7 +113,7 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ngra
                         op->get_input_tensor(0).set_partial_shape(PartialShape::dynamic(output_shape.rank()));
                     else
                         op->get_input_tensor(0).set_partial_shape(PartialShape::dynamic(interval));
-                } else if (in1_rank.is_dynamic() && in0_rank.is_static()) {                    
+                } else if (in1_rank.is_dynamic() && in0_rank.is_static()) {
                     if (eltwise->get_autob() == ov::op::AutoBroadcastType::NONE)
                         op->get_input_tensor(1).set_partial_shape(output_shape);
                     else if (in0_rank.get_length() < output_shape.rank().get_length())
