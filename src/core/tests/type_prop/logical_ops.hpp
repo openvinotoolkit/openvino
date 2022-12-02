@@ -128,30 +128,50 @@ TYPED_TEST_P(LogicalOperatorTypeProp, shape_broadcast) {
 
 TYPED_TEST_P(LogicalOperatorTypeProp, partial_shape_no_broadcast) {
     using namespace ngraph;
+    using namespace testing;
     using OP_Type = typename TypeParam::op_type;
-    const auto exp_dtype = TypeParam::element_type;
 
     auto shape_a = PartialShape{1, {2, 4}, {2, 5}, 4, -1};
     auto shape_b = PartialShape{1, 3, {1, 6}, 4, {-1, 5}};
     set_shape_labels(shape_a, std::vector<size_t>{ov::no_label, 11, 12, ov::no_label, 14});
     set_shape_labels(shape_b, std::vector<size_t>{20, 21, ov::no_label, ov::no_label, ov::no_label});
+    const auto exp_shape = PartialShape{1, 3, {2, 5}, 4, {-1, 5}};
 
     const auto a = std::make_shared<op::Parameter>(element::boolean, shape_a);
     const auto b = std::make_shared<op::Parameter>(element::boolean, shape_b);
 
-    const auto logical_op = this->make_op(a, b, "NONE");
+    EXPECT_THAT(this->make_op(a, b, "NONE")->get_output_partial_shape(0),
+                AllOf(Eq(exp_shape), ResultOf(get_shape_labels, ElementsAre(20, 21, 12, ov::no_label, 14))));
 
-    EXPECT_EQ(logical_op->get_element_type(), exp_dtype);
-    EXPECT_EQ(logical_op->get_output_size(), 1);
+    EXPECT_THAT(this->make_op(b, a, "NONE")->get_output_partial_shape(0),
+                AllOf(Eq(exp_shape), ResultOf(get_shape_labels, ElementsAre(20, 11, 12, ov::no_label, 14))));
+}
 
-    const auto& out_shape = logical_op->get_output_partial_shape(0);
-    EXPECT_EQ(out_shape, PartialShape({1, 3, {2, 5}, 4, {-1, 5}}));
-    EXPECT_THAT(get_shape_labels(out_shape), testing::ElementsAre(20, 21, 12, ov::no_label, 14));
+TYPED_TEST_P(LogicalOperatorTypeProp, partial_shape_numpy_broadcast) {
+    using namespace ngraph;
+    using namespace testing;
+    using OP_Type = typename TypeParam::op_type;
+
+    auto shape_a = PartialShape{1, {2, 4}, {2, 5}, 4, -1};
+    auto shape_b = PartialShape{1, 3, {1, 6}, 4};
+    set_shape_labels(shape_a, std::vector<size_t>{ov::no_label, 11, 12, 13, 14});
+    set_shape_labels(shape_b, std::vector<size_t>{20, 21, ov::no_label, 23});
+    const auto exp_shape = PartialShape{1, {2, 4}, 3, 4, 4};
+
+    const auto a = std::make_shared<op::Parameter>(element::boolean, shape_a);
+    const auto b = std::make_shared<op::Parameter>(element::boolean, shape_b);
+
+    EXPECT_THAT(this->make_op(a, b, "NUMPY")->get_output_partial_shape(0),
+                AllOf(Eq(exp_shape), ResultOf(get_shape_labels, ElementsAre(ov::no_label, 11, 21, 13, 23))));
+
+    EXPECT_THAT(this->make_op(b, a, "NUMPY")->get_output_partial_shape(0),
+                AllOf(Eq(exp_shape), ResultOf(get_shape_labels, ElementsAre(ov::no_label, 11, 12, 13, 23))));
 }
 
 REGISTER_TYPED_TEST_SUITE_P(LogicalOperatorTypeProp,
                             shape_broadcast,
                             partial_shape_no_broadcast,
+                            partial_shape_numpy_broadcast,
                             incorrect_type_f32,
                             incorrect_type_f64,
                             incorrect_type_i32,
