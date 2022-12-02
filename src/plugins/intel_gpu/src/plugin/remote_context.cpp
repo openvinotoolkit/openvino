@@ -132,48 +132,54 @@ void RemoteBlobImpl::allocate() {
     auto _impl = getContextImpl(m_context.lock());
     _impl->acquire_lock();
 
-    switch (m_mem_type) {
-    case BlobType::BT_BUF_INTERNAL: {
-        m_memObject = m_engine->allocate_memory(m_layout, cldnn::allocation_type::cl_mem);
-        break;
-    }
-    case BlobType::BT_USM_HOST_INTERNAL: {
-        m_memObject = m_engine->allocate_memory(m_layout, cldnn::allocation_type::usm_host);
-        break;
-    }
-    case BlobType::BT_USM_DEVICE_INTERNAL: {
-        m_memObject = m_engine->allocate_memory(m_layout, cldnn::allocation_type::usm_device);
-        break;
-    }
-    case BlobType::BT_BUF_SHARED: {
-        m_memObject = m_engine->share_buffer(m_layout, m_mem);
-        break;
-    }
-    case BlobType::BT_USM_SHARED: {
-        m_memObject = m_engine->share_usm(m_layout, m_mem);
-        break;
-    }
+    try {
+        switch (m_mem_type) {
+        case BlobType::BT_BUF_INTERNAL: {
+            m_memObject = m_engine->allocate_memory(m_layout, cldnn::allocation_type::cl_mem);
+            break;
+        }
+        case BlobType::BT_USM_HOST_INTERNAL: {
+            m_memObject = m_engine->allocate_memory(m_layout, cldnn::allocation_type::usm_host);
+            break;
+        }
+        case BlobType::BT_USM_DEVICE_INTERNAL: {
+            m_memObject = m_engine->allocate_memory(m_layout, cldnn::allocation_type::usm_device);
+            break;
+        }
+        case BlobType::BT_BUF_SHARED: {
+            m_memObject = m_engine->share_buffer(m_layout, m_mem);
+            break;
+        }
+        case BlobType::BT_USM_SHARED: {
+            m_memObject = m_engine->share_usm(m_layout, m_mem);
+            break;
+        }
 #ifdef _WIN32
-    case BlobType::BT_SURF_SHARED: {
-        m_memObject = m_engine->share_surface(m_layout, m_mem, m_plane);
-        break;
-    }
-    case BlobType::BT_DX_BUF_SHARED: {
-        m_memObject = m_engine->share_dx_buffer(m_layout, m_mem);
-        break;
-    }
+        case BlobType::BT_SURF_SHARED: {
+            m_memObject = m_engine->share_surface(m_layout, m_mem, m_plane);
+            break;
+        }
+        case BlobType::BT_DX_BUF_SHARED: {
+            m_memObject = m_engine->share_dx_buffer(m_layout, m_mem);
+            break;
+        }
 #else
-    case BlobType::BT_SURF_SHARED: {
-        m_memObject = m_engine->share_surface(m_layout, m_surf, m_plane);
-        break;
-    }
+        case BlobType::BT_SURF_SHARED: {
+            m_memObject = m_engine->share_surface(m_layout, m_surf, m_plane);
+            break;
+        }
 #endif
-    case BlobType::BT_IMG_SHARED: {
-        m_memObject = m_engine->share_image(m_layout, m_mem);
-        break;
-    }
-    default:
-        m_memObject.reset();
+        case BlobType::BT_IMG_SHARED: {
+            m_memObject = m_engine->share_image(m_layout, m_mem);
+            break;
+        }
+        default:
+            m_memObject.reset();
+        }
+    } catch (const std::exception& e) {
+        _impl->release_lock();
+        std::cerr << e.what() << '\n';
+        throw e;
     }
     _impl->release_lock();
 }
