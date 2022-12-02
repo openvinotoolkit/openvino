@@ -39,6 +39,7 @@ RUN apt-get update && apt-get -y --no-install-recommends install \
         python3-pip \
         python3-dev \
         python3-virtualenv \
+        cython3 \
         tox && \
     apt-get clean autoclean && \
     apt-get autoremove -y
