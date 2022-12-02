@@ -108,8 +108,7 @@ jobs:
       sudo docker build \
         --tag=openvino-onnx-ci-image \
         --file=.ci/openvino-onnx/Dockerfile \
-        --build-arg BUILD_TYPE=$(BUILD_TYPE) \
-        --build-arg PROTOBUF_LITE=$(PROTOBUF_LITE) .
+        --build-arg BUILD_TYPE=$(BUILD_TYPE) .
     displayName: 'Docker build $(BUILD_TYPE)'
 
   - script: sudo fallocate -l 64G /swapfile ; sudo mkswap /swapfile ; sudo swapon /swapfile ; df ; free -h

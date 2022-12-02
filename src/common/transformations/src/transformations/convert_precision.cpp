@@ -297,6 +297,10 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ngraph::Func
         {opset10::Unique::get_type_info_static(), fuse_type_to_unique_v10},
         {opset8::RandomUniform::get_type_info_static(), fuse_type_to_random_uniform_v8}};
 
+    for (const auto& it : m_additional_type_to_fuse_map) {
+        type_to_fuse[it.first] = it.second;
+    }
+
     type_to_fuse.insert(m_additional_type_to_fuse_map.begin(), m_additional_type_to_fuse_map.end());
 
     static type_to_fuse_map type_to_extend{
