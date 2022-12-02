@@ -23,7 +23,7 @@ Post-training quantization is easy to implement and is a quick way to boost mode
 
 * A floating-point precision model, FP32 or FP16, converted into the OpenVINO Intermediate Representation (IR) format.
 * A representative dataset (annotated or unannotated) of around 300 samples that depict typical use cases or scenarios.
-* **(Optional)** An annotated validation dataset that can be used for checking the model’s accuracy.
+* (Optional) An annotated validation dataset that can be used for checking the model’s accuracy.
 
 The post-training quantization algorithm takes samples from the representative dataset, inputs them into the network, and calibrates the network based on the resulting weights and activation values. Once calibration is complete, values in the network are converted to 8-bit integer format.
 
