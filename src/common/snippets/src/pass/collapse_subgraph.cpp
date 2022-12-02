@@ -50,14 +50,10 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
     auto is_supported_transpose = [](const std::shared_ptr<const Node>& n) -> bool {
         const auto& transpose = as_type_ptr<const opset1::Transpose>(n);
         const auto& out_shape = n->get_output_partial_shape(0);
-        // todo: we need to create a general way to tokenize only MHA transposes
-        if (transpose && out_shape.is_static() && out_shape.size() == 4 && n->get_input_size() == 2) {
+        if (transpose && out_shape.is_static()) {
             const auto& order = as_type_ptr<const opset1::Constant>(n->get_input_node_shared_ptr(1));
-            if (order && order->get_output_element_type(0) == element::i32) {
-                const auto order_value = order->get_vector<int>();
-                // todo: {0, 2, 1, 3} Transpose should also be tokenized to support MHA pattern.
-                //  It's disabled because {0, 2, 1, 3} Transposes to be fused with MatMuls, that are
-                //  not tokenized yet. Enable tokenization of {0, 2, 1, 3} after ticket 95631 is implemented.
+            if (order) {
+                const auto order_value = order->cast_vector<int>();
                 return TransposeDecomposition::supported_cases.count(order_value) != 0;
             }
         }

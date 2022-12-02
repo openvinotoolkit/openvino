@@ -12,8 +12,8 @@ namespace snippets {
 namespace pass {
 
 /**
- * @interface InsertLoops
- * @brief Insert explicit Loop operations into the body to process multiple data entities during one kernel execution
+ * @interface TransposeDecomposition
+ * @brief Decompose Transpose to Load + Store wrapped in several loops.
  * @ingroup snippets
  */
 class TransposeDecomposition: public ngraph::pass::MatcherPass {

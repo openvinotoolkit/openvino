@@ -105,8 +105,6 @@ public:
         return config.m_has_domain_sensitive_ops;
     }
 
-    size_t tileRank = 0; // set by plugin to facilitate scheduling
-
     snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes, ngraph::pass::Manager& opt,
                                 const void* compile_params = nullptr);
     snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes, const void* compile_params = nullptr);
@@ -120,6 +118,7 @@ public:
     // it's going to be replaced with Jitters table later
     void set_generator(std::shared_ptr<ngraph::snippets::Generator> generator);
     void set_non_scalar_constants_count(const size_t count);
+    void set_tile_rank(size_t newRank) {tileRank = newRank;}
 
     void print() const;
     void print_statistics(bool verbose);
@@ -161,6 +160,7 @@ private:
     } config;
 
     ov::PartialShape master_shape;
+    size_t tileRank = 0; // set by plugin to specify the number of dimensions processed in a single kernel call
 };
 
 static inline std::ostream& operator<<(std::ostream& os, const op::Subgraph::BlockedShape& blocked_shape) {

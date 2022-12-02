@@ -29,10 +29,16 @@ struct Config {
         DO_On,
     };
 
+    enum SnippetsMode {
+        Enable,
+        IgnoreCallback,
+        Disable,
+    };
+
     bool collectPerfCounters = false;
     bool exclusiveAsyncRequests = false;
     bool enableDynamicBatch = false;
-    bool tokenizeMHAOpsSnippets = false;
+    SnippetsMode snippetsMode = SnippetsMode::Enable;
     std::string dumpToDot = "";
     int batchLimit = 0;
     size_t rtCacheCapacity = 5000ul;

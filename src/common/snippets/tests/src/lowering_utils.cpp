@@ -82,7 +82,7 @@ std::shared_ptr<ngraph::snippets::op::Subgraph> LoweringTests::getLoweredSubgrap
     subgraph->set_master_shape(master_shape);
     const auto& body = subgraph->get_body();
     auto& body_rt_info = body->get_rt_info();
-    // todo: insertLoops pass requires body_rt_info["PluginShapesOverride"] and subgraph->tileRank to work normally
+    // todo: insertLoops pass requires body_rt_info["PluginShapesOverride"] and subgraph->set_tile_rank to work normally
     //  consider revising snippets-plugin shape and scheduling communication
     std::vector<std::vector<size_t>> new_shapes;
     for (const auto& p : body->get_parameters()) {
@@ -98,7 +98,7 @@ std::shared_ptr<ngraph::snippets::op::Subgraph> LoweringTests::getLoweredSubgrap
         new_shapes.push_back(pshape.get_shape());
     }
     body_rt_info["PluginShapesOverride"] = new_shapes;
-    subgraph->tileRank = 2;
+    subgraph->set_tile_rank(2);
     subgraph->generate();
     return subgraph;
 }

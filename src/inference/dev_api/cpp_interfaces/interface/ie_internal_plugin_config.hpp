@@ -110,11 +110,16 @@ DECLARE_CONFIG_KEY(CONFIG_DEVICE_ID);
 DECLARE_CONFIG_KEY(ENABLE_HYPER_THREAD);
 
 /**
- * @brief Defines if MHA ops can be tokenized in Snippets
- *        Softmax, Transpose should be tokenized in Snippets only in tests and in MHA pattern
+ * @brief Defines Snippets tokenization mode
+ *      @param ENABLE - default pipeline
+ *      @param IGNORE_CALLBACK - disable the Snippets markup transformation and tokenization callback
+ *      @param DISABLE - turn off the Snippets
  * @ingroup ie_dev_api_plugin_api
  */
-DECLARE_CONFIG_KEY(SNIPPETS_MHA_OPS_TOKENIZATION_ENABLE);
+DECLARE_CONFIG_KEY(SNIPPETS_MODE);
+DECLARE_CONFIG_VALUE(ENABLE);
+DECLARE_CONFIG_VALUE(IGNORE_CALLBACK);
+DECLARE_CONFIG_VALUE(DISABLE);
 
 }  // namespace PluginConfigInternalParams
 

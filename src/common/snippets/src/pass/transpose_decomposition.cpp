@@ -19,9 +19,9 @@ ngraph::snippets::pass::TransposeDecomposition::TransposeDecomposition() {
     MATCHER_SCOPE(TransposeDecomposition);
     // todo: we need a special transformation that detects and propagates data access pattern to Parameters and Results
     //  this is needed to communicate access pattern to the plugin node and op::Kernel
-    // This is the reason we me match only to Parameter, this limitation could be relaxed if we propagate access pattern
+    // This is the reason we match only to Parameter, this limitation could be relaxed if we propagate access pattern
     // to the appropriate parameter
-    auto match_data = ngraph::pattern::any_input();
+    auto match_data = ngraph::pattern::wrap_type<opset1::Parameter>();
     auto match_order = ngraph::pattern::wrap_type<opset1::Constant>();
     auto match_transpose = ngraph::pattern::wrap_type<ngraph::opset1::Transpose>({match_data, match_order});
 
@@ -32,26 +32,18 @@ ngraph::snippets::pass::TransposeDecomposition::TransposeDecomposition() {
                                                             pattern_to_output.at(match_transpose).get_node_shared_ptr());
 
         const auto order = ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(match_order).get_node_shared_ptr());
-        if (transformation_callback(transpose) || transpose->is_dynamic() ||
-            order->get_output_element_type(0) != ov::element::i32)
+        if (transformation_callback(transpose) || transpose->is_dynamic())
             return false;
 
-        auto order_value = order->get_vector<int>();
+        auto order_value = order->cast_vector<int>();
         if (supported_cases.count(order_value) == 0)
             throw ngraph::ngraph_error("TransposeDecomposition: unsupported order");
 
         auto data_input = pattern_to_output.at(match_data);
         const auto& data_node = pattern_to_output.at(match_data).get_node_shared_ptr();
-        // todo: we can decompose any transpose, but if it's not after parameter then it's not MHA-like pattern
-        //  and this Transpose is likely tokenized by error. So this exception is more like a sanity check:
-        //  if it's thrown => make sure that tokenization worked as expected
-        if (!ov::is_type<opset1::Parameter>(data_node))
-            throw ngraph_error("TransposeDecomposition: it's valid to decompose Transpose only after Parameter, not after " +
-                                std::string(data_node->get_type_name()));
         auto &param_rt = data_input.get_tensor_ptr()->get_rt_info();
         // Note: store and usage inside emitters as size_t is more convenient, so static_cast here
-        std::vector<size_t> access_pattern;
-        std::copy(order_value.begin(), order_value.end(), std::back_inserter(access_pattern));
+        const auto& access_pattern = order->cast_vector<size_t>();
         param_rt["Layout"] = access_pattern;
 
         // The line below is Ok, since we ensured that transpose is static above
@@ -69,7 +61,7 @@ ngraph::snippets::pass::TransposeDecomposition::TransposeDecomposition() {
         // todo: LoadReshape used here is essentially Load + an easy way to maintain correct shape propagation
         //  fix this in future and develop a more consistent shape propagation approach.
         auto load = std::make_shared<snippets::op::LoadReshape>(loop_C_begin->output(0), 1, access_pattern);
-        auto store = std::make_shared<snippets::op::Store>(load->output(0), 1);
+        auto store = std::make_shared<snippets::op::Store>(load, 1);
         const std::vector<int64_t> ptr_increments_C {size_H * size_W, 1};
         const std::vector<int64_t> finalization_offsets_C {1 - size_H * size_W * size_C, 0};
         auto loop_C_end = std::make_shared<op::LoopEnd>(OutputVector{store->output(0), loop_C_begin->output(1)},

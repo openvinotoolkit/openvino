@@ -11,12 +11,12 @@ namespace snippets {
 namespace op {
 
 LoopBase::LoopBase(const std::vector<Output<Node>> &args, size_t work_amount, size_t increment)
-        : Op(args), work_amount(work_amount), wa_increment(increment), evaluate_once(false) {
+        : Op(args), work_amount(work_amount), work_amount_increment(increment), evaluate_once(false) {
 }
 
 bool LoopBase::visit_attributes(AttributeVisitor &visitor) {
     visitor.on_attribute("work_amount", work_amount);
-    visitor.on_attribute("increment", wa_increment);
+    visitor.on_attribute("increment", work_amount_increment);
     return true;
 }
 
@@ -29,11 +29,11 @@ bool LoopBase::get_evaluate_once() const {
 }
 
 size_t LoopBase::get_increment() const {
-    return wa_increment;
+    return work_amount_increment;
 }
 
-LoopBegin::LoopBegin(const std::vector<Output<Node>> &args, size_t work_amount, size_t wa_increment)
-        : LoopBase(args, work_amount, wa_increment),
+LoopBegin::LoopBegin(const std::vector<Output<Node>> &args, size_t work_amount, size_t work_amount_increment)
+        : LoopBase(args, work_amount, work_amount_increment),
         begin_address(nullptr), input_regs({}) {
     // We can only call a reduced validate_and_infer types from the constructor, since LoopEnd might not be attached
     // to the LoopBegin at this point (which is usually the case: create LoopBegin first => then attach LoopEnd to it)
@@ -46,7 +46,7 @@ LoopBegin::LoopBegin(const std::vector<Output<Node>> &args)
 }
 
 std::shared_ptr<Node> LoopBegin::clone_with_new_inputs(const OutputVector& inputs) const {
-    return std::shared_ptr<LoopBegin>(new LoopBegin(inputs, work_amount, wa_increment));
+    return std::shared_ptr<LoopBegin>(new LoopBegin(inputs, work_amount, work_amount_increment));
 }
 
 
@@ -66,7 +66,7 @@ void LoopBegin::validate_and_infer_types() {
     const auto& loop_end = ov::as_type_ptr<LoopEnd>(last_output_inputs.begin()->get_node()->shared_from_this());
     NODE_VALIDATION_CHECK(this, loop_end != nullptr, "LoopBegin must have LoopEnd connected to its last output");
     work_amount = loop_end->get_work_amount();
-    wa_increment = loop_end->get_increment();
+    work_amount_increment = loop_end->get_increment();
 }
 
 std::shared_ptr<LoopEnd> LoopBegin::get_loop_end() {
@@ -79,27 +79,27 @@ std::shared_ptr<LoopEnd> LoopBegin::get_loop_end() {
     return  loop_end;
 }
 
-LoopEnd::LoopEnd(const std::vector<Output<Node>> &args, size_t work_amount, size_t wa_increment,
+LoopEnd::LoopEnd(const std::vector<Output<Node>> &args, size_t work_amount, size_t work_amount_increment,
                  std::vector<bool> apply_increments, std::vector<int64_t> finalization_offsets)
-        : LoopBase(args, work_amount, wa_increment), finalization_offsets(std::move(finalization_offsets)),
+        : LoopBase(args, work_amount, work_amount_increment), finalization_offsets(std::move(finalization_offsets)),
         has_outer_loop(true), loop_io_size(0) {
         ptr_increments.resize(apply_increments.size());
         std::transform(apply_increments.begin(), apply_increments.end(), ptr_increments.begin(),
-                       [wa_increment](bool apply) {
-                           return apply ? wa_increment : 0;
+                       [work_amount_increment](bool apply) {
+                           return apply ? work_amount_increment : 0;
                        });
     constructor_validate_and_infer_types();
 }
 
-LoopEnd::LoopEnd(const std::vector<Output<Node>> &args, size_t work_amount, size_t wa_increment,
+LoopEnd::LoopEnd(const std::vector<Output<Node>> &args, size_t work_amount, size_t work_amount_increment,
                  std::vector<int64_t> ptr_increments, std::vector<int64_t> finalization_offsets)
-        : LoopBase(args, work_amount, wa_increment), ptr_increments(std::move(ptr_increments)),
+        : LoopBase(args, work_amount, work_amount_increment), ptr_increments(std::move(ptr_increments)),
           finalization_offsets(std::move(finalization_offsets)), has_outer_loop(true), loop_io_size(0) {
     constructor_validate_and_infer_types();
 }
 
 std::shared_ptr<Node> LoopEnd::clone_with_new_inputs(const OutputVector& inputs) const {
-    return std::make_shared<LoopEnd>(inputs, work_amount, wa_increment, ptr_increments, finalization_offsets);
+    return std::make_shared<LoopEnd>(inputs, work_amount, work_amount_increment, ptr_increments, finalization_offsets);
 }
 
 std::shared_ptr<LoopBegin> LoopEnd::get_loop_begin() {
@@ -143,9 +143,9 @@ void LoopEnd::set_work_amount(size_t new_work_amount) {
 }
 
 void LoopEnd::set_increment(size_t new_increment) {
-    wa_increment = new_increment;
+    work_amount_increment = new_increment;
     // Update LoopBegin to maintain consistency between the Loops
-    get_loop_begin()->wa_increment = new_increment;
+    get_loop_begin()->work_amount_increment = new_increment;
 }
 
 void LoopEnd::set_evaluate_once(bool once) {
@@ -167,7 +167,7 @@ void LoopEnd::validate_and_infer_types() {
                           "finalization_offsets must be either empty or defined per every input & output of joined Loop. Expected size: ",
                           loop_io_size, " got ", finalization_offsets.size());
     if (ptr_increments.empty())
-        ptr_increments.resize(loop_io_size, static_cast<int64_t>(wa_increment));
+        ptr_increments.resize(loop_io_size, static_cast<int64_t>(work_amount_increment));
     if (finalization_offsets.empty())
         finalization_offsets.resize(loop_io_size, 0);
     set_output_size(num_inputs - 1);

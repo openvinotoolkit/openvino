@@ -416,13 +416,10 @@ void Snippet::prepareParams() {
 
     tileRank = 1;
     fullWorkAmount = std::accumulate(masterShape.begin(), masterShape.end(), 1, std::multiplies<size_t>());
-    // todo: domain-sensitive ops presently support only 2D tiles. Relax this limitation in future
-    bool execDomainIsUpdated = false;
     if (snippet->has_domain_sensitive_ops()) {
         tileRank = 2;
     } else {
-        // optimizeExecDomain will collapse shape dimensions and adjust tile Rank
-        execDomainIsUpdated = optimizeExecDomain(normInputShapes, normOutputShapes, masterShape, tileRank);
+        optimizeExecDomain(normInputShapes, normOutputShapes, masterShape, tileRank);
     }
     exec_domain = masterShape;
 
@@ -464,7 +461,7 @@ void Snippet::prepareParams() {
     std::copy(normOutputShapes.begin(), normOutputShapes.end(), std::back_inserter(new_shapes));
     body_rt_info["PluginShapesOverride"] = new_shapes;
     snippet->set_master_shape(ov::PartialShape(masterShape));
-    snippet->tileRank = tileRank;
+    snippet->set_tile_rank(tileRank);
 }
 
 bool Snippet::needPrepareParams() const {

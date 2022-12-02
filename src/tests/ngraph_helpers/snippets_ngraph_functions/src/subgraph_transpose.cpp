@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "subgraph_permute.hpp"
+#include "subgraph_transpose.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include <snippets/op/subgraph.hpp>
 

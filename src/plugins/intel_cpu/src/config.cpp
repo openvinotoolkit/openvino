@@ -159,14 +159,16 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                 IE_THROW() << "Wrong value for property key " << CPUConfigParams::KEY_CPU_DENORMALS_OPTIMIZATION
                 << ". Expected only YES/NO";
             }
-        } else if (key == PluginConfigInternalParams::KEY_SNIPPETS_MHA_OPS_TOKENIZATION_ENABLE) {
-            if (val == PluginConfigParams::YES)
-                tokenizeMHAOpsSnippets = true;
-            else if (val == PluginConfigParams::NO)
-                tokenizeMHAOpsSnippets = false;
+        } else if (key == PluginConfigInternalParams::KEY_SNIPPETS_MODE) {
+            if (val == PluginConfigInternalParams::ENABLE)
+                snippetsMode = SnippetsMode::Enable;
+            else if (val == PluginConfigInternalParams::IGNORE_CALLBACK)
+                snippetsMode = SnippetsMode::IgnoreCallback;
+            else if (val == PluginConfigInternalParams::DISABLE)
+                snippetsMode = SnippetsMode::Disable;
             else
-                IE_THROW() << "Wrong value for property key " << PluginConfigInternalParams::KEY_SNIPPETS_MHA_OPS_TOKENIZATION_ENABLE
-                            << ". Expected only YES/NO";
+                IE_THROW() << "Wrong value for property key " << PluginConfigInternalParams::KEY_SNIPPETS_MODE
+                            << ". Expected values: ENABLE/DISABLE/IGNORE_CALLBACK";
         } else {
             IE_THROW(NotFound) << "Unsupported property " << key << " by CPU plugin";
         }

@@ -28,8 +28,13 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };
 
-// todo: LoadReshape is just Load (and mapped on LoadEmitter), it just allows to keep correct shape propagation
-//  when we decompose Transpose to Load and Store.
+/**
+ * @interface LoadReshape
+ * @brief It's just Load operation (and it's mapped on LoadEmitter during code generation) that allows to tweak
+ *        shape propagation. We need it to keep correct shape propagation  when Transpose is decomposed to
+ *        Load and Store. This is a temporary solution until tokenization of Reshape operation is supported.
+ * @ingroup snippets
+ */
 class LoadReshape : public Load {
 public:
     OPENVINO_OP("LoadReshape", "SnippetsOpset");

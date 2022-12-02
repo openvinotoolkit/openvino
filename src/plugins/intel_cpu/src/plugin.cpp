@@ -262,7 +262,7 @@ Engine::~Engine() {
 }
 
 static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function> nGraphFunc, const bool _enableLPT, const bool _enableBF16,
-                                               const bool _enableSnippets, const bool _tokenizeSpecOpsSnippets, const bool isLegacyApi) {
+                                              const Config::SnippetsMode _snippetsMode, const bool isLegacyApi) {
     ngraph::pass::Manager manager;
     manager.set_per_pass_validation(false);
     manager.register_pass<ngraph::pass::InitNodeInfo>();
@@ -304,7 +304,6 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     };
 
     static const auto precisions = get_convert_precisions();
-//    todo: disabled for debug purposes. Enable before merge
 
     manager.register_pass<ov::pass::AUGRUCellFusion>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
@@ -639,40 +638,49 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     postLPTPassManager.register_pass<ConvertFqRnnToQuantizedRnn>();
     postLPTPassManager.run_passes(nGraphFunc);
 
-    if (_enableSnippets && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
+    if (_snippetsMode != Config::SnippetsMode::Disable && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
         ngraph::pass::Manager snippetsManager;
-        snippetsManager.register_pass<SnippetsMarkSkipped>();
+        if (_snippetsMode != Config::SnippetsMode::IgnoreCallback)
+            snippetsManager.register_pass<SnippetsMarkSkipped>();
         snippetsManager.register_pass<ngraph::snippets::pass::EnumerateNodes>();
         snippetsManager.register_pass<ngraph::snippets::pass::TokenizeSnippets>();
-        snippetsManager.get_pass_config()->set_callback<ngraph::snippets::pass::TokenizeSnippets>(
-                [_tokenizeSpecOpsSnippets](const std::shared_ptr<const ov::Node>& n) -> bool {
-                    // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant
-                    const bool is_unsupported_swish = ov::is_type<const ov::op::v4::Swish>(n) && n->inputs().size() > 1 &&
-                                                      !ov::is_type<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1));
-                    // todo: general tokenization flow is not currently supported for these operations.
-                    //  they can be tokenized only as a part of complex patterns
-                    const bool is_disabled_tokenization = !_tokenizeSpecOpsSnippets &&
-                                                          (ov::is_type<const ov::op::v1::Softmax>(n) ||
-                                                           ov::is_type<const ov::op::v8::Softmax>(n) ||
-                                                           ov::is_type<const ov::op::v1::Transpose>(n));
-                    const auto& inputs = n->inputs();
-                    // todo: clarify whether we can evaluate snippets on const paths
-                    const bool has_only_const_inputs = std::all_of(inputs.begin(), inputs.end(),
-                                [](const ov::Input<const ov::Node> &in) {
-                                        return ov::is_type<ov::op::v0::Constant>(in.get_source_output().get_node_shared_ptr());
-                                      });
-                    // todo: clarify whether we can evaluate snippets on inputs with larger ranks
-                    auto rank_is_too_large = [](const ov::descriptor::Tensor& t ) {
-                        // callback is called has_supported_in_out(), so it's safe to assume that the shapes are static
-                        return t.get_partial_shape().rank().get_length() > 6;
-                    };
-                    const bool bad_input_rank = std::any_of(inputs.begin(), inputs.end(),
-                                                            [&](const ov::Input<const ov::Node>& in) {return  rank_is_too_large(in.get_tensor());});
-                    const auto& outputs = n->outputs();
-                    const bool bad_output_rank = std::any_of(outputs.begin(), outputs.end(),
-                                                             [&](const ov::Output<const ov::Node>& out) {return  rank_is_too_large(out.get_tensor());});
-                    return has_only_const_inputs || bad_input_rank || bad_output_rank || is_unsupported_swish || is_disabled_tokenization;
-                });
+        if (_snippetsMode != Config::SnippetsMode::IgnoreCallback) {
+            snippetsManager.get_pass_config()->set_callback<ngraph::snippets::pass::TokenizeSnippets>(
+                    [](const std::shared_ptr<const ov::Node>& n) -> bool {
+                        // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant
+                        const bool is_unsupported_swish =
+                                ov::is_type<const ov::op::v4::Swish>(n) && n->inputs().size() > 1 &&
+                                !ov::is_type<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1));
+                        // todo: general tokenization flow is not currently supported for these operations.
+                        //  they can be tokenized only as a part of complex patterns
+                        const bool is_disabled_tokenization = (ov::is_type<const ov::op::v1::Softmax>(n) ||
+                                                               ov::is_type<const ov::op::v8::Softmax>(n) ||
+                                                               ov::is_type<const ov::op::v1::Transpose>(n));
+                        const auto& inputs = n->inputs();
+                        // todo: clarify whether we can evaluate snippets on const paths
+                        const bool has_only_const_inputs = std::all_of(inputs.begin(), inputs.end(),
+                                                                       [](const ov::Input<const ov::Node>& in) {
+                                                                           return ov::is_type<ov::op::v0::Constant>(
+                                                                                   in.get_source_output().get_node_shared_ptr());
+                                                                       });
+                        // todo: clarify whether we can evaluate snippets on inputs with larger ranks
+                        auto rank_is_too_large = [](const ov::descriptor::Tensor& t) {
+                            // callback is called has_supported_in_out(), so it's safe to assume that the shapes are static
+                            return t.get_partial_shape().rank().get_length() > 6;
+                        };
+                        const bool bad_input_rank = std::any_of(inputs.begin(), inputs.end(),
+                                                                [&](const ov::Input<const ov::Node>& in) {
+                                                                    return rank_is_too_large(in.get_tensor());
+                                                                });
+                        const auto& outputs = n->outputs();
+                        const bool bad_output_rank = std::any_of(outputs.begin(), outputs.end(),
+                                                                 [&](const ov::Output<const ov::Node>& out) {
+                                                                     return rank_is_too_large(out.get_tensor());
+                                                                 });
+                        return has_only_const_inputs || bad_input_rank || bad_output_rank || is_unsupported_swish ||
+                               is_disabled_tokenization;
+                    });
+        }
         snippetsManager.register_pass<ngraph::snippets::pass::CommonOptimizations>();
         snippetsManager.run_passes(nGraphFunc);
     }
@@ -878,14 +886,23 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     const auto& dynamicBatchProp = config.find(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED);
     const bool enableDynamicBatch = (dynamicBatchProp != config.end() && dynamicBatchProp->second == PluginConfigParams::YES)
             || engConfig.enableDynamicBatch;
-    const bool enableSnippets = !(enableModelCache || enableDynamicBatch);
-    const auto& mhaOpsSnippetsProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MHA_OPS_TOKENIZATION_ENABLE);
-    const bool tokenizeMHAOpSnippets = enableSnippets && (mhaOpsSnippetsProp != config.end() && mhaOpsSnippetsProp->second == PluginConfigParams::YES);
+    auto snippetsMode = enableModelCache || enableDynamicBatch ? Config::SnippetsMode::Disable : Config::SnippetsMode::Enable;
+    const auto& snippetsModeProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE);
+    if (snippetsMode == Config::SnippetsMode::Enable && snippetsModeProp != config.end()) {
+        const auto& val = snippetsModeProp->second;
+        if (val == PluginConfigInternalParams::IGNORE_CALLBACK)
+            snippetsMode =  Config::SnippetsMode::IgnoreCallback;
+        else if (val == PluginConfigInternalParams::DISABLE)
+            snippetsMode =  Config::SnippetsMode::Disable;
+        else
+            IE_THROW() << "Wrong value for property key SNIPPETS_MODE. Expected values: ENABLE/DISABLE/IGNORE_CALLBACK";
+    }
+
     auto nGraphFunc = clonedNetwork.getFunction();
 
     DEBUG_LOG(PrintableModel(*nGraphFunc, "org_"));
 
-    TransformationUpToCPUSpecificOpSet(nGraphFunc, enableLPT, enableBF16, enableSnippets, tokenizeMHAOpSnippets, isLegacyAPI());
+    TransformationUpToCPUSpecificOpSet(nGraphFunc, enableLPT, enableBF16, snippetsMode, isLegacyAPI());
 
     // need to check that all outputs have static shapes
     // checking that all inputs have static shapes is performed in the common part
@@ -1129,9 +1146,17 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
     const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
     const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
                         || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
-    const bool enableSnippets = !(conf.cache_dir.empty() || conf.enableDynamicBatch);
-    const auto& mhaOpsSnippetsProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MHA_OPS_TOKENIZATION_ENABLE);
-    const bool tokenizeMHAOpSnippets = enableSnippets && (mhaOpsSnippetsProp != config.end() && mhaOpsSnippetsProp->second == PluginConfigParams::YES);
+    auto snippetsMode = conf.cache_dir.empty() || conf.enableDynamicBatch ? Config::SnippetsMode::Disable : Config::SnippetsMode::Enable;
+    const auto& snippetsModeProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE);
+    if (snippetsMode == Config::SnippetsMode::Enable && snippetsModeProp != config.end()) {
+        const auto& val = snippetsModeProp->second;
+        if (val == PluginConfigInternalParams::IGNORE_CALLBACK)
+            snippetsMode =  Config::SnippetsMode::IgnoreCallback;
+        else if (val == PluginConfigInternalParams::DISABLE)
+            snippetsMode =  Config::SnippetsMode::Disable;
+        else
+            IE_THROW() << "Wrong value for property key SNIPPETS_MODE. Expected values: ENABLE/DISABLE/IGNORE_CALLBACK";
+    }
 
     auto model = network.getFunction();
     if (model == nullptr) {
@@ -1140,7 +1165,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
 
     auto supported = GetSupportedNodes(model,
     [&](std::shared_ptr<ov::Model>& model) {
-            TransformationUpToCPUSpecificOpSet(model, enableLPT, conf.enforceBF16, enableSnippets, tokenizeMHAOpSnippets, isLegacyAPI());
+            TransformationUpToCPUSpecificOpSet(model, enableLPT, conf.enforceBF16, snippetsMode, isLegacyAPI());
             ConvertToCPUSpecificOpset(model);
         },
     [&](const std::shared_ptr<ngraph::Node>& op) {

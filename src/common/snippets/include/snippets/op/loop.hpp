@@ -29,7 +29,7 @@ public:
 
 protected:
     size_t work_amount;
-    size_t wa_increment;
+    size_t work_amount_increment;
     bool evaluate_once; // true if the Loop is executed only once, used to skip setting and testing the loop counter
 };
 class LoopEnd;
@@ -56,7 +56,7 @@ public:
 
 private:
     void validate_and_infer_types_except_LoopEnd();
-    LoopBegin(const std::vector<Output<Node>>& args, size_t work_amount, size_t wa_increment);
+    LoopBegin(const std::vector<Output<Node>>& args, size_t work_amount, size_t work_amount_increment);
 };
 
 /**
@@ -77,9 +77,9 @@ private:
 class LoopEnd : public LoopBase {
 public:
     OPENVINO_OP("LoopEnd", "SnippetsOpset");
-    LoopEnd(const std::vector<Output<Node>>& args, size_t work_amount, size_t wa_increment,
+    LoopEnd(const std::vector<Output<Node>>& args, size_t work_amount, size_t work_amount_increment,
               std::vector<bool> apply_increment, std::vector<int64_t> finalization_offsets);
-    LoopEnd(const std::vector<Output<Node>>& args, size_t work_amount, size_t wa_increment,
+    LoopEnd(const std::vector<Output<Node>>& args, size_t work_amount, size_t work_amount_increment,
             std::vector<int64_t> ptr_increments, std::vector<int64_t> finalization_offsets);
     LoopEnd() = delete;
     std::shared_ptr<LoopBegin> get_loop_begin();
@@ -89,7 +89,7 @@ public:
     const std::vector<int64_t>& get_ptr_increments() const;
     void set_finalization_offsets(std::vector<int64_t> offsets);
     void set_ptr_increments(std::vector<int64_t> new_ptr_increments);
-    // update_ptr_increments resets non-zero increments to the new_increments. It's used when wa_increment is
+    // update_ptr_increments resets non-zero increments to the new_increments. It's used when work_amount_increment is
     // updated and we need to refresh ptr increments accordingly while respecting the broadcasting pattern
     void update_ptr_increments(int64_t new_increment);
     void set_work_amount(size_t new_work_amount);
