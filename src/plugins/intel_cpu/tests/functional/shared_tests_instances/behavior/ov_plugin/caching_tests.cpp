@@ -128,4 +128,17 @@ namespace {
                                     ::testing::ValuesIn(autoConfigs)),
                             CompileModelCacheTestBase::getTestCaseName);
 
+    const std::vector<ov::AnyMap> LoadFromFileConfigs = {
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU)},
+    };
+    const std::vector<std::string> TestTargets =
+    {CommonTestUtils::DEVICE_AUTO,
+    CommonTestUtils::DEVICE_MULTI,
+    };
+
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_CachingSupportCase_CPU, CompileModelLoadFromFileTestBase,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(TestTargets),
+                                ::testing::ValuesIn(LoadFromFileConfigs)),
+                        CompileModelLoadFromFileTestBase::getTestCaseName);
 } // namespace
