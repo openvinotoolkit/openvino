@@ -57,49 +57,9 @@ body {
 
 /* Scrollbox Extension */
 
-.scrollbox table {
-    border-collapse: separate;
-    border-spacing: 0;
-    display: table!important;
-    margin: 0px;
-    width: 100%;
-    height:inherit;
-    overflow-y:scroll;
-}
-
-.scrollbox table thead {
-    position: -webkit-sticky!important;
-    position: sticky!important;
-    top: 0!important;
-}
-
-.scrollbox table th {
-    background: white;
-    position: -webkit-sticky!important;
-    position: sticky!important;
-    top: 0!important;
-    border-top: solid 1px #dee2e6!important;
-    border-bottom: solid 1px #dee2e6!important;
-}
-
-.scrollbox div {
-    margin:0px!important;
-}
-
 .scrollbox {
     overflow-y:scroll;
     height:300px
-}
-
-/* Scrollbox Extension - Table Sort Button - override */
-
-.sort-btn {
-    display: block!important;
-    top:-0.2rem!important;
-}
-
-th.sort-header {
-    padding-bottom: 0px!important;
 }
 
 /* Syntax Highlighting */
