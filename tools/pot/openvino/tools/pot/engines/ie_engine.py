@@ -377,8 +377,9 @@ class IEEngine(Engine):
                 start_time = time()
 
         progress_log_fn = logger.info if print_progress else logger.debug
-        self._ie.set_property(self._device,
-                              {'CPU_THROUGHPUT_STREAMS': 'CPU_THROUGHPUT_AUTO', 'CPU_BIND_THREAD': 'YES'})
+        if self._device == 'CPU':
+            self._ie.set_property(self._device,
+                                {'CPU_THROUGHPUT_STREAMS': 'CPU_THROUGHPUT_AUTO', 'CPU_BIND_THREAD': 'YES'})
         # Load model to the plugin
         compiled_model = self._ie.compile_model(model=self._model, device_name=self._device)
         optimal_requests_num = compiled_model.get_property('OPTIMAL_NUMBER_OF_INFER_REQUESTS')
