@@ -259,14 +259,14 @@ def test_multibranch_propagation_without_fq_moving(tmp_path, models, model_name,
 
 MODELS_WITH_LSTM = [
     ('lstm_example', 'pytorch', {
-        'ReadValue_2467':
-            ['Assign_2468'],
-        'ReadValue_2423':
-            ['Assign_2424'],
-        'ReadValue_2433':
-            ['Assign_2434'],
-        'ReadValue_2457':
-            ['Assign_2458']
+        'ReadValue_2474':
+            ['Assign_2475'],
+        'ReadValue_2430':
+            ['Assign_2431'],
+        'ReadValue_2440':
+            ['Assign_2441'],
+        'ReadValue_2464':
+            ['Assign_2465']
     })
 ]
 
