@@ -124,3 +124,65 @@ bool op::v3::ScatterUpdate::has_evaluate() const {
     }
     return false;
 }
+
+namespace {
+NGRAPH_SUPPRESS_DEPRECATED_START
+bool scatter_label_evaluator(const Node* node, TensorLabelVector& output_labels) {
+    const auto& input_values = node->input_values();
+    if (input_values.size() < 4) {
+        return false;
+    }
+
+    constexpr auto data_in_idx = 0;
+    constexpr auto updates_in_idx = 2;
+    bool in0_has_no_labels = ov::has_no_labels(input_values[data_in_idx].get_tensor().get_value_label());
+    bool in2_has_no_labels = ov::has_no_labels(input_values[updates_in_idx].get_tensor().get_value_label());
+
+    if (in0_has_no_labels && in2_has_no_labels) {
+        return false;
+    }
+
+    HostTensorVector input_tensors(input_values.size());
+    for (size_t i = 0; i < input_values.size(); ++i) {
+        const auto& input = input_values[i];
+        if (i == data_in_idx || i == updates_in_idx) {
+            auto input_labels = input.get_tensor().get_value_label();
+            if (ov::has_no_labels(input_labels)) {
+                input_labels = std::vector<size_t>{0};
+            }
+            auto labels_constant = op::v0::Constant::create(ov::element::u64, input.get_shape(), input_labels);
+            input_tensors[i] = std::make_shared<HostTensor>(labels_constant);
+        } else if (input.get_tensor().has_and_set_bound()) {
+            input_tensors[i] = input.get_tensor().get_lower_value();
+        } else {
+            return false;
+        }
+    }
+
+    HostTensorVector output_tensors;
+    output_tensors.reserve(node->get_output_size());
+    for (size_t i = 0; i < node->get_output_size(); ++i) {
+        output_tensors.emplace_back(std::make_shared<HostTensor>(element::u64, node->get_output_partial_shape(i)));
+    }
+
+    if (node->evaluate(output_tensors, input_tensors)) {
+        std::transform(output_tensors.cbegin(),
+                       output_tensors.cend(),
+                       output_labels.begin(),
+                       [](const HostTensorPtr& tensor) {
+                           return std::make_shared<op::v0::Constant>(tensor)->cast_vector<size_t>();
+                       });
+        return true;
+    }
+    return false;
+}
+NGRAPH_SUPPRESS_DEPRECATED_END
+}  // namespace
+
+bool op::v3::ScatterUpdate::evaluate_label(TensorLabelVector& output_labels) const {
+    OV_OP_SCOPE(v3_ScatterUpdate_evaluate_label);
+    if (get_input_tensor(1).has_and_set_bound() && get_input_tensor(3).has_and_set_bound()) {
+        return scatter_label_evaluator(this, output_labels);
+    }
+    return false;
+}
