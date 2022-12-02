@@ -164,7 +164,13 @@ function (CheckOrDownloadAndExtract component RELATIVE_URL archive_name unpacked
   elseif(USE_NEW_LOCATION)
     set(URL "https://storage.openvinotoolkit.org/dependencies/${RELATIVE_URL}")
   else()
-    set(URL "https://download.01.org/opencv/master/openvinotoolkit/${RELATIVE_URL}")
+    if("${RELATIVE_URL}" STREQUAL "thirdparty/unified/VPU/usb-ma2x8x/firmware_usb-ma2x8x_20221129_35.zip")
+      set(URL "https://storage.openvinotoolkit.org/dependencies/myriad/firmware_usb-ma2x8x_20221129_35.zip")
+    elseif("${RELATIVE_URL}" STREQUAL "thirdparty/unified/VPU/pcie-ma2x8x/firmware_pcie-ma2x8x_20221129_35.zip")
+      set(URL "https://storage.openvinotoolkit.org/dependencies/myriad/firmware_pcie-ma2x8x_20221129_35.zip")
+    else()
+      set(URL "https://download.01.org/opencv/master/openvinotoolkit/${RELATIVE_URL}")
+    endif()
   endif()
 
   #no message on recursive calls
