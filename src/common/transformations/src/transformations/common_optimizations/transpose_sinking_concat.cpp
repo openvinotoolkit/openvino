@@ -91,3 +91,4 @@ ov::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
     auto m = std::make_shared<Matcher>(transpose_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
+ 
