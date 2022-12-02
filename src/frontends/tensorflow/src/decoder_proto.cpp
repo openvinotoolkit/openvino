@@ -108,9 +108,10 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
         if (tf_shape.unknown_rank()) {
             return ov::PartialShape::dynamic();
         }
-        std::vector<ov::Dimension> dims(tf_shape.dim_size());
-        for (int i = 0; i < tf_shape.dim_size(); ++i) {
-            dims[i] = tf_shape.dim(i).size();
+        size_t shape_rank = static_cast<size_t>(tf_shape.dim_size());
+        std::vector<ov::Dimension> dims(shape_rank);
+        for (size_t i = 0; i < shape_rank; ++i) {
+            dims[i] = static_cast<ov::Dimension>(tf_shape.dim(i).size());
         }
         return ov::PartialShape(dims);
     }
@@ -139,14 +140,22 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
             return std::vector<bool>(list.b().begin(), list.b().end());
 
         if (list.shape_size()) {
-            std::vector<ov::PartialShape> res;
-            for (const auto& it : list.shape()) {
-                std::vector<ov::Dimension> dims;
-                for (int i = 0; i < it.dim_size(); i++) {
-                    dims.emplace_back(it.dim(i).size());
+            size_t shapes_size = static_cast<size_t>(list.shape_size());
+            std::vector<ov::PartialShape> res(shapes_size);
+            for (size_t shape_ind = 0; shape_ind < shapes_size; ++shape_ind) {
+                auto shape = list.shape(shape_ind);
+                if (shape.unknown_rank()) {
+                    res[shape_ind] = ov::PartialShape::dynamic();
+                } else {
+                    size_t shape_rank = static_cast<size_t>(shape.dim_size());
+                    std::vector<ov::Dimension> dims(shape_rank);
+                    for (size_t dim_ind = 0; dim_ind < shape_rank; ++dim_ind) {
+                        dims[dim_ind] = static_cast<ov::Dimension>(shape.dim(dim_ind).size());
+                    }
+                    res[shape_ind] = dims;
                 }
-                res.emplace_back(dims);
             }
+            return res;
         }
 
         if (list.type_size()) {
