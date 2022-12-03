@@ -8,7 +8,7 @@ if(UNIX)
         # ASan does not support fortification https://github.com/google/sanitizers/issues/247
         set(IE_C_CXX_FLAGS "${IE_C_CXX_FLAGS} -D_FORTIFY_SOURCE=2")
     endif()
-    if(NOT OV_COMPILER_IS_APPLECLANG)
+    if(NOT APPLE)
         set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -pie")
     endif()
 

@@ -77,6 +77,12 @@ if(ENV{OECORE_NATIVE_SYSROOT} AND AARCH64)
     set(YOCTO_AARCH64 ON)
 endif()
 
+if(EXISTS "/etc/debian_version")
+    set(OV_OS_DEBIAN ON)
+elseif(EXISTS "/etc/redhat-release")
+    set(OV_OS_RHEL ON)
+endif()
+
 if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
     set(OV_COMPILER_IS_CLANG ON)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")

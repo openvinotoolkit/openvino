@@ -139,7 +139,6 @@ else()
 endif()
 
 # try to search TBB from brew by default
-# TODO: need to check whether it's installed correctly
 if(APPLE AND AARCH64)
     set(ENABLE_SYSTEM_TBB_DEFAULT ON)
 else()

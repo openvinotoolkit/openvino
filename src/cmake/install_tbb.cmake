@@ -92,7 +92,8 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         set(tbb_custom ON)
     endif()
 
-    if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$" AND NOT ENABLE_SYSTEM_TBB AND NOT LINUX_OS_NAME STREQUAL "CentOS 7")
+    if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$" AND NOT ENABLE_SYSTEM_TBB AND
+        NOT LINUX_OS_NAME STREQUAL "CentOS 7")
         message(FATAL_ERROR "Debian | RPM | Conda-forge | Brew packages can be built only with system TBB. Use -DENABLE_SYSTEM_TBB=ON")
     endif()
 
