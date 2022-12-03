@@ -5,12 +5,10 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/ngraph.hpp>
 #include <openvino/pass/graph_rewrite.hpp>
+#include <openvino/pass/pattern/matcher.hpp>
 #include <transformations_visibility.hpp>
 #include <vector>
-
-#include "ngraph/pattern/matcher.hpp"
 
 namespace ov {
 namespace pass {
