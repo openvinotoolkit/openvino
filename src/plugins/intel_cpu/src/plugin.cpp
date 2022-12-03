@@ -107,6 +107,7 @@
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset6.hpp>
+#include <openvino/opsets/opset10.hpp>
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/graph_util.hpp>
@@ -261,6 +262,29 @@ Engine::~Engine() {
     executorManager()->clear("CPUCallbackExecutor");
 }
 
+static bool fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& node, ov::element::Type to, size_t idx) {
+    if (auto convert = ov::as_type_ptr<ov::opset10::Convert>(node)) {
+        // For Convert node, converting precision from floating point to boolean will lead to mathematical
+        // error, because here the output precision boolean is replaced by u8. E.g. floating point value 0.01
+        // is converted to be 1 for boolean, but 0 for u8. Thus an Abs and Ceil node should be added before the
+        // Convert node for this scenario.
+        if (convert->input(0).get_element_type().is_real() &&
+            convert->get_convert_element_type() == ngraph::element::boolean && to.is_integral_number()) {
+            auto abs = std::make_shared<ov::opset10::Abs>(convert->input_value(0).get_node_shared_ptr());
+            auto ceil = std::make_shared<ov::opset10::Ceiling>(abs);
+            auto new_convert = std::make_shared<ov::opset10::Convert>(ceil, to);
+            new_convert->set_friendly_name(convert->get_friendly_name());
+            ov::copy_runtime_info(convert, {abs, ceil, new_convert});
+            ov::replace_node(convert, new_convert);
+            return true;
+        } else {
+            convert->set_convert_element_type(to);
+            return true;
+        }
+    }
+    return false;
+}
+
 static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function> nGraphFunc, const bool _enableLPT, const bool _enableBF16,
                                                const bool _enableSnippets, const bool isLegacyApi) {
     ngraph::pass::Manager manager;
@@ -304,6 +328,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     };
 
     static const auto precisions = get_convert_precisions();
+    type_to_fuse_map type_to_fuse = {{ov::opset10::Convert::get_type_info_static(), fuse_type_to_convert}};
 
     manager.register_pass<ov::pass::AUGRUCellFusion>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
@@ -330,7 +355,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         manager.register_pass<ngraph::pass::low_precision::ConvertSubtractConstant>(defaultPrecisions);
     }
     manager.register_pass<ngraph::pass::Validate>();
-    manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
+    manager.register_pass<ngraph::pass::ConvertPrecision>(precisions, type_to_fuse);
     manager.register_pass<ngraph::pass::EliminateConvert>();
     manager.register_pass<SwapConvertTranspose>();
     manager.register_pass<ConvertToInteraction>();
@@ -867,13 +892,10 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     } else {
         enableBF16 = engConfig.enforceBF16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);
     }
-    const auto& modelCacheProp = config.find(InferenceEngine::PluginConfigParams::KEY_CACHE_DIR);
-    const bool enableModelCache = (modelCacheProp != config.end() && !modelCacheProp->second.empty())
-            || !engConfig.cache_dir.empty();
     const auto& dynamicBatchProp = config.find(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED);
     const bool enableDynamicBatch = (dynamicBatchProp != config.end() && dynamicBatchProp->second == PluginConfigParams::YES)
             || engConfig.enableDynamicBatch;
-    const bool enableSnippets = !(enableModelCache || enableDynamicBatch);
+    const bool enableSnippets = !enableDynamicBatch;
     auto nGraphFunc = clonedNetwork.getFunction();
 
     DEBUG_LOG(PrintableModel(*nGraphFunc, "org_"));
@@ -1122,7 +1144,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
     const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
     const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
                         || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
-    const bool enableSnippets = !(conf.cache_dir.empty() || conf.enableDynamicBatch);
+    const bool enableSnippets = !conf.enableDynamicBatch;
 
     auto model = network.getFunction();
     if (model == nullptr) {

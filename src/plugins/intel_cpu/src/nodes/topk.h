@@ -84,7 +84,6 @@ public:
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     bool needShapeInfer() const override;
-    std::vector<VectorDims> shapeInfer() const override;
     bool needPrepareParams() const override;
     void prepareParams() override;
     void createPrimitive() override;
