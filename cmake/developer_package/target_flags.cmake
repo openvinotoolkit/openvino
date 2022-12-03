@@ -91,3 +91,31 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
 endif()
 
 get_property(OV_GENERATOR_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+
+function(ov_glibc_version)
+    if(LINUX)
+        execute_process(COMMAND ${CMAKE_C_COMPILER} -print-file-name=libc.so.6
+                        OUTPUT_VARIABLE glibc_library
+                        ERROR_VARIABLE error_message
+                        RESULT_VARIABLE exit_code
+                        OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+        if(NOT exit_code EQUAL 0)
+            message(FATAL_ERROR "Failed to detect glibc version: ${error_message}")
+        endif()
+
+        get_filename_component(glibc_library ${glibc_library} REALPATH)
+        GET_FILENAME_COMPONENT (GLIBC_VERSION ${glibc_library} NAME)
+        string(REPLACE "libc-" "" GLIBC_VERSION ${GLIBC_VERSION})
+        string(REPLACE ".so" "" GLIBC_VERSION ${GLIBC_VERSION})
+        if(NOT GLIBC_VERSION MATCHES "^[0-9.]+$")
+            message(FATAL_ERROR "Internal error: unknown glibc version - ${GLIBC_VERSION}")
+        endif()
+
+        set(OV_GLIBC_VERSION "${GLIBC_VERSION}" PARENT_SCOPE)
+    else()
+        set(OV_GLIBC_VERSION "0.0" PARENT_SCOPE)
+    endif()
+endfunction()
+
+ov_glibc_version()
