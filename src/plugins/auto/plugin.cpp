@@ -73,23 +73,24 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
         if (GetName() == "AUTO" && !isSetPerHint && !isSetDeviceProperties && !isSetNumStreams) {
             // setting latency as the default performance mode if
             // 1. no hints setting for AUTO plugin
-            // 2. no ov::device::properties setting for target device
+            // 2. no ov::device::properties(secondary properties) setting for target device
             // 3. no ov::num_streams setting for target device
             deviceConfig[PluginConfigParams::KEY_PERFORMANCE_HINT] = PluginConfigParams::LATENCY;
             return;
         }
 
-        // set TPUT for MULTI if no above propertis were set by user
         if (GetName() == "MULTI") {
-            if (isSetPerHint || isSetDeviceProperties)
-                return;
-            for (auto&& kvp : mergedConfig) {
-                if (kvp.first == ov::affinity || kvp.first == ov::num_streams ||
-                    kvp.first == ov::inference_num_threads) {
-                    return;
-                }
+            auto isSetAffinity = mergedConfig.find(ov::affinity.name()) != mergedConfig.end();
+            auto isSetNumThreads = mergedConfig.find(ov::inference_num_threads.name()) != mergedConfig.end();
+            if (!isSetPerHint && !isSetAffinity && !isSetNumThreads && !isSetDeviceProperties && !isSetNumStreams) {
+                // setting tput as the default performance mode if
+                // 1. no hints setting for MULTI plugin
+                // 2. no affinity setting for MULTI plugin
+                // 3. no inference_num_threads setting for MULTI plugin
+                // 4. no ov::device::properties(secondary properties) setting for target device
+                // 5. no ov::num_streams setting for target device
+                deviceConfig[PluginConfigParams::KEY_PERFORMANCE_HINT] = PluginConfigParams::THROUGHPUT;
             }
-            deviceConfig[PluginConfigParams::KEY_PERFORMANCE_HINT] = PluginConfigParams::THROUGHPUT;
         }
     };
 

@@ -156,8 +156,10 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
         if (CPUIter != _autoSContext->_devicePriorities.end()) {
             _loadContext[CPU].isEnabled = true;
             _loadContext[CPU].deviceInfo = *CPUIter;
-            _loadContext[CPU].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] =
-                IE::PluginConfigParams::LATENCY;
+            if (_loadContext[CPU].deviceInfo.config.find(ov::num_streams.name()) ==
+                _loadContext[CPU].deviceInfo.config.end()) {
+                _loadContext[CPU].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] = IE::PluginConfigParams::LATENCY;
+            }
             _loadContext[CPU].workName = "CPU_HELP";
             LOG_INFO_TAG("will load CPU for accelerator");
         } else {
