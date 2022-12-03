@@ -97,13 +97,9 @@ if(NOT DEFINED CMAKE_CXX_STANDARD)
 endif()
 ####################################
 
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/utils")
-    set(gflags_required ON)
-endif()
-
 if(TARGET gflags)
     set(GFLAGS_TARGET gflags)
-elseif(gflags_required)
+else()
     if(EXISTS /etc/debian_version)
         set(gflags_component nothreads_static)
     else()
