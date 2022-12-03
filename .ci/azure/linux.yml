@@ -62,7 +62,7 @@ jobs:
         CMAKE_CPACK_GENERATOR:
         SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/samples
         PYTHON_SAMPLES_INSTALL_DIR: $(SAMPLES_INSTALL_DIR)/python
-        RUN_PREFIX: . $(SETUPVARS) -pyver 3.10 &&
+        RUN_PREFIX: . $(SETUPVARS) &&
     maxParallel: 2
 
   # About 150% of total time
