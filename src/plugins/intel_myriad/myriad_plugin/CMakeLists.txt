@@ -43,7 +43,7 @@ target_link_libraries(${TARGET_NAME}
 
 # MyriadPlugin is not safe to unload it at runtime
 # see https://github.com/openvinotoolkit/openvino/pull/4807
-if(LINUX AND OV_GLIBC_VERSION VERSION_LESS 2.27)
+if(LINUX AND OV_GLIBC_VERSION VERSION_LESS 2.24)
     set_target_properties(${TARGET_NAME} PROPERTIES LINK_OPTIONS "-Wl,-z,nodelete")
 endif()
 
