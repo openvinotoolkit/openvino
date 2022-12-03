@@ -167,7 +167,7 @@ def autodoc_skip_member(app, what, name, obj, skip, options):
 shutil.copy("../../../docs/home.rst",".")
 
 def replace_index_with_redirect(app,exception):
-    shutil.copy("../../docs/index.html","_build/index.html")
+    shutil.copy("../../../docs/index.html","../_build/index.html")
 
 def setup(app):
     logger = logging.getLogger(__name__)
