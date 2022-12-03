@@ -93,7 +93,7 @@ endif()
 get_property(OV_GENERATOR_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 
 function(ov_glibc_version)
-    if(LINUX)
+    if(UNIX AND NOT APPLE)
         execute_process(COMMAND ${CMAKE_C_COMPILER} -print-file-name=libc.so.6
                         OUTPUT_VARIABLE glibc_library
                         ERROR_VARIABLE error_message
