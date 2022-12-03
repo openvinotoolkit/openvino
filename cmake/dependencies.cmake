@@ -106,7 +106,7 @@ function(ov_download_tbb)
                 ENVIRONMENT "TBBROOT"
                 SHA256 "01cac3cc48705bd52b83a6e1fa1ed95c708928be76160f5b9c5c37f954d56df4"
                 USE_NEW_LOCATION TRUE)
-    elseif(ANDROID AND X86_64)  # Should be before LINUX due LINUX is detected as well
+    elseif(ANDROID AND X86_64)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
                 TARGET_PATH "${TEMP}/tbb"
@@ -185,7 +185,7 @@ function(ov_download_tbbbind_2_5)
                 TARGET_PATH "${TEMP}/tbbbind_2_5"
                 ENVIRONMENT "TBBBIND_2_5_ROOT"
                 SHA256 "a67afeea8cf194f97968c800dab5b5459972908295242e282045d6b8953573c1")
-    elseif((LINUX AND NOT ANDROID) AND X86_64)
+    elseif(LINUX AND X86_64)
         RESOLVE_DEPENDENCY(TBBBIND_2_5
                 ARCHIVE_LIN "tbbbind_2_5_static_lin_v2.tgz"
                 TARGET_PATH "${TEMP}/tbbbind_2_5"
