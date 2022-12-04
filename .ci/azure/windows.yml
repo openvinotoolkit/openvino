@@ -79,7 +79,6 @@ jobs:
     OV_CMAKE_TOOLCHAIN_FILE: $(REPO_DIR)\cmake\toolchains\mt.runtime.win32.toolchain.cmake
     PYTHON_VENV_DIR: $(WORK_DIR)\.venv
 
-
   steps:
   - script: |
       rd /Q /S $(WORK_DIR) & mkdir $(WORK_DIR)
@@ -184,6 +183,7 @@ jobs:
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON ^
         -DENABLE_STRICT_DEPENDENCIES=OFF ^
         -DENABLE_PYTHON=ON ^
+        -DENABLE_WHEEL=OFF ^
         -DBUILD_nvidia_plugin=OFF ^
         -DPYTHON_EXECUTABLE="C:\hostedtoolcache\windows\Python\3.10.7\x64\python.exe" ^
         -DPYTHON_INCLUDE_DIR="C:\hostedtoolcache\windows\Python\3.10.7\x64\include" ^
@@ -192,7 +192,7 @@ jobs:
         -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
         -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
         -S $(REPO_DIR) -B $(BUILD_DIR)
-    displayName: 'CMake Samples Tests'
+    displayName: 'CMake OpenVINO'
 
   - script: dir $(REPO_DIR)\temp\ /s
     displayName: 'List temp SDKs'
