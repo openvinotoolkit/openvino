@@ -29,7 +29,7 @@ private:
 };
 
 inline std::vector<Extension::Ptr> load_extensions(const std::string& path) {
-    auto so = ov::util::load_shared_object(path.c_str());
+    auto so = ov::util::load_shared_object_unsafe(path.c_str());
     using CreateFunction = void(std::vector<Extension::Ptr>&);
     std::vector<Extension::Ptr> extensions;
     reinterpret_cast<CreateFunction*>(ov::util::get_symbol(so, "create_extensions"))(extensions);

@@ -13,6 +13,14 @@
 namespace ov {
 namespace util {
 std::shared_ptr<void> load_shared_object(const char* path) {
+    if (path == nullptr)
+        throw std::runtime_error("Cannot load library: path isn't specified.");
+    if (path[0] == '/')
+        return load_shared_object_unsafe(path);
+    throw std::runtime_error("Cannot load library: path '" + static_cast<std::string>(path) + "' is not absolute.");
+}
+
+std::shared_ptr<void> load_shared_object_unsafe(const char* path) {
     auto shared_object = std::shared_ptr<void>{dlopen(path, RTLD_NOW), [](void* shared_object) {
                                                    if (shared_object != nullptr) {
                                                        if (0 != dlclose(shared_object)) {
@@ -38,6 +46,10 @@ std::shared_ptr<void> load_shared_object(const char* path) {
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 std::shared_ptr<void> load_shared_object(const wchar_t* path) {
     return load_shared_object(ov::util::wstring_to_string(path).c_str());
+}
+
+std::shared_ptr<void> load_shared_object_unsafe(const wchar_t* path) {
+    return load_shared_object_unsafe(ov::util::wstring_to_string(path).c_str());
 }
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 

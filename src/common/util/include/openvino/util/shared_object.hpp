@@ -17,19 +17,37 @@ namespace ov {
 namespace util {
 
 /**
- * @brief Loads a library with the name specified.
- * @param path Full or relative path to the plugin library
+ * @brief Loads a library with absolute path specified.
+ * Prevents library search in working directory, environment
+ * variables etc.
+ * @param path Full path to the plugin library
  * @return Reference to shared object
  */
 std::shared_ptr<void> load_shared_object(const char* path);
 
+/**
+ * @brief Loads a library with the name specified.
+ * @param path Full or relative path to the plugin library
+ * @return Reference to shared object
+ */
+std::shared_ptr<void> load_shared_object_unsafe(const char* path);
+
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+/**
+ * @brief Loads a library with wide char absolute path specified.
+ * Prevents library search in working directory, environment
+ * variables etc.
+ * @param path Full path to the plugin library
+ * @return Reference to shared object
+ */
+std::shared_ptr<void> load_shared_object(const wchar_t* path);
+
 /**
  * @brief Loads a library with the wide char name specified.
  * @param path Full or relative path to the plugin library
  * @return Reference to shared object
  */
-std::shared_ptr<void> load_shared_object(const wchar_t* path);
+std::shared_ptr<void> load_shared_object_unsafe(const wchar_t* path);
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 /**
  * @brief Searches for a function symbol in the loaded module
