@@ -4,7 +4,7 @@ import os
 import shutil
 import sys
 from distutils.dir_util import copy_tree
-from utils.helpers import safeClearDir
+from utils.helpers import safeClearDir, absolutizePaths
 import json
 
 parser = ArgumentParser()
@@ -19,6 +19,7 @@ if (args.__dict__["configuration"] == None):
 else:
     cfgPath = args.__dict__["configuration"]
 cfgData = json.load(open(cfgPath))
+cfgData = absolutizePaths(cfgData)
 
 # rerun script from work directory
 workPath = cfgData["commonConfig"]["workPath"]

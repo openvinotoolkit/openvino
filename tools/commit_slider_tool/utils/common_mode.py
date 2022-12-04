@@ -47,7 +47,7 @@ class Mode(ABC):
         def __init__(self, mode) -> None:
             self.mode = mode
 
-    class FirstBadVersion(Traversal):
+    class FirstFailedVersion(Traversal):
         def __init__(self, mode) -> None:
             super().__init__(mode)
         def bypass(self, i1, i2, list, cfg, isBadVersion) -> int:

@@ -4,7 +4,16 @@ import sys
 import subprocess
 import re
 import logging as log
-
+def absolutizePaths(cfg):
+    pathToAbsolutize = ["gitPath", "buildPath", "appPath", "workPath"]
+    for item in pathToAbsolutize:
+        path = cfg["commonConfig"][item]
+        path = os.path.abspath(path)
+        cfg["commonConfig"][item] = path
+    prepFile = cfg["specialConfig"]["preprocess"]["file"]
+    prepFile = os.path.abspath(prepFile)
+    cfg["specialConfig"]["preprocess"]["file"] = prepFile
+    return cfg
 def checkArgAndGetCommitList(commitArg, cfgData):
     if (not len(commitArg.split('..')) == 2):
         # todo: python bug with re.search("^[a-zA-Z0-9]+\.\.[a-zA-Z0-9]+$", commitArg)
@@ -32,6 +41,7 @@ def runCommandList(commit, cfgData):
     gitPath = cfgData["commonConfig"]["gitPath"]
     buildPath = cfgData["commonConfig"]["buildPath"]
     defRepo = gitPath
+    newEnv = os.environ.copy()
     for cmd in commandList:
         if "tag" in cmd.keys():
             if cmd["tag"] == "clean" and skipCleanInterval:
@@ -45,6 +55,15 @@ def runCommandList(commit, cfgData):
                 preProcess = getattr(mod, prePrName)
                 preProcess(cfgData)
                 continue
+            elif cmd["tag"] == "setupenv":
+                for env in cfgData["specialConfig"]["setupenv"]:
+                    envKey = env["env"]
+                    envVal = env["val"]
+                    commitLogger.info("Setup env: {key}={val}".format(key=envKey, val=envVal))
+                    newEnv[envKey] = envVal
+                    # print(os.environ[envKey])
+                    # i = input("ENV")
+                continue
         strCommand = cmd["cmd"].format(commit = commit)
         formattedCmd = strCommand.split()
         cwd = defRepo
@@ -53,7 +72,7 @@ def runCommandList(commit, cfgData):
         commitLogger.info("Run command: {command}".format(command=formattedCmd))
         proc = subprocess.Popen(formattedCmd,
             cwd = cwd,
-            stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=newEnv)
         for line in proc.stdout:
             # decode if line is byte-type
             try:
@@ -61,12 +80,17 @@ def runCommandList(commit, cfgData):
             except (UnicodeDecodeError, AttributeError):
                 pass
             sys.stdout.write(line)
+            commitLogger.info(line)
+        # commitLogger.info(proc.stdout)
         proc.wait()
-        i = input("wait for you")
         checkOut, err = proc.communicate()
-        commitLogger.info(checkOut)
+        try:
+            checkOut = checkOut.decode('utf-8')
+        except (UnicodeDecodeError, AttributeError):
+            pass
+        # commitLogger.info(checkOut)
         if "catchMsg" in cmd.keys():
-            isErrFound = re.search(cmd["catchMsg"], checkOut.decode('utf-8'))
+            isErrFound = re.search(cmd["catchMsg"], checkOut)
             if (isErrFound):
                 if skipCleanInterval:
                     commitLogger.info("Build error: clean is necessary")
