@@ -95,20 +95,22 @@ get_property(OV_GENERATOR_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG
 function(ov_glibc_version)
     if(LINUX)
         function(ov_get_definition definition var)
-            execute_process(COMMAND echo "#include <errno.h>" | "${CMAKE_CXX_COMPILER}" -xc - -E -dM | grep -E "^#define ${definition} "
+            execute_process(COMMAND echo "#include <errno.h>"
+                            COMMAND "${CMAKE_CXX_COMPILER}" -xc - -E -dM
+                            COMMAND grep -E "^#define ${definition} "
                             OUTPUT_VARIABLE glibc_version_component
                             ERROR_VARIABLE error_message
                             RESULT_VARIABLE exit_code
                             OUTPUT_STRIP_TRAILING_WHITESPACE)
 
             if(NOT exit_code EQUAL 0)
-                message(FATAL_ERROR "Failed to detect glibc version: ${error_message}")
+                message(FATAL_ERROR "Failed to detect glibc version: ${error_message}\n${glibc_version_component}")
             endif()
 
-            if(glibc_version_component MATCHES "^#define ${definition} (\\d+)")
+            if(glibc_version_component MATCHES "^#define ${definition} ([0-9]+)")
                 set("${var}" "${CMAKE_MATCH_1}" PARENT_SCOPE)
             else()
-                message(FATAL_ERROR "Internal error: failed to parse ${definition} from ${glibc_version_component}")
+                message(FATAL_ERROR "Internal error: failed to parse ${definition} from '${glibc_version_component}'")
             endif()
         endfunction()
 
@@ -116,7 +118,6 @@ function(ov_glibc_version)
         ov_get_definition("__GLIBC_MINOR__" _ov_glibc_minor)
 
         set(OV_GLIBC_VERSION "${_ov_glibc_major}.${_ov_glibc_minor}" PARENT_SCOPE)
-        message(FATAL_ERROR "${OV_GLIBC_VERSION}")
     else()
         set(OV_GLIBC_VERSION "0.0" PARENT_SCOPE)
     endif()
