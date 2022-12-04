@@ -253,34 +253,28 @@ if(ENABLE_OPENCV)
             if(YOCTO_AARCH64)
                 set(OPENCV_SUFFIX "yocto_kmb")
                 set(OPENCV_BUILD "${OPENCV_BUILD_YOCTO}")
-            elseif(ARM)
-                set(OPENCV_SUFFIX "debian9arm")
-                set(OPENCV_HASH "4274f8c40b17215f4049096b524e4a330519f3e76813c5a3639b69c48633d34e")
-            elseif((LINUX_OS_NAME STREQUAL "CentOS 7" OR
-                     CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.9") AND X86_64)
+            elseif((OV_GLIBC_VERSION VERSION_GREATER_EQUAL 2.17 AND
+                    CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.9") AND X86_64)
                 set(OPENCV_SUFFIX "centos7")
                 set(OPENCV_HASH "5fa76985c84fe7c64531682ef0b272510c51ac0d0565622514edf1c88b33404a")
-            elseif((LINUX_OS_NAME STREQUAL "CentOS 8" OR
-                    LINUX_OS_NAME STREQUAL "CentOS 9") AND X86_64)
-                set(OPENCV_SUFFIX "centos8")
-                set(OPENCV_HASH "db087dfd412eedb8161636ec083ada85ff278109948d1d62a06b0f52e1f04202")
-            elseif(LINUX_OS_NAME STREQUAL "Ubuntu 16.04" AND X86_64)
-                set(OPENCV_SUFFIX "ubuntu16")
-                set(OPENCV_HASH "cd46831b4d8d1c0891d8d22ff5b2670d0a465a8a8285243059659a50ceeae2c3")
-            elseif(LINUX_OS_NAME STREQUAL "Ubuntu 18.04" AND X86_64)
-                set(OPENCV_SUFFIX "ubuntu18")
-                set(OPENCV_HASH "db087dfd412eedb8161636ec083ada85ff278109948d1d62a06b0f52e1f04202")
-            elseif((LINUX_OS_NAME STREQUAL "Ubuntu 20.04" OR
-                    LINUX_OS_NAME STREQUAL "Ubuntu 20.10" OR
-                    LINUX_OS_NAME STREQUAL "Ubuntu 21.04" OR
-                    LINUX_OS_NAME STREQUAL "Ubuntu 21.10" OR
-                    LINUX_OS_NAME STREQUAL "Ubuntu 22.04" OR
-                    LINUX_OS_NAME STREQUAL "Ubuntu 22.10" OR
-                    LINUX_OS_NAME STREQUAL "LinuxMint 20.1") AND X86_64)
+            elseif(OV_GLIBC_VERSION VERSION_GREATER_EQUAL 2.31 AND X86_64)
                 set(OPENCV_SUFFIX "ubuntu20")
                 set(OPENCV_HASH "2fe7bbc40e1186eb8d099822038cae2821abf617ac7a16fadf98f377c723e268")
+            elseif(OV_GLIBC_VERSION VERSION_GREATER_EQUAL 2.27 AND X86_64)
+                set(OPENCV_SUFFIX "ubuntu18")
+                set(OPENCV_HASH "db087dfd412eedb8161636ec083ada85ff278109948d1d62a06b0f52e1f04202")
+            elseif(OV_GLIBC_VERSION VERSION_GREATER_EQUAL 2.24 AND ARM)
+                set(OPENCV_SUFFIX "debian9arm")
+                set(OPENCV_HASH "4274f8c40b17215f4049096b524e4a330519f3e76813c5a3639b69c48633d34e")
+            elseif(OV_GLIBC_VERSION VERSION_GREATER_EQUAL 2.23 AND X86_64)
+                set(OPENCV_SUFFIX "ubuntu16")
+                set(OPENCV_HASH "cd46831b4d8d1c0891d8d22ff5b2670d0a465a8a8285243059659a50ceeae2c3")
+            # elseif((LINUX_OS_NAME STREQUAL "CentOS 8" OR
+            #         LINUX_OS_NAME STREQUAL "CentOS 9") AND X86_64)
+            #     set(OPENCV_SUFFIX "centos8")
+            #     set(OPENCV_HASH "db087dfd412eedb8161636ec083ada85ff278109948d1d62a06b0f52e1f04202")
             elseif(NOT DEFINED OpenCV_DIR AND NOT DEFINED ENV{OpenCV_DIR})
-                message(FATAL_ERROR "OpenCV is not available on current platform (${LINUX_OS_NAME})")
+                message(FATAL_ERROR "OpenCV is not available on current platform (OS = ${CMAKE_SYSTEM_NAME}, glibc ${OV_GLIBC_VERSION})")
             endif()
             RESOLVE_DEPENDENCY(OPENCV
                     ARCHIVE_LIN "opencv/opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_${OPENCV_SUFFIX}.txz"
