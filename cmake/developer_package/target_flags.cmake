@@ -88,25 +88,29 @@ get_property(OV_GENERATOR_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG
 
 function(ov_glibc_version)
     if(LINUX)
-        execute_process(COMMAND ${CMAKE_C_COMPILER} -print-file-name=libc.so.6
-                        OUTPUT_VARIABLE glibc_library
-                        ERROR_VARIABLE error_message
-                        RESULT_VARIABLE exit_code
-                        OUTPUT_STRIP_TRAILING_WHITESPACE)
+        function(ov_get_definition definition var)
+            execute_process(COMMAND echo "#include <errno.h>" | "${CMAKE_CXX_COMPILER}" -xc - -E -dM | grep -E "^#define ${definition} "
+                            OUTPUT_VARIABLE glibc_version_component
+                            ERROR_VARIABLE error_message
+                            RESULT_VARIABLE exit_code
+                            OUTPUT_STRIP_TRAILING_WHITESPACE)
 
-        if(NOT exit_code EQUAL 0)
-            message(FATAL_ERROR "Failed to detect glibc version: ${error_message}")
-        endif()
+            if(NOT exit_code EQUAL 0)
+                message(FATAL_ERROR "Failed to detect glibc version: ${error_message}")
+            endif()
 
-        get_filename_component(glibc_library ${glibc_library} REALPATH)
-        GET_FILENAME_COMPONENT (GLIBC_VERSION ${glibc_library} NAME)
-        string(REPLACE "libc-" "" GLIBC_VERSION ${GLIBC_VERSION})
-        string(REPLACE ".so" "" GLIBC_VERSION ${GLIBC_VERSION})
-        if(NOT GLIBC_VERSION MATCHES "^[0-9.]+$")
-            message(FATAL_ERROR "Internal error: unknown glibc version - ${GLIBC_VERSION}")
-        endif()
+            if(glibc_version_component MATCHES "^#define ${definition} (\\d+)")
+                set("${var}" "${CMAKE_MATCH_1" PARENT_SCOPE)
+            else()
+                message(FATAL_ERROR "Internal error: failed to parse ${definition} from ${glibc_version_component}")
+            endif()
+        endfunction()
 
-        set(OV_GLIBC_VERSION "${GLIBC_VERSION}" PARENT_SCOPE)
+        ov_get_definition("__GLIBC__" _ov_glibc_major)
+        ov_get_definition("__GLIBC_MINOR__" _ov_glibc_minor)
+
+        set(OV_GLIBC_VERSION "${_ov_glibc_major}.${_ov_glibc_minor}" PARENT_SCOPE)
+        message(FATAL_ERROR "${OV_GLIBC_VERSION}")
     else()
         set(OV_GLIBC_VERSION "0.0" PARENT_SCOPE)
     endif()
