@@ -74,6 +74,20 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             // zero and any negative value will be treated
             // as default batch size
             batchLimit = std::max(val_i, 0);
+        } else if (key == CPUConfigParams::KEY_CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE) {
+            float val_f = 0.0f;
+            try {
+                val_f = std::stof(val);
+            } catch (const std::exception&) {
+                IE_THROW() << "Wrong value for property key " << CPUConfigParams::KEY_CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE
+                                    << ". Expected only float numbers";
+            }
+            if (val_f < 0.f || val_f > 1.f) {
+                IE_THROW() << "Wrong value for property key " << CPUConfigParams::KEY_CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE
+                                    << ". Sparse rate must be in range [0.0f,1.0f]";
+            } else {
+                fcSparseWeiDecompressionRate = val_f;
+            }
         } else if (key == PluginConfigParams::KEY_PERF_COUNT) {
             if (val == PluginConfigParams::YES) collectPerfCounters = true;
             else if (val == PluginConfigParams::NO) collectPerfCounters = false;

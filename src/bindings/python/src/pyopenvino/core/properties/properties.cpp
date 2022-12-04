@@ -71,6 +71,9 @@ void regmodule_properties(py::module m) {
 
     // Submodule intel_cpu property
     wrap_property_RW(m_intel_cpu, ov::intel_cpu::denormals_optimization, "denormals_optimization");
+    wrap_property_RW(m_intel_cpu,
+                     ov::intel_cpu::sparse_weights_decompression_rate,
+                     "sparse_weights_decompression_rate");
 
     // Submodule device
     py::module m_device =

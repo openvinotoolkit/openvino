@@ -40,5 +40,7 @@ namespace CPUConfigParams {
  */
 DECLARE_CPU_CONFIG_KEY(DENORMALS_OPTIMIZATION);
 
+DECLARE_CPU_CONFIG_KEY(SPARSE_WEIGHTS_DECOMPRESSION_RATE);
+
 }  // namespace CPUConfigParams
 }  // namespace InferenceEngine

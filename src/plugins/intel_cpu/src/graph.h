@@ -269,6 +269,7 @@ private:
     std::unordered_map<Node*, size_t> syncNodesInds;
 
     void EnforceBF16();
+    void setMinSparseRate(float minSparseRate);
 };
 
 }   // namespace intel_cpu

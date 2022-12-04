@@ -34,6 +34,7 @@ struct Config {
     bool enableDynamicBatch = false;
     std::string dumpToDot = "";
     int batchLimit = 0;
+    float fcSparseWeiDecompressionRate = 1.0f;
     size_t rtCacheCapacity = 5000ul;
     InferenceEngine::IStreamsExecutor::Config streamExecutorConfig;
     InferenceEngine::PerfHintsConfig  perfHintsConfig;
