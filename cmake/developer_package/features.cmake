@@ -7,7 +7,8 @@ include(target_flags)
 
 # FIXME: there are compiler failures with LTO and Cross-Compile toolchains. Disabling for now, but
 #        this must be addressed in a proper way
-ie_dependent_option (ENABLE_LTO "Enable Link Time Optimization" OFF "LINUX OR (APPLE AND AARCH64);NOT CMAKE_CROSSCOMPILING;CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.9" OFF)
+ie_dependent_option (ENABLE_LTO "Enable Link Time Optimization" OFF
+    "LINUX OR (APPLE AND AARCH64);NOT CMAKE_CROSSCOMPILING;CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.9" OFF)
 
 ie_option (OS_FOLDER "create OS dedicated folder in output" OFF)
 
@@ -87,8 +88,8 @@ if(ENABLE_AVX512F)
     if ((CMAKE_CXX_COMPILER_ID STREQUAL "Clang") AND (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 6))
         set(ENABLE_AVX512F OFF CACHE BOOL "" FORCE)
     endif()
-    if ((CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang") AND (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10))
-        # TBD: clarify which AppleClang version supports avx512
+    if (OV_COMPILER_IS_APPLECLANG AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10)
+        # TODO: clarify which AppleClang version supports avx512
         set(ENABLE_AVX512F OFF CACHE BOOL "" FORCE)
     endif()
     if ((CMAKE_CXX_COMPILER_ID STREQUAL "GNU") AND (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9))

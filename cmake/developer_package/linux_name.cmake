@@ -4,9 +4,9 @@
 
 include(target_flags)
 
-if (LINUX)
+if(LINUX)
     function(get_linux_name res_var)
-        if (EXISTS "/etc/lsb-release")
+        if(EXISTS "/etc/lsb-release")
             # linux version detection using cat /etc/lsb-release
             file(READ "/etc/lsb-release" release_data)
             set(name_regex "DISTRIB_ID=([^ \n]*)\n")
