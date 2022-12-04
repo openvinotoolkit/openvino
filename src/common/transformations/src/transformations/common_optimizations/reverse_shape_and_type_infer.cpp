@@ -23,7 +23,9 @@ bool inherit_output_shape(std::shared_ptr<ov::Node> node, std::vector<size_t> in
 
     for (auto idx : input_idxs) {
         if (node->get_input_partial_shape(idx).rank().is_dynamic()) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             node->get_input_tensor(idx).set_partial_shape(output_shape);
+            OPENVINO_SUPPRESS_DEPRECATED_END
             is_changed = true;
         }
     }
@@ -36,7 +38,9 @@ bool inherit_output_rank(std::shared_ptr<ov::Node> node, std::vector<size_t> inp
 
     for (auto idx : input_idxs) {
         if (idx < node->get_input_size() && node->get_input_partial_shape(idx).rank().is_dynamic()) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             node->get_input_tensor(idx).set_partial_shape(ov::PartialShape::dynamic(output_shape.rank()));
+            OPENVINO_SUPPRESS_DEPRECATED_END
             is_changed = true;
         }
     }
@@ -49,7 +53,9 @@ bool inherit_output_type(std::shared_ptr<ov::Node> node, std::vector<size_t> inp
 
     for (auto idx : input_idxs) {
         if (node->get_input_element_type(idx).is_dynamic()) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             node->get_input_tensor(idx).set_element_type(output_type);
+            OPENVINO_SUPPRESS_DEPRECATED_END
             is_changed = true;
         }
     }
@@ -61,6 +67,7 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ngra
     RUN_ON_FUNCTION_SCOPE(ReverseShapeAndTypeInfer);
     bool is_changed = false;
     auto ops = f->get_ordered_ops();
+    OPENVINO_SUPPRESS_DEPRECATED_START
     for (auto it = ops.rbegin(); it != ops.rend(); ++it) {
         const auto& op = *it;
         auto output_shape = op->get_output_partial_shape(0);
@@ -125,5 +132,6 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ngra
             is_changed |= inherit_output_type(op, {0, 1});
         }
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return is_changed;
 }
