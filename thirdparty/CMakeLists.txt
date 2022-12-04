@@ -373,7 +373,6 @@ elseif(APPLE OR WIN32)
             PATTERN .lgtm.yml EXCLUDE
             PATTERN Makefile EXCLUDE
             PATTERN meson.build EXCLUDE
-            PATTERN nlohmann_json.natvis EXCLUDE
             PATTERN README.md EXCLUDE
             PATTERN .reuse EXCLUDE
             PATTERN tests EXCLUDE

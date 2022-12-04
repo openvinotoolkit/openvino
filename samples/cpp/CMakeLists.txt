@@ -97,9 +97,14 @@ if(NOT DEFINED CMAKE_CXX_STANDARD)
 endif()
 ####################################
 
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/utils")
+    # gflags is used only in C++ samples
+    set(gflags_required ON)
+endif()
+
 if(TARGET gflags)
     set(GFLAGS_TARGET gflags)
-else()
+elseif(gflags_required)
     if(EXISTS /etc/debian_version)
         set(gflags_component nothreads_static)
     else()
@@ -223,9 +228,6 @@ macro(ie_add_sample)
     target_include_directories(${IE_SAMPLE_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../common")
 
     target_link_libraries(${IE_SAMPLE_NAME} PRIVATE ${ov_link_libraries} Threads::Threads ${IE_SAMPLE_DEPENDENCIES})
-    if(NOT c_sample)
-        target_link_libraries(${IE_SAMPLE_NAME} PRIVATE ${GFLAGS_TARGET})
-    endif()
 
     install(TARGETS ${IE_SAMPLE_NAME}
             RUNTIME DESTINATION samples_bin/
