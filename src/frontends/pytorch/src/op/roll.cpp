@@ -15,7 +15,7 @@ OutputVector translate_roll(NodeContext& context) {
     const auto data = context.get_input(0);
     const auto shifts = context.get_input(1);
     const auto axes = context.get_input(2);
-    // if axes was not set 
+    // if axes was not set
     if (axes.get_shape() != shifts.get_shape()) {
         const auto const_minus_1 = opset8::Constant::create(element::i32, Shape{1}, {-1});
         const auto axis_0 = opset8::Constant::create(element::i32, Shape{1}, {0});
