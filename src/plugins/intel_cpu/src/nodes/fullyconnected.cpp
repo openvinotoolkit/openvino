@@ -819,20 +819,20 @@ bool FullyConnected::canBeExecutedInConv1x1() const {
         const auto& weightDims = weightMemPtr->getStaticDims();
         // for original inner product semantics:
         //  when input is 2D tensor
-        //    M in oneDNN will map to widthInBrg
+        //    M in oneDNN will map to widthInConv
         //  when input is 3D tensor
-        //    M in oneDNN will map to widthInBrg*minibatch
+        //    M in oneDNN will map to widthInConv*minibatch
         // currently nwc mapping in brg:
         //  when input is 2D tensor
-        //    widthInBrg will map to 'w', 'n' will be 1
+        //    widthInConv will map to 'w', 'n' will be 1
         //  when input is 3D tensor
-        //    widthInBrg will map to 'w', 'n' will be minibatch
-        Dim widthInBrg, N, K;
-        widthInBrg = srcDims[inRank - 2];
+        //    widthInConv will map to 'w', 'n' will be minibatch
+        Dim widthInConv, N, K;
+        widthInConv = srcDims[inRank - 2];
         K = srcDims[inRank - 1];
         N = weightDims[0];
 
-        if (!(widthInBrg >= 2 && widthInBrg <= 3136 &&
+        if (!(widthInConv >= 2 && widthInConv <= 3136 &&
               K >= 96 && K <= 4096 &&
               N >= 96 && N <= K * 4))
             retVal = false;
