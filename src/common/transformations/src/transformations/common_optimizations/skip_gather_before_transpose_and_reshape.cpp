@@ -16,7 +16,7 @@
 ov::pass::SkipGatherBeforeTransposeAndReshape::SkipGatherBeforeTransposeAndReshape() {
     MATCHER_SCOPE(SkipGatherBeforeTransposeAndReshape);
 
-    auto input_m = ngraph::pattern::any_input(ngraph::pattern::has_static_dim(0));
+    auto input_m = pass::pattern::any_input(ngraph::pattern::has_static_dim(0));
 
     auto indices_m = ngraph::pattern::wrap_type<opset8::Constant>();
     auto axis_m = ngraph::pattern::wrap_type<opset8::Constant>();
