@@ -5,10 +5,16 @@ import argparse
 import os
 import glob
 
-import xml.etree.ElementTree as ET
-import defusedxml.ElementTree as dET
+import defusedxml.ElementTree as ET
+from defusedxml import defuse_stdlib
 
 from utils import utils
+
+# defuse_stdlib provide patched version of xml.etree.ElementTree which allows to use objects from xml.etree.ElementTree
+# in a safe manner without including unsafe xml.etree.ElementTree
+ET_defused = defuse_stdlib()[ET]
+Element = ET_defused.Element
+SubElement = ET_defused.SubElement
 
 logger = utils.get_logger('XmlMerger')
 
@@ -28,7 +34,7 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def update_result_node(xml_node: ET.SubElement, aggregated_res: ET.SubElement):
+def update_result_node(xml_node: SubElement, aggregated_res: SubElement):
     for attr_name in xml_node.attrib:
         if attr_name == "passrate":
             continue
@@ -45,13 +51,13 @@ def update_result_node(xml_node: ET.SubElement, aggregated_res: ET.SubElement):
         aggregated_res.set(attr_name, str(xml_value + aggregated_value))
 
 
-def aggregate_test_results(aggregated_results: ET.SubElement, xml_reports: list, report_type: str):
+def aggregate_test_results(aggregated_results: SubElement, xml_reports: list, report_type: str):
     aggregated_timestamp = None
     for xml in xml_reports:
         logger.info(f" Processing: {xml}")
         try:
-            xml_root = dET.parse(xml).getroot()
-        except dET.ParseError:
+            xml_root = ET.parse(xml).getroot()
+        except ET.ParseError:
             logger.error(f' {xml} is corrupted and skipped')
             continue
         xml_results = xml_root.find("results")
@@ -84,8 +90,8 @@ def aggregate_test_results(aggregated_results: ET.SubElement, xml_reports: list,
 def merge_xml(input_folder_paths: list, output_folder_paths: str, output_filename: str, report_type: str):
     logger.info(f" Processing is finished")
 
-    summary = ET.Element("report")
-    results = ET.SubElement(summary, "results")
+    summary = Element("report")
+    results = SubElement(summary, "results")
     entity_name = None
     if report_type == "OP":
         entity_name = "ops_list"
@@ -94,7 +100,7 @@ def merge_xml(input_folder_paths: list, output_folder_paths: str, output_filenam
     else:
         raise Exception(f"Error to create aggregated report. Incorrect report type: {report_type}")
         
-    entity_list = ET.SubElement(summary, entity_name)
+    entity_list = SubElement(summary, entity_name)
 
     for folder_path in input_folder_paths:
         if not os.path.exists(folder_path):
@@ -114,15 +120,15 @@ def merge_xml(input_folder_paths: list, output_folder_paths: str, output_filenam
         xml_root = None
         for xml_report in xml_reports:
             try:
-                xml_root = dET.parse(xml_report).getroot()
+                xml_root = ET.parse(xml_report).getroot()
                 break
-            except dET.ParseError:
+            except ET.ParseError:
                 logger.error(f'{xml_report} is incorrect! Error to get a xml root')
         if xml_root is None:
             logger.error(f'{folder_path} does not contain the correct xml files')
         for entity in xml_root.find(entity_name):
             if entity_list.find(entity.tag) is None:
-                ET.SubElement(entity_list, entity.tag)
+                SubElement(entity_list, entity.tag)
         timestamp = aggregate_test_results(results, xml_reports, report_type)
         if report_type == "OP":
             utils.update_passrates(results)
@@ -136,7 +142,7 @@ def merge_xml(input_folder_paths: list, output_folder_paths: str, output_filenam
             os.mkdir(output_folder_paths)
         out_file_path = os.path.join(output_folder_paths, f'{output_filename}.xml')
         with open(out_file_path, "w") as xml_file:
-            xml_file.write(dET.tostring(summary).decode('utf8'))
+            xml_file.write(ET.tostring(summary).decode('utf8'))
             logger.info(f" Final report is saved to file: '{out_file_path}'")
     if xml_root is None:
         raise Exception("Error to make a XML root. Exit the app")
