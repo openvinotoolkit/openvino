@@ -186,8 +186,8 @@ endif()
 #
 
 if(ENABLE_SAMPLES OR ENABLE_COMPILE_TOOL OR ENABLE_TESTS)
-    if(LINUX)
-        if(OV_OS_RHEL)
+    if(LINUX OR APPLE)
+        if(OV_OS_RHEL OR APPLE)
             set(gflag_component nothreads_shared)
         elseif(OV_OS_DEBIAN)
             set(gflag_component nothreads_static)
@@ -330,7 +330,7 @@ if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$")
     if(NOT ENABLE_SYSTEM_PUGIXML)
         message(FATAL_ERROR "Pugixml must be used as a ${CPACK_GENERATOR} package. Install libpugixml-dev / pugixml-devel")
     endif()
-elseif(APPLE OR WIN32)
+elseif(WIN32)
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
             COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
