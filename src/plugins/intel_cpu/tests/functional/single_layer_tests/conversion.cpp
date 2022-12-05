@@ -86,18 +86,12 @@ protected:
 
         auto shape = targetInputStaticShapes.front();
         size_t size = shape_size(shape);
-        ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInputs[0].get_element_type(), shape, 2 * size);
-
-        if (inPrc == Precision::FP32) {
-            auto *rawBlobDataPtr = static_cast<float *>(tensor.data());
-            for (size_t i = 0; i < size; ++i) {
-                rawBlobDataPtr[i] = rawBlobDataPtr[i] / size - 1;
-            }
-        } else if (inPrc == Precision::BF16) {
-            auto *rawBlobDataPtr = static_cast<ngraph::bfloat16 *>(tensor.data());
-            for (size_t i = 0; i < size; ++i) {
-                rawBlobDataPtr[i] = rawBlobDataPtr[i] / size - 1;
-            }
+        auto element_type = funcInputs[0].get_element_type();
+        auto tensor = ov::Tensor{element_type, shape};
+        if (element_type == ElementType::f32) {
+            CommonTestUtils::fill_tensor_random_float<ElementType::f32>(tensor, 2, -1, size);
+        } else if (element_type == ElementType::bf16) {
+            CommonTestUtils::fill_tensor_random_float<ElementType::bf16>(tensor, 2, -1, size);
         } else {
             FAIL() << "Generating inputs with precision" << inPrc << " isn't supported, if output precision is boolean.";
         }

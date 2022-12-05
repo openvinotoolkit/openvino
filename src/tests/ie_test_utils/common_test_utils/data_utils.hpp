@@ -243,13 +243,7 @@ void inline fill_random_unique_sequence(T* rawBlobDataPtr,
     while (elems.size() != size) {
         auto value = static_cast<float>(dist(generator));
         value /= static_cast<float>(k);
-        if (std::is_same<ngraph::float16, T>::value) {
-            elems.insert(static_cast<T>(ngraph::float16(value).to_bits()));
-        } else if (std::is_same<ngraph::bfloat16, T>::value) {
-            elems.insert(static_cast<T>(ngraph::bfloat16(value).to_bits()));
-        } else {
-            elems.insert(static_cast<T>(value));
-        }
+        elems.insert(static_cast<T>(value));
     }
     std::copy(elems.begin(), elems.end(), rawBlobDataPtr);
 }
@@ -290,13 +284,7 @@ fill_tensor_random_float(ov::Tensor& tensor, const uint32_t range, int32_t start
     for (size_t i = 0; i < tensor.get_size(); i++) {
         auto value = static_cast<float>(distribution(random));
         value /= static_cast<float>(k);
-        if (DT == ov::element::Type_t::f16) {
-            rawBlobDataPtr[i] = static_cast<T>(ngraph::float16(value).to_bits());
-        } else if (DT == ov::element::Type_t::bf16) {
-            rawBlobDataPtr[i] = static_cast<T>(ngraph::bfloat16(value).to_bits());
-        } else {
-            rawBlobDataPtr[i] = static_cast<T>(value);
-        }
+        rawBlobDataPtr[i] = static_cast<T>(value);
     }
 }
 
@@ -407,13 +395,7 @@ fill_data_random_float(InferenceEngine::Blob::Ptr &blob, const uint32_t range, i
     for (size_t i = 0; i < blob->size(); i++) {
         auto value = static_cast<float>(distribution(random));
         value /= static_cast<float>(k);
-        if (PRC == InferenceEngine::Precision::FP16) {
-            rawBlobDataPtr[i] = static_cast<T>(ngraph::float16(value).to_bits());
-        } else if (PRC == InferenceEngine::Precision::BF16) {
-            rawBlobDataPtr[i] = static_cast<T>(ngraph::bfloat16(value).to_bits());
-        } else {
-            rawBlobDataPtr[i] = static_cast<T>(value);
-        }
+        rawBlobDataPtr[i] = static_cast<T>(value);
     }
 }
 
