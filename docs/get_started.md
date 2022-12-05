@@ -46,7 +46,7 @@ Try out OpenVINO's capabilities with this quick start example that estimates dep
    
 ## <a name="install-openvino"></a>2. Install OpenVINO
    
-Visit the [Install OpenVINO Overview page](./install_guides/installing-openvino-overview.md) to view options for installing OpenVINO and setting up a development environment on your device.
+See the [Install OpenVINO Overview page](./install_guides/installing-openvino-overview.md) for options to install OpenVINO and set up a development environment on your device.
    
 ## <a name="get-started-tutorials"></a>3. Learn OpenVINO
    
