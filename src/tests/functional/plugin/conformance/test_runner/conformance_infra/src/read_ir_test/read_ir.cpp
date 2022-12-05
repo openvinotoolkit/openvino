@@ -238,6 +238,7 @@ void ReadIRTest::SetUp() {
     } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
         IE_THROW() << "Hange happens";
     }
+    is_report_stages = true;
 }
 
 } // namespace subgraph

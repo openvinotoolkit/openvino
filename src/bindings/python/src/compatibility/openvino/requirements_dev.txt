@@ -22,7 +22,6 @@ flake8_coding
 flake8_commas
 flake8_pep3101
 flake8_quotes
-import-order
 mypy
 Pep8-naming
 radon
