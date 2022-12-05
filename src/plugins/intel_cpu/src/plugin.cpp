@@ -655,6 +655,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                         //  they can be tokenized only as a part of complex patterns
                         const bool is_disabled_tokenization = (ov::is_type<const ov::op::v1::Softmax>(n) ||
                                                                ov::is_type<const ov::op::v8::Softmax>(n) ||
+                                                               ov::is_type<const ov::op::v0::MatMul>(n) ||
                                                                ov::is_type<const ov::op::v1::Transpose>(n));
                         const auto& inputs = n->inputs();
                         // todo: clarify whether we can evaluate snippets on const paths

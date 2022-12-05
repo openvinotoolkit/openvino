@@ -105,6 +105,24 @@ std::shared_ptr<ov::Model> EltwiseThreeInputsLoweredFunction::initLowered() cons
     }
     return model;
 }
+
+std::shared_ptr<ov::Model> Transpose0213MatMulSinhLoweredFunction::initLowered() const {
+    ParameterVector data{std::make_shared<op::v0::Parameter>(precision, input_shapes[0]),
+                          std::make_shared<op::v0::Parameter>(precision, input_shapes[1])};
+    std::vector<size_t> layout{0, 2, 1, 3};
+    // Note: validity of transpose_position values is checked in Transpose0213MatMulSinhFunction constructor
+    if (transpose_position <= 1) {
+        auto& rt_info = data[transpose_position]->get_rt_info();
+        rt_info["Layout"] = layout;
+    }
+    auto matmul = std::make_shared<ngraph::snippets::op::Brgemm>(data[0], data[1]);
+    if (transpose_position == 2) {
+        auto& rt_info = matmul->get_rt_info();
+        rt_info["Layout"] = layout;
+        matmul->validate_and_infer_types();
+    }
+    return std::make_shared<ov::Model>(NodeVector{matmul}, data);
+}
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov

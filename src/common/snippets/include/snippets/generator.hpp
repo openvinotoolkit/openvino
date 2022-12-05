@@ -113,11 +113,20 @@ public:
      */
     virtual ~Generator() = default;
     /**
+    * @interface GeneratorConfig
+    * @brief Allows to tweak the lowering process.
+    */
+    class GeneratorConfig {
+    public:
+        // True if the lowered Emitters need to be accessed during runtime. Normally they're destroyed after code emission.
+        bool m_save_lowered_code = false;
+    };
+    /**
      * @brief virtual method any specific implementation should implement
      * @param m model in canonical for for table-based code generation
      * @return pointer to generated code
      */
-    code generate(std::shared_ptr<ov::Model>& m, const void* compile_params = nullptr) const;
+    code generate(std::shared_ptr<ov::Model>& m, const GeneratorConfig& config, const void* compile_params = nullptr);
 
     /**
      * @brief gets target machine
@@ -127,6 +136,9 @@ public:
 
 protected:
     std::shared_ptr<TargetMachine> target;
+    // todo: we need to save lowered code to access compiled brgemm kernels on execution time (normally lowered is destructed by then).
+    //  This is temporary solution, remove this when kernel caching is implemented. Don't forget to make generate const method.
+    std::vector<AllocatedEmitter> lowered_saved;
 };
 
 } // namespace snippets

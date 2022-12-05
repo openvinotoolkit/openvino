@@ -132,6 +132,7 @@ public:
 private:
     void align_element_types(const BlockedShapeVector& outputShapes, const BlockedShapeVector& inputShapes);
     void convert_to_snippet_dialect();
+    void init_config();
     // Count of potentional non-scalar Consants that will be created after some tranformations
     // At the moment it's relevant only for FakeQuantize decomposition
     // NOTE: To avoid overheads in each calcution of this count (for example, in validate_and_type_infer()),
@@ -144,9 +145,16 @@ private:
     // TODO: Change logic of insert Converts. This exec element type can be different for plugins
     const ov::element::Type execution_element_type = ov::element::f32;
 
-    // Config to know which transformations should be called.
-    // It helps to avoid overheads of extra transformation calls
-    struct {
+    ov::PartialShape master_shape;
+    size_t tileRank = 0; // set by plugin to specify the number of dimensions processed in a single kernel call
+
+    /**
+    * @interface SubgraphConfig
+    * @brief Config to optimize IR transformation pipeline. It indicates which transformations are necessary
+    *       so the irrelevant ones could be skipped.
+    */
+    class SubgraphConfig {
+    public:
         // True if Subgraph contains FakeQuantize -> FQ decomposition should be called
         bool m_is_quantized = false;
         // True if we should align element types indise body
@@ -154,13 +162,12 @@ private:
         // True if Subgraph contains TypeRelaxed nodes -> for several streams in tp mode we should copy body using mutexes
         // because TypeRelaxed::copy_with_new_inputs() isn't save-thread method
         bool m_has_type_relaxed_ops = false;
+        // True if we should check runtime info for nodes to call specific needed transformations
+        bool m_need_fill_tail_register = false;
         // True if body has operations that don't support plugin-side domain optimizations
-        // (e.g. Transpose in general doesn't support dimensions collapsing)
+        // (e.g. Transpose, Softmax, MatMul in general doesn't support dimensions collapsing)
         bool m_has_domain_sensitive_ops = false;
     } config;
-
-    ov::PartialShape master_shape;
-    size_t tileRank = 0; // set by plugin to specify the number of dimensions processed in a single kernel call
 };
 
 static inline std::ostream& operator<<(std::ostream& os, const op::Subgraph::BlockedShape& blocked_shape) {

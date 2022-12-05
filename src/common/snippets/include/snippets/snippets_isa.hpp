@@ -18,6 +18,7 @@
 #include "op/powerstatic.hpp"
 #include "op/store.hpp"
 #include "op/loop.hpp"
+#include "op/brgemm.hpp"
 
 namespace ngraph {
 namespace snippets {

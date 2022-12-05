@@ -10,7 +10,7 @@ namespace test {
 namespace snippets {
 namespace {
 
-    ov::Shape convInputShape {1, 10, 16, 16};
+    ov::Shape convInputShape {1, 2, 16, 16};
     INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ConvAdd, ConvEltwise,
             ::testing::Combine(
             ::testing::Values(convInputShape),
