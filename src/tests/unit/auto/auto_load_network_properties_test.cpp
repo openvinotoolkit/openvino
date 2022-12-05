@@ -48,12 +48,6 @@ MATCHER_P(MapContains, subMap, "Check if all the elements of the subMap are cont
     }
     return true;
 }
-
-// define a matcher to check if pass default perf_hint to HW
-MATCHER_P(PassDefaultHintToHW, isPassDefaultHintToHW, "Check if pass default perf_hint to HW.") {
-    bool bHasKeyPerfHint = arg.find(PluginConfigParams::KEY_PERFORMANCE_HINT) != arg.end() ? true : false;
-    return bHasKeyPerfHint == isPassDefaultHintToHW;
-}
 using namespace MockMultiDevice;
 
 using ConfigParams = std::tuple<std::string,               // virtual device name to load network
@@ -128,63 +122,6 @@ public:
         testConfigs.push_back(ConfigParams{"MULTI:GPU,CPU",
                                            {"CPU", "GPU"},
                                            {{"GPU", "NUM_STREAMS 5"}, {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});
-        return testConfigs;
-    }
-
-    static std::vector<ConfigParams> NumStreamsAndPerfHintTestConfigs() {
-        testConfigs.clear();
-        testConfigs.push_back(
-            ConfigParams{"AUTO", {"CPU"}, {{"MULTI_DEVICE_PRIORITIES", "CPU"}}});  // CPU: get default_hint:lantency
-        testConfigs.push_back(
-            ConfigParams{"AUTO",
-                         {"CPU"},
-                         {{"CPU", "NUM_STREAMS 3"}, {"MULTI_DEVICE_PRIORITIES", "CPU"}}});  // CPU: no perf_hint
-        testConfigs.push_back(
-            ConfigParams{"AUTO",
-                         {"CPU", "GPU"},
-                         {{"MULTI_DEVICE_PRIORITIES",
-                           "GPU,CPU"}}});  // CPU: as helper, get default_hint:lantency GPU:get default_hint:lantency
-        testConfigs.push_back(ConfigParams{
-            "AUTO",
-            {"CPU", "GPU"},
-            {{"CPU", "NUM_STREAMS 3"},
-             {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});  // CPU: as helper, no perf_hint GPU:get default_hint:lantency
-        testConfigs.push_back(ConfigParams{
-            "AUTO",
-            {"CPU", "GPU"},
-            {{"GPU", "NUM_STREAMS 3"},
-             {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});  // CPU: as helper, get default_hint:lantency GPU:no perf_hint
-        testConfigs.push_back(
-            ConfigParams{"AUTO",
-                         {"CPU"},
-                         {{"CPU", "NUM_STREAMS 5"}, {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: no perf_hint
-        testConfigs.push_back(
-            ConfigParams{"AUTO", {"GPU"}, {{"MULTI_DEVICE_PRIORITIES", "GPU"}}});  // GPU: get default_hint:lantency
-        testConfigs.push_back(
-            ConfigParams{"AUTO",
-                         {"GPU"},
-                         {{"GPU", "NUM_STREAMS 3"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});  // GPU: no perf_hint
-
-        testConfigs.push_back(ConfigParams{
-            "MULTI:CPU,GPU",
-            {"CPU", "GPU"},
-            {{"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: get default_hint:tput  GPU: get default_hint:tput
-        testConfigs.push_back(
-            ConfigParams{"MULTI:CPU,GPU",
-                         {"CPU", "GPU"},
-                         {{"CPU", "NUM_STREAMS 3"},
-                          {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: no perf_hint  GPU: get default_hint:tput
-        testConfigs.push_back(
-            ConfigParams{"MULTI:CPU,GPU",
-                         {"CPU", "GPU"},
-                         {{"GPU", "NUM_STREAMS 3"},
-                          {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: get default_hint:tput  GPU: no perf_hint
-        testConfigs.push_back(
-            ConfigParams{"MULTI:CPU,GPU",
-                         {"CPU", "GPU"},
-                         {{"CPU", "NUM_STREAMS 3"},
-                          {"GPU", "NUM_STREAMS 3"},
-                          {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: no perf_hint  GPU: no perf_hint
         return testConfigs;
     }
 
@@ -301,8 +238,6 @@ public:
     }
 };
 
-using LoadNetworkWithDefaultPerfHintMockTest = LoadNetworkWithSecondaryConfigsMockTest;
-
 TEST_P(LoadNetworkWithSecondaryConfigsMockTest, LoadNetworkWithSecondaryConfigsTest) {
     std::string device;
     std::vector<std::string> targetDevices;
@@ -336,38 +271,3 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoMock_LoadNetworkWithSecondaryConfigs,
                          LoadNetworkWithSecondaryConfigsMockTest,
                          ::testing::ValuesIn(LoadNetworkWithSecondaryConfigsMockTest::CreateConfigs()),
                          LoadNetworkWithSecondaryConfigsMockTest::getTestCaseName);
-
-TEST_P(LoadNetworkWithDefaultPerfHintMockTest, NumStreamsAndDefaultPerfHintTest) {
-    std::string device;
-    std::vector<std::string> targetDevices;
-    Config config;
-    std::tie(device, targetDevices, config) = this->GetParam();
-    if (device.find("AUTO") != std::string::npos)
-        plugin->SetName("AUTO");
-    if (device.find("MULTI") != std::string::npos)
-        plugin->SetName("MULTI");
-
-    for (auto& deviceName : targetDevices) {
-        auto item = config.find(deviceName);
-        Config deviceConfigs;
-        if (item != config.end()) {
-            std::stringstream strConfigs(item->second);
-            // Parse the device properties to common property into deviceConfigs.
-            ov::util::Read<Config>{}(strConfigs, deviceConfigs);
-        }
-        bool passDefaultHitToHW = deviceConfigs.find(ov::num_streams.name()) != deviceConfigs.end() ? false : true;
-        EXPECT_CALL(
-            *core,
-            LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                        ::testing::Matcher<const std::string&>(deviceName),
-                        ::testing::Matcher<const std::map<std::string, std::string>&>(PassDefaultHintToHW(passDefaultHitToHW))))
-            .Times(1);
-    }
-
-    ASSERT_NO_THROW(plugin->LoadExeNetworkImpl(simpleCnnNetwork, config));
-}
-
-INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiMock_DefaultPerfHintToHWTest,
-                         LoadNetworkWithDefaultPerfHintMockTest,
-                         ::testing::ValuesIn(LoadNetworkWithDefaultPerfHintMockTest::NumStreamsAndPerfHintTestConfigs()),
-                         LoadNetworkWithDefaultPerfHintMockTest::getTestCaseName);
