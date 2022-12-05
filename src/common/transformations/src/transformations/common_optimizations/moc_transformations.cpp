@@ -53,6 +53,7 @@
 #include <transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp>
 #include <transformations/common_optimizations/reshape_sequence_fusion.hpp>
 #include <transformations/common_optimizations/ric_fusion.hpp>
+#include <transformations/common_optimizations/select_with_one_value_condition.hpp>
 #include <transformations/common_optimizations/sequence_fusion.hpp>
 #include <transformations/common_optimizations/shuffle_channels_fusion.hpp>
 #include <transformations/common_optimizations/simplify_shape_of_sub_graph.hpp>
@@ -109,6 +110,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     // In particular, if zero dim tensor is consumed in body of MultiSubGraphOp
     // RemoveConcatZeroDimInput and RemoveMultiSubGraphOpDanglingParams should be called together.
     using namespace ov::pass;
+    REGISTER_PASS(manager, EliminateScatterUpdate)
     REGISTER_PASS(manager, RemoveConcatZeroDimInput)
     REGISTER_PASS(manager, Validate)
     // todo: ticket 96960
@@ -160,6 +162,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     auto eliminations = manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(eliminations, EliminateUnsqueezeGather)
     ADD_MATCHER(eliminations, NopElimination, m_use_shapes)
+    ADD_MATCHER(eliminations, SelectWithOneValueCondition)
     eliminations->set_name("ov::pass::CommonEliminations");
 
     manager.register_pass<ov::pass::ConstantFolding>();

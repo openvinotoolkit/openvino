@@ -41,7 +41,7 @@ GTEST_API_ int main(int argc, char** argv) {
     printf("Running main() from %s\n", __FILE__);
 
     //gflags
-    GFLAGS_NAMESPACE::AllowCommandLineReparsing();
+    gflags::AllowCommandLineReparsing();
     gflags::ParseCommandLineFlags(&argc, &argv, true);
     if (FLAGS_device_id != -1 && cldnn::device_query::device_id == -1)
         cldnn::device_query::device_id = FLAGS_device_id;

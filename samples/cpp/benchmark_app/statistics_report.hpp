@@ -5,10 +5,15 @@
 #pragma once
 
 #include <map>
-#include <nlohmann/json.hpp>
 #include <string>
 #include <utility>
 #include <vector>
+
+#ifdef JSON_HEADER
+#    include <json.hpp>
+#else
+#    include <nlohmann/json.hpp>
+#endif
 
 // clang-format off
 #include "samples/common.hpp"
