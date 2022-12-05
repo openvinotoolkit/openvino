@@ -29,9 +29,9 @@ TEST(prepare_primitive_fusing, fuse_activation_to_fc_dyn) {
     topology topology;
     topology.add(data("weights", weights));
     topology.add(input_layout("input", in_layout));
-    topology.add(fully_connected("fc", "input", { "weights" }));
-    topology.add(activation("act", "fc", activation_func::relu));
-    topology.add(reorder("reorder", "act", format::bfyx, data_types::f32));
+    topology.add(fully_connected("fc", input_info("input"), { "weights" }));
+    topology.add(activation("act", input_info("fc"), activation_func::relu));
+    topology.add(reorder("reorder", input_info("act"), format::bfyx, data_types::f32));
 
     build_options build_opts;
     build_opts.set_option(build_option::allow_new_shape_infer(true));
@@ -54,10 +54,10 @@ TEST(prepare_primitive_fusing, dont_fuse_incompatible_eltwise) {
     topology topology;
     topology.add(input_layout("input", in_layout));
     topology.add(data("const", const_mem));
-    topology.add(eltwise("eltw_pre", {"input", "const"}, eltwise_mode::sum));
-    topology.add(reduce("reduce", "eltw_pre", reduce_mode::max, {2}, true));
-    topology.add(eltwise("eltw", {"input", "reduce"}, eltwise_mode::sum));
-    topology.add(reorder("reorder", "eltw", format::bfyx, data_types::f32));
+    topology.add(eltwise("eltw_pre", { input_info("input"), input_info("const") }, eltwise_mode::sum));
+    topology.add(reduce("reduce", input_info("eltw_pre"), reduce_mode::max, {2}, true));
+    topology.add(eltwise("eltw", { input_info("input"), input_info("reduce") }, eltwise_mode::sum));
+    topology.add(reorder("reorder", input_info("eltw"), format::bfyx, data_types::f32));
 
     build_options build_opts;
     build_opts.set_option(build_option::allow_new_shape_infer(true));
@@ -81,9 +81,9 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_legal) {
     topology.add(data("weights", weights));
     topology.add(input_layout("input", in_layout));
     topology.add(input_layout("extra_input", in_eltw_layout));
-    topology.add(fully_connected("fc", "input", { "weights" }, "", data_types::f32));
-    topology.add(eltwise("eltw", {"fc", "extra_input"}, eltwise_mode::sum));
-    topology.add(reorder("reorder", "eltw", format::bfyx, data_types::f32));
+    topology.add(fully_connected("fc", input_info("input"), { "weights" }, "", data_types::f32));
+    topology.add(eltwise("eltw", { input_info("fc"), input_info("extra_input") }, eltwise_mode::sum));
+    topology.add(reorder("reorder", input_info("eltw"), format::bfyx, data_types::f32));
 
     build_options build_opts;
     build_opts.set_option(build_option::optimize_data(true));
@@ -123,9 +123,9 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal) {
     topology.add(data("weights", weights));
     topology.add(input_layout("input", in_layout));
     topology.add(input_layout("extra_input", in_eltw_layout));
-    topology.add(fully_connected("fc", "input", { "weights" }, "", data_types::f32));
-    topology.add(eltwise("eltw", {"fc", "extra_input"}, eltwise_mode::sum));
-    topology.add(reorder("reorder", "eltw", format::bfyx, data_types::f32));
+    topology.add(fully_connected("fc", input_info("input"), { "weights" }, "", data_types::f32));
+    topology.add(eltwise("eltw", { input_info("fc"), input_info("extra_input")}, eltwise_mode::sum));
+    topology.add(reorder("reorder", input_info("eltw"), format::bfyx, data_types::f32));
 
     build_options build_opts;
     build_opts.set_option(build_option::optimize_data(true));
@@ -179,9 +179,9 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal_const) {
     topology.add(data("weights", weights));
     topology.add(input_layout("input", in_layout));
     topology.add(data("extra_input", extra_input_memory));
-    topology.add(fully_connected("fc", "input", { "weights" }, "", data_types::f32));
-    topology.add(eltwise("eltw", {"fc", "extra_input"}, eltwise_mode::sum));
-    topology.add(reorder("reorder", "eltw", format::bfyx, data_types::f32));
+    topology.add(fully_connected("fc", input_info("input"), { "weights" }, "", data_types::f32));
+    topology.add(eltwise("eltw", { input_info("fc"), input_info("extra_input") }, eltwise_mode::sum));
+    topology.add(reorder("reorder", input_info("eltw"), format::bfyx, data_types::f32));
 
     build_options build_opts;
     build_opts.set_option(build_option::optimize_data(true));
@@ -233,9 +233,9 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_legal_scalar_const_broadca
     topology.add(data("weights", weights));
     topology.add(input_layout("input", in_layout));
     topology.add(data("extra_input", extra_input_memory));
-    topology.add(fully_connected("fc", "input", { "weights" }, "", data_types::f32));
-    topology.add(eltwise("eltw", {"fc", "extra_input"}, eltwise_mode::sum));
-    topology.add(reorder("reorder", "eltw", format::bfyx, data_types::f32));
+    topology.add(fully_connected("fc", input_info("input"), { "weights" }, "", data_types::f32));
+    topology.add(eltwise("eltw", { input_info("fc"), input_info("extra_input") }, eltwise_mode::sum));
+    topology.add(reorder("reorder", input_info("eltw"), format::bfyx, data_types::f32));
 
     build_options build_opts;
     build_opts.set_option(build_option::optimize_data(true));
@@ -286,13 +286,13 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal_1) {
     topology.add(data("weights", weights));
     topology.add(input_layout("input", in_layout));
     topology.add(input_layout("extra_input", in_eltw_layout));
-    topology.add(activation("act_e1", "extra_input", activation_func::relu));
-    topology.add(activation("act_e2", "act_e1", activation_func::relu));
-    topology.add(fully_connected("fc", "input", { "weights" }, "", data_types::f32));
-    topology.add(activation("act_fc1", "fc", activation_func::relu));
-    topology.add(eltwise("eltw", {"act_e2", "act_fc1"}, eltwise_mode::sum));
-    topology.add(activation("act_fc2", "eltw", activation_func::relu));
-    topology.add(reorder("reorder", "act_fc2", format::bfyx, data_types::f32));
+    topology.add(activation("act_e1", input_info("extra_input"), activation_func::relu));
+    topology.add(activation("act_e2", input_info("act_e1"), activation_func::relu));
+    topology.add(fully_connected("fc", input_info("input"), { "weights" }, "", data_types::f32));
+    topology.add(activation("act_fc1", input_info("fc"), activation_func::relu));
+    topology.add(eltwise("eltw", { input_info("act_e2"), input_info("act_fc1")}, eltwise_mode::sum));
+    topology.add(activation("act_fc2", input_info("eltw"), activation_func::relu));
+    topology.add(reorder("reorder", input_info("act_fc2"), format::bfyx, data_types::f32));
 
     build_options build_opts;
     build_opts.set_option(build_option::optimize_data(true));
@@ -352,16 +352,16 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal_2) {
     topology.add(data("weights0", weights0));
     topology.add(data("weights1", weights1));
     topology.add(input_layout("input", in_layout));
-    topology.add(fully_connected("fc1", "input", { "weights0" }, "", data_types::i8));
-    topology.add(activation("act_fc1", "fc1", activation_func::relu));
-    topology.add(fully_connected("fc2", "act_fc1", { "weights1" }, "", data_types::i8));
-    topology.add(activation("act_fc2", "fc2", activation_func::relu));
+    topology.add(fully_connected("fc1", input_info("input"), { "weights0" }, "", data_types::i8));
+    topology.add(activation("act_fc1", input_info("fc1"), activation_func::relu));
+    topology.add(fully_connected("fc2", input_info("act_fc1"), { "weights1" }, "", data_types::i8));
+    topology.add(activation("act_fc2", input_info("fc2"), activation_func::relu));
     topology.add(input_layout("extra_input", in_eltw_layout));
-    topology.add(activation("act_e1", "extra_input", activation_func::abs));
-    topology.add(activation("act_e2", "act_e1", activation_func::relu));
-    topology.add(eltwise("eltw", {"act_fc2", "act_e2"}, eltwise_mode::sum));
-    topology.add(activation("act_fc3", "eltw", activation_func::relu));
-    topology.add(reorder("reorder", "act_fc3", format::bfyx, data_types::f32));
+    topology.add(activation("act_e1", input_info("extra_input"), activation_func::abs));
+    topology.add(activation("act_e2", input_info("act_e1"), activation_func::relu));
+    topology.add(eltwise("eltw", { input_info("act_fc2"), input_info("act_e2") }, eltwise_mode::sum));
+    topology.add(activation("act_fc3", input_info("eltw"), activation_func::relu));
+    topology.add(reorder("reorder", input_info("act_fc3"), format::bfyx, data_types::f32));
 
     build_options build_opts;
     build_opts.set_option(build_option::optimize_data(true));
