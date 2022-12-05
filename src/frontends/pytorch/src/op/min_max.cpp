@@ -44,9 +44,7 @@ OutputVector translate_max(NodeContext& context) {
     auto topk = std::make_shared<opset8::TopK>(x, k, axis_const, opset8::TopK::Mode::MAX, opset8::TopK::SortType::NONE);
     auto indicies = context.mark_node(std::make_shared<opset8::Convert>(topk->output(1), element::i64));
     if (!keepdims) {
-        auto axis_to_remove = context.mark_node(opset8::Constant::create(element::u64, Shape{}, {topk->get_axis()}));
-
-        indicies = std::make_shared<opset8::Squeeze>(indicies, axis_to_remove);
+        indicies = std::make_shared<opset8::Squeeze>(indicies, axes_node);
     }
     return {values, indicies};
 };
@@ -75,9 +73,7 @@ OutputVector translate_min(NodeContext& context) {
     auto indicies = context.mark_node(std::make_shared<opset8::Convert>(topk->output(1), element::i64));
 
     if (!keepdims) {
-        auto axis_to_remove = context.mark_node(opset8::Constant::create(element::u64, Shape{}, {topk->get_axis()}));
-
-        indicies = std::make_shared<opset8::Squeeze>(indicies, axis_to_remove);
+        indicies = std::make_shared<opset8::Squeeze>(indicies, axes_node);
     }
     return {values, indicies};
 };

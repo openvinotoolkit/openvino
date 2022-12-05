@@ -12,11 +12,11 @@ namespace pytorch {
 namespace op {
 
 OutputVector translate_tuple_construct(NodeContext& context) {
-    auto n_inputs = context.get_input_size();
-    FRONT_END_OP_CONVERSION_CHECK(
-        n_inputs == 1,
-        "prim::TupleConstruct conversion doesn't support cases when the number of inputs is not one.");
-    return {context.get_input(0)};
+    // auto n_inputs = context.get_input_size();
+    // FRONT_END_OP_CONVERSION_CHECK(
+    //     n_inputs == 1,
+    //     "prim::TupleConstruct conversion doesn't support cases when the number of inputs is not one.");
+    return {context.inputs()};
 };
 
 }  // namespace op
