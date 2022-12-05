@@ -110,7 +110,8 @@ enum class Type {
     PriorBox,
     PriorBoxClustered,
     Interaction,
-    MHA
+    MHA,
+    Unique
 };
 
 enum class Algorithm {
