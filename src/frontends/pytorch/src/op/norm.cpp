@@ -19,7 +19,7 @@ OutputVector translate_norm(NodeContext& context) {
 
     std::shared_ptr<ov::op::util::ArithmeticReductionKeepDims> reduce;
 
-    FRONT_END_OP_CONVERSION_CHECK(p == 1 || p == 2, "OpenVino export only p-norms with p of 1 or 2");
+    FRONT_END_OP_CONVERSION_CHECK(p == 1 || p == 2, "OpenVino supprots only p-norms with p of 1 or 2");
 
     if (p == 1) {
         reduce = std::make_shared<opset8::ReduceL1>(input_tensor, dim, keep_dim);
