@@ -22,7 +22,7 @@ TEST(StaticShapeInferenceTest, ScatterUpdate_3D_axis_1) {
 
     int32_t axis_val[] = {1};
     std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
-    constant_data[3] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{1}, axis_val);
+    constant_data[3] = std::make_shared<ngraph::runtime::HostTensor>(element::Type_t::i32, Shape{1}, axis_val);
     std::vector<StaticShape> input_shapes = {StaticShape{2, 3, 4},
                                              StaticShape{2, 1},
                                              StaticShape{2, 2, 1, 4},
@@ -42,7 +42,7 @@ TEST(StaticShapeInferenceTest, ScatterUpdate_4D_axis_2) {
 
     int32_t axis_val[] = {2};
     std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
-    constant_data[3] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{1}, axis_val);
+    constant_data[3] = std::make_shared<ngraph::runtime::HostTensor>(element::Type_t::i32, Shape{1}, axis_val);
     std::vector<StaticShape> input_shapes = {StaticShape{1000, 256, 10, 15},
                                              StaticShape{125, 20},
                                              StaticShape{1000, 125, 20, 10, 15},
@@ -62,7 +62,7 @@ TEST(StaticShapeInferenceTest, ScatterUpdate_4D_incompatible_axis) {
 
     int32_t axis_val[] = {1};
     std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
-    constant_data[3] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{1}, axis_val);
+    constant_data[3] = std::make_shared<ngraph::runtime::HostTensor>(element::Type_t::i32, Shape{1}, axis_val);
     std::vector<StaticShape> input_shapes = {StaticShape{1000, 256, 10, 15},
                                              StaticShape{125, 20},
                                              StaticShape{1000, 125, 20, 10, 15},
@@ -99,7 +99,7 @@ TEST(StaticShapeInferenceTest, ScatterUpdate_dynamic_rank) {
 
     int32_t axis_val[] = {1};
     std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
-    constant_data[3] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{1}, axis_val);
+    constant_data[3] = std::make_shared<ngraph::runtime::HostTensor>(element::Type_t::i32, Shape{1}, axis_val);
     std::vector<StaticShape> input_shapes = {StaticShape{1000, 256, 10, 15},
                                              StaticShape{125, 20},
                                              StaticShape{1000, 125, 20, 10, 15},
@@ -119,7 +119,7 @@ TEST(StaticShapeInferenceTest, ScatterUpdate_params_dynamic_rank_incorrect_updat
 
     int32_t axis_val[] = {1};
     std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
-    constant_data[3] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{1}, axis_val);
+    constant_data[3] = std::make_shared<runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{1}, axis_val);
 
     // Incorrect rank of the third input shape
     std::vector<StaticShape> input_shapes = {StaticShape{1000, 256, 10, 15},
