@@ -34,4 +34,3 @@ ie_faster_build(${TARGET_NAME}
     UNITY
     PCH PRIVATE "src/precomp.hpp"
 )
-openvino_developer_export_targets(COMPONENT tests TARGETS inference_engine_snippets)

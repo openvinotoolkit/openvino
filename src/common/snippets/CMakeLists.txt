@@ -17,7 +17,7 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 
 # Create static library
 
-add_library(${TARGET_NAME} STATIC EXCLUDE_FROM_ALL
+add_library(${TARGET_NAME} STATIC
             ${LIBRARY_SRC}
             ${PUBLIC_HEADERS})
 
@@ -45,3 +45,5 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 # install
 
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
+
+openvino_developer_export_targets(COMPONENT ${OV_CPACK_COMP_CORE} TARGETS ${TARGET_NAME})
