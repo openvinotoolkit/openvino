@@ -14,6 +14,7 @@
 #include "transformations/utils/utils.hpp"
 #include "common/cpu_memcpy.h"
 #include <utils/shape_inference/shape_inference_internal_dyn.hpp>
+#include "reorder.h"
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -222,7 +223,7 @@ public:
         if (to_desc->isCompatible(*from_desc)) {
             // check if can share memory of "from" to "to"
             m_shareable = check_shareable();
-            std::cout << __LINE__ << " backedge: " << m_from->getName() << " -> " << m_to->getName() << " shareable: " << m_shareable << std::endl;
+            // std::cout << __LINE__ << " backedge: " << m_from->getName() << " -> " << m_to->getName() << " shareable: " << m_shareable << std::endl;
         }
         if (!m_dynamic && !m_shareable) {
             auto from_mem_ptr = m_from->getParentEdgeAt(inputNodePortIdx)->getMemoryPtr();
@@ -267,12 +268,12 @@ protected:
             // TODO: if dynamic, and shareable, do we still need redefineOutputMemory for m_to?
             // It has already created with m_from's memoryMngr.
             m_to->redefineOutputMemory({dims}); // we exploit the fact that the target edges are connected to port 0
-            auto& to_memptr = m_to->getChildEdgesAtPort(outputNodePortIdx)[0]->getMemoryPtr();
-            std::cout << __LINE__
-            << "m_from = " << mem_from.GetData()
-            << ", memman = " << mem_from.getDnnlMemoryMngr()
-            << ", m_to = " << to_memptr->GetData()
-            << ", memman = " << to_memptr->getDnnlMemoryMngr() << std::endl;
+            // auto& to_memptr = m_to->getChildEdgesAtPort(outputNodePortIdx)[0]->getMemoryPtr();
+            // std::cout << __LINE__
+            // << "m_from = " << mem_from.GetData()
+            // << ", memman = " << mem_from.getDnnlMemoryMngr()
+            // << ", m_to = " << to_memptr->GetData()
+            // << ", memman = " << to_memptr->getDnnlMemoryMngr() << std::endl;
             if (!m_shareable) {
                 mem_holder_src = mem_from.GetPrimitive();
                 mem_holder_dst = m_to->getChildEdgesAtPort(outputNodePortIdx)[0]->getMemory().GetPrimitive();
@@ -727,11 +728,6 @@ void TensorIterator::prepareParams() {
     first_mappers.clear();
     before_mappers.clear();
 
-    auto tiOp = ov::as_type_ptr<const ov::op::util::SubGraphOp>(ngraphOp);
-    if (!tiOp) {
-        THROW_ERROR << "cannot be cast to ov::op::util::SubGraphOp";
-    }
-
     if ((lastUsedCond && lastUsedTripCount != 0) || !isDynamicNode()) {
         reshapeSubgraphInput();
 
@@ -900,7 +896,7 @@ void TensorIterator::reshapeSubgraphInput() {
         auto to_mems = getToMemories(to_node, 0);
         const auto& body_inshape = to_mems.front()->GetShape();
         if (body_inshape.isDynamic() || body_inshape.getDims() != new_dims) {
-            to_node->redefineOutputMemory({new_dims}); //here we exploite the fact that the interesting port is always 0.
+            to_node->redefineOutputMemory({new_dims}); //here we exploit the fact that the interesting port is always 0.
         }
     }
 }
@@ -936,7 +932,8 @@ void TensorIterator::reshapeAndFillOutput(dnnl::stream strm) {
 bool TensorIterator::checkForInputAndBodyShapesInequality() const {
     for (auto map_rule : inputPortMap) {
         auto original_dims = sliced_input_dims(getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr(), map_rule.axis, map_rule.stride);
-        auto &to_mems = input_mems[map_rule.to];
+        auto to_node = input_nodes[map_rule.to];
+        auto to_mems = getToMemories(to_node, 0);
         const auto& body_inshape = to_mems.front()->GetShape();
         if (body_inshape.isDynamic() || body_inshape.getDims() != original_dims) {
             return true;

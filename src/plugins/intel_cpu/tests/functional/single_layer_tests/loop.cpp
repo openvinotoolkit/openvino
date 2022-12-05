@@ -299,25 +299,11 @@ protected:
     }
 };
 
-<<<<<<< HEAD
 class LoopForConcatLayerCPUTest : public LoopLayerCPUTest {
     // for 10:
     //   x = y + 10;
     //   y = concat(y, x)
     //   return y
-=======
-class LoopForInplaceInputsLayerCPUTest : public LoopLayerCPUTest {
-    // parameter                   back edge
-    //    |                 |-------------------|
-    //    |-----------------|                   |
-    //                   squeeze                |
-    //                      |                   |
-    //    |----------------Add ----- Constant   |
-    //    |                 |                   |
-    // unsqueeze2       unsqueeze1              |
-    //    |                 |-------------------|
-    //  Output            Output
->>>>>>> 6a221c39e0 (resolve conflicts of backedges memory reuse.)
 
 protected:
     void SetUp() override {
@@ -333,19 +319,9 @@ protected:
 
         auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
 
-<<<<<<< HEAD
         // Body parameters
         const std::vector<ngraph::PartialShape> body_params_shapes(shapes.size(), ngraph::PartialShape::dynamic());
         auto body_params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
-=======
-        // Set up the cell body, a function from (Xi, Yi) -> (Zo)
-        // Body parameters
-        const std::vector<ngraph::PartialShape> body_params_shapes(shapes.size(), ngraph::PartialShape::dynamic());
-        ngraph::ParameterVector body_params;
-        for (const auto &pshape : body_params_shapes) {
-            body_params.emplace_back(std::make_shared<ngraph::opset1::Parameter>(inType, pshape));
-        }
->>>>>>> 6a221c39e0 (resolve conflicts of backedges memory reuse.)
 
         auto body_condition_const = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
         auto exec_condition = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, exec_cond);
@@ -363,27 +339,16 @@ protected:
         }
 
         // Body
-<<<<<<< HEAD
         auto constant = ngraph::builder::makeConstant(inType, std::vector<size_t>{1}, std::vector<float>{10});
         auto add = std::make_shared<ngraph::opset5::Add>(body_params[0], constant);
         auto concat = ngraph::builder::makeConcat({body_params[1], add}, 0);
 
         auto body = std::make_shared<ov::Model>(ngraph::OutputVector{body_condition_const, concat}, body_params);
-=======
-        auto squeeze = ngraph::builder::makeSqueezeUnsqueeze(body_params[0], ngraph::element::i64, {2}, ngraph::helpers::SqueezeOpType::SQUEEZE);
-        auto constant = ngraph::builder::makeConstant(inType, std::vector<size_t>{1}, std::vector<float>{0.5});
-        auto eltwise = std::make_shared<ov::op::v1::Add>(squeeze, constant);
-        auto unsqueeze1 = ngraph::builder::makeSqueezeUnsqueeze(eltwise, ngraph::element::i64, {2}, ngraph::helpers::SqueezeOpType::UNSQUEEZE);
-        auto unsqueeze2 = ngraph::builder::makeSqueezeUnsqueeze(eltwise, ngraph::element::i64, {2}, ngraph::helpers::SqueezeOpType::UNSQUEEZE);
-
-        auto body = std::make_shared<ov::Model>(ngraph::OutputVector{body_condition_const, unsqueeze2, unsqueeze1}, body_params);
->>>>>>> 6a221c39e0 (resolve conflicts of backedges memory reuse.)
 
         auto loop = std::make_shared<ngraph::opset5::Loop>(trip_count_input, exec_condition);
         loop->set_function(body);
         loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{-1, 0});
 
-<<<<<<< HEAD
         loop->set_invariant_input(body_params[0], params[shift]);
         loop->set_merged_input(body_params[1], params[shift + 1], concat);
 
@@ -393,19 +358,6 @@ protected:
         auto result0 = std::make_shared<ngraph::opset5::Result>(out0);
         auto result1 = std::make_shared<ngraph::opset5::Result>(out1);
         function = std::make_shared<ov::Model>(ngraph::ResultVector{result0, result1}, params, "loop");
-=======
-        loop->set_merged_input(body_params[0], params[shift], unsqueeze1);
-
-        // Output 0 is last Zo
-        auto out0 = loop->get_iter_value(body_condition_const, -1);
-        auto out1 = loop->get_iter_value(unsqueeze2, -1);
-        auto out2 = loop->get_iter_value(unsqueeze1, -1);
-
-        auto result0 = std::make_shared<ngraph::opset5::Result>(out0);
-        auto result1 = std::make_shared<ngraph::opset5::Result>(out1);
-        auto result2 = std::make_shared<ngraph::opset5::Result>(out2);
-        function = std::make_shared<ov::Model>(ngraph::ResultVector{result0, result1, result2}, params, "loop");
->>>>>>> 6a221c39e0 (resolve conflicts of backedges memory reuse.)
     }
 };
 
@@ -427,11 +379,7 @@ TEST_P(LoopForDiffShapesLayerCPUTest, CompareWithRefs) {
     run();
 }
 
-<<<<<<< HEAD
 TEST_P(LoopForConcatLayerCPUTest, CompareWithRefs) {
-=======
-TEST_P(LoopForInplaceInputsLayerCPUTest, CompareWithRefs) {
->>>>>>> 6a221c39e0 (resolve conflicts of backedges memory reuse.)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
@@ -597,7 +545,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LoopForDiffShapesConcat, LoopForDiffShapesLayerCP
                                  ::testing::ValuesIn(inputPrecisions)),
                          LoopLayerCPUTest::getTestCaseName);
 
-<<<<<<< HEAD
 std::vector<std::vector<InputShape>> inputs_4 = {
         {  // first test suit
             {  // first input
@@ -616,24 +563,10 @@ std::vector<std::vector<InputShape>> inputs_4 = {
                     {0, 10, 10},
                     {0, 10, 10},
                     {0, 10, 10},
-=======
-
-// backedge and in-placed graph inputs.
-std::vector<std::vector<InputShape>> inputs_4 = {
-        {  // first test suit
-            {
-                {-1, -1, 1},
-                { // target static shapes
-                     {10, 1, 1},
-                     {1, 10, 1},
-                     {1, 10, 1},
-                     {2, 2, 1},
->>>>>>> 6a221c39e0 (resolve conflicts of backedges memory reuse.)
                 }
             },
         },
         {  // second test suit
-<<<<<<< HEAD
             {  // first input
                 {{0, 10}, 10, 10},
                 { // target static shapes
@@ -650,25 +583,12 @@ std::vector<std::vector<InputShape>> inputs_4 = {
                     {0, 10, 10},
                     {0, 10, 10},
                     {0, 10, 10},
-=======
-            {
-                {{0, 10}, {0, 10}, 1},
-                { // target static shapes
-                     {10, 5, 1},
-                     {1, 10, 1},
-                     {1, 10, 1},
-                     {2, 1, 1},
->>>>>>> 6a221c39e0 (resolve conflicts of backedges memory reuse.)
                 }
             },
         },
 };
-<<<<<<< HEAD
 
 INSTANTIATE_TEST_SUITE_P(smoke_LoopForConcat, LoopForConcatLayerCPUTest,
-=======
-INSTANTIATE_TEST_SUITE_P(smoke_LoopForBackEdgeInplaceInputs, LoopForInplaceInputsLayerCPUTest,
->>>>>>> 6a221c39e0 (resolve conflicts of backedges memory reuse.)
                          ::testing::Combine(
                                  ::testing::ValuesIn(trip_count_type),
                                  ::testing::ValuesIn(trip_count),
