@@ -28,9 +28,6 @@
 #include "statistics_report.hpp"
 #include "utils.hpp"
 
-#ifdef __WINDOWS__
-# include <windows.h>
-#endif
 // clang-format on
 
 bool parse_and_check_command_line(int argc, char* argv[]) {
@@ -190,9 +187,6 @@ void setDeviceProperty(ov::Core& core,
 int main(int argc, char* argv[]) {
     std::shared_ptr<StatisticsReport> statistics;
     try {
-#ifdef __WINDOWS__
-        DisableMinimizeButton(GetForegroundWindow());
-#endif
         ov::CompiledModel compiledModel;
 
         // ----------------- 1. Parsing and validating input arguments
@@ -1282,9 +1276,6 @@ int main(int argc, char* argv[]) {
         }
 
         slog::info << "Throughput:   " << double_to_string(fps) << " FPS" << slog::endl;
-#ifdef __WINDOWS__
-        EnableMinimizeButton(GetForegroundWindow());
-#endif
 
     } catch (const std::exception& ex) {
         slog::err << ex.what() << slog::endl;

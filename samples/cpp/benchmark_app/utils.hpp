@@ -16,21 +16,8 @@
 #include <type_traits>
 #include <vector>
 
-#ifdef __WINDOWS__
-#    include <windows.h>
-#endif
-
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::nanoseconds ns;
-
-#ifdef __WINDOWS__
-inline void DisableMinimizeButton(HWND hwnd) {
-    SetWindowLong(hwnd, GWL_STYLE, GetWindowLong(hwnd, GWL_STYLE) & ~WS_MINIMIZEBOX);
-}
-inline void EnableMinimizeButton(HWND hwnd) {
-    SetWindowLong(hwnd, GWL_STYLE, GetWindowLong(hwnd, GWL_STYLE) | WS_MINIMIZEBOX);
-}
-#endif
 
 inline uint64_t get_duration_in_milliseconds(uint32_t duration) {
     return duration * 1000LL;

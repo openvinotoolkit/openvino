@@ -136,9 +136,9 @@ def parse_args():
                            " Please note, command line parameters have higher priority then parameters from configuration file.")
     args.add_argument('-infer_precision', type=str, required=False,
                       help='Optional. Hint to specifies inference precision. Example: -infer_precision CPU:bf16,GPU:f32')
-    args.add_argument('-ip', '--input_precision', type=str, required=False, choices=['u8', 'U8', 'f16','FP16', 'f32','FP32'],
+    args.add_argument('-ip', '--input_precision', type=str, required=False, choices=['boolean', 'BOOL', 'f16', 'FP16', 'f32', 'FP32', 'f64', 'FP64', 'i4', 'I4', 'i8', 'I8', 'i16', 'I16', 'i32', 'I32', 'i64', 'I64', 'u1', 'U1', 'u4', 'U4', 'u8', 'U8', 'u16', 'U16', 'u32', 'U32', 'u64', 'U64', 'bf16', 'BF16'],
                       help='Optional. Specifies precision for all input layers of the model.')
-    args.add_argument('-op', '--output_precision', type=str, required=False, choices=['u8', 'U8', 'f16','FP16', 'f32','FP32'],
+    args.add_argument('-op', '--output_precision', type=str, required=False, choices=['boolean', 'BOOL', 'f16', 'FP16', 'f32', 'FP32', 'f64', 'FP64', 'i4', 'I4', 'i8', 'I8', 'i16', 'I16', 'i32', 'I32', 'i64', 'I64', 'u1', 'U1', 'u4', 'U4', 'u8', 'U8', 'u16', 'U16', 'u32', 'U32', 'u64', 'U64', 'bf16', 'BF16'],
                       help='Optional. Specifies precision for all output layers of the model.')
     args.add_argument('-iop', '--input_output_precision', type=str, required=False,
                       help='Optional. Specifies precision for input and output layers by name. Example: -iop "input:f16, output:f16". Notice that quotes are required. Overwrites precision from ip and op options for specified layers.')

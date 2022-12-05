@@ -103,35 +103,37 @@ Running the application with the `-h` or `--help` option yields the following us
 [Step 1/11] Parsing and validating input arguments
 [ INFO ] Parsing input parameters
 usage: benchmark_app.py [-h [HELP]] [-i PATHS_TO_INPUT [PATHS_TO_INPUT ...]] -m PATH_TO_MODEL [-d TARGET_DEVICE] [-extensions EXTENSIONS] [-c PATH_TO_CLDNN_CONFIG]
-                        [-hint {throughput,cumulative_throughput,latency,none}] [-api {sync,async}] [-niter NUMBER_ITERATIONS] [-nireq NUMBER_INFER_REQUESTS] [-b BATCH_SIZE] [-t TIME]
-                        [-shape SHAPE] [-data_shape DATA_SHAPE] [-layout LAYOUT] [-nstreams NUMBER_STREAMS] [-latency_percentile LATENCY_PERCENTILE] [-nthreads NUMBER_THREADS]
-                        [-pin {YES,NO,NUMA,HYBRID_AWARE}] [-exec_graph_path EXEC_GRAPH_PATH] [-pc [PERF_COUNTS]] [-pcsort {no_sort,sort,simple_sort}] [-pcseq [PCSEQ]]
-                        [-inference_only [INFERENCE_ONLY]] [-report_type {no_counters,average_counters,detailed_counters}] [-report_folder REPORT_FOLDER] [-dump_config DUMP_CONFIG]
-                        [-load_config LOAD_CONFIG] [-infer_precision INFER_PRECISION] [-ip {u8,U8,f16,FP16,f32,FP32}] [-op {u8,U8,f16,FP16,f32,FP32}] [-iop INPUT_OUTPUT_PRECISION]
-                        [-cdir CACHE_DIR] [-lfile [LOAD_FROM_FILE]] [-iscale INPUT_SCALE] [-imean INPUT_MEAN]
+                        [-hint {throughput,cumulative_throughput,latency,none}] [-api {sync,async}] [-niter NUMBER_ITERATIONS] [-nireq NUMBER_INFER_REQUESTS] [-b BATCH_SIZE]
+                        [-t TIME] [-shape SHAPE] [-data_shape DATA_SHAPE] [-layout LAYOUT] [-nstreams NUMBER_STREAMS] [-latency_percentile LATENCY_PERCENTILE]
+                        [-nthreads NUMBER_THREADS] [-pin {YES,NO,NUMA,HYBRID_AWARE}] [-exec_graph_path EXEC_GRAPH_PATH] [-pc [PERF_COUNTS]] [-pcsort {no_sort,sort,simple_sort}]
+                        [-pcseq [PCSEQ]] [-inference_only [INFERENCE_ONLY]] [-report_type {no_counters,average_counters,detailed_counters}] [-report_folder REPORT_FOLDER]
+                        [-dump_config DUMP_CONFIG] [-load_config LOAD_CONFIG] [-infer_precision INFER_PRECISION]
+                        [-ip {boolean,BOOL,f16,FP16,f32,FP32,f64,FP64,i4,I4,i8,I8,i16,I16,i32,I32,i64,I64,u1,U1,u4,U4,u8,U8,u16,U16,u32,U32,u64,U64,bf16,BF16}]
+                        [-op {boolean,BOOL,f16,FP16,f32,FP32,f64,FP64,i4,I4,i8,I8,i16,I16,i32,I32,i64,I64,u1,U1,u4,U4,u8,U8,u16,U16,u32,U32,u64,U64,bf16,BF16}]
+                        [-iop INPUT_OUTPUT_PRECISION] [-cdir CACHE_DIR] [-lfile [LOAD_FROM_FILE]] [-iscale INPUT_SCALE] [-imean INPUT_MEAN]
 
 Options:
   -h [HELP], --help [HELP]
                         Show this help message and exit.
   -i PATHS_TO_INPUT [PATHS_TO_INPUT ...], --paths_to_input PATHS_TO_INPUT [PATHS_TO_INPUT ...]
-                        Optional. Path to a folder with images and/or binaries or to specific image or binary file. It is also allowed to map files to model inputs:
-                        input_1:file_1/dir1,file_2/dir2,input_4:file_4/dir4 input_2:file_3/dir3
-                        Currently supported data types: bmp, dib, jpeg, jpg, jpe, jp2, png, pbm, pgm, ppm, sr, ras, tiff, tif, bin, npy
+                        Optional. Path to a folder with images and/or binaries or to specific image or binary file.It is also allowed to map files to model inputs:
+                        input_1:file_1/dir1,file_2/dir2,input_4:file_4/dir4 input_2:file_3/dir3Currently supported data types: bin, npy.If OPENCV is enabled, this functionality
+                        is extended with the following data types:bmp, dib, jpeg, jpg, jpe, jp2, png, pbm, pgm, ppm, sr, ras, tiff, tif.
   -m PATH_TO_MODEL, --path_to_model PATH_TO_MODEL
                         Required. Path to an .xml/.onnx file with a trained model or to a .blob file with a trained compiled model.
   -d TARGET_DEVICE, --target_device TARGET_DEVICE
-                        Optional. Specify a target device to infer on (the list of available devices is shown below). Default value is CPU. Use '-d HETERO:<comma separated devices list>'
-                        format to specify HETERO plugin. Use '-d MULTI:<comma separated devices list>' format to specify MULTI plugin. The application looks for a suitable plugin for the
-                        specified device.
+                        Optional. Specify a target device to infer on (the list of available devices is shown below). Default value is CPU. Use '-d HETERO:<comma separated
+                        devices list>' format to specify HETERO plugin. Use '-d MULTI:<comma separated devices list>' format to specify MULTI plugin. The application looks for
+                        a suitable plugin for the specified device.
   -extensions EXTENSIONS, --extensions EXTENSIONS
                         Optional. Path or a comma-separated list of paths to libraries (.so or .dll) with extensions.
   -c PATH_TO_CLDNN_CONFIG, --path_to_cldnn_config PATH_TO_CLDNN_CONFIG
                         Optional. Required for GPU custom kernels. Absolute path to an .xml file with the kernels description.
   -hint {throughput,cumulative_throughput,latency,none}, --perf_hint {throughput,cumulative_throughput,latency,none}
-                        Optional. Performance hint (latency or throughput or cumulative_throughput or none). Performance hint allows the OpenVINO device to select the right model-specific
-                        settings. 'throughput': device performance mode will be set to THROUGHPUT. 'cumulative_throughput': device performance mode will be set to CUMULATIVE_THROUGHPUT.
-                        'latency': device performance mode will be set to LATENCY. 'none': no device performance mode will be set. Using explicit 'nstreams' or other device-specific options,
-                        please set hint to 'none'
+                        Optional. Performance hint (latency or throughput or cumulative_throughput or none). Performance hint allows the OpenVINO device to select the right
+                        model-specific settings. 'throughput': device performance mode will be set to THROUGHPUT. 'cumulative_throughput': device performance mode will be set
+                        to CUMULATIVE_THROUGHPUT. 'latency': device performance mode will be set to LATENCY. 'none': no device performance mode will be set. Using explicit
+                        'nstreams' or other device-specific options, please set hint to 'none'
   -api {sync,async}, --api_type {sync,async}
                         Optional. Enable using sync/async API. Default value is async.
   -niter NUMBER_ITERATIONS, --number_iterations NUMBER_ITERATIONS
@@ -141,65 +143,71 @@ Options:
   -b BATCH_SIZE, --batch_size BATCH_SIZE
                         Optional. Batch size value. If not specified, the batch size value is determined from Intermediate Representation
   -t TIME, --time TIME  Optional. Time in seconds to execute topology.
-  -shape SHAPE          Optional. Set shape for input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size.This parameter affect model Parameter shape,
-                        can be dynamic. For dynamic dimesions use symbol `?`, `-1` or range `low.. up`.
+  -shape SHAPE          Optional. Set shape for input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size.This parameter affect model
+                        Parameter shape, can be dynamic. For dynamic dimesions use symbol `?`, `-1` or range `low.. up`.
   -data_shape DATA_SHAPE
-                        Optional. Optional if model shapes are all static (original ones or set by -shape).Required if at least one input shape is dynamic and input images are not provided.Set
-                        shape for input tensors. For example, "input1[1,3,224,224][1,3,448,448],input2[1,4][1,8]" or "[1,3,224,224][1,3,448,448] in case of one input size.
+                        Optional. Optional if model shapes are all static (original ones or set by -shape).Required if at least one input shape is dynamic and input images are
+                        not provided.Set shape for input tensors. For example, "input1[1,3,224,224][1,3,448,448],input2[1,4][1,8]" or "[1,3,224,224][1,3,448,448] in case of one
+                        input size.
   -layout LAYOUT        Optional. Prompts how model layouts should be treated by application. For example, "input1[NCHW],input2[NC]" or "[NCHW]" in case of one input size.
   -nstreams NUMBER_STREAMS, --number_streams NUMBER_STREAMS
-                        Optional. Number of streams to use for inference on the CPU/GPU/MYRIAD (for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> or just
-                        <nstreams>). Default value is determined automatically for a device. Please note that although the automatic selection usually provides a reasonable performance, it
-                        still may be non - optimal for some cases, especially for very small models. Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency
-                        estimations the number of streams should be set to 1. See samples README for more details.
+                        Optional. Number of streams to use for inference on the CPU/GPU/MYRIAD (for HETERO and MULTI device cases use format
+                        <device1>:<nstreams1>,<device2>:<nstreams2> or just <nstreams>). Default value is determined automatically for a device. Please note that although the
+                        automatic selection usually provides a reasonable performance, it still may be non - optimal for some cases, especially for very small models. Also,
+                        using nstreams>1 is inherently throughput-oriented option, while for the best-latency estimations the number of streams should be set to 1. See samples
+                        README for more details.
   -latency_percentile LATENCY_PERCENTILE, --latency_percentile LATENCY_PERCENTILE
                         Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).
   -nthreads NUMBER_THREADS, --number_threads NUMBER_THREADS
                         Number of threads to use for inference on the CPU, GNA (including HETERO and MULTI cases).
   -pin {YES,NO,NUMA,HYBRID_AWARE}, --infer_threads_pinning {YES,NO,NUMA,HYBRID_AWARE}
-                        Optional. Enable threads->cores ('YES' which is OpenVINO runtime's default for conventional CPUs), threads->(NUMA)nodes ('NUMA'), threads->appropriate core types
-                        ('HYBRID_AWARE', which is OpenVINO runtime's default for Hybrid CPUs) or completely disable ('NO') CPU threads pinning for CPU-involved inference.
+                        Optional. Enable threads->cores ('YES' which is OpenVINO runtime's default for conventional CPUs), threads->(NUMA)nodes ('NUMA'), threads->appropriate
+                        core types ('HYBRID_AWARE', which is OpenVINO runtime's default for Hybrid CPUs) or completely disable ('NO') CPU threads pinning for CPU-involved
+                        inference.
   -exec_graph_path EXEC_GRAPH_PATH, --exec_graph_path EXEC_GRAPH_PATH
                         Optional. Path to a file where to store executable graph information serialized.
   -pc [PERF_COUNTS], --perf_counts [PERF_COUNTS]
                         Optional. Report performance counters.
   -pcsort {no_sort,sort,simple_sort}, --perf_counts_sort {no_sort,sort,simple_sort}
-                        Optional. Report performance counters and analysis the sort hotpoint opts. sort: Analysis opts time cost, print by hotpoint order no_sort: Analysis opts time cost,
-                        print by normal order simple_sort: Analysis opts time cost, only print EXECUTED opts by normal order
+                        Optional. Report performance counters and analysis the sort hotpoint opts. sort: Analysis opts time cost, print by hotpoint order no_sort: Analysis opts
+                        time cost, print by normal order simple_sort: Analysis opts time cost, only print EXECUTED opts by normal order
   -pcseq [PCSEQ], --pcseq [PCSEQ]
                         Optional. Report latencies for each shape in -data_shape sequence.
   -inference_only [INFERENCE_ONLY], --inference_only [INFERENCE_ONLY]
-                        Optional. If true inputs filling only once before measurements (default for static models), else inputs filling is included into loop measurement (default for dynamic
-                        models)
+                        Optional. If true inputs filling only once before measurements (default for static models), else inputs filling is included into loop measurement
+                        (default for dynamic models)
   -report_type {no_counters,average_counters,detailed_counters}, --report_type {no_counters,average_counters,detailed_counters}
-                        Optional. Enable collecting statistics report. "no_counters" report contains configuration options specified, resulting FPS and latency. "average_counters" report
-                        extends "no_counters" report and additionally includes average PM counters values for each layer from the model. "detailed_counters" report extends "average_counters"
-                        report and additionally includes per-layer PM counters and latency for each executed infer request.
+                        Optional. Enable collecting statistics report. "no_counters" report contains configuration options specified, resulting FPS and latency.
+                        "average_counters" report extends "no_counters" report and additionally includes average PM counters values for each layer from the model.
+                        "detailed_counters" report extends "average_counters" report and additionally includes per-layer PM counters and latency for each executed infer
+                        request.
   -report_folder REPORT_FOLDER, --report_folder REPORT_FOLDER
                         Optional. Path to a folder where statistics report is stored.
   -dump_config DUMP_CONFIG
                         Optional. Path to JSON file to dump OpenVINO parameters, which were set by application.
   -load_config LOAD_CONFIG
-                        Optional. Path to JSON file to load custom OpenVINO parameters. Please note, command line parameters have higher priority then parameters from configuration file.
+                        Optional. Path to JSON file to load custom OpenVINO parameters. Please note, command line parameters have higher priority then parameters from
+                        configuration file.
   -infer_precision INFER_PRECISION
                         Optional. Hint to specifies inference precision. Example: -infer_precision CPU:bf16,GPU:f32
-  -ip {u8,U8,f16,FP16,f32,FP32}, --input_precision {u8,U8,f16,FP16,f32,FP32}
+  -ip {boolean,BOOL,f16,FP16,f32,FP32,f64,FP64,i4,I4,i8,I8,i16,I16,i32,I32,i64,I64,u1,U1,u4,U4,u8,U8,u16,U16,u32,U32,u64,U64,bf16,BF16}, --input_precision {boolean,BOOL,f16,FP16,f32,FP32,f64,FP64,i4,I4,i8,I8,i16,I16,i32,I32,i64,I64,u1,U1,u4,U4,u8,U8,u16,U16,u32,U32,u64,U64,bf16,BF16}
                         Optional. Specifies precision for all input layers of the model.
-  -op {u8,U8,f16,FP16,f32,FP32}, --output_precision {u8,U8,f16,FP16,f32,FP32}
+  -op {boolean,BOOL,f16,FP16,f32,FP32,f64,FP64,i4,I4,i8,I8,i16,I16,i32,I32,i64,I64,u1,U1,u4,U4,u8,U8,u16,U16,u32,U32,u64,U64,bf16,BF16}, --output_precision {boolean,BOOL,f16,FP16,f32,FP32,f64,FP64,i4,I4,i8,I8,i16,I16,i32,I32,i64,I64,u1,U1,u4,U4,u8,U8,u16,U16,u32,U32,u64,U64,bf16,BF16}
                         Optional. Specifies precision for all output layers of the model.
   -iop INPUT_OUTPUT_PRECISION, --input_output_precision INPUT_OUTPUT_PRECISION
-                        Optional. Specifies precision for input and output layers by name. Example: -iop "input:f16, output:f16". Notice that quotes are required. Overwrites precision from ip
-                        and op options for specified layers.
+                        Optional. Specifies precision for input and output layers by name. Example: -iop "input:f16, output:f16". Notice that quotes are required. Overwrites
+                        precision from ip and op options for specified layers.
   -cdir CACHE_DIR, --cache_dir CACHE_DIR
                         Optional. Enable model caching to specified directory
   -lfile [LOAD_FROM_FILE], --load_from_file [LOAD_FROM_FILE]
                         Optional. Loads model from file directly without read_model.
   -iscale INPUT_SCALE, --input_scale INPUT_SCALE
-                        Optional. Scale values to be used for the input image per channel. Values to be provided in the [R, G, B] format. Can be defined for desired input of the model.
-                        Example: -iscale data[255,255,255],info[255,255,255]
+                        Optional. Scale values to be used for the input image per channel. Values to be provided in the [R, G, B] format. Can be defined for desired input of
+                        the model. Example: -iscale data[255,255,255],info[255,255,255]
   -imean INPUT_MEAN, --input_mean INPUT_MEAN
-                        Optional. Mean values to be used for the input image per channel. Values to be provided in the [R, G, B] format. Can be defined for desired input of the model. Example:
-                        -imean data[255,255,255],info[255,255,255]
+                        Optional. Mean values to be used for the input image per channel. Values to be provided in the [R, G, B] format. Can be defined for desired input of the
+                        model. Example: -imean data[255,255,255],info[255,255,255]
+
 ```
 
 Running the application with the empty list of options yields the usage message given above and an error message.

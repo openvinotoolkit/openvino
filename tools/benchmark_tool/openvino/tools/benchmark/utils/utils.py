@@ -54,15 +54,22 @@ def next_step(additional_info='', step_id=0):
 
 def get_element_type(precision):
     format_map = {
+      'BOOL' : Type.boolean,
+      'FP16' : Type.f16,
       'FP32' : Type.f32,
+      'FP64' : Type.f64,
+      'I4'   : Type.i4,
+      'I8'   : Type.i8,
+      'I16'  : Type.i16,
       'I32'  : Type.i32,
       'I64'  : Type.i64,
-      'FP16' : Type.f16,
-      'I16'  : Type.i16,
-      'U16'  : Type.u16,
-      'I8'   : Type.i8,
+      'U1'   : Type.u1,
+      'U4'   : Type.u4,
       'U8'   : Type.u8,
-      'BOOL' : Type.boolean,
+      'U16'  : Type.u16,
+      'U32'  : Type.u32,
+      'U64'  : Type.u64,
+      'BF16' : Type.bf16,
     }
     if precision in format_map.keys():
         return format_map[precision]
