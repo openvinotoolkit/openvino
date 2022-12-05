@@ -83,7 +83,7 @@ def visit_scrollbox(self, node):
         + (("px; " if node["width"].find("px") != -1 else "%;") if "width" in node is not None else "")
         + ( ("border-left:solid "+"".join(c for c in str(node["bar"]) if c.isdigit())+ "px " + (("".join(str(node["bar-color"]))) if "bar-color" in node is not None else "#dee2e6") +"; ") if "bar" in node is not None else "")
     )
-    attrs["class"] = ("scrollbox sortable-table" if "sortable" in node is not None else "scrollbox")
+    attrs["class"] = "scrollbox"
     self.body.append(self.starttag(node, "div", **attrs))
 
 
