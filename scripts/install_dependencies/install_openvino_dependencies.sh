@@ -88,7 +88,7 @@ if [ "$os" == "auto" ] ; then
     fi
     case $os in
         centos7|centos8|rhel8|rhel9.1|\
-        almalinux8.7|\
+        almalinux8.7|amzn2|\
         fedora34|fedora35|fedora36|fedora37|fedora38|\
         raspbian9|debian9|ubuntu18.04|\
         raspbian10|debian10|ubuntu20.04|ubuntu20.10|ubuntu21.04|\
@@ -182,9 +182,14 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
      [ "$os" == "rhel8" ] || [ "$os" == "rhel9.1" ] ||
      [ "$os" == "fedora34" ] || [ "$os" == "fedora35" ] || [ "$os" == "fedora36" ] ||
      [ "$os" == "fedora36" ] || [ "$os" == "fedora38" ] ||
-     [ "$os" == "almalinux8.7" ] ; then
+     [ "$os" == "almalinux8.7" ] || [ "$os" == "amzn2" ] ; then
 
     arch=$(uname -m)
+
+    # if [ "$os" == "amzn2" ] ; then
+        # amazon-linux-extras install epel python3.8
+    # fi
+
     pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake3 json-devel.$arch zlib-devel.$arch sudo)
 
     if [ "$os" == "rhel9.1" ] ; then
@@ -203,7 +208,7 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
         pkgs_myriad=(libusbx.$arch)
     fi
 
-    if [ "$os" == "centos7" ] ; then
+    if [ "$os" == "centos7" ] || [ "$os" == "amzn2" ] ; then
         pkgs_core=(tbb.$arch pugixml.$arch gflags.$arch)
         pkgs_dev+=(gflags-devel.$arch)
         pkgs_opencv_opt=(
@@ -323,7 +328,7 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
      [ "$os" == "rhel8" ] || [ "$os" == "rhel9.1" ] ||
      [ "$os" == "fedora34" ] || [ "$os" == "fedora35" ] || [ "$os" == "fedora36" ] ||
      [ "$os" == "fedora36" ] || [ "$os" == "fedora38" ] ||
-     [ "$os" == "almalinux8.7" ] ; then
+     [ "$os" == "almalinux8.7" ] || [ "$os" == "amzn2" ] ; then
 
     [ -z "$interactive" ] && iopt="--assumeyes"
     [ -n "$dry" ] && iopt="--downloadonly"
