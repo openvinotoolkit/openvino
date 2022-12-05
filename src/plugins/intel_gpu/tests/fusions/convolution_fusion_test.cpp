@@ -1613,7 +1613,7 @@ TEST_P(conv_scale_activation_eltwise_fp32_quantize_i8, basic) {
         convolution("conv", input_info("input"), { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
         data("scale_data", get_mem(get_per_channel_layout(p))),
         eltwise("scale", { input_info("conv"), input_info("scale_data") }, eltwise_mode::prod),
-        activation("activation", input_info("scale"), activation_func::hyperbolic_tan),
+        activation("activation", input_info("scale"), activation_func::relu),
         data("eltwise_data", get_mem(layout{ p.data_type, p.input_format, p.eltw_shape })),
         eltwise("eltw", { input_info("activation"), input_info("eltwise_data") }, eltwise_mode::sum, data_types::f32),
         data("in_low", get_mem(get_per_channel_layout(p), min_random, 0)),
@@ -1799,7 +1799,7 @@ TEST_P(conv_int8_prelu_eltwise, basic) {
         reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
-    tolerance = default_tolerance(p.default_type);
+    tolerance = 1;
     execute(p);
 }
 
@@ -1817,7 +1817,7 @@ TEST_P(conv_int8_prelu_eltwise, basic_slope_2) {
         reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
-    tolerance = default_tolerance(p.default_type);
+    tolerance = 1.5;
     execute(p);
 }
 
@@ -1843,7 +1843,7 @@ TEST_P(conv_int8_prelu_eltwise, fsv16) {
         return;
     }
 
-    tolerance = default_tolerance(p.default_type);
+    tolerance = 1;
     execute(p);
 }
 
@@ -1869,7 +1869,7 @@ TEST_P(conv_int8_prelu_eltwise, fsv16_slope_2) {
         return;
     }
 
-    tolerance = default_tolerance(p.default_type);
+    tolerance = 1;
     execute(p);
 }
 

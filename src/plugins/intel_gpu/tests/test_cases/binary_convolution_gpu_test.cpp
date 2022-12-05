@@ -180,6 +180,11 @@ class binary_convolution_test : public ::testing::TestWithParam<TestParams> {
 
 TEST_P(binary_convolution_test, conv) {
     auto& engine = get_test_engine();
+
+    //FIXME: https://github.com/openvinotoolkit/openvino/pull/12486
+    if(engine.get_device_info().supports_immad)
+        return;
+
     cldnn::build_options options;
     options.set_option(cldnn::build_option::optimize_data(true));
     topology topology_bin;
