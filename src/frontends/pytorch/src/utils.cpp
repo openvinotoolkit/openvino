@@ -101,6 +101,16 @@ Output<Node> reshape_kernel_for_group(const NodeContext& context,
     return make_shared<opset8::Reshape>(kernel, new_kernel_shape, false);
 }
 
+std::shared_ptr<Node> get_axes_range(NodeContext& context, size_t input_id) {
+    auto x = context.get_input(input_id);
+    auto start = std::make_shared<opset8::Constant>(element::i32, Shape{}, 0);
+    auto step = std::make_shared<opset8::Constant>(element::i32, Shape{}, 1);
+    auto shape = context.mark_node(std::make_shared<opset8::ShapeOf>(x, element::i32));
+    auto rank = context.mark_node(std::make_shared<opset8::ShapeOf>(shape, element::i32));
+    auto reduced_rank = context.mark_node(std::make_shared<opset8::Squeeze>(rank));
+    return context.mark_node(std::make_shared<opset8::Range>(start, reduced_rank, step, element::i32));
+};
+
 OutputVector make_framework_node(NodeContext* context) {
     auto schema = context->get_schema();
     // TODO: properly process schema to get the actual position of mutable input

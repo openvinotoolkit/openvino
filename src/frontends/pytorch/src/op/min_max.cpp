@@ -11,23 +11,13 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-std::shared_ptr<Node> get_all_axes(NodeContext& context) {
-    auto x = context.get_input(0);
-    auto start = std::make_shared<opset8::Constant>(element::i32, Shape{}, 0);
-    auto step = std::make_shared<opset8::Constant>(element::i32, Shape{}, 1);
-    auto shape = context.mark_node(std::make_shared<opset8::ShapeOf>(x, element::i32));
-    auto rank = context.mark_node(std::make_shared<opset8::ShapeOf>(shape, element::i32));
-    auto reduced_rank = context.mark_node(std::make_shared<opset8::Squeeze>(rank));
-    return context.mark_node(std::make_shared<opset8::Range>(start, reduced_rank, step, element::i32));
-};
-
 OutputVector translate_max(NodeContext& context) {
     // torch.max (same for torch.min) actually has two interfaces smashed together:
     // torch.max(x, dim, keepdim) and torch.max(x, y)
     auto x = context.get_input(0);
     // torch.max(input)
     if (context.input_is_none(1) & context.input_is_none(2)) {
-        auto axes = get_all_axes(context);
+        auto axes = get_axes_range(context, 0);
         return {context.mark_node(std::make_shared<opset8::ReduceMax>(x, axes, false))};
     }
     // torch.max(input, other)
@@ -55,7 +45,7 @@ OutputVector translate_min(NodeContext& context) {
     auto x = context.get_input(0);
     // torch.min(input)
     if (context.input_is_none(1) & context.input_is_none(2)) {
-        auto axes = get_all_axes(context);
+        auto axes = get_axes_range(context, 0);
         return {context.mark_node(std::make_shared<opset8::ReduceMin>(x, axes, false))};
     }
     // torch.min(input, other)

@@ -4,6 +4,7 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace frontend {
@@ -17,12 +18,7 @@ OutputVector translate_sum(NodeContext& context) {
     FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(0), "Operation should have at least 1 input");
     auto data = context.get_input(0);
     if (context.input_is_none(1)) {
-        auto start = std::make_shared<opset8::Constant>(element::i32, Shape{}, 0);
-        auto step = std::make_shared<opset8::Constant>(element::i32, Shape{}, 1);
-        auto shape = context.mark_node(std::make_shared<opset8::ShapeOf>(data, element::i32));
-        auto rank = context.mark_node(std::make_shared<opset8::ShapeOf>(shape, element::i32));
-        auto reduced_rank = context.mark_node(std::make_shared<opset8::Squeeze>(rank));
-        axes = context.mark_node(std::make_shared<opset8::Range>(start, reduced_rank, step, element::i32));
+        axes = get_axes_range(context, 0);
     } else {
         axes = context.get_input(1);
     }
