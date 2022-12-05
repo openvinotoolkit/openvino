@@ -22,6 +22,7 @@ public:
     }
 
     device_info get_info() const override { return _info; }
+    void set_info(const device_info& info) override { _info = info; }
     memory_capabilities get_mem_caps() const override { return _mem_caps; }
     bool is_same(const device::ptr other) override {
         return this == other.get();
