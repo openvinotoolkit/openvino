@@ -683,6 +683,7 @@ void primitive_inst::allocate_internal_buffers(void) {
     // check if there is any device mem input
     if (engine.supports_allocation(allocation_type::usm_device)) {
         for (const auto& dep : inst_deps) {
+            if (!dep.first->mem_allocated()) continue;
             if (dep.first->output_memory().get_allocation_type() == allocation_type::usm_device) {
                 input_device_mem = true;
                 break;
