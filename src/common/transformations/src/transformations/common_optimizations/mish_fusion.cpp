@@ -14,7 +14,7 @@
 
 ov::pass::MishFusion::MishFusion() {
     MATCHER_SCOPE(MishFusion);
-    auto input = ngraph::pattern::any_input();
+    auto input = pass::pattern::any_input();
     auto exp = std::make_shared<opset4::Exp>(input);
     auto add = std::make_shared<opset4::Add>(exp, ngraph::pattern::wrap_type<opset4::Constant>());
     auto log = std::make_shared<opset4::Log>(add);
