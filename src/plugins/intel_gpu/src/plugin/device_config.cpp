@@ -61,7 +61,7 @@ static int getNumberOfCores(const IStreamsExecutor::Config::PreferredCoreType co
 }
 
 IE_SUPPRESS_DEPRECATED_START
-void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) {
+void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap, const cldnn::device_info& info) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Config::UpdateFromMap");
     for (auto& kvp : configMap) {
         std::string key = kvp.first;
@@ -250,7 +250,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
         } else if (key.compare(PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS) == 0 || key == ov::num_streams) {
             if (val.compare(PluginConfigParams::GPU_THROUGHPUT_AUTO) == 0 ||
                 val.compare(ov::util::to_string(ov::streams::AUTO)) == 0) {
-                throughput_streams = GetDefaultNStreamsForThroughputMode();
+                throughput_streams = std::max(GetDefaultNStreamsForThroughputMode(), info.num_ccs);
             } else {
                 int val_i;
                 try {

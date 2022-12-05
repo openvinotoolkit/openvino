@@ -58,7 +58,7 @@ struct Config {
     uint32_t GetDefaultNStreamsForThroughputMode() const {
         return 2;
     }
-    void UpdateFromMap(const std::map<std::string, std::string>& configMap);
+    void UpdateFromMap(const std::map<std::string, std::string>& configMap, const cldnn::device_info& info);
     void adjustKeyMapValues();
     static bool isNewApiProperty(std::string property);
     static std::string ConvertPropertyToLegacy(const std::string& key, const std::string& value);
