@@ -336,44 +336,15 @@ const nlohmann::json StatisticsReportJSON::sort_perf_counters_to_json(
     return js;
 }
 
-void LatencyMetrics::write_to_stream(std::ostream& stream) const {
-    std::ios::fmtflags fmt(std::cout.flags());
-    stream << data_shape << ";" << std::fixed << std::setprecision(2) << median_or_percentile << ";" << avg << ";"
-           << min << ";" << max;
-    std::cout.flags(fmt);
-}
-
-void LatencyMetrics::write_to_slog() const {
-    std::string percentileStr = (percentile_boundary == 50)
-                                    ? "   Median:           "
-                                    : "   " + std::to_string(percentile_boundary) + " percentile:     ";
-
-    slog::info << percentileStr << double_to_string(median_or_percentile) << " ms" << slog::endl;
-    slog::info << "   Average:          " << double_to_string(avg) << " ms" << slog::endl;
-    slog::info << "   Min:              " << double_to_string(min) << " ms" << slog::endl;
-    slog::info << "   Max:              " << double_to_string(max) << " ms" << slog::endl;
-}
-
-const nlohmann::json LatencyMetrics::to_json() const {
+static nlohmann::json to_json(const LatencyMetrics& latenct_metrics) {
     nlohmann::json stat;
-    stat["data_shape"] = data_shape;
-    stat["latency_median"] = median_or_percentile;
-    stat["latency_average"] = avg;
-    stat["latency_min"] = min;
-    stat["latency_max"] = max;
+    stat["data_shape"] = latenct_metrics.data_shape;
+    stat["latency_median"] = latenct_metrics.median_or_percentile;
+    stat["latency_average"] = latenct_metrics.avg;
+    stat["latency_min"] = latenct_metrics.min;
+    stat["latency_max"] = latenct_metrics.max;
     return stat;
 }
-
-void LatencyMetrics::fill_data(std::vector<double> latencies, size_t percentile_boundary) {
-    if (latencies.empty()) {
-        throw std::logic_error("Latency metrics class expects non-empty vector of latencies at consturction.");
-    }
-    std::sort(latencies.begin(), latencies.end());
-    min = latencies[0];
-    avg = std::accumulate(latencies.begin(), latencies.end(), 0.0) / latencies.size();
-    median_or_percentile = latencies[size_t(latencies.size() / 100.0 * percentile_boundary)];
-    max = latencies.back();
-};
 
 std::string StatisticsVariant::to_string() const {
     switch (type) {
@@ -412,7 +383,7 @@ void StatisticsVariant::write_to_json(nlohmann::json& js) const {
         if (arr.empty()) {
             arr = nlohmann::json::array();
         }
-        arr.push_back(metrics_val.to_json());
+        arr.push_back(to_json(metrics_val));
     } break;
     default:
         throw std::invalid_argument("StatisticsVariant:: json conversion : invalid type is provided");
