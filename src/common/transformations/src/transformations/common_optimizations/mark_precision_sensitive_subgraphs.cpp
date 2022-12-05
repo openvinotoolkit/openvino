@@ -34,7 +34,7 @@ bool ov::pass::MarkPrecisionSensitiveSubgraphs::run_on_model(const std::shared_p
 
     auto markup_func = [this](Node* node) {
         if (m_mark_only_consts && !ov::is_type<ov::opset8::Constant>(node))
-            return ;
+            return;
         ov::disable_fp16_compression(node->shared_from_this());
     };
 
