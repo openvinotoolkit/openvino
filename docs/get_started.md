@@ -59,18 +59,18 @@ OpenVINO users of all experience levels can try [Intel® DevCloud](https://www.i
 Learn the basics of working with models and inference in OpenVINO. Begin with “Hello World” Interactive Tutorials that show how to prepare models, run inference, and retrieve results using the OpenVINO API. Then, explore other examples from the Open Model Zoo and OpenVINO Code Samples that can be adapted for your own application.
    
 
-#### <a href="tutorials.html"><ins>Interactive Tutorials - Jupyter Notebooks</ins></a>
-Start with interactive Python tutorials that show the basics of model inferencing, the OpenVINO API, how to convert models to OpenVINO format, and more.
+#### <a name="interactive-tutorials"></a>Interactive Tutorials - Jupyter Notebooks
+   Start with <a href="tutorials.html">interactive Python tutorials</a> that show the basics of model inferencing, the OpenVINO API, how to convert models to OpenVINO format, and more.
 * <a href="notebooks/001-hello-world-with-output.html">Hello Image Classification</a> - Load an image classification model in OpenVINO and use it to apply a label to an image
 * <a href="notebooks/002-openvino-api-with-output.html">OpenVINO Runtime API Tutorial</a> - Learn the basic Python API for working with models in OpenVINO
 * <a href="notebooks/101-tensorflow-to-openvino-with-output.html">Convert TensorFlow Models to OpenVINO</a>
 * <a href="notebooks/102-pytorch-onnx-to-openvino-with-output.html">Convert PyTorch Models to OpenVINO</a>
 
-#### <a href="openvino_docs_OV_UG_Samples_Overview.html"><ins>OpenVINO Code Samples</ins></a>
-View sample code for various C++ and Python applications that can be used as a starting point for your own application. For C++ developers, step through the [Get Started with C++ Samples](./get_started/get_started_demos.md) to learn how to build and run an image classification program that uses OpenVINO’s C++ API.
+#### <a name="code-samples"></a>OpenVINO Code Samples
+View <a href="openvino_docs_OV_UG_Samples_Overview.html">sample code</a> for various C++ and Python applications that can be used as a starting point for your own application. For C++ developers, step through the [Get Started with C++ Samples](./get_started/get_started_demos.md) to learn how to build and run an image classification program that uses OpenVINO’s C++ API.
       
-#### <a href="openvino_docs_OV_UG_Integrate_OV_with_your_application.html"><ins>Integrate OpenVINO With Your Application</ins></a>
-Learn how to use the OpenVINO API to implement an inference pipeline in your application.
+#### <a name="integrate-openvino"></a>Integrate OpenVINO With Your Application
+Learn how to <a href="openvino_docs_OV_UG_Integrate_OV_with_your_application.html">use the OpenVINO API to implement an inference pipeline</a> in your application.
 
 
 ### <a name="openvino-advanced-features"></a>OpenVINO Advanced Features
