@@ -27,6 +27,7 @@ void OpSummaryDestroyer::initialize(OpSummary *p) {
 
 OpSummary::OpSummary() {
     reportFilename = CommonTestUtils::OP_REPORT_FILENAME;
+    // TODO: replace to get_available_opsets()
     opsets.push_back(ngraph::get_opset1());
     opsets.push_back(ngraph::get_opset2());
     opsets.push_back(ngraph::get_opset3());
@@ -36,6 +37,7 @@ OpSummary::OpSummary() {
     opsets.push_back(ngraph::get_opset7());
     opsets.push_back(ngraph::get_opset8());
     opsets.push_back(ngraph::get_opset9());
+    opsets.push_back(ngraph::get_opset10());
 }
 
 OpSummary &OpSummary::getInstance() {

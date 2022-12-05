@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_ops/augru_cell.hpp"
+#include "ov_ops/augru_cell.hpp"
 
 #include "gtest/gtest.h"
 #include "openvino/core/attribute_visitor.hpp"
@@ -48,7 +48,8 @@ TEST(type_prop, augru_cell_invalid_input) {
         const auto gru_cell = make_shared<op::internal::AUGRUCell>(X, H_t, W, R, B, A, hidden_size);
         FAIL() << "AUGRUCell node was created with invalid data.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter hidden_size mistmatched in W input."));
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("First dimension of W input shape is required to be compatible"));
     }
 
     // Invalid R tensor shape.
@@ -58,8 +59,7 @@ TEST(type_prop, augru_cell_invalid_input) {
         const auto gru_cell = make_shared<op::internal::AUGRUCell>(X, H_t, W, R, B, A, hidden_size);
         FAIL() << "AUGRUCell node was created with invalid data.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Dimension hidden_size not matched for R and initial_hidden_state inputs."));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Dimension `hidden_size` is not matched between inputs"));
     }
 
     // Invalid H_t tensor shape.
@@ -69,7 +69,7 @@ TEST(type_prop, augru_cell_invalid_input) {
         const auto gru_cell = make_shared<op::internal::AUGRUCell>(X, H_t, W, R, B, A, hidden_size);
         FAIL() << "AUGRUCell node was created with invalid data.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Dimension batch_size is not matched between inputs."));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Dimension `batch_size` is not matched between inputs"));
     }
 
     // Invalid B tensor shape.
@@ -79,9 +79,8 @@ TEST(type_prop, augru_cell_invalid_input) {
         const auto gru_cell = make_shared<op::internal::AUGRUCell>(X, H_t, W, R, B, A, hidden_size);
         FAIL() << "GRUCell node was created with invalid data.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(
-            error.what(),
-            std::string("Parameter hidden_size mistmatched in B input. Current value is: 3, expected: 9."));
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("First dimension of B input shape is required to be compatible"));
     }
 
     // Invalid A tensor shape.
@@ -185,11 +184,11 @@ TEST(type_prop, augru_cell_invalid_input_rank) {
         << "AUGRUCell node was created with invalid data.";
 }
 
-TEST(type_prop, augru_cell_invalid_input_dynamic_rank) {
-    const size_t batch_size = 2;
-    const size_t input_size = 3;
-    const size_t hidden_size = 3;
-    const size_t gates_count = 3;
+TEST(type_prop, augru_cell_input_dynamic_rank) {
+    int64_t batch_size = 2;
+    int64_t input_size = 3;
+    int64_t hidden_size = 3;
+    int64_t gates_count = 3;
 
     auto X = make_shared<opset9::Parameter>(element::f32, PartialShape{batch_size, input_size});
     auto R = make_shared<opset9::Parameter>(element::f32, PartialShape{gates_count * hidden_size, hidden_size});
@@ -197,41 +196,41 @@ TEST(type_prop, augru_cell_invalid_input_dynamic_rank) {
     auto B = make_shared<opset9::Parameter>(element::f32, PartialShape{gates_count * hidden_size});
     auto A = make_shared<opset9::Parameter>(element::f32, PartialShape{batch_size, 1});
 
-    auto check_dynamic_gru = [](const shared_ptr<op::internal::AUGRUCell>& augru) -> bool {
-        return augru->output(0).get_partial_shape() == PartialShape::dynamic(2) &&
+    auto check_dynamic_gru = [&](const shared_ptr<op::internal::AUGRUCell>& augru) -> bool {
+        return augru->output(0).get_partial_shape() == PartialShape{batch_size, hidden_size} &&
                augru->output(0).get_element_type() == augru->input(0).get_element_type();
     };
 
-    // Invalid dynamic rank for W tensor.
+    // Dynamic rank for W tensor.
     auto W = make_shared<opset9::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
     auto augru_w = make_shared<op::internal::AUGRUCell>(X, H_t, W, R, B, A, hidden_size);
     EXPECT_TRUE(check_dynamic_gru(augru_w));
 
-    // Invalid dynamic rank for X tensor.
-    W = make_shared<opset9::Parameter>(element::f32, PartialShape{hidden_size, input_size});
+    // Dynamic rank for X tensor.
+    W = make_shared<opset9::Parameter>(element::f32, PartialShape{gates_count * hidden_size, input_size});
     X = make_shared<opset9::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
     auto augru_x = make_shared<op::internal::AUGRUCell>(X, H_t, W, R, B, A, hidden_size);
     EXPECT_TRUE(check_dynamic_gru(augru_x));
 
-    // Invalid dynamic rank for H_t tensor.
+    // Dynamic rank for H_t tensor.
     X = make_shared<opset9::Parameter>(element::f32, PartialShape{batch_size, input_size});
     H_t = make_shared<opset9::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
     auto augru_h = make_shared<op::internal::AUGRUCell>(X, H_t, W, R, B, A, hidden_size);
     EXPECT_TRUE(check_dynamic_gru(augru_h));
 
-    // Invalid dynamic rank for R tensor.
+    // Dynamic rank for R tensor.
     H_t = make_shared<opset9::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
     R = make_shared<opset9::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
     auto augru_r = make_shared<op::internal::AUGRUCell>(X, H_t, W, R, B, A, hidden_size);
     EXPECT_TRUE(check_dynamic_gru(augru_r));
 
-    // Invalid dynamic rank for B tensor.
+    // Dynamic rank for B tensor.
     R = make_shared<opset9::Parameter>(element::f32, PartialShape{gates_count * hidden_size, hidden_size});
     B = make_shared<opset9::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
     auto augru_b = make_shared<op::internal::AUGRUCell>(X, H_t, W, R, B, A, hidden_size);
     EXPECT_TRUE(check_dynamic_gru(augru_b));
 
-    // Invalid dynamic rank for A tensor.
+    // Dynamic rank for A tensor.
     B = make_shared<opset9::Parameter>(element::f32, PartialShape{gates_count * hidden_size});
     A = make_shared<opset9::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
     auto augru_a = make_shared<op::internal::AUGRUCell>(X, H_t, W, R, B, A, hidden_size);

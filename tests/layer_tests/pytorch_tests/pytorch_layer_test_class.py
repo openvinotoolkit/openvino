@@ -16,7 +16,12 @@ class PytorchLayerTest:
     _type_map = {
         "float64": Type.f64,
         "float32": Type.f32,
-        "int32": Type.i32
+        "bool": Type.boolean,
+        "int32": Type.i32,
+        "int64": Type.i64,
+        "int16": Type.i16,
+        "int8": Type.i8,
+        "uint8": Type.u8
     }
 
     @staticmethod
@@ -35,9 +40,17 @@ class PytorchLayerTest:
                                                        Example: "transform_1,transform_2"
         """
         import torch
+        if 'kwargs_to_prepare_input' in kwargs and kwargs['kwargs_to_prepare_input']:
+            inputs = self._prepare_input(**kwargs['kwargs_to_prepare_input'])
+        else:
+            inputs = self._prepare_input()
         with torch.no_grad():
             model.eval()
-            model = torch.jit.freeze(torch.jit.script(model))
+            if not kwargs.get('trace_model', False):
+                model = torch.jit.freeze(torch.jit.script(model))
+            else:
+                torch_inputs = [torch.from_numpy(inp) for inp in inputs]
+                model = torch.jit.freeze(torch.jit.trace(model, torch_inputs))
             graph = model.inlined_graph
             print(graph)
 
@@ -52,10 +65,7 @@ class PytorchLayerTest:
             im = fe.load(decoder)
             om = fe.convert(im)
 
-        if 'kwargs_to_prepare_input' in kwargs and kwargs['kwargs_to_prepare_input']:
-            inputs = self._prepare_input(kwargs['kwargs_to_prepare_input'])
-        else:
-            inputs = self._prepare_input()
+  
 
         params = om.get_parameters()
         # todo: support lists and dicts
@@ -80,11 +90,12 @@ class PytorchLayerTest:
         torch_inps = [torch.from_numpy(inp) for inp in inputs]
         fw_res = model(*torch_inps)
 
-        # check if results dtypes match
-        assert torch.tensor(np.array(list(infer_res.values()))).dtype == fw_res.dtype
-
         if not isinstance(fw_res, tuple):
             fw_res = (fw_res,)
+
+        # check if results dtypes match
+        for fw_tensor, ov_tensor in zip(fw_res, list(infer_res.values())):
+            assert torch.tensor(np.array(ov_tensor)).dtype == fw_tensor.dtype
 
         if 'custom_eps' in kwargs and kwargs['custom_eps'] is not None:
             custom_eps = kwargs['custom_eps']

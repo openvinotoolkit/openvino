@@ -108,7 +108,8 @@ bool evaluate(const ngraph::HostTensorPtr& arg0,
                                                        axis,
                                                        batch_dims);
     } else {
-        throw ov::Exception("Unexpected type");
+        throw ov::Exception(std::string("Unexpected type ") + arg1->get_element_type().c_type_string() +
+                            " for Gather evaluate method.");
     }
 
     return true;

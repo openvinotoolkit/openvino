@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "meta_data.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/opsets/opset.hpp"
 #include "ngraph/opsets/opset1.hpp"
@@ -455,10 +456,8 @@ public:
             m_xml_node.append_attribute(name.c_str()).set_value(join(attrs).c_str());
         } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ov::PartialShape>>(&adapter)) {
             const auto& attrs = a->get();
-            std::stringstream shape_str_stream;
-            shape_str_stream << attrs;
-            auto shape_str = shape_str_stream.str();
-            if (shape_str[0] == '{' && shape_str[shape_str.size() - 1] == '}')
+            auto shape_str = attrs.to_string();
+            if (shape_str[0] == '[' && shape_str[shape_str.size() - 1] == ']')
                 shape_str = shape_str.substr(1, shape_str.size() - 2);
             m_xml_node.append_attribute(name.c_str()).set_value(shape_str.c_str());
         } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ov::Dimension>>(&adapter)) {
@@ -765,6 +764,25 @@ void auto_pad_resolving(ov::Node* node) {
     }
 }
 
+void serialize_rt_info(pugi::xml_node& root, const std::string& name, const ov::Any& data) {
+    auto child = root.append_child(name.c_str());
+    if (data.is<std::shared_ptr<ov::Meta>>()) {
+        std::shared_ptr<ov::Meta> meta = data.as<std::shared_ptr<ov::Meta>>();
+        ov::AnyMap& map = *meta;
+        for (const auto& it : map) {
+            serialize_rt_info(child, it.first, it.second);
+        }
+    } else if (data.is<ov::AnyMap>()) {
+        const ov::AnyMap& any_map = data.as<ov::AnyMap>();
+        for (const auto& it : any_map) {
+            serialize_rt_info(child, it.first, it.second);
+        }
+    } else {
+        std::string value = data.as<std::string>();
+        child.append_attribute("value").set_value(value.c_str());
+    }
+}
+
 void ngfunction_2_ir(pugi::xml_node& netXml,
                      const ngraph::Function& f,
                      const std::map<std::string, ngraph::OpSet>& custom_opsets,
@@ -954,6 +972,15 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         edge.append_attribute("from-port").set_value(e.from_port);
         edge.append_attribute("to-layer").set_value(e.to_layer);
         edge.append_attribute("to-port").set_value(e.to_port);
+    }
+
+    // Serialize rt info
+    pugi::xml_node rt_info_node = netXml.append_child("rt_info");
+    for (const auto& it : f.get_rt_info()) {
+        // Skip IR version
+        if (it.first == "version")
+            continue;
+        serialize_rt_info(rt_info_node, it.first, it.second);
     }
 }
 

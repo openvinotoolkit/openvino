@@ -8,7 +8,6 @@ There are two options for using the custom operation configuration file:
 
 * Include a section with your kernels into the automatically-loaded `<lib_path>/cldnn_global_custom_kernels/cldnn_global_custom_kernels.xml` file.
 * Call the `ov::Core::set_property()` method from your application with the `"CONFIG_FILE"` key and the configuration file name as a value before loading the network that uses custom operations to the plugin:
-
 @sphinxtabset
 
 @sphinxtab{C++}
@@ -222,13 +221,13 @@ __kernel void example_relu_kernel(
 
 > **NOTE**: As described in the previous section, all items like
 > `INPUT0_TYPE` are actually defined as OpenCL (pre-)compiler inputs by
-> OpenVINO for efficiency reasons. See [Debugging
-> Tips](#debugging-tips) for information on debugging the results.
+> OpenVINO for efficiency reasons. See the [Debugging
+> Tips](#debugging-tips) below for information on debugging the results.
 
 ## Debugging Tips<a name="debugging-tips"></a>
 
-* **Using `printf` in the OpenCL™ Kernels**.
-To debug the specific values, you can use `printf` in your kernels.
+**Using `printf` in the OpenCL™ Kernels**.
+To debug the specific values, use `printf` in your kernels.
 However, be careful not to output excessively, which
 could generate too much data. The `printf` output is typical, so
 your output can be truncated to fit the buffer. Also, because of

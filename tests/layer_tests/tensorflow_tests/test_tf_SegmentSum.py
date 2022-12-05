@@ -39,7 +39,7 @@ class TestSegmentSum(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.nightly
+    @pytest.mark.precommit_tf_fe
     def test_segment_sum_basic(self, params, ie_device, precision, ir_version, temp_dir,
                                use_new_frontend, use_old_api):
         if not use_new_frontend:

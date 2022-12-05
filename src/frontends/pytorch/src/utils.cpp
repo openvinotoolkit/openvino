@@ -222,6 +222,12 @@ OutputVector convert_node(NodeContext* context) {
     return make_framework_node(context);
 }
 
+/// \brief Completely convert pytorch_model, creates PtFrameworkNode if not possible to convert node
+/// \param pytorch_model Input model
+/// \param external_tensor_map Is used for recursive calls of convert_pytorch_model and represent the external context
+///  which is visible from nested model. Empty external_tensor_map is used as an indication that this is a main body
+///  conversion.
+/// \return fully converted OV Model
 std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorch_model,
                                                  const TensorMap& external_tensor_map) {
     std::shared_ptr<ov::Model> resulting_model;  // define here to make a conversion in a nested scope
@@ -341,11 +347,15 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
             size_t input_idx = (size_t)std::stoll(name);
             param_names.insert(input_idx);
         }
-        for (const auto& tensor : mutated_tensors) {
-            if (param_names.count(tensor)) {
-                OV_FRONTEND_REQUIRE(tensor_map.count(tensor));
+        for (const auto& tensor_id : mutated_tensors) {
+            if (param_names.count(tensor_id)) {
+                OV_FRONTEND_REQUIRE(tensor_map.count(tensor_id));
                 // model input was mutated we need to make a result for it
-                results.push_back(std::make_shared<opset8::Result>(tensor_map.at(tensor)));
+                auto mutated_tensor = tensor_map.at(tensor_id);
+                // empty external_tensor_map means this is main body of the model and we don't want to creatre
+                // additional outputs in that case.
+                if (mutated_tensor.get_target_inputs().empty() && !external_tensor_map.empty())
+                    results.push_back(std::make_shared<opset8::Result>(tensor_map.at(tensor_id)));
             }
         }
         resulting_model = std::make_shared<ov::Model>(results, parameters);

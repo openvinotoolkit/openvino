@@ -8,6 +8,16 @@ set(TARGET_NAME openvino)
 # Add openvino library
 #
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /ignore:4098")
+    set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} /ignore:4098")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ignore:4098")
+
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /ignore:4286")
+    set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} /ignore:4286")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ignore:4286")
+endif()
+
 add_library(${TARGET_NAME}
     $<TARGET_OBJECTS:ngraph_obj>
     $<TARGET_OBJECTS:frontend_common_obj>
@@ -202,10 +212,10 @@ if(ENABLE_PKGCONFIG_GEN)
         endif()
     endforeach()
 
-    # fill in PKGCONFIG_OpenVINO_REQUIRES_PRIVATE and PKGCONFIG_OpenVINO_PRIVATE_DEPS
+    # fill in PKGCONFIG_OpenVINO_PRIVATE_DEPS
 
     if(ENABLE_SYSTEM_TBB)
-        set(PKGCONFIG_OpenVINO_REQUIRES_PRIVATE "tbb")
+        set(PKGCONFIG_OpenVINO_PRIVATE_DEPS "-ltbb")
     elseif(TBB_FOUND)
         if(NOT pkg_config_tbb_lib_dir)
             message(FATAL_ERROR "Internal error: variable 'pkg_config_tbb_lib_dir' is not defined")
@@ -215,24 +225,10 @@ if(ENABLE_PKGCONFIG_GEN)
     endif()
 
     if(ENABLE_SYSTEM_PUGIXML)
-        pkg_check_modules(PKGCONFIG_pugixml QUIET
-                          NO_CMAKE_PATH
-                          NO_CMAKE_ENVIRONMENT_PATH
-                          pugixml)
-        set(pugixml_dep "pugixml = ${PKGCONFIG_pugixml_VERSION}")
-
-        if(pugixml_buggy_pkgconfig)
-            if(PKGCONFIG_OpenVINO_PRIVATE_DEPS)
-                set(PKGCONFIG_OpenVINO_PRIVATE_DEPS "${PKGCONFIG_OpenVINO_PRIVATE_DEPS} -lpugixml")
-            else()
-                set(PKGCONFIG_OpenVINO_PRIVATE_DEPS "-lpugixml")
-            endif()
+        if(PKGCONFIG_OpenVINO_PRIVATE_DEPS)
+            set(PKGCONFIG_OpenVINO_PRIVATE_DEPS "${PKGCONFIG_OpenVINO_PRIVATE_DEPS} -lpugixml")
         else()
-            if(PKGCONFIG_OpenVINO_REQUIRES_PRIVATE)
-                set(PKGCONFIG_OpenVINO_REQUIRES_PRIVATE "${PKGCONFIG_OpenVINO_REQUIRES_PRIVATE}, ${pugixml_dep}")
-            else()
-                set(PKGCONFIG_OpenVINO_REQUIRES_PRIVATE "${pugixml_dep}")
-            endif()
+            set(PKGCONFIG_OpenVINO_PRIVATE_DEPS "-lpugixml")
         endif()
     endif()
 

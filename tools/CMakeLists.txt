@@ -5,7 +5,9 @@
 # C++ tools
 #
 
-add_subdirectory(compile_tool)
+if(ENABLE_COMPILE_TOOL)
+    add_subdirectory(compile_tool)
+endif()
 
 if(ENABLE_SAMPLES)
     add_subdirectory(legacy/benchmark_app)
@@ -27,12 +29,6 @@ install(DIRECTORY deployment_manager
 # outbound requirements.txt files for openvino-dev package
 
 ie_cpack_add_component(${OV_CPACK_COMP_DEV_REQ_FILES} HIDDEN)
-
-if(DEFINED ENV{CI_BUILD_DEV_TAG} AND NOT $ENV{CI_BUILD_DEV_TAG} STREQUAL "")
-    set(WHEEL_VERSION "${OpenVINO_VERSION}.$ENV{CI_BUILD_DEV_TAG}")
-else()
-    set(WHEEL_VERSION ${OpenVINO_VERSION})
-endif()
 
 set(REQUIREMENTS_IN "${CMAKE_CURRENT_SOURCE_DIR}/requirements_dev.in")
 set(EXTRAS_LIST _ caffe kaldi mxnet onnx pytorch tensorflow tensorflow2)

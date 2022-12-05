@@ -1,6 +1,6 @@
 #include <ie_core.hpp>
 
-#include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
+#include <transformations/low_precision/mark_dequantization_subgraph.hpp>
 
 #include <low_precision/common/quantization_granularity_restriction.hpp>
 #include <low_precision/convert_subtract_constant.hpp>
@@ -38,8 +38,8 @@ const bool useLpt = ngraph::pass::low_precision::LowPrecision::isFunctionQuantiz
 auto defaultPrecisions =
     useLpt ? ngraph::pass::low_precision::precision_set::int8_support : std::vector<ov::element::Type>{};
 if (useLpt) {
-    // disable constant folding on constant subgraph to use the subgraph for LPT
-    manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(defaultPrecisions);
+    // disable constant folding on dequantization subgraphs so they can be processed by LPT
+    manager.register_pass<ov::pass::MarkDequantizationSubgraph>(defaultPrecisions);
 }
 
 // nGraph common transformations happen here
@@ -72,20 +72,20 @@ if (useLpt) {
     // Low precision transformations plugin specific configuration: restrictions definition
     auto supportedPrecisions = std::vector<PrecisionsRestriction>({
         PrecisionsRestriction::create<ngraph::opset1::Convolution>({
-            {0, {ngraph::element::u8}},
-            {1, {ngraph::element::i8}},
+            {{0}, {ngraph::element::u8}},
+            {{1}, {ngraph::element::i8}},
         }),
         PrecisionsRestriction::create<ngraph::opset1::ConvolutionBackpropData>({
-            {0, {ngraph::element::u8, ngraph::element::i8}},
-            {1, {ngraph::element::i8}}
+            {{0}, {ngraph::element::u8, ngraph::element::i8}},
+            {{1}, {ngraph::element::i8}}
         }),
         PrecisionsRestriction::create<ngraph::opset1::GroupConvolution>({
-            {0, {ngraph::element::u8}},
-            {1, {ngraph::element::i8}}
+            {{0}, {ngraph::element::u8}},
+            {{1}, {ngraph::element::i8}}
         }),
         PrecisionsRestriction::create<ngraph::opset1::Multiply>({
-            {0, {ngraph::element::u8}},
-            {1, {ngraph::element::i8}},
+            {{0}, {ngraph::element::u8}},
+            {{1}, {ngraph::element::i8}},
         }),
     });
 
@@ -135,8 +135,8 @@ using namespace ngraph::pass::low_precision;
 //! [lpt_supported_precisions]
 auto supportedPrecisions = std::vector<PrecisionsRestriction>({
     PrecisionsRestriction::create<ngraph::opset1::Convolution>({
-        {0, {ngraph::element::u8}},
-        {1, {ngraph::element::i8}},
+        {{0}, {ngraph::element::u8}},
+        {{1}, {ngraph::element::i8}},
     }),
 });
 
@@ -199,8 +199,8 @@ using namespace ngraph::pass::low_precision;
 //! [lpt_markup_pipeline]
 auto supportedPrecisions = std::vector<PrecisionsRestriction>({
     PrecisionsRestriction::create<ngraph::opset1::Convolution>({
-        {0, {ngraph::element::u8}},
-        {1, {ngraph::element::i8}},
+        {{0}, {ngraph::element::u8}},
+        {{1}, {ngraph::element::i8}},
     }),
 });
 

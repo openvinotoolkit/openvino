@@ -104,7 +104,7 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
                                      const std::vector<Eltwise::EltwiseData>& eltwise_data,
                                      const std::vector<ov::intel_cpu::Type>& ops_list,
                                      const dnnl::post_ops& post_ops)
-    : jit_uni_eltwise_kernel(jep), jit_generator(), eltwise_data_(eltwise_data), ops_list_(ops_list), post_ops_(post_ops) {}
+    : jit_uni_eltwise_kernel(jep), jit_generator(jit_name()), eltwise_data_(eltwise_data), ops_list_(ops_list), post_ops_(post_ops) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -2132,6 +2132,16 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDim
         default: IE_THROW() << errorPrefix << "as post operation is not supported";
         }
     } else {
+        // per-tensor EltwisePowerStatic can be implemented with more well-supported eltwise postOps
+        if (getAlgorithm() == Algorithm::EltwisePowerStatic) {
+            // d = s*beta + gamma
+            ops.append_eltwise(1.0, dnnl::algorithm::eltwise_linear, getBeta(), getGamma());
+            if (getAlpha() != 1.0f) {
+                // d = 1 * s^alpha
+                ops.append_eltwise(1.0, dnnl::algorithm::eltwise_pow, 1.0f, getAlpha());
+            }
+            return;
+        }
         int channelSize = 1;
         if (channelAxis >= 0) {
             const auto chIdx = postOpDims.size() > 1 ? channelAxis : 0;
@@ -2194,74 +2204,98 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDim
     }
 }
 
-void Eltwise::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem, const int channelAxis) {
-    appendPostOpsImpl(ops, postOpDims, postOpsMem, channelAxis);
+void Eltwise::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::unordered_map<int, MemoryPtr>& postOpsMem, const int channelAxis) {
+    std::vector<MemoryPtr> postOpsMemPtrs;
+    appendPostOpsImpl(ops, postOpDims, postOpsMemPtrs, channelAxis);
+
+    IE_ASSERT(postOpsMemPtrs.size() <= 1) << "at most 1 post ops memory args can be appended.";
+
+    if (!postOpsMemPtrs.empty()) {
+        postOpsMem[DNNL_ARG_ATTR_MULTIPLE_POST_OP(ops.len() - 1) | DNNL_ARG_SRC_1] = postOpsMemPtrs[0];
+    }
 }
 
 void Eltwise::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis) {
     appendPostOpsImpl(ops, postOpDims, postOpsMem, channelAxis);
 }
 
-void Eltwise::appendBinPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::vector<MemoryPtr>& binaryPostOpsMem) {
+bool Eltwise::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc, bool isLastPostOp, dnnl::memory::data_type outDataType, bool allowBinary) {
     const std::string errorPrefix = "Appending Eltwise node with name '" + getName() + "' as binary post op ";
-    VectorDims broadcastBinaryShape(postOpDims.size(), 1);
 
-    auto appendBinary = [&](const dnnl::algorithm alg, MemoryPtr &memPtr, const std::vector<float> &data) {
-        if (data.empty())
-            IE_THROW() << errorPrefix << "cannot be performed since buffers are not allocated";
-        if (broadcastingPolicy == Undefined)
-            IE_THROW() << errorPrefix << "cannot be performed since policy is Undefined";
-
-        DnnlBlockedMemoryDesc memoryDesc(Precision::FP32, broadcastingPolicy == PerTensor ? Shape(broadcastBinaryShape) : Shape(postOpDims));
-
-        ops.append_binary(alg, memoryDesc.getDnnlDesc());
-
-        if (!memPtr) {
-            memPtr.reset(new Memory(getEngine()));
-            memPtr->Create(memoryDesc, &data[0]);
-
-            binaryPostOpsMem.push_back(memPtr);
+    if (getOneDnnAlgorithm() != dnnl::algorithm::undef) {
+        switch (getOneDnnAlgorithm()) {
+        case dnnl::algorithm::eltwise_relu:
+        case dnnl::algorithm::eltwise_tanh:
+        case dnnl::algorithm::eltwise_elu:
+        case dnnl::algorithm::eltwise_square:
+        case dnnl::algorithm::eltwise_abs:
+        case dnnl::algorithm::eltwise_sqrt:
+        case dnnl::algorithm::eltwise_bounded_relu:
+        case dnnl::algorithm::eltwise_soft_relu:
+        case dnnl::algorithm::eltwise_logistic:
+        case dnnl::algorithm::eltwise_exp:
+        case dnnl::algorithm::eltwise_gelu_erf:
+        case dnnl::algorithm::eltwise_gelu_tanh:
+        case dnnl::algorithm::eltwise_clip:
+        case dnnl::algorithm::eltwise_swish:
+        case dnnl::algorithm::eltwise_hardswish:
+        case dnnl::algorithm::eltwise_mish:
+        case dnnl::algorithm::eltwise_hsigmoid:
+        case dnnl::algorithm::eltwise_round_half_to_even:
+        case dnnl::algorithm::eltwise_round_half_away_from_zero:
+            dnnlpoc.appendEltwise(1.0, getOneDnnAlgorithm(), getAlpha(), getBeta());
+            break;
+        case dnnl::algorithm::eltwise_linear:
+            // call dnnlpoc's specialized API to generate optimized postOps sequence
+            dnnlpoc.appendLinear({getAlpha()}, {getBeta()});
+            break;
+        default: IE_THROW() << errorPrefix << "as post operation is not supported";
         }
-    };
-
-    switch (getAlgorithm()) {
-    case Algorithm::EltwiseAdd:
-    case Algorithm::EltwiseSubtract:
-        appendBinary(dnnl::algorithm::binary_add, shiftsMemory, shifts);
-        break;
-    case Algorithm::EltwiseDivide:
-    case Algorithm::EltwiseMultiply:
-        appendBinary(dnnl::algorithm::binary_mul, scalesMemory, scales);
-        break;
-    case Algorithm::EltwiseMulAdd:
-        appendBinary(dnnl::algorithm::binary_mul, scalesMemory, scales);
-        appendBinary(dnnl::algorithm::binary_add, shiftsMemory, shifts);
-        break;
-    case Algorithm::EltwisePowerStatic:
-        if (beta != 1.0f) // Multiply if has scales
-            appendBinary(dnnl::algorithm::binary_mul, scalesMemory, scales);
-        if (gamma != 0.0f) // Add only if has shifts
-            appendBinary(dnnl::algorithm::binary_add, shiftsMemory, shifts);
-        break;
-    case Algorithm::EltwisePrelu:
-        appendBinary(dnnl::algorithm::binary_prelu, scalesMemory, scales);
-        break;
-    default:
-        IE_THROW() << errorPrefix << "as post operation is not supported";
+    } else {
+        switch (getAlgorithm()) {
+        case Algorithm::EltwiseAdd:
+        case Algorithm::EltwiseSubtract:
+            return dnnlpoc.appendShift(shifts, allowBinary);
+        case Algorithm::EltwiseDivide:
+        case Algorithm::EltwiseMultiply:
+            return dnnlpoc.appendScale(scales, allowBinary);
+        case Algorithm::EltwiseMulAdd:
+            return dnnlpoc.appendLinear(scales, shifts, allowBinary);
+        case Algorithm::EltwisePowerStatic:
+            if (beta != 1.0f && gamma != 0.0f) {
+                return dnnlpoc.appendLinear(scales, shifts, allowBinary);
+            } else if (beta != 1.0f) {// Multiply if has scales
+                return dnnlpoc.appendScale(scales, allowBinary);
+            } else if (gamma != 0.0f) {// Add only if has shifts
+                return dnnlpoc.appendShift(shifts, allowBinary);
+            }
+            break;
+        case Algorithm::EltwisePrelu:
+            if (!allowBinary)
+                return false;
+            dnnlpoc.appendBinary(dnnl::algorithm::binary_prelu, scales);
+            break;
+        default:
+            IE_THROW() << errorPrefix << "as post operation is not supported";
+        }
     }
+    return true;
 }
 
 bool Eltwise::canFuse(const NodePtr& node) const {
-    auto isSuitableNode = [this](const Eltwise* node) {
-        // [WA] Since execution precision change from I32 to FP32 for Divide operation may lead to incorrect results
-        // we disable its fusing otherwise there is no guarantee it will be executed it I32
-        // [TODO] We need to rewrite support for different precisions at all to avoid implicit conversions to FP32
-        // (all should be handled via explicit convert operations)
-        if (node->getAlgorithm() == Algorithm::EltwiseDivide) {
-            for (const auto &originalInputPrecision : getOriginalInputPrecisions()) {
-                if (originalInputPrecision == Precision::I32) {
-                    return false;
-                }
+    auto isIntegerComputeSupported = [this](const Node* node) {
+        if (!one_of(node->getAlgorithm(), Algorithm::EltwiseAdd,
+                                          Algorithm::EltwiseMultiply,
+                                          Algorithm::EltwiseMulAdd,
+                                          Algorithm::EltwiseSubtract,
+                                          Algorithm::EltwiseDivide,
+                                          Algorithm::EltwiseSquaredDifference)) {
+            return false;
+        }
+
+        for (const auto &originalInputPrecision : node->getOriginalInputPrecisions()) {
+            if (originalInputPrecision != Precision::I32) {
+                return false;
             }
         }
 
@@ -2271,9 +2305,10 @@ bool Eltwise::canFuse(const NodePtr& node) const {
     if (!mayiuse(x64::sse41) || getInputShapeAtPort(0).getRank() > MAX_ELTWISE_DIM_RANK)
         return false;
 
-    if (!isSuitableNode(this)) {
+
+    bool isIntegerNode = isIntegerComputeSupported(this);
+    if (isIntegerNode && node->getType() != Type::Eltwise)
         return false;
-    }
 
     // FQ inputs with quantization parameters will be hided inside post_op object, so will not increase inputs number
     size_t addedInputEdgesNum = node->getType() != Type::FakeQuantize ? (node->getParentEdges().size() - 1) : 0;
@@ -2281,6 +2316,16 @@ bool Eltwise::canFuse(const NodePtr& node) const {
         return false;
 
     if (node->getType() == Type::Eltwise) {
+        // [WA] Since execution precision change from I32 to FP32 for arithmetic operations may lead to incorrect results
+        // we disable fusing cases which may lead to invalid precision conversions inside the kernel
+        // [TODO] We need to rewrite support for different precisions at all to avoid implicit conversions to FP32
+        // (all should be handled via explicit convert operations)
+        bool isIntegerFusingNode = isIntegerComputeSupported(node.get());
+        if (isIntegerNode && !isIntegerFusingNode ||
+                !isIntegerNode && isIntegerFusingNode) {
+            return false;
+        }
+
         if (node->getParentEdgesAtPort(0)[0]->getParent().get() != this) {
             // Eltwise jitter doesn't respect commutative property, so fusing is disabled in case it applied not for 0-th port.
             if (one_of(node->getAlgorithm(), Algorithm::EltwiseSubtract,

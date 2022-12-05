@@ -50,6 +50,7 @@ void ConvertConstantsToParameters(const std::shared_ptr<ngraph::snippets::op::Su
 }
 
 CommonOptimizations::CommonOptimizations() {
+    MATCHER_SCOPE(CommonOptimizations);
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::CommonOptimizations");
 
@@ -78,7 +79,8 @@ CommonOptimizations::CommonOptimizations() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(ngraph::pattern::wrap_type<ngraph::snippets::op::Subgraph>(), "snippets::pass::CommonOptimizations");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(ngraph::pattern::wrap_type<ngraph::snippets::op::Subgraph>(),
+                                                        matcher_name);
     this->register_matcher(m, callback);
 }
 
