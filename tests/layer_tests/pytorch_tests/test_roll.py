@@ -37,6 +37,5 @@ class TestRoll(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     def test_roll(self, shifts, dim, ie_device, precision, ir_version):
-        if ie_device == "CPU":
-            self._test(*self.create_model(shifts, dim), ie_device, precision, ir_version)
+        self._test(*self.create_model(shifts, dim), ie_device, precision, ir_version)
 
