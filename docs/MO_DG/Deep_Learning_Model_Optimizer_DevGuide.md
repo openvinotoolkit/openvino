@@ -122,7 +122,7 @@ refer to the [Model Conversion Tutorials](prepare_model/convert_model/Convert_Mo
 ## MO Python API
 
 - Model Optimizer has Python API for model conversion, which is represented by convert_model() method in openvino.tools.mo namespace.
-  convert_model() has all the funcionality available from command line tool plus the possibity of passing Python objects (models, extensions) to convert_model() directly from memory.
+  convert_model() has all the functionality available from command line tool plus the possibility of passing Python objects (models, extensions) to convert_model() directly from memory.
   convert_model() returns openvino.runtime.Model object which can be compiled and infered or serialized to IR.
 
 ```sh
@@ -131,7 +131,7 @@ from openvino.tools.mo import convert_model
 ov_model = convert_model("resnet.onnx")
 ```
 
-MO Python API allows to convert PyTorch models. Converting to PyTorch requires providing "input_shape" or "example_input".
+MO Python API allows conversion of PyTorch models. Converting to PyTorch requires providing "input_shape" or "example_input".
 ```sh
 import torchvision
 
