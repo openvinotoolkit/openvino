@@ -130,7 +130,7 @@ void RemoteBlobImpl::allocate() {
     assert(m_memObject == nullptr);
 
     auto _impl = getContextImpl(m_context.lock());
-    _impl->acquire_lock();
+    std::lock_guard<ExecutionContextImpl> locker(*_impl);
 
     try {
         switch (m_mem_type) {
@@ -176,12 +176,10 @@ void RemoteBlobImpl::allocate() {
         default:
             m_memObject.reset();
         }
-    } catch (const std::exception& e) {
-        _impl->release_lock();
+    } catch(const std::exception& e) {
         std::cerr << e.what() << '\n';
         throw e;
     }
-    _impl->release_lock();
 }
 
 const std::shared_ptr<IAllocator>& RemoteBlobImpl::getAllocator() const noexcept {
@@ -275,22 +273,20 @@ LockedMemory<void> RemoteBlobImpl::wmap() noexcept {
 }
 
 void RemoteAllocator::regLockedBlob(void* handle, const RemoteBlobImpl* blob) {
-    acquire_lock();
+    std::lock_guard<RemoteAllocator> locker(*this);
     auto iter = m_lockedBlobs.find(handle);
     if (iter == m_lockedBlobs.end()) {
         m_lockedBlobs.emplace(handle, blob);
     }
-    release_lock();
 }
 
 void RemoteAllocator::unlock(void* handle) noexcept {
-    acquire_lock();
+    std::lock_guard<RemoteAllocator> locker(*this);
     auto iter = m_lockedBlobs.find(handle);
     if (iter != m_lockedBlobs.end()) {
         iter->second->unlock();
         m_lockedBlobs.erase(iter);
     }
-    release_lock();
 }
 
 ExecutionContextImpl::ExecutionContextImpl(const std::shared_ptr<IInferencePlugin> plugin,
@@ -301,7 +297,7 @@ ExecutionContextImpl::ExecutionContextImpl(const std::shared_ptr<IInferencePlugi
         , m_config(config)
         , m_type(ContextType::OCL)
         , m_plugin(plugin) {
-    lock.clear(std::memory_order_relaxed);
+    m_lock.clear(std::memory_order_relaxed);
     gpu_handle_param _context_id = nullptr;
     gpu_handle_param _va_device = nullptr;
     int ctx_device_id = 0;
