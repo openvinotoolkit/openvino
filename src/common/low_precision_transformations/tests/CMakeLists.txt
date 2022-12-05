@@ -29,9 +29,6 @@ ov_add_test_target(
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDENCIES
         LINK_LIBRARIES
-            gtest
-            gtest_main
-            openvino::runtime::dev
             commonTestUtils
             lptNgraphFunctions
             gmock
