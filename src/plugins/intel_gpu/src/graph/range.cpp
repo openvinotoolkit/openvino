@@ -27,7 +27,7 @@ layout range_inst::calc_output_layout(range_node const& node, kernel_impl_params
 template<typename ShapeType>
 std::vector<layout> range_inst::calc_output_layouts(range_node const& /*node*/, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<range>();
-    auto output_data_type = desc->output_data_type.value_or(impl_param.get_input_layout().data_type);
+    auto output_data_type = desc->output_data_types[0].value_or(impl_param.get_input_layout().data_type);
 
     ov::op::v4::Range op;
     op.set_output_type(data_type_to_element_type(output_data_type));
