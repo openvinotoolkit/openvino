@@ -37,7 +37,7 @@ TEST_P(fully_connected_fake_align_test, fake_alignment) {
 
     auto input_layout_prim = std::make_shared<input_layout>("input", p.input_layout);
     auto weight_layout_prim = std::make_shared<input_layout>("weight", p.weight_layout);
-    auto fully_connected_prim = std::make_shared<fully_connected>("output", "input", "weight", "", p.data_type);
+    auto fully_connected_prim = std::make_shared<fully_connected>("output", input_info("input"), "weight", "", p.data_type);
 
     cldnn::program prog(engine);
 
@@ -48,14 +48,14 @@ TEST_P(fully_connected_fake_align_test, fake_alignment) {
     program_wrapper::add_connection(prog, weight_node, fully_connected_node);
 
     auto impl_param = fully_connected_node.get_kernel_impl_params();
-    impl_param->output_layout = fully_connected_inst::calc_output_layouts<ov::PartialShape>(fully_connected_node, *fully_connected_node.get_kernel_impl_params())[0];
+    impl_param->output_layouts[0] = fully_connected_inst::calc_output_layouts<ov::PartialShape>(fully_connected_node, *fully_connected_node.get_kernel_impl_params())[0];
 
-    if (impl_param->get_input_layout().is_dynamic() || impl_param->output_layout.is_dynamic()) {
+    if (impl_param->get_input_layout().is_dynamic() || impl_param->get_output_layout().is_dynamic()) {
         EXPECT_THROW(fully_connected_inst::get_fake_aligned_params(*impl_param), std::exception);
     } else {
         auto updated_param = fully_connected_inst::get_fake_aligned_params(*impl_param);
         ASSERT_EQ(updated_param.get_input_layout(), p.expected_input_layout);
-        ASSERT_EQ(updated_param.output_layout, p.expected_output_layout);
+        ASSERT_EQ(updated_param.get_output_layout(), p.expected_output_layout);
     }
 }
 

@@ -14,13 +14,10 @@
 #include "split_shape_inference.hpp"
 
 namespace cldnn {
-primitive_type_id crop::type_id() {
-    static primitive_type_base<crop> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(crop)
 
 layout crop_inst::calc_output_layout(crop_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for crop_node!");
     auto desc = impl_param.typed_desc<crop>();
     const auto& ref_in_sizes = desc->reference_input;
@@ -44,7 +41,7 @@ layout crop_inst::calc_output_layout(crop_node const& node, kernel_impl_params c
 
 template<typename ShapeType>
 std::vector<layout> crop_inst::calc_output_layouts(const crop_node& /*node*/, const kernel_impl_params& impl_param) {
-    OPENVINO_ASSERT(static_cast<bool>(impl_param.desc->output_data_type) == false,
+    OPENVINO_ASSERT(static_cast<bool>(impl_param.desc->output_data_types[0]) == false,
            "Output data type forcing is not supported for crop_node!");
 
     auto desc = impl_param.typed_desc<crop>();
@@ -244,7 +241,7 @@ crop_inst::typed_primitive_inst(network& network, crop_node const& node) : paren
 }
 
 void crop_inst::on_execute() {
-    if (!node->can_be_optimized())
+    if (!can_be_optimized())
         return;
 
     if (_outputs[0] && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
@@ -254,17 +251,18 @@ void crop_inst::on_execute() {
 }
 
 void crop_inst::reuse_input() {
-    _outputs[0] = _network.get_engine().reinterpret_buffer(input_memory(), node->get_output_layout());
+    update_output_memory();
 }
 
 void crop_inst::update_output_memory() {
-    if (!node->can_be_optimized())
+    if (!can_be_optimized())
         return;
 
     if (_outputs[0] && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
         return;
 
-    _outputs[0] = _network.get_engine().reinterpret_buffer(input_memory(), node->get_output_layout());
+    _outputs[0] = _network.get_engine().reinterpret_buffer(input_memory(), _impl_params->get_output_layout());
+    _mem_allocated = false;
 }
 
 }  // namespace cldnn

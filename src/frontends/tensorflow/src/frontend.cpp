@@ -20,6 +20,7 @@
 #include "tf_framework_node.hpp"
 #include "utils.hpp"
 
+using namespace ov;
 using namespace ov::frontend::tensorflow;
 
 namespace {
@@ -94,6 +95,12 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
         const auto& input_tensor_place = std::dynamic_pointer_cast<TensorPlace>(input_place);
         auto input_shape = input_tensor_place->get_partial_shape();
         auto input_type = input_tensor_place->get_element_type();
+
+        // in case of cutting graph, types of custom inputs can be undefined,
+        // according to MO help, fp32 is used by default in such cases
+        if (input_type == element::undefined) {
+            input_type = element::f32;
+        }
 
         auto param = std::make_shared<ov::opset8::Parameter>(input_type, input_shape);
         set_node_name(input_name, param);
@@ -434,8 +441,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
     manager.register_pass<pass::GRUBlockCellReplacer>();
 
     // TODO: reimplement TransposeSinking that does not corrupt filters for Convolution
-    // and preserve tensor names in case of sinking
-    // manager.register_pass<ov::frontend::tensorflow::pass::TransposeSinking>();
+    manager.register_pass<ov::frontend::tensorflow::pass::TransposeSinking>();
     manager.run_passes(function);
 }
 

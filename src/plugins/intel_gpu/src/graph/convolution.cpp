@@ -15,10 +15,7 @@
 using namespace ov::intel_gpu;
 
 namespace cldnn {
-primitive_type_id convolution::type_id() {
-    static primitive_type_base<convolution> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(convolution)
 
 layout convolution_inst::calc_output_layout(convolution_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<convolution>();
@@ -584,5 +581,21 @@ convolution_inst::typed_primitive_inst(network& network, convolution_node const&
                               input_layout.feature(),
                               "Weights/ifm mismatch");
     }
+}
+
+void convolution_inst::save(cldnn::BinaryOutputBuffer& ob) const {
+    parent::save(ob);
+
+    ob << _groups;
+    ob << _split;
+    ob << _deform_conv_dep_offset;
+}
+
+void convolution_inst::load(cldnn::BinaryInputBuffer& ib) {
+    parent::load(ib);
+
+    ib >> _groups;
+    ib >> _split;
+    ib >> _deform_conv_dep_offset;
 }
 }  // namespace cldnn

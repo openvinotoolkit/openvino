@@ -5,19 +5,25 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertOpSet2ToOpSet1;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::ConvertOpSet2ToOpSet1 : public ngraph::pass::FunctionPass {
+class ov::pass::ConvertOpSet2ToOpSet1 : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("ConvertOpSet2ToOpSet1", "0");
-    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
+
+namespace ngraph {
+namespace pass {
+using ov::pass::ConvertOpSet2ToOpSet1;
+}  // namespace pass
+}  // namespace ngraph

@@ -445,6 +445,7 @@ static cldnn::format convert_format(dnnl::memory::format_tag fmt, bool is_groupe
         case dnnl::memory::format_tag::aBCde4b8c8b2c: return cldnn::format::g_os_is_yx_osa4_isa8_osv8_isv2;
         case dnnl::memory::format_tag::aBCde8b2c: return cldnn::format::g_os_is_yx_osv8_isv2;
         case dnnl::memory::format_tag::aBCde8b4c: return cldnn::format::g_os_is_yx_osv8_isv4;
+        case dnnl::memory::format_tag::aBcde8b: return cldnn::format::g_os_iyx_osv8;
         case dnnl::memory::format_tag::aBCd2b8c16b4c: return cldnn::format::g_os_is_yx_osa2_isa8_osv16_isv4;
         case dnnl::memory::format_tag::aBCd2b8c16b2c: return cldnn::format::g_os_is_yx_osa2_isa8_osv16_isv2;
         case dnnl::memory::format_tag::aBCdef16c16b: return cldnn::format::g_os_is_zyx_isv16_osv16;
@@ -512,6 +513,26 @@ cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped) {
                 && blk.inner_idxs[0] == 1 && blk.inner_idxs[1] == 2) {
                     if (compare_strides(order, {0, 1, 3, 4, 2}))        return cldnn::format::g_os_yx_is_osv8_isv4;
                     else if (compare_strides(order, {0, 1, 3, 2, 4}))   return cldnn::format::g_os_y_is_x_osv8_isv4;
+            } else if (desc.data.ndims == 6 && blk.inner_nblks == 2
+                && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 2
+                && blk.inner_idxs[0] == 1 && blk.inner_idxs[1] == 2) {
+                    if (compare_strides(order, {0, 1, 3, 4, 5, 2}))       return cldnn::format::g_os_zyx_is_osv8_isv2;
+                    else if (compare_strides(order, {0, 1, 3, 4, 2, 5}))  return cldnn::format::g_os_zy_is_x_osv8_isv2;
+            } else if (desc.data.ndims == 6 && blk.inner_nblks == 2
+                && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 4
+                && blk.inner_idxs[0] == 1 && blk.inner_idxs[1] == 2) {
+                    if (compare_strides(order, {0, 1, 3, 4, 5, 2}))       return cldnn::format::g_os_zyx_is_osv8_isv4;
+                    else if (compare_strides(order, {0, 1, 3, 4, 2, 5}))  return cldnn::format::g_os_zy_is_x_osv8_isv4;
+            } else if (desc.data.ndims == 6 && blk.inner_nblks == 3
+                && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 2
+                && blk.inner_idxs[0] == 2 && blk.inner_idxs[1] == 1 && blk.inner_idxs[2] == 2
+                && compare_strides(order, {0, 1, 2, 3, 4, 5})) {
+                return cldnn::format::g_os_is_zyx_isa8_osv8_isv2;
+            } else if (desc.data.ndims == 6 && blk.inner_nblks == 3
+                && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 4
+                && blk.inner_idxs[0] == 2 && blk.inner_idxs[1] == 1 && blk.inner_idxs[2] == 2
+                && compare_strides(order, {0, 1, 2, 3, 4, 5})) {
+                return cldnn::format::g_os_is_zyx_isa8_osv8_isv4;
             }
         } else {
             if (desc.data.ndims == 4 && blk.inner_nblks == 4

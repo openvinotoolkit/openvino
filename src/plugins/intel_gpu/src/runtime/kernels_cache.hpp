@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/kernel.hpp"
 
@@ -16,6 +17,8 @@
 #include <set>
 
 #include <threading/ie_cpu_streams_executor.hpp>
+#include "kernels_factory.hpp"
+#include "ocl/ocl_engine.hpp"
 
 namespace cldnn {
 class kernels_cache {
@@ -105,7 +108,10 @@ public:
         _kernels.erase(id);
     }
     std::vector<kernel_id> add_kernels_source(std::vector<std::shared_ptr<kernel_string>> kernel_sources, bool dump_custom_program = false);
+    void add_kernels(const std::vector<std::string>& kernel_ids, const std::vector<kernel::ptr>& kernels);
     void compile();
+    void save(BinaryOutputBuffer& ob) const;
+    void load(BinaryInputBuffer& ib);
 };
 
 }  // namespace cldnn

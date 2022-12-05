@@ -169,10 +169,10 @@ TYPED_TEST(normalize_basic, basic) {
     topology topology;
     topology.add(input_layout("Input0", input->get_layout()));
     topology.add(data("Input1", weights));
-    topology.add(reorder("reordered_Input0", "Input0", this->format, this->data_type));
-    topology.add(reorder("reordered_Input1", "Input1", this->format, data_types::f32));
-    topology.add(normalize("normalize2", "reordered_Input0", "reordered_Input1", this->across_spatial));
-    topology.add(reorder("plane_normalize2", "normalize2", format::bfyx, this->output_data_type));
+    topology.add(reorder("reordered_Input0", input_info("Input0"), this->format, this->data_type));
+    topology.add(reorder("reordered_Input1", input_info("Input1"), this->format, data_types::f32));
+    topology.add(normalize("normalize2", input_info("reordered_Input0"), "reordered_Input1", this->across_spatial));
+    topology.add(reorder("plane_normalize2", input_info("normalize2"), format::bfyx, this->output_data_type));
 
     network network(engine, topology);
 

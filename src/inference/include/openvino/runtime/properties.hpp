@@ -295,7 +295,7 @@ enum class PerformanceMode {
     UNDEFINED = -1,             //!<  Undefined value, performance setting may vary from device to device
     LATENCY = 1,                //!<  Optimize for latency
     THROUGHPUT = 2,             //!<  Optimize for throughput
-    CUMULATIVE_THROUGHPUT = 3,  //!< Optimize for cumulative throughput
+    CUMULATIVE_THROUGHPUT = 3,  //!<  Optimize for cumulative throughput
 };
 
 /** @cond INTERNAL */
@@ -889,5 +889,5 @@ static constexpr Property<Affinity> affinity{"AFFINITY"};
  * @brief The devices that the inference task been executed.
  * @ingroup ov_runtime_cpp_prop_api
  */
-static constexpr Property<std::string> execution_devices{"EXECUTION_DEVICES"};
+static constexpr Property<std::vector<std::string>, PropertyMutability::RO> execution_devices{"EXECUTION_DEVICES"};
 }  // namespace ov

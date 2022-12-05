@@ -16,10 +16,11 @@ using custom_gpu_primitive_node = typed_program_node<custom_gpu_primitive>;
 template <>
 class typed_primitive_inst<custom_gpu_primitive> : public typed_primitive_inst_base<custom_gpu_primitive> {
     using parent = typed_primitive_inst_base<custom_gpu_primitive>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(custom_gpu_primitive_node const& node, kernel_impl_params const& impl_param) {
-        assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
+        assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
                "Output data type forcing is not supported for "
                "custom_gpu_primitive_node!");
         layout output_layout = impl_param.typed_desc<custom_gpu_primitive>()->output_layout;

@@ -5,7 +5,7 @@
 #pragma once
 
 #include "common_test_utils/file_utils.hpp"
-#include "common_test_utils/file_utils.hpp"
+#include <list>
 
 namespace ov {
 namespace test {
@@ -17,6 +17,9 @@ extern std::vector<std::string> IRFolderPaths;
 extern std::vector<std::string> disabledTests;
 
 extern ov::AnyMap pluginConfig;
+
+extern std::list<std::string> dirList;
+#define CONFORMANCE_OTHER_OPS "Other"
 
 inline ov::AnyMap readPluginConfig(const std::string &configFilePath) {
     if (!CommonTestUtils::fileExists(configFilePath)) {
@@ -44,19 +47,49 @@ inline ov::AnyMap readPluginConfig(const std::string &configFilePath) {
     return config;
 }
 
-inline std::vector<std::string> getModelPaths(const std::vector<std::string>& conformance_ir_paths) {
-    std::vector<std::string> result;
-    for (const auto& conformance_ir_path : conformance_ir_paths) {
-        std::vector<std::string> tmp_buf;
-        if (CommonTestUtils::directoryExists(conformance_ir_path)) {
-            tmp_buf = CommonTestUtils::getFileListByPatternRecursive({conformance_ir_path}, {std::regex(R"(.*\.xml)")});
-        } else if (CommonTestUtils::fileExists(conformance_ir_path)) {
-            tmp_buf = CommonTestUtils::readListFiles({conformance_ir_path});
-        } else {
-            continue;
+inline std::vector<std::string> getModelPaths(const std::vector<std::string>& conformance_ir_paths,
+                                              const std::string opName = CONFORMANCE_OTHER_OPS) {
+    // This is required to prevent re-scan folders each call in case there is nothing found
+    static bool listPrepared = false;
+    if (!listPrepared) {
+        // Looking for any applicable files in a folders
+        for (const auto& conformance_ir_path : conformance_ir_paths) {
+            std::vector<std::string> tmp_buf;
+            if (CommonTestUtils::directoryExists(conformance_ir_path)) {
+                tmp_buf =
+                    CommonTestUtils::getFileListByPatternRecursive({conformance_ir_path}, {std::regex(R"(.*\.xml)")});
+            } else if (CommonTestUtils::fileExists(conformance_ir_path)) {
+                tmp_buf = CommonTestUtils::readListFiles({conformance_ir_path});
+            } else {
+                continue;
+            }
+            //Save it in a list
+            dirList.insert(dirList.end(), tmp_buf.begin(), tmp_buf.end());
         }
-        result.insert(result.end(), tmp_buf.begin(), tmp_buf.end());
+        listPrepared = true;
     }
+
+    std::vector<std::string> result;
+
+    if (opName != "" && opName != CONFORMANCE_OTHER_OPS) {
+        // Looking for files which contains /opName/ in file path, an expecting file structure is: /opName/precision/file.xml
+        auto opLookup = std::regex("[\\\\/]" + opName + "-?([^\\\\/])?[\\\\/]", std::regex::icase);
+        auto it = dirList.begin();
+        while (it != dirList.end()) {
+            if (std::regex_search(*it, opLookup)) {
+                // Remove file in case it apply to the operation
+                result.push_back(*it);
+                it = dirList.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    } else if (opName == CONFORMANCE_OTHER_OPS) {
+        // For "Undefined" operation name - run all applicable files in "Undefined" handler
+        result.insert(result.end(), dirList.begin(), dirList.end());
+        dirList.clear();
+    }
+
     return result;
 }
 

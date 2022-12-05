@@ -14,10 +14,7 @@
 #include <algorithm>
 
 namespace cldnn {
-primitive_type_id mutable_data::type_id() {
-    static primitive_type_base<mutable_data> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(mutable_data)
 
 namespace {
 memory::ptr attach_or_copy_data(network& network, memory::ptr mem, bool reuse) {
@@ -77,6 +74,11 @@ void mutable_data_inst::set_output_memory(memory::ptr mem_new, bool check, size_
 }
 
 mutable_data_inst::typed_primitive_inst(network& network, mutable_data_node const& node)
-    : parent(network, node, attach_or_copy_data(network, node.get_attached_memory_ptr(), network.is_primary_stream())) {}
+    : parent(network, node, attach_or_copy_data(network, node.get_attached_memory_ptr(), network.is_primary_stream())) {
+    const auto& users = get_users();
+    for (const auto& usr : users) {
+        _user_ids.emplace_back(usr->id());
+    }
+}
 
 }  // namespace cldnn

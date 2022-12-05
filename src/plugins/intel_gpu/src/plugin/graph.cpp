@@ -3,6 +3,11 @@
 //
 
 #include "intel_gpu/graph/network.hpp"
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
+#include "intel_gpu/graph/serialization/map_serializer.hpp"
+#include "intel_gpu/graph/serialization/layout_serializer.hpp"
+#include "intel_gpu/graph/serialization/string_serializer.hpp"
+#include "intel_gpu/graph/serialization/vector_serializer.hpp"
 #include "intel_gpu/runtime/profiling.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
@@ -51,6 +56,22 @@ Graph::Graph(InferenceEngine::CNNNetwork& network, gpu::ClContext::Ptr context, 
     if (m_program->m_max_batch > 1)
         m_config.max_dynamic_batch = m_program->m_max_batch;
     Build();
+}
+
+Graph::Graph(cldnn::BinaryInputBuffer &ib, gpu::ClContext::Ptr context, Config config, uint16_t stream_id)
+    : m_context(context)
+    , m_config(config)
+    , m_stream_id(stream_id)
+    , m_state(0) {
+    m_program = std::make_shared<Program>(GetEngine(), m_config);
+    if (m_program->m_max_batch > 1)
+        m_config.max_dynamic_batch = m_program->m_max_batch;
+
+    ib >> m_program->inputLayouts;
+    ib >> primitiveIDs;
+    ib >> outputDims;
+
+    m_networks.emplace_back(std::make_shared<cldnn::network>(ib, GetEngine()->create_stream(), *GetEngine(), m_stream_id));
 }
 
 Graph::Graph(std::shared_ptr<Graph> graph, uint16_t stream_id)
@@ -445,6 +466,21 @@ std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::v
     }
 
     return std::make_shared<ngraph::Function>(results, params, "runtime_gpu_graph");
+}
+
+// Cache blob format:
+//     [ ov::intel_gpu::Program::inputLayouts ]
+//     [ ov::intel_gpu::Graph::primitiveIDs ]
+//     [ ov::intel_gpu::Graph::outputDims ]
+//     [ cldnn::network ]
+void Graph::Export(cldnn::BinaryOutputBuffer &ob) {
+    ob << m_program->inputLayouts;
+    ob << primitiveIDs;
+    ob << outputDims;
+
+    auto m_network = m_networks.back();
+
+    m_network->save(ob);
 }
 
 std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfo() {

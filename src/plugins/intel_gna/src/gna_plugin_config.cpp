@@ -20,7 +20,6 @@
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 using namespace ov::intel_gna;
-using namespace ov::intel_gna::common;
 
 namespace GNAPluginNS {
 const uint8_t Config::max_num_requests;
@@ -56,7 +55,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
         auto value = item.second;
 
         auto check_scale_factor = [&] (float scale_factor) {
-            if (are_fp_eq(scale_factor, 0.0f) || std::isinf(scale_factor)) {
+            if (ov::intel_gna::common::fp32eq(scale_factor, 0.0f) || std::isinf(scale_factor)) {
                 THROW_GNA_EXCEPTION << "input scale factor of 0.0f or +-inf not supported";
             }
         };
@@ -279,7 +278,7 @@ OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     if (inputScaleFactorsPerInput.empty() && inputScaleFactors.empty()) {
-        inputScaleFactors.push_back(1.0f);
+        inputScaleFactors.push_back(kScaleFactorDefault);
     }
 
     AdjustKeyMapValues();
@@ -294,7 +293,7 @@ void Config::AdjustKeyMapValues() {
             ov::util::to_string(inputScaleFactorsPerInput);
     } else {
         if (inputScaleFactors.empty()) {
-            inputScaleFactors.push_back(1.0);
+            inputScaleFactors.push_back(kScaleFactorDefault);
         }
         keyConfigMap[GNA_CONFIG_KEY(SCALE_FACTOR)] = std::to_string(inputScaleFactors[0]);
         for (int n = 0; n < inputScaleFactors.size(); n++) {
