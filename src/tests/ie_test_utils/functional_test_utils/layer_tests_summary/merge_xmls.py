@@ -6,6 +6,7 @@ import os
 import glob
 
 import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as dET
 
 from utils import utils
 
@@ -49,8 +50,8 @@ def aggregate_test_results(aggregated_results: ET.SubElement, xml_reports: list,
     for xml in xml_reports:
         logger.info(f" Processing: {xml}")
         try:
-            xml_root = ET.parse(xml).getroot()
-        except ET.ParseError:
+            xml_root = dET.parse(xml).getroot()
+        except dET.ParseError:
             logger.error(f' {xml} is corrupted and skipped')
             continue
         xml_results = xml_root.find("results")
@@ -113,9 +114,9 @@ def merge_xml(input_folder_paths: list, output_folder_paths: str, output_filenam
         xml_root = None
         for xml_report in xml_reports:
             try:
-                xml_root = ET.parse(xml_report).getroot()
+                xml_root = dET.parse(xml_report).getroot()
                 break
-            except ET.ParseError:
+            except dET.ParseError:
                 logger.error(f'{xml_report} is incorrect! Error to get a xml root')
         if xml_root is None:
             logger.error(f'{folder_path} does not contain the correct xml files')
@@ -135,7 +136,7 @@ def merge_xml(input_folder_paths: list, output_folder_paths: str, output_filenam
             os.mkdir(output_folder_paths)
         out_file_path = os.path.join(output_folder_paths, f'{output_filename}.xml')
         with open(out_file_path, "w") as xml_file:
-            xml_file.write(ET.tostring(summary).decode('utf8'))
+            xml_file.write(dET.tostring(summary).decode('utf8'))
             logger.info(f" Final report is saved to file: '{out_file_path}'")
     if xml_root is None:
         raise Exception("Error to make a XML root. Exit the app")

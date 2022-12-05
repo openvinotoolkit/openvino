@@ -5,6 +5,7 @@ import argparse
 import os
 import csv
 import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as dET
 
 from jinja2 import Environment, FileSystemLoader
 
@@ -56,9 +57,9 @@ def merge_xmls(xml_paths: list):
     ops_list = ET.SubElement(summary, "ops_list")
     for xml_path in xml_paths:
         try:
-            xml_root = ET.parse(xml_path).getroot()
+            xml_root = dET.parse(xml_path).getroot()
             logger.info(f'Info from {xml_path} is adding to the final summary')
-        except ET.ParseError:
+        except dET.ParseError:
             logger.error(f'Error parsing {xml_path}')
 
         if timestamp is None or timestamp < xml_root.attrib["timestamp"]:

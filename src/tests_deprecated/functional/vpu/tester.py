@@ -11,6 +11,8 @@ from typing import Union
 
 import xml.etree.cElementTree as et
 import xml.dom.minidom as dom
+import defusedxml.ElementTree as dET
+import defusedxml.minidom as ddom
 
 
 def get_path(entry: Union[str, Path], is_directory=False, check_exists=True, file_or_directory=False):
@@ -75,7 +77,7 @@ def build_argument_parser():
 
 
 def tostring(layer, num_tabs=0):
-    return '\t' * num_tabs + str(et.tostring(layer, encoding='utf-8').decode())
+    return '\t' * num_tabs + str(dET.tostring(layer, encoding='utf-8').decode())
 
 
 def tags(node):
@@ -159,12 +161,12 @@ def extract_weights(source, layers, destination):
 
 def prettify(element, indent=0):
     header = dom.Document().toxml()
-    string = dom.parseString(tostring(element)).toprettyxml()[len(header) + 1:]
+    string = ddom.parseString(tostring(element)).toprettyxml()[len(header) + 1:]
     return '\n'.join(['\t' * indent + line for line in string.split('\n') if line.strip()])
 
 
 def dump(input_model, elements, output_model):
-    root = et.parse(str(input_model)).getroot()
+    root = dET.parse(str(input_model)).getroot()
     net = et.Element('net', attrib={'name': root.attrib['name'], 'version': root.attrib['version']})
 
     layers = et.Element('layers')
@@ -185,12 +187,12 @@ def dump(input_model, elements, output_model):
 
 def main():
     arguments = build_argument_parser().parse_args()
-    model = dom.parse(str(input_model))
+    model = ddom.parse(str(input_model))
     if int(model.version) < 10:
         print('Error: only IR version 10 or newer is supported, IRv{} has been given'.format(model.version))
         sys.exit(-1)
 
-    layers, edges, _ = et.parse(str(arguments.model)).getroot()
+    layers, edges, _ = dET.parse(str(arguments.model)).getroot()
     layers_identifiers = {}
     for layer in layers:
         layers_identifiers[int(layer.attrib['id'])] = layer
