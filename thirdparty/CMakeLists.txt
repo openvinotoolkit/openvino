@@ -187,9 +187,9 @@ endif()
 
 if(ENABLE_SAMPLES OR ENABLE_COMPILE_TOOL OR ENABLE_TESTS)
     if(LINUX)
-        if(LINUX_OS_NAME MATCHES "(Fedora|CentOS)")
+        if(OV_OS_RHEL)
             set(gflag_component nothreads_shared)
-        elseif(LINUX_OS_NAME MATCHES "(Ubuntu|Debian)")
+        elseif(OV_OS_DEBIAN)
             set(gflag_component nothreads_static)
         endif()
         find_package(gflags QUIET OPTIONAL_COMPONENTS ${gflag_component})
@@ -373,7 +373,6 @@ elseif(APPLE OR WIN32)
             PATTERN .lgtm.yml EXCLUDE
             PATTERN Makefile EXCLUDE
             PATTERN meson.build EXCLUDE
-            PATTERN nlohmann_json.natvis EXCLUDE
             PATTERN README.md EXCLUDE
             PATTERN .reuse EXCLUDE
             PATTERN tests EXCLUDE
