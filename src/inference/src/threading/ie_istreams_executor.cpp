@@ -445,7 +445,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
             num_cores_default = (num_big_cores_phys <= hyper_threading_threshold) ? num_big_cores : num_big_cores_phys;
         }
         // if nstreams or nthreads are set, need to calculate the Hybrid aware parameters here
-        if (streamExecutorConfig._big_core_streams == 0 || streamExecutorConfig._threads) {
+        if (!bLatencyCase && (streamExecutorConfig._big_core_streams == 0 || streamExecutorConfig._threads)) {
             UpdateHybridCustomThreads(streamExecutorConfig);
         }
         OPENVINO_DEBUG << "[ p_e_core_info ] streams (threads): " << streamExecutorConfig._streams << "("
@@ -475,7 +475,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
     streamExecutorConfig._threadsPerStream =
         streamExecutorConfig._streams ? std::max(1, threads / streamExecutorConfig._streams) : threads;
     streamExecutorConfig._threads =
-        ThreadBindingType::HYBRID_AWARE == streamExecutorConfig._threadBindingType
+        (!bLatencyCase && ThreadBindingType::HYBRID_AWARE == streamExecutorConfig._threadBindingType)
             ? streamExecutorConfig._big_core_streams * streamExecutorConfig._threads_per_stream_big +
                   streamExecutorConfig._small_core_streams * streamExecutorConfig._threads_per_stream_small
             : streamExecutorConfig._threadsPerStream * streamExecutorConfig._streams;
