@@ -81,6 +81,7 @@ OP_CONVERTER(translate_upsample_bilinear2d);
 OP_CONVERTER(translate_upsample_nearest2d);
 OP_CONVERTER(translate_var);
 OP_CONVERTER(translate_view);
+OP_CONVERTER(translate_where);
 OP_CONVERTER(translate_zeros);
 OP_CONVERTER(translate_zeros_like);
 
@@ -194,6 +195,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::upsample_nearest2d", op::translate_upsample_nearest2d},
         {"aten::var", op::translate_var},
         {"aten::view", op::translate_view},
+        {"aten::where", op::translate_where},
         {"aten::zeros", op::translate_zeros},
         {"aten::zeros_like", op::translate_zeros_like},
         {"prim::Constant", op::translate_constant},
