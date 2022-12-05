@@ -70,16 +70,16 @@
 #endif
 
 #include <windows.h>
-#include <Shlwapi.h>
 
 namespace ov {
 namespace util {
 std::shared_ptr<void> load_shared_object(const char* path) {
     if (path == nullptr)
         throw std::runtime_error("Cannot load library: path isn't specified.");
-    if (!PathIsRelativeA(path))
+    auto path_ = static_cast<std::string>(path);
+    if (is_absolute_file_path(path_))
         return load_shared_object_unsafe(path);
-    throw std::runtime_error("Cannot load library: path '" + static_cast<std::string>(path) + "' is not absolute.");
+    throw std::runtime_error("Cannot load library: path '" + path_ + "' is not absolute.");
 }
 
 std::shared_ptr<void> load_shared_object_unsafe(const char* path) {
@@ -136,9 +136,10 @@ std::shared_ptr<void> load_shared_object_unsafe(const char* path) {
 std::shared_ptr<void> load_shared_object(const wchar_t* path) {
     if (path == nullptr)
         throw std::runtime_error("Cannot load library: path isn't specified.");
-    if (!PathIsRelativeW(path))
+    auto path_ = std::wstring(path);
+    if (is_absolute_file_path(path_))
         return load_shared_object_unsafe(path);
-    throw std::runtime_error("Cannot load library: path '" + ov::util::wstring_to_string(std::wstring(path)) + "' is not absolute.");
+    throw std::runtime_error("Cannot load library: path '" + ov::util::wstring_to_string(path_) + "' is not absolute.");
 }
 
 std::shared_ptr<void> load_shared_object_unsafe(const wchar_t* path) {

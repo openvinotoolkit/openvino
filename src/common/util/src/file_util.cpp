@@ -19,6 +19,7 @@
 #    endif
 #    include <direct.h>
 #    include <windows.h>
+#    include <Shlwapi.h>
 /// @brief Max length of absolute file path
 #    define MAX_ABS_PATH _MAX_PATH
 /// @brief Get absolute file path, returns NULL in case of error
@@ -360,6 +361,28 @@ std::string ov::util::get_absolute_file_path(const std::string& path) {
     absolutePath.resize(strlen(absPath));
     return absolutePath;
 }
+
+bool is_absolute_file_path(const std::string& path) {
+    if (path.empty())
+        return false;
+#ifdef _WIN32
+    return !PathIsRelativeA(path);
+#else
+    return path[0] == '/';
+#endif // _WIN32
+}
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+bool is_absolute_file_path(const std::wstring& path) {
+    if (path.empty())
+        return false;
+#ifdef _WIN32
+    return !PathIsRelativeW(path);
+#else
+    return path[0] == '/';
+#endif // _WIN32
+}
+#endif // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 void ov::util::create_directory_recursive(const std::string& path) {
     if (path.empty() || directory_exists(path)) {

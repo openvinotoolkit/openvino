@@ -98,28 +98,48 @@ std::string findPluginXML(const std::string& xmlFile) {
 
 #endif
 
-ov::util::FilePath getPluginPath(const std::string& pluginName, bool needAddSuffixes = false) {
+ov::util::FilePath getPluginPath(const std::string& pluginName) {
+    // Assume pluginName may contain:
+    // 1. /path/to/libexample.so absolute path
+    // 2. ../path/to/libexample.so path relative to working directory
+    // 3. libexample.so path relative to working directory
+    // 4. example library name - should be deducted to libexample.so case
+
+    auto libName = pluginName;
+    // Convert 4th case to 3rd - add prefix and suffix if required
+    if (!ov::util::ends_with(pluginName, ov::util::FileTraits<char>::library_ext) &&
+        needAddSuffixes)
+        libName = FileUtils::makePluginLibraryName({}, pluginName);
+
+    auto absFilePath = ov::util::to_file_path(libName);
+    // Convert 3rd and 2nd cases to 1st - make path absolute
+    if (!ov::util::is_absolute_file_path(absFilePath))
+        absFilePath = ov::util::to_file_path(ov::util::get_absolute_file_path(absFilePath));
+    if (FileUtils::fileExist(absFilePath))
+        return ov::util::to_file_path(absFilePath);
+    
+    // If file not found, try to find in install directory
+    return getPluginPathFromInstallDir(libName);
+}
+
+ov::util::FilePath getPluginPathFromXML(const std::string& pluginPath) {
+    // Assume plugins.xml "location" record contains only:
+    // 1. /path/to/libexample.so absolute path
+    // 2. ../path/to/libexample.so path relative to plugins.xml
+    // 3. libexample.so path relative to plugins.xml
+    auto pluginPath_ = ov::util::to_file_path(pluginPath);
+    if (ov::util::is_absolute_file_path(pluginPath_) && FileUtils::fileExist(pluginPath_))
+        return ov::util::to_file_path(pluginPath_);
+
+    return getPluginPathFromInstallDir(pluginPath);
+}
+
+ov::util::FilePath getPluginPathFromInstallDir(const std::string& pluginPath) {
+    // Assume pluginPath contains only path relative to install directory
+    // (with plugins.xml or libopenvino.so)
     const auto ieLibraryPath = ie::getInferenceEngineLibraryPath();
 
-    auto pluginPath = ov::util::to_file_path(pluginName.c_str());
-
-    // 0. user can provide a full path
-
-#ifndef _WIN32
-    try {
-        // dlopen works with absolute paths; otherwise searches from LD_LIBRARY_PATH
-        pluginPath = ov::util::to_file_path(ov::util::get_absolute_file_path(pluginName));
-    } catch (const std::runtime_error&) {
-        // failed to resolve absolute path; not critical
-    }
-#endif  // _WIN32
-
-    if (FileUtils::fileExist(pluginPath))
-        return pluginPath;
-
-    // ov::Core::register_plugin(plugin_name, device_name) case
-    if (needAddSuffixes)
-        pluginPath = FileUtils::makePluginLibraryName({}, pluginPath);
+    auto pluginPath_ = ov::util::to_file_path(pluginPath);
 
     // plugin can be found either:
 
@@ -128,17 +148,13 @@ ov::util::FilePath getPluginPath(const std::string& pluginName, bool needAddSuff
     str << "openvino-" << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH;
     const auto subFolder = ov::util::to_file_path(str.str());
 
-    ov::util::FilePath absFilePath = FileUtils::makePath(FileUtils::makePath(ieLibraryPath, subFolder), pluginPath);
+    ov::util::FilePath absFilePath = FileUtils::makePath(FileUtils::makePath(ieLibraryPath, subFolder), pluginPath_);
     if (FileUtils::fileExist(absFilePath))
         return absFilePath;
 
-    // 2. in the openvino.so location
-    absFilePath = FileUtils::makePath(ieLibraryPath, pluginPath);
-    if (FileUtils::fileExist(absFilePath))
-        return absFilePath;
-
-    // 3. in LD_LIBRARY_PATH on Linux / PATH on Windows
-    return pluginPath;
+    // 2. in the libopenvino.so location
+    absFilePath = FileUtils::makePath(ieLibraryPath, pluginPath_);
+    return absFilePath;
 }
 
 template <typename T = ie::Parameter>
@@ -578,7 +594,7 @@ public:
 
         FOREACH_CHILD (pluginNode, devicesNode, "plugin") {
             std::string deviceName = GetStrAttr(pluginNode, "name");
-            ov::util::FilePath pluginPath = getPluginPath(GetStrAttr(pluginNode, "location"));
+            ov::util::FilePath pluginPath = getPluginPathFromXML(GetStrAttr(pluginNode, "location"));
 
             if (deviceName.find('.') != std::string::npos) {
                 IE_THROW() << "Device name must not contain dot '.' symbol";
@@ -1276,7 +1292,7 @@ public:
             IE_THROW() << "Device name must not contain dot '.' symbol";
         }
 
-        PluginDescriptor desc{getPluginPath(pluginName, true)};
+        PluginDescriptor desc{getPluginPath(pluginName)};
         pluginRegistry[deviceName] = desc;
         add_mutex(deviceName);
     }
