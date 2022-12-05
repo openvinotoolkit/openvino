@@ -134,7 +134,6 @@ jobs:
         -DANDROID_STL=c++_shared
         -DANDROID_PLATFORM=$(ANDROID_SDK_VERSION)
         -DENABLE_TESTS=ON
-        -DENABLE_SAMPLES=ON
         -DBUILD_java_api=ON
         -DBUILD_nvidia_plugin=OFF
         -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules

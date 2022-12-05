@@ -155,6 +155,8 @@ jobs:
       python -m pip install -r $(REPO_DIR)\src\frontends\paddle\tests\requirements.txt
       rem For running ONNX frontend unit tests
       python -m pip install -r $(REPO_DIR)\src\frontends\onnx\tests\requirements.txt
+      rem For running TensorFlow frontend unit tests
+      python -m pip install -r $(REPO_DIR)\src\frontends\tensorflow\tests\requirements.txt
       rem For MO unit tests
       python -m pip install -r $(REPO_DIR)\tools\mo\requirements.txt
       python -m pip install -r $(REPO_DIR)\tools\mo\requirements_dev.txt
