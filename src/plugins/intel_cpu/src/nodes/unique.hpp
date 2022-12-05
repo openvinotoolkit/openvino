@@ -32,21 +32,26 @@ protected:
 
 private:
     template <typename T>
-    size_t flattenTensorExec();
+    void flattenTensorExec();
     template <typename T>
-    size_t slicedTensorExec();
+    void slicedTensorExec();
 
-    std::vector<std::vector<int64_t>> blockLen;
-    std::vector<std::vector<int32_t>> samples;
-    std::vector<std::vector<int32_t>> pivots;
-    std::vector<std::vector<int32_t>> samplesIdx;
+    template<typename T>
+    struct flattenExec;
+    template<typename T>
+    struct slicedExec;
+
+    std::vector<int32_t> firstUniTmp;
+    std::vector<int32_t> inToOutTmp;
+    std::vector<int32_t> occurTmp;
 
     bool sorted    = false;
     bool flattened = true;
     int  axis = 0;
     bool definedOutputs[4] = { false, false, false, false };
     InferenceEngine::Precision dataPrecision;
-    int64_t dataTypeSize = 1lu;
+    int64_t dataTypeSize = 1;
+    size_t uniqueLen = 1;
 
     int threadsNum = 1;
 
