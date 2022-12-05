@@ -62,3 +62,15 @@ TEST_P(LogicalNotTest, propagate_labels) {
 
     EXPECT_EQ(get_shape_labels(op->get_output_partial_shape(0)), exp_labels);
 }
+
+TEST_P(LogicalNotTest, default_ctor) {
+    const auto op = std::make_shared<op::v1::LogicalNot>();
+    const auto input = std::make_shared<op::Parameter>(exp_type, exp_shape);
+
+    op->set_argument(0, input);
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_element_type(), exp_type);
+    EXPECT_EQ(op->get_output_size(), exp_num_of_outputs);
+    EXPECT_EQ(op->get_output_partial_shape(0), exp_shape);
+}
