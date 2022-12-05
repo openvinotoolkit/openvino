@@ -17,7 +17,10 @@ public:
 };
 
 template <typename T>
-class LogicalOperatorTypeProp : public TypePropOpTest<typename T::op_type> {};
+class LogicalOperatorTypeProp : public TypePropOpTest<typename T::op_type> {
+protected:
+    size_t exp_logical_op_output_size{1};
+};
 
 class LogicalOperatorTypeName {
 public:
@@ -122,7 +125,7 @@ TYPED_TEST_P(LogicalOperatorTypeProp, shape_broadcast) {
     const auto logical_op = this->make_op(a, b);
 
     EXPECT_EQ(logical_op->get_element_type(), exp_dtype);
-    EXPECT_EQ(logical_op->get_output_size(), 1);
+    EXPECT_EQ(logical_op->get_output_size(), this->exp_logical_op_output_size);
     EXPECT_EQ(logical_op->get_shape(), Shape({1, 3, 6}));
 }
 
@@ -168,6 +171,23 @@ TYPED_TEST_P(LogicalOperatorTypeProp, partial_shape_numpy_broadcast) {
                 AllOf(Eq(exp_shape), ResultOf(get_shape_labels, ElementsAre(ov::no_label, 11, 12, 13, 23))));
 }
 
+TYPED_TEST_P(LogicalOperatorTypeProp, default_ctor) {
+    using namespace ngraph;
+
+    const auto op = this->make_op();
+    const auto a = std::make_shared<op::Parameter>(element::boolean, PartialShape{1, {2, 4}, {2, 5}, 4, -1});
+    const auto b = std::make_shared<op::Parameter>(element::boolean, PartialShape{1, 3, {1, 6}, 4});
+
+    op->set_arguments(NodeVector{a, b});
+    op->set_autob("NUMPY");
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_autob(), op::AutoBroadcastSpec("NUMPY"));
+    EXPECT_EQ(op->get_element_type(), element::boolean);
+    EXPECT_EQ(op->get_output_size(), this->exp_logical_op_output_size);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({1, {2, 4}, 3, 4, 4}));
+}
+
 REGISTER_TYPED_TEST_SUITE_P(LogicalOperatorTypeProp,
                             shape_broadcast,
                             partial_shape_no_broadcast,
@@ -180,4 +200,5 @@ REGISTER_TYPED_TEST_SUITE_P(LogicalOperatorTypeProp,
                             incorrect_type_u64,
                             incorrect_shape,
                             inputs_have_different_types,
-                            inputs_have_inconsistent_shapes);
+                            inputs_have_inconsistent_shapes,
+                            default_ctor);
