@@ -186,9 +186,9 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
 
     arch=$(uname -m)
 
-    # if [ "$os" == "amzn2" ] ; then
-        # amazon-linux-extras install epel python3.8
-    # fi
+    if [ "$os" == "amzn2" ] ; then
+        amazon-linux-extras install epel python3.8
+    fi
 
     pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake3 json-devel.$arch zlib-devel.$arch sudo)
 
