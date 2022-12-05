@@ -46,8 +46,10 @@ OP_CONVERTER(translate_layer_norm);
 OP_CONVERTER(translate_linear);
 OP_CONVERTER(translate_loop);
 OP_CONVERTER(translate_max_pool2d);
+OP_CONVERTER(translate_max);
 OP_CONVERTER(translate_masked_fill);
 OP_CONVERTER(translate_mean);
+OP_CONVERTER(translate_min);
 OP_CONVERTER(translate_neg);
 OP_CONVERTER(translate_norm);
 OP_CONVERTER(translate_new_full);
@@ -135,10 +137,12 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::linear", op::translate_linear},
         {"aten::lt", op::translate_1to1_match_2_inputs<opset8::Less>},
         {"aten::matmul", op::translate_1to1_match_2_inputs<opset8::MatMul>},
-        {"aten::max_pool2d", op::translate_max_pool2d},
         {"aten::masked_fill", op::translate_masked_fill},
         {"aten::masked_fill_", op::inplace_op<op::translate_masked_fill>},
+        {"aten::max_pool2d", op::translate_max_pool2d},
+        {"aten::max", op::translate_max},
         {"aten::mean", op::translate_mean},
+        {"aten::min", op::translate_min},
         {"aten::mm", op::translate_1to1_match_2_inputs<opset8::MatMul>},
         {"aten::bmm", op::translate_1to1_match_2_inputs<opset8::MatMul>},
         {"aten::matmul", op::translate_1to1_match_2_inputs<opset8::MatMul>},

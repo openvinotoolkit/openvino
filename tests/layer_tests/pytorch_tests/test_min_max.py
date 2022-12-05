@@ -1,0 +1,67 @@
+import pytest
+from pytorch_layer_test_class import PytorchLayerTest
+
+
+class TestMinMax(PytorchLayerTest):
+    def _prepare_input(self, second_input=False):
+        import numpy as np
+        if not second_input:
+            return (np.random.randn(1, 3, 10, 10).astype(np.float32), )
+        return (np.random.randn(1, 3, 10, 10).astype(np.float32), np.random.randn(1, 3, 10, 10).astype(np.float32))
+
+    def create_model(self, op_type, axes, keep_dims, single_input=True):
+        import torch
+        op_types = {
+            'max': torch.max,
+            'min': torch.min
+        }
+
+        op = op_types[op_type]
+
+        class aten_min_max(torch.nn.Module):
+            def __init__(self, op):
+                super(aten_min_max, self).__init__()
+                self.op = op
+
+            def forward(self, x):
+                return self.op(x)
+
+        class aten_min_max_3args(torch.nn.Module):
+            def __init__(self, op, axes=None, keep_dims=None):
+                super(aten_min_max_3args, self).__init__()
+                self.op = op
+                self.axes = axes
+                self.keep_dims = keep_dims
+
+            def forward(self, x):
+                return self.op(x, self.axes, self.keep_dims)
+
+        class aten_min_max_2args(torch.nn.Module):
+            def __init__(self, op):
+                super(aten_min_max_2args, self).__init__()
+                self.op = op
+
+            def forward(self, x, y):
+                return self.op(x, y)
+
+        ref_net = None
+        if axes is None and keep_dims is None:
+            model_cls = aten_min_max(
+                op) if single_input else aten_min_max_2args(op)
+        else:
+            model_cls = aten_min_max_3args(op, axes, keep_dims)
+
+        return model_cls, ref_net, f"aten::{op_type}"
+
+    @pytest.mark.parametrize("axes,keep_dims", [(None, None), (1, False), (1, True), (-1, False), (-1, True)])
+    @pytest.mark.parametrize("op_type", ['min', 'max'])
+    @pytest.mark.nightly
+    def test_reduce_min_max(self, axes, keep_dims, op_type, ie_device, precision, ir_version):
+        self._test(*self.create_model(op_type, axes, keep_dims,
+                   single_input=True), ie_device, precision, ir_version)
+
+    @pytest.mark.parametrize("op_type", ['min', 'max'])
+    @pytest.mark.nightly
+    def test_min_max(self, op_type, ie_device, precision, ir_version):
+        self._test(*self.create_model(op_type, None, None, single_input=False),
+                   ie_device, precision, ir_version, kwargs_to_prepare_input={"second_input": True})
