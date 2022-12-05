@@ -64,7 +64,7 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_b) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(tile("tile", "input", std::vector<int64_t>{ 2, 1, 1, 1 }));
+    topology.add(tile("tile", input_info("input"), std::vector<int64_t>{ 2, 1, 1, 1 }));
 
     std::vector<float> input_vec = { 1.f, 0.f, 5.f, 1.5f,
                                      2.f, 0.f, 6.f, 5.2f };
@@ -93,7 +93,7 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_f) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(tile("tile", "input", std::vector<int64_t>{ 1, 2, 1, 1 }));
+    topology.add(tile("tile", input_info("input"), std::vector<int64_t>{ 1, 2, 1, 1 }));
 
     std::vector<float> input_vec = { 1.f, 0.f,
                                      5.f, 1.5f,
@@ -125,7 +125,7 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_y) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(tile("tile", "input", std::vector<int64_t>{ 1, 1, 2, 1 }));
+    topology.add(tile("tile", input_info("input"), std::vector<int64_t>{ 1, 1, 2, 1 }));
 
     std::vector<float> input_vec = { 0.f, 1.f, 2.f,
                                      3.f, 4.f, 5.f,
@@ -161,7 +161,7 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_x) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(tile("tile", "input", std::vector<int64_t>{ 1, 1, 1, 2 }));
+    topology.add(tile("tile", input_info("input"), std::vector<int64_t>{ 1, 1, 1, 2 }));
 
     std::vector<float> input_vec = { 0.f, 1.f,
                                      2.f, 3.f,
@@ -193,7 +193,7 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_x_dense) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(tile("tile", "input", std::vector<int64_t>{ 1, 1, 1, 4 }));
+    topology.add(tile("tile", input_info("input"), std::vector<int64_t>{ 1, 1, 1, 4 }));
 
     std::vector<float> input_vec = { 1.f, 0.f, 5.f, 1.5f };
     set_values(input, input_vec);
@@ -221,7 +221,7 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_z) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(tile("tile", "input", std::vector<int64_t>{ 1, 1, 2, 1, 1 }));
+    topology.add(tile("tile", input_info("input"), std::vector<int64_t>{ 1, 1, 2, 1, 1 }));
 
     std::vector<float> input_vec = {
         1.f, 0.f,
@@ -586,17 +586,17 @@ public:
         std::string input_id = input_data_id;
         if (need_reorder) {
             const std::string reorder_input_id = input_data_id + "_reordered";
-            topology.add(reorder(reorder_input_id, input_data_id, target_layout, data_type));
+            topology.add(reorder(reorder_input_id, input_info(input_data_id), target_layout, data_type));
             input_id = reorder_input_id;
         }
 
         const std::string result_data_id = "result_id";
-        topology.add(tile(result_data_id, input_id, params.repeats));
+        topology.add(tile(result_data_id, input_info(input_id), params.repeats));
 
         std::string result_id = result_data_id;
         if (need_reorder) {
             const primitive_id reorder_result_id = result_data_id + "_reordered";
-            topology.add(reorder(reorder_result_id, result_data_id, plain_layout, data_type));
+            topology.add(reorder(reorder_result_id, input_info(result_data_id), plain_layout, data_type));
             result_id = reorder_result_id;
         }
 

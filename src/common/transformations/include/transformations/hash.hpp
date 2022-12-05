@@ -6,9 +6,9 @@
 
 #include <string>
 
-#include "ngraph/opsets/opset.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
 namespace pass {
@@ -16,7 +16,7 @@ namespace pass {
 /**
  * @brief Hash transformation calculates hash value for ov::Model
  */
-class NGRAPH_API Hash : public ov::pass::ModelPass {
+class TRANSFORMATIONS_API Hash : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("HashPass");
 

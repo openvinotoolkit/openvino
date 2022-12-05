@@ -29,7 +29,7 @@ void experimental_detectron_roi_feature_extractor_inst::copy_rois_input_to_secon
 
 layout experimental_detectron_roi_feature_extractor_inst::calc_output_layout(
     experimental_detectron_roi_feature_extractor_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for roi_pooling_node!");
     layout rois_layout = impl_param.get_input_layout(0);
     layout data_layout = impl_param.get_input_layout(1);
