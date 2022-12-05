@@ -196,7 +196,7 @@ void Plugin::UpdateConfig(Config& conf, const InferenceEngine::CNNNetwork &netwo
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::UpdateConfig");
     auto device_info = GetDeviceInfo(params);
     conf.enableInt8 = device_info.supports_imad || device_info.supports_immad;
-    conf.UpdateFromMap(params);
+    conf.UpdateFromMap(params, device_info);
     if (conf.enableDynamicBatch) {
         conf.max_dynamic_batch = static_cast<int>(network.getBatchSize());
     }
@@ -357,17 +357,27 @@ void Plugin::SetConfig(const std::map<std::string, std::string> &config) {
                     config.find(CLDNNConfigParams::KEY_CLDNN_PLUGIN_THROTTLE) != config.end() ||
                     config.find(ov::intel_gpu::hint::queue_throttle.name()) != config.end();
     std::string device_id;
+    cldnn::device_info device_info = device_map.begin()->second->get_info();
     if (config.find(PluginConfigInternalParams::KEY_CONFIG_DEVICE_ID) != config.end()) {
         device_id = config.at(PluginConfigInternalParams::KEY_CONFIG_DEVICE_ID);
-        _impl->m_configs.GetConfig(device_id).UpdateFromMap(config);
+        if (!device_id.empty() && device_map.find(device_id) != device_map.end()) {
+            device_info = device_map.at(device_id)->get_info();
+        }
+        _impl->m_configs.GetConfig(device_id).UpdateFromMap(config, device_info);
     } else {
         device_id = GetDeviceIDFromConfig(config);
         if (!device_id.empty()) {
+            if (device_map.find(device_id) != device_map.end()) {
+                device_info = device_map.at(device_id)->get_info();
+            }
             _impl->m_configs.SetDefaultDeviceID(device_id);
-            _impl->m_configs.GetConfig(device_id).UpdateFromMap(config);
+            _impl->m_configs.GetConfig(device_id).UpdateFromMap(config, device_info);
         } else {
             for (auto& conf : _impl->m_configs) {
-                conf.second.UpdateFromMap(config);
+                if (device_map.find(conf.first) != device_map.end()) {
+                    device_info = device_map.at(conf.first)->get_info();
+                }
+                conf.second.UpdateFromMap(config, device_info);
             }
         }
     }
@@ -835,7 +845,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
                     n_streams_str != util::to_string(ov::streams::AUTO)) {
                     IE_THROW() << "[GPU_MAX_BATCH_SIZE] bad casting: GPU_THROUGHPUT_STREAMS should be either of uint32_t type or \"GPU_THROUGHPUT_AUTO\"";
                 }
-                n_streams = config.GetDefaultNStreamsForThroughputMode();
+                n_streams = std::max(config.GetDefaultNStreamsForThroughputMode(), device_info.num_ccs);
             } else {
                 IE_THROW() << "[GPU_MAX_BATCH_SIZE] bad casting: GPU_THROUGHPUT_STREAMS should be either of uint32_t type or \"GPU_THROUGHPUT_AUTO\"";
             }
