@@ -3,54 +3,32 @@
 //
 
 /**
- * @brief A header that defines advanced related properties for DLIA plugins.
- * These properties should be used in SetConfig() and LoadNetwork() methods of plugins
+ * @brief A header that defines advanced related properties for Template plugin.
+ * These properties should be used in set_property() and compile_model() methods of Core object
  *
- * @file dlia_config.hpp
+ * @file template_config.hpp
  */
 
 #pragma once
 
 #include <string>
-#include "ie_plugin_config.hpp"
 
-namespace InferenceEngine {
+#include "openvino/runtime/properties.hpp"
 
-namespace TemplateMetrics {
+namespace ov {
 
-/**
- * @def TEMPLATE_METRIC_VALUE(name)
- * @brief Shortcut for defining Template metric values
- */
-#define TEMPLATE_METRIC_VALUE(name) InferenceEngine::TemplateMetrics::name
-#define DECLARE_TEMPLATE_METRIC_VALUE(name) static constexpr auto name = #name
+namespace template_plugin {
 
-// ! [public_header:metrics]
+// ! [public_header:properties]
 /**
  * @brief Defines whether current Template device instance supports hardware blocks for fast convolution computations.
  */
-DECLARE_TEMPLATE_METRIC_VALUE(HARDWARE_CONVOLUTION);
-// ! [public_header:metrics]
-
-}  // namespace TemplateMetrics
-
-namespace TemplateConfigParams {
-
-/**
- * @def TEMPLATE_CONFIG_KEY(name)
- * @brief Shortcut for defining Template device configuration keys
- */
-#define TEMPLATE_CONFIG_KEY(name) InferenceEngine::TemplateConfigParams::_CONFIG_KEY(TEMPLATE_##name)
-
-#define DECLARE_TEMPLATE_CONFIG_KEY(name) DECLARE_CONFIG_KEY(TEMPLATE_##name)
-#define DECLARE_TEMPLATE_CONFIG_VALUE(name) DECLARE_CONFIG_VALUE(TEMPLATE_##name)
-
-
+static constexpr Property<bool, PropertyMutability::RO> hardware_convolugion{"HARDWARE_CONVOLUTION"};
 /**
  * @brief Defines the number of throutput streams used by TEMPLATE plugin.
  */
-DECLARE_TEMPLATE_CONFIG_KEY(THROUGHPUT_STREAMS);
+static constexpr Property<uint32_t> throughput_streams{"THROUGHPUT_STREAMS"};
+// ! [public_header:properties]
 
-
-}  // namespace TemplateConfigParams
-}  // namespace InferenceEngine
+}  // namespace template_plugin
+}  // namespace ov
