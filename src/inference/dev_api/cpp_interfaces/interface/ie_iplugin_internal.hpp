@@ -23,7 +23,6 @@
 #include "so_ptr.hpp"
 
 namespace ov {
-class Function;
 class ICore;
 }  // namespace ov
 namespace InferenceEngine {

@@ -15,15 +15,6 @@
 #include "ie_remote_context.hpp"
 #include "so_ptr.hpp"
 
-namespace ov {
-class Function;
-namespace op {
-namespace v0 {
-class Parameter;
-class Result;
-}  // namespace v0
-}  // namespace op
-}  // namespace ov
 namespace InferenceEngine {
 
 class IInferencePlugin;
