@@ -5,7 +5,7 @@ import itertools
 import os
 import re
 import warnings
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
 from pathlib import Path
 
 import numpy as np

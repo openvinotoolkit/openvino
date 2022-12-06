@@ -3,7 +3,8 @@
 
 import unittest
 from unittest.mock import MagicMock
-from xml.etree.ElementTree import Element, tostring
+import defusedxml.ElementTree as ET
+from defusedxml import defuse_stdlib
 
 import numpy as np
 
@@ -12,6 +13,12 @@ from openvino.tools.mo.graph.graph import Node
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.runtime_info import RTInfo, OldAPIMapOrder, OldAPIMapElementType
 from unit_tests.utils.graph import build_graph, result, regular_op
+
+# defuse_stdlib provide patched version of xml.etree.ElementTree which allows to use objects from xml.etree.ElementTree
+# in a safe manner without including unsafe xml.etree.ElementTree
+ET_defused = defuse_stdlib()[ET]
+Element = ET_defused.Element
+tostring = ET_defused.tostring
 
 expected_result = b'<net><dim>2</dim><dim>10</dim><dim>50</dim><dim>50</dim></net>'
 

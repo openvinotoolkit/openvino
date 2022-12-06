@@ -9,9 +9,16 @@ from argparse import ArgumentParser
 
 from typing import Union
 
-import xml.etree.cElementTree as et
-import xml.dom.minidom as dom
+import defusedxml.ElementTree as ET
+import defusedxml.minidom as dom
+from defusedxml import defuse_stdlib
 
+# defuse_stdlib provide patched version of xml.etree.ElementTree which allows to use objects from xml.etree.ElementTree
+# in a safe manner without including unsafe xml.etree.ElementTree
+ET_defused = defuse_stdlib()[ET]
+Element = ET_defused.Element
+dom_defused = defuse_stdlib()[dom]
+Document = dom_defused.Document
 
 def get_path(entry: Union[str, Path], is_directory=False, check_exists=True, file_or_directory=False):
     try:
@@ -75,7 +82,7 @@ def build_argument_parser():
 
 
 def tostring(layer, num_tabs=0):
-    return '\t' * num_tabs + str(et.tostring(layer, encoding='utf-8').decode())
+    return '\t' * num_tabs + str(ET.tostring(layer, encoding='utf-8').decode())
 
 
 def tags(node):
@@ -86,17 +93,17 @@ def tags(node):
 
 
 def make_input(layer, port_id):
-    output = et.Element('output')
+    output = Element('output')
     output_port = next(port for port in tags(layer)['output'] if int(port.attrib['id']) == int(port_id))
     output.append(output_port)
 
     precision_to_element_type = {'FP16': 'f16', 'I32': 'i32', 'FP32': 'f32'}
-    data = et.Element('data', attrib={
+    data = Element('data', attrib={
         'element_type': precision_to_element_type[output_port.attrib['precision']],
         'shape': ','.join([dim.text for dim in output_port])}
     )
 
-    input_layer = et.Element('layer', attrib={
+    input_layer = Element('layer', attrib={
         'id': layer.attrib['id'],
         'name': layer.attrib['name'],
         'type': 'Parameter',
@@ -109,11 +116,11 @@ def make_input(layer, port_id):
 
 
 def make_output(layer, port_id):
-    input_section = et.Element('input')
+    input_section = Element('input')
     input_port = next(port for port in tags(layer)['input'] if int(port.attrib['id']) == int(port_id))
     input_section.append(input_port)
 
-    output_layer = et.Element('layer', attrib={
+    output_layer = Element('layer', attrib={
         'id': layer.attrib['id'],
         'name': layer.attrib['name'],
         'type': 'Result',
@@ -158,20 +165,20 @@ def extract_weights(source, layers, destination):
 
 
 def prettify(element, indent=0):
-    header = dom.Document().toxml()
+    header = Document().toxml()
     string = dom.parseString(tostring(element)).toprettyxml()[len(header) + 1:]
     return '\n'.join(['\t' * indent + line for line in string.split('\n') if line.strip()])
 
 
 def dump(input_model, elements, output_model):
-    root = et.parse(str(input_model)).getroot()
-    net = et.Element('net', attrib={'name': root.attrib['name'], 'version': root.attrib['version']})
+    root = ET.parse(str(input_model)).getroot()
+    net = Element('net', attrib={'name': root.attrib['name'], 'version': root.attrib['version']})
 
-    layers = et.Element('layers')
+    layers = Element('layers')
     for layer in elements['layers']:
         layers.append(layer)
 
-    edges = et.Element('edges')
+    edges = Element('edges')
     for edge in elements['edges']:
         edges.append(edge)
 
@@ -190,7 +197,7 @@ def main():
         print('Error: only IR version 10 or newer is supported, IRv{} has been given'.format(model.version))
         sys.exit(-1)
 
-    layers, edges, _ = et.parse(str(arguments.model)).getroot()
+    layers, edges, _ = ET.parse(str(arguments.model)).getroot()
     layers_identifiers = {}
     for layer in layers:
         layers_identifiers[int(layer.attrib['id'])] = layer
