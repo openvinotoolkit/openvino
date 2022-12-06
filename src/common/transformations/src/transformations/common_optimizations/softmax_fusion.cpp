@@ -15,7 +15,7 @@
 
 ov::pass::SoftmaxFusion::SoftmaxFusion() {
     MATCHER_SCOPE(SoftmaxFusion);
-    auto data_pattern = ngraph::pattern::any_input(pattern::has_static_rank());
+    auto data_pattern = pass::pattern::any_input(pattern::has_static_rank());
     auto reduce_max_axes_pattern = ngraph::pattern::wrap_type<opset6::Constant>();
     auto reduce_max_pattern = ngraph::pattern::wrap_type<opset6::ReduceMax>({data_pattern, reduce_max_axes_pattern});
     auto sub_pattern = ngraph::pattern::wrap_type<opset6::Subtract>({data_pattern, reduce_max_pattern});

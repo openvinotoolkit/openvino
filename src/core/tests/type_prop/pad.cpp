@@ -213,3 +213,21 @@ TEST(type_prop, pad_v1_dynamic_output_with_static_rank) {
     auto pad = make_shared<op::v1::Pad>(arg, pads_begin, pads_end, arg_pad_value, op::PadMode::CONSTANT);
     ASSERT_EQ(pad->get_output_partial_shape(0), PartialShape::dynamic(3));
 }
+
+TEST(type_prop, pad_v1_any_dim_for_padding_reflect) {
+    auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 48, 48, 1});
+    auto pads_begin = make_shared<op::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 1, 1, 0});
+    auto pads_end = make_shared<op::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 1, 1, 0});
+
+    auto pad = make_shared<op::v1::Pad>(arg, pads_begin, pads_end, op::PadMode::REFLECT);
+    ASSERT_TRUE(pad->get_output_partial_shape(0).same_scheme(PartialShape{1, 50, 50, 1}));
+}
+
+TEST(type_prop, pad_v1_any_dim_for_padding_edge) {
+    auto arg = make_shared<op::Parameter>(element::f32, PartialShape{1, 48, Dimension::dynamic(), 1});
+    auto pads_begin = make_shared<op::Constant>(element::i64, Shape{4}, std::vector<int64_t>{1, 2, 0, 0});
+    auto pads_end = make_shared<op::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 0, 0});
+
+    auto pad = make_shared<op::v1::Pad>(arg, pads_begin, pads_end, op::PadMode::EDGE);
+    ASSERT_TRUE(pad->get_output_partial_shape(0).same_scheme(PartialShape{2, 53, Dimension::dynamic(), 1}));
+}

@@ -23,8 +23,7 @@ JitConstants SoftmaxKernelBase::GetJitConstants(const softmax_params& params,
     return mem_consts;
 }
 
-SoftmaxKernelBase::DispatchData SoftmaxKernelBase::SetDefault(const softmax_params&,
-                                                              const optional_params&) const {
+SoftmaxKernelBase::DispatchData SoftmaxKernelBase::SetDefault(const softmax_params&) const {
     DispatchData dispatchData;
 
     dispatchData.gws[0] = 1;
@@ -60,13 +59,47 @@ KernelsData SoftmaxKernelBase::GetCommonKernelsData(const Params& params, const 
     const softmax_params& orgParams = static_cast<const softmax_params&>(params);
     KernelData kd = KernelData::Default<softmax_params>(params);
 
-    auto dispatchData = SetDefault(orgParams, options);
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const softmax_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.internalBufferSizes.clear();
+        kd.internalBufferSizes.push_back(prim_params.inputs[0].PhysicalSizeInBytes());
+        kd.internalBufferDataType = prim_params.inputs[0].GetDType();
+    };
+
+    auto dispatchData = SetDefault(orgParams);
     auto cldnn_jit = GetJitConstants(orgParams, dispatchData);
     auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
+
     auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
+    bool is_dynamic = orgParams.outputs[0].is_dynamic();
+
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
+                     DEFAULT,
+                     false,
+                     false,
+                     1,
+                     GetFusedPrimitiveInputsCount(params),
+                     1,
+                     is_dynamic);
+
+    if (is_dynamic) {
+        auto& args = kernel.params.arguments;
+        args.clear();
+        args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
+        args.push_back({ArgumentDescriptor::Types::INPUT, 0});
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+
+        kd.internalBufferSizes.clear();
+        kd.internalBufferSizes.push_back(orgParams.inputs[0].PhysicalSizeInBytes());
+        kd.internalBufferDataType = orgParams.inputs[0].GetDType();
+    }
 
     return {kd};
 }
@@ -101,11 +134,10 @@ bool SoftmaxKernelBaseBF::Validate(const Params& p, const optional_params& o) co
     }
 }
 
-SoftmaxKernelBase::DispatchData SoftmaxKernelBaseBF::SetDefault(const softmax_params& params,
-                                                                const optional_params& options) const {
+SoftmaxKernelBase::DispatchData SoftmaxKernelBaseBF::SetDefault(const softmax_params& params) const {
     const auto& input = params.inputs[0];
 
-    DispatchData dispatchData = Parent::SetDefault(params, options);
+    DispatchData dispatchData = Parent::SetDefault(params);
 
     auto flatten_input = input.FlattenFeatureAndSpatials();
     dispatchData.dataSetSize = flatten_input.Feature().v;

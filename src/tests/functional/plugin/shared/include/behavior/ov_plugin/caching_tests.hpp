@@ -53,6 +53,25 @@ public:
     static std::vector<ovModelWithName> getStandardFunctions();
 };
 
+using compileModelLoadFromFileParams = std::tuple<
+        std::string,            // device name
+        ov::AnyMap              // device configuration
+>;
+class CompileModelLoadFromFileTestBase : public testing::WithParamInterface<compileModelLoadFromFileParams>,
+                                  virtual public SubgraphBaseTest,
+                                  virtual public OVPluginTestBase {
+    std::string m_cacheFolderName;
+    std::string m_modelName;
+    std::string m_weightsName;
+
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<compileModelLoadFromFileParams> obj);
+
+    void SetUp() override;
+    void TearDown() override;
+    void run() override;
+};
+
 using compileKernelsCacheParams = std::tuple<
         std::string,                          // device name
         std::pair<ov::AnyMap, std::string>    // device and cache configuration

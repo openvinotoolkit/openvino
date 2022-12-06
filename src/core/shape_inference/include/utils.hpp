@@ -29,8 +29,8 @@ void eltwise_shape_infer(const OpType* op, const std::vector<T>& input_shapes, s
     NODE_VALIDATION_CHECK(op,
                           input_shapes.size() == 2 && output_shapes.size() == 1,
                           "Incorrect number of input/output shapes");
-    T output_shape = input_shapes[0];
-    ov::op::AutoBroadcastSpec autob = op->get_autob();
+    auto output_shape = input_shapes[0];
+    const auto& autob = op->get_autob();
     if (autob.m_type == ov::op::AutoBroadcastType::NONE) {
         NODE_VALIDATION_CHECK(op, T::merge_into(output_shape, input_shapes[1]), "Argument shapes are inconsistent.");
     } else if (autob.m_type == ov::op::AutoBroadcastType::NUMPY || autob.m_type == ov::op::AutoBroadcastType::PDPD) {

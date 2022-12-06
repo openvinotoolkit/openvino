@@ -93,6 +93,7 @@ void InputModel::InputModelImpl::loadPlaces() {
 
         for (const auto& op : block.ops()) {
             auto op_place = std::make_shared<OpPlace>(m_input_model, op);
+            op_place->set_decoder(std::make_shared<DecoderProto>(op_place));
 
             if (m_telemetry) {
                 op_statistics[op.type()]++;
@@ -353,6 +354,9 @@ void InputModel::InputModelImpl::createTempConsts() {
         if (var_desc.type().has_tensor_array()) {
             const auto& tensor = var_desc.type().tensor_array().tensor();
             const auto& type = TYPE_MAP[tensor.data_type()];
+
+            std::cout << "WARNING: The PaddlePaddle model has \"TENSOR_ARRAY\" variables, which is supported "
+                      << " under limited situations.\n";
 
             PartialShape tensor_ps(std::vector<Dimension>(tensor.dims().cbegin(), tensor.dims().cend()));
             tensor_ps.insert(tensor_ps.begin(), 1);  // unsqueeze

@@ -9,11 +9,7 @@
 #include <data_inst.h>
 
 namespace cldnn {
-
-primitive_type_id assign::type_id() {
-    static primitive_type_base<assign> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(assign)
 
 assign_inst::typed_primitive_inst(network& network, const assign_node& node) :
     parent{network, node, false},

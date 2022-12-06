@@ -17,7 +17,7 @@ import logging
 import os
 import re
 import sys
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
 from glob import glob
 from inspect import getsourcefile
 from types import SimpleNamespace
@@ -168,8 +168,11 @@ def upload_memcheck_records(records, db_url, db_collection):
 
 def modify_data_for_push_to_new_db(records):
     new_records = deepcopy(records)
+    records_to_push = []
 
     for record in new_records:
+        if '_id' in record:
+            del record['_id']
         if 'os_name' in record and 'os_version' in record:
             record['os'] = '{} {}.{}'.format(record['os_name'], record['os_version'][0], record['os_version'][1])
             del record['os_name']
@@ -180,15 +183,18 @@ def modify_data_for_push_to_new_db(records):
             del record['commit_sha']
         if 'event_type' in record:
             del record['event_type']
-
+        if 'framework' in record:
+            record['framework'] = str(record['framework'])
         try:
             with open(record['log_path'], 'r') as log_file:
                 log = log_file.read()
         except FileNotFoundError:
             log = ''
         record['log'] = log
+        record['ext'] = {}
+        records_to_push.append({'data': [record]})
 
-    return new_records
+    return records_to_push
 
 
 def push_to_db_facade(records, db_api_handler):
@@ -200,15 +206,16 @@ def push_to_db_facade(records, db_api_handler):
             response = requests.post(db_api_handler, json=record, headers=headers)
             if response.ok:
                 uploaded = True
+            else:
+                errors.append(str(response.json()))
         except Exception as e:
             errors.append(e)
 
     if uploaded and not errors:
         logging.info("Uploaded records by API url {}".format(db_api_handler))
-    elif errors:
-        logging.info("Failed to upload records by API url {} due to errors {}".format(db_api_handler, errors))
     else:
-        logging.info("Failed to upload records by API url {}".format(db_api_handler))
+        logging.info("Failed to upload records by API url {} due to errors {}".format(db_api_handler, errors))
+
 
 
 def _transpose_dicts(items, template=None):
