@@ -155,7 +155,7 @@ ov_model = convert_model(model, example_input=torch.zeros(1, 3, 100, 100), onnx_
 |:-----------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|
 | torch.nn.Module torch.jit.ScriptModule torch.jit.ScriptFunction  | tf.compat.v1.GraphDef tf.compat.v1.wrap_function tf.compat.v1.session tf.keras.Model tf.keras.layers.Layer tf.function tf.Module tf.train.checkpoint tf.python.training.tracking.base.Trackable(with limitations) | 
 
-- convert_model() accepts all parameters available in MO command line tool. Parameters can be specified by Python classes or string analogs identically to command line tool.
+- convert_model() accepts all parameters available in MO command line tool. Parameters can be specified by Python classes or string analogs identically to command line tool. 
 - Example 1:
 ```sh
 from openvino.runtime import PartialShape, Layout
@@ -166,7 +166,10 @@ ov_model = convert_model(model, input_shape=PartialShape([1,3,100,100]), mean_va
 ```sh
 ov_model = convert_model(model, input_shape="[1,3,100,100]", mean_values="[127,127,127]", layout="NCHW")
 ```
-
+- Command-line flags like --compress_to_fp16 can be set in Python API by providing a boolean value (True or False).
+```sh
+ov_model = convert_model(model, compress_to_fp16=True)
+```
 - "input" parameter can be set by tuple with name, shape and type. Another option is to use InputCutInfo class which was introduced for complex cases when value also needs to be set.
 - Example 1:
 ```sh

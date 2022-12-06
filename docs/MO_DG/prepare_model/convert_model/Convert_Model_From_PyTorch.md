@@ -1,28 +1,36 @@
 # Converting a PyTorch Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch}
 
 The PyTorch framework is supported through export to the ONNX format. Model Optimizer Python API allows to convert PyTorch models through usage of convert_model() method which internally converts a model to ONNX.
-## Exporting a PyTorch Model using MO Python API
+## Exporting a PyTorch Model using MO Python API (Experimental Functionality)
 MO Python API is represented by convert_model() method. To convert a PyTorch model convert_model() requires providing of 'input_shape' or 'example_input'.
-```sh
-import torchvision
-
-model = torchvision.models.resnet50(pretrained=True)
-ov_model = convert_model(model, input_shape=[1,3,100,100])
-```
-
-ONNX opset version can be set using 'onnx_opset_version' parameter.
 ```sh
 import torchvision
 import torch
 from openvino.tools.mo import convert_model
 
 model = torchvision.models.resnet50(pretrained=True)
-ov_model = convert_model(model, example_input=torch.zeros(1, 3, 100, 100), onnx_opset_version=13)
+ov_model = convert_model(model, example_input=torch.zeros(1, 3, 100, 100))
+```
+
+'example_input' accepts following formats:
+
+* openvino.runtime.Tensor
+* torch.Tensor
+* np.ndarray
+* list or tuple with tensors (openvino.runtime.Tensor / torch.Tensor / np.ndarray)
+* dictionary where key is input name, value is tensor (openvino.runtime.Tensor / torch.Tensor / np.ndarray)
+
+ONNX opset version can be set using 'onnx_opset_version' parameter.
+
+```sh
+import torchvision
+
+model = torchvision.models.resnet50(pretrained=True)
+ov_model = convert_model(model, input_shape=[1,3,100,100], onnx_opset_version=13)
 ```
 
 ## Exporting a PyTorch Model to ONNX Format <a name="export-to-onnx"></a>
-
-Another option for PyTorch conversion is to export the model to ONNX prior to converting:
+For complicated cases PyTorch models can be first exported to ONNX prior to MO conversion:
 
 1. [Export a PyTorch model to ONNX](#export-to-onnx).
 2. [Convert the ONNX model](Convert_Model_From_ONNX.md) to produce an optimized [Intermediate Representation](@ref openvino_docs_MO_DG_IR_and_opsets) of the model based on the trained network topology, weights, and biases values.
