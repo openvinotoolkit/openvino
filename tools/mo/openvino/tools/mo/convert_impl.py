@@ -472,14 +472,15 @@ def emit_ir(graph: Graph, argv: argparse.Namespace, non_default_params: dict):
         t = tm.Telemetry()
         t.send_event('mo', 'offline_transformations_status', message)
 
-        if return_code != 0:
-            raise Error("offline transformations step has failed.")
-
         for suf in [".xml", ".bin", ".mapping"]:
             # remove existing files
             path_to_file = orig_model_name + "_tmp" + suf
             if os.path.exists(path_to_file):
                 os.remove(path_to_file)
+
+        if return_code != 0:
+            raise Error("offline transformations step has failed.")
+
     return func
 
 
