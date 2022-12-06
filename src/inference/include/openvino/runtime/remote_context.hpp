@@ -25,6 +25,7 @@ class RemoteContext;
 namespace ov {
 
 class Core;
+class CoreImpl;
 class CompiledModel;
 
 /**
@@ -48,6 +49,7 @@ protected:
     RemoteContext(const std::shared_ptr<InferenceEngine::RemoteContext>& impl,
                   const std::vector<std::shared_ptr<void>>& so);
     friend class ov::Core;
+    friend class ov::CoreImpl;
     friend class ov::CompiledModel;
 
 public:

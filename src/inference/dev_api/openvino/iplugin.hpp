@@ -168,7 +168,8 @@ public:
      * @param properties Optional map of pairs: (property name, property value).
      * @return An object containing a map of pairs an operation name -> a device name supporting this operation.
      */
-    virtual SupportedOpsMap query_model(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& properties) const;
+    virtual SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
+                                        const ov::AnyMap& properties) const;
 
     /**
      * @brief Registers legacy extension within plugin
