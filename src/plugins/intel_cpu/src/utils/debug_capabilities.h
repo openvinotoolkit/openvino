@@ -43,14 +43,6 @@ public:
     void break_at(const std::string & log);
 };
 
-static inline std::ostream& write_all_to_stream(std::ostream& os) {
-    return os;
-}
-template <typename T, typename... TS>
-static inline std::ostream& write_all_to_stream(std::ostream& os, const T& arg, TS&&... args) {
-    return ov::intel_cpu::write_all_to_stream(os << arg, std::forward<TS>(args)...);
-}
-
 class NodeDesc;
 class MemoryDesc;
 class Node;
@@ -123,6 +115,14 @@ std::ostream & operator<<(std::ostream & os, const PrintableVector<T>& vec) {
     }
     os << ss.str();
     return os;
+}
+
+static inline std::ostream& write_all_to_stream(std::ostream& os) {
+    return os;
+}
+template <typename T, typename... TS>
+static inline std::ostream& write_all_to_stream(std::ostream& os, const T& arg, TS&&... args) {
+    return ov::intel_cpu::write_all_to_stream(os << arg, std::forward<TS>(args)...);
 }
 
 }   // namespace intel_cpu
