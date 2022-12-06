@@ -20,6 +20,8 @@ public:
     RNN(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isCell(const std::shared_ptr<const ngraph::Node>& op);
+    static bool testNativeOrder(const std::shared_ptr<const ngraph::Node>& op);
     void getSupportedDescriptors() override;
     std::shared_ptr<MemoryDesc> getSrcMemDesc(dnnl::primitive_desc_iterator& primitive_desc_it, size_t idx) override;
     std::shared_ptr<MemoryDesc> getDstMemDesc(dnnl::primitive_desc_iterator& primitive_desc_it, size_t idx) override;
@@ -37,7 +39,6 @@ public:
     void cleanup() override;
 
 protected:
-    std::vector<VectorDims> shapeInfer() const override;
     void prepareParams() override;
     void executeDynamicImpl(dnnl::stream strm) override;
 
