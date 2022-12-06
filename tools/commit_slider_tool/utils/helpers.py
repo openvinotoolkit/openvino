@@ -81,7 +81,6 @@ def runCommandList(commit, cfgData):
                 pass
             sys.stdout.write(line)
             commitLogger.info(line)
-        # commitLogger.info(proc.stdout)
         proc.wait()
         checkOut, err = proc.communicate()
         try:

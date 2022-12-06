@@ -48,7 +48,7 @@ if not isWorkingDir:
     copy_tree(tempCachePath, permCachePath)
     cfgPath = 'utils/cfg.json'
     shutil.copyfile(os.path.join(workPath, cfgPath), os.path.join(curPath, cfgPath), follow_symlinks=True)
-    safeClearDir(workPath)
+    # safeClearDir(workPath)
     exit()
 
 # prevent cross import

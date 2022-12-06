@@ -1,7 +1,8 @@
 {
     "commonConfig" : {
         "modeMap" : {
-            "checkOutput" : "CheckOutputMode"
+            "checkOutput" : "CheckOutputMode",
+            "bmPerfMode" : "BenchmarkAppPerformanceMode"
         },
         "traversalMap" : {
             "firstFailedVersion" : "FirstFailedVersion",
@@ -14,22 +15,18 @@
             {"cmd" : "git checkout {commit}", "catchMsg" : "error", "path" : "{gitPath}"},
             {"cmd" : "git submodule init", "path" : "{gitPath}"},
             {"cmd" : "git submodule update --recursive", "path" : "{buildPath}"},
-            {"cmd" : "cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_PYTHON=ON -DPYTHON_EXECUTABLE=`which python3.8` -DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.8.so -DPYTHON_INCLUDE_DIR=/usr/include/python3.8 -DTHREADING=TBB -DENABLE_MKL_DNN=ON -DENABLE_CLDNN=OFF -DENABLE_INTEL_GNA=OFF -DENABLE_INTEL_VPU=OFF -DENABLE_INTEL_MYRIAD=OFF -DENABLE_INTEL_MYRIAD_COMMON=OFF -DENABLE_HDDL=OFF -DENABLE_MODELS=OFF -DENABLE_SAMPLES=OFF -DENABLE_TESTS=OFF -DENABLE_CPU_DEBUG_CAPS=OFF -DENABLE_HETERO=OFF -DENABLE_TEMPLATE=OFF -DENABLE_CPU_DEBUG_CAPS=OFF -DENABLE_DEBUG_CAPS=OFF -DENABLE_OV_CORE_BACKEND_UNIT_TESTS=OFF -DENABLE_OPENVINO_DEBUG=OFF ..", "catchMsg" : "CMake Error", "path" : "{buildPath}"},
+            {"cmd" : "cmake cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_PYTHON=OFF -DTHREADING=TBB -DENABLE_MKL_DNN=ON -DENABLE_CLDNN=OFF -DENABLE_INTEL_GNA=OFF -DENABLE_INTEL_VPU=OFF -DENABLE_INTEL_MYRIAD=OFF -DENABLE_INTEL_MYRIAD_COMMON=OFF -DENABLE_HDDL=OFF -DENABLE_MODELS=OFF -DENABLE_SAMPLES=ON -DENABLE_TESTS=ON -DENABLE_HETERO=OFF -DENABLE_TEMPLATE=OFF -DENABLE_CPU_DEBUG_CAPS=OFF -DENABLE_DEBUG_CAPS=OFF -DENABLE_OV_CORE_BACKEND_UNIT_TESTS=OFF -DENABLE_OPENVINO_DEBUG=OFF ..", "catchMsg" : "CMake Error", "path" : "{buildPath}"},
             {"cmd" : "make --jobs=4", "path" : "{buildPath}"},
-            {"cmd" : "git checkout -- .", "path" : "{gitPath}"},
-            {"tag" : "setupenv"}
+            {"cmd" : "git checkout -- .", "path" : "{gitPath}"}
         ],
         "returnCmd" : "git checkout commit_stroller",
         "gitPath" : "../../",
         "buildPath" : "../../build",
         "cachePath" : "{workPath}/slider_cache/",
         "logPath" : "{workPath}/log/",
-        "_appCmd" : "./cpuFuncTests --gtest_filter=*SetScalePreProcessGetBlob*netPRC=FP32_targetDevice=AUTO*",
-        "appCmd" : "pytest test_dynamism.py -k 'TF_V2_Context_Encoder' --dynamism_type=negative_ones --consecutive_infer --tf_models_version=2",
+        "appCmd" : "./cpuFuncTests --gtest_filter=*SetScalePreProcessGetBlob*netPRC=FP32_targetDevice=AUTO*",
+        "appPath" : "../../bin/intel64/Release/",
 
-        "_appPath" : "../../bin/intel64/Release/",
-        "appPath" : "/home/openvino-ci-35/Documents/e2e/frameworks.ai.openvino.tests/e2e_oss/",
-        
         "workPath" : "/tmp/commit_slider_tool",
         "clearCache" : false,
         "checkBorders" : false,
@@ -40,22 +37,17 @@
     },
     "specialConfig" : {
         "commitList" : {
-            "getCommitListCmd" : "git log 74758c0ca5..4f0b846d1a55 --boundary --pretty=\"%h\""
+            "getCommitListCmd" : "git log e29169d..e4cf8ae --boundary --pretty=\"%h\""
 
         },
         "mode" : "checkOutput",
-        "traversal" : "firstFailedVersion",
-        "stopPattern" : "(.)*IR generation failed with 1 exit code(.)*",
+        "traversal" : "firstFixedVersion",
+        "stopPattern" : "(.)*FAILED(.)*",
         "preprocess" : {
             "name" : "replace",
             "file" : "../../inference-engine/tests/functional/plugin/cpu/shared_tests_instances/skip_tests_config.cpp",
             "pattern" : "(\\s)*(.)*(SetScalePreProcessGetBlob)(.)*(\\s)",
             "replacement" : ""
-        },
-        "setupenv" : [
-            {"env": "PYTHONPATH", "val" : "/home/openvino-ci-35/Documents/openvino/bin/intel64/Release/python_api/python3.8"},
-            {"env": "LD_LIBRARY_PATH", "val" : "/home/openvino-ci-35/Documents/openvino/bin/intel64/Release/."},
-            {"env" : "OPENVINO_ROOT_DIR", "val" : "/home/openvino-ci-35/Documents/openvino/"}
-        ]
+        }
     }
 }

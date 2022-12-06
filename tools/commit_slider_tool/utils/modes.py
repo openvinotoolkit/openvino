@@ -1,5 +1,5 @@
 import os
-from utils.helpers import handleCommit
+from utils.helpers import handleCommit, runCommandList
 from utils.helpers import getCommitLogger
 from utils.helpers import CashError
 from utils.helpers import CfgError
@@ -9,10 +9,12 @@ import json
 from utils.common_mode import Mode
 
 class CheckOutputMode(Mode):
-    
     def __init__(self, cfg):
         super().__init__(cfg)
         self.createCash()
+    
+    def prepareRun(self, i1, i2, list, cfg):
+        super().prepareRun(i1, i2, list, cfg)
 
     def createCash(self):
         wp = self.cfg["commonConfig"]["workPath"]
@@ -35,7 +37,6 @@ class CheckOutputMode(Mode):
         except FileNotFoundError:
             cacheDump = open(self.cachePath, 'w')
             json.dump(initCacheMap, cacheDump)
-
         cacheDump.close()
 
     def checkCfg(self, cfg):
@@ -88,3 +89,59 @@ class CheckOutputMode(Mode):
         stopPattern = cfg["specialConfig"]["stopPattern"]
         isFound = re.search(stopPattern, checkOut)
         return isFound
+
+class BenchmarkAppPerformanceMode(Mode):
+    def __init__(self, cfg):
+        super().__init__(cfg)
+        self.outPattern = 'Throughput: ([0-9]*[.][0-9]*) FPS'
+        self.createCash()
+
+    def prepareRun(self, i1, i2, list, cfg):
+        super().prepareRun(i1, i2, list, cfg)
+        sampleCommit = list[i1]
+        sampleCommit = sampleCommit.replace('"', '')
+        self.commonLogger.info("Prepare sample commit - {commit}".format(commit = sampleCommit))
+        commitLogger = getCommitLogger(cfg, sampleCommit)
+        cfg["trySkipClean"] = False
+        runCommandList(sampleCommit, cfg)
+        appCmd = cfg["commonConfig"]["appCmd"]
+        appPath = cfg["commonConfig"]["appPath"]
+        p = subprocess.Popen(appCmd.split(), cwd=appPath, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        output, err = p.communicate()
+        output = output.decode('utf-8')
+        commitLogger.info(output)
+        foundThroughput = re.search(self.outPattern, output, flags=re.MULTILINE).group(1)
+        self.setCommitCash(sampleCommit, float(foundThroughput))
+        self.sampleThroughput = float(foundThroughput)
+
+    def checkCfg(self, cfg):
+        super().checkCfg(cfg)
+        if not("perfAppropriateDeviation" in cfg["specialConfig"]):
+            raise CfgError("Appropriate deviation is not configured")
+        else:
+            self.apprDev = cfg["specialConfig"]["perfAppropriateDeviation"]
+
+    def isBadVersion(self, commit, cfg):
+        commit = commit.replace('"', '')
+        curThroughput = 0
+        commitLogger = getCommitLogger(cfg, commit)
+        isCommitCashed, cashedThroughput = self.getCommitIfCashed(commit)
+        if (isCommitCashed):
+            logMsg = "Cashed commit - {commit}".format(commit = commit)
+            self.commonLogger.info(logMsg)
+            commitLogger.info(logMsg)
+            curThroughput = cashedThroughput
+        else:
+            self.commonLogger.info("New commit - {commit}".format(commit = commit))
+            handleCommit(commit, cfg)
+            appCmd = cfg["commonConfig"]["appCmd"]
+            appPath = cfg["commonConfig"]["appPath"]
+            p = subprocess.Popen(appCmd.split(), cwd=appPath, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            output, err = p.communicate()
+            output = output.decode('utf-8')
+            foundThroughput = re.search(self.outPattern, output, flags=re.MULTILINE).group(1)
+            curThroughput = float(foundThroughput)
+            commitLogger.info(output)
+            self.setCommitCash(commit, curThroughput)
+        curRel = curThroughput / self.sampleThroughput
+        return not(abs(1 - curRel) < self.apprDev)

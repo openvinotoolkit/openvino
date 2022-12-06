@@ -1,11 +1,15 @@
 from abc import ABC
 import utils.helpers as util
+import json
+import os
+
 class Mode(ABC):
     @staticmethod
     def factory(cfg):
         modeClassName = util.checkAndGetClassnameByConfig(cfg, "modeMap", "mode")
         cl = util.checkAndGetSubclass(modeClassName, Mode)
         return cl(cfg)
+
     def __init__(self, cfg) -> None:
         self.checkCfg(cfg)
         traversalClassName = util.checkAndGetClassnameByConfig(cfg, "traversalMap", "traversal")
@@ -14,27 +18,71 @@ class Mode(ABC):
         self.cfg = cfg
         logPath = util.getActualPath("logPath", cfg)
         self.commonLogger = util.setupLogger('commonLogger', logPath, 'common_log.log')
+
     def createCash(self):
-        raise NotImplementedError("createCash() not implemented")
+        wp = self.cfg["commonConfig"]["workPath"]
+        cp = self.cfg["commonConfig"]["cachePath"]
+        cp = cp.format(workPath=wp)
+        if not os.path.exists(cp):
+            os.makedirs(cp)
+        self.cachePath = os.path.join(cp, 'check_output_cache.json')
+        initCacheMap = {}
+        try:
+            cacheDump = open(self.cachePath, 'r+')
+            if self.cfg["commonConfig"]["clearCache"]:
+                cacheDump.truncate(0)
+                json.dump(initCacheMap, cacheDump)
+            else:
+                try:
+                    json.load(cacheDump)
+                except json.decoder.JSONDecodeError:
+                    json.dump(initCacheMap, cacheDump)
+        except FileNotFoundError:
+            cacheDump = open(self.cachePath, 'w')
+            json.dump(initCacheMap, cacheDump)
+        cacheDump.close()
+
     def getCommitIfCashed(self, commit):
-        raise NotImplementedError("getCommitIfCashed() not implemented")
+        with open(self.cachePath, 'r') as cacheDump:
+            cacheData = json.load(cacheDump)
+            cacheDump.close()
+            if commit in cacheData:
+                return True, cacheData[commit]
+            else:
+                return False, None
+
     def setCommitCash(self, commit, valueToCache):
-        raise NotImplementedError("setCommitCash() not implemented")
+        isCommitCashed, _ = self.getCommitIfCashed(commit)
+        if (isCommitCashed):
+            raise util.CashError("Commit already cashed")
+        else:
+            with open(self.cachePath, 'r+', encoding='utf-8') as cacheDump:
+                cacheData = json.load(cacheDump)
+                cacheData[commit] = valueToCache
+                cacheDump.seek(0)
+                json.dump(cacheData, cacheDump, indent = 4)
+                cacheDump.truncate()
+                cacheDump.close()
+
     def checkCfg(self, cfg):
         if not("traversal" in cfg["specialConfig"]):
             raise util.CfgError("traversal is not configured")
+
     def isBadVersion(commit, cfg):
         raise NotImplementedError("isBadVersion() is not implemented")
+
+    def prepareRun(self, i1, i2, list, cfg):
+        cfg["serviceConfig"] = {}
+
     def run(self, i1, i2, list, cfg) -> int:
-        # todo: add preparation step for compare blobs for example
-        cfg["serviceConfig"] = {} # prepare service data
+        self.prepareRun(i1, i2, list, cfg)
         self.commitList = list
         self.endCommit = self.traversal.bypass(i1, i2, list, cfg, self.isBadVersion)
         util.returnToActualVersion(self.cfg)
+
     def getResult(self):
         # override if you need more than one-found-commit representation
         print ("Commit found: {c}".format(c=self.commitList[self.endCommit]))
-
     
     class Traversal(ABC):
         def bypass(self, i1, i2, list, cfg, isBadVersion) -> int:
