@@ -11,6 +11,7 @@
 #include "kernel_selector_helper.h"
 #include "kernel_selector/kernels/resample/resample_kernel_selector.h"
 #include "kernel_selector/kernels/resample/resample_kernel_base.h"
+#include "intel_gpu/runtime/half.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -155,10 +156,9 @@ struct resample_impl : typed_primitive_impl_ocl<resample> {
 
         auto scales = primitive->scales;
         bool scales_calc_mod = primitive->shape_calc_mode == resample::InterpolateOp::ShapeCalcMode::SCALES;
-        if (scales_calc_mod && impl_param.input_layouts.size() == 2 && scales.empty()) {
-            auto mem = impl_param.memory_deps.at(1);
-            float* buffer = static_cast<float*>(mem->buffer_ptr());
-            scales = std::vector<float>(buffer, buffer + mem->count());
+        if (scales_calc_mod && impl_param.input_layouts.size() > 1 && scales.empty()) {
+            auto mem = impl_param.memory_deps.at(2);
+            scales = read_vector<float>(mem, impl_param.prog->get_stream());
         }
 
         for (size_t i = 0; i < scales.size(); ++i) {
