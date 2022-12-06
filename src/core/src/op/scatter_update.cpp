@@ -158,24 +158,17 @@ bool scatter_label_evaluator(const Node* node, TensorLabelVector& output_labels)
             make_input_label(in0_has_no_labels);
         } else if (i == updates_in_idx) {
             make_input_label(in2_has_no_labels);
-        } else if (input.get_tensor().has_and_set_bound()) {
+        } else {
             input_tensors.emplace_back(input.get_tensor().get_lower_value());
         }
     }
 
     HostTensorVector output_tensors;
     output_tensors.reserve(node->get_output_size());
-    for (size_t i = 0; i < node->get_output_size(); ++i) {
-        output_tensors.emplace_back(std::make_shared<HostTensor>(element::u64, node->get_output_partial_shape(i)));
-    }
+    output_tensors.emplace_back(std::make_shared<HostTensor>(element::u64, node->get_output_partial_shape(0)));
 
     if (node->evaluate(output_tensors, input_tensors)) {
-        std::transform(output_tensors.cbegin(),
-                       output_tensors.cend(),
-                       output_labels.begin(),
-                       [](const HostTensorPtr& tensor) {
-                           return std::make_shared<op::v0::Constant>(tensor)->cast_vector<size_t>();
-                       });
+        output_labels[0] = std::make_shared<op::v0::Constant>(output_tensors[0])->cast_vector<size_t>();
         return true;
     }
     return false;
