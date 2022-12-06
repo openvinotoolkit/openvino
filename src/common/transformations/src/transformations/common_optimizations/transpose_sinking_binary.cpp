@@ -48,7 +48,7 @@ ov::pass::TransposeSinkingBinaryElementwiseForward::TransposeSinkingBinaryElemen
 namespace {
 bool IfSinkingEnable(const Output<Node>& output) {
     static auto consumers_check = consumers_count(1);
-    return consumers_check(output) && transpose_sinking::IsSinkingEnable(output.get_node_shared_ptr());
+    return consumers_check(output) && transpose_sinking::IsSinkingEnabled(output.get_node_shared_ptr());
 }
 }  // namespace
 
