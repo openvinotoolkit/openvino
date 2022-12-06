@@ -129,11 +129,17 @@ struct PluginConfig {
                         << " for key: " << kvp.first;
                 }
             } else if (kvp.first == ov::hint::allow_auto_batching) {
-                if (kvp.second == PluginConfigParams::NO) _disableAutoBatching = true;
-                else if (kvp.second == PluginConfigParams::YES) _disableAutoBatching = false;
-                else
+                if (kvp.second == PluginConfigParams::NO) {
+                    _disableAutoBatching = true;
+                    // temp flag, to be removed when unify this key to ie core
+                    _isBatchConfigSet = true;
+                } else if (kvp.second == PluginConfigParams::YES) {
+                    _disableAutoBatching = false;
+                    _isBatchConfigSet = true;
+                } else {
                     IE_THROW() << "Unsupported config value: " << kvp.second
                             << " for key: " << kvp.first;
+                }
             } else if (kvp.first == ov::auto_batch_timeout) {
                 try {
                     auto batchTimeout = std::stoi(kvp.second);
@@ -282,6 +288,7 @@ struct PluginConfig {
     // Add this flag to check if user app sets hint with none value that is equal to the default value of hint.
     bool _isSetPerHint = false;
     bool _isSetCacheDir = false;
+    bool _isBatchConfigSet = false;
     std::map<std::string, std::string> _passThroughConfig;
     std::map<std::string, std::string> _keyConfigMap;
     const std::set<std::string> _availableDevices = {"AUTO",

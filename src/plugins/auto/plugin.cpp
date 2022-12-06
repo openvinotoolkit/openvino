@@ -413,7 +413,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                              config.second.c_str());
             }
             // carry on batch configs only if user explicitly sets
-            if (config.find(CONFIG_KEY(ALLOW_AUTO_BATCHING)) != config.end())
+            if (config.find(CONFIG_KEY(ALLOW_AUTO_BATCHING)) != config.end() || loadConfig._isBatchConfigSet)
                 insertPropToConfig(CONFIG_KEY(ALLOW_AUTO_BATCHING), iter->deviceName, configs);
             if (config.find(CONFIG_KEY(AUTO_BATCH_TIMEOUT)) != config.end())
                 insertPropToConfig(CONFIG_KEY(AUTO_BATCH_TIMEOUT), iter->deviceName, configs);
@@ -466,7 +466,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                 LOG_INFO_TAG("set %s=%s", tmpiter->first.c_str(), tmpiter->second.c_str());
                 multiSContext->_batchingDisabled = true;
             }
-            if (config.find(CONFIG_KEY(ALLOW_AUTO_BATCHING)) != config.end())
+            if (config.find(CONFIG_KEY(ALLOW_AUTO_BATCHING)) != config.end() || loadConfig._isBatchConfigSet)
                 p.config.insert({tmpiter->first, tmpiter->second});
         }
         if (config.find(CONFIG_KEY(AUTO_BATCH_TIMEOUT)) != config.end())
