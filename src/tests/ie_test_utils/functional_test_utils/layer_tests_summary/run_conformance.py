@@ -33,7 +33,7 @@ SUBGRAPH_DUMPER_BIN_NAME = "subgraphsDumper"
 DEBUG_DIR = "Debug"
 RELEASE_DIR = "Release"
 
-IS_WIN = "windows" or "win32" in platform
+IS_WIN = "windows" in platform or "win32" in platform
 
 OS_SCRIPT_EXT = ".bat" if IS_WIN else ""
 OS_BIN_FILE_EXT = ".exe" if IS_WIN else ""
