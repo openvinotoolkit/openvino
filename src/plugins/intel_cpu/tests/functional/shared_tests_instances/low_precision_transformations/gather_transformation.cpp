@@ -1,0 +1,60 @@
+// Copyright (C) 2018-2022 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include <vector>
+
+#include "low_precision_transformations/gather_transformation.hpp"
+#include "common_test_utils/test_constants.hpp"
+
+using namespace LayerTestsDefinitions;
+
+namespace {
+const std::vector<ngraph::element::Type> precisions = {
+    ngraph::element::f32,
+};
+
+const std::vector<GatherTransformationTestValues> testValues = {
+    // U8: per-tensor quantization
+    {
+        {3, 3, 4},
+        {0},
+        {0},
+        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
+        ngraph::element::f32,
+        {256, {}, {0.f}, {25.5f}, {12.5f}, {25.5f + 12.5f}}
+    },
+    // U8: per-channel quantization
+    {
+        {3, 5, 4},
+        {0},
+        {1},
+        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
+        ngraph::element::f32,
+        {
+            256,
+            {3, 1, 1},
+            {0.f, 0.f, 0.f},
+            {25.5f, 25.5f, 25.5f},
+            {0.f, 12.5f, 25.5f},
+            {25.5f, 25.5f + 12.5f * 2, 25.5f + 12.5f * 4}
+        }
+    },
+    // 6D
+    {
+        { 3, 4, 100, 2},
+        { 1, 2},
+        {0},
+        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
+        ngraph::element::f32,
+        {256, {}, {0.f}, {25.5f}, {12.5f}, {25.5f + 12.5f}}
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, GatherTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(precisions),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::ValuesIn(testValues)),
+    GatherTransformation::getTestCaseName);
+}  // namespace
