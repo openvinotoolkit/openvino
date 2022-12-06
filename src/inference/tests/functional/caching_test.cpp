@@ -80,7 +80,7 @@ public:
     MockCachingInferencePluginBase() = default;
     ~MockCachingInferencePluginBase() = default;
 
-    IExecutableNetworkInternal::Ptr LoadNetwork(const std::string& modelPath,
+    ov::SoPtr<IExecutableNetworkInternal> LoadNetwork(const std::string& modelPath,
                                                 const std::map<std::string, std::string>& config) override {
         // In GTEST, it is not possible to call base implementation inside of mocked class
         // Thus, we define a proxy callback and will use
