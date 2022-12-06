@@ -4,107 +4,102 @@
 
 #define NOMINMAX
 
-#include <cstdlib>
-#include <vector>
-#include <cstring>
-#include <list>
-#include <algorithm>
-#include <map>
-#include <string>
-#include <unordered_map>
-#include <unordered_set>
-#include <memory>
-#include <utility>
-#include <limits>
-
-#include <ie_common.h>
-#include <legacy/graph_tools.hpp>
-#include <legacy/net_pass.h>
-#include <debug.h>
-#include <gna/gna_config.hpp>
-#include "gna_plugin_config.hpp"
 #include "gna_plugin.hpp"
-#include "common/gna_target.hpp"
-#include "optimizer/gna_pass_manager.hpp"
-#include "layers/gna_layer_type.hpp"
-#include "preprocessing.hpp"
-#include "frontend/weights_converter.hpp"
-#include "frontend/model_quantizer.hpp"
-#include "frontend/scale_factor_calc.hpp"
-#include "gna_fused_iterator.hpp"
-#include "backend/am_intel_dnn.hpp"
-#include "memory/gna_memory_state.hpp"
-#include "gna_model_serial.hpp"
-#include "runtime/gna_float_runtime.hpp"
+
+#include <debug.h>
+#include <gna2-common-api.h>
+#include <gna2-model-api.h>
+#include <ie_common.h>
+#include <legacy/net_pass.h>
+
+#include <algorithm>
+#include <cstdlib>
+#include <cstring>
+#include <gna/gna_config.hpp>
 #include <layers/gna_fake_quantize_layer.hpp>
-#include "gna_graph_patterns.hpp"
-#include "gna_tensor_tools.hpp"
-#include "gna_itt.hpp"
-#include "gna2_model_export_helper.hpp"
-#include "gna2_model_helper.hpp"
-#include "orientation_helper.hpp"
-#include "scale_factor_helper.hpp"
-#include "request/model_wrapper_factory.hpp"
-#include "request/worker_pool_impl.hpp"
-#include "request/worker_factory.hpp"
-#include "log/log.hpp"
-
-#include <ngraph/pass/manager.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
+#include <legacy/graph_tools.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
-
+#include <limits>
+#include <list>
+#include <map>
+#include <memory>
+#include <ngraph/opsets/opset7.hpp>
+#include <ngraph/pass/manager.hpp>
+#include <string>
+#include <transformations/common_optimizations/add_fake_quantize_fusion.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
-#include <transformations/control_flow/unroll_tensor_iterator.hpp>
-#include <transformations/init_node_info.hpp>
-#include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
-#include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
-#include "transformations/common_optimizations/concat_reduce_fusion.hpp"
 #include <transformations/common_optimizations/fq_mul_fusion.hpp>
 #include <transformations/common_optimizations/fq_reshape_fusion.hpp>
 #include <transformations/common_optimizations/pull_transpose_through_fq.hpp>
 #include <transformations/common_optimizations/relu_fake_quantize_fusion.hpp>
-#include <transformations/common_optimizations/add_fake_quantize_fusion.hpp>
 #include <transformations/common_optimizations/transpose_sinking.hpp>
-#include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
-#include "transformations/disable_decompression_convert_constant_folding.hpp"
-#include "transformations/op_conversions/softsign_decomposition.hpp"
+#include <transformations/control_flow/unroll_tensor_iterator.hpp>
+#include <transformations/init_node_info.hpp>
+#include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
+#include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/utils/utils.hpp>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
+#include <vector>
 
-#include "transformations/pwl_approximation.hpp"
-#include "transformations/remove_extra_reshapes.hpp"
-#include "transformations/insert_transpose_after_convolution_or_pooling.hpp"
-#include "transformations/reorder_activation_and_pooling.hpp"
-#include "transformations/swap_input_matmul_gna.hpp"
-#include "transformations/convert_matmul_to_pointwise_convolution.hpp"
-#include "transformations/split_convolution_with_large_buffer_size.hpp"
-#include "transformations/handle_transposes_around_matmul.hpp"
-#include "transformations/decompose_2d_convolution.hpp"
-#include "transformations/convert_padded_to_valid_convolution.hpp"
-#include "transformations/insert_reshape_around_matmul.hpp"
-#include "transformations/convert_dwsc_to_scaleshifts.hpp"
-#include "transformations/op_conversions/lstm_cell_decomposition.hpp"
-#include "transformations/op_conversions/gru_cell_decomposition.hpp"
-#include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
-#include "transformations/remove_single_input_concat.hpp"
-#include "transformations/remove_converts.hpp"
+#include "avx2.hpp"
+#include "backend/am_intel_dnn.hpp"
+#include "common/gna_target.hpp"
+#include "frontend/model_quantizer.hpp"
+#include "frontend/scale_factor_calc.hpp"
+#include "frontend/weights_converter.hpp"
+#include "gna2_model_export_helper.hpp"
+#include "gna2_model_helper.hpp"
+#include "gna_fused_iterator.hpp"
+#include "gna_graph_patterns.hpp"
+#include "gna_itt.hpp"
+#include "gna_model_serial.hpp"
+#include "gna_plugin_config.hpp"
+#include "gna_tensor_tools.hpp"
+#include "layers/gna_layer_type.hpp"
+#include "log/log.hpp"
+#include "memory/gna_memory_state.hpp"
+#include "optimizer/gna_pass_manager.hpp"
+#include "orientation_helper.hpp"
+#include "preprocessing.hpp"
+#include "request/model_wrapper_factory.hpp"
+#include "request/worker_factory.hpp"
+#include "request/worker_pool_impl.hpp"
+#include "runtime/gna_float_runtime.hpp"
+#include "scale_factor_helper.hpp"
 #include "transformations/broadcast_const.hpp"
-#include "transformations/op_conversions/convert_mvn1_to_mvn6.hpp"
-#include "transformations/decompose_mvn.hpp"
-#include "transformations/substitute_softsign.hpp"
+#include "transformations/common_optimizations/concat_reduce_fusion.hpp"
+#include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
+#include "transformations/convert_dwsc_to_scaleshifts.hpp"
+#include "transformations/convert_matmul_to_pointwise_convolution.hpp"
+#include "transformations/convert_padded_to_valid_convolution.hpp"
 #include "transformations/convert_precision.hpp"
-#include "transformations/unfuse_reshape_and_transpose.hpp"
+#include "transformations/decompose_2d_convolution.hpp"
+#include "transformations/decompose_mvn.hpp"
+#include "transformations/disable_decompression_convert_constant_folding.hpp"
+#include "transformations/handle_transposes_around_matmul.hpp"
 #include "transformations/insert_copy_layer.hpp"
-#include "transformations/split_eltwise.hpp"
-#include "transformations/markup_fusable_transpose.hpp"
 #include "transformations/insert_identity_layer.hpp"
-
-#include <ngraph/opsets/opset7.hpp>
-
-#include <gna2-model-api.h>
-#include <gna2-common-api.h>
-#ifdef HAVE_AVX2
-#    include <immintrin.h>
-#endif
+#include "transformations/insert_reshape_around_matmul.hpp"
+#include "transformations/insert_transpose_after_convolution_or_pooling.hpp"
+#include "transformations/markup_fusable_transpose.hpp"
+#include "transformations/op_conversions/convert_mvn1_to_mvn6.hpp"
+#include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
+#include "transformations/op_conversions/gru_cell_decomposition.hpp"
+#include "transformations/op_conversions/lstm_cell_decomposition.hpp"
+#include "transformations/op_conversions/softsign_decomposition.hpp"
+#include "transformations/pwl_approximation.hpp"
+#include "transformations/remove_converts.hpp"
+#include "transformations/remove_extra_reshapes.hpp"
+#include "transformations/remove_single_input_concat.hpp"
+#include "transformations/reorder_activation_and_pooling.hpp"
+#include "transformations/split_convolution_with_large_buffer_size.hpp"
+#include "transformations/split_eltwise.hpp"
+#include "transformations/substitute_softsign.hpp"
+#include "transformations/swap_input_matmul_gna.hpp"
+#include "transformations/unfuse_reshape_and_transpose.hpp"
 
 inline uint32_t ToByteSize(const Gna2DataType type) {
     switch (type) {
@@ -134,373 +129,6 @@ using namespace GNAPluginNS::memory;
 namespace InferenceEngine {
     template<>
     InferenceEngine::TBlob<gna_compound_bias_t, std::enable_if<true, void> >::~TBlob() { free(); }
-}
-
-template <typename T, typename U>
-void GNAPlugin::copyInputData(T* dst,
-                              const U* src,
-                              uint32_t num_frames,
-                              uint32_t num_group,
-                              uint32_t num_vector_elements,
-                              uint32_t num_vector_stride,
-                              intel_dnn_orientation_t orientation,
-                              float scaleFactor) {
-    if (!dst || !src) {
-        return;
-    }
-    if (orientation == kDnnInterleavedOrientation) {
-        for (uint32_t i = 0; i < num_frames; i++) {
-            for (uint32_t j = 0; j < num_vector_elements; j++) {
-                if (!std::is_same<T, U>::value) {
-                    if (!gnaFlags->input_low_precision) {
-                        dst[j * num_group + i] = ConvertFloatToInt16(src[i * num_vector_elements + j] * scaleFactor);
-                    } else {
-                        dst[j * num_group + i] = ConvertFloatToInt8(src[i * num_vector_elements + j] * scaleFactor);
-                    }
-                } else {
-                    dst[j * num_group + i] = src[i * num_vector_elements + j];
-                }
-            }
-            // pad to meet weight matrix row length requirement
-            for (uint32_t j = num_vector_elements; j < num_vector_stride; j++) {
-                dst[j * num_group + i] = 0;
-            }
-        }
-        // pad partial group
-        for (uint32_t i = num_frames; i < num_group; i++) {
-            for (uint32_t j = 0; j < num_vector_stride; j++) {
-                dst[j * num_group + i] = 0;
-            }
-        }
-    } else {
-        if (!std::is_same<T, U>::value) {
-            for (uint32_t i = 0; i < num_frames; i++) {
-                T *ptr_dst_vec = reinterpret_cast<T *>(dst) + i * num_vector_stride;
-                const U *ptr_src_vec = reinterpret_cast<const U *>(src) + i * num_vector_elements;
-                std::memset(ptr_dst_vec, 0, num_vector_stride * sizeof(T));
-                if (!gnaFlags->input_low_precision) {
-                    for (uint32_t j = 0; j < num_vector_elements; j++) {
-                        ptr_dst_vec[j] = ConvertFloatToInt16(ptr_src_vec[j] * scaleFactor);
-                    }
-                } else {
-                    for (uint32_t j = 0; j < num_vector_elements; j++) {
-                        ptr_dst_vec[j] = ConvertFloatToInt8(ptr_src_vec[j] * scaleFactor);
-                    }
-                }
-            }
-        } else {
-            for (uint32_t i = 0; i < num_frames; i++) {
-                void *ptr_dst_vec = reinterpret_cast<uint8_t *>(dst) + i * num_vector_stride * sizeof(T);
-                const void *ptr_src_vec = reinterpret_cast<const uint8_t *>(src) + i * num_vector_elements * sizeof(U);
-                std::memset(ptr_dst_vec, 0, num_vector_stride * sizeof(T));
-                ie_memcpy(ptr_dst_vec, num_vector_elements * sizeof(T),
-                    ptr_src_vec, num_vector_elements * sizeof(T));
-            }
-        }
-
-        for (uint32_t i = num_frames; i < num_group; i++) {
-            void *ptr_dst_vec = reinterpret_cast<uint8_t *>(dst) + i * num_vector_stride * sizeof(T);
-            std::memset(ptr_dst_vec, 0, num_vector_stride * sizeof(T));
-        }
-    }
-}
-
-void GNAPlugin::ExportScores(void* ptr_dst,
-                             const void* ptr_src,
-                             intel_dnn_orientation_t orientation,
-                             uint32_t num_frames,
-                             uint32_t num_group,
-                             uint32_t num_vector_elements,
-                             uint32_t num_active_elements,
-                             uint32_t num_vector_stride,
-                             Precision precision_in,
-                             Precision precision_out,
-                             const float scale_factor) {
-    OV_ITT_SCOPED_TASK(itt::domains::GNAPlugin, "ExportScores");
-
-    if (ptr_src == nullptr || ptr_dst == nullptr) {
-        THROW_GNA_EXCEPTION << "Received null pointer arguments";
-    }
-    if (precision_out != Precision::I32 && precision_out != Precision::FP32) {
-        THROW_GNA_EXCEPTION << "Unsupported target precision for infer : " << precision_out.name();
-    }
-#ifdef HAVE_AVX2
-    bool transpose = orientation == kDnnInterleavedOrientation && num_group > 1 && num_vector_stride > 1;
-    // TODO: AVX2 support for zero-padding isn't implemented yet;
-    // fall back to the non-vectorized version when it's necessary
-    bool needsZeroPadding = (num_active_elements != num_vector_stride) || (num_frames != num_group);
-#endif
-    switch (precision_out) {
-    case Precision::FP32:
-        switch (precision_in) {
-        case Precision::I8:
-#ifdef HAVE_AVX2
-            if (avx2Supported && !needsZeroPadding) {
-                ConvertMatrixInt8ToFp32Avx(reinterpret_cast<float*>(ptr_dst),
-                                           reinterpret_cast<const int8_t*>(ptr_src),
-                                           num_vector_stride,
-                                           num_frames,
-                                           scale_factor,
-                                           transpose);
-                break;
-            }
-#endif
-            UnscaleTransposeAndCast(reinterpret_cast<float*>(ptr_dst),
-                                    reinterpret_cast<const int8_t*>(ptr_src),
-                                    orientation,
-                                    num_frames,
-                                    num_group,
-                                    num_vector_elements,
-                                    num_active_elements,
-                                    num_vector_stride,
-                                    scale_factor);
-            break;
-        case Precision::I16:
-#ifdef HAVE_AVX2
-            if (avx2Supported && !needsZeroPadding) {
-                ConvertMatrixInt16ToFp32Avx(reinterpret_cast<float*>(ptr_dst),
-                                            reinterpret_cast<const int16_t*>(ptr_src),
-                                            num_vector_stride,
-                                            num_frames,
-                                            scale_factor,
-                                            transpose);
-                break;
-            }
-#endif
-            UnscaleTransposeAndCast(reinterpret_cast<float*>(ptr_dst),
-                                    reinterpret_cast<const int16_t*>(ptr_src),
-                                    orientation,
-                                    num_frames,
-                                    num_group,
-                                    num_vector_elements,
-                                    num_active_elements,
-                                    num_vector_stride,
-                                    scale_factor);
-            break;
-        case Precision::I32:
-#ifdef HAVE_AVX2
-            if (avx2Supported && !needsZeroPadding) {
-                ConvertMatrixInt32ToFp32Avx(reinterpret_cast<float*>(ptr_dst),
-                                            reinterpret_cast<const int32_t*>(ptr_src),
-                                            num_vector_stride,
-                                            num_frames,
-                                            scale_factor,
-                                            transpose);
-                break;
-            }
-#endif
-            UnscaleTransposeAndCast(reinterpret_cast<float*>(ptr_dst),
-                                    reinterpret_cast<const int32_t*>(ptr_src),
-                                    orientation,
-                                    num_frames,
-                                    num_group,
-                                    num_vector_elements,
-                                    num_active_elements,
-                                    num_vector_stride,
-                                    scale_factor);
-            break;
-        }
-        break;
-    case Precision::I32:
-        switch (precision_in) {
-        case Precision::I8:
-            UnscaleTransposeAndCast(reinterpret_cast<int32_t*>(ptr_dst),
-                                    reinterpret_cast<const int8_t*>(ptr_src),
-                                    orientation,
-                                    num_frames,
-                                    num_group,
-                                    num_vector_elements,
-                                    num_active_elements,
-                                    num_vector_stride,
-                                    scale_factor);
-            break;
-        case Precision::I16:
-            UnscaleTransposeAndCast(reinterpret_cast<int32_t*>(ptr_dst),
-                                    reinterpret_cast<const int16_t*>(ptr_src),
-                                    orientation,
-                                    num_frames,
-                                    num_group,
-                                    num_vector_elements,
-                                    num_active_elements,
-                                    num_vector_stride,
-                                    scale_factor);
-            break;
-        case Precision::I32:
-            UnscaleTransposeAndCast(reinterpret_cast<int32_t*>(ptr_dst),
-                                    reinterpret_cast<const int32_t*>(ptr_src),
-                                    orientation,
-                                    num_frames,
-                                    num_group,
-                                    num_vector_elements,
-                                    num_active_elements,
-                                    num_vector_stride,
-                                    scale_factor);
-            break;
-        }
-        break;
-    }
-}
-
-void GNAPlugin::ImportFrames(void* ptr_dst,
-                             const void* ptr_src,
-                             Precision input_precision,
-                             float scaleFactor,
-                             intel_dnn_orientation_t orientation,
-                             uint32_t num_frames,
-                             uint32_t num_group,
-                             uint32_t num_vector_elements,
-                             uint32_t num_vector_stride) {
-    switch (input_precision) {
-    case Precision::U8:
-    case Precision::I8:
-    {
-        auto src = reinterpret_cast<const uint8_t *>(ptr_src);
-        if (!gnaFlags->input_low_precision) {
-            auto dst = reinterpret_cast<int16_t*>(ptr_dst);
-            copyInputData(dst,
-                          src,
-                          num_frames,
-                          num_group,
-                          num_vector_elements,
-                          num_vector_stride,
-                          orientation,
-                          scaleFactor);
-        } else {
-            auto dst = reinterpret_cast<int8_t*>(ptr_dst);
-            copyInputData(dst,
-                          src,
-                          num_frames,
-                          num_group,
-                          num_vector_elements,
-                          num_vector_stride,
-                          orientation,
-                          scaleFactor);
-        }
-        break;
-    }
-    case Precision::I16:
-    {
-        auto src = reinterpret_cast<const int16_t *>(ptr_src);
-        if (!gnaFlags->input_low_precision) {
-            auto dst = reinterpret_cast<int16_t*>(ptr_dst);
-            copyInputData(dst,
-                          src,
-                          num_frames,
-                          num_group,
-                          num_vector_elements,
-                          num_vector_stride,
-                          orientation,
-                          scaleFactor);
-        } else {
-            auto dst = reinterpret_cast<int8_t*>(ptr_dst);
-            copyInputData(dst,
-                          src,
-                          num_frames,
-                          num_group,
-                          num_vector_elements,
-                          num_vector_stride,
-                          orientation,
-                          scaleFactor);
-        }
-        break;
-    }
-    case Precision::FP32:
-    {
-        auto src = reinterpret_cast<const float*>(ptr_src);
-        if (!gnadevice) {
-            auto dst = reinterpret_cast<float*>(ptr_dst);
-            copyInputData(dst,
-                          src,
-                          num_frames,
-                          num_group,
-                          num_vector_elements,
-                          num_vector_stride,
-                          orientation,
-                          scaleFactor);
-        } else {
-#ifdef HAVE_AVX2
-            bool transpose = orientation == kDnnInterleavedOrientation && num_group > 1 && num_vector_stride > 1;
-            // TODO: AVX2 support for zero-padding isn't implemented yet;
-            // fall back to the non-vectorized version when it's necessary
-            bool needsZeroPadding = (num_vector_elements != num_vector_stride) || (num_frames != num_group);
-#endif
-            if (!gnaFlags->input_low_precision) {
-                auto dst = reinterpret_cast<int16_t*>(ptr_dst);
-#ifdef HAVE_AVX2
-                if (avx2Supported && !needsZeroPadding) {
-                    ConvertMatrixFp32ToInt16(dst, src, num_group, num_vector_stride, scaleFactor, transpose);
-                    break;
-                }
-#endif
-                copyInputData(dst,
-                                src,
-                                num_frames,
-                                num_group,
-                                num_vector_elements,
-                                num_vector_stride,
-                                orientation,
-                                scaleFactor);
-            } else {
-                auto dst = reinterpret_cast<int8_t*>(ptr_dst);
-#ifdef HAVE_AVX2
-                if (avx2Supported && !needsZeroPadding) {
-                    ConvertMatrixFp32ToInt8(dst, src, num_group, num_vector_stride, scaleFactor, transpose);
-                    break;
-                }
-#endif
-                copyInputData(dst,
-                                src,
-                                num_frames,
-                                num_group,
-                                num_vector_elements,
-                                num_vector_stride,
-                                orientation,
-                                scaleFactor);
-            }
-        }
-        break;
-    }
-    case Precision::I32:
-    {
-        auto src = reinterpret_cast<const float *>(ptr_src);
-        if (!gnadevice) {
-            auto dst = reinterpret_cast<float*>(ptr_dst);
-            copyInputData(dst,
-                          src,
-                          num_frames,
-                          num_group,
-                          num_vector_elements,
-                          num_vector_stride,
-                          orientation,
-                          scaleFactor);
-        } else {
-            if (!gnaFlags->input_low_precision) {
-                auto dst = reinterpret_cast<int16_t*>(ptr_dst);
-                copyInputData(dst,
-                              src,
-                              num_frames,
-                              num_group,
-                              num_vector_elements,
-                              num_vector_stride,
-                              orientation,
-                              scaleFactor);
-            } else {
-                auto dst = reinterpret_cast<int8_t*>(ptr_dst);
-                copyInputData(dst,
-                              src,
-                              num_frames,
-                              num_group,
-                              num_vector_elements,
-                              num_vector_stride,
-                              orientation,
-                              scaleFactor);
-            }
-        }
-        break;
-    }
-    default:
-        break;
-    }
 }
 
 GNAPlugin::GNAPlugin() :
@@ -539,9 +167,7 @@ void GNAPlugin::Init() {
 
     requestWorkerPool_ = std::make_shared<request::WorkerPoolImpl>();
 
-#ifdef HAVE_AVX2
-    avx2Supported = ov::intel_gna::isAvx2Supported();
-#endif
+    isAvx2Supported = ov::intel_gna::isAvx2Supported();
 }
 
 void GNAPlugin::InitGNADevice() {
@@ -1479,7 +1105,10 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap& inputs, Infer
                      importedFrames,
                      targetGroups,
                      importedElements,
-                     importedElements);
+                     importedElements,
+                     gnaFlags->input_low_precision,
+                     gnadevice.get() != nullptr,
+                     isAvx2Supported);
 
         auto transpose_info = transpose_inputs_info.find(input.first);
         if (transpose_info != std::end(transpose_inputs_info)) {
@@ -1609,8 +1238,8 @@ RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
                      elementsPerBatch,
                      outputDesc.tensor_precision,
                      outputDesc.model_precision,
-                     outputDesc.scale_factor);
-
+                     outputDesc.scale_factor,
+                     isAvx2Supported);
 
         if (gnadevice) {
 #ifdef PLOT

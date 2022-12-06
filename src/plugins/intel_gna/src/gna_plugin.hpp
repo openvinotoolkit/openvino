@@ -4,28 +4,30 @@
 
 #pragma once
 
-#include <map>
-#include <unordered_map>
-#include <list>
-#include <string>
-#include <utility>
-#include <memory>
-#include <vector>
-#include <tuple>
-#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
+#include <gna2-model-api.h>
+
 #include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
-#include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
-#include "descriptions/gna_flags.hpp"
-#include "descriptions/gna_desc.hpp"
+#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
+#include <legacy/ie_util_internal.hpp>
+#include <list>
+#include <map>
+#include <memory>
+#include <string>
+#include <tuple>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
+#include "avx2.hpp"
 #include "backend/am_intel_dnn.hpp"
+#include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
+#include "descriptions/gna_desc.hpp"
+#include "descriptions/gna_flags.hpp"
 #include "gna_data_types.hpp"
 #include "gna_graph_compiler.hpp"
-#include "common/avx_support.hpp"
+#include "gna_plugin_config.hpp"
 #include "log/debug.hpp"
 #include "log/log.hpp"
-#include "gna_plugin_config.hpp"
-#include <legacy/ie_util_internal.hpp>
-#include <gna2-model-api.h>
 
 namespace GNAPluginNS {
 namespace request {
@@ -44,9 +46,7 @@ protected:
     std::shared_ptr<GNAPluginNS::gna_memory_type> gnamem;
     std::shared_ptr<GNAPluginNS::GnaInputs> inputs_ptr_;
     GNAPluginNS::GnaOutputs outputs_;
-#ifdef HAVE_AVX2
-    bool avx2Supported;
-#endif
+    bool isAvx2Supported;
 
     GNAPluginNS::GNAGraphCompiler graphCompiler;
 
@@ -175,38 +175,6 @@ protected:
     void InitGNADevice();
 
     void DumpXNNToFile() const;
-
-    void ImportFrames(void* ptr_dst,
-                      const void* ptr_src,
-                      InferenceEngine::Precision input_precision,
-                      float scaleFactor,
-                      intel_dnn_orientation_t orientation,
-                      uint32_t num_frames,
-                      uint32_t num_group,
-                      uint32_t num_vector_elements,
-                      uint32_t num_vector_stride);
-
-    void ExportScores(void* ptr_dst,
-                      const void* ptr_src,
-                      intel_dnn_orientation_t orientation,
-                      uint32_t num_frames,
-                      uint32_t num_group,
-                      uint32_t num_vector_elements,
-                      uint32_t num_active_elements,
-                      uint32_t num_vector_stride,
-                      InferenceEngine::Precision precision_in,
-                      InferenceEngine::Precision precision_out,
-                      const float scale_factor);
-
-    template <typename T, typename U>
-    void copyInputData(T* dst,
-                       const U* src,
-                       uint32_t num_frames,
-                       uint32_t num_group,
-                       uint32_t num_vector_elements,
-                       uint32_t num_vector_stride,
-                       intel_dnn_orientation_t orientation,
-                       float scaleFactor);
 
     void UpdateFieldsFromConfig();
     void UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network);

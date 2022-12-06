@@ -3,15 +3,17 @@
 //
 
 #include <gtest/gtest.h>
-#include <vector>
-#include <map>
-#include <cmath>
 
-#include "gna_plugin.hpp"
-#include "gna_data_types.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "common_test_utils/data_utils.hpp"
+#include <cmath>
+#include <map>
+#include <vector>
+
 #include "any_copy.hpp"
+#include "common_test_utils/data_utils.hpp"
+#include "common_test_utils/ngraph_test_utils.hpp"
+#include "gna_data_types.hpp"
+#include "gna_plugin.hpp"
+#include "preprocessing.hpp"
 
 using namespace InferenceEngine;
 
@@ -20,15 +22,21 @@ namespace testing {
 class GNAPluginForOutPrecisionTest : public GNAPluginNS::GNAPlugin {
 public:
 using GNAPlugin::GNAPlugin;
-using GNAPlugin::ExportScores;
     void setGNADeviceHelper() {
-        this->gnadevice = std::make_shared<GNADeviceHelper>();
+        gnadevice = std::make_shared<GNADeviceHelper>();
     }
-#ifdef HAVE_AVX2
+
+    bool isGnaDevicePresent() const {
+        return gnadevice.get() != nullptr;
+    }
+
     void setAvx2Support(bool testAvx2) {
-        this->avx2Supported = testAvx2;
+        isAvx2Supported = testAvx2;
     }
-#endif
+
+    bool isAvx2Support() const {
+        return isAvx2Supported;
+    }
 };
 
 typedef std::tuple<InferenceEngine::Precision,   // input precision
@@ -60,25 +68,24 @@ public:
         });
 
         plugin.reset(new GNAPluginForOutPrecisionTest(any_copy(gna_config)));
-#ifdef HAVE_AVX2
         plugin->setAvx2Support(testAvx2);
-#endif
     }
 
     void compare() {
         auto total_size = ov::shape_size(shape);
         std::vector<T> pluginOutputs(total_size);
-        plugin->ExportScores(&(pluginOutputs.front()),
-                             &(inputValues.front()),
-                             orientation,
-                             shape[0],
-                             shape[0],
-                             shape[1],
-                             shape[1],
-                             shape[1],
-                             precisionIn,
-                             precisionOut,
-                             sf);
+        GNAPluginNS::ExportScores(&(pluginOutputs.front()),
+                                  &(inputValues.front()),
+                                  orientation,
+                                  shape[0],
+                                  shape[0],
+                                  shape[1],
+                                  shape[1],
+                                  shape[1],
+                                  precisionIn,
+                                  precisionOut,
+                                  sf,
+                                  plugin->isAvx2Support());
         if (orientation == kDnnInterleavedOrientation) {
             for (int i = 0; i < shape[0]; ++i) {
                 for (int j = 0; j < shape[1]; j++) {
@@ -304,8 +311,8 @@ INSTANTIATE_TEST_SUITE_P(
                             ov::intel_gna::scale_factors_per_input(std::map<std::string, float>{{"0", 0.125f}}),
                             ov::hint::inference_precision(ngraph::element::i16)},
                        }),
-                       ::testing::Values(true),  // use AVX2 version
-                       ::testing::Values(16)));   // input range
+                       ::testing::Values(ov::intel_gna::isAvx2Supported()),  // use AVX2 version
+                       ::testing::Values(16)));                              // input range
 
 using GNAOutputPrecisionTestI16ToFp32Avx = GNAOutputPrecisionTest<int16_t, float>;
 TEST_P(GNAOutputPrecisionTestI16ToFp32Avx, GNAOutputPrecisionTestFp32Avx) {
@@ -330,8 +337,8 @@ INSTANTIATE_TEST_SUITE_P(
                             ov::intel_gna::scale_factors_per_input(std::map<std::string, float>{{"0", 0.125f}}),
                             ov::hint::inference_precision(ngraph::element::i16)},
                        }),
-                       ::testing::Values(true),   // use AVX2 version
-                       ::testing::Values(4000)));  // input range
+                       ::testing::Values(ov::intel_gna::isAvx2Supported()),  // use AVX2 version
+                       ::testing::Values(4000)));                            // input range
 
 using GNAOutputPrecisionTestI32ToFp32Avx = GNAOutputPrecisionTest<int32_t, float>;
 TEST_P(GNAOutputPrecisionTestI32ToFp32Avx, GNAOutputPrecisionTestFp32Avx) {
@@ -356,7 +363,7 @@ INSTANTIATE_TEST_SUITE_P(
                             ov::intel_gna::scale_factors_per_input(std::map<std::string, float>{{"0", 0.125f}}),
                             ov::hint::inference_precision(ngraph::element::i16)},
                        }),
-                       ::testing::Values(true),   // use AVX2 version
-                       ::testing::Values(4000)));  // input range
+                       ::testing::Values(ov::intel_gna::isAvx2Supported()),  // use AVX2 version
+                       ::testing::Values(4000)));                            // input range
 #endif //HAVE_AVX2
 }  // namespace testing

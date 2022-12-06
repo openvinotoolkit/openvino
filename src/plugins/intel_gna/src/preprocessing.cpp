@@ -3,9 +3,9 @@
 //
 
 #include "preprocessing.hpp"
-#ifdef HAVE_AVX2
-#    include <immintrin.h>
-#endif
+
+#include "gna_itt.hpp"
+#include "ie/ie_precision.hpp"
 
 int16_t GNAPluginNS::ConvertFloatToInt16(float src) {
     float rounding_value = (src > 0) ? 0.5f : -0.5f;
@@ -42,266 +42,312 @@ void GNAPluginNS::ConvertToInt16(int16_t *ptr_dst,
     }
 }
 
-#ifdef HAVE_AVX2
-void GNAPluginNS::ConvertMatrixFp32ToInt16(int16_t* ptr_dst,
-                                            const float* ptr_src,
-                                            const uint32_t num_rows,
-                                            const uint32_t num_columns,
-                                            const float scale_factor,
-                                            bool transpose) {
-    const uint32_t num_elements = num_rows * num_columns;
-    uint32_t moves = num_elements / 8;
-    uint32_t mod = num_elements % 8;
-    uint32_t i, j;
-    uint32_t index = 0;
+using InferenceEngine::Precision;
 
-    __m256 v, zero, half, neg_half, scaleFactors, mask, roundingValues, min, max, values;
+void GNAPluginNS::ExportScores(void* ptr_dst,
+                               const void* ptr_src,
+                               intel_dnn_orientation_t orientation,
+                               uint32_t num_frames,
+                               uint32_t num_group,
+                               uint32_t num_vector_elements,
+                               uint32_t num_active_elements,
+                               uint32_t num_vector_stride,
+                               const InferenceEngine::Precision& precision_in,
+                               const InferenceEngine::Precision& precision_out,
+                               const float scale_factor,
+                               bool isAvx2Supported) {
+    OV_ITT_SCOPED_TASK(itt::domains::GNAPlugin, "ExportScores");
 
-    zero = _mm256_setzero_ps();
-    half = _mm256_set1_ps(0.5f);
-    neg_half = _mm256_set1_ps(-0.5f);
-    scaleFactors = _mm256_set1_ps(scale_factor);
-    max = _mm256_set1_ps(32767.0f);
-    min = _mm256_set1_ps(-32768.0f);
-
-    for (i = 0; i < moves; i++) {
-        v = _mm256_load_ps(&ptr_src[i * 8]);
-
-        // roundingValues = (v>0) ? 0.5f : -0.5f;
-        mask = _mm256_cmp_ps(v, zero, _CMP_LT_OQ);
-        roundingValues = _mm256_blendv_ps(half, neg_half, mask);
-
-        // values = v * scaleFactors +  roundingValues
-        values = _mm256_fmadd_ps(v, scaleFactors, roundingValues);
-
-        // shrink to <-32768.0f, 32767.0f>
-        values = _mm256_min_ps(values, max);
-        values = _mm256_max_ps(values, min);
-
-        // cast
-        if (transpose) {
-            for (j = 0; j < 8; j++, index++) {
-                uint32_t targetColumn = index / num_columns;
-                uint32_t targetRow = index % num_columns;
-                // target number of rows == source number of columns
-                uint32_t targetIndex = targetRow * num_rows + targetColumn;
-                ptr_dst[targetIndex] = static_cast<int16_t>(values.m256_f32[j]);
-            }
-        } else {
-            for (j = 0; j < 8; j++)
-                ptr_dst[i * 8 + j] = static_cast<int16_t>(values.m256_f32[j]);
-        }
+    if (ptr_src == nullptr || ptr_dst == nullptr) {
+        THROW_GNA_EXCEPTION << "Received null pointer arguments";
+    }
+    if (precision_out != Precision::I32 && precision_out != Precision::FP32) {
+        THROW_GNA_EXCEPTION << "Unsupported target precision for infer : " << precision_out.name();
     }
 
-    for (i = 0; i < mod; i++, index++) {
-        if (transpose) {
-            uint32_t targetColumn = index / num_columns;
-            uint32_t targetRow = index % num_columns;
-            // target number of rows == source number of columns
-            uint32_t targetIndex = targetRow * num_rows + targetColumn;
-            ptr_dst[targetIndex] = ConvertFloatToInt16(ptr_src[moves * 8 + i] * scale_factor);
-        } else {
-            ptr_dst[moves * 8 + i] = ConvertFloatToInt16(ptr_src[moves * 8 + i] * scale_factor);
+    bool transpose = orientation == kDnnInterleavedOrientation && num_group > 1 && num_vector_stride > 1;
+    // TODO: AVX2 support for zero-padding isn't implemented yet;
+    // fall back to the non-vectorized version when it's necessary
+    bool needsZeroPadding = (num_active_elements != num_vector_stride) || (num_frames != num_group);
+
+    switch (precision_out) {
+    case Precision::FP32:
+        switch (precision_in) {
+        case Precision::I8:
+            if (isAvx2Supported && !needsZeroPadding) {
+                ConvertMatrixInt8ToFp32Avx(reinterpret_cast<float*>(ptr_dst),
+                                           reinterpret_cast<const int8_t*>(ptr_src),
+                                           num_vector_stride,
+                                           num_frames,
+                                           scale_factor,
+                                           transpose);
+                break;
+            }
+            UnscaleTransposeAndCast(reinterpret_cast<float*>(ptr_dst),
+                                    reinterpret_cast<const int8_t*>(ptr_src),
+                                    orientation,
+                                    num_frames,
+                                    num_group,
+                                    num_vector_elements,
+                                    num_active_elements,
+                                    num_vector_stride,
+                                    scale_factor);
+            break;
+        case Precision::I16:
+            if (isAvx2Supported && !needsZeroPadding) {
+                ConvertMatrixInt16ToFp32Avx(reinterpret_cast<float*>(ptr_dst),
+                                            reinterpret_cast<const int16_t*>(ptr_src),
+                                            num_vector_stride,
+                                            num_frames,
+                                            scale_factor,
+                                            transpose);
+                break;
+            }
+            UnscaleTransposeAndCast(reinterpret_cast<float*>(ptr_dst),
+                                    reinterpret_cast<const int16_t*>(ptr_src),
+                                    orientation,
+                                    num_frames,
+                                    num_group,
+                                    num_vector_elements,
+                                    num_active_elements,
+                                    num_vector_stride,
+                                    scale_factor);
+            break;
+        case Precision::I32:
+            if (isAvx2Supported && !needsZeroPadding) {
+                ConvertMatrixInt32ToFp32Avx(reinterpret_cast<float*>(ptr_dst),
+                                            reinterpret_cast<const int32_t*>(ptr_src),
+                                            num_vector_stride,
+                                            num_frames,
+                                            scale_factor,
+                                            transpose);
+                break;
+            }
+            UnscaleTransposeAndCast(reinterpret_cast<float*>(ptr_dst),
+                                    reinterpret_cast<const int32_t*>(ptr_src),
+                                    orientation,
+                                    num_frames,
+                                    num_group,
+                                    num_vector_elements,
+                                    num_active_elements,
+                                    num_vector_stride,
+                                    scale_factor);
+            break;
+        default:
+            THROW_GNA_EXCEPTION << "Unsupported data type";
         }
+        break;
+    case Precision::I32:
+        switch (precision_in) {
+        case Precision::I8:
+            UnscaleTransposeAndCast(reinterpret_cast<int32_t*>(ptr_dst),
+                                    reinterpret_cast<const int8_t*>(ptr_src),
+                                    orientation,
+                                    num_frames,
+                                    num_group,
+                                    num_vector_elements,
+                                    num_active_elements,
+                                    num_vector_stride,
+                                    scale_factor);
+            break;
+        case Precision::I16:
+            UnscaleTransposeAndCast(reinterpret_cast<int32_t*>(ptr_dst),
+                                    reinterpret_cast<const int16_t*>(ptr_src),
+                                    orientation,
+                                    num_frames,
+                                    num_group,
+                                    num_vector_elements,
+                                    num_active_elements,
+                                    num_vector_stride,
+                                    scale_factor);
+            break;
+        case Precision::I32:
+            UnscaleTransposeAndCast(reinterpret_cast<int32_t*>(ptr_dst),
+                                    reinterpret_cast<const int32_t*>(ptr_src),
+                                    orientation,
+                                    num_frames,
+                                    num_group,
+                                    num_vector_elements,
+                                    num_active_elements,
+                                    num_vector_stride,
+                                    scale_factor);
+            break;
+        default:
+            THROW_GNA_EXCEPTION << "Unsupported data type";
+        }
+        break;
+
+    default:
+        THROW_GNA_EXCEPTION << "Unsupported data type";
     }
 }
 
-void GNAPluginNS::ConvertMatrixFp32ToInt8(int8_t* ptr_dst,
-                                           const float* ptr_src,
-                                           const uint32_t num_rows,
-                                           const uint32_t num_columns,
-                                           const float scale_factor,
-                                           bool transpose) {
-    const uint32_t num_elements = num_rows * num_columns;
-    uint32_t moves = num_elements / 8;
-    uint32_t mod = num_elements % 8;
-    uint32_t i, j;
-    uint32_t index = 0;
-
-    __m256 v, zero, half, neg_half, scaleFactors, mask, roundingValues, min, max, values;
-
-    zero = _mm256_setzero_ps();
-    half = _mm256_set1_ps(0.5f);
-    neg_half = _mm256_set1_ps(-0.5f);
-    scaleFactors = _mm256_set1_ps(scale_factor);
-    max = _mm256_set1_ps(127.0f);
-    min = _mm256_set1_ps(-128.0f);
-
-    for (i = 0; i < moves; i++) {
-        v = _mm256_load_ps(&ptr_src[i * 8]);
-
-        // roundingValues = (v>0) ? 0.5f : -0.5f;
-        mask = _mm256_cmp_ps(v, zero, _CMP_LT_OQ);
-        roundingValues = _mm256_blendv_ps(half, neg_half, mask);
-
-        // values = v * scaleFactors +  roundingValues
-        values = _mm256_fmadd_ps(v, scaleFactors, roundingValues);
-
-        // shrink to <-128.0f, 127.0f>
-        values = _mm256_min_ps(values, max);
-        values = _mm256_max_ps(values, min);
-
-        // cast
-        if (transpose) {
-            for (j = 0; j < 8; j++, index++) {
-                uint32_t targetColumn = index / num_columns;
-                uint32_t targetRow = index % num_columns;
-                // target number of rows == source number of columns
-                uint32_t targetIndex = targetRow * num_rows + targetColumn;
-                ptr_dst[targetIndex] = static_cast<int8_t>(values.m256_f32[j]);
-            }
+void GNAPluginNS::ImportFrames(void* ptr_dst,
+                               const void* ptr_src,
+                               const InferenceEngine::Precision& input_precision,
+                               float scaleFactor,
+                               intel_dnn_orientation_t orientation,
+                               uint32_t num_frames,
+                               uint32_t num_group,
+                               uint32_t num_vector_elements,
+                               uint32_t num_vector_stride,
+                               bool input_low_precision,
+                               bool isGnaDevice,
+                               bool isAvx2Supported) {
+    switch (input_precision) {
+    case Precision::U8:
+    case Precision::I8: {
+        auto src = reinterpret_cast<const uint8_t*>(ptr_src);
+        if (!input_low_precision) {
+            auto dst = reinterpret_cast<int16_t*>(ptr_dst);
+            CopyInputData(dst,
+                          src,
+                          num_frames,
+                          num_group,
+                          num_vector_elements,
+                          num_vector_stride,
+                          orientation,
+                          scaleFactor,
+                          input_low_precision);
         } else {
-            for (j = 0; j < 8; j++) {
-                ptr_dst[i * 8 + j] = static_cast<int8_t>(values.m256_f32[j]);
-            }
+            auto dst = reinterpret_cast<int8_t*>(ptr_dst);
+            CopyInputData(dst,
+                          src,
+                          num_frames,
+                          num_group,
+                          num_vector_elements,
+                          num_vector_stride,
+                          orientation,
+                          scaleFactor,
+                          input_low_precision);
         }
+        break;
     }
-
-    for (i = 0; i < mod; i++, index++) {
-        if (transpose) {
-            uint32_t targetColumn = index / num_columns;
-            uint32_t targetRow = index % num_columns;
-            // target number of rows == source number of columns
-            uint32_t targetIndex = targetRow * num_rows + targetColumn;
-            ptr_dst[targetIndex] = ConvertFloatToInt8(ptr_src[moves * 8 + i] * scale_factor);
+    case Precision::I16: {
+        auto src = reinterpret_cast<const int16_t*>(ptr_src);
+        if (!input_low_precision) {
+            auto dst = reinterpret_cast<int16_t*>(ptr_dst);
+            CopyInputData(dst,
+                          src,
+                          num_frames,
+                          num_group,
+                          num_vector_elements,
+                          num_vector_stride,
+                          orientation,
+                          scaleFactor,
+                          input_low_precision);
         } else {
-            ptr_dst[moves * 8 + i] = ConvertFloatToInt8(ptr_src[moves * 8 + i] * scale_factor);
+            auto dst = reinterpret_cast<int8_t*>(ptr_dst);
+            CopyInputData(dst,
+                          src,
+                          num_frames,
+                          num_group,
+                          num_vector_elements,
+                          num_vector_stride,
+                          orientation,
+                          scaleFactor,
+                          input_low_precision);
         }
+        break;
+    }
+    case Precision::FP32: {
+        auto src = reinterpret_cast<const float*>(ptr_src);
+        if (!isGnaDevice) {
+            auto dst = reinterpret_cast<float*>(ptr_dst);
+            CopyInputData(dst,
+                          src,
+                          num_frames,
+                          num_group,
+                          num_vector_elements,
+                          num_vector_stride,
+                          orientation,
+                          scaleFactor,
+                          input_low_precision);
+        } else {
+            bool transpose = orientation == kDnnInterleavedOrientation && num_group > 1 && num_vector_stride > 1;
+            // TODO: AVX2 support for zero-padding isn't implemented yet;
+            // fall back to the non-vectorized version when it's necessary
+            bool needsZeroPadding = (num_vector_elements != num_vector_stride) || (num_frames != num_group);
+
+            if (!input_low_precision) {
+                auto dst = reinterpret_cast<int16_t*>(ptr_dst);
+
+                if (isAvx2Supported && !needsZeroPadding) {
+                    ConvertMatrixFp32ToInt16(dst, src, num_group, num_vector_stride, scaleFactor, transpose);
+                    break;
+                }
+
+                CopyInputData(dst,
+                              src,
+                              num_frames,
+                              num_group,
+                              num_vector_elements,
+                              num_vector_stride,
+                              orientation,
+                              scaleFactor,
+                              input_low_precision);
+            } else {
+                auto dst = reinterpret_cast<int8_t*>(ptr_dst);
+
+                if (isAvx2Supported && !needsZeroPadding) {
+                    ConvertMatrixFp32ToInt8(dst, src, num_group, num_vector_stride, scaleFactor, transpose);
+                    break;
+                }
+
+                CopyInputData(dst,
+                              src,
+                              num_frames,
+                              num_group,
+                              num_vector_elements,
+                              num_vector_stride,
+                              orientation,
+                              scaleFactor,
+                              input_low_precision);
+            }
+        }
+        break;
+    }
+    case Precision::I32: {
+        auto src = reinterpret_cast<const float*>(ptr_src);
+        if (!isGnaDevice) {
+            auto dst = reinterpret_cast<float*>(ptr_dst);
+            CopyInputData(dst,
+                          src,
+                          num_frames,
+                          num_group,
+                          num_vector_elements,
+                          num_vector_stride,
+                          orientation,
+                          scaleFactor,
+                          input_low_precision);
+        } else {
+            if (!input_low_precision) {
+                auto dst = reinterpret_cast<int16_t*>(ptr_dst);
+                CopyInputData(dst,
+                              src,
+                              num_frames,
+                              num_group,
+                              num_vector_elements,
+                              num_vector_stride,
+                              orientation,
+                              scaleFactor,
+                              input_low_precision);
+            } else {
+                auto dst = reinterpret_cast<int8_t*>(ptr_dst);
+                CopyInputData(dst,
+                              src,
+                              num_frames,
+                              num_group,
+                              num_vector_elements,
+                              num_vector_stride,
+                              orientation,
+                              scaleFactor,
+                              input_low_precision);
+            }
+        }
+        break;
+    }
+    default:
+        break;
     }
 }
-
-
-void GNAPluginNS::ConvertMatrixInt32ToFp32Avx(float* ptr_dst,
-                                              const int32_t* ptr_src,
-                                              uint32_t num_rows,
-                                              uint32_t num_columns,
-                                              float scale_factor,
-                                              bool transpose) {
-    const uint32_t num_elements = num_rows * num_columns;
-    uint32_t moves = num_elements / 8;
-    uint32_t mod = num_elements % 8;
-    uint32_t i, j;
-    uint32_t index = 0;
-
-    __m256 v, scaleFactors, values;
-    scaleFactors = _mm256_set1_ps(scale_factor);
-    for (i = 0; i < moves; i++) {
-        v = _mm256_cvtepi32_ps(*reinterpret_cast<const __m256i*>(&ptr_src[i * 8]));
-
-        // values = v * 1/scaleFactors
-        values = _mm256_div_ps(v, scaleFactors);
-        if (transpose) {
-            for (j = 0; j < 8; j++, index++) {
-                uint32_t targetColumn = index / num_columns;
-                uint32_t targetRow = index % num_columns;
-                // target number of rows == source number of columns
-                uint32_t targetIndex = targetRow * num_rows + targetColumn;
-                ptr_dst[targetIndex] = values.m256_f32[j];
-            }
-        } else {
-            _mm256_store_ps(&ptr_dst[i * 8], values);
-        }
-    }
-    for (i = 0; i < mod; i++, index++) {
-        if (transpose) {
-            uint32_t targetColumn = index / num_columns;
-            uint32_t targetRow = index % num_columns;
-            // target number of rows == source number of columns
-            uint32_t targetIndex = targetRow * num_rows + targetColumn;
-            ptr_dst[targetIndex] = static_cast<float>(ptr_src[moves * 8 + i] / scale_factor);
-        } else {
-            ptr_dst[moves * 8 + i] = static_cast<float>(ptr_src[moves * 8 + i] / scale_factor);
-        }
-    }
-}
-
-void GNAPluginNS::ConvertMatrixInt16ToFp32Avx(float* ptr_dst,
-                                              const int16_t* ptr_src,
-                                              uint32_t num_rows,
-                                              uint32_t num_columns,
-                                              float scale_factor,
-                                              bool transpose) {
-    const uint32_t num_elements = num_rows * num_columns;
-    uint32_t moves = num_elements / 8;
-    uint32_t mod = num_elements % 8;
-    uint32_t i, j;
-    uint32_t index = 0;
-
-    __m256 v, scaleFactors, values;
-    scaleFactors = _mm256_set1_ps(scale_factor);
-    for (i = 0; i < moves; i++) {
-        __m256i int32Values = _mm256_cvtepi16_epi32(*reinterpret_cast<const __m128i*>(&ptr_src[i * 8]));
-        v = _mm256_cvtepi32_ps(int32Values);
-
-        // values = v * 1/scaleFactors
-        values = _mm256_div_ps(v, scaleFactors);
-        if (transpose) {
-            for (j = 0; j < 8; j++, index++) {
-                uint32_t targetColumn = index / num_columns;
-                uint32_t targetRow = index % num_columns;
-                // target number of rows == source number of columns
-                uint32_t targetIndex = targetRow * num_rows + targetColumn;
-                ptr_dst[targetIndex] = values.m256_f32[j];
-            }
-        } else {
-            _mm256_store_ps(&ptr_dst[i * 8], values);
-        }
-    }
-    for (i = 0; i < mod; i++, index++) {
-        if (transpose) {
-            uint32_t targetColumn = index / num_columns;
-            uint32_t targetRow = index % num_columns;
-            // target number of rows == source number of columns
-            uint32_t targetIndex = targetRow * num_rows + targetColumn;
-            ptr_dst[targetIndex] = static_cast<float>(ptr_src[moves * 8 + i] / scale_factor);
-        } else {
-            ptr_dst[moves * 8 + i] = static_cast<float>(ptr_src[moves * 8 + i] / scale_factor);
-        }
-    }
-}
-
-void GNAPluginNS::ConvertMatrixInt8ToFp32Avx(float* ptr_dst,
-                                             const int8_t* ptr_src,
-                                             uint32_t num_rows,
-                                             uint32_t num_columns,
-                                             float scale_factor,
-                                             bool transpose) {
-    const uint32_t num_elements = num_rows * num_columns;
-    uint32_t moves = num_elements / 8;
-    uint32_t mod = num_elements % 8;
-    uint32_t i, j;
-    uint32_t index = 0;
-
-    __m256 v, scaleFactors, values;
-    scaleFactors = _mm256_set1_ps(scale_factor);
-    for (i = 0; i < moves; i++) {
-        __m256i int32Values = _mm256_cvtepi8_epi32(*reinterpret_cast<const __m128i*>(&ptr_src[i * 8]));
-        v = _mm256_cvtepi32_ps(int32Values);
-
-        // values = v * 1/scaleFactors
-        values = _mm256_div_ps(v, scaleFactors);
-        if (transpose) {
-            for (j = 0; j < 8; j++, index++) {
-                uint32_t targetColumn = index / num_columns;
-                uint32_t targetRow = index % num_columns;
-                // target number of rows == source number of columns
-                uint32_t targetIndex = targetRow * num_rows + targetColumn;
-                ptr_dst[targetIndex] = values.m256_f32[j];
-            }
-        } else {
-            _mm256_store_ps(&ptr_dst[i * 8], values);
-        }
-    }
-    for (i = 0; i < mod; i++, index++) {
-        if (transpose) {
-            uint32_t targetColumn = index / num_columns;
-            uint32_t targetRow = index % num_columns;
-            // target number of rows == source number of columns
-            uint32_t targetIndex = targetRow * num_rows + targetColumn;
-            ptr_dst[targetIndex] = static_cast<float>(ptr_src[moves * 8 + i] / scale_factor);
-        } else {
-            ptr_dst[moves * 8 + i] = static_cast<float>(ptr_src[moves * 8 + i] / scale_factor);
-        }
-    }
-}
-#endif //HAVE_AVX2
