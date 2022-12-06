@@ -6,10 +6,7 @@
 
 #include <algorithm>
 #include <memory>
-#include <ngraph/op/util/op_types.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/validation_util.hpp>
+#include <openvino/core/rt_info.hpp>
 #include <openvino/opsets/opset1.hpp>
 #include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
@@ -35,7 +32,7 @@ public:
     template <class T>
     ov::matcher_pass_callback convert_reduce_to_reshape();
 
-    bool is_redundant(ngraph::Shape input, ngraph::Shape output);
+    bool is_redundant(ov::Shape input, ov::Shape output);
 };
 
 class ov::pass::ConvertReduceMeanToReshape : public CvtReduceBase {
@@ -91,7 +88,7 @@ public:
 
 template <class T>
 ov::matcher_pass_callback CvtReduceBase::convert_reduce_to_reshape() {
-    return [&](ngraph::pattern::Matcher& m) {
+    return [&](ov::pass::pattern::Matcher& m) {
         auto reduce = std::dynamic_pointer_cast<T>(m.get_match_root());
         if (!reduce)
             return false;
@@ -105,7 +102,7 @@ ov::matcher_pass_callback CvtReduceBase::convert_reduce_to_reshape() {
             const auto reshape_shape = reduce->output(0).get_shape();
             auto reshape = std::make_shared<ov::opset1::Reshape>(
                 input,
-                ov::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{reshape_shape.size()}, reshape_shape),
+                ov::opset1::Constant::create(ov::element::i64, ov::Shape{reshape_shape.size()}, reshape_shape),
                 true);
 
             reshape->set_friendly_name(reduce->get_friendly_name());

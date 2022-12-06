@@ -10,7 +10,7 @@
 #include "ngraph/except.hpp"
 #include "ngraph/node_output.hpp"
 #include "ngraph/type/element_type.hpp"
-#include <ngraph_ops/type_relaxed.hpp>
+#include <ov_ops/type_relaxed.hpp>
 
 #include "ie_common.h"
 #include "itt.hpp"

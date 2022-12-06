@@ -44,22 +44,20 @@ file (GLOB LIBRARY_HEADERS
        ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp
       )
 
-if (LINUX)
-    file (GLOB LIBRARY_SRC
-          ${LIBRARY_SRC}
-          ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.cpp)
-    file (GLOB LIBRARY_HEADERS
-         ${LIBRARY_HEADERS}
-         ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.hpp)
-endif()
-
-if (WIN32)
+if(WIN32)
     file (GLOB LIBRARY_SRC
          ${LIBRARY_SRC}
          ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.cpp)
     file (GLOB LIBRARY_HEADERS
          ${LIBRARY_HEADERS}
          ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.hpp)
+elseif(NOT APPLE)
+    file (GLOB LIBRARY_SRC
+          ${LIBRARY_SRC}
+          ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.cpp)
+    file (GLOB LIBRARY_HEADERS
+         ${LIBRARY_HEADERS}
+         ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.hpp)
 endif()
 
 if(ENABLE_SSE42)
