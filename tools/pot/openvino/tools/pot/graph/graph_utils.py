@@ -14,6 +14,7 @@ from openvino.offline_transformations import apply_pot_transformations # pylint:
 
 from ..graph.passes import ModelPreprocessor, remove_converts, add_removed_converts
 from ..utils.logger import stdout_redirect
+from ..configs.config import GNA_DEVICES
 
 init_logger('ERROR', False)
 core = Core()
@@ -24,13 +25,12 @@ def load_graph(model_config, target_device='ANY'):
     """ Loads model from specified path
     :return NetworkX model
      """
-    special_transform_devices = ['GNA', 'GNA3.5']
     serialized_bin_path = os.path.join(tempfile.gettempdir(), 'serialized_ir.bin')
     serialized_xml_path = os.path.join(tempfile.gettempdir(), 'serialized_ir.xml')
     bin_path = model_config.weights
     xml_path = model_config.model
 
-    if target_device in special_transform_devices:
+    if target_device in GNA_DEVICES:
         model = core.read_model(model=xml_path, weights=bin_path)
         apply_pot_transformations(model, target_device.encode('utf-8'))
         bin_path = serialized_bin_path

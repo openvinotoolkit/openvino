@@ -13,6 +13,7 @@ from ...algorithm_selector import COMPRESSION_ALGORITHMS
 from ....samplers.creator import create_sampler
 from ....statistics.collector import StatisticsCollector
 from ....utils.logger import get_logger
+from ....configs.config import GNA_DEVICES
 
 # pylint: disable=W0611
 try:
@@ -40,7 +41,7 @@ class DefaultQuantization(Algorithm):
         use_fast_bias = self._config.get('use_fast_bias', True)
         self._enable_tuning = self._config.get('use_layerwise_tuning', False)
         bias_algo = FastBiasCorrection(config, engine) if use_fast_bias else BiasCorrection(config, engine)
-        is_overflow_correction_need = self._config.get('target_device') == 'GNA'
+        is_overflow_correction_need = self._config.get('target_device') in GNA_DEVICES
         self.algorithms = [ActivationChannelAlignment(config, engine),
                            MinMaxQuantization(config, engine),
                            bias_algo]
