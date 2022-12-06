@@ -128,6 +128,8 @@ void InputModel::InputModelTFImpl::loadPlaces() {
                 // sometimes shape attribute can be absent in the graph
                 // so we need to check if Any object is initialized first
                 pshape = shape_any.as<ov::PartialShape>();
+            } else {
+                OPENVINO_DEBUG << "TensorFlow Frontend: Placeholder " << op_name << " does not have 'shape' attribute";
             }
             auto output_shapes_any = node_decoder->get_attribute("_output_shapes");
             if (pshape.rank().is_static() && pshape.rank().get_length() == 0 &&
