@@ -7,7 +7,7 @@
    :hidden:
 
    openvino_docs_performance_benchmarks_openvino
-
+   openvino_docs_performance_benchmarks_ovms
 
 
 @endsphinxdirective
