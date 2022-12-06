@@ -728,7 +728,7 @@ def dump_config(filename, config):
         properties[device] = {}
         supported_properties = Core().get_property(device, 'SUPPORTED_PROPERTIES')
         # check if ov::device::properties exists in the config
-        if device not in [AUTO_DEVICE_NAME, MULTI_DEVICE_NAME]:
+        if device not in (AUTO_DEVICE_NAME, MULTI_DEVICE_NAME):
             properties[device] = config[device]
             continue
         for property_name in config[device]:
@@ -736,10 +736,8 @@ def dump_config(filename, config):
             if property_name in supported_properties:
                 properties[device][property_name] = property_value
             else:
-                if 'DEVICE_PROPERTIES' not in properties[device]:
-                    properties[device]['DEVICE_PROPERTIES'] = {}
-                if property_name not in properties[device]['DEVICE_PROPERTIES']:
-                    properties[device]['DEVICE_PROPERTIES'][property_name] = {}
+                properties[device].setdefault('DEVICE_PROPERTIES', {})
+                properties[device]['DEVICE_PROPERTIES'].setdefault(property_name, {})
                 array = property_value.split(' ')
                 properties_dict = {array[i]: array[i + 1] for i in range(0, len(array), 2)}
                 for key in properties_dict:
@@ -750,9 +748,8 @@ def dump_config(filename, config):
 
 
 def load_config(filename, config):
-    original_config = {}
     with open(filename) as f:
-        original_config.update(json.load(f))
+        original_config = json.load(f)
     for device in original_config:
         config[device] = {}
         for property_name in original_config[device]:
