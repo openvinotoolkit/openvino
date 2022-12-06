@@ -142,20 +142,24 @@ bool scatter_label_evaluator(const Node* node, TensorLabelVector& output_labels)
         return false;
     }
 
-    HostTensorVector input_tensors(input_values.size());
+    HostTensorVector input_tensors;
+    input_tensors.reserve(input_values.size());
+
+    auto make_input_label = [&](bool has_no_labels) {
+        const auto& input = input_values[input_tensors.size()];
+        auto input_labels = has_no_labels ? std::vector<size_t>{0} : input.get_tensor().get_value_label();
+        auto labels_constant = op::v0::Constant::create(ov::element::u64, input.get_shape(), input_labels);
+        input_tensors.emplace_back(std::make_shared<HostTensor>(labels_constant));
+    };
+
     for (size_t i = 0; i < input_values.size(); ++i) {
         const auto& input = input_values[i];
-        if (i == data_in_idx || i == updates_in_idx) {
-            auto input_labels = input.get_tensor().get_value_label();
-            if (ov::has_no_labels(input_labels)) {
-                input_labels = std::vector<size_t>{0};
-            }
-            auto labels_constant = op::v0::Constant::create(ov::element::u64, input.get_shape(), input_labels);
-            input_tensors[i] = std::make_shared<HostTensor>(labels_constant);
+        if (i == data_in_idx) {
+            make_input_label(in0_has_no_labels);
+        } else if (i == updates_in_idx) {
+            make_input_label(in2_has_no_labels);
         } else if (input.get_tensor().has_and_set_bound()) {
-            input_tensors[i] = input.get_tensor().get_lower_value();
-        } else {
-            return false;
+            input_tensors.emplace_back(input.get_tensor().get_lower_value());
         }
     }
 
