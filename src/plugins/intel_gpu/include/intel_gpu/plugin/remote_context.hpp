@@ -194,14 +194,6 @@ protected:
 
     void regLockedBlob(void* handle, const RemoteBlobImpl* blob);
 
-    void acquire_lock() {
-        while (_lock.test_and_set(std::memory_order_acquire)) {}
-    }
-
-    void release_lock() {
-        _lock.clear(std::memory_order_release);
-    }
-
 public:
     using Ptr = std::shared_ptr<RemoteAllocator>;
 
@@ -228,6 +220,14 @@ public:
     * @return false if handle cannot be released, otherwise - true.
     */
     bool free(void* handle) noexcept override { return true; }
+
+    void lock() {
+        while (_lock.test_and_set(std::memory_order_acquire)) {}
+    }
+
+    void unlock() {
+        _lock.clear(std::memory_order_release);
+    }
 };
 
 class USMHostAllocator : public InferenceEngine::IAllocator {
@@ -316,12 +316,12 @@ public:
     InferenceEngine::gpu_handle_param GetExternalQueue() const { return m_external_queue; }
     const std::weak_ptr<InferenceEngine::IInferencePlugin> GetPlugin() const { return m_plugin; }
 
-    void acquire_lock() {
-        while (lock.test_and_set(std::memory_order_acquire)) {}
+    void lock() {
+        while (m_lock.test_and_set(std::memory_order_acquire)) {}
     }
 
-    void release_lock() {
-        lock.clear(std::memory_order_release);
+    void unlock() {
+        m_lock.clear(std::memory_order_release);
     }
 
 protected:
@@ -333,7 +333,7 @@ protected:
 
     ContextType m_type;
     std::weak_ptr<InferenceEngine::IInferencePlugin> m_plugin;
-    std::atomic_flag lock;
+    std::atomic_flag m_lock;
 };
 
 template<typename TpublicContextAPI>
@@ -371,7 +371,7 @@ class TypedExecutionContext : public TpublicContextAPI {
         cldnn::shared_surface surf = param_map_obj_getter::_ObjFromParamSimple<cldnn::shared_surface>(params, GPU_PARAM_KEY(DEV_OBJECT_HANDLE));
         surf_key skey(surf, plane);
 #endif
-        _impl.acquire_lock();
+        std::lock_guard<ExecutionContextImpl> locker(_impl);
 
         // try to locate previously shared surface
         auto itr = shared_surf_reg.find(skey);
@@ -396,7 +396,6 @@ class TypedExecutionContext : public TpublicContextAPI {
             shared_surf_reg[skey] = ret;
         }
 
-        _impl.release_lock();
         return ret;
     }
 
@@ -405,7 +404,7 @@ class TypedExecutionContext : public TpublicContextAPI {
                                                RemoteBlobImpl::BlobType blob_type) {
         InferenceEngine::RemoteBlob::Ptr ret = nullptr;
 
-        _impl.acquire_lock();
+        std::lock_guard<ExecutionContextImpl> locker(_impl);
         auto& stream = _impl.GetEngine()->get_program_stream();
 
         // try to locate previously shared object
@@ -442,7 +441,6 @@ class TypedExecutionContext : public TpublicContextAPI {
             shared_obj_reg[mem] = ret;
         }
 
-        _impl.release_lock();
         return ret;
     }
 
