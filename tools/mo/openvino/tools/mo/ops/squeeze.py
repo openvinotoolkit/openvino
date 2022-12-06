@@ -62,6 +62,10 @@ class Squeeze(Op):
         output_shape = shape_delete(output_shape, real_squeeze_dims)
         node.out_port(0).data.set_shape(output_shape)
 
+        # make dimensions positive to correctly translate from NHWC to NCHW layout
+        if node.in_port(1).get_source().node.op == 'Const':
+            node.in_port(1).data.set_value(real_squeeze_dims)
+
         if node.in_port(0).data.get_value() is not None:
             node.out_port(0).data.set_value(node.in_port(0).data.get_value().reshape(output_shape))
 
