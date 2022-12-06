@@ -124,8 +124,8 @@ using OVClassSetLogLevelConfigTest = OVClassBaseTestP;
 using OVClassSpecificDeviceTestSetConfig = OVClassBaseTestP;
 using OVClassSpecificDeviceTestGetConfig = OVClassBaseTestP;
 using OVClassLoadNetworkWithCorrectPropertiesTest = OVClassSetDevicePriorityConfigTest;
-using OVClassLoadNetworkWithDefaultPropertiesTest = OVClassSetDevicePriorityConfigTest;
-using OVClassLoadNetworkWithDefaultIncorrectPropertiesTest = OVClassSetDevicePriorityConfigTest;
+using OVClassLoadNetWorkReturnDefaultHintTest = OVClassSetDevicePriorityConfigTest;
+using OVClassLoadNetWorkDoNotReturnDefaultHintTest = OVClassSetDevicePriorityConfigTest;
 using OVClassLoadNetworkAndCheckSecondaryPropertiesTest = OVClassSetDevicePriorityConfigTest;
 
 class OVClassSeveralDevicesTest : public OVPluginTestBase,
@@ -1104,22 +1104,30 @@ TEST_P(OVClassLoadNetworkAndCheckSecondaryPropertiesTest, LoadNetworkAndCheckSec
     ASSERT_EQ(actual, expect);
 }
 
-TEST_P(OVClassLoadNetworkWithDefaultPropertiesTest, LoadNetworkWithDefaultPropertiesTest) {
+TEST_P(OVClassLoadNetWorkReturnDefaultHintTest, LoadNetworkReturnDefaultHintTest) {
     ov::Core ie = createCoreWithTemplate();
     ov::CompiledModel model;
+    ov::hint::PerformanceMode value;
     OV_ASSERT_NO_THROW(model = ie.compile_model(actualNetwork, target_device, configuration));
-    ov::hint::PerformanceMode value = ov::hint::PerformanceMode::UNDEFINED;
     OV_ASSERT_NO_THROW(value = model.get_property(ov::hint::performance_mode));
-    ASSERT_EQ(value, ov::hint::PerformanceMode::THROUGHPUT);
+    if (target_device.find("AUTO") != std::string::npos) {
+        ASSERT_EQ(value, ov::hint::PerformanceMode::LATENCY);
+    } else {
+        ASSERT_EQ(value, ov::hint::PerformanceMode::THROUGHPUT);
+    }
 }
 
-TEST_P(OVClassLoadNetworkWithDefaultIncorrectPropertiesTest, LoadNetworkWithDefaultIncorrectPropertiesTest) {
+TEST_P(OVClassLoadNetWorkDoNotReturnDefaultHintTest, LoadNetworkDoNotReturnDefaultHintTest) {
     ov::Core ie = createCoreWithTemplate();
     ov::CompiledModel model;
+    ov::hint::PerformanceMode value;
     OV_ASSERT_NO_THROW(model = ie.compile_model(actualNetwork, target_device, configuration));
-    ov::hint::PerformanceMode value = ov::hint::PerformanceMode::THROUGHPUT;
     OV_ASSERT_NO_THROW(value = model.get_property(ov::hint::performance_mode));
-    ASSERT_NE(value, ov::hint::PerformanceMode::THROUGHPUT);
+    if (target_device.find("AUTO") != std::string::npos) {
+        ASSERT_NE(value, ov::hint::PerformanceMode::LATENCY);
+    } else {
+        ASSERT_NE(value, ov::hint::PerformanceMode::THROUGHPUT);
+    }
 }
 
 TEST_P(OVClassLoadNetworkTest, LoadNetworkWithInvalidDeviceIDThrows) {

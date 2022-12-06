@@ -164,6 +164,7 @@ struct PluginConfig {
                 _devicePriority = kvp.second;
             } else if (std::find(perf_hints_configs.begin(), perf_hints_configs.end(), kvp.first) != perf_hints_configs.end()) {
                 _perfHintsConfig.SetConfig(kvp.first, kvp.second);
+                // if first level property has perf_hint setting
                 if (kvp.first == ov::hint::performance_mode.name())
                     _isSetPerHint = true;
             } else if (_availableDevices.end() != std::find(_availableDevices.begin(),
@@ -172,9 +173,6 @@ struct PluginConfig {
                 // AUTO and MULTI can accept secondary properites on calling both core::comile_model() and
                 // core::set_property().
                 _passThroughConfig.emplace(kvp.first, kvp.second);
-                // Not setting performance mode to 'THROUGHPUT' as the default value if any secondary properties
-                // appears in the configuration.
-                _isSetPerHint = true;
             } else if (kvp.first.find("AUTO_") == 0) {
                 _passThroughConfig.emplace(kvp.first, kvp.second);
             } else if (kvp.first == ov::cache_dir.name()) {
