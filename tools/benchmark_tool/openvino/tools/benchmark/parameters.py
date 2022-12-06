@@ -24,9 +24,17 @@ class print_help(argparse.Action):
         parser.print_help()
         show_available_devices()
         sys.exit()
+class HelpFormatterWithLines(argparse.HelpFormatter):
+     def _split_lines(self, text, width):
+          lines = super()._split_lines(text, width)
+          lines += ['']
+          if "simple JSON file" not in text:
+               return lines
+          lines = text.split('\n')
+          return lines
 
 def parse_args():
-    parser = argparse.ArgumentParser(add_help=False)
+    parser = argparse.ArgumentParser(add_help=False, formatter_class=HelpFormatterWithLines)
     args = parser.add_argument_group('Options')
     args.add_argument('-h', '--help', action=print_help, nargs='?', default=argparse.SUPPRESS,
                       help='Show this help message and exit.')
@@ -66,15 +74,8 @@ def parse_args():
                       help='Optional. ' +
                            'Batch size value. ' +
                            'If not specified, the batch size value is determined from Intermediate Representation')
-    args.add_argument('-stream_output', type=str2bool, required=False, default=False, nargs='?', const=True,
-                      help='Optional. '
-                           'Print progress as a plain text. '
-                           'When specified, an interactive progress bar is replaced with a multi-line output.')
     args.add_argument('-t', '--time', type=int, required=False, default=None,
                       help='Optional. Time in seconds to execute topology.')
-    args.add_argument('-progress', type=str2bool, required=False, default=False, nargs='?', const=True,
-                      help='Optional. '
-                           'Show progress bar (can affect performance measurement). Default values is \'False\'.')
     args.add_argument('-shape', type=str, required=False, default='',
                       help='Optional. '
                            'Set shape for input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size.'
@@ -136,8 +137,29 @@ def parse_args():
     args.add_argument('-dump_config', type=str, required=False, default='',
                       help="Optional. Path to JSON file to dump OpenVINO parameters, which were set by application.")
     args.add_argument('-load_config', type=str, required=False, default='',
-                      help="Optional. Path to JSON file to load custom OpenVINO parameters."
-                           " Please note, command line parameters have higher priority then parameters from configuration file.")
+                      help="Optional. Path to JSON file to load custom OpenVINO parameters.\n"
+                           "Please note, command line parameters have higher priority then parameters from configuration file.\n"
+                           "Example 1: a simple JSON file for HW device with primary properties.\n"
+                           "             {\n"
+                           "                \"CPU\": {\"NUM_STREAMS\": \"3\", \"PERF_COUNT\": \"NO\"}\n"
+                           "             }\n"
+                           "Example 2: a simple JSON file for meta device(AUTO/MULTI) with HW device properties.\n"
+                           "             {\n"
+                           "                \"AUTO\": {\n"
+                           "                     \"PERFORMANCE_HINT\": \"\",\n"
+                           "                     \"PERF_COUNT\": \"NO\",\n"
+                           "                     \"DEVICE_PROPERTIES\": {\n"
+                           "                          \"CPU\": {\n"
+                           "                               \"INFERENCE_PRECISION_HINT\": \"f32\",\n"
+                           "                               \"NUM_STREAMS\": \"3\"\n"
+                           "                          },\n"
+                           "                          \"GPU\": {\n"
+                           "                               \"INFERENCE_PRECISION_HINT\": \"f32\",\n"
+                           "                               \"NUM_STREAMS\": \"5\"\n"
+                           "                          }\n"
+                           "                     }\n"
+                           "                }\n"
+                           "             }\n")
     args.add_argument('-infer_precision', type=str, required=False,
                       help='Optional. Hint to specifies inference precision. Example: -infer_precision CPU:bf16,GPU:f32')
     args.add_argument('-ip', '--input_precision', type=str, required=False, choices=['u8', 'U8', 'f16','FP16', 'f32','FP32'],

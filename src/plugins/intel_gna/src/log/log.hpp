@@ -35,17 +35,21 @@ class GnaLog {
     /** Log level of particular log message */
     ov::log::Level message_level_ = ov::log::Level::NO;
 
+    static GnaLog& get_instance() {
+        static GnaLog log_obj;
+        return log_obj;
+    }
+
  public :
     GnaLog(const GnaLog&) = delete;
     void operator = (const GnaLog&) = delete;
 
-    GnaLog(ov::log::Level log_level) {
+    static void set_log_level(ov::log::Level log_level) {
         get_instance().log_level_ = log_level;
     }
 
-    static GnaLog& get_instance() {
-        static GnaLog log_obj;
-        return log_obj;
+    static ov::log::Level get_log_level() {
+        return get_instance().log_level_;
     }
 
     /**

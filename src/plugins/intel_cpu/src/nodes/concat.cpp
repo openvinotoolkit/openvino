@@ -50,14 +50,13 @@ bool Concat::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
 }
 
 Concat::Concat(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache) {
+        : Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
 
     const auto inRank = getInputShapeAtPort(0).getRank();
-    canExecRef = inRank <= 6;
     auto concatOp = ngraph::as_type_ptr<ngraph::op::v0::Concat>(op);
     auto axis = concatOp->get_axis();
     if (axis < 0) {
@@ -94,9 +93,6 @@ void Concat::getSupportedDescriptors() {
         if (std::all_of(childDims.begin(), childDims.begin() + axis, [](size_t dim) { return  dim == 1; }))
             canBeInPlace = true;
     }
-    nelemToCopy.resize(getParentEdges().size(), 0);
-    dstOffset.resize(getParentEdges().size());
-    inputStrides.resize(getParentEdges().size());
 }
 
 void Concat::initSupportedPrimitiveDescriptors() {
@@ -379,6 +375,12 @@ void Concat::prepareParams() {
             break;
         }
     }
+    const auto& outputShape = dstMemDesc->getBlockDims();
+    for (size_t i = 0; i < reorderedAxis; i++) {
+        if (outputShape[i] != 1) {
+            hasOuterLoop = true;
+        }
+    }
     std::vector<memory::desc> srcs_d;
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         const auto& srcMemPtr = getParentEdgesAtPort(i)[0]->getMemoryPtr();
@@ -391,7 +393,11 @@ void Concat::prepareParams() {
         if (canExecRef) {
             const auto srcMemDesc = srcMemPtr->getDescPtr()->as<BlockedMemoryDesc>();
             const auto& inputShape = srcMemDesc->getBlockDims();
-            inputStrides[i] = srcMemDesc->getStrides();
+            const auto& strides = srcMemDesc->getStrides();
+            inputStrides[i].resize(MAX_RANK_REF, 0);
+            std::transform(strides.begin(), strides.end(), inputStrides[i].begin(), [&elemSize](const Dim& i) {
+                return i * elemSize;
+            });
             size_t nElem = 1;
             for (size_t j = reorderedAxis; j < inputShape.size(); j++) {
                 nElem *= inputShape[j];
@@ -510,7 +516,18 @@ void Concat::initOptimalPrimitiveDescriptor() {
         }
         initDescriptor(config);
     }
-
+    //block layout may have axis greater than rank, disable ref_concat
+    auto primDesc = getSelectedPrimitiveDescriptor();
+    auto memDesc = primDesc->getConfig().outConfs[0].getMemDesc()->as<BlockedMemoryDesc>();
+    auto rank = memDesc->getShape().getRank();
+    bool isBlocked = rank != memDesc->getBlockDims().size();
+    if (!isBlocked && rank <= MAX_RANK_REF) {
+        canExecRef = true;
+        nelemToCopy.resize(getParentEdges().size(), 0);
+        dstOffset.resize(getParentEdges().size());
+        inputStrides.resize(getParentEdges().size());
+        srcPtrs.resize(getParentEdges().size());
+    }
     // check if selected Tensor descriptor has nspc layout and concat axis is C
     canOptimizeNspc = axis == channelAxis && getSelectedPrimitiveDescriptor()->getConfig().outConfs.front().getMemDesc()->hasLayoutType(LayoutType::nspc);
 }
@@ -592,7 +609,6 @@ void Concat::execNspcSpecCase() {
 
 void Concat::execRef() {
     const size_t numSrc = getParentEdges().size();
-    std::vector<const uint8_t*> srcPtrs;
     const Memory& dstMemory = getChildEdgeAt(0)->getMemory();
     const size_t elemSize = DnnlExtensionUtils::sizeOfDataType(dstMemory.GetDataType());
     const auto dstMemBlkDesc = dstMemory.getDescPtr()->as<BlockedMemoryDesc>();
@@ -600,15 +616,13 @@ void Concat::execRef() {
     uint8_t* dstPtr = reinterpret_cast<uint8_t*>(dstMemory.GetData());
     for (size_t i = 0; i < numSrc; i++) {
         const Memory& srcMem = getParentEdgesAtPort(i)[0]->getMemory();
-        srcPtrs.push_back(reinterpret_cast<const uint8_t*>(srcMem.GetPtr()));
+        srcPtrs[i] = reinterpret_cast<const uint8_t*>(srcMem.GetPtr());
     }
-    const auto& outputStrides = dstMemBlkDesc->getStrides();
-    bool hasOuterLoop = false;
-    for (size_t i = 0; i < reorderedAxis; i++) {
-        if (outputShape[i] != 1) {
-            hasOuterLoop = true;
-        }
-    }
+    size_t outputStrides[MAX_RANK_REF] = {0};
+    const auto strides = dstMemBlkDesc->getStrides();
+    std::transform(strides.begin(), strides.end(), outputStrides, [&elemSize](const Dim& i) {
+        return i * elemSize;
+    });
     if (!hasOuterLoop) {
         int nthr = parallel_get_max_threads();
         if (nthr == 1) {
@@ -644,8 +658,8 @@ void Concat::execRef() {
                             + inputStrides[a][3] * n3 + inputStrides[a][4] * n4;
             size_t outOff = outputStrides[0] * n0 + outputStrides[1] * n1 + outputStrides[2] * n2
                              + outputStrides[3] * n3 + outputStrides[4] * n4;
-            const uint8_t *i = srcPtrs[a] + inOff * elemSize;
-            uint8_t *o = dstPtr + dstOffset[a] + outOff * elemSize;
+            const uint8_t *i = &srcPtrs[a][inOff];
+            uint8_t *o = &dstPtr[dstOffset[a] + outOff];
 
 #if defined(__GNUC__)
             // Heuristic:

@@ -31,12 +31,12 @@ struct resample : public primitive_base<resample> {
     /// @param num_filter Input filter. Only used by bilinear sample_type.
     /// @param sample_type Resample method (nearest neighbor/bilinear/caffe bilinear).
     resample(const primitive_id& id,
-             const primitive_id& input,
+             const input_info& input,
              tensor output_size,
              uint32_t num_filter,
              InterpolateOp::InterpolateMode operation_type = InterpolateOp::InterpolateMode::NEAREST,
              const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           output_size(output_size),
           num_filter(num_filter),
           sizes({}),
@@ -57,9 +57,9 @@ struct resample : public primitive_base<resample> {
         }
     }
 
-    /// @brief resample with constant inputs
+    /// @brief resample with constant sizes/scales
     resample(const primitive_id& id,
-             const primitive_id& input,
+             const input_info& input,
              const std::vector<int64_t>& sizes,
              const std::vector<float>& scales,
              const std::vector<int64_t>& axes,
@@ -72,7 +72,7 @@ struct resample : public primitive_base<resample> {
              InterpolateOp::CoordinateTransformMode ctm = InterpolateOp::CoordinateTransformMode::HALF_PIXEL,
              InterpolateOp::NearestMode nm = InterpolateOp::NearestMode::ROUND_PREFER_FLOOR,
              const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           output_size(tensor()),
           num_filter(0),
           sizes(sizes),
@@ -90,11 +90,11 @@ struct resample : public primitive_base<resample> {
             throw std::runtime_error("Resample's scales/axes count does not match");
     }
 
-    /// @brief resample with non-constant sizes
+    /// @brief resample with dynamic sizes/scales
     resample(const primitive_id& id,
-             const primitive_id& input,
-             const primitive_id& sizes_id,
-             const std::vector<float>& scales,
+             const input_info& input,
+             const input_info& sizes_id,
+             const input_info& scales_id,
              const std::vector<int64_t>& axes,
              const std::vector<size_t>& pads_begin = {},
              const std::vector<size_t>& pads_end = {},
@@ -105,40 +105,7 @@ struct resample : public primitive_base<resample> {
              InterpolateOp::CoordinateTransformMode ctm = InterpolateOp::CoordinateTransformMode::HALF_PIXEL,
              InterpolateOp::NearestMode nm = InterpolateOp::NearestMode::ROUND_PREFER_FLOOR,
              const padding& output_padding = padding())
-        : primitive_base(id, {input, sizes_id}, output_padding),
-          output_size(tensor()),
-          num_filter(0),
-          sizes({}),
-          scales(scales),
-          axes(axes),
-          pads_begin(pads_begin),
-          pads_end(pads_end),
-          operation_type(operation_type),
-          shape_calc_mode(shape_calc_mode),
-          antialias(antialias),
-          cube_coeff(cube_coeff),
-          coord_trans_mode(ctm),
-          round_mode(nm) {
-        if (scales.size() != axes.size())
-            throw std::runtime_error("Resample's scales/axes count does not match");
-    }
-
-    /// @brief resample with non-constant scales
-    resample(const primitive_id& id,
-             const primitive_id& input,
-             const std::vector<int64_t>& sizes,
-             const primitive_id& scales_id,
-             const std::vector<int64_t>& axes,
-             const std::vector<size_t>& pads_begin = {},
-             const std::vector<size_t>& pads_end = {},
-             int32_t antialias = 0,
-             float cube_coeff = -0.75f,
-             InterpolateOp::InterpolateMode operation_type = InterpolateOp::InterpolateMode::LINEAR,
-             InterpolateOp::ShapeCalcMode shape_calc_mode = InterpolateOp::ShapeCalcMode::SCALES,
-             InterpolateOp::CoordinateTransformMode ctm = InterpolateOp::CoordinateTransformMode::HALF_PIXEL,
-             InterpolateOp::NearestMode nm = InterpolateOp::NearestMode::ROUND_PREFER_FLOOR,
-             const padding& output_padding = padding())
-        : primitive_base(id, {input, scales_id}, output_padding),
+        : primitive_base(id, {input, sizes_id, scales_id}, {output_padding}),
           output_size(tensor()),
           num_filter(0),
           sizes({}),

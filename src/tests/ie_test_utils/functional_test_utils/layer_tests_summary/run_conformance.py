@@ -80,12 +80,12 @@ def get_default_working_dir():
 def parse_arguments():
     parser = ArgumentParser()
 
-    models_path_help = "Path to directory/ies contains models to dump subgraph (default way is download OMZ). If `--d=False` specify Conformance IRs directory"
-    device_help = "Specify target device. Default value is CPU"
-    ov_help = "OV binary files path"
-    working_dir_help = "Specify working directory"
-    type_help = "Specify conformance type: OP or API"
-    dump_conformance_help = "Set 'True' if you want to create Conformance IRs from custom models. Default value is 'False'"
+    models_path_help = "Path to the directory/ies containing models to dump subgraph (the default way is to download OMZ). If --s=0, specify the Conformance IRs directory"
+    device_help = " Specify the target device. The default value is CPU"
+    ov_help = "OV binary files path. The default way is try to find installed OV by INTEL_OPENVINO_DIR in environmet variables or to find the absolute path of OV repo (by using script path)"
+    working_dir_help = "Specify a working directory to save all artifacts, such as reports, models, conformance_irs, etc."
+    type_help = "Specify conformance type: `OP` or `API`. The default value is `OP`"
+    dump_conformance_help = "Set '1' if you want to create Conformance IRs from custom/downloaded models. In other cases, set 0. The default value is '1'"
 
     parser.add_argument("-m", "--models_path", help=models_path_help, type=str, required=False, default=NO_MODEL_CONSTANT)
     parser.add_argument("-d", "--device", help= device_help, type=str, required=False, default="CPU")
