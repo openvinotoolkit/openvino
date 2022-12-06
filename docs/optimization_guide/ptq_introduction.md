@@ -6,8 +6,8 @@
    :maxdepth: 1
    :hidden:
 
-   <pot_introduction>
-   <nncf_ptq_introduction>
+   pot_introduction
+   nncf_ptq_introduction
 
 @endsphinxdirective
 

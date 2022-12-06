@@ -6,8 +6,8 @@
    :maxdepth: 1
    :hidden:
 
-   <basic_qauntization_flow>
-   <quantization_w_accuracy_control>
+   basic_qauntization_flow
+   quantization_w_accuracy_control
 
 @endsphinxdirective
 
