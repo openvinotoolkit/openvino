@@ -32,7 +32,7 @@ resources:
     type: github
     endpoint: openvinotoolkit
     name: openvinotoolkit/openvino_contrib
-    ref: master
+    ref: releases/2022/3
 
 jobs:
 - job: linux_arm64
