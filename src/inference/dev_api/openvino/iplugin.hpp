@@ -10,6 +10,7 @@
 #pragma once
 
 #include <memory>
+#include <openvino/core/deprecated.hpp>
 
 #include "openvino/core/any.hpp"
 #include "openvino/core/model.hpp"
@@ -18,6 +19,10 @@
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "threading/ie_executor_manager.hpp"
+
+namespace InferenceEngine {
+class IExtension;
+}  // namespace InferenceEngine
 
 namespace ov {
 
@@ -64,8 +69,8 @@ public:
      * @param properties A ov::AnyMap of properties relevant only for this load operation
      * @return Created Compiled Model object
      */
-    virtual std::shared_ptr<ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                          const ov::AnyMap& properties);
+    std::shared_ptr<ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                  const ov::AnyMap& properties);
 
     /**
      * @brief Compiles model from ov::Model object, on specified remote context
@@ -75,23 +80,9 @@ public:
      *        execute the model
      * @return Created Compiled Model object
      */
-    virtual std::shared_ptr<ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                          const ov::AnyMap& properties,
-                                                          const ov::RemoteContext& context);
-
-    /**
-     * @brief Compiles model from model file path
-     * @param modelPath A path to model
-     * @param properties A ov::AnyMap of properties relevant only for this load operation
-     * @return Created Compiled Model object
-     */
-    virtual std::shared_ptr<ICompiledModel> compile_model(const std::string& modelPath, const ov::AnyMap& properties);
-
-    /**
-     * @brief Sets configuration for plugin, acceptable keys can be found in ie_plugin_config.hpp
-     * @param config string-string map of config parameters
-     */
-    virtual void SetConfig(const std::map<std::string, std::string>& config);
+    std::shared_ptr<ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                  const ov::AnyMap& properties,
+                                                  const ov::RemoteContext& context);
 
     /**
      * @brief Sets properties for plugin, acceptable keys can be found in openvino/runtime/properties.hpp
@@ -143,9 +134,9 @@ public:
      * @param properties A ov::AnyMap of properties
      * @return An Compiled model
      */
-    virtual std::shared_ptr<ICompiledModel> ImportNetwork(std::istream& model,
-                                                          const ov::RemoteContext& context,
-                                                          const ov::AnyMap& properties);
+    virtual std::shared_ptr<ICompiledModel> import_model(std::istream& model,
+                                                         const ov::RemoteContext& context,
+                                                         const ov::AnyMap& properties);
 
     /**
      * @brief Sets pointer to ICore interface
@@ -169,7 +160,7 @@ public:
      * @brief Gets reference to tasks execution manager
      * @return Reference to ExecutorManager interface
      */
-    const std::shared_ptr<InferenceEngine::ExecutorManager>& executorManager() const;
+    const std::shared_ptr<InferenceEngine::ExecutorManager>& get_executor_manager() const;
 
     /**
      * @brief Queries a plugin about supported layers in model
@@ -180,46 +171,44 @@ public:
     virtual SupportedOpsMap query_model(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& properties) const;
 
     /**
-     * @brief Registers extension within plugin
-     * @param extension - pointer to already loaded extension
+     * @brief Registers legacy extension within plugin
+     * @param extension - pointer to already loaded legacy extension
      */
-    virtual void AddExtension(const std::shared_ptr<IExtension>& extension);
+    OPENVINO_DEPRECATED(
+        "This method allows to load legacy InferenceEngine Extensions and will be removed in 2024.0 release")
+    virtual void add_extension(const std::shared_ptr<InferenceEngine::IExtension>& extension);
 
 protected:
     IPlugin();
     ~IPlugin() = default;
 
     /**
-     * @brief Creates an executable network from a parsed network object, users can create as many networks as they need
+     * @brief Creates an compiled model from ov::Model object, users can create as many networks as they need
      *        and use them simultaneously (up to the limitation of the HW resources)
      * @note The function is used in
-     * InferencePluginInternal::LoadNetwork(const CNNNetwork&, const std::map<std::string, std::string>&)
+     * IPlugin::compile_model(const std::shared_ptr<const ov::Model>&, const ov::AnyMap&)
      * which performs common steps first and calls this plugin-dependent method implementation after.
-     * @param network A network object
-     * @param config string-string map of config parameters relevant only for this load operation
-     * @return Shared pointer to the ExecutableNetwork object
+     * @param model A model object
+     * @param properties ov::AnyMap of properties relevant only for this load operation
+     * @return Shared pointer to the CompiledModel object
      */
-    virtual std::shared_ptr<IExecutableNetworkInternal> LoadExeNetworkImpl(
-        const CNNNetwork& network,
-        const std::map<std::string, std::string>& config);
+    virtual std::shared_ptr<ICompiledModel> compile_model_impl(const std::shared_ptr<ov::Model>& model,
+                                                               const ov::AnyMap& properties);
 
     /**
-     * @brief Creates an executable network using remote context from a parsed network object,
-     * users can create as many networks as they need and use them simultaneously (up to the limitation of the HW
-     * resources)
+     * @brief Creates an compiled model from ov::Model object, users can create as many networks as they need
+     *        and use them simultaneously (up to the limitation of the HW resources)
      * @note The function is used in
-     * InferencePluginInternal::LoadNetwork(const CNNNetwork&, const std::map<std::string, std::string>&,
-     * RemoteContext::Ptr) which performs common steps first and calls this plugin-dependent method implementation
-     * after.
-     * @param network A network object
+     * IPlugin::compile_model(const std::shared_ptr<const ov::Model>&, const ov::AnyMap&, const ov::RemoteContext&)
+     * which performs common steps first and calls this plugin-dependent method implementation after.
+     * @param model A model object
      * @param context A remote context
-     * @param config string-string map of config parameters relevant only for this load operation
-     * @return Shared pointer to the ExecutableNetwork object
+     * @param properties ov::AnyMap of properties relevant only for this load operation
+     * @return Shared pointer to the CompiledModel object
      */
-    virtual std::shared_ptr<IExecutableNetworkInternal> LoadExeNetworkImpl(
-        const CNNNetwork& network,
-        const std::shared_ptr<RemoteContext>& context,
-        const std::map<std::string, std::string>& config);
+    virtual std::shared_ptr<ICompiledModel> compile_model_impl(const std::shared_ptr<ov::Model>& model,
+                                                               const ov::RemoteContext& context,
+                                                               const ov::AnyMap& properties);
 
     /**
      * @brief Set input and output information to executable network. This method is used to
@@ -229,23 +218,26 @@ protected:
      * @param outputs An output information to set
      * @param function Function with initial execution info
      */
-    void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
-                           const ConstInputsDataMap& inputs,
-                           const ConstOutputsDataMap& outputs);
+    // void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
+    //                        const ConstInputsDataMap& inputs,
+    //                        const ConstOutputsDataMap& outputs);
 
     /**
      * @brief Set input and output information to executable network. This method is used to
      * set additional information to InferenceEngine::IExecutableNetworkInternal create by device plugin.
      * @param function Function with initial execution info
      */
-    void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
-                           const std::shared_ptr<const ov::Model>& function);
+    // void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
+    //                        const std::shared_ptr<const ov::Model>& function);
 
     std::string m_plugin_name;                                             //!< A device name that plugins enables
     ov::AnyMap m_properties;                                               //!< A map config keys -> values
     std::weak_ptr<ov::ICore> m_core;                                       //!< A pointer to ICore interface
     std::shared_ptr<InferenceEngine::ExecutorManager> m_executor_manager;  //!< A tasks execution manager
-    bool m_is_new_api;                                                     //!< A flag which shows used API
+
+private:
+    ov::Version m_version;  //!< Member contains plugin version
+    bool m_is_new_api;      //!< A flag which shows used API
 };
 
 }  // namespace ov
