@@ -6,10 +6,9 @@ if (NOT ENABLE_INTEL_GNA)
     return()
 endif()
 
-
 set(TARGET_NAME "openvino_intel_gna_plugin")
 
-if (ENABLE_INTEL_GNA_DEBUG AND (CMAKE_BUILD_TYPE STREQUAL "Debug"))
+if (ENABLE_INTEL_GNA_DEBUG)
     add_compile_definitions(GNA_DEBUG)
 endif()
 
