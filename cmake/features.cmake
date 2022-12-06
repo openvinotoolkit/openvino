@@ -138,6 +138,7 @@ else()
     set(ENABLE_SYSTEM_LIBS_DEFAULT OFF)
 endif()
 
+# try to search TBB from brew by default
 if(APPLE AND AARCH64)
     set(ENABLE_SYSTEM_TBB_DEFAULT ON)
 else()
