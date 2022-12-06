@@ -70,7 +70,7 @@ The OpenVINO™ Runtime can infer models on different hardware devices. This sec
         <tr>
             <td rowspan=2>CPU</td>
             <td> <a href="https://docs.openvino.ai/2022.2/openvino_docs_OV_UG_supported_plugins_CPU.html#doxid-openvino-docs-o-v-u-g-supported-plugins-c-p-u">Intel CPU</a></tb>
-            <td><b><i><a href="https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_cpu">openvino_intel_cpu_plugin</a></i></b></td>
+            <td><b><i><a href="./src/plugins/intel_cpu">openvino_intel_cpu_plugin</a></i></b></td>
             <td>Intel Xeon with Intel® Advanced Vector Extensions 2 (Intel® AVX2), Intel® Advanced Vector Extensions 512 (Intel® AVX-512), and AVX512_BF16, Intel Core Processors with Intel AVX2, Intel Atom Processors with Intel® Streaming SIMD Extensions (Intel® SSE)</td>
         </tr>
         <tr>
@@ -81,19 +81,19 @@ The OpenVINO™ Runtime can infer models on different hardware devices. This sec
         <tr>
             <td>GPU</td>
             <td><a href="https://docs.openvino.ai/2022.2/openvino_docs_OV_UG_supported_plugins_GPU.html#doxid-openvino-docs-o-v-u-g-supported-plugins-g-p-u">Intel GPU</a></td>
-            <td><b><i><a href="https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_gpu">openvino_intel_gpu_plugin</a></i></b></td>
+            <td><b><i><a href="./src/plugins/intel_gpu">openvino_intel_gpu_plugin</a></i></b></td>
             <td>Intel Processor Graphics, including Intel HD Graphics and Intel Iris Graphics</td>
         </tr>
         <tr>
             <td>GNA</td>
             <td><a href="https://docs.openvino.ai/2022.2/openvino_docs_OV_UG_supported_plugins_GNA.html#doxid-openvino-docs-o-v-u-g-supported-plugins-g-n-a">Intel GNA</a></td>
-            <td><b><i><a href="https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_gna">openvino_intel_gna_plugin</a></i></b></td>
+            <td><b><i><a href="./src/plugins/intel_gna">openvino_intel_gna_plugin</a></i></b></td>
             <td>Intel Speech Enabling Developer Kit, Amazon Alexa* Premium Far-Field Developer Kit, Intel Pentium Silver J5005 Processor, Intel Pentium Silver N5000 Processor, Intel Celeron J4005 Processor, Intel Celeron J4105 Processor, Intel Celeron Processor N4100, Intel Celeron Processor N4000, Intel Core i3-8121U Processor, Intel Core i7-1065G7 Processor, Intel Core i7-1060G7 Processor, Intel Core i5-1035G4 Processor, Intel Core i5-1035G7 Processor, Intel Core i5-1035G1 Processor, Intel Core i5-1030G7 Processor, Intel Core i5-1030G4 Processor, Intel Core i3-1005G1 Processor, Intel Core i3-1000G1 Processor, Intel Core i3-1000G4 Processor</td>
         </tr>
         <tr>
             <td>VPU</td>
             <td><a href="https://docs.openvino.ai/2022.2/openvino_docs_IE_DG_supported_plugins_VPU.html#doxid-openvino-docs-i-e-d-g-supported-plugins-v-p-u">Myriad plugin</a></td>
-            <td><b><i><a href="https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_myriad">openvino_intel_myriad_plugin</a></i></b></td>
+            <td><b><i><a href="./src/plugins/intel_myriad">openvino_intel_myriad_plugin</a></i></b></td>
             <td>Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X</td>
         </tr>
     </tbody>
@@ -111,22 +111,22 @@ OpenVINO™ Toolkit also contains several plugins which simplify loading models 
     <tbody>
         <tr>
             <td><a href="https://docs.openvino.ai/2022.2/openvino_docs_IE_DG_supported_plugins_AUTO.html#doxid-openvino-docs-i-e-d-g-supported-plugins-a-u-t-o">Auto</a></td>
-            <td><b><i><a href="https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/auto">openvino_auto_plugin</a></i></b></td>
+            <td><b><i><a href="./src/plugins/auto">openvino_auto_plugin</a></i></b></td>
             <td>Auto plugin enables selecting Intel device for inference automatically</td>
         </tr>
         <tr>
             <td><a href="https://docs.openvino.ai/2022.2/openvino_docs_OV_UG_Automatic_Batching.html">Auto Batch</a></td>
-            <td><b><i><a href="https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/auto_batch">openvino_auto_batch_plugin</a></i></b></td>
+            <td><b><i><a href="./src/plugins/auto_batch">openvino_auto_batch_plugin</a></i></b></td>
             <td>Auto batch plugin performs on-the-fly automatic batching (i.e. grouping inference requests together) to improve device utilization, with no programming effort from the user</td>
         </tr>
         <tr>
             <td><a href="https://docs.openvino.ai/2022.2/openvino_docs_OV_UG_Hetero_execution.html#doxid-openvino-docs-o-v-u-g-hetero-execution">Hetero</a></td>
-            <td><b><i><a href="https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/hetero">openvino_hetero_plugin</a></i></b></td>
+            <td><b><i><a href="./src/plugins/hetero">openvino_hetero_plugin</a></i></b></td>
             <td>Heterogeneous execution enables automatic inference splitting between several devices</td>
         </tr>
         <tr>
             <td><a href="https://docs.openvino.ai/2022.2/openvino_docs_OV_UG_Running_on_multiple_devices.html#doxid-openvino-docs-o-v-u-g-running-on-multiple-devices">Multi</a></td>
-            <td><b><i><a href="https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/auto">openvino_auto_plugin</a></i></b></td>
+            <td><b><i><a href="./src/plugins/auto">openvino_auto_plugin</a></i></b></td>
             <td>Multi plugin enables simultaneous inference of the same model on several devices in parallel</td>
         </tr>
     </tbody>
@@ -192,7 +192,7 @@ Report questions, issues and suggestions, using:
 * [Intel® Distribution of OpenVINO™ toolkit Product Page](https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html)
 * [Intel® Distribution of OpenVINO™ toolkit Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes)
 * [Neural Network Compression Framework (NNCF)](https://github.com/openvinotoolkit/nncf) - a suite of advanced algorithms for model inference optimization including quantization, filter pruning, binarization and sparsity
-* [OpenVINO™ Training Extensions (OTE)](https://github.com/openvinotoolkit/training_extensions) - a convenient environment to train Deep Learning models and convert them using OpenVINO for optimized inference.
+* [OpenVINO™ Training Extensions (OTE)](https://github.com/openvinotoolkit/training_extensions) - convenient environment to train Deep Learning models and convert them using OpenVINO for optimized inference.
 * [OpenVINO™ Model Server (OVMS)](https://github.com/openvinotoolkit/model_server) - a scalable, high-performance solution for serving deep learning models optimized for Intel architectures
 * [DL Workbench](https://docs.openvino.ai/2022.2/workbench_docs_Workbench_DG_Introduction.html) - an alternative, web-based version of OpenVINO designed to facilitate optimization and compression of pre-trained deep learning models.
 * [Computer Vision Annotation Tool (CVAT)](https://github.com/opencv/cvat) - an online, interactive video and image annotation tool for computer vision purposes.
