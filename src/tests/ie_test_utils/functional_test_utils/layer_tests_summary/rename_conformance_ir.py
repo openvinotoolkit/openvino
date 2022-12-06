@@ -1,7 +1,7 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
 
 from argparse import ArgumentParser
 from pathlib import Path

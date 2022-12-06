@@ -12,7 +12,7 @@ from merge_xmls import merge_xml
 from pathlib import Path, PurePath
 from sys import version, platform
 
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
 
 import os
 
