@@ -10,6 +10,7 @@
 
    Release Notes <https://software.intel.com/content/www/us/en/develop/articles/openvino-relnotes.html>
    openvino_docs_OV_UG_supported_plugins_Supported_Devices
+   openvino_supported_models
    openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers
    openvino_docs_OV_Glossary
    openvino_docs_Legal_Information
