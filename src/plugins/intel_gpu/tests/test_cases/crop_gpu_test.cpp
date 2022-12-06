@@ -52,7 +52,7 @@ TEST(crop_gpu, basic_in2x3x2x2_crop_all) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(crop("crop", "input", { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size }, { 0, 0, 0, 0 }));
+    topology.add(crop("crop", input_info("input"), { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size }, { 0, 0, 0, 0 }));
 
     std::vector<float> input_vec = generate_random_input<float>(batch_num, feature_num, y_size, x_size, -10, 10);
     set_values(input, input_vec);
@@ -96,7 +96,7 @@ TEST(crop_gpu, basic_in2x2x2x3_crop_all) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(crop("crop", "input", { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size }, { 0, 0, 0, 0 }));
+    topology.add(crop("crop", input_info("input"), { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size }, { 0, 0, 0, 0 }));
 
     std::vector<float> input_vec;
     for (int i = 0; i < batch_num * feature_num * y_size * x_size; i++)
@@ -147,7 +147,7 @@ TEST(crop_gpu, basic_i32_in2x3x2x2_crop_all) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(crop("crop", "input", { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size }, { 0, 0, 0, 0 }));
+    topology.add(crop("crop", input_info("input"), { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size }, { 0, 0, 0, 0 }));
 
     std::vector<int32_t> input_vec = generate_random_input<int32_t>(batch_num, feature_num, y_size, x_size, -10, 10);
     set_values(input, input_vec);
@@ -195,7 +195,7 @@ TEST(crop_gpu, basic_i64_in2x3x2x2_crop_all) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(crop("crop", "input", { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size }, { 0, 0, 0, 0 }));
+    topology.add(crop("crop", input_info("input"), { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size }, { 0, 0, 0, 0 }));
 
     std::vector<int64_t> input_vec = generate_random_input<int64_t>(batch_num, feature_num, y_size, x_size, -10, 10);
     set_values(input, input_vec);
@@ -243,7 +243,7 @@ TEST(crop_gpu, basic_in2x3x2x2_crop_all_bfyx) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(crop("crop", "input", { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size }, {0, 0, 0, 0} ));
+    topology.add(crop("crop", input_info("input"), { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size }, {0, 0, 0, 0} ));
 
     std::vector<float> input_vec = generate_random_input<float>(batch_num, feature_num, y_size, x_size, -10, 10);
     set_values(input, input_vec);
@@ -292,7 +292,7 @@ TEST(crop_gpu, basic_i32_in2x3x2x2_crop_all_bfyx) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(crop("crop", "input", { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size }, { 0, 0, 0, 0 }));
+    topology.add(crop("crop", input_info("input"), { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size }, { 0, 0, 0, 0 }));
 
     std::vector<int32_t> input_vec = generate_random_input<int32_t>(batch_num, feature_num, y_size, x_size, -10, 10);
     set_values(input, input_vec);
@@ -341,7 +341,7 @@ TEST(crop_gpu, basic_i64_in2x3x2x2_crop_all_bfyx) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(crop("crop", "input", { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size }, { 0, 0, 0, 0 }));
+    topology.add(crop("crop", input_info("input"), { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size }, { 0, 0, 0, 0 }));
 
     std::vector<int64_t> input_vec = generate_random_input<int64_t>(batch_num, feature_num, y_size, x_size, -10, 10);
     set_values(input, input_vec);
@@ -390,7 +390,7 @@ TEST(crop_gpu, basic_in2x3x2x2_crop_all_fyxb) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(crop("crop", "input", { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size }, {0, 0, 0, 0} ));
+    topology.add(crop("crop", input_info("input"), { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size }, {0, 0, 0, 0} ));
 
     std::vector<float> input_vec = generate_random_input<float>(batch_num, feature_num, y_size, x_size, -10, 10);
     set_values(input, input_vec);
@@ -437,7 +437,7 @@ TEST(crop_gpu, basic_i32_in2x3x2x2_crop_all_fyxb) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(crop("crop", "input", { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size }, { 0, 0, 0, 0 }));
+    topology.add(crop("crop", input_info("input"), { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size }, { 0, 0, 0, 0 }));
 
     std::vector<int32_t> input_vec = generate_random_input<int32_t>(batch_num, feature_num, y_size, x_size, -10, 10);
     set_values(input, input_vec);
@@ -484,7 +484,7 @@ TEST(crop_gpu, basic_i64_in2x3x2x2_crop_all_fyxb) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(crop("crop", "input", { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size }, { 0, 0, 0, 0 }));
+    topology.add(crop("crop", input_info("input"), { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size }, { 0, 0, 0, 0 }));
 
     std::vector<int64_t> input_vec = generate_random_input<int64_t>(batch_num, feature_num, y_size, x_size, -10, 10);
     set_values(input, input_vec);
@@ -543,7 +543,7 @@ TEST(crop_gpu, basic_in2x3x2x2_crop_offsets) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(crop("crop", "input", tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num)), { tensor(feature(0)) }));
+    topology.add(crop("crop", input_info("input"), tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num)), { tensor(feature(0)) }));
 
     std::vector<float> input_vec = { 1.f, 0.f, 5.f, 1.5f,
         2.f, 0.f, 6.f, 5.2f,
@@ -608,7 +608,7 @@ TEST(crop_gpu, basic_i32_in2x3x2x2_crop_offsets) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(crop("crop", "input", tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num)), { tensor(feature(0)) }));
+    topology.add(crop("crop", input_info("input"), tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num)), { tensor(feature(0)) }));
 
     std::vector<int32_t> input_vec = { 1, 0, 5, 15,
         2, 0, 6, 52,
@@ -673,7 +673,7 @@ TEST(crop_gpu, basic_i64_in2x3x2x2_crop_offsets) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(crop("crop", "input", tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num)), { tensor(feature(0)) }));
+    topology.add(crop("crop", input_info("input"), tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num)), { tensor(feature(0)) }));
 
     std::vector<int64_t> input_vec = { 1, 0, 5, 15,
         2, 0, 6, 52,
@@ -752,8 +752,8 @@ TEST(crop_gpu, basic_in1x4x1x1_split) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(crop("crop1", "input", tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_1)), { tensor(feature(feature_offset_1), spatial(0,0),batch(0)) }));
-    topology.add(crop("crop2", "input", tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_2)), { tensor(feature(feature_offset_2), spatial(0,0),batch(0)) }));
+    topology.add(crop("crop1", input_info("input"), tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_1)), { tensor(feature(feature_offset_1), spatial(0,0),batch(0)) }));
+    topology.add(crop("crop2", input_info("input"), tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_2)), { tensor(feature(feature_offset_2), spatial(0,0),batch(0)) }));
 
     std::vector<float> input_vec = { -1.f, 2.f, -3.f, 4.f };
     std::vector<float> out1 = { -1.f, 2.f,-3.f };
@@ -800,9 +800,9 @@ TEST(crop_gpu, basic_in1x4x1x1_crop_pad) {
     auto padded_layout = input->get_layout().with_padding(in_pad);
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(reorder("input_reorder", "input", padded_layout));
-    topology.add(crop("crop1", "input_reorder", tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_1)), { tensor(feature(feature_offset_1), spatial(0,0),batch(0)) }));
-    topology.add(reorder("out_reorder", "crop1", format::bfyx, data_types::f32));
+    topology.add(reorder("input_reorder", input_info("input"), padded_layout));
+    topology.add(crop("crop1", input_info("input_reorder"), tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_1)), { tensor(feature(feature_offset_1), spatial(0,0),batch(0)) }));
+    topology.add(reorder("out_reorder", input_info("crop1"), format::bfyx, data_types::f32));
 
     std::vector<float> input_vec = { -1.f, 2.f, -3.f, 4.f };
     std::vector<float> out1 = { -1.f, 2.f,-3.f };
@@ -868,8 +868,8 @@ TEST(crop_gpu, basic_i32_in1x4x1x1_split) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(crop("crop1", "input", tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_1)), { tensor(feature(feature_offset_1), spatial(0,0),batch(0)) }));
-    topology.add(crop("crop2", "input", tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_2)), { tensor(feature(feature_offset_2), spatial(0,0),batch(0)) }));
+    topology.add(crop("crop1", input_info("input"), tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_1)), { tensor(feature(feature_offset_1), spatial(0,0),batch(0)) }));
+    topology.add(crop("crop2", input_info("input"), tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_2)), { tensor(feature(feature_offset_2), spatial(0,0),batch(0)) }));
 
     std::vector<int32_t> input_vec = { -1, 2, -3, 4 };
     std::vector<int32_t> out1 = { -1, 2,-3 };
@@ -943,8 +943,8 @@ TEST(crop_gpu, basic_i64_in1x4x1x1_split) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(crop("crop1", "input", tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_1)), { tensor(feature(feature_offset_1), spatial(0,0),batch(0)) }));
-    topology.add(crop("crop2", "input", tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_2)), { tensor(feature(feature_offset_2), spatial(0,0),batch(0)) }));
+    topology.add(crop("crop1", input_info("input"), tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_1)), { tensor(feature(feature_offset_1), spatial(0,0),batch(0)) }));
+    topology.add(crop("crop2", input_info("input"), tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_2)), { tensor(feature(feature_offset_2), spatial(0,0),batch(0)) }));
 
     std::vector<int64_t> input_vec = { -1, 2, -3, 4 };
     std::vector<int64_t> out1 = { -1, 2,-3 };
@@ -1018,11 +1018,11 @@ TEST(crop_gpu, basic_in1x4x1x1_split_w_relu) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(activation("relu", "input", activation_func::relu));
-    topology.add(crop("crop1", "relu", tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_1)), { tensor(feature(feature_offset_1), spatial(0,0),batch(0)) }));
-    topology.add(crop("crop2", "relu", tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_2)), { tensor(feature(feature_offset_2), spatial(0,0),batch(0)) }));
-    topology.add(activation("relu1", "crop1", activation_func::relu));
-    topology.add(activation("relu2", "crop2", activation_func::relu));
+    topology.add(activation("relu", input_info("input"), activation_func::relu));
+    topology.add(crop("crop1", input_info("relu"), tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_1)), { tensor(feature(feature_offset_1), spatial(0,0),batch(0)) }));
+    topology.add(crop("crop2", input_info("relu"), tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_2)), { tensor(feature(feature_offset_2), spatial(0,0),batch(0)) }));
+    topology.add(activation("relu1", input_info("crop1"), activation_func::relu));
+    topology.add(activation("relu2", input_info("crop2"), activation_func::relu));
 
     std::vector<float> input_vec = { -1.f, 2.f, -3.f, 4.f };
     std::vector<float> out1 = { 0.f, 2.f,0.f };
@@ -1076,7 +1076,7 @@ TEST(crop_gpu, basic_in3x1x2x2x1_crop_all_bfzyx) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(crop("crop", "input", { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size, crop_z_size }, { 0, 0, 0, 0, 0 }));
+    topology.add(crop("crop", input_info("input"), { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size, crop_z_size }, { 0, 0, 0, 0, 0 }));
 
     std::vector<float> input_vec = generate_random_input<float>(batch_num, feature_num, y_size, x_size, -10, 10);
     set_values(input, input_vec);
@@ -1131,7 +1131,7 @@ TEST(crop_gpu, basic_in3x1x3x2x2x1_crop_all_bfwzyx) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(crop("crop", "input", crop_size, tensor{ 0 }));
+    topology.add(crop("crop", input_info("input"), crop_size, tensor{ 0 }));
 
     VVVVVVF<float> input_rnd = generate_random_6d<float>(batch_num, feature_num, w_size, z_size, y_size, x_size, -10, 10);
     VF<float> input_vec = flatten_6d<float>(format::bfwzyx, input_rnd);
@@ -1193,9 +1193,9 @@ TEST_P(crop_gpu, pad_test) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(reorder("reorder", "input", crop_format, data_types::f32));
-    topology.add(crop("crop1", "reorder", tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size, crop_z_size), feature(crop_feature_num_1)), { tensor(feature(feature_offset_1), spatial(0,0,0), batch(0)) }));
-    topology.add(reorder("out", "crop1", in_out_format, data_types::f32));
+    topology.add(reorder("reorder", input_info("input"), crop_format, data_types::f32));
+    topology.add(crop("crop1", input_info("reorder"), tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size, crop_z_size), feature(crop_feature_num_1)), { tensor(feature(feature_offset_1), spatial(0,0,0), batch(0)) }));
+    topology.add(reorder("out", input_info("crop1"), in_out_format, data_types::f32));
 
     std::vector<float> input_vec;
     std::vector<float> res;
@@ -1297,7 +1297,7 @@ TEST(crop_gpu, dynamic_i32_in2x3x2x2_crop_offsets) {
 
     topology topology;
     topology.add(input_layout("input", input_dyn_layout));
-    topology.add(crop("crop", "input", tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num)), { tensor(feature(0)) }));
+    topology.add(crop("crop", input_info("input"), tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num)), { tensor(feature(0)) }));
 
     std::vector<int32_t> input_vec = { 1, 0, 5, 15,
         2, 0, 6, 52,
@@ -1358,8 +1358,8 @@ TEST(crop_gpu, dynamic_in1x4x1x1_split) {
     topology topology;
     topology.add(input_layout("input", input_dyn_layout));
     topology.add(data("data", data_mem));
-    topology.add(crop("crop1", {"input", "data"}, tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_1)), { tensor(feature(feature_offset_1), spatial(0,0),batch(0)) }, op_mode, 0, num_splits));
-    topology.add(crop("crop2", {"input", "data"}, tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_2)), { tensor(feature(feature_offset_2), spatial(0,0),batch(0)) }, op_mode, 1, num_splits));
+    topology.add(crop("crop1", { input_info("input"), input_info("data") }, tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_1)), { tensor(feature(feature_offset_1), spatial(0,0),batch(0)) }, op_mode, 0, num_splits));
+    topology.add(crop("crop2", { input_info("input"), input_info("data") }, tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_2)), { tensor(feature(feature_offset_2), spatial(0,0),batch(0)) }, op_mode, 1, num_splits));
 
     std::vector<int32_t> input_vec = { -1, 2, -3, 4 };
     std::vector<int32_t> out1 = { -1, 2 };
@@ -1415,8 +1415,8 @@ TEST(crop_gpu, dynamic_in1x4x1x1_varaidic_split) {
     topology.add(input_layout("input", input_dyn_layout));
     topology.add(data("axis", axis_mem));
     topology.add(data("splits_length", splits_length_mem));
-    topology.add(crop("crop1", {"input", "axis", "splits_length"}, tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_1)), { tensor(feature(feature_offset_1), spatial(0,0),batch(0)) }, op_mode, 0));
-    topology.add(crop("crop2", {"input", "axis", "splits_length"}, tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_2)), { tensor(feature(feature_offset_2), spatial(0,0),batch(0)) }, op_mode, 1));
+    topology.add(crop("crop1", { input_info("input"), input_info("axis"), input_info("splits_length") }, tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_1)), { tensor(feature(feature_offset_1), spatial(0,0),batch(0)) }, op_mode, 0));
+    topology.add(crop("crop2", { input_info("input"), input_info("axis"), input_info("splits_length") }, tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_2)), { tensor(feature(feature_offset_2), spatial(0,0),batch(0)) }, op_mode, 1));
 
     std::vector<int32_t> input_vec = { -1, 2, -3, 4 };
     std::vector<int32_t> out1 = { -1, 2, -3 };

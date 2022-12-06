@@ -26,10 +26,10 @@ struct reorg_yolo : public primitive_base<reorg_yolo> {
     /// @param input Input primitive id.
     /// @param dimension Defines a scope of normalization (see #dimension).
     reorg_yolo(const primitive_id& id,
-               const primitive_id& input,
+               const input_info& input,
                const uint32_t stride,
                const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding), stride(stride) {}
+        : primitive_base(id, {input}, {output_padding}), stride(stride) {}
 
     /// @brief Defines a scope of a reorg yolo normalization
     /// @details
