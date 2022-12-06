@@ -34,6 +34,8 @@ public:
                                   },
                                   attr_names_map,
                                   attr_values_map)) {}
+
+    ~OpExtension() override;
 };
 
 template <>
@@ -65,6 +67,8 @@ public:
                                   },
                                   attr_names_map,
                                   attr_values_map)) {}
+
+    ~OpExtension() override;
 };
 
 }  // namespace onnx
