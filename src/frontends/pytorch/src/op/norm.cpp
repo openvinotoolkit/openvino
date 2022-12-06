@@ -13,21 +13,37 @@ namespace op {
 
 OutputVector translate_norm(NodeContext& context) {
     auto input_tensor = context.get_input(0);
-    auto p = context.const_input<int64_t>(1);
+    auto p = context.const_input<float>(1);
     auto dim = context.get_input(2);
     auto keep_dim = context.const_input<bool>(3);
 
-    std::shared_ptr<ov::op::util::ArithmeticReductionKeepDims> reduce;
-
-    FRONT_END_OP_CONVERSION_CHECK(p == 1 || p == 2, "OpenVino supprots only p-norms with p of 1 or 2");
+    OutputVector res;
 
     if (p == 1) {
-        reduce = std::make_shared<opset8::ReduceL1>(input_tensor, dim, keep_dim);
+        auto reduce_l1 = context.mark_node(std::make_shared<opset8::ReduceL1>(input_tensor, dim, keep_dim));
+        res.push_back(reduce_l1);
     } else if (p == 2) {
-        reduce = std::make_shared<opset8::ReduceL2>(input_tensor, dim, keep_dim);
+        auto reduce_l2 = context.mark_node(std::make_shared<opset8::ReduceL2>(input_tensor, dim, keep_dim));
+        res.push_back(reduce_l2);
+    } else if (p == std::numeric_limits<float>::infinity()) {
+        auto abs = context.mark_node(std::make_shared<opset8::Abs>(input_tensor));
+        auto max = context.mark_node(std::make_shared<opset8::ReduceMax>(abs, dim, keep_dim));
+        res.push_back(max);
+    } else if (p == -std::numeric_limits<float>::infinity()) {
+        auto abs = context.mark_node(std::make_shared<opset8::Abs>(input_tensor));
+        auto min = context.mark_node(std::make_shared<opset8::ReduceMin>(abs, dim, keep_dim));
+        res.push_back(min);
+    } else {
+        auto const_p = context.mark_node(opset8::Constant::create(element::f64, Shape{1}, {p}));
+        auto const_p_inv = context.mark_node(opset8::Constant::create(element::f64, Shape{1}, {1.0 / p}));
+        auto abs = context.mark_node(std::make_shared<opset8::Abs>(input_tensor));
+        auto pow = context.mark_node(std::make_shared<opset8::Power>(abs, const_p));
+        auto sum = context.mark_node(std::make_shared<opset8::ReduceSum>(pow, dim, keep_dim));
+        auto pow_inv = context.mark_node(std::make_shared<opset8::Power>(sum, const_p_inv));
+        res.push_back(pow_inv);
     }
 
-    return {context.mark_node(reduce)};
+    return res;
 };
 
 }  // namespace op

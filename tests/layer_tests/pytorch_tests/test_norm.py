@@ -7,7 +7,7 @@ import numpy as np
 import torch
 
 
-@pytest.mark.parametrize('p', [1, 2])
+@pytest.mark.parametrize('p', [-2, -1, 0, 1, 2, 2.5, float('inf'), float('-inf')])
 @pytest.mark.parametrize('dim', [[0], [0, 1], [0, 1, 2]])
 @pytest.mark.parametrize('keepdim', [True, False])
 class TestNorm(PytorchLayerTest):
