@@ -39,10 +39,9 @@ To build the sample, please use instructions available at [Build the Sample Appl
 hello_reshape_ssd <path_to_model> <path_to_image> <device>
 ```
 
-To run the sample, you need specify a model and image:
-
-- you can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
-- you can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
+To run the sample, you need to specify a model and image:
+- You can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
+- You can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
 
 > **NOTES**:
 >
@@ -56,7 +55,7 @@ To run the sample, you need specify a model and image:
 
 1. Install openvino-dev python package if you don't have it to use Open Model Zoo Tools:
    ```
-   python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
+   python -m pip install openvino-dev
    ```
 
 2. Download a pre-trained model using:

@@ -48,10 +48,10 @@ TEST_P(strided_slice_test, shape_infer) {
     auto end_prim = std::make_shared<input_layout>("end", p.end_layout);
     auto strides_prim = std::make_shared<input_layout>("strides", p.strides_layout);
     auto strided_slice_prim = std::make_shared<strided_slice>("output",
-                                                              "input",
-                                                              "begin",
-                                                              "end",
-                                                              "strides",
+                                                              input_info("input"),
+                                                              input_info("begin"),
+                                                              input_info("end"),
+                                                              input_info("strides"),
                                                               p.begin_mask,
                                                               p.end_mask,
                                                               p.new_axis_mask,

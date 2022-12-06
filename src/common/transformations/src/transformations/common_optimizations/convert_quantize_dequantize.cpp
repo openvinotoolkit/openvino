@@ -58,9 +58,9 @@
 
 ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
     MATCHER_SCOPE(ConvertQuantizeDequantize);
-    auto data_pattern = ngraph::pattern::any_input();
-    auto input_low_pattern = ngraph::pattern::any_input();
-    auto input_high_pattern = ngraph::pattern::any_input();
+    auto data_pattern = pass::pattern::any_input();
+    auto input_low_pattern = pass::pattern::any_input();
+    auto input_high_pattern = pass::pattern::any_input();
     auto output_low_pattern = ngraph::pattern::wrap_type<opset4::Constant>();
     auto output_high_pattern = ngraph::pattern::wrap_type<opset4::Constant>();
     auto fq_pattern = ngraph::pattern::wrap_type<opset4::FakeQuantize>(
@@ -70,10 +70,10 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
                                                     pattern::type_matches_any({element::i8, element::u8}));
     auto convert2_pattern =
         ngraph::pattern::wrap_type<opset4::Convert>({convert1_pattern}, pattern::type_matches(element::f32));
-    auto zero_point_pattern = ngraph::pattern::any_input();
+    auto zero_point_pattern = pass::pattern::any_input();
     auto sub_pattern = ngraph::pattern::wrap_type<opset4::Subtract>({convert2_pattern, zero_point_pattern},
                                                                     pattern::consumers_count(1));
-    auto scale_pattern = ngraph::pattern::any_input();
+    auto scale_pattern = pass::pattern::any_input();
     auto mul_pattern = ngraph::pattern::wrap_type<opset4::Multiply>({sub_pattern, scale_pattern});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
