@@ -10,7 +10,11 @@
 
 @endsphinxdirective
 
-> **NOTE**: This document contains description of Model Optimizer internals which should be used as a last resort. As internal API it may have changes which are not backward compatible in the future. If you are going to add support for operations from ONNX or PaddlePaddle, or you are not familiar with other extension alternatives in OpenVINO, please consider reading [this guide](../../Extensibility_UG/Intro.md) first.
+
+This article describes Model Optimizer internals. Altering them may result in application instability and in case of future changes to the API, lack of backward compatibility.
+
+> **NOTE**: 
+If you want to add support for ONNX or PaddlePaddle operations, or you are not familiar with other extension alternatives in OpenVINO, read [this guide](../../Extensibility_UG/Intro.md) instead.
 
 <a name="model-optimizer-extensibility"></a>Model Optimizer extensibility mechanism enables support of new operations and custom transformations to generate the optimized intermediate representation (IR) as described in the
 [Deep Learning Network Intermediate Representation and Operation Sets in OpenVINO™](../../IR_and_opsets.md). This
