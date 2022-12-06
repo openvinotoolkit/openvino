@@ -73,7 +73,7 @@ Once dataset is ready and model object is instantiated, you can apply 8-bit quan
 
 @endsphinxtabset
 
->**Note**: model is an instance of `torch.nn.Module` class in the case of PyTorch, `onnx.ModelProto` in the case of ONNX, and `openvino.runtime.Model` in the case of OpenVINO.
+> **Note**: model is an instance of `torch.nn.Module` class in the case of PyTorch, `onnx.ModelProto` in the case of ONNX, and `openvino.runtime.Model` in the case of OpenVINO.
 
 After that the model can be exported into th OpenVINO Intermediate Representation if needed and run faster with OpenVINO.
 
