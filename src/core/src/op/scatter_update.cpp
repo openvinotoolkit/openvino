@@ -129,9 +129,6 @@ namespace {
 OPENVINO_SUPPRESS_DEPRECATED_START
 bool scatter_label_evaluator(const Node* node, TensorLabelVector& output_labels) {
     const auto& input_values = node->input_values();
-    if (input_values.size() < 4) {
-        return false;
-    }
 
     constexpr auto data_in_idx = 0;
     constexpr auto updates_in_idx = 2;
