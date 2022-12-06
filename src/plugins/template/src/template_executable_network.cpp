@@ -199,7 +199,7 @@ InferenceEngine::Parameter TemplatePlugin::ExecutableNetwork::GetMetric(const st
     } else if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
         std::vector<std::string> configKeys = {CONFIG_KEY(DEVICE_ID),
                                                CONFIG_KEY(PERF_COUNT),
-                                               TEMPLATE_CONFIG_KEY(THROUGHPUT_STREAMS)};
+                                               ov::template_plugin::throughput_streams.name()};
         auto streamExecutorConfigKeys = InferenceEngine::IStreamsExecutor::Config{}.SupportedKeys();
         for (auto&& configKey : streamExecutorConfigKeys) {
             configKeys.emplace_back(configKey);
