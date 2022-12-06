@@ -715,8 +715,6 @@ class DeprecatedStoreTrue(argparse.Action):
 
     def __call__(self, parser, namespace, values, option_string=None):
         dep_msg = "The {} option is deprecated and will be removed in the next release. ".format(option_string)
-        if 'fusing' in option_string:
-            dep_msg += 'Please use --finegrain_fusing instead.'
         log.error(dep_msg, extra={'is_warning': True})
         setattr(namespace, self.dest, True)
 
