@@ -57,6 +57,13 @@ StatusCode HeteroAsyncInferRequest::Wait(int64_t millis_timeout) {
     return waitStatus;
 }
 
+InferenceEngine::Blob::Ptr HeteroAsyncInferRequest::GetBlob(const std::string& name) {
+    CheckState();
+    auto blob = _heteroInferRequest->GetBlob(name);
+    setPointerToSo(_heteroInferRequest->getPointerToSo());
+    return blob;
+}
+
 HeteroAsyncInferRequest::~HeteroAsyncInferRequest() {
     StopAndWait();
 }

@@ -16,10 +16,6 @@ namespace intel_cpu {
 namespace node {
 
 class Deconvolution : public Node {
-    using DefaultDeconvDescs = std::pair<std::shared_ptr<dnnl::convolution_backward_data::desc>,
-                                         std::shared_ptr<dnnl::convolution_forward::primitive_desc>>;
-    using Int8DeconvDesc = std::shared_ptr<dnnl::deconvolution_forward::desc>;
-
 public:
     Deconvolution(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
@@ -53,15 +49,15 @@ public:
     void execute(dnnl::stream strm) override;
     void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
     bool needShapeInfer() const override;
-    std::vector<VectorDims> shapeInfer() const override;
 
     void setDynamicBatchLim(int lim) override;
-
-    void cleanup() override;
+    bool canBeExecutedInInt8() const;
+    bool canFuseBias() const;
 
 protected:
     AttrPtr initPrimitiveAttr() override;
     AttrPtr makePrimitiveAttr(const VectorDims& dims);
+    std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape& dims) const override;
 
 private:
     using executorPtr = std::shared_ptr<DnnlExecutor>;
@@ -101,45 +97,26 @@ private:
     ov::CoordinateDiff outputPadding;
     std::vector<int32_t> lastOutputSpatialDims;
     VectorDims int8WeightDims;
+    VectorDims biasesDims;
 
     Shape inShape;
 
     AttrPtr pAttr;
 
+    dnnl::memory::data_type outputDataType;
+
     std::shared_ptr<dnnl::primitive_attr> attr;
     void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims);
 
     VectorDims shapeInferInternal(const VectorDims &inDims, std::vector<int32_t> outSpDims) const;
-    void initPadding(std::shared_ptr<ngraph::Node> op, const Shape &inShape, const std::vector<int32_t>& outSpDims);
     void initPaddingR(const Shape &inShape, const Shape &outShape);
     std::vector<int32_t> readOutputSpatialDims() const;
     std::pair<VectorDims, VectorDims> makeDummyInOutShape();
-
-    DefaultDeconvDescs createDescriptorInternalDefault(const dnnl::memory::desc& in_candidate,
-                                                       const dnnl::memory::desc& wgh_candidate,
-                                                       const dnnl::memory::desc& out_candidate,
-                                                       dnnl::algorithm alg) const;
-    Int8DeconvDesc createDescriptorInternalInt8(const dnnl::memory::desc& in_candidate,
-                                                const dnnl::memory::desc& wgh_candidate,
-                                                const dnnl::memory::desc& out_candidate) const;
-    std::shared_ptr<DnnlDesriptor> createDefaultDnnlDeconvDesc(const dnnl::memory::desc& srcDesc,
-                                                               const dnnl::memory::desc& wghDesc,
-                                                               const dnnl::memory::desc& dstDesc,
-                                                               bool isWinograd) const;
-    std::shared_ptr<DnnlDesriptor> createInt8DnnlDeconvDesc(const dnnl::memory::desc& srcDesc,
-                                                            const dnnl::memory::desc& wghDesc,
-                                                            const dnnl::memory::desc& dstDesc) const;
-
-    void createDeconvPrim(std::shared_ptr<DnnlDesriptor> desc,
-                          MemoryPtr srcMemPtr,
-                          MemoryPtr wghMemPtr,
-                          MemoryPtr dstMemPtr,
-                          AttrPtr attr,
-                          impl_desc_type selectedImpl);
+    bool withBiases = false;
+    size_t biasPort;
 
     std::string errorPrefix;
 
-    bool canBeExecutedInInt8() const;
     InferenceEngine::Blob::Ptr createWeiBlobAsIO(InferenceEngine::SizeVector dims);
 };
 

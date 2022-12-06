@@ -29,6 +29,9 @@
 #    ifndef TBB_PREVIEW_LOCAL_OBSERVER
 #        define TBB_PREVIEW_LOCAL_OBSERVER 1
 #    endif
+#    ifndef TBB_PREVIEW_WAITING_FOR_WORKERS
+#        define TBB_PREVIEW_WAITING_FOR_WORKERS 1
+#    endif
 #    ifndef TBB_PREVIEW_NUMA_SUPPORT
 #        define TBB_PREVIEW_NUMA_SUPPORT 1
 #    endif
@@ -337,8 +340,10 @@ inline bool parallel_it_step() {
 template <typename Q, typename R, typename... Args>
 inline bool parallel_it_step(Q& x, const R& X, Args&&... tuple) {
     if (parallel_it_step(static_cast<Args>(tuple)...)) {
-        x = (x + 1) % X;
-        return x == 0;
+        if (++x - X == 0) {
+            x = 0;
+            return true;
+        }
     }
     return false;
 }
@@ -369,12 +374,26 @@ struct num_of_lambda_args<R (C::*)(Args...) const> {
 };
 
 template <typename ACT, typename... T, size_t N_ARGS = num_of_lambda_args<ACT>::value>
-typename std::enable_if<N_ARGS == sizeof...(T) + 1, void>::type call_with_args(const ACT& body, size_t g_id, T... arg) {
+typename std::enable_if<N_ARGS == sizeof...(T) + 2, void>::type call_with_args(const ACT& body,
+                                                                               size_t g_id,
+                                                                               size_t iwork,
+                                                                               T... arg) {
+    body(g_id, iwork, arg...);
+}
+
+template <typename ACT, typename... T, size_t N_ARGS = num_of_lambda_args<ACT>::value>
+typename std::enable_if<N_ARGS == sizeof...(T) + 1, void>::type call_with_args(const ACT& body,
+                                                                               size_t g_id,
+                                                                               size_t iwork,
+                                                                               T... arg) {
     body(g_id, arg...);
 }
 
 template <typename ACT, typename... T, size_t N_ARGS = num_of_lambda_args<ACT>::value>
-typename std::enable_if<N_ARGS == sizeof...(T), void>::type call_with_args(const ACT& body, size_t g_id, T... arg) {
+typename std::enable_if<N_ARGS == sizeof...(T), void>::type call_with_args(const ACT& body,
+                                                                           size_t g_id,
+                                                                           size_t iwork,
+                                                                           T... arg) {
     body(arg...);
 }
 }  // namespace details
@@ -384,7 +403,7 @@ void for_1d(const int& ithr, const int& nthr, const T0& D0, const F& func) {
     T0 d0{0}, end{0};
     splitter(D0, nthr, ithr, d0, end);
     for (; d0 < end; ++d0)
-        details::call_with_args(func, ithr, d0);
+        details::call_with_args(func, ithr, d0, d0);
 }
 
 template <typename T0, typename F>
@@ -430,7 +449,7 @@ void for_2d(const int& ithr, const int& nthr, const T0& D0, const T1& D1, const 
     T1 d1{0};
     parallel_it_init(start, d0, D0, d1, D1);
     for (size_t iwork = start; iwork < end; ++iwork) {
-        details::call_with_args(func, ithr, d0, d1);
+        details::call_with_args(func, ithr, iwork, d0, d1);
         parallel_it_step(d0, D0, d1, D1);
     }
 }
@@ -479,7 +498,7 @@ void for_3d(const int& ithr, const int& nthr, const T0& D0, const T1& D1, const 
     T2 d2{0};
     parallel_it_init(start, d0, D0, d1, D1, d2, D2);
     for (size_t iwork = start; iwork < end; ++iwork) {
-        details::call_with_args(func, ithr, d0, d1, d2);
+        details::call_with_args(func, ithr, iwork, d0, d1, d2);
         parallel_it_step(d0, D0, d1, D1, d2, D2);
     }
 }
@@ -529,7 +548,7 @@ void for_4d(const int& ithr, const int& nthr, const T0& D0, const T1& D1, const 
     T3 d3{0};
     parallel_it_init(start, d0, D0, d1, D1, d2, D2, d3, D3);
     for (size_t iwork = start; iwork < end; ++iwork) {
-        details::call_with_args(func, ithr, d0, d1, d2, d3);
+        details::call_with_args(func, ithr, iwork, d0, d1, d2, d3);
         parallel_it_step(d0, D0, d1, D1, d2, D2, d3, D3);
     }
 }
@@ -587,7 +606,7 @@ void for_5d(const int& ithr,
     T4 d4{0};
     parallel_it_init(start, d0, D0, d1, D1, d2, D2, d3, D3, d4, D4);
     for (size_t iwork = start; iwork < end; ++iwork) {
-        details::call_with_args(func, ithr, d0, d1, d2, d3, d4);
+        details::call_with_args(func, ithr, iwork, d0, d1, d2, d3, d4);
         parallel_it_step(d0, D0, d1, D1, d2, D2, d3, D3, d4, D4);
     }
 }
@@ -620,6 +639,66 @@ void parallel_for5d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, cons
     for_5d(parallel_get_thread_num(), parallel_get_num_threads(), D0, D1, D2, D3, D4, func);
 #elif IE_THREAD == IE_THREAD_SEQ
     for_5d(0, 1, D0, D1, D2, D3, D4, func);
+#endif
+}
+
+template <typename T0, typename T1, typename T2, typename T3, typename T4, typename T5, typename F>
+void for_6d(const int& ithr,
+            const int& nthr,
+            const T0& D0,
+            const T1& D1,
+            const T2& D2,
+            const T3& D3,
+            const T4& D4,
+            const T5& D5,
+            const F& func) {
+    const size_t work_amount = (size_t)D0 * D1 * D2 * D3 * D4 * D5;
+    if (work_amount == 0)
+        return;
+    size_t start{0}, end{0};
+    splitter(work_amount, nthr, ithr, start, end);
+
+    T0 d0{0};
+    T1 d1{0};
+    T2 d2{0};
+    T3 d3{0};
+    T4 d4{0};
+    T5 d5{0};
+    parallel_it_init(start, d0, D0, d1, D1, d2, D2, d3, D3, d4, D4, d5, D5);
+    for (size_t iwork = start; iwork < end; ++iwork) {
+        details::call_with_args(func, ithr, iwork, d0, d1, d2, d3, d4, d5);
+        parallel_it_step(d0, D0, d1, D1, d2, D2, d3, D3, d4, D4, d5, D5);
+    }
+}
+
+template <typename T0, typename T1, typename T2, typename T3, typename T4, typename T5, typename F>
+void parallel_for6d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, const T4& D4, const T5& D5, const F& func) {
+#if IE_THREAD == IE_THREAD_TBB
+    auto work_amount = static_cast<size_t>(D0 * D1 * D2 * D3 * D4 * D5);
+    int nthr = parallel_get_max_threads();
+    if (static_cast<size_t>(nthr) > work_amount)
+        nthr = static_cast<int>(work_amount);
+    if (nthr == 1) {
+        for_6d(0, 1, D0, D1, D2, D3, D4, D5, func);
+    } else {
+        tbb::parallel_for(
+            0,
+            nthr,
+            [&](int ithr) {
+                for_6d(ithr, nthr, D0, D1, D2, D3, D4, D5, func);
+            },
+            tbb::static_partitioner());
+    }
+#elif IE_THREAD == IE_THREAD_TBB_AUTO
+    const int nthr = parallel_get_max_threads();
+    tbb::parallel_for(0, nthr, [&](int ithr) {
+        for_6d(ithr, nthr, D0, D1, D2, D3, D4, D5, func);
+    });
+#elif IE_THREAD == IE_THREAD_OMP
+#    pragma omp parallel
+    for_6d(parallel_get_thread_num(), parallel_get_num_threads(), D0, D1, D2, D3, D4, D5, func);
+#elif IE_THREAD == IE_THREAD_SEQ
+    for_6d(0, 1, D0, D1, D2, D3, D4, D5, func);
 #endif
 }
 

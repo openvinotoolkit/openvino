@@ -8,6 +8,7 @@
 #include <pybind11/stl.h>
 
 #include "common.hpp"
+#include "pyopenvino/core/compiled_model.hpp"
 #include "pyopenvino/core/containers.hpp"
 #include "pyopenvino/core/infer_request.hpp"
 #include "pyopenvino/utils/utils.hpp"
@@ -30,6 +31,7 @@ void regclass_CompiledModel(py::module m) {
     cls.def(
         "create_infer_request",
         [](ov::CompiledModel& self) {
+            // Create temporary ov::InferRequest and move it to actual wrapper class.
             return std::make_shared<InferRequestWrapper>(self.create_infer_request(), self.inputs(), self.outputs());
         },
         py::call_guard<py::gil_scoped_release>(),

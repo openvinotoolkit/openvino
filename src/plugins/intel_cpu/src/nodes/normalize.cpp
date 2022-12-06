@@ -23,6 +23,7 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "utils/cpu_utils.hpp"
 #include <common/primitive_hashing_utils.hpp>
+#include <utils/shape_inference/shape_inference_pass_through.hpp>
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -85,7 +86,7 @@ template <cpu_isa_t isa>
 struct jit_uni_normalize_modulo_kernel_f32 : public jit_uni_normalize_modulo_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_normalize_modulo_kernel_f32)
 
-    jit_uni_normalize_modulo_kernel_f32(jit_normalize_config_params jcp) : jit_uni_normalize_modulo_kernel(jcp), jit_generator() {}
+    jit_uni_normalize_modulo_kernel_f32(jit_normalize_config_params jcp) : jit_uni_normalize_modulo_kernel(jcp), jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -206,7 +207,7 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_normalize_kernel_f32)
 
     explicit jit_uni_normalize_kernel_f32(jit_normalize_config_params jcp, const dnnl_primitive_attr &attr)
-    : jit_uni_normalize_kernel(jcp, attr), jit_generator() {}
+    : jit_uni_normalize_kernel(jcp, attr), jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -229,8 +230,8 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
             }
         }
 
-        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-            emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(this, isa));
+        if (mayiuse(avx512_core))
+            uni_vcvtneps2bf16.reset(new jit_uni_vcvtneps2bf16(this, isa));
 
         this->preamble();
 
@@ -242,7 +243,7 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
             mov(reg_post_ops_data, ptr[reg_params + GET_OFF(post_op_data)]);
             mov(reg_oc_off, ptr[reg_params + GET_OFF(oc_off)]);
         }
-        if (isa == avx512_common)
+        if (isa == avx512_core)
             uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
 
         if (jcp_.is_nchw) {
@@ -255,8 +256,8 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
 
         this->postamble();
 
-        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core) && emu_vcvtneps2bf16 != nullptr)
-            emu_vcvtneps2bf16->emit_data();
+        if (uni_vcvtneps2bf16)
+            uni_vcvtneps2bf16->emit_data();
         for (auto& inj : eltwise_injectors)
             inj->prepare_table();
     }
@@ -296,7 +297,7 @@ private:
     Vmm vmm_d_bias = Vmm(6);
     Vmm vmm_zero = Vmm(7);
 
-    std::unique_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16 = nullptr;
+    std::unique_ptr<jit_uni_vcvtneps2bf16> uni_vcvtneps2bf16 = nullptr;
 
     std::vector<std::shared_ptr<jit_uni_eltwise_injector_f32<isa>>> eltwise_injectors;
     std::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
@@ -426,7 +427,7 @@ private:
     inline void normalize_blk() {
         size_t blk_size = 0;
         size_t simd_w = 0;
-        if (isa == cpu::x64::avx512_common) {
+        if (isa == cpu::x64::avx512_core) {
             blk_size = simd_w = 16;
         } else if (isa == cpu::x64::avx2) {
             blk_size = simd_w = 8;
@@ -571,14 +572,11 @@ private:
         if (dst_dt == memory::data_type::f32) {
             uni_vmovups(op, vmm_dst);
         } else if (dst_dt == memory::data_type::bf16) {
-            if (mayiuse(avx512_core_bf16))
-                vcvtneps2bf16(ymm_dst, vmm_dst);
-            else
-                emu_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
+            uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
             vmovdqu16(op, ymm_dst);
         } else if (dst_dt == memory::data_type::u8) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
-            if (isa == cpu::x64::avx512_common) {
+            if (isa == cpu::x64::avx512_core) {
                 vpmaxsd(vmm_dst, vmm_dst, vmm_zero);
                 vpmovusdb(op, vmm_dst);
             } else {
@@ -593,7 +591,7 @@ private:
             }
         } else if (dst_dt == memory::data_type::s8) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
-            if (isa == cpu::x64::avx512_common) {
+            if (isa == cpu::x64::avx512_core) {
                 vpmovsdb(op, vmm_dst);
             } else {
                 uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
@@ -755,7 +753,7 @@ bool NormalizeL2::isSupportedOperation(const std::shared_ptr<const ngraph::Node>
 }
 
 NormalizeL2::NormalizeL2(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache) {
+        Node(op, eng, cache, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -834,7 +832,7 @@ void NormalizeL2::initSupportedPrimitiveDescriptors() {
     if (getInputShapeAtPort(DATA).getRank() == 4 && !attrs.cornerCase) {
         if (mayiuse(cpu::x64::sse41)) {
             pushDesc(LayoutType::nspc, impl_type);
-            if (mayiuse(cpu::x64::avx512_common)) {
+            if (mayiuse(cpu::x64::avx512_core)) {
                 pushDesc(LayoutType::nCsp16c, impl_type);
             } else {
                 pushDesc(LayoutType::nCsp8c, impl_type);
@@ -943,10 +941,6 @@ void NormalizeL2::execute(dnnl::stream strm) {
     execPtr->exec(src_ptr, dst_ptr, postOpsDataPtrs.data());
 }
 
-std::vector<VectorDims> NormalizeL2::shapeInfer() const {
-    return std::vector<VectorDims>{getParentEdgesAtPort(DATA)[0]->getMemory().getStaticDims()};
-}
-
 // *====================* CornerCase *===================*
 
 template <typename in_data_t, typename out_data_t>
@@ -1001,11 +995,11 @@ public:
         jcp.h = (dims_size > 2) ? dims[2] : 1lu;
         jcp.w = (dims_size > 3) ? dims[3] : 1lu;
 
-        if (mayiuse(cpu::x64::avx512_common)) {
+        if (mayiuse(cpu::x64::avx512_core)) {
             blk_size = 16;
-            normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx512_common>(jcp));
+            normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx512_core>(jcp));
             normalize_kernel.reset(
-                    new jit_uni_normalize_kernel_f32<cpu::x64::avx512_common>(jcp, *kernel_attrs.get()));
+                    new jit_uni_normalize_kernel_f32<cpu::x64::avx512_core>(jcp, *kernel_attrs.get()));
         } else if (mayiuse(cpu::x64::avx2)) {
             blk_size = 8;
             normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx2>(jcp));
@@ -1069,8 +1063,7 @@ private:
                     return modulo_kernel + modulo_tail;
                 });
 
-                modulo = std::sqrt(modulo);
-                float modulo_inv = 1.0f / (epsApply(modulo, attrs.epsMode, attrs.eps));
+                float modulo_inv = 1.0f / (std::sqrt(epsApply(modulo, attrs.epsMode, attrs.eps)));
 
                 // normalize
                 parallel_for(jcp.c, [&](size_t ic) {
@@ -1161,8 +1154,8 @@ private:
                     }
                     return modulo_kernel + modulo_tail;
                 });
-                modulo = std::sqrt(modulo);
-                float modulo_inv = 1.0f / (epsApply(modulo, attrs.epsMode, attrs.eps));
+
+                float modulo_inv = 1.0f / (std::sqrt(epsApply(modulo, attrs.epsMode, attrs.eps)));
 
                 // normalize
                 parallel_for2d(jcp.h, jcp.w, [&](int ih, int iw) {
@@ -1197,8 +1190,7 @@ private:
                         modulo += src_data_bhw[c] * src_data_bhw[c];
                     }
 
-                    modulo = std::sqrt(modulo);
-                    float modulo_inv = 1.0f / (epsApply(modulo, attrs.epsMode, attrs.eps));
+                    float modulo_inv = 1.0f / (std::sqrt(epsApply(modulo, attrs.epsMode, attrs.eps)));
 
                     // normalize
                     arg.dst = dst_data_bhw;
@@ -1246,8 +1238,7 @@ private:
                     return modulo_w_blk;
                 });
 
-                modulo = std::sqrt(modulo);
-                float modulo_inv = 1.0f / (epsApply(modulo, attrs.epsMode, attrs.eps));
+                float modulo_inv = 1.0f / (std::sqrt(epsApply(modulo, attrs.epsMode, attrs.eps)));
 
                 // normalize
                 parallel_for2d(CB, jcp.h, [&](size_t cb, size_t h) {
@@ -1284,8 +1275,7 @@ private:
                         }
                     }
 
-                    modulo = std::sqrt(modulo);
-                    float modulo_inv = 1.0f / (epsApply(modulo, attrs.epsMode, attrs.eps));
+                    float modulo_inv = 1.0f / (std::sqrt(epsApply(modulo, attrs.epsMode, attrs.eps)));
 
                     // normalize
                     arg.dst = dst_data_bhw;
@@ -1360,8 +1350,7 @@ private:
                     return modulo_c;
                 });
 
-                modulo = std::sqrt(modulo);
-                float modulo_inv = 1.0f / (epsApply(modulo, attrs.epsMode, attrs.eps));
+                float modulo_inv = 1.0f / (std::sqrt(epsApply(modulo, attrs.epsMode, attrs.eps)));
 
                 // normalize
                 parallel_for(C, [&](size_t ic) {

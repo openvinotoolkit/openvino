@@ -12,20 +12,18 @@
 #include <memory>
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 namespace {
 
 static void CreateSliceOp(Program& p, const std::shared_ptr<ngraph::op::v8::Slice>& op) {
-    p.ValidateInputs(op, { 4, 5 });
-    auto input_primitives = p.GetInputPrimitiveIDs(op);
+    validate_inputs_count(op, { 4, 5 });
+    auto inputs = p.GetInputInfo(op);
     auto output_shape = tensor_from_dims(op->get_output_shape(0));
     auto slice_prim = cldnn::slice(layer_type_name_ID(op),
-            input_primitives, output_shape,
-            op->get_friendly_name());
-    p.AddPrimitive(slice_prim);
-    p.AddPrimitiveToProfiler(op);
+                                   inputs,
+                                   output_shape);
+    p.add_primitive(*op, slice_prim);
 }
 
 } // namespace
@@ -33,5 +31,4 @@ static void CreateSliceOp(Program& p, const std::shared_ptr<ngraph::op::v8::Slic
 REGISTER_FACTORY_IMPL(v8, Slice);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

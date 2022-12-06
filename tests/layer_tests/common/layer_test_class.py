@@ -2,18 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import itertools
-import numpy as np
 import os
 import re
 import warnings
 import xml.etree.ElementTree as ET
-from openvino.tools.mo.utils.ir_engine.ir_engine import IREngine
 from pathlib import Path
 
 import numpy as np
 from common.constants import test_device, test_precision
 from common.layer_utils import IEInfer, InferAPI20
-from openvino.tools.mo.utils.ir_engine.ir_engine import IREngine
 from common.utils.common_utils import generate_ir
 from common.utils.parsers import mapping_parser
 
@@ -29,8 +26,8 @@ class CommonLayerTest:
         raise RuntimeError("This is base class, please implement get_framework_results function for"
                            " the specific framework")
 
-    def _test(self, framework_model, ref_net, ie_device, precision, ir_version, temp_dir, api_2,
-              use_new_frontend=False, infer_timeout=60, enabled_transforms='',
+    def _test(self, framework_model, ref_net, ie_device, precision, ir_version, temp_dir, use_old_api,
+              use_new_frontend=True, infer_timeout=60, enabled_transforms='',
               disabled_transforms='', **kwargs):
         """
         :param enabled_transforms/disabled_transforms: string with idxs of transforms that should be enabled/disabled.
@@ -39,7 +36,7 @@ class CommonLayerTest:
         model_path = self.produce_model_path(framework_model=framework_model, save_path=temp_dir)
 
         self.use_new_frontend = use_new_frontend
-        self.api_2 = api_2
+        self.use_old_api = use_old_api
         # TODO Pass environment variables via subprocess environment
         os.environ['MO_ENABLED_TRANSFORMS'] = enabled_transforms
         os.environ['MO_DISABLED_TRANSFORMS'] = disabled_transforms
@@ -60,6 +57,8 @@ class CommonLayerTest:
 
         if use_new_frontend:
             mo_params["use_new_frontend"] = True
+        else:
+            mo_params["use_legacy_frontend"] = True
 
         exit_code, stderr = generate_ir(**mo_params)
 
@@ -77,15 +76,15 @@ class CommonLayerTest:
         #     (flag, resp) = ir.compare(ref_net)
         #     assert flag, '\n'.join(resp)
 
-        if api_2:
-            ie_engine = InferAPI20(model=path_to_xml,
-                                   weights=path_to_bin,
-                                   device=ie_device)
-        else:
+        if self.use_old_api:
             ie_engine = IEInfer(model=path_to_xml,
                                 weights=path_to_bin,
                                 device=ie_device)
-
+        else:
+            ie_engine = InferAPI20(model=path_to_xml,
+                                   weights=path_to_bin,
+                                   device=ie_device,
+                                   use_new_frontend=use_new_frontend)
         # Prepare feed dict
         if 'kwargs_to_prepare_input' in kwargs and kwargs['kwargs_to_prepare_input']:
             inputs_dict = self._prepare_input(ie_engine.get_inputs_info(precision),

@@ -2,9 +2,9 @@
 
 ## Introduction
 
-Simplified mode is designed to make data preparation for the model optimization process easier. The mode is represented by an implementation of Engine interface from the POT API. It allows reading the data from an arbitrary folder specified by the user. For more details about POT API, refer to the corresponding [description](pot_compression_api_README). Currently, Simplified mode is available only for image data in PNG or JPEG formats, stored in a single folder.
+Simplified mode is designed to make data preparation for the model optimization process easier. The mode is represented by an implementation of Engine interface from the POT API. It allows reading the data from an arbitrary folder specified by the user. For more details about POT API, refer to the corresponding [description](@ref pot_compression_api_README). Currently, Simplified mode is available only for image data in PNG or JPEG formats, stored in a single folder. It supports Computer Vision models with a single input or two inputs where the second is "image_info" (Faster R-CNN, Mask R-CNN, etc.).
 
-Note: This mode cannot be used with accuracy-aware methods. There is no way to control accuracy after optimization. Nevertheless, this mode can be helpful to estimate performance benefits when using model optimizations.
+> **NOTE**: This mode cannot be used with accuracy-aware methods. There is no way to control accuracy after optimization. Nevertheless, this mode can be helpful to estimate performance benefits when using model optimizations.
 
 ## Usage
 
@@ -30,6 +30,6 @@ A template of configuration file for 8-bit quantization using Simplified mode ca
 
 For more details about POT usage via CLI, refer to this [CLI document](@ref pot_compression_cli_README).
 
-## See Also
+## Additional Resources
 
  * [Configuration File Description](@ref pot_configs_README)

@@ -3,7 +3,7 @@
 //
 
 #include "behavior/ov_plugin/caching_tests.hpp"
-#include <ngraph_ops/nms_ie_internal.hpp>
+#include <ov_ops/nms_ie_internal.hpp>
 #include "ov_api_conformance_helpers.hpp"
 
 namespace {
@@ -35,6 +35,7 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin, CompileModelCacheTestBase,
                                  ::testing::ValuesIn(CompileModelCacheTestBase::getStandardFunctions()),
                                  ::testing::ValuesIn(ovElemTypesTemplate),
                                  ::testing::ValuesIn(ovBatchSizesTemplate),
-                                 ::testing::ValuesIn(return_all_possible_device_combination())),
+                                 ::testing::ValuesIn(return_all_possible_device_combination()),
+                                 ::testing::Values(ov::AnyMap{})),
                          CompileModelCacheTestBase::getTestCaseName);
 } // namespace

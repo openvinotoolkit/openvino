@@ -28,7 +28,7 @@ TEST(gpu_streams, can_create_networks_for_stream) {
 
     topology topology(
             input_layout("input", input->get_layout()),
-            activation("relu", "input", activation_func::relu_negative_slope, activation_additional_params{ 0.5f, 0.f }, "", padding{ { 0, 0, 0, 0 }, 0 }));
+            activation("relu", input_info("input"), activation_func::relu_negative_slope, activation_additional_params{ 0.5f, 0.f }, padding{ { 0, 0, 0, 0 }, 0 }));
     network network(engine, topology, build_options());
 
     network.set_input_data("input", input);
@@ -69,7 +69,7 @@ TEST(gpu_streams, check_networks_can_use_the_same_weights) {
     topology topology(
             input_layout("input", input0_layout),
             data("weights", weights),
-            convolution("conv", "input", { "weights" }, { 2, 1 }));
+            convolution("conv", input_info("input"), { "weights" }, { 2, 1 }));
 
     set_values(weights, { 1.0f, 2.0f, 1.0f, 2.0f, 1.0f, 2.0f });
     auto prog = program::build_program(engine, topology, build_options());
@@ -133,7 +133,7 @@ TEST(gpu_streams, check_networks_use_unique_mutable_data_per_stream) {
     topology topology(
             input_layout("input", input0_layout),
             mutable_data("weights", weights),
-            convolution("conv", "input", { "weights" }, { 2, 1 }));
+            convolution("conv", input_info("input"), { "weights" }, { 2, 1 }));
 
     set_values(weights, { 1.0f, 2.0f, 1.0f, 2.0f, 1.0f, 2.0f });
     auto prog = program::build_program(engine, topology, build_options());

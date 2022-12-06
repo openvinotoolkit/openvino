@@ -10,6 +10,8 @@
 #include <vector>
 #include <dnnl_extension_utils.h>
 
+#include <cpu/platform.hpp>
+
 namespace ov {
 namespace intel_cpu {
 namespace node {
@@ -30,13 +32,14 @@ public:
     bool isExecutable() const override { return true; }
 
 private:
+    int threadsCount = 1;
     std::string errorPrefix;
     template <typename inputType>
     void executeSpecified();
     template<typename T>
     struct NonZeroExecute;
     template <typename T>
-    size_t getNonZeroElementsCount(const T* arg, const Shape& arg_shape);
+    std::vector<size_t> getNonZeroElementsCount(const T* arg, const Shape& arg_shape);
 };
 
 }   // namespace node

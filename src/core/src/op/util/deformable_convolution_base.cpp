@@ -33,7 +33,7 @@ ov::op::util::DeformableConvolutionBase::DeformableConvolutionBase(const OutputV
       m_deformable_group(deformable_group) {}
 
 bool ov::op::util::DeformableConvolutionBase::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(util_DeformableConvolutionBase_visit_attributes);
+    OV_OP_SCOPE(util_DeformableConvolutionBase_visit_attributes);
     visitor.on_attribute("strides", m_strides);
     visitor.on_attribute("dilations", m_dilations);
     visitor.on_attribute("pads_begin", m_pads_begin);
@@ -45,7 +45,7 @@ bool ov::op::util::DeformableConvolutionBase::visit_attributes(AttributeVisitor&
 }
 
 void ov::op::util::DeformableConvolutionBase::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(util_DeformableConvolutionBase_validate_and_infer_types);
+    OV_OP_SCOPE(util_DeformableConvolutionBase_validate_and_infer_types);
     const PartialShape& data_batch_pshape = get_input_partial_shape(0);
     const PartialShape& offsets_pshape = get_input_partial_shape(1);
     const PartialShape& filters_pshape = get_input_partial_shape(2);
@@ -151,7 +151,7 @@ void ov::op::util::DeformableConvolutionBase::validate_and_infer_types() {
     }
 
     // adjust filter shape to reuse regular infer_convolution_forward()
-    const auto new_filters_pshape = [&](int groups) {
+    const auto new_filters_pshape = [&](int64_t groups) {
         auto new_shape(filters_pshape);
         if (new_shape.rank().is_static()) {
             new_shape[1] *= groups;

@@ -30,8 +30,6 @@ public:
 
     void createPrimitive() override;
 
-    std::vector<VectorDims> shapeInfer() const override;
-
     void prepareParams() override;
 
     void executeDynamicImpl(dnnl::stream strm) override;
@@ -44,6 +42,10 @@ public:
         this->output = output.clone();
         outputShapes.clear();
         outputShapes.push_back(this->output->getShape());
+    }
+
+    void setSrcPermutation(const std::vector<int> & src_perm) {
+        this->src_permutation = src_perm;
     }
 
     void setOptimized(bool isOptimized) {
@@ -61,11 +63,13 @@ public:
 
     static std::string getReorderArgs(const MemoryDesc &parentDesc, const MemoryDesc &childDesc);
 
-    static void reorderData(const Memory &input, const Memory &output);
+    static void reorderData(const Memory &input, const Memory &output, MultiCachePtr cache = nullptr);
 
 private:
     std::shared_ptr<MemoryDesc> input;
     std::shared_ptr<MemoryDesc> output;
+
+    std::vector<int> src_permutation;
 
     MemoryPtr dst_blocked;
     MemoryPtr src_blocked;

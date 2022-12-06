@@ -6,7 +6,6 @@
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/split.hpp>
-#include <intel_gpu/primitives/scale.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 
 #include <sstream>
@@ -68,7 +67,7 @@ void split_test(int batch_num, int feature_num, int x_size, int y_size, std::vec
         input_ids_offsets.push_back({ create_split_id(splitNum), split_offsets[splitNum]});
     }
 
-    topology.add(split("split", "input", input_ids_offsets));
+    topology.add(split("split", input_info("input"), input_ids_offsets));
 
     std::vector<T> input_vec = generate_random_input<T>(batch_num, feature_num, y_size, x_size, -10, 10);
     set_values(input, input_vec);
@@ -112,7 +111,7 @@ void split_test(int batch_num, int feature_num, int x_size, int y_size, std::vec
         primitive_id split_id = "split:" + create_split_id(splitNum);
         cldnn::memory::ptr output = outputs.at(split_id).get_memory();
         auto prim = output->get_layout();
-        EXPECT_EQ(prim.size, expected_sizes[splitNum]);
+        EXPECT_EQ(prim.get_tensor(), expected_sizes[splitNum]);
         cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
         // Output tensor size
@@ -212,17 +211,17 @@ TEST(split_gpu_f32, basic_split_concat_optimization) {
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     std::vector<std::pair<primitive_id, tensor>> offsets;
-    std::vector<primitive_id> ids;
+    std::vector<input_info> inputs;
     for (int i = 0; i < 25; i++)
     {
         auto id = "crop_" + std::to_string(i);
-        ids.push_back("split:" + id);
+        inputs.push_back(input_info("split:" + id));
         offsets.push_back({ id, {0, i, 0, 0} });
     }
 
-    topology.add(split("split", "input", offsets));
-    topology.add(concatenation("concat", ids, 1));
-    topology.add(reorder("output", "concat", format::bfyx, data_types::f32));
+    topology.add(split("split", input_info("input"), offsets));
+    topology.add(concatenation("concat", inputs, 1));
+    topology.add(reorder("output", input_info("concat"), format::bfyx, data_types::f32));
 
     build_options opts;
     opts.set_option(build_option::optimize_data(true));
@@ -252,17 +251,17 @@ TEST(split_gpu_i64, basic_split_concat_optimization) {
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     std::vector<std::pair<primitive_id, tensor>> offsets;
-    std::vector<primitive_id> ids;
+    std::vector<input_info> inputs;
     for (int i = 0; i < 25; i++)
     {
         auto id = "crop_" + std::to_string(i);
-        ids.push_back("split:" + id);
+        inputs.push_back(input_info("split:" + id));
         offsets.push_back({ id, {0, i, 0, 0} });
     }
 
-    topology.add(split("split", "input", offsets));
-    topology.add(concatenation("concat", ids, 1));
-    topology.add(reorder("output", "concat", format::bfyx, data_types::i64));
+    topology.add(split("split", input_info("input"), offsets));
+    topology.add(concatenation("concat", inputs, 1));
+    topology.add(reorder("output", input_info("concat"), format::bfyx, data_types::i64));
 
     build_options opts;
     opts.set_option(build_option::optimize_data(true));
@@ -529,7 +528,7 @@ TEST(split_gpu_f32, basic_in2x3x2x2_split_feature_bfyx) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(split("split", "input",
+    topology.add(split("split", input_info("input"),
     {
         { "out0", { 0, 0, 0, 0 } },
         { "out1", { 0, 1, 0, 0 } },
@@ -575,7 +574,7 @@ TEST(split_gpu_i64, basic_in2x3x2x2_split_feature_bfyx) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(split("split", "input",
+    topology.add(split("split", input_info("input"),
     {
         { "out0", { 0, 0, 0, 0 } },
         { "out1", { 0, 1, 0, 0 } },
@@ -628,15 +627,15 @@ TEST(split_gpu_f32, basic_in2x3x2x2_split_scale_feature_bfyx) {
     topology.add(input_layout("scale_input0", scale_input0->get_layout()));
     topology.add(input_layout("scale_input1", scale_input1->get_layout()));
     topology.add(input_layout("scale_input2", scale_input2->get_layout()));
-    topology.add(split("split", "input",
+    topology.add(split("split", input_info("input"),
     {
         { "out0",{ 0, 0, 0, 0 } },
         { "out1",{ 0, 1, 0, 0 } },
         { "out2",{ 0, 2, 0, 0 } }
     }));
-    topology.add(scale("scale0", "split:out0", "scale_input0"));
-    topology.add(scale("scale1", "split:out1", "scale_input1"));
-    topology.add(scale("scale2", "split:out2", "scale_input2"));
+    topology.add(eltwise("scale0", { input_info("split:out0"), input_info("scale_input0") }, eltwise_mode::prod));
+    topology.add(eltwise("scale1", { input_info("split:out1"), input_info("scale_input1") }, eltwise_mode::prod));
+    topology.add(eltwise("scale2", { input_info("split:out2"), input_info("scale_input2") }, eltwise_mode::prod));
 
     std::vector<float> scale_input_vec0 = { 1.f };
     set_values(scale_input0, scale_input_vec0);

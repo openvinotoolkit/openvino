@@ -55,13 +55,13 @@ enum class InterpolateShapeCalcMode {
 struct jit_interpolate_config_params {
     InterpolateLayoutType layout;
     InterpolateMode mode;
-    dnnl::memory::data_type src_dt;
-    dnnl::memory::data_type dst_dt;
+    InferenceEngine::Precision src_prc;
+    InferenceEngine::Precision dst_prc;
     int src_data_size;
     int dst_data_size;
     int indices_size;
     int spatial_dim_size;
-    int ID, IH, IW, OD, OH, OW;
+    int C, ID, IH, IW, OD, OH, OW;
 };
 
 struct jit_interpolate_call_args {
@@ -95,6 +95,13 @@ struct jit_uni_interpolate_kernel {
 
 class Interpolate : public Node {
 public:
+    static constexpr size_t DATA_ID = 0;
+    static constexpr size_t TARGET_SHAPE_ID = 1;
+    static constexpr size_t SCALES_ID = 2;
+    static constexpr size_t AXES_ID = 3;
+    static constexpr int CUBIC_GRID_LEN = 4;
+
+public:
     Interpolate(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
@@ -111,7 +118,6 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
     bool needShapeInfer() const override;
-    std::vector<VectorDims> shapeInfer() const override;
     bool needPrepareParams() const override;
     void prepareParams() override;
 
@@ -234,12 +240,6 @@ private:
     static SizeVector getPaddedInputShape(const VectorDims &srcDims, const std::vector<int> &padBegin, const std::vector<int> &padEnd);
     std::vector<float> getScales(const VectorDims &srcDimPad, const VectorDims &dstDim);
     static size_t getSpatialDimsNum(const Dim rank);
-
-    static constexpr size_t DATA_ID = 0;
-    static constexpr size_t TARGET_SHAPE_ID = 1;
-    static constexpr size_t SCALES_ID = 2;
-    static constexpr size_t AXES_ID = 3;
-    static constexpr int CUBIC_GRID_LEN = 4;
 
     bool hasPad = false;
     InterpolateShapeCalcMode shapeCalcMode;

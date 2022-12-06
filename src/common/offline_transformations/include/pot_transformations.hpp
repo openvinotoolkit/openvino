@@ -5,9 +5,8 @@
 #pragma once
 
 #include <memory>
-#include <string>
-
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <string>
 
 namespace ngraph {
 namespace pass {
@@ -22,7 +21,7 @@ class POTTransformations;
  * executed inside POT.
  */
 
-class ngraph::pass::POTTransformations: public ngraph::pass::FunctionPass {
+class ngraph::pass::POTTransformations : public ngraph::pass::FunctionPass {
     std::string m_device;
 
 public:

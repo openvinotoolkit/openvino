@@ -34,7 +34,7 @@ ov::op::v1::AvgPool::AvgPool(const Output<Node>& arg,
 }
 
 bool ov::op::v1::AvgPool::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_AvgPool_visit_attributes);
+    OV_OP_SCOPE(v1_AvgPool_visit_attributes);
     visitor.on_attribute("kernel", m_kernel);
     visitor.on_attribute("strides", m_strides);
     visitor.on_attribute("pads_begin", m_pads_begin);
@@ -46,7 +46,7 @@ bool ov::op::v1::AvgPool::visit_attributes(AttributeVisitor& visitor) {
 }
 
 void ov::op::v1::AvgPool::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v1_AvgPool_validate_and_infer_types);
+    OV_OP_SCOPE(v1_AvgPool_validate_and_infer_types);
     if (0 == m_strides.size()) {
         m_strides = Strides(m_kernel.size(), 1);
     }
@@ -191,7 +191,7 @@ void ov::op::v1::AvgPool::set_rounding_type(op::RoundingType rounding_type) {
 }
 
 shared_ptr<ov::Node> ov::op::v1::AvgPool::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_AvgPool_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_AvgPool_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::AvgPool>(new_args.at(0),
                                     m_strides,

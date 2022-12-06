@@ -7,6 +7,7 @@
 #include <memory>
 #include <vector>
 
+#include "itt.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset3.hpp"
@@ -18,6 +19,7 @@
 using namespace std;
 
 bool ov::pass::MarkPrecisionSensitiveSubgraphs::run_on_model(const std::shared_ptr<ov::Model>& f) {
+    RUN_ON_MODEL_SCOPE(MarkPrecisionSensitiveSubgraphs);
     deque<Node*> nodes;
     unordered_set<Node*> visited, precision_sensitive_visited;
 
@@ -54,10 +56,10 @@ bool ov::pass::MarkPrecisionSensitiveSubgraphs::run_on_model(const std::shared_p
             if (visited.count(input_node))
                 continue;
 
-            if (auto sub_graph_node = ov::as_type<ngraph::op::util::MultiSubGraphOp>(input_node)) {
+            if (auto sub_graph_node = ov::as_type<ov::op::util::MultiSubGraphOp>(input_node)) {
                 size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
                 for (size_t sub_graph_ind = 0; sub_graph_ind < sub_graphs_num; ++sub_graph_ind) {
-                    auto sub_graph = sub_graph_node->get_function(sub_graph_ind);
+                    auto sub_graph = sub_graph_node->get_function(static_cast<int>(sub_graph_ind));
                     run_on_model(sub_graph);
                 }
             }

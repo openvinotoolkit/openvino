@@ -9,10 +9,6 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/detection_output.hpp>
 
-namespace cldnn {
-    template<> struct type_to_data_type<FLOAT16> { static const data_types value = data_types::f16; };
-}
-
 using namespace cldnn;
 using namespace ::tests;
 
@@ -151,7 +147,7 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k));
+        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k));
 
         build_options opts;
         network network(engine, topology, opts);
@@ -185,8 +181,8 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output_1", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k));
-        topology.add(detection_output("detection_output_2", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k));
+        topology.add(detection_output("detection_output_1", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k));
+        topology.add(detection_output("detection_output_2", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k));
 
         build_options opts;
         network network(engine, topology, opts);
@@ -228,7 +224,7 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
+        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
         build_options opts;
         network network(engine, topology, opts);
@@ -276,7 +272,7 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
+        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
         build_options opts;
         network network(engine, topology, opts);
@@ -318,7 +314,7 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
+        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
         build_options opts;
         network network(engine, topology, opts);
@@ -371,7 +367,7 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
+        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
 
         build_options opts;
         network network(engine, topology, opts);
@@ -430,7 +426,7 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box",
+        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"),
             this->num_classes, keep_top_k, share_location, background_label_id, nms_threshold,
             top_k, eta, code_type, variance_encoded_in_target, confidence_threshold, prior_info_size,
             prior_coordinates_offset, prior_is_normalized, input_width, input_height, decrease_label_id
@@ -447,10 +443,10 @@ public:
         EXPECT_EQ(outputs.size(), size_t(1));
         EXPECT_EQ(outputs.begin()->first, "detection_output");
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.batch[0], 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.feature[0], 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.spatial[1], keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.spatial[0], 7);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -484,7 +480,7 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
+        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
         build_options opts;
         network network(engine, topology, opts);
@@ -545,7 +541,7 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
+        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
 
         build_options opts;
         network network(engine, topology, opts);
@@ -593,7 +589,7 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
+        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
         build_options opts;
         network network(engine, topology, opts);
@@ -644,7 +640,7 @@ public:
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
-        topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
+        topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
 
         build_options opts;
         network network(engine, topology, opts);
@@ -687,10 +683,10 @@ public:
         topology.add(input_layout("input_location", input_location->get_layout()));
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
-        topology.add(reorder("input_location_padded", "input_location", input_location->get_layout().with_padding(padding{ { 0, 0, 12, 3 },{ 0, 0, 5, 11 } })));
-        topology.add(reorder("input_confidence_padded", "input_confidence", input_location->get_layout().with_padding(padding{ { 0, 0, 2, 7 },{ 0, 0, 13, 1 } })));
+        topology.add(reorder("input_location_padded", input_info("input_location"), input_location->get_layout().with_padding(padding{ { 0, 0, 12, 3 },{ 0, 0, 5, 11 } })));
+        topology.add(reorder("input_confidence_padded", input_info("input_confidence"), input_location->get_layout().with_padding(padding{ { 0, 0, 2, 7 },{ 0, 0, 13, 1 } })));
 
-        topology.add(detection_output("detection_output", "input_location_padded", "input_confidence_padded", "input_prior_box", this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
+        topology.add(detection_output("detection_output", input_info("input_location_padded"), input_info("input_confidence_padded"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
 
         build_options opts;
         network network(engine, topology, opts);
@@ -720,7 +716,7 @@ public:
         check_results(output_prim, 7, "0 0 0 0 0 0 0");
     }
 
-    void test_forward_no_share_location_top_k_faster_rcnn_case() {
+    void test_forward_no_share_location_top_k_faster_rcnn_case(bool is_caching_test) {
         const bool share_location = false;
         const int num_loc_classes = share_location ? 1 : this->num_classes;
         const int keep_top_k = 4;
@@ -746,22 +742,40 @@ public:
         topology.add(input_layout("input_location", input_location->get_layout()));
         topology.add(input_layout("input_confidence", input_confidence->get_layout()));
         topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
-        topology.add(reorder("input_location_padded", "input_location", input_location->get_layout().with_padding(padding{ { 0, 0, 12, 3 },{ 0, 0, 5, 11 } })));
-        topology.add(reorder("input_confidence_padded", "input_confidence", input_location->get_layout().with_padding(padding{ { 0, 0, 2, 7 },{ 0, 0, 13, 1 } })));
+        topology.add(reorder("input_location_padded", input_info("input_location"), input_location->get_layout().with_padding(padding{ { 0, 0, 12, 3 },{ 0, 0, 5, 11 } })));
+        topology.add(reorder("input_confidence_padded", input_info("input_confidence"), input_location->get_layout().with_padding(padding{ { 0, 0, 2, 7 },{ 0, 0, 13, 1 } })));
 
-        topology.add(detection_output("detection_output", "input_location_padded", "input_confidence_padded", "input_prior_box",
+        topology.add(detection_output("detection_output", input_info("input_location_padded"), input_info("input_confidence_padded"), input_info("input_prior_box"),
             this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k,
             eta, code_type, variance_encoded_in_target, confidence_threshold, prior_info_size, prior_coordinates_offset,
             prior_is_normalized, this->img_size, this->img_size
         ));
 
         build_options opts;
-        network network(engine, topology, opts);
-        network.set_input_data("input_location", input_location);
-        network.set_input_data("input_confidence", input_confidence);
-        network.set_input_data("input_prior_box", input_prior_box);
+        cldnn::network::ptr network;
 
-        auto outputs = network.execute();
+        if (is_caching_test) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, topology, opts);
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+            }
+        } else {
+            network = std::make_shared<cldnn::network>(engine, topology, opts);
+        }
+
+        network->set_input_data("input_location", input_location);
+        network->set_input_data("input_confidence", input_confidence);
+        network->set_input_data("input_prior_box", input_prior_box);
+
+        auto outputs = network->execute();
 
         EXPECT_EQ(outputs.size(), size_t(1));
         EXPECT_EQ(outputs.begin()->first, "detection_output");
@@ -842,5 +856,9 @@ TYPED_TEST(detection_output_test, test_forward_no_share_location_top_k_input_pad
 }
 
 TYPED_TEST(detection_output_test, test_forward_no_share_location_top_k_faster_rcnn_case) {
-    this->test_forward_no_share_location_top_k_faster_rcnn_case();
+    this->test_forward_no_share_location_top_k_faster_rcnn_case(false);
+}
+
+TYPED_TEST(detection_output_test, export_import) {
+    this->test_forward_no_share_location_top_k_faster_rcnn_case(true);
 }

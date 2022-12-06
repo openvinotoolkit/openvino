@@ -30,7 +30,6 @@
 using namespace InferenceEngine;
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static void createDirectory(std::string _path) {
@@ -62,7 +61,7 @@ static int getNumberOfCores(const IStreamsExecutor::Config::PreferredCoreType co
 }
 
 IE_SUPPRESS_DEPRECATED_START
-void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) {
+void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap, const cldnn::device_info& info) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Config::UpdateFromMap");
     for (auto& kvp : configMap) {
         std::string key = kvp.first;
@@ -70,6 +69,13 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
         const auto hints = perfHintsConfig.SupportedKeys();
         if (hints.end() != std::find(hints.begin(), hints.end(), key)) {
             perfHintsConfig.SetConfig(key, val);
+        } else if (key == ov::hint::inference_precision) {
+            std::stringstream ss(val);
+            ss >> inference_precision;
+            OPENVINO_ASSERT(inference_precision == ov::element::f16 ||
+                            inference_precision == ov::element::f32 ||
+                            inference_precision == ov::element::undefined,
+                            "Unexpected inference precision set: ", inference_precision);
         } else if (key.compare(PluginConfigParams::KEY_PERF_COUNT) == 0 || key == ov::enable_profiling) {
             if (val.compare(PluginConfigParams::YES) == 0) {
                 useProfiling = true;
@@ -244,7 +250,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
         } else if (key.compare(PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS) == 0 || key == ov::num_streams) {
             if (val.compare(PluginConfigParams::GPU_THROUGHPUT_AUTO) == 0 ||
                 val.compare(ov::util::to_string(ov::streams::AUTO)) == 0) {
-                throughput_streams = GetDefaultNStreamsForThroughputMode();
+                throughput_streams = std::max(GetDefaultNStreamsForThroughputMode(), info.num_ccs);
             } else {
                 int val_i;
                 try {
@@ -379,6 +385,8 @@ void Config::adjustKeyMapValues() {
         key_config_map[CLDNNConfigParams::KEY_CLDNN_ENABLE_FP16_FOR_QUANTIZED_MODELS] = PluginConfigParams::YES;
     else
         key_config_map[CLDNNConfigParams::KEY_CLDNN_ENABLE_FP16_FOR_QUANTIZED_MODELS] = PluginConfigParams::NO;
+
+    key_config_map[ov::hint::inference_precision.name()] = inference_precision.get_type_name();
 
     {
         if (queuePriority == cldnn::priority_mode_types::high &&
@@ -520,6 +528,7 @@ bool Config::isNewApiProperty(std::string property) {
     static const std::set<std::string> new_api_keys{
         ov::intel_gpu::hint::queue_priority.name(),
         ov::intel_gpu::hint::queue_throttle.name(),
+        ov::hint::inference_precision.name(),
         ov::compilation_num_threads.name(),
         ov::num_streams.name(),
     };
@@ -547,6 +556,23 @@ std::string Config::ConvertPropertyToLegacy(const std::string& key, const std::s
     IE_THROW() << "Unsupported value for legacy key : " << key;
 }
 
+bool Config::CanShareContextWith(const Config& other) const {
+    return this->throughput_streams == other.throughput_streams &&
+           this->useProfiling == other.useProfiling &&
+           this->dumpCustomKernels == other.dumpCustomKernels &&
+           this->memory_pool_on == other.memory_pool_on &&
+           this->queueThrottle == other.queueThrottle &&
+           this->queuePriority == other.queuePriority &&
+           this->sources_dumps_dir == other.sources_dumps_dir &&
+           this->tuningConfig.mode == other.tuningConfig.mode &&
+           this->tuningConfig.cache_file_path == other.tuningConfig.cache_file_path &&
+           this->kernels_cache_dir == other.kernels_cache_dir &&
+           this->device_id == other.device_id &&
+           this->task_exec_config._streams == other.task_exec_config._streams &&
+           this->task_exec_config._threadPreferredCoreType == other.task_exec_config._threadPreferredCoreType &&
+           this->enable_loop_unrolling == other.enable_loop_unrolling;
+}
+
 void Configs::CreateConfig(std::string device_id) {
     if (configs.find(device_id) == configs.end()) {
         configs.emplace(device_id, Config(device_id));
@@ -570,5 +596,4 @@ Config& Configs::GetDefaultDeviceConfig() {
 IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

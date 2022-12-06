@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "openvino/op/util/nms_base.hpp"
+#include "openvino/op/op.hpp"
 
 namespace ov {
 namespace op {
@@ -12,12 +12,18 @@ namespace v8 {
 /// \brief MatrixNms operation
 ///
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API MatrixNms : public util::NmsBase {
+class OPENVINO_API MatrixNms : public Op {
 public:
-    OPENVINO_OP("MatrixNms", "opset8", op::util::NmsBase);
+    OPENVINO_OP("MatrixNms", "opset8");
     BWDCMP_RTTI_DECLARATION;
 
     enum class DecayFunction { GAUSSIAN, LINEAR };
+
+    enum class SortResultType {
+        CLASSID,  // sort selected boxes by class id (ascending) in each batch element
+        SCORE,    // sort selected boxes by score (descending) in each batch element
+        NONE      // do not guarantee the order in each batch element
+    };
 
     /// \brief Structure that specifies attributes of the operation
     struct Attributes {
@@ -74,7 +80,8 @@ public:
               normalized(normalized) {}
     };
 
-    MatrixNms();
+    /// \brief Constructs a conversion operation.
+    MatrixNms() = default;
 
     /// \brief Constructs a MatrixNms operation
     ///
@@ -87,15 +94,22 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
+    void validate_and_infer_types() override;
+
     /// \brief Returns attributes of the operation MatrixNms
     const Attributes& get_attrs() const {
         return m_attrs;
     }
 
+    void set_output_type(const element::Type& output_type) {
+        m_attrs.output_type = output_type;
+    }
+    using Node::set_output_type;
+
 protected:
     Attributes m_attrs;
 
-    void validate() override;
+    void validate();  // helper
 };
 }  // namespace v8
 }  // namespace op
@@ -110,6 +124,20 @@ public:
         : EnumAttributeAdapterBase<op::v8::MatrixNms::DecayFunction>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v8::MatrixNms::DecayFunction>");
+    BWDCMP_RTTI_DECLARATION;
+};
+
+OPENVINO_API
+std::ostream& operator<<(std::ostream& s, const op::v8::MatrixNms::SortResultType& type);
+
+template <>
+class OPENVINO_API AttributeAdapter<op::v8::MatrixNms::SortResultType>
+    : public EnumAttributeAdapterBase<op::v8::MatrixNms::SortResultType> {
+public:
+    AttributeAdapter(op::v8::MatrixNms::SortResultType& value)
+        : EnumAttributeAdapterBase<op::v8::MatrixNms::SortResultType>(value) {}
+
+    OPENVINO_RTTI("AttributeAdapter<ov::op::v8::MatrixNms::SortResultType>");
     BWDCMP_RTTI_DECLARATION;
 };
 

@@ -31,7 +31,7 @@ template <cpu_isa_t isa>
 struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_logistic_kernel_f32)
 
-    jit_uni_logistic_kernel_f32(jit_logistic_config_params jcp) : jcp_(jcp), jit_uni_logistic_kernel(), jit_generator() {}
+    jit_uni_logistic_kernel_f32(jit_logistic_config_params jcp) : jcp_(jcp), jit_uni_logistic_kernel(), jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -41,8 +41,8 @@ struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_
     void generate() override {
         exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, dnnl::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.f));
 
-        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-            emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(this, isa));
+        if (mayiuse(avx512_core))
+            uni_vcvtneps2bf16.reset(new jit_uni_vcvtneps2bf16(this, isa));
 
         this->preamble();
 
@@ -91,8 +91,8 @@ struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_
 
         this->postamble();
 
-        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-            emu_vcvtneps2bf16->emit_data();
+        if (uni_vcvtneps2bf16)
+            uni_vcvtneps2bf16->emit_data();
 
         exp_injector->prepare_table();
 
@@ -119,7 +119,7 @@ private:
 
     const Xbyak::Opmask k_mask = Xbyak::Opmask(1);
 
-    std::unique_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16;
+    std::unique_ptr<jit_uni_vcvtneps2bf16> uni_vcvtneps2bf16;
 
     Xbyak::Label l_table;
 
@@ -192,10 +192,7 @@ private:
                 uni_vmovups(op, vmm_dst);
                 break;
             case InferenceEngine::Precision::BF16:
-                if (mayiuse(avx512_core_bf16))
-                    vcvtneps2bf16(ymm_dst, vmm_dst);
-                else
-                    emu_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
+                uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
                 vmovdqu16(op, ymm_dst);
                 break;
             default:
@@ -248,7 +245,7 @@ bool RegionYolo::needPrepareParams() const {
 }
 
 RegionYolo::RegionYolo(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -289,7 +286,7 @@ void RegionYolo::initSupportedPrimitiveDescriptors() {
     }
 
     impl_desc_type impl_type;
-    if (mayiuse(x64::avx512_common)) {
+    if (mayiuse(x64::avx512_core)) {
         impl_type = impl_desc_type::jit_avx512;
     } else if (mayiuse(x64::avx2)) {
         impl_type = impl_desc_type::jit_avx2;
@@ -314,8 +311,8 @@ void RegionYolo::createPrimitive() {
     jcp.src_data_size = jcp.dst_data_size = output_prec.size();
 
     block_size = 1;
-    if (mayiuse(x64::avx512_common)) {
-        logistic_kernel.reset(new jit_uni_logistic_kernel_f32<x64::avx512_common>(jcp));
+    if (mayiuse(x64::avx512_core)) {
+        logistic_kernel.reset(new jit_uni_logistic_kernel_f32<x64::avx512_core>(jcp));
         block_size = 16;
     } else if (mayiuse(x64::avx2)) {
         logistic_kernel.reset(new jit_uni_logistic_kernel_f32<x64::avx2>(jcp));

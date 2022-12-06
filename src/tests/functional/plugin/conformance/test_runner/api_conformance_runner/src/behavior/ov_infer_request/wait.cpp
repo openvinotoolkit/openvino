@@ -16,7 +16,7 @@ namespace {
 INSTANTIATE_TEST_SUITE_P(ov_infer_request, OVInferRequestWaitTests,
                         ::testing::Combine(
                                 ::testing::ValuesIn(return_all_possible_device_combination()),
-                                ::testing::ValuesIn(empty_ov_config)),
+                                ::testing::Values(ov_config)),
                             OVInferRequestWaitTests::getTestCaseName);
 
 }  // namespace

@@ -53,14 +53,14 @@ void HeteroInferRequest::CreateInferRequest(
         }
         if (output) {
             if (InferenceEngine::details::contains(_networkOutputs, blobName)) {
-                _subRequestFromBlobName.emplace(blobName, r._ptr.get());
+                _subRequestFromBlobName.emplace(blobName, r);
             } else {
                 auto blob = r->GetBlob(blobName);
                 _blobs.emplace(intermediateBlobName, r->GetBlob(blobName));
             }
         } else {
             if (InferenceEngine::details::contains(_networkInputs, blobName)) {
-                _subRequestFromBlobName.emplace(blobName, r._ptr.get());
+                _subRequestFromBlobName.emplace(blobName, r);
             } else {
                 r->SetBlob(blobName, _blobs.at(intermediateBlobName));
             }
@@ -98,6 +98,7 @@ InferenceEngine::Blob::Ptr HeteroInferRequest::GetBlob(const std::string& name) 
     if (itRequest == _subRequestFromBlobName.end()) {
         IE_THROW() << "There is no infer requests binded to blob with name: " << name;
     }
+    setPointerToSo(itRequest->second._so);
     return itRequest->second->GetBlob(name);
 }
 

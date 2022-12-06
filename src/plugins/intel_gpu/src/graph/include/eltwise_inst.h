@@ -6,7 +6,7 @@
 #pragma once
 #include "intel_gpu/primitives/eltwise.hpp"
 #include "primitive_inst.h"
-#include "kernel_selector/core/actual_kernels/eltwise/eltwise_kernel_base.h"
+#include "kernel_selector/kernels/eltwise/eltwise_kernel_base.h"
 
 #include <memory>
 #include <string>
@@ -75,6 +75,7 @@ public:
         kernel_selector::eltwise_mode mode = convert_to_eltwise_mode(get_primitive()->mode);
         return std::make_shared<kernel_selector::eltwise_fuse_params>(mode);
     }
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
 };
 
 using eltwise_node = typed_program_node<eltwise>;
@@ -82,13 +83,14 @@ using eltwise_node = typed_program_node<eltwise>;
 template <>
 class typed_primitive_inst<eltwise> : public typed_primitive_inst_base<eltwise> {
     using parent = typed_primitive_inst_base<eltwise>;
+    using parent::parent;
     static void check_inputs_count(eltwise_node const& node);
 
 public:
-    static layout calc_output_layout(eltwise_node const& node);
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(eltwise_node const& /*node*/, const kernel_impl_params& impl_param);
+    static layout calc_output_layout(eltwise_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(eltwise_node const& node);
-
-public:
     typed_primitive_inst(network& network, eltwise_node const& node);
 };
 

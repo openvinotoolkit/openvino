@@ -5,10 +5,13 @@
 #include "ir_deserializer.hpp"
 
 #include <pugixml.hpp>
+#include <regex>
 
 #include "ie_ngraph_utils.hpp"
+#include "meta_data.hpp"
 #include "ngraph/op/util/framework_node.hpp"
 #include "ngraph/opsets/opset1.hpp"
+#include "openvino/core/except.hpp"
 #include "rt_info_deserializer.hpp"
 #include "transformations/rt_info/attributes.hpp"
 #include "utils.hpp"
@@ -541,7 +544,135 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
         }
     }
 
+    // Read meta data from legacy representation
+    if (root.child("rt_info").empty()) {
+        // Legacy representation
+        // meta_data - MO meta
+        // quantization_parameters - NNCF quantization section
+        std::unordered_set<std::string> meta_names = {"meta_data", "quantization_parameters"};
+        read_legacy_meta_data(function, meta_names, root);
+    } else {
+        read_meta_data(function, root.child("rt_info"));
+    }
+
     return function;
+}
+
+class MetaDataParser : public ov::Meta {
+public:
+    MetaDataParser(const std::string& name, const pugi::xml_node& meta) : m_name(name) {
+        m_meta.append_copy(meta);
+    }
+
+    operator const ov::AnyMap&() const override {
+        parse();
+        return m_parsed_map;
+    }
+
+    operator ov::AnyMap&() override {
+        parse();
+        return m_parsed_map;
+    }
+
+private:
+    bool has_attr(const pugi::xml_node& node, const std::string& name = "value") const {
+        auto attr = node.attribute(name.c_str());
+        return !attr.empty();
+    }
+
+    ov::Any parse_value(const pugi::xml_node& node) const {
+        if (has_attr(node)) {
+            return XMLParseUtils::GetStrAttr(node, "value");
+        } else if (std::string(node.name()) == "unset" && has_attr(node, "unset_cli_parameters")) {
+            return XMLParseUtils::GetStrAttr(node, "unset_cli_parameters");
+        } else {
+            return parse_node(node);
+        }
+    }
+
+    ov::AnyMap parse_node(const pugi::xml_node& node) const {
+        ov::AnyMap result;
+        const std::string node_name = node.name();
+        for (const auto& data : node.children()) {
+            const std::string data_name = data.name();
+            // WA for legacy POT config
+            if (data_name == "config" && node_name == "quantization_parameters") {
+                // Read legacy pot config
+                std::stringstream stream;
+                data.print(stream);
+                std::string str_config = stream.str();
+                str_config = std::regex_replace(str_config, std::regex("<config>"), "");
+                str_config = std::regex_replace(str_config, std::regex("</config>"), "");
+                str_config = std::regex_replace(str_config, std::regex("\n"), "");
+                str_config = std::regex_replace(str_config, std::regex("( +)"), " ");
+                result[data_name] = str_config;
+            } else {
+                result[data_name] = parse_value(data);
+            }
+        }
+        return result;
+    }
+
+    void parse() const {
+        // Thread safety is implemented on ov::Model level
+        if (m_parsed)
+            return;
+        const pugi::xml_node& node = m_meta.child(m_name.c_str());
+        m_parsed_map = parse_node(node);
+
+        m_parsed = true;
+    }
+    pugi::xml_document m_meta;
+    const std::string m_name;
+    mutable ov::AnyMap m_parsed_map;
+    mutable bool m_parsed{false};
+};
+
+void XmlDeserializer::read_meta_data(const std::shared_ptr<ov::Model>& model, const pugi::xml_node& meta_section) {
+    if (meta_section.empty())
+        return;
+    auto& rt_info = model->get_rt_info();
+    for (const auto& data : meta_section.children()) {
+        if (data.empty())
+            continue;
+        if (!data.attribute("value").empty()) {
+            rt_info[data.name()] = XMLParseUtils::GetStrAttr(data, "value");
+        } else {
+            // Use meta data for set of parameters
+            std::shared_ptr<ov::Meta> meta = std::make_shared<MetaDataParser>(data.name(), data);
+            rt_info[data.name()] = meta;
+        }
+    }
+}
+
+void XmlDeserializer::read_legacy_meta_data(const std::shared_ptr<ov::Model>& model,
+                                            const std::unordered_set<std::string>& names,
+                                            const pugi::xml_node& root_section) {
+    const auto& read_meta = [](const std::shared_ptr<ov::Model>& model,
+                               const std::string& name,
+                               const pugi::xml_node& meta_section) {
+        auto& rt_info = model->get_rt_info();
+        if (name == "meta_data") {
+            for (const auto& data : meta_section.children()) {
+                const std::string& section_name = data.name();
+                // Rename cli_parameters to conversion_parameters
+                if (section_name == "cli_parameters") {
+                    std::shared_ptr<ov::Meta> meta = std::make_shared<MetaDataParser>("cli_parameters", data);
+                    rt_info["conversion_parameters"] = meta;
+                } else if (!data.attribute("value").empty()) {
+                    rt_info[data.name()] = XMLParseUtils::GetStrAttr(data, "value");
+                } else {
+                    throw ov::Exception(std::string("Unsupported legacy argument: ") + data.name());
+                }
+            }
+        } else if (name == "quantization_parameters") {
+            // Rename quantization_parameters to optimization
+            std::shared_ptr<ov::Meta> meta = std::make_shared<MetaDataParser>("quantization_parameters", meta_section);
+            rt_info["optimization"] = meta;
+        }
+    };
+    for (const auto& it : names)
+        read_meta(model, it, root_section.child(it.c_str()));
 }
 
 GenericLayerParams XmlDeserializer::parseGenericParams(const pugi::xml_node& node) {
@@ -550,7 +681,7 @@ GenericLayerParams XmlDeserializer::parseGenericParams(const pugi::xml_node& nod
                                   bool input) -> GenericLayerParams::LayerPortData {
         GenericLayerParams::LayerPortData port;
 
-        port.portId = XMLParseUtils::GetIntAttr(parentNode, "id");
+        port.portId = XMLParseUtils::GetUIntAttr(parentNode, "id");
 
         FOREACH_CHILD (node, parentNode, "dim") {
             int64_t dim = 0;
@@ -590,7 +721,7 @@ GenericLayerParams XmlDeserializer::parseGenericParams(const pugi::xml_node& nod
     };
     GenericLayerParams params;
 
-    params.layerId = XMLParseUtils::GetIntAttr(node, "id");
+    params.layerId = XMLParseUtils::GetUIntAttr(node, "id");
     params.version = XMLParseUtils::GetStrAttr(node, "version");
 
     params.type = XMLParseUtils::GetStrAttr(node, "type");
@@ -742,6 +873,8 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
             return;
         for (const auto& item : rt_attrs) {
             std::string attribute_name, attribute_version;
+            // For view:
+            // <attribute name="old_api_map_order" version="0" value="0,3,1,2"/>
             if (!getStrAttribute(item, "name", attribute_name)) {
                 std::stringstream ss;
                 item.print(ss);

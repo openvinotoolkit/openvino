@@ -27,53 +27,31 @@
 using Loop = ngraph::op::v5::Loop;
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 template<class DATA_TYPE>
-static DATA_TYPE CreateScalarData(Program &p, const cldnn::primitive_id& id, int64_t num, const cldnn::primitive_id& ext_prim_id) {
+static DATA_TYPE CreateScalarData(Program &p, const cldnn::primitive_id& id, int64_t num) {
     auto mem = p.GetEngine().allocate_memory({ cldnn::data_types::i64, cldnn::format::bfyx, { 1, 1, 1, 1 } });
     cldnn::mem_lock<int64_t> ptr{mem, p.GetEngine().get_program_stream()};
     *ptr.begin() = num;
-    return {id, mem, ext_prim_id};
+    return {id, mem};
 }
 
 static cldnn::mutable_data CreateAdditionalOutputData(Program &p, const std::shared_ptr<ngraph::Node>& op,
                                                         const cldnn::primitive_id& id, const cldnn::primitive_id& input,
                                                         const int32_t output_idx) {
-    const auto precision = DataTypeFromPrecision(op->get_output_element_type(output_idx));
-    const auto format = DefaultFormatForDims(op->get_output_shape(output_idx).size());
+    const auto precision = cldnn::element_type_to_data_type(op->get_output_element_type(output_idx));
+    const auto format = cldnn::format::get_default_format(op->get_output_shape(output_idx).size());
     const auto tensor = tensor_from_dims(op->get_output_shape(output_idx));
     cldnn::layout output_layout = cldnn::layout(precision, format, tensor);
     auto mem = p.GetEngine().allocate_memory(output_layout);
-    auto md = cldnn::mutable_data(id, {input}, mem, op->get_friendly_name()); // cldnn::data cannot set dependency
+    auto md = cldnn::mutable_data(id, {cldnn::input_info(input)}, mem); // cldnn::data cannot set dependency
     return md;
-}
-
-static void UpdateBackedge(std::vector<cldnn::loop::backedge_mapping>& back_edges,
-                            const cldnn::primitive_id& old_primitive_id, const cldnn::primitive_id& new_primitive_id) {
-    for (auto& back_edge : back_edges) {
-        if (back_edge.from == old_primitive_id) {
-            back_edge.from = new_primitive_id;
-        }
-    }
-}
-
-static std::string GetExternalInputName(const int64_t body_parameter_index,
-                                        const std::shared_ptr<Loop>& op) {
-    const auto& loop_input_descs = op->get_input_descriptions();
-    for (const auto& loop_input_desc : loop_input_descs) {
-        if (loop_input_desc->m_body_parameter_index == body_parameter_index) {
-            auto external_node = op->get_input_node_shared_ptr(loop_input_desc->m_input_index);
-            return layer_type_name_ID(external_node);
-        }
-    }
-    return {""};
 }
 
 static void CreateLoopOp(Program& p, const std::shared_ptr<Loop>& op) {
     const std::string layerName = layer_type_name_ID(op);
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     const auto& loop_input_descs = op->get_input_descriptions();
     const auto& loop_output_descs = op->get_output_descriptions();
     const auto& body_inputs = op->get_function()->get_parameters();
@@ -116,7 +94,7 @@ static void CreateLoopOp(Program& p, const std::shared_ptr<Loop>& op) {
 
     // set input mapping & back edges
     for (const auto& loop_input_desc : loop_input_descs) {
-        const cldnn::primitive_id& external_id = inputPrimitives.at(loop_input_desc->m_input_index);
+        const cldnn::primitive_id& external_id = inputs.at(loop_input_desc->m_input_index).pid;
         auto& body_input = body_inputs.at(loop_input_desc->m_body_parameter_index);
         cldnn::primitive_id internal_id = layer_type_name_ID(body_input);
 
@@ -146,8 +124,8 @@ static void CreateLoopOp(Program& p, const std::shared_ptr<Loop>& op) {
             {
                 const auto from_prim = body_topology.at(from_id);
                 const auto& to_ngraph_type = to->get_element_type();
-                const auto to_cldnn_type = DataTypeFromPrecision(to_ngraph_type);
-                from_prim->output_data_type = to_cldnn_type;
+                const auto to_cldnn_type = cldnn::element_type_to_data_type(to_ngraph_type);
+                from_prim->output_data_types = {to_cldnn_type};
             }
             back_edges.emplace_back(from_id, to_id);
         }
@@ -163,10 +141,8 @@ static void CreateLoopOp(Program& p, const std::shared_ptr<Loop>& op) {
     }
     const cldnn::primitive_id num_iteration_id = layerName + "_numIteration";
     {
-        cldnn::mutable_data num_iteration = CreateScalarData<cldnn::mutable_data>(p, num_iteration_id, 0, op->get_friendly_name());
-        p.primitiveIDs[num_iteration_id] = num_iteration_id;
-        p.AddPrimitive(num_iteration);
-        p.AddInnerPrimitiveToProfiler(num_iteration_id, layerName, op);
+        cldnn::mutable_data num_iteration = CreateScalarData<cldnn::mutable_data>(p, num_iteration_id, 0);
+        p.add_primitive(*op, num_iteration);
     }
 
     // set output mapping
@@ -176,17 +152,13 @@ static void CreateLoopOp(Program& p, const std::shared_ptr<Loop>& op) {
         // Add additional mutable_data for multiple outputs
         // primitive ID should be <TI primitive ID>.<output_idx> if output_idx > 0
         // otherwise primitive ID should be equals to TI primitive ID
-        const std::string layerNameWithIndex = layerName + "." + std::to_string(output_idx);
+        const std::string layerNameWithIndex = layerName + ".out" + std::to_string(output_idx);
         std::string external_id;
         if (output_idx > 0) {
             cldnn::mutable_data output_data = CreateAdditionalOutputData(p, op, layerNameWithIndex, layerName, output_idx);
-            p.AddPrimitive(output_data);
-            p.AddInnerPrimitiveToProfiler(layerNameWithIndex, layerName, op);
-            p.primitiveIDs[layerNameWithIndex] = layerNameWithIndex;
+            p.add_primitive(*op, output_data);
             external_id = layerNameWithIndex;
         } else {
-            p.primitiveIDs[layerNameWithIndex] = layerName;
-            p.primitiveIDs[layerName] = layerName;
             external_id = layerName;
         }
         const auto& body_output = body_outputs.at(loop_output_desc->m_body_value_index);
@@ -207,7 +179,7 @@ static void CreateLoopOp(Program& p, const std::shared_ptr<Loop>& op) {
 
     const cldnn::loop loopPrimitive(
         layerName,              /* layer name of this primitive (output id) */
-        inputPrimitives,        /* inputs of this layer */
+        inputs,                 /* inputs of this layer */
         body_topology,          /* body network */
         trip_count_id,          /* trip_count data in outer network, always same as num_iterations in TI */
         execution_condition_id, /* initial_execution_condition data in outer network, always true in TI */
@@ -217,15 +189,12 @@ static void CreateLoopOp(Program& p, const std::shared_ptr<Loop>& op) {
         back_edges,             /* back edge mapping */
         num_iterations,         /* max iteration, i.e. length of iteration axis */
         body_current_iteration_id,
-        body_execution_condition_id,
-        op->get_friendly_name());
+        body_execution_condition_id);
 
-    p.AddPrimitive(loopPrimitive);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, loopPrimitive);
 }
 
 REGISTER_FACTORY_IMPL(v5, Loop);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

@@ -17,8 +17,7 @@ namespace op {
 namespace set_1 {
 OutputVector unsqueeze(const Node& node) {
     auto data = node.get_ng_inputs().at(0);
-    auto axes = node.get_attribute_value<std::vector<std::int64_t>>("axes", {});
-    auto axes_node = std::make_shared<default_opset::Constant>(element::i64, Shape{axes.size()}, axes);
+    auto axes_node = node.get_attribute_as_constant<std::vector<std::int64_t>>("axes", {});
     return {std::make_shared<default_opset::Unsqueeze>(data, axes_node)};
 }
 

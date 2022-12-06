@@ -14,7 +14,7 @@ NamedOutputs softplus(const NodeContext& node) {
     auto threshold = node.get_attribute<float>("threshold");
     float supported_beta = 1.0;
     float supported_threshold = 20.0;
-    const float EPSINON = 1e-6;
+    const float EPSINON = 1e-6f;
 
     if (!(std::fabs(beta - supported_beta) <= EPSINON) || !(std::fabs(threshold - supported_threshold) <= EPSINON)) {
         PADDLE_OP_CHECK(node, false, "only support beta==1.0 && threshold==20.0");

@@ -17,7 +17,7 @@
 #include <sstream>
 #include <iomanip>
 
-#ifndef __clang__
+#ifdef _WIN32
 #pragma warning( disable : 4503 )
 #endif
 
@@ -240,7 +240,7 @@ struct lstm_dynamic_input_layer_test : public ::testing::Test
         }
 
         topology.add(lstm_dynamic_input("dynamic_lstm_input",
-            "input",
+            input_info("input"),
             "dyn_len",
             "weights",
             bias_id));
@@ -397,7 +397,7 @@ struct lstm_dynamic_single_layer_test : public ::testing::Test
         }
 
         topology.add(lstm_dynamic("dynamic_lstm",
-            "input",
+            input_info("input"),
             "dyn_len",
             "weights",
             "recurrent",
@@ -884,7 +884,7 @@ TEST(lstm_dynamic_negative, wrong_weights_size) {
     topology.add(data("weights", weights_mem));
     topology.add(data("recurrent", recurrent_mem));
     topology.add(lstm_dynamic("dynamic_lstm",
-        "input",
+        input_info("input"),
         "dyn_len",
         "weights",
         "recurrent"));
@@ -909,7 +909,7 @@ TEST(lstm_dynamic_negative, wrong_recurrent_size_0) {
     topology.add(data("weights", weights_mem));
     topology.add(data("recurrent", recurrent_mem));
     topology.add(lstm_dynamic("dynamic_lstm",
-        "input",
+        input_info("input"),
         "dyn_len",
         "weights",
         "recurrent"));
@@ -934,7 +934,7 @@ TEST(lstm_dynamic_negative, wrong_recurrent_size_1) {
     topology.add(data("weights", weights_mem));
     topology.add(data("recurrent", recurrent_mem));
     topology.add(lstm_dynamic("dynamic_lstm",
-        "input",
+        input_info("input"),
         "dyn_len",
         "weights",
         "recurrent"));
@@ -959,7 +959,7 @@ TEST(lstm_dynamic_negative, wrong_dynamic_length_size_0) {
     topology.add(data("weights", weights_mem));
     topology.add(data("recurrent", recurrent_mem));
     topology.add(lstm_dynamic("dynamic_lstm",
-        "input",
+        input_info("input"),
         "dyn_len",
         "weights",
         "recurrent"));
@@ -984,7 +984,7 @@ TEST(lstm_dynamic_negative, wrong_dynamic_length_size_1) {
     topology.add(data("weights", weights_mem));
     topology.add(data("recurrent", recurrent_mem));
     topology.add(lstm_dynamic("dynamic_lstm",
-        "input",
+        input_info("input"),
         "dyn_len",
         "weights",
         "recurrent"));

@@ -11,14 +11,13 @@
 #include <vector>
 #include <queue>
 #include <algorithm>
-#include <utility>
 #include <tuple>
 
 namespace cldnn {
 namespace cpu {
 
 using namespace cldnn::cpu;
-
+namespace {
 struct result_indices {
     float score;
     int batch_index;
@@ -45,12 +44,15 @@ std::vector<result_indices> run_nms(
         return l.score < r.score || ((l.score == r.score) && (l.idx > r.idx));
     };
     float scale = 0.0f;
+    bool soft_nms = false;
     if (soft_nms_sigma > 0.0f) {
         scale = -0.5f / soft_nms_sigma;
+        soft_nms = true;
     }
+
     auto coeff = [&](float iou) {
         const float weight = std::exp(scale * iou * iou);
-        return iou <= iou_threshold ? weight : 0.0f;
+        return (iou <= iou_threshold || soft_nms) ? weight : 0.0f;
     };
     std::vector<result_indices> result;
 
@@ -75,7 +77,7 @@ std::vector<result_indices> run_nms(
                     float iou_boxes = iou(boxes[bi][currBox.idx], boxes[bi][fb[idx].box_index]);
 
                     currBox.score *= coeff(iou_boxes);
-                    if (iou_boxes >= iou_threshold) {
+                    if (iou_boxes >= iou_threshold && !soft_nms) {
                         box_is_selected = false;
                         break;
                     }
@@ -98,13 +100,12 @@ std::vector<result_indices> run_nms(
     }
 
     if (sort_result_descending) {
-        std::sort(result.begin(), result.end(),
-                [](const result_indices& l, const result_indices& r) {
-                    return (l.score > r.score) ||
-                           (l.score == r.score && l.batch_index < r.batch_index) ||
-                           (l.score == r.score && l.batch_index == r.batch_index && l.class_index < r.class_index) ||
-                           (l.score == r.score && l.batch_index == r.batch_index && l.class_index == r.class_index && l.box_index < r.box_index);
-                });
+        std::sort(result.begin(), result.end(), [](const result_indices& l, const result_indices& r) {
+            return (l.score > r.score) || (l.score == r.score && l.batch_index < r.batch_index) ||
+                   (l.score == r.score && l.batch_index == r.batch_index && l.class_index < r.class_index) ||
+                   (l.score == r.score && l.batch_index == r.batch_index && l.class_index == r.class_index &&
+                    l.box_index < r.box_index);
+        });
     }
     return result;
 }
@@ -125,12 +126,11 @@ vector2D<bounding_box> load_boxes_impl(stream& stream, memory::ptr mem, bool cen
         for (int bxi = 0; bxi < boxes_num; ++bxi) {
             int offset = bi * boxes_num * 4 + bxi * 4;
             if (center_point) {
-                result[bi].emplace_back(
-                    static_cast<float>(ptr[offset + 0]),
-                    static_cast<float>(ptr[offset + 1]),
-                    static_cast<float>(ptr[offset + 2]),
-                    static_cast<float>(ptr[offset + 3]),
-                    bounding_box::center_point_construct_tag());
+                result[bi].emplace_back(static_cast<float>(ptr[offset + 0]),
+                                        static_cast<float>(ptr[offset + 1]),
+                                        static_cast<float>(ptr[offset + 2]),
+                                        static_cast<float>(ptr[offset + 3]),
+                                        bounding_box::center_point_construct_tag());
             } else {
                 result[bi].emplace_back(
                     static_cast<float>(ptr[offset + 1]),
@@ -330,7 +330,7 @@ void store_third_output(stream& stream, memory::ptr mem, const std::vector<resul
 }
 
 void run(non_max_suppression_inst& instance) {
-    auto prim = instance.node.get_primitive();
+    auto prim = instance.node->get_primitive();
     auto& stream = instance.get_network().get_stream();
 
     auto boxes = load_boxes(stream, instance.input_boxes_mem(), prim->center_point_box);
@@ -357,8 +357,15 @@ void run(non_max_suppression_inst& instance) {
         soft_nms_sigma = load_scalar<float>(stream, instance.soft_nms_sigma_mem());
     }
 
-    auto result = run_nms(boxes, scores, num_select_per_class, score_threshold, iou_threshold, soft_nms_sigma, prim->sort_result_descending);
+    auto result = run_nms(boxes,
+                          scores,
+                          num_select_per_class,
+                          score_threshold,
+                          iou_threshold,
+                          soft_nms_sigma,
+                          prim->sort_result_descending);
 
+    // Legacy APIs using mutable inputs for multiple outputs
     if (instance.has_third_output()) {
         store_third_output(stream, instance.third_output_mem(), result);
     }
@@ -369,11 +376,25 @@ void run(non_max_suppression_inst& instance) {
         return;
     }
 
+    // New API for mutiple outputs support
+    if (instance.outputs_memory_count() == 3)
+        store_third_output(stream, instance.output_memory_ptr(2), result);
+
+    if (instance.outputs_memory_count() >= 2) {
+        store_second_output(stream, instance.output_memory_ptr(1), result);
+        store_first_output(stream, instance.output_memory_ptr(), result);
+        return;
+    }
+
     store_result(stream, instance.output_memory_ptr(), result);
 }
 
+}  // namespace
+
 struct non_max_suppression_impl : typed_primitive_impl<non_max_suppression> {
     using parent = typed_primitive_impl<non_max_suppression>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<non_max_suppression_impl>(*this);
@@ -395,10 +416,10 @@ struct non_max_suppression_impl : typed_primitive_impl<non_max_suppression> {
         return ev;
     }
 
-    static primitive_impl* create(const non_max_suppression_node&) {
-        return new non_max_suppression_impl();
+    static std::unique_ptr<primitive_impl> create(const non_max_suppression_node&, const kernel_impl_params&) {
+        return make_unique<non_max_suppression_impl>();
     }
-    void init_kernels() override {}
+    void init_kernels(const kernels_cache&) override {}
 };
 namespace detail {
 
@@ -413,3 +434,5 @@ attach_non_max_suppression_impl::attach_non_max_suppression_impl() {
 }  // namespace detail
 }  // namespace cpu
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::non_max_suppression_impl)

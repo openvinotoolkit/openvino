@@ -63,7 +63,7 @@ static void scatter_update(const char* input_data,
     size_t data_ndim = data_shape.size();
 
     const auto size_after_axis = shape_size(Shape(data_shape.begin() + axis + 1, data_shape.end()));
-    int num_axis_jumps{0};
+    size_t num_axis_jumps{0};
     int num_unary_moves{0};
     for (size_t i = axis + 1; i < updates_ndim; ++i) {
         const auto updates_size_after_axis = shape_size(Shape(updates_shape.begin() + i, updates_shape.end()));
@@ -76,7 +76,7 @@ static void scatter_update(const char* input_data,
     if (!num_axis_jumps)
         num_axis_jumps = updates_ndim - data_ndim;
 
-    auto updates_axis_dim = axis + num_axis_jumps + num_unary_moves;
+    auto updates_axis_dim = static_cast<size_t>(axis + num_axis_jumps + num_unary_moves);
 
     if (updates_axis_dim >= updates_ndim)
         updates_axis_dim = updates_ndim - 1;
@@ -95,7 +95,7 @@ static void scatter_update(const char* input_data,
     int iteration{0};
     for (const Coordinate& indices_cord : indices_transform) {
         const size_t indices_idx =
-            std::inner_product(indices_cord.begin(), indices_cord.end(), indices_in_strides.begin(), 0);
+            std::inner_product(indices_cord.begin(), indices_cord.end(), indices_in_strides.begin(), uint64_t(0));
         int64_t slice_index = indices[indices_idx];
 
         Coordinate out_start_corner(data_shape.size(), 0);
@@ -127,10 +127,12 @@ static void scatter_update(const char* input_data,
             out_coord.at(axis) = slice_index;
             update_cord.at(updates_axis_dim) += iteration;
             const auto data_idx =
-                std::inner_product(out_coord.begin(), out_coord.end(), out_transform_in_strides.begin(), 0);
-            const auto updates_idx =
-                std::inner_product(update_cord.begin(), update_cord.end(), updates_update_in_strides.begin(), 0) *
-                elem_size;
+                std::inner_product(out_coord.begin(), out_coord.end(), out_transform_in_strides.begin(), uint64_t(0));
+            const auto updates_idx = std::inner_product(update_cord.begin(),
+                                                        update_cord.end(),
+                                                        updates_update_in_strides.begin(),
+                                                        uint64_t(0)) *
+                                     elem_size;
 
             std::copy(updates + updates_idx, updates + (updates_idx + elem_size), out_buf + data_idx * elem_size);
             updates_update_coord_iter++;

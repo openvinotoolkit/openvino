@@ -227,9 +227,9 @@ void error_on_mismatch_layout(const std::string& file,
             error_msg << layout_1_id << " format: " << format::traits(layout_1.format).order << ", " << layout_2_id
                       << " format: " << format::traits(layout_2.format).order << std::endl;
         }
-        if (layout_1.size != layout_2.size) {
+        if (layout_1.get_tensor() != layout_2.get_tensor()) {
             error_msg << layout_1_id << " size mismatch : " << layout_2_id << " size." << std::endl;
-            error_msg << layout_1_id << " size: " << layout_1.size << ", " << layout_2_id << " size: " << layout_2.size
+            error_msg << layout_1_id << " size: " << layout_1.get_tensor() << ", " << layout_2_id << " size: " << layout_2.get_tensor()
                       << std::endl;
         }
         err_details::cldnn_print_error_message(file, line, instance_id, error_msg, additional_message);

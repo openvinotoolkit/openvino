@@ -42,10 +42,7 @@ namespace intel_cpu {
 InferenceEngine::IInferRequestInternal::Ptr
 ExecNetwork::CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                     const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
-    if (!this->_plugin)
-        return nullptr;
-    const auto& core = _plugin->GetCore();
-    if (!core || !core->isNewAPI())
+    if (!this->_plugin || !_plugin->IsNewAPI())
         return nullptr;
     return std::make_shared<InferRequest>(inputs, outputs, std::static_pointer_cast<ExecNetwork>(shared_from_this()));
 }
@@ -81,6 +78,7 @@ ExecNetwork::ExecNetwork(const InferenceEngine::CNNNetwork &network,
     bool isFloatModel = !ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(function);
 
     _cfg.isNewApi = !isLegacyAPI();
+    _mutex = std::make_shared<std::mutex>();
 
     // WA for inference dynamic batch cases in new API
     if (_cfg.isNewApi) {
@@ -102,6 +100,7 @@ ExecNetwork::ExecNetwork(const InferenceEngine::CNNNetwork &network,
     } else {
         auto streamsExecutorConfig = InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(_cfg.streamExecutorConfig, isFloatModel);
         streamsExecutorConfig._name = "CPUStreamsExecutor";
+        _cfg.streamExecutorConfig._threads = streamsExecutorConfig._threads;
 #if FIX_62820 && (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
         _taskExecutor = std::make_shared<TBBStreamsExecutor>(streamsExecutorConfig);
 #else
@@ -179,10 +178,10 @@ ExecNetwork::GraphGuard::Lock ExecNetwork::GetGraph() const {
         auto makeGraph = [&] {
             try {
                 {
-                    std::lock_guard<std::mutex> lock{_cfgMutex};
+                    std::lock_guard<std::mutex> lock{*_mutex.get()};
                     graphLock._graph.setConfig(_cfg);
                 }
-                graphLock._graph.CreateGraph(_network, extensionManager, _numaNodesWeights[numaNodeId]);
+                graphLock._graph.CreateGraph(_network, extensionManager, _numaNodesWeights[numaNodeId], _mutex);
             } catch(...) {
                 exception = std::current_exception();
             }
@@ -201,7 +200,7 @@ ExecNetwork::GraphGuard::Lock ExecNetwork::GetGraph() const {
 
 void ExecNetwork::setProperty(const std::map<std::string, std::string> &properties) {
     {
-        std::lock_guard<std::mutex> lock{_cfgMutex};
+        std::lock_guard<std::mutex> lock{*_mutex.get()};
         _cfg.readProperties(properties);
     }
     for (auto& g : _graphs) {

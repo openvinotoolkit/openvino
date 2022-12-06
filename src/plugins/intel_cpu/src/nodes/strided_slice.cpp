@@ -52,7 +52,7 @@ bool StridedSlice::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
 }
 
 StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache) {
+        Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -107,10 +107,12 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const dnnl::engi
         const size_t nDims = std::max(inputRank, outputRank);
 
         auto createMask = [&](const std::vector<int64_t> &origMask, const int bit = 0, bool needReverse = false) {
-            std::vector<int> mask(origMask.begin(), origMask.end());
-            if (needReverse) {
-                for (size_t i = 0; i < mask.size(); i++)
+            std::vector<int> mask(origMask.size());
+            for (size_t i = 0; i < mask.size(); i++) {
+                mask[i] = static_cast<int>(origMask[i]);
+                if (needReverse) {
                     mask[i] = 1 - mask[i];
+                }
             }
             for (size_t i = mask.size(); i < nDims; ++i) mask.push_back(bit);
             return mask;
@@ -217,7 +219,7 @@ void StridedSlice::getSupportedDescriptors() {
 void StridedSlice::addHiddenDims(const size_t nSrcDims, int ellipsisPos1) {
     // all masks and input parameters are for planar layouts. So if we use blocked or per channel layout and
     // there is ellipsis should to add default values in hidden dimensions to know real order of mask or parameter values
-    size_t afterDims = attrs.ellipsisMask.size() - ellipsisPos1 - 1;
+    size_t afterDims =  attrs.begin.size() - ellipsisPos1 - 1;
     size_t ellipsisPos2 = nSrcDims - afterDims - 1;
 
     auto addHiddenDims = [&](std::vector<int>& data, const int bit = 0) {

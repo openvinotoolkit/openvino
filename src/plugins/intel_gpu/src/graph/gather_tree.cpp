@@ -11,15 +11,12 @@
 #include <algorithm>
 
 namespace cldnn {
-primitive_type_id gather_tree::type_id() {
-    static primitive_type_base<gather_tree> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(gather_tree)
 
-layout gather_tree_inst::calc_output_layout(gather_tree_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+layout gather_tree_inst::calc_output_layout(gather_tree_node const& node, kernel_impl_params const& impl_param) {
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
         "Output data type forcing is not supported for gather_tree_node!");
-    auto input_layout = node.input().get_output_layout();
+    auto input_layout = impl_param.get_input_layout();
     return input_layout;
 }
 
@@ -40,22 +37,31 @@ gather_tree_inst::typed_primitive_inst(network& network, gather_tree_node const&
         "supported border primitive input formats",
         format::bfyx,
         format::yxfb,
-        format::byxf);
+        format::byxf,
+        format::b_fs_yx_fsv16,
+        format::b_fs_yx_fsv32,
+        format::bs_fs_yx_bsv4_fsv4,
+        format::bs_fs_yx_bsv8_fsv4,
+        format::bs_fs_yx_bsv8_fsv2,
+        format::bs_fs_yx_bsv4_fsv2,
+        format::bs_fs_yx_bsv16_fsv16,
+        format::bs_fs_yx_bsv32_fsv16,
+        format::bs_fs_yx_bsv32_fsv32);
 
     auto dependencies = node.get_dependencies();
 
     // check input dims
     CLDNN_ERROR_NOT_EQUAL(node.id(),
-        "input0 size", dependencies.at(0)->get_output_layout().size, "output size", input_layout.size,
+        "input0 size", dependencies.at(0).first->get_output_layout().get_tensor(), "output size", input_layout.get_tensor(),
         "mismatch");
     CLDNN_ERROR_NOT_EQUAL(node.id(),
-        "input1 size", dependencies.at(1)->get_output_layout().size, "output size", input_layout.size,
+        "input1 size", dependencies.at(1).first->get_output_layout().get_tensor(), "output size", input_layout.get_tensor(),
         "mismatch");
     CLDNN_ERROR_NOT_EQUAL(node.id(),
-        "input2 size", dependencies.at(2)->get_output_layout().count(), "node's feature size", input_layout.size.feature.at(0),
+        "input2 size", dependencies.at(2).first->get_output_layout().count(), "node's feature size", input_layout.feature(),
         "There can't be more than one end_token");
     CLDNN_ERROR_NOT_EQUAL(node.id(),
-        "input3 size", dependencies.at(3)->get_output_layout().size.count(), "one", 1,
+        "input3 size", dependencies.at(3).first->get_output_layout().count(), "one", 1,
         "There can't be more than one end_token");
 }
 }  // namespace cldnn

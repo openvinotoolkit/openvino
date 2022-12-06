@@ -21,7 +21,8 @@ namespace ngraph {
 namespace onnx_import {
 class Graph : public std::enable_shared_from_this<Graph> {
 public:
-    Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
+    Graph(const std::string& model_dir,
+          const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
           ov::frontend::ExtensionHolder extensions = {});
     Graph() = delete;
 
@@ -35,6 +36,9 @@ public:
     OutputVector get_ng_outputs() const;
     const std::string& get_name() const {
         return m_model->get_graph().name();
+    }
+    const std::string& model_dir() const {
+        return m_model_dir;
     }
     const ParameterVector& get_ng_parameters() const {
         return m_parameters;
@@ -50,7 +54,8 @@ public:
     }
 
 protected:
-    Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model,
+    Graph(const std::string& model_dir,
+          const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model,
           std::unique_ptr<GraphCache>&& cache,
           ov::frontend::ExtensionHolder extensions = {});
 
@@ -61,6 +66,7 @@ protected:
     void decode_to_framework_nodes();
     void convert_to_ngraph_nodes();
     void remove_dangling_parameters();
+    void set_metadata(std::shared_ptr<ov::Model>& model) const;
     std::shared_ptr<Function> create_function();
 
     ParameterVector m_parameters;
@@ -70,6 +76,7 @@ protected:
 
 private:
     std::vector<Node> m_nodes;
+    std::string m_model_dir;
 };
 
 /// \brief      Representation of ONNX subgraph. It is used for example by ONNX Loop op.
@@ -81,7 +88,7 @@ public:
     ///
     /// \param[in]  model          The ONNX model object.
     /// \param[in]  parent_graph   The reference to the parent graph.
-    Subgraph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model, const Graph* parent_graph);
+    Subgraph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model, const Graph* parent_graph);
 
     /// \brief      Return nodes which are on the edge the subgraph and the parent graph.
     /// \return     Vector of edge nodes from parent scope.

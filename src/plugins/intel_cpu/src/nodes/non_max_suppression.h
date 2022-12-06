@@ -134,7 +134,7 @@ private:
     float softNMSSigma = 0.0f;
     float scale = 1.f;
     // control placeholder for NMS in new opset.
-    bool isSoftSuppressedByIOU = true;
+    bool isSoftSuppressedByIOU = false;
 
     std::string errorPrefix;
 

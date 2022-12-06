@@ -6,13 +6,20 @@ on:
     paths:
       - 'src/bindings/python/**'
       - 'samples/python/**'
+      - '.github/workflows/py_checks.yml'
   pull_request:
     paths:
       - 'src/bindings/python/**'
       - 'samples/python/**'
+      - '.github/workflows/py_checks.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   linters:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: Code checkout
         uses: actions/checkout@v2
@@ -21,7 +28,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: '3.6'
+          python-version: '3.7'
       - name: Install dependencies
         run: python -m pip install -r src/bindings/python/requirements_test.txt
       # samples code-style
@@ -120,5 +127,3 @@ jobs:
       - name: Run Bandit
         run: python -m bandit -r ./ -f screen
         working-directory: src/bindings/python/src/compatibility/openvino
-
-      

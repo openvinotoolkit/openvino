@@ -42,6 +42,7 @@ class OpVersioning(BackReplacementPattern):
         "Equal",
         "Erf",
         "Exp",
+        "Eye",
         "FakeQuantize",
         "Floor",
         "FloorMod",

@@ -19,7 +19,7 @@ void strided_slice_optimize::run(program& p) {
     auto node_itr = p.get_processing_order().begin();
     while (node_itr != p.get_processing_order().end()) {
         auto& node = (*node_itr++);
-        if (node->is_type<strided_slice>()) {
+        if (node->is_type<strided_slice>() && node->get_output_layout().is_static()) {
             auto& strided_slice_node = node->as<strided_slice>();
             auto& new_axis_mask = strided_slice_node.get_primitive()->new_axis_mask;
 
@@ -28,11 +28,11 @@ void strided_slice_optimize::run(program& p) {
 
             auto& deps = node->get_dependencies();
             for (size_t i = deps.size(); i--;)
-                if (deps[i]->is_type<data>())
+                if (deps[i].first->is_type<data>())
                     node->remove_dependency(i);
 
             auto node_layout = strided_slice_node.get_output_layout();
-            auto node_size = node_layout.size.sizes(format::bfyx);
+            auto node_size = node_layout.get_tensor().sizes(format::bfyx);
 
             auto is_shift_possible = [&](const std::vector<int32_t>& dims) -> bool {
                 if (dims.empty())

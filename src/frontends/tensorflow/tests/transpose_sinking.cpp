@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transpose_sinking.hpp"
+#include "pass/transpose_sinking.hpp"
 
 #include <frontend/shared/include/utils.hpp>
 #include <openvino/frontend/manager.hpp>
@@ -30,6 +30,49 @@ TEST(TransposeSinkingTest, PassProperty) {
     auto pass = std::make_shared<TransposeSinking>();
     ASSERT_TRUE(pass->get_property(ov::pass::PassProperty::REQUIRE_STATIC_SHAPE));
     ASSERT_FALSE(pass->get_property(ov::pass::PassProperty::CHANGE_DYNAMIC_STATE));
+}
+
+TEST(TransposeSinkingTest, TensorNames) {
+    ngraph::Shape shape_nhwc{16, 28, 28, 1};
+    auto a = make_shared<Parameter>(ngraph::element::i32, shape_nhwc);
+    auto ng_order = std::make_shared<Constant>(ngraph::element::u64, ngraph::Shape{4}, ngraph::Shape{0, 3, 1, 2});
+    auto transpose = make_shared<Transpose>(a, ng_order);
+    auto absn = make_shared<Abs>(transpose);
+    auto absn2 = make_shared<Abs>(absn);
+    absn2->output(0).set_names({"out_name"});
+    auto res = make_shared<Result>(absn2);
+    auto func = make_shared<ngraph::Function>(ngraph::OutputVector{res}, ngraph::ParameterVector{a});
+
+    ov::pass::Manager pass_manager;
+    pass_manager.register_pass<TransposeSinking>();
+    pass_manager.run_passes(func);
+
+    auto new_transpose =
+        ngraph::as_type_ptr<Transpose>(func->get_results().at(0)->input_value(0).get_node_shared_ptr());
+    ASSERT_TRUE(new_transpose);
+    EXPECT_EQ(new_transpose->output(0).get_names(), std::unordered_set<std::string>({"out_name"}));
+}
+
+TEST(TransposeSinkingTest, TensorNamesCombineTransposes) {
+    ngraph::Shape shape_nhwc{16, 28, 28, 1};
+    auto a = make_shared<Parameter>(ngraph::element::i32, shape_nhwc);
+    auto ng_order = std::make_shared<Constant>(ngraph::element::u64, ngraph::Shape{4}, ngraph::Shape{0, 3, 1, 2});
+    auto transpose_1 = make_shared<Transpose>(a, ng_order);
+    auto transpose_2 = make_shared<Transpose>(transpose_1, ng_order);
+    transpose_2->output(0).set_names({"out_name"});
+    auto res = make_shared<Result>(transpose_2);
+    auto func = make_shared<ngraph::Function>(ngraph::OutputVector{res}, ngraph::ParameterVector{a});
+
+    ov::pass::Manager pass_manager;
+    pass_manager.register_pass<TransposeSinking>();
+    pass_manager.run_passes(func);
+
+    auto new_transpose =
+        ngraph::as_type_ptr<Transpose>(func->get_results().at(0)->input_value(0).get_node_shared_ptr());
+    ASSERT_TRUE(new_transpose);
+    EXPECT_EQ(new_transpose->output(0).get_names(), std::unordered_set<std::string>({"out_name"}));
+    size_t transpose_cnt = count_ops_of_type<Transpose>(func);
+    EXPECT_EQ(transpose_cnt, 1);
 }
 
 TEST(TransposeSinkingTest, EdgeSplitting) {
@@ -341,6 +384,58 @@ TEST(TransposeSinkingTest, SimpleUnary) {
     ASSERT_EQ(func->get_results().at(0)->input_value(0), absn2);
     EXPECT_NE(before_count, after_count);
     EXPECT_EQ(after_count, 0);
+}
+
+TEST(TransposeSinkingTest, SinkingThroughPreLUWithScalarSlope) {
+    auto input = make_shared<Parameter>(ov::element::f32, ov::Shape{1, 105, 30, 30});
+    auto transpose_before =
+        make_shared<Transpose>(input,
+                               make_shared<Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 2, 3, 1}));
+
+    auto prelu = make_shared<PRelu>(transpose_before,
+                                    make_shared<Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{0.8}));
+    auto transpose_after =
+        make_shared<Transpose>(prelu,
+                               make_shared<Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 3, 1, 2}));
+
+    auto model = make_shared<ov::Model>(ov::OutputVector{transpose_after}, ov::ParameterVector{input});
+    size_t before_count = count_ops_of_type<Transpose>(model);
+
+    ov::pass::Manager pass_manager;
+    pass_manager.register_pass<TransposeSinking>();
+    pass_manager.run_passes(model);
+
+    size_t after_count = count_ops_of_type<Transpose>(model);
+
+    EXPECT_EQ(before_count, 2);
+    EXPECT_EQ(after_count, 0);
+}
+
+TEST(TransposeSinkingTest, SinkingThroughPreLUWithNonScalarSlope) {
+    auto input = make_shared<Parameter>(ov::element::f32, ov::Shape{1, 3, 3, 3});
+    auto transpose_before =
+        make_shared<Transpose>(input,
+                               make_shared<Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 2, 3, 1}));
+
+    auto prelu =
+        make_shared<PRelu>(transpose_before,
+                           make_shared<Constant>(ov::element::f32, ov::Shape{3}, std::vector<float>{0.8, 0.7, 0.1}));
+    auto transpose_after =
+        make_shared<Transpose>(prelu,
+                               make_shared<Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 3, 1, 2}));
+
+    auto model = make_shared<ov::Model>(ov::OutputVector{transpose_after}, ov::ParameterVector{input});
+    size_t before_count = count_ops_of_type<Transpose>(model);
+
+    ov::pass::Manager pass_manager;
+    pass_manager.register_pass<TransposeSinking>();
+    pass_manager.run_passes(model);
+
+    size_t after_count = count_ops_of_type<Transpose>(model);
+
+    EXPECT_EQ(before_count, 2);
+    // Now Transpose Sinking is not applied to Prelu with non-scalar slope
+    EXPECT_EQ(after_count, 2);
 }
 
 //            X (NCHW)

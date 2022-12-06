@@ -53,11 +53,20 @@ public:
     double get_eps() const {
         return m_eps;
     }
+    void set_eps(const double& eps) {
+        m_eps = eps;
+    }
     bool get_across_channels() const {
         return m_across_channels;
     }
+    void set_across_channels(bool across_channels) {
+        m_across_channels = across_channels;
+    }
     bool get_normalize_variance() const {
         return m_normalize_variance;
+    }
+    void set_normalize_variance(bool normalize_variance) {
+        m_normalize_variance = normalize_variance;
     }
     AxisSet get_reduction_axes() const {
         return m_reduction_axes;
@@ -116,14 +125,27 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
+    bool evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const override;
+
+    bool has_evaluate() const override;
+
     float get_eps() const {
         return m_eps;
+    }
+    void set_eps(const float& eps) {
+        m_eps = eps;
     }
     bool get_normalize_variance() const {
         return m_normalize_variance;
     }
+    void set_normalize_variance(bool normalize_variance) {
+        m_normalize_variance = normalize_variance;
+    }
     MVNEpsMode get_eps_mode() const {
         return m_eps_mode;
+    }
+    void set_eps_mode(const MVNEpsMode& eps_mode) {
+        m_eps_mode = eps_mode;
     }
 
 private:

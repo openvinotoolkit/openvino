@@ -9,6 +9,7 @@
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/op/util/op_types.hpp"
+#include "onnx_import/core/null_node.hpp"
 #include "utils/common.hpp"
 
 namespace ngraph {
@@ -124,7 +125,7 @@ std::shared_ptr<ngraph::Node> calculate_output_shape_based_on_scales(const Outpu
 
 std::shared_ptr<ngraph::Node> calculate_scales_based_on_sizes(const Output<ngraph::Node>& data,
                                                               const Output<ngraph::Node>& sizes) {
-    const float epsilon = 1.0e-5;
+    const float epsilon = 1.0e-5f;
     const auto shape_of_data =
         std::make_shared<default_opset::Convert>(std::make_shared<default_opset::ShapeOf>(data), ngraph::element::f32);
     const auto converted_sizes = std::make_shared<default_opset::Convert>(sizes, ngraph::element::f32);
@@ -145,8 +146,7 @@ OutputVector resize(const onnx_import::Node& node) {
 
     auto attrs = get_resize_attrs(node);
 
-    if (inputs.size() == 4)  // sizes input is provided
-    {
+    if (inputs.size() == 4 && !ngraph::op::is_null(inputs[3])) {
         attrs.shape_calculation_mode = default_opset::Interpolate::ShapeCalcMode::SIZES;
         const auto& sizes = inputs.at(3);
         const auto scales = calculate_scales_based_on_sizes(data, sizes);

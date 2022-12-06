@@ -76,7 +76,7 @@
         "model_type": "None",   // An optional parameter, needed for additional patterns in the model, 
                                 // default value is None (supported only transformer now)
 	"dump_intermediate_model": false, // Save intermediate models for DefaultAlgorithm
-        "inplase_statistics": true,  // An optional parameter, change method collect statistics,
+        "inplace_statistics": true,     // An optional parameter, change method collect statistics,
                                         // reduces the amount of memory consumed,
                                         // but increases the calibration time
                                         // the default value is true

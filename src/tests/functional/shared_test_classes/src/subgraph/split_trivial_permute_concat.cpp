@@ -42,7 +42,7 @@ namespace SubgraphTestsDefinitions {
         auto permute_0 = std::make_shared<ngraph::opset1::Transpose>(split->output(0), permute_in_params);
         auto permute_1 = std::make_shared<ngraph::opset1::Transpose>(split->output(1), permute_in_params);
 
-        auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{ split->output(0), split->output(1) }, concatAxis);
+        auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{ permute_0, permute_1 }, concatAxis);
         auto act = ngraph::builder::makeActivation(concat, ngPrc, ngraph::helpers::ActivationTypes::Relu);
         function = std::make_shared<ngraph::Function>(act, input, "split_trivial_permute_concat");
     }

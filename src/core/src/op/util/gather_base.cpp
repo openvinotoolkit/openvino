@@ -29,7 +29,7 @@ ov::op::util::GatherBase::GatherBase(const Output<Node>& data,
 }
 
 void ov::op::util::GatherBase::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(util_GatherBase_validate_and_infer_types);
+    OV_OP_SCOPE(util_GatherBase_validate_and_infer_types);
     const auto& data_type = get_input_element_type(0);
 
     const auto& data_pshape = get_input_partial_shape(0);
@@ -58,6 +58,10 @@ int64_t ov::op::util::GatherBase::get_axis() const {
 
 const int64_t& ov::op::util::GatherBase::get_batch_dims() const {
     return m_batch_dims;
+}
+
+void ov::op::util::GatherBase::set_batch_dims(int64_t batch_dims) {
+    m_batch_dims = batch_dims;
 }
 
 namespace gather {
@@ -104,7 +108,8 @@ bool evaluate(const ngraph::HostTensorPtr& arg0,
                                                        axis,
                                                        batch_dims);
     } else {
-        throw ov::Exception("Unexpected type");
+        throw ov::Exception(std::string("Unexpected type ") + arg1->get_element_type().c_type_string() +
+                            " for Gather evaluate method.");
     }
 
     return true;
@@ -191,7 +196,7 @@ bool cf_gather_with_subgraph(ov::OutputVector& output_values,
 }  // namespace gather
 
 bool ov::op::util::GatherBase::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(util_GatherBase_evaluate);
+    OV_OP_SCOPE(util_GatherBase_evaluate);
     NGRAPH_CHECK(ngraph::validate_host_tensor_vector(inputs, 3));
     NGRAPH_CHECK(ngraph::validate_host_tensor_vector(outputs, 1));
 

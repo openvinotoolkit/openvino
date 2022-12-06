@@ -690,7 +690,7 @@ inline std::shared_ptr<ngraph::Function> makeReadConcatSplitAssign(std::vector<s
                                                                    ngraph::element::Type type = ngraph::element::Type_t::f32) {
     auto parameter =  ngraph::builder::makeParams(type, {inputShape});
     parameter[0]->set_friendly_name("parameter");
-    auto init_const = ngraph::op::Constant::create(element::f32, Shape{1, 1, 2, 2}, {0, 0, 0, 0});
+    auto init_const = ngraph::op::Constant::create(type, inputShape, {0});
     auto read = std::make_shared<ngraph::opset5::ReadValue>(init_const, "v0");
     read->set_friendly_name("read");
     std::vector<std::shared_ptr<ngraph::Node>> args = {parameter[0], read};
@@ -700,11 +700,10 @@ inline std::shared_ptr<ngraph::Function> makeReadConcatSplitAssign(std::vector<s
     res->set_friendly_name("result");
     const auto axis = ngraph::op::Constant::create(element::i64, Shape{}, {3});
     axis->set_friendly_name("axis");
-    auto crop = std::make_shared<ngraph::op::v1::Split>(conc, axis, 3);
-    crop->set_friendly_name("crop");
+    auto crop = std::make_shared<ngraph::op::v1::Split>(conc, axis, 2);
+    crop->set_friendly_name("split");
     auto assign = std::make_shared<ngraph::opset5::Assign>(crop, "v0");
     assign->set_friendly_name("assign");
-
     std::shared_ptr<ngraph::Function> fn_ptr = std::make_shared<ngraph::Function>(ngraph::ResultVector({res}),
                                                                                   ngraph::SinkVector({assign}),
                                                                                   ngraph::ParameterVector{parameter});
@@ -726,6 +725,26 @@ inline std::shared_ptr<ngraph::Function> makeMatMulBias(std::vector<size_t> inpu
     result->set_friendly_name("result");
     std::shared_ptr<ngraph::Function> fn_ptr = std::make_shared<ngraph::Function>(ngraph::ResultVector{ result }, ngraph::ParameterVector{ parameter });
     fn_ptr->set_friendly_name("MatMulBias");
+    return fn_ptr;
+}
+
+inline std::shared_ptr<ngraph::Function> makeConvertTranspose(std::vector<size_t> inputShape = { 1, 3, 24, 24 },
+                                                        std::vector<size_t> inputOrder = { 0, 1, 2, 3 },
+                                                        ngraph::element::Type type = ngraph::element::Type_t::f32) {
+    auto params = ngraph::builder::makeParams(type, {inputShape});
+    params.front()->set_friendly_name("Param_1");
+    params.front()->output(0).get_tensor().set_names({"data"});
+    const auto order = ngraph::op::Constant::create(element::i32, {inputOrder.size()}, inputOrder);
+
+    auto convert = std::make_shared<opset1::Convert>(params.front(), type);
+    convert->set_friendly_name("convert");
+    auto transpose = std::make_shared<opset1::Transpose>(convert, order);
+    transpose->set_friendly_name("transpose");
+    auto result = std::make_shared<ngraph::opset1::Result>(transpose);
+    result->set_friendly_name("result");
+
+    std::shared_ptr<ngraph::Function> fn_ptr = std::make_shared<ngraph::Function>(ngraph::ResultVector{ result }, ngraph::ParameterVector{ params });
+    fn_ptr->set_friendly_name("ConvertTranspose");
     return fn_ptr;
 }
 }  // namespace subgraph

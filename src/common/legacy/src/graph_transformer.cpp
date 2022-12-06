@@ -216,15 +216,17 @@ std::vector<CNNLayerPtr> ConstTransformer::foldConstSubgraphsInternal(const std:
 static std::vector<std::string> skipConstInfer = {
     "FakeQuantize",
     "Quantize",
-    "CumSum",     // Const inference function for CumSum is not implemented
-    "Convolution", // Const inference function for Convolution is not implemented
-    "Eltwise",  // Const inference function for Eltwise is not implemented
+    "CumSum",       // Const inference function for CumSum is not implemented
+    "Convolution",  // Const inference function for Convolution is not implemented
+    "Eltwise",      // Const inference function for Eltwise is not implemented
+    "Copy",
     "FullyConnected",
     "Squeeze",
+    "Split",
     "TensorIterator",
     "LSTMSequence",
-    "MVN"
-};
+    "Range",
+    "MVN"};
 
 const std::map<std::string, bool> ConstTransformer::getConstLayers(const std::vector<CNNLayerPtr>& sortedLayers) {
     std::map<std::string, bool> mapConstLayers;
@@ -473,6 +475,22 @@ void ConstTransformer::fullTrim() {
     std::lock_guard<std::mutex> lock(lockFullTrim);
     auto sortedLayers = details::CNNSubnetSortTopologically({inputs, outputs});
     auto constMapLayers = getConstLayers(sortedLayers);
+
+    for (const auto& layer : sortedLayers) {
+        [&] {
+            if (layer->type == "Const") {
+                for (const auto& out : outputs) {
+                    for (const auto& out_const : layer->outData) {
+                        if (out_const == out) {
+                            constMapLayers.erase(layer->name);
+                            return;
+                        }
+                    }
+                }
+            }
+        }();
+    }
+
     auto constData = getConstData(constMapLayers, sortedLayers);
     auto constLayers = foldConstSubgraphsInternal(constMapLayers, constData, sortedLayers);
     trimShapeInputs(constLayers, sortedLayers);

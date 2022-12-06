@@ -34,13 +34,13 @@ op::v1::Reverse::Reverse(const Output<Node>& data, const Output<Node>& reversed_
 }
 
 bool ngraph::op::v1::Reverse::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_Reverse_visit_attributes);
+    OV_OP_SCOPE(v1_Reverse_visit_attributes);
     visitor.on_attribute("mode", m_mode);
     return true;
 }
 
 void op::v1::Reverse::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v1_Reverse_validate_and_infer_types);
+    OV_OP_SCOPE(v1_Reverse_validate_and_infer_types);
     if (m_mode == Mode::MASK) {
         NODE_VALIDATION_CHECK(this,
                               get_input_element_type(1) == element::boolean,
@@ -108,7 +108,7 @@ void op::v1::Reverse::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::v1::Reverse::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_Reverse_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_Reverse_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v1::Reverse>(new_args.at(0), new_args.at(1), m_mode);
 }
@@ -132,7 +132,7 @@ void get_axes(AxisSet& axes, const HostTensorPtr& in) {
 
 #define GET_AXES(a, ...)                                      \
     case element::Type_t::a: {                                \
-        NGRAPH_OP_SCOPE(OV_PP_CAT3(get_reverse_axes, _, a));  \
+        OV_OP_SCOPE(OV_PP_CAT3(get_reverse_axes, _, a));      \
         reverseop::get_axes<element::Type_t::a>(__VA_ARGS__); \
     } break;
 
@@ -170,12 +170,12 @@ bool op::v1::Reverse::evaluate_reverse(const HostTensorVector& outputs, const Ho
 }
 
 bool op::v1::Reverse::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v1_Reverse_evaluate);
+    OV_OP_SCOPE(v1_Reverse_evaluate);
     return evaluate_reverse(outputs, inputs);
 }
 
 bool op::v1::Reverse::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v1_Reverse_has_evaluate);
+    OV_OP_SCOPE(v1_Reverse_has_evaluate);
 
     if (get_mode() == op::v1::Reverse::Mode::INDEX) {
         switch (get_input_element_type(1)) {

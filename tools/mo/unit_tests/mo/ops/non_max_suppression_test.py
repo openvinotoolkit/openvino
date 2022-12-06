@@ -188,3 +188,85 @@ class TestNonMaxSuppressionInfer(unittest.TestCase):
         self.assertTrue(nms_node.out_port(0).get_data_type() == np.int64)
         self.assertTrue(nms_node.out_port(1).get_data_type() == np.float32)
         self.assertTrue(nms_node.out_port(2).get_data_type() == np.int64)
+
+    def test_nms_infer_i32_opset9_1_out(self):
+        nms_node = Node(self.graph, 'nms')
+        nms_node['version'] = 'opset9'
+        nms_node['output_type'] = np.int32
+        NonMaxSuppression.infer(nms_node)
+        NonMaxSuppression.type_infer(nms_node)
+
+        self.assertTrue(np.array_equal(nms_node.out_port(0).data.get_shape(),
+                                       shape_array([dynamic_dimension_value, 3])))
+        self.assertTrue(nms_node.out_port(0).get_data_type() == np.int32)
+
+    def test_nms_infer_i64_opset9_1_out(self):
+        nms_node = Node(self.graph, 'nms')
+        nms_node['version'] = 'opset9'
+        nms_node['output_type'] = np.int64
+        NonMaxSuppression.infer(nms_node)
+        NonMaxSuppression.type_infer(nms_node)
+
+        self.assertTrue(np.array_equal(nms_node.out_port(0).data.get_shape(),
+                                       shape_array([dynamic_dimension_value, 3])))
+        self.assertTrue(nms_node.out_port(0).get_data_type() == np.int64)
+
+    def test_nms_infer_i32_opset9_2_outs(self):
+        nms_node = Node(self.graph_nms_5_2_outs, 'nms')
+        nms_node['version'] = 'opset9'
+        nms_node['output_type'] = np.int32
+        NonMaxSuppression.infer(nms_node)
+        NonMaxSuppression.type_infer(nms_node)
+
+        self.assertTrue(np.array_equal(nms_node.out_port(0).data.get_shape(),
+                                       shape_array([dynamic_dimension_value, 3])))
+        self.assertTrue(np.array_equal(nms_node.out_port(1).data.get_shape(),
+                                       shape_array([dynamic_dimension_value, 3])))
+        self.assertTrue(nms_node.out_port(0).get_data_type() == np.int32)
+        self.assertTrue(nms_node.out_port(1).get_data_type() == np.float32)
+
+    def test_nms_infer_i64_opset9_2_outs(self):
+        nms_node = Node(self.graph_nms_5_2_outs, 'nms')
+        nms_node['version'] = 'opset9'
+        nms_node['output_type'] = np.int64
+        NonMaxSuppression.infer(nms_node)
+        NonMaxSuppression.type_infer(nms_node)
+
+        self.assertTrue(np.array_equal(nms_node.out_port(0).data.get_shape(),
+                                       shape_array([dynamic_dimension_value, 3])))
+        self.assertTrue(np.array_equal(nms_node.out_port(1).data.get_shape(),
+                                       shape_array([dynamic_dimension_value, 3])))
+        self.assertTrue(nms_node.out_port(0).get_data_type() == np.int64)
+        self.assertTrue(nms_node.out_port(1).get_data_type() == np.float32)
+
+    def test_nms_infer_i32_opset9_3_outs(self):
+        nms_node = Node(self.graph_nms_5_3_outs, 'nms')
+        nms_node['version'] = 'opset9'
+        nms_node['output_type'] = np.int32
+        NonMaxSuppression.infer(nms_node)
+        NonMaxSuppression.type_infer(nms_node)
+
+        self.assertTrue(np.array_equal(nms_node.out_port(0).data.get_shape(),
+                                       shape_array([dynamic_dimension_value, 3])))
+        self.assertTrue(np.array_equal(nms_node.out_port(1).data.get_shape(),
+                                       shape_array([dynamic_dimension_value, 3])))
+        self.assertTrue(np.array_equal(nms_node.out_port(2).data.get_shape(), [1]))
+        self.assertTrue(nms_node.out_port(0).get_data_type() == np.int32)
+        self.assertTrue(nms_node.out_port(1).get_data_type() == np.float32)
+        self.assertTrue(nms_node.out_port(2).get_data_type() == np.int64)
+
+    def test_nms_infer_i64_opset9_3_outs(self):
+        nms_node = Node(self.graph_nms_5_3_outs, 'nms')
+        nms_node['version'] = 'opset9'
+        nms_node['output_type'] = np.int64
+        NonMaxSuppression.infer(nms_node)
+        NonMaxSuppression.type_infer(nms_node)
+
+        self.assertTrue(np.array_equal(nms_node.out_port(0).data.get_shape(),
+                                       shape_array([dynamic_dimension_value, 3])))
+        self.assertTrue(np.array_equal(nms_node.out_port(1).data.get_shape(),
+                                       shape_array([dynamic_dimension_value, 3])))
+        self.assertTrue(np.array_equal(nms_node.out_port(2).data.get_shape(), [1]))
+        self.assertTrue(nms_node.out_port(0).get_data_type() == np.int64)
+        self.assertTrue(nms_node.out_port(1).get_data_type() == np.float32)
+        self.assertTrue(nms_node.out_port(2).get_data_type() == np.int64)

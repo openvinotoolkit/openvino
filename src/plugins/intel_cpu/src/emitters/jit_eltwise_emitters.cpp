@@ -32,8 +32,8 @@ void jit_add_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const st
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
@@ -46,12 +46,24 @@ void jit_add_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
     Vmm vmm_dst = Vmm(out_vec_idxs[0]);
 
+    auto uni_vadd = [this](Vmm vmm_dst, Vmm vmm_src0, Vmm vmm_src1) {
+        switch (exec_prc_) {
+            case Precision::FP32: h->uni_vaddps(vmm_dst, vmm_src0, vmm_src1); break;
+            case Precision::I32:  h->uni_vpaddd(vmm_dst, vmm_src0, vmm_src1); break;
+            default: assert(!"unsupported precision");
+        }
+    };
+
     if (isa == cpu::x64::sse41) {
         h->uni_vmovups(vmm_dst, vmm_src0);
-        h->uni_vaddps(vmm_dst, vmm_dst, vmm_src1);
+        uni_vadd(vmm_dst, vmm_dst, vmm_src1);
     } else {
-        h->uni_vaddps(vmm_dst, vmm_src0, vmm_src1);
+        uni_vadd(vmm_dst, vmm_src0, vmm_src1);
     }
+}
+
+std::set<InferenceEngine::Precision> jit_add_emitter::get_supported_precisions() {
+    return {Precision::FP32, Precision::I32};
 }
 
 /// MUL_ADD ///
@@ -69,8 +81,8 @@ void jit_mul_add_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, cons
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
@@ -85,35 +97,66 @@ void jit_mul_add_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const
     Vmm vmm_aux0 = Vmm(aux_vec_idxs[0]);
     Vmm vmm_dst = Vmm(out_vec_idxs[0]);
 
-    if (isa == cpu::x64::sse41) {
+    auto uni_vfmadd231_xmm = [this](Xmm vmm_dst, Xmm vmm_src0, Xmm vmm_src1, Xmm vmm_src2) {
         h->uni_vmovups(vmm_dst, vmm_src0);
-        h->uni_vmulps(vmm_dst, vmm_dst, vmm_src1);
-        h->uni_vaddps(vmm_dst, vmm_dst, vmm_src2);
+        switch (exec_prc_) {
+            case Precision::FP32: {
+                h->uni_vmulps(vmm_dst, vmm_dst, vmm_src1);
+                h->uni_vaddps(vmm_dst, vmm_dst, vmm_src2);
+            } break;
+            case Precision::I32: {
+                h->uni_vpmulld(vmm_dst, vmm_dst, vmm_src1);
+                h->uni_vpaddd(vmm_dst, vmm_dst, vmm_src2);
+            } break;
+            default: assert(!"unsupported precision");
+        }
+    };
+
+    auto uni_vfmadd231_vmm = [this, vmm_aux0](Vmm vmm_dst, Vmm vmm_src0, Vmm vmm_src1, Vmm vmm_src2) {
+        switch (exec_prc_) {
+            case Precision::FP32: {
+                Vmm vmm_mul0;
+                if (vmm_dst.getIdx() == vmm_src0.getIdx()) {
+                    h->uni_vmovups(vmm_aux0, vmm_src0);
+                    vmm_mul0 = vmm_aux0;
+                } else {
+                    vmm_mul0 = vmm_src0;
+                }
+
+                Vmm vmm_mul1;
+                if (vmm_dst.getIdx() == vmm_src1.getIdx()) {
+                    h->uni_vmovups(vmm_aux0, vmm_src1);
+                    vmm_mul1 = vmm_aux0;
+                } else {
+                    vmm_mul1 = vmm_src1;
+                }
+
+                if (vmm_dst.getIdx() != vmm_src2.getIdx())
+                    h->uni_vmovups(vmm_dst, vmm_src2);
+
+                h->uni_vfmadd231ps(vmm_dst, vmm_mul0, vmm_mul1);
+            } break;
+            case Precision::I32: {
+                h->uni_vpmulld(vmm_dst, vmm_src0, vmm_src1);
+                h->uni_vpaddd(vmm_dst, vmm_dst, vmm_src2);
+            } break;
+            default: assert(!"unsupported precision");
+        }
+    };
+
+    if (isa == cpu::x64::sse41) {
+        uni_vfmadd231_xmm(vmm_dst, vmm_src0, vmm_src1, vmm_src2);
     } else {
-        Vmm vmm_mul0;
-        if (vmm_dst.getIdx() == vmm_src0.getIdx()) {
-            h->uni_vmovups(vmm_aux0, vmm_src0);
-            vmm_mul0 = vmm_aux0;
-        } else {
-            vmm_mul0 = vmm_src0;
-        }
-
-        Vmm vmm_mul1;
-        if (vmm_dst.getIdx() == vmm_src1.getIdx()) {
-            h->uni_vmovups(vmm_aux0, vmm_src1);
-            vmm_mul1 = vmm_aux0;
-        } else {
-            vmm_mul1 = vmm_src1;
-        }
-
-        if (vmm_dst.getIdx() != vmm_src2.getIdx())
-            h->uni_vmovups(vmm_dst, vmm_src2);
-        h->uni_vfmadd231ps(vmm_dst, vmm_mul0, vmm_mul1);
+        uni_vfmadd231_vmm(vmm_dst, vmm_src0, vmm_src1, vmm_src2);
     }
 }
 
 size_t jit_mul_add_emitter::aux_vecs_count() const {
     return 1;
+}
+
+std::set<InferenceEngine::Precision> jit_mul_add_emitter::get_supported_precisions() {
+    return {Precision::FP32, Precision::I32};
 }
 
 /// SUB ///
@@ -131,8 +174,8 @@ void jit_subtract_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, con
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
@@ -145,14 +188,25 @@ void jit_subtract_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, cons
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
     Vmm vmm_dst = Vmm(out_vec_idxs[0]);
 
+    auto uni_vsub = [this](Vmm vmm_dst, Vmm vmm_src0, Vmm vmm_src1) {
+        switch (exec_prc_) {
+            case Precision::FP32: h->uni_vsubps(vmm_dst, vmm_src0, vmm_src1); break;
+            case Precision::I32:  h->uni_vpsubd(vmm_dst, vmm_src0, vmm_src1); break;
+            default: assert(!"unsupported precision");
+        }
+    };
+
     if (isa == cpu::x64::sse41) {
         h->uni_vmovups(vmm_dst, vmm_src0);
-        h->uni_vsubps(vmm_dst, vmm_dst, vmm_src1);
+        uni_vsub(vmm_dst, vmm_dst, vmm_src1);
     } else {
-        h->uni_vsubps(vmm_dst, vmm_src0, vmm_src1);
+        uni_vsub(vmm_dst, vmm_src0, vmm_src1);
     }
 }
 
+std::set<InferenceEngine::Precision> jit_subtract_emitter::get_supported_precisions() {
+    return {Precision::FP32, Precision::I32};
+}
 
 /// MULTIPLY ///
 jit_multiply_emitter::jit_multiply_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
@@ -169,8 +223,8 @@ void jit_multiply_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, con
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
@@ -183,14 +237,25 @@ void jit_multiply_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, cons
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
     Vmm vmm_dst = Vmm(out_vec_idxs[0]);
 
+    auto uni_vmul = [this](Vmm vmm_dst, Vmm vmm_src0, Vmm vmm_src1) {
+        switch (exec_prc_) {
+            case Precision::FP32: h->uni_vmulps(vmm_dst, vmm_src0, vmm_src1); break;
+            case Precision::I32:  h->uni_vpmulld(vmm_dst, vmm_src0, vmm_src1); break;
+            default: assert(!"unsupported precision");
+        }
+    };
+
     if (isa == cpu::x64::sse41) {
         h->uni_vmovups(vmm_dst, vmm_src0);
-        h->uni_vmulps(vmm_dst, vmm_dst, vmm_src1);
+        uni_vmul(vmm_dst, vmm_dst, vmm_src1);
     } else {
-        h->uni_vmulps(vmm_dst, vmm_src0, vmm_src1);
+        uni_vmul(vmm_dst, vmm_src0, vmm_src1);
     }
 }
 
+std::set<InferenceEngine::Precision> jit_multiply_emitter::get_supported_precisions() {
+    return {Precision::FP32, Precision::I32};
+}
 
 /// DIVIDE ///
 jit_divide_emitter::jit_divide_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
@@ -207,8 +272,8 @@ void jit_divide_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
@@ -274,8 +339,8 @@ void jit_floor_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const 
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
@@ -305,8 +370,8 @@ void jit_ceiling_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
@@ -335,8 +400,8 @@ void jit_floor_mod_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, co
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
@@ -387,8 +452,8 @@ void jit_mod_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const st
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
@@ -439,8 +504,8 @@ void jit_maximum_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, cons
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
@@ -489,8 +554,8 @@ void jit_minimum_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, cons
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
@@ -540,8 +605,8 @@ void jit_squared_difference_emitter::emit_impl(const std::vector<size_t> &in_vec
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
@@ -554,17 +619,32 @@ void jit_squared_difference_emitter::emit_isa(const std::vector<size_t> &in_vec_
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
     Vmm vmm_dst = Vmm(out_vec_idxs[0]);
 
+    auto uni_vsqdiff = [this](Vmm vmm_dst, Vmm vmm_src0, Vmm vmm_src1) {
+        switch (exec_prc_) {
+            case Precision::FP32: {
+                h->uni_vsubps(vmm_dst, vmm_src0, vmm_src1);
+                h->uni_vmulps(vmm_dst, vmm_dst, vmm_dst);
+            } break;
+            case Precision::I32: {
+                h->uni_vpsubd(vmm_dst, vmm_src0, vmm_src1);
+                h->uni_vpmulld(vmm_dst, vmm_dst, vmm_dst);
+            } break;
+            default: assert(!"unsupported precision");
+        }
+    };
+
     if (isa == cpu::x64::sse41) {
         if (vmm_src0.getIdx() != vmm_dst.getIdx())
             h->uni_vmovups(vmm_dst, vmm_src0);
-        h->uni_vsubps(vmm_dst, vmm_dst, vmm_src1);
-        h->uni_vmulps(vmm_dst, vmm_dst, vmm_dst);
+        uni_vsqdiff(vmm_dst, vmm_dst, vmm_src1);
     } else {
-        h->uni_vsubps(vmm_dst, vmm_src0, vmm_src1);
-        h->uni_vmulps(vmm_dst, vmm_dst, vmm_dst);
+        uni_vsqdiff(vmm_dst, vmm_src0, vmm_src1);
     }
 }
 
+std::set<InferenceEngine::Precision> jit_squared_difference_emitter::get_supported_precisions() {
+    return {Precision::FP32, Precision::I32};
+}
 
 /// POWER_DYNAMIC ///
 jit_power_dynamic_emitter::jit_power_dynamic_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
@@ -581,8 +661,8 @@ void jit_power_dynamic_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
@@ -609,7 +689,7 @@ void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs,
 
     // caller obligation to save k-regs as callee may use them
     size_t n_k_regs_to_save = 8;
-    if (isa == cpu::x64::avx512_common || isa == cpu::x64::avx512_core) {
+    if (isa == cpu::x64::avx512_core || isa == cpu::x64::avx512_core) {
         h->sub(h->rsp, n_k_regs_to_save * k_mask_size);
         for (size_t i = 0; i < n_k_regs_to_save; ++i) {
             if (mayiuse(avx512_core))
@@ -658,7 +738,7 @@ void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs,
     h->add(h->rsp, (get_max_vecs_count() + 2) * get_vec_length());
 
     // restore k registers
-    if (isa == cpu::x64::avx512_common || isa == cpu::x64::avx512_core) {
+    if (isa == cpu::x64::avx512_core || isa == cpu::x64::avx512_core) {
         for (int i = n_k_regs_to_save - 1; i >= 0; --i) {
             if (mayiuse(avx512_core))
                 h->kmovq(Opmask(i), h->ptr[h->rsp + i * k_mask_size]);
@@ -694,8 +774,8 @@ void jit_equal_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const 
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
@@ -755,8 +835,8 @@ void jit_not_equal_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, co
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
@@ -816,8 +896,8 @@ void jit_greater_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, cons
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
@@ -877,8 +957,8 @@ void jit_greater_equal_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
@@ -938,8 +1018,8 @@ void jit_less_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const s
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
@@ -999,8 +1079,8 @@ void jit_less_equal_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, c
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
@@ -1061,8 +1141,8 @@ void jit_logical_and_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, 
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
@@ -1143,8 +1223,8 @@ void jit_logical_or_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, c
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
@@ -1224,8 +1304,8 @@ void jit_logical_xor_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, 
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
@@ -1305,8 +1385,8 @@ void jit_logical_not_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, 
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
@@ -1377,8 +1457,8 @@ void jit_power_static_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs,
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
@@ -1458,7 +1538,7 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, 
 
         // caller obligation to save k-regs as callee may use them
         size_t n_k_regs_to_save = 8;
-        if (isa == cpu::x64::avx512_common || isa == cpu::x64::avx512_core) {
+        if (isa == cpu::x64::avx512_core || isa == cpu::x64::avx512_core) {
             h->sub(h->rsp, n_k_regs_to_save * k_mask_size);
             for (size_t i = 0; i < n_k_regs_to_save; ++i) {
                 if (mayiuse(avx512_core))
@@ -1507,7 +1587,7 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, 
         h->add(h->rsp, (get_max_vecs_count() + 2) * get_vec_length());
 
         // restore k registers
-        if (isa == cpu::x64::avx512_common || isa == cpu::x64::avx512_core) {
+        if (isa == cpu::x64::avx512_core || isa == cpu::x64::avx512_core) {
             for (int i = n_k_regs_to_save - 1; i >= 0; --i) {
                 if (mayiuse(avx512_core))
                     h->kmovq(Opmask(i), h->ptr[h->rsp + i * k_mask_size]);
@@ -1553,8 +1633,8 @@ void jit_prelu_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const 
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
@@ -1582,7 +1662,7 @@ void jit_prelu_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const s
         h->vxorps(vmm_aux1, vmm_aux1, vmm_aux1);
         h->vcmpgtps(vmm_aux1, vmm_src0, vmm_aux1);
         h->vblendvps(vmm_dst, vmm_aux0, vmm_src0, vmm_aux1);
-    } else if (isa == cpu::x64::avx512_common) {
+    } else if (isa == cpu::x64::avx512_core) {
         h->vxorpd(vmm_aux0, vmm_aux0, vmm_aux0);
         if (vmm_src0.getIdx() != vmm_dst.getIdx())
             h->vmovups(vmm_dst, vmm_src0);
@@ -1610,8 +1690,8 @@ void jit_sqrt_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const s
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
@@ -1639,8 +1719,8 @@ void jit_negative_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, con
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
@@ -1678,8 +1758,8 @@ void jit_erf_emitter::emit_impl(
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
@@ -1700,7 +1780,7 @@ void jit_erf_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std
 
     auto compute_cmp_mask = [&](const Vmm &vmm_src,
         const Xbyak::Operand &compare_operand, int cmp_predicate) {
-        if (host_isa_ == cpu::x64::avx512_common) {
+        if (host_isa_ == cpu::x64::avx512_core) {
             h->vcmpps(k_mask, vmm_src, compare_operand, cmp_predicate);
         } else {
             h->uni_vcmpps(vmm_mask, vmm_src, compare_operand, cmp_predicate);
@@ -1708,7 +1788,7 @@ void jit_erf_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std
     };
 
     auto blend_with_mask = [&](const Vmm &vmm_dst, const Xbyak::Operand &src) {
-        if (host_isa_ == cpu::x64::avx512_common) {
+        if (host_isa_ == cpu::x64::avx512_core) {
             h->vblendmps(vmm_dst | k_mask, vmm_dst, src);
         } else {
             h->uni_vblendvps(vmm_dst, vmm_dst, src, vmm_mask);
@@ -1839,5 +1919,47 @@ size_t jit_erf_emitter::aux_vecs_count() const {
     return 5ul;
 }
 
+/// SOFT SIGN ///
+jit_soft_sign_emitter::jit_soft_sign_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
+: jit_emitter(host, host_isa, node, exec_prc) {
+    prepare_table();
+}
+jit_soft_sign_emitter::jit_soft_sign_emitter(jit_generator *host, cpu_isa_t host_isa, Precision exec_prc)
+: jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+}
+
+size_t jit_soft_sign_emitter::get_inputs_num() const { return 1; }
+
+void jit_soft_sign_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
+                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+                                const emitter_context *emit_context) const {
+    if (host_isa_ == cpu::x64::sse41) {
+        emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx2) {
+        emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
+    } else {
+        assert(!"unsupported isa");
+    }
+}
+
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
+void jit_soft_sign_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
+    Vmm vmm_src = Vmm(in_vec_idxs[0]);
+    Vmm vmm_dst = Vmm(out_vec_idxs[0]);
+
+    h->uni_vmovups(vmm_dst, vmm_src);                             // y = x
+    h->uni_vandps(vmm_src, vmm_src, table_val("positive_mask"));  // x = abs(x)
+    h->uni_vaddps(vmm_src, vmm_src, table_val("one"));            // x++
+    h->uni_vdivps(vmm_dst, vmm_dst, vmm_src);                     // y = y/x
+}
+
+void jit_soft_sign_emitter::register_table_entries() {
+    push_arg_entry_of("one", 0x3f800000, true);
+    push_arg_entry_of("positive_mask", 0x7fffffff, true);
+}
 }   // namespace intel_cpu
 }   // namespace ov

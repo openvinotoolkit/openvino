@@ -14,13 +14,12 @@ namespace test {
 namespace behavior {
 
 class OVInferRequestBatchedTests : public testing::WithParamInterface<std::string>,
-                                   public CommonTestUtils::TestsCommon {
+                                   public OVInferRequestTestBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<std::string>& device_name);
 
 protected:
     void SetUp() override;
-
     void TearDown() override;
 
     static std::string generateCacheDirName(const std::string& test_name);
@@ -28,7 +27,6 @@ protected:
                                                   const PartialShape& shape, const ov::Layout& layout);
 
     std::shared_ptr<ov::Core> ie = utils::PluginCache::get().core();
-    std::string targetDevice;
     std::string m_cache_dir; // internal member
     bool m_need_reset_core = false;
 };

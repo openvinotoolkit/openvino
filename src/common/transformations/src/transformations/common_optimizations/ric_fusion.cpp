@@ -7,30 +7,34 @@
 #include <memory>
 #include <ngraph/log.hpp>
 #include <ngraph/op/util/binary_elementwise_arithmetic.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <openvino/core/validation_util.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <utility>
 #include <vector>
 
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace ric_attr {
+
+namespace {
+std::shared_ptr<opset8::Constant> create_1d_const(const std::vector<int64_t>& values) {
+    return opset8::Constant::create(ov::element::i64, ov::Shape{values.size()}, values);
+}
+}  // namespace
 
 // Attribute describes RIC type which we propagate.
 // Also, it contains callback which can expand this attribute to the real RIC sub-graph.
 // In addition, attribute has some functionality and properties for propagation.
 class Attribute {
 public:
-    using callback_t = std::function<void(Input<Node>, const Attribute&)>;
-
     Attribute(std::vector<int64_t> order, int64_t axis, bool is_final = false, bool is_initial = false)
         : m_order(std::move(order)),
           m_axis(axis),
@@ -60,13 +64,35 @@ public:
                       });
     }
 
-    void set_callback(callback_t callback) {
-        m_callback = std::move(callback);
-    }
-
     // Apply callback to materialize RIC inside graph
-    void operator()(Input<Node> input) const {
-        m_callback(input, *this);
+    void materialize(Input<Node> input, const ov::NodeVector& nodes) const {
+        const auto& input_pshape = input.get_partial_shape();
+        const auto input_rank = input_pshape.rank();
+        if (input_rank.is_dynamic()) {
+            NGRAPH_DEBUG << "Axis calculated to materialize RIC on input: input rank is dynamic";
+            return;
+        }
+        const auto axis = get_axis();
+        // Despite of m_axis is signed integer this transformartion does not handle negative axes values
+        if (axis < 0 || axis >= static_cast<int64_t>(input_pshape.size())) {
+            NGRAPH_DEBUG << "Axis calculated to materialize RIC on input: " << input << " is out of range";
+            return;
+        }
+        const auto& axis_dim = input_pshape[axis];
+        if (axis_dim.is_dynamic()) {
+            NGRAPH_DEBUG << "Axis calculated to materialize RIC on input: " << input << " is dynamic";
+            return;
+        }
+        auto output = input.get_source_output();
+        // Handle case when the RIC order is default
+        auto order = get_order();
+        if (order.empty()) {
+            order.resize(axis_dim.get_length());
+            std::iota(order.rbegin(), order.rend(), 0);
+        }
+        auto gather = std::make_shared<opset8::Gather>(output, create_1d_const(order), create_1d_const({get_axis()}));
+        input.replace_source_output(gather);
+        ov::copy_runtime_info(nodes, gather);
     }
 
     bool can_be_fused() const {
@@ -129,10 +155,6 @@ private:
     // true - means that current RIC attribute is an initial attribute and belongs to real RIC output
     // false - means that current RIC attribute is temporary and need only for propagation
     bool m_is_initial;
-
-    // Callback specifies the action for RIC materialization for given input port.
-    // In most cases it should insert Gather operation for the input.
-    std::function<void(Input<Node>, const Attribute&)> m_callback = [](Input<Node>, const Attribute&) {};
 };
 
 namespace {
@@ -164,7 +186,7 @@ Attribute get(const T& port) {
     if (res != attrs.end()) {
         return res->second.template as<Attribute>();
     }
-    throw ngraph_error("reverse_input_channel_index is missing in given port");
+    throw Exception("reverse_input_channel_index is missing in given port");
 }
 
 template <typename T, typename = is_port<T>>
@@ -176,14 +198,26 @@ void erase(T port) {
 }  // namespace ric_attr
 
 namespace init {
-class SplitConcat : public ngraph::pass::MatcherPass {
+
+namespace {
+
+void add_node_with_inputs_to_vector(const std::shared_ptr<ov::Node>& node, NodeVector& vector) {
+    vector.push_back(node);
+    const auto& inputs = node->inputs();
+    for (const auto& input : inputs) {
+        vector.push_back(input.get_source_output().get_node_shared_ptr());
+    }
+}
+
+}  // namespace
+class SplitConcat : public ov::pass::MatcherPass {
 public:
-    SplitConcat() {
+    SplitConcat(NodeVector& nodes_to_fuse) {
         MATCHER_SCOPE(SplitConcat);
         auto split_p = pattern::wrap_type<opset8::Split>();
         auto pattern_root = pattern::wrap_type<opset8::Concat>({split_p, split_p, split_p});
 
-        auto callback = [=](pattern::Matcher& m) {
+        auto callback = [=, &nodes_to_fuse](pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
             auto concat = ov::as_type_ptr<opset8::Concat>(pattern_map.at(pattern_root).get_node_shared_ptr());
             auto split = ov::as_type_ptr<opset8::Split>(pattern_map.at(split_p).get_node_shared_ptr());
@@ -221,6 +255,9 @@ public:
 
             // Mark-up RIC output
             ric_attr::init(concat, order, concat->get_axis());
+
+            nodes_to_fuse.push_back(concat);
+            add_node_with_inputs_to_vector(split, nodes_to_fuse);
             return true;
         };
 
@@ -229,16 +266,16 @@ public:
     }
 };
 
-class Gather : public ngraph::pass::MatcherPass {
+class Gather : public ov::pass::MatcherPass {
 public:
-    Gather() {
+    Gather(NodeVector& nodes_to_fuse) {
         MATCHER_SCOPE(Gather);
         auto input_p = pattern::any_input(pattern::has_static_rank());
         auto indices_p = pattern::any_input();
         auto axis_p = pattern::wrap_type<opset8::Constant>();
         auto pattern_root = pattern::wrap_type<opset8::Gather>({input_p, indices_p, axis_p});
 
-        auto callback = [=](pattern::Matcher& m) {
+        auto callback = [=, &nodes_to_fuse](pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
             const auto& output = pattern_map.at(pattern_root);
 
@@ -247,9 +284,10 @@ public:
                 return false;
 
             const auto axis_value = axis->cast_vector<int64_t>().at(0);
-
-            if (ov::is_preprocesing_node(output.get_node_shared_ptr())) {
+            auto gather = output.get_node_shared_ptr();
+            if (ov::is_preprocesing_node(gather)) {
                 ric_attr::init(output, {}, axis_value);
+                add_node_with_inputs_to_vector(gather, nodes_to_fuse);
                 return true;
             }
 
@@ -277,6 +315,7 @@ public:
                 return false;
             }
             ric_attr::init(output, order_values, axis_value);
+            add_node_with_inputs_to_vector(gather, nodes_to_fuse);
             return true;
         };
 
@@ -287,13 +326,8 @@ public:
 }  // namespace init
 
 namespace prop {
-namespace {
-std::shared_ptr<opset8::Constant> create_const(const std::vector<int64_t>& values) {
-    return opset8::Constant::create(ov::element::i64, ov::Shape{values.size()}, values);
-}
-}  // namespace
 
-class Binary : public ngraph::pass::MatcherPass {
+class Binary : public ov::pass::MatcherPass {
 public:
     Binary() {
         MATCHER_SCOPE(Binary);
@@ -366,19 +400,6 @@ public:
                 auto ric_const = ric;
                 ric_const.set_axis(new_axis);
                 ric_const.set_is_final(true);
-                ric_const.set_callback([axis_dim](Input<Node> input, const ric_attr::Attribute& attr) {
-                    auto output = input.get_source_output();
-                    // Handle case when the RIC order is default
-                    auto order = attr.get_order();
-                    if (order.empty()) {
-                        order.resize(axis_dim);
-                        std::iota(order.rbegin(), order.rend(), 0);
-                    }
-                    auto gather =
-                        std::make_shared<opset8::Gather>(output, create_const(order), create_const({attr.get_axis()}));
-                    input.replace_source_output(gather);
-                    // TODO: copy runtime info from RIC sub-graph
-                });
                 ric_attr::set(input, ric_const);
             }
 
@@ -391,52 +412,20 @@ public:
     }
 };
 
-class Convolution : public ngraph::pass::MatcherPass {
+class Convolution : public ov::pass::MatcherPass {
 public:
     Convolution() {
         MATCHER_SCOPE(Convolution);
-        // Handle Convolution with Constant and FQ on weights. As Convolution is
-        // a terminal node, so we do not propagate RIC attribute further and insert
-        // final RIC attribute to the weights input.
         auto input_p = pattern::any_input(ric_attr::has<Output<Node>>);
-        auto pattern_root =
-            pattern::wrap_type<opset8::Convolution>({input_p,
-                                                     pattern::wrap_type<opset8::Constant, opset8::FakeQuantize>(
-                                                         pattern::has_static_dim(1 /*output channel*/))});
+        auto pattern_root = pattern::wrap_type<opset8::Convolution>(
+            {input_p, pattern::any_input(pattern::has_static_dim(1 /*output channel*/))});
         auto callback = [=](pattern::Matcher& m) {
             auto conv = m.get_match_root();
             auto ric = ric_attr::get(conv->input_value(0)).propagate();
             if (ric.get_axis() != 1)
                 return false;
 
-            ric.set_is_final(true);
-            ric.set_callback([](Input<Node> input, const ric_attr::Attribute& attr) {
-                const auto output_channel_index = 1;
-                auto order = attr.get_order();
-                // Handle case when the RIC order is default
-                if (order.empty()) {
-                    order.resize(input.get_partial_shape()[output_channel_index].get_length());
-                    std::iota(order.rbegin(), order.rend(), 0);
-                }
-                auto weights = input.get_source_output();
-                auto gather = std::make_shared<opset8::Gather>(weights,
-                                                               create_const(order),
-                                                               create_const({output_channel_index}));
-                input.replace_source_output(gather);
-                // TODO: copy runtime info from RIC sub-graph
-            });
-
-            if (auto fq = std::dynamic_pointer_cast<opset8::FakeQuantize>(conv->get_input_node_shared_ptr(1))) {
-                // Set final RIC attr to the first FQ input
-                ric_attr::set(fq->input(0), ric);
-
-                // Apply Binary transformation for FQ to handle 1..5 inputs
-                ric.set_is_final(false);
-                ric_attr::set(fq->input_value(0), ric);  // set ric attr to simulate propagation flow
-                Binary().apply(fq);
-            } else {
-                ric_attr::set(conv->input(1), ric);
-            }
+            ric_attr::set(conv->input(1), ric);
             return true;
         };
 
@@ -445,13 +434,13 @@ public:
     }
 };
 
-class GroupConvolution : public ngraph::pass::MatcherPass {
+class GroupConvolution : public ov::pass::MatcherPass {
 public:
     GroupConvolution() {
         MATCHER_SCOPE(GroupConvolution);
         auto input_p = pattern::any_input(ric_attr::has<Output<Node>>);
-        auto pattern_root = pattern::wrap_type<opset8::GroupConvolution>(
-            {input_p, pattern::wrap_type<opset8::Constant, opset8::FakeQuantize>(pattern::has_static_shape())});
+        auto pattern_root =
+            pattern::wrap_type<opset8::GroupConvolution>({input_p, pattern::any_input(pattern::has_static_shape())});
 
         auto callback = [=](pattern::Matcher& m) {
             auto conv = m.get_match_root();
@@ -476,28 +465,9 @@ public:
 
             // Update weights with RIC attribute
             auto ric_weights = ric;
-            ric_weights.set_is_final(true);
             ric_weights.set_axis(0);
-            ric_weights.set_callback([](Input<Node> input, const ric_attr::Attribute& attr) {
-                auto weights = input.get_source_output();
-                auto gather = std::make_shared<opset8::Gather>(weights,
-                                                               create_const(attr.get_order()),
-                                                               create_const({0} /* output channel */));
-                input.replace_source_output(gather);
-                // TODO: copy runtime info from RIC sub-graph
-            });
 
-            if (auto fq = std::dynamic_pointer_cast<opset8::FakeQuantize>(conv->get_input_node_shared_ptr(1))) {
-                // Set final RIC attr to the first FQ input
-                ric_attr::set(fq->input(0), ric_weights);
-
-                // Apply Binary transformation for FQ to handle 1..5 inputs
-                ric_weights.set_is_final(false);
-                ric_attr::set(fq->input_value(0), ric_weights);  // set ric attr to simulate propagation flow
-                Binary().apply(fq);
-            } else {
-                ric_attr::set(conv->input(1), ric_weights);
-            }
+            ric_attr::set(conv->input(1), ric_weights);
 
             // Calculate new order for RIC propagation
             const int64_t output_channels = group * channels;
@@ -520,7 +490,7 @@ public:
     }
 };
 
-class ShapeOf : public ngraph::pass::MatcherPass {
+class ShapeOf : public ov::pass::MatcherPass {
 public:
     ShapeOf() {
         MATCHER_SCOPE(ShapeOf);
@@ -536,7 +506,7 @@ public:
     }
 };
 
-class PassThrough : public ngraph::pass::MatcherPass {
+class PassThrough : public ov::pass::MatcherPass {
 public:
     PassThrough() {
         MATCHER_SCOPE(PassThrough);
@@ -556,7 +526,7 @@ public:
     }
 };
 
-class Transpose : public ngraph::pass::MatcherPass {
+class Transpose : public ov::pass::MatcherPass {
 public:
     Transpose() {
         MATCHER_SCOPE(Transpose);
@@ -585,7 +555,7 @@ public:
     }
 };
 
-class Unsupported : public ngraph::pass::MatcherPass {
+class Unsupported : public ov::pass::MatcherPass {
 public:
     Unsupported() {
         MATCHER_SCOPE(Unsupported);
@@ -594,6 +564,9 @@ public:
             for (const auto& input : m.get_match_root()->input_values()) {
                 if (ric_attr::has(input)) {
                     auto ric = ric_attr::get(input);
+                    if (ric.is_final()) {
+                        continue;
+                    }
                     ric.set_can_be_fused(false);
                     NGRAPH_DEBUG << "Node is unsupported by RIC Fusion: " << *m.get_match_root() << std::endl;
                 }
@@ -617,19 +590,19 @@ bool need_to_erase_ric(const Output<Node>& output) {
 }
 }  // namespace
 
-class InsertReverseInputChannel : public ngraph::pass::MatcherPass {
+class InsertReverseInputChannel : public ov::pass::MatcherPass {
 public:
-    InsertReverseInputChannel() {
+    InsertReverseInputChannel(NodeVector& fused_nodes) {
         MATCHER_SCOPE(InsertReverseInputChannel);
         auto pattern_root = pattern::any_input();
-        auto callback = [](pattern::Matcher& m) {
+        auto callback = [&fused_nodes](pattern::Matcher& m) {
             const auto& node = m.get_match_root();
             for (const auto& input : node->inputs()) {
                 if (!ric_attr::has(input))
                     continue;
                 const auto& ric = ric_attr::get(input);
                 if (ric.can_be_fused() && ric.is_final()) {
-                    ric(input);
+                    ric.materialize(input, fused_nodes);
                 }
             }
             return false;
@@ -640,7 +613,7 @@ public:
     }
 };
 
-class EraseSplitConcat : public ngraph::pass::MatcherPass {
+class EraseSplitConcat : public ov::pass::MatcherPass {
 public:
     EraseSplitConcat() {
         MATCHER_SCOPE(EraseSplitConcat);
@@ -661,7 +634,7 @@ public:
     }
 };
 
-class EraseGather : public ngraph::pass::MatcherPass {
+class EraseGather : public ov::pass::MatcherPass {
 public:
     EraseGather() {
         MATCHER_SCOPE(EraseGather);
@@ -682,32 +655,220 @@ public:
 };
 }  // namespace fuse
 
-bool ngraph::pass::ReverseInputChannelsFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
+namespace back_prop {
+class Binary : public ov::pass::MatcherPass {
+public:
+    Binary() {
+        MATCHER_SCOPE(Binary);
+        auto fake_quantize_pattern =
+            pattern::wrap_type<opset8::FakeQuantize>({pattern::any_input(pattern::has_static_rank()),
+                                                      pattern::any_input(pattern::has_static_rank()),
+                                                      pattern::any_input(pattern::has_static_rank()),
+                                                      pattern::any_input(pattern::has_static_rank()),
+                                                      pattern::any_input(pattern::has_static_rank())},
+                                                     pattern::has_static_rank());
+        auto binary_elementwise_pattern = pattern::wrap_type<op::util::BinaryElementwiseArithmetic>(
+            {pattern::any_input(pattern::has_static_rank()), pattern::any_input(pattern::has_static_rank())},
+            pattern::has_static_rank());
+
+        auto pattern_root =
+            std::make_shared<pattern::op::Or>(OutputVector{fake_quantize_pattern, binary_elementwise_pattern});
+
+        auto callback = [=](pattern::Matcher& m) {
+            const auto& root = m.get_match_root();
+            const auto& output = root->output(0);
+            auto inputs = output.get_target_inputs();
+
+            // Check if an output of matched root is consumed as input labeled with reverse_input_channel_index
+            std::vector<ric_attr::Attribute> attrs;
+            for (const auto& input : inputs) {
+                if (ric_attr::has(input)) {
+                    attrs.push_back(ric_attr::get(input).propagate());
+                } else {
+                    return false;
+                }
+            }
+
+            if (attrs.empty())
+                return false;
+
+            // Check that all RIC attrs from consumers can be merged and then merge them
+            auto ric = attrs[0];
+            for (const auto& item : attrs) {
+                if (ric.can_be_merged_with(item)) {
+                    ric.merge_with(item);
+                } else {
+                    return false;
+                }
+            }
+
+            auto data_rank = root->get_output_partial_shape(0).rank().get_length();
+            for (const auto& input : root->inputs()) {
+                auto output = input.get_source_output();
+                const auto& shape = output.get_partial_shape();
+                const int64_t& shape_rank = shape.rank().get_length();
+                if (shape_rank > data_rank) {
+                    // TODO: handle case when constant input broadcast another one
+                    return false;
+                }
+
+                if (data_rank - shape_rank > ric.get_axis()) {
+                    // we don't have to insert RIC for constant, so we keep propagating
+                    continue;
+                }
+
+                const int64_t& new_axis = ric.get_axis() - (data_rank - shape_rank);
+                const auto& axis_dim = shape[new_axis];
+                if (axis_dim.is_dynamic())
+                    return false;
+                if (axis_dim == 1) {
+                    // we don't have to insert RIC, because the channel dimension is 1
+                    continue;
+                }
+
+                // finally, insert RIC
+                auto ric_const = ric;
+                ric_const.set_axis(new_axis);
+                ric_attr::set(input, ric_const);
+            }
+            return true;
+        };
+
+        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
+        register_matcher(m, callback);
+    }
+};
+
+class ConvertPassThrough : public ov::pass::MatcherPass {
+public:
+    ConvertPassThrough() {
+        MATCHER_SCOPE(ConvertPassThrough);
+        auto pattern_root = pattern::wrap_type<opset8::Convert>(pattern::has_static_rank());
+        auto callback = [=](pattern::Matcher& m) {
+            auto root = m.get_match_root();
+            const auto& output = root->output(0);
+            auto consumers = output.get_target_inputs();
+            std::vector<ric_attr::Attribute> attrs;
+
+            for (const auto& consumer : consumers) {
+                if (ric_attr::has(consumer)) {
+                    attrs.push_back(ric_attr::get(consumer).propagate());
+                } else {
+                    return false;
+                }
+            }
+
+            auto ric = attrs[0];
+            auto data_rank = root->get_output_partial_shape(0).rank().get_length();
+
+            for (const auto& item : attrs) {
+                if (ric.can_be_merged_with(item)) {
+                    ric.merge_with(item);
+                } else {
+                    return false;
+                }
+            }
+            auto input = root->input(0);
+            auto const_output = input.get_source_output();
+            const auto& shape = const_output.get_partial_shape();
+            if (shape.rank().is_dynamic())
+                return false;
+
+            const int64_t& shape_rank = shape.rank().get_length();
+            const int64_t& new_axis = ric.get_axis() - (data_rank - shape_rank);
+
+            // finally, insert RIC
+            ric.set_axis(new_axis);
+            ric_attr::set(input, ric);
+            return true;
+        };
+
+        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
+        register_matcher(m, callback);
+    }
+};
+
+class Constant : public ov::pass::ModelPass {
+public:
+    OPENVINO_RTTI("Constant", "0");
+    Constant() = default;
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
+        RUN_ON_FUNCTION_SCOPE(Constant);
+        for (const auto& node : model->get_ordered_ops()) {
+            if ((std::dynamic_pointer_cast<op::util::BinaryElementwiseArithmetic>(node) ||
+                 std::dynamic_pointer_cast<opset8::FakeQuantize>(node) ||
+                 std::dynamic_pointer_cast<opset8::Convert>(node)) &&
+                node->get_output_partial_shape(0).rank().is_static()) {
+                continue;
+            }
+            for (const auto& output : node->outputs()) {
+                for (const auto& consumer : output.get_target_inputs()) {
+                    if (ric_attr::has(consumer)) {
+                        auto ric = ric_attr::get(consumer);
+                        if (std::dynamic_pointer_cast<opset8::Constant>(node)) {
+                            ric.set_is_final(true);
+                            ric_attr::set(consumer, ric);
+                        } else {  // Unsupported
+                            if (!ric.is_final()) {
+                                ric.set_can_be_fused(false);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return true;
+    }
+};
+
+}  // namespace back_prop
+
+bool ov::pass::ReverseInputChannelsFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    RUN_ON_MODEL_SCOPE(ReverseInputChannelsFusion);
     Manager m;
     m.set_per_pass_validation(false);
 
+    NodeVector nodes_to_fuse;
     // First we need to initialize and propagate RIC attributes through entire graph
     auto ric_prop = m.register_pass<GraphRewrite>();
-    ric_prop->add_matcher<init::SplitConcat>();
-    ric_prop->add_matcher<init::Gather>();
-    ric_prop->add_matcher<prop::Convolution>();
-    ric_prop->add_matcher<prop::GroupConvolution>();
-    ric_prop->add_matcher<prop::Binary>();
-    ric_prop->add_matcher<prop::ShapeOf>();
-    ric_prop->add_matcher<prop::Transpose>();
-    ric_prop->add_matcher<prop::PassThrough>();
-    ric_prop->add_matcher<prop::Unsupported>();
+    {
+        using namespace init;
+        ADD_MATCHER(ric_prop, SplitConcat, nodes_to_fuse)
+        ADD_MATCHER(ric_prop, Gather, nodes_to_fuse)
+    }
 
+    {
+        using namespace prop;
+        ADD_MATCHER(ric_prop, Convolution)
+        ADD_MATCHER(ric_prop, GroupConvolution)
+        ADD_MATCHER(ric_prop, Binary)
+        ADD_MATCHER(ric_prop, ShapeOf)
+        ADD_MATCHER(ric_prop, Transpose)
+        ADD_MATCHER(ric_prop, PassThrough)
+        ADD_MATCHER(ric_prop, Unsupported)
+    }
+
+    // Handle quantized weights case (dequantize sub-graph is on the weights path)
+    auto ric_back_prop = m.register_pass<ov::pass::BackwardGraphRewrite>();
+    {
+        using namespace back_prop;
+        ADD_MATCHER(ric_back_prop, Binary)
+        ADD_MATCHER(ric_back_prop, ConvertPassThrough)
+        REGISTER_PASS(m, Constant)
+    }
     // TODO: validate attributes by request
 
     // Second we fuse available RIC into nodes and remove original nodes related to fused RIC
     auto ric_fuse = m.register_pass<GraphRewrite>();
-    ric_fuse->add_matcher<fuse::InsertReverseInputChannel>();
-    ric_fuse->add_matcher<fuse::EraseSplitConcat>();
-    ric_fuse->add_matcher<fuse::EraseGather>();
+    {
+        using namespace fuse;
+        ADD_MATCHER(ric_fuse, InsertReverseInputChannel, nodes_to_fuse)
+        ADD_MATCHER(ric_fuse, EraseSplitConcat)
+        ADD_MATCHER(ric_fuse, EraseGather)
+    }
 
     m.run_passes(model);
     return false;
 }
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov

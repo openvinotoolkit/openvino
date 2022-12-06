@@ -8,15 +8,12 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id ctc_greedy_decoder::type_id() {
-    static primitive_type_base<ctc_greedy_decoder> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(ctc_greedy_decoder)
 
-layout ctc_greedy_decoder_inst::calc_output_layout(ctc_greedy_decoder_node const& node) {
-    auto input_node_layout = node.input().get_non_padded_output_layout();
-    auto prim = node.get_primitive();
-    auto output_type = prim->output_data_type ? *prim->output_data_type : input_node_layout.data_type;
+layout ctc_greedy_decoder_inst::calc_output_layout(ctc_greedy_decoder_node const& node, kernel_impl_params const& impl_param) {
+    auto input_node_layout = impl_param.get_input_layout();
+    auto prim = impl_param.typed_desc<ctc_greedy_decoder>();
+    auto output_type = prim->output_data_types[0].value_or(input_node_layout.data_type);
 
     return layout(output_type, input_node_layout.format, prim->output_tensor);
 }

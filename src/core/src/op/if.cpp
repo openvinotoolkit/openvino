@@ -66,7 +66,7 @@ static ov::PartialShape resolve_shape(const ov::PartialShape& then_pshape, const
 }
 
 bool ov::op::v8::If::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v8_If_visit_attributes);
+    OV_OP_SCOPE(v8_If_visit_attributes);
     visitor.on_attribute("then_body", m_bodies[THEN_BODY_INDEX]);
     visitor.on_attribute("then_inputs", m_input_descriptions[THEN_BODY_INDEX]);
     visitor.on_attribute("then_outputs", m_output_descriptions[THEN_BODY_INDEX]);
@@ -90,7 +90,7 @@ void ov::op::v8::If::validate_and_infer_type_body(
 }
 
 void ov::op::v8::If::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v8_If_validate_and_infer_types);
+    OV_OP_SCOPE(v8_If_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this, m_bodies.size() == 2, "If contains incorrect number of bodies:", m_bodies.size());
 
@@ -179,7 +179,7 @@ void ov::op::v8::If::validate_and_infer_types() {
 }
 
 std::shared_ptr<ov::Node> ov::op::v8::If::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v8_If_clone_with_new_inputs);
+    OV_OP_SCOPE(v8_If_clone_with_new_inputs);
 
     check_new_args_count(this, new_args);
     auto op = make_shared<op::v8::If>();

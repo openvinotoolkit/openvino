@@ -8,6 +8,7 @@
 
 #include "openvino/op/op.hpp"
 #include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset2.hpp"
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset4.hpp"
@@ -15,6 +16,7 @@
 #include "openvino/opsets/opset6.hpp"
 #include "openvino/opsets/opset7.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset9.hpp"
 
 TEST(opset, opset1) {
     auto op = std::make_shared<ov::opset1::Parameter>();
@@ -142,6 +144,38 @@ TEST(opset, opset8_dump) {
     }
     std::cout << std::endl;
     ASSERT_EQ(167, opset.get_types_info().size());
+}
+
+TEST(opset, opset9) {
+    auto op = std::make_shared<ov::opset9::Parameter>();
+    ASSERT_NE(nullptr, op);
+    EXPECT_TRUE(ov::op::util::is_parameter(op));
+}
+
+TEST(opset, opset9_dump) {
+    const auto& opset = ov::get_opset9();
+    std::cout << "All opset9 operations: ";
+    for (const auto& t : opset.get_types_info()) {
+        std::cout << t.name << " ";
+    }
+    std::cout << std::endl;
+    ASSERT_EQ(173, opset.get_types_info().size());
+}
+
+TEST(opset, opset10) {
+    auto op = std::make_shared<ov::opset10::Parameter>();
+    ASSERT_NE(nullptr, op);
+    EXPECT_TRUE(ov::op::util::is_parameter(op));
+}
+
+TEST(opset, opset10_dump) {
+    const auto& opset = ov::get_opset10();
+    std::cout << "All opset10 operations: ";
+    for (const auto& t : opset.get_types_info()) {
+        std::cout << t.name << " ";
+    }
+    std::cout << std::endl;
+    ASSERT_EQ(177, opset.get_types_info().size());
 }
 
 class MyOpOld : public ov::op::Op {

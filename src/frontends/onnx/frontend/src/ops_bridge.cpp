@@ -35,6 +35,8 @@
 #include "op/com.microsoft/attention.hpp"
 #include "op/com.microsoft/bias_gelu.hpp"
 #include "op/com.microsoft/embed_layer_normalization.hpp"
+#include "op/com.microsoft/fused_conv.hpp"
+#include "op/com.microsoft/fusedgemm.hpp"
 #include "op/com.microsoft/skip_layer_normalization.hpp"
 #include "op/compress.hpp"
 #include "op/concat.hpp"
@@ -69,6 +71,7 @@
 #include "op/global_average_pool.hpp"
 #include "op/global_max_pool.hpp"
 #include "op/greater.hpp"
+#include "op/grid_sample.hpp"
 #include "op/gru.hpp"
 #include "op/hard_sigmoid.hpp"
 #include "op/hard_swish.hpp"
@@ -77,6 +80,9 @@
 #include "op/if.hpp"
 #include "op/image_scaler.hpp"
 #include "op/instance_norm.hpp"
+#include "op/is_finite.hpp"
+#include "op/is_inf.hpp"
+#include "op/is_nan.hpp"
 #include "op/leaky_relu.hpp"
 #include "op/less.hpp"
 #include "op/log.hpp"
@@ -109,6 +115,7 @@
 #include "op/org.openvinotoolkit/experimental_detectron/roi_feature_extractor.hpp"
 #include "op/org.openvinotoolkit/experimental_detectron/topk_rios.hpp"
 #include "op/org.openvinotoolkit/fake_quantize.hpp"
+#include "op/org.openvinotoolkit/generate_proposals.hpp"
 #include "op/org.openvinotoolkit/group_norm.hpp"
 #include "op/org.openvinotoolkit/normalize.hpp"
 #include "op/org.openvinotoolkit/prior_box.hpp"
@@ -160,6 +167,7 @@
 #include "op/tile.hpp"
 #include "op/topk.hpp"
 #include "op/transpose.hpp"
+#include "op/trilu.hpp"
 #include "op/unsqueeze.hpp"
 #include "op/upsample.hpp"
 #include "op/where.hpp"
@@ -344,6 +352,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("GlobalLpPool", 1, global_lp_pool);
     REGISTER_OPERATOR("GlobalMaxPool", 1, global_max_pool);
     REGISTER_OPERATOR("Greater", 1, greater);
+    REGISTER_OPERATOR("GridSample", 1, grid_sample);
     REGISTER_OPERATOR("GRU", 1, gru);
     REGISTER_OPERATOR("Hardmax", 1, hardmax);
     REGISTER_OPERATOR("Hardmax", 13, hardmax);
@@ -353,6 +362,9 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("If", 1, if_op);
     REGISTER_OPERATOR("ImageScaler", 1, image_scaler);
     REGISTER_OPERATOR("InstanceNormalization", 1, instance_norm);
+    REGISTER_OPERATOR("IsFinite", 1, is_finite);
+    REGISTER_OPERATOR("IsInf", 1, is_inf);
+    REGISTER_OPERATOR("IsNaN", 1, is_nan)
     REGISTER_OPERATOR("LeakyRelu", 1, leaky_relu);
     REGISTER_OPERATOR("Less", 1, less);
     REGISTER_OPERATOR("Log", 1, log);
@@ -453,6 +465,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("TopK", 10, topk);
     REGISTER_OPERATOR("TopK", 11, topk);
     REGISTER_OPERATOR("Transpose", 1, transpose);
+    REGISTER_OPERATOR("Trilu", 1, trilu);
     REGISTER_OPERATOR("Unsqueeze", 1, unsqueeze);
     REGISTER_OPERATOR("Unsqueeze", 13, unsqueeze);
     REGISTER_OPERATOR("Where", 1, where);
@@ -491,6 +504,7 @@ OperatorsBridge::OperatorsBridge() {
                                   1,
                                   experimental_detectron_topk_rois);
     REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "FakeQuantize", 1, fake_quantize);
+    REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "GenerateProposals", 1, generate_proposals);
     REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "GroupNorm", 1, group_norm);
     REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "Normalize", 1, normalize);
     REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "PriorBox", 1, prior_box);
@@ -499,8 +513,11 @@ OperatorsBridge::OperatorsBridge() {
 
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "Attention", 1, attention);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "BiasGelu", 1, bias_gelu);
+    REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "FusedConv", 1, fused_conv);
+    REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "FusedGemm", 1, fusedgemm);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "EmbedLayerNormalization", 1, embed_layer_normalization);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "SkipLayerNormalization", 1, skip_layer_normalization);
+    REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "Trilu", 1, trilu);
 }
 
 #undef REGISTER_OPERATOR

@@ -85,7 +85,7 @@ PlaceOutputEdge::PlaceOutputEdge(const onnx_editor::OutputEdge& edge,
 PlaceOutputEdge::PlaceOutputEdge(onnx_editor::OutputEdge&& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
     : m_edge{std::move(edge)},
       m_editor{std::move(editor)},
-      m_initial_target_tensor_name{m_editor->get_target_tensor_name(edge)} {}
+      m_initial_target_tensor_name{m_editor->get_target_tensor_name(m_edge)} {}
 
 void PlaceOutputEdge::check_if_valid() const {
     bool is_valid_place = m_editor->get_target_tensor_name(m_edge) == m_initial_target_tensor_name;

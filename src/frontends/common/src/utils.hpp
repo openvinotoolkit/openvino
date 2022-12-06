@@ -22,6 +22,10 @@
     RETHROW_FRONTEND_EXCEPTION(ov::frontend::NotImplementedFailure) \
     RETHROW_FRONTEND_EXCEPTION(ov::AssertFailure)                   \
     RETHROW_FRONTEND_EXCEPTION(ov::Exception)                       \
+    catch (const std::exception& e) {                               \
+        const auto message = std::string(MESSAGE "\n") + e.what();  \
+        OPENVINO_ASSERT(false, message);                            \
+    }                                                               \
     catch (...) {                                                   \
         OPENVINO_ASSERT(false, (MESSAGE));                          \
     }
@@ -37,6 +41,10 @@
     RETHROW_FRONTEND_EXCEPTION(ov::frontend::NotImplementedFailure) \
     RETHROW_FRONTEND_EXCEPTION(ov::AssertFailure)                   \
     RETHROW_FRONTEND_EXCEPTION(ov::Exception)                       \
+    catch (const std::exception& e) {                               \
+        const auto message = std::string(MESSAGE "\n") + e.what();  \
+        OPENVINO_ASSERT(false, message);                            \
+    }                                                               \
     catch (...) {                                                   \
         OPENVINO_ASSERT(false, (MESSAGE));                          \
     }

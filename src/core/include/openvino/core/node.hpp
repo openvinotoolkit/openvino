@@ -137,7 +137,7 @@ protected:
     descriptor::Output& get_output_descriptor(size_t position);
 
     /// \brief Construct an uninitialized Node
-    Node() = default;
+    Node();
     /// \brief Copying a node
     Node(const Node&);
     /// \brief Assignment operator
@@ -493,6 +493,12 @@ public:
                              const Output<Node>& graph_value);
 
     virtual bool match_node(ov::pass::pattern::Matcher* matcher, const Output<Node>& graph_value);
+
+protected:
+    /// \brief Check constant folding disabled attribute.
+    ///
+    /// \return true if constant folding disabled otherwise false.
+    bool is_const_fold_disabled() const;
 
 private:
     friend class ov::NodeAccessor;
