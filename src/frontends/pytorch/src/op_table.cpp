@@ -49,6 +49,7 @@ OP_CONVERTER(translate_max_pool2d);
 OP_CONVERTER(translate_masked_fill);
 OP_CONVERTER(translate_mean);
 OP_CONVERTER(translate_neg);
+OP_CONVERTER(translate_norm);
 OP_CONVERTER(translate_new_full);
 OP_CONVERTER(translate_new_ones);
 OP_CONVERTER(translate_new_zeros);
@@ -145,6 +146,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::mul_", op::inplace_op<op::translate_1to1_match_2_inputs<opset8::Multiply>>},
         {"aten::ne", op::translate_1to1_match_2_inputs<opset8::NotEqual>},
         {"aten::neg", op::translate_neg},
+        {"aten::norm", op::translate_norm},
         {"aten::new_full", op::translate_new_full},
         {"aten::new_ones", op::translate_new_ones},
         {"aten::new_zeros", op::translate_new_zeros},
