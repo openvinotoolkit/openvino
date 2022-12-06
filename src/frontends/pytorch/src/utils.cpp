@@ -111,6 +111,13 @@ std::shared_ptr<Node> get_axes_range(NodeContext& context, size_t input_id) {
     return context.mark_node(std::make_shared<opset8::Range>(start, reduced_rank, step, element::i32));
 };
 
+std::shared_ptr<Node> numel(NodeContext& context, size_t input_id) {
+    auto x = context.get_input(input_id);
+    auto input_shape = context.mark_node(std::make_shared<opset8::ShapeOf>(x));
+    auto axes = context.mark_node(opset8::Constant::create(element::i64, Shape({1}), {0}));
+    return context.mark_node(std::make_shared<opset8::ReduceProd>(input_shape, axes, false));
+};
+
 OutputVector make_framework_node(NodeContext* context) {
     auto schema = context->get_schema();
     // TODO: properly process schema to get the actual position of mutable input
