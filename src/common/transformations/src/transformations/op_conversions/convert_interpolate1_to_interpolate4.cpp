@@ -37,7 +37,7 @@ ov::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolate4()
         std::shared_ptr<Node> scales = std::make_shared<opset1::Divide>(out_dims, in_dims);
         if (const auto& constant = ov::get_constant_from_source(scales))
             scales = constant;
-        auto axisConstant = ngraph::op::Constant::create(ngraph::element::i64, {axes.size()}, axes);
+        auto axisConstant = opset1::Constant::create(ngraph::element::i64, {axes.size()}, axes);
 
         ov::opset4::Interpolate::InterpolateAttrs attrsV4;
         auto input_shape_rank = interpolationV0->get_input_partial_shape(0).rank().get_length();

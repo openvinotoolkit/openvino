@@ -44,8 +44,8 @@ TEST(trim_to_outputs, one_node_to_eliminate_case1) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weights", weights));
     topology.add(data("bias", bias));
-    topology.add(cldnn::convolution("conv1", { "input" }, { "weights" }, { "bias" }));
-    topology.add(cldnn::convolution("conv2", { "input" }, { "weights" }, { "bias" }));
+    topology.add(cldnn::convolution("conv1", { input_info("input") }, { "weights" }, { "bias" }));
+    topology.add(cldnn::convolution("conv2", { input_info("input") }, { "weights" }, { "bias" }));
 
     network network(engine, topology, build_opt);
     network.set_input_data("input", input);
@@ -97,10 +97,10 @@ TEST(trim_to_outputs, one_node_to_eliminate_case2) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weights1", weights1));
     topology.add(data("bias1", bias1));
-    topology.add(cldnn::convolution("conv1", { "input" }, { "weights1" }, { "bias1" }));
+    topology.add(cldnn::convolution("conv1", { input_info("input") }, { "weights1" }, { "bias1" }));
     topology.add(data("weights2", weights2));
     topology.add(data("bias2", bias2));
-    topology.add(cldnn::convolution("conv2", { "input" }, { "weights2" }, { "bias2" }));
+    topology.add(cldnn::convolution("conv2", { input_info("input") }, { "weights2" }, { "bias2" }));
 
     network network(engine, topology, build_opt);
     network.set_input_data("input", input);
@@ -154,12 +154,12 @@ TEST(trim_to_outputs, two_nodes_to_eliminate_case1) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weights1", weights1));
     topology.add(data("bias", bias));
-    topology.add(cldnn::convolution("conv1", { "input" }, { "weights1" }, { "bias" }));
+    topology.add(cldnn::convolution("conv1", { input_info("input") }, { "weights1" }, { "bias" }));
     topology.add(data("weights23", weights23));
-    topology.add(cldnn::convolution("conv2", { "input" }, { "weights23" }, { "bias" }));
-    topology.add(cldnn::convolution("conv3", { "conv2" }, { "weights23" }, { "bias" }));
+    topology.add(cldnn::convolution("conv2", { input_info("input") }, { "weights23" }, { "bias" }));
+    topology.add(cldnn::convolution("conv3", { input_info("conv2") }, { "weights23" }, { "bias" }));
     topology.add(data("weights4", weights4));
-    topology.add(cldnn::convolution("conv4", { "conv1" }, { "weights4" }, { "bias" }));
+    topology.add(cldnn::convolution("conv4", { input_info("conv1") }, { "weights4" }, { "bias" }));
 
     network network(engine, topology, build_opt);
     network.set_input_data("input", input);

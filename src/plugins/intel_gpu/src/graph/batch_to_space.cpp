@@ -20,7 +20,7 @@ layout batch_to_space_inst::calc_output_layout(batch_to_space_node const& node, 
     auto input_layout = impl_param.get_input_layout();
     auto input_format = input_layout.format;
 
-    auto output_type = desc->output_data_type ? *desc->output_data_type : input_layout.data_type;
+    auto output_type = desc->output_data_types[0].value_or(input_layout.data_type);
 
     if (impl_param.has_fused_primitives())
         output_type = impl_param.get_fused_output_layout().data_type;
