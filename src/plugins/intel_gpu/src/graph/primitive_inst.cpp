@@ -146,16 +146,37 @@ void primitive_inst::update_shape() {
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::shape_inference);
 
     bool input_shape_changed = false;
+    bool updated_input_shape_changed = false;
+    bool all_layouts_are_static = true;
+    for (size_t i = 0; i < _impl_params->input_layouts.size(); i++) {
+        if (_impl_params->get_input_layout(i).is_dynamic())
+            all_layouts_are_static = false;
+    }
+    for (size_t i = 0; i < _impl_params->output_layouts.size(); i++) {
+        if (_impl_params->get_output_layout(i).is_dynamic())
+            all_layouts_are_static = false;
+    }
+
     for (size_t i = 0; i < _deps.size(); i++) {
         auto idx = _deps[i].second;
-        auto new_shape = _deps[i].first->_impl_params->get_output_layout(idx);
-        if (_impl_params->get_input_layout(i) != new_shape) {
-            _impl_params->input_layouts[i] = new_shape;
+        auto new_input_layout = _deps[i].first->_impl_params->get_output_layout(idx);
+        auto tmp_impl_param = *_impl_params;
+        tmp_impl_param.input_layouts[i] = new_input_layout;
+        auto orig_input_layout = _impl_params->get_input_layout(i);
+        auto updated_orig_input_layout = all_layouts_are_static ?
+                                        _node->type()->get_fake_aligned_params(*_impl_params).get_input_layout(i) : orig_input_layout;
+        auto updated_new_input_layout = all_layouts_are_static ?
+                                        _node->type()->get_fake_aligned_params(tmp_impl_param).get_input_layout(i) : new_input_layout;
+        if (orig_input_layout != new_input_layout) {
+            _impl_params->input_layouts[i] = new_input_layout;
             input_shape_changed = true;
+        }
+        if (updated_orig_input_layout != updated_new_input_layout) {
+            updated_input_shape_changed = true;
         }
     }
 
-    if (input_shape_changed)
+    if (updated_input_shape_changed)
         set_shape_change();
 
     // Even though the predecessors' shapes are not changed, the output shape might be udpated by the mem_dep
@@ -218,16 +239,23 @@ void primitive_inst::update_shape() {
 
     _impl_params->memory_deps = memory_deps;
 
-    auto update_output_layout = [&](layout& layout, size_t idx) {
-        layout.data_padding = padding::max(_node->get_primitive()->output_paddings[idx], layout.data_padding);
-        if (_impl_params->get_output_layout(idx) != layout) {
+    auto update_output_layout = [&](layout& new_output_layout, size_t idx) {
+        auto orig_output_layout = _impl_params->get_output_layout(idx);
+        auto updated_orig_output_layout = all_layouts_are_static ?
+                                          _node->type()->get_fake_aligned_params(*_impl_params).get_output_layout(idx) : orig_output_layout;
+        new_output_layout.data_padding = padding::max(_node->get_primitive()->output_paddings[idx], new_output_layout.data_padding);
+        auto tmp_impl_param = *_impl_params;
+        tmp_impl_param.output_layouts[idx] = new_output_layout;
+        auto updated_new_output_layout = all_layouts_are_static ?
+                                         _node->type()->get_fake_aligned_params(tmp_impl_param).get_output_layout(idx) : new_output_layout;
+        if (updated_orig_output_layout != updated_new_output_layout) {
             GPU_DEBUG_IF(debug_config->verbose >= 4) {
                 GPU_DEBUG_COUT << id() << ": update shape: was: " << _impl_params->get_output_layout(idx).to_short_string()
-                               << " now: " << layout.to_short_string() << std::endl;
+                               << " now: " << new_output_layout.to_short_string() << std::endl;
             }
             set_shape_change();
         }
-        _impl_params->output_layouts[idx] = layout;
+        _impl_params->output_layouts[idx] = new_output_layout;
     };
 
     auto new_layouts = _node->type()->calc_output_layouts(*_node, *_impl_params);
