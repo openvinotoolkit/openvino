@@ -152,7 +152,7 @@ const std::shared_ptr<InferenceEngine::ExecutorManager>& ov::IPlugin::get_execut
     return m_executor_manager;
 }
 
-ov::SupportedOpsMap ov::IPlugin::query_model(const std::shared_ptr<ov::Model>& model,
+ov::SupportedOpsMap ov::IPlugin::query_model(const std::shared_ptr<const ov::Model>& model,
                                              const ov::AnyMap& properties) const {
     OPENVINO_NOT_IMPLEMENTED;
 }

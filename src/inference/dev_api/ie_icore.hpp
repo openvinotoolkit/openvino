@@ -17,6 +17,7 @@
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "ie_parameter.hpp"
 #include "ie_remote_context.hpp"
+#include "openvino/icore.hpp"
 #include "openvino/runtime/properties.hpp"
 
 namespace ov {
@@ -26,7 +27,7 @@ namespace ov {
  * @brief Minimal ICore interface to allow plugin to get information from Core Inference Engine class.
  * @ingroup ie_dev_api_plugin_api
  */
-class ICore {
+class ICoreOld {
 public:
     /**
      * @brief Reads IR xml and bin (with the same name) files
@@ -257,12 +258,12 @@ public:
     /**
      * @brief Default virtual destructor
      */
-    virtual ~ICore() = default;
+    virtual ~ICoreOld() = default;
 };
 }  // namespace ov
 
 namespace InferenceEngine {
-using ICore = ov::ICore;
+using ICore = ov::ICoreOld;
 /**
  * @private
  */
