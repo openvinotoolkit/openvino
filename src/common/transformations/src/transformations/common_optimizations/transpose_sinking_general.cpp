@@ -37,6 +37,7 @@ ov::pass::TransposeSinkingGeneralBackward::TransposeSinkingGeneralBackward() {
 }
 
 bool ov::pass::TransposeSinkingGeneral::run_on_model(const std::shared_ptr<ov::Model>& f) {
+    RUN_ON_FUNCTION_SCOPE(TransposeSinkingGeneral);
     {
         ngraph::pass::Manager manager(get_pass_config());
         manager.register_pass<ov::pass::TransposeSinkingGeneralForward>();
