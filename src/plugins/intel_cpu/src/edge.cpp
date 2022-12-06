@@ -593,11 +593,44 @@ EdgePtr Edge::getBaseEdge(int look) {
 
         // Multiple connection to some out port
         // Will try to find inplace consumer
+        std::vector<EdgePtr> inplaceEdges;
         for (auto &ch_edge : ch_edges) {
             auto &chch_conf = ch_edge->getChild()->getSelectedPrimitiveDescriptor()->getConfig();
 
-            if (chch_conf.inConfs[ch_edge->getOutputNum()].inPlace() >= 0)
-                next_ch_edge = ch_edge;
+            if (chch_conf.inConfs[ch_edge->getOutputNum()].inPlace() >= 0) {
+                inplaceEdges.push_back(ch_edge);
+            }
+        }
+        if (inplaceEdges.size() == 1) {
+            next_ch_edge = inplaceEdges[0];
+        } else if (inplaceEdges.size() > 1) {
+            // it does not allow there are more than 2 inplace child edges in enforceReorder
+            // but this pattern should be reasonable(in KALDI_Aspire_Tdnn_api_2_True_batch_1_device_CPU_device_mode_GNA_AUTO_precision_FP32_qb_8)
+            //   concat1
+            //   /     \
+            // concat2 reorder
+            //           |
+            //       MemoryOutput
+            // concat1: inplace, shape: 1x120, stride: 220, 1
+            // concat2: inplace, shape: 1x220, stride: 220, 1
+            // reorder: optimized, shape: 1x120, stride: 220, 1
+            // MemoryOutput, not inplace, shape: 1x120, stride: 120, 1
+            // since reorder is optimized it's also inplace, the real base should be the non-reorder path
+            //  and because enforceReorder does not generate more than 2 inplace child edges except
+            //  the only case that reorder inserted.
+            bool found = false;
+            for (auto& inplaceEdge : inplaceEdges) {
+                if (inplaceEdge->getChild()->getType() != Type::Reorder) {
+                    next_ch_edge = inplaceEdge;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                DEBUG_LOG(*this, " Danger: More than 1 inplace child reorder edges, will choose the last one");
+                // keep the original logic
+                next_ch_edge = inplaceEdges.back();
+            }
         }
         return next_ch_edge->getBaseEdge(LOOK_DOWN);
     } else if (parentConfig.outConfs[inputNum].inPlace() >= 0 && (look & LOOK_UP)) {
