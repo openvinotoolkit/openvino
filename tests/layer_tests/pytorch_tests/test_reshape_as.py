@@ -17,14 +17,14 @@ class TestReshapeAs(PytorchLayerTest):
 
     def create_model(self):
 
-        class aten_select(torch.nn.Module):
+        class aten_reshape_as(torch.nn.Module):
 
             def forward(self, input_tensor, shape_tensor):
                 return input_tensor.reshape_as(shape_tensor)
 
         ref_net = None
 
-        return aten_select(), ref_net, "aten::reshape_as"
+        return aten_reshape_as(), ref_net, "aten::reshape_as"
 
     @pytest.mark.nightly
     def test_reshape_as(self, ie_device, precision, ir_version, input_tesnors):

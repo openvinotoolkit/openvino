@@ -14,6 +14,7 @@ namespace op {
 
 #define OP_CONVERTER(op) OutputVector op(NodeContext& node)
 
+OP_CONVERTER(translate_adaptive_avg_pool3d);
 OP_CONVERTER(translate_adaptive_max_pool2d);
 OP_CONVERTER(translate_add);
 OP_CONVERTER(translate_addcmul);
@@ -75,6 +76,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::_convolution_mode", op::translate_convolution_mode},
         {"aten::abs", op::translate_1to1_match_1_inputs<opset8::Abs>},
         {"aten::adaptive_avg_pool2d", op::translate_1to1_match_2_inputs<opset8::AdaptiveAvgPool>},
+        {"aten::adaptive_avg_pool3d", op::translate_adaptive_avg_pool3d},
         {"aten::adaptive_max_pool2d", op::translate_adaptive_max_pool2d},
         {"aten::add", op::translate_add},
         {"aten::add_", op::inplace_op<op::translate_add>},
