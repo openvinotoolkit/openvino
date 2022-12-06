@@ -15,8 +15,11 @@ OutputVector translate_roll(NodeContext& context) {
     const auto data = context.get_input(0);
     const auto shifts = context.get_input(1);
     const auto axes = context.get_input(2);
-    // if axes was not set
-    if (axes.get_shape() != shifts.get_shape()) {
+    const auto shifts_pshape = shifts.get_partial_shape();
+    const auto axes_pshape = axes.get_partial_shape();
+    const auto match_dims = axes_pshape.compatible(shifts_pshape);
+    const auto both_dynamic = (shifts_pshape.rank().is_dynamic() && axes_pshape.rank().is_dynamic());
+    if (!(both_dynamic || match_dims)) {
         const auto const_minus_1 = opset8::Constant::create(element::i32, Shape{1}, {-1});
         const auto axis_0 = opset8::Constant::create(element::i32, Shape{1}, {0});
         const auto flat = std::make_shared<opset8::Reshape>(data, const_minus_1, false);
