@@ -131,7 +131,7 @@ from openvino.tools.mo import convert_model
 ov_model = convert_model("resnet.onnx")
 ```
 
-MO Python API allows conversion of PyTorch models. Converting to PyTorch requires providing "input_shape" or "example_input".
+MO Python API allows conversion of PyTorch models. Converting PyTorch models requires providing "input_shape" or "example_input".
 ```sh
 import torchvision
 
@@ -151,9 +151,9 @@ ov_model = convert_model(model, example_input=torch.zeros(1, 3, 100, 100), onnx_
 
 - Following types are supported as input model for convert_model():
 
-| PyTorch                                                          |                                                                 TF2 / Keras                                                                 |                                   TF                                   |
-|:-----------------------------------------------------------------|:-------------------------------------------------------------------------------------------------------------------------------------------:|:----------------------------------------------------------------------:|
-| torch.nn.Module torch.jit.ScriptModule torch.jit.ScriptFunction  | tf.keras.Model tf.keras.layers.Layer tf.function tf.Module tf.train.checkpoint tf.python.training.tracking.base.Trackable(with limitations) | tf.compat.v1.GraphDef tf.compat.v1.wrap_function tf.compat.v1.session  |
+| PyTorch                                                          |                                                                                                  TF/ TF2 / Keras                                                                                                  |
+|:-----------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|
+| torch.nn.Module torch.jit.ScriptModule torch.jit.ScriptFunction  | tf.compat.v1.GraphDef tf.compat.v1.wrap_function tf.compat.v1.session tf.keras.Model tf.keras.layers.Layer tf.function tf.Module tf.train.checkpoint tf.python.training.tracking.base.Trackable(with limitations) | 
 
 - convert_model() accepts all parameters available in MO command line tool. Parameters can be specified by Python classes or string analogs identically to command line tool.
 - Example 1:

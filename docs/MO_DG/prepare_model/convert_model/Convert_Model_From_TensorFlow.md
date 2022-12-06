@@ -139,6 +139,16 @@ where the batch size and the sequence length equal 2 and 30 respectively.
 mo --saved_model_dir BERT --input mask,word_ids,type_ids --input_shape [2,30],[2,30],[2,30]
 ```
 
+## MO Python API Interface
+* MO Python API supports passing TF/TF2 models directly from memory.
+
+```sh
+import tensorflow_hub as hub
+
+model = hub.KerasLayer("https://tfhub.dev/google/imagenet/mobilenet_v1_100_224/classification/5")
+ov_model = convert_model(model, input_shape=[-1, 224, 224, 3])
+```
+
 ## Supported TensorFlow and TensorFlow 2 Keras Layers
 For the list of supported standard layers, refer to the [Supported Framework Layers ](@ref openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers) page.
 
