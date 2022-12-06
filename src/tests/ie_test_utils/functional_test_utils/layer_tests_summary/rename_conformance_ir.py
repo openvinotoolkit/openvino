@@ -44,27 +44,29 @@ def create_hash(in_dir_path: Path):
         check_file(meta_path)
 
         str_to_hash = str()
-        model = core.read_model(model_path)
-        for node in model.get_ordered_ops():
-            for input in node.inputs():
-                input_node = input.get_node()
-                len_shape = None
-                try:
-                    len_shape = len(input.get_partial_shape())
-                except:
-                    logger.error(f"Impossible to get input_shape for {input_node.name}")
-                str_to_hash += str(len_shape) + str(input.get_element_type().get_type_name()) + str(input.get_partial_shape().is_dynamic) + \
-                     str(input_node.get_type_info().name) + str(input_node.get_type_info().version)
-            for output in node.outputs():
-                output_node = output.get_node()
-                len_shape = None
-                try:
-                    len_shape = len(output.get_partial_shape())
-                except:
-                    logger.error(f"Impossible to get output_shape for {output.names.pop()}")
-                str_to_hash += str(len_shape) + str(output.get_element_type().get_type_name()) + str(output.get_partial_shape().is_dynamic) + \
-                     str(output_node.get_type_info().name) + str(output_node.get_type_info().version)
-        
+        try:
+            model = core.read_model(model_path)
+            for node in model.get_ordered_ops():
+                for input in node.inputs():
+                    input_node = input.get_node()
+                    len_shape = None
+                    try:
+                        len_shape = len(input.get_partial_shape())
+                    except:
+                        logger.error(f"Impossible to get input_shape for {input_node.name}")
+                    str_to_hash += str(len_shape) + str(input.get_element_type().get_type_name()) + str(input.get_partial_shape().is_dynamic) + \
+                        str(input_node.get_type_info().name) + str(input_node.get_type_info().version)
+                for output in node.outputs():
+                    output_node = output.get_node()
+                    len_shape = None
+                    try:
+                        len_shape = len(output.get_partial_shape())
+                    except:
+                        logger.error(f"Impossible to get output_shape for {output.names.pop()}")
+                    str_to_hash += str(len_shape) + str(output.get_element_type().get_type_name()) + str(output.get_partial_shape().is_dynamic) + \
+                        str(output_node.get_type_info().name) + str(output_node.get_type_info().version)
+        except:
+            logger.error(f"Impossible to create hash for {model_path}")
         ports_info = ET.parse(meta_path).getroot().find("ports_info")
         str_to_hash += ET.tostring(ports_info).decode('utf8').replace('\t', '')
 
