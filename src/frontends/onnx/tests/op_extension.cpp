@@ -145,8 +145,21 @@ INSTANTIATE_TEST_SUITE_P(ONNXOpExtensionViaCommonConstructor,
                          ::testing::Values(getTestDataOpExtensionViaCommonConstructor()),
                          FrontEndOpExtensionTest::getTestCaseName);
 
-TEST(ONNXOpExtensionViaCommonConstructor, onnx_op_extension_with_custom_domain) {
+TEST(ONNXOpExtensionViaCommonConstructor, onnx_op_extension_via_template_arg_with_custom_domain) {
     const auto ext = std::make_shared<onnx::OpExtension<ov::op::v0::Relu>>("CustomRelu", "my_custom_domain");
+
+    auto fe = std::make_shared<ov::frontend::onnx::FrontEnd>();
+    fe->add_extension(ext);
+
+    const auto input_model = fe->load(CommonTestUtils::getModelFromTestModelZoo(
+        ov::util::path_join({TEST_ONNX_MODELS_DIRNAME, "relu_custom_domain.onnx"})));
+
+    std::shared_ptr<ov::Model> model;
+    EXPECT_NO_THROW(fe->convert(input_model));
+}
+
+TEST(ONNXOpExtensionViaCommonConstructor, onnx_op_extension_via_ov_type_name_with_custom_domain) {
+    const auto ext = std::make_shared<onnx::OpExtension<>>("opset1::Relu", "CustomRelu", "my_custom_domain");
 
     auto fe = std::make_shared<ov::frontend::onnx::FrontEnd>();
     fe->add_extension(ext);
