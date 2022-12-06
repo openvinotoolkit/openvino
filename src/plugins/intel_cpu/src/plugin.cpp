@@ -622,7 +622,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
 
     ov::pass::Manager postLPTPassManager;
     postLPTPassManager.register_pass<ov::pass::UnrollTensorIterator>();
-    postLPTPassManager.register_pass<ReshapePRelu>();
+    postLPTPassManager.register_pass<ov::pass::ReshapePRelu>();
     postLPTPassManager.get_pass_config()->set_callback<ov::pass::UnrollTensorIterator>([](const_node_ptr &node) -> bool {
         // UnrollTI transformation is disabled by default, is turned on by LowLatency transformation
         return node->get_rt_info().count("UNROLL_TI") == 0;

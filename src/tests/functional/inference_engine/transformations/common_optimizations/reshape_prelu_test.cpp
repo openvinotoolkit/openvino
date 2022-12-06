@@ -9,7 +9,7 @@
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
-#include <ngraph_transformations/reshape_prelu.hpp>
+#include <transformations/common_optimizations/reshape_prelu.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 #include <ov_ops/type_relaxed.hpp>
@@ -17,7 +17,7 @@
 #include "common_test_utils/ngraph_test_utils.hpp"
 
 using namespace testing;
-using namespace ov::intel_cpu;
+using namespace ov::pass;
 
 TEST(TransformationTests, ReshapePReluTest1) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
