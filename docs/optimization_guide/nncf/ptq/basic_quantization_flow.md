@@ -1,0 +1,83 @@
+# Basic quantization flow {#basic_qauntization_flow}
+
+## Introduction
+
+The basic quantization flow is the simplest way to apply 8-bit quantization to the model. It is available for models in the following frameworks: PyTorch, TensorFlow 2.x, ONNX, and OpenVINO. The basic quantization flow is based on the following steps:
+* Setup an environment and install dependencies.
+* Prepare the **calibration dataset** that used to estimate quantization parameters of the activations within the model.
+* Call quantization API to apply 8-bit quantization to the model.
+
+## Setup an environment
+
+It is recommented to setup a separate Python environment for quantization with NNCF. To do this, run the following command:
+```bash
+python3 -m venv nncf_ptq_env
+```
+You should also install all the packages required to instantiate the model object, for example DL fraework. After that you need to install NNCF on top of the environment:
+```bash
+pip install nncf
+```
+
+## Prepare calibration dataset
+
+At this step, you should create an instance of `nncf.Dataset` class that represents the calibration dataset. The `nncf.Dataset` class can be a wrapper over the framework dataset object that is used for model training or validation. The class constructor receives dataset object and the so-called transformation function. For example, if you use PyTorch, you can pass an instance of `torch.utils.data.DataLoader` object. 
+
+The transformation function is a function that takes a sample from the dataset and returns a data that can be passed to the model for inference. For example, this function can take a tuple of data tensor and labels tensor and return the former while ignoring the latter. The transformation function is used to avoid the need to modify the dataset code to make it compatible with the quantization API. The function is applied to each sample from the dataset before passing it to the model for inference. The following code snippet shows how to create an instance of `nncf.Dataset` class:
+
+@sphinxtabset
+
+@sphinxtab{PyTorch}
+
+@snippet docs/optimization_guide/nncf/ptq/code/ptq_torch.py dataset
+
+@endsphinxtab
+
+@sphinxtab{ONNX}
+
+@snippet docs/optimization_guide/nncf/ptq/code/ptq_torch.py dataset
+
+@endsphinxtab
+
+@sphinxtab{OpenVINO}
+
+@snippet docs/optimization_guide/nncf/ptq/code/ptq_torch.py dataset
+
+@endsphinxtab
+
+@endsphinxtabset
+
+In the case when there is no framework dataset object you can create your own entity which implements `Iterable` interface in Python and returns data samples feasible for inference. No transformation function is required in this case.
+
+
+## Run quantized model
+Once dataset is ready and model object is instantiated, you can apply 8-bit quantization to it. The following code snippet shows how to do this:
+@sphinxtabset
+
+@sphinxtab{PyTorch}
+
+@snippet docs/optimization_guide/nncf/ptq/code/ptq_torch.py quantization
+
+@endsphinxtab
+
+@sphinxtab{ONNX}
+
+@snippet docs/optimization_guide/nncf/ptq/code/ptq_torch.py quantization
+
+@endsphinxtab
+
+@sphinxtab{OpenVINO}
+
+@snippet docs/optimization_guide/nncf/ptq/code/ptq_torch.py quantization
+
+@endsphinxtab
+
+@endsphinxtabset
+
+>**Note**: model is an instance of `torch.nn.Module` class in the case of PyTorch, `onnx.ModelProto` in the case of ONNX, and `openvino.runtime.Model` in the case of OpenVINO.
+
+After that the model can be exported into th OpenVINO Intermediate Representation if needed and run faster with OpenVINO.
+
+If the accuracy of the quantized model is not satisfactory, you can try to use the [Quantization with accuracy control](@ref quantization_w_accuracy_control) flow.
+
+## See also
+* [Example of basic quantization flow in PyTorch](https://github.com/openvinotoolkit/nncf/blob/0f1d89cae234603e0dfdef4916fa06ef2401c383/examples/post_training_quantization/torch/mobilenet_v2/main.py)
