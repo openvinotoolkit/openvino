@@ -131,18 +131,17 @@ bool convert_precision(ov::pass::PassBase& pass,
 
     auto convert_node_output_precision = [&](const std::shared_ptr<ngraph::Node>& node) {
         bool res = false;
+        // Handle case with Constants as they can have consumers from other nGraph Function object
+        const auto constant = ov::as_type_ptr<opset10::Constant>(node);
+        const auto it = const_to_internal_output.find(node.get());
+        if (constant && constant->get_output_element_type(0) == from && it != const_to_internal_output.end()) {
+            return fuse_type_to_constant(node, to, it->second);
+        }
+
         for (const auto& output : node->outputs()) {
             if (output.get_element_type() == from) {
-                // Handle case with Constants as they can have consumers from other nGraph
-                // Function object
-                auto it = const_to_internal_output.find(node.get());
-                if (it != const_to_internal_output.end()) {
-                    res |= fuse_type_to_constant(node, to, it->second);
-                    continue;
-                }
-
                 // Check that node type exists in map and we can fuse type into node
-                auto t2f_it = type_to_fuse.find(node->get_type_info());
+                const auto t2f_it = type_to_fuse.find(node->get_type_info());
                 if (t2f_it != type_to_fuse.end()) {
                     res |= t2f_it->second(node, to, output.get_index());
                 }
