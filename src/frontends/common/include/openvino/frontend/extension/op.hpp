@@ -31,7 +31,6 @@ inline const ov::OpSet& get_opset_by_name(const std::string& opset_name) {
     }
 }
 
-
 /// \brief The helper function to create an instance of ov::Node class initialized by provided type name.
 /// Expected formats:
 /// - opsetN::OpName
@@ -61,22 +60,20 @@ inline std::shared_ptr<ov::Node> create_ov_node_by_name(const std::string& ov_ty
     if (cnt_colons == 2 && cnt_dots == 0) {
         auto divided = split(ov_type_name, "::");
         if (divided.size() != 2) {
-            FRONT_END_GENERAL_CHECK(
-                false,
-                "Invalid OpenVINO operation format, one of the next is expected:"
-                "opsetN::OpName or opsetN.OpName or OpName. Provided operation format: ",
-                ov_type_name);
+            FRONT_END_GENERAL_CHECK(false,
+                                    "Invalid OpenVINO operation format, one of the next is expected:"
+                                    "opsetN::OpName or opsetN.OpName or OpName. Provided operation format: ",
+                                    ov_type_name);
         }
         opset_name = divided[0];
         op_name = divided[1];
     } else if (cnt_colons == 0 && cnt_dots == 1) {
         auto divided = split(ov_type_name, ".");
         if (divided.size() != 2) {
-            FRONT_END_GENERAL_CHECK(
-                false,
-                "Invalid OpenVINO operation format, one of the next is expected:"
-                "opsetN::OpName or opsetN.OpName or OpName. Provided operation format: ",
-                ov_type_name);
+            FRONT_END_GENERAL_CHECK(false,
+                                    "Invalid OpenVINO operation format, one of the next is expected:"
+                                    "opsetN::OpName or opsetN.OpName or OpName. Provided operation format: ",
+                                    ov_type_name);
         }
         opset_name = divided[0];
         op_name = divided[1];
@@ -84,11 +81,10 @@ inline std::shared_ptr<ov::Node> create_ov_node_by_name(const std::string& ov_ty
         opset_name = "latest";
         op_name = ov_type_name;
     } else {
-        FRONT_END_GENERAL_CHECK(
-            false,
-            "Invalid OpenVINO operation format, one of the next is expected: \n"
-            "opsetN::OpName or opsetN.OpName or OpName. Provided operation format: ",
-            ov_type_name);
+        FRONT_END_GENERAL_CHECK(false,
+                                "Invalid OpenVINO operation format, one of the next is expected: \n"
+                                "opsetN::OpName or opsetN.OpName or OpName. Provided operation format: ",
+                                ov_type_name);
     }
 
     const auto& opset = get_opset_by_name(opset_name);
@@ -209,7 +205,9 @@ OpExtensionBase<BaseConversionType, void>::OpExtensionBase(const std::string& ov
                                                            const std::map<std::string, ov::Any>& attr_values_map)
     : BaseConversionType(fw_type_name,
                          OpConversionFunction(
-                             [ov_type_name](){return create_ov_node_by_name(ov_type_name);},
+                             [ov_type_name]() {
+                                 return create_ov_node_by_name(ov_type_name);
+                             },
                              attr_names_map,
                              attr_values_map)) {}
 
