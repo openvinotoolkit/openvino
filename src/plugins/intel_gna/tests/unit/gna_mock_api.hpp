@@ -27,8 +27,12 @@ public:
         uint32_t * sizeGranted,
         void ** memoryAddress));
 
+    MOCK_METHOD1(Gna2MemoryFree, Gna2Status(void* memory));
+
     MOCK_METHOD1(Gna2DeviceOpen, Gna2Status(
         uint32_t deviceIndex));
+
+    MOCK_METHOD1(Gna2DeviceClose, Gna2Status(uint32_t deviceIndex));
 
     MOCK_METHOD3(Gna2ModelCreate, Gna2Status(
         uint32_t deviceIndex,

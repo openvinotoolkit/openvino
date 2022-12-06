@@ -216,7 +216,7 @@ This section provides step-by-step instructions on how to run the Benchmark Tool
    pip install openvino-dev
    ```
 
-2. Download the model using omz_downloader, specifying the model name and directory to download the model to:
+2. Download the model using `omz_downloader`, specifying the model name and directory to download the model to:
    ```sh
    omz_downloader --name asl-recognition-0004 --precisions FP16 --output_dir omz_models
    ```

@@ -13,6 +13,7 @@
 #include "utils/ngraph_utils.hpp"
 #include "transformations/utils/utils.hpp"
 #include "common/cpu_memcpy.h"
+#include <utils/shape_inference/shape_inference_internal_dyn.hpp>
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -350,7 +351,7 @@ bool TensorIterator::isSupportedOperation(const std::shared_ptr<const ov::Node>&
 }
 
 TensorIterator::TensorIterator(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache), ngraphOp(op) {
+        Node(op, eng, cache, InternalDynShapeInferFactory()), ngraphOp(op) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
