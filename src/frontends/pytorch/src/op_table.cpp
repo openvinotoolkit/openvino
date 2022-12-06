@@ -20,6 +20,7 @@ OP_CONVERTER(translate_addcmul);
 OP_CONVERTER(translate_as_tensor);
 OP_CONVERTER(translate_avg_pool2d);
 OP_CONVERTER(translate_batch_norm);
+OP_CONVERTER(translate_clamp);
 OP_CONVERTER(translate_constant);
 OP_CONVERTER(translate_conv2d);
 OP_CONVERTER(translate_convolution);
@@ -82,6 +83,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::avg_pool2d", op::translate_avg_pool2d},
         {"aten::batch_norm", op::translate_batch_norm},
         // {"aten::cat", done as transformation},
+        {"aten::clamp", op::translate_clamp},
+        {"aten::clamp_min", op::translate_1to1_match_2_inputs<opset8::Maximum>},
+        {"aten::clamp_max", op::translate_1to1_match_2_inputs<opset8::Minimum>},
         {"aten::contiguous", op::skip_node},  // In openvino how tensors are stored in memory is internal plugin detail,
                                               // we assume all tensors are contiguous
         {"aten::conv2d", op::translate_conv2d},
