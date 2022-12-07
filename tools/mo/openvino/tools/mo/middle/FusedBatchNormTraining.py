@@ -27,7 +27,8 @@ class FusedBatchNormTraining(MiddleReplacementPattern):
     force_shape_inference = True
     force_clean_up = True
     # transformation works for the NHWC layout because transformation inserts Reshape to fuse N and H dimensions
-    graph_condition = [lambda graph: graph.graph['layout'] == 'NHWC']
+    graph_condition = [lambda graph: graph.graph['layout'] == 'NHWC' or
+                                     getattr(graph.graph['cmd_params'], 'auto_disable_nhwc_to_nchw', False)]
 
     def pattern(self):
         return dict(
