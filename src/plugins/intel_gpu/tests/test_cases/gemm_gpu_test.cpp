@@ -11,6 +11,8 @@
 #include <intel_gpu/primitives/crop.hpp>
 #include "ngraph/runtime/reference/matmul.hpp"
 
+#include "gemm_inst.h"
+
 #include <cstddef>
 #include <vector>
 
@@ -280,6 +282,60 @@ TEST(gemm_gpu, basic_bfyx_t2_inplace_crop_with_pad) {
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    EXPECT_EQ(output_ptr.size(), (uint32_t)3);
+    for (uint32_t i = 0; i < out_data.size(); ++i) {
+        EXPECT_FLOAT_EQ(output_ptr[i], out_data[i]);
+    }
+}
+
+TEST(gemm_gpu, dynamic) {
+    auto& engine = get_test_engine();
+    ov::Shape in1_shape = { 1, 1, 3, 4 };
+    ov::Shape in2_shape = { 1, 4 };
+    auto in1_layout = layout{ov::PartialShape::dynamic(in1_shape.size()), data_types::f32, format::bfyx};
+    auto in2_layout = layout{ov::PartialShape::dynamic(in2_shape.size()), data_types::f32, format::bfyx};
+    auto input1 = engine.allocate_memory(layout{ov::PartialShape(in1_shape), data_types::f32, format::bfyx});
+    auto input2 = engine.allocate_memory(layout{ov::PartialShape(in2_shape), data_types::f32, format::bfyx});
+
+    std::vector<float> input1_data = {
+        1.f, -2.f,  3.f, -4.f,
+        5.f,  6.f, 1.f, 2.f,
+        3.f, 3.f, 2.f, -1.f,
+    };
+
+    std::vector<float> input2_data = {
+        2.f, 5.f, -4.f, -7.f,
+    };
+    set_values(input1, input1_data);
+    set_values(input2, input2_data);
+
+    std::vector<float> out_data = {
+        8.f, 22.f, 20.f
+    };
+
+    topology topology;
+    topology.add(input_layout("input1", in1_layout),
+                 input_layout("input2", in2_layout),
+                 gemm("gemm", { "input1", "input2" }, data_types::f32, false, true, 1.0f, 0.0f, 4, 2)
+    );
+
+    build_options options;
+    options.set_option(build_option::optimize_data(true));
+    options.set_option(build_option::allow_new_shape_infer(true));
+    network network(engine, topology, options);
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+
+    auto inst = network.get_primitive("gemm");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("gemm").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     EXPECT_EQ(output_ptr.size(), (uint32_t)3);
