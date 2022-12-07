@@ -17,11 +17,6 @@ op::v1::LogicalNot::LogicalNot(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v1::LogicalNot::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v1_LogicalNot_visit_attributes);
-    return true;
-}
-
 void op::v1::LogicalNot::validate_and_infer_types() {
     OV_OP_SCOPE(v1_LogicalNot_validate_and_infer_types);
     const auto& element_type = get_input_element_type(0);

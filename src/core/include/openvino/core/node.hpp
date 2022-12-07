@@ -194,9 +194,7 @@ public:
 
     virtual ~Node();
 
-    virtual bool visit_attributes(AttributeVisitor&) {
-        return false;
-    }
+    virtual bool visit_attributes(AttributeVisitor&);
     /// \returns the autobroadcasr spec
     virtual const ov::op::AutoBroadcastSpec& get_autob() const;
 

@@ -844,6 +844,10 @@ bool ov::Node::is_const_fold_disabled() const {
     return ov::pass::constant_folding_is_disabled(this);
 }
 
+bool ov::Node::visit_attributes(AttributeVisitor&) {
+    return true;
+}
+
 namespace ov {
 AttributeAdapter<std::shared_ptr<Node>>::AttributeAdapter(std::shared_ptr<Node>& value) : m_ref(value) {}
 

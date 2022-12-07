@@ -17,11 +17,6 @@ op::v8::AdaptiveAvgPool::AdaptiveAvgPool(const Output<Node>& data, const Output<
     constructor_validate_and_infer_types();
 }
 
-bool op::v8::AdaptiveAvgPool::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v8_AdaptiveAvgPool_visit_attributes);
-    return true;
-}
-
 void op::v8::AdaptiveAvgPool::validate_and_infer_types() {
     OV_OP_SCOPE(v8_AdaptiveAvgPool_validate_and_infer_types);
 

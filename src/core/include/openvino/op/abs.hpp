@@ -19,9 +19,6 @@ public:
     OPENVINO_OP("Abs", "opset1", util::UnaryElementwiseArithmetic);
     /// \brief Constructs an absolute value operation.
     Abs() = default;
-    bool visit_attributes(AttributeVisitor&) override {
-        return true;
-    }
     /// \brief Constructs an absolute value operation.
     ///
     /// \param arg Output that produces the input tensor.<br>
