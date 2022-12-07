@@ -236,15 +236,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         auto pass_config = manager.get_pass_config();
         pass_config->disable<ov::pass::EyeDecomposition>();
-        // Skip precision sensitive nodes with marking and pass_callback:
-        // callback skips (returns true) for nodes marked as precision sensitive/disabled_f16_compression.
-        // Skipping was done by callback in order to impact behavior of ConvertPrecision as little as possible
-        // false is set to keep the whole ShapeOf subgraph in FP32 not only Constants
-        manager.register_pass<ov::pass::MarkPrecisionSensitiveSubgraphs>(false);
-        pass_config->set_callback<ngraph::pass::ConvertPrecision>(
-                [](const std::shared_ptr<const Node>& node) -> bool {
-                    return ov::fp16_compression_is_disabled(node);
-                });
+
         // in order to keep ShapeOf precision sensitive subgraphs in FP32
         pass_config->enable<ov::pass::MarkPrecisionSensitiveSubgraphs>();
         pass_config->enable<ov::pass::ConvertCompressedOnlyToLegacy>();

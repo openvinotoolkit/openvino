@@ -133,12 +133,20 @@ bool convert_precision(ov::pass::PassBase& pass,
         bool res = false;
         // Handle case with Constants as they can have consumers from other nGraph Function object
         const auto constant = ov::as_type_ptr<opset10::Constant>(node);
+        // skip precision sensitive marked Constants in ShapeOf subgraphs and leave them in f32 precision
+        if (constant && pass.transformation_callback(constant) && constant->get_output_element_type(0) == element::f32)
+            return res;
+
         const auto it = const_to_internal_output.find(node.get());
         if (constant && constant->get_output_element_type(0) == from && it != const_to_internal_output.end()) {
             return fuse_type_to_constant(node, to, it->second);
         }
 
         for (const auto& output : node->outputs()) {
+            // skip precision sensitive marked nodes in ShapeOf subgraphs and leave them in f32 precision
+            if (pass.transformation_callback(node) && output.get_element_type() == element::f32)
+                continue;
+
             if (output.get_element_type() == from) {
                 // Check that node type exists in map and we can fuse type into node
                 const auto t2f_it = type_to_fuse.find(node->get_type_info());
@@ -196,9 +204,6 @@ bool convert_precision(ov::pass::PassBase& pass,
             bool is_output_precision_changed = false;
 
             for (auto& node : ops) {
-                // skip precision sensitive nodes
-                if (pass.transformation_callback(node))
-                    continue;
                 is_output_precision_changed |= convert_node_output_precision(node);
             }
 
