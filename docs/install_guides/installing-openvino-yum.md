@@ -72,6 +72,7 @@ You can select one of the following procedures according to your need:
 .. tab:: The Latest Version
 
    Run the following command:
+
    .. code-block:: sh
 
       sudo yum install openvino
@@ -80,11 +81,13 @@ You can select one of the following procedures according to your need:
 .. tab::  A Specific Version
 
    Run the following command:
+
    .. code-block:: sh
 
       sudo yum install openvino-<VERSION>.<UPDATE>.<PATCH>
 
    For example:
+
    .. code-block:: sh
 
       sudo yum install openvino-2022.3.0
@@ -111,6 +114,7 @@ Run the following command:
 .. tab:: The Latest Version
 
    Run the following command:
+
    .. code-block:: sh
 
       sudo yum autoremove openvino
@@ -119,11 +123,7 @@ Run the following command:
 .. tab::  A Specific Version
 
    Run the following command:
-   .. code-block:: sh
 
-      sudo yum install openvino-<VERSION>.<UPDATE>.<PATCH>
-
-   For example:
    .. code-block:: sh
 
       sudo yum autoremove openvino-<VERSION>.<UPDATE>.<PATCH>
@@ -142,6 +142,7 @@ OpenCV is necessary to run C++ demos from Open Model Zoo. Some OpenVINO samples 
 .. tab:: The Latest Version
 
    Run the following command:
+
    .. code-block:: sh
 
       sudo yum install openvino-opencv
@@ -149,6 +150,7 @@ OpenCV is necessary to run C++ demos from Open Model Zoo. Some OpenVINO samples 
 .. tab::  A Specific Version
 
    Run the following command:
+
    .. code-block:: sh
 
       sudo yum install openvino-opencv-<VERSION>.<UPDATE>.<PATCH>
