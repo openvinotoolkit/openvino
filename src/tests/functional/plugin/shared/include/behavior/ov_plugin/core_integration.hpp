@@ -1296,7 +1296,7 @@ TEST_P(OVClassLoadNetworkTest, QueryNetworkMULTIWithHETERONoThrow_V10) {
     std::string devices;
     auto availableDevices = ie.get_property(target_device, ov::available_devices);
     for (auto&& device : availableDevices) {
-        devices += std::string(CommonTestUtils::DEVICE_HETERO) + "." + target_device;
+        devices += std::string(CommonTestUtils::DEVICE_HETERO) + "." + device;
         if (&device != &(availableDevices.back())) {
             devices += ',';
         }
