@@ -207,8 +207,11 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::get_op_place
 std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::determine_cut_nodes() const {
     std::vector<std::shared_ptr<OpPlace>> topologically_sorted_ops;
     std::stack<std::shared_ptr<OpPlace>> ops_to_do;
-    std::unordered_set<std::shared_ptr<OpPlace>> ops_set_to_do;
     std::unordered_set<std::shared_ptr<OpPlace>> ops_done;
+
+    // TODO: implement logic to check direct cycles in the graph
+    // and break them
+    // probably not only NextIteration can generate cycles
 
     for (const auto& output_place : m_outputs) {
         FRONT_END_GENERAL_CHECK(output_place->get_names().size() > 0, "TensorPlace must have at least one name.");
@@ -221,7 +224,6 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::determine_cu
                                 "Custom specified output is incorrect: " + output_place_name);
         auto output_operation_place = m_op_places_map.at(operation_name);
         ops_to_do.push(output_operation_place);
-        ops_set_to_do.insert(output_operation_place);
     }
 
     // the traversing algorithm to compute topologically sorted nodes is taken from topological_sort in
@@ -274,19 +276,24 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::determine_cu
                 FRONT_END_GENERAL_CHECK(m_op_places_map.count(producer_name),
                                         "There is no operation node with name: " + producer_name);
                 const auto& producer_operation_place = m_op_places_map.at(producer_name);
+                auto producer_decoder = producer_operation_place->get_decoder();
+                auto producer_type = producer_decoder->get_op_type();
                 if (m_tensor_places.find(producer_name) != m_tensor_places.end()) {
                     const auto& tensor_place = m_tensor_places[producer_name];
                     is_input |= tensor_place->is_input();
                 }
 
+                if (producer_type == "NextIteration") {
+                    // break the cycle created by NextIteration
+                    continue;
+                }
+
                 // in case presence of NextIteration in the graph (or cycle created by other operation),
                 // we break the cycle by outputs from the NextIteration operation
                 // otherwise, the operations nodes in the cycle will be added to ops_to_do infinitely
-                if (!is_input && ops_done.count(producer_operation_place) == 0 &&
-                    ops_set_to_do.count(producer_operation_place) == 0) {
+                if (!is_input && ops_done.count(producer_operation_place) == 0) {
                     can_add = false;
                     ops_to_do.push(producer_operation_place);
-                    ops_set_to_do.insert(producer_operation_place);
                 }
             }
 
