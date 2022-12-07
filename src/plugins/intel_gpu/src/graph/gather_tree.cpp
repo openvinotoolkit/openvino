@@ -3,6 +3,7 @@
 //
 
 #include "gather_tree_inst.h"
+#include "gather_tree_shape_inference.hpp"
 
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
@@ -20,6 +21,34 @@ layout gather_tree_inst::calc_output_layout(gather_tree_node const& node, kernel
     return input_layout;
 }
 
+template<typename ShapeType>
+std::vector<layout> gather_tree_inst::calc_output_layouts(gather_tree_node const& /*node*/, const kernel_impl_params& impl_param) {
+    auto desc = impl_param.typed_desc<gather_tree>();
+    auto input0_layout = impl_param.get_input_layout(0);
+
+    auto output_type = input0_layout.data_type;
+    if (impl_param.has_fused_primitives()) {
+        output_type = impl_param.get_fused_output_layout().data_type;
+    }
+
+    ov::op::v1::GatherTree op;
+
+    std::vector<ShapeType> output_shapes = {ShapeType()};
+    std::vector<ShapeType> input_shapes = {
+        impl_param.get_input_layout(0).get<ShapeType>(),
+        impl_param.get_input_layout(1).get<ShapeType>(),
+        impl_param.get_input_layout(2).get<ShapeType>(),
+        impl_param.get_input_layout(3).get<ShapeType>(),
+    };
+    ov::op::v1::shape_infer(&op, input_shapes, output_shapes);
+
+    format output_format = format::adjust_to_rank(input0_layout.format, output_shapes[0].size());
+
+    return { layout{output_shapes[0], output_type, output_format} };
+}
+
+template std::vector<layout> gather_tree_inst::calc_output_layouts<ov::PartialShape>(gather_tree_node const& node, const kernel_impl_params& impl_param);
+
 std::string gather_tree_inst::to_string(gather_tree_node const& node) {
     std::stringstream primitive_description;
     node.desc_to_json()->dump(primitive_description);
@@ -27,6 +56,14 @@ std::string gather_tree_inst::to_string(gather_tree_node const& node) {
 }
 
 gather_tree_inst::typed_primitive_inst(network& network, gather_tree_node const& node) : parent(network, node) {
+    auto dependencies = node.get_dependencies();
+
+    for (auto& dep : dependencies) {
+        if (dep.first->get_output_layout().is_dynamic()) {
+            return;
+        }
+    }
+
     auto input_layout = node.input().get_output_layout();
 
     const auto input_format = input_layout.format;
@@ -47,8 +84,6 @@ gather_tree_inst::typed_primitive_inst(network& network, gather_tree_node const&
         format::bs_fs_yx_bsv16_fsv16,
         format::bs_fs_yx_bsv32_fsv16,
         format::bs_fs_yx_bsv32_fsv32);
-
-    auto dependencies = node.get_dependencies();
 
     // check input dims
     CLDNN_ERROR_NOT_EQUAL(node.id(),
