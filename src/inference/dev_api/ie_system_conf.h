@@ -132,4 +132,17 @@ INFERENCE_ENGINE_API_CPP(bool) with_cpu_x86_avx512_core_amx_bf16();
  */
 INFERENCE_ENGINE_API_CPP(bool) with_cpu_x86_avx512_core_amx();
 
+/**
+ * @enum CpuMapColumn
+ * @brief This enum contains columns of CPU map
+ */
+enum CpuMapColumn : int {
+    CPU_MAP_SOCKET = 0,
+    CPU_MAP_CORE = 1,
+    CPU_MAP_PHY_CORE = 2,
+    CPU_MAP_LOG_CORE = 3,
+    CPU_MAP_SMALL_CORE = 4,
+    CPU_MAP_USED_PROC = 5
+};
+
 }  // namespace InferenceEngine
