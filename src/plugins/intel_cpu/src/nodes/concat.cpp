@@ -316,7 +316,8 @@ void Concat::selectOptimalPrimitiveDescriptor() {
 
     // we only add brg nhwc support, not change the main nhwc assumption.
     auto tryBrgNHWCInplace = [&](int spdIdx) {
-        if (canBeInPlace && convertTo == LayoutType::nspc) {
+        // disable bf16 and int8 due to regressions.
+        if (canBeInPlace && convertTo == LayoutType::nspc && inputPrecision == Precision::FP32) {
             bool allBrg = true;
             for (size_t i = 0; i < getParentEdges().size(); i++) {
                 auto parentEdge = getParentEdgeAt(i);
