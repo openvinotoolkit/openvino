@@ -46,13 +46,16 @@ void propagate_constants::run(program& p) {
         auto& deps = node->dependencies;
 
         for (size_t idx = 0; idx < deps.size(); idx++) {
-            deps.at(idx)->users.remove(node);
+            deps.at(idx).first->users.remove(node);
         }
         deps.clear();
 
         for (auto& usr : users) {
             auto& usr_deps = usr->dependencies;
-            usr_deps.erase(std::remove(usr_deps.begin(), usr_deps.end(), node), usr_deps.end());
+            usr_deps.erase(std::remove_if(usr_deps.begin(), usr_deps.end(),
+                           [&](const std::pair<program_node*, int>& dep) {
+                               return node == dep.first;
+                           }), usr_deps.end());
         }
         users.clear();
 
@@ -79,10 +82,10 @@ void propagate_constants::run(program& p) {
         // Remove dependencies
         auto curr_node_deps = curr_node.get_dependencies();
         for (auto& dep : curr_node_deps) {
-            auto dep_users = dep->get_users();
+            auto dep_users = dep.first->get_users();
             for (auto& dep_user : dep_users) {
                 if (dep_user == &curr_node)
-                    p.remove_connection(*dep, curr_node);
+                    p.remove_connection(*dep.first, curr_node);
             }
         }
 
@@ -149,7 +152,7 @@ void propagate_constants::add_constant(program& prog, program_node& node) {
     add_deps_to_tpl(prog, node.get_dependencies());
 }
 
-void propagate_constants::add_deps_to_tpl(program& prog, const std::vector<program_node*>& deps) {
+void propagate_constants::add_deps_to_tpl(program& prog, const std::vector<std::pair<program_node*, int32_t>>& deps) {
     /*
     Nodes can share dependencies, if we already have dep in tpl, don't add it again.
     example:
@@ -159,11 +162,11 @@ void propagate_constants::add_deps_to_tpl(program& prog, const std::vector<progr
     A     B
     */
     for (auto& dep : deps) {
-        if (dep->is_type<data>()) {
-            auto dep_ptr = prog.get_node_ptr(dep->get_primitive()->id);
+        if (dep.first->is_type<data>()) {
+            auto dep_ptr = prog.get_node_ptr(dep.first->get_primitive()->id);
             if (nodes.find(dep_ptr) == nodes.end()) {
-                nodes.insert(prog.get_node_ptr(dep->get_primitive()->id));
-                const_inputs.push_back(&dep->as<data>());
+                nodes.insert(prog.get_node_ptr(dep.first->get_primitive()->id));
+                const_inputs.push_back(&dep.first->as<data>());
             }
         }
     }

@@ -44,7 +44,7 @@ TEST(activation_f32_fw_gpu, not_basic_yxfb) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        activation("not", "input", activation_func::negation));
+        activation("not", input_info("input"), activation_func::negation));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -88,7 +88,7 @@ TEST(activation_f32_fw_gpu, erf_basic_yxfb) {
 
     topology topology(
             input_layout("input", input->get_layout()),
-            activation("not", "input", activation_func::erf));
+            activation("not", input_info("input"), activation_func::erf));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -134,7 +134,7 @@ TEST(activation_f32_fw_gpu, hard_sigmoid_basic_yxfb) {
 
     topology topology(
             input_layout("input", input->get_layout()),
-            activation("not", "input", activation_func::hard_sigmoid, params));
+            activation("not", input_info("input"), activation_func::hard_sigmoid, params));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -180,7 +180,7 @@ TEST(activation_f32_fw_gpu, reciprocal_basic_yxfb) {
 
     topology topology(
             input_layout("input", input->get_layout()),
-            activation("not", "input", activation_func::reciprocal));
+            activation("not", input_info("input"), activation_func::reciprocal));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -227,7 +227,7 @@ TEST(activation_f32_fw_gpu, selu_basic_yxfb) {
 
     topology topology(
             input_layout("input", input->get_layout()),
-            activation("not", "input", activation_func::selu, params));
+            activation("not", input_info("input"), activation_func::selu, params));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -274,7 +274,7 @@ TEST(activation_f32_fw_gpu, softplus_basic_yxfb) {
 
     topology topology(
             input_layout("input", input->get_layout()),
-            activation("not", "input", activation_func::softplus));
+            activation("not", input_info("input"), activation_func::softplus));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -320,7 +320,7 @@ TEST(activation_f32_fw_gpu, softsign_basic_yxfb) {
 
     topology topology(
             input_layout("input", input->get_layout()),
-            activation("not", "input", activation_func::softsign));
+            activation("not", input_info("input"), activation_func::softsign));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -356,7 +356,7 @@ TEST(activation_f16_fw_gpu, softsign_basic_yxfb) {
     VF<FLOAT16> output_vec = {FLOAT16(0.5f), FLOAT16(0.66650391f), FLOAT16(0.75f), FLOAT16(0.81835938f)};
 
     topology topology(input_layout("input", input->get_layout()),
-                      activation("not", "input", activation_func::softsign));
+                      activation("not", input_info("input"), activation_func::softsign));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -401,7 +401,7 @@ TEST(activation_f32_fw_gpu, sign_basic_yxfb) {
 
     topology topology(
             input_layout("input", input->get_layout()),
-            activation("not", "input", activation_func::sign));
+            activation("not", input_info("input"), activation_func::sign));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -439,7 +439,7 @@ TEST(activation_f32_fw_gpu, pow_basic_yxfb) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        activation("pow", "input", activation_func::pow, { 2.0f, 0.0f }));
+        activation("pow", input_info("input"), activation_func::pow, { 2.0f, 0.0f }));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -475,7 +475,7 @@ TEST(activation_f16_fw_gpu, pow_basic_yxfb) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        activation("pow", "input", activation_func::pow, { FLOAT16(3.0f), FLOAT16(0.0f) }));
+        activation("pow", input_info("input"), activation_func::pow, { FLOAT16(3.0f), FLOAT16(0.0f) }));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -532,7 +532,7 @@ TEST(activation_f32_fw_gpu, relu_basic_yxfb) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        activation("relu", "input", activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 0, 0 }, 0 }));
+        activation("relu", input_info("input"), activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 0, 0 }, 0 }));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -608,7 +608,7 @@ TEST(activation_f32_fw_gpu, relu_basic_bfzyx) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        activation("relu", "input", activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 0, 0, 0 }, 0 }));
+        activation("relu", input_info("input"), activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 0, 0, 0 }, 0 }));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -698,12 +698,12 @@ TEST(activation_f32_fw_gpu, basic_yxfb_all_functions)
 
             if (i == 0)
             {
-                topology.add(activation("activation", "input", func, params));
+                topology.add(activation("activation", input_info("input"), func, params));
             }
             else
             {
                 topology.add(data("input_params", input_params));
-                topology.add(activation("activation", "input", "input_params", func));
+                topology.add(activation("activation", input_info("input"), "input_params", func));
             }
 
             network network(engine, topology);
@@ -850,10 +850,10 @@ TEST(activation_f16_fw_gpu, basic_bfyx_all_functions)
             topology topology(input_layout("input", input->get_layout()));
 
             if (i == 0) {
-                topology.add(activation("activation", "input", func, params));
+                topology.add(activation("activation", input_info("input"), func, params));
             } else {
                 topology.add(data("input_params", input_params));
-                topology.add(activation("activation", "input", "input_params", func));
+                topology.add(activation("activation", input_info("input"), "input_params", func));
             }
 
             network network(engine, topology);
@@ -932,7 +932,7 @@ TEST(activation_f32_fw_gpu, basic_yxfb_asin_acos_log_atan)
     for (auto func : funcs)
     {
         topology topology(input_layout("input", input->get_layout()));
-        topology.add(activation("activation", "input", func));
+        topology.add(activation("activation", input_info("input"), func));
 
         network network(engine, topology);
         network.set_input_data("input", input);
@@ -1018,8 +1018,8 @@ TEST(activation_f32_fw_gpu, relu_basic_acosh_yxfb) {
 
     topology topology(
             input_layout("input", input->get_layout()),
-            reorder("reorder", "input", input->get_layout().with_padding(padding{ { 0, 0, 2, 1 }, 0 })),
-            activation("relu", "reorder", activation_func::acosh, {0.5f, 0.f}, padding{ { 0, 0, 0, 0 }, 0 }));
+            reorder("reorder", input_info("input"), input->get_layout().with_padding(padding{ { 0, 0, 2, 1 }, 0 })),
+            activation("relu", input_info("reorder"), activation_func::acosh, {0.5f, 0.f}, padding{ { 0, 0, 0, 0 }, 0 }));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -1084,8 +1084,8 @@ TEST(activation_f32_fw_gpu, relu_basic_input_padding_yxfb) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reorder", "input", input->get_layout().with_padding(padding{ { 0, 0, 2, 1 }, 0 })),
-        activation("relu", "reorder", activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 0, 0 }, 0 }));
+        reorder("reorder", input_info("input"), input->get_layout().with_padding(padding{ { 0, 0, 2, 1 }, 0 })),
+        activation("relu", input_info("reorder"), activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 0, 0 }, 0 }));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -1171,8 +1171,8 @@ TEST(activation_f32_fw_gpu, relu_basic_input_padding_bfzyx) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reorder", "input", input->get_layout().with_padding(padding{ { 0, 0, 2, 1, 0 }, 0 })),
-        activation("relu", "reorder", activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 0, 0, 0 }, 0 }));
+        reorder("reorder", input_info("input"), input->get_layout().with_padding(padding{ { 0, 0, 2, 1, 0 }, 0 })),
+        activation("relu", input_info("reorder"), activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 0, 0, 0 }, 0 }));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -1245,7 +1245,7 @@ TEST(activation_f32_fw_gpu, relu_basic_output_padding_yxfb) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        activation("relu", "input", activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 3, 3 }, 0 }));
+        activation("relu", input_info("input"), activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 3, 3 }, 0 }));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -1287,7 +1287,7 @@ TEST(activation_f32_fw_gpu, basic_yxfb_floor_ceil)
     for (auto func : funcs)
     {
         topology topology(input_layout("input", input->get_layout()));
-        topology.add(activation("activation", "input", func));
+        topology.add(activation("activation", input_info("input"), func));
 
         network network(engine, topology);
         network.set_input_data("input", input);
@@ -1351,7 +1351,7 @@ TEST(activation_i8_fw_gpu, basic_yxfb_all_funcs)
     {
         topology topology;
         topology.add(input_layout("input", input->get_layout()));
-        topology.add(activation("activation", "input", func));
+        topology.add(activation("activation", input_info("input"), func));
 
         network network(engine, topology);
         network.set_input_data("input", input);
@@ -1409,7 +1409,7 @@ TEST(activation_i32_fw_gpu, basic_yxfb_i32_funcs) {
         topology topology;
         activation_additional_params params = {0.0, 1.0};
         topology.add(input_layout("input", input->get_layout()));
-        topology.add(activation("activation", "input", func, params));
+        topology.add(activation("activation", input_info("input"), func, params));
 
         network network(engine, topology);
         network.set_input_data("input", input);
@@ -1471,10 +1471,10 @@ TEST(activation_f32_fw_gpu, b_fs_yx_fsv16_prelu) {
 
     auto topo = cldnn::topology(
         cldnn::input_layout("in", in_lay),
-        cldnn::reorder("in_fsv16", "in", cldnn::format::b_fs_yx_fsv16, cldnn::data_types::f32),
+        cldnn::reorder("in_fsv16", input_info("in"), cldnn::format::b_fs_yx_fsv16, cldnn::data_types::f32),
         cldnn::data("actv_params", params_mem),
-        cldnn::activation("actv", "in_fsv16", "actv_params", cldnn::activation_func::relu_negative_slope),
-        cldnn::reorder("out", "actv", cldnn::format::bfyx, cldnn::data_types::f32)
+        cldnn::activation("actv", input_info("in_fsv16"), "actv_params", cldnn::activation_func::relu_negative_slope),
+        cldnn::reorder("out", input_info("actv"), cldnn::format::bfyx, cldnn::data_types::f32)
     );
 
     cldnn::network net(eng, topo);
@@ -1504,7 +1504,8 @@ using activation_random_test_params = std::tuple<data_types,
                                                  tensor,                        // input_size
                                                  activation_func,               // func_type
                                                  activation_additional_params,  // additional_params
-                                                 padding>;
+                                                 padding,
+                                                 bool>;
 
 struct activation_random_test : testing::TestWithParam<activation_random_test_params>
 {
@@ -1604,7 +1605,8 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
         activation_func func_type;
         activation_additional_params additional_params;
         padding padd;
-        std::tie(input_type, input_format, input_size, func_type, additional_params, padd) = params;
+        bool is_caching_test;
+        std::tie(input_type, input_format, input_size, func_type, additional_params, padd, is_caching_test) = params;
         auto in_layout = layout(input_type, format::bfyx, input_size);
 
         auto in_mem = engine.allocate_memory(in_layout);
@@ -1613,28 +1615,46 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
         /// bfyx
         cldnn::topology topo;
         topo.add(input_layout("in", in_layout));
-        auto prim = activation("activation", "in", func_type);
+        auto prim = activation("activation", input_info("in"), func_type);
         prim.additional_params = additional_params;
         topo.add(prim);
 
         auto build_opts = build_options();
         build_opts.set_option(build_option::outputs({"activation"}));
 
-        network net(engine, topo, build_opts);
-        net.set_input_data("in", in_mem);
+        std::shared_ptr<cldnn::network> net;
+
+        if (is_caching_test) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, topo, build_opts);
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                net = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+            }
+        } else {
+            net = std::make_shared<cldnn::network>(engine, topo, build_opts);
+        }
+
+        net->set_input_data("in", in_mem);
 
         // first execution of ref
-        auto result = net.execute();
+        auto result = net->execute();
         auto output = result.at("activation").get_memory();
 
         cldnn::topology topo_opt;
         topo_opt.add(input_layout("in", in_layout));
-        topo_opt.add(reorder("in_to_input_type", "in", input_format, input_type));
-        auto prim_opt = activation("activation_blocked", "in_to_input_type", func_type);
+        topo_opt.add(reorder("in_to_input_type", input_info("in"), input_format, input_type));
+        auto prim_opt = activation("activation_blocked", input_info("in_to_input_type"), func_type);
         prim_opt.additional_params = additional_params;
         topo_opt.add(prim_opt);
         // force output format to input format.
-        topo_opt.add(reorder("res_to_input_format", "activation_blocked", input_format, input_type));
+        topo_opt.add(reorder("res_to_input_format", input_info("activation_blocked"), input_format, input_type));
 
         auto build_opts_opt = build_options();
         build_opts_opt.set_option(build_option::outputs({"activation_blocked", "res_to_input_format"}));
@@ -1675,11 +1695,11 @@ TEST_P(activation_random_test, random) {
 }
 
 const auto reluParams = testing::ValuesIn(std::vector<activation_random_test_params>{
-    {data_types::i8, format::b_fs_yx_fsv32, {1, 32, 5, 5}, activation_func::relu, {}, {}},
-    {data_types::i8, format::bs_fs_yx_bsv32_fsv32, {32, 32, 5, 5}, activation_func::relu, {}, {}},
-    {data_types::f16, format::bs_fs_yx_bsv32_fsv16, {32, 32, 5, 5}, activation_func::relu, {}, {}},
-    {data_types::i8, format::bs_fs_yx_bsv32_fsv32, {16, 16, 5, 5}, activation_func::relu, {}, {}},
-    {data_types::f16, format::bs_fs_yx_bsv32_fsv16, {16, 16, 5, 5}, activation_func::relu, {}, {}},
+    {data_types::i8, format::b_fs_yx_fsv32, {1, 32, 5, 5}, activation_func::relu, {}, {}, false},
+    {data_types::i8, format::bs_fs_yx_bsv32_fsv32, {32, 32, 5, 5}, activation_func::relu, {}, {}, false},
+    {data_types::f16, format::bs_fs_yx_bsv32_fsv16, {32, 32, 5, 5}, activation_func::relu, {}, {}, false},
+    {data_types::i8, format::bs_fs_yx_bsv32_fsv32, {16, 16, 5, 5}, activation_func::relu, {}, {}, false},
+    {data_types::f16, format::bs_fs_yx_bsv32_fsv16, {16, 16, 5, 5}, activation_func::relu, {}, {}, false},
 });
 
 INSTANTIATE_TEST_SUITE_P(relu_activation_blocked_tests, activation_random_test, reluParams);
@@ -1752,7 +1772,8 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(inputShapes[0]),
                        ::testing::ValuesIn(activationFunctions),
                        ::testing::Values(activation_additional_params{}),
-                       ::testing::Values(padding{})));
+                       ::testing::Values(padding{}),
+                       ::testing::Values(false)));
 INSTANTIATE_TEST_SUITE_P(
     fp_activation_blocked_tests1,
     activation_random_test,
@@ -1761,7 +1782,8 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(inputShapes[2]),
                        ::testing::ValuesIn(activationFunctions),
                        ::testing::Values(activation_additional_params{}),
-                       ::testing::Values(padding{})));
+                       ::testing::Values(padding{}),
+                       ::testing::Values(false)));
 INSTANTIATE_TEST_SUITE_P(
     fp_activation_blocked_tests2,
     activation_random_test,
@@ -1770,7 +1792,8 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(inputShapes[1]),
                        ::testing::ValuesIn(activationFunctions),
                        ::testing::Values(activation_additional_params{}),
-                       ::testing::Values(padding{})));
+                       ::testing::Values(padding{}),
+                       ::testing::Values(false)));
 INSTANTIATE_TEST_SUITE_P(
     fp_activation_blocked_tests3,
     activation_random_test,
@@ -1779,7 +1802,8 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(inputShapes),
                        ::testing::Values(activationFunctions.front()),
                        ::testing::Values(activation_additional_params{}),
-                       ::testing::Values(padding{})));
+                       ::testing::Values(padding{}),
+                       ::testing::Values(false)));
 INSTANTIATE_TEST_SUITE_P(
     fp_activation_blocked_tests4,
     activation_random_test,
@@ -1788,4 +1812,15 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(inputShapes),
                        ::testing::Values(activationFunctions.back()),
                        ::testing::Values(activation_additional_params{}),
-                       ::testing::Values(padding{})));
+                       ::testing::Values(padding{}),
+                       ::testing::Values(false)));
+INSTANTIATE_TEST_SUITE_P(
+    export_import,
+    activation_random_test,
+    ::testing::Combine(::testing::Values(dataTypes[0]),
+                       ::testing::Values(types[0]),
+                       ::testing::Values(inputShapes[0]),
+                       ::testing::Values(activationFunctions.back()),
+                       ::testing::Values(activation_additional_params{}),
+                       ::testing::Values(padding{}),
+                       ::testing::Values(true)));

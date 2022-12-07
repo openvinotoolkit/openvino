@@ -238,9 +238,10 @@ For usage examples, refer to the [RemoteTensor API](./GPU_RemoteTensor_API.md).
 For more details, see the [preprocessing API](../preprocessing_overview.md).
 
 ### Model Caching
-Cache for the GPU plugin may be enabled via the common OpenVINO `ov::cache_dir` property. GPU plugin implementation supports only caching of compiled kernels,
-so all plugin-specific model transformations are executed on each `ov::Core::compile_model()` call regardless of the `cache_dir` option. 
+Cache for the GPU plugin may be enabled via the common OpenVINO `ov::cache_dir` property. GPU plugin implementation supports only caching of compiled kernels, so all plugin-specific model transformations are executed on each `ov::Core::compile_model()` call regardless of the `cache_dir` option. 
 Still, since kernel compilation is a bottleneck in the model loading process, a significant load time reduction can be achieved with the `ov::cache_dir` property enabled.
+
+> **NOTE**: Full model caching support is currently implemented as a preview feature. To activate it, set the OV_GPU_CACHE_MODEL environment variable to 1.
 
 For more details, see the [Model caching overview](../Model_caching_overview.md).
 

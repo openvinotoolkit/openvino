@@ -1457,7 +1457,8 @@ def get_shape_from_input_value(input_value: str):
     if len(shape) == 0:
         shape = None
     elif len(shape) == 1 and shape[0] in ['', ' ']:
-        shape = ()
+        # this shape corresponds to scalar
+        shape = PartialShape([])
     elif len(shape) == 1:
         dims = re.split(r', *| +', shape[0])
         dims = list(filter(None, dims))
@@ -1679,10 +1680,10 @@ def parse_layouts_by_destination(s: str, parsed: dict, parsed_list: list, dest: 
     else:
         for idx, layout_str in enumerate(list_s):
             # case for: "name1(nhwc->[n,c,h,w])"
-            p1 = re.compile(r'(\w*)\((\S+)\)')
+            p1 = re.compile(r'([\w.:/\\]*)\((\S+)\)')
             m1 = p1.match(layout_str)
             # case for: "name1[n,h,w,c]->[n,c,h,w]"
-            p2 = re.compile(r'(\w*)(\[\S*\])')
+            p2 = re.compile(r'([\w.:/\\]*)(\[\S*\])')
             m2 = p2.match(layout_str)
             if m1:
                 found_g = m1.groups()

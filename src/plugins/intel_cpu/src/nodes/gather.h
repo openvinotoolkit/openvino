@@ -49,7 +49,6 @@ protected:
     void executeDynamicImpl(dnnl::stream strm) override;
     bool needPrepareParams() const override;
     void prepareParams() override;
-    std::vector<VectorDims> shapeInfer() const override;
 
 private:
     void initShortParams(threadExecParams& p, uint64_t start);

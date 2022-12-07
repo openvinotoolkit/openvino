@@ -9,11 +9,7 @@
 #include <data_inst.h>
 
 namespace cldnn {
-
-primitive_type_id random_uniform::type_id() {
-    static primitive_type_base<random_uniform> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(random_uniform)
 
 random_uniform_inst::typed_primitive_inst(network& network, random_uniform_node const &node)
 : parent(network, node) {
@@ -21,7 +17,7 @@ random_uniform_inst::typed_primitive_inst(network& network, random_uniform_node 
 
 layout random_uniform_inst::calc_output_layout(random_uniform_node const &node, kernel_impl_params const& impl_param) {
     auto primitive = impl_param.typed_desc<random_uniform>();
-    return {*primitive->output_data_type, primitive->output_format, primitive->output_shape};
+    return {*primitive->output_data_types[0], primitive->output_format, primitive->output_shape};
 }
 
 std::string random_uniform_inst::to_string(random_uniform_node const &node) {

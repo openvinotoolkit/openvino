@@ -21,6 +21,7 @@
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
 #include "intel_gpu/plugin/custom_layer.hpp"
+#include "intel_gpu/plugin/internal_properties.hpp"
 #include "intel_gpu/plugin/itt.hpp"
 #include "gpu/gpu_config.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
@@ -195,7 +196,7 @@ void Plugin::UpdateConfig(Config& conf, const InferenceEngine::CNNNetwork &netwo
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::UpdateConfig");
     auto device_info = GetDeviceInfo(params);
     conf.enableInt8 = device_info.supports_imad || device_info.supports_immad;
-    conf.UpdateFromMap(params);
+    conf.UpdateFromMap(params, device_info);
     if (conf.enableDynamicBatch) {
         conf.max_dynamic_batch = static_cast<int>(network.getBatchSize());
     }
@@ -208,10 +209,9 @@ void Plugin::UpdateStatistics(const RemoteCLContext::Ptr& context) const {
 
         std::map<std::string, uint64_t> statistics;
         auto impl = getContextImpl(context);
-        impl->acquire_lock();
+        std::lock_guard<ExecutionContextImpl> locker(*impl);
         std::shared_ptr<cldnn::engine> eng = impl->GetEngine();
         statistics = eng->get_memory_statistics();
-        impl->release_lock();
 
         // if the same context exists, the statistics is replaced with the latest one
         // (currently, memory usage is accumulated for several networks in the same context)
@@ -356,17 +356,27 @@ void Plugin::SetConfig(const std::map<std::string, std::string> &config) {
                     config.find(CLDNNConfigParams::KEY_CLDNN_PLUGIN_THROTTLE) != config.end() ||
                     config.find(ov::intel_gpu::hint::queue_throttle.name()) != config.end();
     std::string device_id;
+    cldnn::device_info device_info = device_map.begin()->second->get_info();
     if (config.find(PluginConfigInternalParams::KEY_CONFIG_DEVICE_ID) != config.end()) {
         device_id = config.at(PluginConfigInternalParams::KEY_CONFIG_DEVICE_ID);
-        _impl->m_configs.GetConfig(device_id).UpdateFromMap(config);
+        if (!device_id.empty() && device_map.find(device_id) != device_map.end()) {
+            device_info = device_map.at(device_id)->get_info();
+        }
+        _impl->m_configs.GetConfig(device_id).UpdateFromMap(config, device_info);
     } else {
         device_id = GetDeviceIDFromConfig(config);
         if (!device_id.empty()) {
+            if (device_map.find(device_id) != device_map.end()) {
+                device_info = device_map.at(device_id)->get_info();
+            }
             _impl->m_configs.SetDefaultDeviceID(device_id);
-            _impl->m_configs.GetConfig(device_id).UpdateFromMap(config);
+            _impl->m_configs.GetConfig(device_id).UpdateFromMap(config, device_info);
         } else {
             for (auto& conf : _impl->m_configs) {
-                conf.second.UpdateFromMap(config);
+                if (device_map.find(conf.first) != device_map.end()) {
+                    device_info = device_map.at(conf.first)->get_info();
+                }
+                conf.second.UpdateFromMap(config, device_info);
             }
         }
     }
@@ -580,6 +590,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             ov::PropertyName{ov::optimal_batch_size.name(), PropertyMutability::RO},
             ov::PropertyName{ov::max_batch_size.name(), PropertyMutability::RO},
             ov::PropertyName{ov::caching_properties.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::device::architecture.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::full_name.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::uuid.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::type.name(), PropertyMutability::RO},
@@ -833,7 +844,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
                     n_streams_str != util::to_string(ov::streams::AUTO)) {
                     IE_THROW() << "[GPU_MAX_BATCH_SIZE] bad casting: GPU_THROUGHPUT_STREAMS should be either of uint32_t type or \"GPU_THROUGHPUT_AUTO\"";
                 }
-                n_streams = config.GetDefaultNStreamsForThroughputMode();
+                n_streams = std::max(config.GetDefaultNStreamsForThroughputMode(), device_info.num_ccs);
             } else {
                 IE_THROW() << "[GPU_MAX_BATCH_SIZE] bad casting: GPU_THROUGHPUT_STREAMS should be either of uint32_t type or \"GPU_THROUGHPUT_AUTO\"";
             }
@@ -967,7 +978,28 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
     } else if (name == ov::caching_properties) {
         std::vector<ov::PropertyName> cachingProperties;
+        cachingProperties.push_back(ov::PropertyName(ov::intel_gpu::uarch_version.name(), PropertyMutability::RO));
+        cachingProperties.push_back(ov::PropertyName(ov::intel_gpu::execution_units_count.name(), PropertyMutability::RO));
+        cachingProperties.push_back(ov::PropertyName(ov::intel_gpu::driver_version.name(), PropertyMutability::RO));
+        cachingProperties.push_back(ov::PropertyName(ov::intel_gpu::device_id.name(), PropertyMutability::RO));
         return decltype(ov::caching_properties)::value_type(cachingProperties);
+    } else if (name == ov::intel_gpu::driver_version) {
+        return decltype(ov::intel_gpu::driver_version)::value_type {device_info.driver_version};
+    } else if (name == ov::intel_gpu::device_id) {
+        std::stringstream s;
+        s << "0x" << std::hex << device_info.device_id;
+        return decltype(ov::intel_gpu::device_id)::value_type {s.str()};
+    } else if (name == ov::device::architecture) {
+        std::stringstream s;
+        s << "GPU: ";
+        if (device_info.gfx_ver.major == 0 && device_info.gfx_ver.minor == 0) {
+            s << device_info.dev_name;
+        } else {
+            s << "v" << static_cast<int>(device_info.gfx_ver.major)
+              << "." << static_cast<int>(device_info.gfx_ver.minor)
+              << "." << static_cast<int>(device_info.gfx_ver.revision);
+        }
+        return decltype(ov::device::architecture)::value_type {s.str()};
     } else {
         IE_THROW() << "Unsupported metric key " << name;
     }
