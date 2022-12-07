@@ -19,6 +19,28 @@ using namespace ngraph;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
+class TemporaryOverrideOutputs {
+    std::shared_ptr<Node> node;
+    std::vector<PartialShape> orig_shapes;
+
+public:
+    TemporaryOverrideOutputs(std::shared_ptr<Node> node, const std::vector<std::shared_ptr<HostTensor>>& args)
+        : node(node) {
+        for (size_t i = 0; i < args.size(); ++i) {
+            auto output = node->get_input_source_output(i);
+            orig_shapes.push_back(output.get_partial_shape());
+            output.get_tensor().set_partial_shape(args[i]->get_partial_shape());
+        }
+    }
+
+    ~TemporaryOverrideOutputs() {
+        for (size_t i = 0; i < orig_shapes.size(); ++i) {
+            auto output = node->get_input_source_output(i);
+            output.get_tensor().set_partial_shape(orig_shapes[i]);
+        }
+    }
+};
+
 runtime::interpreter::INTExecutable::INTExecutable(const shared_ptr<Function>& function,
                                                    bool enable_performance_collection)
     : m_is_compiled{true},
@@ -83,6 +105,7 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
             op_inputs.push_back(tensor_map.at(tensor));
         }
 
+        TemporaryOverrideOutputs overrider(op, op_inputs);
         OutputVector outputs;
         for (size_t i = 0; i < op->inputs().size(); ++i) {
             outputs.push_back(op->get_input_source_output(i));
