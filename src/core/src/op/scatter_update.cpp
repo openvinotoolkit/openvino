@@ -126,7 +126,6 @@ bool op::v3::ScatterUpdate::has_evaluate() const {
 }
 
 namespace {
-OPENVINO_SUPPRESS_DEPRECATED_START
 bool scatter_label_evaluator(const Node* node, TensorLabelVector& output_labels) {
     const auto& input_values = node->input_values();
 
@@ -170,7 +169,6 @@ bool scatter_label_evaluator(const Node* node, TensorLabelVector& output_labels)
     }
     return false;
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace
 
 bool op::v3::ScatterUpdate::evaluate_label(TensorLabelVector& output_labels) const {
