@@ -11,15 +11,12 @@
 #include "nms_shape_inference.hpp"
 
 namespace cldnn {
-primitive_type_id non_max_suppression::type_id() {
-    static primitive_type_base<non_max_suppression> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(non_max_suppression)
 
 layout non_max_suppression_inst::calc_output_layout(non_max_suppression_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<non_max_suppression>();
 
-    auto output_type = desc->output_data_type ? *desc->output_data_type : data_types::i32;
+    auto output_type = desc->output_data_types[0].value_or(data_types::i32);
 
     auto output_size = tensor(batch(desc->selected_indices_num), feature(3));
     return layout(output_type, impl_param.get_input_layout().format, output_size);
@@ -30,7 +27,6 @@ std::vector<layout> non_max_suppression_inst::calc_output_layouts(non_max_suppre
     std::vector<layout> layouts;
 
     auto desc = impl_param.typed_desc<non_max_suppression>();
-    auto dt = desc->output_data_type.value_or(data_types::i32);
 
     ov::op::v9::NonMaxSuppression op;
     op.set_box_encoding(desc->center_point_box ? ov::op::v9::NonMaxSuppression::BoxEncodingType::CENTER
@@ -56,8 +52,8 @@ std::vector<layout> non_max_suppression_inst::calc_output_layouts(non_max_suppre
     }
 
     for (size_t i = 0; i < desc->num_outputs; ++i) {
-        auto output_type = (i == 1 ? impl_param.get_input_layout(1).data_type : dt);
-        layouts.push_back({output_shapes[i], output_type, format::get_default_format(output_shapes[i].size())});
+        auto dt = desc->output_data_types[i].value_or(data_types::i32);
+        layouts.push_back({output_shapes[i], dt, format::get_default_format(output_shapes[i].size())});
     }
     return layouts;
 }

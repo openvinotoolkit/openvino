@@ -80,7 +80,7 @@ set(MULTI_TEST_SRC
     onnx_import_with_editor.in.cpp)
 set(SRC
     conversion.cpp
-    json_config_extension.cpp
+    library_extension.cpp
     load_from.cpp
     onnx_editor.cpp
     onnx_import_exceptions.cpp
@@ -146,16 +146,17 @@ target_include_directories(ov_onnx_frontend_tests
 target_compile_definitions(ov_onnx_frontend_tests PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
 target_compile_definitions(ov_onnx_frontend_tests PRIVATE ENABLE_OV_ONNX_FRONTEND)
 
-if (OV_COMPILER_IS_CLANG)
+if(OV_COMPILER_IS_CLANG)
     target_compile_options(ov_onnx_frontend_tests PRIVATE -Wno-undef -Wno-reserved-id-macro)
 endif()
 
 target_include_directories(ov_onnx_frontend_tests PRIVATE
     $<TARGET_PROPERTY:openvino_onnx_frontend,INCLUDE_DIRECTORIES>)
-if (LINUX)
-    target_link_options(ov_onnx_frontend_tests PRIVATE -Wl,--exclude-libs,ALL)
-elseif(APPLE)
+
+if(OV_COMPILER_IS_APPLECLANG)
     target_link_options(ov_onnx_frontend_tests PRIVATE -Wl,-dead_strip)
+elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
+    target_link_options(ov_onnx_frontend_tests PRIVATE -Wl,--exclude-libs,ALL)
 endif()
 
 install(TARGETS ov_onnx_frontend_tests

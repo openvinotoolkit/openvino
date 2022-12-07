@@ -66,7 +66,7 @@ def get_builtin_extensions_path():
     for lib_path in chain(
         win_folder_path.glob("*.dll"), linux_folder_path.glob("*.so")
     ):
-        if "libtest_builtin_extensions_1" in lib_path.name:
+        if "libtest_builtin_extensions" in lib_path.name:
             return str(lib_path)
     return ""
 
@@ -91,33 +91,11 @@ class TestMoFallback(unittest.TestCase):
             opset_imports=[onnx.helper.make_opsetid("", 13)],
         )
         self.models["test_model.onnx"] = model
-
-        self.test_config_files = {}
-        self.test_config_files[
-            "test_config.json"
-        ] = """[
-            {
-            "custom_attributes": {
-            "test_attribute": true
-            },
-            "id": "buildin_extensions_1::TestExtension1",
-            "library": "library_path",
-            "match_kind": "scope"
-            }
-        ]""".replace(
-            "library_path", get_builtin_extensions_path()
-        )
-
         for name, model in self.models.items():
             onnx.save(model, name)
-        for name, config in self.test_config_files.items():
-            with open(name, "w") as f:
-                f.write(config)
 
     def tearDown(self):
         for name in self.models.keys():
-            os.remove(name)
-        for name in self.test_config_files.keys():
             os.remove(name)
 
     @pytest.mark.skipif(
@@ -133,16 +111,3 @@ class TestMoFallback(unittest.TestCase):
 
         assert any(op.get_type_name() == "Swish" for op in model.get_ops())
         assert all(op.get_type_name() != "Relu" for op in model.get_ops())
-
-    @pytest.mark.skipif(
-        len(get_builtin_extensions_path()) == 0,
-        reason="The extension library path was not found",
-    )
-    def test_conersion_if_transformations_config_is_used(self):
-        args = base_args_config()
-        args.input_model = "test_model.onnx"
-        args.transformations_config = "test_config.json"
-
-        graph, model = prepare_ir(args)
-
-        assert model.get_friendly_name() == "TestFunction"
