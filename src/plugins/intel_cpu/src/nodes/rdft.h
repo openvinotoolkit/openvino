@@ -81,6 +81,7 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void prepareParams() override;
     void execute(dnnl::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
     bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;

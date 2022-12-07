@@ -37,10 +37,6 @@ static constexpr double PI = 3.14159265358979323846;
 
 bool RDFT::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         const bool isRDFT = is_type<const ov::op::v9::RDFT>(op);
         const bool isIRDFT = is_type<const ov::op::v9::IRDFT>(op);
 
@@ -67,6 +63,9 @@ static std::vector<int> getDefaultSignalSizes(const VectorDims& inputShape, cons
     signalSizes.reserve(axes.size());
 
     for (auto axis : axes) {
+        if (inputShape[axis] == Shape::UNDEFINED_DIM) {
+            return {};
+        }
         signalSizes.push_back(inputShape[axis]);
     }
     if (inverse) {
@@ -77,7 +76,7 @@ static std::vector<int> getDefaultSignalSizes(const VectorDims& inputShape, cons
 }
 
 RDFT::RDFT(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-               Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+               Node(op, eng, cache, NgraphShapeInferFactory(op, PortMask(1, 2))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -117,7 +116,7 @@ RDFT::RDFT(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, Wei
     normalizeAxes(axes, rank);
 
     if (numInputs < 3) {
-        const auto& inputShape = inputShapes[DATA_INDEX].getStaticDims();
+        const auto& inputShape = inputShapes[DATA_INDEX].getDims();
         signalSizes = getDefaultSignalSizes(inputShape, axes, inverse);
     }
 }
@@ -179,6 +178,7 @@ void RDFT::execute(dnnl::stream strm) {
         } else {
             signalSizes = getDefaultSignalSizes(inputShape, axes, inverse);
         }
+        IE_ASSERT(signalSizes.size() > 0);
     }
 
     const auto& inputStrides = inputMem.GetDescWithType<BlockedMemoryDesc>()->getStrides();
@@ -193,6 +193,10 @@ void RDFT::execute(dnnl::stream strm) {
                       axes, signalSizes,
                       inputShape, outputShape,
                       inputStrides, outputStrides);
+}
+
+void RDFT::executeDynamicImpl(dnnl::stream strm) {
+    execute(strm);
 }
 
 bool RDFT::created() const {
