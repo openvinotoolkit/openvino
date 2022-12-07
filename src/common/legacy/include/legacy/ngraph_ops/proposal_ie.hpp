@@ -17,7 +17,6 @@ namespace op {
 class ProposalIE : public Op {
 public:
     OPENVINO_OP("ProposalIE", "legacy");
-    BWDCMP_RTTI_DECLARATION;
 
     //  \brief Constructs a Proposal operation
     //

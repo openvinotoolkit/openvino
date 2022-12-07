@@ -87,7 +87,7 @@
 #include <transformations/op_conversions/convert_roi_align_v3_to_v9.hpp>
 #include <transformations/op_conversions/softsign_decomposition.hpp>
 #include "transformations/op_conversions/eye_decomposition.hpp"
-#include "transformations/smart_reshape/smart_reshape.hpp"
+#include "transformations/op_conversions/unique_decomposition.hpp"
 
 #include "ngraph_transformations/convert_to_cpu_specific_opset.hpp"
 #include "ngraph_transformations/snippets_mark_skipped.hpp"
@@ -287,7 +287,7 @@ static bool fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& node, ov::
 
 static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function> nGraphFunc, const bool _enableLPT, const bool _enableBF16,
                                                const bool _enableSnippets, const bool isLegacyApi) {
-    ngraph::pass::Manager manager;
+    ov::pass::Manager manager;
     manager.set_per_pass_validation(false);
     manager.register_pass<ov::pass::InitNodeInfo>();
 
@@ -348,13 +348,13 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     manager.register_pass<ov::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
     manager.register_pass<ov::pass::ConvertMatrixNmsToMatrixNmsIE>();
     manager.register_pass<ov::pass::TransposeMatMul>();
-    manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<ov::pass::ConstantFolding>();
 
     if (useLpt) {
         CPU_LPT_SCOPE(LowPrecisionTransformations_Part2);
         manager.register_pass<ngraph::pass::low_precision::ConvertSubtractConstant>(defaultPrecisions);
     }
-    manager.register_pass<ngraph::pass::Validate>();
+    manager.register_pass<ov::pass::Validate>();
     manager.register_pass<ov::pass::ConvertPrecision>(precisions, type_to_fuse);
     manager.register_pass<ov::pass::EliminateConvert>();
     manager.register_pass<SwapConvertTranspose>();
@@ -522,6 +522,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     pass_config->disable<ov::pass::ConvertDetectionOutput8ToDetectionOutput1>();
     pass_config->disable<ov::pass::ConvertROIAlign9To3>();
     pass_config->disable<ov::pass::SoftSignDecomposition>();
+    pass_config->disable<ov::pass::UniqueDecomposition>();
 
     pass_config->enable<ov::pass::NormalizeL2Decomposition>();
     pass_config->enable<ov::pass::ConvertInterpolate1ToInterpolate4>();
@@ -597,7 +598,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
             supportedPrecisions = std::vector<PrecisionsRestriction>({});
         }
 
-        ngraph::pass::Manager lptManager;
+        ov::pass::Manager lptManager;
         lptManager.register_pass<ngraph::pass::low_precision::LowPrecision>(
             supportedPrecisions,
             quantizationRestrictions,
@@ -619,9 +620,9 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         lptManager.run_passes(nGraphFunc);
     }
 
-    ngraph::pass::Manager postLPTPassManager;
+    ov::pass::Manager postLPTPassManager;
     postLPTPassManager.register_pass<ov::pass::UnrollTensorIterator>();
-    postLPTPassManager.register_pass<ReshapePRelu>();
+    postLPTPassManager.register_pass<ov::pass::ReshapePRelu>();
     postLPTPassManager.get_pass_config()->set_callback<ov::pass::UnrollTensorIterator>([](const_node_ptr &node) -> bool {
         // UnrollTI transformation is disabled by default, is turned on by LowLatency transformation
         return node->get_rt_info().count("UNROLL_TI") == 0;
@@ -634,7 +635,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         return false;
     });
 
-    postLPTPassManager.register_pass<ngraph::pass::ConstantFolding>();
+    postLPTPassManager.register_pass<ov::pass::ConstantFolding>();
 
     // Snippets may brake MHA patterns so the fusion has to performed before
     postLPTPassManager.register_pass<MHAFusion>();
@@ -663,7 +664,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     postLPTPassManager.run_passes(nGraphFunc);
 
     if (_enableSnippets && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
-        ngraph::pass::Manager snippetsManager;
+        ov::pass::Manager snippetsManager;
         snippetsManager.register_pass<SnippetsMarkSkipped>();
         snippetsManager.register_pass<ngraph::snippets::pass::EnumerateNodes>();
         snippetsManager.register_pass<ngraph::snippets::pass::TokenizeSnippets>();
@@ -697,13 +698,13 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         snippetsManager.run_passes(nGraphFunc);
     }
 
-    ngraph::pass::Manager postSnippetsManager;
+    ov::pass::Manager postSnippetsManager;
     postSnippetsManager.register_pass<ov::pass::FakeQuantizeDecomposition>();
     postSnippetsManager.get_pass_config()->set_callback<ov::pass::FakeQuantizeDecomposition>([](const_node_ptr& node) -> bool {
             std::string errMsg;
             return node::FakeQuantize::isSupportedOperation(node, errMsg);
         });
-    postSnippetsManager.register_pass<ngraph::pass::ConstantFolding>();
+    postSnippetsManager.register_pass<ov::pass::ConstantFolding>();
     postSnippetsManager.run_passes(nGraphFunc);
 }
 

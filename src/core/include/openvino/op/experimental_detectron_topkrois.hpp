@@ -20,7 +20,6 @@ namespace v6 {
 class OPENVINO_API ExperimentalDetectronTopKROIs : public Op {
 public:
     OPENVINO_OP("ExperimentalDetectronTopKROIs", "opset6", op::Op, 6);
-    BWDCMP_RTTI_DECLARATION;
 
     ExperimentalDetectronTopKROIs() = default;
     /// \brief Constructs a ExperimentalDetectronTopKROIs operation.

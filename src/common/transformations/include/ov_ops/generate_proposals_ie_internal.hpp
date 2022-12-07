@@ -20,7 +20,6 @@ class TRANSFORMATIONS_API GenerateProposalsIEInternal : public op::v9::GenerateP
 
 public:
     OPENVINO_OP("GenerateProposalsIEInternal", "ie_internal_opset");
-    BWDCMP_RTTI_DECLARATION;
 
     GenerateProposalsIEInternal() = default;
 

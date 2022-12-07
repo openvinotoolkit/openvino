@@ -209,10 +209,9 @@ void Plugin::UpdateStatistics(const RemoteCLContext::Ptr& context) const {
 
         std::map<std::string, uint64_t> statistics;
         auto impl = getContextImpl(context);
-        impl->acquire_lock();
+        std::lock_guard<ExecutionContextImpl> locker(*impl);
         std::shared_ptr<cldnn::engine> eng = impl->GetEngine();
         statistics = eng->get_memory_statistics();
-        impl->release_lock();
 
         // if the same context exists, the statistics is replaced with the latest one
         // (currently, memory usage is accumulated for several networks in the same context)
