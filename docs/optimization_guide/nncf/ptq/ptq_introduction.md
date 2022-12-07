@@ -19,3 +19,4 @@ This API has two main capabilities to apply 8-bit post-training quantization:
 ## See also
 
 * [NNCF GitHub](https://github.com/openvinotoolkit/nncf)
+* [Optimizing Models at Training Time](@ref tmo_introduction)

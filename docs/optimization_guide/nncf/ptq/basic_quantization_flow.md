@@ -44,6 +44,12 @@ The transformation function is a function that takes a sample from the dataset a
 
 @endsphinxtab
 
+@sphinxtab{TesnrFlow}
+
+@snippet docs/optimization_guide/nncf/ptq/code/ptq_tensorflow.py dataset
+
+@endsphinxtab
+
 @endsphinxtabset
 
 In the case when there is no framework dataset object you can create your own entity which implements `Iterable` interface in Python and returns data samples feasible for inference. No transformation function is required in this case.
@@ -69,6 +75,12 @@ Once dataset is ready and model object is instantiated, you can apply 8-bit quan
 @sphinxtab{OpenVINO}
 
 @snippet docs/optimization_guide/nncf/ptq/code/ptq_torch.py quantization
+
+@endsphinxtab
+
+@sphinxtab{TensorFlow}
+
+@snippet docs/optimization_guide/nncf/ptq/code/ptq_tensorflow.py quantization
 
 @endsphinxtab
 
@@ -120,4 +132,4 @@ If the accuracy of the quantized model is not satisfactory, you can try to use t
 
 ## See also
 
-* [Example of basic quantization flow in PyTorch](https://github.com/openvinotoolkit/nncf/blob/0f1d89cae234603e0dfdef4916fa06ef2401c383/examples/post_training_quantization/torch/mobilenet_v2/main.py)
+* [Example of basic quantization flow in PyTorch](https://github.com/openvinotoolkit/nncf/tree/develop/examples/post_training_quantization/torch/mobilenet_v2)
