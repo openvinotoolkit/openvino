@@ -235,6 +235,12 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::determine_cu
         if (ops_done.count(current_operation_place) == 0) {
             bool can_add = true;
             auto input_count = current_operation_decoder->get_input_size();
+            auto current_operation_type = current_operation_decoder->get_op_type();
+
+            if (current_operation_type == "NextIteration") {
+                // break the cycle created by NextIteration
+                input_count = 0;
+            }
 
             for (size_t input_port_idx = 0; input_port_idx < input_count; ++input_port_idx) {
                 std::string producer_name;
@@ -276,16 +282,9 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::determine_cu
                 FRONT_END_GENERAL_CHECK(m_op_places_map.count(producer_name),
                                         "There is no operation node with name: " + producer_name);
                 const auto& producer_operation_place = m_op_places_map.at(producer_name);
-                auto producer_decoder = producer_operation_place->get_decoder();
-                auto producer_type = producer_decoder->get_op_type();
                 if (m_tensor_places.find(producer_name) != m_tensor_places.end()) {
                     const auto& tensor_place = m_tensor_places[producer_name];
                     is_input |= tensor_place->is_input();
-                }
-
-                if (producer_type == "NextIteration") {
-                    // break the cycle created by NextIteration
-                    continue;
                 }
 
                 // in case presence of NextIteration in the graph (or cycle created by other operation),
