@@ -16,8 +16,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::ReverseSequence);
-
 op::ReverseSequence::ReverseSequence(const Output<Node>& arg,
                                      const Output<Node>& seq_indices,
                                      int64_t batch_axis,

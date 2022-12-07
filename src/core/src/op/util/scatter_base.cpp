@@ -11,8 +11,6 @@
 
 using namespace std;
 
-BWDCMP_RTTI_DEFINITION(ov::op::util::ScatterBase);
-
 ov::op::util::ScatterBase::ScatterBase(const Output<Node>& data,
                                        const Output<Node>& indices,
                                        const Output<Node>& updates,

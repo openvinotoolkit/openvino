@@ -14,8 +14,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v3::ROIAlign);
-
 op::v3::ROIAlign::ROIAlign(const Output<Node>& input,
                            const Output<Node>& rois,
                            const Output<Node>& batch_indices,
@@ -212,8 +210,6 @@ shared_ptr<Node> op::v9::ROIAlign::clone_with_new_inputs(const OutputVector& new
 }
 
 namespace ov {
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::v3::ROIAlign::PoolingMode>);
-
 template <>
 NGRAPH_API EnumNames<ngraph::op::v3::ROIAlign::PoolingMode>& EnumNames<ngraph::op::v3::ROIAlign::PoolingMode>::get() {
     static auto enum_names = EnumNames<ngraph::op::v3::ROIAlign::PoolingMode>(

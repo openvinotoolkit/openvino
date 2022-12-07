@@ -11,8 +11,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v4::CTCLoss);
-
 op::v4::CTCLoss::CTCLoss(const Output<Node>& logits,
                          const Output<Node>& logit_length,
                          const Output<Node>& labels,

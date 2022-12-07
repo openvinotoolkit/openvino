@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "ngraph/compatibility.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 
@@ -15,7 +14,6 @@ namespace op {
 class OPENVINO_API WrapType : public Pattern {
 public:
     OPENVINO_RTTI("patternAnyType");
-    BWDCMP_RTTI_DECLARATION;
 
     explicit WrapType(
         NodeTypeInfo wrapped_type,
@@ -54,13 +52,7 @@ private:
 };
 }  // namespace op
 
-template <class T, typename std::enable_if<ngraph::HasTypeInfoMember<T>::value, bool>::type = true>
-void collect_wrap_info(std::vector<DiscreteTypeInfo>& info) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    info.emplace_back(T::type_info);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-}
-template <class T, typename std::enable_if<!ngraph::HasTypeInfoMember<T>::value, bool>::type = true>
+template <class T>
 void collect_wrap_info(std::vector<DiscreteTypeInfo>& info) {
     info.emplace_back(T::get_type_info_static());
 }

@@ -12,9 +12,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::Interp);
-BWDCMP_RTTI_DEFINITION(op::ResampleV2);
-
 op::Interp::Interp(const Output<Node>& image, const InterpolateIEAttrs& attrs)
     : Op({image}), m_attrs(attrs) {
     constructor_validate_and_infer_types();

@@ -42,8 +42,6 @@ bool evaluate_max(const HostTensorPtr& arg, const HostTensorPtr& out, const Axis
 }  // namespace
 }  // namespace maxop
 
-BWDCMP_RTTI_DEFINITION(op::v1::ReduceMax);
-
 op::v1::ReduceMax::ReduceMax(const Output<Node>& arg, const Output<Node>& reduction_axes, bool keep_dims)
     : ArithmeticReductionKeepDims(arg, reduction_axes, keep_dims) {
     constructor_validate_and_infer_types();

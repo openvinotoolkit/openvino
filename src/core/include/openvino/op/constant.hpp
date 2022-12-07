@@ -23,7 +23,6 @@ namespace v0 {
 class OPENVINO_API Constant : public Op {
 public:
     OPENVINO_OP("Constant", "opset1");
-    BWDCMP_RTTI_DECLARATION;
 
     Constant() = default;
 

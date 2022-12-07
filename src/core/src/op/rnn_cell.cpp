@@ -15,8 +15,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::RNNCell);
-
 op::v0::RNNCell::RNNCell() {
     m_activations = {"tanh"};
     m_activation_f = get_activation_function(0);

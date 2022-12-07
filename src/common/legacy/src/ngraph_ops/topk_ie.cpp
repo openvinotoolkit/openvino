@@ -11,8 +11,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::TopKIE);
-
 op::TopKIE::TopKIE(const ngraph::Output<ngraph::Node> &data, const ngraph::Output<ngraph::Node> &k, const int64_t axis, const ngraph::op::TopKMode mode,
                    const ngraph::op::TopKSortType sort, const element::Type& index_element_type)
     : Op({data, k}), m_axis(axis), m_mode(mode), m_sort_type(sort), m_index_element_type(index_element_type) {

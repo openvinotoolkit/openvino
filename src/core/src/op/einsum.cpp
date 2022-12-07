@@ -16,8 +16,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v7::Einsum);
-
 op::v7::Einsum::Einsum(const OutputVector& inputs, const std::string& equation) : Op(inputs), m_equation(equation) {
     // normalize input equation by removing extra white-spaces from the equation
     m_equation.erase(std::remove_if(m_equation.begin(), m_equation.end(), ::isspace), m_equation.end());

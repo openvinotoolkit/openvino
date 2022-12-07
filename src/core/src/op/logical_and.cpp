@@ -11,8 +11,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(ov::op::v1::LogicalAnd);
-
 op::v1::LogicalAnd::LogicalAnd(const Output<Node>& arg0,
                                const Output<Node>& arg1,
                                const AutoBroadcastSpec& auto_broadcast)

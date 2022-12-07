@@ -14,7 +14,6 @@ namespace v0 {
 class OPENVINO_API Floor : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Floor", "opset1", util::UnaryElementwiseArithmetic);
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a floor operation.
     Floor() = default;
     /// \brief Constructs a floor operation.

@@ -13,7 +13,6 @@ namespace util {
 class OPENVINO_API AssignBase : public Sink, public VariableExtension {
 public:
     OPENVINO_OP("AssignBase", "util", ov::op::Sink);
-    BWDCMP_RTTI_DECLARATION;
     AssignBase() = default;
     /// \brief Constructs an AssignBase operation.
     explicit AssignBase(const OutputVector& arguments) : Sink(arguments) {}

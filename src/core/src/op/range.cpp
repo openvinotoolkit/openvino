@@ -44,8 +44,6 @@ check_value(T value) {
     return value == value && value_minus_value == value_minus_value;
 }
 
-BWDCMP_RTTI_DEFINITION(op::v4::Range);
-
 op::v4::Range::Range(const Output<Node>& start,
                      const Output<Node>& stop,
                      const Output<Node>& step,
@@ -235,8 +233,6 @@ bool op::v4::Range::has_evaluate() const {
     }
     return false;
 }
-
-BWDCMP_RTTI_DEFINITION(op::v0::Range);
 
 op::v0::Range::Range(const Output<Node>& start, const Output<Node>& stop, const Output<Node>& step)
     : Op({start, stop, step}) {

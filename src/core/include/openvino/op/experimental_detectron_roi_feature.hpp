@@ -21,7 +21,6 @@ namespace v6 {
 class OPENVINO_API ExperimentalDetectronROIFeatureExtractor : public Op {
 public:
     OPENVINO_OP("ExperimentalDetectronROIFeatureExtractor", "opset6", op::Op, 6);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Structure that specifies attributes of the operation
     struct Attributes {

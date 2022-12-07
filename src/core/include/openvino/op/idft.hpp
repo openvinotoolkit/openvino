@@ -18,7 +18,6 @@ namespace v7 {
 class OPENVINO_API IDFT : public util::FFTBase {
 public:
     OPENVINO_OP("IDFT", "opset7", util::FFTBase, 7);
-    BWDCMP_RTTI_DECLARATION;
     IDFT() = default;
 
     /// \brief Constructs a IDFT operation. IDFT is performed for full size axes.

@@ -53,6 +53,5 @@ public:
         : DirectValueAccessor<std::shared_ptr<op::util::Variable>>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<ov::op::util::Variable>>");
-    BWDCMP_RTTI_DECLARATION;
 };
 }  // namespace ov

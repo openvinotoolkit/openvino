@@ -18,8 +18,6 @@
 
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v7::IDFT);
-
 op::v7::IDFT::IDFT(const Output<Node>& data, const Output<Node>& axes) : FFTBase(data, axes) {
     constructor_validate_and_infer_types();
 }

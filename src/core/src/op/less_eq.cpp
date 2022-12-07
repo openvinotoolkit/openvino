@@ -13,8 +13,6 @@ using namespace ngraph;
 
 // ---------------------------------- v1 ---------------------------------------
 
-BWDCMP_RTTI_DEFINITION(op::v1::LessEqual);
-
 op::v1::LessEqual::LessEqual(const Output<Node>& arg0,
                              const Output<Node>& arg1,
                              const AutoBroadcastSpec& auto_broadcast)

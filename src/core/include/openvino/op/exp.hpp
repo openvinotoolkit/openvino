@@ -14,7 +14,6 @@ namespace v0 {
 class OPENVINO_API Exp : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Exp", "opset1", UnaryElementwiseArithmetic);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs an exponential operation.
     Exp() = default;

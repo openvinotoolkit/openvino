@@ -54,9 +54,6 @@ bool evaluate_multiply(const HostTensorPtr& arg0,
 }  // namespace multiplyop
 
 // ------------------------------------ v1 -------------------------------------
-
-BWDCMP_RTTI_DEFINITION(op::v1::Multiply);
-
 op::v1::Multiply::Multiply(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast) {
     constructor_validate_and_infer_types();

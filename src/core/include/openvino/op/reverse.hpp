@@ -15,7 +15,6 @@ namespace v1 {
 class OPENVINO_API Reverse : public Op {
 public:
     OPENVINO_OP("Reverse", "opset1", op::Op, 1);
-    BWDCMP_RTTI_DECLARATION;
 
     enum class Mode { INDEX, MASK };
 
@@ -73,7 +72,6 @@ public:
     AttributeAdapter(op::v1::Reverse::Mode& value) : EnumAttributeAdapterBase<op::v1::Reverse::Mode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v1::Reverse::Mode>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

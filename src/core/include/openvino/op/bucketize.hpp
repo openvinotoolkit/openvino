@@ -14,7 +14,6 @@ namespace v3 {
 class OPENVINO_API Bucketize : public Op {
 public:
     OPENVINO_OP("Bucketize", "opset3", op::Op, 3);
-    BWDCMP_RTTI_DECLARATION;
 
     Bucketize() = default;
     /// \brief Constructs a Bucketize node

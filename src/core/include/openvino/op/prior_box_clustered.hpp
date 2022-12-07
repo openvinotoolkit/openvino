@@ -16,7 +16,6 @@ namespace v0 {
 class OPENVINO_API PriorBoxClustered : public Op {
 public:
     OPENVINO_OP("PriorBoxClustered", "opset1");
-    BWDCMP_RTTI_DECLARATION;
     struct Attributes {
         // widths         Desired widths of prior boxes
         // heights        Desired heights of prior boxes

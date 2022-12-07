@@ -11,8 +11,6 @@
 
 using namespace std;
 
-BWDCMP_RTTI_DEFINITION(ov::op::v0::PRelu);
-
 ov::op::v0::PRelu::PRelu() : Op() {}
 
 ov::op::v0::PRelu::PRelu(const Output<Node>& data, const Output<Node>& slope) : Op({data, slope}) {

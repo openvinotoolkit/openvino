@@ -16,9 +16,6 @@
 using namespace ngraph;
 using namespace std;
 
-BWDCMP_RTTI_DEFINITION(op::v0::LSTMSequence);
-BWDCMP_RTTI_DEFINITION(op::v5::LSTMSequence);
-
 op::v0::LSTMSequence::LSTMSequence()
     : Op(),
       m_activations_alpha(),

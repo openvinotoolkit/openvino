@@ -15,7 +15,6 @@ namespace v1 {
 class OPENVINO_API Mod : public util::BinaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Mod", "opset1", op::util::BinaryElementwiseArithmetic, 1);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a Mod node.
     Mod() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}

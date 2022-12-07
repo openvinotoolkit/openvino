@@ -12,8 +12,6 @@ namespace ov {
 
 using namespace std;
 
-BWDCMP_RTTI_DEFINITION(op::util::LogicalReduction);
-
 op::util::LogicalReduction::LogicalReduction() = default;
 
 op::util::LogicalReduction::LogicalReduction(const Output<Node>& arg, const AxisSet& reduction_axes)

@@ -13,8 +13,6 @@
 using namespace std;
 using namespace ov;
 
-BWDCMP_RTTI_DEFINITION(op::internal::TensorArrayWrite);
-
 op::internal::TensorArrayWrite::TensorArrayWrite(const Output<Node>& input, const Output<Node>& index)
     : Op({input, index}) {
     constructor_validate_and_infer_types();

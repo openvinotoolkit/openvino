@@ -22,7 +22,6 @@ namespace internal {
 class TRANSFORMATIONS_API AUGRUCell : public ov::op::util::RNNCellBase {
 public:
     OPENVINO_OP("AUGRUCell", "ie_internal_opset", ov::op::util::RNNCellBase);
-    BWDCMP_RTTI_DECLARATION;
 
     AUGRUCell();
     AUGRUCell(const Output<Node>& X,

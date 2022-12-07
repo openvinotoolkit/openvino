@@ -15,7 +15,6 @@ namespace v0 {
 class OPENVINO_API Tile : public Op {
 public:
     OPENVINO_OP("Tile", "opset1");
-    BWDCMP_RTTI_DECLARATION;
 
     Tile() = default;
     /// \brief Perform dynamic padding of a tensor

@@ -17,7 +17,6 @@ namespace op {
 class NormalizeIE : public Op {
 public:
     OPENVINO_OP("NormalizeIE", "legacy");
-    BWDCMP_RTTI_DECLARATION;
 
     NormalizeIE() = default;
 

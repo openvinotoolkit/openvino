@@ -856,8 +856,6 @@ bool ov::Node::is_const_fold_disabled() const {
 }
 
 namespace ov {
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<shared_ptr<Node>>);
-
 AttributeAdapter<std::shared_ptr<Node>>::AttributeAdapter(std::shared_ptr<Node>& value) : m_ref(value) {}
 
 bool AttributeAdapter<std::shared_ptr<Node>>::visit_attributes(AttributeVisitor& visitor) {
@@ -869,8 +867,6 @@ bool AttributeAdapter<std::shared_ptr<Node>>::visit_attributes(AttributeVisitor&
     }
     return true;
 }
-
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<NodeVector>);
 
 AttributeAdapter<NodeVector>::AttributeAdapter(NodeVector& ref) : m_ref(ref) {}
 

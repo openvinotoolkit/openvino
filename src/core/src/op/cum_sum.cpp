@@ -13,8 +13,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::CumSum);
-
 op::v0::CumSum::CumSum(const Output<Node>& arg, const Output<Node>& axis, const bool exclusive, const bool reverse)
     : Op({arg, axis}),
       m_exclusive(exclusive),

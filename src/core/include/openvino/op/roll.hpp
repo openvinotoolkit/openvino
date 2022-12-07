@@ -14,7 +14,6 @@ namespace v7 {
 class OPENVINO_API Roll : public Op {
 public:
     OPENVINO_OP("Roll", "opset7", op::Op, 7);
-    BWDCMP_RTTI_DECLARATION;
 
     Roll() = default;
 

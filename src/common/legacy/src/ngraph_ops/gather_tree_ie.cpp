@@ -10,8 +10,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::GatherTreeIE);
-
 op::GatherTreeIE::GatherTreeIE(const Output<Node>& step_ids,
                                const Output<Node>& parent_idx,
                                const Output<Node>& max_seq_len,

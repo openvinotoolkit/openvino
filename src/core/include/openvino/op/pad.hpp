@@ -16,7 +16,6 @@ namespace v1 {
 class OPENVINO_API Pad : public Op {
 public:
     OPENVINO_OP("Pad", "opset1", op::Op, 1);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a generic padding operation.
     ///

@@ -16,7 +16,6 @@ namespace v0 {
 class OPENVINO_API GRN : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("GRN", "opset1", util::UnaryElementwiseArithmetic);
-    BWDCMP_RTTI_DECLARATION;
 
     GRN() = default;
     /// \brief      Constructs a GRN operation.

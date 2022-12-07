@@ -12,8 +12,6 @@
 #include "ngraph/runtime/reference/acosh.hpp"
 #include "ngraph/type/element_type.hpp"
 
-BWDCMP_RTTI_DEFINITION(ov::op::v3::Acosh);
-
 ov::op::v3::Acosh::Acosh(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }

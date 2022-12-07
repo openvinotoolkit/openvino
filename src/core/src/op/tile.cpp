@@ -15,8 +15,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::Tile);
-
 op::v0::Tile::Tile(const Output<Node>& data, const Output<Node>& repeats) : Op({data, repeats}) {
     ov::mark_as_precision_sensitive(input(1));
     constructor_validate_and_infer_types();

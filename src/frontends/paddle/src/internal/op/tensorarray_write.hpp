@@ -12,7 +12,6 @@ namespace internal {
 class TensorArrayWrite : public Op {
 public:
     OPENVINO_OP("TensorArrayWrite", "internal");
-    BWDCMP_RTTI_DECLARATION;
 
     TensorArrayWrite() = default;
 

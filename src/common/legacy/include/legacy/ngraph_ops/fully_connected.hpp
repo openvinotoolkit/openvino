@@ -18,7 +18,6 @@ namespace op {
 class FullyConnected : public Op {
 public:
     OPENVINO_OP("FullyConnected", "legacy");
-    BWDCMP_RTTI_DECLARATION;
     FullyConnected() = default;
     /// \brief Constructs an FullyConnected operation.
     ///

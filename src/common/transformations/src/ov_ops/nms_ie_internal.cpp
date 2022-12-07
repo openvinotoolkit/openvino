@@ -12,8 +12,6 @@
 using namespace std;
 using namespace ov;
 
-BWDCMP_RTTI_DEFINITION(op::internal::NonMaxSuppressionIEInternal);
-
 op::internal::NonMaxSuppressionIEInternal::NonMaxSuppressionIEInternal(const Output<Node>& boxes,
                                                                        const Output<Node>& scores,
                                                                        const Output<Node>& max_output_boxes_per_class,

@@ -6,8 +6,6 @@
 
 #include "itt.hpp"
 
-BWDCMP_RTTI_DEFINITION(ov::op::util::FrameworkNode);
-
 ov::op::util::FrameworkNode::FrameworkNode(const OutputVector& inputs, size_t output_size) : Op(inputs) {
     set_output_size(output_size);
     constructor_validate_and_infer_types();

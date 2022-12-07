@@ -9,8 +9,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::ROIPooling);
-
 op::ROIPooling::ROIPooling(const Output<Node>& input,
                            const Output<Node>& coords,
                            const ov::Shape& output_size,

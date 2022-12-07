@@ -20,7 +20,6 @@ namespace op {
 class GRUSequenceIE : public ngraph::op::util::RNNCellBase {
 public:
     OPENVINO_OP("GRUSequenceIE", "legacy");
-    BWDCMP_RTTI_DECLARATION;
 
     GRUSequenceIE(const Output <Node> &X,
                   const Output <Node> &H_t,

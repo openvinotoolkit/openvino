@@ -68,5 +68,3 @@ std::string ov::Shape::to_string() const {
     shape_str_stream << *this;
     return shape_str_stream.str();
 }
-
-BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::Shape>);

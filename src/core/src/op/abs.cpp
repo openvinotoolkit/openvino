@@ -10,8 +10,6 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/abs.hpp"
 
-BWDCMP_RTTI_DEFINITION(ov::op::v0::Abs);
-
 ov::op::v0::Abs::Abs(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }

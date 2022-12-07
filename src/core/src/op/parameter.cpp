@@ -13,8 +13,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::Parameter);
-
 op::Parameter::Parameter(const element::Type& element_type, const ov::PartialShape& pshape)
     : m_partial_shape(pshape),
       m_element_type(element_type),
@@ -68,8 +66,6 @@ void op::Parameter::set_partial_shape(const PartialShape& partial_shape) {
                     ". Layout is not compatible with shape");
     m_partial_shape = partial_shape;
 }
-
-BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ParameterVector>);
 
 ov::AttributeAdapter<ParameterVector>::AttributeAdapter(ParameterVector& ref) : m_ref(ref) {}
 

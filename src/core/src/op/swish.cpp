@@ -15,8 +15,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v4::Swish);
-
 op::v4::Swish::Swish(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();
 }

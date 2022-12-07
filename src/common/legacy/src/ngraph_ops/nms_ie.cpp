@@ -12,10 +12,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::NonMaxSuppressionIE);
-BWDCMP_RTTI_DEFINITION(op::NonMaxSuppressionIE2);
-BWDCMP_RTTI_DEFINITION(op::NonMaxSuppressionIE3);
-
 op::NonMaxSuppressionIE::NonMaxSuppressionIE(const Output<Node> &boxes,
                                              const Output<Node> &scores,
                                              const Output<Node> &max_output_boxes_per_class,

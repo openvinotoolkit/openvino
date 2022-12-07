@@ -16,8 +16,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::PadIE);
-
 op::PadIE::PadIE(const std::shared_ptr<op::v1::Pad>& pad)
     : Op({pad->input(0).get_source_output()}),
       m_pad_mode(pad->get_pad_mode()),

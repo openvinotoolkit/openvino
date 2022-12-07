@@ -10,8 +10,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v3::EmbeddingBagOffsetsSum);
-
 op::v3::EmbeddingBagOffsetsSum::EmbeddingBagOffsetsSum(const Output<Node>& emb_table,
                                                        const Output<Node>& indices,
                                                        const Output<Node>& offsets,

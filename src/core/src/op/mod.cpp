@@ -11,8 +11,6 @@ using namespace ngraph;
 
 // ------------------------------ v1 -------------------------------------------
 
-BWDCMP_RTTI_DEFINITION(op::v1::Mod);
-
 op::v1::Mod::Mod(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast) {
     constructor_validate_and_infer_types();

@@ -18,8 +18,6 @@
 
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(ov::op::v0::SpaceToDepth);
-
 ov::op::v0::SpaceToDepth::SpaceToDepth(const Output<Node>& data, const SpaceToDepthMode& mode, size_t block_size)
     : Op({data}),
       m_blocksize(block_size),
@@ -103,6 +101,4 @@ EnumNames<ngraph::op::v0::SpaceToDepth::SpaceToDepthMode>::get() {
          {"depth_first", ngraph::op::v0::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST}});
     return enum_names;
 }
-
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v0::SpaceToDepth::SpaceToDepthMode>);
 }  // namespace ov

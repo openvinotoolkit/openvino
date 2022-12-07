@@ -14,8 +14,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(ov::op::v0::PriorBoxClustered);
-
 ov::op::v0::PriorBoxClustered::PriorBoxClustered(const Output<Node>& layer_shape,
                                                  const Output<Node>& image_shape,
                                                  const Attributes& attrs)

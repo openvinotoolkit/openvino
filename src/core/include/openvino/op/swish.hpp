@@ -17,7 +17,6 @@ namespace v4 {
 class OPENVINO_API Swish : public Op {
 public:
     OPENVINO_OP("Swish", "opset4", op::Op, 4);
-    BWDCMP_RTTI_DECLARATION;
     Swish() = default;
 
     /// \brief Constructs an Swish operation.

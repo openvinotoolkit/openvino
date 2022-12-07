@@ -16,7 +16,6 @@ namespace v4 {
 class OPENVINO_API ReduceL2 : public util::ArithmeticReductionKeepDims {
 public:
     OPENVINO_OP("ReduceL2", "opset4", util::ArithmeticReductionKeepDims, 4);
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a reducet L2-norm operation.
     ReduceL2() = default;
     /// \brief Constructs a reduce L2-norm operation.

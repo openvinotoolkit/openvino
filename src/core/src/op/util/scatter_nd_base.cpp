@@ -12,7 +12,6 @@
 
 using namespace std;
 
-BWDCMP_RTTI_DEFINITION(ov::op::util::ScatterNDBase);
 constexpr int ov::op::util::ScatterNDBase::INPUTS;
 constexpr int ov::op::util::ScatterNDBase::INDICES;
 constexpr int ov::op::util::ScatterNDBase::UPDATES;

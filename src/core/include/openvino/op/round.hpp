@@ -19,7 +19,6 @@ class OPENVINO_API Round : public util::UnaryElementwiseArithmetic {
 public:
     enum class RoundMode { HALF_TO_EVEN, HALF_AWAY_FROM_ZERO };
     OPENVINO_OP("Round", "opset5", util::UnaryElementwiseArithmetic, 5);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a round operation.
     Round() = default;
@@ -62,7 +61,6 @@ public:
     AttributeAdapter(op::v5::Round::RoundMode& value) : EnumAttributeAdapterBase<op::v5::Round::RoundMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v5::Round::RoundMode>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

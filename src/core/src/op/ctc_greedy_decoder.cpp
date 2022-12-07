@@ -11,8 +11,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(ov::op::v0::CTCGreedyDecoder);
-
 op::CTCGreedyDecoder::CTCGreedyDecoder(const Output<Node>& input,
                                        const Output<Node>& seq_len,
                                        const bool ctc_merge_repeated)

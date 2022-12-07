@@ -12,8 +12,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::NormalizeIE);
-
 op::NormalizeIE::NormalizeIE(const Output<Node>& data, const Output<Node>& weights, float eps, bool across_spatial,
                              bool channel_shared, const ngraph::element::Type output_type)
     : Op({data, weights}), m_eps(eps), m_across_spatial(across_spatial), m_channel_shared(channel_shared), m_output_type(output_type) {

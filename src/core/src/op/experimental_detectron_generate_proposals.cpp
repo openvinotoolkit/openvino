@@ -14,8 +14,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v6::ExperimentalDetectronGenerateProposalsSingleImage);
-
 op::v6::ExperimentalDetectronGenerateProposalsSingleImage::ExperimentalDetectronGenerateProposalsSingleImage(
     const Output<Node>& im_info,
     const Output<Node>& anchors,

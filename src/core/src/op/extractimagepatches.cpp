@@ -14,8 +14,6 @@ using namespace ngraph;
 
 // ExtractImagePatches v3
 
-BWDCMP_RTTI_DEFINITION(op::v3::ExtractImagePatches);
-
 op::v3::ExtractImagePatches::ExtractImagePatches(const Output<Node>& image,
                                                  const ov::Shape& sizes,
                                                  const Strides& strides,

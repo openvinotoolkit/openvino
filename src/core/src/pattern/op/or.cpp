@@ -9,8 +9,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(pattern::op::Or);
-
 bool pattern::op::Or::match_value(Matcher* matcher,
                                   const Output<Node>& pattern_value,
                                   const Output<Node>& graph_value) {

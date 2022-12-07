@@ -53,8 +53,6 @@ bool evaluate_greater_equal(const HostTensorPtr& arg0,
 
 //---------------------------------- v1 ----------------------------------------
 
-BWDCMP_RTTI_DEFINITION(op::v1::GreaterEqual);
-
 op::v1::GreaterEqual::GreaterEqual(const Output<Node>& arg0,
                                    const Output<Node>& arg1,
                                    const AutoBroadcastSpec& auto_broadcast)

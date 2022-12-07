@@ -10,9 +10,7 @@
 
 namespace ngraph {
 namespace onnx_import {
-constexpr NodeTypeInfo NullNode::type_info;
-
-std::shared_ptr<ngraph::Node> NullNode::clone_with_new_inputs(const OutputVector& /* new_args */) const {
+std::shared_ptr<ov::Node> NullNode::clone_with_new_inputs(const ov::OutputVector& /* new_args */) const {
     return std::make_shared<NullNode>();
 }
 }  // namespace onnx_import

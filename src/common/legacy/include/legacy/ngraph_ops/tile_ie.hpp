@@ -16,7 +16,6 @@ namespace op {
 class TileIE : public Op {
 public:
     OPENVINO_OP("TileIE", "legacy");
-    BWDCMP_RTTI_DECLARATION;
 
     TileIE(const Output<Node>& data1,
             const int64_t axis,
