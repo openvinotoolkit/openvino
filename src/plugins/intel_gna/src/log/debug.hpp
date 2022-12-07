@@ -6,8 +6,6 @@
 
 #include <ie_common.h>
 
-// #define GNA_DEBUG
-
 #ifdef  GNA_DEBUG
 
 /**
