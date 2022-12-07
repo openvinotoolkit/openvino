@@ -64,7 +64,8 @@ struct CPU {
          * New method to get CPU infomation and CPU map
          */
         _proc = sysconf(_SC_NPROCESSORS_ONLN);
-        int _cpu_mapping[_proc][CPU_MAP_USED_PROC + 1] = {0};
+        int _cpu_mapping[_proc][CPU_MAP_USED_PROC + 1];
+        memset(_cpu_mapping, 0, _proc * (CPU_MAP_USED_PROC + 1) * sizeof(int));
 
         auto updateProcMapping = [&](const int nproc) {
             if (0 == _cpu_mapping[nproc][CPU_MAP_CORE]) {
