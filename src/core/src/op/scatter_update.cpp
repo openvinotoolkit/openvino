@@ -154,7 +154,7 @@ bool scatter_label_evaluator(const Node* node, TensorLabelVector& output_labels)
         } else if (i == updates_in_idx) {
             make_input_label(input, in2_has_no_labels);
         } else {
-            const HostTensorPtr host_tensor_ptr = input.get_tensor().get_lower_value();
+            const auto host_tensor_ptr = input.get_tensor().get_lower_value();
             input_tensors.emplace_back(ov::element::u64, host_tensor_ptr->get_shape(), host_tensor_ptr->get_data_ptr());
         }
     }
