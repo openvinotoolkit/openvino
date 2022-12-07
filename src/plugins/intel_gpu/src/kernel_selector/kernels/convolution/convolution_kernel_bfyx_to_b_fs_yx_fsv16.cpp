@@ -64,7 +64,6 @@ DeviceFeaturesKey ConvolutionKernel_bfyx_to_bfyx_f16::get_required_device_featur
     return get_common_subgroups_device_features_key(params, options);
 }
 
-
 ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_to_bfyx_f16::SetDefault(const convolution_params& params,
                                                                                    int autoTuneIndex) const {
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(params);

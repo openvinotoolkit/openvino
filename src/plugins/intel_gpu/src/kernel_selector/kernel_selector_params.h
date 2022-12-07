@@ -413,7 +413,7 @@ struct EngineInfo {
 
         if (supports_khr_subgroups || supports_intel_subgroups) {
             k.enable_subgroups();
-            // emulation
+            // if supports_intel_subgroups is not supported, then emulation will be used
             k.enable_reqd_subgroup_size();
             k.enable_blocked_read_write();
             k.enable_subgroup_shuffle();

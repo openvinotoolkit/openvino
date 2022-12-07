@@ -2,14 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#if defined(cl_intel_subgroups)
-#pragma OPENCL EXTENSION  cl_intel_subgroups : enable
-#endif
-
-#if defined(cl_intel_subgroups_short)
-#pragma OPENCL EXTENSION  cl_intel_subgroups_short : enable
-#endif
-
+#include "batch_headers/sub_group_shuffle.cl"
 #define TRANSPOSE_BLOCK_8( _block )   \
         (float8)( _sub_group_shuffle( _block, 0 ), \
                   _sub_group_shuffle( _block, 1 ), \
