@@ -214,7 +214,7 @@ void CompiledModel::set_property(const AnyMap& config) {
 
 Any CompiledModel::get_property(const std::string& name) const {
     OV_EXEC_NET_CALL_STATEMENT({
-        if (ov::from_cache == name) {
+        if (ov::loaded_from_cache == name) {
             return _impl->isLoadedFromCache();
         }
         if (ov::supported_properties == name) {

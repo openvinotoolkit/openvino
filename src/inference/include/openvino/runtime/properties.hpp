@@ -460,7 +460,7 @@ static constexpr Property<std::string> cache_dir{"CACHE_DIR"};
  * @brief Read-only property to notify user that compiled model was loaded from the cache
  * @ingroup ov_runtime_cpp_prop_api
  */
-static constexpr Property<bool, PropertyMutability::RO> from_cache{"FROM_CACHE"};
+static constexpr Property<bool, PropertyMutability::RO> loaded_from_cache{"LOADED_FROM_CACHE"};
 
 /**
  * @brief Read-only property to provide information about a range for streams on platforms where streams are supported.

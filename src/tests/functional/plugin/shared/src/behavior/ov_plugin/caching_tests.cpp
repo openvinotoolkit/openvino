@@ -191,7 +191,7 @@ void CompileModelCacheTestBase::run() {
     configure_model();
     try {
         compiledModel = core->compile_model(function, targetDevice, configuration);
-        ASSERT_FALSE(compiledModel.get_property(ov::from_cache));
+        ASSERT_FALSE(compiledModel.get_property(ov::loaded_from_cache));
         generate_inputs(targetStaticShapes.front());
         infer();
     } catch (const Exception &ex) {
@@ -211,7 +211,7 @@ void CompileModelCacheTestBase::run() {
             ASSERT_NO_THROW(compiledModel = core->compile_model(function, targetDevice, configuration));
             if (targetDevice.find("AUTO") == std::string::npos)
                 // Apply check only for HW plugins
-                ASSERT_EQ(i != 0, compiledModel.get_property(ov::from_cache));
+                ASSERT_EQ(i != 0, compiledModel.get_property(ov::loaded_from_cache));
             generate_inputs(targetStaticShapes.front());
             ASSERT_NO_THROW(infer());
         }
