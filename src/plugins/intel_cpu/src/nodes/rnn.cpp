@@ -455,6 +455,9 @@ void RNN::configurePortDataTypes() {
 
     if (one_of(memory::data_type::bf16, inDataTypes[xIdx], inDataTypes[hIdx]))
         inDataTypes[xIdx] = outDataTypes[yIdx] = outDataTypes[hoIdx] = inDataTypes[hIdx] = memory::data_type::bf16; // required by oneDNN.
+
+    if (outDataTypes[yIdx] == memory::data_type::bf16 && one_of(inDataTypes[xIdx], memory::data_type::s8, memory::data_type::u8))
+        outDataTypes[yIdx] = memory::data_type::f32; // oneDNN does not support bf16 output precision for quantized rnn primitive yet
 }
 
 void RNN::getSupportedDescriptors() {
@@ -866,7 +869,8 @@ dnnl::primitive_desc createPrimitiveDescriptor(const dnnl::engine        engine,
             wDescs[1],                                                 // Weights state
             wDescs[2],                                                 // Bias
             outDataDescs[RNN::InOutKind::Layer]->getDnnlDesc(),        // Out Data
-            outDataDescs[RNN::InOutKind::HiddenState]->getDnnlDesc()); // Out State
+            outDataDescs[RNN::InOutKind::HiddenState]->getDnnlDesc(),  // Out State
+            attr);
     case dnnl::algorithm::vanilla_gru:
         return dnnl::gru_forward::primitive_desc(
             engine,
@@ -878,7 +882,8 @@ dnnl::primitive_desc createPrimitiveDescriptor(const dnnl::engine        engine,
             wDescs[1],                                                 // Weights state
             wDescs[2],                                                 // Bias
             outDataDescs[RNN::InOutKind::Layer]->getDnnlDesc(),        // Out Data
-            outDataDescs[RNN::InOutKind::HiddenState]->getDnnlDesc()); // Out State
+            outDataDescs[RNN::InOutKind::HiddenState]->getDnnlDesc(),  // Out State
+            attr);
     case dnnl::algorithm::lbr_gru:
         return dnnl::lbr_gru_forward::primitive_desc(
             engine,
@@ -890,7 +895,8 @@ dnnl::primitive_desc createPrimitiveDescriptor(const dnnl::engine        engine,
             wDescs[1],                                                 // Weights state
             wDescs[2],                                                 // Bias
             outDataDescs[RNN::InOutKind::Layer]->getDnnlDesc(),        // Out Data
-            outDataDescs[RNN::InOutKind::HiddenState]->getDnnlDesc()); // Out State
+            outDataDescs[RNN::InOutKind::HiddenState]->getDnnlDesc(),  // Out State
+            attr);
     case dnnl::algorithm::vanilla_lstm:
         return dnnl::lstm_forward::primitive_desc(
             engine,
@@ -904,7 +910,8 @@ dnnl::primitive_desc createPrimitiveDescriptor(const dnnl::engine        engine,
             wDescs[2],                                                 // Bias
             outDataDescs[RNN::InOutKind::Layer]->getDnnlDesc(),        // Out Data
             outDataDescs[RNN::InOutKind::HiddenState]->getDnnlDesc(),  // Out State
-            outDataDescs[RNN::InOutKind::CellState]->getDnnlDesc());   // Out State C
+            outDataDescs[RNN::InOutKind::CellState]->getDnnlDesc(),    // Out State C
+            attr);
     case dnnl::algorithm::vanilla_augru:
         return dnnl::augru_forward::primitive_desc(
             engine,
@@ -917,7 +924,8 @@ dnnl::primitive_desc createPrimitiveDescriptor(const dnnl::engine        engine,
             wDescs[1],                                                 // Weights state
             wDescs[2],                                                 // Bias
             outDataDescs[RNN::InOutKind::Layer]->getDnnlDesc(),        // Out Data
-            outDataDescs[RNN::InOutKind::HiddenState]->getDnnlDesc()); // Out State
+            outDataDescs[RNN::InOutKind::HiddenState]->getDnnlDesc(),  // Out State
+            attr);
     case dnnl::algorithm::lbr_augru:
         return dnnl::lbr_augru_forward::primitive_desc(
             engine,
@@ -930,7 +938,8 @@ dnnl::primitive_desc createPrimitiveDescriptor(const dnnl::engine        engine,
             wDescs[1],                                                 // Weights state
             wDescs[2],                                                 // Bias
             outDataDescs[RNN::InOutKind::Layer]->getDnnlDesc(),        // Out Data
-            outDataDescs[RNN::InOutKind::HiddenState]->getDnnlDesc()); // Out State
+            outDataDescs[RNN::InOutKind::HiddenState]->getDnnlDesc(),  // Out State
+            attr);
     default:
         IE_THROW() << "RNN. Unknown cell type";
     }
@@ -999,7 +1008,9 @@ Node::AttrPtr RNN::initPrimitiveAttr() {
     attr->set_scratchpad_mode(dnnl::scratchpad_mode::user);
 
     if (one_of(inDataTypes[xIdx], memory::data_type::u8, memory::data_type::s8)) {
-        const int weightsScaleMask = 0;
+        const int weightsScaleMask = 0
+            + (1 << 3) // bit, indicating the unique scales for `g` dim in `ldigo`
+            + (1 << 4); // bit, indicating the unique scales for `o` dim in `ldigo`
 
         attr->set_rnn_weights_qparams(weightsScaleMask, weightsScales);
         attr->set_rnn_data_qparams(inputScale, inputShift);
