@@ -302,9 +302,9 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::stri
 }
 
 // Is called only when caching is enabled
-IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetwork(const std::string& modelPath,
+ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> MultiDeviceInferencePlugin::LoadNetwork(const std::string& modelPath,
                                                                         const std::map<std::string, std::string>& config) {
-    return LoadNetworkImpl(modelPath, {}, config);
+    return {LoadNetworkImpl(modelPath, {}, config), nullptr};
 }
 
 IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(const CNNNetwork &network,
@@ -635,23 +635,22 @@ QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const CNNNetwork&   
     queryconfig.UpdateFromMap(config, GetName(), true);
     auto fullConfig = queryconfig._keyConfigMap;
     auto priorities = fullConfig.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
-    if (priorities->second.empty()) {
-        IE_THROW() << "KEY_MULTI_DEVICE_PRIORITIES key is not set for " << GetName() <<  " device";
-    }
-    auto metaDevices = ParseMetaDevices(priorities->second, fullConfig);
-    std::unordered_set<std::string> supportedLayers;
-    for (auto&& value : metaDevices) {
-        auto deviceQr = GetCore()->QueryNetwork(network, value.deviceName, value.config);
-        std::unordered_set<std::string> deviceSupportedLayers;
-        for (auto&& layerQr : deviceQr.supportedLayersMap) {
-            deviceSupportedLayers.emplace(layerQr.first);
+    if (!priorities->second.empty()) {
+        auto metaDevices = ParseMetaDevices(priorities->second, fullConfig);
+        std::unordered_set<std::string> supportedLayers;
+        for (auto&& value : metaDevices) {
+            auto deviceQr = GetCore()->QueryNetwork(network, value.deviceName, value.config);
+            std::unordered_set<std::string> deviceSupportedLayers;
+            for (auto&& layerQr : deviceQr.supportedLayersMap) {
+                deviceSupportedLayers.emplace(layerQr.first);
+            }
+            supportedLayers = supportedLayers.empty()
+                            ? deviceSupportedLayers : (deviceSupportedLayers.empty()
+                            ? supportedLayers : InferenceEngine::details::Intersection(supportedLayers, deviceSupportedLayers));
         }
-        supportedLayers = supportedLayers.empty()
-                        ? deviceSupportedLayers : (deviceSupportedLayers.empty()
-                        ? supportedLayers : InferenceEngine::details::Intersection(supportedLayers, deviceSupportedLayers));
-    }
-    for (auto&& supportedLayer : supportedLayers) {
-        queryResult.supportedLayersMap[supportedLayer] = GetName();
+        for (auto&& supportedLayer : supportedLayers) {
+            queryResult.supportedLayersMap[supportedLayer] = GetName();
+        }
     }
     return queryResult;
 }
