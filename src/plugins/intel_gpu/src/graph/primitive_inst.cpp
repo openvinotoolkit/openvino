@@ -491,8 +491,9 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         auto out_mem = output_memory_ptr();
         auto out_alloc_type = out_mem ? out_mem->get_allocation_type() : allocation_type::unknown;
         auto out_ptr = out_mem ? out_mem->buffer_ptr() : nullptr;
+        auto impl_name = _impl->get_kernel_name();
 
-        GPU_DEBUG_COUT << id() << ": execute. Memory type: "
+        GPU_DEBUG_COUT << id() << ": execute " << impl_name << ". Memory type: "
                        << out_alloc_type << ", in_usm("
                        << in_addr.str() << "), out_usm("
                        << out_ptr << ")" << std::endl;
