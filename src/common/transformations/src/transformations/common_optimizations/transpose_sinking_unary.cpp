@@ -118,7 +118,7 @@ ov::pass::TransposeSinkingUnaryForward::TransposeSinkingUnaryForward() {
 }
 
 namespace {
-bool IfSinkingEnable(const Output<Node>& output) {
+bool IfSinkingEnabled(const Output<Node>& output) {
     return transpose_sinking::IsSinkingEnabled(output.get_node_shared_ptr());
 }
 }  // namespace
@@ -135,7 +135,7 @@ ov::pass::TransposeSinkingUnaryBackward::TransposeSinkingUnaryBackward() {
 
     auto transpose_label =
         ov::pass::pattern::wrap_type<ov::opset9::Transpose>({unary_label, ov::pass::pattern::any_input()},
-                                                            IfSinkingEnable);
+                                                            IfSinkingEnabled);
 
     ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
