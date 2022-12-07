@@ -16,7 +16,6 @@ namespace util {
 class OPENVINO_API DeformableConvolutionBase : public Op {
 public:
     OPENVINO_OP("DeformableConvolutionBase", "util");
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a conversion operation.
     DeformableConvolutionBase() = default;

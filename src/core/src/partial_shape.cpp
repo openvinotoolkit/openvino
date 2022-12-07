@@ -388,5 +388,3 @@ ov::Dimension& ov::PartialShape::operator[](size_t i) {
     m_shape_type = ShapeType::SHAPE_IS_UPDATED;  // We can't guarantee that the shape remains static or dynamic.
     return m_dimensions[i];
 }
-
-BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::PartialShape>);
