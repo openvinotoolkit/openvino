@@ -9,7 +9,6 @@ from functools import partial
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
 import scipy.optimize
 
 from ..qnoise_estimator.algorithm import QuantNoiseEstimator
@@ -39,6 +38,12 @@ try:
     SKOPT_AVAILABLE = True
 except ImportError:
     SKOPT_AVAILABLE = False
+
+try:
+    import pandas as pd
+except ImportError:
+    raise ImportError('pandas is not installed. Please install it'
+                      'to use this algorithm')
 
 logger = get_logger(__name__)
 

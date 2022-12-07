@@ -4,7 +4,6 @@
 from copy import deepcopy
 
 import numpy as np
-import pandas as pd
 from openvino.tools.mo.graph.graph import rename_node
 
 from .utils import get_composite_model
@@ -18,6 +17,12 @@ from ....graph.transformer import GraphTransformer
 from ....statistics.statistics import SQNRStatistic
 from ....utils.logger import get_logger
 from ....samplers.index_sampler import IndexSampler
+
+try:
+    import pandas as pd
+except ImportError:
+    raise ImportError('pandas is not installed. Please install it'
+                      'to use this algorithm')
 
 logger = get_logger(__name__)
 
