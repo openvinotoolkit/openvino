@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import compatible_shapes, reverse_bypass_infer
+from openvino.tools.mo.front.common.partial_infer.utils import compatible_shapes, reverse_bypass_infer, shape_array
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.ops.op import Op
 
@@ -186,4 +186,7 @@ class ScatterUpdate(Scatter):
             out_value = input_value.copy()
             for idx in np.ndindex(*input_shape[:axis]):
                 out_value[idx][indices_value] = updates_value[idx]
+            # update value can be dynamic, we need to create masked array in that case
+            if isinstance(updates_value, np.ma.masked_array):
+                out_value = shape_array(out_value, dtype=out_value.dtype)
             node.out_port(0).data.set_value(out_value)

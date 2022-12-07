@@ -29,6 +29,7 @@
 #include <utils/shape_inference/shape_inference.hpp>
 #include <ie_ngraph_utils.hpp>
 #include "utils/cpu_utils.hpp"
+#include <utils/shape_inference/shape_inference_ngraph.hpp>
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -50,7 +51,7 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_interpolate_kernel_f32)
 
     explicit jit_uni_interpolate_kernel_f32(jit_interpolate_config_params jcp, const dnnl_primitive_attr &attr)
-    : jit_uni_interpolate_kernel(jcp, attr), jit_generator() {}
+    : jit_uni_interpolate_kernel(jcp, attr), jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -1544,8 +1545,39 @@ bool Interpolate::isSupportedOperation(const std::shared_ptr<const ngraph::Node>
     return true;
 }
 
+namespace {
+/**
+ * Interpolate shape inference factory. It defines the input mask depending on the shape calculation mode.
+ * 
+ */
+class InterpolateShapeInferFactory : public ShapeInferFactory {
+public:
+    InterpolateShapeInferFactory(std::shared_ptr<ngraph::Node> op) : m_op(op) {}
+    ShapeInferPtr makeShapeInfer() const override {
+        IShapeInfer::port_mask_t port_mask = 0x00;
+        auto interp = ov::as_type_ptr<ngraph::opset4::Interpolate>(m_op);
+        if (!interp) {
+            IE_THROW(Unexpected) << "Wrong operation type";
+        }
+        const auto &attr = interp->get_attrs();
+
+        if (attr.shape_calculation_mode == ngInterpShapeCalcMode::SCALES) {
+            port_mask = PortMask(Interpolate::SCALES_ID, Interpolate::AXES_ID);
+        } else if (attr.shape_calculation_mode == ngInterpShapeCalcMode::SIZES) {
+            port_mask = PortMask(Interpolate::TARGET_SHAPE_ID, Interpolate::AXES_ID);
+        } else {
+            IE_ASSERT(false) << "Unsupported interpolate shape calculation mode";
+        }
+
+        return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), port_mask);
+    }
+private:
+    std::shared_ptr<ngraph::Node> m_op;
+};
+} // namespace
+
 Interpolate::Interpolate(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache) {
+        : Node(op, eng, cache, InterpolateShapeInferFactory(op)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Interpolate node with name '" + getName() + "'";
@@ -1805,11 +1837,6 @@ bool Interpolate::needShapeInfer() const {
         }
     }
     return false;
-}
-
-std::vector<VectorDims> Interpolate::shapeInfer() const {
-    const size_t port = shapeCalcMode == InterpolateShapeCalcMode::sizes ? TARGET_SHAPE_ID : SCALES_ID;
-    return shapeInferGeneric(PortMask(port, AXES_ID));
 }
 
 void Interpolate::executeDynamicImpl(dnnl::stream strm) {

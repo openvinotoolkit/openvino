@@ -140,7 +140,7 @@ bool Pooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
 }
 
 Pooling::Pooling(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache) {
+        : Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -387,9 +387,11 @@ void Pooling::prepareParams() {
 
     prim = result.first;
 
+    auto pd = (*prim).get_primitive_desc();
+    auto scratchpadMem = getScratchPadMem(pd);
     auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
     auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
-    primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}};
+    primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}, {DNNL_ARG_SCRATCHPAD, scratchpadMem->GetPrimitive()}};
 
     Node::appendPostOpArgs(*attr, primArgs, postOpsArgs);
 }
@@ -616,6 +618,8 @@ Node::AttrPtr Pooling::initPrimitiveAttr() {
 
     setPostOps(*attr);
 
+    (*attr).set_scratchpad_mode(dnnl::scratchpad_mode::user);
+
     return attr;
 }
 
@@ -635,6 +639,6 @@ void Pooling::setPostOps(dnnl::primitive_attr &attr) {
     attr.set_post_ops(ops);
 }
 
-}   // namespace node
+}  // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

@@ -43,8 +43,8 @@ private:
                 _topology.add_primitive(std::make_shared<input_layout>(input_id, layout));
                 for (auto& prim : _topology.get_primitives()) {
                     for (auto& inp : prim.second->input) {
-                        if (inp == node.id())
-                            inp = input_id;
+                        if (inp.pid == node.id())
+                            inp.pid = input_id;
                     }
                 }
             } else {
@@ -83,6 +83,7 @@ using condition_node = typed_program_node<condition>;
 template <>
 class typed_primitive_inst<condition> : public typed_primitive_inst_base<condition> {
     using parent = typed_primitive_inst_base<condition>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(condition_node const& node, kernel_impl_params const& impl_param);
@@ -95,7 +96,7 @@ public:
     memory& compare_memory() const { return dep_memory(1); }
     network::ptr get_net_true() const { return _net_true; }
     network::ptr get_net_false() const { return _net_false; }
-    primitive_id result_id() const { return node.result_id(); }
+    primitive_id result_id() const { return node->result_id(); }
 
 private:
     network::ptr _net_true;

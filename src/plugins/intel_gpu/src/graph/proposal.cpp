@@ -20,13 +20,10 @@ static void generate_anchors(unsigned base_size,
                              bool shift_anchors,
                              bool round_ratios);
 
-primitive_type_id proposal::type_id() {
-    static primitive_type_base<proposal> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(proposal)
 
 layout proposal_inst::calc_output_layout(proposal_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for proposal_node!");
     auto desc = impl_param.typed_desc<proposal>();
     layout input_layout = impl_param.get_input_layout(cls_scores_index);
@@ -109,13 +106,13 @@ std::string proposal_inst::to_string(proposal_node const& node) {
 }
 
 proposal_inst::typed_primitive_inst(network& network, proposal_node const& node) : parent(network, node) {
-    generate_anchors(argument.base_bbox_size,
-                     argument.ratios,
-                     argument.scales,
+    generate_anchors(argument->base_bbox_size,
+                     argument->ratios,
+                     argument->scales,
                      _anchors,
-                     argument.coordinates_offset,
-                     argument.shift_anchors,
-                     argument.round_ratios);
+                     argument->coordinates_offset,
+                     argument->shift_anchors,
+                     argument->round_ratios);
 }
 
 static void generate_anchors(unsigned int base_size,

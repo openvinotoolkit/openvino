@@ -72,6 +72,7 @@ enum class Type {
     Gather,
     GatherElements,
     GatherND,
+    GridSample,
     OneHot,
     RegionYolo,
     Select,
@@ -109,7 +110,8 @@ enum class Type {
     PriorBox,
     PriorBoxClustered,
     Interaction,
-    MHA
+    MHA,
+    Unique
 };
 
 enum class Algorithm {
@@ -133,6 +135,9 @@ enum class Algorithm {
 
     // Elementwise algorithms
     EltwiseAdd,
+    EltwiseIsFinite,
+    EltwiseIsInf,
+    EltwiseIsNaN,
     EltwiseMultiply,
     EltwiseSubtract,
     EltwiseDivide,

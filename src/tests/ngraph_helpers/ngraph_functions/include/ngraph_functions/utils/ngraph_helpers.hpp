@@ -142,6 +142,9 @@ enum EltwiseTypes {
 enum ComparisonTypes {
     EQUAL,
     NOT_EQUAL,
+    IS_FINITE,
+    IS_INF,
+    IS_NAN,
     LESS,
     LESS_EQUAL,
     GREATER,

@@ -111,7 +111,7 @@ bool MatMul::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
 }
 
 MatMul::MatMul(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-    Node(op, eng, cache), withBiases(false) {
+    Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)), withBiases(false) {
     std::string errorMessage;
     errorPrefix = "MatMul node with name '" + getName() + "'";
 
@@ -161,31 +161,34 @@ bool MatMul::canFuse(const NodePtr& node) const {
     return canFuseSimpleOperation(node);
 }
 
-void MatMul::setPostOps(dnnl::primitive_attr &attr, const VectorDims& dims, bool initWeights = false) {
+void MatMul::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims, bool initWeights = false) {
     dnnl::post_ops ops;
 
-    auto getBinPostOpShape = [&](){
-        const auto outShapeRank = dims.size();
-        const auto chIdx = getFusingAxis();
-        std::vector<size_t> binaryShape(outShapeRank, 1);
-        binaryShape[chIdx] = dims[chIdx];
-        return binaryShape;
-    };
+    dnnl::memory::data_type outputDataType = dnnl::memory::data_type::undef;
+    if (outDataDesc) {
+        outputDataType = outDataDesc->getDataType();
+    }
 
-    for (const auto &node : fusedWith) {
-        if (auto* eltwiseNode = dynamic_cast<Eltwise *>(node.get())) {
-            if (eltwiseNode->getOneDnnAlgorithm() != dnnl::algorithm::undef) {
-                eltwiseNode->appendPostOps(ops, dims, postOpsArgs);
-            } else {
-                eltwiseNode->appendBinPostOps(ops, getBinPostOpShape(), postOpsArgs);
-            }
-            continue;
-        } else if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize *>(node.get())) {
-            fakeQuantizeNode->appendBinPostOps(ops, getBinPostOpShape(), postOpsArgs);
+    bool isINT8 = canBeExecutedInInt8(getOriginalInputPrecisionAtPort(0), getOriginalInputPrecisionAtPort(1));
+
+    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, dims.size() - 1, isINT8);
+
+    for (int i = 0; i < fusedWith.size(); ++i) {
+        auto& node = fusedWith[i];
+        bool isLastPostOp = (i == (fusedWith.size() - 1));
+
+        if (auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get())) {
+            eltwiseNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType);
             continue;
         }
 
-        IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
+        if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get())) {
+            fakeQuantizeNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType);
+            continue;
+        }
+
+        IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType())
+                   << " node is not implemented";
     }
 
     attr.set_post_ops(ops);
@@ -195,6 +198,8 @@ Node::AttrPtr MatMul::initPrimitiveAttr(const VectorDims &dims) {
     auto attr = std::make_shared<dnnl::primitive_attr>(dnnl::primitive_attr());
 
     setPostOps(*attr, dims, true);
+
+    (*attr).set_scratchpad_mode(dnnl::scratchpad_mode::user);
 
     return attr;
 }
@@ -569,6 +574,10 @@ void MatMul::prepareParams() {
 
     prim = result.first;
 
+    auto pd = (*prim).get_primitive_desc();
+    auto scratchpadMem = getScratchPadMem(pd);
+
+    primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
     primArgs[DNNL_ARG_SRC_0] = src0MemPtr->GetPrimitive();
     primArgs[DNNL_ARG_WEIGHTS_0] = src1MemPtr->GetPrimitive();
     primArgs[DNNL_ARG_DST] = dstMemPtr->GetPrimitive();
@@ -579,7 +588,7 @@ void MatMul::prepareParams() {
 }
 
 void MatMul::executeDynamicImpl(dnnl::stream strm) {
-    Node::execute(strm);
+    execute(strm);
 }
 
 const std::vector<impl_desc_type>& MatMul::getPrimitivesPriority() {
@@ -618,7 +627,6 @@ const std::vector<impl_desc_type>& MatMul::getPrimitivesPriority() {
     }
     return implPriorities;
 }
-
 }   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

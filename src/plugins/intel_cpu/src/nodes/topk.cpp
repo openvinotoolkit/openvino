@@ -74,7 +74,7 @@ struct jit_uni_topk_kernel_f32 : public jit_uni_topk_kernel, public jit_generato
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_topk_kernel_f32)
 
     explicit jit_uni_topk_kernel_f32(jit_topk_config_params jcp)
-        : jit_uni_topk_kernel(jcp), jit_generator() {}
+        : jit_uni_topk_kernel(jcp), jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -1822,7 +1822,7 @@ bool TopK::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, s
 }
 
 TopK::TopK(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache) {
+        : Node(op, eng, cache, NgraphShapeInferFactory(op, PortMask(TOPK_K))) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "TopK layer with name '" + getName() + "'";
@@ -1928,10 +1928,6 @@ void TopK::initSupportedPrimitiveDescriptors() {
 bool TopK::needShapeInfer() const {
     const int src_k = reinterpret_cast<int *>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->GetPtr())[0];
     return inputShapesModified() || src_k != top_k;
-}
-
-std::vector<VectorDims> TopK::shapeInfer() const {
-    return Node::shapeInferGeneric(PortMask(1));
 }
 
 bool TopK::needPrepareParams() const {

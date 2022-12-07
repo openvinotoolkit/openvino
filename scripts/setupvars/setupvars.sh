@@ -93,65 +93,80 @@ if [ -f "$INSTALLDIR/extras/opencv/setupvars.sh" ]; then
     source "$INSTALLDIR/extras/opencv/setupvars.sh"
 fi
 
-if [ -z "$python_version" ]; then
-    python_version=$(python3 -c 'import sys; print(str(sys.version_info[0])+"."+str(sys.version_info[1]))')
-fi
-
-# splitting Python version variable depending on the used shell
-if [ -n "$ZSH_VERSION" ]; then
-    version_arr=(${(@s:.:)python_version})
-    if [ "${#version_arr[@]}" -ge "2" ]; then
-        # zsh starts indexing from 1
-        python_version_major=${version_arr[1]}
-        python_version_minor=${version_arr[2]}
-    fi
-else
-    version_arr=(${python_version//./ })
-    if [ "${#version_arr[@]}" -ge "2" ]; then
-        python_version_major=${version_arr[0]}
-        python_version_minor=${version_arr[1]}
-    fi
-fi
-
-PYTHON_VERSION_MAJOR="3"
-MIN_REQUIRED_PYTHON_VERSION_MINOR="6"
-MAX_SUPPORTED_PYTHON_VERSION_MINOR="9"
-
-if  [ "$PYTHON_VERSION_MAJOR" != "$python_version_major" ] ||
-    [ "$python_version_minor" -lt "$MIN_REQUIRED_PYTHON_VERSION_MINOR" ] ||
-    [ "$python_version_minor" -gt "$MAX_SUPPORTED_PYTHON_VERSION_MINOR" ] ; then
-    echo "[setupvars.sh] ERROR: Unsupported Python version. Please install one of Python" \
-    "${PYTHON_VERSION_MAJOR}.${MIN_REQUIRED_PYTHON_VERSION_MINOR} -" \
-    "${PYTHON_VERSION_MAJOR}.${MAX_SUPPORTED_PYTHON_VERSION_MINOR} (64-bit) from https://www.python.org/downloads/"
-    return 1
-fi
-
 OS_NAME=""
 if command -v lsb_release >/dev/null 2>&1; then
     OS_NAME=$(lsb_release -i -s)
 fi
 
-python_bitness=$(python"$python_version" -c 'import sys; print(64 if sys.maxsize > 2**32 else 32)')
-if [ "$python_bitness" != "" ] && [ "$python_bitness" != "64" ] && [ "$OS_NAME" != "Raspbian" ]; then
-    echo "[setupvars.sh] WARNING: 64 bitness for Python $python_version is required"
-fi
+PYTHON_VERSION_MAJOR="3"
+MIN_REQUIRED_PYTHON_VERSION_MINOR="7"
+MAX_SUPPORTED_PYTHON_VERSION_MINOR="10"
 
-if [ -n "$python_version" ]; then
-    if [[ -d $INTEL_OPENVINO_DIR/python ]]; then
-        # add path to OpenCV API for Python 3.x
-        export PYTHONPATH="$INTEL_OPENVINO_DIR/python/python3:$PYTHONPATH"
-        pydir=$INTEL_OPENVINO_DIR/python/python$python_version
-        if [[ -d $pydir ]]; then
-            # add path to Inference Engine Python API
-            export PYTHONPATH="${pydir}:${PYTHONPATH}"
-        else
-            echo "[setupvars.sh] WARNING: Can not find OpenVINO Python module for python${python_version} by path ${pydir}"
-            echo "[setupvars.sh] WARNING: OpenVINO Python environment does not set properly"
+check_python_version () {
+    if [ -z "$python_version" ]; then
+        python_version=$(python3 -c 'import sys; print(str(sys.version_info[0])+"."+str(sys.version_info[1]))')
+    fi
+
+    # splitting Python version variable depending on the used shell
+    if [ -n "$ZSH_VERSION" ]; then
+        version_arr=(${(@s:.:)python_version})
+        if [ "${#version_arr[@]}" -ge "2" ]; then
+            # zsh starts indexing from 1
+            python_version_major=${version_arr[1]}
+            python_version_minor=${version_arr[2]}
         fi
     else
-        echo "[setupvars.sh] WARNING: Can not find OpenVINO Python binaries by path ${INTEL_OPENVINO_DIR}/python"
-        echo "[setupvars.sh] WARNING: OpenVINO Python environment does not set properly"
+        version_arr=(${python_version//./ })
+        if [ "${#version_arr[@]}" -ge "2" ]; then
+            python_version_major=${version_arr[0]}
+            python_version_minor=${version_arr[1]}
+        fi
     fi
+
+    if  [ "$PYTHON_VERSION_MAJOR" != "$python_version_major" ] ||
+        [ "$python_version_minor" -lt "$MIN_REQUIRED_PYTHON_VERSION_MINOR" ] ||
+        [ "$python_version_minor" -gt "$MAX_SUPPORTED_PYTHON_VERSION_MINOR" ] ; then
+        echo "[setupvars.sh] WARNING: Unsupported Python version. Please install one of Python" \
+        "${PYTHON_VERSION_MAJOR}.${MIN_REQUIRED_PYTHON_VERSION_MINOR} -" \
+        "${PYTHON_VERSION_MAJOR}.${MAX_SUPPORTED_PYTHON_VERSION_MINOR} (64-bit) from https://www.python.org/downloads/"
+        return 0
+    fi
+    python_bitness=$(python"$python_version" -c 'import sys; print(64 if sys.maxsize > 2**32 else 32)')
+
+    if [ "$python_bitness" != "" ] && [ "$python_bitness" != "64" ] && [ "$OS_NAME" != "Raspbian" ]; then
+        echo "[setupvars.sh] WARNING: 64 bitness for Python $python_version is required"
+    fi
+
+    if [ -n "$python_version" ]; then
+        if [[ -d $INTEL_OPENVINO_DIR/python ]]; then
+            # add path to OpenCV API for Python 3.x
+            export PYTHONPATH="$INTEL_OPENVINO_DIR/python/python3:$PYTHONPATH"
+            pydir=$INTEL_OPENVINO_DIR/python/python$python_version
+            if [[ -d $pydir ]]; then
+                # add path to Inference Engine Python API
+                export PYTHONPATH="${pydir}:${PYTHONPATH}"
+            else
+                echo "[setupvars.sh] WARNING: Can not find OpenVINO Python module for python${python_version} by path ${pydir}"
+                echo "[setupvars.sh] WARNING: OpenVINO Python environment does not set properly"
+            fi
+        else
+            echo "[setupvars.sh] WARNING: Can not find OpenVINO Python binaries by path ${INTEL_OPENVINO_DIR}/python"
+            echo "[setupvars.sh] WARNING: OpenVINO Python environment does not set properly"
+        fi
+    fi
+} 
+
+python_version_to_check="$python_version"
+if [ -z "$python_version" ]; then
+    python_version_to_check="3"
+fi
+
+if ! command -v python"$python_version_to_check" > /dev/null 2>&1; then
+    echo "[setupvars.sh] WARNING: Python is not installed. Please install one of Python" \
+    "${PYTHON_VERSION_MAJOR}.${MIN_REQUIRED_PYTHON_VERSION_MINOR} -" \
+    "${PYTHON_VERSION_MAJOR}.${MAX_SUPPORTED_PYTHON_VERSION_MINOR} (64-bit) from https://www.python.org/downloads/"
+else
+    check_python_version
 fi
 
 echo "[setupvars.sh] OpenVINO environment initialized"
