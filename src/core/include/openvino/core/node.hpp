@@ -603,7 +603,6 @@ public:
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<Node>>");
-    BWDCMP_RTTI_DECLARATION;
 
 protected:
     std::shared_ptr<ov::Node>& m_ref;
@@ -617,7 +616,6 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     OPENVINO_RTTI("AttributeAdapter<NodeVector>");
-    BWDCMP_RTTI_DECLARATION;
 
 protected:
     ov::NodeVector& m_ref;

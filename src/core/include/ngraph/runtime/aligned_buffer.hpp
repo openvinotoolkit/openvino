@@ -74,7 +74,6 @@ public:
     AttributeAdapter(std::shared_ptr<ngraph::runtime::AlignedBuffer>& value);
 
     OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<runtime::AlignedBuffer>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov
