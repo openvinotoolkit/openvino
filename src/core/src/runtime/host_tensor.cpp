@@ -16,7 +16,7 @@ using namespace std;
 static const size_t alignment = 64;
 
 runtime::HostTensor::HostTensor(const ngraph::element::Type& element_type, const Shape& shape, void* memory_pointer)
-    : runtime::Tensor(std::make_shared<ngraph::descriptor::Tensor>(element_type, shape, "")),
+    : runtime::Tensor(std::make_shared<ngraph::descriptor::Tensor>(element_type, shape)),
       m_memory_pointer(memory_pointer) {
     if (get_partial_shape().is_static() && get_element_type().is_static()) {
         allocate_buffer();
@@ -29,7 +29,7 @@ runtime::HostTensor::HostTensor(const element::Type& element_type, const Shape& 
     : HostTensor(element_type, shape, nullptr) {}
 
 runtime::HostTensor::HostTensor(const element::Type& element_type, const PartialShape& partial_shape)
-    : runtime::Tensor(std::make_shared<ngraph::descriptor::Tensor>(element_type, partial_shape, "")),
+    : runtime::Tensor(std::make_shared<ngraph::descriptor::Tensor>(element_type, partial_shape)),
       m_buffer_size(0) {
     // Defer allocation until ptr is requested
 }
