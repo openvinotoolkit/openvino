@@ -526,13 +526,13 @@ class AppInputInfo:
             return False
         return len(self.channels) >= 2 if self.channels.is_static else self.channels.relaxes(Dimension(2))
 
-    def getDimentionByLayout(self, character):
+    def getDimensionByLayout(self, character):
         if self.layout.has_name(character):
             return self.partial_shape[self.layout.get_index_by_name(character)]
         else:
             return Dimension(0)
 
-    def getDimentionsByLayout(self, character):
+    def getDimensionsByLayout(self, character):
         if self.layout.has_name(character):
             d_index = self.layout.get_index_by_name(character)
             dims = []
@@ -551,23 +551,23 @@ class AppInputInfo:
 
     @property
     def width(self):
-        return len(self.getDimentionByLayout("W"))
+        return len(self.getDimensionByLayout("W"))
 
     @property
-    def widthes(self):
-        return self.getDimentionsByLayout("W")
+    def widths(self):
+        return self.getDimensionsByLayout("W")
 
     @property
     def height(self):
-        return len(self.getDimentionByLayout("H"))
+        return len(self.getDimensionByLayout("H"))
 
     @property
     def heights(self):
-        return self.getDimentionsByLayout("H")
+        return self.getDimensionsByLayout("H")
 
     @property
     def channels(self):
-        return self.getDimentionByLayout("C")
+        return self.getDimensionByLayout("C")
 
     @property
     def is_static(self):

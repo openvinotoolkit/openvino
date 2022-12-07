@@ -4,6 +4,7 @@
 import os
 import sys
 import re
+from typing import List
 import numpy as np
 from collections import defaultdict
 from pathlib import Path
@@ -12,16 +13,18 @@ from importlib.util import find_spec
 from openvino.runtime import Tensor, PartialShape
 from openvino.runtime.utils.types import get_dtype
 
-from .constants import IMAGE_EXTENSIONS, BINARY_EXTENSIONS
+from .constants import IMAGE_EXTENSIONS, NUMPY_EXTENSIONS, BINARY_EXTENSIONS
 from .logging import logger
+from .utils import AppInputInfo
 
 if find_spec('cv2') is not None:
     try:
         import cv2
     except ImportError as ex:
-        raise Exception("Failed to import opencv module. " \
-        "Please try to uninstall opencv-python " \
-        "and install opencv-python-headless instead.") from ex
+        raise Exception("Failed to import opencv module. "
+                        "Please try to uninstall opencv-python "
+                        "and install opencv-python-headless instead.") from ex
+
 
 class DataQueue:
     def __init__(self, input_data: dict, batch_sizes: list):
@@ -65,26 +68,28 @@ def get_group_batch_sizes(app_input_info):
     return batch_sizes
 
 
-def get_batch_sizes_per_input_map(app_input_info):
+def get_batch_sizes_per_input_map(app_input_info: List[AppInputInfo]):
     batch_sizes_map = {}
     for info in app_input_info:
         if info.layout.has_name('N'):
             if info.is_dynamic:
-                batch_sizes_map[info.name] = info.getDimentionsByLayout('N')
+                batch_sizes_map[info.name] = info.getDimensionsByLayout('N')
             else:
-                batch_sizes_map[info.name] = [len(info.getDimentionByLayout('N'))]
+                batch_sizes_map[info.name] = [len(info.getDimensionByLayout('N'))]
         else:
             batch_sizes_map[info.name] = [1] * len(info.shapes)
     return batch_sizes_map
 
 
 def get_input_data(paths_to_input, app_input_info):
-    image_mapping, binary_mapping = get_input_file_mappings(paths_to_input, app_input_info)
+    image_mapping, numpy_mapping, binary_mapping = get_input_file_mappings(paths_to_input, app_input_info)
 
     image_sizes = get_image_sizes(app_input_info)
     batch_sizes_map = get_batch_sizes_per_input_map(app_input_info)
 
-    images_to_be_used_map = {input_name: len(images) for input_name, images in image_mapping.items()}
+    # Treats numpy arrays as images in this step
+    images_to_be_used_map = {input_name: len(images) \
+        for input_name, images in dict(*image_mapping.items(), *numpy_mapping.items())} 
     binaries_to_be_used_map = {input_name: len(binaries) for input_name, binaries in binary_mapping.items()}
 
     for info in app_input_info:
@@ -120,6 +125,9 @@ def get_input_data(paths_to_input, app_input_info):
         if info.name in image_mapping:
             data[port] = get_image_tensors(image_mapping[info.name][:images_to_be_used_map[info.name]], info, batch_sizes_map[info.name])
 
+        elif info.name in numpy_mapping:
+            data[port] = get_numpy_tensors(numpy_mapping[info.name][:images_to_be_used_map[info.name]], info, batch_sizes_map[info.name])
+
         elif info.name in binary_mapping:
             data[port] = get_binary_tensors(binary_mapping[info.name][:binaries_to_be_used_map[info.name]], info, batch_sizes_map[info.name])
 
@@ -134,21 +142,21 @@ def get_input_data(paths_to_input, app_input_info):
     return DataQueue(data, get_group_batch_sizes(app_input_info))
 
 
-def get_image_tensors(image_paths, info, batch_sizes):  
+def get_image_tensors(image_paths: List[str], info: AppInputInfo, batch_sizes: List[int]) -> List[Tensor]:  
     if 'cv2' not in sys.modules:
-        logger.error("Loading images requires the opencv-python or opencv-python-headless package. " \
-                "Please install it before continuing or run benchmark without "\
-                "the -i flag to fill vectors with random data.")
+        logger.error("Loading images requires the opencv-python or opencv-python-headless package. "
+                     "Please install it before continuing or run benchmark without "
+                     "the -i flag to fill vectors with random data.")
+
+    num_shapes = len(info.shapes)
+    num_images = len(image_paths)
 
     processed_frames = 0
-    widthes = info.widthes if info.is_dynamic else [info.width]
+    widths = info.widths if info.is_dynamic else [info.width]
     heights = info.heights if info.is_dynamic else [info.height]
+    process_with_original_shapes = num_shapes == 0
     tensors = []
-    process_with_original_shapes = False
-    num_shapes = len(info.shapes)
-    if num_shapes == 0:
-        process_with_original_shapes = True
-    num_images = len(image_paths)
+
     niter = max(num_shapes, num_images)
     for i in range(niter):
         shape = list(info.shapes[i % num_shapes]) if num_shapes else []
@@ -164,7 +172,7 @@ def get_image_tensors(image_paths, info, batch_sizes):
             if process_with_original_shapes:
                 logger.info(f'Image will be processed with original shape - {image.shape[:-1]}')
             elif info.layout.has_name('H') and info.layout.has_name('W'):
-                new_im_size = (widthes[i % num_shapes], heights[i % num_shapes])
+                new_im_size = (widths[i % num_shapes], heights[i % num_shapes])
                 if image.shape[:-1] != new_im_size:
                     logger.warning(f"Image is resized from ({image.shape[:-1]}) to ({new_im_size})")
                     image = cv2.resize(image, new_im_size)
@@ -172,13 +180,13 @@ def get_image_tensors(image_paths, info, batch_sizes):
             if info.scale.size or info.mean.size:
                 blue, green, red = cv2.split(image)
                 if info.mean.size:
-                    blue = np.subtract(blue, info.mean[0])
+                    red = np.subtract(red, info.mean[0])
                     green = np.subtract(green, info.mean[1])
-                    red = np.subtract(red, info.mean[2])
+                    blue = np.subtract(blue, info.mean[2])
                 if info.scale.size:
-                    blue = np.divide(blue, info.scale[0])
+                    red = np.divide(red, info.scale[0])
                     green = np.divide(green, info.scale[1])
-                    red = np.divide(red, info.scale[2])
+                    blue = np.divide(blue, info.scale[2])
                 image = cv2.merge([blue, green, red])
 
             model_channel = int(str(info.channels))
@@ -212,7 +220,99 @@ def get_image_tensors(image_paths, info, batch_sizes):
     return tensors
 
 
-def get_binary_tensors(binary_paths, info, batch_sizes):
+def get_numpy_tensors(numpy_paths: List[str], info: AppInputInfo, batch_sizes: List[int]) -> List[Tensor]:
+
+    num_shapes = len(info.shapes)
+    num_arrays = len(numpy_paths)
+
+    processed_frames = 0
+    widths = info.widths if info.is_dynamic else [info.width]
+    heights = info.heights if info.is_dynamic else [info.height]
+    process_with_original_shapes = num_shapes == 0
+    tensors = []
+
+    niter = max(num_shapes, num_arrays)
+    for i in range(niter):
+        shape = list(info.shapes[i % num_shapes]) if num_shapes else []
+        dtype = get_dtype(info.element_type)
+        numpy_arrays = np.ndarray(shape=shape, dtype=dtype)
+        numpy_index = processed_frames
+
+        current_batch_size = 1 if process_with_original_shapes \
+            else batch_sizes[i % num_shapes]
+
+        for b in range(current_batch_size):
+            numpy_index %= num_arrays
+            numpy_filename: str = numpy_paths[numpy_index]
+            extension = numpy_filename.lower().split('.')[-1]
+            if extension == "npy":
+                numpy_arr: np.ndarray = np.load(numpy_filename)
+
+                if info.layout.has_name('H') and info.layout.has_name('W'):
+                    shape = (widths[i % num_shapes], heights[i % num_shapes])
+
+                    if list(numpy_arr.shape)[:-1] != shape:
+                        raise Exception(
+                            f"Numpy array shape mismatch. File {numpy_filename} "
+                            "has shape: {numpy_arr.shape}, expected: {shape}")
+                else:
+                    if list(numpy_arr.shape) != shape:
+                        raise Exception(
+                            f"Numpy array shape mismatch. File {numpy_filename} "
+                            "has shape: {numpy_arr.shape}, expected: {shape}")
+
+                if numpy_arr.dtype != dtype:
+                    raise Exception(
+                        f"Numpy array in file {numpy_filename} is of "
+                        "{numpy_arr.dtype} format, which does not match "
+                        "input type ({dtype}).")
+
+                if info.mean.size and len(info.mean) == len(numpy_arr.shape):
+                    split_array = np.split(numpy_arr, axis=-1)
+                    for i, array in enumerate(split_array):
+                        array = np.subtract(array, info.mean[i])
+                    numpy_arr = np.concatenate(split_array, axis=-1)
+
+                if info.scale.size and len(info.scale) == len(numpy_arr.shape):
+                    split_array = np.split(numpy_arr, axis=-1)
+                    for i, array in enumerate(split_array):
+                        array = np.divide(array, info.scale[i])
+                    numpy_arr = np.concatenate(split_array, axis=-1)
+
+                model_channel = int(str(info.channels))
+                image_channel = numpy_arr.shape[-1]
+
+                if model_channel == image_channel and str(info.layout) in ['[N,C,H,W]', '[C,H,W]']:
+                    numpy_arr = numpy_arr.transpose((2, 0, 1))
+
+                if process_with_original_shapes:
+                    if len(info.partial_shape) == 4:
+                        numpy_arr = np.expand_dims(numpy_arr, 0)
+                    p_shape = PartialShape(numpy_arr.shape)
+                    if info.partial_shape.compatible(p_shape):
+                        info.data_shapes.append(p_shape.to_shape())
+                    else:
+                        raise Exception(f"Data shape '{str(p_shape)}' provided for input '{info.name}' "
+                                        f"is not compatible with partial shape '{str(info.partial_shape)}' for this input.")
+                    tensors.append(Tensor(numpy_arr))
+                else:
+                    try:
+                        numpy_arrays[b] = numpy_arr
+                    except ValueError:
+                        raise Exception(f"Numpy array shape {numpy_arr.shape} is not compatible with input shape {shape}! "
+                                        f"Make sure -i parameter is valid.")
+            else:
+                raise Exception(
+                    f"Unsupported numpy file type: {extension}")
+            numpy_index += 1
+
+        processed_frames += current_batch_size
+        if not process_with_original_shapes:
+            tensors.append(Tensor(numpy_arrays))
+
+    return tensors
+
+def get_binary_tensors(binary_paths: List[str], info: AppInputInfo, batch_sizes: List[int]) -> List[Tensor]:
     num_shapes = len(info.shapes)
     num_binaries = len(binary_paths)
     niter = max(num_shapes, num_binaries)
@@ -304,23 +404,28 @@ def fill_tensors_with_random(layer):
 
 def get_input_file_mappings(paths_to_inputs, app_input_info):
     image_dicts_list = []
+    numpy_dicts_list = []
     binary_dicts_list = []
+
     for path in paths_to_inputs:
-        image_dict, binary_dict = parse_path(path, app_input_info)
+        image_dict, numpy_dict,  binary_dict = parse_path(path, app_input_info)
         image_dicts_list.append(image_dict)
+        numpy_dicts_list.append(numpy_dict)
         binary_dicts_list.append(binary_dict)
 
     def merge_dicts(dicts_list):
         merged = defaultdict(list)
         for dict in dicts_list:
-            for k,v in dict.items():
+            for k, v in dict.items():
                 merged[k] += v
         return merged
 
     def remove_empty_items(dict):
-        return {k: sorted(v) for k,v in dict.items() if v}
+        return {k: sorted(v) for k, v in dict.items() if v}
 
-    return remove_empty_items(merge_dicts(image_dicts_list)), remove_empty_items(merge_dicts(binary_dicts_list))
+    return remove_empty_items(merge_dicts(image_dicts_list)), \
+        remove_empty_items(merge_dicts(numpy_dicts_list)), \
+        remove_empty_items(merge_dicts(binary_dicts_list))
 
 
 def parse_path(path, app_input_info):
@@ -368,7 +473,9 @@ def parse_path(path, app_input_info):
             input_path_mapping[inputs_to_fill[i % len(inputs_to_fill)]].append(input_files[i])
 
     images_mapping = defaultdict(list)
+    numpy_mapping = defaultdict(list)
     binary_mapping = defaultdict(list)
+
     unsupported_files = list()
     for input_name, _input_pathes in input_path_mapping.items():
         for _input_path in _input_pathes:
@@ -382,6 +489,8 @@ def parse_path(path, app_input_info):
                 for file in files:
                     if file.suffix.lower() in IMAGE_EXTENSIONS:
                         images_mapping[input_name].append(str(file))
+                    elif file.suffix.lower() in NUMPY_EXTENSIONS:
+                        numpy_mapping[input_name].append(str(file))
                     elif file.suffix.lower() in BINARY_EXTENSIONS:
                         binary_mapping[input_name].append(str(file))
                     else:
@@ -391,4 +500,4 @@ def parse_path(path, app_input_info):
     if unsupported_files:
         logger.warning(f"This files has unsupported extensions and will be ignored: {unsupported_files}.\n"
             f"Supported extentions:\nImages: {IMAGE_EXTENSIONS}\nBinary: {BINARY_EXTENSIONS}")
-    return images_mapping, binary_mapping
+    return images_mapping, numpy_mapping, binary_mapping
