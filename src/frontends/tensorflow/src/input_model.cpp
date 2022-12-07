@@ -66,6 +66,7 @@ public:
     void setPartialShape(ov::frontend::Place::Ptr place, const ov::PartialShape&);
     ov::PartialShape getPartialShape(ov::frontend::Place::Ptr place) const;
     void setElementType(ov::frontend::Place::Ptr place, const ov::element::Type&);
+    ov::element::Type getElementType(ov::frontend::Place::Ptr place) const;
     void setTensorValue(ov::frontend::Place::Ptr place, const void* value);
 
     std::vector<std::shared_ptr<OpPlace>> get_op_places() const;
@@ -124,6 +125,19 @@ void InputModel::InputModelTFImpl::loadPlaces() {
                 pshape = shape_any.as<ov::PartialShape>();
             } else {
                 OPENVINO_DEBUG << "TensorFlow Frontend: Placeholder " << op_name << " does not have 'shape' attribute";
+            }
+            auto output_shapes_any = node_decoder->get_attribute("_output_shapes");
+            if (pshape.rank().is_static() && pshape.rank().get_length() == 0 &&
+                output_shapes_any.is<std::vector<ov::PartialShape>>()) {
+                // we know some cases when Placeholder operation has empty scalar `shape` attribute value
+                // and non-empty `_output_shapes` attribute value.
+                // `_output_shapes` attribute value turns to be correct in this case
+                auto output_shapes = output_shapes_any.as<std::vector<ov::PartialShape>>();
+                if (output_shapes.size() == 1 && output_shapes[0].rank().is_static()) {
+                    pshape = output_shapes[0];
+                    OPENVINO_DEBUG << "TensorFlow Frontend: Placeholder " << op_name
+                                   << " has shape from '_output_shapes' attribute.";
+                }
             }
             auto dtype_any = node_decoder->get_attribute("dtype");
             auto placeholder_name = node_decoder->get_op_name();
@@ -373,6 +387,10 @@ void InputModel::InputModelTFImpl::setElementType(ov::frontend::Place::Ptr place
     castToTensorPlace(place)->set_element_type(type);
 }
 
+ov::element::Type InputModel::InputModelTFImpl::getElementType(ov::frontend::Place::Ptr place) const {
+    return castToTensorPlace(place)->get_element_type();
+}
+
 void InputModel::InputModelTFImpl::setTensorValue(ov::frontend::Place::Ptr place, const void* value) {
     m_graph_changed = true;
     auto tensor_place = castToTensorPlace(place);
@@ -434,6 +452,10 @@ ov::PartialShape InputModel::get_partial_shape(const ov::frontend::Place::Ptr& p
 
 void InputModel::set_element_type(const ov::frontend::Place::Ptr& place, const ov::element::Type& type) {
     _impl->setElementType(place, type);
+}
+
+ov::element::Type InputModel::get_element_type(const ov::frontend::Place::Ptr& place) const {
+    return _impl->getElementType(place);
 }
 
 void InputModel::set_tensor_value(const ov::frontend::Place::Ptr& place, const void* value) {

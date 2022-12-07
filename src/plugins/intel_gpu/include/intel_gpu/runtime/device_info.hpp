@@ -81,6 +81,7 @@ struct device_info {
     uint32_t num_sub_slices_per_slice;          ///< Number of subslices in a slice
     uint32_t num_eus_per_sub_slice;             ///< Number of execution units per subslice
     uint32_t num_threads_per_eu;                ///< Number of hardware threads per execution unit
+    uint32_t num_ccs;                           ///< Number of compute command streamers
 
     device_uuid uuid;                           ///< UUID of the gpu device
 };

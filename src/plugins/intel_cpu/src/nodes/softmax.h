@@ -28,7 +28,6 @@ public:
 
     void prepareParams() override;
     void executeDynamicImpl(dnnl::stream strm) override;
-    std::vector<VectorDims> shapeInfer() const override;
 
 private:
     size_t axis = 0;

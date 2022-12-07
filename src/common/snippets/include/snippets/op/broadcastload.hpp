@@ -24,22 +24,9 @@ public:
     BroadcastLoad(const Output<Node>& x, Shape output_shape);
     BroadcastLoad() = default;
 
-    bool visit_attributes(AttributeVisitor& visitor) override;
-
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     void validate_and_infer_types() override;
-
-    void set_broadcast_info(const Shape& bct) {
-        broadcast_info = bct;
-    }
-
-    bool is_broadcast(size_t idx) {
-        return broadcast_info[idx] == 1;
-    }
-
-private:
-    Shape broadcast_info;
 };
 
 } // namespace op

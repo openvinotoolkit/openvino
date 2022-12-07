@@ -25,7 +25,7 @@ TEST(shape_of_gpu, bfyx) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(shape_of("shape_of", "input", 4, data_types::i32));
+    topology.add(shape_of("shape_of", input_info("input"), 4, data_types::i32));
 
     network network(engine, topology);
 
@@ -50,7 +50,7 @@ TEST(shape_of_gpu, bfyx_i64) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(shape_of("shape_of", "input", 4, data_types::i64));
+    topology.add(shape_of("shape_of", input_info("input"), 4, data_types::i64));
 
     network network(engine, topology);
 
@@ -75,7 +75,7 @@ TEST(shape_of_gpu, yxfb) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(shape_of("shape_of", "input", 4, data_types::i32));
+    topology.add(shape_of("shape_of", input_info("input"), 4, data_types::i32));
 
     network network(engine, topology);
 
@@ -100,7 +100,7 @@ TEST(shape_of_gpu, bfzyx) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(shape_of("shape_of", "input", 5, data_types::i32));
+    topology.add(shape_of("shape_of", input_info("input"), 5, data_types::i32));
 
     network network(engine, topology);
 
@@ -129,7 +129,7 @@ TEST(shape_of_gpu, dynamic) {
 
     cldnn::topology topology;
     topology.add(input_layout("input", in_layout));
-    topology.add(shape_of("shape_of", "input", 5, data_types::i32));
+    topology.add(shape_of("shape_of", input_info("input"), 5, data_types::i32));
 
     build_options bo;
     bo.set_option(build_option::allow_new_shape_infer(true));
