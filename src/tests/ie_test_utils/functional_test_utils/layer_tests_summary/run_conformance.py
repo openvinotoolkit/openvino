@@ -12,7 +12,7 @@ from merge_xmls import merge_xml
 from pathlib import Path, PurePath
 from sys import version, platform
 
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
 
 import os
 
@@ -33,7 +33,7 @@ SUBGRAPH_DUMPER_BIN_NAME = "subgraphsDumper"
 DEBUG_DIR = "Debug"
 RELEASE_DIR = "Release"
 
-IS_WIN = "windows" in platform
+IS_WIN = "windows" in platform or "win32" in platform
 
 OS_SCRIPT_EXT = ".bat" if IS_WIN else ""
 OS_BIN_FILE_EXT = ".exe" if IS_WIN else ""
@@ -41,6 +41,9 @@ OS_BIN_FILE_EXT = ".exe" if IS_WIN else ""
 NO_MODEL_CONSTANT = "NO_MODEL"
 
 ENV_SEPARATOR = ";" if IS_WIN else ":"
+
+PYTHON_NAME = "python" if IS_WIN else "python3"
+PIP_NAME = "pip" if IS_WIN else "pip3"
 
 SCRIPT_DIR_PATH, SCRIPT_NAME = os.path.split(os.path.abspath(__file__))
 
@@ -80,12 +83,12 @@ def get_default_working_dir():
 def parse_arguments():
     parser = ArgumentParser()
 
-    models_path_help = "Path to directory/ies contains models to dump subgraph (default way is download OMZ). If `--d=False` specify Conformance IRs directory"
-    device_help = "Specify target device. Default value is CPU"
-    ov_help = "OV binary files path"
-    working_dir_help = "Specify working directory"
-    type_help = "Specify conformance type: OP or API"
-    dump_conformance_help = "Set 'True' if you want to create Conformance IRs from custom models. Default value is 'False'"
+    models_path_help = "Path to the directory/ies containing models to dump subgraph (the default way is to download OMZ). If --s=0, specify the Conformance IRs directory"
+    device_help = " Specify the target device. The default value is CPU"
+    ov_help = "OV binary files path. The default way is try to find installed OV by INTEL_OPENVINO_DIR in environmet variables or to find the absolute path of OV repo (by using script path)"
+    working_dir_help = "Specify a working directory to save all artifacts, such as reports, models, conformance_irs, etc."
+    type_help = "Specify conformance type: `OP` or `API`. The default value is `OP`"
+    dump_conformance_help = "Set '1' if you want to create Conformance IRs from custom/downloaded models. In other cases, set 0. The default value is '1'"
 
     parser.add_argument("-m", "--models_path", help=models_path_help, type=str, required=False, default=NO_MODEL_CONSTANT)
     parser.add_argument("-d", "--device", help= device_help, type=str, required=False, default="CPU")
@@ -163,10 +166,10 @@ class Conformance:
         activate_path = os.path.join(".env3", "bin", "activate")
         
         command = f'cd "{self._working_dir}"; ' \
-            f'{"" if os.path.isdir(".env3") else "python3 -m venv .env3; "} '\
+            f'{"" if os.path.isdir(".env3") else f"{PYTHON_NAME} -m venv .env3; "} '\
             f'{"" if IS_WIN else "source"} {activate_path}{OS_SCRIPT_EXT}; '\
-            f'pip3 install -e "{mo_path}/.[caffe,kaldi,mxnet,onnx,pytorch,tensorflow2]"; ' \
-            f'pip3 install "{omz_tools_path}/.[paddle,pytorch,tensorflow]"; ' \
+            f'{PIP_NAME} install -e "{mo_path}/.[caffe,kaldi,mxnet,onnx,pytorch,tensorflow2]"; ' \
+            f'{PIP_NAME} install "{omz_tools_path}/.[paddle,pytorch,tensorflow]"; ' \
             f'omz_downloader --all --output_dir="{original_model_path}"; '\
             f'omz_converter --all --download_dir="{original_model_path}" --output_dir="{converted_model_path}"; '\
             f'deactivate'
@@ -246,7 +249,7 @@ class Conformance:
         if not os.path.isdir(logs_dir):
             os.mkdir(logs_dir)
         
-        cmd = f'python3 {gtest_parallel_path}  {conformance_path}{OS_BIN_FILE_EXT} -w {worker_num} -d "{logs_dir}" -- ' \
+        cmd = f'{PYTHON_NAME} {gtest_parallel_path}  {conformance_path}{OS_BIN_FILE_EXT} -w {worker_num} -d "{logs_dir}" -- ' \
             f'--device {self._device} --input_folders "{conformance_filelist_path}" --report_unique_name --output_folder "{parallel_report_dir}"'
         logger.info(f"Stating conformance: {cmd}")
         process = Popen(cmd, shell=True)
@@ -271,7 +274,7 @@ class Conformance:
         logger.info(f"Report was saved to {os.path.join(report_dir, 'report.html')}")
 
     def start_pipeline(self, dump_models: bool):
-        command = f'pip3 install -r {os.path.join(SCRIPT_DIR_PATH, "requirements.txt")}'
+        command = f'{PIP_NAME} install -r {os.path.join(SCRIPT_DIR_PATH, "requirements.txt")}'
         process = Popen(command, shell=True)
         out, err = process.communicate()
         if err is None:

@@ -23,6 +23,7 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "utils/cpu_utils.hpp"
 #include <common/primitive_hashing_utils.hpp>
+#include <utils/shape_inference/shape_inference_pass_through.hpp>
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -752,7 +753,7 @@ bool NormalizeL2::isSupportedOperation(const std::shared_ptr<const ngraph::Node>
 }
 
 NormalizeL2::NormalizeL2(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache) {
+        Node(op, eng, cache, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -938,10 +939,6 @@ void NormalizeL2::execute(dnnl::stream strm) {
     const uint8_t *src_ptr = reinterpret_cast<const uint8_t *>(getParentEdgeAt(DATA)->getMemoryPtr()->GetPtr());
     uint8_t *dst_ptr = reinterpret_cast<uint8_t *>(getChildEdgeAt(DATA)->getMemoryPtr()->GetPtr());
     execPtr->exec(src_ptr, dst_ptr, postOpsDataPtrs.data());
-}
-
-std::vector<VectorDims> NormalizeL2::shapeInfer() const {
-    return std::vector<VectorDims>{getParentEdgesAtPort(DATA)[0]->getMemory().getStaticDims()};
 }
 
 // *====================* CornerCase *===================*

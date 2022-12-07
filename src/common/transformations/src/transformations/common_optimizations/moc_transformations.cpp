@@ -53,6 +53,7 @@
 #include <transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp>
 #include <transformations/common_optimizations/reshape_sequence_fusion.hpp>
 #include <transformations/common_optimizations/ric_fusion.hpp>
+#include <transformations/common_optimizations/select_with_one_value_condition.hpp>
 #include <transformations/common_optimizations/sequence_fusion.hpp>
 #include <transformations/common_optimizations/shuffle_channels_fusion.hpp>
 #include <transformations/common_optimizations/simplify_shape_of_sub_graph.hpp>
@@ -109,6 +110,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     // In particular, if zero dim tensor is consumed in body of MultiSubGraphOp
     // RemoveConcatZeroDimInput and RemoveMultiSubGraphOpDanglingParams should be called together.
     using namespace ov::pass;
+    REGISTER_PASS(manager, EliminateScatterUpdate)
     REGISTER_PASS(manager, RemoveConcatZeroDimInput)
     REGISTER_PASS(manager, Validate)
     // todo: ticket 96960
@@ -146,6 +148,10 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     REGISTER_PASS(manager, BroadcastElementwiseFusion)
     REGISTER_PASS(manager, PullThroughReduce)
 
+    // GRUCellFusion and SequenceFusion should be before NopElimination
+    REGISTER_PASS(manager, GRUCellFusion)
+    REGISTER_PASS(manager, SequenceFusion)
+
     auto transpose_sinking = manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(transpose_sinking, TransposeSinking)
 
@@ -153,10 +159,10 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     // because it replaces pattern that may contain Transposes which must be optimized before
     // the transformation and it also inserts Transpose that can be optimized by TransposeSinking
     ADD_MATCHER(transpose_sinking, SplitSqueezeConcatFusion)
-
     auto eliminations = manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(eliminations, EliminateUnsqueezeGather)
     ADD_MATCHER(eliminations, NopElimination, m_use_shapes)
+    ADD_MATCHER(eliminations, SelectWithOneValueCondition)
     eliminations->set_name("ov::pass::CommonEliminations");
 
     manager.register_pass<ov::pass::ConstantFolding>();
@@ -178,8 +184,6 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     ADD_MATCHER(common_fusions, GeluFusion)
     ADD_MATCHER(common_fusions, LeakyReluFusion)
     ADD_MATCHER(common_fusions, RandomUniformFusion)
-    ADD_MATCHER(common_fusions, GRUCellFusion)
-    ADD_MATCHER(common_fusions, SequenceFusion)
     ADD_MATCHER(common_fusions, ConvertTensorIteratorToSequence)
     ADD_MATCHER(common_fusions, SplitConcatPairToInterpolateFusion, m_use_shapes)
     if (m_use_shapes) {

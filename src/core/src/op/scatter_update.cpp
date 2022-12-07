@@ -14,8 +14,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v3::ScatterUpdate);
-
 op::v3::ScatterUpdate::ScatterUpdate(const Output<Node>& data,
                                      const Output<Node>& indices,
                                      const Output<Node>& updates,
@@ -92,6 +90,18 @@ bool op::v3::ScatterUpdate::evaluate_scatter_update(const HostTensorVector& outp
 bool op::v3::ScatterUpdate::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v3_ScatterUpdate_evaluate);
     return evaluate_scatter_update(outputs, inputs);
+}
+
+bool op::v3::ScatterUpdate::evaluate_lower(const HostTensorVector& outputs) const {
+    OV_OP_SCOPE(v3_ScatterUpdate_evaluate_lower);
+    return get_input_tensor(1).has_and_set_bound() && get_input_tensor(3).has_and_set_bound() &&
+           default_lower_bound_evaluator(this, outputs);
+}
+
+bool op::v3::ScatterUpdate::evaluate_upper(const HostTensorVector& outputs) const {
+    OV_OP_SCOPE(v3_ScatterUpdate_evaluate_upper);
+    return get_input_tensor(1).has_and_set_bound() && get_input_tensor(3).has_and_set_bound() &&
+           default_upper_bound_evaluator(this, outputs);
 }
 
 bool op::v3::ScatterUpdate::has_evaluate() const {

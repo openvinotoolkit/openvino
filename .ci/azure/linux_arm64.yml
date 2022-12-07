@@ -127,7 +127,7 @@ jobs:
 
   - script: |
       set -e
-      $(OPENVINO_REPO_DIR)/install_build_dependencies.sh
+      sudo -E $(OPENVINO_REPO_DIR)/install_build_dependencies.sh
       export CCACHE_TEMPDIR=$(TMP_DIR)/ccache
       export CCACHE_BASEDIR=$(Pipeline.Workspace)
       export CCACHE_MAXSIZE=50G
@@ -177,7 +177,6 @@ jobs:
         -DENABLE_PYTHON=OFF
         -DENABLE_TESTS=ON
         -DENABLE_DATA=OFF
-        -DENABLE_LTO=ON
         -DCMAKE_TOOLCHAIN_FILE=$(OPENVINO_REPO_DIR)/cmake/arm64.toolchain.cmake
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_INTEL_MYRIAD=OFF

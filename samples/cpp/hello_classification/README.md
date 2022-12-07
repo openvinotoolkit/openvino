@@ -45,6 +45,10 @@ To run the sample, use the following script:
 hello_classification <path_to_model> <path_to_image> <device_name>
 ```
 
+To run the sample, you need to specify a model and image:
+- You can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
+- You can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
+
 > **NOTES**:
 > - By default, samples and demos in OpenVINO Toolkit expect input with `BGR` order of channels. If you trained your model to work with `RGB` order, you need to manually rearrange the default order of channels in the sample or demo application, or reconvert your model, using Model Optimizer with `--reverse_input_channels` argument specified. For more information about the argument, refer to the **When to Reverse Input Channels** section of [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
 >
@@ -56,7 +60,7 @@ hello_classification <path_to_model> <path_to_image> <device_name>
 
 1. Install the `openvino-dev` Python package to use Open Model Zoo Tools:
    ```
-   python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
+   python -m pip install openvino-dev[caffe]
    ```
 
 2. Download a pre-trained model, using:

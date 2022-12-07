@@ -13,12 +13,12 @@ namespace intel_gpu {
 
 static void CreateReverseOp(Program& p, const std::shared_ptr<ngraph::op::v1::Reverse>& op) {
     validate_inputs_count(op, {2});
-    const auto input_primitives = p.GetInputPrimitiveIDs(op);
+    const auto inputs = p.GetInputInfo(op);
     const auto layer_name = layer_type_name_ID(op);
     const auto mode =
         op->get_mode() == ngraph::op::v1::Reverse::Mode::INDEX ? cldnn::reverse_mode::index : cldnn::reverse_mode::mask;
 
-    const cldnn::reverse reverse{layer_name, input_primitives[0], input_primitives[1], mode};
+    const cldnn::reverse reverse{layer_name, inputs[0], inputs[1], mode};
 
     p.add_primitive(*op, reverse);
 }

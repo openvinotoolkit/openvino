@@ -34,10 +34,9 @@ To build the sample, please use the instructions available at [Build the Sample 
 
 ## Running
 
-Before running the sample, specify a model and an image:
-
-- you may use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from Open Model Zoo. The models can be downloaded by using the [Model Downloader](@ref omz_tools_downloader).
-- you may use images from the media files collection, available online in the [test data storage](https://storage.openvinotoolkit.org/data/test_data).
+To run the sample, you need to specify a model and image:
+- You can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
+- You can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
 
 The sample accepts an uncompressed image in the `NV12` color format. To run the sample, you need to
 convert your `BGR`/`RGB` image to `NV12`. To do this, use one of the widely available tools such
@@ -73,7 +72,7 @@ hello_nv12_input_classification <path_to_model> <path_to_image> <image_size> <de
 
 1. Install the `openvino-dev` Python package to use Open Model Zoo Tools:
    ```
-   python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
+   python -m pip install openvino-dev[caffe]
    ```
 
 2. Download a pre-trained model:

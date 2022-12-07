@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-import xml.etree.ElementTree
+import defusedxml.ElementTree as ET
 
 
 def mapping_parser(file):
@@ -13,7 +13,7 @@ def mapping_parser(file):
     """
     mapping_dict = {}
     if os.path.splitext(file)[1] == '.mapping' and os.path.isfile(file):
-        xml_tree = xml.etree.ElementTree.parse(file)
+        xml_tree = ET.parse(file)
         xml_root = xml_tree.getroot()
         for child in xml_root:
             framework_info = child.find('.//framework')

@@ -33,8 +33,8 @@ void basic_memory_dependencies::run(program& p) {
 
         // add my dependencies to restriction list (can't share input.output buffers)
         for (auto it : node->get_dependencies()) {
-            add_memory_dependency(node, it);
-            add_memory_dependency(it, node);
+            add_memory_dependency(node, it.first);
+            add_memory_dependency(it.first, node);
         }
 
         if (node->get_preferred_impl_type() == impl_types::onednn
@@ -68,7 +68,7 @@ void basic_memory_dependencies::run(program& p) {
             if (node->is_type<mutable_data>()) {
                 // if output is mutable data, then propagate output flag to its dependencies
                 for (auto& dep : node->get_dependencies()) {
-                    dep->set_output(true);
+                    dep.first->set_output(true);
                 }
             }
         }

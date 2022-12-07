@@ -410,20 +410,22 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, const std::s
     }
 }
 
-std::vector<cldnn::primitive_id> Program::GetInputPrimitiveIDs(const std::shared_ptr<ngraph::Node>& op) const {
+std::vector<cldnn::input_info> Program::GetInputInfo(const std::shared_ptr<ngraph::Node>& op) const {
     if (!op) {
         return {};
     }
 
-    std::vector<cldnn::primitive_id> inputPrimitives;
+    // Currently multiple outputs are supported only in the dynamic shape case,
+    // So the output index of the dependency is not processed
+    std::vector<cldnn::input_info> inputInfo;
     for (size_t i = 0; i < op->get_input_size(); i++) {
         auto prevOp = op->get_input_node_ptr(i);
         std::string prevName = layer_type_name_ID(prevOp);
-        if (prevOp->get_output_size() > 1 &&
-            (!allow_new_shape_infer
-            // Note:: Currently Split/Variadic Split are divided to multiple crops
-            || ngraph::is_type<ngraph::op::v1::Split>(prevOp)
-            || ngraph::is_type<ngraph::op::v1::VariadicSplit>(prevOp))) {
+        bool is_legacy_multiple_outputs = !allow_new_shape_infer
+                                          // Note:: Currently Split/Variadic Split are divided to multiple crops
+                                          || ngraph::is_type<ngraph::op::v1::Split>(prevOp)
+                                          || ngraph::is_type<ngraph::op::v1::VariadicSplit>(prevOp);
+        if (prevOp->get_output_size() > 1 && is_legacy_multiple_outputs) {
             prevName += ".out" + std::to_string(op->get_input_source_output(i).get_index());
         }
 
@@ -431,12 +433,12 @@ std::vector<cldnn::primitive_id> Program::GetInputPrimitiveIDs(const std::shared
             if (primitive_ids.find(prevName) == primitive_ids.end()) {
                 IE_THROW() << "Input " << prevName << " hasn't been found in primitive_ids map";
             }
-            inputPrimitives.push_back(primitive_ids.at(prevName));
+            inputInfo.push_back(cldnn::input_info(primitive_ids.at(prevName), is_legacy_multiple_outputs ? 0: op->get_input_source_output(i).get_index()));
         } else {
-            inputPrimitives.push_back(prevName);
+            inputInfo.push_back(cldnn::input_info(prevName, is_legacy_multiple_outputs ? 0 : op->get_input_source_output(i).get_index()));
         }
     }
-    return inputPrimitives;
+    return inputInfo;
 }
 
 void Program::init_profile_info(const cldnn::primitive& prim) {

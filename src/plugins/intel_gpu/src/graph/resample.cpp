@@ -62,31 +62,9 @@ std::vector<layout> resample_inst::calc_output_layouts(resample_node const& /*no
 
     bool sizes_calc_mod = desc->get_attrs().shape_calculation_mode == ov::op::v4::Interpolate::ShapeCalcMode::SIZES;
 
-    if ((sizes_data.empty() || !sizes_calc_mod) && (scales_data.empty() || sizes_calc_mod) && !memory_deps.count(1)) {
+    if (((sizes_data.empty() && !memory_deps.count(1)) || !sizes_calc_mod) &&
+        ((scales_data.empty() && !memory_deps.count(2)) || sizes_calc_mod)) {
        return { layout{ShapeType::dynamic(input_rank), input_layout.data_type, input_layout.format} };
-    }
-
-    if (!sizes_data.empty()) {
-        auto sizes_tensor = make_host_tensor({ sizes_shape, data_types::i64, format::bfyx }, static_cast<void*>(sizes_data.data()));
-        const_data.emplace(1, sizes_tensor);
-    }
-
-    if (!scales_data.empty()) {
-        auto scales_tensor = make_host_tensor({ scales_shape, data_types::f32, format::bfyx }, static_cast<void*>(scales_data.data()));
-        const_data.emplace(2, scales_tensor);
-    }
-
-    if (memory_deps.count(1)) {
-        auto mem = memory_deps.at(1);
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> lock(mem, impl_param.prog->get_stream());
-        auto ptr = lock.data();
-        auto tensor = make_host_tensor(mem->get_layout(), ptr);
-
-        if (sizes_calc_mod) {
-            const_data.emplace(1, tensor);
-        } else {
-            const_data.emplace(2, tensor);
-        }
     }
 
     auto axes_data = desc->axes;
@@ -102,7 +80,31 @@ std::vector<layout> resample_inst::calc_output_layouts(resample_node const& /*no
     auto pads_end = desc->pads_end;
     ov::op::v4::correct_pads_attr(&op, pads_begin, pads_end, input_shapes);
 
-    ov::op::v4::shape_infer(&op, pads_begin, pads_end, input_shapes, output_shapes, {const_data});
+    if (sizes_calc_mod) {
+        if (!sizes_data.empty()) {
+            auto sizes_tensor = make_host_tensor({ sizes_shape, data_types::i64, format::bfyx }, static_cast<void*>(sizes_data.data()));
+            const_data.emplace(1, sizes_tensor);
+            ov::op::v4::shape_infer(&op, pads_begin, pads_end, input_shapes, output_shapes, {const_data});
+        } else {
+            auto sizes_mem = memory_deps.at(1);
+            cldnn::mem_lock<uint8_t, mem_lock_type::read> lock(sizes_mem, impl_param.prog->get_stream());
+            auto sizes_tensor = make_host_tensor(sizes_mem->get_layout(), lock.data());
+            const_data.emplace(1, sizes_tensor);
+            ov::op::v4::shape_infer(&op, pads_begin, pads_end, input_shapes, output_shapes, {const_data});
+        }
+    } else {
+        if (!scales_data.empty()) {
+            auto scales_tensor = make_host_tensor({ scales_shape, data_types::f32, format::bfyx }, static_cast<void*>(scales_data.data()));
+            const_data.emplace(2, scales_tensor);
+            ov::op::v4::shape_infer(&op, pads_begin, pads_end, input_shapes, output_shapes, {const_data});
+        } else {
+            auto scales_mem = memory_deps.at(2);
+            cldnn::mem_lock<uint8_t, mem_lock_type::read> lock(scales_mem, impl_param.prog->get_stream());
+            auto scales_tensor = make_host_tensor(scales_mem->get_layout(), lock.data());
+            const_data.emplace(2, scales_tensor);
+            ov::op::v4::shape_infer(&op, pads_begin, pads_end, input_shapes, output_shapes, {const_data});
+        }
+    }
 
     return { layout{output_shapes[0], input_layout.data_type, format::adjust_to_rank(input_layout.format, output_shapes[0].size())} };
 }
@@ -167,8 +169,8 @@ std::string resample_inst::to_string(resample_node const& node) {
         resample_info.add("nearest_mode:", "simple");
 
     resample_info.add("output_size", desc->output_size);
-    resample_info.add("output padding lower size", desc->output_padding.lower_size());
-    resample_info.add("output padding upper size", desc->output_padding.upper_size());
+    resample_info.add("output padding lower size", desc->output_paddings[0].lower_size());
+    resample_info.add("output padding upper size", desc->output_paddings[0].upper_size());
 
     node_info->add("resample_info", resample_info);
     node_info->dump(primitive_description);
