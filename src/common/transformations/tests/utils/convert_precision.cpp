@@ -17,7 +17,6 @@
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/opsets/opset10.hpp>
 #include <transformations/convert_precision.hpp>
-#include <ngraph/pass/visualize_tree.hpp>
 
 #include <transformations/utils/utils.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -983,7 +982,6 @@ TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_2) {
                     return ov::fp16_compression_is_disabled(node);
                 });
         manager.register_pass<pass::ConvertPrecision>(precisions_array {{ element::f32, element::f16 }});
-        manager.register_pass<ov::pass::VisualizeTree>("after.svg");
         manager.run_passes(model);
     }
     {
@@ -1010,7 +1008,6 @@ TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_2) {
         model_ref = std::make_shared<ov::Model>(NodeVector{result}, ParameterVector{input_1});
 
         pass::Manager manager;
-        manager.register_pass<ov::pass::VisualizeTree>("model_ref.svg");
         manager.run_passes(model_ref);
     }
 

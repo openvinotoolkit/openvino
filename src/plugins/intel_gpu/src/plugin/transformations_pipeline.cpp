@@ -42,6 +42,7 @@
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
 #include <transformations/common_optimizations/wrap_interpolate_into_transposes.hpp>
 #include <transformations/common_optimizations/transpose_sinking.hpp>
+#include "transformations/common_optimizations/mark_precision_sensitive_subgraphs.hpp"
 
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
@@ -235,6 +236,17 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         auto pass_config = manager.get_pass_config();
         pass_config->disable<ov::pass::EyeDecomposition>();
+        // Skip precision sensitive nodes with marking and pass_callback:
+        // callback skips (returns true) for nodes marked as precision sensitive/disabled_f16_compression.
+        // Skipping was done by callback in order to impact behavior of ConvertPrecision as little as possible
+        // false is set to keep the whole ShapeOf subgraph in FP32 not only Constants
+        manager.register_pass<ov::pass::MarkPrecisionSensitiveSubgraphs>(false);
+        pass_config->set_callback<ngraph::pass::ConvertPrecision>(
+                [](const std::shared_ptr<const Node>& node) -> bool {
+                    return ov::fp16_compression_is_disabled(node);
+                });
+        // in order to keep ShapeOf precision sensitive subgraphs in FP32
+        pass_config->enable<ov::pass::MarkPrecisionSensitiveSubgraphs>();
         pass_config->enable<ov::pass::ConvertCompressedOnlyToLegacy>();
 
         // SpaceToDepth/DepthToSpace node implementation supports only equal input/output tensors with rank <= 5

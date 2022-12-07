@@ -35,11 +35,14 @@ bool ov::pass::ConvertCompressedOnlyToLegacy::run_on_model(const std::shared_ptr
     RUN_ON_MODEL_SCOPE(ConvertCompressedOnlyToLegacy);
     if (ngraph::op::util::has_decompression_converts(f)) {
         Manager manager(get_pass_config());
-        // Skip precision sensitive nodes with marking and pass_callback:
+
+        // Mark precision sensitive nodes in Shape subgraph,
+        // mark_only_consts = false to keep whole the ShapeOf subgraph in FP32 not only Constants.
+        // By default, marking pass is turned off not to affect other plugins.
+        // For GPU (which can handle models with different precision) pass needs to be turned on manually.
+        manager.register_pass<ov::pass::MarkPrecisionSensitiveSubgraphs, false>(false);
         // callback skips (returns true) for nodes marked as precision sensitive/disabled_f16_compression.
-        // Skipping was done by callback in order to impact behavior of ConvertPrecision as little as possible
-        // false is set to keep whole ShapeOf subgraph in FP32 not only Constants
-        manager.register_pass<ov::pass::MarkPrecisionSensitiveSubgraphs>(false);
+        // Skipping was done by callback in order to impact behavior of ConvertPrecision as little as possible.
         get_pass_config()->set_callback<ngraph::pass::ConvertPrecision>(
             [](const std::shared_ptr<const Node>& node) -> bool {
                 return ov::fp16_compression_is_disabled(node);
