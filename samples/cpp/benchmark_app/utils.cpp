@@ -9,7 +9,6 @@
 #include <nlohmann/json.hpp>
 #include <regex>
 #include <string>
-#include <type_traits>
 #include <utility>
 #include <vector>
 
