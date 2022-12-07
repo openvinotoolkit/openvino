@@ -27,7 +27,6 @@
 #include "remote_tensors_filling.hpp"
 #include "statistics_report.hpp"
 #include "utils.hpp"
-
 // clang-format on
 
 bool parse_and_check_command_line(int argc, char* argv[]) {
