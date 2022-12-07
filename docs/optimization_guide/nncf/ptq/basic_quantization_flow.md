@@ -34,13 +34,13 @@ The transformation function is a function that takes a sample from the dataset a
 
 @sphinxtab{ONNX}
 
-@snippet docs/optimization_guide/nncf/ptq/code/ptq_torch.py dataset
+@snippet docs/optimization_guide/nncf/ptq/code/ptq_onnx.py dataset
 
 @endsphinxtab
 
 @sphinxtab{OpenVINO}
 
-@snippet docs/optimization_guide/nncf/ptq/code/ptq_torch.py dataset
+@snippet docs/optimization_guide/nncf/ptq/code/ptq_openvino.py dataset
 
 @endsphinxtab
 

@@ -9,13 +9,13 @@ calibration_loader = torch.utils.data.DataLoader(...)
 
 def transform_fn(data_item):
     images, _ = data_item
-    return images
+    return images.numpy()
 
 calibration_dataset = nncf.Dataset(calibration_loader, transform_fn)
 #! [dataset]
 
 #! [quantization]
-model = ... # torch.nn.Module object
+model = ... # openvino.runtime.Model object
 
 quantized_model = nncf.quantize(model, calibration_dataset)
 #! [quantization]
