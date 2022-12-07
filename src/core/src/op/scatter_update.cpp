@@ -139,33 +139,33 @@ bool scatter_label_evaluator(const Node* node, TensorLabelVector& output_labels)
         return false;
     }
 
-    HostTensorVector input_tensors;
+    std::vector<ov::runtime::Tensor> input_tensors;
     input_tensors.reserve(input_values.size());
 
-    auto make_input_label = [&](bool has_no_labels) {
-        const auto& input = input_values[input_tensors.size()];
-        auto input_labels = has_no_labels ? std::vector<size_t>{0} : input.get_tensor().get_value_label();
-        auto labels_constant = op::v0::Constant::create(ov::element::u64, input.get_shape(), input_labels);
-        input_tensors.emplace_back(std::make_shared<HostTensor>(labels_constant));
+    auto make_input_label = [&](const Output<Node>& input, bool has_no_labels) {
+        input_tensors.emplace_back(ov::element::u64, input.get_shape());
+        const std::vector<size_t>& labels = input.get_tensor().get_value_label();
+        std::vector<uint64_t> casted_labels = has_no_labels ? std::vector<uint64_t>(shape_size(input.get_shape()), 0)
+                                                            : std::vector<uint64_t>(labels.cbegin(), labels.cend());
+        memcpy(input_tensors.back().data(), casted_labels.data(), casted_labels.size());
     };
 
     for (size_t i = 0; i < input_values.size(); ++i) {
         const auto& input = input_values[i];
         if (i == data_in_idx) {
-            make_input_label(in0_has_no_labels);
+            make_input_label(input, in0_has_no_labels);
         } else if (i == updates_in_idx) {
-            make_input_label(in2_has_no_labels);
+            make_input_label(input, in2_has_no_labels);
         } else {
-            input_tensors.emplace_back(input.get_tensor().get_lower_value());
+            const HostTensorPtr host_tensor_ptr = input.get_tensor().get_lower_value();
+            input_tensors.emplace_back(ov::element::u64, host_tensor_ptr->get_shape(), host_tensor_ptr->get_data_ptr());
         }
     }
 
-    HostTensorVector output_tensors;
-    output_tensors.reserve(node->get_output_size());
-    output_tensors.emplace_back(std::make_shared<HostTensor>(element::u64, node->get_output_partial_shape(0)));
-
+    ov::TensorVector output_tensors{ov::Tensor(element::u64, node->get_output_partial_shape(0).to_shape())};
     if (node->evaluate(output_tensors, input_tensors)) {
-        output_labels[0] = std::make_shared<op::v0::Constant>(output_tensors[0])->cast_vector<size_t>();
+        uint64_t* p = static_cast<uint64_t*>(output_tensors[0].data(ov::element::Type_t::u64));
+        output_labels[0] = std::vector<size_t>(p, p + output_tensors[0].get_size());
         return true;
     }
     return false;
