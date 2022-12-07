@@ -13,8 +13,6 @@
 using namespace std;
 using namespace ov;
 
-BWDCMP_RTTI_DEFINITION(op::internal::While);
-
 op::internal::While::While(const OutputVector& inputs,
                            int32_t sub_block,
                            const std::vector<std::pair<ov::element::Type, ov::PartialShape>>& output_infos)
