@@ -177,13 +177,13 @@ NodeVector InsertTransposeBeforeNode(NodePtr main_node, std::shared_ptr<Constant
 namespace {
 
 bool CanPropagateForwardThrough(Node* node) {
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(op::util::UnaryElementwiseArithmetic, node);
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::util::UnaryElementwiseArithmetic, node);
     CHECK_TRANSPOSE_SINKING_SUPPORTED(Clamp, node);
     CHECK_TRANSPOSE_SINKING_SUPPORTED(Elu, node);
     CHECK_TRANSPOSE_SINKING_SUPPORTED(SoftPlus, node);
     CHECK_TRANSPOSE_SINKING_SUPPORTED(LogicalNot, node);
     CHECK_TRANSPOSE_SINKING_SUPPORTED(Convert, node);
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(op::util::BinaryElementwiseArithmetic, node);
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::util::BinaryElementwiseArithmetic, node);
     CHECK_TRANSPOSE_SINKING_SUPPORTED(Concat, node);
     CHECK_TRANSPOSE_SINKING_SUPPORTED(Split, node);
     CHECK_TRANSPOSE_SINKING_SUPPORTED(Transpose, node);

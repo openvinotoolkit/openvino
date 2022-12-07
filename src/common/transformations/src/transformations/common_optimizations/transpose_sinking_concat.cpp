@@ -50,13 +50,6 @@ ov::pass::TransposeSinkingConcatForward::TransposeSinkingConcatForward() {
     register_matcher(m, matcher_pass_callback);
 }
 
-namespace {
-bool IfSinkingEnable(const Output<Node>& output) {
-    static auto consumers_check = consumers_count(1);
-    return consumers_check(output) && transpose_sinking::IsSinkingEnabled(output.get_node_shared_ptr());
-}
-}  // namespace
-
 ov::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
     MATCHER_SCOPE(TransposeSinkingConcatBackward);
 
