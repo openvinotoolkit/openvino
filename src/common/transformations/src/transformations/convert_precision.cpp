@@ -130,24 +130,24 @@ bool convert_precision(ov::pass::PassBase& pass,
     };
 
     auto convert_node_output_precision = [&](const std::shared_ptr<ngraph::Node>& node) {
+        bool res = false;
+        // Handle case with Constants as they can have consumers from other nGraph Function object
+        const auto constant = ov::as_type_ptr<opset10::Constant>(node);
+        const auto it = const_to_internal_output.find(node.get());
+        if (constant && constant->get_output_element_type(0) == from && it != const_to_internal_output.end()) {
+            return fuse_type_to_constant(node, to, it->second);
+        }
+
         for (const auto& output : node->outputs()) {
             if (output.get_element_type() == from) {
-                // Handle case with Constants as they can have consumers from other nGraph
-                // Function object
-                auto it = const_to_internal_output.find(node.get());
-                if (it != const_to_internal_output.end()) {
-                    return fuse_type_to_constant(node, to, it->second);
-                }
-
                 // Check that node type exists in map and we can fuse type into node
-                auto t2f_it = type_to_fuse.find(node->get_type_info());
-                if (t2f_it != type_to_fuse.end() && t2f_it->second(node, to, output.get_index())) {
-                    // We need to break if original node was replaced
-                    return true;
+                const auto t2f_it = type_to_fuse.find(node->get_type_info());
+                if (t2f_it != type_to_fuse.end()) {
+                    res |= t2f_it->second(node, to, output.get_index());
                 }
             }
         }
-        return false;
+        return res;
     };
 
     auto convert_node_input_precision = [&](const std::shared_ptr<ngraph::Node>& node) {
@@ -246,7 +246,7 @@ precisions_set_t find_all_used_precisions(const std::shared_ptr<ngraph::Function
         for (const auto& output : node->outputs()) {
             used_precisions.emplace(output.get_element_type());
         }
-        if (auto sub_graph_node = std::dynamic_pointer_cast<ngraph::op::util::MultiSubGraphOp>(node)) {
+        if (auto sub_graph_node = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node)) {
             size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
             for (size_t sub_graph_ind = 0; sub_graph_ind < sub_graphs_num; ++sub_graph_ind) {
                 auto sub_graph_precisions =
@@ -289,12 +289,17 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ngraph::Func
         {opset4::LogicalOr::get_type_info_static(), fuse_type_to_logical<opset4::LogicalOr>},
         {opset4::LogicalXor::get_type_info_static(), fuse_type_to_logical<opset4::LogicalXor>},
         {opset4::LogicalNot::get_type_info_static(), fuse_type_to_logical<opset4::LogicalNot>},
+        {opset1::Xor::get_type_info_static(), fuse_type_to_logical<opset1::Xor>},
         {opset4::ReduceLogicalAnd::get_type_info_static(), fuse_type_to_reduce_logical<opset4::ReduceLogicalAnd>},
         {opset4::ReduceLogicalOr::get_type_info_static(), fuse_type_to_reduce_logical<opset4::ReduceLogicalOr>},
         {opset1::ShapeOf::get_type_info_static(), fuse_type_to_shapeof_v0},
         {opset4::Range::get_type_info_static(), fuse_type_to_range_v4},
         {opset10::Unique::get_type_info_static(), fuse_type_to_unique_v10},
         {opset8::RandomUniform::get_type_info_static(), fuse_type_to_random_uniform_v8}};
+
+    for (const auto& it : m_additional_type_to_fuse_map) {
+        type_to_fuse[it.first] = it.second;
+    }
 
     type_to_fuse.insert(m_additional_type_to_fuse_map.begin(), m_additional_type_to_fuse_map.end());
 
@@ -342,17 +347,19 @@ bool fuse_type_to_random_uniform_v8(const std::shared_ptr<ngraph::Node>& node, o
 }
 
 bool fuse_type_to_unique_v10(const std::shared_ptr<Node>& node, ov::element::Type to, size_t idx) {
+    bool res = false;
     if (auto unique = ov::as_type_ptr<opset10::Unique>(node)) {
         if (to == ov::element::i32 || to == ov::element::i64) {
             if (idx == 1 || idx == 2) {
                 unique->set_index_element_type(to);
+                res = true;
             } else if (idx == 3) {
                 unique->set_count_element_type(to);
+                res = true;
             }
         }
     }
-    // No node replacement, so always return false
-    return false;
+    return res;
 }
 
 bool fuse_type_to_range_v4(const std::shared_ptr<ngraph::Node>& node, ov::element::Type to, size_t idx) {

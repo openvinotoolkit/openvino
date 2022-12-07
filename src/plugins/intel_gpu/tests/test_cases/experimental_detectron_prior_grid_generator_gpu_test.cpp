@@ -51,7 +51,7 @@ public:
 
         cldnn::layout outLayout{data_type, cldnn::format::bfyx, params.outputTensor};
         topology.add(experimental_detectron_prior_grid_generator(experimental_detectron_prior_grid_generator_id,
-                                                                 {priors_id},
+                                                                 { input_info(priors_id) },
                                                                  params.flatten,
                                                                  params.h,
                                                                  params.w,

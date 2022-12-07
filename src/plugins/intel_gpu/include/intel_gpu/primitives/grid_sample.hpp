@@ -28,10 +28,10 @@ struct grid_sample : primitive_base<grid_sample> {
     /// @param inputs Input primitives ids.
     /// @param attributes Structure which contains all GridSample attributes.
     grid_sample(const primitive_id& id,
-                const std::vector<primitive_id>& inputs,
+                const std::vector<input_info>& inputs,
                 const GridSampleOp::Attributes& attributes,
                 const padding& output_padding = {})
-        : primitive_base(id, inputs, output_padding),
+        : primitive_base(id, inputs, {output_padding}),
           attributes(attributes) {}
 
     GridSampleOp::Attributes attributes;

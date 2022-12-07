@@ -48,7 +48,6 @@ public:
         return m_ref;
     }
     OPENVINO_RTTI("AttributeAdapter<AxisSet>");
-    BWDCMP_RTTI_DECLARATION;
 
 protected:
     ov::AxisSet& m_ref;
