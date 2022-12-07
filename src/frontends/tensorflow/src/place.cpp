@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "place.hpp"
+#include "openvino/frontend/tensorflow/place.hpp"
 
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op_table.hpp"
+#include "openvino/frontend/tensorflow/op_table.hpp"
 
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset9.hpp"
@@ -326,6 +326,12 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Unique", translate_unique_op},
     };
 };
+
+const std::map<std::string, CreatorFunction> get_supported_lite_ops() {
+    return {
+    };
+}
+
 }  // namespace op
 }  // namespace tensorflow
 }  // namespace frontend

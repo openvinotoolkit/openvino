@@ -155,6 +155,23 @@ macro(ov_add_frontend)
         list(APPEND PROTO_HDRS "${OUTPUT_PB_HEADER}")
     endforeach()
 
+    file(GLOB schema_files ${frontend_root_dir}/schema/schema.fbs)
+    if (schema_files)
+        set(INFILE ${frontend_root_dir}/schema/schema.fbs)
+        set(FLATC_EXECUTABLE /home/evgenya/repos/openvino/bin/intel64/Debug/flatc)
+        get_filename_component(FILE_WE ${INFILE} NAME_WE)
+        set(OUTPUT_FC_HEADER ${CMAKE_CURRENT_BINARY_DIR}/${FILE_WE}_generated.h)
+        set(GENERATED_PROTO ${INFILE})
+        add_custom_command(
+                OUTPUT "${OUTPUT_FC_HEADER}"
+                COMMAND ${FLATC_EXECUTABLE} ARGS -c --gen-mutable -o ${CMAKE_CURRENT_BINARY_DIR} ${INFILE}
+                DEPENDS ${FLATC_EXECUTABLE} ${GENERATED_PROTO}
+                COMMENT "Running C++ flatbuffers compiler (${FLATC_EXECUTABLE}) on ${GENERATED_PROTO}"
+                VERBATIM
+                COMMAND_EXPAND_LISTS)
+        list(APPEND PROTO_HDRS "${OUTPUT_FC_HEADER}")
+    endif()
+
     # Disable all warnings for generated code
     set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES COMPILE_OPTIONS -w GENERATED TRUE)
 
@@ -232,6 +249,10 @@ macro(ov_add_frontend)
         if(SUGGEST_OVERRIDE_SUPPORTED)
             target_compile_options(${TARGET_NAME} PRIVATE -Wno-suggest-override)
         endif()
+    endif()
+
+    if (schema_files)
+
     endif()
 
     add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}

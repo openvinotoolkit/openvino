@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op_table.hpp"
+#include "openvino/frontend/tensorflow/op_table.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/opsets/opset8.hpp"
-#include "utils.hpp"
+#include "openvino/frontend/tensorflow/utils.hpp"
 
 using namespace std;
 using namespace ov::opset8;

@@ -19,6 +19,7 @@ namespace tensorflow {
 namespace op {
 
 const std::map<std::string, CreatorFunction> get_supported_ops();
+const std::map<std::string, CreatorFunction> get_supported_lite_ops();
 }  // namespace op
 }  // namespace tensorflow
 }  // namespace frontend
