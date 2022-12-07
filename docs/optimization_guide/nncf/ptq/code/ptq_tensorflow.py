@@ -15,7 +15,7 @@ calibration_dataset = nncf.Dataset(calibration_loader, transform_fn)
 #! [dataset]
 
 #! [quantization]
-model = ... # torch.nn.Module object
+model = ... # tensorflow.Module object
 
 quantized_model = nncf.quantize(model, calibration_dataset)
 #! [quantization]

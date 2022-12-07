@@ -44,7 +44,7 @@ The transformation function is a function that takes a sample from the dataset a
 
 @endsphinxtab
 
-@sphinxtab{TesnrFlow}
+@sphinxtab{TensorFlow}
 
 @snippet docs/optimization_guide/nncf/ptq/code/ptq_tensorflow.py dataset
 
