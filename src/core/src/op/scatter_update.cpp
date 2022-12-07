@@ -140,7 +140,7 @@ bool scatter_label_evaluator(const Node* node, TensorLabelVector& output_labels)
     input_tensors.reserve(input_values.size());
 
     auto make_input_label = [&](const Output<Node>& input, bool has_no_labels) {
-        input_tensors.emplace_back(ov::element::u64, input.get_shape());
+        input_tensors.emplace_back(element::u64, input.get_shape());
         const std::vector<size_t>& labels = input.get_tensor().get_value_label();
         std::vector<uint64_t> casted_labels = has_no_labels ? std::vector<uint64_t>(shape_size(input.get_shape()), 0)
                                                             : std::vector<uint64_t>(labels.cbegin(), labels.cend());
@@ -155,13 +155,15 @@ bool scatter_label_evaluator(const Node* node, TensorLabelVector& output_labels)
             make_input_label(input, in2_has_no_labels);
         } else {
             const auto host_tensor_ptr = input.get_tensor().get_lower_value();
-            input_tensors.emplace_back(ov::element::u64, host_tensor_ptr->get_shape(), host_tensor_ptr->get_data_ptr());
+            input_tensors.emplace_back(host_tensor_ptr->get_element_type(),
+                                       host_tensor_ptr->get_shape(),
+                                       host_tensor_ptr->get_data_ptr());
         }
     }
 
     ov::TensorVector output_tensors{ov::Tensor(element::u64, node->get_output_partial_shape(0).to_shape())};
     if (node->evaluate(output_tensors, input_tensors)) {
-        uint64_t* p = static_cast<uint64_t*>(output_tensors[0].data(ov::element::Type_t::u64));
+        uint64_t* p = static_cast<uint64_t*>(output_tensors[0].data(element::Type_t::u64));
         output_labels[0] = std::vector<size_t>(p, p + output_tensors[0].get_size());
         return true;
     }
