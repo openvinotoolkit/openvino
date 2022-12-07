@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common.cl"
+#include "batch_headers/common.cl"
 
 #ifndef UNIT_TYPE
 #error Unit type not defined.

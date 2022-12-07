@@ -297,9 +297,6 @@ public:
     void EnableTensorOffset() { key.restrict.val.offset = 1; }
     void EnableTensorPitches() { key.restrict.val.pitches = 1; }
     void EnableBatching() { key.restrict.val.batching = 1; }
-    void EnableSubGroup() { }
-    void EnableSubGroupShort() { }
-    void EnableSubGroupChar() { }
     void EnableNonBiasTerm() { key.restrict.val.nonBias = 1; }
     void EnableBiasPerFeature() { key.restrict.val.biasPerFeatureMap = 1; }
     void EnableBiasPerOutput() { key.restrict.val.biasPerOutput = 1; }

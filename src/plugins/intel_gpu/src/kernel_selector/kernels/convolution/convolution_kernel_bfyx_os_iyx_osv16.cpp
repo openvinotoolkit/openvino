@@ -44,7 +44,6 @@ ParamsKey ConvolutionKernel_bfyx_os_iyx_osv16::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
-    k.EnableSubGroup();
     k.EnableBiasPerFeature();
     k.EnableBiasPerOutput();
     k.EnableNonBiasTerm();
@@ -53,6 +52,10 @@ ParamsKey ConvolutionKernel_bfyx_os_iyx_osv16::GetSupportedKey() const {
     k.EnableDilation();
     k.EnableGroupedConvolution();
     return k;
+}
+
+DeviceFeaturesKey ConvolutionKernel_bfyx_os_iyx_osv16::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    return get_common_subgroups_device_features_key(params, options);
 }
 
 static std::pair<size_t, size_t> get_bfyx_req_input_block_dims(size_t output_block_width,

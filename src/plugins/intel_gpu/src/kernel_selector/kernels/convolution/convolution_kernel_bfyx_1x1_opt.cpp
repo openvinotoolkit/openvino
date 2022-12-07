@@ -19,12 +19,15 @@ ParamsKey convolution_kernel_bfyx_1x1_opt::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
-    k.EnableSubGroup();
     k.EnableBiasPerFeature();
     k.EnableBiasPerOutput();
     k.EnableNonBiasTerm();
     k.EnableBatching();
     return k;
+}
+
+DeviceFeaturesKey convolution_kernel_bfyx_1x1_opt::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    return get_common_subgroups_device_features_key(params, options);
 }
 
 struct block_params {

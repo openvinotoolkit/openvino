@@ -19,8 +19,11 @@ ParamsKey FullyConnected_fb_io_b8_f8::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
-    k.EnableSubGroup();
     return k;
+}
+
+DeviceFeaturesKey FullyConnected_fb_io_b8_f8::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    return get_common_subgroups_device_features_key(params, options);
 }
 
 size_t FullyConnected_fb_io_b8_f8::GetBatchesPerWorkItem(const fully_connected_params& params) const {

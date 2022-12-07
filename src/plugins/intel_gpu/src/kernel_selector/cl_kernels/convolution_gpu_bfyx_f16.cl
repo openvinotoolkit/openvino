@@ -45,25 +45,6 @@
 #   define OUTPUTVTYPE(n)       CAT(OUTPUT_TYPE, n)
 #   define TO_OUTPUTVTYPE       CAT(convert_, OUTPUTVTYPE(OUTPUT_X_BLOCK_SIZE))
 #   define VSTORE               CAT(vstore, OUTPUT_X_BLOCK_SIZE)
-#else
-#   if OUTPUT_TYPE_SIZE == 1
-#       define OUTPUT_BLOCK_WRITE(ptr, offset, val)    BLOCK_WRITE_UC_1((__global uchar*)(ptr) + (offset), as_uchar(val))
-#       define OUTPUT_BLOCK_WRITE2(ptr, offset, val)   BLOCK_WRITE_UC_2((__global uchar*)(ptr) + (offset), as_uchar2(val))
-#       define OUTPUT_BLOCK_WRITE4(ptr, offset, val)   BLOCK_WRITE_UC_4((__global uchar*)(ptr) + (offset), as_uchar4(val))
-#       define OUTPUT_BLOCK_WRITE8(ptr, offset, val)   BLOCK_WRITE_UC_8((__global uchar*)(ptr) + (offset), as_uchar8(val))
-#   elif OUTPUT_TYPE_SIZE == 2
-#       define OUTPUT_BLOCK_WRITE(ptr, offset, val)    _sub_group_block_write_us((__global ushort*)(ptr) + (offset), as_ushort(val))
-#       define OUTPUT_BLOCK_WRITE2(ptr, offset, val)   _sub_group_block_write_us2((__global ushort*)(ptr) + (offset), as_ushort2(val))
-#       define OUTPUT_BLOCK_WRITE4(ptr, offset, val)   _sub_group_block_write_us4((__global ushort*)(ptr) + (offset), as_ushort4(val))
-#       define OUTPUT_BLOCK_WRITE8(ptr, offset, val)   _sub_group_block_write_us8((__global ushort*)(ptr) + (offset), as_ushort8(val))
-#   elif OUTPUT_TYPE_SIZE == 4
-#       define OUTPUT_BLOCK_WRITE(ptr, offset, val)    _sub_group_block_write((__global uint*)(ptr) + (offset), as_uint(val))
-#       define OUTPUT_BLOCK_WRITE2(ptr, offset, val)   _sub_group_block_write2((__global uint*)(ptr) + (offset), as_uint2(val))
-#       define OUTPUT_BLOCK_WRITE4(ptr, offset, val)   _sub_group_block_write4((__global uint*)(ptr) + (offset), as_uint4(val))
-#       define OUTPUT_BLOCK_WRITE8(ptr, offset, val)   _sub_group_block_write8((__global uint*)(ptr) + (offset), as_uint8(val))
-#   else
-#       error convolution_gpu_bfyx_f16.cl: unsupported output type
-#   endif
 #endif  // OUTPUT_FORMAT_BFYX
 
 #if INPUT0_TYPE_SIZE == 2
@@ -453,13 +434,13 @@ KERNEL(convolution_bfyx_f16)(
     #endif
 #else
     #if OUTPUT_X_BLOCK_SIZE == 8
-            OUTPUT_BLOCK_WRITE8(output, output_offset, res);
+            DT_OUTPUT_BLOCK_WRITE8(output, output_offset, res);
     #elif OUTPUT_X_BLOCK_SIZE == 4
-            OUTPUT_BLOCK_WRITE4(output, output_offset, res);
+            DT_OUTPUT_BLOCK_WRITE4(output, output_offset, res);
     #elif OUTPUT_X_BLOCK_SIZE == 2
-            OUTPUT_BLOCK_WRITE2(output, output_offset, res);
+            DT_OUTPUT_BLOCK_WRITE2(output, output_offset, res);
     #elif OUTPUT_X_BLOCK_SIZE == 1
-            OUTPUT_BLOCK_WRITE(output, output_offset, res);
+            DT_OUTPUT_BLOCK_WRITE(output, output_offset, res);
     #else
     #   error convolution_gpu_bfyx_f16.cl: unsupported output x block size
     #endif
@@ -480,7 +461,7 @@ KERNEL(convolution_bfyx_f16)(
 #if OUTPUT_FORMAT_BFYX
                 output[output_offset + i] = res[i];
 #else
-                OUTPUT_BLOCK_WRITE(output, output_offset + i * output_x_pitch, res[i]);
+                DT_OUTPUT_BLOCK_WRITE(output, output_offset + i * output_x_pitch, res[i]);
 #endif
             }
         }
@@ -522,9 +503,4 @@ KERNEL(convolution_bfyx_f16)(
 #   undef OUTPUTVTYPE
 #   undef TO_OUTPUTVTYPE
 #   undef VSTORE
-#else
-#   undef OUTPUT_BLOCK_WRITE
-#   undef OUTPUT_BLOCK_WRITE2
-#   undef OUTPUT_BLOCK_WRITE4
-#   undef OUTPUT_BLOCK_WRITE8
 #endif  // OUTPUT_FORMAT_BFYX

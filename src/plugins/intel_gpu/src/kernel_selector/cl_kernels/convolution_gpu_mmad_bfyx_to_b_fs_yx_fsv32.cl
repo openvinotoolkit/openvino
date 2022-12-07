@@ -30,7 +30,7 @@
 #if OUTPUT_LAYOUT_B_FS_YX_FSV32
     #define BLOCK_WRITE(ptr, val) _sub_group_block_write_us8((__global ushort*)(ptr), as_ushort8(val));
 #else // OUTPUT_LAYOUT_B_FS_YX_FSV32
-    #define BLOCK_WRITE(ptr, val) BLOCK_WRITE_UC_8((__global uchar*)(ptr), as_uchar8(val))
+    #define BLOCK_WRITE(ptr, val) _sub_group_block_write_uc8((__global uchar*)(ptr), as_uchar8(val))
 #endif // OUTPUT_LAYOUT_B_FS_YX_FSV32
 #elif OUTPUT_X_BLOCK_SIZE == 4
     #define PACKED_TYPE_VEC MAKE_VECTOR_TYPE(PACKED_IN_TYPE, 4)
@@ -41,7 +41,7 @@
 #if OUTPUT_LAYOUT_B_FS_YX_FSV32
     #define BLOCK_WRITE(ptr, val) _sub_group_block_write_us4((__global ushort*)(ptr), as_ushort4(val));
 #else // OUTPUT_LAYOUT_B_FS_YX_FSV32
-    #define BLOCK_WRITE(ptr, val) BLOCK_WRITE_UC_4((__global uchar*)(ptr), as_uchar4(val))
+    #define BLOCK_WRITE(ptr, val) _sub_group_block_write_uc4((__global uchar*)(ptr), as_uchar4(val))
 #endif // OUTPUT_LAYOUT_B_FS_YX_FSV32
 #else
 #error "convolution_gpu_mmad_bfyx_b_fs_yx_fsv32: Unsupported block size"

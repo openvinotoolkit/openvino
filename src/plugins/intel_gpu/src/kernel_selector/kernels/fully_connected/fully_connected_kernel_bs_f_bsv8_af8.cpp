@@ -19,8 +19,11 @@ ParamsKey FullyConnected_bs_f_bsv8_af8::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
-    k.EnableSubGroup();
     return k;
+}
+
+DeviceFeaturesKey FullyConnected_bs_f_bsv8_af8::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    return get_common_subgroups_device_features_key(params, options);
 }
 
 FullyConnected_bs_f_bsv8_af8::DispatchData FullyConnected_bs_f_bsv8_af8::SetDefault(const fully_connected_params& arg,

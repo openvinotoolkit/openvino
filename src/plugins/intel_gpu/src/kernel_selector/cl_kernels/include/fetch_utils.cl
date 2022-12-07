@@ -4,7 +4,7 @@
 
 #include "batch_headers/fetch_data.cl"
 
-inline uint FUNC(get_input_index)(uint b, uint f, uint w, uint z, uint y, uint x) {
+inline uint FUNC(get_input_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
 #if INPUT0_DIMS < 5
     return INPUT0_GET_INDEX(b, f, y, x);
 #elif INPUT0_DIMS == 5
@@ -16,7 +16,7 @@ inline uint FUNC(get_input_index)(uint b, uint f, uint w, uint z, uint y, uint x
 #endif
 }
 
-inline uint FUNC(get_output_index)(uint b, uint f, uint w, uint z, uint y, uint x) {
+inline uint FUNC(get_output_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
 #if OUTPUT_DIMS < 5
     return OUTPUT_GET_INDEX(b, f, y, x);
 #elif OUTPUT_DIMS == 5

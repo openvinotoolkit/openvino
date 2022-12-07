@@ -26,9 +26,6 @@ ParamsKey PoolingKernel_b_fs_yx_fsv16::GetSupportedKey() const {
     k.EnablePoolKernelDividerMode(KernelDividerMode::DYNAMIC);
     k.EnablePoolKernelDividerMode(KernelDividerMode::DYNAMIC_WITH_PADDING);
     k.EnableDifferentTypes();
-    k.EnableSubGroup();
-    k.EnableSubGroupShort();
-    k.EnableDifferentTypes();
     return k;
 }
 

@@ -32,10 +32,12 @@ ParamsKey DeconvolutionKernel_b_fs_zyx_fsv16::GetSupportedKey() const {
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
     k.EnableBatching();
-    k.EnableSubGroup();
-    k.EnableSubGroupShort();
     k.EnableDifferentTypes();
     return k;
+}
+
+DeviceFeaturesKey DeconvolutionKernel_b_fs_zyx_fsv16::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    return get_common_subgroups_device_features_key(params, options);
 }
 
 DeconvolutionKernelBase::DispatchData DeconvolutionKernel_b_fs_zyx_fsv16::SetDefault(const deconvolution_params& params) const {

@@ -26,8 +26,11 @@ ParamsKey ConvolutionKernel_yxfb_yxio_b16::GetSupportedKey() const {
     k.EnableSplitSupport();
     k.EnableGroupedConvolution();
     k.EnableDilation();
-    k.EnableSubGroup();
     return k;
+}
+
+DeviceFeaturesKey ConvolutionKernel_yxfb_yxio_b16::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    return get_common_subgroups_device_features_key(params, options);
 }
 
 std::string ConvolutionKernel_yxfb_yxio_b16::GetKernelName(const convolution_params& params) const {

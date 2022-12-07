@@ -20,13 +20,15 @@ ParamsKey ConvolutionKernel_bfyx_GEMMLike::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
-    k.EnableSubGroup();
-    // k.EnableSubGroupShort(); // we need it for FP16 only. we check it on the Validate phase
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
     k.EnableBatching();
     k.EnableGroupedConvolution();
     return k;
+}
+
+DeviceFeaturesKey ConvolutionKernel_bfyx_GEMMLike::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    return get_common_subgroups_device_features_key(params, options);
 }
 
 std::string ConvolutionKernel_bfyx_GEMMLike::GetKernelName(const convolution_params& params) const {

@@ -19,8 +19,11 @@ ParamsKey LSTMGemvKernel_subgroup1x64_bfyx_hh_SIMD16::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableLSTMGEMMBias();
     k.EnableLSTMGEMMHidden();
-    k.EnableSubGroup();
     return k;
+}
+
+DeviceFeaturesKey LSTMGemvKernel_subgroup1x64_bfyx_hh_SIMD16::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    return get_common_subgroups_device_features_key(params, options);
 }
 
 KernelsData LSTMGemvKernel_subgroup1x64_bfyx_hh_SIMD16::GetKernelsData(const Params& params,

@@ -23,13 +23,16 @@ ParamsKey ConvolutionKernel_Winograd_2x3_s1::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::winograd_2x3_s1_data);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
-    k.EnableSubGroup();
     k.EnableBiasPerFeature();
     k.EnableBiasPerOutput();
     k.EnableNonBiasTerm();
     k.EnableBatching();
     k.EnableSplitSupport();
     return k;
+}
+
+DeviceFeaturesKey ConvolutionKernel_Winograd_2x3_s1::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    return get_common_subgroups_device_features_key(params, options);
 }
 
 JitConstants ConvolutionKernel_Winograd_2x3_s1::GetJitConstants(const convolution_params& params,

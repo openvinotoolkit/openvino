@@ -86,10 +86,12 @@ ParamsKey ConvolutionKernel_b_fs_zyx_fsv16::GetSupportedKey() const {
     k.EnableNonBiasTerm();
     k.EnableSplitSupport();
     k.EnableBatching();
-    k.EnableSubGroup();
-    k.EnableSubGroupShort();
     k.EnableGroupedConvolution();
     return k;
+}
+
+DeviceFeaturesKey ConvolutionKernel_b_fs_zyx_fsv16::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    return get_common_subgroups_device_features_key(params, options);
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_zyx_fsv16::SetDefault(const convolution_params& params,

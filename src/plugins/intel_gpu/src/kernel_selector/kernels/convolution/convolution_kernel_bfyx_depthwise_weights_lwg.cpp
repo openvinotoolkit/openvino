@@ -22,12 +22,14 @@ ParamsKey ConvolutionKernel_bfyx_depthwise_weights_lwg::GetSupportedKey() const 
     k.EnableNonBiasTerm();
     k.EnableBatching();
     k.EnableSplitSupport();
-    k.EnableSubGroup();
-    k.EnableSubGroupShort();
     k.EnableDepthwiseSeparableOpt();
     k.EnableDilation();
     k.EnableGroupedConvolution();
     return k;
+}
+
+DeviceFeaturesKey ConvolutionKernel_bfyx_depthwise_weights_lwg::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    return get_common_subgroups_device_features_key(params, options);
 }
 
 bool ConvolutionKernel_bfyx_depthwise_weights_lwg::Validate(const Params& p, const optional_params& o) const {
