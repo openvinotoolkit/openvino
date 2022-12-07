@@ -808,7 +808,8 @@ const std::vector<std::string> supported_image_extensions =
 #else
 const std::vector<std::string> supported_image_extensions = {"bmp"};
 #endif
-const std::vector<std::string> supported_binary_extensions = {"bin", "npy"};
+const std::vector<std::string> supported_numpy_extensions = {"npy"};
+const std::vector<std::string> supported_binary_extensions = {"bin"};
 
 std::string get_extension(const std::string& name) {
     auto extensionPosition = name.rfind('.', name.size());

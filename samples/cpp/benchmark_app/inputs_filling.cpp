@@ -98,6 +98,79 @@ ov::Tensor create_tensor_from_image(const std::vector<std::string>& files,
 }
 
 template <typename T>
+ov::Tensor create_tensor_from_numpy(const std::vector<std::string>& files,
+                                    size_t inputId,
+                                    size_t batchSize,
+                                    const benchmark_app::InputInfo& inputInfo,
+                                    const std::string& inputName,
+                                    std::string* filenames_used = nullptr) {
+    size_t tensor_size =
+        std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
+    auto allocator = std::make_shared<SharedTensorAllocator>(tensor_size * sizeof(T));
+    auto data = reinterpret_cast<T*>(allocator->get_buffer());
+
+    /** Collect images data ptrs **/
+    std::vector<std::shared_ptr<uint8_t>> vreader;
+    vreader.reserve(batchSize);
+
+    size_t imgBatchSize = 1;
+    if (!inputInfo.layout.empty() && ov::layout::has_batch(inputInfo.layout)) {
+        imgBatchSize = batchSize;
+    } else {
+        slog::warn << inputName << ": layout does not contain batch dimension. Assuming bath 1 for this input"
+                   << slog::endl;
+    }
+
+    for (size_t b = 0; b < imgBatchSize; ++b) {
+        auto inputIndex = (inputId + b) % files.size();
+        if (filenames_used) {
+            *filenames_used += (filenames_used->empty() ? "" : ", ") + files[inputIndex];
+        }
+        FormatReader::ReaderPtr reader(files[inputIndex].c_str());
+        if (reader.get() == nullptr) {
+            slog::warn << "Image " << files[inputIndex] << " cannot be read!" << slog::endl << slog::endl;
+            continue;
+        }
+
+        /** Getting image data **/
+        std::shared_ptr<uint8_t> imageData(reader->getData(inputInfo.width(), inputInfo.height()));
+        if (imageData) {
+            vreader.push_back(imageData);
+        }
+    }
+
+    /** Fill input tensor with image. First b channel, then g and r channels **/
+    const size_t numChannels = inputInfo.channels();
+    const size_t width = inputInfo.width();
+    const size_t height = inputInfo.height();
+    /** Iterate over all input images **/
+    for (size_t b = 0; b < imgBatchSize; ++b) {
+        /** Iterate over all width **/
+        for (size_t w = 0; w < width; ++w) {
+            /** Iterate over all height **/
+            for (size_t h = 0; h < height; ++h) {
+                /** Iterate over all channels **/
+                for (size_t ch = 0; ch < numChannels; ++ch) {
+                    /**          [images stride + channels stride + pixel id ] all in
+                     * bytes            **/
+                    size_t offset = b * numChannels * width * height +
+                                    (((inputInfo.layout == "NCHW") || (inputInfo.layout == "CHW"))
+                                         ? (ch * width * height + h * width + w)
+                                         : (h * width * numChannels + w * numChannels + ch));
+                    data[offset] =
+                        (static_cast<T>(vreader.at(b).get()[h * width * numChannels + w * numChannels + ch]) -
+                         static_cast<T>(inputInfo.mean[ch])) /
+                        static_cast<T>(inputInfo.scale[ch]);
+                }
+            }
+        }
+    }
+
+    auto tensor = ov::Tensor(inputInfo.type, inputInfo.dataShape, ov::Allocator(allocator));
+    return tensor;
+}
+
+template <typename T>
 ov::Tensor create_tensor_im_info(const std::pair<size_t, size_t>& image_size,
                                  size_t batchSize,
                                  const benchmark_app::InputInfo& inputInfo,
@@ -161,11 +234,7 @@ ov::Tensor create_tensor_from_binary(const std::vector<std::string>& files,
         auto inputSize = tensor_size * sizeof(T) / binaryBatchSize;
 
         std::string extension = get_extension(files[inputIndex]);
-        if (extension == "npy") {
-            slog::info << "Prepare numpy file " << files[inputIndex] << slog::endl;
-            verifyNumpyFile<T>(binaryFile, files[inputIndex], inputInfo.dataShape, inputSize);
-        } else if (extension == "bin") {
-            slog::info << "Prepare binary file " << files[inputIndex] << slog::endl;
+        if (extension == "bin") {
             verifyBinaryFile(binaryFile, files[inputIndex], inputSize);
         } else {
             throw ov::Exception("Unsupported binary file type: " + extension);
@@ -274,6 +343,59 @@ ov::Tensor get_im_info_tensor(const std::pair<size_t, size_t>& image_size,
         return create_tensor_im_info<int32_t>(image_size, batchSize, inputInfo.second, inputInfo.first);
     } else if (type == ov::element::i64) {
         return create_tensor_im_info<int64_t>(image_size, batchSize, inputInfo.second, inputInfo.first);
+    } else {
+        throw ov::Exception("Input type is not supported for " + inputInfo.first);
+    }
+}
+
+ov::Tensor get_numpy_tensor(const std::vector<std::string>& files,
+                            size_t inputId,
+                            size_t batchSize,
+                            const std::pair<std::string, benchmark_app::InputInfo>& inputInfo,
+                            std::string* filenames_used = nullptr) {
+    auto type = inputInfo.second.type;
+    if (type == ov::element::f32) {
+        return create_tensor_from_numpy<float>(files,
+                                               inputId,
+                                               batchSize,
+                                               inputInfo.second,
+                                               inputInfo.first,
+                                               filenames_used);
+    } else if (type == ov::element::f16) {
+        return create_tensor_from_numpy<short>(files,
+                                               inputId,
+                                               batchSize,
+                                               inputInfo.second,
+                                               inputInfo.first,
+                                               filenames_used);
+    } else if (type == ov::element::f64) {
+        return create_tensor_from_numpy<double>(files,
+                                                inputId,
+                                                batchSize,
+                                                inputInfo.second,
+                                                inputInfo.first,
+                                                filenames_used);
+    } else if (type == ov::element::i32) {
+        return create_tensor_from_numpy<int32_t>(files,
+                                                 inputId,
+                                                 batchSize,
+                                                 inputInfo.second,
+                                                 inputInfo.first,
+                                                 filenames_used);
+    } else if (type == ov::element::i64) {
+        return create_tensor_from_numpy<int64_t>(files,
+                                                 inputId,
+                                                 batchSize,
+                                                 inputInfo.second,
+                                                 inputInfo.first,
+                                                 filenames_used);
+    } else if (type == ov::element::u8) {
+        return create_tensor_from_numpy<uint8_t>(files,
+                                                 inputId,
+                                                 batchSize,
+                                                 inputInfo.second,
+                                                 inputInfo.first,
+                                                 filenames_used);
     } else {
         throw ov::Exception("Input type is not supported for " + inputInfo.first);
     }
@@ -500,7 +622,12 @@ std::map<std::string, ov::TensorVector> get_tensors(std::map<std::string, std::v
                 tensor_src_info =
                     "Image size tensor " + std::to_string(image_size.first) + " x " + std::to_string(image_size.second);
                 tensors[input_name].push_back(get_im_info_tensor(image_size, batchSize, {input_name, input_info}));
-            } else if (input_info.is_image()) {
+            } /* TODO else if (is_numpy){
+                // Fill with Numpy arrays
+                tensors[input_name].push_back(
+                    get_numpy_tensor(files.second, inputId, batchSize, {input_name, input_info}, &tensor_src_info));
+            } */
+            else if (input_info.is_image()) {
                 // Fill with Images
                 tensors[input_name].push_back(
                     get_image_tensor(files.second, inputId, batchSize, {input_name, input_info}, &tensor_src_info));
