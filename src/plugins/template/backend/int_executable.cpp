@@ -135,12 +135,11 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
                 variable_context.set_variable_value(variable, std::make_shared<VariableValue>(h_tensor));
             }
         }
-        auto convert_hosttensors_2_tensors = [](const HostTensorVector& host_tensors,
-                                                bool copy_data) -> ov::TensorVector {
+        auto convert_hosttensors_2_tensors = [=](const HostTensorVector& host_tensors,
+                                                 bool copy_data) -> ov::TensorVector {
             ov::TensorVector ret_value;
             ov::Tensor tensor;
             for (const auto& hosttensor : host_tensors) {
-                std::cout << hosttensor->get_partial_shape().is_static() << std::endl;
                 if (hosttensor->get_element_type().is_dynamic()) {
                     tensor = ov::Tensor();
                 } else if (hosttensor->get_partial_shape().is_dynamic()) {
@@ -161,7 +160,14 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
         ov::TensorVector tensor_outputs = convert_hosttensors_2_tensors(op_outputs, false);
 
         // Call evaluate for cloned_node with static shapes
-        if (!cloned_node->evaluate(tensor_outputs, tensor_inputs, eval_context)) {
+        if (cloned_node->evaluate(tensor_outputs, tensor_inputs, eval_context)) {
+            for (int i = 0; i < tensor_outputs.size(); ++i) {
+                auto out_shape = tensor_outputs.at(i).get_shape();
+                if (out_shape != Shape{0}) {
+                    op_outputs.at(i)->set_shape(out_shape);
+                }
+            }
+        } else {
             evaluate_node(cloned_node, op_outputs, op_inputs);
         }
         if (m_performance_counters_enabled) {
