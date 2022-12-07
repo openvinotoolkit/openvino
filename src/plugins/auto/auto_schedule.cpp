@@ -121,20 +121,19 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
         _loadContext[ACTUALDEVICE].networkPrecision = GetNetworkPrecision(_autoSContext->_network);
     _loadContext[ACTUALDEVICE].metaDevices = _autoSContext->_devicePriorities;
     bool isActualDevCPU = false;
-    bool isSingleDev = false;
     if (isCumulative) {
         std::list<DeviceInformation> validDevices =
             _autoSContext->_plugin->GetValidDevice(_autoSContext->_devicePriorities,
                                                    _loadContext[ACTUALDEVICE].networkPrecision);
-        isSingleDev = validDevices.size() == 1 ? true : false;
-        std::string deviceName = isSingleDev ? "" : "MULTI:";
+        bool isCumuSingleDev = validDevices.size() == 1 ? true : false;
+        std::string deviceName = isCumuSingleDev ? "" : _autoCumuPrefix;
         for (auto& device : validDevices) {
             deviceName += device.deviceName;
             deviceName += ((device.deviceName == validDevices.back().deviceName) ? "" : ",");
         }
         _loadContext[ACTUALDEVICE].deviceInfo.deviceName = deviceName;
         _loadContext[ACTUALDEVICE].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] =
-            isSingleDev ? InferenceEngine::PluginConfigParams::THROUGHPUT
+            isCumuSingleDev ? InferenceEngine::PluginConfigParams::THROUGHPUT
                           : InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT;
         _loadContext[ACTUALDEVICE].deviceInfo.config[CONFIG_KEY(PERF_COUNT)] =
             _autoSContext->_needPerfCounters ? InferenceEngine::PluginConfigParams::YES
@@ -142,7 +141,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
         if (_autoSContext->_bindBuffer)
             _loadContext[ACTUALDEVICE].deviceInfo.config[ov::intel_auto::device_bind_buffer.name()] = InferenceEngine::PluginConfigParams::YES;
         isActualDevCPU =
-            _loadContext[ACTUALDEVICE].deviceInfo.deviceName.find("CPU") != std::string::npos && isSingleDev;
+            _loadContext[ACTUALDEVICE].deviceInfo.deviceName.find("CPU") != std::string::npos && isCumuSingleDev;
     } else {
         _loadContext[ACTUALDEVICE].deviceInfo = _autoSContext->_plugin->SelectDevice(_autoSContext->_devicePriorities,
                                                                            _loadContext[ACTUALDEVICE].networkPrecision,
@@ -174,13 +173,18 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
             auto* contextPtr = &_loadContext[i];
             auto modelPath = _autoSContext->_modelPath;
             auto network = _autoSContext->_network;
-            _loadContext[i].task = [this, contextPtr, modelPath, network, isCumulative, isSingleDev]() mutable {
+            _loadContext[i].task = [this, contextPtr, modelPath, network, isCumulative]() mutable {
                 TryToLoadNetWork(*contextPtr, modelPath, network);
                 if (contextPtr->isLoadSuccess) {
                     if (contextPtr->workName.empty()) {
                         contextPtr->workName = contextPtr->deviceInfo.deviceName;
                     }
-                    if (!isCumulative)
+                    // check if single device when perf_hint is ctput
+                    bool isCumuSingleDev =
+                        isCumulative && contextPtr->deviceInfo.deviceName.find(_autoCumuPrefix) == std::string::npos
+                            ? true
+                            : false;
+                    if (!isCumulative ||  isCumuSingleDev)
                         GenerateWorkers(contextPtr->workName, contextPtr->executableNetwork);
                     //need lock
                     {
@@ -190,7 +194,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                     contextPtr->isAlready = true;
                     auto& deviceName = contextPtr->deviceInfo.deviceName;
                     LOG_INFO_TAG("device:%s loading Network finished", deviceName.c_str());
-                    if (!isCumulative || (isCumulative && isSingleDev)) {
+                    if (!isCumulative || isCumuSingleDev) {
                         auto supported_config_keys =
                             _autoSContext->_core->GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS))
                                       .as<std::vector<std::string>>();
@@ -523,7 +527,9 @@ IInferPtr AutoSchedule::CreateInferRequest() {
         syncRequestImpl = CreateInferRequestImpl(execNetwork->_networkInputs, execNetwork->_networkOutputs);
     syncRequestImpl->setPointerToExecutableNetworkInternal(execNetwork);
     bool isCumulative = (_autoSContext->_performanceHint == IE::PluginConfigParams::CUMULATIVE_THROUGHPUT) ? true : false;
-    if (_passthroughExeNet && !isCumulative) {
+    bool isCumuSingleDev =
+        isCumulative && _autoSContext->_strDevices.find(_autoCumuPrefix) == std::string::npos ? true : false;
+    if (_passthroughExeNet && (!isCumulative || isCumuSingleDev)) {
         std::string perfmode;
         try {
             perfmode = _passthroughExeNet->GetConfig(

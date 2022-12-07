@@ -69,6 +69,7 @@ private:
     size_t                                   _cpuHelpInferCount = 0;
     std::atomic_size_t                       _numRequestsCreated = {0};
     AutoScheduleContext::Ptr                 _autoSContext;
+    const std::string                        _autoCumuPrefix = "MULTI:";
 };
 
 }  // namespace MultiDevicePlugin
