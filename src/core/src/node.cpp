@@ -131,7 +131,8 @@ std::shared_ptr<ov::Node> ov::Node::copy_with_new_inputs(
     for (size_t i = 0; i < get_output_size(); i++) {
         clone->get_output_tensor(i).set_names(get_output_tensor(i).get_names());
         NGRAPH_SUPPRESS_DEPRECATED_START
-        clone->get_output_tensor(i).set_name(get_output_tensor(i).get_name());
+        ov::descriptor::set_ov_tensor_legacy_name(clone->get_output_tensor(i),
+                                                  ov::descriptor::get_ov_tensor_legacy_name(get_output_tensor(i)));
         NGRAPH_SUPPRESS_DEPRECATED_END
     }
     return clone;
@@ -472,18 +473,6 @@ const ov::PartialShape& ov::Node::get_input_partial_shape(size_t i) const {
     NGRAPH_CHECK(i < m_inputs.size(), "index '", i, "' out of range in get_input_partial_shape(size_t i)");
     return m_inputs[i].get_partial_shape();
 }
-
-NGRAPH_SUPPRESS_DEPRECATED_START
-const string& ov::Node::get_input_tensor_name(size_t i) const {
-    NGRAPH_CHECK(i < m_inputs.size(), "index '", i, "' out of range in get_input_tensor_name(size_t i)");
-    return m_inputs[i].get_tensor().get_name();
-}
-
-const string& ov::Node::get_output_tensor_name(size_t i) const {
-    NGRAPH_CHECK(i < m_outputs.size(), "index '", i, "' out of range in get_output_tensor_name(size_t i)");
-    return m_outputs[i].get_tensor().get_name();
-}
-NGRAPH_SUPPRESS_DEPRECATED_END
 
 bool ov::Node::has_same_type(std::shared_ptr<const Node> node) const {
     if (get_output_size() != node->get_output_size()) {
