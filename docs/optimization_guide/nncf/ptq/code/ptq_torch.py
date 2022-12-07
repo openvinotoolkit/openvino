@@ -3,18 +3,19 @@
 
 #! [dataset]
 import nncf
-
 import torch
 
-data_loader = torch.utils.data.DataLoader(...)
+calibration_loader = torch.utils.data.DataLoader(...)
 
 def transform_fn(data_item):
     images, _ = data_item
     return images
 
-calibration_dataset = nncf.Dataset(data_loader, transform_fn)
+calibration_dataset = nncf.Dataset(calibration_loader, transform_fn)
 #! [dataset]
 
 #! [quantization]
+model = ... # create model in the framework of your choice
+
 quantized_model = nncf.quantize(model, calibration_dataset)
 #! [quantization]

@@ -73,9 +73,47 @@ Once dataset is ready and model object is instantiated, you can apply 8-bit quan
 
 @endsphinxtabset
 
-> **Note**: model is an instance of `torch.nn.Module` class in the case of PyTorch, `onnx.ModelProto` in the case of ONNX, and `openvino.runtime.Model` in the case of OpenVINO.
+> **NOTE**: model is an instance of `torch.nn.Module` class in the case of PyTorch, `onnx.ModelProto` in the case of ONNX, and `openvino.runtime.Model` in the case of OpenVINO.
 
 After that the model can be exported into th OpenVINO Intermediate Representation if needed and run faster with OpenVINO.
+
+## Tune quantization parameters
+
+`nncf.quantize()` function has several parameters that allow to tune quantization process to get more accurate model. Below is the list of parameters and their description:
+* `model_type` - used to specify quantization scheme required for specific type of the model. For example, **Transformer** models (BERT, distillBERT, etc.) require a special quantization scheme to preserve accuracy after quantization.
+  ```python
+  nncf.quantize(model, dataset, model_type=nncf.ModelType.Transformer)
+  ```
+* `preset` - defines quantization scheme for the model. Two types of presets are available:
+  * `PERFORMANCE` (default) - defines symmetric quantization of weigths and activations
+  * `MIXED` - weights are quantized with symmetric quantization and the activations are quantized with asymmetric quantization. This preset is recommended for models with non-ReLU and asymmetric activation funstions, e.g. ELU, PReLU, GELU, etc.
+  ```python
+    nncf.quantize(model, dataset, preset=nncf.Preset.MIXED)
+  ```
+* `fast_bias_correction` - enables more accurate bias (error) correction algorithm that can be used to improve accuracy of the model. This parameter is available only for OpenVINO representation. `True` is used by default.
+  ```python
+    nncf.quantize(model, dataset, fast_bias_correction=False)
+  ```
+* `subset_size` - defines the number of samples from the calibration dataset that will be used to estimate quantization parameters of activations. The default value is 300.
+  ```python
+    nncf.quantize(model, dataset, subset_size=1000)
+  ```
+* `ignored_scope` - this parameter can be used to exclude some layers from quantization process. For example, if you want to exclude the last layer of the model from quantization. Below are some examples of how to use this parameter:
+  * Exclude by layer name:
+    ```python
+    names = ['layer_1', 'layer_2', 'layer_3']
+    nncf.quantize(model, dataset, ignored_scope=nncf.IgnoredScope(names=names))
+    ```
+  * Exclude by layer type:
+    ```python
+    types = ['Conv2d', 'Linear']
+    nncf.quantize(model, dataset, ignored_scope=nncf.IgnoredScope(types=types))
+    ```
+  * Exclude by regular expression:
+    ```python
+    regex = '.*layer_.*'
+    nncf.quantize(model, dataset, ignored_scope=nncf.IgnoredScope(patterns=regex))
+    ```
 
 If the accuracy of the quantized model is not satisfactory, you can try to use the [Quantization with accuracy control](@ref quantization_w_accuracy_control) flow.
 
