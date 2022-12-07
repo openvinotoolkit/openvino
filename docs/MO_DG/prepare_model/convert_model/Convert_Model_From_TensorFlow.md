@@ -139,7 +139,7 @@ where the batch size and the sequence length equal 2 and 30 respectively.
 mo --saved_model_dir BERT --input mask,word_ids,type_ids --input_shape [2,30],[2,30],[2,30]
 ```
 
-## MO Python API Interface
+## Conversion of TensorFlow models from the memory using Python API
 * MO Python API supports passing TF/TF2 models directly from memory.
 
 ```sh
