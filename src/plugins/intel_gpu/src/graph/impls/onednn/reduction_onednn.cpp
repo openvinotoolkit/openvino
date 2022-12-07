@@ -9,33 +9,13 @@
 #include "kernel_selector_common.h"
 #include "kernel_base.h"
 
+#include <impls/onednn/utils.hpp>
 #include <oneapi/dnnl/dnnl.hpp>
 
 #include <algorithm>
 #include <memory>
 namespace cldnn {
 namespace onednn {
-
-static void reorder_unreduced_axis_no_fusion(const cldnn::layout& input_layout, cldnn::layout& output_layout, std::vector<int64_t> axes) {
-    auto in_dims = input_layout.get_tensor().sizes();
-    auto num_dims = input_layout.format.dimension();
-    auto num_spatial = format::spatial_num(input_layout.format);
-    size_t num_others = num_dims - num_spatial;
-
-    for (size_t idx = 0; idx < axes.size(); idx++) {
-        if (axes[idx] < static_cast<int64_t>(num_others))
-            in_dims[axes[idx]] = 1;
-        else
-            in_dims[(num_dims - axes[idx] - 1 + num_others)] = 1;
-    }
-
-    auto output_tensor = output_layout.get_tensor();
-    for (size_t idx = 0; idx < output_layout.get_rank(); idx++) {
-        output_tensor.raw[idx] = in_dims[idx];
-    }
-
-    output_layout.set_tensor(output_tensor);
-}
 
 struct reduction_onednn : typed_primitive_onednn_impl<reduce, dnnl::reduction::desc> {
     using parent = typed_primitive_onednn_impl<reduce, dnnl::reduction::desc>;

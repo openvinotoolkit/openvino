@@ -83,6 +83,7 @@
 #include <transformations/op_conversions/gelu7_downgrade.hpp>
 #include <transformations/op_conversions/convert_softmax_downgrade.hpp>
 #include <transformations/op_conversions/convert_prior_box_v8_to_v0.hpp>
+#include <transformations/op_conversions/reduce_modification_for_false_keepdims.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -261,6 +262,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             pass_config->disable<ngraph::pass::ConvertReduceMeanToPooling>();
             pass_config->disable<ngraph::pass::ConvertReduceMaxToPooling>();
             manager.register_pass<ConvertAvgPoolingToReduce>();
+            manager.register_pass<pass::ModifyReduceForFalseKeepDims>();
         } else {
             pass_config->set_callback<ngraph::pass::ConvertReduceSumToPooling>(
             [](const_node_ptr &node) -> bool {
