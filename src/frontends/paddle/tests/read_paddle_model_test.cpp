@@ -14,12 +14,12 @@
 #include <ngraph/opsets/opset8.hpp>
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "common_test_utils/unicode_utils.hpp"
+#include "openvino/openvino.hpp"
 
 TEST(Paddle_Reader_Tests, ImportBasicModelToCore) {
     auto model = std::string(TEST_PADDLE_MODELS_DIRNAME) + "relu.pdmodel";
-    InferenceEngine::Core ie;
-    auto cnnNetwork = ie.ReadNetwork(model);
-    auto function = cnnNetwork.getFunction();
+    ov::Core core;
+    auto function = core.read_model(model, ov::Tensor());
 
     const auto inputType = ngraph::element::f32;
     const auto inputShape = ngraph::Shape{ 3 };
@@ -57,10 +57,9 @@ TEST(Paddle_Reader_Tests, ImportBasicModelToCoreWstring) {
         FAIL() << "Unable to copy from '" << win_dir_path << "' to '"
                 << ov::util::wstring_to_string(wmodel) << "'";
     }
-    InferenceEngine::Core ie;
-    auto cnnNetwork = ie.ReadNetwork(wmodel);
+    ov::Core core;
+    auto function = core.read_model(wmodel, ov::Tensor());
     CommonTestUtils::removeFile(wmodel);
-    auto function = cnnNetwork.getFunction();
 
     const auto inputType = ngraph::element::f32;
     const auto inputShape = ngraph::Shape{ 3 };

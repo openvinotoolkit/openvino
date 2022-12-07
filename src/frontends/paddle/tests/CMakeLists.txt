@@ -8,7 +8,6 @@ ov_add_test_target(
     NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDENCIES
-            paddle_test_models
             openvino_paddle_frontend
             paddle_fe_standalone_build_test
         LINK_LIBRARIES
@@ -30,7 +29,7 @@ ov_check_pip_packages(REQUIREMENTS_FILE "${CMAKE_CURRENT_SOURCE_DIR}/requirement
                       WARNING_MESSAGE "PaddlePaddle frontend unit tests will be skipped"
                       RESULT_VAR paddlepaddle_FOUND)
 
-set(TEST_PADDLE_MODELS_DIRNAME test_model_zoo/paddle_test_models)
+set(TEST_PADDLE_MODELS_DIRNAME "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/paddle_test_models/")
 target_compile_definitions(${TARGET_NAME} PRIVATE -D TEST_PADDLE_MODELS_DIRNAME=\"${TEST_PADDLE_MODELS_DIRNAME}/\")
 
 set(PADDLEDET_OPS_URL "https://raw.githubusercontent.com/PaddlePaddle/PaddleDetection/release/2.1/ppdet/modeling/ops.py")
@@ -44,7 +43,7 @@ DownloadAndCheck(${PADDLEDET_OPS_URL} ${PADDLEDET_DIRNAME}/ops.py PADDLEDET_FATA
 # This is done this way for 'code style' and check cases - cmake shall pass, but CI machine doesn't need to have
 # 'paddlepaddle' installed to check code style
 if(paddlepaddle_FOUND AND PADDLEDET_RESULT)
-    set(TEST_PADDLE_MODELS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TEST_PADDLE_MODELS_DIRNAME}/)
+    set(TEST_PADDLE_MODELS ${TEST_PADDLE_MODELS_DIRNAME}/)
 
     if(WIN32)
         set(SETENV "set")
@@ -66,7 +65,7 @@ if(paddlepaddle_FOUND AND PADDLEDET_RESULT)
     add_custom_target(paddle_test_models DEPENDS ${OUT_FILE})
 
     install(DIRECTORY ${TEST_PADDLE_MODELS}
-            DESTINATION tests/${TEST_PADDLE_MODELS_DIRNAME}
+            DESTINATION tests/test_model_zoo/paddle_test_models/
             COMPONENT tests
             EXCLUDE_FROM_ALL)
 else()
