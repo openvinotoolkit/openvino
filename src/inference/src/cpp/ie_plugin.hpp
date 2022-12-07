@@ -16,6 +16,7 @@
 #include "any_copy.hpp"
 #include "cpp/exception2status.hpp"
 #include "cpp/ie_cnn_network.h"
+#include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "file_utils.h"
 #include "ie_plugin_config.hpp"
@@ -162,6 +163,16 @@ public:
         OV_PLUGIN_CALL_STATEMENT();
     }
 
+    Plugin(const std::shared_ptr<InferenceEngine::IInferencePlugin>& ptr, const std::shared_ptr<void>& so) : m_so{so} {
+        if (ptr) {
+            if (auto iplugin_ptr = std::dynamic_pointer_cast<ov::IPlugin>(ptr))
+                m_ptr = iplugin_ptr;
+            else
+                m_ptr = std::make_shared<ov::IPlugin>(ptr);
+        }
+        OV_PLUGIN_CALL_STATEMENT();
+    }
+
     void set_name(const std::string& deviceName) {
         OV_PLUGIN_CALL_STATEMENT(m_ptr->set_name(deviceName));
     }
@@ -184,14 +195,14 @@ public:
         OV_PLUGIN_CALL_STATEMENT(m_ptr->set_property(config));
     }
 
-    SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                            const ov::AnyMap& properties) {
+    SoPtr<ie::IExecutableNetworkInternal> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                        const ov::AnyMap& properties) {
         OV_PLUGIN_CALL_STATEMENT(return {m_ptr->compile_model(model, properties), m_so});
     }
 
-    SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                            const ov::RemoteContext& context,
-                                            const ov::AnyMap& properties) {
+    SoPtr<ie::IExecutableNetworkInternal> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                        const ov::RemoteContext& context,
+                                                        const ov::AnyMap& properties) {
         OV_PLUGIN_CALL_STATEMENT(return {m_ptr->compile_model(model, properties, context), m_so});
     }
 
@@ -199,13 +210,13 @@ public:
         OV_PLUGIN_CALL_STATEMENT(return m_ptr->query_model(model, properties));
     }
 
-    SoPtr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) {
+    SoPtr<ie::IExecutableNetworkInternal> import_model(std::istream& model, const ov::AnyMap& properties) {
         OV_PLUGIN_CALL_STATEMENT(return {m_ptr->import_model(model, properties), m_so});
     }
 
-    SoPtr<ov::ICompiledModel> import_model(std::istream& networkModel,
-                                           const ov::RemoteContext& context,
-                                           const ov::AnyMap& config) {
+    SoPtr<ie::IExecutableNetworkInternal> import_model(std::istream& networkModel,
+                                                       const ov::RemoteContext& context,
+                                                       const ov::AnyMap& config) {
         OV_PLUGIN_CALL_STATEMENT(return {m_ptr->import_model(networkModel, context, config), m_so});
     }
 

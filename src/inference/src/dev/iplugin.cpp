@@ -6,6 +6,8 @@
 
 #include <memory>
 
+#include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
+#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "ie_icore.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
@@ -15,7 +17,20 @@
 
 ov::IPlugin::IPlugin() : m_executor_manager(InferenceEngine::executorManager()), m_is_new_api(true) {}
 
+ov::IPlugin::IPlugin(const std::shared_ptr<InferenceEngine::IInferencePlugin>& ptr) : old_plugin(ptr) {
+    auto& ver = old_plugin->GetVersion();
+    m_version.buildNumber = ver.buildNumber;
+    m_version.description = ver.description;
+    m_plugin_name = old_plugin->GetName();
+}
+
 void ov::IPlugin::set_version(const ov::Version& version) {
+    if (old_plugin) {
+        ie::Version ver;
+        ver.buildNumber = version.buildNumber;
+        ver.description = version.description;
+        old_plugin->SetVersion(ver);
+    }
     m_version = version;
 }
 
@@ -24,6 +39,8 @@ const ov::Version& ov::IPlugin::get_version() const {
 }
 
 void ov::IPlugin::set_name(const std::string& name) {
+    if (old_plugin)
+        old_plugin->SetName(name);
     m_plugin_name = name;
 }
 
@@ -31,15 +48,21 @@ const std::string& ov::IPlugin::get_name() const {
     return m_plugin_name;
 }
 
-std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                               const ov::AnyMap& properties) {
+std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ov::IPlugin::compile_model(
+    const std::shared_ptr<const ov::Model>& model,
+    const ov::AnyMap& properties) {
     return compile_model(model, properties, {});
 }
 
-std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                               const ov::AnyMap& properties,
-                                                               const ov::RemoteContext& context) {
-    std::shared_ptr<ov::ICompiledModel> compiled_model;
+std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ov::IPlugin::compile_model(
+    const std::shared_ptr<const ov::Model>& model,
+    const ov::AnyMap& properties,
+    const ov::RemoteContext& context) {
+    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> compiled_model;
+    if (old_plugin) {
+        // TODO: Implement fallback to old behaviour
+        return compiled_model;
+    }
     std::shared_ptr<ov::Model> cloned_model = model->clone();
     // Instead of:
     // function = std::make_shared<ov::Model>(orig_function->get_results(),
@@ -91,14 +114,16 @@ std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model(const std::shared
     return compiled_model;
 }
 
-std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model_impl(const std::shared_ptr<ov::Model>& model,
-                                                                    const ov::RemoteContext& context,
-                                                                    const ov::AnyMap& properties) {
+std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ov::IPlugin::compile_model_impl(
+    const std::shared_ptr<ov::Model>& model,
+    const ov::RemoteContext& context,
+    const ov::AnyMap& properties) {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model_impl(const std::shared_ptr<ov::Model>& model,
-                                                                    const ov::AnyMap& properties) {
+std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ov::IPlugin::compile_model_impl(
+    const std::shared_ptr<ov::Model>& model,
+    const ov::AnyMap& properties) {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
@@ -122,13 +147,14 @@ ov::RemoteContext ov::IPlugin::get_default_context(const ov::AnyMap& remote_prop
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-std::shared_ptr<ov::ICompiledModel> ov::IPlugin::import_model(std::istream& model, const ov::AnyMap& properties) {
+std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ov::IPlugin::import_model(std::istream& model,
+                                                                                       const ov::AnyMap& properties) {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-std::shared_ptr<ov::ICompiledModel> ov::IPlugin::import_model(std::istream& model,
-                                                              const ov::RemoteContext& context,
-                                                              const ov::AnyMap& properties) {
+std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ov::IPlugin::import_model(std::istream& model,
+                                                                                       const ov::RemoteContext& context,
+                                                                                       const ov::AnyMap& properties) {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
@@ -152,7 +178,7 @@ const std::shared_ptr<InferenceEngine::ExecutorManager>& ov::IPlugin::get_execut
     return m_executor_manager;
 }
 
-ov::SupportedOpsMap ov::IPlugin::query_model(const std::shared_ptr<ov::Model>& model,
+ov::SupportedOpsMap ov::IPlugin::query_model(const std::shared_ptr<const ov::Model>& model,
                                              const ov::AnyMap& properties) const {
     OPENVINO_NOT_IMPLEMENTED;
 }

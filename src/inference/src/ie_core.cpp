@@ -11,6 +11,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <openvino/core/any.hpp>
 #include <string>
 #include <threading/ie_executor_manager.hpp>
 #include <vector>
@@ -23,6 +24,7 @@
 #include "cpp/ie_plugin.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
+#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "file_utils.h"
 #include "ie_cache_guard.hpp"
 #include "ie_cache_manager.hpp"
@@ -422,7 +424,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
                                                                  bool forceDisableCache = false) {
         OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CoreImpl::compile_model_impl");
         ov::SoPtr<ie::IExecutableNetworkInternal> execNetwork;
-        execNetwork = context ? plugin.compile_model(network, context, parsedConfig)
+        execNetwork = context ? plugin.compile_model(network, ov::RemoteContext(context, {}), parsedConfig)
                               : plugin.compile_model(network, parsedConfig);
         if (!forceDisableCache && cacheContent.cacheManager && DeviceSupportsImportExport(plugin)) {
             try {
@@ -473,7 +475,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
                     throw HeaderException();
                 }
 
-                execNetwork = context ? plugin.import_model(networkStream, context, config)
+                execNetwork = context ? plugin.import_model(networkStream, ov::RemoteContext{context, {}}, config)
                                       : plugin.import_model(networkStream, config);
                 networkIsImported = true;
             });
@@ -1172,12 +1174,12 @@ public:
             ov::Plugin plugin;
 
             if (desc.pluginCreateFunc) {  // static OpenVINO case
-                std::shared_ptr<ov::IPlugin> plugin_impl;
+                std::shared_ptr<InferenceEngine::IInferencePlugin> plugin_impl;
                 desc.pluginCreateFunc(plugin_impl);
                 plugin = Plugin{plugin_impl, {}};
             } else {
                 so = ov::util::load_shared_object(desc.libraryLocation.c_str());
-                std::shared_ptr<ov::IPlugin> plugin_impl;
+                std::shared_ptr<InferenceEngine::IInferencePlugin> plugin_impl;
                 reinterpret_cast<InferenceEngine::CreatePluginEngineFunc*>(
                     ov::util::get_symbol(so, InferenceEngine::create_plugin_function))(plugin_impl);
                 plugin = Plugin{plugin_impl, so};
@@ -1831,8 +1833,10 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
     std::string deviceName = device.getDeviceName();
 
     auto parsed = ov::parseDeviceNameIntoConfig(deviceName, config);
-    auto exec = _impl->GetCPPPluginByName(deviceName)
-                    .import_model(networkModel, std::dynamic_pointer_cast<RemoteContext>(context), parsed._config);
+    auto conf = ov::any_copy(parsed._config);
+    auto exec =
+        _impl->GetCPPPluginByName(deviceName)
+            .import_model(networkModel, ov::RemoteContext{std::dynamic_pointer_cast<RemoteContext>(context), {}}, conf);
     return {exec._ptr, exec._so};
 }
 
@@ -1904,7 +1908,7 @@ Parameter Core::GetConfig(const std::string& deviceName, const std::string& name
     }
 
     auto parsed = ov::parseDeviceNameIntoConfig(deviceName);
-    return _impl->GetCPPPluginByName(parsed._deviceName).get_config(name, parsed._config);
+    return _impl->GetCPPPluginByName(parsed._deviceName).get_property(name, parsed._config);
 }
 
 Parameter Core::GetMetric(const std::string& deviceName, const std::string& name, const ParamMap& options) const {
@@ -2166,7 +2170,7 @@ RemoteContext Core::create_context(const std::string& deviceName, const AnyMap& 
     OV_CORE_CALL_STATEMENT({
         auto parsed = parseDeviceNameIntoConfig(deviceName, flatten_sub_properties(deviceName, params));
         auto remoteContext = _impl->GetCPPPluginByName(parsed._deviceName).create_context(parsed._config);
-        return {remoteContext._ptr, {remoteContext._so}};
+        return {remoteContext._impl, {remoteContext._so}};
     });
 }
 
@@ -2179,7 +2183,7 @@ RemoteContext Core::get_default_context(const std::string& deviceName) {
     OV_CORE_CALL_STATEMENT({
         auto parsed = parseDeviceNameIntoConfig(deviceName, AnyMap{});
         auto remoteContext = _impl->GetCPPPluginByName(parsed._deviceName).get_default_context(parsed._config);
-        return {remoteContext._ptr, {remoteContext._so}};
+        return {remoteContext._impl, {remoteContext._so}};
     });
 }
 

@@ -12,6 +12,8 @@
 #include <memory>
 #include <openvino/core/deprecated.hpp>
 
+#include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
+#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/version.hpp"
@@ -27,8 +29,10 @@ class IExtension;
 namespace ov {
 
 class ICore;
+class CoreImpl;
 
-class OPENVINO_RUNTIME_API IPlugin : public std::enable_shared_from_this<IPlugin> {
+class OPENVINO_RUNTIME_API IPlugin : public std::enable_shared_from_this<IPlugin>,
+                                     private InferenceEngine::IInferencePlugin {
 public:
     /**
      * @brief A shared pointer to ov::IPlugin interface
@@ -69,8 +73,9 @@ public:
      * @param properties A ov::AnyMap of properties relevant only for this load operation
      * @return Created Compiled Model object
      */
-    std::shared_ptr<ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                  const ov::AnyMap& properties);
+    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> compile_model(
+        const std::shared_ptr<const ov::Model>& model,
+        const ov::AnyMap& properties);
 
     /**
      * @brief Compiles model from ov::Model object, on specified remote context
@@ -80,9 +85,10 @@ public:
      *        execute the model
      * @return Created Compiled Model object
      */
-    std::shared_ptr<ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                  const ov::AnyMap& properties,
-                                                  const ov::RemoteContext& context);
+    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> compile_model(
+        const std::shared_ptr<const ov::Model>& model,
+        const ov::AnyMap& properties,
+        const ov::RemoteContext& context);
 
     /**
      * @brief Sets properties for plugin, acceptable keys can be found in openvino/runtime/properties.hpp
@@ -123,7 +129,8 @@ public:
      * @param properties A ov::AnyMap of properties
      * @return An Compiled model
      */
-    virtual std::shared_ptr<ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties);
+    virtual std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> import_model(std::istream& model,
+                                                                                      const ov::AnyMap& properties);
 
     /**
      * @brief Creates an compiled model from an previously exported model using plugin implementation
@@ -134,9 +141,9 @@ public:
      * @param properties A ov::AnyMap of properties
      * @return An Compiled model
      */
-    virtual std::shared_ptr<ICompiledModel> import_model(std::istream& model,
-                                                         const ov::RemoteContext& context,
-                                                         const ov::AnyMap& properties);
+    virtual std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> import_model(std::istream& model,
+                                                                                      const ov::RemoteContext& context,
+                                                                                      const ov::AnyMap& properties);
 
     /**
      * @brief Sets pointer to ICore interface
@@ -179,9 +186,12 @@ public:
         "This method allows to load legacy InferenceEngine Extensions and will be removed in 2024.0 release")
     virtual void add_extension(const std::shared_ptr<InferenceEngine::IExtension>& extension);
 
+    OPENVINO_DEPRECATED("Constructor is deprecated. Please do not use or re-implement it")
+    IPlugin(const std::shared_ptr<InferenceEngine::IInferencePlugin>& ptr);
+    ~IPlugin() = default;
+
 protected:
     IPlugin();
-    ~IPlugin() = default;
 
     /**
      * @brief Creates an compiled model from ov::Model object, users can create as many networks as they need
@@ -193,8 +203,9 @@ protected:
      * @param properties ov::AnyMap of properties relevant only for this load operation
      * @return Shared pointer to the CompiledModel object
      */
-    virtual std::shared_ptr<ICompiledModel> compile_model_impl(const std::shared_ptr<ov::Model>& model,
-                                                               const ov::AnyMap& properties);
+    virtual std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> compile_model_impl(
+        const std::shared_ptr<ov::Model>& model,
+        const ov::AnyMap& properties);
 
     /**
      * @brief Creates an compiled model from ov::Model object, users can create as many networks as they need
@@ -207,9 +218,10 @@ protected:
      * @param properties ov::AnyMap of properties relevant only for this load operation
      * @return Shared pointer to the CompiledModel object
      */
-    virtual std::shared_ptr<ICompiledModel> compile_model_impl(const std::shared_ptr<ov::Model>& model,
-                                                               const ov::RemoteContext& context,
-                                                               const ov::AnyMap& properties);
+    virtual std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> compile_model_impl(
+        const std::shared_ptr<ov::Model>& model,
+        const ov::RemoteContext& context,
+        const ov::AnyMap& properties);
 
     /**
      * @brief Set input and output information to executable network. This method is used to
@@ -239,6 +251,7 @@ protected:
 private:
     ov::Version m_version;  //!< Member contains plugin version
     bool m_is_new_api;      //!< A flag which shows used API
+    std::shared_ptr<InferenceEngine::IInferencePlugin> old_plugin;
 };
 
 }  // namespace ov
