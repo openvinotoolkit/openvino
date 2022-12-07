@@ -332,18 +332,7 @@ def get_binary_tensors(binary_paths: List[str], info: AppInputInfo, batch_sizes:
             binary_filename:str = binary_paths[binary_index]
             
             extension = binary_filename.lower().split('.')[-1]
-            if extension == "npy":
-                logger.info("Prepare numpy file " + binary_filename)
-                numpy_arr:np.ndarray = np.load(binary_filename)
-                if list(numpy_arr.shape) != shape:
-                    raise Exception(
-                        f"Numpy array shape mismatch. File {binary_filename} has shape: {numpy_arr.shape}, expected: {shape}")
-                if numpy_arr.dtype != dtype:
-                    raise Exception(
-                        f"Numpy array is of {numpy_arr.dtype} format, which does not match input type. File {binary_filename}")
-                binaries[b] = np.reshape(numpy_arr, shape)
-            elif extension == "bin":
-                logger.info("Prepare binary file " + binary_filename)
+            if extension == "bin":
                 binary_file_size = os.path.getsize(binary_filename)
                 blob_size = dtype.itemsize * int(np.prod(shape))
                 if blob_size != binary_file_size:
