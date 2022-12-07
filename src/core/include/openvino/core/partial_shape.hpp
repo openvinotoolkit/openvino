@@ -430,6 +430,5 @@ public:
     AttributeAdapter(ov::PartialShape& value) : DirectValueAccessor<ov::PartialShape>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<PartialShape>");
-    BWDCMP_RTTI_DECLARATION;
 };
 }  // namespace ov

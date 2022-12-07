@@ -42,8 +42,6 @@ void compute_output_shape(const HostTensorPtr& shape_pattern, std::vector<int64_
 }  // namespace
 }  // namespace reshapeop
 
-BWDCMP_RTTI_DEFINITION(op::v1::Reshape);
-
 op::v1::Reshape::Reshape(const Output<Node>& arg, const Output<Node>& shape_pattern, bool zero_flag)
     : Op({arg, shape_pattern}),
       m_special_zero(zero_flag) {
