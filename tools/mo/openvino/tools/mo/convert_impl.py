@@ -832,7 +832,7 @@ def show_mo_convert_help():
 
 
 def input_model_is_object(argv):
-    if isinstance(argv['input_model'], str) or isinstance(argv['input_model'], Path):
+    if isinstance(argv['input_model'], (str, Path)):
         return False
     if argv['input_model'] is None:
         return False
