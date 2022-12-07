@@ -40,7 +40,7 @@ struct RangeArgs {
         start.addTo(topology);
         stop.addTo(topology);
         step.addTo(topology);
-        topology.add(range { "range", { start.name, stop.name, step.name }, { dt, format::bfyx, tensor{batch(outLen)} } });
+        topology.add(range { "range", { input_info(start.name), input_info(stop.name), input_info(step.name) }, { dt, format::bfyx, tensor{batch(outLen)} } });
 
         build_options bo;
         bo.set_option(build_option::allow_new_shape_infer(use_new_shape_infer));
@@ -198,8 +198,8 @@ TEST(range_gpu_test, range_with_select) {
     topology.add(data("select_mask",    select_mask));
     topology.add(data("input0",  input0));
     topology.add(data("input2",  input2));
-    topology.add(cldnn::select("select", "select_input1", "select_input2", "select_mask"));
-    topology.add(range { "range", { "input0", "select", "input2" }, { data_types::i32, format::bfyx, tensor{batch(expected_dim)} } });
+    topology.add(cldnn::select("select", input_info("select_input1"), input_info("select_input2"), input_info("select_mask")));
+    topology.add(range { "range", { input_info("input0"), input_info("select"), input_info("input2") }, { data_types::i32, format::bfyx, tensor{batch(expected_dim)} } });
 
 
     set_values<uint8_t>(select_input1, {0});

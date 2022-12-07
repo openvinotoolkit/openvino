@@ -14,9 +14,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v1::DeformableConvolution);
-BWDCMP_RTTI_DEFINITION(op::v8::DeformableConvolution);
-
 op::v8::DeformableConvolution::DeformableConvolution(const Output<Node>& arg,
                                                      const Output<Node>& offsets,
                                                      const Output<Node>& filters,

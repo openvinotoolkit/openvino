@@ -730,10 +730,44 @@ def show_available_devices():
 
 
 def dump_config(filename, config):
+    properties = {}
+    for device in config:
+        properties[device] = {}
+        supported_properties = Core().get_property(device, 'SUPPORTED_PROPERTIES')
+        # check if ov::device::properties exists in the config
+        if device not in (AUTO_DEVICE_NAME, MULTI_DEVICE_NAME):
+            properties[device] = config[device]
+            continue
+        for property_name in config[device]:
+            property_value = config[device][property_name]
+            if property_name in supported_properties:
+                properties[device][property_name] = property_value
+            else:
+                properties[device].setdefault('DEVICE_PROPERTIES', {})
+                properties[device]['DEVICE_PROPERTIES'].setdefault(property_name, {})
+                array = property_value.split(' ')
+                properties_dict = {array[i]: array[i + 1] for i in range(0, len(array), 2)}
+                for key in properties_dict:
+                    properties[device]['DEVICE_PROPERTIES'][property_name][key] = properties_dict[key]
+
     with open(filename, 'w') as f:
-        json.dump(config, f, indent=4)
+        json.dump(properties, f, indent=4)
 
 
 def load_config(filename, config):
     with open(filename) as f:
-        config.update(json.load(f))
+        original_config = json.load(f)
+    for device in original_config:
+        config[device] = {}
+        for property_name in original_config[device]:
+            property_value = original_config[device][property_name]
+            if property_name != 'DEVICE_PROPERTIES':
+                config[device][property_name] = property_value
+                continue
+            for hw_device in property_value:
+                hw_device_config = property_value[hw_device]
+                array = ""
+                for key in hw_device_config:
+                    value = hw_device_config[key]
+                    array += key + ' ' + value + ' '
+                config[device][hw_device] = array.strip()

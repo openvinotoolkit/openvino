@@ -19,7 +19,6 @@ namespace v1 {
 class OPENVINO_API StridedSlice : public Op {
 public:
     OPENVINO_OP("StridedSlice", "opset1", op::Op, 1);
-    BWDCMP_RTTI_DECLARATION;
 
     StridedSlice() = default;
 

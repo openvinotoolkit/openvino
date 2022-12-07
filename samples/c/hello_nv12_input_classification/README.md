@@ -16,7 +16,7 @@ Basic Inference Engine API is covered by [Hello Classification C sample](../hell
 |:---                              |:---
 | Validated Models                 | [alexnet](@ref omz_models_model_alexnet)
 | Model Format                     | Inference Engine Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)
-| Validated images                 | An uncompressed image in the NV12 color format - \*.yuv
+| Validated images                 | An uncompressed image in the NV12 color format - \*.yuv
 | Supported devices                | [All](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
 | Other language realization       | [C++](../../../samples/cpp/hello_nv12_input_classification/README.md) |
 

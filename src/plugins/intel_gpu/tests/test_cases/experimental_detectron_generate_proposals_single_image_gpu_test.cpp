@@ -220,18 +220,18 @@ public:
         topology.add(input_layout(input_scores_id, input_scores->get_layout()));
         topology.add(mutable_data(output_roi_scores_id, output_roi_scores));
 
-        topology.add(reorder(reorder_im_info_id, input_im_info_id, data_layout, data_type));
-        topology.add(reorder(reorder_anchors_id, input_anchors_id, data_layout, data_type));
-        topology.add(reorder(reorder_deltas_id, input_deltas_id, data_layout, data_type));
-        topology.add(reorder(reorder_scores_id, input_scores_id, data_layout, data_type));
+        topology.add(reorder(reorder_im_info_id, input_info(input_im_info_id), data_layout, data_type));
+        topology.add(reorder(reorder_anchors_id, input_info(input_anchors_id), data_layout, data_type));
+        topology.add(reorder(reorder_deltas_id, input_info(input_deltas_id), data_layout, data_type));
+        topology.add(reorder(reorder_scores_id, input_info(input_scores_id), data_layout, data_type));
 
         const primitive_id edgpsi_id = "experimental_detectron_generate_proposals_single_image";
         const auto edgpsi_primitive = experimental_detectron_generate_proposals_single_image{edgpsi_id,
-                                                                                             reorder_im_info_id,
-                                                                                             reorder_anchors_id,
-                                                                                             reorder_deltas_id,
-                                                                                             reorder_scores_id,
-                                                                                             output_roi_scores_id,
+                                                                                             input_info(reorder_im_info_id),
+                                                                                             input_info(reorder_anchors_id),
+                                                                                             input_info(reorder_deltas_id),
+                                                                                             input_info(reorder_scores_id),
+                                                                                             input_info(output_roi_scores_id),
                                                                                              param.min_size,
                                                                                              param.nms_threshold,
                                                                                              param.pre_nms_count,
@@ -239,7 +239,7 @@ public:
         topology.add(edgpsi_primitive);
 
         const primitive_id reorder_result_id = edgpsi_id + "Reordered";
-        topology.add(reorder(reorder_result_id, edgpsi_primitive, format::bfyx, data_type));
+        topology.add(reorder(reorder_result_id, input_info(edgpsi_primitive), format::bfyx, data_type));
 
         cldnn::network::ptr network;
 
@@ -274,7 +274,7 @@ public:
 
         cldnn::topology reorder_topology;
         reorder_topology.add(input_layout("scores", rois_scores_layout));
-        reorder_topology.add(reorder("plane_scores", "scores", format::bfyx, data_type));
+        reorder_topology.add(reorder("plane_scores", input_info("scores"), format::bfyx, data_type));
         cldnn::network reorder_net{engine, reorder_topology};
         reorder_net.set_input_data("scores", output_roi_scores);
         const auto second_output_result = reorder_net.execute();

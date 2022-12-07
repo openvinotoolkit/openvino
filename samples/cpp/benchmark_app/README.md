@@ -158,26 +158,27 @@ Options:
     -dump_config              Optional. Path to JSON file to dump IE parameters, which were set by application.
     -load_config              Optional. Path to JSON file to load custom IE parameters. Please note, command line parameters have higher priority then parameters from configuration file.
                               Example 1: a simple JSON file for HW device with primary properties.
-                                          {
-                                             "CPU": {"NUM_STREAMS": "3", "PERF_COUNT": "NO"}
-                                          }
+                                       {
+                                            "CPU": {"NUM_STREAMS": "3", "PERF_COUNT": "NO"}
+                                       }
                               Example 2: a simple JSON file for meta device(AUTO/MULTI) with HW device properties.
-                                          {
-                                          	"AUTO": {
-                                          		"PERFORMANCE_HINT": "",
-                                          		"PERF_COUNT": "NO",
-                                          		"DEVICE_PROPERTIES": {
-                                          			"CPU": {
-                                          				"INFERENCE_PRECISION_HINT": "f32",
-                                          				"NUM_STREAMS": "3"
-                                          			},
-                                          			"GPU": {
-                                          				"INFERENCE_PRECISION_HINT": "f32",
-                                          				"NUM_STREAMS": "5"
-                                          			}
-                                          		}
-                                          	}
-                                          }
+                                       {
+                                            "AUTO": {
+                                                    "PERFORMANCE_HINT": "",
+                                                    "PERF_COUNT": "NO",
+                                                    "DEVICE_PROPERTIES": {
+                                                    "CPU": {
+                                                        "INFERENCE_PRECISION_HINT": "f32",
+                                                        "NUM_STREAMS": "3"
+                                                    },
+                                                    "GPU": {
+                                                        "INFERENCE_PRECISION_HINT": "f32",
+                                                        "NUM_STREAMS": "5"
+                                                    }
+                                                }
+                                            }
+                                       }
+
     -infer_precision "<element type>"Optional. Inference precision
     -ip                       <value>     Optional. Specifies precision for all input layers of the model.
     -op                       <value>     Optional. Specifies precision for all output layers of the model.
@@ -202,7 +203,7 @@ Running the application with the empty list of options yields the usage message 
 The benchmark tool supports topologies with one or more inputs. If a topology is not data sensitive, you can skip the input parameter, and the inputs will be filled with random values. If a model has only image input(s), provide a folder with images or a path to an image as input. If a model has some specific input(s) (besides images), please prepare a binary file(s) or numpy array(s) that is filled with data of appropriate precision and provide a path to it as input. If a model has mixed input types, the input folder should contain all required files. Image inputs are filled with image files one by one. Binary inputs are filled with binary inputs one by one.
 
 ## Examples of Running the Tool
-This section provides step-by-step instructions on how to run the Benchmark Tool with the `asl-recognition` model from the Open Model Zoo on CPU or GPU devices. It uses random data as the input.
+This section provides step-by-step instructions on how to run the Benchmark Tool with the `asl-recognition` model from the [Open Model Zoo](@ref model_zoo) on CPU or GPU devices. It uses random data as the input.
 
 > **NOTE**: Internet access is required to execute the following steps successfully. If you have access to the Internet through a proxy server only, please make sure that it is configured in your OS environment.
 

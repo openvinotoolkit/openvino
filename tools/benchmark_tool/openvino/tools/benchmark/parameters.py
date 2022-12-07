@@ -131,9 +131,30 @@ def parse_args():
                          help="Optional. Path to a folder where statistics report is stored.")
      args.add_argument('-dump_config', type=str, required=False, default='',
                          help="Optional. Path to JSON file to dump OpenVINO parameters, which were set by application.")
-     args.add_argument('-load_config', type=str, required=False, default='',
-                         help="Optional. Path to JSON file to load custom OpenVINO parameters."
-                              " Please note, command line parameters have higher priority then parameters from configuration file.")
+    args.add_argument('-load_config', type=str, required=False, default='',
+                      help="Optional. Path to JSON file to load custom OpenVINO parameters.\n"
+                           "Please note, command line parameters have higher priority then parameters from configuration file.\n"
+                           "Example 1: a simple JSON file for HW device with primary properties.\n"
+                           "             {\n"
+                           "                \"CPU\": {\"NUM_STREAMS\": \"3\", \"PERF_COUNT\": \"NO\"}\n"
+                           "             }\n"
+                           "Example 2: a simple JSON file for meta device(AUTO/MULTI) with HW device properties.\n"
+                           "             {\n"
+                           "                \"AUTO\": {\n"
+                           "                     \"PERFORMANCE_HINT\": \"\",\n"
+                           "                     \"PERF_COUNT\": \"NO\",\n"
+                           "                     \"DEVICE_PROPERTIES\": {\n"
+                           "                          \"CPU\": {\n"
+                           "                               \"INFERENCE_PRECISION_HINT\": \"f32\",\n"
+                           "                               \"NUM_STREAMS\": \"3\"\n"
+                           "                          },\n"
+                           "                          \"GPU\": {\n"
+                           "                               \"INFERENCE_PRECISION_HINT\": \"f32\",\n"
+                           "                               \"NUM_STREAMS\": \"5\"\n"
+                           "                          }\n"
+                           "                     }\n"
+                           "                }\n"
+                           "             }\n")
      args.add_argument('-infer_precision', type=str, required=False,
                          help='Optional. Hint to specifies inference precision. Example: -infer_precision CPU:bf16,GPU:f32')
      args.add_argument('-ip', '--input_precision', type=str, required=False, choices=['boolean', 'BOOL', 'f16', 'FP16', 'f32', 'FP32', 'f64', 'FP64', 'i4', 'I4', 'i8', 'I8', 'i16', 'I16', 'i32', 'I32', 'i64', 'I64', 'u1', 'U1', 'u4', 'U4', 'u8', 'U8', 'u16', 'U16', 'u32', 'U32', 'u64', 'U64', 'bf16', 'BF16'],
@@ -153,5 +174,6 @@ def parse_args():
                          help="Optional. Mean values to be used for the input image per channel.\n Values to be provided in the [R, G, B] format. Can be defined for desired input of the model.\n"
                               "Example: -imean data[255,255,255],info[255,255,255]\n")
      parsed_args = parser.parse_args()
+
 
      return parsed_args, parser

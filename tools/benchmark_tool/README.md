@@ -187,8 +187,28 @@ Options:
   -dump_config DUMP_CONFIG
                         Optional. Path to JSON file to dump OpenVINO parameters, which were set by application.
   -load_config LOAD_CONFIG
-                        Optional. Path to JSON file to load custom OpenVINO parameters. Please note, command line parameters have higher priority then parameters from
-                        configuration file.
+                        Optional. Path to JSON file to load custom OpenVINO parameters. Please note, command line parameters have higher priority then parameters from configuration file.
+                        Example 1: a simple JSON file for HW device with primary properties.
+                                    {
+                                       "CPU": {"NUM_STREAMS": "3", "PERF_COUNT": "NO"}
+                                    }
+                        Example 2: a simple JSON file for meta device(AUTO/MULTI) with HW device properties.
+                                    {
+                                    	"AUTO": {
+                                    		"PERFORMANCE_HINT": "",
+                                    		"PERF_COUNT": "NO",
+                                    		"DEVICE_PROPERTIES": {
+                                    			"CPU": {
+                                    				"INFERENCE_PRECISION_HINT": "f32",
+                                    				"NUM_STREAMS": "3"
+                                    			},
+                                    			"GPU": {
+                                    				"INFERENCE_PRECISION_HINT": "f32",
+                                    				"NUM_STREAMS": "5"
+                                    			}
+                                    		}
+                                    	}
+                                    }
   -infer_precision INFER_PRECISION
                         Optional. Hint to specifies inference precision. Example: -infer_precision CPU:bf16,GPU:f32
   -ip {boolean,BOOL,f16,FP16,f32,FP32,f64,FP64,i4,I4,i8,I8,i16,I16,i32,I32,i64,I64,u1,U1,u4,U4,u8,U8,u16,U16,u32,U32,u64,U64,bf16,BF16}, --input_precision {boolean,BOOL,f16,FP16,f32,FP32,f64,FP64,i4,I4,i8,I8,i16,I16,i32,I32,i64,I64,u1,U1,u4,U4,u8,U8,u16,U16,u32,U32,u64,U64,bf16,BF16}
@@ -226,7 +246,7 @@ This section provides step-by-step instructions on how to run the Benchmark Tool
    pip install openvino-dev
    ```
 
-2. Download the model using omz_downloader, specifying the model name and directory to download the model to:
+2. Download the model using `omz_downloader`, specifying the model name and directory to download the model to:
    ```sh
    omz_downloader --name asl-recognition-0004 --precisions FP16 --output_dir omz_models
    ```
