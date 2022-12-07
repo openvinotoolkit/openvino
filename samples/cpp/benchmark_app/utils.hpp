@@ -211,20 +211,14 @@ void verifyNumpyFile(std::ifstream& binaryFile,
         }
     }
 
-    auto vectorToStr = [](std::vector<size_t> vec) {
-        std::stringstream str;
-        std::copy(vec.begin(), vec.end(), std::ostream_iterator<size_t>(str, ","));
-        return str.str();
-    };
-
     OPENVINO_ASSERT(
         numpyShape.size() == inputShape.size() && std::equal(numpyShape.begin(), numpyShape.end(), inputShape.begin()),
         "Numpy array shape mismatch. File ",
         fileName,
         " has shape: (",
-        vectorToStr(numpyShape),
+        ov::Shape(numpyShape).to_string(),
         "), expected: (",
-        vectorToStr(inputShape),
+        ov::Shape(numpyShape).to_string(),
         ")");
 
     // Verify array data type matches input's
