@@ -17,7 +17,7 @@ import logging
 import os
 import re
 import sys
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
 from glob import glob
 from inspect import getsourcefile
 from types import SimpleNamespace
