@@ -117,8 +117,9 @@ Options:
                         Show this help message and exit.
   -i PATHS_TO_INPUT [PATHS_TO_INPUT ...], --paths_to_input PATHS_TO_INPUT [PATHS_TO_INPUT ...]
                         Optional. Path to a folder with images and/or binaries or to specific image or binary file.It is also allowed to map files to model inputs:
-                        input_1:file_1/dir1,file_2/dir2,input_4:file_4/dir4 input_2:file_3/dir3Currently supported data types: bin, npy.If OPENCV is enabled, this functionality
-                        is extended with the following data types:bmp, dib, jpeg, jpg, jpe, jp2, png, pbm, pgm, ppm, sr, ras, tiff, tif.
+                        input_1:file_1/dir1,file_2/dir2,input_4:file_4/dir4 input_2:file_3/dir3
+                        Currently supported data types: bin, npy. If OPENCV is enabled, this functionality
+                        is extended with the following data types: bmp, dib, jpeg, jpg, jpe, jp2, png, pbm, pgm, ppm, sr, ras, tiff, tif.
   -m PATH_TO_MODEL, --path_to_model PATH_TO_MODEL
                         Required. Path to an .xml/.onnx file with a trained model or to a .blob file with a trained compiled model.
   -d TARGET_DEVICE, --target_device TARGET_DEVICE
