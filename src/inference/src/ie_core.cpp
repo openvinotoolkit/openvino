@@ -2002,6 +2002,20 @@ CompiledModel Core::compile_model(const std::string& modelPath, const std::strin
     });
 }
 
+CompiledModel Core::compile_model(const std::string& model,
+                                  const ov::Tensor& weights,
+                                  const std::string& deviceName,
+                                  const AnyMap& config) {
+    InferenceEngine::Blob::Ptr blob;
+    if (weights) {
+        blob = weights._impl;
+    }
+    OV_CORE_CALL_STATEMENT(
+        auto _model = _impl->ReadNetwork(model, blob).getFunction();
+        auto exec = _impl->LoadNetwork(toCNN(_model), deviceName, any_copy(flatten_sub_properties(deviceName, config)));
+        return {exec._ptr, exec._so};);
+}
+
 CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
                                   const RemoteContext& context,
                                   const AnyMap& config) {
