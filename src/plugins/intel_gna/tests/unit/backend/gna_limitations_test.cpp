@@ -300,7 +300,7 @@ class GNACnn2DValidatorTestPooling2D : public GNACnn2DValidatorTest {};
 
 namespace {
 TEST_P(GNACnn2DValidatorTestPadding, testPaddingSupported) {
-    ASSERT_TRUE(validator->IsPaddingSupported() == isPaddingSupported());
+    ASSERT_TRUE(validator->ValidateInputPadding("", 1, 1, 1, 1, 2, 2, false) == isPaddingSupported());
 }
 
 TEST_P(GNACnn2DValidatorTest, testValidateCnn2DInvalid) {
