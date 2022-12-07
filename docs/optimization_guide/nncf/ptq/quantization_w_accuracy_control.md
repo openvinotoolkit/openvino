@@ -27,6 +27,7 @@ This step is similar to the [Basic 8-bit quantization](@ref basic_qauntization_f
 @endsphinxtabset
 
 ## Prepare validation function
+
 Validation funtion receives `openvino.runtime.CompiledModel` object and 
 validation dataset and returns accuracy metric value. The following code snippet shows an example of validation function for OpenVINO model:
 

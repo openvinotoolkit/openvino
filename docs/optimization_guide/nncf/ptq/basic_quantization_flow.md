@@ -50,6 +50,7 @@ In the case when there is no framework dataset object you can create your own en
 
 
 ## Run quantized model
+
 Once dataset is ready and model object is instantiated, you can apply 8-bit quantization to it. The following code snippet shows how to do this:
 @sphinxtabset
 
@@ -118,4 +119,5 @@ After that the model can be exported into th OpenVINO Intermediate Representatio
 If the accuracy of the quantized model is not satisfactory, you can try to use the [Quantization with accuracy control](@ref quantization_w_accuracy_control) flow.
 
 ## See also
+
 * [Example of basic quantization flow in PyTorch](https://github.com/openvinotoolkit/nncf/blob/0f1d89cae234603e0dfdef4916fa06ef2401c383/examples/post_training_quantization/torch/mobilenet_v2/main.py)
