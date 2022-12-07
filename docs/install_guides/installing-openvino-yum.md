@@ -65,24 +65,32 @@ A symlink will be created: `/opt/intel/openvino_<VERSION>`
 
 You can select one of the following procedures according to your need:
 
-#### To Install the Latest Version
+### To Install OpenVINO Runtime
 
-Run the following command:
-```sh
-sudo yum install openvino
-```
+@sphinxdirective
 
-#### To Install a Specific Version
+.. tab:: The Latest Version
 
-Run the following command:
-```sh
-sudo yum install openvino-<VERSION>.<UPDATE>.<PATCH>
-```
+   Run the following command:
+   .. code-block:: sh
 
-For example:
-```sh
-sudo yum install openvino-2022.3.0
-```
+      sudo yum install openvino
+
+
+.. tab::  A Specific Version
+
+   Run the following command:
+   .. code-block:: sh
+
+      sudo yum install openvino-<VERSION>.<UPDATE>.<PATCH>
+
+   For example:
+   .. code-block:: sh
+
+      sudo yum install openvino-2022.3.0
+
+@endsphinxdirective
+
 
 #### To Check for Installed Packages and Version
 
@@ -96,37 +104,57 @@ Run the following command:
 
 @endsphinxdirective
 
-#### To Uninstall the Latest Version
 
-Run the following command:
-```sh
-sudo yum autoremove openvino
-```
+### To Uninstall OpenVINO Runtime
 
-#### To Uninstall a Specific Version
+@sphinxdirective
+.. tab:: The Latest Version
 
-Run the following command:
-```sh
-sudo yum autoremove openvino-<VERSION>.<UPDATE>.<PATCH>
-```
+   Run the following command:
+   .. code-block:: sh
+
+      sudo yum autoremove openvino
+
+
+.. tab::  A Specific Version
+
+   Run the following command:
+   .. code-block:: sh
+
+      sudo yum install openvino-<VERSION>.<UPDATE>.<PATCH>
+
+   For example:
+   .. code-block:: sh
+
+      sudo yum autoremove openvino-<VERSION>.<UPDATE>.<PATCH>
+
+@endsphinxdirective
+
 
 ### Step 3 (Optional): Install OpenCV from YUM
 
 OpenCV is necessary to run C++ demos from Open Model Zoo. Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. OpenVINO provides a package to install OpenCV from YUM:
 
-#### To Install the Latest Version of OpenCV
+#### To Install OpenCV
 
-Run the following command:
-```sh
-sudo yum install openvino-opencv
-```
+@sphinxdirective
 
-#### To Install a Specific Version of OpenCV
+.. tab:: The Latest Version
 
-Run the following command:
-```sh
-sudo yum install openvino-opencv-<VERSION>.<UPDATE>.<PATCH>
-```
+   Run the following command:
+   .. code-block:: sh
+
+      sudo yum install openvino-opencv
+
+.. tab::  A Specific Version
+
+   Run the following command:
+   .. code-block:: sh
+
+      sudo yum install openvino-opencv-<VERSION>.<UPDATE>.<PATCH>
+
+@endsphinxdirective
+
 
 ### Step 4 (Optional): Install Software Dependencies
 
