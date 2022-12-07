@@ -18,7 +18,7 @@
 ov::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
     MATCHER_SCOPE(ConvolutionMultiplyFusion);
     auto input = pattern::any_input();
-    auto weights = ngraph::pattern::any_input(pattern::has_static_dim(0) /* has OIYX layout */);
+    auto weights = pass::pattern::any_input(pattern::has_static_dim(0) /* has OIYX layout */);
     auto conv = ngraph::pattern::wrap_type<opset4::Convolution>({input, weights}, pattern::consumers_count(1));
     auto mul_const = ngraph::pattern::wrap_type<opset4::Constant>(pattern::has_static_shape());
     auto mul = ngraph::pattern::wrap_type<opset4::Multiply>({conv, mul_const});
@@ -83,7 +83,7 @@ ov::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
 ov::pass::GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
     MATCHER_SCOPE(GroupConvolutionMultiplyFusion);
     auto input = pattern::any_input();
-    auto weights = ngraph::pattern::any_input(pattern::has_static_dims({0, 1}) /* has GOIYX layout */);
+    auto weights = pass::pattern::any_input(pattern::has_static_dims({0, 1}) /* has GOIYX layout */);
     auto conv = ngraph::pattern::wrap_type<opset4::GroupConvolution>({input, weights}, pattern::consumers_count(1));
     auto mul_const = ngraph::pattern::wrap_type<opset4::Constant>();  // pattern::has_static_shape());
     auto mul = ngraph::pattern::wrap_type<opset4::Multiply>({conv, mul_const});
@@ -171,7 +171,7 @@ ov::pass::GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
 ov::pass::ConvolutionBackpropDataMultiplyFusion::ConvolutionBackpropDataMultiplyFusion() {
     MATCHER_SCOPE(ConvolutionBackpropDataMultiplyFusion);
     auto input = pattern::any_input();
-    auto weights = ngraph::pattern::any_input(pattern::has_static_dim(1) /* has IOYX layout */);
+    auto weights = pass::pattern::any_input(pattern::has_static_dim(1) /* has IOYX layout */);
     auto conv =
         ngraph::pattern::wrap_type<opset4::ConvolutionBackpropData>({input, weights}, pattern::consumers_count(1));
     auto mul_const = ngraph::pattern::wrap_type<opset4::Constant>(pattern::has_static_shape());
@@ -237,7 +237,7 @@ ov::pass::ConvolutionBackpropDataMultiplyFusion::ConvolutionBackpropDataMultiply
 ov::pass::GroupConvolutionBackpropDataMultiplyFusion::GroupConvolutionBackpropDataMultiplyFusion() {
     MATCHER_SCOPE(GroupConvolutionBackpropDataMultiplyFusion);
     auto input = pattern::any_input();
-    auto weights = ngraph::pattern::any_input(pattern::has_static_dims({0, 2}) /* has GIOYX layout */);
+    auto weights = pass::pattern::any_input(pattern::has_static_dims({0, 2}) /* has GIOYX layout */);
     auto conv =
         ngraph::pattern::wrap_type<opset4::GroupConvolutionBackpropData>({input, weights}, pattern::consumers_count(1));
     auto mul_const = ngraph::pattern::wrap_type<opset4::Constant>(pattern::has_static_shape());

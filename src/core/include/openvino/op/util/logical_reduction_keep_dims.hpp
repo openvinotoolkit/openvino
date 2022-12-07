@@ -23,7 +23,6 @@ protected:
 
 public:
     OPENVINO_OP("LogicalReductionKeepDims", "util");
-    BWDCMP_RTTI_DECLARATION;
     void validate_and_infer_types() override;
 
     /// \return If set to 1 it holds axes that are used for reduction.

@@ -8,8 +8,6 @@
 
 using namespace ov;
 
-BWDCMP_RTTI_DEFINITION(ov::op::util::MulticlassNmsBase);
-
 op::util::MulticlassNmsBase::MulticlassNmsBase(const OutputVector& arguments, const Attributes& attrs)
     : Op(arguments),
       m_attrs{attrs} {}
@@ -98,6 +96,4 @@ EnumNames<op::util::MulticlassNmsBase::SortResultType>::get() {
          {"none", op::util::MulticlassNmsBase::SortResultType::NONE}});
     return enum_names;
 }
-
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::util::MulticlassNmsBase::SortResultType>);
 }  // namespace ov

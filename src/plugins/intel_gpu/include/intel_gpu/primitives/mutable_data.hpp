@@ -34,7 +34,7 @@ struct mutable_data : public primitive_base<mutable_data> {
     mutable_data(const primitive_id& id,
                  memory::ptr mem,
                  filler_type fill_type = filler_type::no_fill)
-        : primitive_base(id, {}, padding()), mem(mem), fill_type(fill_type) {}
+        : primitive_base(id, {}, {padding()}), mem(mem), fill_type(fill_type) {}
 
     /// @brief Constructs mutable_data primitive with inputs.
     /// @param id This primitive id.
@@ -43,10 +43,10 @@ struct mutable_data : public primitive_base<mutable_data> {
     /// @note If memory is attached by memory::attach(), the attached buffer should be valid till network build.
     /// @param filler_type @ref data filling function, default is zero
     mutable_data(const primitive_id& id,
-                 const std::vector<primitive_id>& input,
+                 const std::vector<input_info>& inputs,
                  memory::ptr mem,
                  filler_type fill_type = filler_type::no_fill)
-        : primitive_base(id, {input}, padding()), mem(mem), fill_type(fill_type) {}
+        : primitive_base(id, inputs, {padding()}), mem(mem), fill_type(fill_type) {}
 
     /// @brief @ref memory object which contains data.
     /// @note If memory is attached by memory::attach(), the attached buffer should be valid till network build.

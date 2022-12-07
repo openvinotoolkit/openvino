@@ -16,6 +16,12 @@ namespace node {
 
 class Eye : public Node {
 public:
+    static constexpr size_t ROWS_NUM = 0lu;
+    static constexpr size_t COLS_NUM = 1lu;
+    static constexpr size_t DIAGONAL_INDEX = 2lu;
+    static constexpr size_t BATCH_SHAPE = 3lu;
+
+public:
     Eye(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
@@ -25,13 +31,6 @@ public:
     bool needPrepareParams() const override {return false;};
     bool needShapeInfer() const override {return true;};
     void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
-    std::vector<VectorDims> shapeInfer() const override {
-        if (withBatchShape) {
-            return Node::shapeInferGeneric(PortMask(ROWS_NUM, COLS_NUM, DIAGONAL_INDEX, BATCH_SHAPE));
-        } else {
-            return Node::shapeInferGeneric(PortMask(ROWS_NUM, COLS_NUM, DIAGONAL_INDEX));
-        }
-    }
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
@@ -81,11 +80,6 @@ private:
     inline const size_t getBatchVolume(const std::vector<int> &batchShape) {
         return std::accumulate(begin(batchShape), end(batchShape), 1, std::multiplies<size_t>());
     }
-
-    static constexpr size_t ROWS_NUM = 0lu;
-    static constexpr size_t COLS_NUM = 1lu;
-    static constexpr size_t DIAGONAL_INDEX = 2lu;
-    static constexpr size_t BATCH_SHAPE = 3lu;
     bool withBatchShape = false;
 };
 

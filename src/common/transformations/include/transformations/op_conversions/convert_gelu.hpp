@@ -9,8 +9,6 @@
 #include <transformations_visibility.hpp>
 #include <vector>
 
-#include "ngraph/op/gelu.hpp"
-
 namespace ov {
 namespace pass {
 

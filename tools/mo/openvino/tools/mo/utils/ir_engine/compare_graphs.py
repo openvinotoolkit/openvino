@@ -118,7 +118,7 @@ def compare_graphs(graph: Graph, graph_ref: Graph, last_node: str, last_node_ref
 
                     if attr == 'value':
                         if not values_are_equal(node.value, node_ref.value):
-                            stderr.append('Current node "{}" with type {} and reference node "{}" with type have '
+                            stderr.append('Current node "{}" with type {} and reference node "{}" with type "{}" have '
                                           'different values \n{} \nand \n{}'.format(
                                 node.id, cur_node_type, node_ref.id, ref_node_type, node.value, node_ref.value))
                         continue
