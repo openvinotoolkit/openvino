@@ -49,6 +49,7 @@ ov::NodeVector InsertTransposeBeforeNode(std::shared_ptr<ov::Node> main_node,
 
 bool IsSinkingEnabled(std::shared_ptr<ov::Node>);
 bool IsSinkingEnabled(ov::Node*);
+
 void UpdateForwardSinkingAbility(std::shared_ptr<ov::Node>);
 
 }  // namespace transpose_sinking

@@ -202,11 +202,23 @@ bool CanPropagateForward(NodePtr node) {
     return true;
 }
 
-#define NO_TRANSPOSE_SINKING_KEY "no_transpose_sinking"
+class TRANSFORMATIONS_API NoTransposeSinkingAttr : ov::RuntimeAttribute {
+public:
+    OPENVINO_RTTI("no_transpose_sinking", "0");
+    NoTransposeSinkingAttr() = default;
+    bool is_copyable() const override {
+        return false;
+    }
+};
 
 void SetNoSinking(NodePtr node) {
     auto& rt_info = node->get_rt_info();
-    rt_info[NO_TRANSPOSE_SINKING_KEY] = "1";
+    rt_info.emplace(NoTransposeSinkingAttr::get_type_info_static(), NoTransposeSinkingAttr{});
+}
+
+template <typename NodePtrT>
+bool IsSinkingEnabledPrivate(NodePtrT node_ptr) {
+    return node_ptr->get_rt_info().count(NoTransposeSinkingAttr::get_type_info_static()) == 0;
 }
 
 }  // namespace
@@ -217,11 +229,11 @@ void UpdateForwardSinkingAbility(NodePtr node) {
 }
 
 bool IsSinkingEnabled(NodePtr node) {
-    return node->get_rt_info().count(NO_TRANSPOSE_SINKING_KEY) == 0;
+    return IsSinkingEnabledPrivate(node);
 }
 
 bool IsSinkingEnabled(Node* node) {
-    return node->get_rt_info().count(NO_TRANSPOSE_SINKING_KEY) == 0;
+    return IsSinkingEnabledPrivate(node);
 }
 
 }  // namespace transpose_sinking
