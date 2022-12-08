@@ -13,6 +13,7 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/log.hpp"
 #include "transformations/common_optimizations/transpose_sinking_utils.hpp"
+#include "transformations/rt_info/transpose_sinking_attr.hpp"
 
 using namespace ov::pass::pattern;
 using namespace ov;
@@ -66,7 +67,7 @@ std::shared_ptr<Constant> GetTransposeConstant(Input<Node> input) {
     if (!transpose_node)
         return {};
 
-    if (!transpose_sinking::IsSinkingEnabled(input.get_node()))
+    if (!is_sinking_node(input.get_node()))
         return {};
 
     auto constant_node = as_type_ptr<Constant>(transpose_node->input_value(1).get_node_shared_ptr());

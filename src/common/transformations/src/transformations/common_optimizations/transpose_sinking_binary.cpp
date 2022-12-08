@@ -13,6 +13,7 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/log.hpp"
 #include "transformations/common_optimizations/transpose_sinking_utils.hpp"
+#include "transformations/rt_info/transpose_sinking_attr.hpp"
 
 using namespace ov::pass::pattern;
 using namespace ov;
@@ -54,7 +55,7 @@ pass::TransposeSinkingBinaryElementwiseBackward::TransposeSinkingBinaryElementwi
 
     auto IfSinkingEnable = [](const Output<Node>& output) -> bool {
         static auto consumers_check = consumers_count(1);
-        return consumers_check(output) && transpose_sinking::IsSinkingEnabled(output.get_node_shared_ptr());
+        return consumers_check(output) && is_sinking_node(output.get_node_shared_ptr());
     };
 
     auto transpose_label = wrap_type<Transpose>({main_node_label, transpose_const_label}, IfSinkingEnable);

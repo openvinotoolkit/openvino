@@ -7,6 +7,7 @@
 #include "openvino/opsets/opset9.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/common_optimizations/transpose_sinking_utils.hpp"
+#include "transformations/rt_info/transpose_sinking_attr.hpp"
 
 using namespace ov;
 
@@ -119,7 +120,7 @@ ov::pass::TransposeSinkingUnaryForward::TransposeSinkingUnaryForward() {
 
 namespace {
 bool IfSinkingEnabled(const Output<Node>& output) {
-    return transpose_sinking::IsSinkingEnabled(output.get_node_shared_ptr());
+    return is_sinking_node(output.get_node_shared_ptr());
 }
 }  // namespace
 

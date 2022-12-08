@@ -11,6 +11,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/log.hpp"
+#include "transformations/rt_info/transpose_sinking_attr.hpp"
 
 namespace transpose_sinking {
 
@@ -202,38 +203,11 @@ bool CanPropagateForward(NodePtr node) {
     return true;
 }
 
-class TRANSFORMATIONS_API NoTransposeSinkingAttr : ov::RuntimeAttribute {
-public:
-    OPENVINO_RTTI("no_transpose_sinking", "0");
-    NoTransposeSinkingAttr() = default;
-    bool is_copyable() const override {
-        return false;
-    }
-};
-
-void SetNoSinking(NodePtr node) {
-    auto& rt_info = node->get_rt_info();
-    rt_info.emplace(NoTransposeSinkingAttr::get_type_info_static(), NoTransposeSinkingAttr{});
-}
-
-template <typename NodePtrT>
-bool IsSinkingEnabledPrivate(NodePtrT node_ptr) {
-    return node_ptr->get_rt_info().count(NoTransposeSinkingAttr::get_type_info_static()) == 0;
-}
-
 }  // namespace
 
 void UpdateForwardSinkingAbility(NodePtr node) {
     if (!CanPropagateForward(node))
-        SetNoSinking(node);
-}
-
-bool IsSinkingEnabled(NodePtr node) {
-    return IsSinkingEnabledPrivate(node);
-}
-
-bool IsSinkingEnabled(Node* node) {
-    return IsSinkingEnabledPrivate(node);
+        mark_as_no_sinking_node(node);
 }
 
 }  // namespace transpose_sinking
