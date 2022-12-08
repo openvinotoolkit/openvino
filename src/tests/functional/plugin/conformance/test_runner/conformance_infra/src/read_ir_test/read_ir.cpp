@@ -89,10 +89,10 @@ void ReadIRTest::query_model() {
         } catch (...) {
             s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::FAILED);
         }
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
-        IE_THROW() << "Crash happens";
     } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
         s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::HANGED);
+        IE_THROW() << "Crash happens";
+    } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
         IE_THROW() << "Crash happens";
     }
 }

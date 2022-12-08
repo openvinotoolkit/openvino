@@ -72,13 +72,14 @@ class ParallelRunner:
         real_command = f'{self._command} --gtest_filter="{self._test_filters[worker_idx]}"'
 
         with open(log_file_name, 'w') as log_file:
-            process = Popen(real_command, shell=True, stdout=log_file, stderr=log_file)
-        try:
-            pass
+            try:
+                process = Popen(real_command, shell=True, stdout=log_file, stderr=log_file)
+            except sigint_handler.ProcessWasInterrupted:
+                thread.exit()
+            except:
+                pass
             # self.exit_code = sigint_handler.wait(process)
-        except sigint_handler.ProcessWasInterrupted:
-            thread.exit()
-        return process
+            
         # self.runtime_ms = int(1000 * (time.time() - begin))
         # self.last_execution_time = None if self.exit_code else self.runtime_ms
 
@@ -105,26 +106,66 @@ class ParallelRunner:
     def get_command(self):
         return self._command
 
+    def postprocess_logs(self):
+        if not os.path.exists('logs'):
+            os.mkdir('logs')
+        test_status = {'passed': "[       OK ]", 'failed': "[  FAILED  ]", 'hanged': "Test finished by timeout", 'crashed': "Crash happens", 'skipped': "[  SKIPPED ]"}
+        for test_st, string in test_status.items():
+            if not os.path.exists(os.path.join('logs', test_st)):
+                os.mkdir(os.path.join('logs', test_st))
+
+        RUN = "[ RUN      ]"
+
+        for idx in range(self._worker_num):
+            log_filename = f"log_{idx}.log"
+            with open(log_filename, "r") as log_file:
+                test_name = None
+                test_log = list()
+                dir = None
+                for line in log_file.readlines():
+                    if RUN in line and test_name is None:
+                        test_name = line[line.find(RUN) + len(RUN) + 1::].replace('\n', '')
+                        test_log.append(line)
+                        continue
+                    if dir is None:
+                        for test_st, string in test_status.items():
+                            if string in line:
+                                dir = test_st
+                    if test_name is not None:
+                        test_log.append(line)
+                        if test_name in line:
+                            with open(os.path.join("logs", dir, f'{test_name}.txt'.replace('/', '_')), "w") as log:
+                                log.writelines(test_log)
+                                log.close()
+                                test_name = None
+                                test_log = list()
+                                dir = None
+
+                    
+
+
+
 if __name__ == "__main__":
     l = get_test_command_line_args()
     args = parse_arguments()
     conformance = ParallelRunner(args.exec_file, l, args.worker_num)
     # command, test_list = conformance.get_test_list()
     t1 = datetime.datetime.now()
-    conformance.run()
+    # conformance.run()
+    conformance.postprocess_logs();
     t2 = datetime.datetime.now()
 
     t1_ = datetime.datetime.now()
-    with open("/home/efode/repo/openvino/src/tests/ie_test_utils/functional_test_utils/layer_tests_summary/log.txt", 'w') as log:
-        task = Popen(conformance.get_command(), shell=True, stdout=log, stderr=log)
-        task.communicate()
+    # with open("/home/efode/repo/openvino/src/tests/ie_test_utils/functional_test_utils/layer_tests_summary/log.txt", 'w') as log:
+    #     task = Popen(conformance.get_command(), shell=True, stdout=log, stderr=log)
+    #     task.communicate()
     t2_ = datetime.datetime.now()
 
     t1__ = datetime.datetime.now()   
-    with open("/home/efode/repo/openvino/src/tests/ie_test_utils/functional_test_utils/layer_tests_summary/log__.txt", 'w') as log:
-        from run_conformance import Conformance
-        conformance_ = Conformance("CPU", "/home/efode/repo/temp/edward_case", "/home/efode/repo/openvino", "OP", "/home/efode/repo/temp_temp")
-        conformance_.start_pipeline(False)
+    # with open("/home/efode/repo/openvino/src/tests/ie_test_utils/functional_test_utils/layer_tests_summary/log__.txt", 'w') as log:
+    #     from run_conformance import Conformance
+    #     conformance_ = Conformance("CPU", "/home/efode/repo/temp/edward_case", "/home/efode/repo/openvino", "OP", "/home/efode/repo/temp_temp")
+    #     conformance_.start_pipeline(False)
     t2__ = datetime.datetime.now()
     print((t2 - t1).total_seconds())
     print((t2_ - t1_).total_seconds())
