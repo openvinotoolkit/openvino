@@ -6,7 +6,8 @@ from typing import Any, Callable, List, Union
 
 import numpy as np
 
-import openvino.runtime.opset8 as ov
+import openvino.runtime as ov
+import openvino.runtime.opset8 as ops
 from openvino.runtime.utils.types import NumericData
 from tests.runtime import get_runtime
 from string import ascii_uppercase
@@ -14,6 +15,24 @@ from string import ascii_uppercase
 
 def _get_numpy_dtype(scalar):
     return np.array([scalar]).dtype
+
+
+def type_to_ovtype(type):
+    if isinstance(type, ov.Type):
+        return type
+    types_map = {
+        np.float32: ov.Type.f32,
+        np.float64: ov.Type.f64,
+        np.int8: ov.Type.i8,
+        np.int16: ov.Type.i16,
+        np.int32: ov.Type.i32,
+        np.int64: ov.Type.i64,
+        np.uint8: ov.Type.u8,
+        np.uint16: ov.Type.u16,
+        np.uint32: ov.Type.u32,
+        np.uint64: ov.Type.u64,
+    }
+    return types_map[type]
 
 
 def run_op_node(input_data, op_fun, *args):
@@ -38,9 +57,9 @@ def run_op_node(input_data, op_fun, *args):
     for idx, data in enumerate(input_data):
         node = None
         if np.isscalar(data):
-            node = ov.parameter([], name=ascii_uppercase[idx], dtype=_get_numpy_dtype(data))
+            node = ops.parameter([], name=ascii_uppercase[idx], dtype=_get_numpy_dtype(data))
         else:
-            node = ov.parameter(data.shape, name=ascii_uppercase[idx], dtype=data.dtype)
+            node = ops.parameter(data.shape, name=ascii_uppercase[idx], dtype=data.dtype)
         op_fun_args.append(node)
         comp_args.append(node)
         comp_inputs.append(data)
