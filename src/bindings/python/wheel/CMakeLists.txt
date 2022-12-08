@@ -79,6 +79,10 @@ macro(_ov_platform_arch)
         set(_arch "x86_64")
     elseif(X86)
         set(_arch "i686")
+    elseif(RISCV64)
+        set(_arch "riscv64")
+    else()
+        message(FATAL_ERROR "Unknown architecture: ${CMAKE_SYSTEM_PROCESSOR}")
     endif()
 endmacro()
 
@@ -100,23 +104,12 @@ if(APPLE AND DEFINED CMAKE_OSX_DEPLOYMENT_TARGET)
 elseif(LINUX)
     _ov_platform_arch()
 
-    execute_process(COMMAND ldd --version
-        OUTPUT_VARIABLE _libc_version
-        OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-    if(_libc_version MATCHES ".*([0-9]+)\\.([0-9]+).*")
-        set(_libc_major "${CMAKE_MATCH_1}")
-        set(_libc_minor "${CMAKE_MATCH_2}")
-    endif()
-
-    # common pattern manylinux_<libc major>_<libc minor>_<arch>
-    if(_libc_major AND _libc_minor AND _arch)
-        if(CMAKE_CROSSCOMPILING)
-            # TODO: think which proper tag is needed for arm / aarch64
-            set(PLATFORM_TAG "linux_${_arch}")
-        else()
-            set(PLATFORM_TAG "manylinux_${_libc_major}_${_libc_minor}_${_arch}")
-        endif()
+    if(CMAKE_CROSSCOMPILING)
+        # TODO: think which proper tag is needed for arm / aarch64
+        set(PLATFORM_TAG "linux_${_arch}")
+    else()
+        string(REPLACE "." "_" _ov_glibc_version "${OV_GLIBC_VERSION}")
+        set(PLATFORM_TAG "manylinux_${_ov_glibc_version}_${_arch}")
     endif()
 endif()
 

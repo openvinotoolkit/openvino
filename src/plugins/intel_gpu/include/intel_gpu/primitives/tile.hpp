@@ -23,18 +23,18 @@ struct tile : public primitive_base<tile> {
     /// @param id This primitive id.
     /// @param repeats Per-dimension replication factor.
     tile(const primitive_id& id,
-         const primitive_id& input,
+         const input_info& input,
          const std::vector<int64_t> repeats,
          const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           repeats(repeats) {}
 
     // @brief Constructs tile primitive with dynamic input.
     tile(const primitive_id& id,
-         const primitive_id& input,
-         const primitive_id& repeats_id,
+         const input_info& input,
+         const input_info& repeats_id,
          const padding& output_padding = padding())
-        : primitive_base(id, {input, repeats_id}, output_padding),
+        : primitive_base(id, {input, repeats_id}, {output_padding}),
           repeats({}) {}
 
     /// @brief A per-dimension replication factor

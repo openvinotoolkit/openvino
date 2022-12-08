@@ -30,8 +30,6 @@ public:
 
     void createPrimitive() override;
 
-    std::vector<VectorDims> shapeInfer() const override;
-
     void prepareParams() override;
 
     void executeDynamicImpl(dnnl::stream strm) override;

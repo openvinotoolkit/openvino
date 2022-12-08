@@ -340,8 +340,10 @@ inline bool parallel_it_step() {
 template <typename Q, typename R, typename... Args>
 inline bool parallel_it_step(Q& x, const R& X, Args&&... tuple) {
     if (parallel_it_step(static_cast<Args>(tuple)...)) {
-        x = (x + 1) % X;
-        return x == 0;
+        if (++x - X == 0) {
+            x = 0;
+            return true;
+        }
     }
     return false;
 }

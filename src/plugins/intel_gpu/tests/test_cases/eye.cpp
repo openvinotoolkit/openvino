@@ -62,27 +62,27 @@ public:
         std::string ouput_op_name;
         if (fmt == format::bfyx || fmt == format::bfzyx) {
             auto inputs = batch_shape.empty()
-                              ? std::vector<primitive_id>{"num_rows", "num_columns", "diagonal_index"}
-                              : std::vector<primitive_id>{"num_rows", "num_columns", "diagonal_index", "batch"};
+                              ? std::vector<input_info>{ input_info("num_rows"), input_info("num_columns"), input_info("diagonal_index") }
+                              : std::vector<input_info>{ input_info("num_rows"), input_info("num_columns"), input_info("diagonal_index"), input_info("batch") };
             ouput_op_name = "eye";
             auto eye_primitive =
                 eye("eye", inputs, tensor{output_shape}, diag, type_to_data_type<OutputType>::value);
             tp.add(std::move(eye_primitive));
         } else {
-            tp.add(reorder("r_num_rows", "num_rows", fmt, type_to_data_type<InputType>::value));
-            tp.add(reorder("r_num_columns", "num_columns", fmt, type_to_data_type<InputType>::value));
-            tp.add(reorder("r_diagonal_index", "diagonal_index", fmt, type_to_data_type<InputType>::value));
+            tp.add(reorder("r_num_rows", input_info("num_rows"), fmt, type_to_data_type<InputType>::value));
+            tp.add(reorder("r_num_columns", input_info("num_columns"), fmt, type_to_data_type<InputType>::value));
+            tp.add(reorder("r_diagonal_index", input_info("diagonal_index"), fmt, type_to_data_type<InputType>::value));
             if (!batch_shape.empty()) {
-                tp.add(reorder("r_batch", "batch", fmt, type_to_data_type<InputType>::value));
+                tp.add(reorder("r_batch", input_info("batch"), fmt, type_to_data_type<InputType>::value));
             }
             auto inputs = batch_shape.empty()
-                              ? std::vector<primitive_id>{"r_num_rows", "r_num_columns", "r_diagonal_index"}
-                              : std::vector<primitive_id>{"r_num_rows", "r_num_columns", "r_diagonal_index", "r_batch"};
+                              ? std::vector<input_info>{ input_info("r_num_rows"), input_info("r_num_columns"), input_info("r_diagonal_index") }
+                              : std::vector<input_info>{ input_info("r_num_rows"), input_info("r_num_columns"), input_info("r_diagonal_index"), input_info("r_batch") };
             auto eye_primitive =
                 eye("eye", inputs, tensor{output_shape}, diag, type_to_data_type<OutputType>::value);
             tp.add(std::move(eye_primitive));
             ouput_op_name = "output";
-            tp.add(reorder("output", "eye", oupput_fmt, type_to_data_type<OutputType>::value));
+            tp.add(reorder("output", input_info("eye"), oupput_fmt, type_to_data_type<OutputType>::value));
         }
 
         cldnn::network::ptr network; 

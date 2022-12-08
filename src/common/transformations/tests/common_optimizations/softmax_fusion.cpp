@@ -9,7 +9,7 @@
 #include <transformations/common_optimizations/softmax_fusion.hpp>
 #include <transformations/init_node_info.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <transformations/serialize.hpp>
+#include <openvino/pass/serialize.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 

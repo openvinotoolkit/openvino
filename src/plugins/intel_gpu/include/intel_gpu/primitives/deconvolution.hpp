@@ -34,13 +34,13 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @param with_activation Enables Relu activation.
     /// @param activation_slp Relu activation slope.
     deconvolution(const primitive_id& id,
-                  const primitive_id& input,
+                  const input_info& input,
                   const std::vector<primitive_id>& weights,
                   const std::vector<primitive_id>& bias,
                   ov::Strides stride = {1, 1},
                   ov::CoordinateDiff pad = {0, 0},
                   const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           pad(pad),
           stride(stride),
           with_output_size(false),
@@ -59,14 +59,14 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @param with_activation Enables Relu activation.
     /// @param activation_slp Relu activation slope.
     deconvolution(const primitive_id& id,
-                  const primitive_id& input,
+                  const input_info& input,
                   const std::vector<primitive_id>& weights,
                   const std::vector<primitive_id>& bias,
                   uint32_t groups,
                   ov::Strides stride = {1, 1},
                   ov::CoordinateDiff pad = {0, 0},
                   const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           pad(pad),
           stride(stride),
           with_output_size(false),
@@ -84,12 +84,12 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @param with_activation Enables Relu activation.
     /// @param activation_slp Relu activation slope.
     deconvolution(const primitive_id& id,
-                  const primitive_id& input,
+                  const input_info& input,
                   const std::vector<primitive_id>& weights,
                   ov::Strides stride = {1, 1},
                   ov::CoordinateDiff pad = {0, 0},
                   const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           pad(pad),
           stride(stride),
           with_output_size(false),
@@ -108,13 +108,13 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @param with_activation Enables Relu activation.
     /// @param activation_slp Relu activation slope.
     deconvolution(const primitive_id& id,
-                  const primitive_id& input,
+                  const input_info& input,
                   const std::vector<primitive_id> &weights,
                   uint32_t groups,
                   ov::Strides stride = {1, 1},
                   ov::CoordinateDiff pad = {0, 0},
                   const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           pad(pad),
           stride(stride),
           with_output_size(false),
@@ -134,14 +134,14 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @param activation_slp Relu activation slope.
     /// @param output_size User-defined output data size of the primitive (w/o padding).
     deconvolution(const primitive_id& id,
-                  const primitive_id& input,
+                  const input_info& input,
                   const std::vector<primitive_id>& weights,
                   const std::vector<primitive_id>& bias,
                   ov::Strides stride,
                   ov::CoordinateDiff pad,
                   tensor output_size,
                   const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           pad(pad),
           stride(stride),
           with_output_size(true),
@@ -163,7 +163,7 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @param activation_slp Relu activation slope.
     /// @param output_size User-defined output data size of the primitive (w/o padding).
     deconvolution(const primitive_id& id,
-                  const primitive_id& input,
+                  const input_info& input,
                   const std::vector<primitive_id>& weights,
                   const std::vector<primitive_id>& bias,
                   uint32_t groups,
@@ -172,7 +172,7 @@ struct deconvolution : public primitive_base<deconvolution> {
                   tensor output_size,
                   bool grouped_weights_shape,
                   const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           pad(pad),
           stride(stride),
           with_output_size(true),
@@ -192,13 +192,13 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @param activation_slp Relu activation slope.
     /// @param output_size User-defined output data size of the primitive (w/o padding).
     deconvolution(const primitive_id& id,
-                  const primitive_id& input,
+                  const input_info& input,
                   const std::vector<primitive_id>& weights,
                   ov::Strides stride,
                   ov::CoordinateDiff pad,
                   tensor output_size,
                   const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           pad(pad),
           stride(stride),
           with_output_size(true),
@@ -220,7 +220,7 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @param output_size User-defined output data size of the primitive (w/o padding).
     /// @return Deconvolution primitive with specified settings.
     static deconvolution create_with_output_size(const primitive_id& id,
-                                                 const primitive_id& input,
+                                                 const input_info& input,
                                                  const std::vector<primitive_id>& weights,
                                                  const std::vector<primitive_id>& bias,
                                                  tensor output_size,
@@ -248,7 +248,7 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @param output_size User-defined output data size of the primitive (w/o padding).
     /// @return Deconvolution primitive with specified settings.
     static deconvolution create_with_output_size(const primitive_id& id,
-                                                 const primitive_id& input,
+                                                 const input_info& input,
                                                  const std::vector<primitive_id>& weights,
                                                  tensor output_size,
                                                  ov::Strides stride = {1, 1},
