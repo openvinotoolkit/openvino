@@ -168,6 +168,10 @@ public:
         OV_PLUGIN_CALL_STATEMENT(_ptr->SetName(deviceName));
     }
 
+    std::string get_name() {
+        OV_PLUGIN_CALL_STATEMENT(return _ptr->GetName());
+    }
+
     void set_core(std::weak_ptr<ICore> core) {
         OV_PLUGIN_CALL_STATEMENT(_ptr->SetCore(core));
     }

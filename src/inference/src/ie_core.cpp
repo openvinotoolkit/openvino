@@ -282,8 +282,11 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         }
 
         // Apply core_plugins_properties into the input config for actual plugins instance.
-        void update_config(const std::string& device_name, ov::AnyMap& config) const {
+        template <typename T>
+        void update_config(ov::InferencePlugin& plugin, std::map<std::string, T>& config) const {
             std::lock_guard<std::mutex> lock(_core_property_mutex);
+            std::string device_name = plugin.get_name();
+            auto supported_properties = plugin.get_property(ov::supported_properties);
             for (auto& it : _core_plugins_properties) {
                 // ov::cache_dir has been updated, ignore it.
                 if (it.first == ov::cache_dir.name())
@@ -298,17 +301,8 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
                 // but some of them only can be applied for specified plugins, such as:
                 //     ov::auto_batch_timeout   -  only for AUTO and BATCH plugins
                 //     ov::hint::allow_auto_batching  - only for AUTO plugins
-                if (it.first == ov::auto_batch_timeout.name()) {
-                    if (device_name.find("BATCH") != std::string::npos ||
-                        device_name.find("AUTO") != std::string::npos) {
-                        config[it.first] = it.second;
-                    }
-                } else if (it.first == ov::hint::allow_auto_batching.name()) {
-                    if (device_name.find("AUTO") != std::string::npos) {
-                        config[it.first] = it.second;
-                    }
-                } else {
-                    config[it.first] = it.second;
+                if (util::contains(supported_properties, it.first)) {
+                    config[it.first] = it.second.as<std::string>();
                 }
             }
         }
@@ -480,12 +474,13 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
 
     ov::SoPtr<ie::IExecutableNetworkInternal> compile_model_impl(const InferenceEngine::CNNNetwork& network,
                                                                  ov::InferencePlugin& plugin,
-                                                                 const std::map<std::string, std::string>& parsedConfig,
+                                                                 std::map<std::string, std::string>& parsedConfig,
                                                                  const ie::RemoteContext::Ptr& context,
                                                                  const CacheContent& cacheContent,
                                                                  bool forceDisableCache = false) {
         OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CoreImpl::compile_model_impl");
         ov::SoPtr<ie::IExecutableNetworkInternal> execNetwork;
+        coreConfig.update_config(plugin, parsedConfig);
         execNetwork = context ? plugin.compile_model(network, context, parsedConfig)
                               : plugin.compile_model(network, parsedConfig);
         if (!forceDisableCache && cacheContent.cacheManager && DeviceSupportsImportExport(plugin)) {
@@ -940,6 +935,7 @@ public:
             }
         } else if (cacheManager) {
             // TODO: 'validation' for dynamic API doesn't work for this case, as it affects a lot of plugin API
+            coreConfig.update_config(plugin, parsed._config);
             res = plugin.compile_model(modelPath, parsed._config);
         } else {
             auto cnnNetwork = ReadNetwork(modelPath, std::string());
@@ -1263,11 +1259,9 @@ public:
                         InferenceEngine::DeviceIDParser parser(pluginDesc.first);
                         if (pluginDesc.first.find(deviceName) != std::string::npos && !parser.getDeviceID().empty()) {
                             pluginDesc.second.defaultConfig[deviceKey] = parser.getDeviceID();
-                            coreConfig.update_config(deviceName, pluginDesc.second.defaultConfig);
                             plugin.set_properties(pluginDesc.second.defaultConfig);
                         }
                     }
-                    coreConfig.update_config(deviceName, desc.defaultConfig);
                     plugin.set_properties(desc.defaultConfig);
                 });
 
@@ -1437,7 +1431,6 @@ public:
                 if (!parser.getDeviceID().empty()) {
                     configCopy[deviceKey] = parser.getDeviceID();
                 }
-                coreConfig.update_config(deviceName, configCopy);
                 plugin.second.set_properties(configCopy);
             });
         }
