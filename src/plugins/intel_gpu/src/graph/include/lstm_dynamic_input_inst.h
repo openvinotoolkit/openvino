@@ -28,7 +28,7 @@ public:
         return get_dependency(3);
     }
 
-    int32_t direction() const { return weights().get_output_layout().size.feature[0]; }
+    int32_t direction() const { return weights().get_output_layout().feature(); }
     bool dyn_length_term() const { return !get_primitive()->dyn_length.empty(); }
     bool bias_term() const { return !get_primitive()->bias.empty(); }
     bool weights_term() const { return !get_primitive()->weights.empty(); }
@@ -39,9 +39,10 @@ using lstm_dynamic_input_node = typed_program_node<lstm_dynamic_input>;
 template <>
 class typed_primitive_inst<lstm_dynamic_input> : public typed_primitive_inst_base<lstm_dynamic_input> {
     using parent = typed_primitive_inst_base<lstm_dynamic_input>;
+    using parent::parent;
 
 public:
-    static layout calc_output_layout(lstm_dynamic_input_node const& node);
+    static layout calc_output_layout(lstm_dynamic_input_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(lstm_dynamic_input_node const& node);
 
 public:
@@ -53,8 +54,8 @@ public:
         CLDNN_ERROR_BOOL(id(), "Bias term", !bias_term(), "Trying to get non existing bias memory.");
         return dep_memory_ptr(3);
     }
-    int32_t direction() const { return node.direction(); }
-    bool bias_term() const { return node.bias_term(); }
+    int32_t direction() const { return node->direction(); }
+    bool bias_term() const { return node->bias_term(); }
 };
 
 using lstm_dynamic_input_inst = typed_primitive_inst<lstm_dynamic_input>;

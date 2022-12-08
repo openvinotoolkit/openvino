@@ -49,8 +49,8 @@ void extract_image_patches(const std::shared_ptr<op::ExtractImagePatches> extImg
     int64_t PL = 0, PT = 0;
 
     if (auto_pad != op::PadType::VALID) {
-        int64_t PW = (std::ceil(1.f * IW / SW) - 1) * SW + iwStep - IW;
-        int64_t PH = (std::ceil(1.f * IH / SH) - 1) * SH + ihStep - IH;
+        int64_t PW = static_cast<int64_t>(std::ceil(1.f * IW / SW) - 1) * SW + iwStep - IW;
+        int64_t PH = static_cast<int64_t>(std::ceil(1.f * IH / SH) - 1) * SH + ihStep - IH;
 
         if ((PW > 0) && (PW < iwStep)) {
             if (PW % 2 == 1) {

@@ -49,7 +49,7 @@ void ctc_greedy_decoder(const T* data,
 
             auto class_index = data + data_index;
             auto class_max_element = std::max_element(class_index, class_index + class_count);
-            T max_class_ind = std::distance(class_index, class_max_element);
+            T max_class_ind = static_cast<T>(std::distance(class_index, class_max_element));
 
             if (!(previous_class_index == max_class_ind && ctc_merge_repeated) &&
                 static_cast<uint64_t>(max_class_ind) < blank_index) {

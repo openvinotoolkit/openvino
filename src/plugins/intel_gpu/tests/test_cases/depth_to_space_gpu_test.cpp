@@ -36,7 +36,7 @@ TEST(depth_to_space_fp16_gpu, d1411_bs2) {
     topology topology;
     topology.add(input_layout("Input0", input1->get_layout()));
     topology.add(
-        depth_to_space("depth_to_space", "Input0", block_size, depth_to_space_mode::blocks_first)
+        depth_to_space("depth_to_space", input_info("Input0"), block_size, depth_to_space_mode::blocks_first)
     );
 
     network network(engine, topology);
@@ -53,7 +53,7 @@ TEST(depth_to_space_fp16_gpu, d1411_bs2) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -78,7 +78,7 @@ TEST(depth_to_space_fp16_gpu, d1421_bs2) {
     topology topology;
     topology.add(input_layout("Input0", input1->get_layout()));
     topology.add(
-        depth_to_space("depth_to_space", "Input0", block_size, depth_to_space_mode::blocks_first)
+        depth_to_space("depth_to_space", input_info("Input0"), block_size, depth_to_space_mode::blocks_first)
     );
 
     network network(engine, topology);
@@ -95,7 +95,7 @@ TEST(depth_to_space_fp16_gpu, d1421_bs2) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -133,7 +133,7 @@ TEST(depth_to_space_fp16_gpu, d1933_bs3) {
     topology topology;
     topology.add(input_layout("Input0", input1->get_layout()));
     topology.add(
-            depth_to_space("depth_to_space", "Input0", block_size, depth_to_space_mode::blocks_first)
+            depth_to_space("depth_to_space", input_info("Input0"), block_size, depth_to_space_mode::blocks_first)
     );
 
     network network(engine, topology);
@@ -158,7 +158,7 @@ TEST(depth_to_space_fp16_gpu, d1933_bs3) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -180,7 +180,7 @@ TEST(depth_to_space_fp32_gpu, d1411_bs2) {
     topology topology;
     topology.add(input_layout("Input0", input1->get_layout()));
     topology.add(
-        depth_to_space("depth_to_space", "Input0", block_size, depth_to_space_mode::blocks_first)
+        depth_to_space("depth_to_space", input_info("Input0"), block_size, depth_to_space_mode::blocks_first)
     );
 
     network network(engine, topology);
@@ -197,7 +197,7 @@ TEST(depth_to_space_fp32_gpu, d1411_bs2) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -219,7 +219,7 @@ TEST(depth_to_space_fp32_gpu, d112960540_bs2) {
     topology topology_act;
     topology_act.add(input_layout("Input0", input1->get_layout()));
     topology_act.add(
-        depth_to_space("depth_to_space", "Input0", block_size, depth_to_space_mode::blocks_first)
+        depth_to_space("depth_to_space", input_info("Input0"), block_size, depth_to_space_mode::blocks_first)
     );
 
     network network_act(engine, topology_act);
@@ -231,20 +231,20 @@ TEST(depth_to_space_fp32_gpu, d112960540_bs2) {
     auto output = outputs.at("depth_to_space").get_memory();
     cldnn::mem_lock<FLOAT16> output_ptr (output, get_test_stream());
 
-    std::vector<uint16_t> perm = { 0,4,5,2,1,3 };
+    std::vector<uint16_t> perm = { 0,3,4,1,5,2 };
 
     topology topology_ref;
     topology_ref.add(input_layout("Input0", input1->get_layout()));
-    topology_ref.add(reorder("reorder1", "Input0", { data_types::f16, format::bfwzyx, tensor{ batch(1), feature(12), spatial(1, 1, 960, 540) }
+    topology_ref.add(reorder("reorder1", input_info("Input0"), { data_types::f16, format::bfwzyx, tensor{ batch(1), feature(12), spatial(1, 1, 960, 540) }
         }));
     topology_ref.add(
-        reshape("reshape", "reorder1", tensor{ batch(1), feature(2), spatial(960, 540, 3, 2) })
+        reshape("reshape", input_info("reorder1"), tensor{ batch(1), feature(2), spatial(960, 540, 3, 2) })
     );
     topology_ref.add(
-        permute("perm", "reshape", perm)
+        permute("perm", input_info("reshape"), perm)
     );
     topology_ref.add(
-        reshape("reshape2", "perm", tensor(1, 3, 2 * 960, 2 * 540))
+        reshape("reshape2", input_info("perm"), tensor(1, 3, 2 * 960, 2 * 540))
     );
 
     build_options build_opt;
@@ -259,7 +259,7 @@ TEST(depth_to_space_fp32_gpu, d112960540_bs2) {
     cldnn::mem_lock<FLOAT16> output_ptr_ref(output_ref, get_test_stream());
 
     for (size_t i = 0; i < output->get_layout().count(); ++i) {
-        EXPECT_EQ(output_ptr_ref[i], output_ptr[i]);
+        ASSERT_EQ(output_ptr_ref[i], output_ptr[i]);
     }
 }
 
@@ -289,7 +289,7 @@ TEST(depth_to_space_fp32_gpu, d1933_bs3) {
     topology topology;
     topology.add(input_layout("Input0", input1->get_layout()));
     topology.add(
-        depth_to_space("depth_to_space", "Input0", block_size, depth_to_space_mode::blocks_first)
+        depth_to_space("depth_to_space", input_info("Input0"), block_size, depth_to_space_mode::blocks_first)
     );
 
     network network(engine, topology);
@@ -314,7 +314,7 @@ TEST(depth_to_space_fp32_gpu, d1933_bs3) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -344,7 +344,7 @@ TEST(depth_to_space_fp32_gpu, d1822_bs2_blocks_first) {
     topology topology;
     topology.add(input_layout("Input0", input1->get_layout()));
     topology.add(
-        depth_to_space("depth_to_space", "Input0", block_size, depth_to_space_mode::blocks_first)
+        depth_to_space("depth_to_space", input_info("Input0"), block_size, depth_to_space_mode::blocks_first)
     );
 
     network network(engine, topology);
@@ -364,12 +364,12 @@ TEST(depth_to_space_fp32_gpu, d1822_bs2_blocks_first) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
-
-TEST(depth_to_space_fp32_gpu, d1822_bs2_depth_first) {
+template <typename T>
+void test_depth_to_space_fp32_gpu_d1822_bs2_depth_first(bool is_caching_test) {
     //  Input  : 1x8x2x2
     //  Block size : 2
     //  Output : 1x2x4x4
@@ -394,19 +394,36 @@ TEST(depth_to_space_fp32_gpu, d1822_bs2_depth_first) {
     topology topology;
     topology.add(input_layout("Input0", input1->get_layout()));
     topology.add(
-        depth_to_space("depth_to_space", "Input0", block_size, depth_to_space_mode::depth_first)
+        depth_to_space("depth_to_space", input_info("Input0"), block_size, depth_to_space_mode::depth_first)
     );
 
-    network network(engine, topology);
+    cldnn::network::ptr network;
 
-    network.set_input_data("Input0", input1);
+    if (is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topology);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+        }
+    } else {
+        network = std::make_shared<cldnn::network>(engine, topology);
+    }
 
-    auto outputs = network.execute();
+    network->set_input_data("Input0", input1);
+
+    auto outputs = network->execute();
 
     auto output = outputs.at("depth_to_space").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
-    std::vector<float> expected_results = {
+    std::vector<T> expected_results = {
         0.0f, 4.0f, 1.0f, 5.0f, 8.0f, 12.0f, 9.0f, 13.0f,
         2.0f, 6.0f, 3.0f, 7.0f, 10.0f, 14.0f, 11.0f, 15.0f,
         16.0f, 20.0f, 17.0f, 21.0f, 24.0f, 28.0f, 25.0f, 29.0f,
@@ -414,6 +431,14 @@ TEST(depth_to_space_fp32_gpu, d1822_bs2_depth_first) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
+}
+
+TEST(depth_to_space_fp32_gpu, d1822_bs2_depth_first) {
+    test_depth_to_space_fp32_gpu_d1822_bs2_depth_first<float>(false);
+}
+
+TEST(export_import_depth_to_space_fp32_gpu, d1822_bs2_depth_first) {
+    test_depth_to_space_fp32_gpu_d1822_bs2_depth_first<float>(true);
 }

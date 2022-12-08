@@ -43,9 +43,9 @@ inline void addInputOutput(cnpy::NpyArray& npy_array, test::TestCase& test_case,
     T* npy_begin = npy_array.data<T>();
     std::vector<T> data(npy_begin, npy_begin + npy_array.num_vals);
     if (is_input)
-        test_case.add_input(data);
+        test_case.add_input(npy_array.shape, data);
     else
-        test_case.add_expected_output(data);
+        test_case.add_expected_output(npy_array.shape, data);
 }
 
 static bool ends_with(std::string const& value, std::string const& ending) {
@@ -81,6 +81,8 @@ void FrontEndFuzzyOpTest::runConvertedModel(const std::shared_ptr<ngraph::Functi
             addInputOutput<int32_t>(input, testCase, true);
         } else if (input_dtype == element::i64) {
             addInputOutput<int64_t>(input, testCase, true);
+        } else if (input_dtype == element::boolean) {
+            addInputOutput<bool>(input, testCase, true);
         } else {
             throw std::runtime_error("not supported dtype in" + input_dtype.get_type_name());
         }

@@ -17,6 +17,23 @@ using namespace cldnn;
 namespace cldnn {
 namespace ocl {
 namespace {
+static std::vector<uint16_t> convert_axes(std::vector<int64_t> axes, size_t rank) {
+    std::vector<uint16_t> converted_axes;
+    for (auto axis : axes) {
+        if (axis == 0 || axis == 1) {
+            converted_axes.push_back(axis);
+            continue;
+        }
+
+        if (axis < 0)
+            axis = axis + rank;
+
+        converted_axes.push_back(rank + 1 - axis);
+    }
+
+    return converted_axes;
+}
+
 kernel_selector::reduce_mode cldnn_2_reduce_mode(reduce_mode mode) {
     switch (mode) {
         case reduce_mode::max:
@@ -52,35 +69,40 @@ kernel_selector::reduce_mode cldnn_2_reduce_mode(reduce_mode mode) {
 struct reduce_impl : typed_primitive_impl_ocl<reduce> {
     using parent = typed_primitive_impl_ocl<reduce>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::reduce_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::reduce_params, kernel_selector::reduce_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<reduce_impl>(*this);
     }
 
-public:
-    static primitive_impl* create(const reduce_node& arg) {
-        auto reduce_params = get_default_params<kernel_selector::reduce_params>(arg);
-        auto reduce_optional_params = get_default_optional_params<kernel_selector::reduce_optional_params>(arg.get_program());
+    reduce_impl() : parent() {}
 
-        reduce_params.reduceAxes = arg.get_primitive()->axes;
-        reduce_params.keepDims = arg.get_primitive()->keep_dims;
-        reduce_params.reduceMode = cldnn_2_reduce_mode(arg.get_primitive()->mode);
+    explicit reduce_impl(const reduce_impl& other) : parent(other) {}
 
-        auto& kernel_selector = kernel_selector::reduce_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(reduce_params, reduce_optional_params);
+    reduce_impl(const reduce_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
+        this->can_reuse_memory = kd.can_reuse_memory;
+    }
 
-        CLDNN_ERROR_BOOL(arg.id(), "Best_kernel.empty()", best_kernels.empty(), "Cannot find a proper kernel with this arguments");
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<reduce>();
+        auto params = get_default_params<kernel_selector::reduce_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::reduce_optional_params>(impl_param.get_program());
 
-        auto reduce = new reduce_impl(arg, best_kernels[0]);
+        params.reduceAxes = convert_axes(primitive->axes, impl_param.input_layouts[0].get_rank());
+        params.keepDims = primitive->keep_dims;
+        params.reduceMode = cldnn_2_reduce_mode(primitive->mode);
 
-        return reduce;
+        return {params, optional_params};
     }
 };
 
 namespace detail {
 
 attach_reduce_impl::attach_reduce_impl() {
-    implementation_map<reduce>::add(impl_types::ocl, reduce_impl::create, {
+    implementation_map<reduce>::add(impl_types::ocl, typed_primitive_impl_ocl<reduce>::create<reduce_impl>, {
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::i32, format::bfyx),
@@ -122,3 +144,5 @@ attach_reduce_impl::attach_reduce_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::reduce_impl)

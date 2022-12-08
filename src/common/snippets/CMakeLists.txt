@@ -17,7 +17,7 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 
 # Create static library
 
-add_library(${TARGET_NAME} STATIC EXCLUDE_FROM_ALL
+add_library(${TARGET_NAME} STATIC
             ${LIBRARY_SRC}
             ${PUBLIC_HEADERS})
 
@@ -34,14 +34,16 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
 ie_mark_target_as_cc(${TARGET_NAME})
 
-# LTO
-
-set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
-
 if(ENABLE_FUNCTIONAL_TESTS)
     add_subdirectory(tests)
 endif()
 
+# LTO
+
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
 # install
 
-ov_install_static_lib(${TARGET_NAME} core)
+ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
+
+openvino_developer_export_targets(COMPONENT ${OV_CPACK_COMP_CORE} TARGETS ${TARGET_NAME})

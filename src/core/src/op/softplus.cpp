@@ -14,19 +14,17 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v4::SoftPlus);
-
-op::v4::SoftPlus::SoftPlus(const Output<Node>& arg) : Op({arg}) {
+op::v4::SoftPlus::SoftPlus(const Output<Node>& arg) : util::UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }
 
 bool op::v4::SoftPlus::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v4_SoftPlus_visit_attributes);
+    OV_OP_SCOPE(v4_SoftPlus_visit_attributes);
     return true;
 }
 
 void op::v4::SoftPlus::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v4_SoftPlus_validate_and_infer_types);
+    OV_OP_SCOPE(v4_SoftPlus_validate_and_infer_types);
     const element::Type& input_et = get_input_element_type(0);
 
     NODE_VALIDATION_CHECK(this,
@@ -39,7 +37,7 @@ void op::v4::SoftPlus::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::v4::SoftPlus::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v4_SoftPlus_clone_with_new_inputs);
+    OV_OP_SCOPE(v4_SoftPlus_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v4::SoftPlus>(new_args.at(0));
 }
@@ -72,13 +70,13 @@ bool evaluate_softplus(const HostTensorPtr& arg, const HostTensorPtr& out) {
 }  // namespace softplus
 
 bool op::v4::SoftPlus::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v4_SoftPlus_evaluate);
+    OV_OP_SCOPE(v4_SoftPlus_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
     return softplus::evaluate_softplus(inputs[0], outputs[0]);
 }
 
 bool op::v4::SoftPlus::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v4_SoftPlus_has_evaluate);
+    OV_OP_SCOPE(v4_SoftPlus_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::bf16:
     case ngraph::element::f16:

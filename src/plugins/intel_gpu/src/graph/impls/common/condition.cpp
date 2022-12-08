@@ -13,13 +13,21 @@ namespace cldnn {
 namespace common {
 
 struct condition_impl : typed_primitive_impl<condition> {
-    const condition_node& outer;
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<condition_impl>(*this);
     }
 
-    explicit condition_impl(const condition_node& outer) : outer(outer) {}
+    explicit condition_impl(const condition_node& outer) {
+        set_node_params(outer);
+    }
+
+    void set_node_params(const program_node& arg) override {
+        IE_ASSERT(arg.is_type<condition>());
+        const auto& node = arg.as<condition>();
+        _node_id = node.id();
+    }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, condition_inst& instance) override {
         for (auto& a : events) {
@@ -41,11 +49,15 @@ struct condition_impl : typed_primitive_impl<condition> {
         return ev;
     }
 
-    static primitive_impl* create(const condition_node& arg) { return new condition_impl(arg); }
+    static std::unique_ptr<primitive_impl> create(const condition_node& arg, const kernel_impl_params&) {
+        return make_unique<condition_impl>(arg);
+    }
 
-    void init_kernels() override {}
+    void init_kernels(const kernels_cache&) override {}
 
 private:
+    primitive_id _node_id;
+
     /*
     Add functions here.
     */
@@ -61,7 +73,7 @@ private:
                 return value_1 < value_2;
                 break;
             default:
-                throw("Unknown comparision function for: " + outer.id());
+                throw("Unknown comparision function for: " + _node_id);
                 break;
         }
     }
@@ -79,15 +91,14 @@ private:
         auto input_layout = instance.input_memory().get_layout();
         auto input_ptr = lock_input.begin();
 
-        auto function = instance.argument.function;
-        auto& offset = instance.argument.offset;
-        auto& range = compare_layout.size;
+        auto function = instance.argument->function;
+        auto& offset = instance.argument->offset;
 
-        for (auto b = 0; b < range.batch[0]; b++) {
-            for (auto f = 0; f < range.feature[0]; f++) {
-                for (auto z = 0; z < range.spatial[2]; z++) {
-                    for (auto y = 0; y < range.spatial[1]; y++) {
-                        for (auto x = 0; x < range.spatial[0]; x++) {
+        for (auto b = 0; b < compare_layout.batch(); b++) {
+            for (auto f = 0; f < compare_layout.feature(); f++) {
+                for (auto z = 0; z < compare_layout.spatial(2); z++) {
+                    for (auto y = 0; y < compare_layout.spatial(1); y++) {
+                        for (auto x = 0; x < compare_layout.spatial(0); x++) {
                             tensor input_tensor{
                                 batch(b + offset.batch[0]),
                                 feature(f + offset.feature[0]),
@@ -126,3 +137,5 @@ attach_condition_common::attach_condition_common() {
 }  // namespace detail
 }  // namespace common
 }  // namespace cldnn
+
+ASSIGN_TYPE_NAME(cldnn::common::condition_impl)

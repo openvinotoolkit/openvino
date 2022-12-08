@@ -4,12 +4,12 @@
 import numpy as np
 import pytest
 from common.layer_test_class import check_ir_version
-from common.onnx_layer_test_class import Caffe2OnnxLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest
 
 from unit_tests.utils.graph import build_graph
 
 
-class TestPRelu(Caffe2OnnxLayerTest):
+class TestPRelu(OnnxRuntimeLayerTest):
     def create_net(self, shape, slope_shape, precision, ir_version, opset=None):
         """
             ONNX net                     IR net
@@ -94,9 +94,9 @@ class TestPRelu(Caffe2OnnxLayerTest):
     # Note: IE only support slopes of one element or of size equal to number of channels.
     test_data_shared_channels = [
         dict(shape=[10, 12], slope_shape=[12]),
-        dict(shape=[8, 10, 12], slope_shape=[10]),
-        dict(shape=[6, 8, 10, 12], slope_shape=[8]),
-        dict(shape=[4, 6, 8, 10, 12], slope_shape=[6])]
+        dict(shape=[8, 10, 12], slope_shape=[10, 1]),
+        dict(shape=[6, 8, 10, 12], slope_shape=[8, 1, 1]),
+        dict(shape=[4, 6, 8, 10, 12], slope_shape=[6, 1, 1, 1])]
 
     test_data_scalar_precommit = [
         dict(shape=[2, 4, 6, 8], slope_shape=[1]),
@@ -109,56 +109,43 @@ class TestPRelu(Caffe2OnnxLayerTest):
         dict(shape=[6, 8, 10, 12], slope_shape=[1]),
         dict(shape=[4, 6, 8, 10, 12], slope_shape=[1])]
 
-    test_data_precommit = [dict(shape=[8, 10, 12], slope_shape=[10])]
+    test_data_precommit = [dict(shape=[8, 10, 12], slope_shape=[12])]
 
     @pytest.mark.parametrize("params", test_data_scalar)
     @pytest.mark.nightly
-    def test_prelu_opset6_scalar(self, params, ie_device, precision, ir_version, temp_dir, api_2):
-        self._test(*self.create_net(**params, precision=precision, opset=6, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
-
-    @pytest.mark.parametrize("params", test_data_shared_channels)
-    @pytest.mark.nightly
-    def test_prelu_opset6_shared_channels(self, params, ie_device, precision, ir_version, temp_dir,
-                                          api_2):
-        self._test(*self.create_net(**params, precision=precision, opset=6, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
-
-    @pytest.mark.parametrize("params", test_data_scalar)
-    @pytest.mark.nightly
-    def test_prelu_opset7_scalar(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_prelu_opset7_scalar(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net(**params, precision=precision, opset=7, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_shared_channels)
     @pytest.mark.nightly
     def test_prelu_opset7_shared_channels(self, params, ie_device, precision, ir_version, temp_dir,
-                                          api_2):
+                                          use_old_api):
         self._test(*self.create_net(**params, precision=precision, opset=7, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
     def test_prelu_shared_channels_precommit(self, params, ie_device, precision, ir_version,
-                                             temp_dir, api_2):
+                                             temp_dir, use_old_api):
         self._test(*self.create_net(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_scalar_precommit)
     @pytest.mark.precommit
     def test_prelu_scalar_precommit(self, params, ie_device, precision, ir_version, temp_dir,
-                                    api_2):
+                                    use_old_api):
         self._test(*self.create_net(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_scalar)
     @pytest.mark.nightly
-    def test_prelu_scalar(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_prelu_scalar(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_shared_channels)
     @pytest.mark.nightly
-    def test_prelu_shared_channels(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_prelu_shared_channels(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)

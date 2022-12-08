@@ -8,6 +8,7 @@
 #include <pybind11/stl.h>
 
 #include "common.hpp"
+#include "pyopenvino/core/compiled_model.hpp"
 #include "pyopenvino/core/containers.hpp"
 #include "pyopenvino/core/infer_request.hpp"
 #include "pyopenvino/utils/utils.hpp"
@@ -30,6 +31,7 @@ void regclass_CompiledModel(py::module m) {
     cls.def(
         "create_infer_request",
         [](ov::CompiledModel& self) {
+            // Create temporary ov::InferRequest and move it to actual wrapper class.
             return std::make_shared<InferRequestWrapper>(self.create_infer_request(), self.inputs(), self.outputs());
         },
         py::call_guard<py::gil_scoped_release>(),
@@ -39,35 +41,6 @@ void regclass_CompiledModel(py::module m) {
 
             :return: New InferRequest object.
             :rtype: openvino.runtime.InferRequest
-        )");
-
-    cls.def(
-        "infer_new_request",
-        [](ov::CompiledModel& self, const py::dict& inputs) {
-            auto request = self.create_infer_request();
-            // Update inputs if there are any
-            Common::set_request_tensors(request, inputs);
-            {
-                py::gil_scoped_release release;
-                request.infer();
-            }
-            return Common::outputs_to_dict(self.outputs(), request);
-        },
-        py::arg("inputs"),
-        R"(
-            Infers specified input(s) in synchronous mode.
-            Blocks all methods of CompiledModel while the request is running.
-
-            Method creates new temporary InferRequest and run inference on it.
-            It is advised to use a dedicated InferRequest class for performance,
-            optimizing workflows, and creating advanced pipelines.
-
-            GIL is released during the inference.
-
-            :param inputs: Data to set on input tensors.
-            :type inputs: Dict[Union[int, str, openvino.runtime.ConstOutput], openvino.runtime.Tensor]
-            :return: Dictionary of results from output tensors with ports as keys.
-            :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
         )");
 
     cls.def(
@@ -147,11 +120,7 @@ void regclass_CompiledModel(py::module m) {
     cls.def(
         "set_property",
         [](ov::CompiledModel& self, const std::map<std::string, py::object>& properties) {
-            std::map<std::string, ov::Any> properties_to_cpp;
-            for (const auto& property : properties) {
-                properties_to_cpp[property.first] = ov::Any(py_object_to_any(property.second));
-            }
-            self.set_property({properties_to_cpp.begin(), properties_to_cpp.end()});
+            self.set_property(Common::utils::properties_to_any_map(properties));
         },
         py::arg("properties"),
         R"(
@@ -162,12 +131,27 @@ void regclass_CompiledModel(py::module m) {
             :rtype: None
         )");
 
+    // Overload for single tuple
+    cls.def(
+        "set_property",
+        [](ov::CompiledModel& self, const std::pair<std::string, py::object>& property) {
+            ov::AnyMap _properties{{property.first, py_object_to_any(property.second)}};
+            self.set_property(_properties);
+        },
+        py::arg("property"),
+        R"(
+            Sets properties for current compiled model.
+
+            :param property: Tuple of (property name, matching property value).
+            :type property: tuple
+        )");
+
     cls.def(
         "get_property",
-        [](ov::CompiledModel& self, const std::string& name) -> py::object {
-            return Common::utils::from_ov_any(self.get_property(name));
+        [](ov::CompiledModel& self, const std::string& property) -> py::object {
+            return Common::utils::from_ov_any(self.get_property(property));
         },
-        py::arg("name"),
+        py::arg("property"),
         R"(
             Gets properties for current compiled model.
 

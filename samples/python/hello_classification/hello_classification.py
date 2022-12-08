@@ -57,7 +57,8 @@ def main():
     # - reuse precision and shape from already available `input_tensor`
     # - layout of data is 'NHWC'
     ppp.input().tensor() \
-        .set_from(input_tensor) \
+        .set_shape(input_tensor.shape) \
+        .set_element_type(Type.u8) \
         .set_layout(Layout('NHWC'))  # noqa: ECE001, N400
 
     # 2) Adding explicit preprocessing steps:

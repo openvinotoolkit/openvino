@@ -2,14 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/test_constants.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/file_utils.hpp"
 
 #include <cstdlib>
 #include <unordered_map>
 
 #include <gtest/gtest.h>
 #include <ie_plugin_config.hpp>
+#include "openvino/util/file_util.hpp"
 
 namespace {
 class TestListener : public testing::EmptyTestEventListener {
@@ -58,12 +61,17 @@ std::shared_ptr<InferenceEngine::Core> PluginCache::ie(const std::string &device
     try {
         std::string pluginName = "openvino_template_plugin";
         pluginName += IE_BUILD_POSTFIX;
-        ie_core->RegisterPlugin(pluginName, "TEMPLATE");
+        ie_core->RegisterPlugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(), pluginName), "TEMPLATE");
     } catch (...) {}
 
     if (!deviceToCheck.empty()) {
-        std::vector<std::string> metrics = ie_core->GetMetric(deviceToCheck, METRIC_KEY(SUPPORTED_METRICS));
-
+        std::vector<std::string> metrics;
+        if (deviceToCheck.find(':') != std::string::npos) {
+            std::string realDevice = deviceToCheck.substr(0, deviceToCheck.find(':'));
+            metrics = {ie_core->GetMetric(realDevice, METRIC_KEY(SUPPORTED_METRICS))};
+        } else {
+            metrics = {ie_core->GetMetric(deviceToCheck, METRIC_KEY(SUPPORTED_METRICS))};
+        }
         if (std::find(metrics.begin(), metrics.end(), METRIC_KEY(AVAILABLE_DEVICES)) != metrics.end()) {
             std::vector<std::string> availableDevices = ie_core->GetMetric(deviceToCheck,
                                                                            METRIC_KEY(AVAILABLE_DEVICES));

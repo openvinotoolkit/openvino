@@ -13,7 +13,6 @@
 #include "lstm_inst.h"
 #include "reshape_inst.h"
 #include "resample_inst.h"
-#include "permute_inst.h"
 #include "depth_to_space_inst.h"
 #include "lstm_dynamic_inst.h"
 #include "lstm_dynamic_input_inst.h"
@@ -32,11 +31,13 @@
 using namespace cldnn;
 
 namespace cldnn {
+namespace {
 std::string get_id_string(size_t i) {
     std::stringstream ss;
     ss << std::setw(5) << std::setfill('0') << i;
     return ss.str();
 }
+}  // namespace
 
 void graph_initializations::handle_split_node(program& p, split_node& node) {
     if (!node.get_users().empty()) {
@@ -45,7 +46,7 @@ void graph_initializations::handle_split_node(program& p, split_node& node) {
     }
     // get_output size and validate split primitive inputs
     layout output_layout = node.get_output_layout();
-    tensor output_layout_size = output_layout.size;
+    tensor output_layout_size = output_layout.get_tensor();
 
     auto split_prim = node.typed_desc();
     std::size_t split_num = split_prim->output_offsets.size();
@@ -122,13 +123,12 @@ void graph_initializations::handle_lstm_node(program& p, lstm_node& node) {
     // calculating sizes
     program_node& input = node.input();
     layout input_layout = input.get_output_layout();
-    tensor input_size = input_layout.size;
-    tensor recurrent_size = p.get_node(recurrent_id).get_output_layout().size;
+    tensor recurrent_size = p.get_node(recurrent_id).get_output_layout().get_tensor();
 
     // hidden tensor size = [batch, seq, hidden_size, direction]
     // the output of the element wise operation is cropped and used in the next time step
     // sequence_len = 1 and direction = 1. The backward pass is separated from the forward pass
-    auto hidden_size = tensor(input_size.batch[0], 1, recurrent_size.spatial[0], 1);
+    auto hidden_size = tensor(input_layout.batch(), 1, recurrent_size.spatial[0], 1);
 
     size_t directions = recurrent_size.feature[0];
     size_t num_input_dependencies = node.get_dependencies().size();
@@ -139,7 +139,7 @@ void graph_initializations::handle_lstm_node(program& p, lstm_node& node) {
     // input is not divided into sequence elements
     if (sequence_len == 1 && num_input_dependencies == 1) {
         // Get the sequence length from the input to LSTM
-        sequence_len = input_size.feature[0];
+        sequence_len = input_layout.feature();
 
         // If the input's feature/sequence length field is > 1, i.e. If
         // the sequence elements are concatenated into one single input
@@ -147,7 +147,7 @@ void graph_initializations::handle_lstm_node(program& p, lstm_node& node) {
         if (sequence_len > 1) {
             for (size_t sequence_element = 0; sequence_element < sequence_len; sequence_element++) {
                 primitive_id crop_id = input.id() + ":crop:" + get_id_string(sequence_element);
-                tensor crop_tensor{input_size.batch[0], 1, input_size.spatial[0], input_size.spatial[1]};
+                tensor crop_tensor{input_layout.batch(), 1, input_layout.spatial(0), input_layout.spatial(1)};
                 tensor offset_tensor{0, static_cast<tensor::value_type>(sequence_element), 0, 0};
                 auto input_crop = std::make_shared<crop>(crop_id, input.id(), crop_tensor, offset_tensor);
                 auto& input_crop_node = p.get_or_create(input_crop);
@@ -190,7 +190,7 @@ void graph_initializations::handle_lstm_node(program& p, lstm_node& node) {
     std::vector<program_node*> cell_list(directions * sequence_len);
     std::vector<program_node*> hidden_list(directions * sequence_len);
     std::map<size_t, std::pair<primitive_id, program_node*>> output_map;
-    size_t input_directions = input_size.spatial[1];
+    size_t input_directions = input_layout.spatial(1);
 
     // lstm expanding
     for (size_t dir = 0; dir < directions; ++dir) {
@@ -293,9 +293,9 @@ void graph_initializations::handle_lstm_node(program& p, lstm_node& node) {
     }
     // if there is no next lstm, concatenation is created
     if (!has_lstm_children) {
-        std::vector<primitive_id> output_ids_offsets;
+        std::vector<input_info> output_ids_offsets;
         for (auto& e : output_map) {
-            output_ids_offsets.push_back(e.second.first);
+            output_ids_offsets.push_back(input_info(e.second.first));
         }
         primitive_id concatenation_id = node.id() + ":concat";
         auto concatenation_primitive = std::make_shared<concatenation>(concatenation_id, output_ids_offsets, 1);
@@ -311,7 +311,7 @@ void graph_initializations::handle_lstm_node(program& p, lstm_node& node) {
             if (emit_last_cell)
                 concatenate_len++;
 
-            tensor output_size{input_size.batch[0],
+            tensor output_size{input_layout.batch(),
                                static_cast<int32_t>(concatenate_len),
                                hidden_size.spatial[0],
                                (int32_t)directions};
@@ -345,8 +345,7 @@ void graph_initializations::handle_dynamic_lstm_node(program& p, lstm_dynamic_no
                                              dyn_length_id,
                                              weights_id,
                                              bias_id,
-                                             "",
-                                             node.get_primitive()->output_padding);
+                                             node.get_primitive()->output_paddings[0]);
     auto& lstm_dynamic_input_node = p.get_or_create(lstm_dynamic_input_primitive);
     p.add_connection(node.input(), lstm_dynamic_input_node);  // connect real input to dlstm_input
     // connect other deps
@@ -372,8 +371,7 @@ void graph_initializations::handle_dynamic_lstm_node(program& p, lstm_dynamic_no
                                                 init_cell_id,
                                                 node.clip(),
                                                 node.input_forget(),
-                                                "",
-                                                lstm_dynamic_input_primitive->output_padding);
+                                                lstm_dynamic_input_primitive->output_paddings[0]);
     auto& lstm_dynamic_timeloop_node = p.get_or_create(lstm_dynamic_timeloop_primitive);
     p.add_connection(lstm_dynamic_input_node, lstm_dynamic_timeloop_node);  // connect dlstm_input to dlstm_timeloop
     // connect other deps

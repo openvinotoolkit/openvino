@@ -8,6 +8,7 @@
 
 #include "openvino/op/op.hpp"
 #include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset2.hpp"
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset4.hpp"
@@ -15,6 +16,7 @@
 #include "openvino/opsets/opset6.hpp"
 #include "openvino/opsets/opset7.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset9.hpp"
 
 TEST(opset, opset1) {
     auto op = std::make_shared<ov::opset1::Parameter>();
@@ -144,6 +146,38 @@ TEST(opset, opset8_dump) {
     ASSERT_EQ(167, opset.get_types_info().size());
 }
 
+TEST(opset, opset9) {
+    auto op = std::make_shared<ov::opset9::Parameter>();
+    ASSERT_NE(nullptr, op);
+    EXPECT_TRUE(ov::op::util::is_parameter(op));
+}
+
+TEST(opset, opset9_dump) {
+    const auto& opset = ov::get_opset9();
+    std::cout << "All opset9 operations: ";
+    for (const auto& t : opset.get_types_info()) {
+        std::cout << t.name << " ";
+    }
+    std::cout << std::endl;
+    ASSERT_EQ(173, opset.get_types_info().size());
+}
+
+TEST(opset, opset10) {
+    auto op = std::make_shared<ov::opset10::Parameter>();
+    ASSERT_NE(nullptr, op);
+    EXPECT_TRUE(ov::op::util::is_parameter(op));
+}
+
+TEST(opset, opset10_dump) {
+    const auto& opset = ov::get_opset10();
+    std::cout << "All opset10 operations: ";
+    for (const auto& t : opset.get_types_info()) {
+        std::cout << t.name << " ";
+    }
+    std::cout << std::endl;
+    ASSERT_EQ(177, opset.get_types_info().size());
+}
+
 class MyOpOld : public ov::op::Op {
 public:
     static constexpr ov::DiscreteTypeInfo type_info{"MyOpOld", static_cast<uint64_t>(0)};
@@ -162,15 +196,12 @@ constexpr ov::DiscreteTypeInfo MyOpOld::type_info;
 class MyOpNewFromOld : public MyOpOld {
 public:
     OPENVINO_OP("MyOpNewFromOld", "custom_opset", MyOpOld);
-    BWDCMP_RTTI_DECLARATION;
     MyOpNewFromOld() = default;
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override {
         return nullptr;
     }
 };
-
-BWDCMP_RTTI_DEFINITION(MyOpNewFromOld);
 
 class MyOpIncorrect : public MyOpOld {
 public:
@@ -194,20 +225,11 @@ public:
 
 TEST(opset, custom_opset) {
     ov::OpSet opset;
-#ifndef OPENVINO_STATIC_LIBRARY
-    opset.insert<MyOpOld>();
-#endif
     opset.insert<MyOpIncorrect>();
     opset.insert<MyOpNewFromOld>();
     opset.insert<MyOpNew>();
-#ifdef OPENVINO_STATIC_LIBRARY
-    EXPECT_EQ(opset.get_types_info().size(), 2);
-#else
     EXPECT_EQ(opset.get_types_info().size(), 3);
-    EXPECT_TRUE(opset.contains_type("MyOpOld"));
-    // TODO: why is it not registered?
     EXPECT_TRUE(opset.contains_type("MyOpNewFromOld"));
-#endif
     EXPECT_TRUE(opset.contains_type("MyOpNew"));
-    EXPECT_FALSE(opset.contains_type("MyOpIncorrect"));
+    EXPECT_TRUE(opset.contains_type("MyOpIncorrect"));
 }

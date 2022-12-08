@@ -44,6 +44,7 @@ supported_components = [
     'pnormcomponent',
     'rectifiedlinearcomponent',
     'rescale',
+    'restrictedattentioncomponent',
     'sigmoid',
     'sigmoidcomponent',
     'softmax',

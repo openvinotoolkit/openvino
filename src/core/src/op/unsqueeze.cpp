@@ -9,65 +9,35 @@
 #include <set>
 
 #include "itt.hpp"
-#include "ngraph/builder/reshape.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/reshape.hpp"
-#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/runtime/reference/copy.hpp"
 #include "ngraph/validation_util.hpp"
+#include "unsqueeze_shape_inference.hpp"
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v0::Unsqueeze);
 
 op::v0::Unsqueeze::Unsqueeze(const Output<Node>& data, const Output<Node>& axes) : Op({data, axes}) {
     constructor_validate_and_infer_types();
 }
 
 void op::v0::Unsqueeze::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_Unsqueeze_validate_and_infer_types);
-    const auto data = input_value(0);
-    auto data_partial_shape = data.get_partial_shape();
-    const auto data_rank = data_partial_shape.rank();
+    OV_OP_SCOPE(v0_Unsqueeze_validate_and_infer_types);
 
-    const auto axes_constant = get_constant_from_source(input_value(1));
-    auto axes_pshape = get_input_partial_shape(1);
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    auto output_shapes = std::vector<ov::PartialShape>(1);
 
-    NODE_VALIDATION_CHECK(this,
-                          axes_pshape.rank().compatible(0) || axes_pshape.rank().compatible(1),
-                          "Second input (axes) should not be of rank higher than 1. Got: ",
-                          axes_pshape.rank().get_length());
+    shape_infer(this, input_shapes, output_shapes);
 
-    if (data_rank.is_dynamic() || !axes_constant) {
-        set_output_type(0, get_input_element_type(0), ov::PartialShape::dynamic());
-        return;
-    }
-
-    const auto axes_values = axes_constant->cast_vector<int64_t>();
-    uint64_t data_rank_value = data_partial_shape.rank().get_length();
-    const int64_t expanded_rank = data_rank_value + axes_values.size();
-
-    NODE_VALIDATION_CHECK(this, !axes_values.empty(), "'axes' input is mandatory");
-
-    auto normalized_axes = normalize_axes(this->description(), axes_values, expanded_rank);
-    set<int64_t> axes(begin(normalized_axes), end(normalized_axes));
-    vector<Dimension> output_shape{data_partial_shape};
-    for (auto axis : axes) {
-        NODE_VALIDATION_CHECK(this, axis <= expanded_rank, "provided 'axes' value ", axis, " is not valid.");
-
-        output_shape.insert(next(begin(output_shape), axis), 1);
-    }
-    set_output_type(0, get_input_element_type(0), ov::PartialShape{output_shape});
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
 bool op::v0::Unsqueeze::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_Unsqueeze_visit_attributes);
+    OV_OP_SCOPE(v0_Unsqueeze_visit_attributes);
     return true;
 }
 
 shared_ptr<Node> op::v0::Unsqueeze::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_Unsqueeze_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_Unsqueeze_clone_with_new_inputs);
     if (new_args.size() != 2) {
         throw ngraph_error("Incorrect number of new arguments");
     }
@@ -82,29 +52,32 @@ bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out) {
     return true;
 }
 
-bool evaluate_unsqueeze(const HostTensorPtr& arg0, const HostTensorPtr& arg1, const HostTensorPtr& out) {
+// The evaluate cannot use shape_infer for output shape calculation as shape inference accepts
+// repeated axis and evaluate not. When shape inference will changed to be compatible with `numpy` then
+// evaluate and inference can use same function to calculate output shape. TODO for next version for this operator.
+bool evaluate_unsqueeze(const Node* node,
+                        const HostTensorPtr& arg0,
+                        const HostTensorPtr& arg1,
+                        const HostTensorPtr& out) {
     auto element_type = arg0->get_element_type();
     out->set_element_type(element_type);
 
-    auto data_shape = arg0->get_shape();
-    int64_t data_rank = static_cast<int64_t>(data_shape.size());
-    auto axes_shape = arg1->get_shape();
-    NGRAPH_CHECK(axes_shape.size() == 1 || axes_shape.empty(),
-                 "Axes to add must be a scalar or 1D tensor with 1 element");
+    const auto& axes_shape = arg1->get_shape();
+    ov::op::v0::check_unsqueeze_axes_rank(node, Rank(axes_shape.size()));
+
+    const auto& data_shape = arg0->get_shape();
+    const auto out_rank = static_cast<int64_t>(data_shape.size() + shape_size(axes_shape));
+
+    // Get axes and normalize
+    auto axes = read_index_vector(arg1);
+    normalize_axes(node, out_rank, axes);
+
+    // Sort in increasing order
+    std::set<int64_t> axes_set(axes.begin(), axes.end());
+    NGRAPH_CHECK(axes.size() == axes_set.size(), "Axes has duplicate axis.");
 
     auto out_shape = data_shape;
-    int64_t out_rank = data_rank + static_cast<int64_t>(shape_size(axes_shape));
-    // Get axes
-    vector<int64_t> axes = read_index_vector(arg1);
-    // Normalize axes
-    std::transform(axes.begin(), axes.end(), axes.begin(), [out_rank](int64_t i) -> int64_t {
-        return i < 0 ? out_rank + i : i;
-    });
-    // Sort in increasing order
-    std::set<int64_t, less<int64_t>> axes_set(axes.begin(), axes.end());
-    NGRAPH_CHECK(axes.size() == axes_set.size(), "Axes has duplicate axis.");
     for (int64_t axis : axes_set) {
-        NGRAPH_CHECK(axis >= 0 && axis < out_rank, "Axis is out of bounds: ", axis);
         out_shape.insert(out_shape.begin() + axis, 1);
     }
     out->set_shape(out_shape);
@@ -117,6 +90,8 @@ bool evaluate_unsqueeze(const HostTensorPtr& arg0, const HostTensorPtr& arg1, co
         NGRAPH_TYPE_CASE(evaluate_unsqueeze, u64, arg0, out);
         NGRAPH_TYPE_CASE(evaluate_unsqueeze, f16, arg0, out);
         NGRAPH_TYPE_CASE(evaluate_unsqueeze, f32, arg0, out);
+        NGRAPH_TYPE_CASE(evaluate_unsqueeze, f64, arg0, out);
+        NGRAPH_TYPE_CASE(evaluate_unsqueeze, bf16, arg0, out);
     default:
         rc = false;
         break;
@@ -127,14 +102,14 @@ bool evaluate_unsqueeze(const HostTensorPtr& arg0, const HostTensorPtr& arg1, co
 }  // namespace unsqueeze
 
 bool op::v0::Unsqueeze::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v0_Unsqueeze_evaluate);
+    OV_OP_SCOPE(v0_Unsqueeze_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
-    return unsqueeze::evaluate_unsqueeze(inputs[0], inputs[1], outputs[0]);
+    return unsqueeze::evaluate_unsqueeze(this, inputs[0], inputs[1], outputs[0]);
 }
 
 bool op::v0::Unsqueeze::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v0_Unsqueeze_has_evaluate);
+    OV_OP_SCOPE(v0_Unsqueeze_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:
@@ -142,6 +117,8 @@ bool op::v0::Unsqueeze::has_evaluate() const {
     case ngraph::element::u64:
     case ngraph::element::f16:
     case ngraph::element::f32:
+    case ngraph::element::f64:
+    case ngraph::element::bf16:
         return true;
     default:
         break;
@@ -168,7 +145,7 @@ bool op::v0::Unsqueeze::evaluate_label(TensorLabelVector& output_labels) const {
 }
 
 bool op::v0::Unsqueeze::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
-    if (get_output_partial_shape(0).is_dynamic()) {
+    if (get_output_partial_shape(0).is_dynamic() || is_const_fold_disabled()) {
         return false;
     }
 

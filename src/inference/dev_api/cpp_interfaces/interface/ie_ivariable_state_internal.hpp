@@ -54,7 +54,7 @@ protected:
     /**
      * @brief A default dtor
      */
-    ~IVariableStateInternal() = default;
+    virtual ~IVariableStateInternal() = default;
 
     std::string name;
     Blob::Ptr state;

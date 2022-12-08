@@ -7,8 +7,8 @@ from common.layer_test_class import CommonLayerTest
 from common.utils.tf_utils import summarize_graph
 
 
-def transpose_nchw_to_nhwc(data, use_new_frontend, api_2):
-    if use_new_frontend or api_2:
+def transpose_nchw_to_nhwc(data, use_new_frontend, use_old_api):
+    if use_new_frontend or not use_old_api:
         return data
 
     if len(data.shape) == 4:  # reshaping for 4D tensors
@@ -19,8 +19,8 @@ def transpose_nchw_to_nhwc(data, use_new_frontend, api_2):
         return data
 
 
-def transpose_nhwc_to_nchw(data, use_new_frontend, api_2):
-    if use_new_frontend or api_2:
+def transpose_nhwc_to_nchw(data, use_new_frontend, use_old_api):
+    if use_new_frontend or not use_old_api:
         return data
 
     if len(data.shape) == 4:  # reshaping for 4D tensors
@@ -62,14 +62,11 @@ class CommonTFLayerTest(CommonLayerTest):
                 tf.compat.v1.import_graph_def(graph_def, name='')
 
                 input = dict()
-                if self.api_2:
-                    input.update(inputs_dict)
-                else:
-                    for key in inputs_dict.keys():
-                        data = inputs_dict.get(key)
-                        if not self.api_2:
-                            key += ':0'
-                        input[key] = transpose_nchw_to_nhwc(data, self.use_new_frontend, self.api_2)
+                for key in inputs_dict.keys():
+                    data = inputs_dict.get(key)
+                    if self.use_old_api or self.use_new_frontend:
+                        key += ':0'
+                    input[key] = transpose_nchw_to_nhwc(data, self.use_new_frontend, self.use_old_api)
 
                 tf_res = sess.run([out + ":0" for out in outputs_list], input)
 
@@ -77,5 +74,5 @@ class CommonTFLayerTest(CommonLayerTest):
                 for i, output in enumerate(outputs_list):
                     _tf_res = tf_res[i]
                     result[output] = transpose_nhwc_to_nchw(_tf_res, self.use_new_frontend,
-                                                            self.api_2)
+                                                            self.use_old_api)
                 return result

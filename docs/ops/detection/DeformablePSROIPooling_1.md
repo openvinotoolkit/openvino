@@ -13,7 +13,7 @@ If only two inputs are provided, position sensitive pooling with regular ROI bin
 If third input is provided, each bin position is transformed by adding corresponding offset to the bin left top corner coordinates. Third input values are usually calculated by regular position sensitive pooling layer, so non-deformable mode (DeformablePSROIPooling with two inputs).
 The ROI coordinates are specified as five element tuples: `[batch_id, x_1, y_1, x_2, y_2]` in absolute values.
 
-This operation is compatible with [MXNet DeformablePSROIPooling](https://mxnet.apache.org/versions/1.7.0/api/python/docs/api/contrib/symbol/index.html#mxnet.contrib.symbol.DeformablePSROIPooling) cases where `group_size` is equal to `pooled_size`.
+This operation is compatible with [Apache MXNet DeformablePSROIPooling](https://mxnet.apache.org/versions/1.7.0/api/python/docs/api/contrib/symbol/index.html#mxnet.contrib.symbol.DeformablePSROIPooling) cases where `group_size` is equal to `pooled_size`.
 
 **Attributes**
 

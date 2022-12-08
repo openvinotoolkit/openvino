@@ -32,7 +32,7 @@ class ConcatOneDNNFusingTest : public ::BaseFusingTest<concat_test_params> {
 public:
     void execute(concat_test_params& p) {
         // Onednn post operation has issue in a machine that does not support imad.
-        if (!engine.get_device_info().supports_imad)
+        if (!engine.get_device_info().supports_immad)
             return;
 
         auto input0_prim = get_mem(get_input_layout(p));
@@ -101,13 +101,12 @@ TEST_P(concat_onednn_activation, along_f) {
         input_layout("input0", get_input_layout(p)),
         input_layout("input1", get_input_layout(p)),
         concatenation("concat",
-                      { "input0", "input1" },
+                      { input_info("input0"), input_info("input1") },
                       1,
                       data_types::f16,
-                      "",
                       padding{ { 0, 0, 0, 0 }, 0 }),
-        activation("act", "concat", activation_func::relu),
-        reorder("reorder_bfyx", "act", cldnn::format::bfyx, p.default_type)
+        activation("act", input_info("concat"), activation_func::relu),
+        reorder("reorder_bfyx", input_info("act"), cldnn::format::bfyx, p.default_type)
     );
 
     tolerance = 1.f;
@@ -124,13 +123,12 @@ TEST_P(concat_onednn_eltwise, along_f) {
         input_layout("input1", get_input_layout(p)),
         data("scale_data", get_mem(data_layout, 1.0f / tensor{ 1, 1, 4, 4 }.count())),
         concatenation("concat",
-                      { "input0", "input1" },
+                      { input_info("input0"), input_info("input1") },
                       1,
                       data_types::f16,
-                      "",
                       padding{ { 0, 0, 0, 0 }, 0 }),
-        eltwise("scale", { "concat", "scale_data" }, eltwise_mode::prod, p.default_type),
-        reorder("reorder_bfyx", "scale", cldnn::format::bfyx, p.default_type)
+        eltwise("scale", { input_info("concat"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
+        reorder("reorder_bfyx", input_info("scale"), cldnn::format::bfyx, p.default_type)
     );
 
     tolerance = 1.f;
@@ -138,7 +136,7 @@ TEST_P(concat_onednn_eltwise, along_f) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, concat_onednn_activation, ::testing::ValuesIn(std::vector<concat_test_params>{
-    concat_test_params{ CASE_CONCAT_F16_1, 3, 3, "" },
+    concat_test_params{ CASE_CONCAT_F16_1, 4, 4, "" },
 }));
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, concat_onednn_eltwise, ::testing::ValuesIn(std::vector<concat_test_params>{

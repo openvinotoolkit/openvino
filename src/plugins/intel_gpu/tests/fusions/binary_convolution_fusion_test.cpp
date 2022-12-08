@@ -85,9 +85,9 @@ TEST_P(conv_bin_activation, basic) {
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p), -127, 127)),
-        binary_convolution("bin_conv_prim", "input", { "weights" }, p.stride, p.pad, p.dilation, p.out_shape, p.groups),
-        activation("activation", "bin_conv_prim", activation_func::relu),
-        reorder("reorder_bfyx", "activation", p.default_format, data_types::f32)
+        binary_convolution("bin_conv_prim", input_info("input"), { "weights" }, p.stride, p.pad, p.dilation, p.out_shape, p.groups),
+        activation("activation", input_info("bin_conv_prim"), activation_func::relu),
+        reorder("reorder_bfyx", input_info("activation"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;
@@ -105,10 +105,10 @@ TEST_P(conv_bin_scale_activation, basic) {
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p), -127, 127)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
-        binary_convolution("bin_conv_prim", "input", { "weights" }, p.stride, p.pad, p.dilation, p.out_shape, p.groups),
-        scale("scale", "bin_conv_prim", "scale_data"),
-        activation("activation", "scale", activation_func::relu),
-        reorder("reorder_bfyx", "activation", p.default_format, data_types::f32)
+        binary_convolution("bin_conv_prim", input_info("input"), { "weights" }, p.stride, p.pad, p.dilation, p.out_shape, p.groups),
+        eltwise("scale", { input_info("bin_conv_prim"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
+        activation("activation", input_info("scale"), activation_func::relu),
+        reorder("reorder_bfyx", input_info("activation"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;
@@ -131,9 +131,10 @@ TEST_P(conv_bin_quantize_bin, channel_wise_quantize) {
         data("in_hi", in_thresh),
         data("out_lo", get_mem(get_per_channel_layout(p), -1)),
         data("out_hi", get_mem(get_per_channel_layout(p),  1)),
-        binary_convolution("bin_conv_prim", "input", { "weights" }, p.stride, p.pad, p.dilation, p.out_shape, p.groups),
-        quantize("quantize_data", "bin_conv_prim", "in_lo", "in_hi", "out_lo", "out_hi", 2, data_types::bin),
-        reorder("reorder_bfyx", "quantize_data", p.default_format, data_types::f32)
+        binary_convolution("bin_conv_prim", input_info("input"), { "weights" }, p.stride, p.pad, p.dilation, p.out_shape, p.groups),
+        quantize("quantize_data", input_info("bin_conv_prim"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 2, data_types::bin),
+        reorder("reorder_bfyx", input_info("quantize_data"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;
@@ -150,9 +151,10 @@ TEST_P(conv_bin_quantize_bin, blob_wise_quantize) {
         data("in_hi", in_thresh),
         data("out_lo", get_mem(get_single_element_layout(p), -1)),
         data("out_hi", get_mem(get_single_element_layout(p), 1)),
-        binary_convolution("bin_conv_prim", "input", { "weights" }, p.stride, p.pad, p.dilation, p.out_shape, p.groups),
-        quantize("quantize_data", "bin_conv_prim", "in_lo", "in_hi", "out_lo", "out_hi", 2, data_types::bin),
-        reorder("reorder_bfyx", "quantize_data", p.default_format, data_types::f32)
+        binary_convolution("bin_conv_prim", input_info("input"), { "weights" }, p.stride, p.pad, p.dilation, p.out_shape, p.groups),
+        quantize("quantize_data", input_info("bin_conv_prim"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 2, data_types::bin),
+        reorder("reorder_bfyx", input_info("quantize_data"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;
@@ -178,10 +180,10 @@ TEST_P(conv_bin_scale_conv_dw, dw_kernel_3x3_stride2) {
         data("weights", get_mem(get_weights_layout(p), -127, 127)),
         data("weights_dw", get_mem(dw_weights_layout, -127, 127)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1e-1f)),
-        binary_convolution("bin_conv_prim", "input", { "weights" }, p.stride, p.pad, p.dilation, p.out_shape, p.groups),
-        scale("scale", "bin_conv_prim", "scale_data"),
-        convolution("conv_dw", "scale", { "weights_dw" }, p.out_shape.feature[0], dw_stride, dw_pad, dw_dilation),
-        reorder("reorder_bfyx", "conv_dw", p.default_format, data_types::f32)
+        binary_convolution("bin_conv_prim", input_info("input"), { "weights" }, p.stride, p.pad, p.dilation, p.out_shape, p.groups),
+        eltwise("scale", { input_info("bin_conv_prim"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
+        convolution("conv_dw", input_info("scale"), { "weights_dw" }, p.out_shape.feature[0], dw_stride, dw_pad, dw_dilation),
+        reorder("reorder_bfyx", input_info("conv_dw"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;
@@ -201,10 +203,10 @@ TEST_P(conv_bin_scale_conv_dw, dw_kernel_3x3_stride1) {
         data("weights", get_mem(get_weights_layout(p), -127, 127)),
         data("weights_dw", get_mem(dw_weights_layout, -127, 127)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1e-1f)),
-        binary_convolution("bin_conv_prim", "input", { "weights" }, p.stride, p.pad, p.dilation, p.out_shape, p.groups),
-        scale("scale", "bin_conv_prim", "scale_data"),
-        convolution("conv_dw", "scale", { "weights_dw" }, p.out_shape.feature[0], dw_stride, dw_pad, dw_dilation),
-        reorder("reorder_bfyx", "conv_dw", p.default_format, data_types::f32)
+        binary_convolution("bin_conv_prim", input_info("input"), { "weights" }, p.stride, p.pad, p.dilation, p.out_shape, p.groups),
+        eltwise("scale", { input_info("bin_conv_prim"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
+        convolution("conv_dw", input_info("scale"), { "weights_dw" }, p.out_shape.feature[0], dw_stride, dw_pad, dw_dilation),
+        reorder("reorder_bfyx", input_info("conv_dw"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;
@@ -231,12 +233,12 @@ TEST_P(conv_bin_scale_conv_dw_prelu, dw_kernel_3x3_stride2) {
         data("weights", get_mem(get_weights_layout(p), -127, 127)),
         data("weights_dw", get_mem(dw_weights_layout, -127, 127)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1e-1f)),
-        binary_convolution("bin_conv_prim", "input", { "weights" }, p.stride, p.pad, p.dilation, p.out_shape, p.groups),
-        scale("scale", "bin_conv_prim", "scale_data"),
-        convolution("conv_dw", "scale", { "weights_dw" }, p.out_shape.feature[0], dw_stride, dw_pad, dw_dilation),
+        binary_convolution("bin_conv_prim", input_info("input"), { "weights" }, p.stride, p.pad, p.dilation, p.out_shape, p.groups),
+        eltwise("scale", { input_info("bin_conv_prim"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
+        convolution("conv_dw", input_info("scale"), { "weights_dw" }, p.out_shape.feature[0], dw_stride, dw_pad, dw_dilation),
         data("slope_data", get_mem(get_per_channel_layout(p))),
-        activation("activation", "conv_dw", "slope_data", activation_func::relu_negative_slope),
-        reorder("reorder_bfyx", "activation", p.default_format, data_types::f32)
+        activation("activation", input_info("conv_dw"), "slope_data", activation_func::relu_negative_slope),
+        reorder("reorder_bfyx", input_info("activation"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;
@@ -257,12 +259,12 @@ TEST_P(conv_bin_scale_conv_dw_prelu, dw_kernel_3x3_stride1) {
         data("weights", get_mem(get_weights_layout(p), -127, 127)),
         data("weights_dw", get_mem(dw_weights_layout, -127, 127)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1e-1f)),
-        binary_convolution("bin_conv_prim", "input", { "weights" }, p.stride, p.pad, p.dilation, p.out_shape, p.groups),
-        scale("scale", "bin_conv_prim", "scale_data"),
-        convolution("conv_dw", "scale", { "weights_dw" }, p.out_shape.feature[0], dw_stride, dw_pad, dw_dilation),
+        binary_convolution("bin_conv_prim", input_info("input"), { "weights" }, p.stride, p.pad, p.dilation, p.out_shape, p.groups),
+        eltwise("scale", { input_info("bin_conv_prim"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
+        convolution("conv_dw", input_info("scale"), { "weights_dw" }, p.out_shape.feature[0], dw_stride, dw_pad, dw_dilation),
         data("slope_data", get_mem(get_per_channel_layout(p))),
-        activation("activation", "conv_dw", "slope_data", activation_func::relu_negative_slope),
-        reorder("reorder_bfyx", "activation", p.default_format, data_types::f32)
+        activation("activation", input_info("conv_dw"), "slope_data", activation_func::relu_negative_slope),
+        reorder("reorder_bfyx", input_info("activation"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;

@@ -21,9 +21,6 @@ set(OUTPUT_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 
 set(OpenVINO_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../")
 
-# Search OpenVINO Inference Engine installed
-find_package(OpenVINO REQUIRED)
-
 add_subdirectory(src)
 
 install(DIRECTORY test_runner/ DESTINATION tests/memory_tests/test_runner COMPONENT tests EXCLUDE_FROM_ALL)

@@ -2,7 +2,7 @@
 
 This example demonstrates the use of the [Post-training Optimization Toolkit API](@ref pot_compression_api_README) to
  quantize an object detection model in the [accuracy-aware mode](@ref accuracy_aware_README).
-The [MobileNetV1 FPN](https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/ssd_mobilenet_v1_fpn_coco/ssd_mobilenet_v1_fpn_coco.md) model from TensorFlow* for object detection task is used for this purpose.
+The [MobileNetV1 FPN](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/ssd_mobilenet_v1_fpn_coco) model from TensorFlow for object detection task is used for this purpose.
 A custom `DataLoader` is created to load the [COCO](https://cocodataset.org/) dataset for object detection task 
 and the implementation of mAP COCO is used for the model evaluation. The code of the example is available on [GitHub](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/object_detection).
 

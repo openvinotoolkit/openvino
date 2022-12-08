@@ -16,6 +16,7 @@ from openvino.tools.pot.algorithms.quantization.fake_quantize_configuration impo
 from .utils.config import provide_dataset_path
 from .utils.path import HARDWARE_CONFIG_PATH, HARDWARE_CONFIG_REFERENCE_PATH, \
     TOOL_CONFIG_PATH, INTERMEDIATE_CONFIG_PATH
+from .utils.data_helper import load_json
 
 
 def check_hardware_config(config, config_name):
@@ -24,8 +25,7 @@ def check_hardware_config(config, config_name):
         with open(path_to_ref_json.as_posix(), 'w') as f:
             json.dump(config, f)
 
-    with open(path_to_ref_json.as_posix(), 'r') as f:
-        ref_config = json.load(f)
+    ref_config = load_json(path_to_ref_json.as_posix())
 
     assert config == ref_config
 
@@ -86,14 +86,15 @@ def test_load_tool_config(config_name, tmp_path, models):
 def test_configurations_by_preset(preset):
     def _load_config(name):
         path_to_conf = INTERMEDIATE_CONFIG_PATH.joinpath(name).as_posix()
-        with open(path_to_conf, 'r') as f:
-            return json.load(f)
+        return load_json(path_to_conf)
 
     config = Dict({
         'preset': preset,
         'target_device': 'CPU'
     })
+    hw_config_path = HARDWARE_CONFIG_PATH.joinpath('cpu.json').as_posix()
+    hw_config = HardwareConfig.from_json(hw_config_path)
     correct_configuration = _load_config('correct_configuration.json')
-    res = get_configurations_by_preset(config, None, correct_configuration)
+    res = get_configurations_by_preset(config, None, correct_configuration, hw_config)
     ref_configuration = _load_config('ref_configuration.json')
     assert res == ref_configuration[preset]

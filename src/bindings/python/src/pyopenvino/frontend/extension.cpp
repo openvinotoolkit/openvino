@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "pyopenvino/frontend/extension.hpp"
+
 #include <pybind11/functional.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
-#include "extension/json_config.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/extension/decoder_transformation.hpp"
@@ -42,19 +43,6 @@ void regclass_frontend_DecoderTransformationExtension(py::module m) {
                std::shared_ptr<ov::frontend::DecoderTransformationExtension>,
                ov::Extension>
         ext(m, "DecoderTransformationExtension", py::dynamic_attr());
-}
-
-void regclass_frontend_JsonConfigExtension(py::module m) {
-    py::class_<ov::frontend::JsonConfigExtension,
-               std::shared_ptr<ov::frontend::JsonConfigExtension>,
-               ov::frontend::DecoderTransformationExtension>
-        ext(m, "JsonConfigExtension", py::dynamic_attr());
-
-    ext.doc() = "Extension class to load and process ModelOptimizer JSON config file";
-
-    ext.def(py::init([](const std::string& path) {
-        return std::make_shared<ov::frontend::JsonConfigExtension>(path);
-    }));
 }
 
 void regclass_frontend_ConversionExtensionBase(py::module m) {

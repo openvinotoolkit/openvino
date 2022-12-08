@@ -2,31 +2,34 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/opsets/opset8.hpp>
-#include <ngraph/validation_util.hpp>
-#include <ngraph/rt_info.hpp>
-#include <openvino/pass/constant_folding.hpp>
 #include <compress_quantize_weights.hpp>
+#include <ngraph/opsets/opset8.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
+#include <ngraph/validation_util.hpp>
+#include <openvino/pass/constant_folding.hpp>
 
 static bool has_dequantization_subgraph(const std::shared_ptr<ngraph::Node>& first_convert) {
     auto first_convert_users = first_convert->get_users();
-    const auto second_convert = std::find_if(first_convert_users.begin(), first_convert_users.end(),
-                                       [] (const std::shared_ptr<ngraph::Node>& n) -> bool {
-                                           return ov::is_type<ngraph::opset8::Convert>(n);
-                                       });
+    const auto second_convert = std::find_if(first_convert_users.begin(),
+                                             first_convert_users.end(),
+                                             [](const std::shared_ptr<ngraph::Node>& n) -> bool {
+                                                 return ov::is_type<ngraph::opset8::Convert>(n);
+                                             });
     if (second_convert == first_convert_users.end())
         return false;
     auto convert_or_subtract_users = (*second_convert)->get_users();
-    const auto subtract = std::find_if(convert_or_subtract_users.begin(), convert_or_subtract_users.end(),
-                                       [] (const std::shared_ptr<ngraph::Node>& n) -> bool {
+    const auto subtract = std::find_if(convert_or_subtract_users.begin(),
+                                       convert_or_subtract_users.end(),
+                                       [](const std::shared_ptr<ngraph::Node>& n) -> bool {
                                            return ov::is_type<ngraph::opset8::Subtract>(n);
                                        });
     if (subtract != convert_or_subtract_users.end()) {
         convert_or_subtract_users = (*subtract)->get_users();
     }
-    const auto multiply = std::find_if(convert_or_subtract_users.begin(), convert_or_subtract_users.end(),
-                                       [] (const std::shared_ptr<ngraph::Node>& n) -> bool {
+    const auto multiply = std::find_if(convert_or_subtract_users.begin(),
+                                       convert_or_subtract_users.end(),
+                                       [](const std::shared_ptr<ngraph::Node>& n) -> bool {
                                            return ov::is_type<ngraph::opset8::Multiply>(n);
                                        });
     return multiply != convert_or_subtract_users.end();
@@ -38,8 +41,8 @@ ngraph::pass::CompressQuantizeWeights::CompressQuantizeWeights() {
     auto input_high_pattern = pattern::wrap_type<opset8::Constant>();
     auto output_low_pattern = pattern::wrap_type<opset8::Constant>();
     auto output_high_pattern = pattern::wrap_type<opset8::Constant>();
-    auto fq_pattern = pattern::wrap_type<opset8::FakeQuantize>({weights_pattern, input_low_pattern, input_high_pattern,
-                                                                output_low_pattern, output_high_pattern});
+    auto fq_pattern = pattern::wrap_type<opset8::FakeQuantize>(
+        {weights_pattern, input_low_pattern, input_high_pattern, output_low_pattern, output_high_pattern});
 
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto fq = std::dynamic_pointer_cast<opset8::FakeQuantize>(m.get_match_root());
@@ -86,12 +89,13 @@ ngraph::pass::CompressQuantizeWeights::CompressQuantizeWeights() {
             */
             std::shared_ptr<Node> new_input_low;
             auto new_output_low = op::Constant::create(input_type, Shape{}, {-static_cast<float>(levels / 2)});
-            auto new_output_high = std::make_shared<opset8::Add>(new_output_low, op::Constant::create(input_type, Shape{}, {levels - 1}));
+            auto new_output_high =
+                std::make_shared<opset8::Add>(new_output_low, op::Constant::create(input_type, Shape{}, {levels - 1}));
             const auto& weights = pattern_value_map.at(weights_pattern);
             const auto& input_low = pattern_value_map.at(input_low_pattern);
             const auto& input_high = pattern_value_map.at(input_high_pattern);
-            auto quantize = fq->clone_with_new_inputs({weights, input_low, input_high,
-                                                       new_output_low, new_output_high});
+            auto quantize =
+                fq->clone_with_new_inputs({weights, input_low, input_high, new_output_low, new_output_high});
             // Convert quantized weights to low precision type
             std::shared_ptr<Node> new_weights = std::make_shared<opset8::Convert>(quantize, quantized_type);
             // Constant fold quantized weights
@@ -169,47 +173,53 @@ ngraph::pass::ZeroPointOptimizer::ZeroPointOptimizer() {
         const auto& pattern_value_map = m.get_pattern_value_map();
         auto convert = pattern_value_map.at(convert_pattern).get_node_shared_ptr();
         auto sub = pattern_value_map.at(sub_pattern).get_node_shared_ptr();
-        auto weights = std::dynamic_pointer_cast<opset8::Constant>(pattern_value_map.at(weights_pattern).get_node_shared_ptr());
+        auto weights =
+            std::dynamic_pointer_cast<opset8::Constant>(pattern_value_map.at(weights_pattern).get_node_shared_ptr());
         if (!weights || weights->get_element_type() != element::i8)
             return false;
-        auto zero_point = std::dynamic_pointer_cast<opset8::Constant>(pattern_value_map.at(zero_point_pattern).get_node_shared_ptr());
+        auto zero_point =
+            std::dynamic_pointer_cast<opset8::Constant>(pattern_value_map.at(zero_point_pattern).get_node_shared_ptr());
         if (!zero_point)
             return false;
 
         auto zp_value = zero_point->cast_vector<float>();
-        if (std::all_of(zp_value.begin(), zp_value.end(), [] (float f) -> bool { return std::fabs(f) <= std::numeric_limits<float>::epsilon(); })) {
+        if (std::all_of(zp_value.begin(), zp_value.end(), [](float f) -> bool {
+                return std::fabs(f) <= std::numeric_limits<float>::epsilon();
+            })) {
             copy_runtime_info(sub, convert);
             replace_node(sub, convert);
         }
 
         auto int8_zero_point = std::make_shared<opset8::Convert>(
-                std::make_shared<opset8::Round>(zero_point, opset8::Round::RoundMode::HALF_TO_EVEN),
-                weights->get_element_type());
-        auto adj_zero_point = std::make_shared<opset8::Subtract>(zero_point, std::make_shared<opset8::Convert>(int8_zero_point, convert->get_element_type()));
+            std::make_shared<opset8::Round>(zero_point, opset8::Round::RoundMode::HALF_TO_EVEN),
+            weights->get_element_type());
+        auto adj_zero_point = std::make_shared<opset8::Subtract>(
+            zero_point,
+            std::make_shared<opset8::Convert>(int8_zero_point, convert->get_element_type()));
 
         auto adj_zero_point_const = ov::get_constant_from_source(adj_zero_point);
         if (!adj_zero_point_const)
             return false;
         auto adj_zero_point_val = adj_zero_point_const->cast_vector<float>();
-        bool is_adj_zero_point_close_to_zero = std::all_of(adj_zero_point_val.begin(), adj_zero_point_val.end(),
-                                                           [] (float f) -> bool {
-                                                               return std::fabs(f) < 1e-4;
-                                                           });
+        bool is_adj_zero_point_close_to_zero =
+            std::all_of(adj_zero_point_val.begin(), adj_zero_point_val.end(), [](float f) -> bool {
+                return std::fabs(f) < 1e-4;
+            });
         if (!is_adj_zero_point_close_to_zero)
             return false;
 
         auto transformed = std::make_shared<opset8::Subtract>(
-            std::make_shared<opset8::Convert>(std::make_shared<opset8::Subtract>(weights, int8_zero_point), convert->get_element_type()),
+            std::make_shared<opset8::Convert>(std::make_shared<opset8::Subtract>(weights, int8_zero_point),
+                                              convert->get_element_type()),
             adj_zero_point);
         auto diff = std::make_shared<opset8::Subtract>(sub, transformed);
         auto diff_const = ov::get_constant_from_source(diff);
         if (!diff_const)
             return false;
         auto diff_val = diff_const->cast_vector<float>();
-        bool is_transformed_and_original_equal = std::all_of(diff_val.begin(), diff_val.end(),
-                                                             [] (float f) -> bool {
-                                                                 return std::fabs(f) < std::numeric_limits<float>::epsilon();
-                                                             });
+        bool is_transformed_and_original_equal = std::all_of(diff_val.begin(), diff_val.end(), [](float f) -> bool {
+            return std::fabs(f) < std::numeric_limits<float>::epsilon();
+        });
         if (!is_transformed_and_original_equal)
             return false;
 

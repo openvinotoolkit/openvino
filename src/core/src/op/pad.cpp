@@ -19,8 +19,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v1::Pad);
-
 op::v1::Pad::Pad(const Output<Node>& arg,
                  const Output<Node>& pads_begin,
                  const Output<Node>& pads_end,
@@ -61,13 +59,13 @@ CoordinateDiff op::v1::Pad::get_pads_end() const {
 }
 
 bool ngraph::op::v1::Pad::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_Pad_visit_attributes);
+    OV_OP_SCOPE(v1_Pad_visit_attributes);
     visitor.on_attribute("pad_mode", m_pad_mode);
     return true;
 }
 
 void op::v1::Pad::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v1_Pad_validate_and_infer_types);
+    OV_OP_SCOPE(v1_Pad_validate_and_infer_types);
     element::Type result_et;
 
     const auto& arg_element_type = get_input_element_type(0);
@@ -106,7 +104,7 @@ void op::v1::Pad::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::v1::Pad::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_Pad_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_Pad_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (get_input_size() == 4) {
         return make_shared<v1::Pad>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_pad_mode);
@@ -159,11 +157,11 @@ bool op::v1::Pad::evaluate_pad(const HostTensorVector& outputs, const HostTensor
 }
 
 bool op::v1::Pad::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v1_Pad_evaluate);
+    OV_OP_SCOPE(v1_Pad_evaluate);
     return evaluate_pad(outputs, inputs);
 }
 
 bool op::v1::Pad::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v1_Pad_has_evaluate);
+    OV_OP_SCOPE(v1_Pad_has_evaluate);
     return true;
 }

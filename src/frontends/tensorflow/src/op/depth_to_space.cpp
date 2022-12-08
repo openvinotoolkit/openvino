@@ -15,24 +15,25 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_depth_to_space_op(const NodeContext& node) {
-    Output<Node> ng_input = node.get_input(0);
+    default_op_checks(node, 1, {"DepthToSpace"});
+    auto input_data = node.get_input(0);
 
-    // Get the attributes
+    // retrieve attributes
     auto block_size = node.get_attribute<int64_t>("block_size");
-    std::string tf_data_format = node.get_attribute<std::string>("data_format");
+    auto data_format = node.get_attribute<string>("data_format", "NHWC");
 
     TENSORFLOW_OP_VALIDATION(node,
-                             tf_data_format == "NHWC" || tf_data_format == "NCHW",
-                             "DepthToSpace data format is neither NHWC nor NCHW");
+                             data_format == "NHWC" || data_format == "NCHW",
+                             "TensorFlow Frontend supports input data for DepthToSpace either in NHWC or NCHW format.");
 
-    bool is_nhwc = (tf_data_format == "NHWC");
+    bool is_nhwc = (data_format == "NHWC");
 
-    convert_nhwc_to_nchw(node.get_name(), is_nhwc, ng_input);
-    auto ng_mode = DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST;
-    Output<Node> res = make_shared<DepthToSpace>(ng_input, ng_mode, block_size)->output(0);
-    convert_nchw_to_nhwc(node.get_name(), is_nhwc, res);
-    set_node_name(node.get_name(), res.get_node_shared_ptr());
-    return {res};
+    convert_nhwc_to_nchw(is_nhwc, input_data);
+    auto mode = DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST;
+    auto depth_to_space = make_shared<DepthToSpace>(input_data, mode, block_size)->output(0);
+    convert_nchw_to_nhwc(is_nhwc, depth_to_space);
+    set_node_name(node.get_name(), depth_to_space.get_node_shared_ptr());
+    return {depth_to_space};
 }
 }  // namespace op
 }  // namespace tensorflow

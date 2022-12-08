@@ -10,15 +10,12 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id lstm::type_id() {
-    static primitive_type_base<lstm> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(lstm)
 
-layout lstm_inst::calc_output_layout(lstm_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+layout lstm_inst::calc_output_layout(lstm_node const& node, kernel_impl_params const& impl_param) {
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for lstm_node!");
-    auto input_layout = node.input().get_output_layout();
+    auto input_layout = impl_param.get_input_layout();
     auto hidden_layout = node.inital_hidden().get_output_layout();
 
     // input     = [ batch,  sequence,       direction,      input_size ]
@@ -30,10 +27,10 @@ layout lstm_inst::calc_output_layout(lstm_node const& node) {
     // output    = [ batch,  sequence,       direction,     hidden_size ]
     auto result = layout(input_layout.data_type,
                          format::bfyx,
-                         tensor(hidden_layout.size.feature[0],
-                                input_layout.size.feature[0],
-                                hidden_layout.size.spatial[0],
-                                hidden_layout.size.spatial[1]));
+                         tensor(hidden_layout.feature(),
+                                input_layout.feature(),
+                                hidden_layout.spatial(0),
+                                hidden_layout.spatial(1)));
     return result;
 }
 

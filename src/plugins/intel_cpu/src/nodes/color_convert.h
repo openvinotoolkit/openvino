@@ -17,7 +17,7 @@ namespace node {
 class ColorConvert : public Node {
 public:
     ColorConvert(const std::shared_ptr<ngraph::Node>& op,
-                 const mkldnn::engine& eng,
+                 const dnnl::engine& eng,
                  WeightsSharing::Ptr &cache);
     class Converter;
 
@@ -25,11 +25,10 @@ public:
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
-    std::vector<VectorDims> shapeInfer() const override;
     bool needPrepareParams() const override;
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
@@ -71,8 +70,7 @@ public:
     const void * input(size_t idx) const;
     void * output(size_t idx) const;
     const VectorDims & inputDims(size_t idx) const;
-    virtual Shapes shapeInfer() const = 0;
-    virtual void execute(mkldnn::stream strm) = 0;
+    virtual void execute(dnnl::stream strm) = 0;
 
 protected:
     Node *_node;

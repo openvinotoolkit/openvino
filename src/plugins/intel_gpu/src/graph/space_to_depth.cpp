@@ -10,68 +10,65 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id space_to_depth::type_id() {
-    static primitive_type_base<space_to_depth> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(space_to_depth)
 
-layout space_to_depth_inst::calc_output_layout(space_to_depth_node const& node) {
-    auto desc = node.get_primitive();
+layout space_to_depth_inst::calc_output_layout(space_to_depth_node const& node, kernel_impl_params const& impl_param) {
+    auto desc = impl_param.typed_desc<space_to_depth>();
 
-    auto input_layout = node.input(0).get_output_layout();
+    auto input_layout = impl_param.get_input_layout();
     auto input_format = input_layout.format;
 
     const size_t block_size = desc->block_size;
     auto depth_mode = desc->mode;
 
     auto output_type = input_layout.data_type;
-    if (node.has_fused_primitives()) {
-        output_type = node.get_fused_output_layout().data_type;
+    if (impl_param.has_fused_primitives()) {
+        output_type = impl_param.get_fused_output_layout().data_type;
     }
 
     if (depth_mode != space_to_depth::depth_first && depth_mode != space_to_depth::blocks_first)
-        CLDNN_ERROR_MESSAGE(node.id(),
+        CLDNN_ERROR_MESSAGE(desc->id,
                             "Invalid mode for spaceToDepth: must be \"blocks_first\" or \"depth_first\" only");
 
     if (block_size < 1)
-        CLDNN_ERROR_MESSAGE(node.id(),
+        CLDNN_ERROR_MESSAGE(desc->id,
                             "Invalid spaceToDepth block_size value (should be >= 1). Actual block size is" +
                                 std::to_string(block_size));
 
-    if (input_layout.size.spatial[0] % block_size != 0 || input_layout.size.spatial[1] % block_size != 0)
+    if (input_layout.spatial(0) % block_size != 0 || input_layout.spatial(1) % block_size != 0)
         CLDNN_ERROR_MESSAGE(
-            node.id(),
+            desc->id,
             "Sizes of spatials x, y must be divisible by block size. Actual spatial sizes are " +
-                std::to_string(input_layout.size.spatial[0]) + ", " + std::to_string(input_layout.size.spatial[1]) +
+                std::to_string(input_layout.spatial(0)) + ", " + std::to_string(input_layout.spatial(1)) +
                     " (x, y). Actual block size is " + std::to_string(block_size));
 
 
     if (input_layout.format.dimension() == 5) {
-        if (input_layout.size.spatial[2] % block_size != 0)
+        if (input_layout.spatial(2) % block_size != 0)
         CLDNN_ERROR_MESSAGE(
-            node.id(),
+            desc->id,
             "Sizes of spatials z must be divisible by block size. Actual spatial sizes are " +
-                std::to_string(input_layout.size.spatial[2]) +
+                std::to_string(input_layout.spatial(2)) +
                     " (z). Block size is " + std::to_string(block_size));
 
-        const size_t feature = input_layout.size.feature[0] * block_size * block_size * block_size;
-        const size_t z = input_layout.size.spatial[2] / block_size;
-        const size_t y = input_layout.size.spatial[1] / block_size;
-        const size_t x = input_layout.size.spatial[0] / block_size;
+        const size_t feature = input_layout.feature() * block_size * block_size * block_size;
+        const size_t z = input_layout.spatial(2) / block_size;
+        const size_t y = input_layout.spatial(1) / block_size;
+        const size_t x = input_layout.spatial(0) / block_size;
 
         return layout{
             output_type,
             input_format,
-            tensor(TensorValue(input_layout.size.batch[0]), TensorValue(feature), TensorValue(x), TensorValue(y), TensorValue(z))};
+            tensor(TensorValue(input_layout.batch()), TensorValue(feature), TensorValue(x), TensorValue(y), TensorValue(z))};
     } else {
-        const size_t feature = input_layout.size.feature[0] * block_size * block_size;
-        const size_t y = input_layout.size.spatial[1] / block_size;
-        const size_t x = input_layout.size.spatial[0] / block_size;
+        const size_t feature = input_layout.feature() * block_size * block_size;
+        const size_t y = input_layout.spatial(1) / block_size;
+        const size_t x = input_layout.spatial(0) / block_size;
 
         return layout{
             output_type,
             input_format,
-            tensor(TensorValue(input_layout.size.batch[0]), TensorValue(feature), TensorValue(x), TensorValue(y))};
+            tensor(TensorValue(input_layout.batch()), TensorValue(feature), TensorValue(x), TensorValue(y))};
     }
 }
 

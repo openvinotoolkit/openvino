@@ -18,8 +18,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::FakeQuantize);
-
 op::FakeQuantize::FakeQuantize() : Op(), m_levels() {}
 
 op::FakeQuantize::FakeQuantize(const Output<Node>& data,
@@ -36,7 +34,7 @@ op::FakeQuantize::FakeQuantize(const Output<Node>& data,
 }
 
 void op::FakeQuantize::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_FakeQuantize_validate_and_infer_types);
+    OV_OP_SCOPE(v0_FakeQuantize_validate_and_infer_types);
     ov::PartialShape data_pshape = get_input_partial_shape(0);
 
     for (auto i = 1; i <= 4; i++) {
@@ -58,14 +56,14 @@ void op::FakeQuantize::validate_and_infer_types() {
 }
 
 bool ngraph::op::v0::FakeQuantize::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_FakeQuantize_visit_attributes);
+    OV_OP_SCOPE(v0_FakeQuantize_visit_attributes);
     visitor.on_attribute("levels", m_levels);
     visitor.on_attribute("auto_broadcast", m_auto_broadcast);
     return true;
 }
 
 shared_ptr<Node> op::FakeQuantize::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_FakeQuantize_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_FakeQuantize_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<FakeQuantize>(new_args.at(0),  // X
                                      new_args.at(1),  // input_low
@@ -86,19 +84,21 @@ bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg4,
               const HostTensorPtr& out,
               const ngraph::op::FakeQuantize* parent) {
-    NGRAPH_OP_SCOPE(v0_FakeQuantize_evaluate);
+    OV_OP_SCOPE(v0_FakeQuantize_evaluate);
     using T = typename element_type_traits<ET>::value_type;
+    out->set_shape(arg0->get_shape());
+    out->set_element_type(arg0->get_element_type());
     runtime::reference::fake_quantize<T>(arg0->get_data_ptr<const T>(),
                                          arg1->get_data_ptr<const T>(),
                                          arg2->get_data_ptr<const T>(),
                                          arg3->get_data_ptr<const T>(),
                                          arg4->get_data_ptr<const T>(),
                                          out->get_data_ptr<T>(),
-                                         parent->get_input_shape(0),
-                                         parent->get_input_shape(1),
-                                         parent->get_input_shape(2),
-                                         parent->get_input_shape(3),
-                                         parent->get_input_shape(4),
+                                         arg0->get_shape(),
+                                         arg1->get_shape(),
+                                         arg2->get_shape(),
+                                         arg3->get_shape(),
+                                         arg4->get_shape(),
                                          parent->get_levels(),
                                          parent->get_auto_broadcast());
     return true;
@@ -129,7 +129,7 @@ bool evaluate_fakequantize(const HostTensorPtr& arg0,
 }  // namespace fakequantizeop
 
 bool ngraph::op::FakeQuantize::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v0_FakeQuantize_evaluate);
+    OV_OP_SCOPE(v0_FakeQuantize_evaluate);
     return fakequantizeop::evaluate_fakequantize(inputs[0],
                                                  inputs[1],
                                                  inputs[2],
@@ -140,7 +140,7 @@ bool ngraph::op::FakeQuantize::evaluate(const HostTensorVector& outputs, const H
 }
 
 bool ngraph::op::FakeQuantize::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v0_FakeQuantize_has_evaluate);
+    OV_OP_SCOPE(v0_FakeQuantize_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:

@@ -51,12 +51,12 @@ TEST(removing_output_node, multiple_outputs) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(shuffle_channels("shuffle_channels", "input", group, axis));
-    topology.add(reshape("reshape", "shuffle_channels", after_reshape));
+    topology.add(shuffle_channels("shuffle_channels", input_info("input"), group, axis));
+    topology.add(reshape("reshape", input_info("shuffle_channels"), after_reshape));
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "shuffle_channels", "input2", "input3", "input4", {}, {}, { 1 }, {}, {6, 1, 1, 1}));
+    topology.add(strided_slice("strided_slice", input_info("shuffle_channels"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, { 1 }, {}, {}, {6, 1, 1, 1}));
 
     std::vector<float> input_vec = { 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f };
     std::vector<float> out_vec = { 0.0f, 3.0f, 1.0f, 4.0f, 2.0f, 5.0f };
@@ -72,7 +72,7 @@ TEST(removing_output_node, multiple_outputs) {
     auto output = outputs.at("reshape").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
-    ASSERT_TRUE(output->get_layout().size == after_reshape);
+    ASSERT_TRUE(output->get_layout().get_tensor() == after_reshape);
 
     for (size_t i = 0; i < out_vec.size(); i++)
         EXPECT_EQ(output_ptr[i], out_vec[i]);
@@ -82,7 +82,7 @@ TEST(removing_output_node, multiple_outputs) {
     auto output2 = outputs.at("strided_slice").get_memory();
     cldnn::mem_lock<float> output_ptr2(output, get_test_stream());
 
-    ASSERT_TRUE(output2->get_layout().size == after_strided_slice);
+    ASSERT_TRUE(output2->get_layout().get_tensor() == after_strided_slice);
 
     for (size_t i = 0; i < out_vec.size(); i++)
         EXPECT_EQ(output_ptr2[i], out_vec[i]);
@@ -122,8 +122,8 @@ TEST(removing_output_node, output_node_optimization) {
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weights", weights));
-    topology.add(convolution("conv", "input", { "weights" }, { 2, 1 }));
-    topology.add(activation("relu", "conv", activation_func::relu));
+    topology.add(convolution("conv", input_info("input"), { "weights" }, { 2, 1 }));
+    topology.add(activation("relu", input_info("conv"), activation_func::relu));
 
     network network(engine, topology);
     network.set_input_data("input", input);

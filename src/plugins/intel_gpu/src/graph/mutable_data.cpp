@@ -14,10 +14,7 @@
 #include <algorithm>
 
 namespace cldnn {
-primitive_type_id mutable_data::type_id() {
-    static primitive_type_base<mutable_data> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(mutable_data)
 
 namespace {
 memory::ptr attach_or_copy_data(network& network, memory::ptr mem, bool reuse) {
@@ -57,15 +54,15 @@ std::string mutable_data_inst::to_string(mutable_data_node const& node) {
     return primitive_description.str();
 }
 
-void mutable_data_inst::set_output_memory(memory::ptr mem_new, bool check) {
+void mutable_data_inst::set_output_memory(memory::ptr mem_new, bool check, size_t idx) {
     auto& eng = _network.get_engine();
-    auto& mem_node = const_cast<program_node&>(_node).as<mutable_data>();
+    auto& mem_node = const_cast<program_node *>(_node)->as<mutable_data>();
     auto& mem_attached = mem_node.get_attached_memory();
-    const auto& mem_orig = *_output;
+    const auto& mem_orig = *_outputs[idx];
 
     if (!eng.is_the_same_buffer(*mem_new, mem_attached)) {
-        if (_node.is_input()) {
-            mem_new->copy_from(_network.get_stream(), *_output);
+        if (_node->is_input()) {
+            mem_new->copy_from(_network.get_stream(), *_outputs[idx]);
         }
 
         // re-attach mutable_data internal memory if necessary
@@ -77,6 +74,11 @@ void mutable_data_inst::set_output_memory(memory::ptr mem_new, bool check) {
 }
 
 mutable_data_inst::typed_primitive_inst(network& network, mutable_data_node const& node)
-    : parent(network, node, attach_or_copy_data(network, node.get_attached_memory_ptr(), network.is_primary_stream())) {}
+    : parent(network, node, attach_or_copy_data(network, node.get_attached_memory_ptr(), network.is_primary_stream())) {
+    const auto& users = get_users();
+    for (const auto& usr : users) {
+        _user_ids.emplace_back(usr->id());
+    }
+}
 
 }  // namespace cldnn

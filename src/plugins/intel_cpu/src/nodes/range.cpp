@@ -7,6 +7,7 @@
 #include "ie_parallel.hpp"
 #include "range.h"
 #include <utils/general_utils.h>
+#include <utils/shape_inference/shape_inference_internal_dyn.hpp>
 
 using namespace InferenceEngine;
 
@@ -26,8 +27,8 @@ bool Range::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, 
     return true;
 }
 
-Range::Range(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
+Range::Range(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -86,15 +87,11 @@ void Range::initSupportedPrimitiveDescriptors() {
     }
 }
 
-std::vector<VectorDims> Range::shapeInfer() const {
-    return Node::shapeInferGeneric(PortMask(RANGE_START, RANGE_LIMIT, RANGE_DELTA));
-}
-
-void Range::executeDynamicImpl(mkldnn::stream strm) {
+void Range::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void Range::execute(mkldnn::stream strm) {
+void Range::execute(dnnl::stream strm) {
     StatusCode retcode = OK;
     switch (getParentEdgeAt(0)->getMemory().getDesc().getPrecision()) {
         case Precision::FP32:

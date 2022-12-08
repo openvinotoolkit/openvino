@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -14,8 +15,8 @@ from tests.test_onnx.utils.onnx_helpers import import_onnx_model
 
 def test_import_onnx_function():
     model_path = os.path.join(os.path.dirname(__file__), "models/add_abc.onnx")
-    ie = Core()
-    func = ie.read_model(model=model_path)
+    core = Core()
+    model = core.read_model(model=model_path)
 
     dtype = np.float32
     value_a = np.array([1.0], dtype=dtype)
@@ -23,7 +24,7 @@ def test_import_onnx_function():
     value_c = np.array([3.0], dtype=dtype)
 
     runtime = get_runtime()
-    computation = runtime.computation(func)
+    computation = runtime.computation(model)
     result = computation(value_a, value_b, value_c)
     assert np.allclose(result, np.array([6], dtype=dtype))
 
@@ -43,10 +44,10 @@ def test_simple_graph():
     )
     model = make_model(graph, producer_name="ngraph ONNX Importer")
 
-    ng_model_function = import_onnx_model(model)
+    graph_model_function = import_onnx_model(model)
 
     runtime = get_runtime()
-    computation = runtime.computation(ng_model_function)
+    computation = runtime.computation(graph_model_function)
     assert np.array_equal(
         computation(
             np.array([1], dtype=np.float32),

@@ -31,11 +31,6 @@ public:
     explicit base_pass(const std::string& pass_name) : name(pass_name) {}
     virtual void run(program& p) = 0;
     std::string get_name() { return name; }
-    void clean_marks(program& p) {
-        for (auto& node : p.get_processing_order()) {
-            node->unmark();
-        }
-    }
 
 private:
     const std::string name;
@@ -283,7 +278,7 @@ private:
     bool has_non_const_user(program_node& node) const;
     void handle_constant(program& prog, program_node& node);
     void add_constant(program& prog, program_node& node);
-    void add_deps_to_tpl(program& prog, const std::vector<program_node*>& node);
+    void add_deps_to_tpl(program& prog, const std::vector<std::pair<program_node*, int32_t>>& node);
 
     bool has_non_trivial_constants = false;
     std::list<typed_program_node<data>*> const_inputs;
@@ -313,6 +308,16 @@ private:
     virtual void run(program& p, layout_optimizer& lo, reorder_factory& rf);
     layout_optimizer& _lo;
     reorder_factory& _rf;
+};
+
+class select_preferred_formats : public base_pass {
+public:
+    explicit select_preferred_formats(layout_optimizer& lo_ref) :
+        base_pass("select_preferred_formats"), _lo(lo_ref) {}
+
+private:
+    void run(program& p) override;
+    layout_optimizer& _lo;
 };
 
 class trim_to_outputs : public base_pass {
@@ -368,8 +373,8 @@ public:
                 return;
             }
             for (auto subdep : dep->get_dependencies()) {
-                add_memory_dependency(node, subdep);
-                add_memory_dependency(subdep, node);
+                add_memory_dependency(node, subdep.first);
+                add_memory_dependency(subdep.first, node);
             }
         }
     }

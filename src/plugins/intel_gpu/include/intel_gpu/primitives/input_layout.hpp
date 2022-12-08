@@ -28,8 +28,8 @@ struct input_layout : public primitive_base<input_layout> {
     /// @brief Constructs input layout primitive.
     /// @param id This primitive id.
     /// @param layout Defines layout for the data will be passed to network.
-    input_layout(const primitive_id& id, const layout& layout, const primitive_id& ext_prim_id = "")
-        : primitive_base(id, {}, ext_prim_id, layout.data_padding), layout(layout) {}
+    input_layout(const primitive_id& id, const layout& layout)
+        : primitive_base(id, {}, {layout.data_padding}), layout(layout) {}
 
     /// @brief Defines layout for the data will be passed to network.
     mutable cldnn::layout layout;

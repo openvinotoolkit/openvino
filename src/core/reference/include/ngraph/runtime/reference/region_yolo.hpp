@@ -37,7 +37,8 @@ static inline void softmax_generic(const T* src_data, T* dst_data, int batches, 
 
             T sum = 0;
             for (int channel_idx = 0; channel_idx < channels; channel_idx++) {
-                dst_data[offset + channel_idx * area + i] = std::exp(src_data[offset + channel_idx * area + i] - max);
+                dst_data[offset + channel_idx * area + i] =
+                    static_cast<T>(std::exp(src_data[offset + channel_idx * area + i] - max));
                 sum += dst_data[offset + channel_idx * area + i];
             }
 
@@ -59,15 +60,15 @@ void region_yolo(const T* input,
                  const std::vector<int64_t>& mask) {
     NGRAPH_CHECK(input_shape.size() == 4);
 
-    const int batches = input_shape[0];
-    const int height = input_shape[2];
-    const int width = input_shape[3];
+    const int batches = static_cast<int>(input_shape[0]);
+    const int height = static_cast<int>(input_shape[2]);
+    const int width = static_cast<int>(input_shape[3]);
 
     const auto mask_size = mask.size();
 
-    int num_regions = 0;
-    int end_index = 0;
-    int output_size = 0;
+    size_t num_regions = 0;
+    size_t end_index = 0;
+    size_t output_size = 0;
 
     if (do_softmax) {
         // Region layer (Yolo v2)
@@ -83,18 +84,18 @@ void region_yolo(const T* input,
 
     std::copy(input, input + output_size, output);
 
-    const int inputs_size = width * height * num_regions * (classes + coords + 1);
+    const int inputs_size = width * height * static_cast<int>(num_regions) * (classes + coords + 1);
 
     for (int batch_idx = 0; batch_idx < batches; batch_idx++) {
-        for (int n = 0; n < num_regions; n++) {
+        for (int n = 0; n < static_cast<int>(num_regions); n++) {
             int index = entry_index(width, height, coords, classes, inputs_size, batch_idx, n * width * height, 0);
             std::transform(output + index, output + index + 2 * width * height, output + index, [](T elem) {
-                return sigmoid<T>(elem);
+                return sigmoid<T>(static_cast<float>(elem));
             });
 
             index = entry_index(width, height, coords, classes, inputs_size, batch_idx, n * width * height, coords);
             std::transform(output + index, output + index + end_index, output + index, [](T elem) {
-                return sigmoid<T>(elem);
+                return sigmoid<T>(static_cast<float>(elem));
             });
         }
     }
@@ -114,7 +115,5 @@ void region_yolo(const T* input,
 }
 
 }  // namespace reference
-
 }  // namespace runtime
-
 }  // namespace ngraph

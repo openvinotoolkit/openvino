@@ -12,7 +12,6 @@
 #include "intel_gpu/primitives/roi_pooling.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static cldnn::pooling_mode GetPoolingMode(std::string method) {
@@ -27,8 +26,8 @@ static cldnn::pooling_mode GetPoolingMode(std::string method) {
 }
 
 static void CreateDeformablePSROIPoolingOp(Program& p, const std::shared_ptr<ngraph::op::v1::DeformablePSROIPooling>& op) {
-    p.ValidateInputs(op, {2, 3});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    validate_inputs_count(op, {2, 3});
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     cldnn::pooling_mode mode = GetPoolingMode(op->get_mode());
@@ -47,7 +46,7 @@ static void CreateDeformablePSROIPoolingOp(Program& p, const std::shared_ptr<ngr
     bool position_sensitive = true;
 
     auto psROIPoolingPrim = cldnn::roi_pooling(layerName,
-                                               inputPrimitives,
+                                               inputs,
                                                mode,
                                                position_sensitive,
                                                pooled_width,
@@ -59,15 +58,13 @@ static void CreateDeformablePSROIPoolingOp(Program& p, const std::shared_ptr<ngr
                                                group_size,
                                                output_dim,
                                                spatial_bins_x,
-                                               spatial_bins_y,
-                                               op->get_friendly_name());
-    p.AddPrimitive(psROIPoolingPrim);
-    p.AddPrimitiveToProfiler(op);
+                                               spatial_bins_y);
+    p.add_primitive(*op, psROIPoolingPrim);
 }
 
 static void CreatePSROIPoolingOp(Program& p, const std::shared_ptr<ngraph::op::v0::PSROIPooling>& op) {
-    p.ValidateInputs(op, {2});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    validate_inputs_count(op, {2});
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     cldnn::pooling_mode mode = GetPoolingMode(op->get_mode());
@@ -79,8 +76,8 @@ static void CreatePSROIPoolingOp(Program& p, const std::shared_ptr<ngraph::op::v
     bool position_sensitive = true;
 
     auto psROIPoolingPrim = cldnn::roi_pooling(layerName,
-                                               inputPrimitives[0],  // input data
-                                               inputPrimitives[1],  // input rois
+                                               inputs[0],  // input data
+                                               inputs[1],  // input rois
                                                mode,
                                                position_sensitive,
                                                group_size,
@@ -88,15 +85,13 @@ static void CreatePSROIPoolingOp(Program& p, const std::shared_ptr<ngraph::op::v
                                                spatial_scale,
                                                output_dim,
                                                spatial_bins_x,
-                                               spatial_bins_y,
-                                               op->get_friendly_name());
-    p.AddPrimitive(psROIPoolingPrim);
-    p.AddPrimitiveToProfiler(op);
+                                               spatial_bins_y);
+    p.add_primitive(*op, psROIPoolingPrim);
 }
 
 static void CreateROIPoolingOp(Program& p, const std::shared_ptr<ngraph::op::v0::ROIPooling>& op) {
-    p.ValidateInputs(op, {2});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    validate_inputs_count(op, {2});
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     // params
@@ -108,8 +103,8 @@ static void CreateROIPoolingOp(Program& p, const std::shared_ptr<ngraph::op::v0:
 
     cldnn::pooling_mode mode = GetPoolingMode(op->get_method());
     auto roiPoolingPrim = cldnn::roi_pooling(layerName,
-                                             inputPrimitives[0],  // input data
-                                             inputPrimitives[1],  // input rois
+                                             inputs[0],  // input data
+                                             inputs[1],  // input rois
                                              mode,
                                              position_sensitive,
                                              pooled_width,
@@ -117,11 +112,9 @@ static void CreateROIPoolingOp(Program& p, const std::shared_ptr<ngraph::op::v0:
                                              spatial_scale,
                                              0,
                                              1,
-                                             1,
-                                             op->get_friendly_name());
+                                             1);
 
-    p.AddPrimitive(roiPoolingPrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, roiPoolingPrim);
 }
 
 REGISTER_FACTORY_IMPL(v1, DeformablePSROIPooling);
@@ -129,5 +122,4 @@ REGISTER_FACTORY_IMPL(v0, PSROIPooling);
 REGISTER_FACTORY_IMPL(v0, ROIPooling);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

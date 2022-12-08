@@ -27,8 +27,8 @@ bool CTCLoss::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-CTCLoss::CTCLoss(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-                                     WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
+CTCLoss::CTCLoss(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+                                     WeightsSharing::Ptr &cache) : Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -60,11 +60,11 @@ void CTCLoss::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void CTCLoss::executeDynamicImpl(mkldnn::stream strm) {
+void CTCLoss::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void CTCLoss::execute(mkldnn::stream strm) {
+void CTCLoss::execute(dnnl::stream strm) {
     StatusCode returnCode = OK;
 
     const float* logits = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());

@@ -30,17 +30,23 @@ public:
 
     ov::Any get_attribute(const std::string& name) const override;
 
+    std::vector<TensorName> get_output_var_names(const std::string& var_name) const override;
+    std::vector<TensorName> get_input_var_names(const std::string& var_name) const override;
+
     ov::Any convert_attribute(const ov::Any& data, const std::type_info& type_info) const override;
 
     std::vector<paddle::OutPortName> get_output_names() const override;
 
     size_t get_output_size() const override;
+    size_t get_output_size(const std::string& port_name) const override;
 
     ov::element::Type get_out_port_type(const std::string& port_name) const override;
 
     std::string get_op_type() const override;
 
     std::map<std::string, std::vector<ov::element::Type>> get_output_type_map() const;
+    std::vector<std::pair<ov::element::Type, ov::PartialShape>> get_output_port_infos(
+        const std::string& port_name) const override;
 
     std::map<std::string, OutputVector> map_for_each_input(
         const std::function<Output<Node>(const std::string&, size_t)>& func) const;
@@ -50,7 +56,14 @@ public:
 
 private:
     std::vector<::paddle::framework::proto::OpDesc_Attr> decode_attribute_helper(const std::string& name) const;
-    std::shared_ptr<OpPlace> op_place;
+    std::weak_ptr<OpPlace> op_place;
+
+    const std::shared_ptr<OpPlace> get_place() const {
+        auto place = op_place.lock();
+        if (!place)
+            FRONT_END_THROW("This proto decoder contains empty op place.");
+        return place;
+    }
 };
 
 }  // namespace paddle

@@ -58,7 +58,8 @@ def get_conformance_hung_test(test_log_dirs: list):
         for log_file in glob.glob(os.path.join(test_log_dir, '*/*')):
             with open(log_file) as log:
                 content = log.read()
-                if not (is_hung_test(content) and is_conformance(content)):
+                if not (is_hung_test(content) and is_conformance(content))::
+                    print(log_file)
                     continue
                 device = get_device_name(content)
                 if 'arm' in content or 'arm' in log_file:

@@ -47,64 +47,83 @@ kernel_selector::concat_axis convert_axis(int64_t axis, size_t rank) {
 
 struct concatenation_impl : typed_primitive_impl_ocl<concatenation> {
     using parent = typed_primitive_impl_ocl<concatenation>;
+    using parent::parent;
+    using kernel_selector_t = kernel_selector::concatenation_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::concatenation_params, kernel_selector::concatenation_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<concatenation_impl>(*this);
     }
 
+    concatenation_impl() : parent() {}
+
+    explicit concatenation_impl(const concatenation_impl& other) : parent(other),
+        _can_be_optimized(other._can_be_optimized) {}
+
     concatenation_impl(const concatenation_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
-        if (!_outer.can_be_optimized()) {
-            CLDNN_ERROR_NOT_EQUAL(_outer.id(),
+        if (!arg.can_be_optimized()) {
+            CLDNN_ERROR_NOT_EQUAL(arg.id(),
                                   "Input count",
-                                  _outer.inputs_count(),
+                                  arg.inputs_count(),
                                   "kds size",
                                   kd.kernels.size(),
                                   "Error - not enough kernels for concatenation");
         }
+
+        set_node_params(arg);
+    }
+
+    void set_node_params(const program_node& arg) override {
+        IE_ASSERT(arg.is_type<concatenation>());
+        const auto& node = arg.as<concatenation>();
+        _can_be_optimized = node.can_be_optimized();
     }
 
 protected:
     bool optimized_out(concatenation_inst& instance) const override {
-        return parent::optimized_out(instance) || _outer.can_be_optimized();
+        return parent::optimized_out(instance) || _can_be_optimized;
     }
 
 public:
-    static primitive_impl* create(const concatenation_node& arg) {
-        if (arg.can_be_optimized()) {
-            return new concatenation_impl(arg, {});
-        }
-
-        auto concat_params = get_default_params<kernel_selector::concatenation_params>(arg);
-        auto concat_optional_params =
-            get_default_optional_params<kernel_selector::concatenation_optional_params>(arg.get_program());
-        auto axis = arg.get_primitive()->axis;
-
-        concat_params.inputs.resize(arg.inputs_count());
-        for (size_t i = 0; i < arg.inputs_count(); ++i) {
-            const layout& input_layout = arg.input(i).get_output_layout();
-            concat_params.inputs[i] = convert_data_tensor(input_layout);
-        }
-
-        concat_params.axis = convert_axis(axis, arg.get_output_layout().get_rank());
-        concat_optional_params.kernelPerInput = true;
-
-        auto& kernel_selector = kernel_selector::concatenation_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(concat_params, concat_optional_params);
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        concatenation_impl* concat = new concatenation_impl(arg, best_kernels[0]);
-
-        return concat;
+    void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
+        ob << _can_be_optimized;
     }
+
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        ib >> _can_be_optimized;
+    }
+
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<concatenation>();
+        auto params = get_default_params<kernel_selector::concatenation_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::concatenation_optional_params>(impl_param.get_program());
+        auto axis = primitive->axis;
+
+        auto inputs_count = primitive->input.size();
+        params.inputs.resize(inputs_count);
+        for (size_t i = 0; i < inputs_count; ++i) {
+            const layout& input_layout = impl_param.input_layouts[i];
+            params.inputs[i] = convert_data_tensor(input_layout);
+        }
+
+        params.axis = convert_axis(axis, impl_param.get_output_layout().get_rank());
+        optional_params.kernelPerInput = true;
+
+        return {params, optional_params};
+    }
+
+private:
+    bool _can_be_optimized;
 };
 
 namespace detail {
 
 attach_concatenation_impl::attach_concatenation_impl() {
-    implementation_map<concatenation>::add(impl_types::ocl, concatenation_impl::create, {
+    implementation_map<concatenation>::add(impl_types::ocl, typed_primitive_impl_ocl<concatenation>::create<concatenation_impl>, {
         std::make_tuple(data_types::f32, format::yxfb),
         std::make_tuple(data_types::f16, format::yxfb),
         std::make_tuple(data_types::i8, format::yxfb),
@@ -181,3 +200,5 @@ attach_concatenation_impl::attach_concatenation_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::concatenation_impl)

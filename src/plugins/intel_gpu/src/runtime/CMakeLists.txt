@@ -23,10 +23,14 @@ set(LIBRARY_SOURCES_ALL
 
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SOURCES_ALL})
 
+if(NOT BUILD_SHARED_LIBS)
+    target_compile_definitions(${TARGET_NAME} PUBLIC OPENVINO_STATIC_LIBRARY)
+endif()
+
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
     $<BUILD_INTERFACE:${INCLUDE_DIR}>)
-
+    
 target_compile_options(${TARGET_NAME} PRIVATE
   $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
 
@@ -34,9 +38,7 @@ if(COMMAND add_cpplint_target)
   add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 endif()
 
-if(COMMAND set_ie_threading_interface_for)
-  set_ie_threading_interface_for(${TARGET_NAME})
-endif()
+set_ie_threading_interface_for(${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PRIVATE
     OpenCL
@@ -47,6 +49,8 @@ target_link_libraries(${TARGET_NAME} PRIVATE
 if(ENABLE_ONEDNN_FOR_GPU)
   target_link_libraries(${TARGET_NAME} PUBLIC onednn_gpu_tgt)
 endif()
+
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 if(WIN32)
   target_link_libraries(${TARGET_NAME} PRIVATE setupapi)

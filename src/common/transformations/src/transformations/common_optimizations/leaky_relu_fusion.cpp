@@ -5,31 +5,30 @@
 #include "transformations/common_optimizations/leaky_relu_fusion.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <vector>
 
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-ngraph::pass::LeakyReluFusion::LeakyReluFusion() {
+ov::pass::LeakyReluFusion::LeakyReluFusion() {
     MATCHER_SCOPE(LeakyReluFusion);
-    auto data_pattern = ngraph::pattern::any_input();
-    auto alpha_pattern = ngraph::pattern::any_input(pattern::has_static_shape());
+    auto data_pattern = pass::pattern::any_input();
+    auto alpha_pattern = pass::pattern::any_input(pattern::has_static_shape());
     auto multiply_pattern =
         ngraph::pattern::wrap_type<opset8::Multiply>({data_pattern, alpha_pattern}, pattern::consumers_count(1));
     auto max_pattern = ngraph::pattern::wrap_type<opset8::Maximum>({data_pattern, multiply_pattern});
 
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& original_alpha_pattern = pattern_map.at(alpha_pattern);
 
         if (shape_size(original_alpha_pattern.get_shape()) != 1)
             return false;
 
-        auto leaky_relu =
-            register_new_node<ngraph::opset8::PRelu>(pattern_map.at(data_pattern), original_alpha_pattern);
+        auto leaky_relu = register_new_node<opset8::PRelu>(pattern_map.at(data_pattern), original_alpha_pattern);
         auto maximum = pattern_map.at(max_pattern);
         leaky_relu->set_friendly_name(maximum.get_node()->get_friendly_name());
 

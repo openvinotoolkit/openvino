@@ -15,11 +15,11 @@
 #include <type_traits>
 #include <tuple>
 #include <cmath>
-#include "mkldnn/ie_mkldnn.h"
+#include <onednn/dnnl.h>
 
 using namespace InferenceEngine;
-using namespace mkldnn::impl::utils;
-using namespace mkldnn::impl::cpu::x64;
+using namespace dnnl::impl::utils;
+using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
 namespace ov {
@@ -118,7 +118,8 @@ public:
     jit_convert_array(convert_vec_t convert_vec,
                       size_t src_size,
                       size_t dst_size)
-        : _convert_vec(convert_vec)
+        : jit_kernel(jit_name())
+        , _convert_vec(convert_vec)
         , _src_size(src_size)
         , _dst_size(dst_size) {}
 
@@ -518,6 +519,40 @@ bool isConversionTruncatesRange(const Precision & from, const Precision & to) {
     INTEL_CPU_CVT(FP32, FP32), INTEL_CPU_CVT(FP16, FP16), INTEL_CPU_CVT(BF16, BF16), INTEL_CPU_CVT(FP64, FP64), \
     INTEL_CPU_CVT(BOOL, BOOL)
 
+#define INTEL_CPU_CVT_FROM_BIN(DT) OV_CASE(Precision::DT, PrecisionInfo<Precision::DT>::value_type)
+
+#define INTEL_CPU_CVT_FROM_BIN_LIST                                                                 \
+    INTEL_CPU_CVT_FROM_BIN(FP32), INTEL_CPU_CVT_FROM_BIN(FP16), INTEL_CPU_CVT_FROM_BIN(BF16),       \
+    INTEL_CPU_CVT_FROM_BIN(FP64), INTEL_CPU_CVT_FROM_BIN(I16), INTEL_CPU_CVT_FROM_BIN(U8),          \
+    INTEL_CPU_CVT_FROM_BIN(I8), INTEL_CPU_CVT_FROM_BIN(U16), INTEL_CPU_CVT_FROM_BIN(I32),           \
+    INTEL_CPU_CVT_FROM_BIN(U32), INTEL_CPU_CVT_FROM_BIN(I64), INTEL_CPU_CVT_FROM_BIN(U64),          \
+    INTEL_CPU_CVT_FROM_BIN(BOOL)
+
+struct ConvertFromBinContext {
+    const void *srcPtr;
+    void *dstPtr;
+    size_t size;
+    bool converted;
+};
+
+template<typename T>
+struct ConvertFromBinPrecision {
+    void operator()(ConvertFromBinContext &ctx) {
+        auto src = static_cast<const uint8_t *>(ctx.srcPtr);
+        auto dst = static_cast<T *>(ctx.dstPtr);
+        const size_t nBits = 8;
+        const size_t nBytes = rnd_up(ctx.size, nBits);
+        parallel_for(nBytes, [&](size_t byteIndex) {
+            auto currentBitNum = std::min(nBits, ctx.size - byteIndex * nBits);
+            for (size_t bitIndex = 0; bitIndex < currentBitNum; ++bitIndex) {
+                dst[byteIndex * nBits + bitIndex] = static_cast<T>((src[byteIndex] & (1 << bitIndex)) >> bitIndex);
+            }
+        });
+        ctx.converted = true;
+    }
+};
+
+
 void cpu_convert(const void *srcPtr, void *dstPtr, Precision srcPrc, Precision dstPrc, const size_t size) {
     cpu_convert(srcPtr, dstPtr, srcPrc, dstPrc, dstPrc, size);
 }
@@ -532,7 +567,7 @@ void cpu_convert(const void *srcPtr,
         IE_THROW() << "cpu_convert has null data pointer";
 
     if (srcPrc == dstPrc && srcPrc == interimPrc) {
-        const size_t L2_cache_size = mkldnn::utils::get_cache_size(2, true);
+        const size_t L2_cache_size = dnnl::utils::get_cache_size(2, true);
         const size_t totalSize = size * dstPrc.size();
         if (totalSize >= L2_cache_size) {
             auto src = static_cast<const uint8_t *>(srcPtr);
@@ -545,8 +580,22 @@ void cpu_convert(const void *srcPtr,
         } else {
             cpu_memcpy(dstPtr, srcPtr, size * dstPrc.size());
         }
+    } else if (srcPrc == Precision::BIN) {
+        if (srcPrc.bitsSize() != 1)
+            IE_THROW() << "cpu_convert can't convert from: " << srcPrc << " <bitsSize == " << srcPrc.bitsSize()
+                << "> precision to: " << dstPrc << ". Not implemented.";
+        ConvertFromBinContext ctx {
+                srcPtr,
+                dstPtr,
+                size,
+                false
+        };
+        OV_SWITCH(intel_cpu, ConvertFromBinPrecision, ctx, dstPrc, INTEL_CPU_CVT_FROM_BIN_LIST);
+        if (!ctx.converted)
+            IE_THROW() << "cpu_convert can't convert from: " << srcPrc << " <bitsSize == " << srcPrc.bitsSize()
+                                                             << "> precision to: " << dstPrc;
     } else {
-        ConvertContext ctx = {
+        ConvertContext ctx {
             srcPtr,
             dstPtr,
             size,

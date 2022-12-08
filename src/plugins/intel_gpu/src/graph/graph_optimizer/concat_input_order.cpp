@@ -68,14 +68,14 @@ void shuffle_weights(data_node& node, const std::vector<shuffle_range>& ranges, 
     mem_lock<uint8_t, mem_lock_type::write> new_weights_memory_lock{new_weights_memory, stream};
     auto old_ptr = old_weights_memory_lock.data();
     auto new_ptr = new_weights_memory_lock.data();
-    for (int32_t ofi = 0; ofi < wei_layout.size.batch[0]; ++ofi) {
+    for (int32_t ofi = 0; ofi < wei_layout.batch(); ++ofi) {
         int32_t new_ifi = 0;
         for (auto& range : ranges) {
             for (int32_t ifi = range.first; ifi < range.second; ++ifi, ++new_ifi) {
-                for (int32_t wi = 0; wi < wei_layout.size.spatial[3]; ++wi) {
-                    for (int32_t zi = 0; zi < wei_layout.size.spatial[2]; ++zi) {
-                        for (int32_t yi = 0; yi < wei_layout.size.spatial[1]; ++yi) {
-                            for (int32_t xi = 0; xi < wei_layout.size.spatial[0]; ++xi) {
+                for (int32_t wi = 0; wi < wei_layout.spatial(3); ++wi) {
+                    for (int32_t zi = 0; zi < wei_layout.spatial(2); ++zi) {
+                        for (int32_t yi = 0; yi < wei_layout.spatial(1); ++yi) {
+                            for (int32_t xi = 0; xi < wei_layout.spatial(0); ++xi) {
                                 auto old_coords = tensor(batch(ofi), feature(ifi), spatial(xi, yi, zi, wi));
                                 auto new_coords = tensor(batch(ofi), feature(new_ifi), spatial(xi, yi, zi, wi));
                                 auto old_offset = wei_layout.get_linear_offset(old_coords);
@@ -120,7 +120,8 @@ void concat_input_order::run(program& p) {
         // 4. Not already aligned
         // 5. Users can accept shuffled features
         // 6. No fused primitives
-        if (!node->is_type<concatenation>() || node->is_output())
+        if (!node->is_type<concatenation>() || node->is_output() ||
+            (node->is_valid_output_layout() && node->get_output_layout().is_dynamic()))
             continue;
 
         auto& concat_node = node->as<concatenation>();
@@ -145,7 +146,7 @@ void concat_input_order::run(program& p) {
             auto& dep = concat_node.get_dependency(input_idx);
             auto dep_layout = dep.get_output_layout();
             single_format &= dep_layout.format == out_format;
-            feature_sizes.push_back(dep_layout.size.feature[0]);
+            feature_sizes.push_back(dep_layout.feature());
         }
         // Alignment is not optimal if aligned input follows unaligned one
         bool already_aligned = true;
@@ -189,24 +190,24 @@ void concat_input_order::run(program& p) {
             shuffled_ranges.push_back(original_ranges[ord]);
         }
         // Change input order
-        std::vector<program_node*> new_dependencies = {};
+        std::vector<std::pair<program_node*, int32_t>> new_dependencies = {};
         new_dependencies.reserve(inputs_count);
         for (auto& ord : new_order) {
-            new_dependencies.push_back(&concat_node.get_dependency(ord));
+            new_dependencies.push_back({concat_node.get_dependency_with_port(ord).first, concat_node.get_dependency_with_port(ord).second});
         }
         // Update in place with const cast instead of replacing
         auto& dependencies = concat_node.get_dependencies();
-        auto& mutable_dependencies = const_cast<std::vector<program_node*>&>(dependencies);
+        auto& mutable_dependencies = const_cast<std::vector<std::pair<program_node*, int32_t>>&>(dependencies);
         for (size_t i = 0; i < new_dependencies.size(); ++i) {
             mutable_dependencies[i] = new_dependencies[i];
         }
-        std::vector<primitive_id> new_input_ids;
-        new_input_ids.reserve(inputs_count);
+        std::vector<input_info> new_input_info;
+        new_input_info.reserve(inputs_count);
         for (auto& ord : new_order) {
-            new_input_ids.push_back(prim->input[ord]);
+            new_input_info.push_back(input_info(prim->input[ord].pid, prim->input[ord].idx));
         }
         auto mutable_prim = std::const_pointer_cast<concatenation>(prim);
-        mutable_prim->input = new_input_ids;
+        mutable_prim->input = new_input_info;
         // Correct users for shuffled features
         for (auto& user : concat_node.get_users()) {
             shuffle_features(*user, shuffled_ranges, p.get_stream());

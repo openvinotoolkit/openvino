@@ -22,7 +22,7 @@ struct softmax_test_params {
     tensor in_shape;
     data_types data_type;
     format input_format;
-    softmax::dimension_t dimension;
+    int64_t dimension;
     data_types default_type;
     format default_format;
     size_t expected_fused_primitives;
@@ -65,13 +65,11 @@ public:
 /* ----------------------------------------------------------------------------------------------------- */
 /* ---------------------------------------- SoftMax cases ---------------------------------------------- */
 /* ----------------------------------------------------------------------------------------------------- */
-#define CASE_SOFTMAX_FP32_1 {1, 15, 4, 5}, data_types::f32, format::bfyx, softmax::dimension_t::normalize_f, data_types::f32, format::bfyx
-#define CASE_SOFTMAX_FP32_2 {1, 15, 4, 5}, data_types::f32, format::bfyx, softmax::dimension_t::normalize_x, data_types::f32, format::bfyx
-#define CASE_SOFTMAX_FP32_3 {1, 15, 4, 5}, data_types::f32, format::bfyx, softmax::dimension_t::normalize_fyx, data_types::f32, format::bfyx
+#define CASE_SOFTMAX_FP32_1 {1, 15, 4, 5}, data_types::f32, format::bfyx, 1, data_types::f32, format::bfyx
+#define CASE_SOFTMAX_FP32_2 {1, 15, 4, 5}, data_types::f32, format::bfyx, 3, data_types::f32, format::bfyx
 
-#define CASE_SOFTMAX_FP16_1 {1, 15, 4, 5}, data_types::f16, format::bfyx, softmax::dimension_t::normalize_f, data_types::f16, format::bfyx
-#define CASE_SOFTMAX_FP16_2 {1, 15, 4, 5}, data_types::f16, format::bfyx, softmax::dimension_t::normalize_x, data_types::f16, format::bfyx
-#define CASE_SOFTMAX_FP16_3 {1, 15, 4, 5}, data_types::f16, format::bfyx, softmax::dimension_t::normalize_fyx, data_types::f16, format::bfyx
+#define CASE_SOFTMAX_FP16_1 {1, 15, 4, 5}, data_types::f16, format::bfyx, 1, data_types::f16, format::bfyx
+#define CASE_SOFTMAX_FP16_2 {1, 15, 4, 5}, data_types::f16, format::bfyx, 3, data_types::f16, format::bfyx
 
 class softmax_quantize : public SoftmaxPrimitiveFusingTest {};
 TEST_P(softmax_quantize, basic) {
@@ -81,9 +79,10 @@ TEST_P(softmax_quantize, basic) {
         data("in_hi", get_mem(get_single_element_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
-        softmax("softmax", "input", p.dimension),
-        quantize("quantize", "softmax", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
-        reorder("reorder_bfyx", "quantize", get_output_layout(p))
+        softmax("softmax", input_info("input"), p.dimension),
+        quantize("quantize", input_info("softmax"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
+        reorder("reorder_bfyx", input_info("quantize"), get_output_layout(p))
     );
 
     tolerance = 1.f;
@@ -94,11 +93,9 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, softmax_quantize,
     ::testing::ValuesIn(std::vector<softmax_test_params>{
                         softmax_test_params{ CASE_SOFTMAX_FP32_1, 2, 3 },
                         softmax_test_params{ CASE_SOFTMAX_FP32_2, 3, 3 },
-                        softmax_test_params{ CASE_SOFTMAX_FP32_3, 3, 3 },
 
                         softmax_test_params{ CASE_SOFTMAX_FP16_1, 2, 3 },
                         softmax_test_params{ CASE_SOFTMAX_FP16_2, 3, 3 },
-                        softmax_test_params{ CASE_SOFTMAX_FP16_3, 3, 3 },
 }));
 
 class softmax_quantize_fusing_through : public SoftmaxPrimitiveFusingTest {};
@@ -109,10 +106,11 @@ TEST_P(softmax_quantize_fusing_through, reshape) {
         data("in_hi", get_mem(get_single_element_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
-        softmax("softmax", "input", p.dimension),
-        reshape("reshape", "softmax", get_reshape_shape(p)),
-        quantize("quantize", "reshape", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
-        reorder("reorder_bfyx", "quantize", get_output_layout(p))
+        softmax("softmax", input_info("input"), p.dimension),
+        reshape("reshape", input_info("softmax"), get_reshape_shape(p)),
+        quantize("quantize", input_info("reshape"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
+        reorder("reorder_bfyx", input_info("quantize"), get_output_layout(p))
     );
 
     tolerance = 1.f;
@@ -127,10 +125,11 @@ TEST_P(softmax_quantize_fusing_through, reorder) {
         data("in_hi", get_mem(get_single_element_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
-        softmax("softmax", "input", p.dimension),
-        reorder("reorder", "softmax", reorder_layout),
-        quantize("quantize", "reorder", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
-        reorder("reorder_bfyx", "quantize", get_output_layout(p))
+        softmax("softmax", input_info("input"), p.dimension),
+        reorder("reorder", input_info("softmax"), reorder_layout),
+        quantize("quantize", input_info("reorder"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
+        reorder("reorder_bfyx", input_info("quantize"), get_output_layout(p))
     );
 
     tolerance = 1.f;
@@ -145,12 +144,13 @@ TEST_P(softmax_quantize_fusing_through, chain) {
         data("in_hi", get_mem(get_single_element_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
-        softmax("softmax", "input", p.dimension),
-        reshape("reshape_first", "softmax", get_reshape_shape(p)),
-        reorder("reorder", "reshape_first", reorder_layout),
-        reshape("reshape_second", "reorder", get_reshape_shape(p)),
-        quantize("quantize", "reshape_second", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
-        reorder("reorder_bfyx", "quantize", get_output_layout(p))
+        softmax("softmax", input_info("input"), p.dimension),
+        reshape("reshape_first", input_info("softmax"), get_reshape_shape(p)),
+        reorder("reorder", input_info("reshape_first"), reorder_layout),
+        reshape("reshape_second", input_info("reorder"), get_reshape_shape(p)),
+        quantize("quantize", input_info("reshape_second"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
+        reorder("reorder_bfyx", input_info("quantize"), get_output_layout(p))
     );
 
     tolerance = 1.f;

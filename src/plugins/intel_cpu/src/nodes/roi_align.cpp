@@ -3,34 +3,34 @@
 //
 
 #include "roi_align.h"
-#include <mkldnn.hpp>
 #include <string>
 #include <vector>
 #include <math.h>
+#include <onednn/dnnl.h>
 #include <dnnl_extension_utils.h>
-#include <mkldnn_types.h>
 #include <utils/bfloat16.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include "ie_parallel.hpp"
 #include <selective_build.h>
-#include <ngraph/opsets/opset3.hpp>
+#include <ngraph/opsets/opset9.hpp>
 
 #include <cpu/x64/jit_generator.hpp>
 #include "emitters/jit_load_store_emitters.hpp"
 
 using namespace InferenceEngine;
-using namespace mkldnn;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu;
-using namespace mkldnn::impl::cpu::x64;
-using namespace mkldnn::impl::utils;
+using namespace dnnl;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu;
+using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
-using ngPoolingMode = ngraph::op::v3::ROIAlign::PoolingMode;
+using ngPoolingMode = ngraph::opset9::ROIAlign::PoolingMode;
+using ngAlignedMode = ngraph::opset9::ROIAlign::AlignedMode;
 
 #define GET_OFF(field) offsetof(jit_roi_align_call_args, field)
 
@@ -38,7 +38,7 @@ template <cpu_isa_t isa>
 struct jit_uni_roi_align_kernel_f32 : public jit_uni_roi_align_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_roi_align_kernel_f32);
 
-    explicit jit_uni_roi_align_kernel_f32(jit_roi_align_params jcp) : jit_uni_roi_align_kernel(jcp), jit_generator() {}
+    explicit jit_uni_roi_align_kernel_f32(jit_roi_align_params jcp) : jit_uni_roi_align_kernel(jcp), jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -46,9 +46,6 @@ struct jit_uni_roi_align_kernel_f32 : public jit_uni_roi_align_kernel, public ji
     };
 
     void generate() override {
-        load_emitter.reset(new jit_load_emitter(this, isa));
-        store_emitter.reset(new jit_store_emitter(this, isa));
-
         this->preamble();
 
         uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
@@ -65,8 +62,7 @@ struct jit_uni_roi_align_kernel_f32 : public jit_uni_roi_align_kernel, public ji
 
         this->postamble();
 
-        load_emitter->emit_data();
-        store_emitter->emit_data();
+        emit_emitters_data();
     }
 
 private:
@@ -107,10 +103,9 @@ private:
     // [1] for reg_dst
     Xmm xmm_args_pool = Xmm(15);
 
-    std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
-    std::vector<size_t> load_pool_gpr_idxs;
+    std::unordered_map<size_t, std::unique_ptr<jit_emitter>> emitters;
 
-    std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
+    std::vector<size_t> load_pool_gpr_idxs;
     std::vector<size_t> store_pool_gpr_idxs;
     std::vector<size_t> store_pool_vec_idxs;
 
@@ -157,6 +152,57 @@ private:
 
     reg64_t reg_params = abi_param1;
 
+    void emit_emitters_data() {
+        for (const auto& emitter : emitters) {
+            emitter.second->emit_data();
+        }
+    }
+
+    inline void load(Xbyak::Reg64 reg_src, Vmm vmm_src, const int elt_num, const int offset = 0) {
+        emit_load(reg_src, vmm_src, jcp_.data_prc, Precision::FP32, elt_num, offset);
+    }
+
+    inline void load_buffer(Xbyak::Reg64 reg_src, Vmm vmm_src, const int elt_num, const int offset = 0) {
+        emit_load(reg_src, vmm_src, Precision::FP32, Precision::FP32, elt_num, offset);
+    }
+
+    inline void load_idx(Xbyak::Reg64 reg_src, Vmm vmm_src, const int elt_num, const int offset = 0) {
+        emit_load(reg_src, vmm_src, Precision::I32, Precision::I32, elt_num, offset);
+    }
+
+    inline void store(Vmm vmm_dst, Xbyak::Reg64 reg_dst, const int elt_num, const int offset = 0) {
+        emit_store(vmm_dst, reg_dst, Precision::FP32, jcp_.data_prc, elt_num, offset);
+    }
+
+    inline void store_buffer(Vmm vmm_dst, Xbyak::Reg64 reg_dst, const int elt_num, const int offset = 0) {
+        emit_store(vmm_dst, reg_dst, Precision::FP32, Precision::FP32, elt_num, offset);
+    }
+
+    inline void emit_load(Xbyak::Reg64 reg_src, Vmm vmm_src, Precision src_prc, Precision dst_prc, const int elt_num, const int offset = 0) {
+        const auto seed = load_emitter_params(src_prc, dst_prc, elt_num).hash();
+        if (!emitters[seed]) {
+            emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, dst_prc, elt_num));
+        }
+
+        emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), static_cast<size_t>(offset)},
+                                  {static_cast<size_t>(vmm_src.getIdx())}, {}, {load_pool_gpr_idxs});
+    }
+
+    inline void emit_store(Vmm vmm_dst, Xbyak::Reg64 reg_dst, Precision src_prc, Precision dst_prc, const int elt_num, const int offset = 0) {
+        const auto seed = store_emitter_params(src_prc, dst_prc, elt_num).hash();
+        if (!emitters[seed]) {
+            emitters[seed].reset(new jit_store_emitter(this, isa, src_prc, dst_prc, elt_num));
+        }
+
+        // for cases when Store emitter need 2 aux vmm we can use vmm_dst as second aux vmm
+        std::vector<size_t> local_store_pool_vec_idxs = { static_cast<size_t>(vmm_dst.getIdx()) };
+        local_store_pool_vec_idxs.insert(local_store_pool_vec_idxs.begin(), store_pool_vec_idxs.begin(), store_pool_vec_idxs.end());
+
+        emitters[seed]->emit_code({static_cast<size_t>(vmm_dst.getIdx()), static_cast<size_t>(offset)},
+                                  {static_cast<size_t>(reg_dst.getIdx())},
+                                  {local_store_pool_vec_idxs}, {store_pool_gpr_idxs});
+    }
+
     void roi_align_cgather() {
         mov(reg_src_address, ptr[reg_params + GET_OFF(src)]);
         mov(reg_weights, ptr[reg_params + GET_OFF(weights)]);
@@ -179,23 +225,6 @@ private:
             mov(reg_src_stride, ptr[reg_params + GET_OFF(src_stride)]);
             imul(reg_src_stride, reg_src_stride, jcp_.data_size);
         }
-
-        auto store = [&](Vmm vmm_dst, Xbyak::Reg64 reg_dst, int elt_num) {
-                    store_emitter->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
-                    std::make_shared<store_emitter_context>(Precision::FP32, jcp_.data_prc, elt_num),
-                    {store_pool_vec_idxs}, {store_pool_gpr_idxs});
-        };
-
-        auto load_buf = [&](Xbyak::Reg64 reg_src, Vmm vmm_src, int elt_num) {
-                    load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_src.getIdx())},
-                    std::make_shared<load_emitter_context>(Precision::FP32, Precision::FP32, elt_num),
-                    {}, {load_pool_gpr_idxs});
-        };
-        auto store_buf = [&](Vmm vmm_dst, Xbyak::Reg64 reg_dst, int elt_num) {
-                    store_emitter->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
-                    std::make_shared<store_emitter_context>(Precision::FP32, Precision::FP32, elt_num),
-                    {store_pool_vec_idxs}, {store_pool_gpr_idxs});
-        };
 
         // out loop for samples in bin
         Xbyak::Label out_loop_label;
@@ -228,13 +257,13 @@ private:
                 generate_samples(v_step);
                 // now this sample value across channel reside in vmm_sample
                 // compute with other samples in vmm_buf
-                load_buf(reg_buf, vmm_buf, v_step);
+                load_buffer(reg_buf, vmm_buf, v_step);
                 if (jcp_.alg == Algorithm::ROIAlignAvg) {
                     uni_vaddps(vmm_buf, vmm_buf, vmm_sample);
                 } else {
                     uni_vmaxps(vmm_buf, vmm_buf, vmm_sample);
                 }
-                store_buf(vmm_buf, reg_buf, v_step);
+                store_buffer(vmm_buf, reg_buf, v_step);
 
                 if ((isa == cpu::x64::sse41) && (jcp_.layout == ROIAlignLayoutType::blk)) {
                     add(reg_src0, x_step * jcp_.data_size);
@@ -244,13 +273,13 @@ private:
                     add(reg_buf, x_step * sizeof(float));
 
                     generate_samples(x_step);
-                    load_buf(reg_buf, vmm_buf, x_step);
+                    load_buffer(reg_buf, vmm_buf, x_step);
                     if (jcp_.alg == Algorithm::ROIAlignAvg) {
                         uni_vaddps(vmm_buf, vmm_buf, vmm_sample);
                     } else {
                         uni_vmaxps(vmm_buf, vmm_buf, vmm_sample);
                     }
-                    store_buf(vmm_buf, reg_buf, x_step);
+                    store_buffer(vmm_buf, reg_buf, x_step);
 
                     sub(reg_src0, x_step * jcp_.data_size);
                     sub(reg_src1, x_step * jcp_.data_size);
@@ -280,13 +309,13 @@ private:
                 jl(in_loop_tail_end_label, T_NEAR);
 
                 generate_samples(tail_step);
-                load_buf(reg_buf, vmm_buf, tail_step);
+                load_buffer(reg_buf, vmm_buf, tail_step);
                 if (jcp_.alg == Algorithm::ROIAlignAvg) {
                     uni_vaddps(vmm_buf, vmm_buf, vmm_sample);
                 } else {
                     uni_vmaxps(vmm_buf, vmm_buf, vmm_sample);
                 }
-                store_buf(vmm_buf, reg_buf, tail_step);
+                store_buffer(vmm_buf, reg_buf, tail_step);
 
                 int tail_src_stride = tail_step * jcp_.data_size;
                 add(reg_src0, tail_src_stride);
@@ -333,7 +362,7 @@ private:
             cmp(reg_work_amount, v_step);
             jl(store_loop_main_end_label, T_NEAR);
 
-            load_buf(reg_buf, vmm_buf, v_step);
+            load_buffer(reg_buf, vmm_buf, v_step);
             if (jcp_.alg == Algorithm::ROIAlignAvg) {
                 uni_vmulps(vmm_buf, vmm_buf, vmm_scale);
             }
@@ -343,7 +372,7 @@ private:
                 add(reg_buf, x_step * sizeof(float));
                 add(reg_dst, x_step * jcp_.data_size);
 
-                load_buf(reg_buf, vmm_buf, x_step);
+                load_buffer(reg_buf, vmm_buf, x_step);
                 if (jcp_.alg == Algorithm::ROIAlignAvg) {
                     uni_vmulps(vmm_buf, vmm_buf, vmm_scale);
                 }
@@ -369,7 +398,7 @@ private:
             cmp(reg_work_amount, tail_step);
             jl(store_loop_tail_end_label, T_NEAR);
 
-            load_buf(reg_buf, vmm_buf, tail_step);
+            load_buffer(reg_buf, vmm_buf, tail_step);
             if (jcp_.alg == Algorithm::ROIAlignAvg) {
                 uni_vmulps(vmm_buf, vmm_buf, vmm_scale);
             }
@@ -402,12 +431,6 @@ private:
     }
 
     void generate_samples(int num) {
-        auto load = [&](Xbyak::Reg64 reg_src, Vmm vmm_src, int elt_num) {
-                    load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_src.getIdx())},
-                    std::make_shared<load_emitter_context>(jcp_.data_prc, Precision::FP32, elt_num),
-                    {}, {load_pool_gpr_idxs});
-        };
-
         uni_vpxor(vmm_sample, vmm_sample, vmm_sample);
         load(reg_src0, vmm_src0, num);
         uni_vfmadd231ps(vmm_sample, vmm_src0, vmm_weights0);
@@ -431,12 +454,6 @@ private:
             mov(reg_tmp_64, ptr[reg_params + GET_OFF(scale)]);
             uni_vbroadcastss(vmm_scale, ptr[reg_tmp_64]);
         }
-
-        auto load_idx = [&](Xbyak::Reg64 reg_idx, Vmm vmm_idx, int elt_num) {
-                    load_emitter->emit_code({static_cast<size_t>(reg_idx.getIdx())}, {static_cast<size_t>(vmm_idx.getIdx())},
-                    std::make_shared<load_emitter_context>(Precision::I32, Precision::I32, elt_num),
-                    {}, {load_pool_gpr_idxs});
-        };
 
         Xbyak::Label main_loop_label;
         Xbyak::Label main_loop_end_label;
@@ -465,7 +482,7 @@ private:
                 uni_vmulps(vmm_src, vmm_src, vmm_weights);
                 // horizontal add for each lane
                 // xmm_dst[0] hold the max
-                if (isa == cpu::x64::avx512_common) {
+                if (isa == cpu::x64::avx512_core) {
                     for (int i = 0; i < lane; i++) {
                         vextractf32x4(xmm_temp1, Xbyak::Zmm(vmm_src.getIdx()), i);
                         horizontal_add_xmm(xmm_temp1, xmm_temp2);
@@ -634,9 +651,9 @@ private:
 
 bool ROIAlign::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        auto roiAlign = ngraph::as_type_ptr<const ngraph::opset3::ROIAlign>(op);
+        auto roiAlign = ngraph::as_type_ptr<const ngraph::opset9::ROIAlign>(op);
         if (!roiAlign) {
-            errorMessage = "Only opset3 ROIAlign operation is supported";
+            errorMessage = "Only opset9 ROIAlign operation is supported";
             return false;
         }
 
@@ -645,19 +662,25 @@ bool ROIAlign::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& o
             errorMessage = "Doesn't support mode: " + ngraph::as_string(mode);
             return false;
         }
+
+        const ngAlignedMode alignedMode = roiAlign->get_aligned_mode();
+        if (alignedMode != ngAlignedMode::ASYMMETRIC && alignedMode != ngAlignedMode::HALF_PIXEL_FOR_NN && alignedMode != ngAlignedMode::HALF_PIXEL) {
+            errorMessage = "Doesn't support mode: " + ngraph::as_string(alignedMode);
+            return false;
+        }
     } catch (...) {
         return false;
     }
     return true;
 }
 
-ROIAlign::ROIAlign(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-                                       WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
+ROIAlign::ROIAlign(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+                                       WeightsSharing::Ptr &cache) : Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "ROIPooling layer with name '" + getName() + "' ";
 
-        auto roiAlign = ngraph::as_type_ptr<const ngraph::opset3::ROIAlign>(op);
+        auto roiAlign = ngraph::as_type_ptr<const ngraph::opset9::ROIAlign>(op);
         pooledH = roiAlign->get_pooled_h();
         pooledW = roiAlign->get_pooled_w();
         spatialScale = roiAlign->get_spatial_scale();
@@ -667,6 +690,14 @@ ROIAlign::ROIAlign(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine
             algorithm = Algorithm::ROIAlignMax;
         } else if (m == ngPoolingMode::AVG) {
             algorithm = Algorithm::ROIAlignAvg;
+        }
+        const ngAlignedMode mAligned = roiAlign->get_aligned_mode();
+        if (mAligned == ngAlignedMode::ASYMMETRIC) {
+            alignedMode = ROIAlignedMode::ra_asymmetric;
+        } else if (mAligned == ngAlignedMode::HALF_PIXEL_FOR_NN) {
+            alignedMode = ROIAlignedMode::ra_half_pixel_for_nn;
+        } else if (mAligned == ngAlignedMode::HALF_PIXEL) {
+            alignedMode = ROIAlignedMode::ra_half_pixel;
         }
     } else {
         IE_THROW(NotImplemented) << errorMessage;
@@ -719,8 +750,8 @@ void ROIAlign::createJitKernel(const InferenceEngine::Precision& dataPrec, const
     jcp.pooled_h = pooledH;
     jcp.pooled_w = pooledW;
 
-    if (mayiuse(cpu::x64::avx512_common)) {
-        roi_align_kernel.reset(new jit_uni_roi_align_kernel_f32<cpu::x64::avx512_common>(jcp));
+    if (mayiuse(cpu::x64::avx512_core)) {
+        roi_align_kernel.reset(new jit_uni_roi_align_kernel_f32<cpu::x64::avx512_core>(jcp));
     } else if (mayiuse(cpu::x64::avx2)) {
         roi_align_kernel.reset(new jit_uni_roi_align_kernel_f32<cpu::x64::avx2>(jcp));
     } else if (mayiuse(cpu::x64::sse41)) {
@@ -752,7 +783,7 @@ void ROIAlign::initSupportedPrimitiveDescriptors() {
     config.outConfs.resize(1);
 
     impl_desc_type impl_type;
-    if (mayiuse(cpu::x64::avx512_common)) {
+    if (mayiuse(cpu::x64::avx512_core)) {
         impl_type = impl_desc_type::jit_avx512;
     } else if (mayiuse(cpu::x64::avx2)) {
         impl_type = impl_desc_type::jit_avx2;
@@ -820,11 +851,11 @@ struct ROIAlign::ROIAlignExecute {
         ctx.node.executeSpecified<srcT, dstT>();
     }
 };
-void ROIAlign::execute(mkldnn::stream strm) {
+void ROIAlign::execute(dnnl::stream strm) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().GetDataType();
     auto outputPrec = getChildEdgeAt(0)->getMemory().GetDataType();
-    if (!((inputPrec == mkldnn_bf16 && outputPrec == mkldnn_bf16) ||
-          (inputPrec == mkldnn_f32 && outputPrec == mkldnn_f32)))
+    if (!((inputPrec == dnnl_bf16 && outputPrec == dnnl_bf16) ||
+          (inputPrec == dnnl_f32 && outputPrec == dnnl_f32)))
         IE_THROW() <<"ROIAlign doesn't support demanded precisions";
 
     ROIAlignContext ctx = {
@@ -832,8 +863,8 @@ void ROIAlign::execute(mkldnn::stream strm) {
     };
 
     OV_SWITCH(intel_cpu, ROIAlignExecute, ctx, std::tie(inputPrec, outputPrec),
-              OV_CASE2(mkldnn_f32, mkldnn_f32, float, float),
-              OV_CASE2(mkldnn_bf16, mkldnn_bf16, bfloat16_t, bfloat16_t))
+              OV_CASE2(dnnl_f32, dnnl_f32, float, float),
+              OV_CASE2(dnnl_bf16, dnnl_bf16, bfloat16_t, bfloat16_t))
 }
 
 template <typename inputType, typename outputType>
@@ -886,6 +917,28 @@ void ROIAlign::executeSpecified() {
     else
         srcIndexTbl.resize(realRois);
 
+    bool aligned = false;
+    float offset_src = 0;
+    float offset_dst = 0;
+
+    switch (alignedMode) {
+    case ROIAlignedMode::ra_half_pixel_for_nn: {
+        aligned = true;
+        offset_dst = -0.5;
+        break;
+    }
+    case ROIAlignedMode::ra_half_pixel: {
+        aligned = true;
+        offset_src = 0.5;
+        offset_dst = -0.5;
+        break;
+    }
+    case ROIAlignedMode::ra_asymmetric:
+    default: {
+        break;
+    }
+    }
+
     parallel_for(realRois, [&](size_t n) {
         int roiOff = n * 4;
         const float* srcRoiPtr = &srcRoi[roiOff];
@@ -896,13 +949,17 @@ void ROIAlign::executeSpecified() {
             IE_THROW() << "Demanded batch (id = " << roiBatchInd << ") doesn't exist";
         }
 
-        float x1 = srcRoiPtr[0] * spatialScale;
-        float y1 = srcRoiPtr[1] * spatialScale;
-        float x2 = srcRoiPtr[2] * spatialScale;
-        float y2 = srcRoiPtr[3] * spatialScale;
+        float x1 = (srcRoiPtr[0] + offset_src) * spatialScale + offset_dst;
+        float y1 = (srcRoiPtr[1] + offset_src) * spatialScale + offset_dst;
+        float x2 = (srcRoiPtr[2] + offset_src) * spatialScale + offset_dst;
+        float y2 = (srcRoiPtr[3] + offset_src) * spatialScale + offset_dst;
 
-        float roiHeight = std::max(y2 - y1, 1.0f);
-        float roiWidth = std::max(x2 - x1, 1.0f);
+        float roiHeight = y2 - y1;
+        float roiWidth = x2 - x1;
+        if (!aligned) {
+            roiHeight = std::max(roiHeight, 1.0f);
+            roiWidth = std::max(roiWidth, 1.0f);
+        }
         float binHeight = roiHeight / pooledH;
         float binWidth = roiWidth / pooledW;
 
@@ -1114,7 +1171,7 @@ bool ROIAlign::needPrepareParams() const {
     return false;
 }
 
-void ROIAlign::executeDynamicImpl(mkldnn::stream strm) {
+void ROIAlign::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
