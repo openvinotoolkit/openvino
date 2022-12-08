@@ -8,14 +8,14 @@
    :hidden:
    :caption: Additional Resources
 
-   Release Notes <https://software.intel.com/content/www/us/en/develop/articles/openvino-relnotes.html>
+   openvino_docs_performance_benchmarks
    openvino_docs_OV_UG_supported_plugins_Supported_Devices
    openvino_supported_models
    openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers
    openvino_docs_OV_Glossary
    openvino_docs_Legal_Information
    openvino_docs_telemetry_information
-
+   Case Studies <https://www.intel.com/openvino-success-stories>
 
 .. toctree::
    :maxdepth: 1
@@ -28,13 +28,6 @@
    openvino_docs_operations_specifications
    openvino_docs_MO_DG_prepare_model_convert_model_IR_suitable_for_INT8_inference
 
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-   :caption: Case Studies
-
-   Case Studies <https://www.intel.com/openvino-success-stories>
 
 @endsphinxdirective
 

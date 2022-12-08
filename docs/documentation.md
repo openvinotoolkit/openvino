@@ -54,8 +54,6 @@
    openvino_docs_deployment_guide_introduction
    openvino_deployment_guide
    
-
-
 @endsphinxdirective
 
 This section provides reference documents that guide you through the OpenVINO toolkit workflow, from obtaining models, optimizing them, to deploying them in your own deep learning applications.
