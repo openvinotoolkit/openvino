@@ -110,7 +110,7 @@ protected:
         // filling of expected precision of layer execution defined by precisoin of input tensor to the primitive and reflected in
         // performance counters
         expectedPrecisions["CONV_1"] = "BF16";
-        expectedPrecisions["ADD_2"] = "ndef";
+        expectedPrecisions["ADD_2"] = netPrecision.name();
         expectedPrecisions["CONV_2"] = "BF16";
         expectedPrecisions["ELT_1"] = "ndef";
     }
