@@ -71,6 +71,7 @@ public:
     void TearDown() override;
     void run() override;
 };
+
 using compileKernelsCacheParams = std::tuple<
         std::string,                          // device name
         std::pair<ov::AnyMap, std::string>    // device and cache configuration

@@ -17,7 +17,6 @@ namespace op {
 class ConvolutionIE : public Op {
 public:
     OPENVINO_OP("ConvolutionIE", "util");
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a batched convolution operation.
     ConvolutionIE() = default;
     /// \brief Constructs a batched convolution operation.

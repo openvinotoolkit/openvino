@@ -1054,6 +1054,76 @@ static UNUSED void printPerformanceCounts(ov::InferRequest request,
     printPerformanceCounts(performanceMap, stream, deviceName, bshowHeader);
 }
 
+static inline std::string double_to_string(const double number) {
+    std::stringstream ss;
+    ss << std::fixed << std::setprecision(2) << number;
+    return ss.str();
+}
+
+template <typename T>
+using uniformDistribution = typename std::conditional<
+    std::is_floating_point<T>::value,
+    std::uniform_real_distribution<T>,
+    typename std::conditional<std::is_integral<T>::value, std::uniform_int_distribution<T>, void>::type>::type;
+
+template <typename T, typename T2>
+static inline void fill_random(ov::Tensor& tensor,
+                               T rand_min = std::numeric_limits<uint8_t>::min(),
+                               T rand_max = std::numeric_limits<uint8_t>::max()) {
+    std::mt19937 gen(0);
+    size_t tensor_size = tensor.get_size();
+    if (0 == tensor_size) {
+        throw std::runtime_error(
+            "Models with dynamic shapes aren't supported. Input tensors must have specific shapes before inference");
+    }
+    T* data = tensor.data<T>();
+    uniformDistribution<T2> distribution(rand_min, rand_max);
+    for (size_t i = 0; i < tensor_size; i++) {
+        data[i] = static_cast<T>(distribution(gen));
+    }
+}
+
+static inline void fill_tensor_random(ov::Tensor tensor) {
+    switch (tensor.get_element_type()) {
+    case ov::element::f32:
+        fill_random<float, float>(tensor);
+        break;
+    case ov::element::f64:
+        fill_random<double, double>(tensor);
+        break;
+    case ov::element::f16:
+        fill_random<short, short>(tensor);
+        break;
+    case ov::element::i32:
+        fill_random<int32_t, int32_t>(tensor);
+        break;
+    case ov::element::i64:
+        fill_random<int64_t, int64_t>(tensor);
+        break;
+    case ov::element::u8:
+        // uniform_int_distribution<uint8_t> is not allowed in the C++17
+        // standard and vs2017/19
+        fill_random<uint8_t, uint32_t>(tensor);
+        break;
+    case ov::element::i8:
+        // uniform_int_distribution<int8_t> is not allowed in the C++17 standard
+        // and vs2017/19
+        fill_random<int8_t, int32_t>(tensor, std::numeric_limits<int8_t>::min(), std::numeric_limits<int8_t>::max());
+        break;
+    case ov::element::u16:
+        fill_random<uint16_t, uint16_t>(tensor);
+        break;
+    case ov::element::i16:
+        fill_random<int16_t, int16_t>(tensor);
+        break;
+    case ov::element::boolean:
+        fill_random<uint8_t, uint32_t>(tensor, 0, 1);
+        break;
+    default:
+        throw ov::Exception("Input type is not supported for a tensor");
+    }
+}
+
 static UNUSED void printPerformanceCountsNoSort(std::vector<ov::ProfilingInfo> performanceData,
                                                 std::ostream& stream,
                                                 std::string deviceName,
