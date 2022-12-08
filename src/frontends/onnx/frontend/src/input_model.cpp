@@ -200,7 +200,7 @@ ov::element::Type InputModel::get_element_type(const ov::frontend::Place::Ptr& p
     if (input_edge) {
         const auto tensor_names = input_edge->get_source_tensor()->get_names();
         OPENVINO_ASSERT(!tensor_names.empty(),
-                        "Cannot retrieve source tensor name for this InputEdge and thus partial shape.");
+                        "Cannot retrieve source tensor name for this InputEdge and thus its element type.");
         tensor_name = tensor_names[0];
     } else if (output_edge) {
         const auto tensor_names = output_edge->get_target_tensor()->get_names();
