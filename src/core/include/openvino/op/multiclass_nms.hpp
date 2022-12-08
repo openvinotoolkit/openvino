@@ -14,7 +14,6 @@ namespace v8 {
 class OPENVINO_API MulticlassNms : public util::MulticlassNmsBase {
 public:
     OPENVINO_OP("MulticlassNms", "opset8", op::util::MulticlassNmsBase);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a conversion operation.
     MulticlassNms() = default;
@@ -38,7 +37,6 @@ namespace v9 {
 class OPENVINO_API MulticlassNms : public util::MulticlassNmsBase {
 public:
     OPENVINO_OP("MulticlassNms", "opset9", op::util::MulticlassNmsBase);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a conversion operation.
     MulticlassNms() = default;

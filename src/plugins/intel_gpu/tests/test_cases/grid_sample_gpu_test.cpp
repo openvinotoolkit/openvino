@@ -63,10 +63,10 @@ public:
         topology topology;
         topology.add(input_layout("data", data->get_layout()));
         topology.add(input_layout("grid", grid->get_layout()));
-        topology.add(reorder("reordered_data", "data", fmt, data_data_type));
-        topology.add(reorder("reordered_grid", "grid", fmt, grid_data_type));
-        topology.add(grid_sample("grid_sample", {"reordered_data", "reordered_grid"}, p.attributes));
-        topology.add(reorder("plane_grid_sample", "grid_sample", plane_format, data_data_type));
+        topology.add(reorder("reordered_data", input_info("data"), fmt, data_data_type));
+        topology.add(reorder("reordered_grid", input_info("grid"), fmt, grid_data_type));
+        topology.add(grid_sample("grid_sample", { input_info("reordered_data"), input_info("reordered_grid") }, p.attributes));
+        topology.add(reorder("plane_grid_sample", input_info("grid_sample"), plane_format, data_data_type));
 
         network network(engine, topology);
         network.set_input_data("data", data);

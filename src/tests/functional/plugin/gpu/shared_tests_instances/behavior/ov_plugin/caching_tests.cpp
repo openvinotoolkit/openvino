@@ -49,4 +49,30 @@ namespace {
                                     ::testing::ValuesIn(autoConfigs)),
                             CompiledKernelsCacheTest::getTestCaseName);
 
+    const std::vector<ov::AnyMap> LoadFromFileConfigs = {
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}
+    };
+    const std::vector<std::string> TestTargets =
+    {CommonTestUtils::DEVICE_AUTO,
+    CommonTestUtils::DEVICE_MULTI,
+    };
+
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_CachingSupportCase_GPU, CompileModelLoadFromFileTestBase,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(TestTargets),
+                                ::testing::ValuesIn(LoadFromFileConfigs)),
+                        CompileModelLoadFromFileTestBase::getTestCaseName);
+
+    const std::vector<ov::AnyMap> GPULoadFromFileConfigs = {
+        {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
+        {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
+        {},
+    };
+    INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_GPU, CompileModelLoadFromFileTestBase,
+                        ::testing::Combine(
+                                ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                ::testing::ValuesIn(GPULoadFromFileConfigs)),
+                        CompileModelLoadFromFileTestBase::getTestCaseName);
+
 } // namespace

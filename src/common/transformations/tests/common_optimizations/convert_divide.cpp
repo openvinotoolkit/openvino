@@ -11,6 +11,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset8.hpp>
+#include <ngraph/pass/graph_rewrite.hpp>
 #include <transformations/op_conversions/convert_divide.hpp>
 #include <transformations/common_optimizations/mark_precision_sensitive_divides.hpp>
 #include <transformations/init_node_info.hpp>

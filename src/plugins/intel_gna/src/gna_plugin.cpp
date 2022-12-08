@@ -127,6 +127,7 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 using namespace GNAPluginNS;
 using namespace GNAPluginNS::memory;
+using namespace ov::intel_gna::frontend;
 
 namespace InferenceEngine {
     template<>
