@@ -247,6 +247,8 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetConfig(const std::stri
                 return ov::util::from_string(val, ov::log::level);
             } else if (name == ov::device::priorities) {
                 return ov::util::from_string(val, ov::device::priorities);
+            } else if (name == ov::intel_auto::enable_startup_fallback) {
+                return val == PluginConfigParams::YES ? true : false;
             } else {
                 return val;
             }
@@ -446,6 +448,9 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         auto tmpiter = fullConfig.find(ov::intel_auto::device_bind_buffer.name());
         if (tmpiter != fullConfig.end() && tmpiter->second == PluginConfigParams::YES)
             autoSContext->_bindBuffer = true;
+        auto tmpiter_enableStartupFallback = fullConfig.find(ov::intel_auto::enable_startup_fallback.name());
+        if (tmpiter_enableStartupFallback != fullConfig.end() && tmpiter_enableStartupFallback->second == PluginConfigParams::NO)
+            autoSContext->_startupfallback = false;
         return std::make_shared<AutoExecutableNetwork>(autoSContext, std::make_shared<AutoSchedule>());
     }
     OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl:MultiMode");

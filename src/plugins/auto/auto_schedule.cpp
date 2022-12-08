@@ -143,11 +143,13 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                                                                            _loadContext[ACTUALDEVICE].networkPrecision,
                                                                            _autoSContext->_modelPriority);
     }
+    if (!_autoSContext->_startupfallback)
+        _loadContext[ACTUALDEVICE].deviceInfo.config[ov::intel_auto::enable_startup_fallback.name()] = InferenceEngine::PluginConfigParams::NO;
     LOG_INFO_TAG("select device:%s", _loadContext[ACTUALDEVICE].deviceInfo.deviceName.c_str());
     bool isActualDevCPU =
         _loadContext[ACTUALDEVICE].deviceInfo.deviceName.find("CPU") !=std::string::npos && !isCumulative;
     // if Actual device is CPU, disabled _loadContext[CPU], only use _loadContext[ACTUALDEVICE]
-    if (isActualDevCPU || isCumulative) {
+    if (isActualDevCPU || isCumulative || !_autoSContext->_startupfallback) {
         _loadContext[CPU].isEnabled = false;
     } else {
         const auto CPUIter = std::find_if(_autoSContext->_devicePriorities.begin(), _autoSContext->_devicePriorities.end(),

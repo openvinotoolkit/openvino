@@ -28,7 +28,9 @@ const std::vector<ov::AnyMap> auto_multi_properties = {
         {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
         {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)},
         {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::intel_auto::device_bind_buffer("YES")},
-        {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::intel_auto::device_bind_buffer("NO")}
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::intel_auto::device_bind_buffer("NO")},
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::intel_auto::enable_startup_fallback("YES")},
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::intel_auto::enable_startup_fallback("NO")}
 };
 
 
