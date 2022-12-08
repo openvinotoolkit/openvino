@@ -332,9 +332,8 @@ def main():
 
         ## If set batch size, disable the auto batching
         if args.batch_size:
-            if (args.perf_hint and (args.perf_hint == "throughput" or args.perf_hint == "tput" or args.perf_hint == "cumulative_throughput" or args.perf_hint == "ctput")) or (not args.perf_hint and "MULTI" in args.target_device):
-                logger.warning("Batch size is set. Auto batching will be disabled")
-                benchmark.set_allow_auto_batching(False)
+            logger.warning("Batch size is set. Auto batching will be disabled")
+            benchmark.set_allow_auto_batching(False)
 
         topology_name = ""
         load_from_file_enabled = is_flag_set_in_command_line('load_from_file') or is_flag_set_in_command_line('lfile')
