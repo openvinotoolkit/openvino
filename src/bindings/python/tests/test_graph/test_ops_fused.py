@@ -11,44 +11,30 @@ from tests import xfail_issue_36486
 
 
 def test_elu_operator_with_scalar_and_array():
-    runtime = get_runtime()
-
-    data_value = np.array([[-5, 1], [-2, 3]], dtype=np.float32)
+    data_value = ov.parameter((2, 2), name="data_value", dtype=np.float32)
     alpha_value = np.float32(3)
 
     model = ov.elu(data_value, alpha_value)
-    computation = runtime.computation(model)
 
-    result = computation()
-    expected = np.array([[-2.9797862, 1.0], [-2.5939941, 3.0]], dtype=np.float32)
-    assert np.allclose(result, expected)
+    expected_shape = [2, 2]
+    assert model.get_type_name() == "Elu"
+    assert model.get_output_size() == 1
+    assert list(model.get_output_shape(0)) == expected_shape
 
 
 def test_elu_operator_with_scalar():
-    runtime = get_runtime()
-
-    data_value = np.array([[-5, 1], [-2, 3]], dtype=np.float32)
     alpha_value = np.float32(3)
-
-    data_shape = [2, 2]
-    parameter_data = ov.parameter(data_shape, name="Data", dtype=np.float32)
+    parameter_data = ov.parameter([2, 2], name="Data", dtype=np.float32)
 
     model = ov.elu(parameter_data, alpha_value)
-    computation = runtime.computation(model, parameter_data)
 
-    result = computation(data_value)
-    expected = np.array([[-2.9797862, 1.0], [-2.5939941, 3.0]], dtype=np.float32)
-    assert np.allclose(result, expected)
+    expected_shape = [2, 2]
+    assert model.get_type_name() == "Elu"
+    assert model.get_output_size() == 1
+    assert list(model.get_output_shape(0)) == expected_shape
 
 
 def test_fake_quantize():
-    runtime = get_runtime()
-
-    data_value = np.arange(24.0, dtype=np.float32).reshape(1, 2, 3, 4)
-    input_low_value = np.float32(0)
-    input_high_value = np.float32(23)
-    output_low_value = np.float32(2)
-    output_high_value = np.float32(16)
     levels = np.int32(4)
 
     data_shape = [1, 2, 3, 4]
@@ -67,190 +53,81 @@ def test_fake_quantize():
         parameter_output_high,
         levels,
     )
-    computation = runtime.computation(
-        model,
-        parameter_data,
-        parameter_input_low,
-        parameter_input_high,
-        parameter_output_low,
-        parameter_output_high,
-    )
 
-    result = computation(data_value, input_low_value, input_high_value, output_low_value, output_high_value)
-
-    expected = np.array(
-        [
-            [
-                [
-                    [
-                        [2.0, 2.0, 2.0, 2.0],
-                        [6.6666669, 6.6666669, 6.6666669, 6.6666669],
-                        [6.6666669, 6.6666669, 6.6666669, 6.6666669],
-                    ],
-                    [
-                        [11.33333301, 11.33333301, 11.33333301, 11.33333301],
-                        [11.33333301, 11.33333301, 11.33333301, 11.33333301],
-                        [16.0, 16.0, 16.0, 16.0],
-                    ],
-                ],
-            ],
-        ],
-        dtype=np.float32,
-    )
-    assert np.allclose(result, expected)
+    expected_shape = [1, 2, 3, 4]
+    assert model.get_type_name() == "FakeQuantize"
+    assert model.get_output_size() == 1
+    assert list(model.get_output_shape(0)) == expected_shape
 
 
 def test_depth_to_space():
-    runtime = get_runtime()
-
-    data_value = np.array(
-        [
-            [
-                [[0, 1, 2], [3, 4, 5]],
-                [[6, 7, 8], [9, 10, 11]],
-                [[12, 13, 14], [15, 16, 17]],
-                [[18, 19, 20], [21, 22, 23]],
-            ],
-        ],
-        dtype=np.float32,
-    )
     mode = "blocks_first"
     block_size = np.int32(2)
-
     data_shape = [1, 4, 2, 3]
     parameter_data = ov.parameter(data_shape, name="Data", dtype=np.float32)
 
     model = ov.depth_to_space(parameter_data, mode, block_size)
-    computation = runtime.computation(model, parameter_data)
 
-    result = computation(data_value)
-    expected = np.array(
-        [[[[0, 6, 1, 7, 2, 8], [12, 18, 13, 19, 14, 20], [3, 9, 4, 10, 5, 11], [15, 21, 16, 22, 17, 23]]]],
-        dtype=np.float32,
-    )
-    assert np.allclose(result, expected)
+    expected_shape = [1, 1, 4, 6]
+    assert model.get_type_name() == "DepthToSpace"
+    assert model.get_output_size() == 1
+    assert list(model.get_output_shape(0)) == expected_shape
 
 
 def test_space_to_batch():
-    runtime = get_runtime()
-
-    data_value = np.array([[[[0, 1, 2], [3, 4, 5]], [[6, 7, 8], [9, 10, 11]]]], dtype=np.float32)
-    data_shape = data_value.shape
-
+    data_shape = [1, 2, 2, 3]
     block_shape = np.array([1, 2, 3, 2], dtype=np.int64)
     pads_begin = np.array([0, 0, 1, 0], dtype=np.int64)
     pads_end = np.array([0, 0, 0, 1], dtype=np.int64)
-
     parameter_data = ov.parameter(data_shape, name="Data", dtype=np.float32)
 
     model = ov.space_to_batch(parameter_data, block_shape, pads_begin, pads_end)
-    computation = runtime.computation(model, parameter_data)
 
-    result = computation(data_value)
-    expected = np.array(
-        [
-            [[[0, 0]]],
-            [[[0, 0]]],
-            [[[0, 2]]],
-            [[[1, 0]]],
-            [[[3, 5]]],
-            [[[4, 0]]],
-            [[[0, 0]]],
-            [[[0, 0]]],
-            [[[6, 8]]],
-            [[[7, 0]]],
-            [[[9, 11]]],
-            [[[10, 0]]],
-        ],
-        dtype=np.float32,
-    )
-    assert np.allclose(result, expected)
+    expected_shape = [12, 1, 1, 2]
+    assert model.get_type_name() == "SpaceToBatch"
+    assert model.get_output_size() == 1
+    assert list(model.get_output_shape(0)) == expected_shape
 
 
 def test_batch_to_space():
-    runtime = get_runtime()
-
-    data = np.array(
-        [
-            [[[0, 0]]],
-            [[[0, 0]]],
-            [[[0, 2]]],
-            [[[1, 0]]],
-            [[[3, 5]]],
-            [[[4, 0]]],
-            [[[0, 0]]],
-            [[[0, 0]]],
-            [[[6, 8]]],
-            [[[7, 0]]],
-            [[[9, 11]]],
-            [[[10, 0]]],
-        ],
-        dtype=np.float32,
-    )
-    data_shape = data.shape
-
+    data_shape = [12, 1, 1, 2]
     block_shape = np.array([1, 2, 3, 2], dtype=np.int64)
     crops_begin = np.array([0, 0, 1, 0], dtype=np.int64)
     crops_end = np.array([0, 0, 0, 1], dtype=np.int64)
-
     parameter_data = ov.parameter(data_shape, name="Data", dtype=np.float32)
 
     model = ov.batch_to_space(parameter_data, block_shape, crops_begin, crops_end)
-    computation = runtime.computation(model, parameter_data)
 
-    result = computation(data)
-    expected = np.array([[[[0, 1, 2], [3, 4, 5]], [[6, 7, 8], [9, 10, 11]]]], dtype=np.float32)
-
-    assert np.allclose(result, expected)
+    expected_shape = [1, 2, 2, 3]
+    assert model.get_type_name() == "BatchToSpace"
+    assert model.get_output_size() == 1
+    assert list(model.get_output_shape(0)) == expected_shape
 
 
 def test_clamp_operator():
-    runtime = get_runtime()
-
     data_shape = [2, 2]
     parameter_data = ov.parameter(data_shape, name="Data", dtype=np.float32)
     min_value = np.float32(3)
     max_value = np.float32(12)
 
     model = ov.clamp(parameter_data, min_value, max_value)
-    computation = runtime.computation(model, parameter_data)
 
-    data_value = np.array([[-5, 9], [45, 3]], dtype=np.float32)
-
-    result = computation(data_value)
-    expected = np.clip(data_value, min_value, max_value)
-    assert np.allclose(result, expected)
-
-
-def test_clamp_operator_with_array():
-    runtime = get_runtime()
-
-    data_value = np.array([[-5, 9], [45, 3]], dtype=np.float32)
-    min_value = np.float32(3)
-    max_value = np.float32(12)
-
-    model = ov.clamp(data_value, min_value, max_value)
-    computation = runtime.computation(model)
-
-    result = computation()
-    expected = np.clip(data_value, min_value, max_value)
-
-    assert np.allclose(result, expected)
+    expected_shape = [2, 2]
+    assert model.get_type_name() == "Clamp"
+    assert model.get_output_size() == 1
+    assert list(model.get_output_shape(0)) == expected_shape
 
 
 def test_squeeze_operator():
-    runtime = get_runtime()
-
     data_shape = [1, 2, 1, 3, 1, 1]
     parameter_data = ov.parameter(data_shape, name="Data", dtype=np.float32)
-    data_value = np.arange(6.0, dtype=np.float32).reshape([1, 2, 1, 3, 1, 1])
     axes = [2, 4]
     model = ov.squeeze(parameter_data, axes)
-    computation = runtime.computation(model, parameter_data)
 
-    result = computation(data_value)
-    expected = np.arange(6.0, dtype=np.float32).reshape([1, 2, 3, 1])
-    assert np.allclose(result, expected)
+    expected_shape = [1, 2, 3, 1]
+    assert model.get_type_name() == "Squeeze"
+    assert model.get_output_size() == 1
+    assert list(model.get_output_shape(0)) == expected_shape
 
 
 def test_squared_difference_operator():
