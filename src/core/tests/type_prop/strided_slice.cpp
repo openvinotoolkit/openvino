@@ -363,6 +363,20 @@ TEST(type_prop, strided_slice_begin_end_is_shape_of_with_bounds) {
     EXPECT_THAT(get_shape_labels(strided_slice->get_output_partial_shape(0)), Each(ov::no_label));
 }
 
+TEST(type_prop, strided_slice_out_of_bounds_different_stride) {
+    auto data = std::make_shared<op::Parameter>(element::f32, PartialShape{5, 5, 5, 5, 5});
+    const auto data_rank_size = data->get_partial_shape().size();
+    auto begin = op::Constant::create(element::i64, Shape{data_rank_size}, {5, 5, 5, 5, 5});
+    auto end = op::Constant::create(element::i64, Shape{data_rank_size}, {5, 5, 5, 5, 5});
+    auto stride = op::Constant::create(element::i64, Shape{data_rank_size}, {1, 2, 5, -2, -5});
+
+    const auto mask = std::vector<int64_t>(data_rank_size, 0);
+
+    auto strided_slice = std::make_shared<op::v1::StridedSlice>(data, begin, end, stride, mask, mask);
+
+    EXPECT_EQ(strided_slice->get_output_partial_shape(0), PartialShape({0, 0, 0, 0, 0}));
+}
+
 TEST(type_prop, strided_slice_dynamic_value_and_label_propagation) {
     // Use evaluate upper,lower and labels
     auto marked_0 = Dimension(3, 5);

@@ -205,7 +205,11 @@ void shape_infer(const StridedSlice* op,
                     // decrees range by modifing lower bound depends on stride direction
                     is_reverse_stride ? --lb : ++lb;
 
-                    return std::max<int64_t>(0, ((ub - lb) / stride) + 1);
+                    if ((is_reverse_stride && lb >= ub) || (!is_reverse_stride && lb <= ub)) {
+                        return ((ub - lb) / stride) + 1;
+                    } else {
+                        return static_cast<int64_t>(0);
+                    }
                 };
 
                 const auto& begin_lb = begin.first[axis];
