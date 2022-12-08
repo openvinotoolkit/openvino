@@ -41,6 +41,43 @@ public:
     }
 };
 
+inline void update_output_tensors(const ov::TensorVector& output_values, const HostTensorVector& outputs) {
+    OPENVINO_ASSERT(output_values.size() == outputs.size());
+    for (int i = 0; i < output_values.size(); ++i) {
+        auto& tensor = output_values[i];
+        if (tensor.get_shape() != Shape{0}) {
+            auto& hosttensor = outputs[i];
+            if (hosttensor->get_is_allocated()) {
+                hosttensor->set_shape(tensor.get_shape());
+            } else {
+                hosttensor->initialize(
+                    make_shared<ov::op::v0::Constant>(tensor.get_element_type(), tensor.get_shape(), tensor.data()));
+            }
+        }
+    }
+}
+
+inline ov::TensorVector convert_hosttensors_2_tensors(const HostTensorVector& host_tensors, bool copy_data) {
+    ov::TensorVector ret_value;
+    ov::Tensor tensor;
+    for (const auto& hosttensor : host_tensors) {
+        if (hosttensor->get_element_type().is_dynamic()) {
+            tensor = ov::Tensor();
+        } else if (hosttensor->get_partial_shape().is_dynamic()) {
+            tensor = ov::Tensor(hosttensor->get_element_type(), {0});
+        } else {
+            tensor = ov::Tensor(hosttensor->get_element_type(), hosttensor->get_shape());
+            if (copy_data) {
+                std::copy_n(hosttensor->get_data_ptr<uint8_t>(),
+                            hosttensor->get_size_in_bytes(),
+                            static_cast<uint8_t*>(tensor.data()));
+            }
+        }
+        ret_value.emplace_back(tensor);
+    }
+    return ret_value;
+}
+
 runtime::interpreter::INTExecutable::INTExecutable(const shared_ptr<Function>& function,
                                                    bool enable_performance_collection)
     : m_is_compiled{true},
@@ -158,38 +195,13 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
                 variable_context.set_variable_value(variable, std::make_shared<VariableValue>(h_tensor));
             }
         }
-        auto convert_hosttensors_2_tensors = [=](const HostTensorVector& host_tensors,
-                                                 bool copy_data) -> ov::TensorVector {
-            ov::TensorVector ret_value;
-            ov::Tensor tensor;
-            for (const auto& hosttensor : host_tensors) {
-                if (hosttensor->get_element_type().is_dynamic()) {
-                    tensor = ov::Tensor();
-                } else if (hosttensor->get_partial_shape().is_dynamic()) {
-                    tensor = ov::Tensor(hosttensor->get_element_type(), {0});
-                } else {
-                    tensor = ov::Tensor(hosttensor->get_element_type(), hosttensor->get_shape());
-                    if (copy_data) {
-                        std::copy_n(hosttensor->get_data_ptr<uint8_t>(),
-                                    hosttensor->get_size_in_bytes(),
-                                    static_cast<uint8_t*>(tensor.data()));
-                    }
-                }
-                ret_value.emplace_back(tensor);
-            }
-            return ret_value;
-        };
-        ov::TensorVector tensor_inputs = convert_hosttensors_2_tensors(op_inputs, true);
+
+        const ov::TensorVector tensor_inputs = convert_hosttensors_2_tensors(op_inputs, true);
         ov::TensorVector tensor_outputs = convert_hosttensors_2_tensors(op_outputs, false);
 
         // Call evaluate for cloned_node with static shapes
         if (cloned_node->evaluate(tensor_outputs, tensor_inputs, eval_context)) {
-            for (int i = 0; i < tensor_outputs.size(); ++i) {
-                auto out_shape = tensor_outputs.at(i).get_shape();
-                if (out_shape != Shape{0}) {
-                    op_outputs.at(i)->set_shape(out_shape);
-                }
-            }
+            update_output_tensors(tensor_outputs, op_outputs);
         } else {
             evaluate_node(cloned_node, op_outputs, op_inputs);
         }
