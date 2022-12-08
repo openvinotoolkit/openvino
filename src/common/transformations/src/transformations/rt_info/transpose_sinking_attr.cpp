@@ -4,6 +4,8 @@
 
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 
+using namespace ov;
+
 void ov::mark_as_no_sinking_node(const std::shared_ptr<Node>& node) {
     auto& rt_info = node->get_rt_info();
     rt_info[NoTransposeSinkingAttr::get_type_info_static()] = NoTransposeSinkingAttr();
