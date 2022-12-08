@@ -190,8 +190,14 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
         amazon-linux-extras install epel python3.8
     fi
 
-    pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake3 json-devel.$arch zlib-devel.$arch sudo pkgconf-pkg-config)
-
+    pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake3 json-devel.$arch zlib-devel.$arch sudo)
+    
+    if [ "$os" == "centos7" ] || [ "$os" == "amzn2" ] ; then
+        pkgs_dev+=(pkgconfig)
+    else
+        pkgs_dev+=(pkgconf-pkg-config)
+    fi
+    
     if [ "$os" == "rhel9.1" ] ; then
         pkgs_dev+=(curl-minimal)
     else
