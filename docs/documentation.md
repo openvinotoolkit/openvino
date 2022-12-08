@@ -4,10 +4,11 @@
 
 .. toctree::
    :maxdepth: 1
-   :caption: API 2.0
    :hidden:
 
    openvino_2_0_transition_guide
+   OpenVINO Extensibility <openvino_docs_Extensibility_UG_Intro>
+
 
 
 .. toctree::
@@ -65,14 +66,7 @@
    workbench_docs_Workbench_DG_Introduction
 
 
-.. toctree::
-   :maxdepth: 1
-   :caption: OpenVINO Extensibility
-   :hidden:
 
-   openvino_docs_Extensibility_UG_Intro
-   openvino_docs_transformations
-   OpenVINO Plugin Developer Guide <openvino_docs_ie_plugin_dg_overview>
    
 .. toctree::
    :maxdepth: 1
