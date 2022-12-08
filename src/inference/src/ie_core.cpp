@@ -294,8 +294,12 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
 
                 // If the property has been contained in input config, it will not be overwritten.
                 auto item = config.find(it.first);
-                if (item != config.end())
+                if (item != config.end()) {
+                    if (!util::contains(supported_properties, it.first)) {
+                        config.erase(item);
+                    }
                     continue;
+                }
 
                 // properties cached in core_plugins_properties always set to actual plugins instance,
                 // but some of them only can be applied for specified plugins, such as:
