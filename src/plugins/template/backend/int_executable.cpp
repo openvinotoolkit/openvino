@@ -48,10 +48,12 @@ inline void update_output_tensors(const ov::TensorVector& output_values, const H
         auto& hosttensor = outputs[i];
         if (hosttensor->get_is_allocated()) {
             hosttensor->set_shape(tensor.get_shape());
-            std::copy_n(static_cast<uint8_t*>(tensor.data()), tensor.get_byte_size(), hosttensor->get_data_ptr<uint8_t>());
+            std::copy_n(static_cast<uint8_t*>(tensor.data()),
+                        tensor.get_byte_size(),
+                        hosttensor->get_data_ptr<uint8_t>());
         } else {
             hosttensor->initialize(
-            make_shared<ov::op::v0::Constant>(tensor.get_element_type(), tensor.get_shape(), tensor.data()));
+                make_shared<ov::op::v0::Constant>(tensor.get_element_type(), tensor.get_shape(), tensor.data()));
         }
     }
 }
