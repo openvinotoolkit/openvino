@@ -63,9 +63,7 @@ OpenVINO™ Runtime will be installed in: `/opt/intel/openvino_<VERSION>.<UPDATE
 
 A symlink will be created: `/opt/intel/openvino_<VERSION>`
 
-You can select one of the following procedures according to your need:
-
-### To Install OpenVINO Runtime
+#### Install OpenVINO Runtime
 
 @sphinxdirective
 
@@ -76,7 +74,6 @@ You can select one of the following procedures according to your need:
    .. code-block:: sh
 
       sudo yum install openvino
-
 
 .. tab::  A Specific Version
 
@@ -95,7 +92,7 @@ You can select one of the following procedures according to your need:
 @endsphinxdirective
 
 
-#### To Check for Installed Packages and Version
+#### Check for Installed Packages and Version
 
 Run the following command:
 
@@ -108,9 +105,10 @@ Run the following command:
 @endsphinxdirective
 
 
-### To Uninstall OpenVINO Runtime
+#### Uninstall OpenVINO Runtime
 
 @sphinxdirective
+
 .. tab:: The Latest Version
 
    Run the following command:
@@ -128,14 +126,18 @@ Run the following command:
 
       sudo yum autoremove openvino-<VERSION>.<UPDATE>.<PATCH>
 
+   For example:
+
+   .. code-block:: sh
+
+      sudo yum autoremove openvino-2022.3.0
+
 @endsphinxdirective
 
 
 ### Step 3 (Optional): Install OpenCV from YUM
 
 OpenCV is necessary to run C++ demos from Open Model Zoo. Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. OpenVINO provides a package to install OpenCV from YUM:
-
-#### To Install OpenCV
 
 @sphinxdirective
 
