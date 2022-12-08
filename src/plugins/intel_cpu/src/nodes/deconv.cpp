@@ -18,13 +18,11 @@
 #include "utils/cpu_utils.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
-#include <utils/shape_inference/static_shape.hpp>
-#include <utils/shape_inference/shape_inference.hpp>
 #include <ie_ngraph_utils.hpp>
-#include "convolution_shape_inference.hpp"
 #include <common/primitive_hashing_utils.hpp>
 #include <common/primitive_desc.hpp>
 #include <common/primitive_desc_iface.hpp>
+#include <utils/shape_inference/shape_inference_ngraph.hpp>
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -111,6 +109,23 @@ bool DeconvKey::operator==(const DeconvKey &rhs) const {
     return retVal;
 }
 
+/**
+ * Deconvolution shape inference factory. It defines the input mask depending on the existence of the `output_shape` input.
+ * Since in case it exists, plugin should pass the input data to the shape inference function.
+ * 
+ */
+class DeconfolutionShapeInferFactory : public ShapeInferFactory {
+public:
+    DeconfolutionShapeInferFactory(std::shared_ptr<ngraph::Node> op) : m_op(op) {}
+    ShapeInferPtr makeShapeInfer() const override {
+        if (m_op->get_input_size() > 2) {
+            return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), PortMask(2));
+        }
+        return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), EMPTY_PORT_MASK);
+    }
+private:
+    std::shared_ptr<ngraph::Node> m_op;
+};
 } // namespace
 
 bool Deconvolution::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
@@ -136,7 +151,7 @@ bool Deconvolution::isSupportedOperation(const std::shared_ptr<const ngraph::Nod
 }
 
 Deconvolution::Deconvolution(const std::shared_ptr<ngraph::Node>& op,
-                                                 const dnnl::engine& eng, WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
+                             const dnnl::engine& eng, WeightsSharing::Ptr &cache) : Node(op, eng, cache, DeconfolutionShapeInferFactory(op)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Deconvolution node with name '" + getName() + "'";
@@ -538,37 +553,32 @@ bool Deconvolution::needShapeInfer() const {
     return false;
 }
 
-std::vector<VectorDims> Deconvolution::shapeInfer() const {
-    const auto &dataMemPtr = getParentEdgesAtPort(0)[0]->getMemoryPtr();
-    std::vector<int32_t> outSpDims;
-    if (externOutShape) {
-        outSpDims = readOutputSpatialDims();
-    }
-    return {shapeInferInternal(dataMemPtr->getStaticDims(), outSpDims)};
-}
-
 VectorDims Deconvolution::shapeInferInternal(const VectorDims &inDims, std::vector<int32_t> outSpDims) const {
-    std::vector<StaticShape> inputShapes = {
-            inDims,
-            getWeightDims()
-    };
+    std::vector<std::reference_wrapper<const VectorDims>> inputShapesRefs{std::ref(inDims), std::ref(getWeightDims())};
+    std::unordered_map<size_t, MemoryPtr> inputValues;
+    VectorDims outSpDimsVecShape;
 
-    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> inputValues;
-
-    if (externOutShape) {
-        if (outSpDims.size() != getInputShapeAtPort(2).getStaticDims()[0]) {
-            IE_THROW() << "Can't compute output shape for node with name: " << getName()
-                       << ", because the node has 'output_shape' input, but provided output spatial dims number is incorrect";
+    auto port_mask = shapeInference->get_port_mask();
+    if (port_mask) {
+        for (size_t i = 0; i < inputShapes.size(); ++i) {
+            if (port_mask & 1 << i) {
+                if (outSpDims.size() != getInputShapeAtPort(i).getStaticDims()[0]) {
+                    IE_THROW() << "Can't compute output shape for node with name: " << getName()
+                            << ", because the node has 'output_shape' input, but provided output spatial dims number is incorrect";
+                }
+                outSpDimsVecShape = {outSpDims.size()};
+                inputShapesRefs.push_back(std::cref(outSpDimsVecShape));
+                CpuBlockedMemoryDesc desc(Precision::I32, Shape(outSpDimsVecShape));
+                auto mem = std::make_shared<Memory>(getEngine());
+                mem->Create(desc, outSpDims.data());
+                inputValues[i] = mem;
+                break;
+            }
         }
-        inputShapes.push_back({outSpDims.size()});
-        inputValues.insert({2, std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32,
-                                                                              inputShapes.back().to_shape(),
-                                                                              outSpDims.data())});
     }
 
-    std::vector<StaticShape> outputShapes = shapeInference->infer(inputShapes, inputValues);
-
-    return outputShapes.back().to_shape();
+    auto outputShapes = shapeInference->infer(inputShapesRefs, inputValues);
+    return outputShapes.back();
 }
 
 void Deconvolution::setDynamicBatchLim(int lim) {

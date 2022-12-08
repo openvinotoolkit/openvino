@@ -57,7 +57,7 @@ TEST(permute_gpu_f32, output_ordering_test)
                 auto input = engine.allocate_memory({ data_types::f32, fr, tensor(format::bfyx, inp_t) });
                 topology topology(
                     input_layout("input", input->get_layout()),
-                    permute("permute", "input", perm));
+                    permute("permute", input_info("input"), perm));
 
                 network network(engine, topology);
                 network.set_input_data("input", input);
@@ -112,7 +112,7 @@ TEST(permute_gpu_f32, basic_bfyx_permute_0_1_2_3)
 
     topology topology(
         input_layout("input", input->get_layout()),
-        permute("permute", "input", { 0, 1, 2, 3 }));
+        permute("permute", input_info("input"), { 0, 1, 2, 3 }));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -171,7 +171,7 @@ TEST(permute_gpu_f32, basic_bfyx_permute_0_1_3_2)
 
     topology topology(
         input_layout("input", input->get_layout()),
-        permute("permute", "input", { 0, 1, 3, 2 }));
+        permute("permute", input_info("input"), { 0, 1, 3, 2 }));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -218,7 +218,7 @@ TEST(permute_gpu_f32, basic_yxfb_permute_1_0_2_3)
 
     topology topology(
         input_layout("input", input_mem->get_layout()),
-        permute("permute", "input", { 1, 0, 2, 3 }));
+        permute("permute", input_info("input"), { 1, 0, 2, 3 }));
 
     network network(engine, topology);
     network.set_input_data("input", input_mem);
@@ -279,8 +279,8 @@ TEST(permute_gpu_f32, basic_bfyx_permute_0_1_3_2_input_padding)
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reorder", "input", input->get_layout().with_padding(padding{ { 0, 0, 2, 1 }, 0 })),
-        permute("permute", "reorder", { 0, 1, 3, 2 }));
+        reorder("reorder", input_info("input"), input->get_layout().with_padding(padding{ { 0, 0, 2, 1 }, 0 })),
+        permute("permute", input_info("reorder"), { 0, 1, 3, 2 }));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -337,7 +337,7 @@ TEST(permute_gpu_f32, basic_yxfb_permute_batch_with_feature)
 
     topology topology(
         input_layout("input", input->get_layout()),
-        permute("permute", "input", { 1, 0, 2, 3 }));
+        permute("permute", input_info("input"), { 1, 0, 2, 3 }));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -392,7 +392,7 @@ TEST(permute_gpu_f32, basic_bfyx_permute_batch_with_feature)
 
     topology topology(
         input_layout("input", input->get_layout()),
-        permute("permute", "input", { 1, 0, 2, 3 }));
+        permute("permute", input_info("input"), { 1, 0, 2, 3 }));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -450,9 +450,9 @@ void permute_test_with_reorder()
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reorder", "input", { DType, format::bfyx,{ 2, 2, 3, 2 } }),
-        permute("permute", "reorder", { 0, 1, 3, 2 }),
-        reorder("reorder_out", "permute", { data_types::f32, format::bfyx,{ 2, 2, 3, 2 } }));
+        reorder("reorder", input_info("input"), { DType, format::bfyx,{ 2, 2, 3, 2 } }),
+        permute("permute", input_info("reorder"), { 0, 1, 3, 2 }),
+        reorder("reorder_out", input_info("permute"), { data_types::f32, format::bfyx,{ 2, 2, 3, 2 } }));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -548,10 +548,10 @@ TEST(permute_fuse_reorder_gpu_f32, basic_b_fs_yx_fsv4_permute_1_8_16_1)
     // unfused
     topology topology_unfused(
         input_layout("input", input->get_layout()),
-        reorder("reorder1", "input", format::b_fs_yx_fsv4, data_types::f32),
-        permute("permute", "reorder1", { 0, 2, 3, 1}),
-        reorder("reorder2", "permute", format::bfyx, data_types::f32),
-        permute("out", "reorder2", { 0, 3, 1, 2}));
+        reorder("reorder1", input_info("input"), format::b_fs_yx_fsv4, data_types::f32),
+        permute("permute", input_info("reorder1"), { 0, 2, 3, 1}),
+        reorder("reorder2", input_info("permute"), format::bfyx, data_types::f32),
+        permute("out", input_info("reorder2"), { 0, 3, 1, 2}));
 
     cldnn::build_options options_unfused;
     options_unfused.set_option(cldnn::build_option::optimize_data(false));
@@ -563,10 +563,10 @@ TEST(permute_fuse_reorder_gpu_f32, basic_b_fs_yx_fsv4_permute_1_8_16_1)
     // fused network
     topology topology_fused(
         input_layout("input", input->get_layout()),
-        reorder("reorder1", "input", format::b_fs_yx_fsv4, data_types::f32),
-        permute("permute", "reorder1", { 0, 2, 3, 1}),
-        reorder("reorder2", "permute", format::bfyx, data_types::f32), // to be fused to previous permute
-        permute("out", "reorder2", { 0, 3, 1, 2})); // return to original value
+        reorder("reorder1", input_info("input"), format::b_fs_yx_fsv4, data_types::f32),
+        permute("permute", input_info("reorder1"), { 0, 2, 3, 1}),
+        reorder("reorder2", input_info("permute"), format::bfyx, data_types::f32), // to be fused to previous permute
+        permute("out", input_info("reorder2"), { 0, 3, 1, 2})); // return to original value
 
     cldnn::build_options options_fused;
     options_fused.set_option(cldnn::build_option::optimize_data(true));
@@ -599,8 +599,8 @@ TEST(fc_permute_crop_gpu, basic_permute_yxfb)
 
     //Topolgy creates permute which "repalces" the batch with the feature.
     topology topology(
-        input_layout("input", input_mem->get_layout()),  // yxfb {1, 5, 1, 512 }}
-        permute("permute", "input", { 1, 0, 2, 3 })  // yxfb {5, 1, 1, 512}  --- without permute fix yxfb {1, 5, 512, 1}
+        input_layout("input", input_mem->get_layout()),         // yxfb {1, 5, 1, 512 }}
+        permute("permute", input_info("input"), { 1, 0, 2, 3 }) // yxfb {5, 1, 1, 512}  --- without permute fix yxfb {1, 5, 512, 1}
     );
 
     network network(engine, topology);
@@ -629,13 +629,13 @@ TEST(fc_permute_crop_gpu, basic_0)
     auto bias_mem = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 512, 1 } });
 
     topology topology(
-        input_layout("input", input_mem->get_layout()),                   // bfyx {5, 11264, 1, 1}}
+        input_layout("input", input_mem->get_layout()),                             // bfyx {5, 11264, 1, 1}}
         data("weights", weights_mem),
         data("bias", bias_mem),
-        fully_connected("fully_connected", "input", "weights", "bias"),  // yxfb {5, 512, 1, 1}
-        reshape("reshape", "fully_connected", { 1, 5, 1, 512 }),           // yxfb {1, 5, 1, 512}
-        permute("permute", "reshape", { 1, 0, 2, 3 }),                     // yxfb {5, 1, 1, 512}        --- without permute fix yxfb {1, 5, 512, 1}
-        crop("crop", "permute", { 1, 1, 1, 512 }, { 4, 0, 0 ,0 })           // without permute fix it will fail "Tensor pitches didn't set correctly"
+        fully_connected("fully_connected", input_info("input"), "weights", "bias"), // yxfb {5, 512, 1, 1}
+        reshape("reshape", input_info("fully_connected"), { 1, 5, 1, 512 }),        // yxfb {1, 5, 1, 512}
+        permute("permute", input_info("reshape"), { 1, 0, 2, 3 }),                  // yxfb {5, 1, 1, 512}        --- without permute fix yxfb {1, 5, 512, 1}
+        crop("crop", input_info("permute"), { 1, 1, 1, 512 }, { 4, 0, 0 ,0 })       // without permute fix it will fail "Tensor pitches didn't set correctly"
     );
 
     network network(engine, topology);
@@ -665,7 +665,7 @@ TEST(fc_permute_gpu, basic_permute_bfyx)
     //Topolgy creates permute which "repalces" the batch with the feature.
     topology topology(
         input_layout("input", input_mem->get_layout()),
-        permute("permute", "input", { 1, 0, 2, 3 })
+        permute("permute", input_info("input"), { 1, 0, 2, 3 })
     );
 
     network network(engine, topology);
@@ -725,7 +725,7 @@ TEST(permute_gpu_f32, permute_bfwzyx)
 
     topology topology(
         input_layout("input", input_mem->get_layout()),
-        permute("permute", "input", permute_order)
+        permute("permute", input_info("input"), permute_order)
     );
 
     network network(engine, topology);
@@ -813,11 +813,11 @@ TEST(permute_gpu_f32, 6D_reshape_permute_reshape)
 
     topology topology(
         input_layout("input", input_mem->get_layout()),
-        reorder("input_6d", "input", { data_types::f32, format::bfwzyx, cldnn::tensor(batch(b), feature(f), spatial(x, y)) }),
-        reshape("reshape_4_to_6", "input_6d", cldnn::tensor(batch(b), feature(f_reshape), spatial(x, y, z_reshape, w_reshape))),
-        permute("permute", "reshape_4_to_6", permute_order),
-        reshape("reshape_6_to_4", "permute", cldnn::tensor(batch(b), feature(f), spatial(x, y))),
-        reorder("output_4d", "reshape_6_to_4", { data_types::f32, format::bfyx, cldnn::tensor(batch(b), feature(f), spatial(x, y)) })
+        reorder("input_6d", input_info("input"), { data_types::f32, format::bfwzyx, cldnn::tensor(batch(b), feature(f), spatial(x, y)) }),
+        reshape("reshape_4_to_6", input_info("input_6d"), cldnn::tensor(batch(b), feature(f_reshape), spatial(x, y, z_reshape, w_reshape))),
+        permute("permute", input_info("reshape_4_to_6"), permute_order),
+        reshape("reshape_6_to_4", input_info("permute"), cldnn::tensor(batch(b), feature(f), spatial(x, y))),
+        reorder("output_4d", input_info("reshape_6_to_4"), { data_types::f32, format::bfyx, cldnn::tensor(batch(b), feature(f), spatial(x, y)) })
     );
 
     network network(engine, topology);
@@ -869,7 +869,7 @@ TEST(permute_gpu_f32, basic_bfzyx_permute_0_4_1_2_3)
 
     topology topology(
         input_layout("input", input->get_layout()),
-        permute("permute", "input", { 0, 4, 1, 2, 3 }));
+        permute("permute", input_info("input"), { 0, 4, 1, 2, 3 }));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -936,7 +936,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, normal_bfyx_0_2_3_1) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        permute("permute", "input", { 0, 2, 3, 1 }));
+        permute("permute", input_info("input"), { 0, 2, 3, 1 }));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -992,7 +992,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, f_remainder_bfyx_0_2_3_1) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        permute("permute", "input", { 0, 2, 3, 1 }));
+        permute("permute", input_info("input"), { 0, 2, 3, 1 }));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1048,7 +1048,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, x_remainder_bfyx_0_2_3_1) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        permute("permute", "input", { 0, 2, 3, 1 }));
+        permute("permute", input_info("input"), { 0, 2, 3, 1 }));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1098,7 +1098,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, xf_remainder_bfyx_0_2_3_1) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        permute("permute", "input", { 0, 2, 3, 1 }));
+        permute("permute", input_info("input"), { 0, 2, 3, 1 }));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1148,7 +1148,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, normal_bfzyx_0_2_3_4_1) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        permute("permute", "input", { 0, 2, 3, 4, 1 }));
+        permute("permute", input_info("input"), { 0, 2, 3, 4, 1 }));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1210,7 +1210,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, f_remainder_bfzyx_0_2_3_4_1) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        permute("permute", "input", { 0, 2, 3, 4, 1 }));
+        permute("permute", input_info("input"), { 0, 2, 3, 4, 1 }));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1264,7 +1264,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, x_remainder_bfzyx_0_2_3_4_1) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        permute("permute", "input", { 0, 2, 3, 4, 1 }));
+        permute("permute", input_info("input"), { 0, 2, 3, 4, 1 }));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1318,7 +1318,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, xf_remainder_bfzyx_0_2_3_4_1) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        permute("permute", "input", { 0, 2, 3, 4, 1 }));
+        permute("permute", input_info("input"), { 0, 2, 3, 4, 1 }));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1372,7 +1372,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, normal_bfwzyx_0_2_3_4_5_1) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        permute("permute", "input", { 0, 2, 3, 4, 5, 1 }));
+        permute("permute", input_info("input"), { 0, 2, 3, 4, 5, 1 }));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1444,7 +1444,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, f_remainder_bfwzyx_0_2_3_4_5_1) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        permute("permute", "input", { 0, 2, 3, 4, 5, 1 }));
+        permute("permute", input_info("input"), { 0, 2, 3, 4, 5, 1 }));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1504,7 +1504,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, x_remainder_bfwzyx_0_2_3_4_5_1) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        permute("permute", "input", { 0, 2, 3, 4, 5, 1 }));
+        permute("permute", input_info("input"), { 0, 2, 3, 4, 5, 1 }));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1564,7 +1564,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, xf_remainder_bfwzyx_0_2_3_4_5_1) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        permute("permute", "input", { 0, 2, 3, 4, 5, 1 }));
+        permute("permute", input_info("input"), { 0, 2, 3, 4, 5, 1 }));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1680,8 +1680,8 @@ void TiledPermuteTest::run_test(const std::vector<cldnn::tensor::value_type>& si
 
     topology topology_ref = topology(
         input_layout("input", input->get_layout()),
-        reorder("reorder", "input", {Data_Type, format_fsv, tensor}),
-        permute("output", "reorder", order )
+        reorder("reorder", input_info("input"), {Data_Type, format_fsv, tensor}),
+        permute("output", input_info("reorder"), order )
     );
 
     // run with permute_ref
@@ -1866,7 +1866,7 @@ TEST(permute_gpu_f32_dynamic, bfyx_0_2_3_1) {
 
     topology topology(
         input_layout("input", input_layout_dynamic),
-        permute("permute", "input", { 0, 2, 3, 1 }));
+        permute("permute", input_info("input"), { 0, 2, 3, 1 }));
 
     build_options bo;
     bo.set_option(build_option::allow_new_shape_infer(true));

@@ -22,19 +22,25 @@ public:
     ///
     /// \param data     Input data tensor
     /// \param sorted   Controls the order of the returned unique values (sorts ascendingly when true)
-    /// \param index_element_type    The data type set for outputs containing indices
-    Unique(const Output<Node>& data, const bool sorted = true, const element::Type& index_element_type = element::i64);
+    /// \param index_element_type    The data type for outputs containing indices
+    /// \param count_element_type    The data type for output containing repetition count
+    Unique(const Output<Node>& data,
+           const bool sorted = true,
+           const element::Type& index_element_type = element::i64,
+           const element::Type& count_element_type = element::i64);
 
     /// \brief Constructs a Unique operation
     ///
     /// \param data     Input data tensor
     /// \param axis     An input tensor containing the axis value
     /// \param sorted   Controls the order of the returned unique values (sorts ascendingly when true)
-    /// \param index_element_type    The data type set for outputs containing indices
+    /// \param index_element_type    The data type for outputs containing indices
+    /// \param count_element_type    The data type for output containing repetition count
     Unique(const Output<Node>& data,
            const Output<Node>& axis,
            const bool sorted = true,
-           const element::Type& index_element_type = element::i64);
+           const element::Type& index_element_type = element::i64,
+           const element::Type& count_element_type = element::i64);
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     void validate_and_infer_types() override;
@@ -57,9 +63,18 @@ public:
         m_index_element_type = index_element_type;
     }
 
+    element::Type get_count_element_type() const {
+        return m_count_element_type;
+    }
+
+    void set_count_element_type(const element::Type& count_element_type) {
+        m_count_element_type = count_element_type;
+    }
+
 private:
     bool m_sorted = true;
     element::Type m_index_element_type = element::i64;
+    element::Type m_count_element_type = element::i64;
 };
 }  // namespace v10
 }  // namespace op

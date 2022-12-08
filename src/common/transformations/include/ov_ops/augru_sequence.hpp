@@ -21,7 +21,6 @@ namespace internal {
 class TRANSFORMATIONS_API AUGRUSequence : public ov::op::util::RNNCellBase {
 public:
     OPENVINO_OP("AUGRUSequence", "ie_internal_opset", ov::op::util::RNNCellBase);
-    BWDCMP_RTTI_DECLARATION;
 
     AUGRUSequence();
     AUGRUSequence(const Output<Node>& X,

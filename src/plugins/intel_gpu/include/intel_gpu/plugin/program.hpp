@@ -14,7 +14,6 @@
 
 #include <cpp/ie_cnn_network.h>
 #include <ngraph/ngraph.hpp>
-#include <ngraph/compatibility.hpp>
 
 #include "intel_gpu/plugin/device_config.hpp"
 
@@ -134,7 +133,7 @@ public:
     void init_profile_info(const cldnn::primitive& prim);
 
     // Graph construction helpers
-    std::vector<cldnn::primitive_id> GetInputPrimitiveIDs(const std::shared_ptr<ngraph::Node>& op) const;
+    std::vector<cldnn::input_info> GetInputInfo(const std::shared_ptr<ngraph::Node>& op) const;
 
     using factory_t = std::function<void(Program&, const std::shared_ptr<ngraph::Node>&)>;
     using factories_map_t = std::map<ngraph::DiscreteTypeInfo, factory_t>;
