@@ -838,7 +838,48 @@ TEST(TransformationTests, ConvertPrecision_skip_precision_sensitive) {
 
     ASSERT_TRUE(has_type<element::Type_t::f32>(model));
     ASSERT_TRUE(interpolate->input_value(2).get_element_type() == element::Type_t::f32);
+    ASSERT_TRUE(interpolate->output(0).get_partial_shape() == ov::PartialShape({1, 3, 288, 512}));
 }
+
+TEST(TransformationTests, ConvertPrecision_skip_precision_sensitive_no_marking_no_keeping) {
+    // negative test: check that without marking the whole ov::Model is converted to f16 including ShapeOf subgraph
+    // and we get wrong output shape [1, 3, 287, 511] instead of correct one [1, 3, 288, 512]
+    std::shared_ptr<ov::Model> model(nullptr);
+    std::shared_ptr<opset8::Interpolate> interpolate(nullptr);
+    {
+        auto input = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 720, 1280});
+        auto sizes = opset8::Constant::create(element::i64, Shape{4}, {1, 3, 288, 512});
+        auto scales = opset8::Constant::create(element::f32, Shape{4}, {1.0f, 1.0f, 0.4f, 0.4f});
+        opset8::Interpolate::InterpolateAttrs attrs;
+
+        attrs.mode = opset8::Interpolate::InterpolateMode::LINEAR_ONNX;
+        attrs.shape_calculation_mode = opset8::Interpolate::ShapeCalcMode::SCALES;
+        attrs.nearest_mode = opset8::Interpolate::NearestMode::FLOOR;
+        attrs.pads_begin = std::vector<size_t>{0};
+        attrs.pads_end = std::vector<size_t>{0};
+        attrs.antialias = false;
+        attrs.coordinate_transformation_mode = opset8::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL;
+        attrs.cube_coeff = -0.75f;
+
+        interpolate = std::make_shared<opset8::Interpolate>(input, sizes, scales, attrs);
+        model = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+
+        pass::Manager manager;
+
+        // didn't turn on marking intentionally
+        manager.get_pass_config()->set_callback<ngraph::pass::ConvertPrecision>(
+                [](const std::shared_ptr<const Node>& node) -> bool {
+                    return ov::fp16_compression_is_disabled(node);
+                });
+        manager.register_pass<pass::ConvertPrecision>(precisions_array {{ element::f32, element::f16 }});
+        manager.run_passes(model);
+    }
+
+    ASSERT_FALSE(has_type<element::Type_t::f32>(model));
+    ASSERT_TRUE(interpolate->input_value(2).get_element_type() == element::Type_t::f16);
+    ASSERT_TRUE(interpolate->output(0).get_partial_shape() == ov::PartialShape({1, 3, 287, 511}));
+}
+
 
 TEST(TransformationTests, ConvertPrecision_without_callback) {
     // without callback all nodes should be converted to f16 regardless even they are marked
@@ -861,8 +902,8 @@ TEST(TransformationTests, ConvertPrecision_without_callback) {
 
         interpolate = std::make_shared<opset8::Interpolate>(input, sizes, scales, attrs);
         model = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
-
         pass::Manager manager;
+
         manager.register_pass<ov::pass::MarkPrecisionSensitiveSubgraphs>();
         manager.register_pass<pass::ConvertPrecision>(precisions_array {{ element::f32, element::f16 }});
         manager.run_passes(model);
@@ -1058,7 +1099,7 @@ TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_2) {
 }
 
 TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_3) {
-    // Check if ShapeOf subgraph which ends on StridedSlice is marked and kept in f32
+    // Check if ShapeOf subgraph ending on StridedSlice is marked and kept in f32
     std::shared_ptr<ov::Model> model(nullptr), model_ref(nullptr);
     {
         auto input_1 = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 1, 720, 1280});
@@ -1127,7 +1168,7 @@ TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_3) {
 }
 
 TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_4) {
-    // Check if Interpolate subgraph which ends on StridedSlice is marked and kept in f32
+    // Check if ShapeOf subgraph ending on Interpolate is marked and kept in f32
     std::shared_ptr<ov::Model> model(nullptr);
     std::shared_ptr<ov::Model> model_ref(nullptr);
     {
@@ -1233,6 +1274,13 @@ TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_5) {
     // nevertheless should be cast into int32 after ConvertPrecision({i64->i32, u64->i32,...}).
     {
         auto input_1 = std::make_shared<opset8::Parameter>(element::f32, Shape{720, 1280});
+        // Emulate scenario when FP16 compressed IR came into GPU.
+        // ConvertCompressedOnlyToLegacy is triggered only if there are decompression converts
+        auto compressed_const = opset8::Constant::create(element::f16, Shape{}, {2.0f});
+        auto decompress_convert = std::make_shared<opset8::Convert>(compressed_const, element::f32);
+        mark_as_decompression(decompress_convert);
+        auto add_decompressed_const = std::make_shared<opset8::Add>(input_1, decompress_convert);
+
         auto input_2 = std::make_shared<opset8::Parameter>(element::f32, Shape{360, 640});
         auto shapeof = std::make_shared<opset8::ShapeOf>(input_2);
 
@@ -1245,41 +1293,33 @@ TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_5) {
 
         auto concat = std::make_shared<opset8::Concat>(OutputVector{const_for_reshape_1, const_for_reshape_2, gather_1}, 0);
 
-        auto reshape = std::make_shared<opset8::Reshape>(input_1, concat, false);
+        auto reshape = std::make_shared<opset8::Reshape>(add_decompressed_const, concat, false);
         model = std::make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{input_1, input_2});
 
         pass::Manager manager;
-        manager.register_pass<ov::pass::MarkPrecisionSensitiveSubgraphs>(false);
-        manager.get_pass_config()->set_callback<ngraph::pass::ConvertPrecision>(
-                [](const std::shared_ptr<const Node>& node) -> bool {
-                    return ov::fp16_compression_is_disabled(node);
-                });
-        manager.register_pass<pass::ConvertPrecision>(precisions_array {{ element::f32, element::f16 }});
+        manager.register_pass<ov::pass::ConvertCompressedOnlyToLegacy>();
+        manager.get_pass_config()->enable<ov::pass::MarkPrecisionSensitiveSubgraphs>();
 
         // emulate GPU transformations_pipeline scenario when ConvertPrecision is called 2 times:
         // 1st time at the beginning of transformations_pipeline inside the CommonOptimizations, namely:
         // CommonOptimizations calls -> ConvertOnlyToLegacy calls -> ConvertCompressedOnlyToLegacy(f32->f16).
         // 2nd time in the middle of transformations_pipeline with the precisions_array to cast all integers into i32
-        manager.register_pass<pass::ConvertPrecision>(precisions_array {{ ngraph::element::i64, ngraph::element::i32 }});
-
+        manager.register_pass<pass::ConvertPrecision>(precisions_array {{ngraph::element::i64, ngraph::element::i32 }});
         manager.run_passes(model);
     }
     {
         // instead of i64 here all integers should be i32
         auto input_1 = std::make_shared<opset8::Parameter>(element::f16, Shape{720, 1280});
         auto input_2 = std::make_shared<opset8::Parameter>(element::f16, Shape{360, 640});
-        auto shapeof = std::make_shared<opset8::ShapeOf>(input_2, element::i32);
 
-        auto const_1 = opset8::Constant::create(element::i32, Shape{1}, {-1});
-        auto axis_const = opset8::Constant::create(element::i32, Shape{}, {0});
-        auto gather_1 = std::make_shared<opset8::Gather>(shapeof, const_1, axis_const);
+        // after ConvertCompressedOnlyToLegacy Const->Convert are constant-folded into a single f16 Const
+        auto compressed_const = opset8::Constant::create(element::f16, Shape{}, {2.0f});
+        auto add_compressed_const = std::make_shared<opset8::Add>(input_1, compressed_const);
 
-        auto const_for_reshape_1 = opset8::Constant::create(element::i32, Shape{1}, {360});
-        auto const_for_reshape_2 = opset8::Constant::create(element::i32, Shape{1}, {-1});
+        // ShapeOf is also folded into a constant
+        auto new_shape = opset8::Constant::create(element::i32, Shape{3}, {360, -1, 640});
 
-        auto concat = std::make_shared<opset8::Concat>(OutputVector{const_for_reshape_1, const_for_reshape_2, gather_1}, 0);
-
-        auto reshape = std::make_shared<opset8::Reshape>(input_1, concat, false);
+        auto reshape = std::make_shared<opset8::Reshape>(add_compressed_const, new_shape, false);
         model_ref = std::make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{input_1, input_2});
     }
 
@@ -1300,6 +1340,13 @@ TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_6) {
     // While floats should be kept in f32.
     {
         auto input_1 = std::make_shared<opset8::Parameter>(element::f32, Shape{720, 1280});
+        // Emulate scenario when FP16 compressed IR came into GPU.
+        // ConvertCompressedOnlyToLegacy is triggered only if there are decompression converts
+        auto compressed_const = opset8::Constant::create(element::f16, Shape{}, {2.0f});
+        auto decompress_convert = std::make_shared<opset8::Convert>(compressed_const, element::f32);
+        mark_as_decompression(decompress_convert);
+        auto add_decompressed_const = std::make_shared<opset8::Add>(input_1, decompress_convert);
+
         auto input_2 = std::make_shared<opset8::Parameter>(element::f32, Shape{360, 640});
         auto shapeof = std::make_shared<opset8::ShapeOf>(input_2);
 
@@ -1316,46 +1363,33 @@ TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_6) {
         auto const_for_reshape_2 = opset8::Constant::create(element::i64, Shape{1}, {-1});
         auto concat = std::make_shared<opset8::Concat>(OutputVector{const_for_reshape_1, const_for_reshape_2, convert_to_int}, 0);
 
-        auto reshape = std::make_shared<opset8::Reshape>(input_1, concat, false);
+        auto reshape = std::make_shared<opset8::Reshape>(add_decompressed_const, concat, false);
         model = std::make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{input_1, input_2});
 
         pass::Manager manager;
-        manager.register_pass<ov::pass::MarkPrecisionSensitiveSubgraphs>(false);
-        manager.get_pass_config()->set_callback<ngraph::pass::ConvertPrecision>(
-                [](const std::shared_ptr<const Node>& node) -> bool {
-                    return ov::fp16_compression_is_disabled(node);
-                });
-        manager.register_pass<pass::ConvertPrecision>(precisions_array {{ element::f32, element::f16 }});
+        manager.register_pass<ov::pass::ConvertCompressedOnlyToLegacy>();
+        manager.get_pass_config()->enable<ov::pass::MarkPrecisionSensitiveSubgraphs>();
 
         // emulate GPU transformations_pipeline scenario when ConvertPrecision is called 2 times:
         // 1st time at the beginning of transformations_pipeline inside the CommonOptimizations, namely:
         // CommonOptimizations calls -> ConvertOnlyToLegacy calls -> ConvertCompressedOnlyToLegacy(f32->f16).
         // 2nd time in the middle of transformations_pipeline with the precisions_array to cast all integers into i32
-        manager.register_pass<pass::ConvertPrecision>(precisions_array {{ ngraph::element::i64, ngraph::element::i32 }});
-
+        manager.register_pass<pass::ConvertPrecision>(precisions_array {{ngraph::element::i64, ngraph::element::i32 }});
         manager.run_passes(model);
     }
     {
         // instead of i64 here all integers should be i32
         auto input_1 = std::make_shared<opset8::Parameter>(element::f16, Shape{720, 1280});
         auto input_2 = std::make_shared<opset8::Parameter>(element::f16, Shape{360, 640});
-        auto shapeof = std::make_shared<opset8::ShapeOf>(input_2, element::i32);
 
-        auto const_1 = opset8::Constant::create(element::i32, Shape{1}, {-1});
-        auto axis_const = opset8::Constant::create(element::i32, Shape{}, {0});
-        auto gather_1 = std::make_shared<opset8::Gather>(shapeof, const_1, axis_const);
+        // after ConvertCompressedOnlyToLegacy Const->Convert are constant-folded into a single f16 Const
+        auto compressed_const = opset8::Constant::create(element::f16, Shape{}, {2.0f});
+        auto add_compressed_const = std::make_shared<opset8::Add>(input_1, compressed_const);
 
-        auto convert_to_float = std::make_shared<opset8::Convert>(gather_1, element::f32);
-        auto const_2 = opset8::Constant::create(element::f32, Shape{1}, {0.4f});
-        auto mul_1 = std::make_shared<opset8::Multiply>(const_2, convert_to_float);
-        auto convert_to_int = std::make_shared<opset8::Convert>(mul_1, element::i32);
+        // ShapeOf is also folded into a constant
+        auto new_shape = opset8::Constant::create(element::i32, Shape{3}, {360, -1, 256});
 
-        auto const_for_reshape_1 = opset8::Constant::create(element::i32, Shape{1}, {360});
-        auto const_for_reshape_2 = opset8::Constant::create(element::i32, Shape{1}, {-1});
-
-        auto concat = std::make_shared<opset8::Concat>(OutputVector{const_for_reshape_1, const_for_reshape_2, convert_to_int}, 0);
-
-        auto reshape = std::make_shared<opset8::Reshape>(input_1, concat, false);
+        auto reshape = std::make_shared<opset8::Reshape>(add_compressed_const, new_shape, false);
         model_ref = std::make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{input_1, input_2});
     }
 
