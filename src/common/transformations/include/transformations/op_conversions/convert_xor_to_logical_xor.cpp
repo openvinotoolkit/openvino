@@ -5,13 +5,13 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <ngraph/function.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset10.hpp>
-#include <openvino/pass/manager.hpp>
+#include "ngraph/function.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/pass/manager.hpp"
 #include <string>
-#include <transformations/init_node_info.hpp>
-#include <transformations/op_conversions/convert_xor_to_logical_xor.hpp>
+#include "transformations/init_node_info.hpp"
+#include "convert_xor_to_logical_xor.hpp"
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 

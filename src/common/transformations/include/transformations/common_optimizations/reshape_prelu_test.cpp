@@ -7,13 +7,13 @@
 #include <string>
 #include <memory>
 
-#include <ngraph/function.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <transformations/common_optimizations/reshape_prelu.hpp>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
-#include <ov_ops/type_relaxed.hpp>
-#include <ngraph/pass/manager.hpp>
+#include "ngraph/function.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "reshape_prelu.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
+#include "ov_ops/type_relaxed.hpp"
+#include "ngraph/pass/manager.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
 
 using namespace testing;
