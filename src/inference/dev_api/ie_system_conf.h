@@ -137,6 +137,7 @@ INFERENCE_ENGINE_API_CPP(bool) with_cpu_x86_avx512_core_amx();
  * @brief This enum contains columns of CPU map. Below is the structure of CPU map
  *
  * Proc ID | Socket ID | HW Core ID | Phy Core of Pcores | Logic Core of Pcores | ID of Ecore Group | Used
+ *
  */
 enum CpuMapColumn : int {
     CPU_MAP_SOCKET = 0,     
