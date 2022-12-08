@@ -9,6 +9,7 @@ import platform
 import sys
 from collections import OrderedDict
 from copy import deepcopy
+from pathlib import Path
 
 import numpy as np
 
@@ -831,7 +832,7 @@ def show_mo_convert_help():
 
 
 def input_model_is_object(argv):
-    if isinstance(argv['input_model'], str):
+    if isinstance(argv['input_model'], (str, Path)):
         return False
     if argv['input_model'] is None:
         return False
