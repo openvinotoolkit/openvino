@@ -1,53 +1,46 @@
 {
-    "commonConfig" : {
-        "modeMap" : {
-            "checkOutput" : "CheckOutputMode",
-            "bmPerfMode" : "BenchmarkAppPerformanceMode"
-        },
-        "traversalMap" : {
-            "firstFailedVersion" : "FirstFailedVersion",
-            "firstFixedVersion" : "FirstFixedVersion"
-        },
-        "commandList" : [
-            {"cmd" : "git checkout -- .", "path" : "{gitPath}"},
-            {"cmd" : "git clean -fxd", "path" : "{gitPath}", "tag" : "clean"},
-            {"cmd" : "mkdir build", "path" : "{gitPath}", "tag" : "clean"},
-            {"cmd" : "git checkout {commit}", "catchMsg" : "error", "path" : "{gitPath}"},
-            {"cmd" : "git submodule init", "path" : "{gitPath}"},
-            {"cmd" : "git submodule update --recursive", "path" : "{buildPath}"},
-            {"cmd" : "cmake cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_PYTHON=OFF -DTHREADING=TBB -DENABLE_MKL_DNN=ON -DENABLE_CLDNN=OFF -DENABLE_INTEL_GNA=OFF -DENABLE_INTEL_VPU=OFF -DENABLE_INTEL_MYRIAD=OFF -DENABLE_INTEL_MYRIAD_COMMON=OFF -DENABLE_HDDL=OFF -DENABLE_MODELS=OFF -DENABLE_SAMPLES=ON -DENABLE_TESTS=ON -DENABLE_HETERO=OFF -DENABLE_TEMPLATE=OFF -DENABLE_CPU_DEBUG_CAPS=OFF -DENABLE_DEBUG_CAPS=OFF -DENABLE_OV_CORE_BACKEND_UNIT_TESTS=OFF -DENABLE_OPENVINO_DEBUG=OFF ..", "catchMsg" : "CMake Error", "path" : "{buildPath}"},
-            {"cmd" : "make --jobs=4", "path" : "{buildPath}"},
-            {"cmd" : "git checkout -- .", "path" : "{gitPath}"}
-        ],
-        "returnCmd" : "git checkout commit_stroller",
-        "gitPath" : "../../",
-        "buildPath" : "../../build",
-        "cachePath" : "{workPath}/slider_cache/",
-        "logPath" : "{workPath}/log/",
-        "appCmd" : "./cpuFuncTests --gtest_filter=*SetScalePreProcessGetBlob*netPRC=FP32_targetDevice=AUTO*",
-        "appPath" : "../../bin/intel64/Release/",
-
-        "workPath" : "/tmp/commit_slider_tool",
-        "clearCache" : false,
-        "checkBorders" : false,
-        "noCleanInterval" : 0
+    "modeMap" : {
+        "checkOutput" : "CheckOutputMode",
+        "bmPerf" : "BenchmarkAppPerformanceMode"
     },
+    "traversalMap" : {
+        "firstFailedVersion" : "FirstFailedVersion",
+        "firstFixedVersion" : "FirstFixedVersion"
+    },
+    "commandList" : [
+        {"cmd" : "git checkout -- .", "path" : "{gitPath}"},
+        {"cmd" : "git clean -fxd", "path" : "{gitPath}", "tag" : "clean"},
+        {"cmd" : "mkdir -p build", "path" : "{gitPath}"},
+        {"cmd" : "git checkout {commit}", "catchMsg" : "error", "path" : "{gitPath}"},
+        {"cmd" : "git submodule init", "path" : "{gitPath}"},
+        {"cmd" : "git submodule update --recursive", "path" : "{buildPath}"},
+        {"cmd" : "{makeCmd}", "catchMsg" : "CMake Error", "path" : "{buildPath}"},
+        {"tag" : "preprocess"},
+        {"cmd" : "make --jobs=4", "path" : "{buildPath}"},
+        {"cmd" : "git checkout -- .", "path" : "{gitPath}"}
+    ],
+    "makeCmd" : "cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_PYTHON=OFF -DTHREADING=TBB -DENABLE_MKL_DNN=ON -DENABLE_CLDNN=OFF -DENABLE_INTEL_GNA=OFF -DENABLE_INTEL_VPU=OFF -DENABLE_INTEL_MYRIAD=OFF -DENABLE_INTEL_MYRIAD_COMMON=OFF -DENABLE_HDDL=OFF -DENABLE_MODELS=OFF -DENABLE_SAMPLES=OFF -DENABLE_TESTS=ON -DENABLE_HETERO=OFF -DENABLE_TEMPLATE=OFF -DENABLE_CPU_DEBUG_CAPS=OFF -DENABLE_DEBUG_CAPS=OFF -DENABLE_OV_CORE_BACKEND_UNIT_TESTS=OFF -DENABLE_OPENVINO_DEBUG=OFF ..",
+    "returnCmd" : "git checkout master",
+    "gitPath" : "../../",
+    "buildPath" : "../../build/",
+    "cachePath" : "{workPath}/slider_cache/",
+    "logPath" : "{workPath}/log/",
+    "appCmd" : "./cpuFuncTests --gtest_filter=*SetScalePreProcessGetBlob*netPRC=FP32_targetDevice=AUTO*",
+    "appPath" : "../../bin/intel64/Release/",
+    "workPath" : "/tmp/commit_slider_tool",
+    "clearCache" : false,
+    "checkBorders" : false,
+    "noCleanInterval" : 10,
     "serviceConfig" : {
         "comment" : "For inner purpose. Data will be overwritten during script running."
     },
-    "specialConfig" : {
+    "runConfig" : {
         "commitList" : {
-            "getCommitListCmd" : "git log e29169d..e4cf8ae --boundary --pretty=\"%h\""
-
+            "getCommitListCmd" : "git log dfc738b49..0dfdadb --boundary --pretty=\"%h\""
         },
         "mode" : "checkOutput",
-        "traversal" : "firstFixedVersion",
+        "traversal" : "firstFailedVersion",
         "stopPattern" : "(.)*FAILED(.)*",
-        "preprocess" : {
-            "name" : "replace",
-            "file" : "../../inference-engine/tests/functional/plugin/cpu/shared_tests_instances/skip_tests_config.cpp",
-            "pattern" : "(\\s)*(.)*(SetScalePreProcessGetBlob)(.)*(\\s)",
-            "replacement" : ""
-        }
+        "todo" : "add-preprocess"
     }
 }

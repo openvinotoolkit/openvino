@@ -11,26 +11,38 @@ def getParams():
     parser = ArgumentParser()
     parser.add_argument("-c", "--commits", dest="commitSeq", help="commit sequence")
     parser.add_argument("-cfg", "--config", dest="configuration",
-        help="configuration source", default='utils/cfg.json')
+        help="configuration source", default="custom_cfg.json")
     parser.add_argument("-wd", "--workdir", dest="isWorkingDir",
         action='store_true', help="flag if current directory is working")
     args = parser.parse_args()
 
-    cfgPath = ""
-    cfgPath = args.__dict__["configuration"]
-    cfgData = json.load(open(cfgPath))
-    cfgData = absolutizePaths(cfgData)
-    return args, cfgData
+    presetCfgPath = "utils/cfg.json"
+    customCfgPath = ""
+    customCfgPath = args.__dict__["configuration"]
+    cfgFile = open(presetCfgPath)
+    presetCfgData = json.load(cfgFile)
+    cfgFile.close()
+    cfgFile = open(customCfgPath)
+    customCfgData = json.load(cfgFile)
+    cfgFile.close()
+    # customize cfg
+    for key in customCfgData:
+        newVal = customCfgData[key]
+        presetCfgData[key] = newVal
+
+    presetCfgData = absolutizePaths(presetCfgData)
+    return args, presetCfgData, customCfgPath
 
 def absolutizePaths(cfg):
     pathToAbsolutize = ["gitPath", "buildPath", "appPath", "workPath"]
     for item in pathToAbsolutize:
-        path = cfg["commonConfig"][item]
+        path = cfg[item]
         path = os.path.abspath(path)
-        cfg["commonConfig"][item] = path
-    prepFile = cfg["specialConfig"]["preprocess"]["file"]
-    prepFile = os.path.abspath(prepFile)
-    cfg["specialConfig"]["preprocess"]["file"] = prepFile
+        cfg[item] = path
+    if "preprocess" in cfg["runConfig"]:
+        prepFile = cfg["runConfig"]["preprocess"]["file"]
+        prepFile = os.path.abspath(prepFile)
+        cfg["runConfig"]["preprocess"]["file"] = prepFile
     return cfg
 def checkArgAndGetCommitList(commitArg, cfgData):
     if (not len(commitArg.split('..')) == 2):
@@ -39,7 +51,7 @@ def checkArgAndGetCommitList(commitArg, cfgData):
     else:
         checkCommitSetCmd = "git log {commitInterval} --boundary --pretty=\"%h\"".format(commitInterval=commitArg)
         proc = subprocess.Popen(checkCommitSetCmd.split(),
-            cwd = cfgData["commonConfig"]["gitPath"],
+            cwd = cfgData["gitPath"],
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         proc.wait()
         out, err = proc.communicate()
@@ -55,9 +67,9 @@ def checkArgAndGetCommitList(commitArg, cfgData):
 def runCommandList(commit, cfgData):
     skipCleanInterval = cfgData["trySkipClean"]
     commitLogger = getCommitLogger(cfgData, commit)
-    commandList = cfgData["commonConfig"]["commandList"]
-    gitPath = cfgData["commonConfig"]["gitPath"]
-    buildPath = cfgData["commonConfig"]["buildPath"]
+    commandList = cfgData["commandList"]
+    gitPath = cfgData["gitPath"]
+    buildPath = cfgData["buildPath"]
     defRepo = gitPath
     newEnv = os.environ.copy()
     for cmd in commandList:
@@ -65,24 +77,23 @@ def runCommandList(commit, cfgData):
             if cmd["tag"] == "clean" and skipCleanInterval:
                 continue
             elif cmd["tag"] == "preprocess":
-                if not ("preprocess" in cfgData["specialConfig"] and 
-                    "name" in cfgData["specialConfig"]["preprocess"]):
+                if not ("preprocess" in cfgData["runConfig"] and
+                    "name" in cfgData["runConfig"]["preprocess"]):
                     raise CfgError("No preprocess provided")
-                prePrName = cfgData["specialConfig"]["preprocess"]["name"]
+                prePrName = cfgData["runConfig"]["preprocess"]["name"]
                 mod = importlib.import_module("utils.preprocess.{pp}".format(pp=prePrName))
                 preProcess = getattr(mod, prePrName)
                 preProcess(cfgData)
                 continue
             elif cmd["tag"] == "setupenv":
-                for env in cfgData["specialConfig"]["setupenv"]:
+                for env in cfgData["runConfig"]["setupenv"]:
                     envKey = env["env"]
                     envVal = env["val"]
                     commitLogger.info("Setup env: {key}={val}".format(key=envKey, val=envVal))
                     newEnv[envKey] = envVal
-                    # print(os.environ[envKey])
-                    # i = input("ENV")
                 continue
-        strCommand = cmd["cmd"].format(commit = commit)
+        makeCmd = cfgData["makeCmd"]
+        strCommand = cmd["cmd"].format(commit=commit, makeCmd=makeCmd)
         formattedCmd = strCommand.split()
         cwd = defRepo
         if "path" in cmd:
@@ -105,7 +116,6 @@ def runCommandList(commit, cfgData):
             checkOut = checkOut.decode('utf-8')
         except (UnicodeDecodeError, AttributeError):
             pass
-        # commitLogger.info(checkOut)
         if "catchMsg" in cmd:
             isErrFound = re.search(cmd["catchMsg"], checkOut)
             if (isErrFound):
@@ -114,6 +124,14 @@ def runCommandList(commit, cfgData):
                     raise NoCleanFailedError()
                 else:
                     raise CmdError(checkOut)
+
+def fetchAppOutput(cfg):
+    appCmd = cfg["appCmd"]
+    appPath = cfg["appPath"]
+    p = subprocess.Popen(appCmd.split(), cwd=appPath, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    output, err = p.communicate()
+    output = output.decode('utf-8')
+    return output
 
 def handleCommit(commit, cfgData):
     skipCleanInterval = cfgData["serviceConfig"]["skipCleanInterval"]
@@ -124,8 +142,8 @@ def handleCommit(commit, cfgData):
         cfgData["trySkipClean"] = False
         runCommandList(commit, cfgData)
 def returnToActualVersion(cfg):
-    cmd = cfg["commonConfig"]["returnCmd"]
-    cwd = cfg["commonConfig"]["gitPath"]
+    cmd = cfg["returnCmd"]
+    cwd = cfg["gitPath"]
     proc = subprocess.Popen(cmd.split(), cwd = cwd,
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     proc.wait()
@@ -151,8 +169,8 @@ def getCommitLogger(cfg, commit):
     commitLogger = setupLogger(logName, logPath, logFileName)
     return commitLogger
 def getActualPath(pathName, cfg):
-    workPath = cfg["commonConfig"]["workPath"]
-    curPath = cfg["commonConfig"][pathName]
+    workPath = cfg["workPath"]
+    curPath = cfg[pathName]
     return curPath.format(workPath=workPath)
 def safeClearDir(path):
     if not os.path.exists(path):
@@ -169,8 +187,8 @@ class CmdError(Exception):
 class NoCleanFailedError(Exception):
     pass
 def checkAndGetClassnameByConfig(cfg, mapName, specialCfg):
-    keyName = cfg["specialConfig"][specialCfg]
-    map = cfg["commonConfig"][mapName]
+    keyName = cfg["runConfig"][specialCfg]
+    map = cfg[mapName]
     if (not (keyName in map)):
         raise CfgError("{keyName} is not registered in {mapName}".format(keyName = keyName, mapName = mapName))
     else:

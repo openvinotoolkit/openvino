@@ -20,8 +20,8 @@ class Mode(ABC):
         self.commonLogger = util.setupLogger('commonLogger', logPath, 'common_log.log')
 
     def createCash(self):
-        wp = self.cfg["commonConfig"]["workPath"]
-        cp = self.cfg["commonConfig"]["cachePath"]
+        wp = self.cfg["workPath"]
+        cp = self.cfg["cachePath"]
         cp = cp.format(workPath=wp)
         if not os.path.exists(cp):
             os.makedirs(cp)
@@ -29,7 +29,7 @@ class Mode(ABC):
         initCacheMap = {}
         try:
             cacheDump = open(self.cachePath, 'r+')
-            if self.cfg["commonConfig"]["clearCache"]:
+            if self.cfg["clearCache"]:
                 cacheDump.truncate(0)
                 json.dump(initCacheMap, cacheDump)
             else:
@@ -65,7 +65,7 @@ class Mode(ABC):
                 cacheDump.close()
 
     def checkCfg(self, cfg):
-        if not("traversal" in cfg["specialConfig"]):
+        if not("traversal" in cfg["runConfig"]):
             raise util.CfgError("traversal is not configured")
 
     def isBadVersion(commit, cfg):
@@ -88,7 +88,7 @@ class Mode(ABC):
         def bypass(self, i1, i2, list, cfg, isBadVersion) -> int:
             raise NotImplementedError()
         def prepBypass(self, i1, i2, list, cfg):
-            noCleanInterval = cfg["commonConfig"]["noCleanInterval"]
+            noCleanInterval = cfg["noCleanInterval"]
             cfg["serviceConfig"]["skipCleanInterval"] = (i2 - i1 < noCleanInterval)
             self.mode.commonLogger.info("Check interval {i1}..{i2}".format(i1=i1, i2=i2))
             self.mode.commonLogger.info("Check commits {c1}..{c2}".format(c1=list[i1], c2=list[i2]))

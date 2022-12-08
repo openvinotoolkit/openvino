@@ -5,7 +5,7 @@ import sys
 from distutils.dir_util import copy_tree
 from utils.helpers import safeClearDir, getParams
 
-args, cfgData = getParams()
+args, cfgData, customCfgPath = getParams()
 
 if args.__dict__["isWorkingDir"]:
     # rerun script from work directory
@@ -15,9 +15,9 @@ if args.__dict__["isWorkingDir"]:
 
     commitList = []
     if (args.__dict__["commitSeq"] == None):
-        if ("getCommitListCmd" in cfgData["specialConfig"]["commitList"]):
-            commitListCmd = cfgData["specialConfig"]["commitList"]["getCommitListCmd"]
-            cwd = cfgData["commonConfig"]["gitPath"]
+        if ("getCommitListCmd" in cfgData["runConfig"]["commitList"]):
+            commitListCmd = cfgData["runConfig"]["commitList"]["getCommitListCmd"]
+            cwd = cfgData["gitPath"]
             try:
                 out = subprocess.check_output(commitListCmd.split(), cwd=cwd)
             except subprocess.CalledProcessError as e:
@@ -31,11 +31,14 @@ if args.__dict__["isWorkingDir"]:
 
     commitList.reverse()
     p = Mode.factory(cfgData)
-    p.run(0, len(commitList) - 1, commitList, cfgData)
+    try:
+        p.run(0, len(commitList) - 1, commitList, cfgData)
+    except:
+        i = input("todo: do smth, return to commit")
     p.getResult()
 
 else:
-    workPath = cfgData["commonConfig"]["workPath"]
+    workPath = cfgData["workPath"]
     if not os.path.exists(workPath):
         os.mkdir(workPath)
     else:
@@ -51,16 +54,15 @@ else:
     subprocess.call(formattedCmd.split())
 
     # copy logs and cache back to general repo
-    tempLogPath = cfgData["commonConfig"]["logPath"].format(workPath=workPath)
-    permLogPath = cfgData["commonConfig"]["logPath"].format(workPath=curPath)
+    tempLogPath = cfgData["logPath"].format(workPath=workPath)
+    permLogPath = cfgData["logPath"].format(workPath=curPath)
     safeClearDir(permLogPath)
     copy_tree(tempLogPath, permLogPath)
 
-    tempCachePath = cfgData["commonConfig"]["cachePath"].format(workPath=workPath)
-    permCachePath = cfgData["commonConfig"]["cachePath"].format(workPath=curPath)
+    tempCachePath = cfgData["cachePath"].format(workPath=workPath)
+    permCachePath = cfgData["cachePath"].format(workPath=curPath)
     safeClearDir(permCachePath)
     copy_tree(tempCachePath, permCachePath)
 
-    cfgPath = 'utils/cfg.json'
-    shutil.copyfile(os.path.join(workPath, cfgPath), os.path.join(curPath, cfgPath), follow_symlinks=True)
+    shutil.copyfile(os.path.join(workPath, customCfgPath), os.path.join(curPath, customCfgPath), follow_symlinks=True)
     safeClearDir(workPath)
