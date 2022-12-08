@@ -4,15 +4,9 @@
 
 #include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
 
-#include <memory>
-#include <ngraph/graph_util.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/validation_util.hpp>
-#include <openvino/opsets/opset10.hpp>
+#include "openvino/opsets/opset10.hpp"
 
 #include "itt.hpp"
-#include "transformations/utils/utils.hpp"
 
 using namespace ov::opset10;
 
@@ -63,8 +57,8 @@ bool inherit_output_type(std::shared_ptr<ov::Node> node, std::vector<size_t> inp
 }
 }  // namespace
 
-bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
-    RUN_ON_FUNCTION_SCOPE(ReverseShapeAndTypeInfer);
+bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::Model>& f) {
+    RUN_ON_MODEL_SCOPE(ReverseShapeAndTypeInfer);
     bool is_changed = false;
     auto ops = f->get_ordered_ops();
     OPENVINO_SUPPRESS_DEPRECATED_START

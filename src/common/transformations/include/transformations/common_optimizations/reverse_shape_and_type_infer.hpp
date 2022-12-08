@@ -4,10 +4,8 @@
 
 #pragma once
 
-#include <memory>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/pass.hpp>
 #include <transformations_visibility.hpp>
-#include <vector>
 
 namespace ov {
 namespace pass {
@@ -17,8 +15,11 @@ class TRANSFORMATIONS_API ReverseShapeAndTypeInfer;
 }  // namespace pass
 }  // namespace ov
 
-class ov::pass::ReverseShapeAndTypeInfer : public ngraph::pass::FunctionPass {
+/**
+ * @brief Perform reverse shape and type infer to duduce input rank and type in certain cases
+ */
+class ov::pass::ReverseShapeAndTypeInfer : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("ReverseShapeAndTypeInfer", "0");
-    bool run_on_model(const std::shared_ptr<ngraph::Function>& f) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& f) override;
 };
