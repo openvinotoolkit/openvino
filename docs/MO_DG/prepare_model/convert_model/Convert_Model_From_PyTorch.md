@@ -2,7 +2,7 @@
 
 The PyTorch framework is supported through export to the ONNX format. Model Optimizer Python API allows to convert PyTorch models through usage of convert_model() method which internally converts a model to ONNX.
 ## Conversion of PyTorch model from the memory using Python API (Experimental Functionality)
-MO Python API is represented by convert_model() method. To convert a PyTorch model convert_model() requires providing of 'input_shape' or 'example_input'.
+Converting a PyTorch model using convert_model() requires providing of 'input_shape' or 'example_input'.
 ```sh
 import torchvision
 import torch

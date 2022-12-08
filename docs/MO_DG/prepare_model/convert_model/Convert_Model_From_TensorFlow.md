@@ -142,11 +142,77 @@ mo --saved_model_dir BERT --input mask,word_ids,type_ids --input_shape [2,30],[2
 ## Conversion of TensorFlow models from the memory using Python API
 * MO Python API supports passing TF/TF2 models directly from memory.
 
+* tf.keras.Model 
+```sh
+model = tf.keras.applications.ResNet50(weights="imagenet")
+ov_model = convert_model(model)
+```
+* tf.keras.layers.Layer. Requires setting of "input_shape".
 ```sh
 import tensorflow_hub as hub
 
 model = hub.KerasLayer("https://tfhub.dev/google/imagenet/mobilenet_v1_100_224/classification/5")
 ov_model = convert_model(model, input_shape=[-1, 224, 224, 3])
+```
+* tf.Module. Requires setting of "input_shape".
+```sh
+class MyModule(tf.Module):
+    def __init__(self, name=None):
+        super().__init__(name=name)
+        self.variable1 = tf.Variable(5.0, name="var1")
+        self.variable2 = tf.Variable(1.0, name="var2")
+    def __call__(self, x):
+        return self.variable1 * x + self.variable2
+
+model = MyModule(name="simple_module")
+ov_model = convert_model(model, input_shape=[-1])
+```
+* tf.compat.v1.GraphDef
+```sh
+with tf.compat.v1.Session() as sess:
+    inp1 = tf.compat.v1.placeholder(tf.float32, [100], 'Input1')
+    inp2 = tf.compat.v1.placeholder(tf.float32, [100], 'Input2')
+    output = tf.nn.relu(inp1 + inp2, name='Relu')
+    tf.compat.v1.global_variables_initializer()
+    model = sess.graph_def
+
+ov_model = convert_model(model)  
+```
+* tf.compat.v1.wrap_function
+```sh
+def f(x, y):
+    return tf.nn.sigmoid(tf.nn.relu(x + y))
+model = tf.compat.v1.wrap_function(f, [tf.TensorSpec((100), tf.float32),tf.TensorSpec((100), tf.float32)])
+
+ov_model = convert_model(model)  
+```
+* tf.compat.v1.session
+```sh
+with tf.compat.v1.Session() as sess:
+    inp1 = tf.compat.v1.placeholder(tf.float32, [100], 'Input1')
+    inp2 = tf.compat.v1.placeholder(tf.float32, [100], 'Input2')
+    output = tf.nn.relu(inp1 + inp2, name='Relu')
+    tf.compat.v1.global_variables_initializer()
+    
+    ov_model = convert_model(sess)
+```
+* tf.train.checkpoint
+```sh
+model = tf.keras.Model(...)
+checkpoint = tf.train.Checkpoint(model)
+save_path = checkpoint.save(save_directory)
+# ... 
+checkpoint.restore(save_path)
+ov_model = convert_model(checkpoint)
+```
+
+* tf.python.training.tracking.base.Trackable. Supported only for case of tf.saved_model.load() output.
+```sh
+model = tf.keras.Model(...)
+tf.saved_model.save(model, save_directory)
+# ... 
+model = tf.saved_model.load(save_directory)
+ov_model = convert_model(model)
 ```
 
 ## Supported TensorFlow and TensorFlow 2 Keras Layers
