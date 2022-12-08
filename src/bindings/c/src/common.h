@@ -34,7 +34,7 @@
     CATCH_OV_EXCEPTION(INFER_NOT_STARTED, InferNotStarted)    \
     CATCH_OV_EXCEPTION(NETWORK_NOT_READ, NetworkNotRead)      \
     CATCH_OV_EXCEPTION(INFER_CANCELLED, InferCancelled)       \
-    catch (...) {                                             \
+    catch (std::exception&) {                                 \
         return ov_status_e::UNKNOW_EXCEPTION;                 \
     }
 
