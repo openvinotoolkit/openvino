@@ -229,6 +229,7 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
         pkgs_dev+=(
             https://vault.centos.org/centos/8/PowerTools/$arch/os/Packages/gflags-devel-2.1.2-6.el8.$arch.rpm
             https://download-ib01.fedoraproject.org/pub/epel/8/Everything/$arch/Packages/j/json-devel-3.6.1-2.el8.$arch.rpm
+            https://vault.centos.org/centos/8/BaseOS/$arch/os/Packages/pkgconf-pkg-config-1.4.2-1.el8.$arch.rpm
         )
         pkgs_opencv_req=(gtk3)
         pkgs_opencv_opt=(
