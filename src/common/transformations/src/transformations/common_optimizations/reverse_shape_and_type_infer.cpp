@@ -4,9 +4,8 @@
 
 #include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
 
-#include "openvino/opsets/opset10.hpp"
-
 #include "itt.hpp"
+#include "openvino/opsets/opset10.hpp"
 
 using namespace ov::opset10;
 
