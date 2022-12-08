@@ -82,7 +82,7 @@ def test_space_to_batch():
     parameter_data = ov.parameter(data_shape, name="Data", dtype=np.float32)
 
     model = ov.space_to_batch(parameter_data, block_shape, pads_begin, pads_end)
-  
+
     expected_shape = [12, 1, 1, 2]
     assert model.get_type_name() == "SpaceToBatch"
     assert model.get_output_size() == 1
