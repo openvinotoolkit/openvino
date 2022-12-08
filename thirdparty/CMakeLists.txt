@@ -288,8 +288,6 @@ endif()
 # Flat Buffers
 #
 if (ENABLE_OV_TF_LITE_FRONTEND)
-    set(FLATBUFFERS_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-    set(FLATBUFFERS_BUILD_FLATHASH OFF CACHE BOOL "" FORCE)
     add_subdirectory(flatbuffers)
 endif()
 
