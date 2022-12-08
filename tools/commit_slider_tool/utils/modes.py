@@ -144,4 +144,7 @@ class BenchmarkAppPerformanceMode(Mode):
             commitLogger.info(output)
             self.setCommitCash(commit, curThroughput)
         curRel = curThroughput / self.sampleThroughput
+        isBad = not(abs(1 - curRel) < self.apprDev)
+        commitLogger.info("performance relation is {rel}".format(rel=curRel))
+        commitLogger.info("commit is {status}".format(status=('bad' if isBad else 'good')))
         return not(abs(1 - curRel) < self.apprDev)

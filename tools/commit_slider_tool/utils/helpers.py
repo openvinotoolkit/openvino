@@ -3,7 +3,25 @@ import os
 import sys
 import subprocess
 import re
+import json
 import logging as log
+from argparse import ArgumentParser
+
+def getParams():
+    parser = ArgumentParser()
+    parser.add_argument("-c", "--commits", dest="commitSeq", help="commit sequence")
+    parser.add_argument("-cfg", "--config", dest="configuration",
+        help="configuration source", default='utils/cfg.json')
+    parser.add_argument("-wd", "--workdir", dest="isWorkingDir",
+        action='store_true', help="flag if current directory is working")
+    args = parser.parse_args()
+
+    cfgPath = ""
+    cfgPath = args.__dict__["configuration"]
+    cfgData = json.load(open(cfgPath))
+    cfgData = absolutizePaths(cfgData)
+    return args, cfgData
+
 def absolutizePaths(cfg):
     pathToAbsolutize = ["gitPath", "buildPath", "appPath", "workPath"]
     for item in pathToAbsolutize:
@@ -17,7 +35,7 @@ def absolutizePaths(cfg):
 def checkArgAndGetCommitList(commitArg, cfgData):
     if (not len(commitArg.split('..')) == 2):
         # todo: python bug with re.search("^[a-zA-Z0-9]+\.\.[a-zA-Z0-9]+$", commitArg)
-        raise ValueError("{arg} is not corect commit set".format(arg=commitArg))
+        raise ValueError("{arg} is not correct commit set".format(arg=commitArg))
     else:
         checkCommitSetCmd = "git log {commitInterval} --boundary --pretty=\"%h\"".format(commitInterval=commitArg)
         proc = subprocess.Popen(checkCommitSetCmd.split(),
@@ -43,12 +61,12 @@ def runCommandList(commit, cfgData):
     defRepo = gitPath
     newEnv = os.environ.copy()
     for cmd in commandList:
-        if "tag" in cmd.keys():
+        if "tag" in cmd:
             if cmd["tag"] == "clean" and skipCleanInterval:
                 continue
             elif cmd["tag"] == "preprocess":
-                if not ("preprocess" in cfgData["specialConfig"].keys() and 
-                    "name" in cfgData["specialConfig"]["preprocess"].keys()):
+                if not ("preprocess" in cfgData["specialConfig"] and 
+                    "name" in cfgData["specialConfig"]["preprocess"]):
                     raise CfgError("No preprocess provided")
                 prePrName = cfgData["specialConfig"]["preprocess"]["name"]
                 mod = importlib.import_module("utils.preprocess.{pp}".format(pp=prePrName))
@@ -67,7 +85,7 @@ def runCommandList(commit, cfgData):
         strCommand = cmd["cmd"].format(commit = commit)
         formattedCmd = strCommand.split()
         cwd = defRepo
-        if "path" in cmd.keys():
+        if "path" in cmd:
             cwd = cmd["path"].format(buildPath = buildPath, gitPath = gitPath)
         commitLogger.info("Run command: {command}".format(command=formattedCmd))
         proc = subprocess.Popen(formattedCmd,
@@ -88,7 +106,7 @@ def runCommandList(commit, cfgData):
         except (UnicodeDecodeError, AttributeError):
             pass
         # commitLogger.info(checkOut)
-        if "catchMsg" in cmd.keys():
+        if "catchMsg" in cmd:
             isErrFound = re.search(cmd["catchMsg"], checkOut)
             if (isErrFound):
                 if skipCleanInterval:
@@ -153,7 +171,7 @@ class NoCleanFailedError(Exception):
 def checkAndGetClassnameByConfig(cfg, mapName, specialCfg):
     keyName = cfg["specialConfig"][specialCfg]
     map = cfg["commonConfig"][mapName]
-    if (not (keyName in map.keys())):
+    if (not (keyName in map)):
         raise CfgError("{keyName} is not registered in {mapName}".format(keyName = keyName, mapName = mapName))
     else:
         return map[keyName]
