@@ -149,8 +149,8 @@ jobs:
 
   - script: ls -alR $(REPO_DIR)/bin/
     displayName: 'List bin files ON'
-  # TODO: ebable after the fix on CPU side
-  # - script: |
-  #     $(REPO_DIR)/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 -m $(MODELS_PATH)/models/test_model/test_model_fp32.xml -d CPU
-  #   workingDirectory: $(REPO_DIR)
-  #   displayName: 'Use OpenVINO after CC'
+
+  - script: |
+      $(REPO_DIR)/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 -m $(MODELS_PATH)/models/test_model/test_model_fp32.xml -d CPU
+    workingDirectory: $(REPO_DIR)
+    displayName: 'Use OpenVINO after CC'
