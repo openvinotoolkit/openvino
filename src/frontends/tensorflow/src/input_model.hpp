@@ -39,6 +39,7 @@ public:
     void set_partial_shape(const ov::frontend::Place::Ptr& place, const ov::PartialShape&) override;
     ov::PartialShape get_partial_shape(const ov::frontend::Place::Ptr& place) const override;
     void set_element_type(const ov::frontend::Place::Ptr& place, const ov::element::Type&) override;
+    ov::element::Type get_element_type(const ov::frontend::Place::Ptr& place) const override;
     void set_tensor_value(const ov::frontend::Place::Ptr& place, const void* value) override;
 };
 
