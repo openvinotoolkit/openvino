@@ -804,7 +804,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
     // while we export model in cpu internal opset so we need to save precomputed optimal # streams for both hint modes
     const auto latency_hints = getNumStreamsLatency();
     const auto tput_hints = getNumStreamsThroughput();
- 
+
     // save hints parameters to model rt_info
     ov::AnyMap hints_props;
     const auto latency_name = std::string(CONFIG_VALUE(LATENCY)) + "_" + std::string(ov::num_streams.name());
@@ -904,6 +904,9 @@ Engine::StreamCfg Engine::GetNumStreams(InferenceEngine::IStreamsExecutor::Threa
     } else {
         IE_THROW() << "Wrong stream mode to get num of streams: " << stream_mode;
     }
+    stream_cfg.num_streams = stream_cfg.num_streams > 0
+                                 ? stream_cfg.num_streams
+                                 : stream_cfg.big_core_streams + stream_cfg.small_core_streams;
     stream_cfg.small_core_offset = num_small_cores == 0 ? 0 : num_big_cores;
     return stream_cfg;
 }
