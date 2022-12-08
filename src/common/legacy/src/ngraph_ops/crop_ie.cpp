@@ -14,8 +14,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::CropIE);
-
 op::CropIE::CropIE(const Output<Node>& data, std::vector<int64_t> axes, std::vector<int64_t> dim,
                    std::vector<int64_t> offset)
     : Op({data}), axes(axes), dim(dim), offset(offset) {

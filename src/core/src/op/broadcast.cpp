@@ -18,8 +18,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v3::Broadcast);
-
 op::v3::Broadcast::Broadcast(const Output<Node>& arg,
                              const Output<Node>& target_shape,
                              const Output<Node>& axes_mapping,
@@ -225,8 +223,6 @@ BroadcastModeSpec to_broadcast_mode(const AutoBroadcastSpec& bs) {
     return broadcast_mode;
 }
 }  // namespace
-
-BWDCMP_RTTI_DEFINITION(op::v1::Broadcast);
 
 op::v1::Broadcast::Broadcast(const Output<Node>& arg,
                              const Output<Node>& target_shape,

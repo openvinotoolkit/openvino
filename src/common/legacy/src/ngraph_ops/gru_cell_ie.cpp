@@ -11,8 +11,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::GRUCellIE);
-
 op::GRUCellIE::GRUCellIE(const Output<Node>& X, const Output<Node>& H_t,
                            const Output<Node>& WR, const Output<Node>& B, std::size_t hidden_size,
                            const std::vector<std::string>& activations, const std::vector<float>& activations_alpha,
