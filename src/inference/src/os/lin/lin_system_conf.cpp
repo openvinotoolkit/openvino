@@ -63,7 +63,19 @@ struct CPU {
         }
 
         /**
-         * New method to get CPU infomation and CPU map
+         * New method to get CPU infomation and CPU map. Below is the structure of CPU flow and two sample.
+         *  1. Four processors of two Pcore
+         *  2. Four processors of four Ecores shared L2 cache
+         * 
+         *  Processor ID | Socket ID | HW Core ID | Physical Core ID of Pcores | Logical Core ID of Pcores | ID of Ecore Group | Used Processor
+         *      0              1            1                  0                             1                      0                  0
+         *      1              1            1                  1                             0                      0                  0
+         *      2              1            2                  0                             2                      0                  0
+         *      3              1            2                  2                             0                      0                  0
+         *      4              1            3                  0                             0                      1                  0
+         *      5              1            4                  0                             0                      1                  0
+         *      6              1            5                  0                             0                      1                  0
+         *      7              1            6                  0                             0                      1                  0
          */
         _proc = sysconf(_SC_NPROCESSORS_ONLN);
         int _cpu_mapping[_proc][CPU_MAP_USED_PROC + 1];
