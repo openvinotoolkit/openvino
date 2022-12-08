@@ -12,12 +12,10 @@
 #include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
 #include "ngraph/opsets/opset1.hpp"
-#include "ngraph_ops/type_relaxed.hpp"
+#include "ov_ops/type_relaxed.hpp"
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::DeconvolutionIE);
 
 op::DeconvolutionIE::DeconvolutionIE(const Output<Node>& data,
                                      const Output<Node>& filters,

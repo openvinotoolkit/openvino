@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <map>
+
 #include "gtest/gtest.h"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/ngraph.hpp"
@@ -171,4 +173,91 @@ TEST(type_prop, tensor_iterator_2_slice_inputs_part_size_2_dynamic) {
     EXPECT_EQ(result1->get_output_shape(0), out1_shape);
 
     EXPECT_EQ(body->get_results()[0]->get_output_shape(0), out0_shape);
+}
+
+TEST(type_prop, tensor_iterator_with_dynamic_reshape) {
+    // That which we iterate over
+    const size_t N = 32;  // Batch size
+    const size_t L = 10;  // Sequence length
+    const size_t I = 8;   // Input size
+    const size_t H = 32;  // Hidden size
+
+    auto SENT = make_shared<op::Parameter>(element::f32, Shape{N, L, I});
+
+    auto H_init = make_shared<op::Parameter>(element::f32, Shape{N, 1, H});
+    auto C_init = make_shared<op::Parameter>(element::f32, Shape{N, 1, H});
+
+    auto W = make_shared<op::Parameter>(element::f32, Shape{4 * H, I});
+    auto R = make_shared<op::Parameter>(element::f32, Shape{4 * H, H});
+    auto H_t = make_shared<op::Parameter>(element::f32, Shape{N, 1, H});
+    auto C_t = make_shared<op::Parameter>(element::f32, Shape{N, 1, H});
+
+    // Body
+    auto X = make_shared<op::Parameter>(element::f32, Shape{N, 1, I});
+    auto W_body = make_shared<op::Parameter>(element::f32, Shape{4 * H, I});
+    auto R_body = make_shared<op::Parameter>(element::f32, Shape{4 * H, H});
+    auto LSTM_cell = make_shared<opset5::LSTMCell>(builder::opset1::reshape(X, Shape{N, I}),
+                                                   builder::opset1::reshape(H_t, Shape{N, H}),
+                                                   builder::opset1::reshape(C_t, Shape{N, H}),
+                                                   W_body,
+                                                   R_body,
+                                                   H);
+    auto H_o = builder::opset1::reshape(LSTM_cell->output(0), Shape{N, 1, H});
+    auto C_o = builder::opset1::reshape(LSTM_cell->output(1), Shape{N, 1, H});
+    auto body = make_shared<ngraph::Function>(OutputVector{H_o, C_o}, ParameterVector{X, H_t, C_t, W_body, R_body});
+
+    auto tensor_iterator = make_shared<op::TensorIterator>();
+    tensor_iterator->set_body(body);
+    // start=0, stride=1, part_size=1, end=39, axis=1
+    tensor_iterator->set_sliced_input(X, SENT, 0, 1, 1, -1, 1);
+    // H_t is Hinit on the first iteration, Ho after that
+    tensor_iterator->set_merged_input(H_t, H_init, H_o);
+    tensor_iterator->set_merged_input(C_t, C_init, C_o);
+    tensor_iterator->set_invariant_input(W_body, W);
+    tensor_iterator->set_invariant_input(R_body, R);
+
+    // Output 0 is last Ho, result 0 of body
+    auto out0 = tensor_iterator->get_iter_value(H_o, -1);
+    // Output 1 is last Co, result 1 of body
+    auto out1 = tensor_iterator->get_iter_value(C_o, -1);
+
+    auto results = ResultVector{make_shared<op::Result>(out0), make_shared<op::Result>(out1)};
+    auto f = make_shared<Function>(results, ParameterVector{SENT, H_init, C_init, W, R});
+    ASSERT_EQ(tensor_iterator->get_num_iterations(), 10);
+
+    std::map<ov::Output<ov::Node>, ov::PartialShape> dyn;
+    dyn[SENT->output(0)] = {-1, -1, -1};
+    f->reshape(dyn);
+    f->validate_nodes_and_infer_types();
+
+    ASSERT_EQ(tensor_iterator->get_num_iterations(), -1);
+}
+
+TEST(type_prop, tensor_iterator_dyn_slice) {
+    const size_t N = 32;  // Batch size
+    const size_t I = 8;   // Input size
+
+    ov::PartialShape ps = {N, ov::Dimension::dynamic(), I};
+    auto SENT = make_shared<op::Parameter>(element::f32, ps);
+
+    // Body
+    auto X = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto Res = make_shared<op::Result>(X);
+    auto body = make_shared<ov::Model>(Res, ParameterVector{X});
+    auto tensor_iterator = make_shared<op::TensorIterator>();
+    tensor_iterator->set_body(body);
+
+    // start=0, stride=1, part_size=1, end=39, axis=1
+    const size_t part_size = 1;
+    tensor_iterator->set_sliced_input(X, SENT, 0, 1, part_size, -1, 1);
+
+    // Output 0 is last Ho, result 0 of body
+    auto out0 = tensor_iterator->get_iter_value(Res, -1);
+
+    auto results = ResultVector{make_shared<op::Result>(out0)};
+    auto model = make_shared<ov::Model>(results, ParameterVector{SENT});
+
+    EXPECT_EQ(tensor_iterator->get_num_iterations(), -1);
+    PartialShape ref_ps = {N, part_size, I};
+    EXPECT_EQ(X->get_partial_shape(), ref_ps);
 }

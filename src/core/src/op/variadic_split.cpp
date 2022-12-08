@@ -6,6 +6,7 @@
 
 #include <numeric>
 
+#include "compare.hpp"
 #include "itt.hpp"
 #include "ngraph/runtime/reference/slice.hpp"
 #include "ngraph/validation_util.hpp"
@@ -13,8 +14,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v1::VariadicSplit);
 
 op::v1::VariadicSplit::VariadicSplit(const Output<Node>& data,
                                      const Output<Node>& axis,
@@ -24,19 +23,17 @@ op::v1::VariadicSplit::VariadicSplit(const Output<Node>& data,
 }
 
 bool ngraph::op::v1::VariadicSplit::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_VariadicSplit_visit_attributes);
+    OV_OP_SCOPE(v1_VariadicSplit_visit_attributes);
     return true;
 }
 
 void ngraph::op::v1::VariadicSplit::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v1_VariadicSplit_validate_and_infer_types);
-    set_input_is_relevant_to_value(0);
-    set_input_is_relevant_to_value(1);
-    set_input_is_relevant_to_value(2);
+    OV_OP_SCOPE(v1_VariadicSplit_validate_and_infer_types);
+    for (size_t i = 0; i < get_input_size(); ++i) {
+        set_input_is_relevant_to_value(i);
+    }
 
-    std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0),
-                                                  get_input_partial_shape(1),
-                                                  get_input_partial_shape(2)};
+    const auto input_shapes = get_node_input_partial_shapes(*this);
     std::vector<ov::PartialShape> output_shapes;
     shape_infer(this, input_shapes, output_shapes);
 
@@ -47,7 +44,7 @@ void ngraph::op::v1::VariadicSplit::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::v1::VariadicSplit::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_VariadicSplit_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_VariadicSplit_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::VariadicSplit>(new_args.at(0), new_args.at(1), new_args.at(2));
 }
@@ -58,16 +55,21 @@ inline bool evaluate(const HostTensorPtr& in,
                      const HostTensorPtr& out,
                      const Coordinate& lower_bounds,
                      const Coordinate& upper_bounds) {
-    runtime::reference::slice(in->get_data_ptr<const char>(),
-                              out->get_data_ptr<char>(),
-                              in->get_shape(),
-                              lower_bounds,
-                              upper_bounds,
-                              Strides(lower_bounds.size(), 1),
-                              out->get_shape(),
-                              in->get_element_type().size());
+    const auto& output_shape = out->get_shape();
+    const auto has_nonzero_dims = std::none_of(output_shape.begin(), output_shape.end(), ov::cmp::Equal<size_t>(0));
 
-    return true;
+    if (has_nonzero_dims) {
+        runtime::reference::slice(in->get_data_ptr<const char>(),
+                                  out->get_data_ptr<char>(),
+                                  in->get_shape(),
+                                  lower_bounds,
+                                  upper_bounds,
+                                  Strides(lower_bounds.size(), 1),
+                                  out->get_shape(),
+                                  in->get_element_type().size());
+        return true;
+    }
+    return false;
 }
 }  // namespace
 }  // namespace variadic_split
@@ -107,11 +109,36 @@ bool op::v1::VariadicSplit::evaluate_variadic_split(const HostTensorVector& inpu
     return true;
 }
 bool op::v1::VariadicSplit::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v1_VariadicSplit_evaluate);
+    OV_OP_SCOPE(v1_VariadicSplit_evaluate);
     return evaluate_variadic_split(inputs, outputs);
 }
 
 bool op::v1::VariadicSplit::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v1_VariadicSplit_has_evaluate);
+    OV_OP_SCOPE(v1_VariadicSplit_has_evaluate);
     return get_input_element_type(1).is_integral_number() && get_input_element_type(2).is_integral_number();
+}
+
+bool op::v1::VariadicSplit::has_axis_and_splits_bound_set() const {
+    for (size_t i = 1; i < get_input_size(); ++i) {
+        if (!get_input_tensor(i).has_and_set_bound()) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool op::v1::VariadicSplit::evaluate_lower(const HostTensorVector& output_values) const {
+    OV_OP_SCOPE(v1_Split_evaluate_lower);
+
+    return has_evaluate() && has_axis_and_splits_bound_set() && default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::v1::VariadicSplit::evaluate_upper(const HostTensorVector& output_values) const {
+    OV_OP_SCOPE(v1_Split_evaluate_upper);
+
+    return has_evaluate() && has_axis_and_splits_bound_set() && default_upper_bound_evaluator(this, output_values);
+}
+
+bool op::v1::VariadicSplit::evaluate_label(TensorLabelVector& output_labels) const {
+    return has_axis_and_splits_bound_set() && default_label_evaluator(this, output_labels);
 }

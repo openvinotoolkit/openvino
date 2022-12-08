@@ -24,16 +24,15 @@ struct quantize : public primitive_base<quantize> {
     CLDNN_DECLARE_PRIMITIVE(quantize)
 
     quantize(const primitive_id& id,
-             const primitive_id& input,
-             const primitive_id& input_low,
-             const primitive_id& input_high,
-             const primitive_id& output_low,
-             const primitive_id& output_high,
+             const input_info& input,
+             const input_info& input_low,
+             const input_info& input_high,
+             const input_info& output_low,
+             const input_info& output_high,
              const int levels,
              const data_types output_data_type,
-             const primitive_id& ext_prim_id = "",
              const padding& output_padding = padding())
-        : primitive_base(id, {input, input_low, input_high, output_low, output_high}, ext_prim_id, output_padding, optional_data_type{output_data_type})
+        : primitive_base(id, {input, input_low, input_high, output_low, output_high}, {output_padding}, {optional_data_type{output_data_type}})
         , levels(levels) {}
 
     /// @brief levels The number of quantization levels.

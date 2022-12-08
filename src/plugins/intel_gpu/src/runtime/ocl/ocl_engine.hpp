@@ -32,6 +32,7 @@ public:
     void* get_user_context() const override;
 
     allocation_type get_default_allocation_type() const override { return allocation_type::cl_mem; }
+    allocation_type detect_usm_allocation_type(const void* memory) const override;
 
     const cl::Context& get_cl_context() const;
     const cl::Device& get_cl_device() const;
@@ -44,7 +45,8 @@ public:
     stream& get_program_stream() const override;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    /// Returns onednn engine object which shares device and context with current engine
+    // Returns onednn engine object which shares device and context with current engine
+    // If onednn engine has not been created yet, it creates on-demand.
     dnnl::engine& get_onednn_engine() const override;
 #endif
 
@@ -57,7 +59,8 @@ private:
     std::unique_ptr<cl::UsmHelper> _usm_helper;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    std::shared_ptr<dnnl::engine> _onednn_engine;
+    mutable std::mutex onednn_mutex;
+    mutable std::shared_ptr<dnnl::engine> _onednn_engine;
 #endif
 };
 

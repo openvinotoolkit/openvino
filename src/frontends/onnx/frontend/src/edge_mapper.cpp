@@ -69,7 +69,7 @@ int onnx_editor::EdgeMapper::get_node_output_idx(int node_index, const std::stri
         throw ov::Exception("Node with index: " + std::to_string(node_index) +
                             " has not output with name: " + output_name);
     }
-    return (out_port_idx - std::begin(node_outputs));
+    return static_cast<int>(out_port_idx - std::begin(node_outputs));
 }
 
 std::vector<int> onnx_editor::EdgeMapper::get_node_input_indexes(int node_index, const std::string& input_name) const {
@@ -206,7 +206,7 @@ std::vector<InputEdge> onnx_editor::EdgeMapper::find_output_consumers(const std:
         const auto node_idx = it->second;
         const auto port_indexes = get_node_input_indexes(node_idx, output_name);
         for (const auto& idx : port_indexes) {
-            const auto consumer_edge = InputEdge{node_idx, idx};
+            const auto consumer_edge = InputEdge{node_idx, idx, output_name};
             if (std::find_if(std::begin(input_edges), std::end(input_edges), [&consumer_edge](const InputEdge& edge) {
                     return edge.m_node_idx == consumer_edge.m_node_idx && edge.m_port_idx == consumer_edge.m_port_idx;
                 }) == std::end(input_edges)) {

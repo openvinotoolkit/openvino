@@ -13,8 +13,9 @@
 #include "utils/ngraph_utils.hpp"
 #include "transformations/utils/utils.hpp"
 #include "common/cpu_memcpy.h"
+#include <utils/shape_inference/shape_inference_internal_dyn.hpp>
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
@@ -80,7 +81,7 @@ static void nullifyUndefinedDims(VectorDims& dims) {
 class PortIteratorHelper : public PortMapHelper {
 public:
     PortIteratorHelper(const MemoryPtr &from, const MemoryPtr &to, bool sliced_src,
-                       const PortMap &slice_rule, const mkldnn::engine& eng)
+                       const PortMap &slice_rule, const dnnl::engine& eng)
                        : sliced_src(sliced_src) {
         const auto &full_blob = sliced_src ? from : to;
         const auto &part_blob = !sliced_src ? from : to;
@@ -106,9 +107,9 @@ public:
 
         full_mem = full_blob->GetPrimitive();
         const auto full_mem_handler = full_mem.get_data_handle();
-        mkldnn::memory chunk_mem = {chunk_desc, eng, full_mem_handler};
+        dnnl::memory chunk_mem = {chunk_desc, eng, full_mem_handler};
 
-        auto elem_size = DnnlExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(chunk_desc.data.data_type));
+        auto elem_size = DnnlExtensionUtils::sizeOfDataType(dnnl::memory::data_type(chunk_desc.data.data_type));
 
         chunk_stride_in_byte = chunk_desc.data.format_desc.blocking.strides[axis] * elem_size * abs_stride;
         chunk_offset_in_byte = sign_of_stride < 0 ? (iter_count - 1) * chunk_stride_in_byte : 0;
@@ -124,7 +125,7 @@ public:
         reorder = {mem_holder_src, mem_holder_dst};
     }
 
-    void execute(mkldnn::stream strm, int iter) override {
+    void execute(dnnl::stream strm, int iter) override {
         IE_ASSERT(iter >= 0 && iter < iter_count);
 
         auto &chunk_mem = sliced_src ? mem_holder_src : mem_holder_dst;
@@ -139,20 +140,20 @@ private:
     ptrdiff_t chunk_offset_in_byte = 0;
 
     bool sliced_src;
-    mkldnn::memory full_mem;
+    dnnl::memory full_mem;
 
     int iter_count;
 };
 
 class BackEdgePortHelper : public PortMapHelper {
 public:
-    BackEdgePortHelper(const MemoryPtr &from, const MemoryPtr &to, const mkldnn::engine& eng) {
+    BackEdgePortHelper(const MemoryPtr &from, const MemoryPtr &to, const dnnl::engine& eng) {
         mem_holder_src = from->GetPrimitive();
         mem_holder_dst = to->GetPrimitive();
         reorder = {mem_holder_src, mem_holder_dst};
     }
 
-    void execute(mkldnn::stream strm, int iter = -1) override {
+    void execute(dnnl::stream strm, int iter = -1) override {
         if (iter != 0) {
             reorder.execute(strm, mem_holder_src, mem_holder_dst);
         }
@@ -161,14 +162,14 @@ public:
 
 class IterCountPortHelper : public PortMapHelper {
 public:
-    IterCountPortHelper(const MemoryPtr &to, const mkldnn::engine& eng) {
+    IterCountPortHelper(const MemoryPtr &to, const dnnl::engine& eng) {
         // Only scalar I32 tensor is supported
         IE_ASSERT(to->GetDataType() == memory::data_type::s32);
         IE_ASSERT(to->GetShape() == Shape(VectorDims{1}));
         mem_holder_dst = to->GetPrimitive();
     }
 
-    void execute(mkldnn::stream strm, int n_iter) override {
+    void execute(dnnl::stream strm, int n_iter) override {
         auto mem = mem_holder_dst;
         auto data_ptr = static_cast<uint32_t*>(mem.get_data_handle());
         if (data_ptr == nullptr) {
@@ -228,7 +229,7 @@ DynamicBuffer::DynamicBuffer(const MemoryPtr &from_, const std::vector<MemoryPtr
     elem_size = DnnlExtensionUtils::sizeOfDataType(from->GetDataType());
 }
 
-void DynamicBuffer::execute(const mkldnn::engine& eng, const int iter) {
+void DynamicBuffer::execute(const dnnl::engine& eng, const int iter) {
     if (iter == 0) {
         init(eng);
         return;
@@ -239,7 +240,7 @@ void DynamicBuffer::execute(const mkldnn::engine& eng, const int iter) {
     move_data();
 }
 
-void DynamicBuffer::init(const mkldnn::engine& eng) {
+void DynamicBuffer::init(const dnnl::engine& eng) {
     chunk_offset_in_byte = 0;
     buffer_offset_in_byte = 0;
 
@@ -255,13 +256,13 @@ void DynamicBuffer::init(const mkldnn::engine& eng) {
         IE_THROW() << "TensorIterator (Loop) has incorrect output shape[axis] after iteration for concatenation. " << abs_stride <<
                    " is expected, but actual: " << dims[axis];
 
-    count = std::accumulate(dims.begin(), dims.begin() + map_rule.axis, 1, std::multiplies<size_t>());
+    count = std::accumulate(dims.begin(), dims.begin() + map_rule.axis, size_t(1), std::multiplies<size_t>());
     len = std::accumulate(dims.begin() + map_rule.axis + 1, dims.end(), elem_size, std::multiplies<size_t>());
     mem_holder_buffer.reset(new memory(src_desc, eng));
     copy(reinterpret_cast<const uint8_t*>(from->GetPtr()), get_ptr(*mem_holder_buffer.get()), 0, 0, 1, from->GetSize());
 }
 
-std::shared_ptr<mkldnn::memory> DynamicBuffer::create_buffer(const mkldnn::engine& eng) {
+std::shared_ptr<dnnl::memory> DynamicBuffer::create_buffer(const dnnl::engine& eng) {
     const auto axis = map_rule.axis;
     const auto stride = map_rule.stride;
     const auto abs_stride = std::abs(stride);
@@ -274,7 +275,7 @@ std::shared_ptr<mkldnn::memory> DynamicBuffer::create_buffer(const mkldnn::engin
         " is expected, but actual: " << from->getStaticDims()[axis];
 
     dims[axis] += abs_stride;
-    mkldnn::memory::desc new_buffer_desc(dims, old_desc.data_type(), DnnlExtensionUtils::GetPlainFormatByRank(dims.size()));
+    dnnl::memory::desc new_buffer_desc(dims, old_desc.data_type(), DnnlExtensionUtils::GetPlainFormatByRank(dims.size()));
 
     if (stride > 0.0f) {
         chunk_offset_in_byte += new_buffer_desc.data.format_desc.blocking.strides[axis] * elem_size * abs_stride;
@@ -282,10 +283,10 @@ std::shared_ptr<mkldnn::memory> DynamicBuffer::create_buffer(const mkldnn::engin
         buffer_offset_in_byte = from->GetPrimitive().get_desc().data.format_desc.blocking.strides[axis] * elem_size * abs_stride;
     }
 
-    return std::make_shared<mkldnn::memory>(new_buffer_desc, eng);
+    return std::make_shared<dnnl::memory>(new_buffer_desc, eng);
 }
 
-void DynamicBuffer::move_buffer(std::shared_ptr<mkldnn::memory> new_buffer) {
+void DynamicBuffer::move_buffer(std::shared_ptr<dnnl::memory> new_buffer) {
     const auto axis = map_rule.axis;
     const auto src_stride = mem_holder_buffer->get_desc().dims()[axis] * len;
     const auto dst_stride = new_buffer->get_desc().dims()[axis] * len;
@@ -328,10 +329,10 @@ void DynamicBuffer::copy(const uint8_t* src, uint8_t* dst, const size_t src_stri
     });
 }
 
-uint8_t* DynamicBuffer::get_ptr(mkldnn::memory& prim) {
+uint8_t* DynamicBuffer::get_ptr(dnnl::memory& prim) {
     auto ptr = static_cast<uint8_t*>(prim.get_data_handle());
     auto md = prim.get_desc().data;
-    mkldnn::impl::memory_desc_wrapper wrapper(md);
+    dnnl::impl::memory_desc_wrapper wrapper(md);
     return ptr + wrapper.offset0() * wrapper.data_type_size();
 }
 
@@ -349,8 +350,8 @@ bool TensorIterator::isSupportedOperation(const std::shared_ptr<const ov::Node>&
     return true;
 }
 
-TensorIterator::TensorIterator(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache), ngraphOp(op) {
+TensorIterator::TensorIterator(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
+        Node(op, eng, cache, InternalDynShapeInferFactory()), ngraphOp(op) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -363,7 +364,7 @@ void TensorIterator::getSupportedDescriptors() {
         THROW_ERROR << "cannot be cast to ov::op::util::SubGraphOp";
     }
     const std::shared_ptr<const ov::Model> body = tiOp->get_function();
-    sub_graph.CreateGraph(body, ext_mng, weightCache);
+    sub_graph.CreateGraph(body, ext_mng, weightCache, sharedMutex);
 
     const auto &inMap = sub_graph.GetInputNodesMap();
     for (const auto &param : tiOp->get_function()->get_parameters()) {
@@ -478,10 +479,21 @@ bool TensorIterator::needPrepareParams() const {
     if (getAlgorithm() == Algorithm::TensorIteratorLoop) {
         const auto tripCountPtr = reinterpret_cast<const uint32_t*>(getParentEdgesAtPort(loopTripCountIdx).front()->getMemoryPtr()->GetPtr());
         const auto condPtr = reinterpret_cast<const uint8_t*>(getParentEdgesAtPort(loopExecutionConditionIdx).front()->getMemoryPtr()->GetPtr());
-        if (tripCountPtr[0] != lastUsedTripCount || condPtr[0] != lastUsedCond)
+        if (tripCountPtr[0] != lastUsedTripCount || static_cast<bool>(condPtr[0]) != lastUsedCond)
             return true;
     }
 
+    // If sliced input shapes of node and body input shapes aren't equal, we should reshape body
+    if (checkForInputAndBodyShapesInequality()) {
+        return true;
+    }
+
+    // In cases, when sliced input shapes of node and body input shapes are equal,
+    // original input shapes of node may be not equal to previous input shapes and count of iterations will be another
+    // For example, TensorIterator with single sliced input by axis 1:
+    //    Input shape of node: [10, 8, 10]  ->  Sliced input shape: [10, 1, 10]  ->  Body input shape:  [10, 1, 10]  -> 8 iterations
+    //    Input shape of node: [10, 4, 10]  ->  Sliced input shape: [10, 1, 10]  ->  Body input shape:  [10, 1, 10]  -> 4 iterations
+    // Thus, sliced input shapes and body input shapes are equal but iteration counts are different. So we should update trip count
     return Node::needPrepareParams();
 }
 
@@ -507,7 +519,7 @@ void TensorIterator::prepareParams() {
     }
 }
 
-void TensorIterator::execute(mkldnn::stream strm) {
+void TensorIterator::execute(dnnl::stream strm) {
     sub_graph.ResetInferCount();
 
     bool continue_cond = initial_cond_check->getStatus();
@@ -536,7 +548,7 @@ void TensorIterator::execute(mkldnn::stream strm) {
         mapper->execute(strm);
 }
 
-void TensorIterator::executeDynamicImpl(mkldnn::stream strm) {
+void TensorIterator::executeDynamicImpl(dnnl::stream strm) {
     const auto &eng = getEngine();
     sub_graph.ResetInferCount();
 
@@ -667,20 +679,26 @@ void TensorIterator::prepareTripCount() {
 
 /* *==============* *==============* *==============* *==============* *==============* */
 
+inline SizeVector sliced_input_dims(const MemoryPtr& mem, const int axis, const int stride) {
+    auto dims = mem->getStaticDims();
+    if (axis != -1)
+        dims[axis] = abs(stride);
+    return dims;
+}
+
 void TensorIterator::reshapeSubgraphInput() {
     for (auto map_rule : inputPortMap) {
-        auto &from_mem = getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
+        auto new_dims = sliced_input_dims(getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr(), map_rule.axis, map_rule.stride);
         auto &to_mems = input_mems[map_rule.to];
-        auto new_dims = from_mem->getStaticDims();
-        if (map_rule.axis != -1)
-            new_dims[map_rule.axis] = abs(map_rule.stride);
-
-        const auto desc = std::make_shared<CpuBlockedMemoryDesc>(to_mems.front()->getDesc().getPrecision(), Shape(new_dims));
-        redefineToMemories(to_mems, desc);
+        const auto& body_inshape = to_mems.front()->GetShape();
+        if (body_inshape.isDynamic() || body_inshape.getDims() != new_dims) {
+            const auto desc = std::make_shared<CpuBlockedMemoryDesc>(to_mems.front()->getDesc().getPrecision(), Shape(new_dims));
+            redefineToMemories(to_mems, desc);
+        }
     }
 }
 
-void TensorIterator::reshapeAndFillOutput(mkldnn::stream strm) {
+void TensorIterator::reshapeAndFillOutput(dnnl::stream strm) {
     auto eng = strm.get_engine();
     for (auto map_rule : outputPortMap) {
         if (map_rule.axis == -1) {
@@ -692,7 +710,8 @@ void TensorIterator::reshapeAndFillOutput(mkldnn::stream strm) {
             auto newDims = newShape.getDims();
             nullifyUndefinedDims(newDims);
 
-            const auto desc = getBaseMemDescAtOutputPort(map_rule.from)->cloneWithNewDims(newDims);
+            const bool hasZeroDims = std::count(std::begin(newDims), std::end(newDims), 0) > 0;
+            const auto desc = getBaseMemDescAtOutputPort(map_rule.from)->cloneWithNewDims(newDims, hasZeroDims);
             redefineToMemories(to_mems, desc);
 
             if (!newShape.isDynamic()) {
@@ -705,6 +724,19 @@ void TensorIterator::reshapeAndFillOutput(mkldnn::stream strm) {
     for (auto buffer : buffers) {
         buffer->transfer(this);
     }
+}
+
+bool TensorIterator::checkForInputAndBodyShapesInequality() const {
+    for (auto map_rule : inputPortMap) {
+        auto original_dims = sliced_input_dims(getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr(), map_rule.axis, map_rule.stride);
+        auto &to_mems = input_mems[map_rule.to];
+        const auto& body_inshape = to_mems.front()->GetShape();
+        if (body_inshape.isDynamic() || body_inshape.getDims() != original_dims) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 int TensorIterator::getNumIteration(const std::vector<PortMap>& inputPortMap, const std::vector<PortMap>& outputPortMap) const {

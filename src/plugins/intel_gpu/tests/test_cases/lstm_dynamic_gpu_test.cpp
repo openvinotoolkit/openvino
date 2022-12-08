@@ -17,7 +17,7 @@
 #include <sstream>
 #include <iomanip>
 
-#ifndef __clang__
+#ifdef _WIN32
 #pragma warning( disable : 4503 )
 #endif
 
@@ -240,7 +240,7 @@ struct lstm_dynamic_input_layer_test : public ::testing::Test
         }
 
         topology.add(lstm_dynamic_input("dynamic_lstm_input",
-            "input",
+            input_info("input"),
             "dyn_len",
             "weights",
             bias_id));
@@ -272,20 +272,20 @@ struct lstm_dynamic_input_layer_test : public ::testing::Test
 
         auto outputs = network.execute();
         auto out = outputs.at("dynamic_lstm_input");
-        auto out_tensor = out.get_memory()->get_layout().size;
+        auto out_layout = out.get_memory()->get_layout();
         cldnn::mem_lock<T> out_ptr(out.get_memory(), get_test_stream());
 
 
         auto output_ref =  dynamic_lstm::lstm_dynamic_input_ref(ref_input, ref_weights, ref_bias, dynamic_lengths, max_sequence_len, has_bias, direction);
 
         size_t i = 0;
-        for (auto b = 0; b < out_tensor.batch[0]; b++)
+        for (auto b = 0; b < out_layout.batch(); b++)
         {
             for (auto len = 0; len < max_sequence_len; len++)
             {
                 for (auto dir = 0; dir < direction; dir++)
                 {
-                    for (auto x = 0; x < out_tensor.spatial[0]; x++)
+                    for (auto x = 0; x < out_layout.spatial(0); x++)
                     {
                         EXPECT_NEAR(output_ref[b][len][dir][x], (float)out_ptr[i++], 1e-3f)
                             << "b:" << b << ", "
@@ -397,7 +397,7 @@ struct lstm_dynamic_single_layer_test : public ::testing::Test
         }
 
         topology.add(lstm_dynamic("dynamic_lstm",
-            "input",
+            input_info("input"),
             "dyn_len",
             "weights",
             "recurrent",
@@ -436,19 +436,19 @@ struct lstm_dynamic_single_layer_test : public ::testing::Test
             clip_threshold, input_forget);
         auto real_outs = network.execute();
         auto out = real_outs.at("dynamic_lstm");
-        auto out_tensor = out.get_memory()->get_layout().size;
+        auto out_layout = out.get_memory()->get_layout();
 
         cldnn::mem_lock<T> out_ptr(out.get_memory(), get_test_stream());
         cldnn::mem_lock<T> last_hidden_ptr(last_hidden_mem, get_test_stream());
         cldnn::mem_lock<T> last_cell_ptr(last_cell_mem, get_test_stream());
         size_t i = 0, i_lh = 0, i_lc = 0;
-        for (auto b = 0; b < out_tensor.batch[0]; b++)
+        for (auto b = 0; b < out_layout.batch(); b++)
         {
             for (auto len = 0; len < max_sequence_len; len++)
             {
                 for (auto dir = 0; dir < direction; dir++)
                 {
-                    for (auto x = 0; x < out_tensor.spatial[0]; x++)
+                    for (auto x = 0; x < out_layout.spatial(0); x++)
                     {
                         //check hidden
                         if (len < dynamic_lengths[b])
@@ -884,7 +884,7 @@ TEST(lstm_dynamic_negative, wrong_weights_size) {
     topology.add(data("weights", weights_mem));
     topology.add(data("recurrent", recurrent_mem));
     topology.add(lstm_dynamic("dynamic_lstm",
-        "input",
+        input_info("input"),
         "dyn_len",
         "weights",
         "recurrent"));
@@ -909,7 +909,7 @@ TEST(lstm_dynamic_negative, wrong_recurrent_size_0) {
     topology.add(data("weights", weights_mem));
     topology.add(data("recurrent", recurrent_mem));
     topology.add(lstm_dynamic("dynamic_lstm",
-        "input",
+        input_info("input"),
         "dyn_len",
         "weights",
         "recurrent"));
@@ -934,7 +934,7 @@ TEST(lstm_dynamic_negative, wrong_recurrent_size_1) {
     topology.add(data("weights", weights_mem));
     topology.add(data("recurrent", recurrent_mem));
     topology.add(lstm_dynamic("dynamic_lstm",
-        "input",
+        input_info("input"),
         "dyn_len",
         "weights",
         "recurrent"));
@@ -959,7 +959,7 @@ TEST(lstm_dynamic_negative, wrong_dynamic_length_size_0) {
     topology.add(data("weights", weights_mem));
     topology.add(data("recurrent", recurrent_mem));
     topology.add(lstm_dynamic("dynamic_lstm",
-        "input",
+        input_info("input"),
         "dyn_len",
         "weights",
         "recurrent"));
@@ -984,7 +984,7 @@ TEST(lstm_dynamic_negative, wrong_dynamic_length_size_1) {
     topology.add(data("weights", weights_mem));
     topology.add(data("recurrent", recurrent_mem));
     topology.add(lstm_dynamic("dynamic_lstm",
-        "input",
+        input_info("input"),
         "dyn_len",
         "weights",
         "recurrent"));

@@ -71,6 +71,7 @@ class TestMainFrontend(unittest.TestCase):
             decode_name_with_port(self.model, 'tensorAndOp:0')
         model_stat = get_model_statistic()
         place_stat = get_place_statistic()
+
         assert model_stat.get_place_by_tensor_name == 1
         assert model_stat.get_place_by_operation_name == 1
         assert place_stat.is_equal_data > 0
@@ -109,7 +110,7 @@ class TestMainFrontend(unittest.TestCase):
         model_stat = get_model_statistic()
         place_stat = get_place_statistic()
 
-        assert model_stat.get_place_by_tensor_name >= 1
+        assert model_stat.get_place_by_tensor_name == 1
         assert model_stat.get_place_by_operation_name == 1
         assert place_stat.get_output_port == 0
         assert node
@@ -117,15 +118,15 @@ class TestMainFrontend(unittest.TestCase):
     # Mock model has 'tensor' and '0:tensor' tensor places, no collision is expected
     @mock_needed
     def test_decode_name_with_port_delim_tensor_no_collision_in(self):
-        # import pdb;pdb.set_trace()
         node = decode_name_with_port(self.model, '0:tensor')
         model_stat = get_model_statistic()
         place_stat = get_place_statistic()
 
-        assert model_stat.get_place_by_tensor_name >= 1
+        assert model_stat.get_place_by_tensor_name == 1
         assert model_stat.get_place_by_operation_name == 1
         assert place_stat.get_input_port == 0
         assert node
+
     # Mock model doesn't have such '1234:operation' or output port=1234 for 'operation'
     @mock_needed
     def test_decode_name_with_port_delim_no_port_out(self):
@@ -135,7 +136,7 @@ class TestMainFrontend(unittest.TestCase):
         place_stat = get_place_statistic()
 
         assert model_stat.get_place_by_tensor_name == 1
-        assert model_stat.get_place_by_operation_name >= 1
+        assert model_stat.get_place_by_operation_name == 1
         assert place_stat.get_output_port == 1
         assert place_stat.lastArgInt == 1234
 
@@ -148,7 +149,7 @@ class TestMainFrontend(unittest.TestCase):
         place_stat = get_place_statistic()
 
         assert model_stat.get_place_by_tensor_name == 1
-        assert model_stat.get_place_by_operation_name >= 1
+        assert model_stat.get_place_by_operation_name == 1
         assert place_stat.get_input_port == 1
         assert place_stat.lastArgInt == 1234
 
@@ -198,7 +199,7 @@ class TestMainFrontend(unittest.TestCase):
         place_stat = get_place_statistic()
 
         assert model_stat.get_place_by_tensor_name == 1
-        assert model_stat.get_place_by_operation_name >= 1
+        assert model_stat.get_place_by_operation_name == 2
         assert place_stat.get_input_port == 1
         assert place_stat.get_output_port == 1
         # At least 3 comparisons of places are expected

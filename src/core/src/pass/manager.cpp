@@ -51,7 +51,7 @@ void ov::pass::Manager::set_per_pass_validation(bool new_state) {
 
 void ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
     NGRAPH_SUPPRESS_DEPRECATED_START
-    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "pass::Manager::run_passes");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::core, "pass::Manager::run_passes");
 
     static bool profile_enabled =
         ov::util::getenv_bool("NGRAPH_PROFILE_PASS_ENABLE") || ov::util::getenv_bool("OV_PROFILE_PASS_ENABLE");
@@ -67,7 +67,7 @@ void ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
             continue;
         }
 
-        OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::nGraphPass_LT, pass::perf_counters()[pass->get_type_info()]);
+        OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ov_pass, pass::perf_counters()[pass->get_type_info()]);
 
         pass_timer.start();
 

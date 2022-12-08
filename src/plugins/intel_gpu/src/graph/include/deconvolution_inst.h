@@ -7,6 +7,7 @@
 
 #include "intel_gpu/primitives/deconvolution.hpp"
 #include "primitive_inst.h"
+#include "intel_gpu/runtime/format.hpp"
 
 #include <string>
 #include <memory>
@@ -72,6 +73,15 @@ public:
         d_idx += bias_term() ? this->get_split() : 0;
         return dependencies.size() == (d_idx + 1);
     }
+    using parent::get_kernel_impl_params;
+    std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const override {
+        auto params = parent::get_kernel_impl_params(in_layouts, out_layouts);
+        params->weights_layout = optional_layout(weights().get_output_layout());
+        if (bias_term())
+            params->bias_layout = optional_layout(bias().get_output_layout());
+        return params;
+    }
+
 
 private:
     int32_t split;
@@ -84,17 +94,20 @@ using deconvolution_node = typed_program_node<deconvolution>;
 template <>
 class typed_primitive_inst<deconvolution> : public typed_primitive_inst_base<deconvolution> {
     using parent = typed_primitive_inst_base<deconvolution>;
+    using parent::parent;
 
 public:
-    static layout calc_output_layout(deconvolution_node const& node);
+    static layout calc_output_layout(deconvolution_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(deconvolution_node const& node);
 
 public:
     typed_primitive_inst(network& network, deconvolution_node const& node);
 
     memory::ptr weights_memory(size_t index) const {
-        if (node.get_groups() == 1) {
-            if (static_cast<int32_t>(index) >= node.get_split())
+        if (is_dynamic() && _impl_params->reordered_weights != nullptr) {
+            return _impl_params->reordered_weights;
+        } else if (_groups == 1) {
+            if (static_cast<int32_t>(index) >= _split)
                 throw std::range_error("weights offset too big");
             return dep_memory_ptr(1 + index);
         } else {  // all weights are in one buffer
@@ -103,23 +116,24 @@ public:
     }
 
     memory::ptr bias_memory(size_t index) const {
-        if (node.get_groups() == 1) {
-            if (argument.bias.size() == 0 && static_cast<int32_t>(index) >= node.get_split())
+        if (_groups == 1) {
+            if (!bias_term() && static_cast<int32_t>(index) >= _split)
                 throw std::range_error("no bias data");
-            if (static_cast<int32_t>(index) > node.get_split())
+            if (static_cast<int32_t>(index) > _split)
                 throw std::range_error("bias offset too big");
-            return dep_memory_ptr(1 + node.get_split() + index);
+            return dep_memory_ptr(1 + _split + index);
         } else {  // all bias are in one buffer
             return dep_memory_ptr(2);
         }
     }
 
-    bool bias_term() const {
-        if (argument.bias.size() != 0)
-            return true;
-        else
-            return false;
-    }
+    bool bias_term() const { return _impl_params->bias_layout.has_value(); }
+    void save(cldnn::BinaryOutputBuffer& ob) const override;
+    void load(cldnn::BinaryInputBuffer& ib) override;
+
+private:
+    uint32_t _groups;
+    int32_t _split;
 };
 
 using deconvolution_inst = typed_primitive_inst<deconvolution>;

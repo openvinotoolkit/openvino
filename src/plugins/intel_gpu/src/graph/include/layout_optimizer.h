@@ -50,8 +50,7 @@ public:
     // (no need to add it to 'ouputs' etc.) for pair.first == nullptr, pair.second == true
     std::pair<std::shared_ptr<reorder>, bool> get_reorder(primitive_id src_id,
                                                           const layout& in_layout,
-                                                          const layout& out_layout,
-                                                          bool needs_split_reorder = false);
+                                                          const layout& out_layout);
 
     std::vector<std::pair<std::shared_ptr<primitive>, bool>> get_weights_reorder(
         primitive_id input_id,
@@ -138,6 +137,12 @@ private:
     bool is_depthwise(const convolution_node& node) const;
     format imad_case(convolution_node const& node) const;
 
+    // custom_list
+    // - first is i8_u8 formats as b_fs_yx_fsv32, bs_fs_yx_bsv32_fsv32.
+    // - second is float formats as b_fs_yx_fsv16, bs_fs_yx_bsv32_fsv16.
+    bool is_mixed_layout(program_node& prev, program_node& next,
+                         bool check_data_type = true, std::vector<std::pair<format, format>> custom_list = {}) const;
+
     bool convolution_bfyx_opt(const layout& output_layout,
                               const layout& weights_layout,
                               std::shared_ptr<const convolution> conv);
@@ -183,14 +188,15 @@ public:
     bool all_users_simple_format_until_output(program_node& origin_node, program_node& cur_node, int32_t cur_depth, int32_t max_depth);
     impl_types get_preferred_impl_type(program_node& node, format preferred_format);
 
-    bool are_data_types_suitable_for_onednn(program_node& node);
+    impl_types get_forced_impl_type_by_config(program_node& node);
+    static bool are_data_types_suitable_for_onednn(program_node& node);
     bool are_layouts_suitable_for_onednn(program_node& node);
     bool is_format_supported(program_node& node, format::type fmt);
 
     // Returns whether reorder between "prev" with format fmt_prev and "next" with format fmt_next
     // can be fused into next.
     bool can_fuse_reorder(program_node& prev, program_node& next, format fmt_prev, format fmt_next);
-    bool can_fuse_reorder_to_prev(program_node& prev, program_node* next, format fmt_prev, format fmt_next);
+    bool can_fuse_reorder_to_prev(program_node& prev, reorder_node& target_node, format fmt_prev, format fmt_next);
 
     void set_optimization_attribute(optimization_attributes_type attribute, int32_t val);
     optimization_attributes get_optimization_attributes() { return _optimization_attributes; }
@@ -205,14 +211,8 @@ public:
 
     bool should_select_b_fs_yx_fsv16_layout(convolution_node const& node, layout const& output_or_weights_layout);
 
-    /// @brief Validates if this convolution satisfies condition to support mixed format execution from bfyx to blocked fsv16 or fsv32.
-    /// This validation is used by selecting onednn type as preferred impl and handling reorders at reorder_inputs and remove_redundant_reorders.
-    /// As an example, if a reorder has 2 reorder users that each reorder has a convolution user, then merge is not done when those 2 convolutions
-    /// have different result from this function.
-    bool needs_onednn_small_ic_to_blocked(format fmt_next, layout& prev_output_layout, const convolution_node& node);
-
-    /// @brief Validates all user node of the target 'node'.
-    /// All user nodes are convolutions which satisfy options for onednn first conv using 'needs_onednn_small_ic_to_blocked'.
-    bool needs_all_usr_onednn_small_ic_to_blocked(const program_node& node);
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    void select_preferred_formats_for_onednn(program_node& node, dnnl::primitive_desc prim_desc);
+#endif
 };
 }  // namespace cldnn

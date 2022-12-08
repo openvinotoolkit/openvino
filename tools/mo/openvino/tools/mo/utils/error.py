@@ -36,7 +36,7 @@ class InternalError(BasicError):
 
 def classify_error_type(e):
     patterns = [
-        # Example: No module named 'openvino.offline_transformations.offline_transformations_api'
+        # Example: No module named 'openvino._offline_transformations.offline_transformations_api'
         r"No module named \'\S+\'",
         # Example: cannot import name 'IECore' from 'openvino.inference_engine' (unknown location)
         r"cannot import name \'\S+\'",

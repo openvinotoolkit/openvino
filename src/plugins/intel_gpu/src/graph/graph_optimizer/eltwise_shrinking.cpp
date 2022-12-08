@@ -32,8 +32,8 @@ void eltwise_shrinking::run(program& p) {
             // TODO: support cases which already have stride!
             if (eltw->stride.empty() && !node->get_users().empty()) {
                 bool can_shrink = true;
-                int32_t stride_x = 0;
-                int32_t stride_y = 0;
+                size_t stride_x = 0;
+                size_t stride_y = 0;
                 convs_to_shrink.clear();
                 auto users = node->get_users();
                 for (auto user : users) {
@@ -55,8 +55,7 @@ void eltwise_shrinking::run(program& p) {
                         break;
                     }
 
-                    auto weights_node_ptr = p.get_node_ptr(conv->weights[0]);
-                    auto filter_size = weights_node_ptr->get_output_layout().size;
+                    auto filter_size = user->as<convolution>().weights().get_output_layout().get_tensor();
                     // make sure this is conv 1x1
                     if (filter_size.spatial[0] != 1 || filter_size.spatial[1] != 1 || conv->stride.size() != 2) {
                         can_shrink = false;
@@ -88,15 +87,15 @@ void eltwise_shrinking::run(program& p) {
                         auto dep_stride_x = stride_x;
                         auto dep_stride_y = stride_y;
                         // don't shrink if input is broadcasted
-                        if (node->get_dependency(dep).get_output_layout().size.spatial[0] == 1) {
+                        if (node->get_dependency(dep).get_output_layout().spatial(0) == 1) {
                             dep_stride_x = 1;
                         }
 
-                        if (node->get_dependency(dep).get_output_layout().size.spatial[1] == 1) {
+                        if (node->get_dependency(dep).get_output_layout().spatial(1) == 1) {
                             dep_stride_y = 1;
                         }
 
-                        e->stride.push_back({0, 0, dep_stride_x, dep_stride_y});
+                        e->stride.push_back({0, 0, static_cast<tensor::value_type>(dep_stride_x), static_cast<tensor::value_type>(dep_stride_y)});
                     }
                     node->recalc_output_layout();
 

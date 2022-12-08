@@ -41,8 +41,8 @@ public:
         back_edges(this->get_primitive()->back_edges),
         use_current_iteration(!this->get_primitive()->current_iteration_id.empty()),
         use_execution_condition(!this->get_primitive()->condition_id.empty()),
-        max_iteration(this->get_primitive()->max_iteration < 0 ? DEFAULT_MAX_NUM_ITERATION : this->get_primitive()->max_iteration),
-        iteration_axis(0) {}
+        iteration_axis(0),
+        max_iteration(this->get_primitive()->max_iteration < 0 ? DEFAULT_MAX_NUM_ITERATION : this->get_primitive()->max_iteration) {}
 
     mutable size_t iteration_axis;
     int64_t max_iteration;
@@ -167,18 +167,20 @@ public:
 
     layout calc_body_input_layout(const loop::io_primitive_map& inputDesc) const {
         const auto& dependency_list = this->get_dependencies();
-        auto input = std::find_if(dependency_list.begin(), dependency_list.end(), [&inputDesc](const program_node* p){
-            return p->id() == inputDesc.external_id;
+        auto input = std::find_if(dependency_list.begin(), dependency_list.end(), [&inputDesc](const std::pair<program_node*, int32_t>& dep){
+            return dep.first->id() == inputDesc.external_id;
         });
         if (input == dependency_list.end()) {
             throw std::runtime_error("Can't find input from dependency_list");
         }
-        layout calculated_layout = (*input)->get_output_layout();
-        auto shape = calculated_layout.size.sizes(calculated_layout.format);
+        layout calculated_layout = (*input).first->get_output_layout();
+        auto shape = calculated_layout.get_tensor().sizes(calculated_layout.format);
 
         if (inputDesc.axis >= 0) {
             iteration_axis = convert_to_raw_axis(static_cast<size_t>(inputDesc.axis), shape.size());
-            calculated_layout.size.raw[iteration_axis] = 1; // cropped inputs shape
+            auto calculated_size = calculated_layout.get_tensor();
+            calculated_size.raw[iteration_axis] = 1; // cropped inputs shape
+            calculated_layout.set_tensor(calculated_size);
         }
 
         return calculated_layout;
@@ -359,6 +361,7 @@ using loop_node = typed_program_node<loop>;
 template <>
 class typed_primitive_inst<loop> : public typed_primitive_inst_base<loop> {
     using parent = typed_primitive_inst_base<loop>;
+    using parent::parent;
 
 public:
     struct backedge_memory_mapping {
@@ -480,10 +483,10 @@ private:
 
             int64_t batch_size = 1;
             for (int64_t i = 0; i < axis; ++i) {
-                batch_size *= mem_layout.size.raw[i];
+                batch_size *= mem_layout.get_tensor().raw[i];
             }
             for (int64_t i = axis-1; i >= 2; --i) {
-                batch_size *= mem_layout.size.raw[i];
+                batch_size *= mem_layout.get_tensor().raw[i];
             }
             return batch_size;
         }
@@ -546,7 +549,7 @@ private:
         const int64_t bytes_iteration_initial_offset;
     };
 
-    static layout calc_output_layout(const loop_node& node);
+    static layout calc_output_layout(const loop_node& node, kernel_impl_params const& impl_param);
     bool preproc_memories_done;
     std::vector<backedge_memory_mapping> backedge_memory_mappings;
     std::vector<concatenated_memory_mapping> concatenated_input_mem_mappings;
@@ -562,10 +565,10 @@ public:
     void preprocess_output_memory();
     void preprocess_backedge_memory();
     void update_mapped_memory();
-    void set_output_memory(memory::ptr mem, bool check = true) override;
+    void set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0) override;
     const backedge_memory_mapping& get_current_iteration_backedge_mapping() const {
-        if (!node.is_current_iteration_used()) {
-            CLDNN_ERROR_MESSAGE(node.id(), "no backedge mapping for current_iteration");
+        if (!node->is_current_iteration_used()) {
+            CLDNN_ERROR_MESSAGE(node->id(), "no backedge mapping for current_iteration");
         }
         return backedge_memory_mappings.at(current_iteratoin_backedge_mapping_idx);
     }

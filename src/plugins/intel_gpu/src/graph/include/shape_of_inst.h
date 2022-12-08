@@ -30,12 +30,14 @@ using shape_of_node = typed_program_node<shape_of>;
 template <>
 class typed_primitive_inst<shape_of> : public typed_primitive_inst_base<shape_of> {
     using parent = typed_primitive_inst_base<shape_of>;
+    using parent::parent;
 
 public:
-    static layout calc_output_layout(shape_of_node const& node);
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(shape_of_node const& /*node*/, const kernel_impl_params& impl_param);
+    static layout calc_output_layout(shape_of_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(shape_of_node const& node);
 
-public:
     typed_primitive_inst(network& network, shape_of_node const& node);
 };
 

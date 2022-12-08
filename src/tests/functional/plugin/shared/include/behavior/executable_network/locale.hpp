@@ -5,9 +5,11 @@
 #pragma once
 
 #include "common_test_utils/test_common.hpp"
+#include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
-#include "common_test_utils/file_utils.hpp"
+
+#include "base/behavior_test_utils.hpp"
 
 namespace BehaviorTestsDefinitions {
 
@@ -16,13 +18,12 @@ typedef std::tuple<
         std::string>    // Target device name
         LocaleParams;
 
-class CustomLocaleTest : public CommonTestUtils::TestsCommon,
+class CustomLocaleTest : public BehaviorTestsUtils::IEExecutableNetworkTestBase,
                          public ::testing::WithParamInterface<LocaleParams> {
 protected:
     std::shared_ptr<ngraph::Function> function;
     std::string localeName;
     std::string testName;
-    std::string deviceName;
 
     void SetUp() override;
 public:

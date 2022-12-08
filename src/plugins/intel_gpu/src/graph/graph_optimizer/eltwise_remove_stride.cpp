@@ -22,14 +22,14 @@ void eltwise_remove_stride::conv_stride_extend(program& p, program_node& node, c
 
     const auto conv = std::static_pointer_cast<const convolution>(node.get_primitive());
     auto weights_node_ptr = p.get_node_ptr(conv->weights[0]);
-    auto filter_size = weights_node_ptr->get_output_layout().size;
+    auto filter_size = weights_node_ptr->get_output_layout().get_tensor();
     // make sure this is conv 1x1
     if (filter_size.spatial[0] == 1 && filter_size.spatial[1] == 1) {
         auto deps = node.get_dependencies();
         for (auto dep : deps) {
-            if (dep->is_type<convolution>()) {
-                conv_stride_extend(p, *dep, tensor);
-                dep->recalc_output_layout(true);
+            if (dep.first->is_type<convolution>()) {
+                conv_stride_extend(p, *dep.first, tensor);
+                dep.first->recalc_output_layout(true);
                 break;
             }
         }
@@ -37,8 +37,8 @@ void eltwise_remove_stride::conv_stride_extend(program& p, program_node& node, c
         c->with_output_size = false;
         node.recalc_output_layout(true);
     } else {
-        bool can_shrink_x = (filter_size.spatial[0] - (conv->stride[1] + (tensor.spatial[0] - 1))) >= 0;
-        bool can_shrink_y = (filter_size.spatial[1] - (conv->stride[0] + (tensor.spatial[1] - 1))) >= 0;
+        bool can_shrink_x = (filter_size.spatial[0] >= (static_cast<int64_t>(conv->stride[1]) + (tensor.spatial[0] - 1)));
+        bool can_shrink_y = (filter_size.spatial[1] >= (static_cast<int64_t>(conv->stride[0]) + (tensor.spatial[1] - 1)));
         if (can_shrink_x && can_shrink_y) {
             auto c = const_cast<convolution*>(&(*conv));
             c->stride[1] += tensor.spatial[0] - 1;
@@ -73,9 +73,9 @@ void eltwise_remove_stride::run(program& p) {
                 for (size_t i = 0; i < deps.size(); i++) {
                     auto dep = deps[i];
                     // TODO: add other primitives beside convolution here
-                    if (dep->is_type<convolution>()) {
+                    if (dep.first->is_type<convolution>()) {
                         auto e = const_cast<eltwise*>(&(*eltw));
-                        conv_stride_extend(p, *dep, e->stride[i]);
+                        conv_stride_extend(p, *dep.first, e->stride[i]);
                     }
                 }
             }

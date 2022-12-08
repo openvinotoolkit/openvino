@@ -63,33 +63,31 @@ public:
         int64_t id;
     };
 
-    explicit MemorySolver(const std::vector<Box>& boxes) : _boxes(boxes) {
+    /** @brief Performes inplace normalization of the input boxes
+        @return lifespan of all boxes
+    */
+    static int normalizeBoxes(std::vector<Box>& boxes) {
         int max_ts = 0;
-        // TODO: add validation of data correctness:
-        // 1. Box.start >= 0 and Box.finish >= -1
-        // 2. Box.finish >= Box.start (except Box.finish == -1)
-        // 3. Box.size > 0 (or == 0 ?)
-        // 4. Box.id == any unique value
-        for (const Box& box : _boxes)
+        for (const Box& box : boxes)
             max_ts = std::max(std::max(max_ts, box.start), box.finish);
-        for (Box& box : _boxes)
+        for (Box& box : boxes)
             if (box.finish == -1)
                 box.finish = max_ts;
 
         // sort by start and finish ts
-        std::sort(_boxes.begin(), _boxes.end(), [](const Box& l, const Box& r) -> bool {
+        std::sort(boxes.begin(), boxes.end(), [](const Box& l, const Box& r) -> bool {
             return l.start < r.start || (l.start == r.start && l.finish < r.finish);
         });
 
         // remove unused timestamps (not a begin of some box)
         // each ts should start a box
         std::vector<bool> ts_exist(max_ts + 1);
-        for (const Box& b : _boxes)
+        for (const Box& b : boxes)
             ts_exist[b.start] = true;
 
         int rm_ts_s = 0, rm_ts_f = 0;
         int ts_s = 0, ts_f = 0;
-        for (Box& b : _boxes) {
+        for (Box& b : boxes) {
             while (ts_s < b.start)
                 if (!ts_exist[ts_s++])
                     rm_ts_s++;
@@ -105,7 +103,16 @@ public:
             b.start -= rm_ts_s;
             b.finish -= rm_ts_f;
         }
-        _time_duration = ts_f - rm_ts_f;
+        return ts_f - rm_ts_f;
+    }
+
+    explicit MemorySolver(const std::vector<Box>& boxes) : _boxes(boxes) {
+        // TODO: add validation of data correctness:
+        // 1. Box.start >= 0 and Box.finish >= -1
+        // 2. Box.finish >= Box.start (except Box.finish == -1)
+        // 3. Box.size > 0 (or == 0 ?)
+        // 4. Box.id == any unique value
+        _time_duration = normalizeBoxes(_boxes);
     }
 
     inline bool popupTogetherWith(MemorySolver::Box& box_new, const MemorySolver::Box& box_old) {

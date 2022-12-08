@@ -44,7 +44,7 @@ TEST(set_output_memory_gpu, basic) {
     topology topology;
     topology.add(input_layout("Input", input_data->get_layout()));
     topology.add(
-        reorder("reorder", "Input", input_data->get_layout())
+        reorder("reorder", input_info("Input"), input_data->get_layout())
     );
 
     network network(engine, topology);
@@ -87,8 +87,8 @@ TEST(set_output_memory_gpu, basic_const) {
     topology.add(input_layout("Input", input_data->get_layout()));
     topology.add(data("Const", const_data));
     topology.add(
-            reorder("reorder_dyn", "Input", input_data->get_layout()),
-            reorder("reorder_const", "Const", input_data->get_layout())
+            reorder("reorder_dyn", input_info("Input"), input_data->get_layout()),
+            reorder("reorder_const", input_info("Const"), input_data->get_layout())
     );
 
     network network(engine, topology);
@@ -136,8 +136,8 @@ TEST(set_output_memory_gpu, basic_mutable) {
     topology.add(input_layout("Input", input_data->get_layout()));
     topology.add(mutable_data("Mutable", md));
     topology.add(
-            reorder("reorder_dyn", "Input", input_data->get_layout()),
-            reorder("reorder_mutable", "Mutable", input_data->get_layout())
+            reorder("reorder_dyn", input_info("Input"), input_data->get_layout()),
+            reorder("reorder_mutable", input_info("Mutable"), input_data->get_layout())
     );
 
     network network(engine, topology);
@@ -176,8 +176,8 @@ TEST(set_output_memory_gpu, top_k1) {
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(cldnn::data("const", top_k_input));
-    topology.add(arg_max_min("arg_max", { "input", "const" }, arg_max_min::min, top_k, arg_max_min::batch));
-    topology.add(reorder("reorder", "arg_max", output_mem->get_layout()));
+    topology.add(arg_max_min("arg_max", { input_info("input"), input_info("const") }, ov::op::TopKMode::MIN, top_k, 0));
+    topology.add(reorder("reorder", input_info("arg_max"), output_mem->get_layout()));
 
     std::vector<float> input_vec = {
             //y0x0 y0x1 y1x0 y1x1
@@ -222,8 +222,8 @@ TEST(set_output_memory_gpu, top_k2) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(cldnn::data("const", top_k_input));
     topology.add(mutable_data("second_output", second_output));
-    topology.add(arg_max_min("arg_max", { "input", "const", "second_output" }, arg_max_min::min, top_k, arg_max_min::batch));
-    topology.add(reorder("reorder", "arg_max", second_output->get_layout()));
+    topology.add(arg_max_min("arg_max", { input_info("input"), input_info("const"), input_info("second_output") }, ov::op::TopKMode::MIN, top_k, 0));
+    topology.add(reorder("reorder", input_info("arg_max"), second_output->get_layout()));
 
     std::vector<float> input_vec = {
             //y0x0 y0x1 y1x0 y1x1
@@ -306,18 +306,18 @@ TEST(set_output_memory_gpu, basic_opt) {
 
     topology topology;
     topology.add(input_layout("input1", il));
-    topology.add(activation("clamp1", "input1", activation_func::clamp, params1));
+    topology.add(activation("clamp1", input_info("input1"), activation_func::clamp, params1));
     topology.add(input_layout("input2", il));
-    topology.add(activation("clamp2", "input2", activation_func::clamp, params2));
-    topology.add(reshape("reshape1", "clamp1", ishape));
-    topology.add(reshape("reshape2", "clamp2", ishape));
-    topology.add(concatenation("concat", { "reshape1", "reshape2" }, 0, data_types::f32));
-    topology.add(reshape("reshape3", "concat", oshape));
-    topology.add(reorder("reorder", "reshape3", ol));
-    topology.add(reorder("reorder2", "reorder", ol));
+    topology.add(activation("clamp2", input_info("input2"), activation_func::clamp, params2));
+    topology.add(reshape("reshape1", input_info("clamp1"), ishape));
+    topology.add(reshape("reshape2", input_info("clamp2"), ishape));
+    topology.add(concatenation("concat", { input_info("reshape1"), input_info("reshape2") }, 0, data_types::f32));
+    topology.add(reshape("reshape3", input_info("concat"), oshape));
+    topology.add(reorder("reorder", input_info("reshape3"), ol));
+    topology.add(reorder("reorder2", input_info("reorder"), ol));
 
     primitive_id outputID = "reorder3";
-    topology.add(reorder(outputID, "concat", ol));
+    topology.add(reorder(outputID, input_info("concat"), ol));
 
     build_options bo;
     bo.set_option(build_option::optimize_data(true));
@@ -355,8 +355,8 @@ TEST(set_output_memory_gpu, mutable_output_data) {
     topology.add(input_layout("Add_1396", input->get_layout()));
     topology.add(cldnn::mutable_data("second_input", second_input));
     topology.add(cldnn::mutable_data("12220_md_write", final_output));
-    topology.add(arg_max_min("arg_max", { "Add_1396", "second_input", "12220_md_write" }, arg_max_min::min, top_k, arg_max_min::batch));
-    topology.add(cldnn::mutable_data("pred/sink_port_0", {"arg_max"},final_output) );
+    topology.add(arg_max_min("arg_max", { input_info("Add_1396"), input_info("second_input"), input_info("12220_md_write") }, ov::op::TopKMode::MIN, top_k, 0));
+    topology.add(cldnn::mutable_data("pred/sink_port_0", { input_info("arg_max")}, final_output) );
 
     std::vector<float> input_vec = {
             //y0x0 y0x1 y1x0 y1x1

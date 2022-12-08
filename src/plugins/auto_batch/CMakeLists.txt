@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if (NOT ENABLE_AUTO_BATCH)
+    return()
+endif()
+
 set(TARGET_NAME "openvino_auto_batch_plugin")
 
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
@@ -10,6 +14,7 @@ file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
 ie_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "BATCH"
+              PSEUDO_DEVICE
               SOURCES ${SOURCES} ${HEADERS}
               VERSION_DEFINES_FOR auto_batch.cpp ADD_CLANG_FORMAT)
 

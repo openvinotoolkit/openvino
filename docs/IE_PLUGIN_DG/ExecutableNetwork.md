@@ -95,6 +95,6 @@ Returns a current value for a configuration key with the name `name`. The method
 
 @snippet src/template_executable_network.cpp executable_network:get_config
 
-This function is the only way to get configuration values when a network is imported and compiled by other developers and tools (for example, the [Compile tool](../_inference_engine_tools_compile_tool_README.html)).
+This function is the only way to get configuration values when a network is imported and compiled by other developers and tools (for example, the [Compile tool](@ref openvino_inference_engine_tools_compile_tool_README).
 
 The next step in plugin library implementation is the [Synchronous Inference Request](@ref openvino_docs_ie_plugin_dg_infer_request) class.

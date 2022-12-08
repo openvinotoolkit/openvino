@@ -9,7 +9,4 @@ add_library(${TARGET_NAME} STATIC ${SRC})
 
 target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-# Search OpenVINO Runtime installed
-find_package(OpenVINO REQUIRED COMPONENTS Runtime)
-
-target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime)
+target_link_libraries(${TARGET_NAME} PUBLIC ${ov_link_libraries})

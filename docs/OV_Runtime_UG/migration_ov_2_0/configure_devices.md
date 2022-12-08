@@ -1,24 +1,22 @@
 # Configuring Devices {#openvino_2_0_configure_devices}
 
-### Introduction
+Inference Engine API provides the [ability to configure devices](https://docs.openvino.ai/2021.4/openvino_docs_IE_DG_InferenceEngine_QueryAPI.html) via configuration keys and [get device specific metrics](https://docs.openvino.ai/2021.4/openvino_docs_IE_DG_InferenceEngine_QueryAPI.html#getmetric). The values taken from `InferenceEngine::Core::GetConfig` are requested by the string name, while the return type is `InferenceEngine::Parameter`, making users lost on what the actual type is stored in this parameter.
 
-The Inference Engine API provides the [ability to configure devices](https://docs.openvino.ai/2021.4/openvino_docs_IE_DG_InferenceEngine_QueryAPI.html) via configuration keys and [get device specific metrics](https://docs.openvino.ai/2021.4/openvino_docs_IE_DG_InferenceEngine_QueryAPI.html#getmetric). The values taken from `InferenceEngine::Core::GetConfig` are requested by the string name, while the return type is `InferenceEngine::Parameter`, making users lost on what the actual type stored in this parameter is.
-
-The OpenVINO Runtime API 2.0 solves these issues by introducing [properties](../supported_plugins/config_properties.md), which unify metrics and configuration key concepts. Their main advantage is that they have the C++ type:
+API 2.0 solves these issues by introducing [properties](../supported_plugins/config_properties.md), which unify metrics and configuration key concepts. The main advantage is that they have the C++ type:
 
 ```
 static constexpr Property<std::string> full_name{"FULL_DEVICE_NAME"};
 ```
 
-And the property can be requested from an inference device as:
+where the property can be requested from an inference device as:
 
 @snippet ov_properties_migration.cpp core_get_ro_property
 
-The snippets below show how to migrate from an Inference Engine device configuration to OpenVINO Runtime API 2.0 steps.
+The snippets in the following sections demostrate the device configurations for migrating from Inference Engine to API 2.0.
 
-### Set configuration values
+## Setting Configuration Values
 
-Inference Engine API:
+**Inference Engine API**
 
 @sphinxtabset
 
@@ -74,9 +72,35 @@ Inference Engine API:
 
 @endsphinxtab
 
+@sphinxtab{C}
+
+@sphinxtabset
+
+@sphinxtab{Devices}
+
+@snippet docs/snippets/ov_properties_migration.c core_set_config
+
+@endsphinxtab
+
+@sphinxtab{Model Loading}
+
+@snippet docs/snippets/ov_properties_migration.c core_load_network
+
+@endsphinxtab
+
+@sphinxtab{Execution}
+
+@snippet docs/snippets/ov_properties_migration.c executable_network_set_config
+
+@endsphinxtab
+
 @endsphinxtabset
 
-OpenVINO Runtime API 2.0:
+@endsphinxtab
+
+@endsphinxtabset
+
+**API 2.0**
 
 @sphinxtabset
 
@@ -132,11 +156,37 @@ OpenVINO Runtime API 2.0:
 
 @endsphinxtab
 
+@sphinxtab{C}
+
+@sphinxtabset
+
+@sphinxtab{Devices}
+
+@snippet docs/snippets/ov_properties_migration.c core_set_property
+
+@endsphinxtab
+
+@sphinxtab{Model Loading}
+
+@snippet docs/snippets/ov_properties_migration.c core_compile_model
+
+@endsphinxtab
+
+@sphinxtab{Execution}
+
+@snippet docs/snippets/ov_properties_migration.c compiled_model_set_property
+
+@endsphinxtab
+
 @endsphinxtabset
 
-### Get information
+@endsphinxtab
 
-Inference Engine API:
+@endsphinxtabset
+
+## Getting Information
+
+**Inference Engine API**
 
 @sphinxtabset
 
@@ -204,9 +254,41 @@ Inference Engine API:
 
 @endsphinxtab
 
+@sphinxtab{C}
+
+@sphinxtabset
+
+@sphinxtab{Device Configuration}
+
+@snippet docs/snippets/ov_properties_migration.c core_get_config
+
+@endsphinxtab
+
+@sphinxtab{Device metrics}
+
+@snippet docs/snippets/ov_properties_migration.c core_get_metric
+
+@endsphinxtab
+
+@sphinxtab{Execution config}
+
+@snippet docs/snippets/ov_properties_migration.c executable_network_get_config
+
+@endsphinxtab
+
+@sphinxtab{Execution metrics}
+
+@snippet docs/snippets/ov_properties_migration.c executable_network_get_metric
+
+@endsphinxtab
+
 @endsphinxtabset
 
-OpenVINO Runtime API 2.0:
+@endsphinxtab
+
+@endsphinxtabset
+
+**API 2.0**
 
 @sphinxtabset
 
@@ -267,6 +349,38 @@ OpenVINO Runtime API 2.0:
 @sphinxtab{Execution metrics}
 
 @snippet docs/snippets/ov_properties_migration.py compiled_model_get_ro_property
+
+@endsphinxtab
+
+@endsphinxtabset
+
+@endsphinxtab
+
+@sphinxtab{C}
+
+@sphinxtabset
+
+@sphinxtab{Device Configuration}
+
+@snippet docs/snippets/ov_properties_migration.c core_get_rw_property
+
+@endsphinxtab
+
+@sphinxtab{Device metrics}
+
+@snippet docs/snippets/ov_properties_migration.c core_get_ro_property
+
+@endsphinxtab
+
+@sphinxtab{Execution config}
+
+@snippet docs/snippets/ov_properties_migration.c compiled_model_get_rw_property
+
+@endsphinxtab
+
+@sphinxtab{Execution metrics}
+
+@snippet docs/snippets/ov_properties_migration.c compiled_model_get_ro_property
 
 @endsphinxtab
 

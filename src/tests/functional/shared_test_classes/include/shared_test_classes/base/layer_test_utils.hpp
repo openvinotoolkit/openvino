@@ -27,15 +27,13 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/precision_utils.hpp"
-#include "functional_test_utils/layer_test_utils/summary.hpp"
-#include "functional_test_utils/layer_test_utils/environment.hpp"
+#include "functional_test_utils/summary/op_summary.hpp"
+#include "functional_test_utils/summary/environment.hpp"
 
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
 
 namespace LayerTestsUtils {
-
-
 
 using TargetDevice = std::string;
 
@@ -117,9 +115,9 @@ public:
             }
             double max;
             if (sizeof(T_IE) < sizeof(T_NGRAPH)) {
-                max = std::max(CommonTestUtils::ie_abs(T_NGRAPH(res)), CommonTestUtils::ie_abs(ref));
+                max = static_cast<double>(std::max(CommonTestUtils::ie_abs(T_NGRAPH(res)), CommonTestUtils::ie_abs(ref)));
             } else {
-                max = std::max(CommonTestUtils::ie_abs(res), CommonTestUtils::ie_abs(T_IE(ref)));
+                max = static_cast<double>(std::max(CommonTestUtils::ie_abs(res), CommonTestUtils::ie_abs(T_IE(ref))));
             }
             double diff = static_cast<float>(absoluteDifference) / max;
             if (max == 0 || (diff > static_cast<float>(threshold)) ||

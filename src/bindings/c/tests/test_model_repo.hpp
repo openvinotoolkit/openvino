@@ -6,12 +6,12 @@ namespace TestDataHelpers {
 
 static const char kPathSeparator =
 #if defined _WIN32 || defined __CYGWIN__
-        '\\';
+    '\\';
 #else
-        '/';
+    '/';
 #endif
 
-std::string getModelPathNonFatal() noexcept {
+inline std::string getModelPathNonFatal() noexcept {
     if (const auto envVar = std::getenv("MODELS_PATH")) {
         return envVar;
     }
@@ -23,11 +23,11 @@ std::string getModelPathNonFatal() noexcept {
 #endif
 }
 
-std::string get_models_path() {
+inline std::string get_models_path() {
     return getModelPathNonFatal() + kPathSeparator + std::string("models");
 };
 
-std::string get_data_path() {
+inline std::string get_data_path() {
     if (const auto envVar = std::getenv("DATA_PATH")) {
         return envVar;
     }
@@ -39,15 +39,15 @@ std::string get_data_path() {
 #endif
 }
 
-std::string generate_model_path(std::string dir, std::string filename) {
+inline std::string generate_model_path(std::string dir, std::string filename) {
     return get_models_path() + kPathSeparator + dir + kPathSeparator + filename;
 }
 
-std::string generate_image_path(std::string dir, std::string filename) {
+inline std::string generate_image_path(std::string dir, std::string filename) {
     return get_data_path() + kPathSeparator + "validation_set" + kPathSeparator + dir + kPathSeparator + filename;
 }
 
-std::string generate_ieclass_xml_path(std::string filename) {
+inline std::string generate_ieclass_xml_path(std::string filename) {
     return getModelPathNonFatal() + kPathSeparator + "ie_class" + kPathSeparator + filename;
 }
-} // namespace TestDataHelpers
+}  // namespace TestDataHelpers

@@ -24,8 +24,7 @@ OutputVector random_normal(const Node& node) {
     const auto scale = node.get_attribute_value<float>("scale", 1.0f);
     const auto seed = node.get_attribute_value<float>("seed", 0);
 
-    const auto shape_dims = node.get_attribute_value<std::vector<int64_t>>("shape");
-    const auto shape = default_opset::Constant::create(element::i64, {shape_dims.size()}, shape_dims);
+    const auto shape = node.get_attribute_as_constant<std::vector<int64_t>>("shape");
 
     return detail::make_random_normal(shape, target_type, mean, scale, seed);
 }

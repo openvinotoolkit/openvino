@@ -15,7 +15,6 @@ namespace v3 {
 class OPENVINO_API EmbeddingSegmentsSum : public Op {
 public:
     OPENVINO_OP("EmbeddingSegmentsSum", "opset3", op::Op, 3);
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a EmbeddingSegmentsSum operation.
     EmbeddingSegmentsSum() = default;
     /// \brief Constructs a EmbeddingSegmentsSum operation.

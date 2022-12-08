@@ -9,9 +9,10 @@
 
 #include "itt.hpp"
 
+using namespace ngraph;
+
 bool ngraph::pass::MimicSetBatchSize::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
-    // TODO: enable conditional compile
-    // RUN_ON_FUNCTION_SCOPE(MimicSetBatchSize);
+    RUN_ON_FUNCTION_SCOPE(MimicSetBatchSize);
     // extracting ratio of out to in 0-index dimension value from the folded function
     auto specialized_function = ngraph::clone_function(*f);
     ngraph::pass::Manager manager;

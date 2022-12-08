@@ -22,8 +22,6 @@
 #include <ie_system_conf.h>
 #include <ie_ngraph_utils.hpp>
 
-#include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
-#include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 
 #include <transformations/common_optimizations/add_fake_quantize_fusion.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
@@ -35,6 +33,10 @@
 #include <transformations/common_optimizations/wrap_interpolate_into_transposes.hpp>
 #include <transformations/common_optimizations/transpose_sinking.hpp>
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
+#include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
+
+#include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
+#include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 #include <transformations/op_conversions/convert_broadcast_to_tiles.hpp>
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_shuffle_channels3.hpp>
@@ -67,8 +69,8 @@
 #include <transformations/op_conversions/log_softmax_decomposition.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
-#include <transformations/op_conversions/convert_previous_nms_to_nms_5.hpp>
-#include <transformations/op_conversions/convert_nms_to_nms_ie_internal.hpp>
+#include <transformations/op_conversions/convert_previous_nms_to_nms_9.hpp>
+#include <transformations/op_conversions/convert_nms9_to_nms_ie_internal.hpp>
 #include <transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp>
 #include <transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp>
 #include <transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp>
@@ -81,21 +83,38 @@
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <transformations/op_conversions/fq_decomposition.hpp>
 #include <transformations/utils/utils.hpp>
-#include <snippets/pass/collapse_subgraph.hpp>
+#include <transformations/op_conversions/convert_roi_align_v9_to_v3.hpp>
+#include <transformations/op_conversions/convert_roi_align_v3_to_v9.hpp>
+#include <transformations/op_conversions/softsign_decomposition.hpp>
+#include "transformations/op_conversions/eye_decomposition.hpp"
+#include "transformations/op_conversions/unique_decomposition.hpp"
+
+#include "ngraph_transformations/convert_to_cpu_specific_opset.hpp"
 #include "ngraph_transformations/snippets_mark_skipped.hpp"
+#include "ngraph_transformations/mha_fusion.hpp"
+#include "ngraph_transformations/convert_to_interaction.hpp"
+#include "ngraph_transformations/convert_fq_rnn_to_quantized_rnn.hpp"
+#include "ngraph_transformations/move_eltwise_up_data_movement.hpp"
+#include "ngraph_transformations/swap_convert_transpose.hpp"
+
+#include <snippets/pass/collapse_subgraph.hpp>
+#include <snippets/pass/common_optimizations.hpp>
+#include <snippets/pass/convert_constants.hpp>
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
+#include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset6.hpp>
+#include <openvino/opsets/opset10.hpp>
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/graph_util.hpp>
+#include <ov_ops/augru_cell.hpp>
+#include <ov_ops/augru_sequence.hpp>
 
-#include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
-
-#include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
+#include <transformations/low_precision/mark_dequantization_subgraph.hpp>
 #include <low_precision/common/quantization_granularity_restriction.hpp>
 #include <low_precision/common/precisions_restriction.hpp>
 #include <low_precision/convert_subtract_constant.hpp>
@@ -114,10 +133,9 @@
 #include "nodes/mvn.h"
 #include "nodes/fake_quantize.h"
 #include "nodes/normalize.h"
-#include "ngraph_transformations/convert_to_cpu_specific_opset.hpp"
-#include "ngraph_transformations/move_eltwise_up_data_movement.hpp"
-#include "transformations/smart_reshape/smart_reshape.hpp"
-#include "ngraph_transformations/swap_convert_transpose.hpp"
+#include "nodes/mha.h"
+#include "utils/denormals.hpp"
+#include "transformations/common_optimizations/augru_cell_fusion.hpp"
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
 #ifndef __GNUC_PREREQ
@@ -129,6 +147,12 @@
 # elif !(__GNUC_PREREQ(4, 3) && !defined(__APPLE__))
 #  include <cpuid.h>
 # endif
+#endif
+
+#if defined(__linux__)
+#include <sys/auxv.h>
+#include <signal.h>
+#include <sys/mman.h>
 #endif
 
 #include <cpu/x64/cpu_isa_traits.hpp>
@@ -163,8 +187,71 @@ static std::string getDeviceFullName() {
     return brand_string;
 }
 
+#if defined(__linux__)
+
+#ifndef AT_MINSIGSTKSZ
+#define AT_MINSIGSTKSZ 51
+#endif
+
+class SigAltStackSetup {
+    stack_t new_stack{0};
+    stack_t old_stack{0};
+
+public:
+    SigAltStackSetup() {
+        memset(&old_stack, 0, sizeof(old_stack));
+        memset(&new_stack, 0, sizeof(new_stack));
+
+        auto minsigstksz = getauxval(AT_MINSIGSTKSZ);
+        auto new_size = minsigstksz + SIGSTKSZ;
+        void * altstack =  mmap(NULL, new_size, PROT_READ | PROT_WRITE,
+                                MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
+        if (altstack == MAP_FAILED) {
+            return;
+        }
+        new_stack.ss_size = new_size;
+        new_stack.ss_sp = altstack;
+        auto rc = sigaltstack(&new_stack, &old_stack);
+        if (rc) {
+            munmap(new_stack.ss_sp, new_stack.ss_size);
+            new_stack.ss_sp = nullptr;
+            new_stack.ss_size = 0;
+            return;
+        }
+    }
+
+    ~SigAltStackSetup() {
+        stack_t current_stack;
+        if (new_stack.ss_sp) {
+            // restore old stack if new_stack is still the current one
+            if (sigaltstack(NULL, &current_stack) == 0) {
+                if (current_stack.ss_sp == new_stack.ss_sp) {
+                    sigaltstack(&old_stack, NULL);
+                }
+            }
+            munmap(new_stack.ss_sp, new_stack.ss_size);
+            new_stack.ss_sp = nullptr;
+            new_stack.ss_size = 0;
+        }
+    }
+};
+
+class CPUSpecialSetup {
+    SigAltStackSetup ss;
+
+public:
+    CPUSpecialSetup() = default;
+};
+#else
+class CPUSpecialSetup {
+public:
+    CPUSpecialSetup() = default;
+};
+#endif
+
 Engine::Engine() :
-    deviceFullName(getDeviceFullName()) {
+    deviceFullName(getDeviceFullName()),
+    specialSetup(new CPUSpecialSetup) {
     _pluginName = "CPU";
     extensionManager->AddExtension(std::make_shared<Extension>());
 }
@@ -175,11 +262,34 @@ Engine::~Engine() {
     executorManager()->clear("CPUCallbackExecutor");
 }
 
-static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function> nGraphFunc, const bool _enableLPT,
+static bool fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& node, ov::element::Type to, size_t idx) {
+    if (auto convert = ov::as_type_ptr<ov::opset10::Convert>(node)) {
+        // For Convert node, converting precision from floating point to boolean will lead to mathematical
+        // error, because here the output precision boolean is replaced by u8. E.g. floating point value 0.01
+        // is converted to be 1 for boolean, but 0 for u8. Thus an Abs and Ceil node should be added before the
+        // Convert node for this scenario.
+        if (convert->input(0).get_element_type().is_real() &&
+            convert->get_convert_element_type() == ngraph::element::boolean && to.is_integral_number()) {
+            auto abs = std::make_shared<ov::opset10::Abs>(convert->input_value(0).get_node_shared_ptr());
+            auto ceil = std::make_shared<ov::opset10::Ceiling>(abs);
+            auto new_convert = std::make_shared<ov::opset10::Convert>(ceil, to);
+            new_convert->set_friendly_name(convert->get_friendly_name());
+            ov::copy_runtime_info(convert, {abs, ceil, new_convert});
+            ov::replace_node(convert, new_convert);
+            return true;
+        } else {
+            convert->set_convert_element_type(to);
+            return true;
+        }
+    }
+    return false;
+}
+
+static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function> nGraphFunc, const bool _enableLPT, const bool _enableBF16,
                                                const bool _enableSnippets, const bool isLegacyApi) {
-    ngraph::pass::Manager manager;
+    ov::pass::Manager manager;
     manager.set_per_pass_validation(false);
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
 
     const bool useLpt =
             _enableLPT &&
@@ -195,7 +305,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         if (hasINT16orINT32Levels) {
             defaultPrecisions = ngraph::pass::low_precision::precision_set::int8_int16_int32_support;
         }
-        manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(defaultPrecisions);
+        manager.register_pass<ov::pass::MarkDequantizationSubgraph>(defaultPrecisions);
     }
     auto get_convert_precisions = []() {
         precisions_array array = {
@@ -218,49 +328,53 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     };
 
     static const auto precisions = get_convert_precisions();
+    type_to_fuse_map type_to_fuse = {{ov::opset10::Convert::get_type_info_static(), fuse_type_to_convert}};
 
-    manager.register_pass<ngraph::pass::CommonOptimizations>();
-    manager.register_pass<ngraph::pass::WrapInterpolateIntoTransposes>();
-    manager.register_pass<ngraph::pass::TransposeSinking>();
-    manager.register_pass<ngraph::pass::ConvertSequenceToTensorIterator>();
-    manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
-    manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
-    manager.register_pass<ngraph::pass::ConvertTensorIteratorToSequence>();
-    manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
-    manager.register_pass<ngraph::pass::GRUCellDecomposition>();
-    manager.register_pass<ngraph::pass::RNNCellDecomposition>();
-    manager.register_pass<ngraph::pass::ConvertNMS1ToNMS5>();
-    manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
-    manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
-    manager.register_pass<ngraph::pass::ConvertNMSToNMSIEInternal>();
-    manager.register_pass<ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
-    manager.register_pass<ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>();
-    manager.register_pass<ngraph::pass::TransposeMatMul>();
-    manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<ov::pass::AUGRUCellFusion>();
+    manager.register_pass<ov::pass::CommonOptimizations>();
+    manager.register_pass<ov::pass::WrapInterpolateIntoTransposes>();
+    manager.register_pass<ov::pass::TransposeSinking>();
+    manager.register_pass<ov::pass::ConvertSequenceToTensorIterator>();
+    manager.register_pass<ov::pass::ConvertOpSet3ToOpSet2>();
+    manager.register_pass<ov::pass::ConvertOpSet2ToOpSet1>();
+    manager.register_pass<ov::pass::LSTMCellDecomposition>();
+    manager.register_pass<ov::pass::GRUCellDecomposition>();
+    manager.register_pass<ov::pass::RNNCellDecomposition>();
+    manager.register_pass<ov::pass::ConvertNMS1ToNMS9>();
+    manager.register_pass<ov::pass::ConvertNMS3ToNMS9>();
+    manager.register_pass<ov::pass::ConvertNMS4ToNMS9>();
+    manager.register_pass<ov::pass::ConvertNMS5ToNMS9>();
+    manager.register_pass<ov::pass::ConvertNMS9ToNMSIEInternal>();
+    manager.register_pass<ov::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
+    manager.register_pass<ov::pass::ConvertMatrixNmsToMatrixNmsIE>();
+    manager.register_pass<ov::pass::TransposeMatMul>();
+    manager.register_pass<ov::pass::ConstantFolding>();
 
     if (useLpt) {
         CPU_LPT_SCOPE(LowPrecisionTransformations_Part2);
         manager.register_pass<ngraph::pass::low_precision::ConvertSubtractConstant>(defaultPrecisions);
     }
-    manager.register_pass<ngraph::pass::Validate>();
-    manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
-    manager.register_pass<ngraph::pass::EliminateConvert>();
+    manager.register_pass<ov::pass::Validate>();
+    manager.register_pass<ov::pass::ConvertPrecision>(precisions, type_to_fuse);
+    manager.register_pass<ov::pass::EliminateConvert>();
     manager.register_pass<SwapConvertTranspose>();
+    manager.register_pass<ConvertToInteraction>();
+    manager.register_pass<ConvertInteractionInt8>();
 
     auto pass_config = manager.get_pass_config();
 
     using const_node_ptr = const std::shared_ptr<const ngraph::Node>;
 
     // SpaceToDepth/ DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
-    pass_config->set_callback<ngraph::pass::ConvertSpaceToDepth,
-            ngraph::pass::ConvertDepthToSpace>(
+    pass_config->set_callback<ov::pass::ConvertSpaceToDepth,
+            ov::pass::ConvertDepthToSpace>(
             [](const_node_ptr &node) -> bool {
                 return node->input_value(0).get_shape().size() <= 5lu &&
                        node->input_value(0).get_shape().size() == node->get_output_shape(0).size();
             });
 
-    pass_config->set_callback<ngraph::pass::ConvertBatchToSpace,
-                              ngraph::pass::ConvertSpaceToBatch>(
+    pass_config->set_callback<ov::pass::ConvertBatchToSpace,
+                              ov::pass::ConvertSpaceToBatch>(
             [](const_node_ptr &node) -> bool {
                 const auto & rank = node->input(0).get_partial_shape().rank().get_length();
                 return rank == 4lu || rank == 5lu;
@@ -273,6 +387,10 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                 node)) {
             return gru_cell->get_clip() == 0.0f
                    && gru_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh"};
+        } else if (const auto &augru_cell = std::dynamic_pointer_cast<const ov::op::internal::AUGRUCell>(
+                node)) {
+            return augru_cell->get_clip() == 0.0f
+                   && augru_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh"};
         } else if (const auto &lstm_cell = std::dynamic_pointer_cast<const ngraph::opset4::LSTMCell>(
                 node)) {
             return lstm_cell->get_clip() == 0.0f &&
@@ -309,6 +427,12 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                    gru_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh"} &&
                    !ngraph::op::util::is_seq_len_provided(gru_seq->get_input_node_shared_ptr(2),
                                                           max_seq_len);
+        } else if (const auto &augru_seq = std::dynamic_pointer_cast<const ov::op::internal::AUGRUSequence>(
+                node)) {
+            return augru_seq->get_clip() == 0.0f &&
+                   augru_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh"} &&
+                   !ngraph::op::util::is_seq_len_provided(augru_seq->get_input_node_shared_ptr(2),
+                                                          max_seq_len);
         } else if (const auto &lstm_seq = std::dynamic_pointer_cast<const ngraph::opset6::LSTMSequence>(
                 node)) {
             return lstm_seq->get_clip() == 0.0f &&
@@ -319,46 +443,33 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         return false;
     };
 
-    pass_config->set_callback<ngraph::pass::ConvertRNNSequenceToTensorIterator,
-                              ngraph::pass::ConvertGRUSequenceToTensorIterator,
-                              ngraph::pass::ConvertLSTMSequenceToTensorIterator>(
+    pass_config->set_callback<ov::pass::ConvertRNNSequenceToTensorIterator,
+                              ov::pass::ConvertGRUSequenceToTensorIterator,
+                              ov::pass::ConvertLSTMSequenceToTensorIterator>(
             [isSequencePrimitiveSupported](const_node_ptr &node) -> bool {
                 return isSequencePrimitiveSupported(node);
             });
 
-    pass_config->set_callback<ngraph::pass::RNNCellDecomposition, ngraph::pass::GRUCellDecomposition,
-            ngraph::pass::LSTMCellDecomposition>(
+    pass_config->set_callback<ov::pass::RNNCellDecomposition, ov::pass::GRUCellDecomposition,
+            ov::pass::LSTMCellDecomposition>(
             [isCellPrimitiveSupported](const_node_ptr &node) -> bool {
                 return isCellPrimitiveSupported(node);
             });
 
-    pass_config->set_callback<ngraph::pass::ConvertTensorIteratorToRNNSequence,
-                              ngraph::pass::ConvertTensorIteratorToLSTMSequence,
-                              ngraph::pass::ConvertTensorIteratorToGRUSequence>(
-            [isCellPrimitiveSupported](const_node_ptr &node) -> bool {
-                if (const auto& ti_op = std::dynamic_pointer_cast<const ngraph::op::TensorIterator>(node)) {
-                    size_t count_rnn = 0;
-                    for (const auto &op : ti_op->get_body()->get_ops())
-                        count_rnn += isCellPrimitiveSupported(op);
-                    return count_rnn != 1;
-                }
-                return true;
-            });
-
-    pass_config->set_callback<ngraph::pass::MVN6Decomposition>(
+    pass_config->set_callback<ov::pass::MVN6Decomposition>(
             [](const_node_ptr &node) -> bool {
                 std::string errorMessage;
                 return node::MVN::isSupportedOperation(node, errorMessage);
             });
 
-    pass_config->set_callback<ngraph::pass::NormalizeL2Decomposition>(
+    pass_config->set_callback<ov::pass::NormalizeL2Decomposition>(
             [](const_node_ptr &node) -> bool {
                 std::string errorMsg;
                 return node::NormalizeL2::isSupportedOperation(node, errorMsg);
             });
 
-    pass_config->enable<ngraph::pass::SoftmaxDecomposition>();
-    pass_config->set_callback<ngraph::pass::SoftmaxDecomposition>(
+    pass_config->enable<ov::pass::SoftmaxDecomposition>();
+    pass_config->set_callback<ov::pass::SoftmaxDecomposition>(
             [](const_node_ptr &node) -> bool {
                 return node->input_value(0).get_partial_shape().rank().get_length() <= 5;
             });
@@ -376,9 +487,9 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                                return true;
                            };
 
-        pass_config->set_callback<ngraph::pass::ConvertNMSToNMSIEInternal>(nmsCallback);
-        pass_config->set_callback<ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>(nmsCallback);
-        pass_config->set_callback<ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>(nmsCallback);
+        pass_config->set_callback<ov::pass::ConvertNMS9ToNMSIEInternal>(nmsCallback);
+        pass_config->set_callback<ov::pass::ConvertMulticlassNmsToMulticlassNmsIE>(nmsCallback);
+        pass_config->set_callback<ov::pass::ConvertMatrixNmsToMatrixNmsIE>(nmsCallback);
     }
 
     // List of enabled/disabled transformations
@@ -386,50 +497,50 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     // Allow FP16 Converts to be folded and FP16 constants to be upgraded to FP32 data type
     pass_config->disable<ov::pass::DisableDecompressionConvertConstantFolding>();
     pass_config->disable<ov::pass::ConvertCompressedOnlyToLegacy>();
+    pass_config->disable<ov::pass::EyeDecomposition>();
 
-    pass_config->disable<ngraph::pass::ConvertGELU>();
-    pass_config->disable<ngraph::pass::ConvertShuffleChannels3>();
-    pass_config->disable<ngraph::pass::Gelu7Downgrade>();
-    pass_config->disable<ngraph::pass::HSwishDecomposition>();
-    pass_config->disable<ngraph::pass::ReduceL1Decomposition>();
-    pass_config->disable<ngraph::pass::ReduceL2Decomposition>();
-    pass_config->disable<ngraph::pass::SoftPlusDecomposition>();
-    pass_config->disable<ngraph::pass::HSigmoidDecomposition>();
-    pass_config->disable<ngraph::pass::ConvertMod>();
-    pass_config->disable<ngraph::pass::LogSoftmaxDecomposition>();
-    pass_config->disable<ngraph::pass::ConvertShuffleChannels3>();
-    pass_config->disable<ngraph::pass::WeightsDequantizeToFakeQuantize>();
-    pass_config->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
-    pass_config->disable<ngraph::pass::ConvertGather7ToGather1>();
-    pass_config->disable<ngraph::pass::ConvertGather8ToGather7>();
-    pass_config->disable<ngraph::pass::ConvertMinimum>();
-    pass_config->disable<ngraph::pass::ConvertBroadcastToTiles>();
-    pass_config->disable<ngraph::pass::ConvertReduceMeanToPooling>();
-    pass_config->disable<ngraph::pass::ConvertReduceMaxToPooling>();
-    pass_config->disable<ngraph::pass::ConvertReduceSumToPooling>();
-    pass_config->disable<ngraph::pass::SliceToStridedSlice>();
-    pass_config->disable<ngraph::pass::ConvertDetectionOutput8ToDetectionOutput1>();
+    pass_config->disable<ov::pass::ConvertGELU>();
+    pass_config->disable<ov::pass::ConvertShuffleChannels3>();
+    pass_config->disable<ov::pass::Gelu7Downgrade>();
+    pass_config->disable<ov::pass::HSwishDecomposition>();
+    pass_config->disable<ov::pass::ReduceL1Decomposition>();
+    pass_config->disable<ov::pass::ReduceL2Decomposition>();
+    pass_config->disable<ov::pass::SoftPlusDecomposition>();
+    pass_config->disable<ov::pass::HSigmoidDecomposition>();
+    pass_config->disable<ov::pass::ConvertMod>();
+    pass_config->disable<ov::pass::ConvertShuffleChannels3>();
+    pass_config->disable<ov::pass::WeightsDequantizeToFakeQuantize>();
+    pass_config->disable<ov::pass::SimplifyCTCGreedyDecoderSeqLen>();
+    pass_config->disable<ov::pass::ConvertGather7ToGather1>();
+    pass_config->disable<ov::pass::ConvertGather8ToGather7>();
+    pass_config->disable<ov::pass::ConvertMinimum>();
+    pass_config->disable<ov::pass::ConvertBroadcastToTiles>();
+    pass_config->disable<ov::pass::ConvertReduceMeanToPooling>();
+    pass_config->disable<ov::pass::ConvertReduceMaxToPooling>();
+    pass_config->disable<ov::pass::ConvertReduceSumToPooling>();
+    pass_config->disable<ov::pass::SliceToStridedSlice>();
+    pass_config->disable<ov::pass::ConvertDetectionOutput8ToDetectionOutput1>();
+    pass_config->disable<ov::pass::ConvertROIAlign9To3>();
+    pass_config->disable<ov::pass::SoftSignDecomposition>();
+    pass_config->disable<ov::pass::UniqueDecomposition>();
 
-    pass_config->enable<ngraph::pass::NormalizeL2Decomposition>();
-    pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
-    pass_config->enable<ngraph::pass::ConvertGather1ToGather7>();
-    pass_config->enable<ngraph::pass::ConvertDetectionOutput1ToDetectionOutput8>();
+    pass_config->enable<ov::pass::NormalizeL2Decomposition>();
+    pass_config->enable<ov::pass::ConvertInterpolate1ToInterpolate4>();
+    pass_config->enable<ov::pass::ConvertGather1ToGather7>();
+    pass_config->enable<ov::pass::ConvertDetectionOutput1ToDetectionOutput8>();
+    pass_config->enable<ov::pass::ConvertROIAlign3To9>();
 
     if (useLpt) {
         CPU_LPT_SCOPE(LowPrecisionTransformations_Part3);
-        pass_config->set_callback<ngraph::pass::AddFakeQuantizeFusion,
-                                  ngraph::pass::MulFakeQuantizeFusion,
-                                  ngraph::pass::FakeQuantizeMulFusion>([](const_node_ptr &node) -> bool {
+        pass_config->set_callback<ov::pass::AddFakeQuantizeFusion,
+                                  ov::pass::MulFakeQuantizeFusion,
+                                  ov::pass::FakeQuantizeMulFusion>([](const_node_ptr &node) -> bool {
             std::string errMsg;
             return !node::FakeQuantize::isSupportedOperation(node, errMsg);
         });
 
-        pass_config->set_callback<ngraph::pass::ConvertQuantizeDequantize>([&defaultPrecisions](const_node_ptr &node) -> bool {
+        pass_config->set_callback<ov::pass::ConvertQuantizeDequantize>([&defaultPrecisions](const_node_ptr &node) -> bool {
             return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForMultiply(node, defaultPrecisions);
-        });
-
-        pass_config->set_callback<ngraph::pass::ConvertSubtract>([&defaultPrecisions](const_node_ptr &node) -> bool {
-            return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForSubtract(node, defaultPrecisions);
         });
     }
 
@@ -439,27 +550,39 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     if (useLpt) {
         CPU_LPT_SCOPE(LowPrecisionTransformations_Part4);
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "LowPrecisionTransformations");
-
+        //Only enable conv/group conv signed input on AMX platform.
+        std::vector<ngraph::element::Type> input0LowPrecisionList;
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
+            input0LowPrecisionList = {ngraph::element::u8, ngraph::element::i8};
+        } else {
+            input0LowPrecisionList = {ngraph::element::u8};
+        }
         auto supportedPrecisions = std::vector<PrecisionsRestriction>({
             PrecisionsRestriction::create<ngraph::opset1::Convolution>({
-                {0, {ngraph::element::u8}},
-                {1, {ngraph::element::i8}},
+                {{0}, input0LowPrecisionList},
+                {{1}, {ngraph::element::i8}},
             }),
             PrecisionsRestriction::create<ngraph::opset1::ConvolutionBackpropData>({
-                {0, {ngraph::element::u8, ngraph::element::i8}},
-                {1, {ngraph::element::i8}}
+                {{0}, {ngraph::element::u8, ngraph::element::i8}},
+                {{1}, {ngraph::element::i8}}
             }),
             PrecisionsRestriction::create<ngraph::opset1::GroupConvolution>({
-                {0, {ngraph::element::u8}},
-                {1, {ngraph::element::i8}}
+                {{0}, input0LowPrecisionList},
+                {{1}, {ngraph::element::i8}}
             }),
             PrecisionsRestriction::create<ngraph::opset1::Multiply>({
-                {0, {ngraph::element::u8}},
-                {1, {ngraph::element::i8}},
+                {{0}, {ngraph::element::u8}},
+                {{1}, {ngraph::element::i8}},
             }),
             PrecisionsRestriction::create<ngraph::opset1::MatMul>({
-                {0, {ngraph::element::u8, ngraph::element::i8}},
-                {1, {ngraph::element::i8}}
+                {{0}, {ngraph::element::u8, ngraph::element::i8}},
+                {{1}, {ngraph::element::i8}}
+            }),
+            PrecisionsRestriction::create<ngraph::opset5::LSTMSequence>({
+                {{0, 1}, {ngraph::element::u8, ngraph::element::i8}},
+            }),
+            PrecisionsRestriction::create<ngraph::opset6::GRUSequence>({
+                {{0, 1}, {ngraph::element::u8, ngraph::element::i8}},
             }),
         });
 
@@ -475,7 +598,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
             supportedPrecisions = std::vector<PrecisionsRestriction>({});
         }
 
-        ngraph::pass::Manager lptManager;
+        ov::pass::Manager lptManager;
         lptManager.register_pass<ngraph::pass::low_precision::LowPrecision>(
             supportedPrecisions,
             quantizationRestrictions,
@@ -492,26 +615,18 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                 WeightableLayerTransformation::isAsymmetricOnWeights(node, defaultPrecisions);
         });
         lptManager.get_pass_config()->set_callback<ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation>([](const_node_ptr& node) -> bool {
-            return MultiplyToGroupConvolutionTransformation::isDynamicOrScalar(node);
+            return true;//MultiplyToGroupConvolutionTransformation::isDynamicOrScalar(node);
         });
         lptManager.run_passes(nGraphFunc);
     }
 
-    ngraph::pass::Manager postLPTPassManager;
-    postLPTPassManager.register_pass<ngraph::pass::FakeQuantizeDecomposition>();
-    postLPTPassManager.register_pass<ngraph::pass::UnrollTensorIterator>();
-    postLPTPassManager.register_pass<ReshapePRelu>();
-
-    postLPTPassManager.get_pass_config()->set_callback<ngraph::pass::FakeQuantizeDecomposition>([](const_node_ptr &node) -> bool {
-        std::string errMsg;
-        return node::FakeQuantize::isSupportedOperation(node, errMsg);
-    });
-    postLPTPassManager.get_pass_config()->set_callback<ngraph::pass::UnrollTensorIterator>([](const_node_ptr &node) -> bool {
+    ov::pass::Manager postLPTPassManager;
+    postLPTPassManager.register_pass<ov::pass::UnrollTensorIterator>();
+    postLPTPassManager.register_pass<ov::pass::ReshapePRelu>();
+    postLPTPassManager.get_pass_config()->set_callback<ov::pass::UnrollTensorIterator>([](const_node_ptr &node) -> bool {
         // UnrollTI transformation is disabled by default, is turned on by LowLatency transformation
         return node->get_rt_info().count("UNROLL_TI") == 0;
     });
-
-
     postLPTPassManager.register_pass<MoveEltwiseUpThroughDataMov>();
     postLPTPassManager.get_pass_config()->set_callback<MoveEltwiseUpThroughDataMov>([](const std::shared_ptr<const ngraph::Node>& node) -> bool {
         if (node->get_input_size() >= 2) {
@@ -520,16 +635,47 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         return false;
     });
 
-    postLPTPassManager.register_pass<ngraph::pass::ConstantFolding>();
+    postLPTPassManager.register_pass<ov::pass::ConstantFolding>();
+
+    // Snippets may brake MHA patterns so the fusion has to performed before
+    postLPTPassManager.register_pass<MHAFusion>();
+    postLPTPassManager.register_pass<FuseFQtoInteraction>();
+    postLPTPassManager.get_pass_config()->set_callback<MHAFloatFusion, MHAFloatFusion2,
+                                                       MHAQuantFusion, MHAQuantFusion2>([_enableBF16](const std::shared_ptr<const ov::Node>& n) -> bool {
+        std::string errorMessage;
+
+        if (!node::MHA::isSupportedOperation(n, errorMessage))
+            return true;
+
+        // Implementation calls AMX BF16 brgemm only for tensors with K and N aligned on 2, otherwise fallbacks on vector impl
+        // Vector madd BF16 instruction on SPR has reduced performance on HW level, which results in overall perf degradation
+        size_t bf16Factor = 2;
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16_amx_bf16) &&
+                (n->get_input_element_type(0) == element::bf16 || (n->get_input_element_type(0) == element::f32 && _enableBF16)) &&
+                (n->get_input_shape(0)[3] % bf16Factor != 0 || n->get_input_shape(1)[1] % bf16Factor != 0 || n->get_input_shape(3)[3] % bf16Factor != 0)) {
+            return true;
+        }
+
+        return false;
+    });
+
+    // Execute before snippets. Otherwise FQ will be converted to Subgraph
+    postLPTPassManager.register_pass<ConvertFqRnnToQuantizedRnn>();
     postLPTPassManager.run_passes(nGraphFunc);
 
-    if (!useLpt && _enableSnippets && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
-        ngraph::pass::Manager tokenization_manager;
-        tokenization_manager.register_pass<SnippetsMarkSkipped>();
-        tokenization_manager.register_pass<ngraph::snippets::pass::EnumerateNodes>();
-        tokenization_manager.register_pass<ngraph::snippets::pass::TokenizeSnippets>();
-        tokenization_manager.get_pass_config()->set_callback<ngraph::snippets::pass::TokenizeSnippets>(
+    if (_enableSnippets && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
+        ov::pass::Manager snippetsManager;
+        snippetsManager.register_pass<SnippetsMarkSkipped>();
+        snippetsManager.register_pass<ngraph::snippets::pass::EnumerateNodes>();
+        snippetsManager.register_pass<ngraph::snippets::pass::TokenizeSnippets>();
+        snippetsManager.get_pass_config()->set_callback<ngraph::snippets::pass::TokenizeSnippets>(
                 [](const std::shared_ptr<const ov::Node>& n) -> bool {
+                    // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant
+                    if (ov::is_type<const ov::op::v4::Swish>(n)) {
+                        if (n->inputs().size() > 1 && !ov::is_type<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1)))
+                            return true;
+                    }
+
                     const auto& inputs = n->inputs();
                     // todo: clarify whether we can evaluate snippets on const paths
                     const bool has_only_const_inputs = std::all_of(inputs.begin(), inputs.end(),
@@ -548,14 +694,18 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                                                              [&](const ov::Output<const ov::Node>& out) {return  rank_is_too_large(out.get_tensor());});
                     return has_only_const_inputs || bad_input_rank || bad_output_rank;
                 });
-        tokenization_manager.run_passes(nGraphFunc);
+        snippetsManager.register_pass<ngraph::snippets::pass::CommonOptimizations>();
+        snippetsManager.run_passes(nGraphFunc);
     }
-}
 
-static void Transformation(CNNNetwork& clonedNetwork, const bool _enableLPT, const bool _enableSnippets, const bool isLegacyApi) {
-    auto nGraphFunc = clonedNetwork.getFunction();
-    TransformationUpToCPUSpecificOpSet(nGraphFunc, _enableLPT, _enableSnippets, isLegacyApi);
-    ConvertToCPUSpecificOpset(nGraphFunc);
+    ov::pass::Manager postSnippetsManager;
+    postSnippetsManager.register_pass<ov::pass::FakeQuantizeDecomposition>();
+    postSnippetsManager.get_pass_config()->set_callback<ov::pass::FakeQuantizeDecomposition>([](const_node_ptr& node) -> bool {
+            std::string errMsg;
+            return node::FakeQuantize::isSupportedOperation(node, errMsg);
+        });
+    postSnippetsManager.register_pass<ov::pass::ConstantFolding>();
+    postSnippetsManager.run_passes(nGraphFunc);
 }
 
 static bool streamsSet(const std::map<std::string, std::string>& config) {
@@ -564,26 +714,11 @@ static bool streamsSet(const std::map<std::string, std::string>& config) {
 }
 
 void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, const std::shared_ptr<ngraph::Function>& ngraphFunc) const {
-    const bool streamsExplicitlySetForModel = streamsSet(config);
-    // checking streams (to avoid overriding what user might explicitly set in the incoming config or previously via SetConfig)
-    if (streamsExplicitlySetForModel ||
-        streamsExplicitlySetForEngine)
-        return;
+    auto getNumStreamsLatency = [&]() {
+        return std::pair<std::string, std::string>(CONFIG_VALUE(CPU_THROUGHPUT_NUMA), ov::util::to_string(ov::streams::NUMA));
+    };
 
-    const auto& mode = config.find(CONFIG_KEY(PERFORMANCE_HINT));
-    // the mode may have just arrived to the LoadNetwork, or was set with the plugin's SetConfig
-    if (mode == config.end() && engConfig.perfHintsConfig.ovPerfHint.empty())
-        return;
-    /* performance hints set for network has higher pririty than engine ones.
-     * This applies for all the configuration parameters */
-    const auto mode_name = (mode != config.end()) ?
-        PerfHintsConfig::CheckPerformanceHintValue(mode->second) :
-        engConfig.perfHintsConfig.ovPerfHint;
-
-    if (mode_name == CONFIG_VALUE(LATENCY)) {
-        config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = CONFIG_VALUE(CPU_THROUGHPUT_NUMA);
-        config[ov::num_streams.name()] = ov::util::to_string(ov::streams::NUMA);
-    } else if (mode_name == CONFIG_VALUE(THROUGHPUT)) {
+    auto getNumStreamsThroughput = [&]() {
         const auto isa = dnnl::get_effective_cpu_isa();
         float isaSpecificThreshold = 1.0f;
         switch (isa) {
@@ -606,7 +741,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
         }
         // the more "capable" the CPU in general, the more streams we may want to keep to keep it utilized
         const float memThresholdAssumeLimitedForISA = ov::MemBandwidthPressure::LIMITED/isaSpecificThreshold;
-        const float L2_cache_size = mkldnn::utils::get_cache_size(2 /*level*/, true /*per core */);
+        const float L2_cache_size = dnnl::utils::get_cache_size(2 /*level*/, true /*per core */);
         ov::MemBandwidthPressure networkToleranceForLowCache = ov::MemBandwidthPressureTolerance(
             ngraphFunc,
             L2_cache_size, memThresholdAssumeLimitedForISA);
@@ -615,20 +750,39 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
         // less aggressive
         const auto num_streams_less_aggressive = num_cores / 2;
         // default #streams value (most conservative)
-        const auto default_num_streams = IStreamsExecutor::Config::GetDefaultNumStreams();
+        const auto default_num_streams =
+            engConfig.streamExecutorConfig._threadBindingType ==
+                    InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
+                ? IStreamsExecutor::Config::GetHybridNumStreams(config, IStreamsExecutor::Config::StreamMode::DEFAULT)
+                : IStreamsExecutor::Config::GetDefaultNumStreams(engConfig.streamExecutorConfig._enable_hyper_thread);
         int num_streams = default_num_streams;
         if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
             if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL)
                 || (networkToleranceForLowCache.ratio_compute_deconvs == ov::MemBandwidthPressure::ALL)) {
                 // all relevant layers (convs, etc) are compute-limited, the most aggressive val for #streams
-                num_streams = num_cores;
+                num_streams = engConfig.streamExecutorConfig._threadBindingType ==
+                                      InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
+                                  ? IStreamsExecutor::Config::GetHybridNumStreams(
+                                        config,
+                                        IStreamsExecutor::Config::StreamMode::AGGRESSIVE)
+                                  : num_cores;
             }   // otherwise (no recognized layers) falling back to the default value
         } else if (networkToleranceForLowCache.max_mem_tolerance > memThresholdAssumeLimitedForISA) {
             // network is below the ISA-specific threshold
-            num_streams = num_cores;
+            num_streams = engConfig.streamExecutorConfig._threadBindingType ==
+                                  InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
+                              ? IStreamsExecutor::Config::GetHybridNumStreams(
+                                    config,
+                                    IStreamsExecutor::Config::StreamMode::AGGRESSIVE)
+                              : num_cores;
         } else if (networkToleranceForLowCache.max_mem_tolerance > ov::MemBandwidthPressure::LIMITED) {
             // network is below general threshold
-            num_streams = std::max(default_num_streams, num_streams_less_aggressive);
+            num_streams = engConfig.streamExecutorConfig._threadBindingType ==
+                                  InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
+                              ? IStreamsExecutor::Config::GetHybridNumStreams(
+                                    config,
+                                    IStreamsExecutor::Config::StreamMode::LESSAGGRESSIVE)
+                              : std::max(default_num_streams, num_streams_less_aggressive);
         }
         auto num_requests = config.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
         if (num_requests != config.end()) {  // arrived with config to the LoadNetwork (and thus higher pri)
@@ -639,14 +793,66 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
             num_streams = std::min(num_streams,
                                    engConfig.perfHintsConfig.ovPerfHintNumRequests);
         }
-        config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = std::to_string(num_streams);
-        config[ov::num_streams.name()] = ov::util::to_string(num_streams);
+        return std::pair<std::string, std::string>(std::to_string(num_streams), ov::util::to_string(num_streams));
+    };
+
+    auto getPerfHintName = [&]() {
+        const bool streamsExplicitlySetForModel = streamsSet(config);
+        // checking streams (to avoid overriding what user might explicitly set in the incoming config or previously via SetConfig)
+        if (streamsExplicitlySetForModel ||
+            streamsExplicitlySetForEngine)
+            return std::string();
+
+        const auto& perf_hint = config.find(CONFIG_KEY(PERFORMANCE_HINT));
+        // the perf_hint may have just arrived to the LoadNetwork, or was set with the plugin's SetConfig
+        if (perf_hint == config.end() && engConfig.perfHintsConfig.ovPerfHint.empty())
+            return std::string();
+        /* performance hints set for network has higher pririty than engine ones.
+        * This applies for all the configuration parameters */
+        const auto perf_hint_name = (perf_hint != config.end()) ?
+            PerfHintsConfig::CheckPerformanceHintValue(perf_hint->second) :
+            engConfig.perfHintsConfig.ovPerfHint;
+        return perf_hint_name;
+    };
+
+    // We compute both hints values because the optimal number of streams are computed based on ov::Model
+    // while we export model in cpu internal opset so we need to save precomputed optimal # streams for both hint modes
+    const auto latency_hints = getNumStreamsLatency();
+    const auto tput_hints = getNumStreamsThroughput();
+
+    // save hints parameters to model rt_info
+    ov::AnyMap hints_props;
+    const auto latency_name = std::string(CONFIG_VALUE(LATENCY)) + "_" + std::string(ov::num_streams.name());
+    const auto tput_name = std::string(CONFIG_VALUE(THROUGHPUT)) + "_" + std::string(ov::num_streams.name());
+    hints_props.insert({latency_name, latency_hints.second});
+    hints_props.insert({tput_name, tput_hints.second});
+    ngraphFunc->set_rt_info(hints_props, "intel_cpu_hints_config");
+
+    auto resetHybridParam = [&]() {
+        config[CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)] = std::to_string(0);
+        config[CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)] = std::to_string(0);
+        config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)] = std::to_string(0);
+        config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL)] = std::to_string(0);
+        config[CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)] = std::to_string(0);
+    };
+
+    const auto perf_hint_name = getPerfHintName();
+    if (perf_hint_name == CONFIG_VALUE(LATENCY)) {
+        config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = latency_hints.first;
+        config[ov::num_streams.name()] = latency_hints.second;
+        resetHybridParam();
+    } else if (perf_hint_name == CONFIG_VALUE(THROUGHPUT)) {
+        config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = tput_hints.first;
+        config[ov::num_streams.name()] = tput_hints.first;
+    } else {
+        resetHybridParam();
     }
 }
 
 InferenceEngine::IExecutableNetworkInternal::Ptr
 Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &orig_config) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Engine::LoadExeNetworkImpl");
+    CREATE_DEBUG_TIMER(debugLoadTimer);
 
     // verification of supported input
     for (const auto &ii : network.getInputsInfo()) {
@@ -677,17 +883,25 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
             || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled for the plugin */;
     const auto& BF16Prop = config.find(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16);
-    const bool enableBF16 = ((BF16Prop != config.end() && BF16Prop->second == PluginConfigParams::YES)
-            || engConfig.enforceBF16) && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);
-    const auto& modelCacheProp = config.find(InferenceEngine::PluginConfigParams::KEY_CACHE_DIR);
-    const bool enableModelCache = (modelCacheProp != config.end() && !modelCacheProp->second.empty())
-            || !engConfig.cache_dir.empty();
+    bool enableBF16;
+    if (BF16Prop != config.end()) {
+        if (BF16Prop->second == PluginConfigParams::YES) {
+            enableBF16 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);
+        } else {
+            enableBF16 = false;
+        }
+    } else {
+        enableBF16 = engConfig.enforceBF16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);
+    }
     const auto& dynamicBatchProp = config.find(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED);
     const bool enableDynamicBatch = (dynamicBatchProp != config.end() && dynamicBatchProp->second == PluginConfigParams::YES)
             || engConfig.enableDynamicBatch;
-    const bool enableSnippets = !(enableModelCache || enableDynamicBatch || enableBF16);
+    const bool enableSnippets = !enableDynamicBatch;
     auto nGraphFunc = clonedNetwork.getFunction();
-    TransformationUpToCPUSpecificOpSet(nGraphFunc, enableLPT, enableSnippets, isLegacyAPI());
+
+    DEBUG_LOG(PrintableModel(*nGraphFunc, "org_"));
+
+    TransformationUpToCPUSpecificOpSet(nGraphFunc, enableLPT, enableBF16, enableSnippets, isLegacyAPI());
 
     // need to check that all outputs have static shapes
     // checking that all inputs have static shapes is performed in the common part
@@ -703,6 +917,8 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
 
     ConvertToCPUSpecificOpset(nGraphFunc);
 
+    DEBUG_LOG(PrintableModel(*nGraphFunc, "cpu_"));
+
     // update the props after the perf mode translated to configs
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
     Config conf = engConfig;
@@ -712,7 +928,19 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
         conf.batchLimit = static_cast<int>(network.getBatchSize());
     }
 
-    return std::make_shared<ExecNetwork>(clonedNetwork, conf, extensionManager, weightsSharing, shared_from_this());
+    // SSE runtime check is needed for some ATOM machine, which is x86-64 but w/o SSE
+    static Xbyak::util::Cpu cpu;
+    if (cpu.has(Xbyak::util::Cpu::tSSE)) {
+        if (conf.denormalsOptMode == Config::DenormalsOptMode::DO_On) {
+            flush_to_zero(true);
+            denormals_as_zero(true);
+        } else if (conf.denormalsOptMode == Config::DenormalsOptMode::DO_Off) {
+            flush_to_zero(false);
+            denormals_as_zero(false);
+        }
+    }
+
+    return std::make_shared<ExecNetwork>(clonedNetwork, conf, extensionManager, shared_from_this());
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {
@@ -722,11 +950,7 @@ void Engine::SetConfig(const std::map<std::string, std::string> &config) {
 }
 
 bool Engine::isLegacyAPI() const {
-    const auto& core = GetCore();
-    if (!core)
-        IE_CPU_PLUGIN_THROW() << "Unable to get API version. Core is unavailable";
-
-    return !core->isNewAPI();
+    return !IsNewAPI();
 }
 
 Parameter Engine::GetConfigLegacy(const std::string& name, const std::map<std::string, Parameter>& options) const {
@@ -807,7 +1031,7 @@ Parameter Engine::GetMetricLegacy(const std::string& name, const std::map<std::s
         std::vector<std::string> capabilities;
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16))
             capabilities.push_back(METRIC_VALUE(BF16));
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_common))
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
             capabilities.push_back(METRIC_VALUE(WINOGRAD));
         capabilities.push_back(METRIC_VALUE(FP32));
         capabilities.push_back(METRIC_VALUE(FP16));
@@ -850,6 +1074,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
                                                     RO_property(ov::range_for_streams.name()),
                                                     RO_property(ov::device::full_name.name()),
                                                     RO_property(ov::device::capabilities.name()),
+                                                    RO_property(ov::caching_properties.name()),
                                                     RO_property(ov::cache_dir.name())   // WA Can be removed after implementing snippet serialization.
         };
         // the whole config is RW before network is loaded.
@@ -877,7 +1102,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         std::vector<std::string> capabilities;
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16))
             capabilities.push_back(METRIC_VALUE(BF16));
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_common))
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
             capabilities.push_back(METRIC_VALUE(WINOGRAD));
         capabilities.push_back(METRIC_VALUE(FP32));
         capabilities.push_back(METRIC_VALUE(FP16));
@@ -891,6 +1116,9 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
     } else if (name == ov::range_for_streams) {
         const std::tuple<unsigned int, unsigned int> range = std::make_tuple(1, parallel_get_max_threads());
         return decltype(ov::range_for_streams)::value_type(range);
+    } else if (name == ov::caching_properties) {
+        std::vector<ov::PropertyName> cachingProperties;
+        return decltype(ov::caching_properties)::value_type(cachingProperties);
     }
     /* Internally legacy parameters are used with new API as part of migration procedure.
      * This fallback can be removed as soon as migration completed */
@@ -905,107 +1133,42 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
     QueryNetworkResult res;
 
     WeightsSharing::Ptr fake_w_cache;
-    auto function = network.getFunction();
-    if (function != nullptr) {
-        std::unordered_set<std::string> originalOps;
-        for (auto&& node : function->get_ops()) {
-            originalOps.emplace(node->get_friendly_name());
+
+    // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
+    Config conf = engConfig;
+    conf.readProperties(config);
+
+    if (conf.enableDynamicBatch) {
+        conf.batchLimit = static_cast<int>(network.getBatchSize());
+    }
+
+    const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
+    const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
+                        || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
+    const bool enableSnippets = !conf.enableDynamicBatch;
+
+    auto model = network.getFunction();
+    if (model == nullptr) {
+        IE_THROW() << "Only ngraph-based models are supported!";
+    }
+
+    auto supported = GetSupportedNodes(model,
+    [&](std::shared_ptr<ov::Model>& model) {
+            TransformationUpToCPUSpecificOpSet(model, enableLPT, conf.enforceBF16, enableSnippets, isLegacyAPI());
+            ConvertToCPUSpecificOpset(model);
+        },
+    [&](const std::shared_ptr<ngraph::Node>& op) {
+        std::unique_ptr<Node> ptr;
+        try {
+            ptr.reset(Node::factory().create(op, {dnnl::engine::kind::cpu, 0}, extensionManager, fake_w_cache));
+        } catch (const InferenceEngine::Exception&) {
+            return false;
         }
+        return true;
+    });
 
-        // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
-        Config conf = engConfig;
-        conf.readProperties(config);
-
-        if (conf.enableDynamicBatch) {
-            conf.batchLimit = static_cast<int>(network.getBatchSize());
-        }
-
-        auto clonedNetwork = InferenceEngine::details::cloneNetwork(network);
-        auto clonnedFunction = clonedNetwork.getFunction();
-        const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
-        const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
-                               || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
-        const bool enableSnippets = !(conf.cache_dir.empty() || conf.enableDynamicBatch || (conf.enforceBF16
-                && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)));
-        Transformation(clonedNetwork, enableLPT, enableSnippets, isLegacyAPI());
-        auto ops = clonnedFunction->get_ordered_ops();
-
-        //Mark removed nodes as supported
-        std::unordered_set<std::string> supported = GetRemovedNodes(function, clonnedFunction);;
-        std::unordered_set<std::string> unsupported;
-
-        auto layerIsSupported = [&](const std::shared_ptr<ngraph::Node>& op) {
-            std::unique_ptr<Node> ptr;
-            try {
-                ptr.reset(Node::factory().create(op, {mkldnn::engine::kind::cpu, 0}, extensionManager, fake_w_cache));
-            } catch (const InferenceEngine::Exception&) {
-                return false;
-            }
-            return true;
-        };
-
-        for (auto&& op : ops) {
-            bool isSupported = false;
-            bool wasNodeAlreadyChecked = false;
-            if (InferenceEngine::details::contains(originalOps, op->get_friendly_name())) {
-                isSupported = layerIsSupported(op);
-                wasNodeAlreadyChecked = true;
-                if (isSupported) {
-                    supported.emplace(op->get_friendly_name());
-                } else {
-                    unsupported.emplace(op->get_friendly_name());
-                }
-            }
-
-            for (auto&& fusedLayerName : ngraph::getFusedNamesVector(op)) {
-                if (InferenceEngine::details::contains(originalOps, fusedLayerName)) {
-                    if (!wasNodeAlreadyChecked) {
-                        isSupported = layerIsSupported(op);
-                        wasNodeAlreadyChecked = true;
-                    }
-                    if (isSupported) {
-                        supported.emplace(fusedLayerName);
-                    } else {
-                        unsupported.emplace(fusedLayerName);
-                    }
-                }
-            }
-        }
-        for (auto&& unsupportedNode : unsupported) {
-            supported.erase(unsupportedNode);
-        }
-        for (auto&& node : function->get_ops()) {
-            if (InferenceEngine::details::contains(supported, node->get_friendly_name())) {
-                for (auto&& inputNodeOutput : node->input_values()) {
-                    if (ngraph::op::is_constant(inputNodeOutput.get_node()) || ngraph::op::is_parameter(inputNodeOutput.get_node())) {
-                        supported.emplace(inputNodeOutput.get_node()->get_friendly_name());
-                    }
-                }
-                for (auto&& outputs : node->outputs()) {
-                    for (auto&& outputNodeInput : outputs.get_target_inputs()) {
-                        if (ngraph::op::is_output(outputNodeInput.get_node())) {
-                            supported.emplace(outputNodeInput.get_node()->get_friendly_name());
-                        }
-                    }
-                }
-            }
-
-            if (ngraph::op::is_constant(node) || ngraph::op::is_parameter(node)) {
-                if (!InferenceEngine::details::contains(supported, node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name())) {
-                    supported.erase(node->get_friendly_name());
-                }
-            } else if (ngraph::op::is_output(node)) {
-                if (!InferenceEngine::details::contains(supported, node->input_values().begin()->get_node()->get_friendly_name())) {
-                    supported.erase(node->get_friendly_name());
-                }
-            }
-        }
-
-        for (auto&& layerName : supported) {
-            res.supportedLayersMap.emplace(layerName, GetName());
-        }
-    } else {
-        IE_CPU_PLUGIN_THROW() << "Only ngraph-based models are supported!";
+    for (auto&& layerName : supported) {
+        res.supportedLayersMap.emplace(layerName, GetName());
     }
 
     return res;
@@ -1026,11 +1189,27 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istr
     Config conf = engConfig;
     conf.readProperties(config);
 
+    // import config props from caching model
+    auto function = cnnnetwork.getFunction();
+    if (function->has_rt_info("intel_cpu_hints_config") && !conf.perfHintsConfig.ovPerfHint.empty()) {
+        const auto mode_name = conf.perfHintsConfig.ovPerfHint;
+        if (mode_name == CONFIG_VALUE(LATENCY) || mode_name == CONFIG_VALUE(THROUGHPUT)) {
+            const auto& hints_config = function->get_rt_info<ov::AnyMap>("intel_cpu_hints_config");
+            const auto hints_param_name = mode_name + "_" + std::string(ov::num_streams.name());
+            const auto it = hints_config.find(hints_param_name);
+            if (it != hints_config.end()) {
+                conf.readProperties({{std::string(ov::num_streams.name()), it->second.as<std::string>()}});
+            } else {
+                IE_THROW() << "Cache file doesn't contain precalculated number of streams for mode " << mode_name;
+            }
+        }
+    }
+
     if (conf.enableDynamicBatch) {
         conf.batchLimit = static_cast<int>(cnnnetwork.getBatchSize());
     }
 
-    auto execNetwork = std::make_shared<ExecNetwork>(cnnnetwork, conf, extensionManager, weightsSharing, shared_from_this());
+    auto execNetwork = std::make_shared<ExecNetwork>(cnnnetwork, conf, extensionManager, shared_from_this());
 
     execNetwork->setNetworkInputs(cnnnetwork.getInputsInfo());
     execNetwork->setNetworkOutputs(cnnnetwork.getOutputsInfo());

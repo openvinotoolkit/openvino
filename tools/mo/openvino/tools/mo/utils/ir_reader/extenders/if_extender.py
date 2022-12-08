@@ -10,7 +10,7 @@ class IfExtender(Extender):
     op = 'If'
 
     @staticmethod
-    def set_input_output_id(subgraph, input_port_map, output_port_map):
+    def set_input_output_id(subgraph, input_port_map, output_port_map, num_of_in_ports, num_of_out_ports):
         for node in subgraph.get_op_nodes():
             if not node.has_valid('id'):
                 continue
@@ -20,7 +20,12 @@ class IfExtender(Extender):
                     node['input_id'] = if_input_mapping_elem['external_port_id']
             for if_out_mapping_elem in output_port_map:
                 if node_id == if_out_mapping_elem['internal_layer_id']:
-                    node['output_id'] = if_out_mapping_elem['external_port_id']
+                    # If external_point ID is counted with inputs 
+                    if if_out_mapping_elem['external_port_id'] > num_of_out_ports:
+                        node['output_id'] = if_out_mapping_elem['external_port_id'] - num_of_in_ports
+                    # If external_point ID is counted from 0 
+                    else:
+                        node['output_id'] = if_out_mapping_elem['external_port_id']
 
     @staticmethod
     def extend(op: Node):
@@ -37,5 +42,7 @@ class IfExtender(Extender):
         op.then_graph = copy_graph_with_ops(op.then_graph.graph)
         op.else_graph = copy_graph_with_ops(op.else_graph.graph)
 
-        IfExtender.set_input_output_id(op.then_graph, op.then_input_port_map, op.then_output_port_map)
-        IfExtender.set_input_output_id(op.else_graph, op.else_input_port_map, op.else_output_port_map)
+        num_of_in_ports = len(op.in_ports())
+        num_of_out_ports = len(op.out_ports())
+        IfExtender.set_input_output_id(op.then_graph, op.then_input_port_map, op.then_output_port_map, num_of_in_ports, num_of_out_ports)
+        IfExtender.set_input_output_id(op.else_graph, op.else_input_port_map, op.else_output_port_map, num_of_in_ports, num_of_out_ports)

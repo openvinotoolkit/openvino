@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -49,7 +50,7 @@ def assign(new_value: NodeInput, variable_id: str, name: Optional[str] = None) -
     return _get_node_factory_opset3().create(
         "Assign",
         [as_node(new_value)],
-        {"variable_id": variable_id}
+        {"variable_id": variable_id},
     )
 
 
@@ -76,7 +77,9 @@ def broadcast(
     if broadcast_spec.upper() == "EXPLICIT":
         inputs.append(as_node(axes_mapping))
     return _get_node_factory_opset3().create(
-        "Broadcast", inputs, {"mode": broadcast_spec.upper()}
+        "Broadcast",
+        inputs,
+        {"mode": broadcast_spec.upper()},
     )
 
 
@@ -122,7 +125,9 @@ def cum_sum(
     :return: New node performing the operation
     """
     return _get_node_factory_opset3().create(
-        "CumSum", as_nodes(arg, axis), {"exclusive": exclusive, "reverse": reverse}
+        "CumSum",
+        as_nodes(arg, axis),
+        {"exclusive": exclusive, "reverse": reverse},
     )
 
 
@@ -252,9 +257,9 @@ def gru_cell(
     R: NodeInput,
     B: NodeInput,
     hidden_size: int,
-    activations: List[str] = None,
-    activations_alpha: List[float] = None,
-    activations_beta: List[float] = None,
+    activations: Optional[List[str]] = None,
+    activations_alpha: Optional[List[float]] = None,
+    activations_beta: Optional[List[float]] = None,
     clip: float = 0.0,
     linear_before_reset: bool = False,
     name: Optional[str] = None,
@@ -353,7 +358,7 @@ def non_max_suppression(
 
 
 @nameable_op
-def non_zero(data: NodeInput, output_type: str = "i64", name: Optional[str] = None,) -> Node:
+def non_zero(data: NodeInput, output_type: str = "i64", name: Optional[str] = None) -> Node:
     """Return the indices of the elements that are non-zero.
 
     :param data: Input data.
@@ -364,7 +369,7 @@ def non_zero(data: NodeInput, output_type: str = "i64", name: Optional[str] = No
     return _get_node_factory_opset3().create(
         "NonZero",
         [as_node(data)],
-        {"output_type": output_type}
+        {"output_type": output_type},
     )
 
 
@@ -380,7 +385,7 @@ def read_value(init_value: NodeInput, variable_id: str, name: Optional[str] = No
     return _get_node_factory_opset3().create(
         "ReadValue",
         [as_node(init_value)],
-        {"variable_id": variable_id}
+        {"variable_id": variable_id},
     )
 
 
@@ -507,13 +512,18 @@ def scatter_elements_update(
 
     """
     return _get_node_factory_opset3().create(
-        "ScatterElementsUpdate", as_nodes(data, indices, updates, axis)
+        "ScatterElementsUpdate",
+        as_nodes(data, indices, updates, axis),
     )
 
 
 @nameable_op
 def scatter_update(
-    data: Node, indices: NodeInput, updates: NodeInput, axis: NodeInput, name: Optional[str] = None
+    data: Node,
+    indices: NodeInput,
+    updates: NodeInput,
+    axis: NodeInput,
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which produces a ScatterUpdate operation.
 
@@ -527,7 +537,7 @@ def scatter_update(
     """
     return _get_node_factory_opset3().create(
         "ScatterUpdate",
-        as_nodes(data, indices, updates, axis)
+        as_nodes(data, indices, updates, axis),
     )
 
 
@@ -542,7 +552,7 @@ def shape_of(data: NodeInput, output_type: str = "i64", name: Optional[str] = No
     return _get_node_factory_opset3().create(
         "ShapeOf",
         [as_node(data)],
-        {"output_type": output_type}
+        {"output_type": output_type},
     )
 
 
@@ -571,7 +581,7 @@ def shuffle_channels(data: Node, axis: int, group: int, name: Optional[str] = No
 
     For example:
 
-    .. code-block:: ipython
+    .. code-block:: python
 
         Inputs: tensor of shape [1, 6, 2, 2]
 
@@ -595,7 +605,9 @@ def shuffle_channels(data: Node, axis: int, group: int, name: Optional[str] = No
                            [[20., 21.], [22., 23.]]]]
     """
     return _get_node_factory_opset3().create(
-        "ShuffleChannels", [as_node(data)], {"axis": axis, "group": group}
+        "ShuffleChannels",
+        [as_node(data)],
+        {"axis": axis, "group": group},
     )
 
 

@@ -8,24 +8,21 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id region_yolo::type_id() {
-    static primitive_type_base<region_yolo> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(region_yolo)
 
-layout region_yolo_inst::calc_output_layout(region_yolo_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+layout region_yolo_inst::calc_output_layout(region_yolo_node const& node, kernel_impl_params const& impl_param) {
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for "
            "region_yolo_node!");
-    auto input_layout = node.input().get_output_layout();
-    auto desc = node.get_primitive();
+    auto input_layout = impl_param.get_input_layout();
+    auto desc = impl_param.typed_desc<region_yolo>();
 
     if (desc->do_softmax) {
         return cldnn::layout(
             input_layout.data_type,
             input_layout.format,
-            tensor(input_layout.size.batch[0],
-                   input_layout.size.feature[0] * input_layout.size.spatial[0] * input_layout.size.spatial[1],
+            tensor(input_layout.batch(),
+                   input_layout.feature() * input_layout.spatial(0) * input_layout.spatial(1),
                    1,
                    1));
     } else {
@@ -33,7 +30,7 @@ layout region_yolo_inst::calc_output_layout(region_yolo_node const& node) {
         return cldnn::layout(
             input_layout.data_type,
             input_layout.format,
-            tensor(input_layout.size.batch[0], features, input_layout.size.spatial[0], input_layout.size.spatial[1]));
+            tensor(input_layout.batch(), features, input_layout.spatial(0), input_layout.spatial(1)));
     }
 }
 

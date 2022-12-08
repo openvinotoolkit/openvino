@@ -99,9 +99,10 @@ TEST_P(gather_quantize, basic) {
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
-        gather("gather_prim", "input", "gather_indices", p.axis, p.out_shape),
-        quantize("quantize", "gather_prim", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
-        reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
+        gather("gather_prim", input_info("input"), input_info("gather_indices"), p.axis, p.out_shape),
+        quantize("quantize", input_info("gather_prim"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
+        reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
     );
 
     tolerance = 1.f;
@@ -134,24 +135,24 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, gather_quantize, ::testing::ValuesIn(std::
     gather_test_params{ CASE_GATHER_5D_FP16_5, 2, 3 },
 }));
 
-class gather_scale_activation : public GatherPrimitiveFusingTest {};
-TEST_P(gather_scale_activation, basic) {
+class gather_eltwise_activation : public GatherPrimitiveFusingTest {};
+TEST_P(gather_eltwise_activation, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("gather_indices", get_mem(get_indices_layout(p), 0, static_cast<int>(get_axis_dim(p) - 1))),
-        data("scale_data", get_mem(get_per_channel_layout(p), -10, 10)),
-        gather("gather_prim", "input", "gather_indices", p.axis, p.out_shape),
-        activation("activation", "gather_prim", activation_func::abs),
-        scale("scale", "activation", "scale_data"),
-        reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
+        data("eltwise_data", get_mem(get_per_channel_layout(p), -10, 10)),
+        gather("gather_prim", input_info("input"), input_info("gather_indices"), p.axis, p.out_shape),
+        activation("activation", input_info("gather_prim"), activation_func::abs),
+        eltwise("eltwise", { input_info("activation"), input_info("eltwise_data") }, eltwise_mode::prod),
+        reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;
     execute(p);
 }
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, gather_scale_activation, ::testing::ValuesIn(std::vector<gather_test_params>{
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, gather_eltwise_activation, ::testing::ValuesIn(std::vector<gather_test_params>{
     gather_test_params{ CASE_GATHER_FP32_1, 2, 4 },
     gather_test_params{ CASE_GATHER_FP32_2, 2, 4 },
     gather_test_params{ CASE_GATHER_FP32_3, 2, 4 },

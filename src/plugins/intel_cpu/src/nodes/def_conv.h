@@ -71,12 +71,12 @@ struct jit_uni_def_conv_kernel {
 
 class DeformableConvolution : public Node {
 public:
-    DeformableConvolution(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    DeformableConvolution(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
@@ -86,7 +86,6 @@ public:
 
     InferenceEngine::Precision getRuntimePrecision() const override;
 
-private:
     struct DefConvAttr {
         size_t group = 1;
         int deformable_group = 1;
@@ -96,13 +95,14 @@ private:
         std::vector<ptrdiff_t> padL;
     } defConvAttr;
 
+private:
     std::vector<int> sampledCoordsVector;
     std::vector<float> interpWeightsVector;
 
     void prepareParams() override;
     void updatePadding();
 
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
     static constexpr size_t DATA_ID = 0;
     static constexpr size_t OFF_ID = 1;
     static constexpr size_t WEI_ID = 2;

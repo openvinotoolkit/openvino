@@ -246,6 +246,7 @@ bool ov::batch_util::detach_detection_output(const std::shared_ptr<ov::Model>& f
 }
 
 bool ov::pass::FindBatch::run_on_model(const std::shared_ptr<ov::Model>& m) {
+    RUN_ON_MODEL_SCOPE(FindBatch);
     auto te = std::make_shared<ov::TableOfEquivalence>();
     ov::DimensionTracker dt(te);
 

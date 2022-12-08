@@ -31,15 +31,14 @@ struct gather_nd : public primitive_base<gather_nd> {
     ///                             This should be false for v8.
     ///                             For batch_dims < 2, This doesn't have any meaning.
     gather_nd(const primitive_id& id,
-              const primitive_id& data,
-              const primitive_id& indices,
+              const input_info& data,
+              const input_info& indices,
               const uint8_t input_rank,
               const uint8_t indices_rank,
               const uint8_t batch_dims = 0,
               const bool batch_merged_output = true,
-              const primitive_id& ext_prim_id = "",
               const padding& output_padding = padding())
-        : primitive_base(id, {data, indices}, ext_prim_id, output_padding),
+        : primitive_base(id, {data, indices}, {output_padding}),
                          input_rank(input_rank),
                          indices_rank(indices_rank),
                          batch_dims(batch_dims),

@@ -45,6 +45,7 @@ template OutputVector translate_direct_reduce_op<ReduceMean>(const NodeContext& 
 template OutputVector translate_direct_reduce_op<ReduceMin>(const NodeContext& node);
 template OutputVector translate_direct_reduce_op<ReduceProd>(const NodeContext& node);
 template OutputVector translate_direct_reduce_op<ReduceSum>(const NodeContext& node);
+template OutputVector translate_direct_reduce_op<ReduceL2>(const NodeContext& node);
 }  // namespace op
 }  // namespace tensorflow
 }  // namespace frontend

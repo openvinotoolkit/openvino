@@ -2,11 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-import cv2
+import sys
 import re
 import numpy as np
 from collections import defaultdict
 from pathlib import Path
+from importlib.util import find_spec
 
 from openvino.runtime import Tensor, PartialShape
 from openvino.runtime.utils.types import get_dtype
@@ -14,6 +15,13 @@ from openvino.runtime.utils.types import get_dtype
 from .constants import IMAGE_EXTENSIONS, BINARY_EXTENSIONS
 from .logging import logger
 
+if find_spec('cv2') is not None:
+    try:
+        import cv2
+    except ImportError as ex:
+        raise Exception("Failed to import opencv module. " \
+        "Please try to uninstall opencv-python " \
+        "and install opencv-python-headless instead.") from ex
 
 class DataQueue:
     def __init__(self, input_data: dict, batch_sizes: list):
@@ -126,7 +134,12 @@ def get_input_data(paths_to_input, app_input_info):
     return DataQueue(data, get_group_batch_sizes(app_input_info))
 
 
-def get_image_tensors(image_paths, info, batch_sizes):
+def get_image_tensors(image_paths, info, batch_sizes):  
+    if 'cv2' not in sys.modules:
+        logger.error("Loading images requires the opencv-python or opencv-python-headless package. " \
+                "Please install it before continuing or run benchmark without "\
+                "the -i flag to fill vectors with random data.")
+
     processed_frames = 0
     widthes = info.widthes if info.is_dynamic else [info.width]
     heights = info.heights if info.is_dynamic else [info.height]
@@ -168,7 +181,12 @@ def get_image_tensors(image_paths, info, batch_sizes):
                     red = np.divide(red, info.scale[2])
                 image = cv2.merge([blue, green, red])
 
-            if str(info.layout) in ['[N,C,H,W]', '[C,H,W]']:
+            model_channel = int(str(info.channels))
+            image_channel = image.shape[-1]
+            if model_channel == 1 and image_channel == 3:
+                image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+            if model_channel == image_channel and str(info.layout) in ['[N,C,H,W]', '[C,H,W]']:
                 image = image.transpose((2, 0, 1))
 
             if process_with_original_shapes:
@@ -218,7 +236,7 @@ def get_binary_tensors(binary_paths, info, batch_sizes):
             blob_size = dtype.itemsize * int(np.prod(shape))
             if blob_size != binary_file_size:
                 raise Exception(
-                    f"File {binary_filename} contains {binary_file_size} bytes but network expects {blob_size}")
+                    f"File {binary_filename} contains {binary_file_size} bytes but model expects {blob_size}")
             binaries[b] = np.reshape(np.fromfile(binary_filename, dtype), shape)
 
             binary_index += 1
@@ -264,7 +282,8 @@ def fill_tensors_with_random(layer):
         if shape:
             input_tensors.append(Tensor(rs.uniform(rand_min, rand_max, list(shape)).astype(dtype)))
         else:
-            input_tensors.append(Tensor(rs.uniform(rand_min, rand_max)))
+            scalar = rs.uniform(rand_min, rand_max)
+            input_tensors.append(Tensor(np.ndarray([], dtype, np.array(scalar).astype(dtype))))
     return input_tensors
 
 

@@ -18,20 +18,24 @@ namespace ocl {
 struct quantize_impl : typed_primitive_impl_ocl<quantize> {
     using parent = typed_primitive_impl_ocl<quantize>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::quantize_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::quantize_params, kernel_selector::quantize_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<quantize_impl>(*this);
     }
 
 protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<quantize>& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<quantize>& instance, int32_t) const override {
         kernel_arguments_data args;
 
         for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
             args.inputs.push_back(instance.input_memory_ptr(i));
         }
-        if (instance.node.get_scale_shift_opt()) {
-            if (instance.node.get_dependencies().size() == 9) {
+        if (instance.node->get_scale_shift_opt()) {
+            if (instance.node->get_dependencies().size() == 9) {
                 args.inputs.push_back(instance.dep_memory_ptr(5));
                 args.inputs.push_back(instance.dep_memory_ptr(6));
                 args.inputs.push_back(instance.dep_memory_ptr(7));
@@ -43,10 +47,10 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const quantize_node& arg) {
-        auto quantize_params = get_default_params<kernel_selector::quantize_params>(arg);
+    static std::unique_ptr<primitive_impl> create(const quantize_node& arg, const kernel_impl_params& impl_param) {
+        auto quantize_params = get_default_params<kernel_selector::quantize_params>(impl_param);
         auto quantize_optional_params =
-            get_default_optional_params<kernel_selector::quantize_optional_params>(arg.get_program());
+            get_default_optional_params<kernel_selector::quantize_optional_params>(impl_param.get_program());
 
         quantize_params.levels = arg.get_levels();
         quantize_params.packed_binary_output = arg.get_packed_binary_output();
@@ -75,22 +79,15 @@ public:
         quantize_params.out_shift = arg.get_output_shift_val();
 
         for (size_t i = 1; i < arg.inputs_count(); i++) {
-            quantize_params.inputs.push_back(convert_data_tensor(arg.input(i).get_output_layout()));
+            quantize_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[i]));
         }
-        const auto& output_layout = arg.get_output_layout();
+        const auto& output_layout = impl_param.get_output_layout();
         quantize_params.outputs = { convert_data_tensor(output_layout) };
 
         auto& kernel_selector = kernel_selector::quantize_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(quantize_params, quantize_optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(quantize_params, quantize_optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        auto quantize = new quantize_impl(arg, best_kernels[0]);
-
-        return quantize;
+        return make_unique<quantize_impl>(arg, best_kernel);
     }
 };
 
@@ -133,10 +130,20 @@ attach_quantize_impl::attach_quantize_impl() {
         std::make_tuple(data_types::u8, format::bs_fs_yx_bsv16_fsv16),
         std::make_tuple(data_types::i8, format::bs_fs_yx_bsv16_fsv16),
 
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv32),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv32),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv16_fsv32),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv16_fsv32),
+
         std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv16_fsv16),
         std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv16_fsv16),
         std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv16_fsv16),
         std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv16_fsv16),
+
+        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv16_fsv32),
+        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv16_fsv32),
+        std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv16_fsv32),
+        std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv16_fsv32),
 
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
@@ -175,13 +182,25 @@ attach_quantize_impl::attach_quantize_impl() {
         std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv32),
         std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv32),
 
+        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv32_fsv32),
+        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv32_fsv32),
+        std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv32_fsv32),
+        std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv32_fsv32),
+
         std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv16),
         std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
         std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv16),
         std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv16),
+
+        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv32_fsv16),
+        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv32_fsv16),
+        std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv32_fsv16),
+        std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv32_fsv16),
     });
 }
 
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::quantize_impl)

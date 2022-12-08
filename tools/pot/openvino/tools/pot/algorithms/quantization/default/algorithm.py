@@ -13,6 +13,7 @@ from ...algorithm_selector import COMPRESSION_ALGORITHMS
 from ....samplers.creator import create_sampler
 from ....statistics.collector import StatisticsCollector
 from ....utils.logger import get_logger
+from ....configs.config import GNA_DEVICES
 
 # pylint: disable=W0611
 try:
@@ -40,7 +41,7 @@ class DefaultQuantization(Algorithm):
         use_fast_bias = self._config.get('use_fast_bias', True)
         self._enable_tuning = self._config.get('use_layerwise_tuning', False)
         bias_algo = FastBiasCorrection(config, engine) if use_fast_bias else BiasCorrection(config, engine)
-        is_overflow_correction_need = self._config.get('target_device') == 'GNA'
+        is_overflow_correction_need = self._config.get('target_device') in GNA_DEVICES
         self.algorithms = [ActivationChannelAlignment(config, engine),
                            MinMaxQuantization(config, engine),
                            bias_algo]
@@ -50,10 +51,13 @@ class DefaultQuantization(Algorithm):
             self._config.get(
                 'stat_subset_size', len(self._engine.data_loader)),
             len(self._engine.data_loader))
+        stat_batch_size = min(
+            self._config.get('stat_batch_size', 1), len(self._engine.data_loader))
         self.total_exec_steps = 2 * stat_subset_size
         shuffle_data = self._config.get('shuffle_data', False)
         seed = self._config.get('seed', 0)
-        self._sampler = create_sampler(engine, stat_subset_size, shuffle_data, seed)
+        self._sampler = create_sampler(
+            engine, stat_subset_size, shuffle_data, seed, stat_batch_size)
         self._stats_collected = False
 
     def run(self, model):

@@ -25,11 +25,11 @@ void shape_infer(const ov::op::util::ScatterNDBase* op,
                           indices_rank != 0 && inputs_rank != 0,
                           "Indices rank and inputs_rank are expected to be at least 1");
 
-    NODE_VALIDATION_CHECK(op,
-                          inputs_rank.is_dynamic() || indices_rank.is_dynamic() ||
-                              indices_shape[indices_shape.size() - 1].is_dynamic() ||
-                              indices_shape[indices_shape.size() - 1].get_length() <= inputs_shape.size(),
-                          "Last dimension of indices can be at most the rank of inputs");
+    NODE_VALIDATION_CHECK(
+        op,
+        inputs_rank.is_dynamic() || indices_rank.is_dynamic() || indices_shape[indices_shape.size() - 1].is_dynamic() ||
+            static_cast<size_t>(indices_shape[indices_shape.size() - 1].get_length()) <= inputs_shape.size(),
+        "Last dimension of indices can be at most the rank of inputs");
 
     if (inputs_rank.is_static() && indices_rank.is_static() && updates_rank.is_static() &&
         indices_shape[indices_shape.size() - 1].is_static()) {
@@ -48,7 +48,7 @@ void shape_infer(const ov::op::util::ScatterNDBase* op,
             NODE_VALIDATION_CHECK(op, compatible, "updates_shape[0:indices_rank-1] shape must be indices_shape[:-1]");
         }
         size_t j = indices_shape[static_indices_rank - 1].get_length();
-        for (int64_t i = static_indices_rank - 1; i < expected_updates_rank; i++, j++) {
+        for (int64_t i = static_indices_rank - 1; i < static_cast<int64_t>(expected_updates_rank); i++, j++) {
             compatible = compatible && updates_shape[i].compatible(inputs_shape[j]);
             NODE_VALIDATION_CHECK(op,
                                   compatible,

@@ -62,42 +62,78 @@ static kernel_selector::gather_axis convert_axis(int64_t axis, size_t rank) {
 struct gather_impl : typed_primitive_impl_ocl<gather> {
     using parent = typed_primitive_impl_ocl<gather>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::gather_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::gather_params, kernel_selector::gather_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<gather_impl>(*this);
     }
 
 public:
-    static primitive_impl* create(const gather_node& arg) {
-        auto gather_params = get_default_params<kernel_selector::gather_params>(arg);
-        auto gather_optional_params =
-            get_default_optional_params<kernel_selector::gather_optional_params>(arg.get_program());
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<gather>();
+        auto params = get_default_params<kernel_selector::gather_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::gather_optional_params>(impl_param.get_program());
 
-        auto input_layout = arg.get_dependency(0).get_output_layout();
-        gather_params.axis = convert_axis(arg.get_primitive()->axis, input_layout.get_rank());
-        gather_params.batch_dim = size_t(arg.get_primitive()->batch_dim);
-        gather_params.support_neg_ind = arg.get_primitive()->support_neg_ind;
+        auto input_layout = impl_param.get_input_layout(0);
+        params.axis = convert_axis(primitive->axis, input_layout.get_rank());
+        params.batch_dim = size_t(primitive->batch_dim);
+        params.support_neg_ind = primitive->support_neg_ind;
 
-        gather_params.inputs.push_back(convert_data_tensor(arg.input(1).get_output_layout()));
+        params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
+        return {params, optional_params};
+    }
 
-        auto& kernel_selector = kernel_selector::gather_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(gather_params, gather_optional_params);
-
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        auto gather = new gather_impl(arg, best_kernels[0]);
-
-        return gather;
+    void update_dispatch_data(const kernel_impl_params& impl_param) override {
+        auto kernel_params = get_kernel_params(impl_param);
+        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
     }
 };
 
 namespace detail {
 
 attach_gather_impl::attach_gather_impl() {
-    implementation_map<gather>::add(impl_types::ocl, gather_impl::create, {
+    auto dyn_types = {
+        data_types::f32,
+        data_types::f16,
+        data_types::i8,
+        data_types::u8,
+        data_types::i32
+    };
+
+    auto dyn_formats = {
+        format::bfyx,
+        format::bfzyx,
+        format::bfwzyx
+    };
+
+    implementation_map<gather>::add(impl_types::ocl,
+                                    shape_types::dynamic_shape,
+                                    typed_primitive_impl_ocl<gather>::create<gather_impl>,
+                                    dyn_types,
+                                    dyn_formats);
+
+    implementation_map<gather>::add(impl_types::ocl, shape_types::static_shape, typed_primitive_impl_ocl<gather>::create<gather_impl>, {
+        std::make_tuple(data_types::f32, format::fyxb),
+        std::make_tuple(data_types::f16, format::fyxb),
+        std::make_tuple(data_types::i32, format::fyxb),
+        std::make_tuple(data_types::i8, format::fyxb),
+        std::make_tuple(data_types::u8, format::fyxb),
+
+        std::make_tuple(data_types::f32, format::yxfb),
+        std::make_tuple(data_types::f16, format::yxfb),
+        std::make_tuple(data_types::i32, format::yxfb),
+        std::make_tuple(data_types::i8, format::yxfb),
+        std::make_tuple(data_types::u8, format::yxfb),
+
+        std::make_tuple(data_types::f32, format::byxf),
+        std::make_tuple(data_types::f16, format::byxf),
+        std::make_tuple(data_types::i32, format::byxf),
+        std::make_tuple(data_types::i8, format::byxf),
+        std::make_tuple(data_types::u8, format::byxf),
+
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::i32, format::bfyx),
@@ -115,9 +151,89 @@ attach_gather_impl::attach_gather_impl() {
         std::make_tuple(data_types::i32, format::bfwzyx),
         std::make_tuple(data_types::i8, format::bfwzyx),
         std::make_tuple(data_types::u8, format::bfwzyx),
+
+        std::make_tuple(data_types::f32, format::b_fs_yx_fsv4),
+        std::make_tuple(data_types::f16, format::b_fs_yx_fsv4),
+        std::make_tuple(data_types::i32, format::b_fs_yx_fsv4),
+        std::make_tuple(data_types::i8, format::b_fs_yx_fsv4),
+        std::make_tuple(data_types::u8, format::b_fs_yx_fsv4),
+
+        std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::i32, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
+
+        std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::i32, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::i8, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::u8, format::b_fs_yx_fsv32),
+
+        std::make_tuple(data_types::f32, format::b_fs_zyx_fsv16),
+        std::make_tuple(data_types::f16, format::b_fs_zyx_fsv16),
+        std::make_tuple(data_types::i32, format::b_fs_zyx_fsv16),
+        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv16),
+        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv16),
+
+        std::make_tuple(data_types::f32, format::b_fs_zyx_fsv32),
+        std::make_tuple(data_types::f16, format::b_fs_zyx_fsv32),
+        std::make_tuple(data_types::i32, format::b_fs_zyx_fsv32),
+        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv32),
+        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv32),
+
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv4_fsv2),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv4_fsv2),
+        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv4_fsv2),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv4_fsv2),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv4_fsv2),
+
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv4_fsv4),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv4_fsv4),
+        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv4_fsv4),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv4_fsv4),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv4_fsv4),
+
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv8_fsv2),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv8_fsv2),
+        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv8_fsv2),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv8_fsv2),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv8_fsv2),
+
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv8_fsv4),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv8_fsv4),
+        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv8_fsv4),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv8_fsv4),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv8_fsv4),
+
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv16),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv16),
+        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv16_fsv16),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv16_fsv16),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv16_fsv16),
+
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv16),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
+        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv32_fsv16),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv16),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv16),
+
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv32),
+        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv32_fsv32),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv32),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv32),
+
+        std::make_tuple(data_types::f32, format::fs_b_yx_fsv32),
+        std::make_tuple(data_types::f16, format::fs_b_yx_fsv32),
+        std::make_tuple(data_types::i32, format::fs_b_yx_fsv32),
+        std::make_tuple(data_types::i8, format::fs_b_yx_fsv32),
+        std::make_tuple(data_types::u8, format::fs_b_yx_fsv32),
     });
 }
 
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::gather_impl)

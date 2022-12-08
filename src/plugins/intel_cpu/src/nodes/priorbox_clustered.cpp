@@ -10,7 +10,7 @@
 #include <vector>
 
 #include <ie_parallel.hpp>
-#include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset1.hpp>
 
@@ -19,6 +19,52 @@ using namespace InferenceEngine;
 namespace ov {
 namespace intel_cpu {
 namespace node {
+
+namespace {
+/**
+ * Implements Prior Box Clustered shape inference algorithm. The output shape is [2,  4 * height * width * number_of_priors].
+ * `number_of_priors` is an attribute of the operation. heigh and width are in the the first input parameter.
+ *  
+ */
+class PriorBoxClusteredShapeInfer : public ShapeInferEmptyPads {
+public:
+    explicit PriorBoxClusteredShapeInfer(size_t number_of_priors) : m_number_of_priors(number_of_priors) {}
+    std::vector<VectorDims> infer(
+        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+        const int* in_data = reinterpret_cast<const int*>(data_dependency.at(0)->GetPtr());
+        const int H = in_data[0];
+        const int W = in_data[1];
+        const auto output = static_cast<size_t>(4 * H * W * m_number_of_priors);
+        return {{2, output}};
+    }
+
+    port_mask_t get_port_mask() const override {
+        return PortMask(0);
+    }
+
+private:
+    size_t m_number_of_priors = 0;
+};
+
+class PriorBoxClusteredShapeInferFactory : public ShapeInferFactory {
+public:
+    explicit PriorBoxClusteredShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
+    ShapeInferPtr makeShapeInfer() const override {
+        auto priorBox = ov::as_type_ptr<const ngraph::opset1::PriorBoxClustered>(m_op);
+        if (!priorBox) {
+            IE_THROW() << "Unexpected op type in PriorBoxClustered shape inference factory: " << m_op->get_type_name();
+        }
+        const auto& attrs = priorBox->get_attrs();
+        auto number_of_priors = attrs.widths.size();
+        return std::make_shared<PriorBoxClusteredShapeInfer>(number_of_priors);
+    }
+
+private:
+    std::shared_ptr<ov::Node> m_op;
+};
+
+} // namespace
 
 bool PriorBoxClustered::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -35,8 +81,8 @@ bool PriorBoxClustered::isSupportedOperation(const std::shared_ptr<const ngraph:
 
 PriorBoxClustered::PriorBoxClustered(
     const std::shared_ptr<ngraph::Node>& op,
-    const mkldnn::engine& eng,
-    WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
+    const dnnl::engine& eng,
+    WeightsSharing::Ptr &cache) : Node(op, eng, cache, PriorBoxClusteredShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -76,14 +122,6 @@ bool PriorBoxClustered::needShapeInfer() const {
     return outputShape[1] != output;
 }
 
-std::vector<VectorDims> PriorBoxClustered::shapeInfer() const {
-    const int* in_data = reinterpret_cast<int*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    const int H = in_data[0];
-    const int W = in_data[1];
-    const auto output = static_cast<size_t>(4 * H * W * number_of_priors);
-    return {{2, output}};
-}
-
 bool PriorBoxClustered::needPrepareParams() const {
     return false;
 }
@@ -106,7 +144,7 @@ void PriorBoxClustered::createPrimitive() {
     }
 }
 
-void PriorBoxClustered::execute(mkldnn::stream strm) {
+void PriorBoxClustered::execute(dnnl::stream strm) {
     const int* in_data = reinterpret_cast<int*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     const int layer_height = in_data[0];
     const int layer_width = in_data[1];

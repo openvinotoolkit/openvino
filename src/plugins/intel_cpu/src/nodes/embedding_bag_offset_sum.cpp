@@ -27,8 +27,8 @@ bool EmbeddingBagOffsetSum::isSupportedOperation(const std::shared_ptr<const ngr
     return true;
 }
 
-EmbeddingBagOffsetSum::EmbeddingBagOffsetSum(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache), EmbeddingBagSum(op, 3lu, 1lu, 4lu, 3lu) {
+EmbeddingBagOffsetSum::EmbeddingBagOffsetSum(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)), EmbeddingBagSum(op, 3lu, 1lu, 4lu, 3lu) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -121,7 +121,7 @@ void EmbeddingBagOffsetSum::getIndices(int embIndex, const int*& indices, size_t
         weightsIdx = offsetsData_[embIndex];
 }
 
-void EmbeddingBagOffsetSum::executeDynamicImpl(mkldnn::stream strm) {
+void EmbeddingBagOffsetSum::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
@@ -129,16 +129,15 @@ bool EmbeddingBagOffsetSum::isExecutable() const {
     return !isInputTensorAtPortEmpty(0);
 }
 
-void EmbeddingBagOffsetSum::execute(mkldnn::stream strm) {
+void EmbeddingBagOffsetSum::execute(dnnl::stream strm) {
     const auto *srcData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    auto *dstData = reinterpret_cast<uint8_t *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
     const uint8_t* weightsData = nullptr;
     if (_withWeights)
         weightsData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(PER_SAMPLE_WEIGHTS_IDX)->getMemoryPtr()->GetPtr());
 
     const auto &inputMem  = getParentEdgeAt(0)->getMemory();
-    EmbeddingBagSum::execute(srcData, weightsData, dstData, inputMem .getDesc().getPrecision(),
-                                       inputMem .getStaticDims(), getChildEdgesAtPort(0)[0]->getMemory().GetShape().getStaticDims());
+    EmbeddingBagSum::execute(srcData, weightsData, inputMem.getDesc().getPrecision(),
+                                       inputMem.getStaticDims(), getChildEdgesAtPort(0)[0]->getMemoryPtr());
 }
 
 bool EmbeddingBagOffsetSum::created() const {

@@ -60,7 +60,8 @@ enum class build_option_type {
     serialize_network,
     load_program,
     force_implementations,
-    partial_build_program
+    partial_build_program,
+    allow_new_shape_infer
 };
 
 /// @brief Tuning mode.
@@ -143,6 +144,9 @@ struct build_option {
     static std::shared_ptr<const build_option> force_implementations(implementation_forcing_map forcing);
 
     static std::shared_ptr<const build_option> partial_build_program(bool set = false);
+
+    static std::shared_ptr<const build_option> allow_new_shape_infer(bool set = false);
+
     virtual ~build_option() = default;
 
 private:
@@ -363,11 +367,15 @@ struct build_option_traits<build_option_type::force_implementations> {
     using object_type = build_option_force_implementations;
     static std::shared_ptr<const build_option> make_default() { return build_option::force_implementations({}); }
 };
-
 template <>
 struct build_option_traits<build_option_type::partial_build_program> {
     typedef build_option_bool<build_option_type::partial_build_program> object_type;
     static std::shared_ptr<const build_option> make_default() { return build_option::partial_build_program(); }
+};
+template <>
+struct build_option_traits<build_option_type::allow_new_shape_infer> {
+    typedef build_option_bool<build_option_type::allow_new_shape_infer> object_type;
+    static std::shared_ptr<const build_option> make_default() { return build_option::allow_new_shape_infer(); }
 };
 
 #endif
@@ -421,6 +429,10 @@ inline std::shared_ptr<const build_option> build_option::force_implementations(i
 
 inline std::shared_ptr<const build_option> build_option::partial_build_program(bool enable) {
     return std::make_shared<build_option_bool<build_option_type::partial_build_program>>(enable);
+}
+
+inline std::shared_ptr<const build_option> build_option::allow_new_shape_infer(bool enable) {
+    return std::make_shared<build_option_bool<build_option_type::allow_new_shape_infer>>(enable);
 }
 
 #endif

@@ -10,10 +10,10 @@
 #include <string>
 #include <cstdint>
 #include <mutex>
+#include <set>
 
 #include <cpp/ie_cnn_network.h>
 #include <ngraph/ngraph.hpp>
-#include <ngraph/compatibility.hpp>
 
 #include "intel_gpu/plugin/device_config.hpp"
 
@@ -41,8 +41,14 @@ void __register ## _ ## op_name ## _ ## op_version() {                          
 }
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
+
+template<class T>
+struct is_smart_pointer : std::false_type {};
+template<class T>
+struct is_smart_pointer<std::shared_ptr<T>> : std::true_type {};
+template<class T>
+struct is_smart_pointer<std::shared_ptr<const T>> : std::true_type {};
 
 std::string layer_type_lower(const ngraph::Node* op);
 std::string layer_type_name_ID(const ngraph::Node* op);
@@ -59,8 +65,12 @@ struct PerfCounter {
     std::string parentPrimitive;
 
 public:
-    PerfCounter() : realTime_uSec(0), cpu_uSec(0), num(0),
-                    status(InferenceEngine::InferenceEngineProfileInfo::NOT_RUN), isCPU(false) {}
+    PerfCounter()
+    : status(InferenceEngine::InferenceEngineProfileInfo::NOT_RUN)
+    , isCPU(false)
+    , realTime_uSec(0)
+    , cpu_uSec(0)
+    , num(0) {}
 
     long long realTime_avg() const { return (num == 0) ? 0 : realTime_uSec / num; }
     long long cpu_avg() const { return (num == 0) ? 0 : cpu_uSec / num; }
@@ -70,9 +80,18 @@ class Program {
 public:
     Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::engine> engine, const Config& config,
             bool createTopologyOnly = false, bool partialBuild = false);
-    Program(std::shared_ptr<cldnn::engine> engine, const Config& config) : m_config(config), m_engine(engine),
-            m_curBatch(-1), queryMode(false), m_max_batch(1) {}
-    Program() : m_config(), m_engine(nullptr), m_curBatch(-1), queryMode(false), m_max_batch(1) {}
+    Program(std::shared_ptr<cldnn::engine> engine, const Config& config)
+        : m_max_batch(1)
+        , m_curBatch(-1)
+        , m_config(config)
+        , m_engine(engine)
+        , queryMode(false) {}
+    Program()
+        : m_max_batch(1)
+        , m_curBatch(-1)
+        , m_config()
+        , m_engine(nullptr)
+        , queryMode(false) {}
 
     static const cldnn::primitive_id m_preProcessTag;
     static const cldnn::primitive_id m_meanValuesTag;
@@ -80,11 +99,11 @@ public:
     static const cldnn::primitive_id m_preCustomLayerTag;
     static const cldnn::primitive_id m_postCustomLayerTag;
 
-    std::map<std::string, cldnn::primitive_id> primitiveIDs;
+    std::map<std::string, cldnn::primitive_id> primitive_ids;
     std::map<std::string, std::vector<cldnn::primitive_id>> prevPrimitiveIDs;
     std::map<cldnn::primitive_id, std::pair<std::string, PerfCounter>> perfMap;
 
-    std::vector<cldnn::primitive_id> profilingIDs;
+    std::vector<cldnn::primitive_id> profiling_ids;
 
     std::map<std::string, InferenceEngine::SizeVector> outputDims;
     std::map<std::string, cldnn::layout> inputLayouts;
@@ -111,22 +130,10 @@ public:
                          std::map<std::string, std::pair<int64_t, int64_t>>& batch_dim);
 
     // Profiling utils
-    void InitProfileInfo(const std::string& layerName,
-                         const std::string& layerType,
-                         bool isCPU = false,
-                         InferenceEngine::InferenceEngineProfileInfo::LayerStatus status
-                         = InferenceEngine::InferenceEngineProfileInfo::EXECUTED,
-                         std::string parentId = "");
-    void AddPrimitiveToProfiler(cldnn::primitive_id id, const std::shared_ptr<ngraph::Node>& op,
-                                cldnn::primitive_id customOutputId = "");
-    void AddPrimitiveToProfiler(const std::shared_ptr<ngraph::Node>& op,
-                                cldnn::primitive_id customOutputId = "");
-    void AddInnerPrimitiveToProfiler(cldnn::primitive_id id, cldnn::primitive_id parentId,
-                                     const std::shared_ptr<ngraph::Node>& op);
+    void init_profile_info(const cldnn::primitive& prim);
 
     // Graph construction helpers
-    void ValidateInputs(const std::shared_ptr<ngraph::Node>& op, std::vector<size_t> validInputsCount);
-    std::vector<cldnn::primitive_id> GetInputPrimitiveIDs(const std::shared_ptr<ngraph::Node>& op) const;
+    std::vector<cldnn::input_info> GetInputInfo(const std::shared_ptr<ngraph::Node>& op) const;
 
     using factory_t = std::function<void(Program&, const std::shared_ptr<ngraph::Node>&)>;
     using factories_map_t = std::map<ngraph::DiscreteTypeInfo, factory_t>;
@@ -139,26 +146,35 @@ public:
             Program::factories_map.insert({OpType::get_type_info_static(), func});
     }
 
-    template<typename PType>
-    void AddPrimitive(const PType& prim) {
-        if (m_topology == nullptr) {
-            IE_THROW() << "m_topology object was not created in ov::runtime::intel_gpu::Program";
-        }
-
-        m_topology->add(prim);
+    template<typename PType, typename = typename std::enable_if<!is_smart_pointer<PType>::value>::type>
+    void add_primitive(const ngraph::Node& op, PType prim, std::vector<std::string> aliases = {}) {
+        add_primitive(op, std::static_pointer_cast<cldnn::primitive>(std::make_shared<PType>(prim)), aliases);
     }
 
+    void add_primitive(const ngraph::Node& op, std::shared_ptr<cldnn::primitive> prim, std::vector<std::string> aliases = {});
+
     std::shared_ptr<cldnn::topology> GetTopology() const { return m_topology; }
+
+    using variables_state_info_map = std::map<std::string, std::set<cldnn::layout>>;
+
+    void AddVariableStateInfo(const std::string& variable_id, const cldnn::layout& layout);
+
+    const variables_state_info_map& GetVariablesStatesInfo() const { return m_variablesStateInfo; }
+
+    bool use_new_shape_infer() const { return allow_new_shape_infer; }
 
 private:
     static factories_map_t factories_map;
     std::vector<std::shared_ptr<cldnn::program>> m_programs;
-    std::shared_ptr<cldnn::engine> m_engine;
     Config m_config;
+    std::shared_ptr<cldnn::engine> m_engine;
 
     std::shared_ptr<cldnn::topology> m_topology;
     InferenceEngine::InputsDataMap m_networkInputs;
     InferenceEngine::OutputsDataMap m_networkOutputs;
+    variables_state_info_map m_variablesStateInfo;
+
+    bool allow_new_shape_infer = false;
 
     bool queryMode;
 
@@ -185,6 +201,13 @@ void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& node, 
 
 bool IsNodeOnConstPath(const std::shared_ptr<ngraph::Node>& node);
 
+void validate_inputs_count(const std::shared_ptr<ngraph::Node>& op, std::vector<size_t> possible_inputs_count);
+
+inline bool ends_with(const std::string& value, const std::string& suffix) {
+    if (suffix.size() > value.size())
+        return false;
+    return std::equal(suffix.rbegin(), suffix.rend(), value.rbegin());
+}
+
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov
