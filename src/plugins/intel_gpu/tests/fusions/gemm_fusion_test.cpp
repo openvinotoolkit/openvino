@@ -133,9 +133,10 @@ TEST_P(gemm_3in_quantize_i8, basic) {
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
-        gemm("gemm_prim", { "input0", "input1", "input2" }, data_types::f32),
-        quantize("quantize", "gemm_prim", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
-        reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
+        gemm("gemm_prim", { input_info("input0"), input_info("input1"), input_info("input2") }, data_types::f32),
+        quantize("quantize", input_info("gemm_prim"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
+        reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
     );
 
     tolerance = 1.0f;
@@ -166,9 +167,10 @@ TEST_P(gemm_2in_quantize_u8, basic) {
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), 0)),
         data("out_hi", get_mem(get_single_element_layout(p), 255)),
-        gemm("gemm_prim", { "input0", "input1" }, data_types::f32),
-        quantize("quantize", "gemm_prim", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::u8),
-        reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
+        gemm("gemm_prim", { input_info("input0"), input_info("input1") }, data_types::f32),
+        quantize("quantize", input_info("gemm_prim"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 256, data_types::u8),
+        reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
     );
 
     tolerance = 1.0f;
@@ -199,9 +201,10 @@ TEST_P(gemm_2in_quantize_float_in, basic) {
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), 0)),
         data("out_hi", get_mem(get_single_element_layout(p), 255)),
-        gemm("gemm_prim", { "input0", "input1" }, data_types::f32),
-        quantize("quantize", "gemm_prim", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::u8),
-        reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
+        gemm("gemm_prim", { input_info("input0"), input_info("input1") }, data_types::f32),
+        quantize("quantize", input_info("gemm_prim"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 256, data_types::u8),
+        reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
     );
 
     implementation_desc gemm_impl = { format::bfyx, "gemm_tiled_opt" };
@@ -231,9 +234,9 @@ TEST_P(gemm_2in_scale, basic) {
         input_layout("input0", get_input_layout(p, 0)),
         input_layout("input1", get_input_layout(p, 1)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
-        gemm("gemm_prim", { "input0", "input1" }, data_types::f32),
-        eltwise("scale", { "gemm_prim", "scale_data" }, eltwise_mode::prod, p.default_type),
-        reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
+        gemm("gemm_prim", { input_info("input0"), input_info("input1") }, data_types::f32),
+        eltwise("scale", { input_info("gemm_prim"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
+        reorder("reorder_bfyx", input_info("scale"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;
@@ -246,9 +249,9 @@ TEST_P(gemm_2in_scale, fp16_scale_out) {
         input_layout("input0", get_input_layout(p, 0)),
         input_layout("input1", get_input_layout(p, 1)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
-        gemm("gemm_prim", { "input0", "input1" }, data_types::f32),
-        eltwise("scale", { "gemm_prim", "scale_data" }, eltwise_mode::prod, data_types::f16),
-        reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
+        gemm("gemm_prim", { input_info("input0"), input_info("input1") }, data_types::f32),
+        eltwise("scale", { input_info("gemm_prim"), input_info("scale_data") }, eltwise_mode::prod, data_types::f16),
+        reorder("reorder_bfyx", input_info("scale"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;
@@ -280,11 +283,12 @@ TEST_P(gemm_2in_act_scale_quantize_i8, basic) {
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / p.kernel.count() / 255)),
-        gemm("gemm_prim", { "input0", "input1" }, data_types::f32),
-        activation("activation", "gemm_prim", activation_func::exp),
-        eltwise("scale", { "activation", "scale_data" }, eltwise_mode::prod, p.default_type),
-        quantize("quantize", "scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
-        reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
+        gemm("gemm_prim", { input_info("input0"), input_info("input1") }, data_types::f32),
+        activation("activation", input_info("gemm_prim"), activation_func::exp),
+        eltwise("scale", { input_info("activation"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
+        quantize("quantize", input_info("scale"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
+        reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
     );
 
     tolerance = 1.0f;
@@ -316,12 +320,13 @@ TEST_P(gemm_2in_act_scale_quantize_eltwise_i8, basic) {
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / p.kernel.count() / 255)),
         data("eltwise_data", get_mem(get_output_layout(p))),
-        gemm("gemm_prim", { "input0", "input1" }, data_types::f32),
-        activation("activation", "gemm_prim", activation_func::exp),
-        eltwise("scale", { "activation", "scale_data" }, eltwise_mode::prod, p.default_type),
-        quantize("quantize", "scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
-        eltwise("sum", { "quantize", "eltwise_data" }, eltwise_mode::sum,  data_types::f32),
-        reorder("reorder_bfyx", "sum", p.default_format, data_types::f32)
+        gemm("gemm_prim", { input_info("input0"), input_info("input1") }, data_types::f32),
+        activation("activation", input_info("gemm_prim"), activation_func::exp),
+        eltwise("scale", { input_info("activation"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
+        quantize("quantize", input_info("scale"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
+        eltwise("sum", { input_info("quantize"), input_info("eltwise_data") }, eltwise_mode::sum,  data_types::f32),
+        reorder("reorder_bfyx", input_info("sum"), p.default_format, data_types::f32)
     );
 
     tolerance = 1.0f;
@@ -343,11 +348,11 @@ TEST_P(gemm_2in_act_scale_eltwise, basic) {
         input_layout("input1", get_input_layout(p, 1)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / p.kernel.count() / 255)),
         data("eltwise_data", get_mem(get_output_layout(p))),
-        gemm("gemm_prim", { "input0", "input1" }, data_types::f32),
-        eltwise("scale", { "gemm_prim", "scale_data" }, eltwise_mode::prod, p.default_type),
-        activation("activation", "scale", activation_func::negative),
-        eltwise("sum", { "activation", "eltwise_data" }, eltwise_mode::sum,  data_types::f32),
-        reorder("reorder_bfyx", "sum", p.default_format, data_types::f32)
+        gemm("gemm_prim", { input_info("input0"), input_info("input1") }, data_types::f32),
+        eltwise("scale", { input_info("gemm_prim"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
+        activation("activation", input_info("scale"), activation_func::negative),
+        eltwise("sum", { input_info("activation"), input_info("eltwise_data") }, eltwise_mode::sum,  data_types::f32),
+        reorder("reorder_bfyx", input_info("sum"), p.default_format, data_types::f32)
     );
     // Activation won't be fused because onednn doesn't support negative activation
     if (engine.get_device_info().supports_immad && !p.kernel_name.empty())
@@ -364,11 +369,11 @@ TEST_P(gemm_2in_act_scale_eltwise, broadcast_eltwise) {
         input_layout("input1", get_input_layout(p, 1)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / p.kernel.count() / 255)),
         data("eltwise_data", get_mem(get_single_element_layout(p))),
-        gemm("gemm_prim", { "input0", "input1" }, data_types::f32),
-        eltwise("scale", { "gemm_prim", "scale_data" }, eltwise_mode::prod, p.default_type),
-        activation("activation", "scale", activation_func::negative),
-        eltwise("sum", { "activation", "eltwise_data" }, eltwise_mode::sum,  data_types::f32),
-        reorder("reorder_bfyx", "sum", p.default_format, data_types::f32)
+        gemm("gemm_prim", { input_info("input0"), input_info("input1") }, data_types::f32),
+        eltwise("scale", { input_info("gemm_prim"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
+        activation("activation", input_info("scale"), activation_func::negative),
+        eltwise("sum", { input_info("activation"), input_info("eltwise_data") }, eltwise_mode::sum,  data_types::f32),
+        reorder("reorder_bfyx", input_info("sum"), p.default_format, data_types::f32)
     );
     // Activation won't be fused because onednn doesn't support negative activation
     if (engine.get_device_info().supports_immad && !p.kernel_name.empty())

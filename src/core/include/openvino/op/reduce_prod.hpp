@@ -16,7 +16,6 @@ namespace v1 {
 class OPENVINO_API ReduceProd : public util::ArithmeticReductionKeepDims {
 public:
     OPENVINO_OP("ReduceProd", "opset1", util::ArithmeticReductionKeepDims, 1);
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a product reduction operation.
     ReduceProd() = default;
     /// \brief Constructs a product reduction operation.

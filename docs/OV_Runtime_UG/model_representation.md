@@ -82,7 +82,7 @@ To add the support for custom operations, see [OpenVINO Extensibility Mechanism]
 
 You can create a model from source. This section illustrates how to construct a model composed of operations from an available operation set.
 
-Operation set `opsetX` integrates a list of pre-compiled operations that work for this purpose. In other words, `opsetX` defines a set of operations for building a graph.
+Operation set `opsetX` integrates a list of pre-compiled operations that work for this purpose. In other words, `opsetX` defines a set of operations for building a graph.
 
 To build an `ov::Model` instance from `opset8` operations, include the following files:
 

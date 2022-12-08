@@ -27,7 +27,7 @@ inline void DoTest(engine& engine,
     topology.add(input_layout("InputData", input0->get_layout()));
     topology.add(input_layout("InputIndices", input1->get_layout()));
     topology.add(
-        gather_elements("gather_elements", "InputData", "InputIndices", input1->get_layout().format, output_tensor, axis)
+        gather_elements("gather_elements", input_info("InputData"), input_info("InputIndices"), input1->get_layout().format, output_tensor, axis)
     );
 
     cldnn::network::ptr network;

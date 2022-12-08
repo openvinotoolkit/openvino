@@ -70,7 +70,7 @@ Options:
 
 1. Install the `openvino-dev` Python package to use Open Model Zoo Tools:
    ```
-   python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
+   python -m pip install openvino-dev[caffe]
    ```
 
 2. Download a pre-trained model:

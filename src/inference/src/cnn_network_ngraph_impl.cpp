@@ -35,6 +35,7 @@
 #include <openvino/cc/pass/itt.hpp>
 #include <transformations/common_optimizations/dimension_tracking.hpp>
 #include <transformations/common_optimizations/fold_subgraph_empty_inputs.hpp>
+#include <transformations/common_optimizations/nop_elimination.hpp>
 #include <transformations/common_optimizations/remove_concat_zero_dim_input.hpp>
 #include <transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp>
 #include <transformations/disable_decompression_convert_constant_folding.hpp>
@@ -150,6 +151,7 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
         using namespace ngraph::pass;
         REGISTER_PASS(m, FixRtInfo)
         using namespace ov::pass;
+        REGISTER_PASS(m, EliminateScatterUpdate)
         REGISTER_PASS(m, RemoveConcatZeroDimInput)
         REGISTER_PASS(m, RemoveMultiSubGraphOpDanglingParams)
         REGISTER_PASS(m, FoldSubgraphEmptyInputs)

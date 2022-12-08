@@ -302,11 +302,11 @@ void OpSummary::saveReport() {
         opList.insert(name);
         pugi::xml_node entry = currentDeviceNode.append_child(name.c_str());
         entry.append_attribute("implemented").set_value(it.second.isImplemented);
-        entry.append_attribute("passed").set_value(it.second.passed);
-        entry.append_attribute("failed").set_value(it.second.failed);
-        entry.append_attribute("skipped").set_value(it.second.skipped);
-        entry.append_attribute("crashed").set_value(it.second.crashed);
-        entry.append_attribute("hanged").set_value(it.second.hanged);
+        entry.append_attribute("passed").set_value(static_cast<unsigned long long>(it.second.passed));
+        entry.append_attribute("failed").set_value(static_cast<unsigned long long>(it.second.failed));
+        entry.append_attribute("skipped").set_value(static_cast<unsigned long long>(it.second.skipped));
+        entry.append_attribute("crashed").set_value(static_cast<unsigned long long>(it.second.crashed));
+        entry.append_attribute("hanged").set_value(static_cast<unsigned long long>(it.second.hanged));
         entry.append_attribute("passrate").set_value(it.second.getPassrate());
     }
 
@@ -317,11 +317,11 @@ void OpSummary::saveReport() {
             if (opList.find(item.first) == opList.end()) {
                 entry = currentDeviceNode.append_child(item.first.c_str());
                 entry.append_attribute("implemented").set_value(item.second.isImplemented);
-                entry.append_attribute("passed").set_value(item.second.passed);
-                entry.append_attribute("failed").set_value(item.second.failed);
-                entry.append_attribute("skipped").set_value(item.second.skipped);
-                entry.append_attribute("crashed").set_value(item.second.crashed);
-                entry.append_attribute("hanged").set_value(item.second.hanged);
+                entry.append_attribute("passed").set_value(static_cast<unsigned long long>(item.second.passed));
+                entry.append_attribute("failed").set_value(static_cast<unsigned long long>(item.second.failed));
+                entry.append_attribute("skipped").set_value(static_cast<unsigned long long>(item.second.skipped));
+                entry.append_attribute("crashed").set_value(static_cast<unsigned long long>(item.second.crashed));
+                entry.append_attribute("hanged").set_value(static_cast<unsigned long long>(item.second.hanged));
                 entry.append_attribute("passrate").set_value(item.second.getPassrate());
             } else {
                 entry = currentDeviceNode.child(item.first.c_str());
@@ -336,11 +336,11 @@ void OpSummary::saveReport() {
                 (implStatus || obj.isImplemented)
                 ? entry.attribute("implemented").set_value(true)
                 : entry.attribute("implemented").set_value(false);
-                entry.attribute("passed").set_value(obj.passed);
-                entry.attribute("failed").set_value(obj.failed);
-                entry.attribute("skipped").set_value(obj.skipped);
-                entry.attribute("crashed").set_value(obj.crashed);
-                entry.attribute("hanged").set_value(obj.hanged);
+                entry.attribute("passed").set_value(static_cast<unsigned long long>(obj.passed));
+                entry.attribute("failed").set_value(static_cast<unsigned long long>(obj.failed));
+                entry.attribute("skipped").set_value(static_cast<unsigned long long>(obj.skipped));
+                entry.attribute("crashed").set_value(static_cast<unsigned long long>(obj.crashed));
+                entry.attribute("hanged").set_value(static_cast<unsigned long long>(obj.hanged));
                 entry.attribute("passrate").set_value(obj.getPassrate());
             }
         }

@@ -17,7 +17,6 @@ namespace v0 {
 class OPENVINO_API Unsqueeze : public Op {
 public:
     OPENVINO_OP("Unsqueeze", "opset1");
-    BWDCMP_RTTI_DECLARATION;
 
     Unsqueeze() = default;
     Unsqueeze(const Output<Node>& data, const Output<Node>& axes);
