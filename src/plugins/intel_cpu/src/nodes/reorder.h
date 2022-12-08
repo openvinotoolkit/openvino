@@ -70,9 +70,6 @@ private:
 
     std::vector<int> src_permutation;
 
-    MemoryPtr dst_blocked;
-    MemoryPtr src_blocked;
-
     bool isOptimized = false;
 
     bool isNspc2NcspCase = false;
@@ -82,7 +79,7 @@ private:
 
     void optimizedNspc2Ncsp();
     void optimizedNcsp2Nspc();
-    void createReorderPrimitive(const dnnl::memory::desc &srcDesc, void* srcPtr, const dnnl::memory::desc &dstDesc, void* dstPtr);
+    void createReorderPrimitive(const dnnl::memory::desc &srcDesc, const dnnl::memory::desc &dstDesc);
 };
 
 }   // namespace node

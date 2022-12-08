@@ -176,12 +176,14 @@ void Reorder::prepareParams() {
         if (getSelectedPrimitiveDescriptor() == nullptr)
             IE_THROW() << "Preferable primitive descriptor is not set.";
 
+            createReorderPrimitive(srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc(),
+                                   dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc());
         createReorderPrimitive(srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc(), srcMemPtr->GetData(),
                                dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc(), dstMemPtr->GetData());
     }
 }
 
-void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
+void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc, const dnnl::memory::desc& dstDesc) {
                                      void* srcPtr,
                                      const dnnl::memory::desc& dstDesc,
                                      void* dstPtr) {
@@ -190,13 +192,8 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
         IE_THROW() << "Preferable primitive descriptor is not set.";
 
     const auto engine = getEngine();
-    src_blocked = std::make_shared<Memory>(engine);
-    src_blocked->Create(DnnlExtensionUtils::makeDescriptor(srcDesc), srcPtr, false);
-
-    dst_blocked = std::make_shared<Memory>(engine);
-    dst_blocked->Create(DnnlExtensionUtils::makeDescriptor(dstDesc), dstPtr, false);
-
-    auto src_desc = src_blocked->GetPrimitive().get_desc();
+    auto src_desc = srcDesc;
+    auto dst_desc = dstDesc;
     if (!src_permutation.empty()) {
         // reorder requires exact matching of logical dimensions between src & dst
         // sometime we have to permute source's logical dimensions to satisfy
@@ -219,16 +216,16 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
     // perform such conversion if the source tensor can be reshaped to the destination rank. This is
     // useful in situations when rank in IR does not much rank that is required by the oneDNN primitive,
     // but the input tensor can be reshaped (e.g. weights for grouped convolutions, biases etc.)
-    if (src_blocked->getDesc().hasLayoutType(LayoutType::ncsp) &&
-        src_blocked->GetShape().getRank() != dst_blocked->GetShape().getRank()) {
-        const auto newDims = dst_blocked->getStaticDims();
+    auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    if (srcMemPtr->getDesc().hasLayoutType(LayoutType::ncsp) &&
+        srcMemPtr->GetShape().getRank() != dstMemPtr->GetShape().getRank()) {
+        const auto newDims = dstMemPtr->getStaticDims();
         const auto newFormat = DnnlExtensionUtils::GetPlainFormatByRank(newDims.size());
 
-        auto newDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(newDims),
-                                            src_blocked->GetDataType(),
-                                            newFormat);
-        src_blocked->Create(DnnlExtensionUtils::makeDescriptor(newDesc), srcPtr, false);
-
+        key.src = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(newDims),
+                                        srcMemPtr->GetDataType(),
+                                        newFormat);
         src_desc = src_blocked->GetPrimitive().get_desc();
     }
 
