@@ -728,7 +728,7 @@ paddlepaddle>=2.1
 | logical_xor |  |
 | lookup_table |  |
 | matmul |  |
-| matrix_nms | Only supports IE CPU plugin with *"number of selected boxes"* static shape(e.g.: `min(min(num_boxes, nms_top_k) * num_classes_output, keep_top_k)`). |
+| matrix_nms | Only supports IE CPU plugin with "number of selected boxes" static shape(e.g.: `min(min(num_boxes, nms_top_k) * num_classes_output, keep_top_k)`). |
 | max_pool2d_with_index |  |
 | meshgrid |  |
 | multiclass_nms | Only supports IE CPU plugin with "number of selected boxes" static shape(e.g.: `min(min(num_boxes, nms_top_k) * num_classes_output, keep_top_k)`). |
