@@ -5,27 +5,27 @@
 #include "openvino/frontend/tensorflow_lite/frontend.hpp"
 
 #include "graph_iterator_flatbuffer.hpp"
-#include "openvino/frontend/tensorflow/graph_iterator.hpp"
-#include "openvino/frontend/tensorflow/op_table.hpp"
-#include "openvino/frontend/tensorflow/input_model.hpp"
+#include "op_table.hpp"
+#include "input_model.hpp"
 #include "openvino/util/common_util.hpp"
 
 using namespace ov;
-using namespace ov::frontend::tensorflow;
+using namespace ov::frontend::tensorflow_lite;
 
 
-ov::frontend::tensorflow_lite::FrontEnd::FrontEnd() {
+FrontEnd::FrontEnd() {
     m_op_translators = tensorflow::op::get_supported_lite_ops();
 }
 
 /// \brief Check if FrontEndTensorflow can recognize model from given parts
-bool ov::frontend::tensorflow_lite::FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
+bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     if (variants.size() != 1)
         return false;
 
     if (variants[0].is<std::string>()) {
         std::string suffix = ".tflite";
         std::string model_path = variants[0].as<std::string>();
+        std::cout << "I am " << model_path << std::endl;
         if (ov::util::ends_with(model_path, suffix.c_str())) {
             return true;
         }
@@ -42,14 +42,15 @@ bool ov::frontend::tensorflow_lite::FrontEnd::supported_impl(const std::vector<o
     return false;
 }
 
-ov::frontend::InputModel::Ptr ov::frontend::tensorflow_lite::FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
+ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
     if (variants.size() == 1) {
         if (variants[0].is<std::string>()) {
             std::string suffix = ".tflite";
             std::string model_path = variants[0].as<std::string>();
+            std::cout << "I am " << model_path << std::endl;
             if (ov::util::ends_with(model_path, suffix.c_str())) {
                 return std::make_shared<tensorflow::InputModel>(
-                        std::make_shared<::ov::frontend::tensorflow_lite::GraphIteratorFlatBuffer>(model_path),
+                        std::make_shared<GraphIteratorFlatBuffer>(model_path),
                         m_telemetry);
             }
         }

@@ -24,3 +24,23 @@ target_include_directories(openvino_tensorflow_frontend_static_tests
     PRIVATE
         $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:openvino::frontend::tensorflow,INTERFACE_INCLUDE_DIRECTORIES>)
+
+add_library(openvino_tensorflow_frontend_common_logic STATIC EXCLUDE_FROM_ALL
+        exception.cpp
+        input_model.hpp
+        input_model.cpp
+        place.hpp
+        place.cpp
+        op_table.hpp
+        op_table.cpp
+        openvino_conversions.hpp
+        openvino_conversions.cpp
+        utils.hpp
+        utils.cpp)
+
+target_include_directories(openvino_tensorflow_frontend_common_logic
+        PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        $<TARGET_PROPERTY:openvino::frontend::tensorflow,INTERFACE_INCLUDE_DIRECTORIES>
+        PRIVATE
+        $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>)

@@ -8,8 +8,8 @@
 #include "helper_transforms/block_lstm_replacer.hpp"
 #include "helper_transforms/embedding_segments_feature_fusing.hpp"
 #include "helper_transforms/gru_block_cell_replacer.hpp"
-#include "openvino/frontend/tensorflow/input_model.hpp"
-#include "openvino/frontend/tensorflow/op_table.hpp"
+#include "input_model.hpp"
+#include "op_table.hpp"
 #include "openvino/frontend/tensorflow/extension/conversion.hpp"
 #include "openvino/frontend/tensorflow/graph_iterator.hpp"
 #include "openvino/pass/manager.hpp"
@@ -18,7 +18,7 @@
 #include "pass/transpose_sinking.hpp"
 #include "so_extension.hpp"
 #include "tf_framework_node.hpp"
-#include "openvino/frontend/tensorflow/utils.hpp"
+#include "utils.hpp"
 
 using namespace ov;
 using namespace ov::frontend::tensorflow;

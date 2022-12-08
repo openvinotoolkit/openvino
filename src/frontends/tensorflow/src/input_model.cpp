@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/frontend/tensorflow/input_model.hpp"
+#include "input_model.hpp"
 
 #include <fstream>
 #include <iterator>
@@ -13,8 +13,8 @@
 #include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/opsets/opset7.hpp"
 #include "openvino/util/log.hpp"
-#include "openvino/frontend/tensorflow/place.hpp"
-#include "openvino/frontend/tensorflow/utils.hpp"
+#include "place.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace frontend {

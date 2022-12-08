@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/frontend/tensorflow/openvino_conversions.hpp"
+#include "openvino_conversions.hpp"
 
-#include "openvino/frontend/tensorflow/utils.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace frontend {

@@ -4,7 +4,7 @@
 
 #include <numeric>
 
-#include "openvino/frontend/tensorflow/op_table.hpp"
+#include "op_table.hpp"
 #include "openvino/opsets/opset8.hpp"
 
 using namespace std;

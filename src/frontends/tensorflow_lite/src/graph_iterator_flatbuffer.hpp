@@ -6,7 +6,7 @@
 
 #include <fstream>
 
-#include "schema_generated.h"
+//#include "schema_generated.h"
 //#include "decoder_proto.hpp"
 //#include "graph.pb.h"
 //#include "node_def.pb.h"
@@ -29,6 +29,7 @@ public:
         std::ifstream pb_stream(path, std::ios::in | std::ifstream::binary);
 
         FRONT_END_GENERAL_CHECK(pb_stream && pb_stream.is_open(), "Model file does not exist");
+        std::cout << "I'm TF Lite Graph Iterator. I've read " << path << std::endl;
 //        FRONT_END_GENERAL_CHECK(m_graph_def->ParseFromIstream(&pb_stream), "Model cannot be parsed");
 //
 //        m_nodes.resize(m_graph_def->node_size());
