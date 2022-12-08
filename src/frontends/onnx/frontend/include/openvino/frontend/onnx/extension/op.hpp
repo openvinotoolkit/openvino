@@ -11,7 +11,7 @@ namespace frontend {
 namespace onnx {
 
 template <typename OVOpType = void>
-class ONNX_FRONTEND_API OpExtension : public ConversionExtension {
+class OpExtension : public ConversionExtension {
 public:
     OpExtension(const std::map<std::string, std::string>& attr_names_map = {},
                 const std::map<std::string, ov::Any>& attr_values_map = {})
@@ -37,7 +37,7 @@ public:
 };
 
 template <>
-class ONNX_FRONTEND_API OpExtension<void> : public ConversionExtension {
+class OpExtension<void> : public ConversionExtension {
 public:
     OpExtension() = delete;
 
