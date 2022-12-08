@@ -1660,7 +1660,7 @@ VectorDims Convolution::makeInputDummyShape(const Shape& inpShape) const {
     const size_t filterStartIndx = weightDims.size() - spatialRank;
 
     VectorDims dummyInputShapeVals(inpShape.getRank());
-    dummyInputShapeVals[0] = 1; //minibatch
+    dummyInputShapeVals[0] = isWino ? 64 : 1; //minibatch
     dummyInputShapeVals[1] = IC; //channels
 
     for (size_t i = 0; i < spatialRank; i++) {
