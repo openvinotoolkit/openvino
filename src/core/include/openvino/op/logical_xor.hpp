@@ -16,7 +16,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API LogicalXor : public util::BinaryElementwiseLogical {
 public:
-    OPENVINO_OP("LogicalXor", "opset2", util::BinaryElementwiseLogical, 1);
+    OPENVINO_OP("LogicalXor", "opset2", util::BinaryElementwiseLogical);
     LogicalXor() = default;
     /// \brief Constructs a logical-xor operation.
     ///

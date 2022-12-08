@@ -5,13 +5,12 @@
 #pragma once
 
 #include <memory>
-#include <set>
-#include <unordered_set>
-#include <vector>
-
 #include <ngraph/node.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/variant.hpp>
+#include <set>
+#include <unordered_set>
+#include <vector>
 
 #include "low_precision/lpt_visibility.hpp"
 #include "low_precision/rt_info/attribute_parameters.hpp"
@@ -27,15 +26,13 @@ namespace ngraph {
  */
 class LP_TRANSFORMATIONS_API PrecisionsAttribute : public SharedAttribute<std::vector<ngraph::element::Type>> {
 public:
-    OPENVINO_RTTI("LowPrecision::Precisions", "", ov::RuntimeAttribute, 0);
+    OPENVINO_RTTI("LowPrecision::Precisions", "0", ov::RuntimeAttribute);
     PrecisionsAttribute(const std::vector<ngraph::element::Type>& precisions);
 
-    static ov::Any create(
-        const std::shared_ptr<ngraph::Node>& node,
-        const AttributeParameters& params);
+    static ov::Any create(const std::shared_ptr<ngraph::Node>& node, const AttributeParameters& params);
     // merge attribute instances which can be got from different sources: node, input port or output port
     void merge(std::vector<ov::Any>& attributes);
     // vizualize shared attributes details in VizualizeTree pass
     std::string to_string() const override;
 };
-} // namespace ngraph
+}  // namespace ngraph

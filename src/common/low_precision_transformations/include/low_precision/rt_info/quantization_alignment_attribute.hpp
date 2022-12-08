@@ -4,18 +4,17 @@
 
 #pragma once
 
+#include <low_precision/lpt_visibility.hpp>
 #include <memory>
+#include <ngraph/node.hpp>
+#include <ngraph/pass/graph_rewrite.hpp>
+#include <ngraph/variant.hpp>
 #include <set>
 #include <unordered_set>
 #include <vector>
 
-#include <ngraph/node.hpp>
-#include <ngraph/variant.hpp>
-
-#include <low_precision/lpt_visibility.hpp>
-#include <ngraph/pass/graph_rewrite.hpp>
-#include "shared_value_attribute.hpp"
 #include "attribute_parameters.hpp"
+#include "shared_value_attribute.hpp"
 
 namespace ngraph {
 /**
@@ -24,18 +23,18 @@ namespace ngraph {
  * FakeQuantize operations are not included. The attribute is used by quantization operations.
  *
  * For more details about the attribute, refer to
- * [QuantizationAlignmentAttribute](@ref openvino_docs_OV_UG_lpt_QuantizationAlignment) page in the Inference Engine Developer Guide.
+ * [QuantizationAlignmentAttribute](@ref openvino_docs_OV_UG_lpt_QuantizationAlignment) page in the Inference Engine
+ * Developer Guide.
  */
 class LP_TRANSFORMATIONS_API QuantizationAlignmentAttribute : public SharedAttribute<bool> {
 public:
-    OPENVINO_RTTI("LowPrecision::QuantizationAlignment", "", ov::RuntimeAttribute, 0);
+    OPENVINO_RTTI("LowPrecision::QuantizationAlignment", "0", ov::RuntimeAttribute);
     QuantizationAlignmentAttribute(const bool value = false);
 
-    static ov::Any create(
-        const std::shared_ptr<ngraph::Node>& node,
-        const AttributeParameters& params = AttributeParameters());
+    static ov::Any create(const std::shared_ptr<ngraph::Node>& node,
+                          const AttributeParameters& params = AttributeParameters());
     void merge(std::vector<ov::Any>& attributes);
     std::string to_string() const override;
 };
 
-} // namespace ngraph
+}  // namespace ngraph

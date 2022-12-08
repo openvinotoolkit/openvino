@@ -155,7 +155,7 @@ TEST(opset, check_opset1) {
 
 class NewOp : public op::Op {
 public:
-    OPENVINO_OP("NewOp", 0);
+    OPENVINO_OP("NewOp");
 
     NewOp() = default;
     void validate_and_infer_types() override{};

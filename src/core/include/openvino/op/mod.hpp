@@ -14,7 +14,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Mod : public util::BinaryElementwiseArithmetic {
 public:
-    OPENVINO_OP("Mod", "opset1", op::util::BinaryElementwiseArithmetic, 1);
+    OPENVINO_OP("Mod", "opset1", op::util::BinaryElementwiseArithmetic);
 
     /// \brief Constructs a Mod node.
     Mod() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}

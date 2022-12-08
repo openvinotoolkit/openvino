@@ -30,8 +30,6 @@ namespace ov {
  */
 struct OPENVINO_API DiscreteTypeInfo {
     const char* name;
-    OPENVINO_DEPRECATED("This member was deprecated. Please use version_id instead.")
-    uint64_t version;
     const char* version_id;
     // A pointer to a parent type info; used for casting and inheritance traversal, not for
     // exact type identification
@@ -43,28 +41,8 @@ struct OPENVINO_API DiscreteTypeInfo {
     DiscreteTypeInfo(DiscreteTypeInfo&&) = default;
     DiscreteTypeInfo& operator=(const DiscreteTypeInfo&) = default;
 
-    explicit constexpr DiscreteTypeInfo(const char* _name,
-                                        const char* _version_id,
-                                        const DiscreteTypeInfo* _parent = nullptr)
+    constexpr DiscreteTypeInfo(const char* _name, const char* _version_id, const DiscreteTypeInfo* _parent = nullptr)
         : name(_name),
-          version(0),
-          version_id(_version_id),
-          parent(_parent),
-          hash_value(0) {}
-
-    constexpr DiscreteTypeInfo(const char* _name, uint64_t _version, const DiscreteTypeInfo* _parent = nullptr)
-        : name(_name),
-          version(_version),
-          version_id(nullptr),
-          parent(_parent),
-          hash_value(0) {}
-
-    constexpr DiscreteTypeInfo(const char* _name,
-                               uint64_t _version,
-                               const char* _version_id,
-                               const DiscreteTypeInfo* _parent = nullptr)
-        : name(_name),
-          version(_version),
           version_id(_version_id),
           parent(_parent),
           hash_value(0) {}

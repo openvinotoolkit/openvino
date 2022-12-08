@@ -5,14 +5,13 @@
 #pragma once
 
 #include <memory>
-#include <string>
-
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
+#include <string>
 
-#include "low_precision/rt_info/shared_value_attribute.hpp"
-#include "low_precision/rt_info/attribute_parameters.hpp"
 #include "low_precision/lpt_visibility.hpp"
+#include "low_precision/rt_info/attribute_parameters.hpp"
+#include "low_precision/rt_info/shared_value_attribute.hpp"
 
 namespace ngraph {
 /**
@@ -30,13 +29,10 @@ public:
     };
 
     IntervalsAlignmentSharedValue() = default;
-    IntervalsAlignmentSharedValue(
-        const Interval& combinedInterval,
-        const Interval& minInterval,
-        const size_t minLevels) :
-        combinedInterval(combinedInterval),
-        minInterval(minInterval),
-        minLevels(minLevels) {}
+    IntervalsAlignmentSharedValue(const Interval& combinedInterval, const Interval& minInterval, const size_t minLevels)
+        : combinedInterval(combinedInterval),
+          minInterval(minInterval),
+          minLevels(minLevels) {}
 
     Interval combinedInterval;
     Interval minInterval;
@@ -55,22 +51,21 @@ public:
  * FakeQuantize operations are included. The attribute is used by quantization operations.
  *
  * For more details about the attribute, refer to
- * [IntervalsAlignmentAttribute](@ref openvino_docs_OV_UG_lpt_IntervalsAlignment) page in the Inference Engine Developer Guide.
+ * [IntervalsAlignmentAttribute](@ref openvino_docs_OV_UG_lpt_IntervalsAlignment) page in the Inference Engine Developer
+ * Guide.
  */
 class LP_TRANSFORMATIONS_API IntervalsAlignmentAttribute : public SharedAttribute<IntervalsAlignmentSharedValue> {
 public:
-    OPENVINO_RTTI("LowPrecision::IntervalsAlignment", "", ov::RuntimeAttribute, 0);
+    OPENVINO_RTTI("LowPrecision::IntervalsAlignment", "0", ov::RuntimeAttribute);
     IntervalsAlignmentAttribute() = default;
     IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval combinedInterval, size_t levels);
-    IntervalsAlignmentAttribute(
-        const IntervalsAlignmentSharedValue::Interval combinedInterval,
-        const size_t levels,
-        const IntervalsAlignmentSharedValue::Interval minInterval,
-        const size_t minLevels);
+    IntervalsAlignmentAttribute(const IntervalsAlignmentSharedValue::Interval combinedInterval,
+                                const size_t levels,
+                                const IntervalsAlignmentSharedValue::Interval minInterval,
+                                const size_t minLevels);
 
-    static ov::Any create(
-        const std::shared_ptr<ngraph::Node>& node,
-        const AttributeParameters& params = AttributeParameters());
+    static ov::Any create(const std::shared_ptr<ngraph::Node>& node,
+                          const AttributeParameters& params = AttributeParameters());
     void merge(std::vector<ov::Any>& attributes);
     std::string to_string() const override;
 
@@ -78,4 +73,4 @@ public:
     size_t levels;
 };
 
-} // namespace ngraph
+}  // namespace ngraph

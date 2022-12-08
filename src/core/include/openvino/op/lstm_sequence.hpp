@@ -127,7 +127,7 @@ namespace v5 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API LSTMSequence : public util::RNNCellBase {
 public:
-    OPENVINO_OP("LSTMSequence", "opset5", util::RNNCellBase, 5);
+    OPENVINO_OP("LSTMSequence", "opset5", util::RNNCellBase);
     LSTMSequence() = default;
 
     using direction = RecurrentSequenceDirection;

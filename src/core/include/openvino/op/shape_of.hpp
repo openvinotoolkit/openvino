@@ -13,7 +13,7 @@ namespace v3 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API ShapeOf : public Op {
 public:
-    OPENVINO_OP("ShapeOf", "opset3", op::Op, 3);
+    OPENVINO_OP("ShapeOf", "opset3");
     ShapeOf() = default;
     /// \brief Constructs a shape-of operation.
     ShapeOf(const Output<Node>& arg, const element::Type output_type = element::i64);

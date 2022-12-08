@@ -82,7 +82,7 @@ namespace v4 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Interpolate : public Op {
 public:
-    OPENVINO_OP("Interpolate", "opset4", op::Op, 4);
+    OPENVINO_OP("Interpolate", "opset4");
 
     /// \brief PartialShape calculation mode
     ///

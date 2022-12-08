@@ -17,7 +17,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API TopK : public Op {
 public:
-    OPENVINO_OP("TopK", "opset1", op::Op, 1);
+    OPENVINO_OP("TopK", "opset1");
 
     using SortType = TopKSortType;
     using Mode = TopKMode;
@@ -121,7 +121,7 @@ namespace v3 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API TopK : public v1::TopK {
 public:
-    OPENVINO_OP("TopK", "opset3", op::Op, 3);
+    OPENVINO_OP("TopK", "opset3");
     /// \brief Constructs a TopK operation
     TopK() = default;
     /// \brief Constructs a TopK operation with two outputs: values and indices.

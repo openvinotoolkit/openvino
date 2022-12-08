@@ -24,9 +24,13 @@ public:
     Load(const Output<Node>& x, const size_t count = 1lu);
     Load() = default;
 
-    size_t get_count() const { return m_count; }
+    size_t get_count() const {
+        return m_count;
+    }
 
-    void set_count(const size_t count) { m_count = count; }
+    void set_count(const size_t count) {
+        m_count = count;
+    }
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
@@ -42,6 +46,6 @@ protected:
     size_t m_count = 0lu;
 };
 
-} // namespace op
-} // namespace snippets
-} // namespace ngraph
+}  // namespace op
+}  // namespace snippets
+}  // namespace ngraph

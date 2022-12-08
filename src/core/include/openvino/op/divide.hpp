@@ -13,7 +13,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Divide : public util::BinaryElementwiseArithmetic {
 public:
-    OPENVINO_OP("Divide", "opset1", util::BinaryElementwiseArithmetic, 1);
+    OPENVINO_OP("Divide", "opset1", util::BinaryElementwiseArithmetic);
     /// \brief Constructs a division operation.
     Divide() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}
 
