@@ -1592,13 +1592,22 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             if (node.is_dynamic()) {
                 impl_candidate = impl_types::ocl;
             } else {
-                auto in0_l = node.get_dependency(0).get_output_layout();
-                auto in1_l = node.get_dependency(1).get_output_layout();
-                auto out_l = node.get_output_layout();
                 auto has_input2 = gemm_prim->dependencies().size() == 3;
+                std::vector<layout> in_layouts { node.get_dependency(0).get_output_layout(), node.get_dependency(1).get_output_layout() };
+                if (has_input2) {
+                    in_layouts.emplace_back(node.get_dependency(2).get_output_layout());
+                }
+                auto out_l = node.get_output_layout();
+
+                in_layouts = gemm_inst::transform_input_layouts(gemm_prim, in_layouts, out_l);
+                out_l = gemm_inst::transform_output_layout(gemm_prim, in_layouts, out_l);
+
+                auto in0_l = in_layouts[0];
+                auto in1_l = in_layouts[1];
+
                 size_t in2_batched_size = 0;
                 if (has_input2) {
-                    auto in2_l = node.get_dependency(2).get_output_layout();
+                    auto in2_l = in_layouts[2];
                     in2_batched_size = in2_l.count() / (in2_l.spatial(0) * in2_l.spatial(1));
                 }
                 size_t size_k = gemm_prim->transpose_input0 ? in0_l.spatial(1) : in0_l.spatial(0);
@@ -1823,6 +1832,15 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
             node.set_preferred_input_fmt(idx, src_fmt);
 
             auto dst_fmt = onednn::find_data_format(prim_desc.dst_desc());
+            // Errata: Best impl for shallow input conv with zero-point ops is ocl:xe_lp.
+            if (node.is_type<convolution>() && src_fmt == format::bfyx) {
+                auto& conv = node.as<convolution>();
+                if (conv.get_input_layouts()[0].feature() <= 8 && conv.activations_zero_points_term() &&
+                    conv.get_input_layouts()[0].data_type == data_types::u8 && conv.get_output_layout().data_type == data_types::u8) {
+                    dst_fmt = format::b_fs_yx_fsv32;
+                }
+            }
+
             if (node.get_preferred_output_fmt() == format::any) {
                 for (size_t usr = 0 ; usr < node.get_users().size() ; usr++)
                     node.set_preferred_output_fmt(usr, dst_fmt);
