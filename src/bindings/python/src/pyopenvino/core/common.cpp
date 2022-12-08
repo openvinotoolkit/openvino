@@ -99,7 +99,7 @@ ov::PartialShape partial_shape_from_list(const py::list& shape) {
         if (py::isinstance<py::int_>(dim)) {
             pshape.insert(pshape.end(), ov::Dimension(dim.cast<value_type>()));
         } else if (py::isinstance<py::str>(dim)) {
-            pshape.insert(pshape.end(), Common::dimension_from_str(dim.cast<std::string>()));
+            pshape.insert(pshape.end(), ov::Dimension(dim.cast<std::string>()));
         } else if (py::isinstance<ov::Dimension>(dim)) {
             pshape.insert(pshape.end(), dim.cast<ov::Dimension>());
         } else if (py::isinstance<py::list>(dim) || py::isinstance<py::tuple>(dim)) {
@@ -123,75 +123,6 @@ ov::PartialShape partial_shape_from_list(const py::list& shape) {
         }
     }
     return pshape;
-}
-
-bool check_all_digits(const std::string& value) {
-    auto val = ov::util::trim(value);
-    for (const auto& c : val) {
-        if (!std::isdigit(c) || c == '-') {
-            return false;
-        }
-    }
-    return true;
-}
-
-template <class T>
-T stringToType(const std::string& valStr) {
-    T ret{0};
-    std::istringstream ss(valStr);
-    if (!ss.eof()) {
-        ss >> ret;
-    }
-    return ret;
-}
-
-ov::Dimension dimension_from_str(const std::string& value) {
-    using value_type = ov::Dimension::value_type;
-    auto val = ov::util::trim(value);
-    if (val == "?" || val == "-1") {
-        return {-1};
-    }
-    if (val.find("..") == std::string::npos) {
-        OPENVINO_ASSERT(Common::check_all_digits(val), "Cannot parse dimension: \"", val, "\"");
-        return {Common::stringToType<value_type>(val)};
-    }
-
-    std::string min_value_str = val.substr(0, val.find(".."));
-    OPENVINO_ASSERT(Common::check_all_digits(min_value_str), "Cannot parse min bound: \"", min_value_str, "\"");
-
-    value_type min_value;
-    if (min_value_str.empty()) {
-        min_value = 0;
-    } else {
-        min_value = Common::stringToType<value_type>(min_value_str);
-    }
-
-    std::string max_value_str = val.substr(val.find("..") + 2);
-    value_type max_value;
-    if (max_value_str.empty()) {
-        max_value = -1;
-    } else {
-        max_value = Common::stringToType<value_type>(max_value_str);
-    }
-
-    OPENVINO_ASSERT(Common::check_all_digits(max_value_str), "Cannot parse max bound: \"", max_value_str, "\"");
-
-    return {min_value, max_value};
-}
-
-ov::PartialShape partial_shape_from_str(const std::string& value) {
-    auto val = ov::util::trim(value);
-    if (val == "...") {
-        return ov::PartialShape::dynamic();
-    }
-    ov::PartialShape res;
-    std::stringstream ss(val);
-    std::string field;
-    while (getline(ss, field, ',')) {
-        OPENVINO_ASSERT(!field.empty(), "Cannot get vector of dimensions! \"", val, "\" is incorrect");
-        res.insert(res.end(), Common::dimension_from_str(field));
-    }
-    return res;
 }
 
 py::array as_contiguous(py::array& array, ov::element::Type type) {
@@ -302,11 +233,13 @@ uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual) {
             supported_properties.end()) {
             return actual.get_property(ov::optimal_number_of_infer_requests);
         } else {
-            IE_THROW() << "Can't load network: " << ov::optimal_number_of_infer_requests.name() << " is not supported!"
-                       << " Please specify number of infer requests directly!";
+            throw ov::Exception("Can't load network: " + std::string(ov::optimal_number_of_infer_requests.name()) +
+                                " is not supported!"
+                                " Please specify number of infer requests directly!");
         }
     } catch (const std::exception& ex) {
-        IE_THROW() << "Can't load network: " << ex.what() << " Please specify number of infer requests directly!";
+        throw ov::Exception("Can't load network: " + std::string(ex.what()) +
+                            " Please specify number of infer requests directly!");
     }
 }
 

@@ -11,10 +11,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id lstm_dynamic_timeloop::type_id() {
-    static primitive_type_base<lstm_dynamic_timeloop> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(lstm_dynamic_timeloop)
 
 program_node& lstm_dynamic_timeloop_node::get_dependency_by_name(std::string val) const {
     return get_dependency(get_dependency_idx(val));
@@ -37,10 +34,13 @@ void lstm_dynamic_timeloop_node::init_params_list() {
 void lstm_dynamic_timeloop_node::reverse_optional_outputs_connections() {
     auto reverse_connections = [&](program_node& mutable_data_node, const std::string& dependency_tag) {
         auto index_to_insert = get_param_list_index(dependency_tag);
-        mutable_data_node.dependencies.erase(std::remove(mutable_data_node.dependencies.begin(), mutable_data_node.dependencies.end(), this));
+        mutable_data_node.dependencies.erase(std::remove_if(mutable_data_node.dependencies.begin(), mutable_data_node.dependencies.end(),
+        [&](const std::pair<program_node*, int>& dep) {
+            return this == dep.first;
+        }));
         mutable_data_node.users.push_back(this);
         users.remove(&mutable_data_node);
-        dependencies.insert(dependencies.begin() + index_to_insert, &mutable_data_node);
+        dependencies.insert(dependencies.begin() + index_to_insert, {&mutable_data_node, 0});
         // fix inputs/outputs
         if (mutable_data_node.get_dependencies().empty()) {
             myprog.get_inputs().push_back(&mutable_data_node);
@@ -82,15 +82,15 @@ size_t lstm_dynamic_timeloop_node::get_dependency_idx(std::string val) const {
 // recurr_tensor:  [b: 1, f: direction, x: hidden_size, y: 4 * hidden_size]
 // init_cell:      [b: batch, f: 1, x: hidden_size, y: direction]
 // output_tensor:  [b: batch, f: max_sequence_length, x: hidden_size, y: direction]
-layout lstm_dynamic_timeloop_inst::calc_output_layout(lstm_dynamic_timeloop_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+layout lstm_dynamic_timeloop_inst::calc_output_layout(lstm_dynamic_timeloop_node const& node, kernel_impl_params const& impl_param) {
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for lstm_dynamic_node!");
-    auto input_layout = node.input().get_output_layout();
-    auto batch = input_layout.size.batch[0];
-    auto output_sequence = input_layout.size.feature[0];
+    auto input_layout = impl_param.get_input_layout();
+    auto batch = input_layout.batch();
+    auto output_sequence = input_layout.feature();
     auto reccurent_layout = node.recurrent().get_output_layout();
-    auto hidden_size = reccurent_layout.size.spatial[0];
-    auto direction = reccurent_layout.size.feature[0];
+    auto hidden_size = reccurent_layout.spatial(0);
+    auto direction = reccurent_layout.feature();
     return layout(input_layout.data_type, input_layout.format, tensor(batch, output_sequence, hidden_size, direction));
 }
 
@@ -110,9 +110,9 @@ std::string lstm_dynamic_timeloop_inst::to_string(lstm_dynamic_timeloop_node con
     lstm_dynamic_input_info.add("initial hidden id", initial_hidden_id);
     lstm_dynamic_input_info.add("last cell id", last_cell_id);
     lstm_dynamic_input_info.add("last hidden id", last_hidden_id);
-    lstm_dynamic_input_info.add("max seq len", node.input().get_output_layout().size.feature[0]);
-    lstm_dynamic_input_info.add("hidden size", node.recurrent().get_output_layout().size.spatial[0]);
-    lstm_dynamic_input_info.add("direction", node.recurrent().get_output_layout().size.feature[0]);
+    lstm_dynamic_input_info.add("max seq len", node.input().get_output_layout().feature());
+    lstm_dynamic_input_info.add("hidden size", node.recurrent().get_output_layout().spatial(0));
+    lstm_dynamic_input_info.add("direction", node.recurrent().get_output_layout().feature());
     node_info->add("lstm_dynamic_timeloop info", lstm_dynamic_input_info);
     node_info->dump(primitive_description);
 
@@ -121,14 +121,13 @@ std::string lstm_dynamic_timeloop_inst::to_string(lstm_dynamic_timeloop_node con
 
 lstm_dynamic_timeloop_inst::typed_primitive_inst(network& network, lstm_dynamic_timeloop_node const& node)
     : parent(network, node) {
-    auto batch_size = node.get_output_layout().size.batch[0];
+    auto batch_size = node.get_output_layout().batch();
     auto direction = node.direction();
 
     // TODO: check input sizes
     auto input_id = node.input().id();
     auto input_layout = node.input().get_output_layout();
-    auto input_tensor = input_layout.size;
-    auto hidden_size = input_tensor.spatial[0] / 4;
+    auto hidden_size = input_layout.spatial(0) / 4;
     CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(),
                                   "input format",
                                   input_layout.format.value,
@@ -139,7 +138,7 @@ lstm_dynamic_timeloop_inst::typed_primitive_inst(network& network, lstm_dynamic_
     // check recurrent
     CLDNN_ERROR_BOOL(node.id(), "Recurrent memory", !node.recurrent_term(), "Id of weights memory is not set.");
     auto reccurent_id = node.recurrent().id();
-    auto recurrent_tensor = node.recurrent().get_output_layout().size;
+    auto recurrent_layout = node.recurrent().get_output_layout();
     CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(),
                                   "recurrent format",
                                   node.recurrent().get_output_layout().format.value,
@@ -147,21 +146,21 @@ lstm_dynamic_timeloop_inst::typed_primitive_inst(network& network, lstm_dynamic_
                                   format::bfyx);
     CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Recurrent batch size",
-                          recurrent_tensor.batch[0],
+                          recurrent_layout.batch(),
                           "1",
                           1,
                           "Sizes mismatch, reccuren_id: " + reccurent_id);
-    if (recurrent_tensor.feature[0] != direction)
+    if (recurrent_layout.feature() != direction)
         CLDNN_ERROR_MESSAGE(node.id(), "Reccurent directions size needs to be equal to 1 or 2 (bidrectional) !");
     CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Recurrent x size",
-                          recurrent_tensor.spatial[0],
+                          recurrent_layout.spatial(0),
                           "hidden_size",
                           hidden_size,
                           "Sizes mismatch, reccuren_id: " + reccurent_id);
     CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Recurrent y size",
-                          recurrent_tensor.spatial[1],
+                          recurrent_layout.spatial(1),
                           "4 * hidden_size",
                           4 * hidden_size,
                           "Sizes mismatch, reccuren_id: " + reccurent_id);

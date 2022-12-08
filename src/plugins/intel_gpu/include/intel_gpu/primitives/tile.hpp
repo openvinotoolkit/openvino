@@ -19,26 +19,26 @@ namespace cldnn {
 struct tile : public primitive_base<tile> {
     CLDNN_DECLARE_PRIMITIVE(tile)
 
-    enum tile_axis {
-        along_b,
-        along_f,
-        along_x,
-        along_y,
-        along_z
-    };
-
-    /// @brief Constructs tile primitive.
+    /// @brief Constructs tile primitive with static input.
     /// @param id This primitive id.
-    /// @param out_shape The shape of tiled tensor.
+    /// @param repeats Per-dimension replication factor.
     tile(const primitive_id& id,
-         const primitive_id& input,
-         const tensor out_shape,
-         const primitive_id& ext_prim_id = "",
+         const input_info& input,
+         const std::vector<int64_t> repeats,
          const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding), out_shape(out_shape) {}
+        : primitive_base(id, {input}, {output_padding}),
+          repeats(repeats) {}
 
-    /// @brief Shape of the output tensor
-    tensor out_shape;
+    // @brief Constructs tile primitive with dynamic input.
+    tile(const primitive_id& id,
+         const input_info& input,
+         const input_info& repeats_id,
+         const padding& output_padding = padding())
+        : primitive_base(id, {input, repeats_id}, {output_padding}),
+          repeats({}) {}
+
+    /// @brief A per-dimension replication factor
+    std::vector<int64_t> repeats;
 };
 /// @}
 /// @}

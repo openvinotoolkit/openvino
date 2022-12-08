@@ -21,8 +21,9 @@
 #include "utils/cpu_utils.hpp"
 #include <cpu/x64/jit_generator.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "utils/shape_inference/shape_inference_pass_through.hpp"
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace InferenceEngine;
 using namespace details;
 using namespace ngraph::op;
@@ -45,7 +46,7 @@ struct jit_has_subnormals_base : public jit_generator {
 
     typedef void (*fn_t)(const args_t*);
 
-    jit_has_subnormals_base() {
+    jit_has_subnormals_base() : jit_generator(jit_name()) {
         jit_ker_ = nullptr;
     }
 
@@ -229,8 +230,8 @@ jit_has_subnormals_base::fn_t jit_has_subnormals_function() {
 
 }   // namespace
 
-Input::Input(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache) {
+Input::Input(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
+        : Node(op, eng, cache, PassThroughShapeInferFactory()) {
     if (!one_of(op->get_type_info(),
             v0::Parameter::get_type_info_static(),
             v0::Constant::get_type_info_static(),
@@ -328,7 +329,7 @@ void Input::cloneBlobIfRequired() {
             if (!node
                 || TypeFromName(node->get_type_name()) != Type::FullyConnected)
                 continue;
-            if (mayiuse(cpu_isa_t::avx512_common)) {
+            if (mayiuse(cpu_isa_t::avx512_core)) {
                 if (size % 16)
                     return true;
             } else if (mayiuse(cpu_isa_t::avx)) {
@@ -363,7 +364,7 @@ void Input::cloneBlobIfRequired() {
 }
 
 Input::Input(const Shape& shape, const InferenceEngine::Precision &prc, const std::string &name,
-                                 const std::string &type, const mkldnn::engine& eng, WeightsSharing::Ptr &cache)
+             const std::string &type, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
         : Node(type, name, eng, cache) {
     constant = ConstantType::NoConst;
     if (getType() == Type::Input) {
@@ -376,7 +377,7 @@ Input::Input(const Shape& shape, const InferenceEngine::Precision &prc, const st
 }
 
 Input::Input(MemoryDescPtr memDesc, const std::string &name, const std::string &type,
-                                 const mkldnn::engine &eng, WeightsSharing::Ptr &cache) :
+             const dnnl::engine &eng, WeightsSharing::Ptr &cache) :
     Input(memDesc->getShape(), memDesc->getPrecision(), name, type, eng, cache) {
     extMemDesc = memDesc;
 }

@@ -9,6 +9,9 @@
 #include <tuple>
 #include <vector>
 
+#include "ngraph/opsets/opset6.hpp"
+#include "ngraph/opsets/opset3.hpp"
+
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 namespace LayerTestsDefinitions {
@@ -25,9 +28,20 @@ class MemoryTest : public testing::WithParamInterface<MemoryTestParams>, virtual
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MemoryTestParams> &obj);
     void Run() override;
+
 protected:
     std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> CalculateRefs() override;
     void SetUp() override;
+    void Infer() override;
+    virtual std::shared_ptr<ov::op::util::ReadValueBase> CreateReadValueOp(
+            const ov::Output<ov::Node>& value, const std::shared_ptr<ov::op::util::Variable>& variable) const {
+        return std::make_shared<ngraph::opset6::ReadValue>(value, variable);
+    }
+    virtual std::shared_ptr<ov::op::util::AssignBase> CreateAssignOp(
+            const ov::Output<ov::Node>& value, const std::shared_ptr<ov::op::util::Variable>& variable) const {
+        return std::make_shared<ngraph::opset6::Assign>(value, variable);
+    }
+
 private:
     void CreateTIFunc();
     void CreateCommonFunc();
@@ -40,6 +54,19 @@ private:
     int64_t iteration_count;
     ngraph::element::Type ngPrc;
     InferenceEngine::SizeVector inputShape;
+};
+
+class MemoryTestV3 : public MemoryTest {
+protected:
+    std::shared_ptr<ov::op::util::ReadValueBase> CreateReadValueOp(
+            const ov::Output<ov::Node>& value, const std::shared_ptr<ov::op::util::Variable>& variable) const override {
+        return std::make_shared<ngraph::opset3::ReadValue>(value, variable->get_info().variable_id);
+    }
+
+    std::shared_ptr<ov::op::util::AssignBase> CreateAssignOp(
+            const ov::Output<ov::Node>& value, const std::shared_ptr<ov::op::util::Variable>& variable) const override {
+        return std::make_shared<ngraph::opset3::Assign>(value, variable->get_info().variable_id);
+    }
 };
 
 }  // namespace LayerTestsDefinitions

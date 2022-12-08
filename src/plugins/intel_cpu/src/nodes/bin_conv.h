@@ -35,7 +35,7 @@ struct jit_bin_conv_params {
     int nb_oc_blocking;
     int ur_w, ur_w_tail;
     int typesize_in, typesize_out;
-    mkldnn::memory::data_type dst_dt;
+    dnnl::memory::data_type dst_dt;
 };
 
 struct jit_dw_conv_params {
@@ -63,7 +63,7 @@ struct jit_uni_bin_conv_kernel {
         ker_(args);
     }
 
-    explicit jit_uni_bin_conv_kernel(jit_bin_conv_params jcp, jit_dw_conv_params jcp_dw_conv, const mkldnn_primitive_attr &attr) :
+    explicit jit_uni_bin_conv_kernel(jit_bin_conv_params jcp, jit_dw_conv_params jcp_dw_conv, const dnnl_primitive_attr &attr) :
         ker_(nullptr), jcp_(jcp), jcp_dw_conv_(jcp_dw_conv), attr_(attr) {}
     virtual ~jit_uni_bin_conv_kernel() {}
 
@@ -72,22 +72,22 @@ struct jit_uni_bin_conv_kernel {
     jit_bin_conv_params jcp_;
     jit_dw_conv_params jcp_dw_conv_;
 
-    const mkldnn_primitive_attr &attr_;
+    const dnnl_primitive_attr &attr_;
 };
 
 class BinaryConvolution : public Node {
 public:
-    BinaryConvolution(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    BinaryConvolution(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void createPrimitive() override;
     void initSupportedPrimitiveDescriptors() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
     }
-    void setPostOps(mkldnn::primitive_attr &attr);
+    void setPostOps(dnnl::primitive_attr &attr);
     bool canFuse(const NodePtr& node) const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
@@ -110,7 +110,7 @@ private:
     jit_dw_conv_params jcp_dw_conv = {};
     std::shared_ptr<jit_uni_bin_conv_kernel> bin_conv_kernel = nullptr;
 
-    mkldnn::primitive_attr attr;
+    dnnl::primitive_attr attr;
     std::vector<const void*> postOpsDataPtrs;
 
     impl_desc_type implType = impl_desc_type::ref;

@@ -8,6 +8,7 @@
 #include "ie_ngraph_utils.hpp"
 #include "transformations/utils/utils.hpp"
 #include "common/cpu_memcpy.h"
+#include <utils/shape_inference/shape_inference_internal_dyn.hpp>
 
 #include <string>
 #include <vector>
@@ -17,13 +18,13 @@ namespace intel_cpu {
 namespace node {
 
 If::PortMapHelper::PortMapHelper(const MemoryPtr &from, const std::deque<MemoryPtr>& to,
-                                           const mkldnn::engine& eng) : srcMemPtr(from), dstMemPtrs(to) {
+                                           const dnnl::engine& eng) : srcMemPtr(from), dstMemPtrs(to) {
     size = 0;
     if (srcMemPtr->getDesc().isDefined())
         size = srcMemPtr->GetSize();
 }
 
-void If::PortMapHelper::execute(mkldnn::stream& strm) {
+void If::PortMapHelper::execute(dnnl::stream& strm) {
     // if output shapes are changed,
     // after subgraph inference we should redefine out memory of 'If'
     redefineTo();
@@ -57,8 +58,8 @@ bool If::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::st
     return true;
 }
 
-If::If(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache), ovOp(op) {
+If::If(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
+        Node(op, eng, cache, InternalDynShapeInferFactory()), ovOp(op) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -70,8 +71,8 @@ void If::getSupportedDescriptors() {
 
     const std::shared_ptr<const ov::Model>& thenBody = ifOp->get_then_body();
     const std::shared_ptr<const ov::Model>& elseBody = ifOp->get_else_body();
-    subGraphThen.CreateGraph(thenBody, ext_mng, weightCache);
-    subGraphElse.CreateGraph(elseBody, ext_mng, weightCache);
+    subGraphThen.CreateGraph(thenBody, ext_mng, weightCache, sharedMutex);
+    subGraphElse.CreateGraph(elseBody, ext_mng, weightCache, sharedMutex);
 
     const auto &inMapThen = subGraphThen.GetInputNodesMap();
     for (const auto &param : ifOp->get_then_body()->get_parameters()) {
@@ -217,7 +218,7 @@ std::deque<MemoryPtr> If::getToMemories(const Node* node, const size_t port) con
     return memories;
 }
 
-void If::execute(mkldnn::stream strm) {
+void If::execute(dnnl::stream strm) {
     const bool condition = static_cast<const bool>((reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr()))[0]);
 
     auto& beforeMappers = condition ? beforeThenMappers : beforeElseMappers;
@@ -232,7 +233,7 @@ void If::execute(mkldnn::stream strm) {
         mapper->execute(strm);
 }
 
-void If::executeDynamicImpl(mkldnn::stream strm) {
+void If::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 

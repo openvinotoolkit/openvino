@@ -31,7 +31,7 @@ from .algorithms.sparsity.magnitude_sparsity.algorithm import MagnitudeSparsity
 from .algorithms.sparsity.default.algorithm import WeightSparsity
 from .algorithms.sparsity.default.base_algorithm import BaseWeightSparsity
 from .algorithms.quantization.overflow_correction.algorithm import OverflowCorrection
-from .algorithms.quantization.ranger.algorithm import Ranger
+from .algorithms.quantization.range_supervision.algorithm import RangeSupervision
 
 from .api.data_loader import DataLoader
 from .api.metric import Metric
@@ -59,7 +59,7 @@ QUANTIZATION_ALGORITHMS = [
     'WeightBiasCorrection',
     'ParamsGridSearchAlgorithm',
     'OverflowCorrection',
-    'Ranger',
+    'RangeSupervision',
 ]
 
 SPARSITY_ALGORITHMS = ['WeightSparsity',

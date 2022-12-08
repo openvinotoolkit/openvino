@@ -19,6 +19,7 @@ The algorithm accepts the following parameters:
     for quantization of neural networks which has both negative and positive input values in quantizing operations.  
 - `"stat_subset_size"` - size of subset to calculate activations statistics used for quantization. The whole dataset 
 is used if no parameter specified. We recommend using not less than 300 samples.
+- `"stat_batch_size"` - size of batch to calculate activations statistics used for quantization. 1 if no parameter specified.
 
 Below is a fragment of the configuration file that shows overall structure of parameters for this algorithm.
 

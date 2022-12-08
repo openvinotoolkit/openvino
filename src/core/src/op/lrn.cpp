@@ -14,8 +14,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::LRN);
-
 op::LRN::LRN(const Output<Node>& arg, double alpha, double beta, double bias, size_t size)
     : LRN(arg, op::v0::Constant::create(element::i64, ov::Shape{1}, {1}), alpha, beta, bias, size) {}
 
@@ -37,7 +35,7 @@ AxisSet op::LRN::get_reduction_axes() const {
 }
 
 void op::LRN::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_LRN_validate_and_infer_types);
+    OV_OP_SCOPE(v0_LRN_validate_and_infer_types);
     element::Type arg_type = get_input_element_type(0);
     ov::PartialShape arg_shape = get_input_partial_shape(0);
     set_output_type(0, arg_type, arg_shape);
@@ -89,7 +87,7 @@ void op::LRN::validate_and_infer_types() {
 }
 
 bool ngraph::op::v0::LRN::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_LRN_visit_attributes);
+    OV_OP_SCOPE(v0_LRN_visit_attributes);
     visitor.on_attribute("alpha", m_alpha);
     visitor.on_attribute("beta", m_beta);
     visitor.on_attribute("bias", m_bias);
@@ -98,7 +96,7 @@ bool ngraph::op::v0::LRN::visit_attributes(AttributeVisitor& visitor) {
 }
 
 shared_ptr<Node> op::LRN::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_LRN_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_LRN_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v0::LRN>(new_args.at(0), new_args.at(1), m_alpha, m_beta, m_bias, m_size);
 }

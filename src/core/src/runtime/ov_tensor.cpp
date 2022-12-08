@@ -28,7 +28,9 @@ Tensor::~Tensor() {
     _impl = {};
 }
 
-Tensor::Tensor(const std::shared_ptr<ie::Blob>& impl, const std::shared_ptr<void>& so) : _impl{impl}, _so{so} {
+Tensor::Tensor(const std::shared_ptr<ie::Blob>& impl, const std::vector<std::shared_ptr<void>>& so)
+    : _impl{impl},
+      _so{so} {
     OPENVINO_ASSERT(_impl != nullptr, "Tensor was not initialized.");
 }
 

@@ -41,21 +41,19 @@ bool evaluate_min(const HostTensorPtr& arg, const HostTensorPtr& out, const Axis
 }  // namespace
 }  // namespace minop
 
-BWDCMP_RTTI_DEFINITION(op::v1::ReduceMin);
-
 op::v1::ReduceMin::ReduceMin(const Output<Node>& arg, const Output<Node>& reduction_axes, bool keep_dims)
     : ArithmeticReductionKeepDims(arg, reduction_axes, keep_dims) {
     constructor_validate_and_infer_types();
 }
 
 shared_ptr<Node> op::v1::ReduceMin::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_ReduceMin_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_ReduceMin_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v1::ReduceMin>(new_args.at(0), new_args.at(1), get_keep_dims());
 }
 
 bool op::v1::ReduceMin::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v1_ReduceMin_evaluate);
+    OV_OP_SCOPE(v1_ReduceMin_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
 
@@ -66,7 +64,7 @@ bool op::v1::ReduceMin::evaluate(const HostTensorVector& outputs, const HostTens
 }
 
 bool op::v1::ReduceMin::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v1_ReduceMin_has_evaluate);
+    OV_OP_SCOPE(v1_ReduceMin_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:

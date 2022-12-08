@@ -32,8 +32,8 @@ bool CumSum::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
     return true;
 }
 
-CumSum::CumSum(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
+CumSum::CumSum(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -93,7 +93,7 @@ void CumSum::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void CumSum::execute(mkldnn::stream strm) {
+void CumSum::execute(dnnl::stream strm) {
     if (inputShapes.size() == numOfInputs)
         axis = getAxis(getParentEdgeAt(AXIS)->getMemory(), getParentEdgeAt(CUM_SUM_DATA)->getMemory());
 
@@ -139,7 +139,7 @@ void CumSum::cumSum(const dataType *input, dataType *output, const VectorDims &s
             continue;
         iterationRange[j++] = shape[i];
     }
-    size_t work_amount_dst = std::accumulate(iterationRange.begin(), iterationRange.end(), 1, std::multiplies<size_t>());
+    size_t work_amount_dst = std::accumulate(iterationRange.begin(), iterationRange.end(), size_t(1), std::multiplies<size_t>());
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
         SizeVector counters(numOfDims - 1, 0);
@@ -259,7 +259,7 @@ bool CumSum::needPrepareParams() const {
     return false;
 }
 
-void CumSum::executeDynamicImpl(mkldnn::stream strm) {
+void CumSum::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 

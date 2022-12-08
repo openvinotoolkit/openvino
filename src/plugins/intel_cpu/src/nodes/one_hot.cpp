@@ -4,7 +4,7 @@
 
 #include <vector>
 #include <string>
-#include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include "ie_parallel.hpp"
 #include <selective_build.h>
 #include "one_hot.h"
@@ -20,6 +20,58 @@ using namespace InferenceEngine;
 namespace ov {
 namespace intel_cpu {
 namespace node {
+
+namespace {
+/**
+ * Implements One Hot shape inference algorithm. The output shape is the input `indices` tensor shape, where a new axis
+ * of size `depth` is inserted at the dimension defined by the `axis` parameter.
+ *  
+ */
+class OneHotShapeInfer : public ShapeInferEmptyPads {
+public:
+    explicit OneHotShapeInfer(int64_t axis) : m_axis(axis) {}
+    std::vector<VectorDims> infer(
+        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+        auto depth = reinterpret_cast<int32_t *>(data_dependency.at(1)->GetPtr())[0];
+
+        auto result = input_shapes.front().get();
+        result.insert(result.begin() + m_axis, depth);
+
+        return { result };
+    }
+
+    port_mask_t get_port_mask() const override {
+        return PortMask(1);
+    }
+
+private:
+    int64_t m_axis = 0;
+};
+
+class OneHotShapeInferFactory : public ShapeInferFactory {
+public:
+    OneHotShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
+    ShapeInferPtr makeShapeInfer() const override {
+        auto oneHot = ov::as_type_ptr<const ngraph::opset1::OneHot>(m_op);
+        if (!oneHot) {
+            IE_THROW() << "Unexpected op type in OneHot shape inference factory: " << m_op->get_type_name();
+        }
+        auto axis = oneHot->get_axis();
+        auto dstShape = oneHot->get_output_partial_shape(0);
+        int output_dims_size = dstShape.size();
+        if (0 == output_dims_size) output_dims_size = 1;
+        if (axis < 0) {
+            axis += output_dims_size;
+        }
+        return std::make_shared<OneHotShapeInfer>(axis);
+    }
+
+private:
+    std::shared_ptr<ov::Node> m_op;
+};
+
+} // namespace
 
 bool OneHot::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -42,8 +94,8 @@ bool OneHot::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
     return true;
 }
 
-OneHot::OneHot(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
+OneHot::OneHot(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache, OneHotShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -81,18 +133,12 @@ OneHot::OneHot(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& en
 
 bool OneHot::needShapeInfer() const {
     const auto depthNodePtr = reinterpret_cast<int32_t *>(getParentEdgesAtPort(1)[0]->getMemoryPtr()->GetPtr());
-    if (depth != depthNodePtr[0])
+    if (depth != depthNodePtr[0]) {
+        depth = depthNodePtr[0];
         return true;
+    }
+
     return Node::needShapeInfer();
-}
-
-std::vector<VectorDims> OneHot::shapeInfer() const {
-    depth = reinterpret_cast<int32_t *>(getParentEdgesAtPort(1)[0]->getMemoryPtr()->GetPtr())[0];
-
-    auto result = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims();
-    result.insert(result.begin() + axis, depth);
-
-    return { result };
 }
 
 void OneHot::initSupportedPrimitiveDescriptors() {
@@ -140,11 +186,11 @@ void OneHot::one_hot(size_t prefix_size, size_t suffix_size) {
     });
 }
 
-void OneHot::executeDynamicImpl(mkldnn::stream strm) {
+void OneHot::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void OneHot::execute(mkldnn::stream strm) {
+void OneHot::execute(dnnl::stream strm) {
     std::size_t prefix_size = 1;
     auto input_dims = getParentEdgeAt(0)->getMemory().getStaticDims();
 

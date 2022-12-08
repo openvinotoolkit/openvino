@@ -7,43 +7,42 @@
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
+#include "intel_gpu/primitives/convolution.hpp"
+#include "intel_gpu/primitives/eltwise.hpp"
 
 #include <algorithm>
 #include <string>
 
 namespace cldnn {
+GPU_DEFINE_PRIMITIVE_TYPE_ID(reorder)
 
-primitive_type_id reorder::type_id() {
-    static primitive_type_base<reorder> instance;
-    return &instance;
-}
-
-layout reorder_inst::calc_output_layout(reorder_node const& node) {
-    auto input_layout = node.input().get_output_layout();
+layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_params const& impl_param) {
+    auto input_layout = impl_param.get_input_layout();
     auto ifmt = input_layout.format;
 
-    auto odt = *node.get_primitive()->output_data_type;
-    auto ofmt = node.get_primitive()->output_format;
-    auto op = node.get_primitive()->output_padding;
+    auto desc = impl_param.typed_desc<reorder>();
+    auto odt = *desc->output_data_types[0];
+    auto ofmt = desc->output_format;
+    auto op = desc->output_paddings[0];
 
     if (ofmt == format::any) {
         ofmt = ifmt;
     }
 
-    if (ifmt.is_nv12()) {
-        auto data_size = tensor{ input_layout.size.batch[0], input_layout.size.feature[0] * 3,
-                                 input_layout.size.spatial[0], input_layout.size.spatial[1] };
+    if (ifmt.is_nv12() && !desc->has_surface_input()) {
+        auto data_size = tensor{ input_layout.batch(), input_layout.feature() * 3,
+                                 input_layout.spatial(0), input_layout.spatial(1) };
         if (ofmt != ifmt)
             return layout(odt, ofmt, data_size, op);
 
-        CLDNN_ERROR_MESSAGE(node.id(), "No image_nv12 to image_nv12 reorder is supported");
+        CLDNN_ERROR_MESSAGE(desc->id, "No image_nv12 to image_nv12 reorder is supported");
     } else if (ofmt.is_winograd() && ifmt.is_winograd()) {
         if (ofmt == ifmt)
-            return layout(odt, ofmt, input_layout.size, op);
+            return layout(odt, ofmt, input_layout.get_tensor(), op);
 
-        CLDNN_ERROR_MESSAGE(node.id(), "Reordering between winograd weights and data formats is unsupported");
+        CLDNN_ERROR_MESSAGE(desc->id, "Reordering between winograd weights and data formats is unsupported");
     } else if (ifmt == format::image_2d_rgba) {
-        return layout(data_types::f16, format::bfyx, input_layout.size, op);
+        return layout(data_types::f16, format::bfyx, input_layout.get_tensor(), op);
     }
 
     // transformation of data from standard to winograd
@@ -67,10 +66,10 @@ layout reorder_inst::calc_output_layout(reorder_node const& node) {
         // each input tile produces one output tile so we can find no. of input tiles by calculating no. of output tiles
         // (which is equal to width of an output divided by output tile width)
         tensor::value_type conv_output_width =
-            input_layout.size.spatial[0] - filter_width + 1;
+            input_layout.spatial(0) - filter_width + 1;
         tensor::value_type input_tiles_count_x = conv_output_width / output_tile_width;
         tensor::value_type output_width = input_tiles_count_x * input_tile_width;
-        tensor::value_type output_height = input_layout.size.spatial[1];
+        tensor::value_type output_height = input_layout.spatial(1);
 
         tensor::value_type padd_x = 0;
         tensor::value_type padd_y = (8 - ((output_height - 2) % 8)) % 8;
@@ -80,42 +79,42 @@ layout reorder_inst::calc_output_layout(reorder_node const& node) {
             padd_x = 1;
         }
 
-        auto data_size = tensor{input_layout.size.batch[0], input_layout.size.feature[0], output_width, output_height};
+        auto data_size = tensor{input_layout.batch(), input_layout.feature(), output_width, output_height};
         tensor upper_padd = tensor{0, 0, padd_x, padd_y};
         return layout(odt, ofmt, data_size, padding{{0, 0, 0, 0}, upper_padd.sizes()});
     }
 
     // transformation of weights from standard to winograd
     if (ofmt == format::winograd_2x3_s1_weights || ofmt == format::winograd_2x3_s1_fused_weights) {
-        CLDNN_ERROR_NOT_EQUAL(node.id(),
-                              "input_layout.size.spatial[0]",
-                              input_layout.size.spatial[0],
+        CLDNN_ERROR_NOT_EQUAL(desc->id,
+                              "input_layout.spatial(0)",
+                              input_layout.spatial(0),
                               "expected value",
                               3,
                               "input for conversion to winograd_2x3_s1 weights format should have spatial size 3x3");
-        CLDNN_ERROR_NOT_EQUAL(node.id(),
-                              "input_layout.size.spatial[1]",
-                              input_layout.size.spatial[1],
+        CLDNN_ERROR_NOT_EQUAL(desc->id,
+                              "input_layout.spatial(1)",
+                              input_layout.spatial(1),
                               "expected value",
                               3,
                               "input for conversion to winograd_2x3_s1 weights format should have spatial size 3x3");
 
-        return layout(odt, ofmt, tensor{input_layout.size.batch[0], input_layout.size.feature[0], 4, 3});
+        return layout(odt, ofmt, tensor{input_layout.batch(), input_layout.feature(), 4, 3});
     } else if (ofmt == format::winograd_6x3_s1_fused_weights) {
-        CLDNN_ERROR_NOT_EQUAL(node.id(),
-                              "input_layout.size.spatial[0]",
-                              input_layout.size.spatial[0],
+        CLDNN_ERROR_NOT_EQUAL(desc->id,
+                              "input_layout.spatial(0)",
+                              input_layout.spatial(0),
                               "expected value",
                               3,
                               "input for conversion to winograd_2x3_s1 weights format should have spatial size 3x3");
-        CLDNN_ERROR_NOT_EQUAL(node.id(),
-                              "input_layout.size.spatial[1]",
-                              input_layout.size.spatial[1],
+        CLDNN_ERROR_NOT_EQUAL(desc->id,
+                              "input_layout.spatial(1)",
+                              input_layout.spatial(1),
                               "expected value",
                               3,
                               "input for conversion to winograd_2x3_s1 weights format should have spatial size 3x3");
 
-        return layout(odt, ofmt, tensor{input_layout.size.batch[0], input_layout.size.feature[0], 8, 3});
+        return layout(odt, ofmt, tensor{input_layout.batch(), input_layout.feature(), 8, 3});
     }
 
     // transformation of data from winograd to standard
@@ -130,37 +129,49 @@ layout reorder_inst::calc_output_layout(reorder_node const& node) {
             (output_tile_width - 1) * filter_stride;  // input tile should be large enought to hold data for
                                                       // computations of output tile (for given filter size and stride)
 
-        auto output_width = input_layout.size.spatial[0] / input_tile_width * output_tile_width;
-        if (input_layout.size.spatial[0] % input_tile_width != 0)  // leftovers
+        auto output_width = input_layout.spatial(0) / input_tile_width * output_tile_width;
+        if (input_layout.spatial(0) % input_tile_width != 0)  // leftovers
             ++output_width;  // output tile is 2 by default, so we can have only 1 value as leftover
 
         return layout(odt,
                       ofmt,
-                      tensor{input_layout.size.batch[0],
-                             input_layout.size.feature[0],
+                      tensor{input_layout.batch(),
+                             input_layout.feature(),
                              output_width,
-                             input_layout.size.spatial[1]});
+                             input_layout.spatial(1)});
     }
 
     // transformation of weights from winograd to standard
     if (ifmt == format::winograd_2x3_s1_weights || ifmt == format::winograd_2x3_s1_fused_weights ||
         ifmt == format::winograd_6x3_s1_fused_weights) {
-        CLDNN_ERROR_MESSAGE(node.id(),
+        CLDNN_ERROR_MESSAGE(desc->id,
                             "Conversion of weights from winograd to standard domain is currently unsupported");
     }
 
-    if (ofmt == format::bs_xs_xsv8_bsv8 || ofmt == format::bs_xs_xsv8_bsv16 || ofmt == format::bs_x_bsv16 ||
+    if ((ofmt == format::bs_xs_xsv8_bsv8 || ofmt == format::os_i_osv8__ai8 || ofmt == format::os_i_osv16__ai8 || ofmt == format::bs_x_bsv16 ||
         ofmt == format::bfzyx || ifmt == format::bfzyx || ofmt == format::b_fs_zyx_fsv16 || ifmt == format::b_fs_zyx_fsv16 ||
         ofmt == format::bs_fs_zyx_bsv16_fsv16 || ifmt == format::bs_fs_zyx_bsv16_fsv16 ||
+        ofmt == format::bs_fs_zyx_bsv16_fsv32 || ifmt == format::bs_fs_zyx_bsv16_fsv32 ||
         ofmt == format::b_fs_zyx_fsv32 || ifmt == format::b_fs_zyx_fsv32 ||
-        ofmt == format::bs_fs_yx_bsv16_fsv16 || ifmt == format::bs_fs_yx_bsv16_fsv16) {
-        return layout(odt, ofmt, input_layout.size.transform(ofmt, 1), op);
+        ofmt == format::bs_fs_yx_bsv16_fsv16 || ifmt == format::bs_fs_yx_bsv16_fsv16) && input_layout.is_static()) {
+        return layout(odt, ofmt, input_layout.get_tensor().transform(ofmt, 1), op);
     } else if (ofmt != ifmt && (ofmt == format::bfwzyx || ifmt == format::bfwzyx)) {
         // TODO Shouldn't transform be called every time ifmt != ofmt?
-        return layout(odt, ofmt, input_layout.size.transform(ofmt, 1), op);
+        return layout(odt, ofmt, input_layout.get_tensor().transform(ofmt, 1), op);
     } else {
-        return layout(odt, ofmt, input_layout.size, op);
+        return layout(odt, ofmt, input_layout.get_tensor(), op);
     }
+}
+
+template<typename ShapeType>
+std::vector<layout> reorder_inst::calc_output_layouts(reorder_node const& /*node*/, const kernel_impl_params& impl_param) {
+    auto desc = impl_param.typed_desc<reorder>();
+    auto input_layout = impl_param.get_input_layout();
+
+    auto ifmt = input_layout.format;
+    auto ofmt = desc->output_format == format::any ? ifmt : desc->output_format;
+
+    return { layout(input_layout.get<ShapeType>(), desc->output_data_types[0].value(), ofmt, desc->output_paddings[0]) };
 }
 
 std::string reorder_inst::to_string(reorder_node const& node) {
@@ -171,9 +182,13 @@ std::string reorder_inst::to_string(reorder_node const& node) {
 
     std::stringstream primitive_description;
 
+    auto input_mem_type = desc->input_mem_type ==
+        reorder::memory_type::buffer ? "buffer" : "surface";
+
     json_composite reorder_info;
     reorder_info.add("input id", input.id());
     reorder_info.add("mean", mean);
+    reorder_info.add("input mem type", input_mem_type);
     if (desc->subtract_per_feature.size() > 0) {
         reorder_info.add("subtract per feature", desc->subtract_per_feature);
     }
@@ -185,34 +200,38 @@ std::string reorder_inst::to_string(reorder_node const& node) {
 }
 
 reorder_inst::typed_primitive_inst(network& network, reorder_node const& node)
-    : parent(network, node, !node.can_be_optimized()) {
+    : parent(network, node, (!node.can_be_optimized() && node.get_output_layout().is_static()) ? true : false)
+    , _req_reinterpr(node.requires_reinterpret()) {
     if (node.can_be_optimized())
         reuse_input();
 
+    if (is_dynamic())
+        return;
+
     auto input_layout = node.input().get_output_layout();
     auto output_layout = node.get_output_layout();
-
-    CLDNN_ERROR_LESS_THAN(node.id(),
-                          "Input dimension size",
-                          input_layout.size.raw.size(),
-                          "ouput dimension size",
-                          output_layout.size.raw.size(),
-                          "Input dimension < output dimension. Reorder primitive woks only with same dimension sizes "
-                          "(reorder) or when input > output (flatten).");
-
-    if (!argument.subtract_per_feature.empty()) {
+    if (input_layout.is_static() && output_layout.is_static()) {
+        CLDNN_ERROR_LESS_THAN(node.id(),
+                              "Input dimension size",
+                              input_layout.get_tensor().raw.size(),
+                              "ouput dimension size",
+                              output_layout.get_tensor().raw.size(),
+                              "Input dimension < output dimension. Reorder primitive woks only with same dimension sizes "
+                              "(reorder) or when input > output (flatten).");
+    }
+    if (!argument->subtract_per_feature.empty()) {
         CLDNN_ERROR_GREATER_THAN(node.id(),
                                  "Input feature dimension size",
-                                 input_layout.size.feature.size(),
+                                 input_layout.get_tensor().feature.size(),
                                  "value",
                                  1,
                                  "Subtracting values work only for formats that have feature dimension == 1");
         if (input_layout.format != format::nv12) {
             CLDNN_ERROR_NOT_EQUAL(node.id(),
                 "Input feature size[0]",
-                static_cast<size_t>(input_layout.size.feature[0]),
+                static_cast<size_t>(input_layout.feature()),
                 "argument subtract per feature size",
-                argument.subtract_per_feature.size(),
+                argument->subtract_per_feature.size(),
                 "Number of features/channels in input does not match the number of features/channels in "
                 "values to subtract");
         }
@@ -220,21 +239,39 @@ reorder_inst::typed_primitive_inst(network& network, reorder_node const& node)
 }
 
 void reorder_inst::on_execute() {
-    if (node.can_be_optimized())
+    if (can_be_optimized())
         reuse_input();
 }
 
 void reorder_inst::reuse_input() {
-    if (static_cast<bool>(_output) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
-        return;
-
-    build_deps();
-
-    if (node.requires_reinterpret()) {
-        _output = _network.get_engine().reinterpret_buffer(input_memory(), node.get_output_layout());
-    } else {
-        _output = input_memory_ptr();
-    }
+    update_output_memory();
 }
 
+void reorder_inst::update_output_memory() {
+    if (!can_be_optimized())
+        return;
+
+    if (static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+        return;
+
+    if (_node != nullptr)
+        build_deps();
+
+    if (requires_reinterpret()) {
+        _outputs[0] = _network.get_engine().reinterpret_buffer(input_memory(), get_output_layout());
+    } else {
+        _outputs[0] = input_memory_ptr();
+    }
+    _mem_allocated = false;
+}
+
+void reorder_inst::save(cldnn::BinaryOutputBuffer& ob) const {
+    parent::save(ob);
+    ob << _req_reinterpr;
+}
+
+void reorder_inst::load(cldnn::BinaryInputBuffer& ib) {
+    parent::load(ib);
+    ib >> _req_reinterpr;
+}
 }  // namespace cldnn

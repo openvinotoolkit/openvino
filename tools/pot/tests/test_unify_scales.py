@@ -15,11 +15,13 @@ from openvino.tools.pot.pipeline.initializer import create_pipeline
 from openvino.tools.pot.engines.ac_engine import ACEngine
 from .utils.config import get_engine_config, merge_configs
 from .utils.path import TEST_ROOT
+from .utils.data_helper import load_json
 
 TEST_MODELS = [
-    ('mobilenet-v2-pytorch', 'pytorch', 'MinMaxQuantization', 'performance'),
-    ('resnet-50-tf', 'tf', 'DefaultQuantization', 'performance'),
-    ('octave-resnet-26-0.25', 'mxnet', 'DefaultQuantization', 'accuracy'),
+    ('mobilenet-v2-pytorch', 'pytorch', 'MinMaxQuantization', 'performance', 'VPU'),
+    ('resnet-50-tf', 'tf', 'DefaultQuantization', 'performance', 'VPU'),
+    ('octave-resnet-26-0.25', 'mxnet', 'DefaultQuantization', 'accuracy', 'VPU'),
+    ('concat_depthwise_model', 'pytorch', 'MinMaxQuantization', 'accuracy', 'CPU'),
 ]
 
 REFERENCES_PATH = TEST_ROOT / 'data/reference_unify'
@@ -32,13 +34,13 @@ def _params(request):
 
 
 def test_unify_scales(_params, tmp_path, models):
-    model_name, model_framework, algorithm, preset = _params
+    model_name, model_framework, algorithm, preset, device = _params
 
     algorithm_config = Dict({
         'algorithms': [{
             'name': algorithm,
             'params': {
-                'target_device': 'VPU',
+                'target_device': device,
                 'preset': preset,
                 'stat_subset_size': 2
             }
@@ -68,9 +70,8 @@ def test_unify_scales(_params, tmp_path, models):
 
     ref_path = REFERENCES_PATH.joinpath(model_name + '_to_unify.json')
     if ref_path.exists():
-        with open(ref_path.as_posix(), 'r') as f:
-            to_unify_ref = json.load(f)
-            assert to_unify == to_unify_ref
+        to_unify_ref = load_json(ref_path.as_posix())
+        assert to_unify == to_unify_ref
     else:
         with open(ref_path.as_posix(), 'w+') as f:
             json.dump(to_unify, f, indent=4)

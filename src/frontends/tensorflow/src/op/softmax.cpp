@@ -3,7 +3,7 @@
 //
 
 #include "op_table.hpp"
-#include "openvino/opsets/opset7.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 using namespace std;
 using namespace ov::opset8;
@@ -13,11 +13,9 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 OutputVector translate_softmax_op(const NodeContext& node) {
-    auto ng_inp = node.get_input(0);
-    // todo: switch to opset8::Softmax when is ready and delete Dynamic rank limitation
-    TENSORFLOW_OP_VALIDATION(node, ng_inp.get_partial_shape().rank().is_static(), "Dynamic rank is not supported.");
-    size_t axis = ng_inp.get_partial_shape().rank().get_length() - 1;
-    auto res = make_shared<opset7::Softmax>(ng_inp, axis);
+    TENSORFLOW_OP_VALIDATION(node, node.get_input_size() > 0, "Softmax must have at least one input.");
+    auto input = node.get_input(0);
+    auto res = make_shared<opset8::Softmax>(input, -1);
     set_node_name(node.get_name(), res);
     return res->outputs();
 }

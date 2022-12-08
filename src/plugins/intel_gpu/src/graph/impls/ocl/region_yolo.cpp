@@ -16,41 +16,34 @@ namespace ocl {
 struct region_yolo_impl : typed_primitive_impl_ocl<region_yolo> {
     using parent = typed_primitive_impl_ocl<region_yolo>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::region_yolo_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::region_yolo_params, kernel_selector::region_yolo_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<region_yolo_impl>(*this);
     }
 
-    static primitive_impl* create(const region_yolo_node& arg) {
-        auto ry_params = get_default_params<kernel_selector::region_yolo_params>(arg);
-        auto ry_optional_params =
-            get_default_optional_params<kernel_selector::region_yolo_optional_params>(arg.get_program());
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<region_yolo>();
+        auto params = get_default_params<kernel_selector::region_yolo_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::region_yolo_optional_params>(impl_param.get_program());
 
-        const auto& primitive = arg.get_primitive();
-        ry_params.coords = primitive->coords;
-        ry_params.classes = primitive->classes;
-        ry_params.num = primitive->num;
-        ry_params.do_softmax = primitive->do_softmax;
-        ry_params.mask_size = primitive->mask_size;
+        params.coords = primitive->coords;
+        params.classes = primitive->classes;
+        params.num = primitive->num;
+        params.do_softmax = primitive->do_softmax;
+        params.mask_size = primitive->mask_size;
 
-        auto& kernel_selector = kernel_selector::region_yolo_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(ry_params, ry_optional_params);
-
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        auto region_yolo_node = new region_yolo_impl(arg, best_kernels[0]);
-
-        return region_yolo_node;
+        return {params, optional_params};
     }
 };
 
 namespace detail {
 
 attach_region_yolo_impl::attach_region_yolo_impl() {
-    implementation_map<region_yolo>::add(impl_types::ocl, region_yolo_impl::create, {
+    implementation_map<region_yolo>::add(impl_types::ocl, typed_primitive_impl_ocl<region_yolo>::create<region_yolo_impl>, {
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::f32, format::byxf),
@@ -65,3 +58,5 @@ attach_region_yolo_impl::attach_region_yolo_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::region_yolo_impl)

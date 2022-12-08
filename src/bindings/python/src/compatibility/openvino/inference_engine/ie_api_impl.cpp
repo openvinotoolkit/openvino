@@ -40,7 +40,7 @@ std::map<std::string, InferenceEngine::Layout> layout_map = {{"ANY", InferenceEn
         }                                             \
     }
 
-uint32_t getOptimalNumberOfRequests(const InferenceEngine::ExecutableNetwork& actual) {
+static uint32_t getOptimalNumberOfRequests(const InferenceEngine::ExecutableNetwork& actual) {
     try {
         auto parameter_value = actual.GetMetric(METRIC_KEY(SUPPORTED_METRICS));
         auto supported_metrics = parameter_value.as<std::vector<std::string>>();
@@ -61,7 +61,7 @@ uint32_t getOptimalNumberOfRequests(const InferenceEngine::ExecutableNetwork& ac
     }
 }
 
-PyObject* parse_parameter(const InferenceEngine::Parameter& param) {
+static PyObject* parse_parameter(const InferenceEngine::Parameter& param) {
     // Check for std::string
     if (param.is<std::string>()) {
         return PyUnicode_FromString(param.as<std::string>().c_str());
@@ -476,12 +476,12 @@ int InferenceEnginePython::IdleInferRequestQueue::wait(int num_requests, int64_t
     std::unique_lock<std::mutex> lock(mutex);
     if (timeout > 0) {
         if (!cv.wait_for(lock, std::chrono::milliseconds(timeout), [this, num_requests]() {
-                return idle_ids.size() >= num_requests;
+                return static_cast<int>(idle_ids.size()) >= num_requests;
             }))
             return static_cast<int>(InferenceEngine::StatusCode::RESULT_NOT_READY);
     } else
         cv.wait(lock, [this, num_requests]() {
-            return idle_ids.size() >= num_requests;
+            return static_cast<int>(idle_ids.size()) >= num_requests;
         });
     return static_cast<int>(InferenceEngine::StatusCode::OK);
 }
@@ -508,7 +508,7 @@ void InferenceEnginePython::IEExecNetwork::createInferRequests(int num_requests)
     }
     infer_requests.resize(num_requests);
 
-    for (size_t i = 0; i < num_requests; ++i) {
+    for (int i = 0; i < num_requests; ++i) {
         InferRequestWrap& infer_request = infer_requests[i];
         infer_request.index = i;
         request_queue_ptr->setRequestIdle(i);
@@ -688,5 +688,5 @@ void InferenceEnginePython::CVariableState::setState(InferenceEngine::Blob::Ptr 
 }
 
 const size_t InferenceEnginePython::product(const InferenceEngine::SizeVector& dims) {
-    return std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<size_t>{});
+    return std::accumulate(dims.begin(), dims.end(), size_t(1), std::multiplies<size_t>{});
 }

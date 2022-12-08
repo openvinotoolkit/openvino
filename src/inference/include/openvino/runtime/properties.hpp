@@ -10,13 +10,14 @@
  */
 #pragma once
 
+#include <array>
+#include <iomanip>
 #include <istream>
 #include <map>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-#include "ie_precision.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/common.hpp"
@@ -294,7 +295,7 @@ enum class PerformanceMode {
     UNDEFINED = -1,             //!<  Undefined value, performance setting may vary from device to device
     LATENCY = 1,                //!<  Optimize for latency
     THROUGHPUT = 2,             //!<  Optimize for throughput
-    CUMULATIVE_THROUGHPUT = 3,  //!< Optimize for cumulative throughput
+    CUMULATIVE_THROUGHPUT = 3,  //!<  Optimize for cumulative throughput
 };
 
 /** @cond INTERNAL */
@@ -508,6 +509,15 @@ static constexpr Property<std::tuple<unsigned int, unsigned int, unsigned int>, 
     range_for_async_infer_requests{"RANGE_FOR_ASYNC_INFER_REQUESTS"};
 
 /**
+ * @brief Read-write property to set whether force terminate tbb when ov core destruction
+ * value type: boolean
+ *   - True explicitly terminate tbb when ov core destruction
+ *   - False will not involve additional tbb operations when core destruction
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<bool, PropertyMutability::RW> force_tbb_terminate{"FORCE_TBB_TERMINATE"};
+
+/**
  * @brief Namespace with device properties
  */
 namespace device {
@@ -610,6 +620,45 @@ static constexpr Property<std::string, PropertyMutability::RO> full_name{"FULL_D
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<std::string, PropertyMutability::RO> architecture{"DEVICE_ARCHITECTURE"};
+
+/**
+ * @brief Structure which defines format of UUID.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+struct UUID {
+    static const uint64_t MAX_UUID_SIZE = 16;  //!< Max size of uuid array (128 bits)
+    std::array<uint8_t, MAX_UUID_SIZE> uuid;   //!< Array with uuid for a device
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const UUID& device_uuid) {
+    std::stringstream s;
+    for (auto& c : device_uuid.uuid) {
+        s << std::hex << std::setw(2) << std::setfill('0') << +c;
+    }
+    return os << s.str();
+}
+
+inline std::istream& operator>>(std::istream& is, UUID& device_uuid) {
+    std::string s;
+    auto flags = is.flags();
+    for (size_t i = 0; i < UUID::MAX_UUID_SIZE; i++) {
+        is >> std::setw(2) >> s;
+        std::istringstream ss2(s);
+        int val;
+        ss2 >> std::hex >> val;
+        device_uuid.uuid[i] = static_cast<uint8_t>(val);
+    }
+    is.flags(flags);
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief Read-only property which defines the UUID of the device.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<UUID, PropertyMutability::RO> uuid{"DEVICE_UUID"};
 
 /**
  * @brief Enum to define possible device types
@@ -835,4 +884,10 @@ inline std::istream& operator>>(std::istream& is, Affinity& affinity) {
  * environment variable is set (as affinity is configured explicitly)
  */
 static constexpr Property<Affinity> affinity{"AFFINITY"};
+
+/**
+ * @brief The devices that the inference task been executed.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<std::vector<std::string>, PropertyMutability::RO> execution_devices{"EXECUTION_DEVICES"};
 }  // namespace ov

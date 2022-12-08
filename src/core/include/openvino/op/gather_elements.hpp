@@ -15,7 +15,6 @@ namespace v6 {
 class OPENVINO_API GatherElements : public Op {
 public:
     OPENVINO_OP("GatherElements", "opset6", op::Op, 6);
-    BWDCMP_RTTI_DECLARATION;
     GatherElements() = default;
 
     /// \brief Constructs a GatherElements operation.
@@ -31,6 +30,9 @@ public:
 
     int64_t get_axis() const {
         return m_axis;
+    }
+    void set_axis(int64_t axis) {
+        m_axis = axis;
     }
 
 private:

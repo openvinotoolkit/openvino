@@ -8,7 +8,13 @@ if(DEFINED BUILD_SHARED_LIBS AND NOT BUILD_SHARED_LIBS)
     # incorrect OpenVINOConfig.cmake in this case
     cmake_minimum_required(VERSION 3.17)
 else()
-    cmake_minimum_required(VERSION 3.13)
+    if(CPACK_GENERATOR STREQUAL "DEB")
+        # we have to use CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS variable
+        cmake_minimum_required(VERSION 3.20)
+    else()
+        # default choice
+        cmake_minimum_required(VERSION 3.13)
+    endif()
 endif()
 
 project(OpenVINO DESCRIPTION "OpenVINO toolkit")
@@ -44,6 +50,8 @@ message (STATUS "CMAKE_C_COMPILER_ID ................... " ${CMAKE_C_COMPILER_ID
 message (STATUS "CMAKE_CXX_COMPILER_ID ................. " ${CMAKE_CXX_COMPILER_ID})
 message (STATUS "CMAKE_BUILD_TYPE ...................... " ${CMAKE_BUILD_TYPE})
 message (STATUS "CMAKE_TOOLCHAIN_FILE .................. " ${CMAKE_TOOLCHAIN_FILE})
+message (STATUS "GLIBC_VERSION....... .................. " ${OV_GLIBC_VERSION})
+
 
 # remove file with exported developer targets to force its regeneration
 file(REMOVE "${CMAKE_BINARY_DIR}/ngraphTargets.cmake")
@@ -51,6 +59,7 @@ file(REMOVE "${CMAKE_BINARY_DIR}/InferenceEngineTargets.cmake")
 file(REMOVE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
 foreach(component IN LISTS openvino_export_components)
     file(REMOVE "${CMAKE_BINARY_DIR}/${component}_dev_targets.cmake")
+    file(REMOVE "${CMAKE_BINARY_DIR}/ov_${component}_dev_targets.cmake")
     unset(${component} CACHE)
 endforeach()
 unset(openvino_export_components CACHE)
@@ -74,7 +83,7 @@ function(openvino_developer_export_targets)
             get_target_property(original_name ${target_name} ALIASED_TARGET)
             if(TARGET "${original_name}")
                 message(STATUS "The name ${target_name} is an ALIAS for ${original_name}. "
-                        "It will be exported to the InferenceEngineDeveloperPackage with the original name.")
+                        "It will be exported to the OpenVINODeveloperPackage with the original name.")
                 list(REMOVE_ITEM ${EXPORT_COMPONENT} ${target_name})
                 list(APPEND ${EXPORT_COMPONENT} ${original_name})
             endif()
@@ -92,15 +101,17 @@ function(openvino_developer_export_targets)
 endfunction()
 
 # add target with processed tests model zoo
-include(cmake/test_model_zoo.cmake)
+if (ENABLE_TESTS)
+    include(cmake/test_model_zoo.cmake)
+endif()
 
 add_subdirectory(thirdparty)
 add_subdirectory(src)
 add_subdirectory(samples)
 
-# Enable interpreter backend
+# Enable interpreter backend for tests
 if (ENABLE_TESTS OR ENABLE_TEMPLATE)
-    add_subdirectory(docs/template_plugin/backend)
+    add_subdirectory(src/plugins/template/backend)
 endif()
 include(cmake/extra_modules.cmake)
 add_subdirectory(docs)
@@ -111,5 +122,8 @@ add_subdirectory(licensing)
 #
 # CPack
 #
+
+# provides a callback function to describe each component in repo
+include(cmake/packaging/packaging.cmake)
 
 ie_cpack(${IE_CPACK_COMPONENTS_ALL})

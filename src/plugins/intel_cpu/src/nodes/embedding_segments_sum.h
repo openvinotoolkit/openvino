@@ -17,11 +17,11 @@ namespace node {
 
 class EmbeddingSegmentsSum : public Node, public EmbeddingBagSum {
 public:
-    EmbeddingSegmentsSum(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    EmbeddingSegmentsSum(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
 
     bool isExecutable() const override;
@@ -29,17 +29,18 @@ public:
 
 protected:
     void prepareParams() override;
-    std::vector<VectorDims> shapeInfer() const override;
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    bool needShapeInfer() const override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
 private:
     void initFromInputs() override;
     void getIndices(int embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) override;
+    int32_t getNumSegments() const;
 
-    const size_t SEGMENT_ID_IDX = 2lu;
-    const size_t NUM_SEGMENTS_IDX = 3lu;
+    static constexpr size_t SEGMENT_ID_IDX = 2lu;
+    static constexpr size_t NUM_SEGMENTS_IDX = 3lu;
 
-    int numSegments_ = 0;
+    int lastNumSegments_ = 0;
 
     const int* indices_ = nullptr;
     const int* segmentIds_ = nullptr;

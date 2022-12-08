@@ -4,6 +4,7 @@
 
 #include "behavior/ov_plugin/remote.hpp"
 #include "common_test_utils/test_constants.hpp"
+#include "ie_plugin_config.hpp"
 
 using namespace ov::test;
 

@@ -9,24 +9,15 @@
 
 namespace cldnn {
 
-template <>
-struct typed_program_node<slice> : public typed_program_node_base<slice> {
-    using parent = typed_program_node_base<slice>;
-
-public:
-    using parent::parent;
-
-    program_node& input(std::size_t index = 0) const { return get_dependency(index); }
-};
-
 using slice_node = typed_program_node<slice>;
 
 template <>
 class typed_primitive_inst<slice> : public typed_primitive_inst_base<slice> {
     using parent = typed_primitive_inst_base<slice>;
+    using parent::parent;
 
 public:
-    static layout calc_output_layout(slice_node const& node);
+    static layout calc_output_layout(slice_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(slice_node const& node);
 
 public:

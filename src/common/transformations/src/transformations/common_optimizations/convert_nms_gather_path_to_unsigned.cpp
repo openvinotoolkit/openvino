@@ -6,12 +6,13 @@
 #include <memory>
 #include <ngraph/op/util/broadcast_base.hpp>
 #include <ngraph/op/util/gather_base.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset3.hpp>
-#include <ngraph/opsets/opset5.hpp>
-#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset3.hpp>
+#include <openvino/opsets/opset5.hpp>
+#include <openvino/opsets/opset8.hpp>
+#include <openvino/opsets/opset9.hpp>
 #include <transformations/rt_info/nms_selected_indices.hpp>
 
 #include "itt.hpp"
@@ -19,15 +20,17 @@
 
 using namespace std;
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 class InitNMSPath : public pass::MatcherPass {
 public:
     OPENVINO_RTTI("InitNMSPath", "0");
     InitNMSPath() {
         MATCHER_SCOPE(InitNMSPath);
-        auto nms_pattern =
-            pattern::wrap_type<opset1::NonMaxSuppression, opset3::NonMaxSuppression, opset5::NonMaxSuppression>();
+        auto nms_pattern = pattern::wrap_type<opset1::NonMaxSuppression,
+                                              opset3::NonMaxSuppression,
+                                              opset5::NonMaxSuppression,
+                                              opset9::NonMaxSuppression>();
         matcher_pass_callback callback = [=](pattern::Matcher& m) {
             const auto& out_nodes = m.get_match_root()->output(0).get_target_inputs();
             for (const auto& out_node : out_nodes) {
@@ -97,10 +100,10 @@ public:
     }
 };
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-ngraph::pass::ConvertNmsGatherPathToUnsigned::ConvertNmsGatherPathToUnsigned() {
-    add_matcher<InitNMSPath>();
-    add_matcher<PropagateNMSPath>();
-    add_matcher<UpdateConvertGather>();
+ov::pass::ConvertNmsGatherPathToUnsigned::ConvertNmsGatherPathToUnsigned() {
+    ADD_MATCHER_FOR_THIS(InitNMSPath)
+    ADD_MATCHER_FOR_THIS(PropagateNMSPath)
+    ADD_MATCHER_FOR_THIS(UpdateConvertGather)
 }

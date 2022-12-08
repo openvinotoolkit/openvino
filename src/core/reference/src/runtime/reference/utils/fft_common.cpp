@@ -50,13 +50,21 @@ std::vector<int64_t> coords_from_index(int64_t index, const std::vector<int64_t>
 }
 
 int64_t offset_from_coords_and_strides(const std::vector<int64_t>& coords, const std::vector<int64_t>& strides) {
-    assert(coords.size() < strides.size());
+    assert(coords.size() <= strides.size());
     int64_t offset = 0;
     int64_t num_of_axes = coords.size();
     for (int64_t i = 0; i < num_of_axes; ++i) {
         offset += coords[i] * strides[i];
     }
     return offset;
+}
+
+std::vector<int64_t> reverse_fft_axes(const std::vector<int64_t>& axes, int64_t complex_data_rank) {
+    auto result = axes;
+    for (int64_t& axis : result) {
+        axis = complex_data_rank - 1 - axis;
+    }
+    return result;
 }
 }  // namespace fft_common
 }  // namespace reference

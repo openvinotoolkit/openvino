@@ -46,8 +46,12 @@ elseif(SELECTIVE_BUILD STREQUAL "ON")
     ov_force_include(${TARGET_NAME} INTERFACE ${GENERATED_HEADER})
 endif()
 
-ov_install_static_lib(${TARGET_NAME} core)
+ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 
 file(GLOB_RECURSE hdrs ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${hdrs})
-openvino_developer_export_targets(COMPONENT core TARGETS openvino::conditional_compilation)
+openvino_developer_export_targets(COMPONENT openvino_common TARGETS openvino::conditional_compilation)
+
+if(ENABLE_TESTS)
+    add_subdirectory(tests)
+endif()

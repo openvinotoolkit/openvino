@@ -3,10 +3,10 @@
 
 import pytest
 
-from common.onnx_layer_test_class import Caffe2OnnxLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest
 
 
-class TestScale(Caffe2OnnxLayerTest):
+class TestScale(OnnxRuntimeLayerTest):
     def create_net(self, shape, scale, ir_version):
         """
             ONNX net                     IR net
@@ -133,13 +133,13 @@ class TestScale(Caffe2OnnxLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_scale(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_scale(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_scale_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_scale_const(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net_const(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)

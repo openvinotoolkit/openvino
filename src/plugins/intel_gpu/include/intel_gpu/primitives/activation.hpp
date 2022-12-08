@@ -87,12 +87,11 @@ struct activation : public primitive_base<activation> {
     /// @param activation_func activation function.
     /// @param additional_params additional params (slope/max_val/linear a,b).
     activation(const primitive_id& id,
-               const primitive_id& input,
+               const input_info& input,
                activation_func activation_function,
                activation_additional_params additional_params = {0.f, 0.f},
-               const primitive_id& ext_prim_id = "",
                const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           activation_function(activation_function),
           additional_params(additional_params),
           additional_params_input("") {}
@@ -104,12 +103,11 @@ struct activation : public primitive_base<activation> {
     /// Input x dimension should be equal to input feature size (one value per channel. in case of linear is one pair per channel).
     /// All other dimensions should be 1.
     activation(const primitive_id& id,
-               const primitive_id& input,
+               const input_info& input,
                const primitive_id& additional_params_input,
                activation_func activation_function,
-               const primitive_id& ext_prim_id = "",
                const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           activation_function(activation_function),
           additional_params({0, 0}),
           additional_params_input(additional_params_input) {}

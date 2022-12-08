@@ -19,7 +19,6 @@ namespace v0 {
 class OPENVINO_API Parameter : public op::Op {
 public:
     OPENVINO_OP("Parameter", "opset1");
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructions a tensor-typed parameter node.
     Parameter() = default;
     /// \brief Constructions a tensor-typed parameter node.
@@ -78,7 +77,6 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     OPENVINO_RTTI("AttributeAdapter<ParameterVector>");
-    BWDCMP_RTTI_DECLARATION;
 
 protected:
     ParameterVector& m_ref;

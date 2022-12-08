@@ -11,6 +11,7 @@
 #include "node.h"
 #include "edge.h"
 #include "cache/multi_cache.h"
+#include "dnnl_scratch_pad.h"
 #include <map>
 #include <string>
 #include <vector>
@@ -28,19 +29,17 @@ public:
     typedef std::shared_ptr<Graph> Ptr;
     WeightsSharing::Ptr weightsCache;
 
-    enum Status {
+    enum class Status {
         NotReady = 0,
-        Ready = 1,
+        ReadyStatic = 1,
+        ReadyDynamic = 2
     };
 
     Graph() = default;
-
-    Status GetStatus() {
-        return status;
-    }
+    ~Graph();
 
     bool IsReady() {
-        return (GetStatus() == Ready);
+        return (status != Status::NotReady);
     }
 
     void setConfig(const Config &cfg);
@@ -52,7 +51,8 @@ public:
     template<typename NET>
     void CreateGraph(NET &network,
                      const ExtensionManager::Ptr& extMgr,
-                     WeightsSharing::Ptr &w_cache);
+                     WeightsSharing::Ptr &w_cache,
+                     const std::shared_ptr<std::mutex>& mutex);
 
     void CreateGraph(const std::vector<NodePtr> &graphNodes,
                      const std::vector<EdgePtr> &graphEdges,
@@ -76,7 +76,7 @@ public:
         return graphNodes;
     }
 
-    std::string GetName() {
+    std::string GetName() const {
         return _name;
     }
 
@@ -110,7 +110,7 @@ public:
         return outputNodesMap.count(name);
     }
 
-    mkldnn::engine getEngine() const {
+    dnnl::engine getEngine() const {
         return eng;
     }
 
@@ -137,12 +137,14 @@ public:
      * output memory descriptor
      * @param isOptimized
      * optimization flag; if isOptimized is true then Reorder node does nothing
+     * @param src_perm
+     * optimization flag; permutation applied to input desc before passing to reorder primitive
      * @param scales
      * pointer to the blob containing scales
      * @return pointer to the new Reorder node.
      */
     NodePtr InsertReorder(EdgePtr edge, std::string layerName, const MemoryDesc& inDesc,
-            const MemoryDesc& outDesc, bool isOptimized = false);
+            const MemoryDesc& outDesc, bool isOptimized = false, const std::vector<int> & src_perm = {});
 
     /**
      * @brief Insert Node at the edge-specified location.
@@ -197,16 +199,17 @@ protected:
     void VisitNode(NodePtr node, std::vector<NodePtr>& sortedNodes);
 
     void ForgetGraphData() {
-        status = NotReady;
-        eng = mkldnn::engine(mkldnn::engine::kind::cpu, 0);
+        status = Status::NotReady;
+        eng = dnnl::engine(dnnl::engine::kind::cpu, 0);
 
         inputNodesMap.clear();
         outputNodesMap.clear();
         graphNodes.clear();
         graphEdges.clear();
         _normalizePreprocMap.clear();
+        syncNodesInds.clear();
     }
-    Status status { NotReady };
+    Status status { Status::NotReady };
     Config config;
 
     // For dumping purposes. -1 - no counting, all other positive
@@ -226,7 +229,7 @@ protected:
     bool isQuantizedFlag = false;
     bool graphHasDynamicInput = false;
 
-    static mkldnn::engine eng;
+    static dnnl::engine eng;
 
     void Replicate(const InferenceEngine::CNNNetwork &network, const ExtensionManager::Ptr& extMgr);
     void Replicate(const std::shared_ptr<const ov::Model> &subgraph, const ExtensionManager::Ptr& extMgr);
@@ -239,8 +242,10 @@ protected:
     void AllocateWithReuse();
     void CreatePrimitives();
     void ExtractConstantAndExecutableNodes();
-    void ExecuteNode(const NodePtr& node, const mkldnn::stream& stream) const;
+    void ExecuteNode(const NodePtr& node, const dnnl::stream& stream) const;
     void ExecuteConstantNodesOnly() const;
+    void InferStatic(InferRequestBase* request);
+    void InferDynamic(InferRequestBase* request);
 
     friend class LegacyInferRequest;
     friend class intel_cpu::InferRequest;
@@ -259,8 +264,12 @@ private:
     std::vector<NodePtr> executableGraphNodes;
 
     MultiCachePtr rtParamsCache;
+    std::shared_ptr<std::mutex> sharedMutex = nullptr;
+    DnnlScratchPadPtr rtScratchPad;
+    std::unordered_map<Node*, size_t> syncNodesInds;
 
     void EnforceBF16();
+    void setMinSparseRate(float minSparseRate);
 };
 
 }   // namespace intel_cpu

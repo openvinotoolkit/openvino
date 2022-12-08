@@ -16,12 +16,21 @@ static TelemetryFEParam getTestData() {
     res.m_modelsPath = std::string(TEST_TENSORFLOW_MODELS_DIRNAME);
     res.m_modelName = "2in_2out/2in_2out.pb";
 
-    res.m_expected_events = {std::make_tuple("mo", "op_count", "tf_Add", 2),
-                             std::make_tuple("mo", "op_count", "tf_Const", 2),
-                             std::make_tuple("mo", "op_count", "tf_Conv2D", 2),
-                             std::make_tuple("mo", "op_count", "tf_NoOp", 1),
-                             std::make_tuple("mo", "op_count", "tf_Placeholder", 2),
-                             std::make_tuple("mo", "op_count", "tf_Relu", 4)};
+    res.m_expected_events = {// Expected events on old TensorFlow environment
+                             {std::make_tuple("mo", "op_count", "tf_Add", 2),
+                              std::make_tuple("mo", "op_count", "tf_Const", 2),
+                              std::make_tuple("mo", "op_count", "tf_Conv2D", 2),
+                              std::make_tuple("mo", "op_count", "tf_NoOp", 1),
+                              std::make_tuple("mo", "op_count", "tf_Placeholder", 2),
+                              std::make_tuple("mo", "op_count", "tf_Relu", 4)},
+                             // Expected events on new TensorFlow environment 2.9
+                             {std::make_tuple("mo", "op_count", "tf_AddV2", 2),
+                              std::make_tuple("mo", "op_count", "tf_Const", 2),
+                              std::make_tuple("mo", "op_count", "tf_Conv2D", 2),
+                              std::make_tuple("mo", "op_count", "tf_NoOp", 1),
+                              std::make_tuple("mo", "op_count", "tf_Placeholder", 2),
+                              std::make_tuple("mo", "op_count", "tf_Relu", 4)}};
+
     return res;
 }
 

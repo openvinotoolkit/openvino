@@ -9,7 +9,6 @@
 #include "reshape_inst.h"
 #include "reorder_inst.h"
 #include "binary_convolution_inst.h"
-#include "scale_inst.h"
 #include "eltwise_inst.h"
 #include "data_inst.h"
 #include "pass_manager.h"
@@ -65,9 +64,12 @@ void  prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& q
     auto mem_output_high = output_high.get_attached_memory_ptr();
 
     auto scales_layout = mem_input_low->get_layout();
-    scales_layout.size = tensor::max(scales_layout.size, mem_input_high->get_layout().size);
-    scales_layout.size = tensor::max(scales_layout.size, mem_output_low->get_layout().size);
-    scales_layout.size = tensor::max(scales_layout.size, mem_output_high->get_layout().size);
+    auto max_size = tensor(0);
+    max_size = tensor::max(max_size, mem_input_high->get_layout().get_tensor());
+    max_size = tensor::max(max_size, mem_output_low->get_layout().get_tensor());
+    max_size = tensor::max(max_size, mem_output_high->get_layout().get_tensor());
+
+    scales_layout.set_tensor(max_size);
 
     auto mem_input_scale  = p.get_engine().allocate_memory(scales_layout, false);
     auto mem_input_shift  = p.get_engine().allocate_memory(scales_layout, false);
@@ -75,7 +77,7 @@ void  prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& q
     auto mem_output_shift = p.get_engine().allocate_memory(scales_layout, false);
 
     auto get_offset_safe = [](const layout& l, const tensor& idx) -> int {
-        auto sizes = l.size;
+        auto sizes = l.get_tensor();
         auto pitches = l.get_pitches();
 
         return (idx.batch[0] % sizes.batch[0])*pitches.batch[0]
@@ -153,10 +155,10 @@ void  prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& q
     bool need_post_shift = false;
     int levels = quantize_node.get_primitive()->levels;
 
-    for (int b = 0; b < scales_layout.size.batch[0]; b++) {
-        for (int f = 0; f < scales_layout.size.feature[0]; f++) {
-            for (int y = 0; y < scales_layout.size.spatial[1]; y++) {
-                for (int x = 0; x < scales_layout.size.spatial[0]; x++) {
+    for (int b = 0; b < scales_layout.batch(); b++) {
+        for (int f = 0; f < scales_layout.feature(); f++) {
+            for (int y = 0; y < scales_layout.spatial(1); y++) {
+                for (int x = 0; x < scales_layout.spatial(0); x++) {
                     auto idx = cldnn::tensor(format::bfyx, {b, f, y, x}, 0);
                     auto s_offset = scales_layout.get_linear_offset(idx);
                     float in_lo = get_data_input_low(get_offset_safe(mem_input_low->get_layout(), idx));
@@ -370,7 +372,7 @@ void prepare_quantization::prepare_packed_quantize(program& p, quantize_node& qu
         output_dt = data_types::bin;
     }
 
-    quantize_node.typed_desc()->output_data_type = optional_data_type{output_dt};
+    quantize_node.typed_desc()->output_data_types = {optional_data_type{output_dt}};
     quantize_node.recalc_output_layout();
 }
 
@@ -458,7 +460,7 @@ void prepare_quantization::remove_fake_reorders(program& p, reorder_node& reorde
         dep.get_output_layout().data_type != data_types::u8 ||
         (reorder_node.get_output_layout().data_type != data_types::f32 && reorder_node.get_output_layout().data_type != data_types::f16) ||
         dep.get_output_layout().format != reorder_node.get_output_layout().format ||
-        dep.get_output_layout().size != reorder_node.get_output_layout().size)
+        dep.get_output_layout().get_tensor() != reorder_node.get_output_layout().get_tensor())
         return;
 
     p.replace_all_usages(reorder_node, dep);
@@ -523,9 +525,9 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
         const auto& wl = w->get_layout();
 
         const int GS = groups;
-        const int OC = wl.size.batch[0] / GS;
-        const int IC = wl.size.feature[0];  // already divided by GS
-        const int KS = wl.size.spatial[0]*wl.size.spatial[1]*wl.size.spatial[2];
+        const int OC = wl.batch() / GS;
+        const int IC = wl.feature();  // already divided by GS
+        const int KS = wl.spatial(0)*wl.spatial(1)*wl.spatial(2);
 
         const auto& w_dt = wl.data_type;
         const auto& azp_dt = azp->get_layout().data_type;
@@ -599,7 +601,7 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
         return;
 
 
-    primitive_id input = old_conv_prim->input[0];
+    primitive_id input = old_conv_prim->input[0].pid;
     std::vector<primitive_id> a_zero_points = {};
 
     cldnn::program_node* new_input = &in0;
@@ -608,9 +610,9 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
 
     bool need_compensation = false;
 
-    auto output_size = convolution_node.get_output_layout().size;
-    int ofm = in1.get_output_layout().size.batch[0];
-    int ifm = in0.get_output_layout().size.feature[0];
+    auto output_size = convolution_node.get_output_layout().get_tensor();
+    int ofm = in1.get_output_layout().batch();
+    int ifm = in0.get_output_layout().feature();
     int ofm_aligned = ((ofm + 31) / 32) * 32;
     int ifm_aligned = ((ifm + 31) / 32) * 32;
 
@@ -619,7 +621,7 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
         new_a_zp = &in0.get_dependency(1);
 
         auto l = layout{new_a_zp->get_output_layout().data_type, format::bfyx, tensor{1, ifm_aligned, 1, 1}};
-        int s = new_a_zp->get_output_layout().size.feature[0];
+        int s = new_a_zp->get_output_layout().feature();
         auto azp_aligned = p.get_engine().allocate_memory(l);
         auto old_ptr = new_a_zp->as<data>().get_attached_memory_ptr();
         mem_lock<int8_t, mem_lock_type::write> new_data{azp_aligned, stream};
@@ -642,7 +644,7 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
         new_w_zp = &in1.get_dependency(1);
 
         auto l = layout{new_w_zp->get_output_layout().data_type, format::bfyx, tensor{ofm_aligned, 1, 1, 1}};
-        int s = new_w_zp->get_output_layout().size.batch[0];
+        int s = new_w_zp->get_output_layout().batch();
         auto wzp_aligned = p.get_engine().allocate_memory(l);
         auto old_ptr = new_w_zp->as<data>().get_attached_memory_ptr();
         mem_lock<int8_t, mem_lock_type::write> new_data{wzp_aligned, stream};
@@ -674,16 +676,16 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
     }
 
     // Collect dependencies of a new convolution node
-    std::vector<program_node*> dependencies = {new_input, new_weights};
+    std::vector<std::pair<program_node*, int32_t>> dependencies = {{new_input, 0}, {new_weights, 0}};
     cldnn::program_node* new_bias = !old_conv_prim->bias.empty() ? &convolution_node.get_dependency(2) : nullptr;
     if (new_bias)
-        dependencies.push_back(new_bias);
+        dependencies.push_back({new_bias, 0});
     if (new_w_zp)
-        dependencies.push_back(new_w_zp);
+        dependencies.push_back({new_w_zp, 0});
     if (new_a_zp)
-        dependencies.push_back(new_a_zp);
+        dependencies.push_back({new_a_zp, 0});
     if (new_compenstation)
-        dependencies.push_back(new_compenstation);
+        dependencies.push_back({new_compenstation, 0});
 
     auto new_conv_prim = std::make_shared<convolution>(
                 convolution_node.id() + "_asymmetric",
@@ -694,14 +696,13 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
                 a_zero_points,
                 compensation,
                 old_conv_prim->groups,
-                *old_conv_prim->output_data_type,
+                *old_conv_prim->output_data_types[0],
                 old_conv_prim->stride,
                 old_conv_prim->pad,
                 old_conv_prim->dilation,
                 output_size,
                 old_conv_prim->grouped_weights_shape,
-                "",
-                old_conv_prim->output_padding);
+                old_conv_prim->output_paddings[0]);
 
     auto& new_conv_node = p.get_or_create(new_conv_prim);
 
@@ -833,7 +834,7 @@ bool prepare_quantization::optimize_quantize(program &p, quantize_node& quantize
             memcmp(mem_output_high_lock_first.data(), mem_output_high_lock_second.data(), mem_output_high_first->size()) != 0)
             continue;
 
-        if (quantize_prim_first->output_data_type != quantize_prim_second->output_data_type ||
+        if (quantize_prim_first->output_data_types[0] != quantize_prim_second->output_data_types[0] ||
             quantize_prim_first->levels != quantize_prim_second->levels)
             continue;
 

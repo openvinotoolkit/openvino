@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import hashlib
-import os
 
 import defusedxml.ElementTree as ET
 from defusedxml import defuse_stdlib
@@ -21,6 +20,8 @@ ET_defused = defuse_stdlib()[ET]
 Element = ET_defused.Element
 SubElement = ET_defused.SubElement
 tostring = ET_defused.tostring
+
+elements_to_skip_during_serializing = ['inputs_list']
 
 
 def serialize_constants(graph: Graph, bin_file_name: str, data_type=np.float32):
@@ -409,29 +410,24 @@ def add_quantization_info_section(net: Element, meta_info: dict):
         cli_params.set('value', parameters['cli_params'])
 
 
-def add_meta_data(net: Element, meta_info: dict, legacy_path: bool):
+def add_meta_data_elem(meta: Element, key, value):
+    if isinstance(value, dict):
+        sub_elem = SubElement(meta, key)
+        for sub_key, sub_value in sorted(value.items()):
+            if sub_value in elements_to_skip_during_serializing:
+                continue
+            add_meta_data_elem(sub_elem, sub_key, sub_value)
+    else:
+        SubElement(meta, key).set('value', str(value))
+
+
+def add_net_rt_info(net: Element, meta_info: dict):
     if meta_info == {}:
         log.warning('`meta_info` is not provided, IR will not contain appropriate section.')
     else:
-        meta = SubElement(net, 'meta_data')
-        SubElement(meta, 'MO_version').set('value', get_version())
-
-        try:
-            from openvino.runtime import get_version as get_rt_version  # pylint: disable=import-error,no-name-in-module
-
-            SubElement(meta, 'Runtime_version').set('value', get_rt_version())
-        except Exception as e:
-            SubElement(meta, 'Runtime_version').set('value', 'Not found')
-
-        SubElement(meta, 'legacy_path').set('value', str(legacy_path))
-
-        parameters = SubElement(meta, 'cli_parameters')
-        if 'inputs_list' in meta_info:
-            del meta_info['inputs_list']
-        [SubElement(parameters, str(key)).set('value', str(meta_info[key])) for key in sorted(meta_info.keys()) if
-         key not in ('unset', 'quantization_parameters')]
-        if 'unset' in meta_info:
-            SubElement(parameters, 'unset').set('unset_cli_parameters', ', '.join(sorted(meta_info['unset'])))
+        meta = SubElement(net, 'rt_info')
+        for key, value in meta_info.items():
+            add_meta_data_elem(meta, key, value)
 
 
 def serialize_node(graph: Graph, node: Node, layers: SubElement, edges: SubElement, unsupported: UnsupportedOps):
@@ -521,8 +517,12 @@ def serialize_network(graph, net_element, unsupported):
                                            "has no output data node.".format(output_name)
 
         # After port renumbering port/connection API is not applicable, and output port numbering
-        # starts from len(node.in_nodes()).
-        data_node = node.out_node(len(node.in_nodes()))
+        # starts from len(node.in_nodes()). But it not applicable to Constant operations, they have only one output
+        # port with number 0.
+        if node.type == 'Const':
+            data_node = node.out_node(0)
+        else:
+            data_node = node.out_node(len(node.in_nodes()))
 
         found_result = False
         for op_node in data_node.out_nodes():
@@ -604,9 +604,15 @@ def generate_ie_ir(graph: Graph, file_name: str, input_names: tuple = (), mean_o
     unsupported = UnsupportedOps(graph)
 
     serialize_network(graph, net, unsupported)
+
+    #TODO: Remove this line when POT updates to using of rt_info
     add_quantization_statistics(graph, net)
-    add_meta_data(net, meta_info, legacy_path=True)
+
+    add_net_rt_info(net, meta_info)
+
+    #TODO: Remove this line when POT updates to using of rt_info
     add_quantization_info_section(net, meta_info)
+
     xml_string = tostring(net)
     xml_doc = parseString(xml_string)
     pretty_xml_as_string = xml_doc.toprettyxml()
@@ -630,31 +636,3 @@ def port_renumber(graph: Graph):
         for v, d in node.get_sorted_outputs():
             d['out'] = base
             base += 1
-
-
-def append_ir_info(file: str,
-                   meta_info: dict = dict(),
-                   mean_data: [list, None] = None,
-                   input_names: list = None,
-                   legacy_path: bool = True):
-    path_to_xml = file + ".xml"
-    path_to_bin = file + ".bin"
-
-    et = ET.parse(path_to_xml)
-    net = et.getroot()
-
-    if mean_data:
-        mean_offset, mean_size = serialize_mean_image(path_to_bin, mean_data=mean_data)
-        create_pre_process_block_for_image(net, input_names, mean_offset, mean_size)
-
-    add_meta_data(net, meta_info, legacy_path)
-
-    for elem in et.iter():
-        if elem.text:
-            elem.text = elem.text.strip()
-        if elem.tail:
-            elem.tail = elem.tail.strip()
-
-    pretty_xml_as_string = parseString(tostring(net)).toprettyxml()
-    with open(path_to_xml, 'wb') as file:
-        file.write(bytes(pretty_xml_as_string, "UTF-8"))

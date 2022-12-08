@@ -19,35 +19,35 @@ void roi_pooling(const T* feature_maps,
                  const float spatial_scale,
                  const std::string& pooling_method) {
     // Feature maps input shape: {N, C, H, W}
-    const int batches = feature_maps_shape[0];
-    const int channels = feature_maps_shape[1];
-    const int height = feature_maps_shape[2];
-    const int width = feature_maps_shape[3];
+    const int batches = static_cast<int>(feature_maps_shape[0]);
+    const int channels = static_cast<int>(feature_maps_shape[1]);
+    const int height = static_cast<int>(feature_maps_shape[2]);
+    const int width = static_cast<int>(feature_maps_shape[3]);
 
     // Output shape: {NUM_ROIS, C, pooled_h, pooled_w}
-    const int pooled_h = output_shape[2];
-    const int pooled_w = output_shape[3];
+    const int pooled_h = static_cast<int>(output_shape[2]);
+    const int pooled_w = static_cast<int>(output_shape[3]);
 
     // ROIs shape: {NUM_ROIS, 5}
-    const int num_rois = rois_shape[0];
+    const size_t num_rois = rois_shape[0];
 
-    for (int roi_num = 0; roi_num < num_rois; roi_num++) {
+    for (size_t roi_num = 0; roi_num < num_rois; roi_num++) {
         // ROI tuple: [roi_batch_id, roi_w_start, roi_h_start, roi_w_end, roi_h_end]
         // ROI index
-        int roi_idx = rois_shape[1] * roi_num;
+        size_t roi_idx = rois_shape[1] * roi_num;
 
         // ROI batch id
-        int roi_batch_id = rois[roi_idx + 0];
+        int roi_batch_id = static_cast<int>(rois[roi_idx + 0]);
 
         // ROI batch id must be in the range of [0, N-1]
         NGRAPH_CHECK(0 <= roi_batch_id && roi_batch_id < batches, "ROI batch id must be in the range of [0, N-1]");
 
         if (pooling_method == "max") {
             // ROI coordinates scaled to input feature maps
-            int roi_w_start = std::round(rois[roi_idx + 1] * spatial_scale);
-            int roi_h_start = std::round(rois[roi_idx + 2] * spatial_scale);
-            int roi_w_end = std::round(rois[roi_idx + 3] * spatial_scale);
-            int roi_h_end = std::round(rois[roi_idx + 4] * spatial_scale);
+            int roi_w_start = static_cast<int>(std::round(rois[roi_idx + 1] * spatial_scale));
+            int roi_h_start = static_cast<int>(std::round(rois[roi_idx + 2] * spatial_scale));
+            int roi_w_end = static_cast<int>(std::round(rois[roi_idx + 3] * spatial_scale));
+            int roi_h_end = static_cast<int>(std::round(rois[roi_idx + 4] * spatial_scale));
 
             // Force malformed ROIs to be 1x1
             int roi_height = std::max(roi_h_end - roi_h_start + 1, 1);
@@ -123,13 +123,13 @@ void roi_pooling(const T* feature_maps,
                             in_y = ((ph == pooled_h - 1) ? (height - 1) * roi_h_end
                                                          : (ph * roi_height_scale + roi_h_start * (height - 1)));
                         } else {
-                            in_y = 0.5 * (roi_h_start + roi_h_end) * (height - 1);
+                            in_y = static_cast<T>(0.5 * (roi_h_start + roi_h_end) * (height - 1));
                         }
                         if (pooled_w > 1) {
                             in_x = ((pw == pooled_w - 1) ? (width - 1) * roi_w_end
                                                          : (pw * roi_width_scale + roi_w_start * (width - 1)));
                         } else {
-                            in_x = 0.5 * (roi_w_end + roi_w_start) * (width - 1);
+                            in_x = static_cast<T>(0.5 * (roi_w_end + roi_w_start) * (width - 1));
                         }
 
                         const size_t pool_index =

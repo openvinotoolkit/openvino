@@ -9,31 +9,28 @@
 
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 namespace {
 
 void CreateRandomUniformOp(Program &p, const std::shared_ptr<ngraph::op::v8::RandomUniform> &op) {
-    auto input_primitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     auto output_shape = op->get_output_shape(0);
-    cldnn::format outputFormat = DefaultFormatForDims(output_shape.size());
+    cldnn::format outputFormat = cldnn::format::get_default_format(output_shape.size());
 
     auto random_uniform_prim = cldnn::random_uniform(layer_type_name_ID(op),
-                                                     input_primitives,
-                                                     DataTypeFromPrecision(op->get_out_type()),
+                                                     inputs,
+                                                     cldnn::element_type_to_data_type(op->get_out_type()),
                                                      op->get_global_seed(),
                                                      op->get_op_seed(),
                                                      tensor_from_dims(output_shape),
                                                      outputFormat);
-    p.AddPrimitive(random_uniform_prim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, random_uniform_prim);
 }
 
 } // namespace
 
 REGISTER_FACTORY_IMPL(v8, RandomUniform);
 
-} // namespace intel_gpu
-} // namespace runtime
-} // namespace ov
+}  // namespace intel_gpu
+}  // namespace ov

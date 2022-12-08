@@ -14,8 +14,10 @@
 #include "ngraph/op/convert.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/shape.hpp"
+#include "onnx_import/core/null_node.hpp"
 #include "op/pad.hpp"
 #include "utils/convpool.hpp"
+#include "utils/reshape.hpp"
 
 namespace {
 ngraph::op::PadMode get_pad_mode(std::string mode) {
@@ -64,14 +66,15 @@ OutputVector pad(const Node& node) {
 }  // namespace set_1
 namespace set_11 {
 OutputVector pad(const Node& node) {
-    auto data = node.get_ng_inputs().at(0);
-    auto pads = node.get_ng_inputs().at(1);
+    const auto inputs = node.get_ng_inputs();
+    const auto& data = inputs[0];
+    const auto& pads = inputs[1];
     Output<ngraph::Node> values;
     Output<ngraph::Node> padding_begin;
     Output<ngraph::Node> padding_end;
 
-    if (node.get_ng_inputs().size() == 3) {
-        values = node.get_ng_inputs().at(2);
+    if (inputs.size() == 3 && !ngraph::op::is_null(inputs[2])) {
+        values = reshape::interpret_as_scalar(inputs[2]);
     } else {
         values = default_opset::Constant::create(data.get_element_type(), ngraph::Shape{}, {0});
     }

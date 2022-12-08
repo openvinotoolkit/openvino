@@ -6,11 +6,15 @@
 #include "program_helpers.h"
 #include "primitive_inst.h"
 #include "loop_inst.h"
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#include "strided_slice_inst.h"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#ifdef ENABLE_ONEDNN_FOR_GPU
 #include "convolution_inst.h"
+#include "deconvolution_inst.h"
 #include "quantize_inst.h"
 #include "reorder_inst.h"
+#include "pooling_inst.h"
+#include "reduce_inst.h"
 #include <impls/onednn/utils.hpp>
 #endif // ENABLE_ONEDNN_FOR_GPU
 
@@ -27,43 +31,50 @@ using namespace cldnn;
 thread_local size_t program_node::cur_id = 0;
 
 program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
-    : desc(prim), myprog(prog), org_id(prim ? (prim->id) : 0) {
-    if (prim)
-        output_layout.data_padding = prim->output_padding;
+    : desc(prim), myprog(prog), preferred_input_fmts({}), preferred_output_fmts({}), org_id(prim ? (prim->id) : 0) {
+    if (prim) {
+        num_outputs = prim->num_outputs;
+        for (size_t i = 0 ; i < num_outputs; ++i) {
+            layout output_layout = layout{ov::PartialShape{}, data_types::f32, format::bfyx};
+            output_layout.data_padding = prim->output_paddings[i];
+            output_layouts.push_back(output_layout);
+            valid_output_layouts.push_back(false);
+        }
+    }
 }
 
 void program_node::replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling) {
     if (idx >= dependencies.size())
         return;
-    if (dependencies[idx] == &new_dep)
+    if (dependencies[idx].first == &new_dep)
         return;
 
     if (is_type<loop>()) {
         loop_node& loop = *this;
-        loop.update_primitive_map(dependencies[idx]->id(), new_dep.id(), true);
+        loop.update_primitive_map(dependencies[idx].first->id(), new_dep.id(), true);
     }
 
-    auto it = std::find(dependencies[idx]->users.begin(), dependencies[idx]->users.end(), this);
-    if (it != dependencies[idx]->users.end()) {
-        dependencies[idx]->users.erase(it);
+    auto it = std::find(dependencies[idx].first->users.begin(), dependencies[idx].first->users.end(), this);
+    if (it != dependencies[idx].first->users.end()) {
+        dependencies[idx].first->users.erase(it);
     }
 
     if (remove_if_dangling)
-        myprog.remove_if_dangling(*dependencies[idx]);
+        myprog.remove_if_dangling(*dependencies[idx].first);
 
-    dependencies[idx] = &new_dep;
+    dependencies[idx].first = &new_dep;
     new_dep.users.push_back(this);
 }
 
 void program_node::replace_dependency(program_node const& old_dep, program_node& new_dep, bool remove_if_dangling) {
     for (size_t i = 0; i < dependencies.size(); ++i)
-        if (dependencies[i] == &old_dep)
+        if (dependencies[i].first == &old_dep)
             return replace_dependency(i, new_dep, remove_if_dangling);
 }
 
 std::vector<primitive_id> program_node::get_dependencies_ids() const {
     std::vector<primitive_id> dep_ids;
-    for (auto& dependency : dependencies) dep_ids.push_back(dependency->get_primitive()->id);
+    for (auto& dependency : dependencies) dep_ids.push_back(dependency.first->get_primitive()->id);
     return dep_ids;
 }
 
@@ -71,8 +82,8 @@ void program_node::remove_dependency(size_t idx) {
     if (idx >= dependencies.size())
         return;
 
-    dependencies[idx]->users.remove(this);
-    myprog.remove_if_dangling(*dependencies[idx]);
+    dependencies[idx].first->users.remove(this);
+    myprog.remove_if_dangling(*dependencies[idx].first);
     dependencies.erase(dependencies.begin() + idx);
 }
 
@@ -89,22 +100,12 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
     node_info->add("ptr", "node_" + std::to_string(reinterpret_cast<uintptr_t>(this)));
     node_info->add("id", id());
     node_info->add("type", desc->type_string());
-    node_info->add("valid output layout", bool_to_str(valid_output_layout));
+    node_info->add("valid output layout", bool_to_str(valid_output_layouts[0]));
     std::stringstream s;
     s << get_preferred_impl_type();
     node_info->add("preferred impl", s.str());
 
-    json_composite output_layout_info;
-    output_layout_info.add("data type", dt_to_str(output_layout.data_type));
-    output_layout_info.add("format", fmt_to_str(output_layout.format));
-    output_layout_info.add("size", output_layout.size.to_string());
-
-    json_composite padding_info;
-    padding_info.add("lower size", output_layout.data_padding.lower_size().to_string());
-    padding_info.add("upper size", output_layout.data_padding.upper_size().to_string());
-    output_layout_info.add("padding info", padding_info);
-
-    node_info->add("output layout", output_layout_info);
+    node_info->add("output layout", output_layouts[0].to_short_string());
 
     node_info->add("constant", bool_to_str(constant));
     node_info->add("in data flow", bool_to_str(data_flow));
@@ -115,7 +116,7 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
     size_t index = 0;
     for (auto& fused_desc : get_fused_primitives()) {
         json_composite fused_node_info;
-        fused_node_info.add("id", fused_desc.node->id());
+        fused_node_info.add("id", fused_desc.desc->id);
         std::vector<primitive_id> dep_ids;
         for (auto dep : fused_desc.deps) {
             dep_ids.push_back(dep.first);
@@ -124,8 +125,8 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
         fused_node_info.add("dep start_idx", fused_desc.dep_start_idx);
         json_composite info;
         info.add("data type", dt_to_str(fused_desc.output_layout.data_type));
-        info.add("format", fmt_to_str(output_layout.format));
-        info.add("size", output_layout.size.to_string());
+        info.add("format", fmt_to_str(output_layouts[0].format));
+        info.add("size", output_layouts[0].to_short_string());
         fused_node_info.add("output layout", info);
         fused_nodes_info.add("fused primitive idx " + std::to_string(index++), fused_node_info);
     }
@@ -169,7 +170,8 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
             if (empty) {
                 empty = false;
             }
-            deps_ptrs.push_back(std::to_string(reinterpret_cast<uintptr_t>(*itr++)));
+            deps_ptrs.push_back(std::to_string(reinterpret_cast<uintptr_t>(itr->first)));
+            itr++;
         }
         if (deps_ptrs.empty()) {
             deps_ptrs.push_back("null");
@@ -211,8 +213,28 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
 
 void program_node::remove_dependency(program_node& node) {
     for (size_t i = 0; i < dependencies.size(); ++i)
-        if (dependencies[i] == &node)
+        if (dependencies[i].first == &node)
             remove_dependency(i);
+}
+
+size_t program_node::get_user_index(program_node& node) const {
+    size_t idx = 0;
+    for (auto& user : users) {
+        if (user == &node)
+            return idx;
+        else
+            idx++;
+    }
+
+    OPENVINO_ASSERT(false, "Search invalid user node" + node.id() + " node");
+}
+
+size_t program_node::get_dependency_index(program_node& node) const {
+    for (size_t i = 0; i < dependencies.size(); ++i)
+        if (dependencies[i].first == &node)
+            return i;
+
+    OPENVINO_ASSERT(false, "Search invalid dependency node" + node.id() + " node");
 }
 
 bool program_node::is_detached(bool whole_branch) {
@@ -224,40 +246,99 @@ bool program_node::is_detached(bool whole_branch) {
 }
 
 layout program_node::calc_output_layout() const {
-    return type()->calc_output_layout(*this);
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    bool allow_new_shape_infer =
+        get_program().get_options().get<build_option_type::allow_new_shape_infer>()->enabled();
+    if (allow_new_shape_infer) {
+        auto out_layouts = type()->calc_output_layouts(*this, *get_kernel_impl_params());
+        if (!out_layouts.empty()) {
+            GPU_DEBUG_IF(debug_config->verbose >= 4) {
+                GPU_DEBUG_COUT << id() << ": calc_output_layout(new):" << out_layouts[0] << std::endl;
+            }
+            return out_layouts[0];
+        }
+    }
+
+    auto res = type()->calc_output_layout(*this, *get_kernel_impl_params());
+    GPU_DEBUG_IF(debug_config->verbose >= 4) {
+        GPU_DEBUG_COUT << id() << ": calc_output_layout:" << res << std::endl;
+    }
+
+    return res;
 }
 
-layout program_node::get_output_layout(bool invalidate_users_if_changed) {
-    if (valid_output_layout)
-        return output_layout;
+std::vector<layout> program_node::calc_output_layouts() const {
+    bool allow_new_shape_infer =
+        get_program().get_options().get<build_option_type::allow_new_shape_infer>()->enabled();
+    if (allow_new_shape_infer) {
+        auto out_layouts = type()->calc_output_layouts(*this, *get_kernel_impl_params());
+        if (!out_layouts.empty())
+            return out_layouts;
+    }
+
+    return {type()->calc_output_layout(*this, *get_kernel_impl_params())};
+}
+
+layout program_node::get_output_layout(bool invalidate_users_if_changed, size_t idx) {
+    if (valid_output_layouts[idx])
+        return output_layouts[idx];
 
     auto new_layout = calc_output_layout();
-    set_output_layout(new_layout, invalidate_users_if_changed);
-    return output_layout;
+    set_output_layout(new_layout, invalidate_users_if_changed, idx);
+    return output_layouts[idx];
 }
 
-layout program_node::get_output_layout() const {
-    if (!valid_output_layout)
+layout program_node::get_output_layout(size_t idx) const {
+    if (!valid_output_layouts[idx])
         throw std::runtime_error("Output layout not calculated for " + id() + " node");
 
-    return output_layout;
+    return output_layouts[idx];
 }
 
-layout program_node::get_non_padded_output_layout(bool invalidate_users_if_changed) {
-    auto out_layout = get_output_layout(invalidate_users_if_changed);
-    auto result = layout({out_layout.data_type, out_layout.format, out_layout.size});
+std::vector<layout> program_node::get_output_layouts(bool invalidate_users_if_changed) {
+    if (is_all_valid_output_layouts())
+        return output_layouts;
+
+    auto new_layouts = calc_output_layouts();
+    set_output_layouts(new_layouts, invalidate_users_if_changed);
+    return output_layouts;
+}
+
+std::vector<layout> program_node::get_output_layouts() const {
+    if (!is_all_valid_output_layouts()) {
+        throw std::runtime_error("Output layouts not calculated for " + id() + " node");
+    }
+
+    return output_layouts;
+}
+
+layout program_node::get_non_padded_output_layout(bool invalidate_users_if_changed, size_t idx) {
+    auto out_layout = get_output_layout(invalidate_users_if_changed, idx);
+    auto result = layout({out_layout.data_type, out_layout.format, out_layout.get_tensor()});
     return result;
 }
 
-bool program_node::set_output_layout(layout& new_layout, bool invalidate_users_if_changed) {
-    merge_output_padding(new_layout.data_padding);
-    new_layout.data_padding = output_layout.data_padding;
-    bool changed = (new_layout != output_layout);
+bool program_node::set_output_layout(layout& new_layout, bool invalidate_users_if_changed, size_t idx) {
+    merge_output_padding(new_layout.data_padding, idx);
+    new_layout.data_padding = output_layouts[idx].data_padding;
+    bool changed = (new_layout != output_layouts[idx]);
     if (changed && invalidate_users_if_changed)  // output_layout has changed! invalidate users
         invalidate_users();
 
-    output_layout = new_layout;
-    valid_output_layout = true;
+    output_layouts[idx] = new_layout;
+    valid_output_layouts[idx] = true;
+    return changed;
+}
+
+bool program_node::set_output_layouts(std::vector<layout>& new_layouts, bool invalidate_users_if_changed) {
+    bool changed = false;
+    for (size_t i = 0; i < new_layouts.size(); ++i) {
+        auto new_layout = new_layouts[i];
+        changed |= set_output_layout(new_layout, invalidate_users_if_changed, i);
+    }
+    for (auto v : valid_output_layouts) {
+        v = true;
+    }
     return changed;
 }
 
@@ -266,23 +347,102 @@ bool program_node::recalc_output_layout(bool invalidate_users_if_changed) {
     return set_output_layout(new_layout, invalidate_users_if_changed);
 }
 
+bool program_node::recalc_output_layouts(bool invalidate_users_if_changed) {
+    auto new_layouts = calc_output_layouts();
+    return set_output_layouts(new_layouts, invalidate_users_if_changed);
+}
+
+bool program_node::is_dynamic() const {
+    // Strided slice loads data from {1,2,3} dependencies in impl::create method.
+    // It means that this data must be put into impl_params map
+    // Thus we treat it as "dynamic" case
+    // TODO: Remove once strided slice impl support runtime tensors for begin/end/stride
+    if (is_type<strided_slice>()) {
+        for (size_t i = 1; i < get_dependencies().size(); i++) {
+            if (!get_dependency(i).is_type<data>())
+                return true;
+        }
+    }
+    for (const auto& input : get_dependencies()) {
+        if (input.first->is_dynamic_output_layout())
+            return true;
+    }
+
+    for (size_t i = 0; i < output_layouts.size(); ++i) {
+        if (output_layouts[i].is_dynamic())
+            return true;
+    }
+    return false;
+}
+
+bool program_node::is_dynamic() {
+    // Strided slice loads data from {1,2,3} dependencies in impl::create method.
+    // It means that this data must be put into impl_params map
+    // Thus we treat it as "dynamic" case
+    // TODO: Remove once strided slice impl support runtime tensors for begin/end/stride
+    if (is_type<strided_slice>()) {
+        for (size_t i = 1; i < get_dependencies().size(); i++) {
+            if (!get_dependency(i).is_type<data>())
+                return true;
+        }
+    }
+
+    for (auto& input : get_dependencies()) {
+        if (input.first->is_dynamic_output_layout())
+            return true;
+    }
+
+    for (size_t i = 0; i < output_layouts.size(); ++i) {
+        if (output_layouts[i].is_dynamic())
+            return true;
+    }
+    return false;
+}
+
+bool program_node::is_dynamic_output_layout(size_t idx) const {
+    return (output_layouts[idx].is_dynamic()) ||  (output_layouts[idx].get_partial_shape().size() == 0);
+}
+
+bool program_node::is_dynamic_output_layout(size_t idx) {
+    return (output_layouts[idx].is_dynamic()) ||  (output_layouts[idx].get_partial_shape().size() == 0);
+}
+
 bool program_node::has_padded_dependency() {
-    return std::any_of(get_dependencies().begin(), get_dependencies().end(), [](program_node* node) {
-        return node->is_padded();
+    return std::any_of(get_dependencies().begin(), get_dependencies().end(), [](const std::pair<program_node*, int32_t>& dep) {
+        return dep.first->is_padded();
     });
 }
 
 bool program_node::has_padded_dependency() const {
-    return std::any_of(get_dependencies().begin(), get_dependencies().end(), [](const program_node* node) {
-        return node->is_padded();
+    return std::any_of(get_dependencies().begin(), get_dependencies().end(), [](const std::pair<program_node*, int32_t>& dep) {
+        return dep.first->is_padded();
     });
+}
+
+std::map<size_t, memory::ptr> program_node::get_const_memory_deps() const {
+    std::map<size_t, memory::ptr> mem_deps;
+    for (auto& i : get_shape_infer_dependencies()) {
+        // Some primitives may have flexible count of deps (e.g. reshape), thus allow skipping some deps
+        if (i >= get_dependencies().size())
+            continue;
+
+        auto& dep = get_dependency(i);
+        if (dep.is_type<data>()) {
+            mem_deps.insert({i, dep.as<data>().get_attached_memory_ptr()});
+        }
+    }
+    return mem_deps;
 }
 
 void program_node::invalidate_users() const {
     for (auto& user : users) {
-        if (user->valid_output_layout) {
-            user->valid_output_layout = false;
-            user->invalidate_users();
+        for (size_t i = 0; i < user->valid_output_layouts.size(); ++i) {
+            if (user->valid_output_layouts[i]) {
+                if (user->get_preferred_output_fmt() != format::any)
+                    continue;
+                user->valid_output_layouts[i] = false;
+                user->invalidate_users();
+            }
         }
     }
 }
@@ -295,7 +455,7 @@ bool program_node::is_padding_supported(int axis, int padding) const {
     if (!support_padding(axis))
         return false;
 
-    auto fmt = output_layout.format;
+    auto fmt = output_layouts[0].format;
 
     // WA for known cases of padding not supported in implementations
     if (fmt == format::b_fs_yx_fsv16) {
@@ -326,10 +486,30 @@ bool program_node::is_padding_supported(int axis, int padding) const {
 
 bool program_node::need_lockable_memory() const {
     bool need_lockable_mem = get_users().empty() || std::any_of(get_users().begin(), get_users().end(), [](const program_node* n) {
-        return n->get_selected_impl()->is_cpu();
+        auto impl = n->get_selected_impl();
+        return impl ? impl->is_cpu() : n->get_preferred_impl_type() == impl_types::cpu;
     });
 
     return need_lockable_mem;
+}
+
+void program_node::init_preferred_fmt(size_t dep_node, size_t user_node) {
+    preferred_input_fmts.resize(dep_node, format::any);
+    preferred_output_fmts.resize(user_node, format::any);
+}
+
+void program_node::set_preferred_input_fmt(size_t idx, format::type type) {
+    if (idx >= preferred_input_fmts.size())
+        preferred_input_fmts.resize(idx+1, format::any);
+
+    preferred_input_fmts.at(idx) = type;
+}
+
+void program_node::set_preferred_output_fmt(size_t idx, format::type type) {
+    if (idx >= preferred_output_fmts.size())
+        preferred_output_fmts.resize(idx+1, format::any);
+
+    preferred_output_fmts.at(idx) = type;
 }
 
     /* ----------------------------------------- */
@@ -489,8 +669,8 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
 
     auto& cur_post_ops = get_fused_primitives_onednn();
 
-    size_t cur_post_op_idx = 1;
-    size_t prev_post_op_idx = 0;
+    int64_t cur_post_op_idx = 1;
+    int64_t prev_post_op_idx = 0;
     bool optimization_done = false;
 
     GPU_DEBUG_IF(debug_config->verbose >= 3) {
@@ -511,7 +691,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
     }
 
     // Get post-ops size for current node
-    auto post_ops_size = cur_post_ops.size();
+    int64_t post_ops_size = cur_post_ops.size();
 
     auto get_optimized_eltwise_type = [](onednn_post_op_type type) {
         switch (type) {
@@ -554,8 +734,8 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
         auto cur_idx = static_cast<int>(has_out_scales(attr) ? (cur_post_op_idx >= 1 ? cur_post_op_idx - 1 : 0) : cur_post_op_idx);
         auto prev_idx = static_cast<int>(has_out_scales(attr) ? (prev_post_op_idx >= 1 ? prev_post_op_idx - 1 : 0) : prev_post_op_idx);
 
-        // if 2 indices are same, add the last post-op to dnnl::post_ops
-        if (prev_idx == post_ops_size - 1 && prev_idx == cur_idx && !type_is_any_optimized(prev_type)) {
+        // If prev_idx and cur_idx are same, add the last post-op to dnnl::post_ops
+        if (prev_post_op_idx == post_ops_size - 1 && prev_idx == cur_idx && !type_is_any_optimized(prev_type)) {
             add_post_op(prev_type, p_ops, optimized_p_ops, prev_idx);
             break;
         }
@@ -726,8 +906,8 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
 
                 dnnl::algorithm next_alg;
                 float next_scale, next_alpha, next_beta;
-                size_t next_idx = cur_idx + 1;
-                size_t next_post_op_idx = cur_post_op_idx + 1;
+                int64_t next_idx = cur_idx + 1;
+                int64_t next_post_op_idx = cur_post_op_idx + 1;
 
                 bool can_optimize_eltw_and_sum = false;
 
@@ -868,14 +1048,13 @@ void program_node::init_onednn_primitive_attributes() {
 
     int32_t num_sum_post_ops = 0;
     for (size_t idx = 0; idx < cldnn_post_ops.size(); idx++) {
-        auto node = cldnn_post_ops[idx].node;
-
-        if (node->is_type<activation>()) {
-            auto fused_desc = node->as<activation>().get_primitive();;
+        auto& desc = cldnn_post_ops[idx];
+        if (desc.is_type<activation>()) {
+            auto fused_desc = desc.typed_desc<activation>();;
             if (fused_desc->activation_function == cldnn::activation_func::relu_negative_slope
                 && !fused_desc->additional_params_input.empty()) {
                 auto dep_idx = cldnn_post_ops[idx].dep_start_idx;
-                int oc_dim = node->get_output_layout().size.feature.size();
+                int oc_dim = desc.output_layout.get_tensor().feature.size();
                 post_ops.append_prelu(1 << oc_dim);
                 update_onednn_post_op_list(onednn_post_op_type::binary_relu, dep_idx);
             } else if (fused_desc->activation_function == cldnn::activation_func::hard_sigmoid) {
@@ -887,15 +1066,19 @@ void program_node::init_onednn_primitive_attributes() {
                 update_onednn_post_op_list(onednn_post_op_type::eltwise_clip, empty_mem);
             } else {
                 dnnl::algorithm alg = onednn::convert_activation_func(fused_desc->activation_function);
-                post_ops.append_eltwise(1.0f, alg, fused_desc->additional_params.a, fused_desc->additional_params.b);
+                // Usage of alpha and beta between cldnn::pow and dnnl::eltwise::pow is different : d = pow(src, a) / d = a * pow(src, b)
+                if (alg == dnnl::algorithm::eltwise_pow)
+                    post_ops.append_eltwise(1.0f, alg, 1.0f, fused_desc->additional_params.a);
+                else
+                    post_ops.append_eltwise(1.0f, alg, fused_desc->additional_params.a, fused_desc->additional_params.b);
+
                 update_onednn_post_op_list(onednn_post_op_type::eltwise_act, empty_mem);
             }
-        } else if (node->is_type<eltwise>()) {
-            auto& e_node = node->as<eltwise>();
-            auto dep_idx = cldnn_post_ops[idx].dep_start_idx;
+        } else if (desc.is_type<eltwise>()) {
+            auto dep_idx = desc.dep_start_idx;
             auto in = get_dependency(dep_idx).get_output_layout();
 
-            if (e_node.get_primitive()->mode == eltwise_mode::sum) {
+            if (desc.typed_desc<eltwise>()->mode == eltwise_mode::sum) {
                 auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(*this, cldnn_post_ops[idx]);
                 if (fusing_type == add_fusing_type::sum && num_sum_post_ops == 0) {
                     if (is_type<convolution>()) {
@@ -911,32 +1094,39 @@ void program_node::init_onednn_primitive_attributes() {
                     update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx);
                 }
             } else {
-                if (in.size.spatial[0] > 1 || in.size.spatial[1] > 1 || in.size.batch[0] > 1)
-                    throw std::runtime_error("Unsupported eltwise mode for fused onednn op");
-                if (idx == 0 && !has_out_scales(attrs)) {
-                    int mask = in.count() > 1 ? 2 : 0;
-                    attrs->set_output_scales(mask, {DNNL_RUNTIME_F32_VAL});
-                    update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx);
-                } else {
+                auto input_datatype = get_dependency(0).get_output_layout().data_type;
+                // convolution using post-op output scales can only be used when i8/u8 input (which use integer accumulator)
+                bool cant_use_output_scales =
+                    idx != 0 ||
+                    has_out_scales(attrs) ||
+                    is_type<pooling>() ||
+                    is_type<reduce>() ||
+                    (is_type<convolution>() && data_type_traits::is_floating_point(input_datatype)) ||
+                    (is_type<deconvolution>() && data_type_traits::is_floating_point(input_datatype));
+                if (cant_use_output_scales) {
                     dnnl::memory::desc in_desc = onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::ab, true);
                     post_ops.append_binary(dnnl::algorithm::binary_mul, in_desc);
                     update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx);
+                } else {
+                    int mask = in.count() > 1 ? 2 : 0;
+                    attrs->set_output_scales(mask, {DNNL_RUNTIME_F32_VAL});
+                    update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx);
                 }
             }
-        } else if (node->is_type<quantize>()) {
-            auto& q_node = node->as<quantize>();
-            auto dep_idx = cldnn_post_ops[idx].dep_start_idx;
+        } else if (desc.is_type<quantize>()) {
+            auto dep_idx = desc.dep_start_idx;
 
             // ********************************* Common case with output range usage ********************************* //
-            if (q_node.get_per_tensor_output_range() && q_node.get_output_lo_val() < q_node.get_output_hi_val()) {
+            const auto& q_param = desc.get_typed_fuse_params<kernel_selector::quantize_fuse_params>();
+            if (q_param->per_tensor_output_range && q_param->out_lo < q_param->out_hi) {
                 // 1. pre-scale & pre-shift
                 {
-                    if (q_node.get_per_tensor_input_scale() && q_node.get_per_tensor_input_shift()) {
-                        post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, q_node.get_input_scale_val(), q_node.get_input_shift_val());
+                    if (q_param->per_tensor_input_scale && q_param->per_tensor_input_shift) {
+                        post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, q_param->in_scale, q_param->in_shift);
                         update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                     } else {
-                        if (q_node.get_per_tensor_input_scale()) {
-                            post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, q_node.get_input_scale_val(), 0.0f);
+                        if (q_param->per_tensor_input_scale) {
+                            post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, q_param->in_scale, 0.0f);
                             update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                         } else {
                             auto in_scale = get_dependency(dep_idx++).get_output_layout();
@@ -953,9 +1143,9 @@ void program_node::init_onednn_primitive_attributes() {
                             }
                         }
 
-                        if (q_node.get_need_pre_shift()) {
-                            if (q_node.get_per_tensor_input_shift()) {
-                                post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 1.0f, q_node.get_input_shift_val());
+                        if (q_param->has_pre_shift) {
+                            if (q_param->per_tensor_input_shift) {
+                                post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 1.0f, q_param->in_shift);
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
                                 auto in_shift = get_dependency(dep_idx++).get_output_layout();
@@ -968,7 +1158,7 @@ void program_node::init_onednn_primitive_attributes() {
                 }
 
                 // 2. round
-                auto out_dt = cldnn_post_ops[idx].output_layout.data_type;
+                auto out_dt = desc.output_layout.data_type;
                 {
                     bool output_type_is_int8 = out_dt == data_types::u8 || out_dt == data_types::i8;
                     if (!output_type_is_int8) {
@@ -979,14 +1169,14 @@ void program_node::init_onednn_primitive_attributes() {
 
                 // 3. post-scale & post-shift
                 {
-                    if (q_node.get_need_post_scale() && q_node.get_need_post_shift() &&
-                        q_node.get_per_tensor_output_scale() && q_node.get_per_tensor_output_shift()) {
-                        post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, q_node.get_output_scale_val(), q_node.get_output_shift_val());
+                    if (q_param->has_post_scale && q_param->has_post_shift &&
+                        q_param->per_tensor_output_scale && q_param->per_tensor_output_shift) {
+                        post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, q_param->out_scale, q_param->out_shift);
                         update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                     } else {
-                        if (q_node.get_need_post_scale()) {
-                            if (q_node.get_per_tensor_output_scale()) {
-                                post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, q_node.get_output_scale_val(), 0.0f);
+                        if (q_param->has_post_scale) {
+                            if (q_param->per_tensor_output_scale) {
+                                post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, q_param->out_scale, 0.0f);
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
                                 auto out_scale = get_dependency(dep_idx++).get_output_layout();
@@ -996,9 +1186,9 @@ void program_node::init_onednn_primitive_attributes() {
                             }
                         }
 
-                        if (q_node.get_need_post_shift()) {
-                            if (q_node.get_per_tensor_output_shift()) {
-                                post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 1.0f, q_node.get_output_shift_val());
+                        if (q_param->has_post_shift) {
+                            if (q_param->per_tensor_output_shift) {
+                                post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 1.0f, q_param->out_shift);
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
                                 auto out_shift = get_dependency(dep_idx++).get_output_layout();
@@ -1012,9 +1202,9 @@ void program_node::init_onednn_primitive_attributes() {
 
                 // 4. clamp
                 {
-                    if (q_node.get_need_clamp()) {
-                        float out_lo = q_node.get_need_min_clamp() ? q_node.get_output_lo_val() : data_type_traits::min<float>(out_dt);
-                        float out_hi = q_node.get_need_max_clamp() ? q_node.get_output_hi_val() : data_type_traits::max<float>(out_dt);
+                    if (q_param->has_clamp) {
+                        float out_lo = q_param->has_min_clamp ? q_param->out_lo : data_type_traits::min<float>(out_dt);
+                        float out_hi = q_param->has_max_clamp ? q_param->out_hi : data_type_traits::max<float>(out_dt);
                         post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_clip, out_lo, out_hi);
                         update_onednn_post_op_list(onednn_post_op_type::eltwise_clip, empty_mem);
                     }
@@ -1023,7 +1213,7 @@ void program_node::init_onednn_primitive_attributes() {
             } else {
                 // 1. clamp
                 {
-                    if (q_node.get_need_clamp()) {
+                    if (q_param->has_clamp) {
                         auto in_lo = get_dependency(dep_idx++).get_output_layout();
                         auto in_hi = get_dependency(dep_idx++).get_output_layout();
                         dnnl::algorithm clamp_max = dnnl::algorithm::binary_max;
@@ -1040,16 +1230,16 @@ void program_node::init_onednn_primitive_attributes() {
 
                 // 2. pre-scale & pre-shift
                 {
-                    if (q_node.get_per_tensor_input_scale() && q_node.get_per_tensor_input_shift()) {
-                        post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, q_node.get_input_scale_val(), q_node.get_input_shift_val());
+                    if (q_param->per_tensor_input_scale && q_param->per_tensor_input_shift) {
+                        post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, q_param->in_scale, q_param->in_shift);
                         update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                     } else {
-                        if (q_node.get_per_tensor_input_scale()) {
-                            post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, q_node.get_input_scale_val(), 0.0f);
+                        if (q_param->per_tensor_input_scale) {
+                            post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, q_param->in_scale, 0.0f);
                             update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                         } else {
                             auto in_scale = get_dependency(dep_idx++).get_output_layout();
-                            if (idx == 0 && !q_node.get_need_clamp() && !has_out_scales(attrs) && in_scale.data_type == data_types::f32 &&
+                            if (idx == 0 && !q_param->has_clamp && !has_out_scales(attrs) && in_scale.data_type == data_types::f32 &&
                                 is_type<convolution>() &&
                                 !data_type_traits::is_floating_point(get_dependency(0).get_output_layout().data_type)) {
                                 int mask = in_scale.count() > 1 ? 2 : 0;
@@ -1062,9 +1252,9 @@ void program_node::init_onednn_primitive_attributes() {
                             }
                         }
 
-                        if (q_node.get_need_pre_shift()) {
-                            if (q_node.get_per_tensor_input_shift()) {
-                                post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 1.0f, q_node.get_input_shift_val());
+                        if (q_param->has_pre_shift) {
+                            if (q_param->per_tensor_input_shift) {
+                                post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 1.0f, q_param->in_shift);
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
                                 auto in_shift = get_dependency(dep_idx++).get_output_layout();
@@ -1084,14 +1274,14 @@ void program_node::init_onednn_primitive_attributes() {
 
                 // 4. post-scale & post-shift
                 {
-                    if (q_node.get_need_post_scale() && q_node.get_need_post_shift() &&
-                        q_node.get_per_tensor_output_scale() && q_node.get_per_tensor_output_shift()) {
-                        post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, q_node.get_output_scale_val(), q_node.get_output_shift_val());
+                    if (q_param->has_post_scale && q_param->has_post_shift &&
+                        q_param->per_tensor_output_scale && q_param->per_tensor_output_shift) {
+                        post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, q_param->out_scale, q_param->out_shift);
                         update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                     } else {
-                        if (q_node.get_need_post_scale()) {
-                            if (q_node.get_per_tensor_output_scale()) {
-                                post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, q_node.get_output_scale_val(), 0.0f);
+                        if (q_param->has_post_scale) {
+                            if (q_param->per_tensor_output_scale) {
+                                post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, q_param->out_scale, 0.0f);
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
                                 auto out_scale = get_dependency(dep_idx++).get_output_layout();
@@ -1101,9 +1291,9 @@ void program_node::init_onednn_primitive_attributes() {
                             }
                         }
 
-                        if (q_node.get_need_post_shift()) {
-                            if (q_node.get_per_tensor_output_shift()) {
-                                post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 1.0f, q_node.get_output_shift_val());
+                        if (q_param->has_post_shift) {
+                            if (q_param->per_tensor_output_shift) {
+                                post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 1.0f, q_param->out_shift);
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
                                 auto out_shift = get_dependency(dep_idx++).get_output_layout();
@@ -1115,10 +1305,10 @@ void program_node::init_onednn_primitive_attributes() {
                     }
                 }
             }
-        } else if (node->is_type<reorder>()) {
+        } else if (desc.is_type<reorder>()) {
             continue;
         } else {
-            throw std::runtime_error("Unsupported fused op of " + node->get_primitive()->type_string() + " type for oneDNN primitive");
+            throw std::runtime_error("Unsupported fused op of " + desc.desc->type_string() + " type for oneDNN primitive");
         }
     }
 
@@ -1127,10 +1317,20 @@ void program_node::init_onednn_primitive_attributes() {
 
     for (size_t i = 0; i < get_fused_activations_funcs().size(); i++) {
         auto activation_type = get_fused_activations_funcs()[i];
-        auto params = get_fused_activations_params()[i];
-        dnnl::algorithm alg = onednn::convert_activation_func(activation_type);
-        post_ops.append_eltwise(1.0f, alg, params.a, params.b);
-        update_onednn_post_op_list(onednn_post_op_type::eltwise_act, empty_mem);
+        if (activation_type == cldnn::activation_func::hsigmoid) {
+            // Unsupported hsigmoid oneDNN gpu, splits hsigmoid activation min(max(val + 3, 0), 6) / 6
+            post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 1.f, 3.f);
+            post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_clip, 0.f, 6.f);
+            post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 1/6.f, 0.f);
+            update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
+            update_onednn_post_op_list(onednn_post_op_type::eltwise_clip, empty_mem);
+            update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
+        } else {
+            auto params = get_fused_activations_params()[i];
+            dnnl::algorithm alg = onednn::convert_activation_func(activation_type);
+            post_ops.append_eltwise(1.0f, alg, params.a, params.b);
+            update_onednn_post_op_list(onednn_post_op_type::eltwise_act, empty_mem);
+        }
     }
 
     // Trying to optimize more than 1 post-ops
@@ -1143,6 +1343,9 @@ void program_node::init_onednn_primitive_attributes() {
         // Trying to combine multiplications and additions which are placed one after another.
         // We do it in the cycle because some optimization cases can be simplified again from time to time
         do {
+            GPU_DEBUG_GET_INSTANCE(debug_config);
+            GPU_DEBUG_IF(debug_config->disable_onednn_opt_post_ops)
+                break;
             optimized_post_ops = try_optimize_post_ops(optimized_post_ops, attrs, optimization_is_finished);
         } while (!optimization_is_finished);
 
@@ -1155,5 +1358,6 @@ void program_node::init_onednn_primitive_attributes() {
 
     add_onednn_attrs(attrs);
 }
+
 
 #endif // ENABLE_ONEDNN_FOR_GPU

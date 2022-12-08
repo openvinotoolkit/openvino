@@ -9,22 +9,19 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id lrn::type_id() {
-    static primitive_type_base<lrn> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(lrn)
 
-layout lrn_inst::calc_output_layout(lrn_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+layout lrn_inst::calc_output_layout(lrn_node const& node, kernel_impl_params const& impl_param) {
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for lrn_node!");
-    auto input_layout = node.input().get_output_layout();
+    auto input_layout = impl_param.get_input_layout();
     auto output_type = input_layout.data_type;
 
-    if (node.has_fused_primitives()) {
-        output_type = node.get_fused_output_layout().data_type;
+    if (impl_param.has_fused_primitives()) {
+        output_type = impl_param.get_fused_output_layout().data_type;
     }
 
-    auto result = node.input().get_non_padded_output_layout();
+    auto result = impl_param.get_non_padded_input_layout();
     result.data_type = output_type;
 
     return result;
@@ -61,7 +58,7 @@ std::string lrn_inst::to_string(lrn_node const& node) {
 lrn_inst::typed_primitive_inst(network& network, lrn_node const& desc) : parent(network, desc) {
     CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc.id(),
                                    "LRN argument size",
-                                   argument.size,
+                                   argument->size,
                                    "value",
                                    static_cast<uint32_t>(0),
                                    "LRN size must be greater than 0!");

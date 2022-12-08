@@ -10,14 +10,12 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/abs.hpp"
 
-BWDCMP_RTTI_DEFINITION(ov::op::v0::Abs);
-
 ov::op::v0::Abs::Abs(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }
 
 std::shared_ptr<ov::Node> ov::op::v0::Abs::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_Abs_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_Abs_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<Abs>(new_args.at(0));
 }
@@ -53,12 +51,12 @@ bool evaluate_abs(const ngraph::HostTensorPtr& arg0, const ngraph::HostTensorPtr
 }  // namespace absop
 
 bool ov::op::v0::Abs::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v0_Abs_evaluate);
+    OV_OP_SCOPE(v0_Abs_evaluate);
     return absop::evaluate_abs(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
 
 bool ov::op::v0::Abs::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v0_Abs_has_evaluate);
+    OV_OP_SCOPE(v0_Abs_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:

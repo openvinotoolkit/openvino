@@ -4,12 +4,7 @@
 
 set(TARGET_NAME "openvino_intel_gpu_kernels")
 
-find_package(PythonInterp 3 QUIET)
-if(NOT PYTHONINTERP_FOUND)
-  message(WARNING "[clDNN] Project requires Python 3.x interpreter to build (with python loader). CMake could not detect it correctly.
-      If you have installed this interpreter, please disregard this warning or specify PYTHON_EXECUTABLE in CMake command-line."
-    )
-endif()
+find_host_package(PythonInterp 3 REQUIRED)
 
 file(GLOB_RECURSE LIBRARY_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/*.h"
@@ -18,7 +13,7 @@ file(GLOB_RECURSE LIBRARY_SRC
   )
 
 file(GLOB_RECURSE KERNELS
-    "${CMAKE_CURRENT_SOURCE_DIR}/core/cl_kernels/*.cl"
+    "${CMAKE_CURRENT_SOURCE_DIR}/cl_kernels/*.cl"
   )
 
 # Path which points to root directory where code generated elements are created
@@ -36,7 +31,7 @@ set(PRIM_DB_BATCH_HEADERS "ks_primitive_db_batch_headers.inc")
 set(CODEGEN_CACHE_SOURCES "${CODEGEN_INCDIR}/${PRIM_DB}"
                           "${CODEGEN_INCDIR}/${PRIM_DB_BATCH_HEADERS}")
 
-set(CODEGEN_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/core/common/primitive_db_gen.py")
+set(CODEGEN_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/primitive_db_gen.py")
 # Helping with some generators.
 set_property(SOURCE ${CODEGEN_CACHE_SOURCES} PROPERTY GENERATED TRUE)
 
@@ -45,7 +40,7 @@ add_custom_command(OUTPUT "${CODEGEN_CACHE_DIR}/${PRIM_DB}"
   COMMAND "${PYTHON_EXECUTABLE}" "${CODEGEN_SCRIPT}" -out_path "${CODEGEN_CACHE_DIR}"
                                                      -out_file_name_prim_db "${PRIM_DB}"
                                                      -out_file_name_batch_headers "${PRIM_DB_BATCH_HEADERS}"
-                                                     -kernels "${CMAKE_CURRENT_SOURCE_DIR}/core/cl_kernels/"
+                                                     -kernels "${CMAKE_CURRENT_SOURCE_DIR}/cl_kernels/"
   DEPENDS ${KERNELS} "${CODEGEN_SCRIPT}"
   COMMENT "Generating ${CODEGEN_CACHE_DIR}/${PRIM_DB} ..."
 )
@@ -59,13 +54,13 @@ add_custom_command(OUTPUT "${CODEGEN_INCDIR}/${PRIM_DB}"
 
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${CODEGEN_CACHE_SOURCES})
 
+if(NOT BUILD_SHARED_LIBS)
+    target_compile_definitions(${TARGET_NAME} PUBLIC OPENVINO_STATIC_LIBRARY)
+endif()
+
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${INCLUDE_DIR}>
                                                  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-                                                 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/core/>
-                                                 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/core/common/>
-                                                 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/core/actual_kernels/>
-                                                 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/core/cache/>
-                                                 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/common/>
+                                                 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/kernels/>
                                                  $<BUILD_INTERFACE:${CODEGEN_INCDIR}>)
 
 target_compile_options(${TARGET_NAME} PRIVATE
@@ -77,24 +72,26 @@ endif()
 
 target_link_libraries(${TARGET_NAME} PUBLIC OpenCL rapidjson inference_engine_plugin_api)
 
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
 if(WIN32)
   target_link_libraries(${TARGET_NAME} PRIVATE setupapi)
-elseif((NOT ANDROID) AND (UNIX))
+elseif((NOT ANDROID) AND UNIX)
   target_link_libraries(${TARGET_NAME} PRIVATE pthread)
 endif()
 
 if(WIN32)
   set(TUNING_CACHE_PATH "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIGURATION>")
-else((NOT ANDROID) AND (UNIX))
+else()
   set(TUNING_CACHE_PATH "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/")
 endif()
 
 add_custom_command(
     TARGET ${TARGET_NAME} POST_BUILD
-    COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/core/cache/cache.json ${TUNING_CACHE_PATH}/cache.json)
+    COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/cache/cache.json ${TUNING_CACHE_PATH}/cache.json)
 
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/core/cache/cache.json
-        DESTINATION ${IE_CPACK_RUNTIME_PATH}
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cache/cache.json
+        DESTINATION ${OV_CPACK_PLUGINSDIR}
         COMPONENT gpu)
 
 ov_install_static_lib(${TARGET_NAME} gpu)
