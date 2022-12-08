@@ -364,16 +364,16 @@ inline void splitter(const T& n, const Q& team, const Q& tid, T& n_start, T& n_e
     n_end += n_start;
 }
 
-namespace details {
+namespace utils {
 template <typename T>
-struct num_of_lambda_args : public num_of_lambda_args<decltype(&T::operator())> {};
+struct NumOfLambdaArgs : public NumOfLambdaArgs<decltype(&T::operator())> {};
 
 template <typename C, typename R, typename... Args>
-struct num_of_lambda_args<R (C::*)(Args...) const> {
+struct NumOfLambdaArgs<R (C::*)(Args...) const> {
     constexpr static int value = sizeof...(Args);
 };
 
-template <typename ACT, typename... T, size_t N_ARGS = num_of_lambda_args<ACT>::value>
+template <typename ACT, typename... T, size_t N_ARGS = NumOfLambdaArgs<ACT>::value>
 typename std::enable_if<N_ARGS == sizeof...(T) + 2, void>::type call_with_args(const ACT& body,
                                                                                size_t g_id,
                                                                                size_t iwork,
@@ -381,7 +381,7 @@ typename std::enable_if<N_ARGS == sizeof...(T) + 2, void>::type call_with_args(c
     body(g_id, iwork, arg...);
 }
 
-template <typename ACT, typename... T, size_t N_ARGS = num_of_lambda_args<ACT>::value>
+template <typename ACT, typename... T, size_t N_ARGS = NumOfLambdaArgs<ACT>::value>
 typename std::enable_if<N_ARGS == sizeof...(T) + 1, void>::type call_with_args(const ACT& body,
                                                                                size_t g_id,
                                                                                size_t iwork,
@@ -389,21 +389,21 @@ typename std::enable_if<N_ARGS == sizeof...(T) + 1, void>::type call_with_args(c
     body(g_id, arg...);
 }
 
-template <typename ACT, typename... T, size_t N_ARGS = num_of_lambda_args<ACT>::value>
+template <typename ACT, typename... T, size_t N_ARGS = NumOfLambdaArgs<ACT>::value>
 typename std::enable_if<N_ARGS == sizeof...(T), void>::type call_with_args(const ACT& body,
                                                                            size_t g_id,
                                                                            size_t iwork,
                                                                            T... arg) {
     body(arg...);
 }
-}  // namespace details
+}  // namespace utils
 
 template <typename T0, typename F>
 void for_1d(const int& ithr, const int& nthr, const T0& D0, const F& func) {
     T0 d0{0}, end{0};
     splitter(D0, nthr, ithr, d0, end);
     for (; d0 < end; ++d0)
-        details::call_with_args(func, ithr, d0, d0);
+        utils::call_with_args(func, ithr, d0, d0);
 }
 
 template <typename T0, typename F>
@@ -449,7 +449,7 @@ void for_2d(const int& ithr, const int& nthr, const T0& D0, const T1& D1, const 
     T1 d1{0};
     parallel_it_init(start, d0, D0, d1, D1);
     for (size_t iwork = start; iwork < end; ++iwork) {
-        details::call_with_args(func, ithr, iwork, d0, d1);
+        utils::call_with_args(func, ithr, iwork, d0, d1);
         parallel_it_step(d0, D0, d1, D1);
     }
 }
@@ -498,7 +498,7 @@ void for_3d(const int& ithr, const int& nthr, const T0& D0, const T1& D1, const 
     T2 d2{0};
     parallel_it_init(start, d0, D0, d1, D1, d2, D2);
     for (size_t iwork = start; iwork < end; ++iwork) {
-        details::call_with_args(func, ithr, iwork, d0, d1, d2);
+        utils::call_with_args(func, ithr, iwork, d0, d1, d2);
         parallel_it_step(d0, D0, d1, D1, d2, D2);
     }
 }
@@ -548,7 +548,7 @@ void for_4d(const int& ithr, const int& nthr, const T0& D0, const T1& D1, const 
     T3 d3{0};
     parallel_it_init(start, d0, D0, d1, D1, d2, D2, d3, D3);
     for (size_t iwork = start; iwork < end; ++iwork) {
-        details::call_with_args(func, ithr, iwork, d0, d1, d2, d3);
+        utils::call_with_args(func, ithr, iwork, d0, d1, d2, d3);
         parallel_it_step(d0, D0, d1, D1, d2, D2, d3, D3);
     }
 }
@@ -606,7 +606,7 @@ void for_5d(const int& ithr,
     T4 d4{0};
     parallel_it_init(start, d0, D0, d1, D1, d2, D2, d3, D3, d4, D4);
     for (size_t iwork = start; iwork < end; ++iwork) {
-        details::call_with_args(func, ithr, iwork, d0, d1, d2, d3, d4);
+        utils::call_with_args(func, ithr, iwork, d0, d1, d2, d3, d4);
         parallel_it_step(d0, D0, d1, D1, d2, D2, d3, D3, d4, D4);
     }
 }
@@ -666,7 +666,7 @@ void for_6d(const int& ithr,
     T5 d5{0};
     parallel_it_init(start, d0, D0, d1, D1, d2, D2, d3, D3, d4, D4, d5, D5);
     for (size_t iwork = start; iwork < end; ++iwork) {
-        details::call_with_args(func, ithr, iwork, d0, d1, d2, d3, d4, d5);
+        utils::call_with_args(func, ithr, iwork, d0, d1, d2, d3, d4, d5);
         parallel_it_step(d0, D0, d1, D1, d2, D2, d3, D3, d4, D4, d5, D5);
     }
 }

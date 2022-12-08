@@ -23,23 +23,6 @@
 
 namespace InferenceEngine {
 
-using ov::parallel_it_init;
-using ov::parallel_it_step;
-using ov::parallel_nt;
-using ov::parallel_nt_static;
-using ov::parallel_sort;
-using ov::parallel_sum;
-using ov::parallel_sum2d;
-using ov::parallel_sum3d;
-using ov::splitter;
-
-namespace details {
-
-using ov::details::call_with_args;
-using ov::details::num_of_lambda_args;
-
-}  // namespace details
-
 using ov::for_1d;
 using ov::for_2d;
 using ov::for_3d;
@@ -52,5 +35,14 @@ using ov::parallel_for3d;
 using ov::parallel_for4d;
 using ov::parallel_for5d;
 using ov::parallel_for6d;
+using ov::parallel_it_init;
+using ov::parallel_it_step;
+using ov::parallel_nt;
+using ov::parallel_nt_static;
+using ov::parallel_sort;
+using ov::parallel_sum;
+using ov::parallel_sum2d;
+using ov::parallel_sum3d;
+using ov::splitter;
 
 }  // namespace InferenceEngine
