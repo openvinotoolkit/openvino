@@ -112,6 +112,7 @@ private:
     void updatePadding();
     MemoryDescPtr getSumMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it);
     MemoryPtr getOutputMemory() const;
+    VectorDims makeInputDummyShape(const Shape& inpShape) const;
 
     void appendLegacyZeroPointsArgs();
     void appendZeroPointsArgs();
