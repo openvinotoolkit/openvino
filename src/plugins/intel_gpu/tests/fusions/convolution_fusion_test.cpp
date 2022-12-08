@@ -1630,12 +1630,12 @@ TEST_P(conv_scale_activation_eltwise_fp32_quantize_i8, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_scale_activation_eltwise_fp32_quantize_i8, ::testing::ValuesIn(std::vector<conv_eltw_test_params>{
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_1, 2, 2, 6 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_2, 2, 2, 6 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_3, 2, 2, 6 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_4, 2, 2, 6 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_5, 3, 2, 6 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_6, 3, 2, 6 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_1, 2, 3, 6 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_2, 2, 3, 6 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_3, 2, 3, 6 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_4, 2, 3, 6 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_5, 3, 3, 6 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_6, 3, 3, 6 },
     conv_eltw_test_params{ CASE_CONV_ELTW_FP32_7, 3, 3, 6 },
     conv_eltw_test_params{ CASE_CONV_ELTW_FP32_8, 3, 3, 6 },
 }));
@@ -3780,6 +3780,7 @@ struct convolution_eltw_sum_test_params {
     data_types default_type;
     format default_format;
     size_t expected_fused_primitives;
+    size_t expected_fused_primitives_onednn;
     size_t expected_not_fused_primitives;
 };
 
@@ -3852,9 +3853,9 @@ TEST_P(onednn_binary_add_full_tensor, basic) {
 #define CASE_CONV_ELTW_SUM_SUM_DIFF_DTYPE_1 { 1, 32, 4, 4 }, { 1, 16, 4, 4 }, { 1, 1, 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, 1, data_types::u8, format::b_fs_yx_fsv32, data_types::i8, format::bfyx, data_types::i8, format::b_fs_yx_fsv32, data_types::u8, format::b_fs_yx_fsv32, data_types::f32, format::bfyx
 
 INSTANTIATE_TEST_SUITE_P(eltwise_sum_fusings_gpu, onednn_binary_add_full_tensor, ::testing::ValuesIn(std::vector<convolution_eltw_sum_test_params>{
-    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_BINARY_ADD_1, 2, 5 },
-    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_SUM_1, 2, 5 },
-    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_SUM_DIFF_DTYPE_1, 2, 5 },
+    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_BINARY_ADD_1, 2, 3, 5 },
+    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_SUM_1, 2, 3, 5 },
+    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_SUM_DIFF_DTYPE_1, 2, 3, 5 },
 }));
 
 
@@ -3888,8 +3889,8 @@ TEST_P(onednn_multiple_binary_add_full_tensor, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(multiple_eltwise_sum_fusings_gpu, onednn_multiple_binary_add_full_tensor, ::testing::ValuesIn(std::vector<convolution_eltw_sum_test_params>{
-    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_BINARY_ADD_1, 2, 7 },
-    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_SUM_1, 2, 7 },
+    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_BINARY_ADD_1, 2, 3, 7 },
+    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_SUM_1, 2, 3, 7 },
 }));
 
 struct implicit_crop_concat_convolution_test_params {
