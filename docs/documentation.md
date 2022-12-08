@@ -9,6 +9,7 @@
    openvino_2_0_transition_guide
    OpenVINO Extensibility <openvino_docs_Extensibility_UG_Intro>
    Media Processing and CV Libraries <media_processing_cv_libraries>
+   OpenVINO™ Security <openvino_docs_security_guide_introduction>
 
 
 .. toctree::
@@ -20,6 +21,7 @@
    Supported_Model_Formats
    openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide
    omz_tools_downloader
+
 
 .. toctree::
    :maxdepth: 1
@@ -52,7 +54,6 @@
    openvino_deployment_guide
   
 
-
 .. toctree::
    :maxdepth: 1
    :hidden:
@@ -65,15 +66,6 @@
    ote_documentation
    workbench_docs_Workbench_DG_Introduction
 
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-   :caption: Use OpenVINO™ Toolkit Securely
-   
-   openvino_docs_security_guide_introduction
-   openvino_docs_security_guide_workbench
-   openvino_docs_OV_UG_protecting_model_guide
-   ovsa_get_started
 
 @endsphinxdirective
 
