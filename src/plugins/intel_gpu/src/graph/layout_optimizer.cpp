@@ -1824,7 +1824,7 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
 
             auto dst_fmt = onednn::find_data_format(prim_desc.dst_desc());
             // Errata: Best impl for shallow input conv with zero-point ops is ocl:xe_lp.
-            if (node.is_type<convolution>()) {
+            if (node.is_type<convolution>() && src_fmt == format::bfyx) {
                 auto& conv = node.as<convolution>();
                 if (conv.get_input_layouts()[0].feature() <= 8 && conv.activations_zero_points_term() &&
                     conv.get_input_layouts()[0].data_type == data_types::u8 && conv.get_output_layout().data_type == data_types::u8) {
