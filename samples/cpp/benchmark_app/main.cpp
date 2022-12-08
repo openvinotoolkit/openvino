@@ -557,11 +557,7 @@ int main(int argc, char* argv[]) {
 
         // If set batch size, disable the auto batching
         if (FLAGS_b > 0) {
-            if ((!FLAGS_hint.empty() && (FLAGS_hint == "throughput" || FLAGS_hint == "tput" ||
-                                         FLAGS_hint == "cumulative_throughput" || FLAGS_hint == "ctput")) ||
-                (FLAGS_hint.empty() && FLAGS_d.find("MULTI") != std::string::npos)) {
-                slog::warn << "Batch size is set. Auto batching will be disabled" << slog::endl;
-            }
+            slog::warn << "Batch size is set. Auto batching will be disabled" << slog::endl;
             core.set_property(ov::hint::allow_auto_batching(false));
         }
 
