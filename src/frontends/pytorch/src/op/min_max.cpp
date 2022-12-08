@@ -59,7 +59,7 @@ OutputVector translate_min(NodeContext& context) {
     auto keepdims = context.const_input<bool>(2);
     auto values = context.mark_node(std::make_shared<opset8::ReduceMin>(x, axes_node, keepdims));
     auto k = context.mark_node(std::make_shared<opset8::Constant>(element::i64, Shape{}, 1));
-    auto topk = std::make_shared<opset8::TopK>(x, k, axis_const, opset8::TopK::Mode::MAX, opset8::TopK::SortType::NONE);
+    auto topk = std::make_shared<opset8::TopK>(x, k, axis_const, opset8::TopK::Mode::MIN, opset8::TopK::SortType::NONE);
     auto indicies = context.mark_node(std::make_shared<opset8::Convert>(topk->output(1), element::i64));
 
     if (!keepdims) {

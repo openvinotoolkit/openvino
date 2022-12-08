@@ -93,8 +93,10 @@ class PytorchLayerTest:
         if not isinstance(fw_res, tuple):
             fw_res = (fw_res,)
 
+        output_list = list(infer_res.values())
+        assert len(fw_res) == len(output_list), f'number of outputs not equal, {len(fw_res)} != {len(output_list)}'
         # check if results dtypes match
-        for fw_tensor, ov_tensor in zip(fw_res, list(infer_res.values())):
+        for fw_tensor, ov_tensor in zip(fw_res, output_list):
             assert torch.tensor(np.array(ov_tensor)).dtype == fw_tensor.dtype
 
         if 'custom_eps' in kwargs and kwargs['custom_eps'] is not None:

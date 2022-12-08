@@ -21,7 +21,7 @@ class TestLeakyRelu(PytorchLayerTest):
                 self.inplace = inplace
 
             def forward(self, x):
-                return torch.cat([x, F.leaky_relu(x, self.alpha, inplace=self.inplace)])
+                return x, F.leaky_relu(x, self.alpha, inplace=self.inplace)
             
         ref_net = None
 

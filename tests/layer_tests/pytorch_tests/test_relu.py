@@ -21,7 +21,7 @@ class TestRelu(PytorchLayerTest):
                 self.inplace = inplace
 
             def forward(self, x):
-                return torch.cat([x, F.relu(x, inplace=self.inplace)])
+                return x, F.relu(x, inplace=self.inplace)
 
         ref_net = None
 
