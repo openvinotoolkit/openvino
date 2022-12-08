@@ -64,13 +64,25 @@ public:
         auto op_params = get_default_optional_params<kernel_selector::strided_slice_optional_params>(impl_param.get_program());
         const size_t dims_num = params.inputs[0].Dimentions();
 
+        std::vector<int32_t> begin(prim->begin.begin(), prim->begin.end());
+        std::vector<int32_t> end(prim->end.begin(), prim->end.end());
+        std::vector<int32_t> strides(prim->strides.begin(), prim->strides.end());
         // Getting data from constant inputs. There are 3 args: Begin, End, Stride
-        for (size_t i = 1; i < arg.get_dependencies().size(); ++i) {
-            OPENVINO_ASSERT(impl_param.memory_deps.count(i) > 0, "[GPU] Can't find StridedSlice memory dependency");
-            auto mem = impl_param.memory_deps.at(i);
-            std::vector<int32_t> sizes = read_vector<int32_t>(mem, impl_param.prog->get_stream());
-            pad_vector_to_size(sizes, dims_num, i != 1);  // for "begin" completion used 0 value, for other - 1
-            params.striding_params.push_back(sizes);
+        if (!begin.empty() && !end.empty() && !strides.empty()) {
+            pad_vector_to_size(begin, dims_num, 0);
+            params.striding_params.push_back(begin);
+            pad_vector_to_size(end, dims_num, 1);
+            params.striding_params.push_back(end);
+            pad_vector_to_size(strides, dims_num, 1);
+            params.striding_params.push_back(strides);
+        } else {
+            for (size_t i = 1; i < arg.get_dependencies().size(); ++i) {
+                OPENVINO_ASSERT(impl_param.memory_deps.count(i) > 0, "[GPU] Can't find StridedSlice memory dependency");
+                auto mem = impl_param.memory_deps.at(i);
+                std::vector<int32_t> sizes = read_vector<int32_t>(mem, impl_param.prog->get_stream());
+                pad_vector_to_size(sizes, dims_num, i != 1);  // for "begin" completion used 0 value, for other - 1
+                params.striding_params.push_back(sizes);
+            }
         }
 
         auto begin_mask_ = prim->begin_mask;
