@@ -14,8 +14,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::LRN);
-
 op::LRN::LRN(const Output<Node>& arg, double alpha, double beta, double bias, size_t size)
     : LRN(arg, op::v0::Constant::create(element::i64, ov::Shape{1}, {1}), alpha, beta, bias, size) {}
 
