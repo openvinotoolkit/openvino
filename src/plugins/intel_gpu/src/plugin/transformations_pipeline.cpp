@@ -83,6 +83,7 @@
 #include <transformations/op_conversions/gelu7_downgrade.hpp>
 #include <transformations/op_conversions/convert_softmax_downgrade.hpp>
 #include <transformations/op_conversions/convert_prior_box_v8_to_v0.hpp>
+#include <transformations/op_conversions/reduce_modification_add_transpose.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -141,6 +142,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ngraph::pass::WrapInterpolateIntoTransposes>();
         manager.register_pass<ngraph::pass::TransposeSinking>();
+
+        if (device_info.supports_immad) {
+            // Convert reduce to reshape expected to be optimized out
+            manager.register_pass<pass::ModifyReduceToAddTranspose>();
+        }
 
         if (!config.enable_loop_unrolling) {
             manager.register_pass<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();
