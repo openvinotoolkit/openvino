@@ -129,8 +129,10 @@ bool scatter_label_evaluator(const Node* node, TensorLabelVector& output_labels)
 
     constexpr auto data_in_idx = 0;
     constexpr auto updates_in_idx = 2;
-    bool in0_has_no_labels = ov::has_no_labels(input_values[data_in_idx].get_tensor().get_value_label());
-    bool in2_has_no_labels = ov::has_no_labels(input_values[updates_in_idx].get_tensor().get_value_label());
+    const std::vector<size_t>& data_labels = input_values[data_in_idx].get_tensor().get_value_label();
+    const std::vector<size_t>& updates_labels = input_values[updates_in_idx].get_tensor().get_value_label();
+    bool in0_has_no_labels = ov::has_no_labels(data_labels);
+    bool in2_has_no_labels = ov::has_no_labels(updates_labels);
 
     if (in0_has_no_labels && in2_has_no_labels) {
         return false;
@@ -139,20 +141,19 @@ bool scatter_label_evaluator(const Node* node, TensorLabelVector& output_labels)
     std::vector<ov::runtime::Tensor> input_tensors;
     input_tensors.reserve(input_values.size());
 
-    auto make_input_label = [&](const Output<Node>& input, bool has_no_labels) {
+    auto make_input_label = [&](const Output<Node>& input, const TensorLabel& labels, bool has_no_labels) {
         input_tensors.emplace_back(element::u64, input.get_shape());
-        const std::vector<size_t>& labels = input.get_tensor().get_value_label();
         std::vector<uint64_t> casted_labels = has_no_labels ? std::vector<uint64_t>(shape_size(input.get_shape()), 0)
                                                             : std::vector<uint64_t>(labels.cbegin(), labels.cend());
-        memcpy(input_tensors.back().data(), casted_labels.data(), casted_labels.size());
+        memcpy(input_tensors.back().data(), casted_labels.data(), input_tensors.back().get_byte_size());
     };
 
     for (size_t i = 0; i < input_values.size(); ++i) {
         const auto& input = input_values[i];
         if (i == data_in_idx) {
-            make_input_label(input, in0_has_no_labels);
+            make_input_label(input, data_labels, in0_has_no_labels);
         } else if (i == updates_in_idx) {
-            make_input_label(input, in2_has_no_labels);
+            make_input_label(input, updates_labels, in2_has_no_labels);
         } else {
             const auto host_tensor_ptr = input.get_tensor().get_lower_value();
             input_tensors.emplace_back(host_tensor_ptr->get_element_type(),

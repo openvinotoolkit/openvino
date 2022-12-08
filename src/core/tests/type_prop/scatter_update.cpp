@@ -234,7 +234,7 @@ TEST(type_prop, scatter_update_v3_interval_label_data_shape) {
 
 TEST(type_prop, scatter_update_v3_value_label_propagation) {
     auto labeled_dim = Dimension(5, 7);
-    size_t label = 222;
+    size_t label = 2345664;
     ov::DimensionTracker::set_label(labeled_dim, label);
     PartialShape data_shape = PartialShape{labeled_dim};
 
