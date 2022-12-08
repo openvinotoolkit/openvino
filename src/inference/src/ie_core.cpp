@@ -294,7 +294,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
                 if (item != config.end())
                     continue;
 
-                // properties cached in core_plugins_properties always set to actual plufins instance,
+                // properties cached in core_plugins_properties always set to actual plugins instance,
                 // but some of them only can be applied for specified plugins, such as:
                 //     ov::auto_batch_timeout   -  only for AUTO and BATCH plugins
                 //     ov::hint::allow_auto_batching  - only for AUTO plugins
@@ -1247,7 +1247,6 @@ public:
                     // Remove "CACHE_DIR" from config if it is not supported by plugin
                     desc.defaultConfig.erase(CONFIG_KEY(CACHE_DIR));
                 }
-                coreConfig.update_config(deviceName, desc.defaultConfig);
 
                 allowNotImplemented([&]() {
                     // Add device specific value to support device_name.device_id cases
@@ -1264,9 +1263,11 @@ public:
                         InferenceEngine::DeviceIDParser parser(pluginDesc.first);
                         if (pluginDesc.first.find(deviceName) != std::string::npos && !parser.getDeviceID().empty()) {
                             pluginDesc.second.defaultConfig[deviceKey] = parser.getDeviceID();
+                            coreConfig.update_config(deviceName, pluginDesc.second.defaultConfig);
                             plugin.set_properties(pluginDesc.second.defaultConfig);
                         }
                     }
+                    coreConfig.update_config(deviceName, desc.defaultConfig);
                     plugin.set_properties(desc.defaultConfig);
                 });
 
@@ -1422,7 +1423,6 @@ public:
                     // Remove "CACHE_DIR" from config if it is not supported by plugin
                     configCopy.erase(CONFIG_KEY(CACHE_DIR));
                 }
-                coreConfig.update_config(deviceName, configCopy);
 
                 // Add device specific value to support device_name.device_id cases
                 std::vector<std::string> supportedConfigKeys =
@@ -1437,6 +1437,7 @@ public:
                 if (!parser.getDeviceID().empty()) {
                     configCopy[deviceKey] = parser.getDeviceID();
                 }
+                coreConfig.update_config(deviceName, configCopy);
                 plugin.second.set_properties(configCopy);
             });
         }
