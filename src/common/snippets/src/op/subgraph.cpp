@@ -24,6 +24,7 @@
 #include "snippets/pass/propagate_buffer_offset.hpp"
 #include "snippets/pass/reset_buffer.hpp"
 #include "snippets/pass/insert_buffer.hpp"
+#include "snippets/pass/loop_fusion.hpp"
 #include "snippets/utils.hpp"
 
 #include "transformations/common_optimizations/nop_elimination.hpp"
@@ -412,19 +413,18 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
                                                         return p->get_partial_shape().rbegin()->is_dynamic();
                                                     });
     ngraph::pass::Manager manager;
-    manager.register_pass<snippets::pass::MatMulToBrgemm>();
-    manager.register_pass<snippets::pass::FuseTransposeBrgemm>();
-    manager.register_pass<snippets::pass::InsertBuffer>(tileRank);
-    manager.register_pass<snippets::pass::SoftmaxDecomposition>(count, tileRank);
-    manager.register_pass<snippets::pass::TransposeDecomposition>();
+    if (config.m_has_domain_sensitive_ops) {
+        manager.register_pass<snippets::pass::MatMulToBrgemm>();
+        manager.register_pass<snippets::pass::FuseTransposeBrgemm>();
+        manager.register_pass<snippets::pass::InsertBuffer>(tileRank);
+        manager.register_pass<snippets::pass::SoftmaxDecomposition>(count, tileRank);
+        manager.register_pass<snippets::pass::TransposeDecomposition>();
+    }
     manager.register_pass<snippets::pass::BroadcastToMoveBroadcast>();
     manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
     manager.register_pass<snippets::pass::ConvertPowerToPowerStatic>();
     manager.register_pass<snippets::pass::InsertLoad>(count);
     manager.register_pass<snippets::pass::InsertStore>(count);
-    // After transformations above MemoryAccess operations won't be changed (not removed or added) except for [Load + MoveBroadcast = LoadBroadcast]
-    // so we can calculate offsets for each Buffer in body and propagate them to the corresponding MemoryAccess nodes
-    manager.register_pass<snippets::pass::PropagateBufferOffset>();
     // todo: presently dynamic pipeline is activated even if the last two dimension are static
     //  In general, we can use static kernels in this case, but several parameters (src and dst memory pointers for example)
     //  should be passed as run-time args, so it's a mixed mode: kernel is shape-aware, but some additional runtime args are required
@@ -461,10 +461,14 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
         manager.register_pass<snippets::pass::InsertLoops>(master_shape, tileRank,
             m_generator->get_target_machine()->get_lanes(), !config.m_explicit_loop_insertion);
         if (config.m_has_domain_sensitive_ops) {
+            manager.register_pass<snippets::pass::LoopFusion>();
+            // After transformations above MemoryAccess operations won't be changed (not removed or added)
+            // so we can calculate offsets for each Buffer in body and propagate them to the corresponding MemoryAccess nodes
+            manager.register_pass<snippets::pass::PropagateBufferOffset>();
             manager.register_pass<snippets::pass::ResetBufferState>();
         }
+        manager.run_passes(m_body);
     }
-    manager.run_passes(m_body);
 }
 
 snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& output_shapes,
@@ -491,7 +495,6 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::generate")
     NGRAPH_CHECK(m_generator != nullptr, "generate is called while generator is not set");
-
 
     convert_to_snippet_dialect();
     opt.run_passes(m_body);

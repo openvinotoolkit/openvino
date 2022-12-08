@@ -161,6 +161,7 @@ ngraph::snippets::pass::SoftmaxDecomposition::SoftmaxDecomposition(const size_t 
         loop_sum_begin->add_control_dependency(horizon_max);
         loop_sum_end->add_control_dependency(sum);
         horizon_sum->add_control_dependency(loop_sum_end);
+        loop_div_begin->add_control_dependency(horizon_sum);
         loop_div_begin->add_control_dependency(pow);
 
         /* =========================================== */

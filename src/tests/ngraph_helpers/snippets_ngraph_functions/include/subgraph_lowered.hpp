@@ -70,6 +70,7 @@ protected:
     std::shared_ptr<ov::Model> initLowered() const override;
 };
 
+// With LoopFusion pass
 class AddSoftmaxLoweredFunction : public AddSoftmaxFunction {
 public:
     explicit AddSoftmaxLoweredFunction(const std::vector<PartialShape>& inputShapes, int axis) : AddSoftmaxFunction(inputShapes, axis) {}

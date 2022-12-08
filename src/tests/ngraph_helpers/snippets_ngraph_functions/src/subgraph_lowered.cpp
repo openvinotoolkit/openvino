@@ -225,7 +225,7 @@ std::shared_ptr<ov::Model> SoftmaxLoweredFunction::initLowered() const {
     const auto loop_div_end = std::make_shared<ngraph::snippets::op::LoopEnd>(
         ngraph::OutputVector{store_div, loop_div_begin->output(1)}, work_amount, increment,
         apply_increments_div, finalization_offsets_div);
-
+    loop_div_begin->add_control_dependency(horizon_sum);
     loop_div_begin->add_control_dependency(pow);
     loop_div_begin->add_control_dependency(prev_pow);
 
@@ -257,54 +257,38 @@ std::shared_ptr<ov::Model> AddSoftmaxLoweredFunction::initLowered() const {
     const auto has_outer_loop = outer_dim >= 0 && master_shape[outer_dim] > 1;
     const bool is_scalar = work_amount == 1;
 
-    /* ================== Add ==================== */
+    /* ================== Add + ReduceMax ==================== */
 
-    const auto loop_add_begin = ngraph::snippets::op::insertLoopBegin(input_params);
+    const auto vector_buffer_max = std::make_shared<ngraph::snippets::op::VectorBuffer>();
+    const auto loop_max_begin = ngraph::snippets::op::insertLoopBegin(input_params);
 
-    std::shared_ptr<ov::Node> load0 = std::make_shared<ngraph::snippets::op::Load>(loop_add_begin->output(0), increment);
+    std::shared_ptr<ov::Node> load0 = std::make_shared<ngraph::snippets::op::Load>(loop_max_begin->output(0), increment);
     if (!is_scalar && input_shapes[0].get_shape().back() == 1) {
         auto new_shape = input_shapes[0].get_shape();
         new_shape[new_shape.size() - 1] = static_cast<size_t>(inner_master_wa);
-        load0 = std::make_shared<ngraph::snippets::op::BroadcastLoad>(loop_add_begin->output(0), new_shape);
+        load0 = std::make_shared<ngraph::snippets::op::BroadcastLoad>(loop_max_begin->output(0), new_shape);
     }
-    std::shared_ptr<ov::Node> load1 = std::make_shared<ngraph::snippets::op::Load>(loop_add_begin->output(1), increment);
+    std::shared_ptr<ov::Node> load1 = std::make_shared<ngraph::snippets::op::Load>(loop_max_begin->output(1), increment);
     if (!is_scalar && input_shapes[1].get_shape().back() == 1) {
         auto new_shape = input_shapes[1].get_shape();
         new_shape[new_shape.size() - 1] = static_cast<size_t>(inner_master_wa);
-        load1 = std::make_shared<ngraph::snippets::op::BroadcastLoad>(loop_add_begin->output(1), new_shape);
+        load1 = std::make_shared<ngraph::snippets::op::BroadcastLoad>(loop_max_begin->output(1), new_shape);
     }
     const auto add = std::make_shared<ov::op::v1::Add>(load0, load1);
     const auto store = std::make_shared<ngraph::snippets::op::Store>(add, increment);
 
-    std::vector<bool> apply_increments_add(3, false);
-    std::vector<int64_t> finalization_offsets_add(3, 0);
-    apply_increments_add[0] = input_shapes[0].get_shape()[inner_dim] != 1 && inner_master_wa != 1;
-    apply_increments_add[1] = input_shapes[1].get_shape()[inner_dim] != 1 && inner_master_wa != 1;
-    apply_increments_add[2] = master_shape[inner_dim] != 1 && inner_master_wa != 1;
-    finalization_offsets_add[0] = input_shapes[0].get_shape()[inner_dim] != 1 ? -inner_master_wa : 0;
-    finalization_offsets_add[1] = input_shapes[1].get_shape()[inner_dim] != 1 ? -inner_master_wa : 0;
-    finalization_offsets_add[2] = master_shape[inner_dim] != 1 ? -inner_master_wa : 0;
-    auto loop_add_end = std::make_shared<ngraph::snippets::op::LoopEnd>(ngraph::OutputVector{store, loop_add_begin->output(2)},
-        work_amount, increment, apply_increments_add, finalization_offsets_add);
-
-    /* =========================================== */
-
-    const auto buffer_add = std::make_shared<ngraph::snippets::op::Buffer>(loop_add_end->output(0));
-
-    /* ====== ReduceMax decomposition ====== */
-
-    const auto vector_buffer_max = std::make_shared<ngraph::snippets::op::VectorBuffer>();
-    const auto loop_max_begin = ngraph::snippets::op::insertLoopBegin(ngraph::OutputVector{buffer_add, buffer_add});
-
     // we don't insert Fill here after load_max to verify because in generate() call Fill op is inserted only on vector representation
-    const auto load_max = std::make_shared<ngraph::snippets::op::Load>(loop_max_begin->output(0), increment);
-    const auto max = std::make_shared<ov::op::v1::Maximum>(load_max, vector_buffer_max);
+    const auto max = std::make_shared<ov::op::v1::Maximum>(add, vector_buffer_max);
 
     std::vector<bool> apply_increments_max(3, false);
     std::vector<int64_t> finalization_offsets_max(3, 0);
-    apply_increments_max[0] = master_shape[inner_dim] != 1 && inner_master_wa != 1;
-    finalization_offsets_max[0] = master_shape[outer_dim] == 1 && master_shape[inner_dim] != 1 ? -inner_master_wa : 0;
-    const auto loop_max_end = std::make_shared<ngraph::snippets::op::LoopEnd>(ngraph::OutputVector{loop_max_begin->output(1), loop_max_begin->output(2)},
+    apply_increments_max[0] = input_shapes[0].get_shape()[inner_dim] != 1 && inner_master_wa != 1;
+    apply_increments_max[1] = input_shapes[1].get_shape()[inner_dim] != 1 && inner_master_wa != 1;
+    apply_increments_max[2] = master_shape[inner_dim] != 1 && inner_master_wa != 1;
+    finalization_offsets_max[0] = input_shapes[0].get_shape()[inner_dim] != 1 ? -inner_master_wa : 0;
+    finalization_offsets_max[1] = input_shapes[1].get_shape()[inner_dim] != 1 ? -inner_master_wa : 0;
+    finalization_offsets_max[2] = master_shape[inner_dim] != 1 ? -inner_master_wa : 0;
+    const auto loop_max_end = std::make_shared<ngraph::snippets::op::LoopEnd>(ngraph::OutputVector{store, loop_max_begin->output(2)},
         work_amount, increment, apply_increments_max, finalization_offsets_max);
 
     std::shared_ptr<ov::Node> horizon_max = std::make_shared<ngraph::snippets::op::HorizonMax>(max);
@@ -319,10 +303,12 @@ std::shared_ptr<ov::Model> AddSoftmaxLoweredFunction::initLowered() const {
 
     /* =========================================== */
 
+    const auto buffer_add = std::make_shared<ngraph::snippets::op::Buffer>(loop_max_end->output(0));
+
     /* === Sub + Exp + ReduceSum decomposition === */
 
     const auto vector_buffer_sum = std::make_shared<ngraph::snippets::op::VectorBuffer>();
-    const auto loop_sum_begin = ngraph::snippets::op::insertLoopBegin(ngraph::OutputVector{loop_max_end->output(0)});
+    const auto loop_sum_begin = ngraph::snippets::op::insertLoopBegin(ngraph::OutputVector{buffer_add->output(0)});
 
     const auto load_sub = std::make_shared<ngraph::snippets::op::Load>(loop_sum_begin->output(0), increment);
     const auto sub = std::make_shared<ov::op::v1::Subtract>(load_sub, horizon_max);
@@ -376,6 +362,7 @@ std::shared_ptr<ov::Model> AddSoftmaxLoweredFunction::initLowered() const {
     const auto loop_div_end = std::make_shared<ngraph::snippets::op::LoopEnd>(
         ngraph::OutputVector{store_div, loop_div_begin->output(1)}, work_amount, increment,
         apply_increments_div, finalization_offsets_div);
+    loop_div_begin->add_control_dependency(horizon_sum);
     loop_div_begin->add_control_dependency(pow);
     loop_div_begin->add_control_dependency(prev_pow);
 
@@ -386,13 +373,9 @@ std::shared_ptr<ov::Model> AddSoftmaxLoweredFunction::initLowered() const {
         const auto need_increment0 = input_shapes[0].get_shape()[outer_dim] != 1 && input_shapes[0].get_shape()[inner_dim] == 1;
         const auto need_increment1 = input_shapes[1].get_shape()[outer_dim] != 1 && input_shapes[1].get_shape()[inner_dim] == 1;
         const auto need_increment2 = master_shape[outer_dim] != 1 && master_shape[inner_dim] == 1;
-        const auto outer_loop_add_begin = ngraph::snippets::op::insertLoopBegin(input_params);
-        const auto outer_loop_add_end =
-            insertLoopEnd(NodeVector{buffer_add}, outer_loop_add_begin, 1, 1, std::vector<bool>{need_increment0, need_increment1, need_increment2});
-
-        const auto need_increment = master_shape[outer_dim] != 1 && master_shape[inner_dim] == 1;
-        const auto outer_loop_begin = ngraph::snippets::op::insertLoopBegin(NodeVector{buffer_add});
-        const auto outer_loop_end = insertLoopEnd(NodeVector{result}, outer_loop_begin, 1, 1, std::vector<bool>{need_increment, need_increment});
+        const auto outer_loop_begin = ngraph::snippets::op::insertLoopBegin(input_params);
+        const auto outer_loop_end = insertLoopEnd(
+                NodeVector{result}, outer_loop_begin, 1, 1, std::vector<bool>{need_increment0, need_increment1, need_increment2});
         vector_buffer_max->add_control_dependency(outer_loop_begin);
     }
 
