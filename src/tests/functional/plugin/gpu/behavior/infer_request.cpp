@@ -140,7 +140,7 @@ TEST(TensorTest, smoke_canSetShapeForPreallocatedTensor) {
 
 TEST(TensorTest, smoke_canSetScalarTensor) {
     std::vector<std::vector<size_t>> scalar_shape = {{}};
-    auto params = ngraph::builder::makeParams(ngraph::element::Type_t::f64, scalar_shape);
+    auto params = ngraph::builder::makeParams(ngraph::element::f64, scalar_shape);
     params.front()->set_friendly_name("Scalar_1");
     params.front()->output(0).get_tensor().set_names({"scalar1"});
 
@@ -148,7 +148,7 @@ TEST(TensorTest, smoke_canSetScalarTensor) {
     auto const1 = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{1}, const_shape);
     const1->set_friendly_name("Const_1");
     const1->output(0).get_tensor().set_names({"const1"});
-    const1->fill_data(ov::element::Type_t::i64, 0);
+    const1->fill_data(ov::element::i64, 0);
 
     auto unsqueeze1 = std::make_shared<ngraph::opset1::Unsqueeze>(params.front(), const1);
 
@@ -159,7 +159,7 @@ TEST(TensorTest, smoke_canSetScalarTensor) {
     auto compiled_model = ie.compile_model(fnPtr, CommonTestUtils::DEVICE_GPU);
     auto request = compiled_model.create_infer_request();
     double real_data = 1.0;
-    ov::Tensor input_data(ngraph::element::Type_t::f64, {}, &real_data);
+    ov::Tensor input_data(ngraph::element::f64, {}, &real_data);
     request.set_tensor("scalar1", input_data);
     ASSERT_NO_THROW(request.infer());
 }
