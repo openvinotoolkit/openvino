@@ -8,7 +8,7 @@
 
    openvino_2_0_transition_guide
    OpenVINO Extensibility <openvino_docs_Extensibility_UG_Intro>
-
+   Media Processing and CV Libraries <media_processing_cv_libraries>
 
 
 .. toctree::
@@ -65,9 +65,6 @@
    ote_documentation
    workbench_docs_Workbench_DG_Introduction
 
-
-
-   
 .. toctree::
    :maxdepth: 1
    :hidden:
@@ -77,17 +74,6 @@
    openvino_docs_security_guide_workbench
    openvino_docs_OV_UG_protecting_model_guide
    ovsa_get_started
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-   :caption: Media Processing and Computer Vision Libraries
-
-   Intel® Deep Learning Streamer <openvino_docs_dlstreamer>
-   openvino_docs_gapi_gapi_intro
-   OpenCV Developer Guide <https://docs.opencv.org/master/>
-   OpenCL™ Developer Guide <https://software.intel.com/en-us/openclsdk-devguide>  
-   OneVPL Developer Guide <https://www.intel.com/content/www/us/en/developer/articles/release-notes/oneapi-video-processing-library-release-notes.html>
 
 @endsphinxdirective
 
