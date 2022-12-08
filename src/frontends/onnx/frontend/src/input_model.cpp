@@ -194,7 +194,7 @@ void InputModel::set_element_type(const ov::frontend::Place::Ptr& place, const n
 }
 
 ov::element::Type InputModel::get_element_type(const ov::frontend::Place::Ptr& place) const {
-    std::string tensor_name;  // name of the model input which should be reshaped
+    std::string tensor_name;
     const auto input_edge = std::dynamic_pointer_cast<PlaceInputEdge>(place);
     const auto output_edge = std::dynamic_pointer_cast<PlaceOutputEdge>(place);
     if (input_edge) {
