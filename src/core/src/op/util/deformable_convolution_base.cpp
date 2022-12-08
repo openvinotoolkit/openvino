@@ -13,8 +13,6 @@
 
 using namespace std;
 
-BWDCMP_RTTI_DEFINITION(ov::op::util::DeformableConvolutionBase);
-
 ov::op::util::DeformableConvolutionBase::DeformableConvolutionBase(const OutputVector& arguments,
                                                                    const Strides& strides,
                                                                    const CoordinateDiff& pads_begin,
