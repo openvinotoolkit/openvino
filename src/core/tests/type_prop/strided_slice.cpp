@@ -353,7 +353,6 @@ TEST(type_prop, strided_slice_begin_end_is_shape_of_with_bounds) {
     const auto shape_of_end = std::make_shared<op::ShapeOf>(p_end);
 
     auto data = op::Constant::create(element::i64, Shape{1, 10}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 0});
-    auto end = op::Constant::create(element::i64, Shape{2}, {1, 7});
     auto stride = op::Constant::create(element::i64, Shape{2}, {1, 1});
 
     auto mask = std::vector<int64_t>(2, 0);

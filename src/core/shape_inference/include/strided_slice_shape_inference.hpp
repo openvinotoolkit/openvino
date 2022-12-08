@@ -250,7 +250,7 @@ void shape_infer(const StridedSlice* op,
 
     // get remaining values
     for (; input_shape_idx < input_shape.rank().get_length(); ++input_shape_idx) {
-        dims.emplace_back(input_shape[input_shape_idx]);
+        dims.push_back(input_shape[input_shape_idx]);
     }
 
     output_shapes[0] = T(std::move(dims));
