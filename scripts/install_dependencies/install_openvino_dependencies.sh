@@ -190,7 +190,7 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
         amazon-linux-extras install epel python3.8
     fi
 
-    pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake3 json-devel.$arch zlib-devel.$arch sudo)
+    pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake3 json-devel.$arch zlib-devel.$arch sudo pkgconf-pkg-config)
 
     if [ "$os" == "rhel9.1" ] ; then
         pkgs_dev+=(curl-minimal)
@@ -229,7 +229,6 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
         pkgs_dev+=(
             https://vault.centos.org/centos/8/PowerTools/$arch/os/Packages/gflags-devel-2.1.2-6.el8.$arch.rpm
             https://download-ib01.fedoraproject.org/pub/epel/8/Everything/$arch/Packages/j/json-devel-3.6.1-2.el8.$arch.rpm
-            https://vault.centos.org/centos/8/BaseOS/$arch/os/Packages/pkgconf-pkg-config-1.4.2-1.el8.$arch.rpm
         )
         pkgs_opencv_req=(gtk3)
         pkgs_opencv_opt=(
