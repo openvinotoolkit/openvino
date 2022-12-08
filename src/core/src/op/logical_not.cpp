@@ -13,15 +13,8 @@
 using namespace ngraph;
 using namespace std;
 
-BWDCMP_RTTI_DEFINITION(op::v1::LogicalNot);
-
 op::v1::LogicalNot::LogicalNot(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();
-}
-
-bool ngraph::op::v1::LogicalNot::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v1_LogicalNot_visit_attributes);
-    return true;
 }
 
 void op::v1::LogicalNot::validate_and_infer_types() {

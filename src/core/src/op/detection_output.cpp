@@ -11,7 +11,6 @@
 using namespace std;
 
 // ------------------------------ V0 ------------------------------
-BWDCMP_RTTI_DEFINITION(ov::op::v0::DetectionOutput);
 ov::op::v0::DetectionOutput::DetectionOutput(const Output<Node>& box_logits,
                                              const Output<Node>& class_preds,
                                              const Output<Node>& proposals,
@@ -75,7 +74,6 @@ bool ov::op::v0::DetectionOutput::visit_attributes(AttributeVisitor& visitor) {
 }
 
 // ------------------------------ V8 ------------------------------
-BWDCMP_RTTI_DEFINITION(ov::op::v8::DetectionOutput);
 ov::op::v8::DetectionOutput::DetectionOutput(const Output<Node>& box_logits,
                                              const Output<Node>& class_preds,
                                              const Output<Node>& proposals,
