@@ -160,7 +160,7 @@ bool scatter_label_evaluator(const Node* node, TensorLabelVector& output_labels)
         }
     }
 
-    ov::TensorVector output_tensors{ov::Tensor(element_type, node->get_output_partial_shape(0).to_shape())};
+    ov::TensorVector output_tensors{ov::Tensor(element_type, node->get_output_shape(0))};
     if (node->evaluate(output_tensors, input_tensors)) {
         size_t* ptr = static_cast<size_t*>(output_tensors[0].data(element_type));
         output_labels[0] = std::vector<size_t>(ptr, ptr + output_tensors[0].get_size());
@@ -172,7 +172,8 @@ bool scatter_label_evaluator(const Node* node, TensorLabelVector& output_labels)
 
 bool op::v3::ScatterUpdate::evaluate_label(TensorLabelVector& output_labels) const {
     OV_OP_SCOPE(v3_ScatterUpdate_evaluate_label);
-    if (get_input_tensor(1).has_and_set_bound() && get_input_tensor(3).has_and_set_bound()) {
+    if (get_input_partial_shape(0).is_static() && get_input_partial_shape(2).is_static() &&
+        get_input_tensor(1).has_and_set_bound() && get_input_tensor(3).has_and_set_bound()) {
         return scatter_label_evaluator(this, output_labels);
     }
     return false;
