@@ -7,6 +7,7 @@
    :hidden:
 
    openvino_2_0_transition_guide
+   Tool Ecosystem <openvino_ecosystem>
    OpenVINO Extensibility <openvino_docs_Extensibility_UG_Intro>
    Media Processing and CV Libraries <media_processing_cv_libraries>
    OpenVINO™ Security <openvino_docs_security_guide_introduction>
@@ -52,19 +53,7 @@
 
    openvino_docs_deployment_guide_introduction
    openvino_deployment_guide
-  
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-   :caption: THE Ecosystem
-
-   openvino_ecosystem
-   ovms_what_is_openvino_model_server
-   ovsa_get_started
-   ovtf_integration
-   ote_documentation
-   workbench_docs_Workbench_DG_Introduction
+   
 
 
 @endsphinxdirective
