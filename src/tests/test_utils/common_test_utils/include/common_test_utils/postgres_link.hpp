@@ -28,9 +28,7 @@ public:
     /// \brief Constructor allows to store unsafe pointer to parent object. Might be user
     ///        as external identifier.
     /// \param[in] ptrParentObject Unsafe pointer to a parent object
-    PostgreSQLLink(void* ptrParentObject) : PostgreSQLLink() {
-        SetParentObject(ptrParentObject);
-    }
+    PostgreSQLLink(void* ptrParentObject);
     /// \brief Simple destructor
     ~PostgreSQLLink();
 

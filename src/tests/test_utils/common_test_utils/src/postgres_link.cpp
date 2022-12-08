@@ -22,12 +22,18 @@
 static const char* PGQL_ENV_CONN_NAME = "OV_POSTGRES_CONN";    // Environment variable with connection settings
 static const char* PGQL_ENV_SESS_NAME = "OV_TEST_SESSION_ID";  // Environment variable identifies current session
 
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(__APPLE__)
 #    ifndef __USE_POSIX
 #        define __USE_POSIX
 #    endif
 #    include <limits.h>
 #    include <sys/utsname.h>
+#elif defined(__APPLE__)
+#    include <sys/param.h>
+#    include <sys/utsname.h>
+#    ifndef HOST_NAME_MAX
+#        define HOST_NAME_MAX MAXHOSTNAMELEN
+#    endif
 #endif
 
 #ifndef PGQL_DYNAMIC_LOAD
@@ -855,10 +861,14 @@ public:
     std::map<std::string, std::string> customFields;
 };
 
-PostgreSQLLink::PostgreSQLLink() : parentObject(nullptr), customData(nullptr) {
-    this->parentObject = nullptr;
+PostgreSQLLink::PostgreSQLLink() : parentObject(nullptr), customData(new PostgreSQLCustomData()) {
     std::cout << "PostgreSQLLink Started\n";
-    this->customData = new PostgreSQLCustomData();
+}
+
+PostgreSQLLink::PostgreSQLLink(void* ptrParentObject)
+    : parentObject(ptrParentObject),
+      customData(new PostgreSQLCustomData()) {
+    std::cout << "PostgreSQLLink with parentObject Started\n";
 }
 
 PostgreSQLLink::~PostgreSQLLink() {
