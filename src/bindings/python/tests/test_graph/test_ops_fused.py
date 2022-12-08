@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 import openvino.runtime.opset8 as ov
+from tests.runtime import get_runtime
 from tests import xfail_issue_36486
 
 
@@ -16,7 +17,7 @@ def test_elu_operator_with_scalar_and_array():
     model = ov.elu(data_value, alpha_value)
 
     expected_shape = [2, 2]
-    assert model.get_type_name() == "ELU"
+    assert model.get_type_name() == "Elu"
     assert model.get_output_size() == 1
     assert list(model.get_output_shape(0)) == expected_shape
 
@@ -28,7 +29,7 @@ def test_elu_operator_with_scalar():
     model = ov.elu(parameter_data, alpha_value)
 
     expected_shape = [2, 2]
-    assert model.get_type_name() == "ELU"
+    assert model.get_type_name() == "Elu"
     assert model.get_output_size() == 1
     assert list(model.get_output_shape(0)) == expected_shape
 
@@ -53,7 +54,7 @@ def test_fake_quantize():
         levels,
     )
 
-    expected_shape = [1, 1, 2, 3, 4]
+    expected_shape = [1, 2, 3, 4]
     assert model.get_type_name() == "FakeQuantize"
     assert model.get_output_size() == 1
     assert list(model.get_output_shape(0)) == expected_shape
