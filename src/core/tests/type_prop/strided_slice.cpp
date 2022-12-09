@@ -377,6 +377,20 @@ TEST(type_prop, strided_slice_out_of_bounds_different_stride) {
     EXPECT_EQ(strided_slice->get_output_partial_shape(0), PartialShape({0, 0, 0, 0, 0}));
 }
 
+TEST(type_prop, strided_slice_reverse_end_is_int64_min) {
+    auto data = std::make_shared<op::Parameter>(element::f32, PartialShape{{0, 20}, -1});
+    const auto data_rank_size = data->get_partial_shape().size();
+    auto begin = op::Constant::create(element::i64, Shape{data_rank_size}, {20, 20});
+    auto end = op::Constant::create(element::i64, Shape{data_rank_size}, std::vector<int64_t>{INT64_MIN, INT64_MIN});
+    auto stride = op::Constant::create(element::i64, Shape{data_rank_size}, std::vector<int64_t>{-1, -1});
+
+    const auto mask = std::vector<int64_t>(data_rank_size, 0);
+
+    auto ss = std::make_shared<op::v1::StridedSlice>(data, begin, end, stride, mask, mask);
+
+    EXPECT_EQ(ss->get_output_partial_shape(0), PartialShape({{0, 20}, -1}));
+}
+
 TEST(type_prop, strided_slice_dynamic_value_and_label_propagation) {
     // Use evaluate upper,lower and labels
     auto marked_0 = Dimension(3, 5);

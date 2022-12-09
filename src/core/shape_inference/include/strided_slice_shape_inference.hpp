@@ -185,7 +185,7 @@ void shape_infer(const StridedSlice* op,
 
                 // clip value to min, max
                 const auto clip = [](const int64_t& value, const int64_t& min, const int64_t& max) -> int64_t {
-                    return std::max(min, std::min(value, max));
+                    return std::min(std::max(value, min), max);
                 };
 
                 // get stride output dimension for dimension and bounds
