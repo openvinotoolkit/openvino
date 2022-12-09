@@ -163,12 +163,17 @@ apt list --installed | grep openvino
 
 @endsphinxdirective
 
+### Step 3 (Optional): Install Software Dependencies
 
-### Step 3 (Optional): Configure Inference on Non-CPU Devices
+After you have installed OpenVINO Runtime, if you decided to [install OpenVINO Model Development Tools](installing-model-dev-tools.md), make sure that you install external software dependencies first.
+
+Refer to <a href="openvino_docs_install_guides_installing_openvino_linux.html#install-external-dependencies">Install External Software Dependencies</a> for detailed steps.
+
+### Step 4 (Optional): Configure Inference on Non-CPU Devices
 
 To enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in [GPU Setup Guide](@ref openvino_docs_install_guides_configurations_for_intel_gpu).
 
-### Step 4: Build Samples
+### Step 5: Build Samples
 
 To build the C++ or C sample applications for Linux, run the `build_samples.sh` script:
 
@@ -188,7 +193,7 @@ To build the C++ or C sample applications for Linux, run the `build_samples.sh` 
 
 @endsphinxdirective
 
-For more information, refer to [Build the Sample Applications on Linux](@ref build-samples-linux).
+For more information, refer to <a href="openvino_docs_OV_UG_Samples_Overview.html#build-samples-linux">Build the Sample Applications on Linux</a>.
 
 ## Installing OpenVINO Development Tools
 

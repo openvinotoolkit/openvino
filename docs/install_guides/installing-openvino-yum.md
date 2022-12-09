@@ -180,7 +180,7 @@ To build the C++ or C sample applications for Linux, run the `build_samples.sh` 
 
 @endsphinxdirective
 
-For more information, refer to [Build the Sample Applications on Linux](@ref build-samples-linux).
+For more information, refer to <a href="openvino_docs_OV_UG_Samples_Overview.html#build-samples-linux">Build the Sample Applications on Linux</a>.
 
 ## What's Next?
 
