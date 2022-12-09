@@ -54,3 +54,13 @@ protected:
 };
 
 using PartialShapes = std::vector<ov::PartialShape>;
+using Shapes = std::vector<ov::Shape>;
+
+template <class TOp>
+class TypePropOpTest : public testing::Test {
+protected:
+    template <class... Args>
+    std::shared_ptr<TOp> make_op(Args&&... args) {
+        return std::make_shared<TOp>(std::forward<Args>(args)...);
+    }
+};
