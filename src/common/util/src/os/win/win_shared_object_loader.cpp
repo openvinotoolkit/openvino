@@ -137,7 +137,7 @@ std::shared_ptr<void> load_shared_object(const wchar_t* path) {
     if (path == nullptr)
         throw std::runtime_error("Cannot load library: path isn't specified.");
     auto path_ = std::wstring(path);
-    if (is_absolute_file_path(path_))
+    if (is_absolute_file_path(ov::util::wstring_to_string(path_)))
         return load_shared_object_unsafe(path);
     throw std::runtime_error("Cannot load library: path '" + ov::util::wstring_to_string(path_) + "' is not absolute.");
 }

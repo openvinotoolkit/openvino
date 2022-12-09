@@ -604,9 +604,9 @@ public:
      * and prefix to identify library full name.
      * For example, on Linux platform, plugin name specified as `plugin_name` will be wrapped as `libplugin_name.so`.
      * Plugin search algorithm:
-     * - If plugin is located in the same directory as OpenVINO runtime library, it will be used.
-     * - If no, plugin is tried to be loaded from paths pointed by PATH/LD_LIBRARY_PATH/DYLD_LIBRARY_PATH
-     *   environment variables depending on the platform.
+     * - If `plugin_name` points to an exact library path (absolute or relative), and file exists, it will be used.
+     * - Otherwise it's expected that plugin is located in the same directory as OpenVINO runtime library.
+     * Note that PATH/LD_LIBRARY_PATH/DYLD_LIBRARY_PATH environment variables are ignored.
      *
      * @param device_name Device name to register a plugin for.
      */

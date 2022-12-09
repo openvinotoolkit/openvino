@@ -362,27 +362,15 @@ std::string ov::util::get_absolute_file_path(const std::string& path) {
     return absolutePath;
 }
 
-bool is_absolute_file_path(const std::string& path) {
+bool ov::util::is_absolute_file_path(const std::string& path) {
     if (path.empty())
-        return false;
+        throw std::runtime_error("Provided path is empty");
 #ifdef _WIN32
-    return !PathIsRelativeA(path);
+    return !PathIsRelativeA(path.c_str());
 #else
     return path[0] == '/';
 #endif // _WIN32
 }
-
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-bool is_absolute_file_path(const std::wstring& path) {
-    if (path.empty())
-        return false;
-#ifdef _WIN32
-    return !PathIsRelativeW(path);
-#else
-    return path[0] == '/';
-#endif // _WIN32
-}
-#endif // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 void ov::util::create_directory_recursive(const std::string& path) {
     if (path.empty() || directory_exists(path)) {
