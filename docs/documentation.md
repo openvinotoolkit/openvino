@@ -7,6 +7,7 @@
    :hidden:
 
    openvino_2_0_transition_guide
+   API Reference <api/api_reference>
    Model Preparation <openvino_docs_model_processing_introduction>
    Tool Ecosystem <openvino_ecosystem>
    OpenVINO Extensibility <openvino_docs_Extensibility_UG_Intro>
