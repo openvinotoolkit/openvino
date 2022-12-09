@@ -362,8 +362,9 @@ public:
         size_t num_binary_ops;
         CreateGraphBinaryF model_factory;
         CreateGraphBinaryF reference_model_factory;
-        ov::element::Type input_type;
+        element::Type input_type;
         size_t binary_transpose_input_idx;
+
         std::tie(binary_factory,
                  pass_factory,
                  num_binary_ops,
