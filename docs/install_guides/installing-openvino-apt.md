@@ -95,6 +95,10 @@ This guide provides detailed steps for installing OpenVINO™ Runtime through th
 
 @sphinxdirective
 
+.. note::
+
+   You can use `--no-install-recommends` option to install only required packages. Keep in mind that the build tools must be installed **separately** if you want to compile the samples.
+
 .. tab:: The Latest Version
 
    Run the following command:
