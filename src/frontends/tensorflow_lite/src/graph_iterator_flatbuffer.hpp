@@ -14,27 +14,53 @@
 #include "openvino/frontend/tensorflow/decoder.hpp"
 #include "openvino/frontend/tensorflow/graph_iterator.hpp"
 
+using namespace tflite;
+
 namespace ov {
 namespace frontend {
 namespace tensorflow_lite {
 
 class GraphIteratorFlatBuffer : public tensorflow::GraphIterator {
-    std::vector<const int*> m_nodes;
+    std::vector<tflite::Operator*> m_nodes;
     size_t node_index = 0;
-    std::shared_ptr<int> m_graph_def;
+    std::shared_ptr<tflite::Model> m_graph_def;
 
 public:
     template <typename T>
     GraphIteratorFlatBuffer(const std::basic_string<T>& path) {
-        std::ifstream pb_stream(path, std::ios::in | std::ifstream::binary);
+        std::ifstream model_file;
+        model_file.open(path, std::ios::binary | std::ios::in);
+        FRONT_END_GENERAL_CHECK(model_file && model_file.is_open(), "Model file does not exist: ", path);
 
-        FRONT_END_GENERAL_CHECK(pb_stream && pb_stream.is_open(), "Model file does not exist");
-        std::cout << "I'm TF Lite Graph Iterator. I've read " << path << std::endl;
-//        FRONT_END_GENERAL_CHECK(m_graph_def->ParseFromIstream(&pb_stream), "Model cannot be parsed");
-//
-//        m_nodes.resize(m_graph_def->node_size());
-//        for (size_t i = 0; i < m_nodes.size(); ++i)
-//            m_nodes[i] = &m_graph_def->node(static_cast<int>(i));
+        model_file.seekg(0, std::ios::end);
+        int length = model_file.tellg();
+        model_file.seekg(0, std::ios::beg);
+        char* data = new char[length];
+        model_file.read(data, length);
+        model_file.close();
+
+        auto raw_model = GetMutableModel(data);
+//        m_graph_def = std::shared_ptr<tflite::Model>(raw_model);
+
+        std::cout << "Model of version " << raw_model->version() << " read from " << path << std::endl;
+        std::cout << "Description: " << std::string(raw_model->description()->str()) << std::endl;
+
+//        auto graph = m_graph_def->subgraphs()->begin();
+//        std::cout << graph->name()->str() << std::endl;
+//        const auto* inputs = graph->inputs();
+//        const auto& input = *(inputs->begin());
+//        const auto* outputs = graph->outputs();
+//        const auto& output = *(outputs->begin());
+//        const auto* operators = graph->operators();
+//        const auto& operator_ = *(operators->begin());
+//        const auto* tensors = graph->tensors();
+//        const auto& tensor = *(tensors->begin());
+
+        std::cout << "Success with: " << path << std::endl;
+    }
+
+    ~GraphIteratorFlatBuffer() {
+
     }
 
     /// Set iterator to the start position
@@ -57,8 +83,8 @@ public:
 
     /// Return NodeContext for the current node that iterator points to
     std::shared_ptr<tensorflow::DecoderBase> get_decoder() const override {
-//        return std::make_shared<DecoderProto>(m_nodes[node_index]);
-//      FIXME
+        //        return std::make_shared<DecoderProto>(m_nodes[node_index]);
+        //      FIXME
         return nullptr;
     }
 };
