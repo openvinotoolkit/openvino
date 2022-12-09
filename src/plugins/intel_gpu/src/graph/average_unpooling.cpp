@@ -13,7 +13,7 @@ namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(average_unpooling)
 
 layout average_unpooling_inst::calc_output_layout(average_unpooling_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for "
            "average_unpooling_node!");
     auto desc = impl_param.typed_desc<average_unpooling>();

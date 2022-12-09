@@ -15,10 +15,13 @@
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset8.hpp>
+#include <ngraph/opsets/opset10.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/utils/utils.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ov_ops/type_relaxed.hpp>
+#include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/common_optimizations/mark_precision_sensitive_subgraphs.hpp"
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -321,6 +324,37 @@ TEST(TransformationTests, ConvertPrecision_TopK) {
 
     ASSERT_FALSE(has_type<ngraph::element::Type_t::f16>(f));
     ASSERT_FALSE(has_type<ngraph::element::Type_t::i64>(f));
+}
+
+TEST(TransformationTests, ConvertPrecision_Unique10) {
+    std::shared_ptr<ov::Model> model(nullptr);
+    {
+        auto input = std::make_shared<op::Parameter>(element::f16, Shape{15, 20, 3});
+        auto unique = std::make_shared<opset10::Unique>(input);
+
+        model = std::make_shared<ov::Model>(unique->outputs(), ParameterVector{input});
+
+        pass::Manager manager;
+
+        static const precisions_array precisions = {
+            { element::i64, element::i32 },
+            { element::f16, element::f32 }
+        };
+
+        manager.register_pass<pass::ConvertPrecision>(precisions);
+        manager.run_passes(model);
+    }
+
+    ASSERT_EQ(model->outputs().size(), 4);
+    EXPECT_EQ(model->outputs()[0].get_element_type(), element::f32);
+    EXPECT_EQ(model->outputs()[1].get_element_type(), element::i32);
+    EXPECT_EQ(model->outputs()[2].get_element_type(), element::i32);
+    EXPECT_EQ(model->outputs()[3].get_element_type(), element::i32);
+
+    EXPECT_EQ(model->get_results().size(), 4);
+
+    EXPECT_FALSE(has_type<element::Type_t::f16>(model));
+    EXPECT_FALSE(has_type<element::Type_t::i64>(model));
 }
 
 TEST(TransformationTests, ConvertPrecision_NonZero) {
@@ -766,6 +800,75 @@ TEST(TransformationTests, ConvertPrecision_Variables) {
     }
 
     ASSERT_FALSE(has_type<ngraph::element::Type_t::f16>(f));
+}
+
+TEST(TransformationTests, ConvertPrecision_skip_precision_sensitive) {
+    std::shared_ptr<ov::Model> model(nullptr);
+    std::shared_ptr<opset8::Interpolate> interpolate(nullptr);
+    {
+        auto input = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 720, 1280});
+        auto sizes = opset8::Constant::create(element::i64, Shape{4}, {1, 3, 288, 512});
+        auto scales = opset8::Constant::create(element::f32, Shape{4}, {1.0f, 1.0f, 0.4f, 0.4f});
+        opset8::Interpolate::InterpolateAttrs attrs;
+
+        attrs.mode = opset8::Interpolate::InterpolateMode::LINEAR_ONNX;
+        attrs.shape_calculation_mode = opset8::Interpolate::ShapeCalcMode::SCALES;
+        attrs.nearest_mode = opset8::Interpolate::NearestMode::FLOOR;
+        attrs.pads_begin = std::vector<size_t>{0};
+        attrs.pads_end = std::vector<size_t>{0};
+        attrs.antialias = false;
+        attrs.coordinate_transformation_mode = opset8::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL;
+        attrs.cube_coeff = -0.75f;
+
+        interpolate = std::make_shared<opset8::Interpolate>(input, sizes, scales, attrs);
+        model = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+
+        pass::Manager manager;
+
+        manager.register_pass<ov::pass::MarkPrecisionSensitiveSubgraphs>();
+        manager.get_pass_config()->set_callback<ngraph::pass::ConvertPrecision>(
+                [](const std::shared_ptr<const Node>& node) -> bool {
+                    return ov::fp16_compression_is_disabled(node) && node->get_element_type() == element::f32;
+                });
+
+        manager.register_pass<pass::ConvertPrecision>(precisions_array {{ element::f32, element::f16 }});
+        manager.run_passes(model);
+    }
+
+    ASSERT_TRUE(has_type<element::Type_t::f32>(model));
+    ASSERT_TRUE(interpolate->input_value(2).get_element_type() == element::Type_t::f32);
+}
+
+TEST(TransformationTests, ConvertPrecision_without_callback) {
+    // without callback all nodes should be converted to f16 regardless even they are marked
+    std::shared_ptr<ov::Model> model(nullptr);
+    std::shared_ptr<opset8::Interpolate> interpolate(nullptr);
+    {
+        auto input = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 720, 1280});
+        auto sizes = opset8::Constant::create(element::i64, Shape{4}, {1, 3, 288, 512});
+        auto scales = opset8::Constant::create(element::f32, Shape{4}, {1.0f, 1.0f, 0.4f, 0.4f});
+        opset8::Interpolate::InterpolateAttrs attrs;
+
+        attrs.mode = opset8::Interpolate::InterpolateMode::LINEAR_ONNX;
+        attrs.shape_calculation_mode = opset8::Interpolate::ShapeCalcMode::SCALES;
+        attrs.nearest_mode = opset8::Interpolate::NearestMode::FLOOR;
+        attrs.pads_begin = std::vector<size_t>{0};
+        attrs.pads_end = std::vector<size_t>{0};
+        attrs.antialias = false;
+        attrs.coordinate_transformation_mode = opset8::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL;
+        attrs.cube_coeff = -0.75f;
+
+        interpolate = std::make_shared<opset8::Interpolate>(input, sizes, scales, attrs);
+        model = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+        pass::Manager manager;
+
+        manager.register_pass<ov::pass::MarkPrecisionSensitiveSubgraphs>();
+        manager.register_pass<pass::ConvertPrecision>(precisions_array {{ element::f32, element::f16 }});
+        manager.run_passes(model);
+    }
+
+    ASSERT_FALSE(has_type<element::Type_t::f32>(model));
+    ASSERT_TRUE(interpolate->input_value(2).get_element_type() == element::Type_t::f16);
 }
 
 template <typename From, typename To>

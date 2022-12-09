@@ -37,9 +37,9 @@ TEST(multistream_gpu, basic) {
     topology.add(input_layout("input1", input1_dyn_layout));
     topology.add(input_layout("input2", input2_dyn_layout));
     topology.add(data("weights", weights));
-    topology.add(eltwise("eltwise", "input1", "input2", eltwise_mode::sum));
-    topology.add(fully_connected("fc", "eltwise", "weights"));
-    topology.add(shape_of("shape_of", "fc", 3, data_types::i32));
+    topology.add(eltwise("eltwise", input_info("input1"), input_info("input2"), eltwise_mode::sum));
+    topology.add(fully_connected("fc", input_info("eltwise"), "weights"));
+    topology.add(shape_of("shape_of", input_info("fc"), 3, data_types::i32));
 
     auto prog_ptr = program::build_program(engine, topology, bo);
     std::vector<network::ptr> networks;
