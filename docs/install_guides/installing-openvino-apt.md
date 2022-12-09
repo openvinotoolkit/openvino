@@ -149,34 +149,7 @@ apt list --installed | grep openvino
 @endsphinxdirective
 
 
-### Step 3 (Optional): Install OpenCV from APT
-
-OpenCV is necessary to run C++ demos from Open Model Zoo. Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. OpenVINO provides a package to install OpenCV from APT:
-
-#### Install OpenCV
-
-@sphinxdirective
-
-.. tab:: The Latest Version
-
-   Run the following command:
-
-   .. code-block:: sh
-
-      sudo apt install openvino-opencv
-
-.. tab::  A Specific Version
-
-   Run the following command:
-
-   .. code-block:: sh
-
-      sudo apt install openvino-opencv-<VERSION>.<UPDATE>.<PATCH>
-
-@endsphinxdirective
-
-
-### Step 4 (Optional): Configure Inference on Non-CPU Devices
+### Step 3 (Optional): Configure Inference on Non-CPU Devices
 
 @sphinxdirective
 
