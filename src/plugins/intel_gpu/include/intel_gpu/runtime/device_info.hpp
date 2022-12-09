@@ -63,6 +63,7 @@ struct device_info {
     bool supports_local_block_io;               ///< Does engine support cl_intel_subgroup_local_block_io extension.
     bool supports_queue_families;               ///< Does engine support cl_intel_command_queue_families extension.
     bool supports_image;                        ///< Does engine support images (CL_DEVICE_IMAGE_SUPPORT cap).
+    bool supports_intel_planar_yuv;             ///< Does engine support cl_intel_planar_yuv extension.
 
     bool supports_imad;                         ///< Does engine support int8 mad.
     bool supports_immad;                        ///< Does engine support int8 multi mad.

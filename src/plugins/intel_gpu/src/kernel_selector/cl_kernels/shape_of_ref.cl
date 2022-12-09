@@ -15,6 +15,7 @@ KERNEL(shape_of_ref)(
 #if IS_DYNAMIC
     output[i] = TO_OUTPUT_TYPE(shape_info[i]);
 #else
-    output[i] = TO_OUTPUT_TYPE(INPUT_DIMS[i]);
+    size_t shapes[] = INPUT_DIMS_INIT;
+    output[i] = TO_OUTPUT_TYPE(shapes[i]);
 #endif
 }

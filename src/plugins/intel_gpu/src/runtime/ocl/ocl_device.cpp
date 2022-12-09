@@ -173,6 +173,7 @@ device_info init_device_info(const cl::Device& device) {
     auto extensions = device.getInfo<CL_DEVICE_EXTENSIONS>();
     extensions.push_back(' ');  // Add trailing space to ease searching (search with keyword with trailing space).
 
+    info.supports_intel_planar_yuv = extensions.find("cl_intel_planar_yuv ") != std::string::npos;
     info.supports_fp16 = extensions.find("cl_khr_fp16 ") != std::string::npos;
     info.supports_fp64 = extensions.find("cl_khr_fp64 ") != std::string::npos;
     info.supports_fp16_denorms = info.supports_fp16 && (device.getInfo<CL_DEVICE_HALF_FP_CONFIG>() & CL_FP_DENORM) != 0;
