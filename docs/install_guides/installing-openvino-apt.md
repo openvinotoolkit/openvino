@@ -189,7 +189,7 @@ To build the C++ or C sample applications for Linux, run the `build_samples.sh` 
 
 @endsphinxdirective
 
-For more information, refer to [Build the Sample Applications on Linux](@ref build_samples_linux).
+For more information, refer to [Build the Sample Applications on Linux](@ref build-samples-linux).
 
 ## Installing OpenVINO Development Tools
 
