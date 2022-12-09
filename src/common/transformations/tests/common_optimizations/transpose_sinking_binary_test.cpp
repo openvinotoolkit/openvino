@@ -631,7 +631,7 @@ std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
     auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
     auto transpose0 = std::make_shared<Transpose>(binary_op, ng_order0);
 
-    return std::make_shared<Model>(ov::OutputVector{transpose0}, ov::ParameterVector{X});
+    return std::make_shared<Model>(ov::OutputVector{transpose1, tanh}, ov::ParameterVector{X});
 }
 
 std::vector<Shape> constant_shapes = {Shape{55, 55, 96}, Shape{1}};
@@ -713,65 +713,6 @@ std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
     auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
     auto transpose0 = std::make_shared<Transpose>(X, ng_order0);
 
-    auto tanh = std::make_shared<Tanh>(transpose0);
-
-    NodePtr binary;
-    auto in_constant = std::make_shared<Constant>(input_type, const_shape, Shape{1});
-    if (!binary_transpose_input_idx)
-        binary = binary_factory->create(transpose0, in_constant);
-    else
-        binary = binary_factory->create(in_constant, transpose0);
-
-    return std::make_shared<Model>(ov::OutputVector{binary, tanh}, ov::ParameterVector{X});
-}
-
-std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
-                                               element::Type input_type,
-                                               size_t binary_transpose_input_idx) {
-    const Shape input_shape{1, 96, 55, 55};
-    const Shape const_shape{1, 55, 55, 96};
-
-    auto X = std::make_shared<Parameter>(input_type, input_shape);
-
-    auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
-    auto transpose0 = std::make_shared<Transpose>(X, ng_order0);
-
-    auto tanh = std::make_shared<Tanh>(transpose0);
-
-    NodePtr binary;
-    auto in_constant = std::make_shared<Constant>(input_type, const_shape, Shape{1});
-
-    auto transpose_reversed_const = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 3, 1, 2});
-    auto transpose_reversed = std::make_shared<Transpose>(in_constant, transpose_reversed_const);
-
-    if (!binary_transpose_input_idx)
-        binary = binary_factory->create(X, transpose_reversed);
-    else
-        binary = binary_factory->create(transpose_reversed, X);
-
-    auto ng_order1 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
-    auto transpose1 = std::make_shared<Transpose>(binary, ng_order1);
-
-    return std::make_shared<Model>(ov::OutputVector{transpose1, tanh}, ov::ParameterVector{X});
-}
-
-}  // namespace input_transpose_consumers
-
-namespace output_consumers {
-
-namespace one_binary {
-
-std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
-                                      element::Type input_type,
-                                      size_t binary_transpose_input_idx) {
-    const Shape input_shape{1, 96, 55, 55};
-    const Shape const_shape{1, 55, 55, 96};
-
-    auto X = std::make_shared<Parameter>(input_type, input_shape);
-
-    auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
-    auto transpose0 = std::make_shared<Transpose>(X, ng_order0);
-
     NodePtr binary;
     auto in_constant = std::make_shared<Constant>(input_type, const_shape, Shape{1});
     if (!binary_transpose_input_idx)
@@ -811,6 +752,65 @@ std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
     auto tanh2 = std::make_shared<Tanh>(transpose0);
 
     return std::make_shared<Model>(ov::OutputVector{tanh1, tanh2}, ov::ParameterVector{X});
+}
+
+}  // namespace input_transpose_consumers
+
+namespace input_node_consumers {
+
+namespace one_binary {
+
+std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
+                                      element::Type input_type,
+                                      size_t binary_transpose_input_idx) {
+    const Shape input_shape{1, 96, 55, 55};
+    const Shape const_shape{1, 55, 55, 96};
+
+    auto X = std::make_shared<Parameter>(input_type, input_shape);
+
+    auto tanh = std::make_shared<Tanh>(X);
+
+    auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
+    auto transpose0 = std::make_shared<Transpose>(X, ng_order0);
+
+    NodePtr binary;
+    auto in_constant = std::make_shared<Constant>(input_type, const_shape, Shape{1});
+    if (!binary_transpose_input_idx)
+        binary = binary_factory->create(transpose0, in_constant);
+    else
+        binary = binary_factory->create(in_constant, transpose0);
+
+    return std::make_shared<Model>(ov::OutputVector{binary, tanh}, ov::ParameterVector{X});
+}
+
+std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
+                                               element::Type input_type,
+                                               size_t binary_transpose_input_idx) {
+    const Shape input_shape{1, 96, 55, 55};
+    const Shape const_shape{1, 55, 55, 96};
+
+    auto X = std::make_shared<Parameter>(input_type, input_shape);
+    
+    auto tanh = std::make_shared<Tanh>(X);
+    
+    auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
+    auto transpose0 = std::make_shared<Transpose>(X, ng_order0);
+
+    NodePtr binary;
+    auto in_constant = std::make_shared<Constant>(input_type, const_shape, Shape{1});
+
+    auto transpose_reversed_const = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 3, 1, 2});
+    auto transpose_reversed = std::make_shared<Transpose>(in_constant, transpose_reversed_const);
+
+    if (!binary_transpose_input_idx)
+        binary = binary_factory->create(X, transpose_reversed);
+    else
+        binary = binary_factory->create(transpose_reversed, X);
+
+    auto ng_order1 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
+    auto transpose1 = std::make_shared<Transpose>(binary, ng_order1);
+
+    return std::make_shared<Model>(ov::OutputVector{transpose1, tanh}, ov::ParameterVector{X});
 }
 
 }  // namespace one_binary
