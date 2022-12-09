@@ -85,8 +85,6 @@ void remove_whitespaces(std::string& s) {
 
 }  // namespace
 
-BWDCMP_RTTI_DEFINITION(op::v7::Einsum);
-
 op::v7::Einsum::Einsum(const OutputVector& inputs, const std::string& equation) : Op(inputs), m_equation(equation) {
     remove_whitespaces(m_equation);
     constructor_validate_and_infer_types();
