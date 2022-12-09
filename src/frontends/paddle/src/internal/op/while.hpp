@@ -12,7 +12,6 @@ namespace internal {
 class While : public Op {
 public:
     OPENVINO_OP("While", "internal");
-    BWDCMP_RTTI_DECLARATION;
 
     While() = default;
 

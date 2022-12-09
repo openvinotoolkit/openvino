@@ -16,7 +16,6 @@ namespace v3 {
 class OPENVINO_API EmbeddingBagOffsetsSum : public util::EmbeddingBagOffsetsBase {
 public:
     OPENVINO_OP("EmbeddingBagOffsetsSum", "opset3", util::EmbeddingBagOffsetsBase, 3);
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a EmbeddingBagOffsetsSum operation.
     EmbeddingBagOffsetsSum() = default;
     /// \brief Constructs a EmbeddingBagOffsetsSum operation.

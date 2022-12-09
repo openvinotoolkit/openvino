@@ -14,6 +14,36 @@ main  .searchForm {
     margin-top: 2rem;
 }
 
+/* navigation panels override */
+/* =================================================== */
+/* hide home item in the top bar */
+ul#navbar-main-elements li:first-of-type { 
+    display: none;
+}
+/* items on hover */
+#bd-docs-nav div ul a:hover {
+    text-decoration: underline;
+}
+/* top bar items on hover */
+ul#navbar-main-elements > li:hover { 
+    text-decoration: underline;
+}
+/* first level items in the side menu */
+#bd-docs-nav > div > ul > li > a {
+    color: #0068B5;
+    padding-bottom: 0;
+}
+/* second level items                 */
+#bd-docs-nav > div > ul > li > ul {
+    padding-left: 0.5rem;
+}
+#bd-docs-nav div ul li ul li a {
+    padding-top: 0;
+  /*padding-bottom: 0; */
+}
+
+
+
 /* footer links */
 /* =================================================== */
 footer div.container div.footer-item p a {
@@ -136,6 +166,8 @@ div.highlight {
     color: #000;
 }
 
+/* responsiveness */
+/* =================================================== */
 @media (max-width: 720px) {
     .transition-banner {
         margin-top: 2rem;
@@ -488,7 +520,7 @@ div.highlight {
 }
 
 
-/* content formatting for the pages */
+/* content formatting for the benchmark pages */
 .picker-options {
     margin: 15px 0;
 }
