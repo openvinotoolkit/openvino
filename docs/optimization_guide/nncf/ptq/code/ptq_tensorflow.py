@@ -5,7 +5,7 @@
 import nncf
 import tensorflow_datasets as tfds
 
-calibration_loader = val_dataset = tfds.load(...)
+calibration_loader = tfds.load(...)
 
 def transform_fn(data_item):
     images, _ = data_item

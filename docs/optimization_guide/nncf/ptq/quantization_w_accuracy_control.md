@@ -6,7 +6,7 @@ This is the advanced quantization flow that allows to apply 8-bit quantization t
 * Besided the calibration dataset, a **validation dataset** is required to compute accuracy metric. They can refer to the same data in the simplest case.
 * **Validation function**, used to compute accuracy metric is required. It can be a function that is already available in the source framework or a custom function.
 * Since accuracy validation is run several times during the quantization process, quantization with accuracy control can take more time than the [Basic 8-bit quantization](@ref basic_qauntization_flow) flow.
-* The resulted model can provide smaller performance improvement than the [Basic 8-bit quantization](@ref basic_qauntization_flow) flow bacause some of the operations are kept in the original precision.
+* The resulted model can provide smaller performance improvement than the [Basic 8-bit quantization](@ref basic_qauntization_flow) flow because some of the operations are kept in the original precision.
 
 > **NOTE**: Currently, this flow is available only for models in OpenVINO representation.
 
