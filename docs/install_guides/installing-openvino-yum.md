@@ -8,17 +8,37 @@ This guide provides installation steps for OpenVINO™ Runtime for Linux distrib
 
 ## System Requirements
 
-The complete list of supported hardware is available in the [Release Notes](https://software.intel.com/content/www/us/en/develop/articles/openvino-relnotes.html).
+@sphinxdirective
+.. tab:: Operating Systems
 
-**Operating systems**
+  * Red Hat Enterprise Linux 8 x86, 64-bit
 
-- Red Hat Enterprise Linux 8, 64-bit
+.. tab:: Hardware
 
-**Software**
+  Optimized for these processors:
 
-- [CMake 3.13 or higher, 64-bit](https://cmake.org/download/)
-- GCC 8.2.0
-- [Python 3.7 - 3.10, 64-bit](https://www.python.org/downloads)
+  * 6th to 12th generation Intel® Core™ processors and Intel® Xeon® processors
+  * 3rd generation Intel® Xeon® Scalable processor (formerly code named Cooper Lake)
+  * Intel® Xeon® Scalable processor (formerly Skylake and Cascade Lake)
+  * Intel Atom® processor with support for Intel® Streaming SIMD Extensions 4.1 (Intel® SSE4.1)
+  * Intel Pentium® processor N4200/5, N3350/5, or N3450/5 with Intel® HD Graphics
+  * Intel® Iris® Xe MAX Graphics
+  * Intel® Neural Compute Stick 2
+
+.. tab:: Processor Notes
+
+  Processor graphics are not included in all processors.
+  See `Product Specifications`_ for information about your processor.
+
+  .. _Product Specifications: https://ark.intel.com/
+
+.. tab:: Software
+
+  * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
+  * GCC 8.2.0
+  * `Python 3.7 - 3.10, 64-bit <https://www.python.org/downloads/>`_
+
+@endsphinxdirective
 
 ## Install OpenVINO Runtime
 
