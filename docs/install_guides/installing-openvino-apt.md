@@ -151,30 +151,7 @@ apt list --installed | grep openvino
 
 ### Step 3 (Optional): Configure Inference on Non-CPU Devices
 
-@sphinxdirective
-
-.. tab:: GNA
-
-   To enable the toolkit components to use Intel® Gaussian & Neural Accelerator (GNA) on your system, follow the steps in :ref:`GNA Setup Guide <gna guide>`.
-
-.. tab:: GPU
-
-   To enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in :ref:`GPU Setup Guide <gpu guide>`.
-
-.. tab:: NCS 2
-
-   To perform inference on Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X VPU, follow the steps on :ref:`NCS2 Setup Guide <ncs guide>`.
-   <!--For more details, see the `Get Started page for Intel® Neural Compute Stick 2 <https://software.intel.com/en-us/neural-compute-stick/get-started>`.-->
-
-.. tab:: VPU
-
-   To install and configure your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, see the :ref:`VPU Configuration Guide <vpu guide>`.
-   After configuration is done, you are ready to run the verification scripts with the HDDL Plugin for your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs.
-
-   .. warning::
-      While working with either HDDL or NCS, choose one of them as they cannot run simultaneously on the same machine.
-
-@endsphinxdirective
+To enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in [GPU Setup Guide](@ref openvino_docs_install_guides_configurations_for_intel_gpu).
 
 ## Installing OpenVINO Development Tools
 

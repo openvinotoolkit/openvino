@@ -143,7 +143,7 @@ Refer to <a href="openvino_docs_install_guides_installing_openvino_linux.html#in
 
 ### Step 5 (Optional): Configure Inference on Non-CPU Devices
 
-To enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in :ref:`GPU Setup Guide <gpu guide>`.
+To enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in [GPU Setup Guide](@ref openvino_docs_install_guides_configurations_for_intel_gpu).
 
 ## What's Next?
 
