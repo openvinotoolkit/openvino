@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
 #include "include/batch_headers/fetch_data.cl"
-#include "include/batch_headers/data_types.cl"
 
 #include "deconvolution_gpu_imad_common.cl"
 
@@ -53,7 +52,7 @@ DECLARE_READ_BLOCK_8(preload_weights, FILTER_TYPE)
 #   endif
 #endif
 
-__attribute__((intel_reqd_sub_group_size(FEATURE_SLICE_SIZE))) // attr:no-format
+REQD_SUB_GROUP_SIZE(FEATURE_SLICE_SIZE) // attr:no-format
 __attribute__((reqd_work_group_size(1, FEATURE_SLICE_SIZE, 1)))
 KERNEL(deconvolution_gpu_b_fs_zyx_fsv16_dw)(
         const  __global INPUT0_TYPE *input,

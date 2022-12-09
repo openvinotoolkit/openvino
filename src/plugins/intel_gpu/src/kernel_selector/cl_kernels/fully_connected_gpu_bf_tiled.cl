@@ -3,7 +3,9 @@
 //
 
 #include "include/batch_headers/common.cl"
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 
 // JIT Parameters:
 // SIMD         - sub-group size/simd width, one of {8, 16};
@@ -75,7 +77,7 @@
 #   define INPUT_ELEMENTS_COUNT INPUT0_ELEMENTS_COUNT
 #endif
 
-__attribute__((intel_reqd_sub_group_size(SIMD)))
+REQD_SUB_GROUP_SIZE(SIMD)
 KERNEL(fc)(
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,

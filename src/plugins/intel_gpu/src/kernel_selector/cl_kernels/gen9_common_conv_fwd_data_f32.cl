@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 #include "include/batch_headers/fetch_data.cl"
 #include "include/unit_type.cl"
 
@@ -29,7 +31,7 @@
 
 __attribute__((reqd_work_group_size(LWS_0, LWS_1, LWS_2))) // attr:no-format
 #if SUB_GROUP_SIZE != 1
-__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE))) // attr:no-format
+REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE) // attr:no-format
 #endif
 KERNEL(gen9_common_conv_fwd_f32_kernel)(
         const __global float *src,

@@ -3,7 +3,8 @@
 //
 
 #include "include/batch_headers/imad.cl"
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/fetch_weights.cl"
 
@@ -147,7 +148,7 @@
 #endif
 
 
-__attribute__((intel_reqd_sub_group_size(SIMD)))
+REQD_SUB_GROUP_SIZE(SIMD)
 __attribute__((reqd_work_group_size(LWS0, LWS1, SIMD)))
 KERNEL(convolution)(
     const __global  INPUT0_TYPE  *input,

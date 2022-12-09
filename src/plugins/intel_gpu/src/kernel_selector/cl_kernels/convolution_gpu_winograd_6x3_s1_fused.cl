@@ -9,7 +9,7 @@
 // --------------------------------------------------------------------------------------------------------------------------------
 
 #include "include/batch_headers/common.cl"
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
 
 
 #define DOT8i_0( _result, _A, _B, i)					\
@@ -63,7 +63,7 @@
 
 
 __attribute__((reqd_work_group_size(16, 1, 8)))
-__attribute__((intel_reqd_sub_group_size(16)))
+REQD_SUB_GROUP_SIZE(16)
 KERNEL(convolution_gpu_winograd_6x3_s1_fused)
 (
 	__global INPUT0_TYPE* I,

@@ -4,7 +4,9 @@
 
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/imad.cl"
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 
 #include "mvn_gpu_b_fs_yx_fsv16_imad_accumulate.cl"
 #include "mvn_gpu_b_fs_yx_fsv16_imad_reduce.cl"
@@ -91,7 +93,7 @@ DECLARE_WG_PACKED_REDUCE_ADD(reduce_sum_across_sg, ACCUMULATOR_TYPE, FSV, SG_NUM
 DECLARE_SG_PACKED_REDUCE_ADD(reduce_sum_inside_sg, ACCUMULATOR_TYPE, FSV, REDUCE_NO_POST_OP)
 #endif
 
-__attribute__((intel_reqd_sub_group_size(SIMD)))
+REQD_SUB_GROUP_SIZE(SIMD)
 __attribute__((reqd_work_group_size(LWS, 1, 1)))
 KERNEL(mvn_mean_1)(const __global INPUT0_TYPE* input,
                    __global ACCUMULATOR_TYPE* intermidiate_sum) {
@@ -134,7 +136,7 @@ DECLARE_WG_PACKED_REDUCE_ADD(reduce_mean_across_sg, MEAN_TYPE, FSV, SG_NUM, CALC
 DECLARE_SG_PACKED_REDUCE_ADD(reduce_mean_inside_sg, MEAN_TYPE, FSV, CALC_MEAN)
 #endif
 
-__attribute__((intel_reqd_sub_group_size(SIMD)))
+REQD_SUB_GROUP_SIZE(SIMD)
 __attribute__((reqd_work_group_size(LWS, 1, 1)))
 KERNEL(mvn_mean_2)(const __global ACCUMULATOR_TYPE* intermidiate_sum,
                    __global MEAN_TYPE* intermidiate_mean) {
@@ -176,7 +178,7 @@ DECLARE_WG_PACKED_REDUCE_ADD(reduce_sum_across_sg, MEAN_TYPE, FSV, SG_NUM, REDUC
 DECLARE_SG_PACKED_REDUCE_ADD(reduce_sum_inside_sg, MEAN_TYPE, FSV, REDUCE_NO_POST_OP)
 #endif
 
-__attribute__((intel_reqd_sub_group_size(SIMD)))
+REQD_SUB_GROUP_SIZE(SIMD)
 __attribute__((reqd_work_group_size(LWS, 1, 1)))
 KERNEL(mvn_var_1)(const __global INPUT0_TYPE* input,
                   const __global MEAN_TYPE* means,
@@ -224,7 +226,7 @@ DECLARE_WG_PACKED_REDUCE_ADD(reduce_var_across_sg, MEAN_TYPE, FSV, SG_NUM, CALC_
 DECLARE_SG_PACKED_REDUCE_ADD(reduce_var_inside_sg, MEAN_TYPE, FSV, CALC_INVERSE_VARIANCE)
 #endif
 
-__attribute__((intel_reqd_sub_group_size(SIMD)))
+REQD_SUB_GROUP_SIZE(SIMD)
 __attribute__((reqd_work_group_size(LWS, 1, 1)))
 KERNEL(mvn_var_2)(const __global MEAN_TYPE* intermidiate_sum,
                    __global MEAN_TYPE* intermidiate_ivar) {
@@ -255,7 +257,7 @@ KERNEL(mvn_var_2)(const __global MEAN_TYPE* intermidiate_sum,
 // ================================================================================================
 #elif MVN_KERNEL_MAIN_BSV32
 
-__attribute__((intel_reqd_sub_group_size(SIMD)))
+REQD_SUB_GROUP_SIZE(SIMD)
 KERNEL(mvn_final_bsv32)(
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* restrict output
@@ -338,7 +340,7 @@ DECLARE_WG_PACKED_REDUCE_ADD(reduce_inverse_variance, MEAN_TYPE, FSV, SG_NUM, CA
 DECLARE_SG_PACKED_REDUCE_ADD(reduce_inverse_variance, MEAN_TYPE, FSV, CALC_INVERSE_VARIANCE)
 #endif
 
-__attribute__((intel_reqd_sub_group_size(SIMD)))
+REQD_SUB_GROUP_SIZE(SIMD)
 __attribute__((reqd_work_group_size(LWS, 1, 1)))
 KERNEL(mvn_mean_var_bsv32)(
     const __global INPUT0_TYPE* input,
@@ -419,7 +421,7 @@ DECLARE_SG_PACKED_REDUCE_ADD(reduce_inverse_variance, MEAN_TYPE, FSV, CALC_INVER
 
 #define OUTPUT_PAD_IN_ITEMS (OUTPUT_PAD_BEFORE_SIZE_X != 0 || OUTPUT_PAD_AFTER_SIZE_X != 0 || OUTPUT_PAD_BEFORE_SIZE_Y != 0)
 
-__attribute__((intel_reqd_sub_group_size(SIMD)))
+REQD_SUB_GROUP_SIZE(SIMD)
 __attribute__((reqd_work_group_size(LWS, 1, 1)))
 KERNEL(mvn_final)(
     const __global INPUT0_TYPE* input,

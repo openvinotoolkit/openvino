@@ -5,7 +5,8 @@
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/fetch_weights.cl"
 #include "include/batch_headers/imad.cl"
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 
 #define TYPE_N_(type, n) type##n
 #define TYPE_N(type, n) TYPE_N_(type, n)
@@ -63,7 +64,7 @@
 #define FSV  16
 #define SIMD 16
 
-__attribute__((intel_reqd_sub_group_size(SIMD)))
+REQD_SUB_GROUP_SIZE(SIMD)
 __attribute__((reqd_work_group_size(1, SIMD * FEATURE_SLM_SPLIT, 1)))
 KERNEL(convolution_gpu_b_fs_yx_fsv16_imad_1x1)(
     const __global INPUT0_TYPE   *conv_input,

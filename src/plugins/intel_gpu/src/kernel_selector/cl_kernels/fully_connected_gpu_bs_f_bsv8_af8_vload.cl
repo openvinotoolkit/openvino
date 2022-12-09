@@ -57,7 +57,7 @@
 #define SUB_GROUP_SIZE 8
 
 __attribute__((reqd_work_group_size(SUB_GROUP_SIZE, 1, 1)))
-__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
+REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 KERNEL (fully_connected_gpu_xb_bs_xs_xsv8_bsv8_vload)(
     const __global UNIT_TYPE* input,
     __global UNIT_TYPE* output,

@@ -55,7 +55,12 @@ ParamsKey ConvolutionKernel_bfyx_os_iyx_osv16::GetSupportedKey() const {
 }
 
 DeviceFeaturesKey ConvolutionKernel_bfyx_os_iyx_osv16::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    return get_common_subgroups_device_features_key(params, options);
+    DeviceFeaturesKey k;
+    k.requires_subgroups();
+    k.requires_subgroup_shuffle();
+    k.requires_reqd_subgroup_size();
+
+    return k;
 }
 
 static std::pair<size_t, size_t> get_bfyx_req_input_block_dims(size_t output_block_width,

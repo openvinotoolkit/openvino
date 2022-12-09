@@ -5,6 +5,7 @@
 #include "include/batch_headers/imad.cl"
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/fetch_weights.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 
 // ======================================================================================
 // Host side jit-constants:
@@ -74,9 +75,9 @@
 #endif
 
 #if TILED
-__attribute__((intel_reqd_sub_group_size(SIMD)))
+REQD_SUB_GROUP_SIZE(SIMD)
 #endif
-KERNEL(convolution)(
+KERNEL(convolution_gpu_b_fs_yx_fsv4_dw)(
     const __global INPUT_TYPE4   *input,
     __global OUTPUT_TYPE4        *output,
     const __global FILTER_TYPE4  *weights,

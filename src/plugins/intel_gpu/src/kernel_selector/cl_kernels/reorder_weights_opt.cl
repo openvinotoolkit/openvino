@@ -42,9 +42,9 @@ INIT_OUTPUT_INDEX_FUNC_HERE
 #define OUTPUT_VEC_TYPE MAKE_VECTOR_TYPE(OUTPUT_TYPE, SECOND_BLOCK_SIZE)
 #define OUTPUT_BLOCK_WRITE(ptr, offset, val) BLOCK_WRITEN(OUTPUT_TYPE, SECOND_BLOCK_SIZE, ptr, offset, val)
 
-__attribute__((intel_reqd_sub_group_size(FIRST_BLOCK_SIZE)))
+REQD_SUB_GROUP_SIZE(FIRST_BLOCK_SIZE)
 __attribute__((reqd_work_group_size(1, 1, FIRST_BLOCK_SIZE)))
-KERNEL(reorder_weights_blocked_opt)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE* output)
+KERNEL(reorder_weights_opt)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE* output)
 {
     const int lid = get_sub_group_local_id();
     const int g_io = get_global_id(0);
@@ -123,11 +123,6 @@ KERNEL(reorder_weights_blocked_opt)(const __global INPUT0_TYPE* input, __global 
 #undef SECOND_BLOCK_SIZE
 #undef PITCH
 #undef SECOND_SIZE
-#undef OUTPUT_BLOCK_WRITE8
-#undef OUTPUT_BLOCK_WRITE4
-#undef OUTPUT_BLOCK_WRITE2
-#undef OUTPUT_BLOCK_WRITE1
-#undef OUTPUT_BLOCK_WRITE
 #undef GET_INDEX
 #undef BLOCK_IDX_ORDER
 #undef IDX_ORDER

@@ -35,7 +35,7 @@
 #endif
 
 
-__attribute__((intel_reqd_sub_group_size(SG_SIZE)))
+REQD_SUB_GROUP_SIZE(SG_SIZE)
 __attribute__((reqd_work_group_size(SG_SIZE, 1, 1)))
 KERNEL(arg_max_min_opt)(const __global UNIT_TYPE* input, __global uint* output)
 {

@@ -28,7 +28,10 @@ ParamsKey ConvolutionKernel_bfyx_GEMMLike::GetSupportedKey() const {
 }
 
 DeviceFeaturesKey ConvolutionKernel_bfyx_GEMMLike::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    return get_common_subgroups_device_features_key(params, options);
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_broadcast();
+
+    return k;
 }
 
 std::string ConvolutionKernel_bfyx_GEMMLike::GetKernelName(const convolution_params& params) const {

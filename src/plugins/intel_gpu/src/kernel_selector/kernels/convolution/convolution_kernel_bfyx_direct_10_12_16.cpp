@@ -25,7 +25,10 @@ ParamsKey ConvolutionKernel_bfyx_Direct_10_10_12::GetSupportedKey() const {
 }
 
 DeviceFeaturesKey ConvolutionKernel_bfyx_Direct_10_10_12::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    return get_common_subgroups_device_features_key(params, options);
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_broadcast();
+
+    return k;
 }
 
 JitConstants ConvolutionKernel_bfyx_Direct_10_10_12::GetJitConstants(const convolution_params& cp,

@@ -9,6 +9,7 @@
 // --------------------------------------------------------------------------------------------------------------------------------
 
 #include "include/batch_headers/common.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 
 
 #define DOT4i0( _result, _A, _B, i)					\
@@ -36,7 +37,7 @@
 #define UNIT_TYPE_8 CAT(UNIT_TYPE, 8)
 
 __attribute__((reqd_work_group_size(8, 2, 8)))
-__attribute__((intel_reqd_sub_group_size(16)))
+REQD_SUB_GROUP_SIZE(16)
 KERNEL(convolution_gpu_winograd_2x3_s1_fused)
 (
     __global INPUT0_TYPE* I,

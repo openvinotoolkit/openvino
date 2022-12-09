@@ -5,7 +5,8 @@
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/fetch_weights.cl"
 #include "include/batch_headers/imad.cl"
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 
 #define TYPE_N_(type, n) type##n
 #define TYPE_N(type, n) TYPE_N_(type, n)
@@ -50,7 +51,7 @@
 
 // int8 conv_input and weights data is packed to int32 "batches",
 // int/uint pointers here instead of INPUT0_TYPE/FILTER_TYPE for convenience
-__attribute__((intel_reqd_sub_group_size(SIMD)))
+REQD_SUB_GROUP_SIZE(SIMD)
 __attribute__((reqd_work_group_size(1, 1, FEATURE_SLM_SPLIT * SIMD)))
 KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
     const __global INPUT0_TYPE *conv_input,

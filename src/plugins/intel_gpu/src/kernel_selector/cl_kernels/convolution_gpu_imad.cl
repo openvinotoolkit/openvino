@@ -3,6 +3,7 @@
 //
 
 #include "include/batch_headers/fetch_data.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
 #include "include/batch_headers/imad.cl"
 #if QUANTIZATION_TERM
 #    define ACCUMULATOR_TYPE int
@@ -65,7 +66,7 @@
 
 // int8 conv_input and weights data is packed to int32 "batches",
 // int/uint pointers here instead of INPUT0_TYPE/FILTER_TYPE for convenience
-__attribute__((intel_reqd_sub_group_size(SIMD_SIZE)))
+REQD_SUB_GROUP_SIZE(SIMD_SIZE)
 __attribute__((reqd_work_group_size(1, 1, SIMD_SIZE)))
 KERNEL (fused_convolution_eltwise_gpu_imad)(
 #if INPUT0_LAYOUT_B_FS_YX_FSV16

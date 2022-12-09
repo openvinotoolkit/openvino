@@ -3,7 +3,8 @@
 //
 
 #include "include/fetch_utils.cl"
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
 
 #if ANTIALIAS == 1
     #define TRIANGLE_COEFF(a, x) ( (a) * ACCUMULATOR_MAX_FUNC(ACCUMULATOR_VAL_ZERO, ACCUMULATOR_VAL_ONE - ACCUMULATOR_ABS_FUNC((a) * (x))))
@@ -203,7 +204,7 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
 #endif // SAMPLE_TYPE_CAFFE_INTERP
 
 #ifndef SAMPLE_TYPE_CAFFE_INTERP
-__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
+REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 KERNEL (resample_opt)(__global INPUT0_TYPE* input,
                       __global OUTPUT_TYPE* output
 #if HAS_FUSED_OPS_DECLS

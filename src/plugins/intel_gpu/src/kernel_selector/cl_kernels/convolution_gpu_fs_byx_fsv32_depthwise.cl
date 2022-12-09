@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
 #include "include/unit_type.cl"
 #include "include/batch_headers/fetch_data.cl"
 
@@ -30,9 +31,9 @@
 // ======================================================================================
 
 
-__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
+REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 __attribute__((reqd_work_group_size(1, 1, SUB_GROUP_SIZE)))
-KERNEL(convolution_gpu_fs_byx_fsv32)(
+KERNEL(convolution_gpu_fs_byx_fsv32_depthwise)(
        __global UNIT_TYPE* input,
        __global UNIT_TYPE* output,
        __global UNIT_TYPE* weights,

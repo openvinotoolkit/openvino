@@ -3,7 +3,9 @@
 //
 
 #include "include/batch_headers/fetch_data.cl"
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 
 #define FEATURE_SLICE_SIZE 16
 
@@ -20,9 +22,9 @@
 #define AS_FILTER_TYPE2   CAT(as_, FILTER_TYPE2)
 #define TO_OUTPUT_TYPE8   CAT(convert_, OUTPUT_TYPE8)
 
-__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
+REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 __attribute__((reqd_work_group_size(1, SUB_GROUP_SIZE, 1)))
-KERNEL(convolution_depthwise)(
+KERNEL(convolution_gpu_bfyx_f16_depthwise)(
     __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,
     __global FILTER_TYPE* weights,

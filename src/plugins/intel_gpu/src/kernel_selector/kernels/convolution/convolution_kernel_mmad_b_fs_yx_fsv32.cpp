@@ -44,6 +44,10 @@ ParamsKey ConvolutionKernel_mmad_b_fs_yx_fsv32::GetSupportedKey() const {
     return k;
 }
 
+DeviceFeaturesKey ConvolutionKernel_mmad_b_fs_yx_fsv32::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    return get_common_subgroups_device_features_key(params, options);
+}
+
 bool ConvolutionKernel_mmad_b_fs_yx_fsv32::Validate(const Params& p, const optional_params& o) const {
     if (!Parent::Validate(p, o)) {
         return false;

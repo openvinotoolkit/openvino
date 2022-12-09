@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 #include "include/batch_headers/fetch_data.cl"
 
 #define INPUT_TYPE        INPUT0_TYPE
@@ -19,27 +21,6 @@
 
 #define AS_FILTER_TYPE8   CAT(as_, FILTER_TYPE8)
 
-#if INPUT0_TYPE_SIZE == 2
-#   define INPUT_BLOCK_READ(ptr, offset)    AS_INPUT_TYPE(_sub_group_block_read_us((__global ushort*)(ptr) + (offset)))
-#   define INPUT_BLOCK_READ2(ptr, offset)   AS_INPUT_TYPE2(_sub_group_block_read_us2((__global ushort*)(ptr) + (offset)))
-#   define INPUT_BLOCK_READ4(ptr, offset)   AS_INPUT_TYPE4(_sub_group_block_read_us4((__global ushort*)(ptr) + (offset)))
-#   define INPUT_BLOCK_READ8(ptr, offset)   AS_INPUT_TYPE8(_sub_group_block_read_us8((__global ushort*)(ptr) + (offset)))
-#elif INPUT0_TYPE_SIZE == 4
-#   define INPUT_BLOCK_READ(ptr, offset)    AS_INPUT_TYPE(_sub_group_block_read((__global uint*)(ptr) + (offset)))
-#   define INPUT_BLOCK_READ2(ptr, offset)   AS_INPUT_TYPE2(_sub_group_block_read2((__global uint*)(ptr) + (offset)))
-#   define INPUT_BLOCK_READ4(ptr, offset)   AS_INPUT_TYPE4(_sub_group_block_read4((__global uint*)(ptr) + (offset)))
-#   define INPUT_BLOCK_READ8(ptr, offset)   AS_INPUT_TYPE8(_sub_group_block_read8((__global uint*)(ptr) + (offset)))
-#else
-#   error convolution_gpu_bfyx_f16.cl: unsupported input type
-#endif
-
-#if FILTER_TYPE_SIZE == 2
-#   define FILTER_BLOCK_READ8(ptr, offset) AS_FILTER_TYPE8(_sub_group_block_read_us8((__global ushort*)(ptr) + (offset)))
-#elif FILTER_TYPE_SIZE == 4
-#   define FILTER_BLOCK_READ8(ptr, offset) AS_FILTER_TYPE8(_sub_group_block_read8((__global uint*)(ptr) + (offset)))
-#else
-#   error convolution_gpu_bfyx_f16.cl: unsupported filter type
-#endif
 
 #if OUTPUT_FORMAT_BFYX
 #   define OUTPUTVTYPE(n)       CAT(OUTPUT_TYPE, n)
@@ -60,7 +41,7 @@
 #define FILTER_OFM_NUM_ALIGNED (((FILTER_OFM_NUM + FEATURE_SLICE_SIZE - 1) / FEATURE_SLICE_SIZE) * FEATURE_SLICE_SIZE)
 #define FILTER_IFM_NUM_ALIGNED (((FILTER_IFM_NUM + FEATURE_SLICE_SIZE - 1) / FEATURE_SLICE_SIZE) * FEATURE_SLICE_SIZE)
 
-__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
+REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 __attribute__((reqd_work_group_size(1, SUB_GROUP_SIZE * SLM_DIV_FACTOR, 1)))
 KERNEL(convolution_bfyx_f16)(
     __global INPUT0_TYPE* input,
@@ -150,12 +131,12 @@ KERNEL(convolution_bfyx_f16)(
 
 #if BIAS_TERM
 #if SLM_DIV_FACTOR == 1
-    vec_t dst = (vec_t)(INPUT_BLOCK_READ(biases, feature_block * FEATURE_SLICE_SIZE));
+    vec_t dst = (vec_t)(DT_INPUT_BLOCK_READ(biases, feature_block * FEATURE_SLICE_SIZE));
 #else
     vec_t dst;
 
     if (feature_sub_block == 0) {
-        dst = (vec_t)(INPUT_BLOCK_READ(biases, feature_block * FEATURE_SLICE_SIZE));
+        dst = (vec_t)(DT_INPUT_BLOCK_READ(biases, feature_block * FEATURE_SLICE_SIZE));
     } else {
         dst = INPUT0_VAL_ZERO;
     }
@@ -221,7 +202,7 @@ KERNEL(convolution_bfyx_f16)(
                 {
                     int xb = 0;
                     for (; xb + 8 <= INPUT_LINE_SIZE; xb += 8) {
-                        INPUT_TYPE8 vv = INPUT_BLOCK_READ8(input, grouped_input_offset +
+                        INPUT_TYPE8 vv = DT_INPUT_BLOCK_READ8(input, grouped_input_offset +
                                                                   icb * input_fs_pitch +
                                                                   kh * DILATION_SIZE_Y * input_y_pitch +
                                                                   xb * input_x_pitch);
@@ -236,7 +217,7 @@ KERNEL(convolution_bfyx_f16)(
                         line_cache[xb + 7] = vv[7];
                     }
                     for (; xb + 4 <= INPUT_LINE_SIZE; xb += 4) {
-                        INPUT_TYPE4 vv = INPUT_BLOCK_READ4(input, grouped_input_offset +
+                        INPUT_TYPE4 vv = DT_INPUT_BLOCK_READ4(input, grouped_input_offset +
                                                                   icb * input_fs_pitch +
                                                                   kh * DILATION_SIZE_Y * input_y_pitch +
                                                                   xb * input_x_pitch);
@@ -247,7 +228,7 @@ KERNEL(convolution_bfyx_f16)(
                         line_cache[xb + 3] = vv[3];
                     }
                     for (; xb < INPUT_LINE_SIZE; xb++) {
-                        line_cache[xb] = INPUT_BLOCK_READ(input, grouped_input_offset +
+                        line_cache[xb] = DT_INPUT_BLOCK_READ(input, grouped_input_offset +
                                                                  icb * input_fs_pitch +
                                                                  kh * DILATION_SIZE_Y * input_y_pitch +
                                                                  xb * input_x_pitch);
@@ -314,11 +295,11 @@ KERNEL(convolution_bfyx_f16)(
 #   error convolution_gpu_bfyx_f16.cl: unsupported input feature size for multiple groups input preload
 #endif  // FILTER_IFM_NUM
 #else
-                    FILTER_TYPE8 wei0 = FILTER_BLOCK_READ8(weights, grouped_filter_offset +
+                    FILTER_TYPE8 wei0 = DT_FILTER_BLOCK_READ8(weights, grouped_filter_offset +
                                                                     icb * filter_is_pitch +
                                                                     kh * filter_y_pitch +
                                                                     kw * filter_x_pitch);
-                    FILTER_TYPE8 wei1 = FILTER_BLOCK_READ8(weights, grouped_filter_offset +
+                    FILTER_TYPE8 wei1 = DT_FILTER_BLOCK_READ8(weights, grouped_filter_offset +
                                                                     icb * filter_is_pitch +
                                                                     kh * filter_y_pitch +
                                                                     kw * filter_x_pitch +
@@ -491,13 +472,6 @@ KERNEL(convolution_bfyx_f16)(
 #undef AS_INPUT_TYPE8
 
 #undef AS_FILTER_TYPE8
-
-#undef INPUT_BLOCK_READ
-#undef INPUT_BLOCK_READ2
-#undef INPUT_BLOCK_READ4
-#undef INPUT_BLOCK_READ8
-
-#undef FILTER_BLOCK_READ8
 
 #if OUTPUT_FORMAT_BFYX
 #   undef OUTPUTVTYPE

@@ -18,7 +18,7 @@
 
 #define ACC_TYPE float
 
-__attribute__((intel_reqd_sub_group_size(16)))
+REQD_SUB_GROUP_SIZE(16)
 KERNEL (fully_connected_gpu_bf_io_input_spatial)(
     const __global UNIT_TYPE* input,
     __global UNIT_TYPE* output,

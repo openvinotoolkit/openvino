@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
 #include "include/batch_headers/fetch_data.cl"
 #include "include/unit_type.cl"
 #include "include/sub_group.cl"
@@ -36,7 +37,7 @@
 #define INC_OFFSET(_offset, _value) _offset += _value
 #define SIMD_SIZE 8
 
-__attribute__((intel_reqd_sub_group_size(SIMD_SIZE)))
+REQD_SUB_GROUP_SIZE(SIMD_SIZE)
 KERNEL(lstm_dynamic_input_bfyx_opt)(
     const __global INPUT0_TYPE* input,
     const __global DYN_LENGTH_TYPE* dyn_lengths,

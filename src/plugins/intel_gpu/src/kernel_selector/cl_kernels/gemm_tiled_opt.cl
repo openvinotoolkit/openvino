@@ -3,7 +3,9 @@
 //
 
 #include "include/batch_headers/fetch_data.cl"
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 
 #if INPUT0_TYPE_SIZE == 4
 #define BLOCK_SHUFFLE               _sub_group_shuffle

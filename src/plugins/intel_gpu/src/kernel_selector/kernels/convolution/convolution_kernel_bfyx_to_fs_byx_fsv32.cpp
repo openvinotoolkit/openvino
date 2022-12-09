@@ -53,7 +53,10 @@ ParamsKey ConvolutionKernel_bfyx_to_fs_byx_fsv32::GetSupportedKey() const {
 }
 
 DeviceFeaturesKey ConvolutionKernel_bfyx_to_fs_byx_fsv32::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    return get_common_subgroups_device_features_key(params, options);
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_shuffle();
+
+    return k;
 }
 
 ConvolutionKernel_bfyx_to_fs_byx_fsv32::AutoTuneOption ConvolutionKernel_bfyx_to_fs_byx_fsv32::GetAutoTuneOptions(

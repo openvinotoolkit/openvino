@@ -25,7 +25,7 @@ inline void FUNC(get_yxfb_coords_from_linear_idx_no_padding)(uint data_idx, uint
     *y = data_idx - tmp_data_idx * INPUT0_SIZE_Y;
 }
 
-__attribute__((intel_reqd_sub_group_size(8)))
+REQD_SUB_GROUP_SIZE(8)
 KERNEL (reorder_data_to_yxfb_batched)(
     const __global INPUT_REORDER_TYPE* input,
     __global OUTPUT_REORDER_TYPE* output

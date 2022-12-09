@@ -2,18 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 #include "include/batch_headers/fetch_data.cl"
 
-#if FP16_UNIT_USED
-    #define ALIGNED_BLOCK_READ(ptr, byte_offset) as_half(_sub_group_block_read_us8((const __global ushort*)(ptr) + (byte_offset)))
-    #define ALIGNED_BLOCK_WRITE(ptr, byte_offset, val) _sub_group_block_write_us((__global ushort*)(ptr) + (byte_offset), as_ushort8(val))
-#else
-    #define ALIGNED_BLOCK_READ(ptr, byte_offset) as_float(_sub_group_block_read((const __global uint*)(ptr) + (byte_offset)))
-    #define ALIGNED_BLOCK_WRITE(ptr, byte_offset, val) _sub_group_block_write((__global uint*)(ptr) + (byte_offset), as_uint8(val))
-#endif
-
-__attribute__((intel_reqd_sub_group_size(16)))
+REQD_SUB_GROUP_SIZE(16)
 __attribute__((reqd_work_group_size(16, 1, 1)))
 KERNEL(convolution_depthwise_weights_lwg)(
     __global INPUT0_TYPE* input,
@@ -41,7 +34,7 @@ KERNEL(convolution_depthwise_weights_lwg)(
     const uint input_offset = b*INPUT0_BATCH_PITCH + INPUT0_OFFSET + in_group_offset;
 
 #if FILTER_SIZE_Y * FILTER_SIZE_X % 16 == 0 && !FP16_UNIT_USED
-    UNIT_TYPE w = ALIGNED_BLOCK_READ(weights, filter_offset);
+    UNIT_TYPE w = DT_FILTER_BLOCK_READ(weights, filter_offset);
 #elif FILTER_SIZE_X * FILTER_SIZE_Y > 16 && FILTER_SIZE_X * FILTER_SIZE_Y <= 25
     const uint lid = get_local_id(0);
     UNIT_TYPE w[2] = { UNIT_VAL_ZERO };

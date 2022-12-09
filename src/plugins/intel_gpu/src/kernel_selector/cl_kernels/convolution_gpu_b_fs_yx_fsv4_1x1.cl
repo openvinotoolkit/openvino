@@ -58,7 +58,7 @@
 // WI: 1 x FEATURES_PER_WI x 1
 // SG: 1 x FEATURES_PER_WI x SIMD
 
-__attribute__((intel_reqd_sub_group_size(SIMD)))
+REQD_SUB_GROUP_SIZE(SIMD)
 __attribute__((reqd_work_group_size(SIMD, 1, LWG_DEPTH)))
 KERNEL(convolution)(
     const __global uint          *input,

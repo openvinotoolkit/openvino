@@ -5,6 +5,7 @@
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/fetch_weights.cl"
 #include "include/batch_headers/imad.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 #if QUANTIZATION_TERM
 #define ACCUMULATOR_TYPE int
 #define TO_ACCUMULATOR_TYPE(x) convert_int(x)
@@ -25,7 +26,7 @@
 
 // int8 conv_input and weights data is packed to int32 "batches",
 // int/uint pointers here instead of INPUT0_TYPE/FILTER_TYPE for convenience
-__attribute__((intel_reqd_sub_group_size(16)))
+REQD_SUB_GROUP_SIZE(16)
 KERNEL(convolution_gpu_imad_bs_fs_yx_bsv16_fsv16_3x3)(
     const __global INPUT0_TYPE *conv_input,
     __global OUTPUT_TYPE *output,

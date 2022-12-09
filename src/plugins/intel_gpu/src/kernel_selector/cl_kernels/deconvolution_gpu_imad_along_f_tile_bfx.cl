@@ -5,7 +5,9 @@
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/fetch_weights.cl"
 #include "include/batch_headers/imad.cl"
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 
 #include "deconvolution_gpu_imad_common.cl"
 
@@ -31,7 +33,7 @@ DECLARE_STORE_BLOCK_4(store_output, OUTPUT_TYPE)
 #define WEIGHTS_IN_TILE_OFM_PITCH               (TILE_IFM * SIMD)
 
 __attribute__((reqd_work_group_size(1, SIMD, 1)))
-__attribute__((intel_reqd_sub_group_size(SIMD)))
+REQD_SUB_GROUP_SIZE(SIMD)
 KERNEL(deconvolution_gpu_imad_ref)(
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* restrict output,

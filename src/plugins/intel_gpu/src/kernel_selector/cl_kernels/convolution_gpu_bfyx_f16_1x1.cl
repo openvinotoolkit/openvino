@@ -22,7 +22,7 @@
 #   define UNIT_BLOCK_WRITE_VEC(ptr, offset, val)   CAT(UNIT_BLOCK_WRITE, X_BLOCK_SIZE)(ptr, offset, val)
 #endif
 
-__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
+REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 __attribute__((reqd_work_group_size(1, SUB_GROUP_SIZE * SLM_DIV_FACTOR, 1)))
 KERNEL(convolution_b_fs_yx_fsv16_1x1)(
     __global INPUT0_TYPE* input,

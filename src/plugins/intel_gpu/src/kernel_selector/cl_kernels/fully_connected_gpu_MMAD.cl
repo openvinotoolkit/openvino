@@ -17,7 +17,7 @@
 
 #define MMAD                    CAT(MMAD_, SUB_GROUP_SIZE)
 
-__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
+REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 KERNEL(fully_connected_gpu_MMAD)(
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,

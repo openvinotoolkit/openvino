@@ -33,6 +33,14 @@ ParamsKey BinaryConvolutionKernel1x1_b_fs_yx_fsv16::GetSupportedKey() const {
     return k;
 }
 
+DeviceFeaturesKey BinaryConvolutionKernel1x1_b_fs_yx_fsv16::get_required_device_features_key(const Params& params, const optional_params& /*options*/) const {
+    DeviceFeaturesKey k;
+    k.requires_subgroup_shuffle();
+    k.requires_blocked_read_write();
+
+    return k;
+}
+
 BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernel1x1_b_fs_yx_fsv16::SetDefault(
     const binary_convolution_params& params,
     int) const {

@@ -31,7 +31,10 @@ ParamsKey LSTM_DynamicInputKernelBfyxOpt::GetSupportedKey() const {
 }
 
 DeviceFeaturesKey LSTM_DynamicInputKernelBfyxOpt::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    return get_common_subgroups_device_features_key(params, options);
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_shuffle();
+
+    return k;
 }
 
 bool LSTM_DynamicInputKernelBfyxOpt::Validate(const Params & p, const optional_params & o) const {

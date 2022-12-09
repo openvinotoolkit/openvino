@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 #include "include/batch_headers/fetch_data.cl"
 #include "include/mmad.cl"
 
@@ -48,7 +50,7 @@ inline uint FUNC(get_output_batch_offset)(uint b, uint f, uint w, uint z) {
 
 // GEMM int8 kernel using SLM and MMAD macro. Without transpositions of input matrices and without leftovers
 __attribute__((reqd_work_group_size(SUB_GROUP_SIZE, PACK_SIZE, 1)))
-__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
+REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 KERNEL(gemm_mmad_int8_slm)(
     const __global INPUT0_TYPE* input0,
     const __global INPUT1_TYPE* input1,

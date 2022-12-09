@@ -23,7 +23,11 @@ ParamsKey FullyConnected_fb_io_b8_f8::GetSupportedKey() const {
 }
 
 DeviceFeaturesKey FullyConnected_fb_io_b8_f8::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    return get_common_subgroups_device_features_key(params, options);
+    DeviceFeaturesKey k;
+    k.requires_subgroups();
+    k.requires_subgroup_shuffle();
+
+    return k;
 }
 
 size_t FullyConnected_fb_io_b8_f8::GetBatchesPerWorkItem(const fully_connected_params& params) const {

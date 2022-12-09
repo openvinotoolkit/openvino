@@ -7,7 +7,7 @@
 
 #define INPUT0_PACKED_TYPE uint
 
-__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
+REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 __attribute__((reqd_work_group_size(1, 1, SUB_GROUP_SIZE)))
 KERNEL(convolution_gpu_b_fs_yx_fsv4_int8)(
     const __global INPUT0_PACKED_TYPE* input,

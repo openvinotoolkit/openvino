@@ -9,7 +9,7 @@
 #define TILE_K          FILTER_SIZE_X
 #define TILE_N          32
 
-__attribute__((intel_reqd_sub_group_size(16)))
+REQD_SUB_GROUP_SIZE(16)
 KERNEL(convolution_f16)(
     const __global half *src0,
     __global half *dst,

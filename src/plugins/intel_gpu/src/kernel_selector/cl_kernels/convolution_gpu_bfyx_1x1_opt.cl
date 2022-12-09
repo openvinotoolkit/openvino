@@ -5,7 +5,7 @@
 #include "include/batch_headers/fetch_data.cl"
 
 #define SIMD_SIZE 8
-__attribute__((intel_reqd_sub_group_size(SIMD_SIZE)))
+REQD_SUB_GROUP_SIZE(SIMD_SIZE)
 KERNEL(convolution)(
     __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,

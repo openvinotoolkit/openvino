@@ -30,7 +30,10 @@ ParamsKey ConvolutionKernel_yxfb_yxio_b16::GetSupportedKey() const {
 }
 
 DeviceFeaturesKey ConvolutionKernel_yxfb_yxio_b16::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    return get_common_subgroups_device_features_key(params, options);
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_shuffle();
+
+    return k;
 }
 
 std::string ConvolutionKernel_yxfb_yxio_b16::GetKernelName(const convolution_params& params) const {

@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 
 #define FEATURE_SLICE_SIZE 16
 #if X_BLOCK_SIZE > 1
@@ -29,7 +30,7 @@
     #define INIT_VAL ACCUMULATOR_VAL_ZERO
 #endif
 
-__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
+REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 KERNEL(pooling_gpu_blocked)(
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output

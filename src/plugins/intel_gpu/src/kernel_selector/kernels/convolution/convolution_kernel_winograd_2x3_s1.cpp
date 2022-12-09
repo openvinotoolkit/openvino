@@ -32,7 +32,11 @@ ParamsKey ConvolutionKernel_Winograd_2x3_s1::GetSupportedKey() const {
 }
 
 DeviceFeaturesKey ConvolutionKernel_Winograd_2x3_s1::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    return get_common_subgroups_device_features_key(params, options);
+    DeviceFeaturesKey k;
+    k.requires_subgroups();
+    k.requires_subgroup_shuffle();
+
+    return k;
 }
 
 JitConstants ConvolutionKernel_Winograd_2x3_s1::GetJitConstants(const convolution_params& params,

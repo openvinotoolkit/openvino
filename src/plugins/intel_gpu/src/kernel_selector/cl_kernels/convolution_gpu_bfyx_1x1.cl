@@ -3,6 +3,9 @@
 //
 
 #include "include/batch_headers/fetch_data.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 #include "include/sub_group.cl"
 
 #if FP16_UNIT_USED
@@ -51,7 +54,7 @@
 #define ACCUMULATOR_TYPE INPUT0_TYPE
 #endif
 
-__attribute__((intel_reqd_sub_group_size(16)))
+REQD_SUB_GROUP_SIZE(16)
 KERNEL(convolution_bfyx_1x1)(
     __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,

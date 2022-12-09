@@ -69,7 +69,7 @@ inline uint FUNC(get_current_index)(int axis, int i)
 #endif
 }
 
-__attribute__((intel_reqd_sub_group_size(SIMD)))
+REQD_SUB_GROUP_SIZE(SIMD)
 __attribute__((reqd_work_group_size(LWS, 1, 1)))
 KERNEL(cum_sum_partial_sum)(
     const __global INPUT0_TYPE* input,
@@ -130,7 +130,7 @@ inline uint FUNC(get_current_index)(int i)
 }
 
 // main
-__attribute__((intel_reqd_sub_group_size(SIMD)))
+REQD_SUB_GROUP_SIZE(SIMD)
 __attribute__((reqd_work_group_size(LWS, 1, 1)))
 KERNEL(cum_sum_final)(
     const __global PARTIAL_TYPE* partial,

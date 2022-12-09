@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "include/batch_headers/sub_group_shuffle.cl"
+
 // --------------------------------------------------------------------------------------------------------------------------------
 // L3_SIMD_4x8
 // Input matrices dimensions: M x K x N

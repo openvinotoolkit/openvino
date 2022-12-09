@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/fetch_data.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
 #include "include/gemm_common.cl"
 
 #define MULT(C_, A_, i_)                   \
@@ -12,7 +12,7 @@
     DOT8i(C_, B24, A_, i_ + 3);
 
 __attribute__((reqd_work_group_size(16, TY, 1)))
-__attribute__((intel_reqd_sub_group_size(16)))
+REQD_SUB_GROUP_SIZE(16)
 KERNEL(convolution_gpu_bfyx_1x1_hgemm_buf_16x1)(
     __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,

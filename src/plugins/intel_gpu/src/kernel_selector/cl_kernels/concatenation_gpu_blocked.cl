@@ -3,7 +3,8 @@
 //
 
 #include "include/batch_headers/fetch_data.cl"
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
 
 #define WORK_GROUP_SIZE 16
 #define IC_BLOCK 16
@@ -22,7 +23,7 @@
 #endif
 
 __attribute__((reqd_work_group_size(1, WORK_GROUP_SIZE, 1)))
-__attribute__((intel_reqd_sub_group_size(WORK_GROUP_SIZE)))
+REQD_SUB_GROUP_SIZE(WORK_GROUP_SIZE)
 KERNEL (concatenation_gpu_blocked)(
     __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,

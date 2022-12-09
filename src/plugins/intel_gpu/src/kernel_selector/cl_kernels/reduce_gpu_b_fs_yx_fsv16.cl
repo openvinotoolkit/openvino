@@ -138,7 +138,7 @@ inline uint FUNC(calc_linear_offset)(uint b, uint f, uint y, uint x) {
     return index;
 }
 
-__attribute__((intel_reqd_sub_group_size(SIMD)))
+REQD_SUB_GROUP_SIZE(SIMD)
 KERNEL(reduce_fsv16)(
     const __global INPUT0_TYPE* data,
     __global OUTPUT_TYPE* output

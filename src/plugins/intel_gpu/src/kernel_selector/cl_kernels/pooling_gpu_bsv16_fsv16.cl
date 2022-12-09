@@ -45,7 +45,7 @@ inline ACCUMULATOR_VEC8 FUNC(apply_pooling)(ACCUMULATOR_VEC8 tmp, ACCUMULATOR_VE
 
 __attribute__((reqd_work_group_size(SUB_GROUP_SIZE, 1, 1)))
 #if SUB_GROUP_SIZE != 1
-__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
+REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 #endif
 KERNEL(pooling_gpu_bsv16_fsv16)(
     const __global INPUT0_TYPE* input,

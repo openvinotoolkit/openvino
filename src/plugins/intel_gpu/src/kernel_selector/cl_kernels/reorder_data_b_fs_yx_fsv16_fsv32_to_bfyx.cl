@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
 #include "include/batch_headers/fetch_data.cl"
 
 #define INPUT0_GET_TILED_INDEX(ORDER) INPUT0_GET_INDEX(ORDER)
@@ -19,8 +19,7 @@
 #define GET_LOCAL_ID(IDX) ((uint)get_local_id(IDX))
 #define GET_LOCAL_SIZE(IDX) ((uint)get_local_size(IDX))
 
-__attribute__((intel_reqd_sub_group_size(DEFAULT_STRIDE)))
-
+REQD_SUB_GROUP_SIZE(DEFAULT_STRIDE)
 KERNEL (reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx)(
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output

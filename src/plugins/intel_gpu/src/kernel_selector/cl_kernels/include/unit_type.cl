@@ -3,6 +3,8 @@
 //
 
 #include "batch_headers/common.cl"
+#include "batch_headers/sub_group_block_read.cl"
+#include "batch_headers/sub_group_block_write.cl"
 
 #ifndef UNIT_TYPE
 #error Unit type not defined.

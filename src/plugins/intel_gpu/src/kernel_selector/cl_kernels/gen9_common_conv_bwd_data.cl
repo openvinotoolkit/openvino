@@ -3,7 +3,9 @@
 //
 
 #include "include/batch_headers/fetch_data.cl"
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 
 #define INPUT_TYPE8  MAKE_VECTOR_TYPE(INPUT0_TYPE, 8)
 #define OUTPUT_TYPE8 MAKE_VECTOR_TYPE(OUTPUT_TYPE, 8)
@@ -27,7 +29,7 @@
 
 __attribute__((reqd_work_group_size(LWS_0, LWS_1, LWS_2))) // attr:no-format
 #if VER_16MB16C == 1 || VER_8OW16C == 1
-__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE))) // attr:no-format
+REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE) // attr:no-format
 #endif
 KERNEL(gen9_common_conv_bwd_data_kernel)(
         const  __global INPUT0_TYPE *diff_dst,

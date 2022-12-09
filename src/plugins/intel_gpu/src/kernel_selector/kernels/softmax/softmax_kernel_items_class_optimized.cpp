@@ -37,6 +37,15 @@ inline static size_t GetItemClassCount(const DataTensor& input, SoftmaxDim dim) 
 
 ParamsKey SoftmaxKerneItemsClassOptimized::GetSupportedKey() const { return GetDefaultSupportedKey(); }
 
+DeviceFeaturesKey SoftmaxKerneItemsClassOptimized::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    DeviceFeaturesKey k;
+    k.requires_subgroups();
+    k.requires_subgroup_reduce();
+    k.requires_reqd_subgroup_size();
+
+    return k;
+}
+
 SoftmaxKerneItemsClassOptimized::Parent::DispatchData SoftmaxKerneItemsClassOptimized::SetDefault(const softmax_params& params) const {
     auto dispatchData = Parent::SetDefault(params);
 

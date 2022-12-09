@@ -35,7 +35,10 @@ ParamsKey ConvolutionKernel_b_fs_yx_fsv4_int8::GetSupportedKey() const {
 }
 
 DeviceFeaturesKey ConvolutionKernel_b_fs_yx_fsv4_int8::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    return get_common_subgroups_device_features_key(params, options);
+    DeviceFeaturesKey k;
+    k.requires_reqd_subgroup_size();
+
+    return k;
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv4_int8::SetDefault(const convolution_params& cp, int) const {

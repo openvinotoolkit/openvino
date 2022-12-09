@@ -52,7 +52,9 @@ public:
     void requires_blocked_read_write() { key.machine_features.val.subgroup_blocked_read_write = 1; }
     void requires_blocked_read_write_short() { key.machine_features.val.subgroup_blocked_read_write_short = 1; }
     void requires_blocked_read_write_char() { key.machine_features.val.subgroup_blocked_read_write_char = 1; }
+    void requires_subgroup_broadcast() { key.machine_features.val.subgroup_broadcast = 1; }
     void requires_subgroup_shuffle() { key.machine_features.val.subgroup_shuffle = 1; }
+    void requires_subgroup_shuffle_relative() { key.machine_features.val.subgroup_shuffle_relative = 1; }
     void requires_subgroup_reduce() { key.machine_features.val.subgroup_reduce = 1; }
     void requires_reqd_subgroup_size() { key.machine_features.val.reqd_subgroup_size = 1; }
 
@@ -60,7 +62,9 @@ public:
     void enable_blocked_read_write() { key.machine_features.val.subgroup_blocked_read_write = 1; }
     void enable_blocked_read_write_short() { key.machine_features.val.subgroup_blocked_read_write_short = 1; }
     void enable_blocked_read_write_char() { key.machine_features.val.subgroup_blocked_read_write_char = 1; }
+    void enable_subgroup_broadcast() { key.machine_features.val.subgroup_broadcast = 1; }
     void enable_subgroup_shuffle() { key.machine_features.val.subgroup_shuffle = 1; }
+    void enable_subgroup_shuffle_relative() { key.machine_features.val.subgroup_shuffle_relative = 1; }
     void enable_subgroup_reduce() { key.machine_features.val.subgroup_reduce = 1; }
     void enable_reqd_subgroup_size() { key.machine_features.val.reqd_subgroup_size = 1; }
 
@@ -78,7 +82,9 @@ public:
                 uint32_t subgroup_blocked_read_write_short : 1;
                 uint32_t subgroup_blocked_read_write_char : 1;
                 uint32_t reqd_subgroup_size : 1;
+                uint32_t subgroup_broadcast : 1;
                 uint32_t subgroup_shuffle : 1;
+                uint32_t subgroup_shuffle_relative : 1;
                 uint32_t subgroup_reduce : 1;
             } val;
             uint32_t raw;
@@ -406,6 +412,8 @@ struct EngineInfo {
 
         if (supports_intel_subgroups) {
             k.enable_subgroup_reduce();
+            k.enable_subgroup_broadcast();
+            k.enable_subgroup_shuffle_relative();
         }
 
         if (supports_khr_subgroups || supports_intel_subgroups) {

@@ -20,7 +20,10 @@ ParamsKey FullyConnected_fb_oi_b8_ref::GetSupportedKey() const {
 }
 
 DeviceFeaturesKey FullyConnected_fb_oi_b8_ref::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    return get_common_subgroups_device_features_key(params, options);
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_shuffle();
+
+    return k;
 }
 
 FullyConnected_fb_oi_b8_ref::DispatchData FullyConnected_fb_oi_b8_ref::SetDefault(const fully_connected_params& arg,

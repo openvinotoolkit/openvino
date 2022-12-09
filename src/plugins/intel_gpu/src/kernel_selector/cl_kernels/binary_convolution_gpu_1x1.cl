@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 #include "include/batch_headers/fetch_data.cl"
 
 #define OC_BLOCK_SIZE 32
@@ -12,7 +14,7 @@
 #define ALIGNED_BLOCK_WRITE(ptr, byte_offset, val) _sub_group_block_write((__global uint*)(ptr) + (byte_offset), as_uint(val))
 #define ALIGNED_BLOCK_READ2(ptr, byte_offset) as_uint2(_sub_group_block_read2((const __global uint*)(ptr) + (byte_offset)))
 
-__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
+REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 __attribute__((reqd_work_group_size(SUB_GROUP_SIZE, 1, 1)))
 KERNEL(binary_convolution_1x1)(const __global INPUT0_TYPE* input,
                                      __global OUTPUT_TYPE* output,

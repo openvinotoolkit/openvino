@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
 
 #define IN_VEC16 MAKE_VECTOR_TYPE(INPUT0_TYPE, 16)
@@ -42,7 +41,7 @@ inline ACCUMULATOR_TYPE FUNC(apply_pooling)(ACCUMULATOR_TYPE tmp, ACCUMULATOR_TY
 }
 
 #if GLOBAL_POOLING
-__attribute__((intel_reqd_sub_group_size(FEATURE_SLICE_SIZE)))
+REQD_SUB_GROUP_SIZE(FEATURE_SLICE_SIZE)
 __attribute__((reqd_work_group_size(1, LWS, 1)))
 KERNEL(pooling_gpu_b_fs_zyx_fsv16)(
     const __global INPUT0_TYPE* input,
@@ -222,7 +221,7 @@ KERNEL(pooling_gpu_b_fs_zyx_fsv16)(
     }
 }
 #else  // GLOBAL_POOLING
-__attribute__((intel_reqd_sub_group_size(FEATURE_SLICE_SIZE)))
+REQD_SUB_GROUP_SIZE(FEATURE_SLICE_SIZE)
 KERNEL(pooling_gpu_b_fs_zyx_fsv16)(
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output

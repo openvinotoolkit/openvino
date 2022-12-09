@@ -15,7 +15,7 @@
 #define TILE_X          12      // Width of tile loaded in input (src0)
 #define TILE_Y          10      // Height of tile loaded in input (src0)
 
-__attribute__((intel_reqd_sub_group_size(16)))
+REQD_SUB_GROUP_SIZE(16)
 KERNEL(convolution_f16_10x12x16)(
     const __global half *src0,
     __global half *dst,

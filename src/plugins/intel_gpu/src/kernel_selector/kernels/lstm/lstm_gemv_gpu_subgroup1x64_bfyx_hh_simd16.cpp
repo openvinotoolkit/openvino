@@ -23,7 +23,11 @@ ParamsKey LSTMGemvKernel_subgroup1x64_bfyx_hh_SIMD16::GetSupportedKey() const {
 }
 
 DeviceFeaturesKey LSTMGemvKernel_subgroup1x64_bfyx_hh_SIMD16::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    return get_common_subgroups_device_features_key(params, options);
+    DeviceFeaturesKey k;
+    k.requires_subgroups();
+    k.requires_subgroup_shuffle();
+
+    return k;
 }
 
 KernelsData LSTMGemvKernel_subgroup1x64_bfyx_hh_SIMD16::GetKernelsData(const Params& params,

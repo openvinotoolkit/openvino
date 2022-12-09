@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/imad.cl"
 
@@ -13,7 +15,7 @@
 #define AS_TYPE_N(type, n, x)   AS_TYPE_N_(type, n, x)
 #define AS_INPUT0_TYPE_4(x)     AS_TYPE_N(INPUT0_TYPE, 4, x)
 
-__attribute__((intel_reqd_sub_group_size(SIMD_SIZE)))
+REQD_SUB_GROUP_SIZE(SIMD_SIZE)
 KERNEL(fully_connected_gpu_imad)(
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,

@@ -5,7 +5,7 @@
 #include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
 
-__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
+REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 __attribute__((reqd_work_group_size(SUB_GROUP_SIZE, 1, 1)))
 KERNEL(pooling_gpu_average_opt)(
     const __global INPUT0_TYPE* input,
