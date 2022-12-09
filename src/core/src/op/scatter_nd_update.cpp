@@ -12,8 +12,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v3::ScatterNDUpdate);
-
 shared_ptr<Node> op::v3::ScatterNDUpdate::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v3_ScatterNDUpdate_clone_with_new_inputs);
     check_new_args_count(this, new_args);

@@ -11,8 +11,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::ProposalIE);
-
 op::ProposalIE::ProposalIE(const Output<Node>& class_probs, const Output<Node>& class_bbox_deltas,
                            const Output<Node>& image_shape, const ProposalAttrs& attrs)
     : Op({class_probs, class_bbox_deltas, image_shape}), m_attrs(attrs) {

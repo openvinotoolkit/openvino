@@ -109,7 +109,7 @@ if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
     else
         apt-get install -y nlohmann-json-dev
     fi
-elif [ -f /etc/redhat-release ]; then
+elif [ -f /etc/redhat-release ] || grep -q "rhel" /etc/os-release ; then
     # RHEL 8 / CentOS 7
     yum update
     yum install -y centos-release-scl epel-release
@@ -165,13 +165,14 @@ else
     echo "Unknown OS, please install build dependencies manually"
 fi
 
-# cmake 3.20 or higher is required to build OpenVINO
+# cmake 3.20.0 or higher is required to build OpenVINO
 current_cmake_ver=$(cmake --version | sed -ne 's/[^0-9]*\(\([0-9]\.\)\{0,4\}[0-9][^.]\).*/\1/p')
 required_cmake_ver=3.20.0
 if [ ! "$(printf '%s\n' "$required_cmake_ver" "$current_cmake_ver" | sort -V | head -n1)" = "$required_cmake_ver" ]; then
     installed_cmake_ver=3.23.2
-    wget "https://github.com/Kitware/CMake/releases/download/v${installed_cmake_ver}/cmake-${installed_cmake_ver}.tar.gz"
-    tar xf cmake-${installed_cmake_ver}.tar.gz
-    (cd cmake-${installed_cmake_ver} && ./bootstrap --parallel="$(nproc --all)" && make --jobs="$(nproc --all)" && make install)
-    rm -rf "cmake-${installed_cmake_ver}" "cmake-${installed_cmake_ver}.tar.gz"
+    arch=$(uname -m)
+    wget "https://github.com/Kitware/CMake/releases/download/v${installed_cmake_ver}/cmake-${installed_cmake_ver}-linux-${arch}.sh"
+    chmod +x "cmake-${installed_cmake_ver}-linux-${arch}.sh"
+    "./cmake-${installed_cmake_ver}-linux-${arch}.sh" --skip-license --prefix=/usr/local
+    rm -rf "cmake-${installed_cmake_ver}-linux-${arch}.sh"
 fi

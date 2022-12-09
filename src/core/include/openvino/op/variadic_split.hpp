@@ -15,7 +15,6 @@ namespace v1 {
 class OPENVINO_API VariadicSplit : public Op {
 public:
     OPENVINO_OP("VariadicSplit", "opset1", op::Op, 1);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a variadic split operation.
     VariadicSplit() = default;
