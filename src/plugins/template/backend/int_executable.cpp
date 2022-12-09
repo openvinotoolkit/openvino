@@ -168,21 +168,6 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
             op_outputs.push_back(host_tensor);
         }
 
-        // get op type
-        element::Type type;
-        if (ov::is_type<op::Convert>(op) || ov::is_type<op::v0::PriorBox>(op) || ov::is_type<op::v8::PriorBox>(op)) {
-            type = op->get_input_element_type(0);
-        } else if (ov::is_type<op::v1::Equal>(op) || ov::is_type<op::v1::Greater>(op) ||
-                   ov::is_type<op::v1::GreaterEqual>(op) || ov::is_type<op::v1::Less>(op) ||
-                   ov::is_type<op::v1::LessEqual>(op) || ov::is_type<op::v1::NotEqual>(op)) {
-            // Get the type of the second input, not the first
-            // All BinaryElementwiseComparision ops have the same type for inputs
-            // Select has bool for first input and the type we are interested in for the second
-            type = op->get_input_element_type(1);
-        } else {
-            type = op->get_output_element_type(0);
-        }
-
         if (m_performance_counters_enabled) {
             m_timer_map[op].start();
         }
