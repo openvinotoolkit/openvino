@@ -260,6 +260,46 @@ public:
 using OVClassExecutableNetworkGetMetricTest_DEVICE_PRIORITY = OVClassExecutableNetworkGetMetricTest_Priority;
 using OVClassExecutableNetworkGetMetricTest_MODEL_PRIORITY = OVClassExecutableNetworkGetMetricTest_Priority;
 
+using DevicePropertiesNumStreamsParams =
+    std::tuple<std::string,  // Device name
+               ov::AnyMap,   // device properties onfiguration passing to compile_model()
+               std::string   // device name for which to query property ov::num_streams
+               >;
+class OVClassExecutableNetworkGetMetricTest_DEVICE_PROPERTIES
+    : public ::testing::WithParamInterface<DevicePropertiesNumStreamsParams>,
+      public OVCompiledNetworkTestBase {
+protected:
+    ov::AnyMap configuration;
+    std::string device_name;
+    std::shared_ptr<ngraph::Function> simpleNetwork;
+
+public:
+    void SetUp() override {
+        std::tie(target_device, configuration, device_name) = GetParam();
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        APIBaseTest::SetUp();
+        simpleNetwork = ngraph::builder::subgraph::makeSingleConv();
+    }
+    static std::string getTestCaseName(testing::TestParamInfo<DevicePropertiesNumStreamsParams> obj) {
+        std::string target_device, hw_device_name;
+        ov::AnyMap configuration;
+        std::tie(target_device, configuration, hw_device_name) = obj.param;
+        std::replace(target_device.begin(), target_device.end(), ':', '.');
+
+        std::ostringstream result;
+        result << "targetDevice=" << target_device << "_";
+        if (!configuration.empty()) {
+            for (auto& configItem : configuration) {
+                result << "configItem=" << configItem.first << "_";
+                configItem.second.print(result);
+                result << "_";
+            }
+        }
+        result << "executableModelDevice=" << hw_device_name;
+        return result.str();
+    }
+};
+
 #define SKIP_IF_NOT_IMPLEMENTED(...)                   \
 {                                                      \
     try {                                              \

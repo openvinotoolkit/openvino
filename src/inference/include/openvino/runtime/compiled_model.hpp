@@ -186,9 +186,11 @@ public:
      * particular device.
      *
      * @param name Property key, can be found in openvino/runtime/properties.hpp.
+     * @param target_device A hardwre device name, if not empty, will retrieve the target_device property via the meta
+     * plugin.
      * @return Property value.
      */
-    Any get_property(const std::string& name) const;
+    Any get_property(const std::string& name, const std::string& target_device = "") const;
 
     /**
      * @brief Gets properties related to device behaviour.
@@ -202,6 +204,20 @@ public:
     template <typename T, PropertyMutability mutability>
     T get_property(const ov::Property<T, mutability>& property) const {
         return get_property(property.name()).template as<T>();
+    }
+
+    /**
+     * @brief Gets properties related to device behaviour via meta plugin.
+     *
+     * The method extracts information that can be set via the set_property method.
+     *
+     * @tparam T Type of a returned value.
+     * @param property  std::pair object consisted of device name and requested property object.
+     * @return Value of property.
+     */
+    template <typename T, PropertyMutability mutability>
+    T get_property(const std::pair<std::string, ov::Property<T, mutability>>& property) const {
+        return get_property(property.second.name(), property.first).template as<T>();
     }
 
     /**

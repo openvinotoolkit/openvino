@@ -132,4 +132,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassExecutableNetworkGetMetricTest,
                          ::testing::Combine(::testing::Values("AUTO:CPU"),
                                             ::testing::ValuesIn(multiModelPriorityConfigs)));
 
-} // namespace
+const std::vector<DevicePropertiesNumStreamsParams> devicePropertiesConfigsNoThrow = {
+    DevicePropertiesNumStreamsParams{"AUTO:CPU", {ov::device::properties("CPU", ov::num_streams(5))}, "CPU"},
+    DevicePropertiesNumStreamsParams{"AUTO:CPU", {ov::device::properties("CPU", ov::num_streams(2))}, "CPU"}};
+
+const std::vector<DevicePropertiesNumStreamsParams> devicePropertiesConfigsThrow = {
+    DevicePropertiesNumStreamsParams{"AUTO:CPU", {ov::device::properties("CPU", ov::num_streams(2))}, "GPU"}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_OVClassAutoExcutableNetowrkGetDevicePropertiesTestNoThrow,
+                         OVClassExecutableNetworkGetMetricTest_DEVICE_PROPERTIES,
+                         ::testing::ValuesIn(devicePropertiesConfigsNoThrow),
+                         OVClassExecutableNetworkGetMetricTest_DEVICE_PROPERTIES::getTestCaseName);
+}  // namespace

@@ -103,7 +103,15 @@ Parameter IExecutableNetworkInternal::GetConfig(const std::string&) const {
     IE_THROW(NotImplemented);
 }
 
+Parameter IExecutableNetworkInternal::GetConfig(const std::string&, const std::string&) const {
+    IE_THROW(NotImplemented);
+}
+
 Parameter IExecutableNetworkInternal::GetMetric(const std::string&) const {
+    IE_THROW(NotImplemented);
+}
+
+Parameter IExecutableNetworkInternal::GetMetric(const std::string&, const std::string&) const {
     IE_THROW(NotImplemented);
 }
 

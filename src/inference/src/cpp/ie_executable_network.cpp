@@ -212,7 +212,7 @@ void CompiledModel::set_property(const AnyMap& config) {
     OV_EXEC_NET_CALL_STATEMENT(_impl->SetConfig(config));
 }
 
-Any CompiledModel::get_property(const std::string& name) const {
+Any CompiledModel::get_property(const std::string& name, const std::string& target_device) const {
     OV_EXEC_NET_CALL_STATEMENT({
         if (ov::supported_properties == name) {
             try {
@@ -243,9 +243,15 @@ Any CompiledModel::get_property(const std::string& name) const {
             }
         }
         try {
-            return {_impl->GetMetric(name), {_so}};
+            if (target_device.empty())
+                return {_impl->GetMetric(name), {_so}};
+            else
+                return {_impl->GetMetric(name, target_device), {_so}};
         } catch (ie::Exception&) {
-            return {_impl->GetConfig(name), {_so}};
+            if (target_device.empty())
+                return {_impl->GetConfig(name), {_so}};
+            else
+                return {_impl->GetConfig(name, target_device), {_so}};
         }
     });
 }

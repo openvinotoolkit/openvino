@@ -36,6 +36,28 @@ IE::Parameter AutoExecutableNetwork::GetConfig(const std::string& name) const {
     IE_THROW(NotFound) << name << " not found in the ExecutableNetwork config";
 }
 
+IE::Parameter AutoExecutableNetwork::GetConfig(const std::string& name, const std::string& target_device) const {
+    IE_THROW(NotFound) << "Failed to query property " << name << " from device " << target_device
+                       << ": invalid device or property.";
+}
+
+IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name, const std::string& target_device) const {
+    std::cout << "Get ov::device::properties " << name << " from device " << target_device << std::endl;
+    std::cout << "Actual device: " << _autoSchedule->_loadContext[ACTUALDEVICE].deviceInfo.deviceName << std::endl;
+    if (target_device == _autoSchedule->_loadContext[ACTUALDEVICE].deviceInfo.deviceName) {
+        if (_autoSchedule->_loadContext[ACTUALDEVICE].future.valid()) {
+            _autoSchedule->_loadContext[ACTUALDEVICE].future.wait();
+        }
+        return _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetMetric(name);
+    }
+    if (target_device == "CPU") {
+        return _autoSchedule->_loadContext[CPU].executableNetwork->GetMetric(name);
+    }
+    auto actualDevice = _autoSchedule->_loadContext[ACTUALDEVICE].deviceInfo.deviceName;
+    IE_THROW(NotFound) << target_device << "is not the device selected by " << GetLogTag()
+                       << " Actual selected device is " << actualDevice;
+}
+
 IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
     if (name == ov::supported_properties) {
         return decltype(ov::supported_properties)::value_type {

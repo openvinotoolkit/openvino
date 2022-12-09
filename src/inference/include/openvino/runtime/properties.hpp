@@ -582,6 +582,18 @@ struct Properties {
     }
 
     /**
+     * @brief Constructs a pair consisted of device name and property object
+     * @param device_name device plugin alias
+     * @param device_property requested property object
+     * @return Pair of device name and type erased property object.
+     */
+    template <typename T, PropertyMutability M>
+    const std::pair<std::string, ov::Property<T, M>> operator()(const std::string& device_name,
+                                                                const ov::Property<T, M>& device_property) const {
+        return {device_name, device_property};
+    }
+
+    /**
      * @brief Constructs property
      * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types
      * @param device_name device plugin alias

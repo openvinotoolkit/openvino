@@ -143,11 +143,27 @@ public:
     virtual Parameter GetConfig(const std::string& name) const;
 
     /**
+     * @brief Gets configuration of specified hardware device from loaded meta plugin.
+     * @param device_name A hardware device name
+     * @param property_name A config key, will be queried on device specified by device_name
+     * @return A value of config corresponding to config key of device_name
+     */
+    virtual Parameter GetConfig(const std::string& device_name, const std::string& property_name) const;
+
+    /**
      * @brief Gets general runtime metric for dedicated hardware
      * @param name  A metric name to request
      * @return A metric value corresponding to metric key
      */
     virtual Parameter GetMetric(const std::string& name) const;
+
+    /**
+     * @brief Gets general runtime metric for specified hardware device from loaded meta plugin.
+     * @param device_name  A hardware device name
+     * @param metric_name  A metric name to request for device specified by device_name
+     * @return A metric value corresponding to metric key of device_name
+     */
+    virtual Parameter GetMetric(const std::string& device_name, const std::string& metric_name) const;
 
     /**
      * @brief Gets the remote context.
