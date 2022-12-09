@@ -73,8 +73,8 @@ TEST(depth_concatenate_f32_gpu, test01) {
     network.set_input_data("input2", input2);
 
     auto outputs = network.execute({});
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "depth1");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "depth1");
 
     auto output = outputs.at("depth1").get_memory();
 
@@ -136,7 +136,7 @@ void concat_basic_with_reorder() {
 
     auto outputs = network.execute({});
     ASSERT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "to_float");
+    ASSERT_EQ(outputs.begin()->first, "to_float");
 
     auto output = outputs.at("to_float").get_memory();
 
@@ -212,8 +212,8 @@ TEST(depth_concatenate_f32_gpu, test02) {
     network.set_input_data("input3", input3);
 
     auto outputs = network.execute({});
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "depth1");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "depth1");
 
     auto output = outputs.at("depth1").get_memory();
 
@@ -302,9 +302,9 @@ TEST(depth_concatenate_f32_gpu, test03_cascade_concat_opt) {
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
     auto executed_primitives = network.get_executed_primitives();
 
-    EXPECT_TRUE(executed_primitives.count("depth1") == 0);
-    EXPECT_TRUE(executed_primitives.count("depth2") == 0);
-    EXPECT_TRUE(executed_primitives.count("depth3") == 0);
+    ASSERT_TRUE(executed_primitives.count("depth1") == 0);
+    ASSERT_TRUE(executed_primitives.count("depth2") == 0);
+    ASSERT_TRUE(executed_primitives.count("depth3") == 0);
 
     EXPECT_NEAR(1.4142f, output_ptr[0], 1e-3);
     EXPECT_NEAR(1.5422f, output_ptr[1], 1e-3);
@@ -350,8 +350,8 @@ TEST(depth_concatenate_f32_gpu, test04_fused_relu) {
     network.set_input_data("input2", input2);
 
     auto outputs = network.execute({});
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "relu1");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "relu1");
 
     auto output = outputs.at("relu1").get_memory();
 
@@ -404,14 +404,14 @@ TEST(depth_concatenate_f32_gpu, test05_different_formats) {
     network.set_input_data("input2", input2);
 
     auto outputs = network.execute({});
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "output");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "output");
 
     auto output = outputs.at("output").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     int cntr = 0;
     for (float val : output_ptr) {
-        EXPECT_EQ(val, out_ref[cntr++]);
+        ASSERT_EQ(val, out_ref[cntr++]);
     }
 }
 
@@ -464,16 +464,16 @@ TEST(depth_concatenate_f32_gpu, test06_padded_input) {
     network.set_input_data("input2", input2);
 
     auto outputs = network.execute({});
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "output");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "output");
     // Check that all concatenations have been optimized out.
     auto executed_primitives = network.get_executed_primitives();
-    EXPECT_TRUE(executed_primitives.count("depth1") == 0);
-    EXPECT_TRUE(executed_primitives.count("depth2") == 0);
+    ASSERT_TRUE(executed_primitives.count("depth1") == 0);
+    ASSERT_TRUE(executed_primitives.count("depth2") == 0);
     // Check that convolution was able to use optimzed kernel.
     for (auto& info : network.get_primitives_info()) {
         if (info.original_id == "conv") {
-            EXPECT_TRUE(info.kernel_id.find("ref") == std::string::npos) << " selected kernel: " << info.kernel_id;
+            ASSERT_TRUE(info.kernel_id.find("ref") == std::string::npos) << " selected kernel: " << info.kernel_id;
         }
     }
 
@@ -490,7 +490,7 @@ TEST(depth_concatenate_f32_gpu, test06_padded_input) {
         else
             ref = static_cast<float>(input2_data[0][i % input_f][0][0]);
 
-        EXPECT_EQ(val, ref) << " at i=" << i;
+        ASSERT_EQ(val, ref) << " at i=" << i;
     }
 }
 
@@ -540,15 +540,15 @@ TEST(depth_concatenate_f32_gpu, test07_padded_output) {
     network.set_input_data("input2", input2);
 
     auto outputs = network.execute({});
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "output");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "output");
     // Check that all concatenations have been optimized out.
     auto executed_primitives = network.get_executed_primitives();
-    EXPECT_TRUE(executed_primitives.count("depth1") == 0);
+    ASSERT_TRUE(executed_primitives.count("depth1") == 0);
     // Check that convolution was able to use optimzed kernel.
     for (auto& info : network.get_primitives_info()) {
         if (info.original_id == "conv") {
-            EXPECT_TRUE(info.kernel_id.find("ref") == std::string::npos) << " selected kernel: " << info.kernel_id;
+            ASSERT_TRUE(info.kernel_id.find("ref") == std::string::npos) << " selected kernel: " << info.kernel_id;
         }
     }
 
@@ -563,7 +563,7 @@ TEST(depth_concatenate_f32_gpu, test07_padded_output) {
         else
             ref = static_cast<float>(input2_data[0][i % input_f][0][0]);
 
-        EXPECT_EQ(val, ref) << " at i=" << i;
+        ASSERT_EQ(val, ref) << " at i=" << i;
     }
 }
 
@@ -599,11 +599,11 @@ TEST(depth_concatenate_f32_gpu, test07_concat_is_output) {
     network.set_input_data("input2", input2);
 
     auto outputs = network.execute({});
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "depth1");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "depth1");
     // Check that concatenation haven't been optimized out.
     auto executed_primitives = network.get_executed_primitives();
-    EXPECT_TRUE(executed_primitives.count("depth1") == 1);
+    ASSERT_TRUE(executed_primitives.count("depth1") == 1);
 
     auto output = outputs.at("depth1").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -616,7 +616,7 @@ TEST(depth_concatenate_f32_gpu, test07_concat_is_output) {
         else
             ref = 0.5f * input2_data[0][i % input_f][0][0];
 
-        EXPECT_EQ(val, ref) << " at i=" << i;
+        ASSERT_EQ(val, ref) << " at i=" << i;
     }
 }
 
@@ -665,7 +665,7 @@ TEST(depth_concatenate_f32_gpu, concat_with_different_format_inputs) {
 
     auto outputs = network.execute({});
     ASSERT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "depth4");
+    ASSERT_EQ(outputs.begin()->first, "depth4");
 
     auto output = outputs.at("depth4").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -729,8 +729,8 @@ TEST(depth_concatenate_f32_gpu, concat_with_reshape_input) {
     network.set_input_data("input1", input1);
 
     auto outputs = network.execute({});
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "depth2");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "depth2");
 
     auto output = outputs.at("depth2").get_memory();
 
@@ -765,7 +765,7 @@ TEST(depth_concatenate_i32_gpu, optimize_data01) {
 
     for (auto& it : outputs) {
         cldnn::mem_lock<int> output_ptr(it.second.get_memory(), get_test_stream());
-        EXPECT_EQ(output_ptr[0], out_data[0]);
+        ASSERT_EQ(output_ptr[0], out_data[0]);
     }
 }
 
@@ -832,7 +832,7 @@ TEST(depth_concatenate_i32_gpu, optimize_data02) {
     cldnn::mem_lock<int> output_concat6(outputs.at("concat6").get_memory(), get_test_stream());
 
     for (size_t i = 0; i < output_concat6.size(); i++) {
-        EXPECT_EQ(output_concat6[i], c6_data[i]);
+        ASSERT_EQ(output_concat6[i], c6_data[i]);
     }
 }
 
@@ -871,7 +871,7 @@ TEST(depth_concatenate_i32_gpu, optimize_data03) {
     for (auto& it : outputs) {
         cldnn::mem_lock<int> output_ptr(it.second.get_memory(), get_test_stream());
         for (size_t i = 0; i < output_ptr.size(); i++) {
-            EXPECT_EQ(output_ptr[i], output_data[i]);
+            ASSERT_EQ(output_ptr[i], output_data[i]);
         }
     }
 }
@@ -911,7 +911,7 @@ TEST(depth_concatenate_i32_gpu, optimize_data04) {
     for (auto& it : outputs) {
         cldnn::mem_lock<int> output_ptr(it.second.get_memory(), get_test_stream());
         for (size_t i = 0; i < output_ptr.size(); i++) {
-            EXPECT_EQ(output_ptr[i], output_data[i]);
+            ASSERT_EQ(output_ptr[i], output_data[i]);
         }
     }
 }
@@ -952,7 +952,7 @@ TEST(depth_concatenate_i32_gpu, optimize_data05) {
     cldnn::mem_lock<int> output_concat5(outputs.at("concat5").get_memory(), get_test_stream());
 
     for (size_t i = 0; i < output_concat5.size(); i++) {
-        EXPECT_EQ(output_concat5[i], c5_data[i]);
+        ASSERT_EQ(output_concat5[i], c5_data[i]);
     }
 }
 
@@ -1021,7 +1021,7 @@ void test_depth_concatenate_f32_gpu_basic_bfwzyx_along_w(bool is_caching_test) {
 
     ASSERT_EQ(output_concat.size(), expected_output.size());
     for (size_t i = 0; i < output_concat.size(); i++) {
-        EXPECT_EQ(output_concat[i], expected_output[i]);
+        ASSERT_EQ(output_concat[i], expected_output[i]);
     }
 }
 

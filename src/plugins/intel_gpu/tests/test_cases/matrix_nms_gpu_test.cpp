@@ -126,12 +126,12 @@ public:
 
         ASSERT_EQ(test_inputs.expected_selected_boxes.size(), selected_boxes_ptr.size());
         for (size_t i = 0; i < test_inputs.expected_selected_boxes.size(); ++i) {
-            EXPECT_EQ(test_inputs.expected_selected_boxes[i], selected_boxes_ptr[i]);
+            ASSERT_EQ(test_inputs.expected_selected_boxes[i], selected_boxes_ptr[i]);
         }
 
         ASSERT_EQ(test_inputs.expected_valid_outputs.size(), valid_outputs_ptr.size());
         for (size_t i = 0; i < test_inputs.expected_valid_outputs.size(); ++i) {
-            EXPECT_EQ(test_inputs.expected_valid_outputs[i], valid_outputs_ptr[i]);
+            ASSERT_EQ(test_inputs.expected_valid_outputs[i], valid_outputs_ptr[i]);
         }
     }
 

@@ -99,7 +99,7 @@ public:
         topology.add(input_layout(input_deltas_id, input_deltas->get_layout()));
         topology.add(input_layout(input_scores_id, input_scores->get_layout()));
         topology.add(input_layout(input_im_info_id, input_im_info->get_layout()));
-        
+
         const primitive_id b_input_boxes_id = "BlockedInputBoxes";
         const primitive_id b_input_deltas_id = "BlockedInputDeltas";
         const primitive_id b_input_scores_id = "BlockedInputScores";
@@ -207,7 +207,7 @@ public:
                     << "i=" << i << ", coord=" << coord;
             }
             if (!is_caching_test) {
-                EXPECT_EQ(expected_classes[i], output_classes_ptr[i]) << "i=" << i;
+                ASSERT_EQ(expected_classes[i], output_classes_ptr[i]) << "i=" << i;
             }
         }
     }

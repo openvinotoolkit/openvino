@@ -415,7 +415,7 @@ public:
 
         if (!is_caching_test) {
             for (size_t j = 0; j < expected_rois_num.size(); ++j) {
-                EXPECT_EQ(expected_rois_num[j], rois_num_ptr[j]) << "j=" << j;
+                ASSERT_EQ(expected_rois_num[j], rois_num_ptr[j]) << "j=" << j;
             }
         }
 

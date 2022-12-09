@@ -51,9 +51,9 @@ TEST(trim_to_outputs, one_node_to_eliminate_case1) {
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), (size_t)1); // there is only one output
-    EXPECT_EQ(network.get_executed_primitives().size(), (size_t)2);   // input and conv1 where executed
-    EXPECT_EQ(network.get_all_primitive_ids().size(), (size_t)4);     // also bias and weights still exist
+    ASSERT_EQ(outputs.size(), (size_t)1); // there is only one output
+    ASSERT_EQ(network.get_executed_primitives().size(), (size_t)2);   // input and conv1 where executed
+    ASSERT_EQ(network.get_all_primitive_ids().size(), (size_t)4);     // also bias and weights still exist
 
     for (auto& it : outputs)
     {
@@ -62,7 +62,7 @@ TEST(trim_to_outputs, one_node_to_eliminate_case1) {
         {
             EXPECT_NEAR(output_ptr[cntr], out_data[cntr], 1e-4);
         }
-        EXPECT_EQ(it.first, "conv1");
+        ASSERT_EQ(it.first, "conv1");
     }
 }
 
@@ -106,9 +106,9 @@ TEST(trim_to_outputs, one_node_to_eliminate_case2) {
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), (size_t)1); // there is only one output
-    EXPECT_EQ(network.get_executed_primitives().size(), (size_t)2);   // input and conv1 where executed
-    EXPECT_EQ(network.get_all_primitive_ids().size(), (size_t)4);     // also bias1 and weights1 still exist
+    ASSERT_EQ(outputs.size(), (size_t)1); // there is only one output
+    ASSERT_EQ(network.get_executed_primitives().size(), (size_t)2);   // input and conv1 where executed
+    ASSERT_EQ(network.get_all_primitive_ids().size(), (size_t)4);     // also bias1 and weights1 still exist
 
     for (auto& it : outputs)
     {
@@ -118,7 +118,7 @@ TEST(trim_to_outputs, one_node_to_eliminate_case2) {
         {
             EXPECT_NEAR(output_ptr[cntr], out_data[cntr], 1e-4);
         }
-        EXPECT_EQ(it.first, "conv1");
+        ASSERT_EQ(it.first, "conv1");
     }
 }
 
@@ -165,9 +165,9 @@ TEST(trim_to_outputs, two_nodes_to_eliminate_case1) {
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), (size_t)1); // there is only one output
-    EXPECT_EQ(network.get_executed_primitives().size(), (size_t)3);   // input, conv1 and conv4  where executed
-    EXPECT_EQ(network.get_all_primitive_ids().size(), (size_t)6);     // also bias weights1 and weights4 still exist
+    ASSERT_EQ(outputs.size(), (size_t)1); // there is only one output
+    ASSERT_EQ(network.get_executed_primitives().size(), (size_t)3);   // input, conv1 and conv4  where executed
+    ASSERT_EQ(network.get_all_primitive_ids().size(), (size_t)6);     // also bias weights1 and weights4 still exist
 
     for (auto& it : outputs)
     {
@@ -177,6 +177,6 @@ TEST(trim_to_outputs, two_nodes_to_eliminate_case1) {
         {
             EXPECT_NEAR(output_ptr[cntr], out_data[cntr], 1e-4);
         }
-        EXPECT_EQ(it.first, "conv4");
+        ASSERT_EQ(it.first, "conv4");
     }
 }

@@ -168,7 +168,7 @@ public:
             membuf mem_buf;
             {
                 cldnn::network _network(engine, topology);
-                
+
                 std::ostream out_mem(&mem_buf);
                 BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
                 _network.save(ob);
@@ -221,7 +221,7 @@ public:
         ASSERT_EQ(params.outputTensor.count(), indices_ptr.size());
         ASSERT_EQ(params.outputTensor.count(), expected_indices.size());
         for (size_t i = 0; i < expected_indices.size(); ++i) {
-            EXPECT_EQ(index_offset * expected_indices[i], indices_ptr[i]) 
+            ASSERT_EQ(index_offset * expected_indices[i], indices_ptr[i])
                 << "i = " << i << ", format=" << fmt_to_str(target_layout);
         }
     }

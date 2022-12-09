@@ -191,8 +191,8 @@ public:
         }
         const auto outputs = network.execute();
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "reordered_roi_pooling");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "reordered_roi_pooling");
 
         auto output = outputs.at("reordered_roi_pooling").get_memory();
         cldnn::mem_lock<T> output_ptr(output, get_test_stream());

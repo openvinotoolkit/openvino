@@ -182,7 +182,7 @@ TYPED_TEST(non_max_suppression_basic, basic) {
 
     ASSERT_EQ(expected_out.size(), out_ptr.size());
     for (size_t i = 0; i < expected_out.size(); ++i) {
-        EXPECT_EQ(expected_out[i], out_ptr[i]) << "at i = " << i;
+        ASSERT_EQ(expected_out[i], out_ptr[i]) << "at i = " << i;
     }
 }
 
@@ -239,7 +239,7 @@ TYPED_TEST(non_max_suppression_basic, num_per_class) {
 
     ASSERT_EQ(expected_out.size(), out_ptr.size());
     for (size_t i = 0; i < expected_out.size(); ++i) {
-        EXPECT_EQ(expected_out[i], out_ptr[i]) << "at i = " << i;
+        ASSERT_EQ(expected_out[i], out_ptr[i]) << "at i = " << i;
     }
 }
 
@@ -326,7 +326,7 @@ TYPED_TEST(non_max_suppression_basic, optional_outputs) {
 
     ASSERT_EQ(expected_out.size(), out_ptr.size());
     for (size_t i = 0; i < expected_out.size(); ++i) {
-        EXPECT_EQ(expected_out[i], out_ptr[i]) << "at i = " << i;
+        ASSERT_EQ(expected_out[i], out_ptr[i]) << "at i = " << i;
     }
 
     topology second_output_topology;
@@ -445,7 +445,7 @@ TYPED_TEST(non_max_suppression_basic, multiple_outputs) {
 
     ASSERT_EQ(expected_out.size(), out_ptr.size());
     for (size_t i = 0; i < expected_out.size(); ++i) {
-        EXPECT_EQ(expected_out[i], out_ptr[i]) << "at i = " << i;
+        ASSERT_EQ(expected_out[i], out_ptr[i]) << "at i = " << i;
     }
 
 
@@ -526,7 +526,7 @@ TYPED_TEST(non_max_suppression_basic, iou_threshold) {
 
     ASSERT_EQ(expected_out.size(), out_ptr.size());
     for (size_t i = 0; i < expected_out.size(); ++i) {
-        EXPECT_EQ(expected_out[i], out_ptr[i]) << "at i = " << i;
+        ASSERT_EQ(expected_out[i], out_ptr[i]) << "at i = " << i;
     }
 }
 
@@ -583,7 +583,7 @@ TYPED_TEST(non_max_suppression_basic, score_threshold) {
 
     ASSERT_EQ(expected_out.size(), out_ptr.size());
     for (size_t i = 0; i < expected_out.size(); ++i) {
-        EXPECT_EQ(expected_out[i], out_ptr[i]) << "at i = " << i;
+        ASSERT_EQ(expected_out[i], out_ptr[i]) << "at i = " << i;
     }
 }
 
@@ -648,6 +648,6 @@ TYPED_TEST(non_max_suppression_basic, soft_nms_sigma) {
     outp.resize(36);
     ASSERT_EQ(expected_out.size(), out_ptr.size());
     for (size_t i = 0; i < expected_out.size(); ++i) {
-        EXPECT_EQ(expected_out[i], out_ptr[i]) << "at i = " << i;
+        ASSERT_EQ(expected_out[i], out_ptr[i]) << "at i = " << i;
     }
 }

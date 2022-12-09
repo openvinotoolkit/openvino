@@ -128,8 +128,8 @@ public:
         }
         const auto outputs = network->execute();
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "reordered_ctc_loss");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "reordered_ctc_loss");
 
         auto output = outputs.at("reordered_ctc_loss").get_memory();
         cldnn::mem_lock<TF> output_ptr(output, get_test_stream());

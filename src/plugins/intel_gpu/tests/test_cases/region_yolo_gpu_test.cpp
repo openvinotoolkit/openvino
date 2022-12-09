@@ -84,7 +84,7 @@ void region_yolo_ref(const T* input,
                      const uint32_t regions,
                      const bool do_softmax,
                      const std::vector<int64_t>& mask) {
-    EXPECT_EQ(input_shape.size(), 4);
+    ASSERT_EQ(input_shape.size(), 4);
 
     const uint32_t batches = input_shape[0];
     //const uint32_t channels = input_shape[1];

@@ -253,7 +253,7 @@ void generic_lstm_gemm_gpu_test(int sequence_len, int direction, int batch_size,
     }
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.size(), size_t(1));
 
     auto output = outputs.begin()->second.get_memory();
     cldnn::mem_lock<T> output_ptr(output, get_test_stream());
@@ -316,7 +316,7 @@ void generic_lstm_elt_gpu_test(int /* sequence_len */, int direction, int batch_
     }
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.size(), size_t(1));
 
     auto output = outputs.begin()->second.get_memory();
     cldnn::mem_lock<T> output_ptr(output, get_test_stream());

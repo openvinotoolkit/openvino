@@ -210,12 +210,12 @@ public:
             ASSERT_EQ(output_selected_num_ptr.size(), param.num_batches) << "format=" << fmt_to_str(target_format);
 
             for (size_t i = 0; i < param.num_batches; ++i) {
-                EXPECT_EQ(param.expected_selected_num[i], output_selected_num_ptr[i])
+                ASSERT_EQ(param.expected_selected_num[i], output_selected_num_ptr[i])
                                     << "format=" << fmt_to_str(target_format) << " i=" << i;
             }
 
             for (size_t box = 0; box < dim; ++box) {
-                EXPECT_EQ(param.expected_selected_indices[box], output_selected_indices_ptr[box]) << "box=" << box;
+                ASSERT_EQ(param.expected_selected_indices[box], output_selected_indices_ptr[box]) << "box=" << box;
 
                 for (size_t j = 0; j < 6; ++j) {
                     const auto idx = box * 6 + j;

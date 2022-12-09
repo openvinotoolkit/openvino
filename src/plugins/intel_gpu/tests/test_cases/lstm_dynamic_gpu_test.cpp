@@ -476,7 +476,7 @@ struct lstm_dynamic_single_layer_test : public ::testing::Test
                         if(has_last_hidden_state && len == dynamic_lengths[b] - 1)
                         {
                             auto ratio = (float)ref_output_hidden[b][len][dir][x] / (float)last_hidden_ptr[i_lh++];
-                            EXPECT_TRUE(std::abs(1.0f - ratio) < 0.01f)
+                            ASSERT_TRUE(std::abs(1.0f - ratio) < 0.01f)
                             << "check has_last_hidden_state with ratio: " << ratio << ", "
                                 << "b:" << b << ", "
                                 << "len:" << len << ", "
@@ -500,7 +500,7 @@ struct lstm_dynamic_single_layer_test : public ::testing::Test
                         if(has_last_cell_state && len == dynamic_lengths[b] - 1)
                         {
                             auto ratio = (float)ref_output_cell[b][len][dir][x] / (float)last_cell_ptr[i_lc++];
-                            EXPECT_TRUE(std::abs(1.0f - ratio) < 0.01f)
+                            ASSERT_TRUE(std::abs(1.0f - ratio) < 0.01f)
                                 << "check has_last_cell_state with ratio: " << ratio << ", "
                                 << "b:" << b << ", "
                                 << "len:" << len << ", "
