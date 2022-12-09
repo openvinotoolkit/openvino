@@ -79,10 +79,6 @@ To list available OpenVINO packages, use the following command:
 
 ### Step 2: Install OpenVINO Runtime Using the YUM Package Manager
 
-OpenVINO™ Runtime will be installed in: `/opt/intel/openvino_<VERSION>.<UPDATE>.<PATCH>`
-
-A symlink will be created: `/opt/intel/openvino_<VERSION>`
-
 #### Install OpenVINO Runtime
 
 @sphinxdirective
