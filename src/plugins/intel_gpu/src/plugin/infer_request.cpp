@@ -918,7 +918,10 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
             _deviceInputs[inputName] = reinterpret_device_blob(_deviceInputs[inputName], inputBlob->getTensorDesc());
         }
     } else if (input_layout.is_static() && !is_dev_input && can_use_usm) {
-        allocate_dev_mem_if_needed(_deviceInputs, inputBlob, inputName, input_layout, true);
+        bool need_lockable_mem = false;
+        if (prec == Precision::I16 || prec == Precision::U16 || prec == Precision::FP64 || prec == Precision::U64 || prec == Precision::U32)
+            need_lockable_mem = true;
+        allocate_dev_mem_if_needed(_deviceInputs, inputBlob, inputName, input_layout, need_lockable_mem);
     }
     OPENVINO_ASSERT(_deviceInputs.find(inputName) != _deviceInputs.end(), "[GPU] Couldn't find device blob allocated for ", inputName, " input");
     auto reqBlob = _deviceInputs.at(inputName)->as<gpu::ClBlob>();
