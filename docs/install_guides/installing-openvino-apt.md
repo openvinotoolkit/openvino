@@ -19,7 +19,7 @@ The complete list of supported hardware is available in the [Release Notes](http
 
 - [CMake 3.13 or higher, 64-bit](https://cmake.org/download/)
 - GCC 7.5.0 (for Ubuntu 18.04) or GCC 9.3.0 (for Ubuntu 20.04)
-- [Python 3.7 - 3.10, 64-bit](https://www.python.org/downloads/windows/)
+- [Python 3.7 - 3.10, 64-bit](https://www.python.org/downloads)
 
 ## Installing OpenVINO Runtime
 
