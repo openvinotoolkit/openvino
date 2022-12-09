@@ -23,7 +23,6 @@ This guide provides installation steps for OpenVINO™ Runtime for Linux distrib
   * Intel Atom® processor with support for Intel® Streaming SIMD Extensions 4.1 (Intel® SSE4.1)
   * Intel Pentium® processor N4200/5, N3350/5, or N3450/5 with Intel® HD Graphics
   * Intel® Iris® Xe MAX Graphics
-  * Intel® Neural Compute Stick 2
 
 .. tab:: Processor Notes
 
