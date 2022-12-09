@@ -1787,10 +1787,10 @@ def test_get_element_type_int32():
     fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
     model = fe.load("input_model_int32.onnx")
 
-    x = model.get_place_by_tensor_name(tensor_name="x")
-    assert model.get_element_type(x) == Type.i32
+    x_input = model.get_place_by_tensor_name(tensor_name="x")
+    assert model.get_element_type(x_input) == Type.i32
 
-    x_output_edge = x.get_consuming_ports()[0]
+    x_output_edge = x_input.get_consuming_ports()[0]
     assert model.get_element_type(x_output_edge) == Type.i32
 
     # get_element_type can return the concrete element type only for model inputs
