@@ -8,7 +8,26 @@ Simplified mode is designed to make data preparation for the model optimization 
 
 ## Usage
 
-To use the Simplified mode, prepare the data and place it in a separate folder. No other files should be present in this folder. There are two options to run POT in the Simplified mode:
+To use the Simplified mode, prepare the data and place it in a separate folder. No other files should be present in this folder.
+
+To apply optimization when there is only a model and no data is available. It is possible to generate a synthetic dataset using Dataset Management Framework (Datumaro) available on [GitHub](https://github.com/openvinotoolkit/datumaro). Currently, data generation is available only for Computer Vision models, it can take time in some cases.
+
+Install Datumaro:
+
+``` bash
+pip install datumaro>=0.4.0.1
+```
+Create a synthetic dataset with elements of the specified type and shape, and saves it in the provided directory.
+
+Usage:
+
+``` bash
+datum generate [-h] -o OUTPUT_DIR -k COUNT --shape SHAPE [SHAPE ...]
+  [-t {image}] [--overwrite] [--model-dir MODEL_PATH]
+```
+After that, `OUTPUT_DIR` can be provided to `--data-source` option.
+
+There are two options to run POT in the Simplified mode:
 
 * Using command-line options only. Here is an example for 8-bit quantization:
   
