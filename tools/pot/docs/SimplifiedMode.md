@@ -17,7 +17,7 @@ Install Datumaro:
 ``` bash
 pip install datumaro>=0.4.0.1
 ```
-Create a synthetic dataset with elements of the specified type and shape, and saves it in the provided directory.
+Create a synthetic dataset with elements of the specified type and shape, and save it to the provided directory.
 
 Usage:
 
@@ -25,7 +25,11 @@ Usage:
 datum generate [-h] -o OUTPUT_DIR -k COUNT --shape SHAPE [SHAPE ...]
   [-t {image}] [--overwrite] [--model-dir MODEL_PATH]
 ```
-After that, `OUTPUT_DIR` can be provided to `--data-source` option.
+Example of generating 300 images with height = 224 and width = 256 and saving them in the `./dataset` directory.
+```bash
+datum generate  -o ./dataset -k 300 --shape 224 256
+```
+After that, `OUTPUT_DIR` can be provided to `--data-source` CLI option or to `data_source` config parameter.
 
 There are two options to run POT in the Simplified mode:
 
