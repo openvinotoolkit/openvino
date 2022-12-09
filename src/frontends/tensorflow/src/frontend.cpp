@@ -8,6 +8,7 @@
 #include "helper_transforms/block_lstm_replacer.hpp"
 #include "helper_transforms/embedding_segments_feature_fusing.hpp"
 #include "helper_transforms/gru_block_cell_replacer.hpp"
+#include "helper_transforms/structural_type_prop.hpp"
 #include "input_model.hpp"
 #include "op_table.hpp"
 #include "openvino/frontend/tensorflow/extension/conversion.hpp"
@@ -15,6 +16,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/log.hpp"
+#include "openvino/core/runtime_attribute.hpp"
 #include "pass/transpose_sinking.hpp"
 #include "so_extension.hpp"
 #include "tf_framework_node.hpp"
@@ -45,7 +47,41 @@ void translate_framework_node(const std::shared_ptr<FrameworkNode>& node,
 }
 }  // namespace
 
-FrontEnd::FrontEnd() : m_op_translators(tensorflow::op::get_supported_ops()) {}
+
+void StructuralTypeAttribute::copy (const Node::RTMap& src, Node::RTMap& dst) {
+    auto pstructural_type = src.find("structural_type");
+    if(pstructural_type != src.end()) {
+        std::cerr << "[ INFO TF FE ] Copying `structural_type` from src to dst RTMap node to output tensor\n";
+        dst["structural_type"] = pstructural_type->second;
+    };
+}
+
+
+bool StructuralTypeAttribute::has_type (const Node::RTMap& rt_info, const ov::Any& type) {
+    auto pstructural_type = rt_info.find("structural_type");
+    if(pstructural_type != rt_info.end()) {
+        //return true;
+        //auto rt_info_type = pstructural_type->second.as<StructuralTypeAttribute>().value;
+        //if(type.is<element::StructuralType::Str>() && rt_info_type.is<element::StructuralType::Str>())
+        //    return true; 
+        
+        // FIXME: Leads to crash
+        return type == pstructural_type->second.as<StructuralTypeAttribute>().value;
+    }
+    return false;
+}
+
+
+void StructuralTypeAttribute::move_to_original (Node::RTMap& rt_info) {
+    auto pstructural_type = rt_info.find("structural_type");
+    if(pstructural_type != rt_info.end()) {
+        rt_info["orig_structural_type"] = pstructural_type->second;
+        rt_info.erase(pstructural_type);
+    }
+}
+
+
+FrontEnd::FrontEnd() : m_op_translators(tensorflow::op::get_supported_ops()) { std::cerr << "[ INFO ] TensorFlow FE is initialized\n"; }
 
 void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
                                const std::string& model_name,
@@ -94,8 +130,18 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
         const auto& input_tensor_place = std::dynamic_pointer_cast<TensorPlace>(input_place);
         auto input_shape = input_tensor_place->get_partial_shape();
         auto input_type = input_tensor_place->get_element_type();
+        auto input_structural_type = input_tensor_place->get_structural_element_type();
 
         auto param = std::make_shared<ov::opset8::Parameter>(input_type, input_shape);
+
+        if(!input_structural_type.empty()) {
+            // There is not representable type information in input_type, save it to RT info
+            std::cerr << "[ INFO TF FE ] Setting structural_type into RT info for Parameter\n";
+            param->get_rt_info()["structural_type"] = StructuralTypeAttribute(input_structural_type);
+        }
+
+        //throw "Hey";
+
         set_node_name(input_name, param);
         params.push_back(param);
         ng_op_map[input_name] = {param};
@@ -174,12 +220,17 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
             // TODO: Check why NodeContextNew doesn't have ngOutputVector ng_inputs input in constructor
             NodeContext node_context(operation_decoder, ng_inputs);
             // generate OV node output vector using translator for given operation type
+            std::cerr << "[ TF FE INFO ] Trying to convert node with type " << operation_decoder->get_op_type() << " with name " << operation_decoder->get_op_name() << "\n";
             ng_outputs = (*op_fun)(node_context);
+            std::cerr << "[ TF FE INFO ] Converted " << operation_decoder->get_op_type() << "\n";
         } catch (...) {
+            std::cerr << "[ TF FE INFO ] Conversion failed\n";
             if (fail_fast) {
                 // re-throw any exception
+                std::cerr << "FAIL FAST\n";
                 throw;
             } else {
+                std::cerr << "[ TF FE INFO ] Creating FW Node for failed op\n";
                 auto ng_node = std::make_shared<FrameworkNode>(operation_decoder,
                                                                ng_inputs,
                                                                operation_place->get_output_ports().size());
@@ -387,14 +438,22 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const ov::frontend::Input
     FRONT_END_GENERAL_CHECK(model_tf != nullptr, "Invalid input model");
 
     if (!m_transformation_extensions.empty()) {
+
+        std::cerr << "[ INFO ] About to start decoding\n";
+
         auto function = decode(model);
+
+        std::cerr << "[ INFO ] Decoded\n";
 
         ov::pass::Manager manager;
         for (const auto& transformation : m_transformation_extensions) {
             transformation->register_pass(manager);
         }
+        std::cerr << "[ INFO ] About to start passes\n";
         manager.run_passes(function);
-        convert(function);
+        std::cerr << "[ INFO ] Passes are completed, start conversion\n";
+        convert(function);  // ERROR! It will throw an exception if there is at least one unsupported operation, but we are in convert_partially that shouldn't throw in this case
+        std::cerr << "[ INFO ] Converted\n";
         return function;
     }
 
@@ -432,6 +491,10 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
     manager.register_pass<pass::EmbeddingSegmentSingleFeatureFusion>();
     manager.register_pass<pass::BlockLSTMReplacer>();
     manager.register_pass<pass::GRUBlockCellReplacer>();
+    manager.set_per_pass_validation(true);
+    manager.register_pass<ov::pass::GraphRewrite>(std::make_shared<pass::StructuralTypeProp>());
+    manager.register_pass<ov::pass::GraphRewrite>(std::make_shared<pass::ReplaceStrByU81D>());
+    manager.set_per_pass_validation(false);
 
     // TODO: reimplement TransposeSinking that does not corrupt filters for Convolution
     manager.register_pass<ov::frontend::tensorflow::pass::TransposeSinking>();

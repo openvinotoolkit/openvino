@@ -232,7 +232,7 @@ class CompiledModel(CompiledModelBase):
         """
         return InferRequest(super().create_infer_request())
 
-    def infer_new_request(self, inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None) -> dict:
+    def infer_new_request(self, inputs: Union[dict, list, tuple, Tensor, np.ndarray, str] = None) -> dict:
         """Infers specified input(s) in synchronous mode.
 
         Blocks all methods of CompiledModel while request is running.
@@ -263,6 +263,7 @@ class CompiledModel(CompiledModelBase):
         """
         # It returns wrapped python InferReqeust and then call upon
         # overloaded functions of InferRequest class
+
         return self.create_infer_request().infer(inputs)
 
     def __call__(self, inputs: Optional[Union[dict, list]] = None) -> dict:

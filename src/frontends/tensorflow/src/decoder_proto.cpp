@@ -8,6 +8,7 @@
 #include "node_def.pb.h"
 #include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/frontend/tensorflow/special_types.hpp"
+#include "openvino/core/type/non_tensor_type.hpp"
 #include "types.pb.h"
 
 namespace ov {
@@ -114,7 +115,16 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
             return TYPE_MAP().at(attrs[0].type());
         } else {
             // for all unsupported types return undefined type
-            return ov::element::undefined;
+            if (true) {
+                // New behaviour: also recognize some types that cannot
+                // be represented as OV core ov::element::Type
+                // In this case they are returned as Any 
+
+                std::cerr << "[ INFO TF FE ] Unsupported type: " << attrs[0].type() << "\n";
+                return ov::element::StructuralType::Str();
+            } else {
+                return ov::element::undefined;
+            }
         }
     }
 

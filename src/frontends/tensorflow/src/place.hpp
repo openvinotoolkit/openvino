@@ -139,7 +139,8 @@ public:
     TensorPlace(const ov::frontend::InputModel& input_model,
                 const ov::PartialShape& pshape,
                 ov::element::Type type,
-                const std::vector<std::string>& names);
+                const std::vector<std::string>& names,
+                const ov::Any& structural_type = ov::Any());
 
     void add_producing_port(const std::shared_ptr<OutPortPlace>& out_port);
     void add_consuming_port(const std::shared_ptr<InPortPlace>& in_port);
@@ -150,6 +151,9 @@ public:
     }
     const element::Type& get_element_type() const {
         return m_type;
+    }
+    const ov::Any& get_structural_element_type() const {
+        return m_structural_type;
     }
     void set_partial_shape(const PartialShape& pshape) {
         m_pshape = pshape;
@@ -168,6 +172,7 @@ public:
 private:
     PartialShape m_pshape;
     element::Type m_type;
+    Any m_structural_type;
 
     std::vector<std::weak_ptr<OutPortPlace>> m_producing_ports;
     std::vector<std::weak_ptr<InPortPlace>> m_consuming_ports;

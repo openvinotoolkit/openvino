@@ -17,6 +17,7 @@
 #include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/frontend/tensorflow/visibility.hpp"
 #include "openvino/frontend/visibility.hpp"
+#include "openvino/core/type/non_tensor_type.hpp"
 
 namespace ov {
 namespace frontend {
@@ -79,6 +80,38 @@ protected:
 
     TranslatorDictionaryType m_op_translators;
 };
+
+
+class TENSORFLOW_API StructuralTypeAttribute : public ov::RuntimeAttribute {
+public:
+    OPENVINO_RTTI("structural_type", "0");
+
+    StructuralTypeAttribute() = default;
+
+    StructuralTypeAttribute(const ov::Any& value) : value(value) {}
+
+    //Any merge(const ngraph::NodeVector& nodes) const override;
+
+    bool visit_attributes(ov::AttributeVisitor& visitor) override {
+        // TODO: Implement deserialization; now only serialization works
+        auto str_value = to_string();
+        visitor.on_attribute("value", str_value);
+        return true;
+    }
+
+    std::string to_string() const override {
+        std::ostringstream str;
+        ov::element::StructuralType::print(str, value);
+        return str.str();
+    }
+
+    ov::Any value;
+
+    static void copy (const Node::RTMap& src, Node::RTMap& dst);
+    static bool has_type (const Node::RTMap& src, const ov::Any& type);
+    static void move_to_original (Node::RTMap& rt_info);
+};
+
 
 }  // namespace tensorflow
 }  // namespace frontend

@@ -8,6 +8,7 @@
 #include <iterator>
 #include <queue>
 
+#include "openvino/core/type/non_tensor_type.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/tensorflow/graph_iterator.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"
@@ -116,9 +117,34 @@ void InputModel::InputModelTFImpl::loadPlaces() {
         m_op_places_map[op_name] = op_place;
         if (op_type == "Placeholder") {
             auto pshape = node_decoder->get_attribute("shape").as<ov::PartialShape>();
-            auto type = node_decoder->get_attribute("dtype").as<ov::element::Type>();
+
+            std::cerr << "[ INFO TF FE ] Start quering attributes for TensorPlace\n";
+            
+            Any structural_type = node_decoder->get_attribute("dtype");
+            // TODO: calling get_attribute_as_any directly instead of
+            // templated version skips calling apply_additional_conversion_rules.
+            // It may result in unrecognized type in case if it is completely
+            // undefined type which are not covered by one of ov::element::StructuralType's
+
+            std::cerr << "[ INFO TF FE ] Retrieved structural type\n";
+            ov::element::StructuralType::print(std::cerr, structural_type);
+            std::cerr << std::endl;
+
+            bool is_element_type = structural_type.is<ov::element::Type>();
+
+            ov::element::Type type = is_element_type ?
+                                            structural_type.as<ov::element::Type>() :
+                                            ov::element::dynamic;
+
+            std::cerr << "[ INFO TF FE ] TensorPlace retrieved type: " << type << "\n";
+            if(!is_element_type) {
+                std::cerr << "[ INFO TF FE ] Structural type:";
+                ov::element::StructuralType::print(std::cerr, structural_type);
+                std::cerr << '\n';
+            }
+
             std::vector<std::string> names = {op_name};
-            auto tensor_place = std::make_shared<TensorPlace>(m_input_model, pshape, type, names);
+            auto tensor_place = std::make_shared<TensorPlace>(m_input_model, pshape, type, names, is_element_type ? ov::Any() : structural_type);
             m_tensor_places[op_name] = tensor_place;
             m_inputs.push_back(tensor_place);
         }

@@ -134,6 +134,10 @@ OP_CONVERTER(translate_sparse_fill_empty_rows_op);
 OP_CONVERTER(translate_sparse_segment_sum_op);
 OP_CONVERTER(translate_unique_op);
 
+// Experimental translator for String/Tokenization/Structural Types
+OP_CONVERTER(translate_case_fold_utf8_op);
+OP_CONVERTER(translate_normalize_utf8_op);
+
 const std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
         // note: UnaryOp translator declaration for each op must to be added in unary_op.cpp file
@@ -324,6 +328,10 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"SparseFillEmptyRows", translate_sparse_fill_empty_rows_op},
         {"SparseSegmentSum", translate_sparse_segment_sum_op},
         {"Unique", translate_unique_op},
+
+        // Experimental translator for String/Tokenization/Structural Types
+        {"CaseFoldUTF8", translate_case_fold_utf8_op},
+        {"NormalizeUTF8", translate_normalize_utf8_op},
     };
 };
 }  // namespace op

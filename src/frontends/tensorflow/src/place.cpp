@@ -155,10 +155,12 @@ ov::frontend::Place::Ptr OpPlace::get_target_tensor(int outputPortIndex) const {
 TensorPlace::TensorPlace(const ov::frontend::InputModel& input_model,
                          const ov::PartialShape& pshape,
                          ov::element::Type type,
-                         const std::vector<std::string>& names)
+                         const std::vector<std::string>& names,
+                         const ov::Any& structural_type)
     : Place(input_model, names),
       m_pshape(pshape),
-      m_type(type) {}
+      m_type(type),
+      m_structural_type(structural_type) {}
 
 std::vector<ov::frontend::Place::Ptr> TensorPlace::get_consuming_ports() const {
     std::vector<ov::frontend::Place::Ptr> consuming_ports;
