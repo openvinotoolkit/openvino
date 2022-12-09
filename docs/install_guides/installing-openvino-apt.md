@@ -92,10 +92,6 @@ This guide provides detailed steps for installing OpenVINO™ Runtime through th
 
 ### Step 2: Install OpenVINO Runtime Using the APT Package Manager
 
-OpenVINO will be installed in: `/opt/intel/openvino_<VERSION>.<UPDATE>.<PATCH>`
-
-A symlink will be created: `/opt/intel/openvino_<VERSION>`
-
 #### Install OpenVINO Runtime
 
 @sphinxdirective
