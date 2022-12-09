@@ -154,9 +154,8 @@ std::vector<Precision> netPrc = {
         Precision::FP32
 };
 
-/* ============= Activation (1D) ============= */
+/* ============= Activation (3D) ============= */
 std::vector<CPUSpecificParams> cpuParams_3D = {
-        CPUSpecificParams({nCw16c}, {nCw16c}, {}, {}),
         CPUSpecificParams({nwc}, {nwc}, {}, {}),
         CPUSpecificParams({ncw}, {ncw}, {}, {})
 };
@@ -178,7 +177,28 @@ const auto basicCases3D = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation3D_Eltwise_CPU_BF16, ActivationLayerCPUTest, basicCases3D, ActivationLayerCPUTest::getTestCaseName);
 
-/* ============= Activation (2D) ============= */
+const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes_blocked = {
+        {Mish,        {{}}},
+        {SoftSign,    {{}}}
+};
+
+std::vector<CPUSpecificParams> cpuParams_3D_blocked = {
+        CPUSpecificParams({nCw16c}, {nCw16c}, {}, {}),
+};
+
+const auto blockedCases3D = ::testing::Combine(
+        ::testing::ValuesIn(static_shapes_to_test_representation(basic3D)),
+        ::testing::Values(activationShapes),
+        ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes_blocked)),
+        ::testing::ValuesIn(netPrc),
+        ::testing::Values(Precision::FP32),
+        ::testing::Values(Precision::FP32),
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_3D_blocked))
+);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Activation3D_Eltwise_CPU_BF16_Blocked, ActivationLayerCPUTest, blockedCases3D, ActivationLayerCPUTest::getTestCaseName);
+
+/* ============= Activation (4D) ============= */
 std::vector<CPUSpecificParams> cpuParams_4D = {
         CPUSpecificParams({nChw16c}, {nChw16c}, {}, {}),
         CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
@@ -203,7 +223,7 @@ const auto basicCases4D = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation4D_Eltwise_CPU_BF16, ActivationLayerCPUTest, basicCases4D, ActivationLayerCPUTest::getTestCaseName);
 
-/* ============= Activation (3D) ============= */
+/* ============= Activation (5D) ============= */
 std::vector<CPUSpecificParams> cpuParams_5D = {
         CPUSpecificParams({nCdhw16c}, {nCdhw16c}, {}, {}),
         CPUSpecificParams({ndhwc}, {ndhwc}, {}, {}),
