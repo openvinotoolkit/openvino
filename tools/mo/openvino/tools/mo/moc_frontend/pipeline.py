@@ -173,5 +173,5 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
 
     ngraph_function = moc_front_end.convert_partially(input_model)
     serialize(ngraph_function, 'temporary.ir.xml')
-    print('[ WARNING ] MO finishes abnormally. This is intentianally to avoid reading back IR with FrameworkNodes')
+    #print('[ WARNING ] MO finishes abnormally. This is intentianally to avoid reading back IR with FrameworkNodes')
     return ngraph_function

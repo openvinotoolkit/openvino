@@ -88,6 +88,18 @@ def normalize_inputs(request: InferRequestBase, inputs: dict) -> dict:
     It creates copy of Tensors or copy data to already allocated Tensors on device
     if the item is of type `np.ndarray`, `np.number`, `int`, `float` or has numpy __array__ attribute.
     """
+    #
+    # Preprocessing for structural types
+    # Embeds these types according to StructuralType schema into regular tensors
+    # Currently it is supported for str type only
+
+    for key, value in inputs.items():
+        if isinstance(value, str):
+            # TODO: Check if input with this key is really expects str type
+            inputs[key] = np.array(list(value.encode()), dtype=np.uint8)
+
+    # End of structural types preprecessing
+
     # Create new temporary dictionary.
     # new_inputs will be used to transfer data to inference calls,
     # ensuring that original inputs are not overwritten with Tensors.
@@ -110,8 +122,22 @@ def normalize_inputs(request: InferRequestBase, inputs: dict) -> dict:
     return new_inputs
 
 
+def postprocess_results (outputs: dict, model_outputs) -> dict:
+    #print('1:', model_outputs)
+    #print('2:', outputs)
+    for output in model_outputs:
+        # TODO: find out how to access RT info in Python or implement it
+        #print([key for key in output.get_rt_info()])
+        if True: #'structural_type' in output.get_rt_info(): # FIXME: Doesn't work
+            outputs[output] = bytes(outputs[output]).decode()
+    return outputs
+
+
 class InferRequest(InferRequestBase):
     """InferRequest class represents infer request which can be run in asynchronous or synchronous manners."""
+
+    def postprocessed (self, inputs):
+        return postprocess_results(super().infer(inputs), super().model_outputs)
 
     def infer(self, inputs: Any = None) -> dict:
         """Infers specified input(s) in synchronous mode.
@@ -140,28 +166,33 @@ class InferRequest(InferRequestBase):
         :return: Dictionary of results from output tensors with ports as keys.
         :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
         """
+
+        if isinstance(inputs, str):
+            # TODO: Check if there is really a single input with this type
+            inputs = np.array(list(inputs.encode()), dtype=np.uint8)
+
         # If inputs are empty, pass empty dictionary.
         if inputs is None:
-            return super().infer({})
+            return self.postprocessed({})
         # If inputs are dict, normalize dictionary and call infer method.
         elif isinstance(inputs, dict):
-            return super().infer(normalize_inputs(self, inputs))
+            return self.postprocessed(normalize_inputs(self, inputs))
         # If inputs are list or tuple, enumarate inputs and save them as dictionary.
         # It is an extension of above branch with dict inputs.
         elif isinstance(inputs, (list, tuple)):
-            return super().infer(normalize_inputs(self, {index: input for index, input in enumerate(inputs)}))
+            return self.postprocessed(normalize_inputs(self, {index: input for index, input in enumerate(inputs)}))
         # If inputs are Tensor, call infer method directly.
         elif isinstance(inputs, Tensor):
-            return super().infer(inputs)
+            return self.postprocessed(inputs)
         # If inputs are single numpy array or scalars, use helper function to copy them
         # directly to Tensor or create temporary Tensor to pass into the InferRequest.
         # Pass empty dictionary to infer method, inputs are already set by helper function.
-        elif isinstance(inputs, (np.ndarray, np.number, int, float)):
+        elif isinstance(inputs, (np.ndarray, np.number, int, float, str)):
             update_tensor(inputs, self)
-            return super().infer({})
+            return self.postprocessed({})
         elif hasattr(inputs, "__array__"):
             update_tensor(np.array(inputs, copy=True), self)
-            return super().infer({})
+            return self.postprocessed({})
         else:
             raise TypeError(f"Incompatible inputs of type: {type(inputs)}")
 
@@ -271,6 +302,7 @@ class CompiledModel(CompiledModelBase):
 
         Take a look at `infer_new_request` for reference.
         """
+        #print('outputs of a compiled model:', self.outputs)
         return self.infer_new_request(inputs)
 
 
