@@ -67,10 +67,6 @@ if(ENABLE_SYSTEM_PUGIXML)
     set_target_properties(ngraph_obj PROPERTIES NO_SYSTEM_FROM_IMPORTED ON)
 endif()
 
-if (TBBBIND_2_5_FOUND)
-    target_link_libraries(ngraph_obj PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
-endif()
-
 target_compile_definitions(ngraph_obj PRIVATE IMPLEMENT_OPENVINO_API)
 
 ie_faster_build(ngraph_obj
