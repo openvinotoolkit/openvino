@@ -46,6 +46,8 @@ Output<Node> reshape_kernel_for_group(const NodeContext& context,
                                       const Output<Node>& kernel,
                                       int64_t groups);
 
+std::shared_ptr<Node> get_axes_range(NodeContext& context, size_t input_id);
+
 std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorch_model,
                                                  const TensorMap& external_tensor_map = {});
 
