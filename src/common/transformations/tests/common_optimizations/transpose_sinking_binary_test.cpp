@@ -321,6 +321,8 @@ std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
 
     auto X = std::make_shared<Parameter>(input_type, input_shape);
 
+    auto tanh = std::make_shared<Tanh>(X);
+
     auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
     auto transpose0 = std::make_shared<Transpose>(X, ng_order0);
 
@@ -659,55 +661,6 @@ INSTANTIATE_TEST_SUITE_P(
 
 namespace mult_consumers {
 namespace forward {
-#if 0 // TEMPLATE
-std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
-                                          element::Type input_type,
-                                          size_t binary_transpose_input_idx) {
-    const Shape input_shape{1, 96, 55, 55};
-    const Shape const_shape{1, 55, 55, 96};
-
-    auto X = std::make_shared<Parameter>(input_type, input_shape);
-
-    auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
-    auto transpose0 = std::make_shared<Transpose>(X, ng_order0);
-
-    NodePtr binary;
-    auto in_constant = std::make_shared<Constant>(input_type, const_shape, Shape{1});
-    if (!binary_transpose_input_idx)
-        binary = binary_factory->create(transpose0, in_constant);
-    else
-        binary = binary_factory->create(in_constant, transpose0);
-
-    return std::make_shared<Model>(ov::OutputVector{binary}, ov::ParameterVector{X});
-}
-
-std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
-                                                   element::Type input_type,
-                                                   size_t binary_transpose_input_idx) {
-    const Shape input_shape{1, 96, 55, 55};
-    const Shape const_shape{1, 55, 55, 96};
-
-    auto X = std::make_shared<Parameter>(input_type, input_shape);
-
-    NodePtr binary;
-    auto in_constant = std::make_shared<Constant>(input_type, const_shape, Shape{1});
-
-    auto transpose_reversed_const =
-        std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 3, 1, 2});
-    auto transpose_reversed = std::make_shared<Transpose>(in_constant, transpose_reversed_const);
-
-    if (!binary_transpose_input_idx)
-        binary = binary_factory->create(X, transpose_reversed);
-    else
-        binary = binary_factory->create(transpose_reversed, X);
-
-    auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
-    auto transpose0 = std::make_shared<Transpose>(binary, ng_order0);
-
-    return std::make_shared<Model>(ov::OutputVector{transpose0}, ov::ParameterVector{X});
-}
-#endif
-
 namespace input_transpose_consumers {
 
 std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
@@ -823,6 +776,62 @@ std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
 
 } // namespace output_consumers
 
+namespace input_node_consumers {
+
+std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
+                                          element::Type input_type,
+                                          size_t binary_transpose_input_idx) {
+    const Shape input_shape{1, 96, 55, 55};
+    const Shape const_shape{1, 55, 55, 96};
+
+    auto X = std::make_shared<Parameter>(input_type, input_shape);
+
+    auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
+    auto transpose0 = std::make_shared<Transpose>(X, ng_order0);
+
+    NodePtr binary;
+    auto in_constant = std::make_shared<Constant>(input_type, const_shape, Shape{1});
+    if (!binary_transpose_input_idx)
+        binary = binary_factory->create(transpose0, in_constant);
+    else
+        binary = binary_factory->create(in_constant, transpose0);
+
+    return std::make_shared<Model>(ov::OutputVector{binary, tanh}, ov::ParameterVector{X});
+}
+
+std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
+                                                   element::Type input_type,
+                                                   size_t binary_transpose_input_idx) {
+    const Shape input_shape{1, 96, 55, 55};
+    const Shape const_shape{1, 55, 55, 96};
+
+    auto X = std::make_shared<Parameter>(input_type, input_shape);
+    
+    auto tanh = std::make_shared<Tanh>(X);
+    
+    auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
+    auto transpose0 = std::make_shared<Transpose>(X, ng_order0);
+
+    NodePtr binary;
+    auto in_constant = std::make_shared<Constant>(input_type, const_shape, Shape{1});
+
+    auto transpose_reversed_const =
+        std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 3, 1, 2});
+    auto transpose_reversed = std::make_shared<Transpose>(in_constant, transpose_reversed_const);
+
+    if (!binary_transpose_input_idx)
+        binary = binary_factory->create(X, transpose_reversed);
+    else
+        binary = binary_factory->create(transpose_reversed, X);
+
+    auto ng_order1 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
+    auto transpose1 = std::make_shared<Transpose>(binary, ng_order1);
+
+    return std::make_shared<Model>(ov::OutputVector{transpose1, tanh}, ov::ParameterVector{X});
+}
+
+} // namespace input_node_consumers
+
 using CreateGraphF = std::function<
     std::shared_ptr<Model>(BinaryFactoryPtr binary_factory, element::Type input_type, size_t binary_transpose_input_idx)>;
 
@@ -892,6 +901,17 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingBinaryElementwiseForward)),
                        ::testing::Values(output_consumers::CreateFunction),
                        ::testing::Values(output_consumers::CreateReferenceFunction),
+                       ::testing::Values(element::f32),
+                       ::testing::ValuesIn(binary_transpose_input_indexes)),
+                       TransposeSinkingFixture::get_test_name);
+
+INSTANTIATE_TEST_SUITE_P(
+    TransposeSinkingForwardInputConsumersTestSuite,
+    TransposeSinkingFixture,
+    ::testing::Combine(::testing::ValuesIn(binary_factories),
+                       ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingBinaryElementwiseForward)),
+                       ::testing::Values(input_node_consumers::CreateFunction),
+                       ::testing::Values(input_node_consumers::CreateReferenceFunction),
                        ::testing::Values(element::f32),
                        ::testing::ValuesIn(binary_transpose_input_indexes)),
                        TransposeSinkingFixture::get_test_name);
