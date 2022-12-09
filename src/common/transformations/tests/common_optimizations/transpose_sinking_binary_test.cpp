@@ -18,7 +18,7 @@ using namespace ov::opset9;
 namespace {
 
 using NodePtr = std::shared_ptr<ov::Node>;
-using ModelPtr = std::shared_ptr<ov::Model>;
+using ModelPtr = std::shared_ptr<Model>;
 using Output = ov::Output<ov::Node>;
 
 namespace {
@@ -138,10 +138,10 @@ std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
             in_op = binary_factory->create(in_constant, in_op);
     }
 
-    return std::make_shared<ov::Model>(ov::OutputVector{in_op}, ov::ParameterVector{X});
+    return std::make_shared<Model>(ov::OutputVector{in_op}, ov::ParameterVector{X});
 }
 
-std::shared_ptr<ov::Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
+std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
                                                    size_t num_binary_ops,
                                                    element::Type input_type,
                                                    size_t binary_transpose_input_idx) {
@@ -167,13 +167,13 @@ std::shared_ptr<ov::Model> CreateReferenceFunction(BinaryFactoryPtr binary_facto
     auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
     auto transpose0 = std::make_shared<Transpose>(in_op, ng_order0);
 
-    return std::make_shared<ov::Model>(ov::OutputVector{transpose0}, ov::ParameterVector{X});
+    return std::make_shared<Model>(ov::OutputVector{transpose0}, ov::ParameterVector{X});
 }
 
 }  // namespace one_input_transpose
 
 namespace double_transpose {
-std::shared_ptr<ov::Model> CreateFunction(BinaryFactoryPtr binary_factory,
+std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
                                           size_t num_binary_ops,
                                           element::Type input_type) {
     const Shape input_shape{1, 96, 55, 55};
@@ -192,10 +192,10 @@ std::shared_ptr<ov::Model> CreateFunction(BinaryFactoryPtr binary_factory,
         in_op = binary_factory->create(in_op, transpose1);
     }
 
-    return std::make_shared<ov::Model>(ov::OutputVector{in_op}, ov::ParameterVector{X});
+    return std::make_shared<Model>(ov::OutputVector{in_op}, ov::ParameterVector{X});
 }
 
-std::shared_ptr<ov::Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
+std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
                                                    size_t num_binary_ops,
                                                    element::Type input_type) {
     const Shape input_shape{1, 96, 55, 55};
@@ -219,11 +219,11 @@ std::shared_ptr<ov::Model> CreateReferenceFunction(BinaryFactoryPtr binary_facto
     auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
     auto transpose0 = std::make_shared<Transpose>(in_op, ng_order0);
 
-    return std::make_shared<ov::Model>(ov::OutputVector{transpose0}, ov::ParameterVector{X});
+    return std::make_shared<Model>(ov::OutputVector{transpose0}, ov::ParameterVector{X});
 }
 
 using CreateGraphBinaryTwoTransposeInputsF = std::function<
-    std::shared_ptr<ov::Model>(BinaryFactoryPtr unary_factory, size_t num_binary_ops, element::Type input_type)>;
+    std::shared_ptr<Model>(BinaryFactoryPtr unary_factory, size_t num_binary_ops, element::Type input_type)>;
 
 using TestBinaryTwoTransposeInputsParams = std::tuple<BinaryFactoryPtr,
                                     PassFactoryPtr,
@@ -268,7 +268,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 namespace backward {
 namespace one_input_transpose {
-std::shared_ptr<ov::Model> CreateFunction(BinaryFactoryPtr binary_factory,
+std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
                                           size_t num_binary_ops,
                                           element::Type input_type,
                                           size_t binary_transpose_input_idx) {
@@ -288,10 +288,10 @@ std::shared_ptr<ov::Model> CreateFunction(BinaryFactoryPtr binary_factory,
     auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
     auto transpose0 = std::make_shared<Transpose>(in_op, ng_order0);
 
-    return std::make_shared<ov::Model>(ov::OutputVector{transpose0}, ov::ParameterVector{X});
+    return std::make_shared<Model>(ov::OutputVector{transpose0}, ov::ParameterVector{X});
 }
 
-std::shared_ptr<ov::Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
+std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
                                                    size_t num_binary_ops,
                                                    element::Type input_type,
                                                    size_t binary_transpose_input_idx) {
@@ -315,10 +315,10 @@ std::shared_ptr<ov::Model> CreateReferenceFunction(BinaryFactoryPtr binary_facto
             in_op = binary_factory->create(transpose, in_op);
     }
 
-    return std::make_shared<ov::Model>(ov::OutputVector{in_op}, ov::ParameterVector{X});
+    return std::make_shared<Model>(ov::OutputVector{in_op}, ov::ParameterVector{X});
 }
 
-using CreateGraphBinaryF = std::function<std::shared_ptr<ov::Model>(BinaryFactoryPtr unary_factory,
+using CreateGraphBinaryF = std::function<std::shared_ptr<Model>(BinaryFactoryPtr unary_factory,
                                                                     size_t num_binary_ops,
                                                                     element::Type input_type,
                                                                     size_t binary_transpose_input_idx)>;
