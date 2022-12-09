@@ -90,7 +90,7 @@ void shape_infer(const Squeeze* op,
         // make dynamic output except the case of the rank of arg shape is 1 and 0 <= arg_shape[0] <= 1.
         if (arg_shape.is_dynamic() && out_dims.empty()) {
             output_shape = arg_shape.rank().get_length() == 1 && arg_shape[0].get_max_length() <= 1
-                               ? T{} // Output shape is a scalar
+                               ? T{}  // Output shape is a scalar
                                : PartialShape::dynamic();
         } else
             output_shape = T(out_dims);
