@@ -789,7 +789,6 @@ public:
         std::map<std::string, std::string>& config_with_batch = parsed._config;
         // if auto-batching is applicable, the below function will patch the device name and config accordingly:
         ApplyAutoBatching(network, deviceName, config_with_batch);
-        CleanUpProperties(deviceName, config_with_batch, ov::auto_batch_timeout);
         parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch);
 
         auto plugin = GetCPPPluginByName(parsed._deviceName);
@@ -884,17 +883,6 @@ public:
         }
     }
 
-    void CleanUpProperties(std::string& deviceName, std::map<std::string, std::string>& config, ov::Any property) {
-        // auto-batching is not applicable, if there is auto_batch_timeout, delete it
-        if (deviceName.find("BATCH") == std::string::npos) {
-            const auto& batch_timeout_mode = config.find(property.as<std::string>());
-            if (batch_timeout_mode != config.end()) {
-                if (deviceName.find("AUTO") == std::string::npos && deviceName.find("MULTI") == std::string::npos)
-                    config.erase(batch_timeout_mode);
-            }
-        }
-    }
-
     ie::SoExecutableNetworkInternal LoadNetwork(const ie::CNNNetwork& network,
                                                 const std::string& deviceNameOrig,
                                                 const std::map<std::string, std::string>& config) override {
@@ -903,7 +891,6 @@ public:
         std::map<std::string, std::string> config_with_batch = config;
         // if auto-batching is applicable, the below function will patch the device name and config accordingly:
         ApplyAutoBatching(network, deviceName, config_with_batch);
-        CleanUpProperties(deviceName, config_with_batch, ov::auto_batch_timeout);
 
         bool forceDisableCache = config_with_batch.count(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE)) > 0;
         auto parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch);
