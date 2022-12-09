@@ -16,10 +16,10 @@
 
 #include "openvino/core/parallel.hpp"
 
-#define IE_THREAD_TBB      0
-#define IE_THREAD_OMP      1
-#define IE_THREAD_SEQ      2
-#define IE_THREAD_TBB_AUTO 3
+#define IE_THREAD_TBB      OV_THREAD_TBB
+#define IE_THREAD_OMP      OV_THREAD_OMP
+#define IE_THREAD_SEQ      OV_THREAD_SEQ
+#define IE_THREAD_TBB_AUTO OV_THREAD_TBB_AUTO
 
 namespace InferenceEngine {
 
