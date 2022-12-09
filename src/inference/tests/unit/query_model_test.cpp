@@ -41,8 +41,11 @@ public:
         auto supported = InferenceEngine::GetSupportedNodes(m_function, transform, is_node_supported);
         auto const is_in_expected = [&expected](const std::string& x){ return expected.find(x) != expected.end(); };
         bool is_equal = (supported.size() == expected.size()) && std::all_of(supported.begin(), supported.end(), is_in_expected);
-        ASSERT_TRUE(is_equal) << "Expected list of supported nodes '" << expected
-            << "' but actually received '" << supported << "'";
+        std::stringstream ss;
+        if (!is_equal) {
+            ss << "Expected list of supported nodes '" << expected << "' but actually received '" << supported << "'";
+        }
+        ASSERT_TRUE(is_equal) << ss.str();
     }
 };
 

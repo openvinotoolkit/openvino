@@ -79,18 +79,26 @@ static void check_names(const std::shared_ptr<ov::Node>& node,
         std::sort(fused_names.begin(), fused_names.end());
         std::sort(expected_sorted.begin(), expected_sorted.end());
         bool is_equal = std::equal(fused_names.begin(), fused_names.end(), expected_sorted.begin());
-        ASSERT_TRUE(is_equal) << "Expected names are not matched to the fused names. Expected '" << expected_fused_names
-                              << "' but actually received '" << fused_names << "'";
+        std::stringstream ss;
+        if (!is_equal) {
+            ss << "Expected names are not matched to the fused names. Expected '" << expected_fused_names
+               << "' but actually received '" << fused_names << "'";
+        }
+        ASSERT_TRUE(is_equal) << ss.str();
     } else {
         bool is_expected_name_missed = false;
         for (auto& name : expected_fused_names) {
             if (std::find(fused_names.begin(), fused_names.end(), name) == fused_names.end()) {
                 is_expected_name_missed = true;
+                break;
             }
         }
-        ASSERT_FALSE(is_expected_name_missed)
-            << "Not all expected names are found in fused names. Expected '" << expected_fused_names
-            << "' but actually received '" << fused_names << "'";
+        std::stringstream ss;
+        if (is_expected_name_missed) {
+            ss << "Not all expected names are found in fused names. Expected '" << expected_fused_names
+               << "' but actually received '" << fused_names << "'";
+        }
+        ASSERT_FALSE(is_expected_name_missed) << ss.str();
     }
 }
 
