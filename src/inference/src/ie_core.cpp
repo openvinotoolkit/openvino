@@ -281,12 +281,14 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
             }
         }
 
-        // Apply core_plugins_properties into the input config for actual plugins instance.
+        // Update input config with the help of core_plugins_properties:
+        //  1. Remove the global properties that this plugin doesn't support
+        //  2. Don't overwritten global properties if they have been in config
+        //  3. Add whitelist global properties into config if it doesn't have.
         template <typename T>
         void update_config(ov::InferencePlugin& plugin, std::map<std::string, T>& config) const {
             std::lock_guard<std::mutex> lock(_core_property_mutex);
             std::string device_name = plugin.get_name();
-            auto supported_properties = plugin.get_property(ov::supported_properties);
             for (auto& it : _core_plugins_properties) {
                 // ov::cache_dir has been updated, ignore it.
                 if (it.first == ov::cache_dir.name())
@@ -295,18 +297,33 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
                 // If the property has been contained in input config, it will not be overwritten.
                 auto item = config.find(it.first);
                 if (item != config.end()) {
-                    if (!util::contains(supported_properties, it.first)) {
-                        config.erase(item);
+                    // Erase if it is not supported by this device.
+                    if (it.first == ov::auto_batch_timeout.name()) {
+                        if (device_name.find("BATCH") == std::string::npos &&
+                            device_name.find("AUTO") == std::string::npos) {
+                            config.erase(item);
+                        }
+                    } else if (it.first == ov::hint::allow_auto_batching.name()) {
+                        if (device_name.find("AUTO") == std::string::npos) {
+                            config.erase(item);
+                        }
                     }
                     continue;
                 }
 
-                // properties cached in core_plugins_properties always set to actual plugins instance,
-                // but some of them only can be applied for specified plugins, such as:
-                //     ov::auto_batch_timeout   -  only for AUTO and BATCH plugins
+                // Add whitelist global properties into config if it doesn't have.
+                // There will be a global properties whitelist for each plugin, such as:
+                //     ov::auto_batch_timeout         -  only for AUTO and BATCH plugins
                 //     ov::hint::allow_auto_batching  - only for AUTO plugins
-                if (util::contains(supported_properties, it.first)) {
-                    config[it.first] = it.second.as<std::string>();
+                if (it.first == ov::auto_batch_timeout.name()) {
+                    if (device_name.find("BATCH") != std::string::npos ||
+                        device_name.find("AUTO") != std::string::npos) {
+                        config[it.first] = it.second.as<std::string>();
+                    }
+                } else if (it.first == ov::hint::allow_auto_batching.name()) {
+                    if (device_name.find("AUTO") != std::string::npos) {
+                        config[it.first] = it.second.as<std::string>();
+                    }
                 }
             }
         }
