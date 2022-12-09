@@ -16,7 +16,6 @@ namespace v0 {
 class OPENVINO_API Proposal : public Op {
 public:
     OPENVINO_OP("Proposal", "opset1");
-    BWDCMP_RTTI_DECLARATION;
     // base_size       Anchor sizes
     // pre_nms_topn    Number of boxes before nms
     // post_nms_topn   Number of boxes after nms
@@ -80,7 +79,6 @@ namespace v4 {
 class OPENVINO_API Proposal : public op::v0::Proposal {
 public:
     OPENVINO_OP("Proposal", "opset4", op::Op, 4);
-    BWDCMP_RTTI_DECLARATION;
     Proposal() = default;
     /// \brief Constructs a Proposal operation
     ///
