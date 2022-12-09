@@ -135,32 +135,7 @@ Run the following command:
 @endsphinxdirective
 
 
-### Step 3 (Optional): Install OpenCV from YUM
-
-OpenCV is necessary to run C++ demos from Open Model Zoo. Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. OpenVINO provides a package to install OpenCV from YUM:
-
-@sphinxdirective
-
-.. tab:: The Latest Version
-
-   Run the following command:
-
-   .. code-block:: sh
-
-      sudo yum install openvino-opencv
-
-.. tab::  A Specific Version
-
-   Run the following command:
-
-   .. code-block:: sh
-
-      sudo yum install openvino-opencv-<VERSION>.<UPDATE>.<PATCH>
-
-@endsphinxdirective
-
-
-### Step 4 (Optional): Install Software Dependencies
+### Step 3 (Optional): Install Software Dependencies
 
 After you have installed OpenVINO Runtime, if you decided to [install OpenVINO Model Development Tools](installing-model-dev-tools.md), make sure that you install external software dependencies first.
 
