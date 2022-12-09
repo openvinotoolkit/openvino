@@ -11,6 +11,7 @@
 #include "reorder_inst.h"
 #include "resample_inst.h"
 #include "reshape_inst.h"
+#include "arg_max_min_inst.h"
 #include "generic_layer.hpp"
 #include <sstream>
 
@@ -1790,6 +1791,10 @@ format layout_optimizer::get_preferred_format(program_node& node) {
             else if (input_layout.format.dimension() == 4)
                 expected = format::bfyx;
         }
+    } else if (node.is_type<arg_max_min>()) {
+        // Set default format for issue 92967/98750
+        // TODO: will remove when arg_max_min_ref supports blocked format
+        expected = format::get_default_format(node.get_input_layouts()[0].get_rank(), false, false);
     }
 
     return expected;

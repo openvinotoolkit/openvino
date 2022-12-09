@@ -1487,6 +1487,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
              || (prim.as<mvn>().input().get_output_layout().data_type != data_types::u8 &&
                  prim.as<mvn>().input().get_output_layout().data_type != data_types::i8)
              || prim.as<mvn>().get_primitive()->across_channels) &&
+            prim.type() != cldnn::arg_max_min::type_id() &&
             prim.type() != cldnn::dft::type_id() &&
             prim.type() != cldnn::grid_sample::type_id() &&
             prim.type() != cldnn::mutable_data::type_id() &&
