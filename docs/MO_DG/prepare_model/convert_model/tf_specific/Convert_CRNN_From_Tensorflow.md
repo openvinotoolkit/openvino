@@ -3,7 +3,7 @@
 This tutorial explains how to convert a CRNN model to Intermediate Representation (IR).
 
 There are several public versions of TensorFlow CRNN model implementation available on GitHub. This tutorial explains how to convert the model from
-the [CRNN Tensorflow](https://github.com/MaybeShewill-CV/CRNN_Tensorflow) repository to IR. 
+the [CRNN Tensorflow](https://github.com/MaybeShewill-CV/CRNN_Tensorflow) repository to IR, which was validated with python 3.7, tensorflow 1.15.0, protobuf 3.19.0.
 If you have another implementation of CRNN model, it can be converted to OpenVINO IR in a similar way. You need to get inference graph and run Model Optimizer on it.
 
 **To convert this model to the IR:**
@@ -33,14 +33,13 @@ export PYTHONPATH="${PYTHONPATH}:/path/to/CRNN_Tensorflow/"
        * For  Windows OS add `/path/to/CRNN_Tensorflow/` to the `PYTHONPATH` environment variable in settings.
     3. Open the `tools/test_shadownet.py` script. After `saver.restore(sess=sess, save_path=weights_path)` line, add the following code:
 ```python
-import tensorflow as tf
 from tensorflow.python.framework import graph_io
-frozen = tf.compat.v1.graph_util.convert_variables_to_constants(sess, sess.graph_def, ['shadow/LSTMLayers/transpose_time_major'])
+frozen = tf.graph_util.convert_variables_to_constants(sess, sess.graph_def, ['shadow/LSTMLayers/transpose_time_major'])
 graph_io.write_graph(frozen, '.', 'frozen_graph.pb', as_text=False)
 ```
     4. Run the demo with the following command:
 ```sh
-python tools/test_shadownet.py --image_path data/test_images/test_01.jpg --weights_path model/shadownet/shadownet_2017-10-17-11-47-46.ckpt-199999
+python tools/demo_shadownet.py --image_path data/test_images/test_01.jpg --weights_path model/shadownet/shadownet_2017-10-17-11-47-46.ckpt-199999
 ```
    If you want to use your checkpoint, replace the path in the `--weights_path` parameter with a path to your checkpoint.
     5. In the `CRNN_Tensorflow` directory, you will find the inference CRNN graph `frozen_graph.pb`. You can use this graph with the OpenVINO&trade; toolkit
