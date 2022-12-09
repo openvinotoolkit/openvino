@@ -7,21 +7,12 @@
    :hidden:
 
    openvino_2_0_transition_guide
+   Model Preparation <openvino_docs_model_processing_introduction>
    Tool Ecosystem <openvino_ecosystem>
    OpenVINO Extensibility <openvino_docs_Extensibility_UG_Intro>
    Media Processing and CV Libraries <media_processing_cv_libraries>
    OpenVINO™ Security <openvino_docs_security_guide_introduction>
 
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Model preparation
-   :hidden:
-
-   openvino_docs_model_processing_introduction
-   Supported_Model_Formats
-   openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide
-   omz_tools_downloader
 
 
 .. toctree::
