@@ -116,10 +116,12 @@ OpenVINO™ Documentation
 .. toctree::
    :maxdepth: 2
    :hidden:
-   
-   get_started
-   documentation
-   tutorials
-   api/api_reference
-   model_zoo
-   resources
+
+   GET STARTED <get_started>
+   LEARN OPENVINO <learn_openvino>
+   DOCUMENTATION <documentation>
+   API REFERENCE <api/api_reference>
+   MODEL ZOO <model_zoo>
+   RESOURCES <resources>
+   RELEASE NOTES <https://software.intel.com/content/www/us/en/develop/articles/openvino-relnotes.html>
+
