@@ -133,7 +133,7 @@ Note that the commands are different for a Python installation and a C++ install
 
    .. important::
 
-      Make sure to specify the `openvino-dev` version that matches your installed version of OpenVINO Runtime. Otherwise, compatibility errors are likely to occur.
+      Make sure that the `openvino-dev` version you specified matches your installed version of OpenVINO Runtime. Otherwise, compatibility errors are likely to occur.
 
    .. code-block:: sh
 
