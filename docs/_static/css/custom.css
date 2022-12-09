@@ -31,11 +31,18 @@ ul#navbar-main-elements > li:hover {
 /* first level items in the side menu */
 #bd-docs-nav > div > ul > li > a {
     color: #0068B5;
+    padding-bottom: 0;
 }
-/* second level items left padding */
+/* second level items                 */
 #bd-docs-nav > div > ul > li > ul {
     padding-left: 0.5rem;
 }
+#bd-docs-nav div ul li ul li a {
+    padding-top: 0;
+  /*padding-bottom: 0; */
+}
+
+
 
 /* footer links */
 /* =================================================== */

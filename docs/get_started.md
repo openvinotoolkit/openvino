@@ -5,22 +5,12 @@
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Install & Config
    
    Installing OpenVINO <openvino_docs_install_guides_overview>
    Additional Configurations <openvino_docs_install_guides_configurations_header>
    Uninstalling <openvino_docs_install_guides_uninstalling_openvino>
    Troubleshooting <openvino_docs_get_started_guide_troubleshooting>
    
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-   :caption: Get Started Guides
-   
-   Interactive Tutorials (Python) <tutorials>
-   Samples <openvino_docs_OV_UG_Samples_Overview>
-
-
 @endsphinxdirective
  
 @sphinxdirective

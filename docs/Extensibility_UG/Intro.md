@@ -11,6 +11,13 @@
    openvino_docs_Extensibility_UG_GPU
    openvino_docs_Extensibility_UG_VPU_Kernel
    openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer
+   
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   
+   openvino_docs_transformations
+   OpenVINO Plugin Developer Guide <openvino_docs_ie_plugin_dg_overview>
 
 @endsphinxdirective
 
