@@ -14,7 +14,6 @@ namespace v3 {
 class OPENVINO_API ShapeOf : public Op {
 public:
     OPENVINO_OP("ShapeOf", "opset3", op::Op, 3);
-    BWDCMP_RTTI_DECLARATION;
     ShapeOf() = default;
     /// \brief Constructs a shape-of operation.
     ShapeOf(const Output<Node>& arg, const element::Type output_type = element::i64);
@@ -55,7 +54,6 @@ namespace v0 {
 class OPENVINO_API ShapeOf : public Op {
 public:
     OPENVINO_OP("ShapeOf", "opset1");
-    BWDCMP_RTTI_DECLARATION;
     ShapeOf() = default;
     /// \brief Constructs a shape-of operation.
     ShapeOf(const Output<Node>& arg);
