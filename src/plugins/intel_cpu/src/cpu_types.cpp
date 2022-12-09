@@ -26,6 +26,9 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "AdaptiveMaxPool", Type::AdaptivePooling},
         { "AdaptiveAvgPool", Type::AdaptivePooling},
         { "Add", Type::Eltwise },
+        { "IsFinite", Type::Eltwise },
+        { "IsInf", Type::Eltwise },
+        { "IsNaN", Type::Eltwise },
         { "Subtract", Type::Eltwise },
         { "Multiply", Type::Eltwise },
         { "Divide", Type::Eltwise },
@@ -202,6 +205,7 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "PriorBoxClustered", Type::PriorBoxClustered},
         {"Interaction", Type::Interaction},
         { "MHA", Type::MHA},
+        { "Unique", Type::Unique}
 };
 
 Type TypeFromName(const std::string& type) {
@@ -399,6 +403,8 @@ std::string NameFromType(const Type type) {
             return "Subgraph";
         case Type::MHA:
             return "MHA";
+        case Type::Unique:
+            return "Unique";
         default:
             return "Unknown";
     }
@@ -416,6 +422,9 @@ std::string algToString(const Algorithm alg) {
     CASE(DeconvolutionCommon);
     CASE(DeconvolutionGrouped);
     CASE(EltwiseAdd);
+    CASE(EltwiseIsFinite);
+    CASE(EltwiseIsInf);
+    CASE(EltwiseIsNaN);
     CASE(EltwiseMultiply);
     CASE(EltwiseSubtract);
     CASE(EltwiseDivide);

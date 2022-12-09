@@ -127,6 +127,7 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 using namespace GNAPluginNS;
 using namespace GNAPluginNS::memory;
+using namespace ov::intel_gna::frontend;
 
 namespace InferenceEngine {
     template<>
@@ -356,8 +357,8 @@ GNAPlugin::GNAPlugin(const std::map<std::string, std::string>& configMap) :
     graphCompiler(config) {
     Init();
     SetConfig(configMap);
+    log::set_log_level(gnaFlags->log_level);
     InitGNADevice();
-    GnaLog(gnaFlags->log_level);
 }
 
 void GNAPlugin::Init() {
@@ -385,9 +386,6 @@ void GNAPlugin::InitGNADevice() {
                     !config.dumpXNNPath.empty());
         size_t page_size_bytes = 4096;
         gnamem = std::make_shared<gna_memory_device>(memory::GNAAllocator(gnadevice), page_size_bytes);
-        if (gnaFlags->log_level == ov::log::Level::DEBUG) {
-            gnadevice->enableDiagnostics();
-        }
     }
     graphCompiler.setGNAMemoryPtr(gnamem);
 }

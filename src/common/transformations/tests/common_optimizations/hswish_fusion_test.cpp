@@ -9,6 +9,7 @@
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset7.hpp>
+#include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/pass/manager.hpp>
 #include "transformations/common_optimizations/hsigmoid_fusion.hpp"
 #include <transformations/common_optimizations/hswish_fusion.hpp>
