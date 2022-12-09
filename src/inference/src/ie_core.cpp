@@ -2011,8 +2011,8 @@ CompiledModel Core::compile_model(const std::string& model,
         blob = weights._impl;
     }
     OV_CORE_CALL_STATEMENT(
-        auto _model = _impl->ReadNetwork(model, blob).getFunction();
-        auto exec = _impl->LoadNetwork(toCNN(_model), deviceName, any_copy(flatten_sub_properties(deviceName, config)));
+        auto _model = _impl->ReadNetwork(model, blob);
+        auto exec = _impl->LoadNetwork(_model, deviceName, any_copy(flatten_sub_properties(deviceName, config)));
         return {exec._ptr, exec._so};);
 }
 
