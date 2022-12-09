@@ -39,7 +39,7 @@ ov_model = convert_model(model, input_shape="[1,3,100,100]", mean_values="[127,1
 ```sh
 ov_model = convert_model(model, compress_to_fp16=True)
 ```
-- "input" parameter can be set by tuple with name, shape and type. Input name of type string is required is such tuple. Shape and type are optional. 
+- "input" parameter can be set by tuple with name, shape and type. Input name of type string is required in such tuple. Shape and type are optional. 
 Shape can be a list or tuple of dimensions (int or openvino.runtime.Dimension) or openvino.runtime.PartialShape or openvino.runtime.Shape. Type can be of numpy type or openvino.runtime.Type.
 ```sh
 ov_model = convert_model(model, input=("input_name", [3], np.float32))
