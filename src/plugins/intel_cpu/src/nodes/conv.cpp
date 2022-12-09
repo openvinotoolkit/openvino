@@ -1654,20 +1654,24 @@ void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const si
 }
 
 VectorDims Convolution::makeInputDummyShape(const Shape& inpShape) const {
-    constexpr Dim dummyOuputDim = 64;
+    // There are a bunch of heuristics mostly aimed to guess the most appropriate oneDNN implementation, to reduce the
+    // amount of the implementation mismatch and the internal reordering as a consequence.
+    constexpr Dim dummyInputDim = 64;
 
     const size_t spatialRank = stride.size();
     const size_t filterStartIndx = weightDims.size() - spatialRank;
 
-    VectorDims dummyInputShapeVals(inpShape.getRank());
-    dummyInputShapeVals[0] = isWino ? 64 : 1; //minibatch
+    VectorDims dummyInputShapeVals(inpShape.getRank(), dummyInputDim);
     dummyInputShapeVals[1] = IC; //channels
 
     for (size_t i = 0; i < spatialRank; i++) {
-        dummyInputShapeVals[2 + i] = (dummyOuputDim - 1) * stride[i] -
-                                        (paddingL[i] + paddingR[i]) +
-                                        weightDims[filterStartIndx + i] +
-                                        (weightDims[filterStartIndx + i]- 1) * (dilation[i]);
+        if (weightDims[filterStartIndx + i] > dummyInputShapeVals[2 + i]) {
+            constexpr Dim dummyOutputDim = 16;
+            dummyInputShapeVals[2 + i] = (dummyOutputDim - 1) * stride[i] -
+                                (paddingL[i] + paddingR[i]) +
+                                weightDims[filterStartIndx + i] +
+                                (weightDims[filterStartIndx + i]- 1) * (dilation[i]);
+        }
     }
     return MemoryDescUtils::makeDummyShape(inpShape, dummyInputShapeVals).getStaticDims();
 }
