@@ -1819,7 +1819,6 @@ format layout_optimizer::get_preferred_format(program_node& node) {
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, dnnl::primitive_desc prim_desc) {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     if (node.is_input() || !are_data_types_suitable_for_onednn(node)) {
         return;
     }
@@ -1868,10 +1867,8 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
                     node.set_preferred_output_fmt(usr, dst_fmt);
             }
 
-            GPU_DEBUG_IF(debug_config->verbose >= 2) {
-                std::cout << "select_preferred_formats:" << node.id() << ": " << fmt_to_str(src_fmt) << " --> " << fmt_to_str(dst_fmt)
-                 << " For index : " << idx << std::endl;
-            }
+            GPU_DEBUG_LOG(2) << "select_preferred_formats:" << node.id() << ": " << fmt_to_str(src_fmt) << " --> " << fmt_to_str(dst_fmt)
+                             << " For index : " << idx << std::endl;
         }
     }
 

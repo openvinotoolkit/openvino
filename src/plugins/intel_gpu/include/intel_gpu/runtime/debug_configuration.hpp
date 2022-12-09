@@ -13,10 +13,34 @@
     auto stage_prof = cldnn::instrumentation::profiled_stage<primitive_inst>(\
         !cldnn::debug_configuration::get_instance()->dump_profiling_data.empty(), *this, stage)
 #define GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(val) stage_prof.set_cache_hit(val)
+
+// Verbose log levels:
+// 0 - Silent mode (Default)
+// 1 - Minimal verbose:
+//     * May log basic info about device, plugin configuration, model and execution statistics
+//     * Mustn't log any info that depend on neither number of iterations or number of layers in the model
+//     * Minimal impact on both load time and inference time
+// 2 - Graph optimization verbose:
+//     * Includes info from level=1
+//     * May log info about applied graph transformations, memory allocations and other model compilation time steps
+//     * May impact compile_model() execution time
+//     * Minimal impact on inference time
+// 3 - Basic execution time verbose
+//     * Includes info from level=2
+//     * May log info during model execution
+//     * May log short info about primitive execution
+//     * May impact network execution time
+// 4 - Max verbosity
+//     * Includes info from level=3
+//     * May log any stage and print detailed info about each execution step
+#define GPU_DEBUG_LOG(min_verbose_level) \
+    if (cldnn::debug_configuration::get_instance()->verbose >= min_verbose_level) \
+        std::cout << cldnn::debug_configuration::prefix
 #else
 #define GPU_DEBUG_IF(cond) if (0)
 #define GPU_DEBUG_PROFILED_STAGE(stage)
 #define GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(val)
+#define GPU_DEBUG_LOG(min_verbose_level) if (0) std::cout << cldnn::debug_configuration::prefix
 #endif
 
 #define GPU_DEBUG_COUT std::cout << cldnn::debug_configuration::prefix
