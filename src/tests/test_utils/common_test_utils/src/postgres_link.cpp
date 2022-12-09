@@ -832,10 +832,7 @@ static PostgreSQLEventListener* pgEventListener = nullptr;
 ///        for registering PostgreSQLEventListener
 class PostgreSQLEnvironment : public ::testing::Environment {
 public:
-    PostgreSQLEnvironment() {
-        // Expected only one instance of environment handler. Otherwise it looks like link issue.
-        assert(PostgreSQLEnvironment_Reg == nullptr);
-    }
+    PostgreSQLEnvironment() {}
     ~PostgreSQLEnvironment() {}
     void SetUp() override {
         if (std::getenv(PGQL_ENV_SESS_NAME) != nullptr && std::getenv(PGQL_ENV_CONN_NAME) != nullptr) {

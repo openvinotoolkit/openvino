@@ -72,16 +72,16 @@ TestsCommon::~TestsCommon() {
 #endif
 }
 
-TestsCommon::TestsCommon() {
+TestsCommon::TestsCommon()
+#ifdef ENABLE_CONFORMANCE_PGQL
+    : PGLink(new PostgreSQLLink(this))
+#endif
+{
     auto memsize = getVmSizeInKB();
     if (memsize != 0) {
         std::cout << "\nMEM_USAGE=" << memsize << "KB\n";
     }
     InferenceEngine::executorManager()->clear();
-
-#ifdef ENABLE_CONFORMANCE_PGQL
-    PGLink = new PostgreSQLLink(this);
-#endif
 }
 
 std::string TestsCommon::GetTimestamp() {

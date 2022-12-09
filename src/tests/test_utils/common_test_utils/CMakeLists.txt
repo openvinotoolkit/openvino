@@ -76,7 +76,7 @@ function(add_common_utils ADD_TARGET_NAME)
 
     if(ENABLE_CONFORMANCE_PGQL)
 #Uncomment to be able use statically linked libpq
-        target_compile_definitions(${ADD_TARGET_NAME} PRIVATE ENABLE_CONFORMANCE_PGQL)
+        target_compile_definitions(${ADD_TARGET_NAME} PUBLIC ENABLE_CONFORMANCE_PGQL)
         target_include_directories(${ADD_TARGET_NAME} PRIVATE
 #            ${POSTGRES_LIBPQ_INCLUDE}
 #            ${POSTGRES_LIBPQ_INCLUDE}/../../include
