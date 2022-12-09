@@ -234,7 +234,28 @@ using TestBinaryTwoTransposeInputsParams = std::tuple<BinaryFactoryPtr,
 
 class TransposeSinkingBinaryTwoTransposeInputsTestFixture
     : public ::testing::WithParamInterface<TestBinaryTwoTransposeInputsParams>,
-                                          public TransformationTestsF {};
+                                          public TransformationTestsF {
+public:
+    static std::string get_test_name(const testing::TestParamInfo<TestBinaryTwoTransposeInputsParams>& obj) {
+        BinaryFactoryPtr unary_factory;
+        PassFactoryPtr pass_factory;
+        size_t num_binary_ops;
+        CreateGraphBinaryTwoTransposeInputsF model_factory;
+        CreateGraphBinaryTwoTransposeInputsF reference_model_factory;
+        element::Type input_type;
+
+        std::tie(unary_factory, pass_factory, num_binary_ops, model_factory, reference_model_factory, input_type) =
+            obj.param;
+
+        std::ostringstream test_name;
+        test_name << "binary_factory=" << unary_factory->getTypeName() << "_";
+        test_name << "pass_factory=" << pass_factory->getTypeName() << "_";
+        test_name << "num_binary_ops=" << num_binary_ops << "_";
+        test_name << "input_type=" << input_type;
+
+        return test_name.str();
+    }
+};
 
 TEST_P(TransposeSinkingBinaryTwoTransposeInputsTestFixture, CompareFunctions) {
     BinaryFactoryPtr unary_factory;
@@ -260,7 +281,8 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(binary_operations_numbers),
                        ::testing::Values(CreateFunction),
                        ::testing::Values(CreateReferenceFunction),
-                       ::testing::Values(element::f32)));
+                       ::testing::Values(element::f32)),
+                       TransposeSinkingBinaryTwoTransposeInputsTestFixture::get_test_name);
 
 
 }  // namespace double_transpose
