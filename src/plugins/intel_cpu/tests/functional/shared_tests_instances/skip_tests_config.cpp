@@ -169,8 +169,9 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 95590
         R"(.*CachingSupportCase.*CompileModelCacheTestBase.*(TIwithLSTMcell1|MatMulBias|2InputSubtract)_(u|i).*)",
         // Issue: 95607
-        R"(.*OVClass.*QueryNetwork.*QueryNetwork.*)",
-        R"(.*OVClass.*LoadNetwork*(HETERO|MULTI).*)",
+        R"(.*OVClass.*LoadNetwork.*LoadNetwork(HETEROAndDeviceIDThrows|MULTIwithAUTONoThrow|HETEROwithMULTINoThrow|MULTIwithHETERONoThrow).*)",
+        R"(.*OVClass.*LoadNetwork.*LoadNetwork(HETEROWithDeviceIDNoThrow|WithDeviceID|WithBigDeviceIDThrows|WithInvalidDeviceIDThrows|HETEROWithBigDeviceIDThrows).*)",
+        R"(.*OVClass.*QueryNetwork.*QueryNetwork(HETEROWithDeviceIDNoThrow|WithDeviceID|WithBigDeviceIDThrows|WithInvalidDeviceIDThrows|HETEROWithBigDeviceIDThrows).*)",
         R"(.*OVClass.*LoadNetwork.*(DeviceID|MultiWithoutSettingDevicePrioritiesThrows).*)",
         R"(.*OVClassLoadNetworkTest.*QueryNetwork(MULTIWithHETERO|HETEROWithMULTI)NoThrow_V10.*)",
         R"(.*OVClassNetworkTestP.*QueryNetworkMultiThrows.*)",

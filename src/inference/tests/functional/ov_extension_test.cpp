@@ -247,10 +247,7 @@ std::string getIncorrectExtensionPath() {
 
 class CustomOldIdentity : public ngraph::op::Op {
 public:
-    static constexpr ngraph::NodeTypeInfo type_info{"Identity", static_cast<uint64_t>(0)};
-    const ngraph::NodeTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_OP("Identity");
 
     CustomOldIdentity() = default;
     CustomOldIdentity(const ngraph::Output<ngraph::Node>& arg) : Op({arg}) {
@@ -273,8 +270,6 @@ public:
         return true;
     }
 };
-
-constexpr ngraph::NodeTypeInfo CustomOldIdentity::type_info;
 
 class TestTileOldExtension : public InferenceEngine::IExtension {
 public:

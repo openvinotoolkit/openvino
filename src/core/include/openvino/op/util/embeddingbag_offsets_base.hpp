@@ -14,7 +14,6 @@ namespace util {
 class OPENVINO_API EmbeddingBagOffsetsBase : public Op {
 public:
     OPENVINO_OP("EmbeddingBagOffsetsBase", "util");
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a EmbeddingBagOffsetsBase operation.
     EmbeddingBagOffsetsBase() = default;
     /// \brief Constructs a EmbeddingBagOffsetsBase operation.
