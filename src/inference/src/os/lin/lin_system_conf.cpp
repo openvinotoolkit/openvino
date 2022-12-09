@@ -109,6 +109,11 @@ struct CPU {
                     _p_cores++;
                     _cpu_mapping[core_1][CPU_MAP_CORE] = _phy_cores;
                     _cpu_mapping[core_2][CPU_MAP_CORE] = _phy_cores;
+
+                    /**
+                     * Processor 0 need to handle system interception on Linux. So use second processor as physical core
+                     * and first processor as logic core
+                     */
                     _cpu_mapping[core_1][CPU_MAP_LOG_CORE] = _p_cores;
                     _cpu_mapping[core_2][CPU_MAP_PHY_CORE] = _p_cores;
 
