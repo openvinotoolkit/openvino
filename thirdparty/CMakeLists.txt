@@ -257,7 +257,7 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         set(Protobuf_LIBRARIES protobuf::libprotobuf)
         set(PROTOC_EXECUTABLE protobuf::protoc)
 
-        foreach(target ${PROTOC_EXECUTABLE} ${Protobuf_LIBRARIES} ${Protobuf_LITE_LIBRARIES})
+        foreach(target IN LISTS PROTOC_EXECUTABLE Protobuf_LIBRARIES Protobuf_LITE_LIBRARIES)
             set_property(TARGET ${target} PROPERTY IMPORTED_GLOBAL ON)
         endforeach()
     else()
@@ -287,8 +287,26 @@ endif()
 #
 # Flat Buffers
 #
-if (ENABLE_OV_TF_LITE_FRONTEND)
-    add_subdirectory(flatbuffers)
+
+if(ENABLE_OV_TF_LITE_FRONTEND)
+    if(ENABLE_SYSTEM_FLATBUFFERS)
+        find_package(flatbuffers REQUIRED)
+
+        set(flatbuffers_LIBRARY flatbuffers::flatbuffers)
+        set(flatbuffers_COMPILER flatbuffers::flatc)
+
+        foreach(target IN LISTS flatbuffers_LIBRARY flatbuffers_COMPILER)
+            set_property(TARGET ${target} PROPERTY IMPORTED_GLOBAL ON)
+        endforeach()
+    endif()
+
+    if(NOT flatbuffers_FOUND)
+        add_subdirectory(flatbuffers EXCLUDE_FROM_ALL)
+    endif()
+
+    set(flatbuffers_LIBRARY ${flatbuffers_LIBRARY} PARENT_SCOPE)
+    set(flatbuffers_COMPILER ${flatbuffers_COMPILER} PARENT_SCOPE)
+    set(flatbuffers_DEPENDENCY ${flatbuffers_DEPENDENCY} PARENT_SCOPE)
 endif()
 
 #

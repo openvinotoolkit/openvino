@@ -6,7 +6,7 @@
 
 #include <fstream>
 
-//#include "schema_generated.h"
+#include "schema_generated.h"
 //#include "decoder_proto.hpp"
 //#include "graph.pb.h"
 //#include "node_def.pb.h"

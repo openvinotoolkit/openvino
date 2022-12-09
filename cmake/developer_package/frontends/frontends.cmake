@@ -137,7 +137,6 @@ macro(ov_add_frontend)
 
     # Generate protobuf file on build time for each '.proto' file in src/proto
     file(GLOB proto_files ${frontend_root_dir}/src/proto/*.proto)
-
     foreach(INFILE IN LISTS proto_files)
         get_filename_component(FILE_DIR ${INFILE} DIRECTORY)
         get_filename_component(FILE_WE ${INFILE} NAME_WE)
@@ -155,28 +154,27 @@ macro(ov_add_frontend)
         list(APPEND PROTO_HDRS "${OUTPUT_PB_HEADER}")
     endforeach()
 
-    file(GLOB schema_files ${frontend_root_dir}/schema/schema.fbs)
-    if (schema_files)
-        set(INFILE ${frontend_root_dir}/schema/schema.fbs)
-        set(FLATC_EXECUTABLE /home/evgenya/repos/openvino/bin/intel64/Debug/flatc)
+    file(GLOB flatbuffers_schema_files ${frontend_root_dir}/schema/*.fbs)
+    foreach(INFILE IN LISTS flatbuffers_schema_files)
         get_filename_component(FILE_WE ${INFILE} NAME_WE)
         set(OUTPUT_FC_HEADER ${CMAKE_CURRENT_BINARY_DIR}/${FILE_WE}_generated.h)
         set(GENERATED_PROTO ${INFILE})
         add_custom_command(
                 OUTPUT "${OUTPUT_FC_HEADER}"
-                COMMAND ${FLATC_EXECUTABLE} ARGS -c --gen-mutable -o ${CMAKE_CURRENT_BINARY_DIR} ${INFILE}
-                DEPENDS ${FLATC_EXECUTABLE} ${GENERATED_PROTO}
-                COMMENT "Running C++ flatbuffers compiler (${FLATC_EXECUTABLE}) on ${GENERATED_PROTO}"
+                COMMAND ${flatbuffers_COMPILER} ARGS -c --gen-mutable -o ${CMAKE_CURRENT_BINARY_DIR} ${INFILE}
+                DEPENDS ${flatbuffers_DEPENDENCY} ${GENERATED_PROTO}
+                COMMENT "Running C++ flatbuffers compiler (${flatbuffers_COMPILER}) on ${GENERATED_PROTO}"
                 VERBATIM
                 COMMAND_EXPAND_LISTS)
         list(APPEND PROTO_HDRS "${OUTPUT_FC_HEADER}")
-    endif()
+    endforeach()
 
     # Disable all warnings for generated code
     set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES COMPILE_OPTIONS -w GENERATED TRUE)
 
     # Create library
-    add_library(${TARGET_NAME} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS} ${PROTO_SRCS} ${PROTO_HDRS})
+    add_library(${TARGET_NAME} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS}
+        ${PROTO_SRCS} ${PROTO_HDRS} ${flatbuffers_schema_files} ${proto_files})
 
     if(OV_FRONTEND_LINKABLE_FRONTEND)
         # create beautiful alias
@@ -251,8 +249,9 @@ macro(ov_add_frontend)
         endif()
     endif()
 
-    if (schema_files)
-
+    if(flatbuffers_schema_files)
+        ov_install_static_lib(${flatbuffers_LIBRARY} ${OV_CPACK_COMP_CORE})
+        link_system_libraries(${TARGET_NAME} PRIVATE ${flatbuffers_LIBRARY})
     endif()
 
     add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
