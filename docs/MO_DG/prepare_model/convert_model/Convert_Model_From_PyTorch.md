@@ -20,7 +20,8 @@ ov_model = convert_model(model, example_input=torch.zeros(1, 3, 100, 100))
 * list or tuple with tensors (openvino.runtime.Tensor / torch.Tensor / np.ndarray)
 * dictionary where key is input name, value is tensor (openvino.runtime.Tensor / torch.Tensor / np.ndarray)
 
-ONNX opset version can be set using 'onnx_opset_version' parameter.
+ONNX opset version can be set using optional 'onnx_opset_version' parameter.
+If onnx_opset_version is not set default opset from torch.onnx.export() is used.
 
 ```sh
 import torchvision

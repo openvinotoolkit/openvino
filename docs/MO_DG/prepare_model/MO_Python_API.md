@@ -39,19 +39,32 @@ ov_model = convert_model(model, input_shape="[1,3,100,100]", mean_values="[127,1
 ```sh
 ov_model = convert_model(model, compress_to_fp16=True)
 ```
-- "input" parameter can be set by tuple with name, shape and type. Another option is to use InputCutInfo class which was introduced for complex cases when value also needs to be set.
-- Example 1:
+- "input" parameter can be set by tuple with name, shape and type. Input name of type string is required is such tuple. Shape and type are optional. 
+Shape can be a list or tuple of dimensions (int or openvino.runtime.Dimension) or openvino.runtime.PartialShape or openvino.runtime.Shape. Type can be of numpy type or openvino.runtime.Type.
 ```sh
 ov_model = convert_model(model, input=("input_name", [3], np.float32))
 ```
-- Example 2:
+- For complex cases when value needs to be set in "input" parameter InputCutInfo class can be used. InputCutInfo accepts four parameters: "name", "shape", "type", "value".
+  InputCutInfo("input_name", [3], np.float32, [0.5, 2.1, 3.4]) is equivalent of InputCutInfo(name="input_name", shape=[3], type=np.float32, value=[0.5, 2.1, 3.4]).
+  Supported types for InputCutInfo:
+- name: string.
+- shape: list or tuple of dimensions (int or openvino.runtime.Dimension), openvino.runtime.PartialShape, openvino.runtime.Shape.
+- type: numpy type, openvino.runtime.Type.
+- value: numpy.ndarray, list of numeric values, bool.
 ```sh
 from openvino.tools.mo import convert_model, InputCutInfo
 
 ov_model = convert_model(model, input=InputCutInfo("input_name", [3], np.float32, [0.5, 2.1, 3.4]))
 ```
+- "layout", "source_layout" and "dest_layout" accept openvino.runtime.Layout object or string. 
+```sh
+from openvino.runtime import Layout
+from openvino.tools.mo import convert_model
 
-- "layout", "source_layout" and "dest_layout" accept openvino.runtime.Layout object. To set both source and destination layouts LayoutMap class can be used.
+ov_model = convert_model(model, source_layout=Layout("NCHW"))
+```
+- To set both source and destination layouts in "layout" parameter LayoutMap class can be used. LayoutMap accepts two parameters: source_layout, target_layout.
+- LayoutMap("NCHW", "NHWC") is equivalent of LayoutMap(source_layout="NCHW", target_layout="NHWC").
 ```sh
 from openvino.tools.mo import convert_model, LayoutMap
 
