@@ -77,6 +77,8 @@ ie_dependent_option (ENABLE_TBBBIND_2_5 "Enable TBBBind_2_5 static usage in Open
 ie_dependent_option (ENABLE_INTEL_GNA "GNA support for OpenVINO Runtime" ON
     "NOT APPLE;NOT ANDROID;X86_64;CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 5.4" OFF)
 
+ie_option (ENABLE_INTEL_GNA_DEBUG "GNA debug build" OFF)
+
 if(ENABLE_TESTS OR BUILD_SHARED_LIBS)
     set(ENABLE_IR_V7_READER_DEFAULT ON)
 else()
@@ -138,6 +140,7 @@ else()
     set(ENABLE_SYSTEM_LIBS_DEFAULT OFF)
 endif()
 
+# try to search TBB from brew by default
 if(APPLE AND AARCH64)
     set(ENABLE_SYSTEM_TBB_DEFAULT ON)
 else()

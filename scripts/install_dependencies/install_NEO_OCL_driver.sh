@@ -382,10 +382,10 @@ add_user_to_video_group()
 _check_distro_version()
 {
     if [[ $DISTRO == redhat ]]; then
-        RHEL_MINOR_VERSION_SUPPORTED="[3-6]"
+        RHEL_MINOR_VERSION_SUPPORTED="[3-7]"
         RHEL_VERSION=$(grep -m1 'VERSION_ID' /etc/os-release | grep -Eo "8.${RHEL_MINOR_VERSION_SUPPORTED}")
         if [[ $? -ne 0 ]]; then
-            echo "Warning: This runtime can be installed only on RHEL 8.3 up to RHEL 8.6"
+            echo "Warning: This runtime can be installed only on RHEL 8.3 up to RHEL 8.7"
             echo "More info https://dgpu-docs.intel.com/releases/releases-20211130.html" >&2
             echo "Installation of Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL™ Driver interrupted"
             exit $EXIT_FAILURE

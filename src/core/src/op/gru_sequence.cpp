@@ -16,8 +16,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v5::GRUSequence);
-
 op::v5::GRUSequence::GRUSequence()
     : m_direction(op::RecurrentSequenceDirection::FORWARD),
       m_linear_before_reset(false) {}
