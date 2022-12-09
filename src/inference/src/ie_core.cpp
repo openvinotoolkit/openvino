@@ -300,11 +300,13 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
                     // Erase if it is not supported by this device.
                     if (it.first == ov::auto_batch_timeout.name()) {
                         if (device_name.find("BATCH") == std::string::npos &&
+                            device_name.find("MULTI") == std::string::npos &&
                             device_name.find("AUTO") == std::string::npos) {
                             config.erase(item);
                         }
                     } else if (it.first == ov::hint::allow_auto_batching.name()) {
-                        if (device_name.find("AUTO") == std::string::npos) {
+                        if (device_name.find("AUTO") == std::string::npos &&
+                            device_name.find("MULTI") == std::string::npos) {
                             config.erase(item);
                         }
                     }
@@ -313,15 +315,17 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
 
                 // Add whitelist global properties into config if it doesn't have.
                 // There will be a global properties whitelist for each plugin, such as:
-                //     ov::auto_batch_timeout         -  only for AUTO and BATCH plugins
-                //     ov::hint::allow_auto_batching  - only for AUTO plugins
+                //     ov::auto_batch_timeout         - only for BATCH/AUTO/MULTI plugins
+                //     ov::hint::allow_auto_batching  - only for AUTO/MULTTI plugins
                 if (it.first == ov::auto_batch_timeout.name()) {
                     if (device_name.find("BATCH") != std::string::npos ||
-                        device_name.find("AUTO") != std::string::npos) {
+                        device_name.find("AUTO") != std::string::npos ||
+                        device_name.find("MULTI") != std::string::npos) {
                         config[it.first] = it.second.as<std::string>();
                     }
                 } else if (it.first == ov::hint::allow_auto_batching.name()) {
-                    if (device_name.find("AUTO") != std::string::npos) {
+                    if (device_name.find("AUTO") != std::string::npos ||
+                        device_name.find("MULTI") != std::string::npos) {
                         config[it.first] = it.second.as<std::string>();
                     }
                 }
