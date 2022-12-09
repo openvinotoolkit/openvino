@@ -17,9 +17,9 @@
 #    ifndef NOMINMAX
 #        define NOMINMAX
 #    endif
+#    include <Shlwapi.h>
 #    include <direct.h>
 #    include <windows.h>
-#    include <Shlwapi.h>
 /// @brief Max length of absolute file path
 #    define MAX_ABS_PATH _MAX_PATH
 /// @brief Get absolute file path, returns NULL in case of error
@@ -369,7 +369,7 @@ bool ov::util::is_absolute_file_path(const std::string& path) {
     return !PathIsRelativeA(path.c_str());
 #else
     return path[0] == '/';
-#endif // _WIN32
+#endif  // _WIN32
 }
 
 void ov::util::create_directory_recursive(const std::string& path) {

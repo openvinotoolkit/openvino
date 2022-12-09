@@ -133,7 +133,7 @@ ov::util::FilePath getPluginPath(const std::string& pluginName) {
         auto libName = FileUtils::makePluginLibraryName({}, pluginName);
         return getPluginPathFromInstallDir(libName);
     }
-    
+
     // For 1st-3rd cases - make path absolute
     return ov::util::to_file_path(ov::util::get_absolute_file_path(pluginName));
 }
