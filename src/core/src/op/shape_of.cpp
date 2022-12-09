@@ -21,8 +21,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v3::ShapeOf);
-
 op::v3::ShapeOf::ShapeOf(const Output<Node>& arg, element::Type output_type) : Op({arg}), m_output_type(output_type) {
     constructor_validate_and_infer_types();
 }
@@ -208,8 +206,6 @@ bool op::v3::ShapeOf::constant_fold(OutputVector& output_values, const OutputVec
 }
 
 // op::v0::ShapeOf
-BWDCMP_RTTI_DEFINITION(op::v0::ShapeOf);
-
 op::v0::ShapeOf::ShapeOf(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();
 }

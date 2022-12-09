@@ -3,7 +3,7 @@ atomicwrites==1.4.0
 attrs==22.1.0
 Babel==2.9.1
 beautifulsoup4==4.9.3
-certifi==2020.12.5
+certifi==2022.12.7
 colorama==0.4.4
 Cython==0.29.23
 docutils==0.16
@@ -15,7 +15,7 @@ ipython==8.5.0
 Jinja2==2.11.3
 lxml>=4.6.5
 MarkupSafe==1.1.1
-mistune==2.0.0a6
+mistune==2.0.3
 packaging==20.9
 pluggy==0.13.1
 py==1.10.0

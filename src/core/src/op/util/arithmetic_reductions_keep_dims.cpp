@@ -11,8 +11,6 @@
 
 using namespace std;
 
-BWDCMP_RTTI_DEFINITION(ov::op::util::ArithmeticReductionKeepDims);
-
 ov::op::util::ArithmeticReductionKeepDims::ArithmeticReductionKeepDims(
     const ngraph::Output<ngraph::Node>& arg,
     const ngraph::Output<ngraph::Node>& reduction_axes,
