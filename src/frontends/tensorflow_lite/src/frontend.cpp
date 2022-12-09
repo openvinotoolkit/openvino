@@ -25,7 +25,6 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     if (variants[0].is<std::string>()) {
         std::string suffix = ".tflite";
         std::string model_path = variants[0].as<std::string>();
-        std::cout << "I am " << model_path << std::endl;
         if (ov::util::ends_with(model_path, suffix.c_str())) {
             return true;
         }
@@ -47,7 +46,6 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
         if (variants[0].is<std::string>()) {
             std::string suffix = ".tflite";
             std::string model_path = variants[0].as<std::string>();
-            std::cout << "I am " << model_path << std::endl;
             if (ov::util::ends_with(model_path, suffix.c_str())) {
                 return std::make_shared<tensorflow::InputModel>(
                         std::make_shared<GraphIteratorFlatBuffer>(model_path),
