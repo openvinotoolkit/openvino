@@ -341,11 +341,11 @@ public:
     static std::string get_test_name(const testing::TestParamInfo<TestBinaryParams>& obj) {
         BinaryFactoryPtr binary_factory;
         PassFactoryPtr pass_factory;
-    size_t num_binary_ops;
-    CreateGraphBinaryF model_factory;
-    CreateGraphBinaryF reference_model_factory;
-    element::Type input_type;
-    size_t binary_transpose_input_idx;
+        size_t num_binary_ops;
+        CreateGraphBinaryF model_factory;
+        CreateGraphBinaryF reference_model_factory;
+        element::Type input_type;
+        size_t binary_transpose_input_idx;
 
         std::tie(binary_factory,
              pass_factory,
