@@ -91,7 +91,13 @@ Note that the commands are different for a Python installation and a C++ install
 
 .. tab:: Python
 
-   To install and configure the components of the development package for working with specific frameworks, use the following command:
+   To install OpenVINO Developer Tools into the existing environment with the deep learning framework of your choice, run the following command:
+
+   .. code-block:: sh
+
+      pip install openvino-dev
+
+   In case that you encounter any compatibility issues between OpenVINO and your deep learning framework, you may install OpenVINO Development Tools into a separate environment. Use the following command to get specific validated versions of your framework:
 
    .. code-block:: sh
 
