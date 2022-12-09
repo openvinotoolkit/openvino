@@ -26,7 +26,7 @@ static const char target_device_message[] =
     "Optional. Specify a target device to infer on. CPU, GPU, MYRIAD, VPUX, GNA_AUTO, GNA_HW, "
     "GNA_HW_WITH_SW_FBACK, GNA_SW_FP32, "
     "GNA_SW_EXACT and HETERO with combination of GNA as the primary device and CPU"
-    " as a secondary (e.g. HETERO:GNA,CPU) are supported."
+    " as a secondary (e.g. HETERO:GNA,CPU) are supported. "
     "The sample will look for a suitable plugin for device specified.";
 
 /// @brief message for execution target
