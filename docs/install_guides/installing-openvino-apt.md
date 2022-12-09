@@ -153,6 +153,28 @@ apt list --installed | grep openvino
 
 To enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in [GPU Setup Guide](@ref openvino_docs_install_guides_configurations_for_intel_gpu).
 
+### Step 4: Build Samples
+
+To build the C++ or C sample applications for Linux, run the `build_samples.sh` script:
+
+@sphinxdirective
+
+.. tab:: C++
+
+   .. code-block:: sh
+
+      /usr/share/openvino/samples/cpp/build_samples.sh
+
+.. tab:: C
+
+   .. code-block:: sh
+
+      /usr/share/openvino/samples/c/build_samples.sh
+
+@endsphinxdirective
+
+For more information, refer to [Build the Sample Applications on Linux](@ref build_samples_linux).
+
 ## Installing OpenVINO Development Tools
 
 > **NOTE**: From the 2022.1 release, the OpenVINO™ Development Tools can be installed via PyPI only.
