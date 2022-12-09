@@ -124,11 +124,13 @@ Note that the commands are different for a Python installation and a C++ install
    After you have installed OpenVINO Runtime from an archive file, you can find a set of requirements files in the <INSTALL_DIR>\tools\ directory. The requirements files will install the matching version of OpenVINO Development Tools and its dependencies.
 
    1. Install the OpenVINO Development Tools mandatory requirements using the following command:
+
       .. code-block:: sh
 
          pip install -r <INSTALL_DIR>\tools\requirements.txt
 
    2. If you are using additional frameworks, you must also install the requirements for those frameworks using the corresponding requirements file. For example, if you are using a TensorFlow model, use the following command to install requirements for TensorFlow:
+
       .. code-block:: sh
 
          pip install -r <INSTALL_DIR>\tools\requirements_tensorflow2.txt
