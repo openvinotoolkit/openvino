@@ -807,6 +807,13 @@ public:
         }
     }
 
+    void SetCacheDirIfPossible(const std::string& deviceName, const std::string& dir) {
+        auto plugin = GetCPPPluginByName(deviceName);
+        if (DeviceSupportsCacheDir(plugin) && !coreConfig.getCacheConfigForDevice(deviceName)._cacheManager) {
+            coreConfig.setCacheForDevice(dir, deviceName);
+        }
+    }
+
     ie::SoExecutableNetworkInternal LoadNetwork(const ie::CNNNetwork& network,
                                                 const std::string& deviceNameOrig,
                                                 const std::map<std::string, std::string>& config) override {
@@ -2010,10 +2017,15 @@ CompiledModel Core::compile_model(const std::string& model,
     if (weights) {
         blob = weights._impl;
     }
-    OV_CORE_CALL_STATEMENT(
+    OV_CORE_CALL_STATEMENT({
         auto _model = _impl->ReadNetwork(model, blob);
+        if (config.find(ov::cache_dir.name()) == config.end()) {
+            const std::string default_dir = "./";
+            _impl->SetCacheDirIfPossible(deviceName, default_dir);
+        }
         auto exec = _impl->LoadNetwork(_model, deviceName, any_copy(flatten_sub_properties(deviceName, config)));
-        return {exec._ptr, exec._so};);
+        return {exec._ptr, exec._so};
+    });
 }
 
 CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
