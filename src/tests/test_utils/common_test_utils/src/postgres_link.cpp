@@ -101,6 +101,15 @@ static fnPQgetvalue PQgetvalue;
 static fnPQclear PQclear;
 #endif
 
+char* PGPrefix(const char* text, ::testing::internal::GTestColor color) {
+    ::testing::internal::ColoredPrintf(color, text);
+    return "";
+}
+
+#define PG_ERR PGPrefix("[ PG ERROR ] ", ::testing::internal::COLOR_RED)
+#define PG_WRN PGPrefix("[ PG WARN  ] ", ::testing::internal::COLOR_YELLOW)
+#define PG_INF PGPrefix("[ PG INFO  ] ", ::testing::internal::COLOR_GREEN)
+
 namespace CommonTestUtils {
 
 /*
@@ -206,7 +215,7 @@ public:
             }
         }
         if (result.get() == nullptr) {
-            std::cerr << "Error while querying PostgreSQL\n";
+            std::cerr << PG_ERR << "Error while querying PostgreSQL\n";
         }
         return result;
     }
@@ -222,7 +231,7 @@ public:
         if (result.get() != nullptr) {
             ExecStatusType execStatus = PQresultStatus(result.get());
             if (execStatus != expectedStatus) {
-                std::cerr << "Received unexpected result (" << static_cast<unsigned int>(execStatus)
+                std::cerr << PG_ERR << "Received unexpected result (" << static_cast<unsigned int>(execStatus)
                           << ") from PostgreSQL, expected: " << static_cast<unsigned int>(expectedStatus) << std::endl;
                 result.reset(nullptr);
             }
@@ -239,12 +248,12 @@ public:
             try {
                 PQfinish(activeConnection);
             } catch (...) {
-                std::cerr << "An exception while finishing PostgreSQL connection\n";
+                std::cerr << PG_ERR << "An exception while finishing PostgreSQL connection\n";
             }
             this->activeConnection = nullptr;
             this->isConnected = false;
         }
-        std::cerr << "Reconnecting to the PostgreSQL server...\n";
+        std::cerr << PG_INF << "Reconnecting to the PostgreSQL server...\n";
         Initialize();
     }
 
@@ -277,7 +286,7 @@ PostgreSQLConnection::~PostgreSQLConnection() {
 ///          Returns true in case of connection has been succesfully established.
 bool PostgreSQLConnection::Initialize() {
     if (this->activeConnection != nullptr) {
-        std::cerr << "PostgreSQL connection already established.\n";
+        std::cerr << PG_WRN << "PostgreSQL connection already established.\n";
         return true;
     }
 
@@ -286,38 +295,38 @@ bool PostgreSQLConnection::Initialize() {
 #    ifdef _WIN32
     modLibPQ = std::shared_ptr<HMODULE>(new HMODULE(LoadLibrary("libpq.dll")), [](HMODULE* ptr) {
         if (*ptr != (HMODULE)0) {
-            std::cerr << "Freeing libPQ.dll handle\n";
+            std::cerr << PG_INF << "Freeing libPQ.dll handle\n";
             FreeLibrary(*ptr);
         }
     });
 #    else
     modLibPQ = std::shared_ptr<HMODULE>(new HMODULE(dlopen("libpq.so", RTLD_LAZY)), [](HMODULE* ptr) {
         if (*ptr != (HMODULE)0) {
-            std::cerr << "Freeing libPQ.so handle\n";
+            std::cerr << PG_INF << "Freeing libPQ.so handle\n";
             dlclose(*ptr);
         }
     });
 #    endif
     if (*modLibPQ == (HMODULE)0) {
-        std::cerr << "Cannot load PostgreSQL client module libPQ, reporting is unavailable\n";
+        std::cerr << PG_WRN << "Cannot load PostgreSQL client module libPQ, reporting is unavailable\n";
         return false;
     } else {
-        std::cerr << "PostgreSQL cliend module libPQ has been loaded\n";
+        std::cerr << PG_INF << "PostgreSQL cliend module libPQ has been loaded\n";
     }
 
 #    ifdef _WIN32
-#        define GETPROC(name)                                                        \
-            name = (fn##name)GetProcAddress(*modLibPQ, #name);                       \
-            if (name == nullptr) {                                                   \
-                std::cerr << "Couldn't load procedure " << #name << " from libPQ\n"; \
-                return false;                                                        \
+#        define GETPROC(name)                                                                  \
+            name = (fn##name)GetProcAddress(*modLibPQ, #name);                                 \
+            if (name == nullptr) {                                                             \
+                std::cerr << PG_ERR << "Couldn't load procedure " << #name << " from libPQ\n"; \
+                return false;                                                                  \
             }
 #    else
-#        define GETPROC(name)                                                     \
-            name = (fn##name)dlsym(*modLibPQ, #name);                             \
-            if (name == nullptr) {                                                \
-                std::cerr << "Couldn't load symbol " << #name << " from libPQ\n"; \
-                return false;                                                     \
+#        define GETPROC(name)                                                               \
+            name = (fn##name)dlsym(*modLibPQ, #name);                                       \
+            if (name == nullptr) {                                                          \
+                std::cerr << PG_ERR << "Couldn't load symbol " << #name << " from libPQ\n"; \
+                return false;                                                               \
             }
 #    endif
 
@@ -335,10 +344,12 @@ bool PostgreSQLConnection::Initialize() {
     envConnString = std::getenv(PGQL_ENV_CONN_NAME);
 
     if (envConnString == nullptr) {
-        std::cerr << "PostgreSQL connection string isn't found in Environment (" << PGQL_ENV_CONN_NAME << ")\n";
+        std::cerr << PG_WRN << "PostgreSQL connection string isn't found in Environment (" << PGQL_ENV_CONN_NAME
+                  << ")\n";
         return false;
     } else {
-        std::cerr << "PostgreSQL connection string: " << envConnString << std::endl;
+        std::cerr << PG_INF << "PostgreSQL connection string:\n";
+        std::cerr << PG_INF << envConnString << std::endl;
     }
 
     this->activeConnection = PQconnectdb(envConnString);
@@ -346,10 +357,10 @@ bool PostgreSQLConnection::Initialize() {
     ConnStatusType connStatus = PQstatus(this->activeConnection);
 
     if (connStatus != CONNECTION_OK) {
-        std::cerr << "Cannot connect to PostgreSQL: " << static_cast<uint32_t>(connStatus) << std::endl;
+        std::cerr << PG_ERR << "Cannot connect to PostgreSQL: " << static_cast<uint32_t>(connStatus) << std::endl;
         return false;
     } else {
-        std::cerr << "Connected to PostgreSQL successfully\n";
+        std::cerr << PG_INF << "Connected to PostgreSQL successfully\n";
     }
 
     this->isConnected = true;
@@ -500,11 +511,11 @@ static std::string GetHostname(void) {
     DWORD szHostName = MAX_COMPUTERNAME_LENGTH;
     char cHostName[MAX_COMPUTERNAME_LENGTH + 1] = {};
     if (FAILED(GetComputerName(cHostName, &szHostName))) {
-        std::cerr << "Cannot get a host name\n";
+        std::cerr << PG_ERR << "Cannot get a host name\n";
 #else
     char cHostName[HOST_NAME_MAX];
     if (gethostname(cHostName, HOST_NAME_MAX)) {
-        std::cerr << "Cannot get a host name\n";
+        std::cerr << PG_ERR << "Cannot get a host name\n";
         return "NOT_FOUND";
 #endif
     }
@@ -512,10 +523,10 @@ static std::string GetHostname(void) {
 }
 
 /// \brief Helper for checking PostgreSQL results
-#define CHECK_PGRESULT(var_name, error_message, action) \
-    if (var_name.get() == nullptr) {                    \
-        std::cerr << error_message << std::endl;        \
-        action;                                         \
+#define CHECK_PGRESULT(var_name, error_message, action)    \
+    if (var_name.get() == nullptr) {                       \
+        std::cerr << PG_ERR << error_message << std::endl; \
+        action;                                            \
     }
 /// \brief Helper for registering ID-retrieval functions
 #define GET_PG_IDENTIFIER(funcDefinition, sqlQuery, varName, fieldName)                  \
@@ -528,7 +539,7 @@ static std::string GetHostname(void) {
                                                                                          \
         this->varName = std::atoi(PQgetvalue(pgresult.get(), 0, 0));                     \
         if (this->varName == 0) {                                                        \
-            std::cerr << "Cannot interpret a returned " << #fieldName                    \
+            std::cerr << PG_ERR << "Cannot interpret a returned " << #fieldName          \
                       << ", value : " << PQgetvalue(pgresult.get(), 0, 0) << std::endl;  \
             return false;                                                                \
         }                                                                                \
@@ -673,7 +684,8 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
                 if (writtenSize >= testDescription.length()) {
                     sstr << ", '" << std::string(escapedDescription.data()) << "'";
                 } else {
-                    std::cerr << "Cannot escape string (error code is " << errCode << "):\n" << testDescription;
+                    std::cerr << PG_ERR << "Cannot escape string (error code is " << errCode << "):\n"
+                              << testDescription;
                 }
             }
         }
@@ -742,7 +754,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
         if (this->session_id != nullptr) {
             isPostgresEnabled = false;
 
-            std::cerr << "Test session ID has been found\n";
+            std::cerr << PG_INF << "Test session ID has been found\n";
             connectionKeeper = PostgreSQLConnection::GetInstance();
             bool connInitResult = connectionKeeper->Initialize();
 
@@ -764,7 +776,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
                 connectionKeeper = connection;
             }
         } else {
-            std::cerr << "Test session ID hasn't been found, continues without database reporting\n";
+            std::cerr << PG_ERR << "Test session ID hasn't been found, continues without database reporting\n";
         }
     }
 
@@ -838,6 +850,8 @@ public:
                 pgEventListener = new PostgreSQLEventListener();
                 ::testing::UnitTest::GetInstance()->listeners().Append(pgEventListener);
             }
+        } else {
+            std::cerr << PG_INF << "PostgreSQL Reporting is disabled due to missing environment settings\n";
         }
     }
     void TearDown() override {
@@ -858,7 +872,7 @@ public:
 
 PostgreSQLLink::PostgreSQLLink() : parentObject(nullptr), customData(new PostgreSQLCustomData()) {
 #ifdef PGQL_DEBUG
-    std::cout << "PostgreSQLLink Started\n";
+    std::cout << PG_INF << "PostgreSQLLink Started\n";
 #endif
 }
 
@@ -866,7 +880,7 @@ PostgreSQLLink::PostgreSQLLink(void* ptrParentObject)
     : parentObject(ptrParentObject),
       customData(new PostgreSQLCustomData()) {
 #ifdef PGQL_DEBUG
-    std::cout << "PostgreSQLLink with parentObject Started\n";
+    std::cout << PG_INF << "PostgreSQLLink with parentObject Started\n";
 #endif
 }
 
@@ -878,7 +892,7 @@ PostgreSQLLink::~PostgreSQLLink() {
 
     this->parentObject = nullptr;
 #ifdef PGQL_DEBUG
-    std::cout << "PostgreSQLLink Finished\n";
+    std::cout << PG_INF << "PostgreSQLLink Finished\n";
 #endif
 }
 
