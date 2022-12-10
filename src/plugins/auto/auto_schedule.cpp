@@ -125,6 +125,8 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
         validDevices = _autoSContext->_plugin->GetValidDevice(_autoSContext->_devicePriorities,
                                                               _loadContext[ACTUALDEVICE].networkPrecision);
         if (validDevices.size() == 1) {
+            // When the hint is ctput and there is only one device, the single-device logic is used instead of
+            // the MULTI logic
             _autoSContext->_performanceHint = IE::PluginConfigParams::THROUGHPUT;
             isCumuSingleDevice = true;
         }
@@ -132,6 +134,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
     bool isCumulative =
         (_autoSContext->_performanceHint == IE::PluginConfigParams::CUMULATIVE_THROUGHPUT) ? true : false;
     if (isCumulative) {
+        // When the hint is ctput and there are more than one device, the MULTI logic is used
         std::string deviceName = "MULTI:";
         for (auto& device : validDevices) {
             deviceName += device.deviceName;
