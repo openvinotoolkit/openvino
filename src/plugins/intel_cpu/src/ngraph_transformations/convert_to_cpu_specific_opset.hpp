@@ -8,7 +8,7 @@
 #include "ngraph/pass/manager.hpp"
 #include "reshape_fc_fusion.hpp"
 #include "align_matmul_input_ranks.hpp"
-#include "reshape_prelu.hpp"
+#include "transformations/common_optimizations/reshape_prelu.hpp"
 #include "convert_broadcast_to_tiles.hpp"
 #include "convert_tile_to_seq_tiles.hpp"
 #include "convert_matmul_to_fc.hpp"
@@ -43,6 +43,7 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
     manager.register_pass<ngraph::pass::ReshapeSequenceFusion>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::i64, ngraph::element::i32 }});
+
 
     manager.run_passes(nGraphFunc);
 }

@@ -10,6 +10,8 @@ namespace cldnn {
 namespace cpu {
 
 struct read_value_impl : public typed_primitive_impl<read_value> {
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<read_value_impl>(*this);
     }
@@ -39,8 +41,8 @@ struct read_value_impl : public typed_primitive_impl<read_value> {
     void init_kernels(const kernels_cache&) override {}
 
 public:
-    static primitive_impl* create(const read_value_node& arg, const kernel_impl_params& impl_param) {
-        return new read_value_impl{};
+    static std::unique_ptr<primitive_impl> create(const read_value_node& arg, const kernel_impl_params& impl_param) {
+        return make_unique<read_value_impl>();
     }
 };
 
@@ -53,3 +55,5 @@ attach_read_value_impl::attach_read_value_impl() {
 }  // namespace detail
 }  // namespace cpu
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::read_value_impl)

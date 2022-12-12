@@ -27,39 +27,6 @@ struct crop_si_test_params {
     size_t param_num_splits;
 };
 
-std::string to_string(const cldnn::layout& l);
-
-std::ostream& operator<<(std::ostream& ost, std::vector<std::vector<int64_t>> vec) {
-    ost << "{";
-    for (auto inner_vec : vec) {
-        ost << "{";
-        for (auto v : inner_vec) {
-            std::cout << v << ",";
-        }
-        ost << "},";
-    }
-    ost << "}";
-    return ost;
-}
-
-std::ostream& operator<<(std::ostream& ost, const crop_si_test_params& params) {
-    ost << params.reference_input_size.to_string() << ",";
-    ost << "{";
-    for (auto& offset_tensor : params.offsets) {
-        ost << offset_tensor.to_string() << ",";
-    }
-    ost << "}," << params.const_values << ",{";
-    for (auto& t : params.input_layouts) {
-        ost << to_string(t) << ",";
-    }
-    ost << "},{";
-    for (auto& t : params.expected_layouts) {
-        ost << to_string(t) << ",";
-    }
-    ost << "}";
-    return ost;
-}
-
 class crop_si_test : public testing::TestWithParam<crop_si_test_params> { };
 
 TEST_P(crop_si_test, shape_infer) {
@@ -68,12 +35,12 @@ TEST_P(crop_si_test, shape_infer) {
 
     cldnn::program prog(engine);
     std::vector<std::shared_ptr<primitive>> input_prims;
-    std::vector<std::string> input_prim_ids;
+    std::vector<input_info> input_prim_ids;
     {
         auto prim_id = "data0";
         auto data_layout_prim = std::make_shared<input_layout>(prim_id, p.input_layouts[0]);
         input_prims.push_back(data_layout_prim);
-        input_prim_ids.push_back(prim_id);
+        input_prim_ids.push_back(input_info(prim_id));
     }
 
     for (size_t i = 1; i < p.input_layouts.size(); i++) {
@@ -82,7 +49,7 @@ TEST_P(crop_si_test, shape_infer) {
         set_values(prim_mem, p.const_values[i-1]);
         auto const_data_prim = std::make_shared<data>(prim_id, prim_mem);
         input_prims.push_back(const_data_prim);
-        input_prim_ids.push_back(prim_id);
+        input_prim_ids.push_back(input_info(prim_id));
     }
 
     crop_ngraph_op_mode op_mode = crop_ngraph_op_mode::none;

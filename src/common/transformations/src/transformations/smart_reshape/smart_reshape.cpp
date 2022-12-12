@@ -11,6 +11,7 @@
 #include <transformations/smart_reshape/proposal_scales_stridedslice.hpp>
 #include <transformations/smart_reshape/reshape_sinking.hpp>
 #include <transformations/smart_reshape/reshape_to_1D.hpp>
+#include <transformations/smart_reshape/shape_of_const_folding.hpp>
 #include <transformations/smart_reshape/smart_reshape.hpp>
 #include <transformations/smart_reshape/strided_slice_squeeze.hpp>
 
@@ -40,6 +41,8 @@ bool ngraph::pass::SmartReshape::run_on_model(const std::shared_ptr<ngraph::Func
     dynamic_manager.set_per_pass_validation(false);
     dynamic_manager.register_pass<ngraph::pass::ReshapeAMatMul>();
     dynamic_manager.register_pass<ngraph::pass::ReshapeBMatMul>();
+    dynamic_manager.register_pass<ov::pass::ShapeOfConstFolding>();
     dynamic_manager.run_passes(f);
+
     return true;
 }

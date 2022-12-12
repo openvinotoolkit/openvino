@@ -121,8 +121,8 @@ public:
     bool activations_zero_points_term() const { return get_primitive()->activations_zero_points.size() > 0; }
 
     using parent::get_kernel_impl_params;
-    std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const layout& out_layout) const override {
-        auto params = parent::get_kernel_impl_params(in_layouts, out_layout);
+    std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const override {
+        auto params = parent::get_kernel_impl_params(in_layouts, out_layouts);
         params->weights_layout = optional_layout(weights().get_output_layout());
         if (bias_term())
             params->bias_layout = optional_layout(bias().get_output_layout());
@@ -149,8 +149,11 @@ using convolution_node = typed_program_node<convolution>;
 template <>
 class typed_primitive_inst<convolution> : public typed_primitive_inst_base<convolution> {
     using parent = typed_primitive_inst_base<convolution>;
+    using parent::parent;
 
 public:
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(convolution_node const& node, kernel_impl_params const& impl_param);
     static layout calc_output_layout(convolution_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(convolution_node const& node);
 
@@ -212,6 +215,9 @@ public:
     bool weights_zero_points_term() const { return _impl_params->weights_zero_points_layout.has_value(); }
     bool compensation_term() const { return _impl_params->compensation_layout.has_value(); }
     bool activations_zero_points_term() const { return _impl_params->activations_zero_points_layout.has_value(); }
+
+    void save(cldnn::BinaryOutputBuffer& ob) const override;
+    void load(cldnn::BinaryInputBuffer& ib) override;
 
 private:
     uint32_t _groups;

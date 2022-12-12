@@ -6,7 +6,7 @@
 #include <legacy/details/ie_cnn_network_tools.h>
 #include "gna_data_types.hpp"
 #include "gna_graph_tools.hpp"
-#include "gna_plugin_log.hpp"
+#include "log/debug.hpp"
 #include "gna_upstream_iterator.hpp"
 #include "layers/gna_layer_info.hpp"
 #include "ops/util/util.hpp"

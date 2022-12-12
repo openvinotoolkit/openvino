@@ -38,10 +38,10 @@ public:
         topology.add(data("start", start_));
         topology.add(data("stop", stop_));
         topology.add(data("step", step_));
-        std::vector<primitive_id> inputs {"input", "start", "stop", "step"};
+        std::vector<input_info> inputs { input_info("input"), input_info("start"), input_info("stop"), input_info("step") };
         if (axes_) {
             topology.add(data("axes", axes_));
-            inputs.push_back("axes");
+            inputs.push_back(input_info("axes"));
         }
         topology.add(slice("slice", inputs, tensor{output_shape_}));
 

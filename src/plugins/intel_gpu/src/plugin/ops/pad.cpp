@@ -15,9 +15,9 @@ namespace intel_gpu {
 
 static void CreatePadOp(Program& p, const std::shared_ptr<ngraph::op::v1::Pad>& op) {
     validate_inputs_count(op, {3, 4});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
-    size_t rank = std::max(op->get_input_shape(0).size(), static_cast<size_t>(4));
+    size_t rank = std::max(op->get_input_partial_shape(0).size(), static_cast<size_t>(4));
 
     float pad_value = 0.f;
     if (op->get_input_size() == 4) {
@@ -38,7 +38,7 @@ static void CreatePadOp(Program& p, const std::shared_ptr<ngraph::op::v1::Pad>& 
     }
 
     auto tilePrim = cldnn::border(layerName,
-                                  inputPrimitives[0],
+                                  inputs[0],
                                   pads_begin,
                                   pads_end,
                                   op->get_pad_mode(),
