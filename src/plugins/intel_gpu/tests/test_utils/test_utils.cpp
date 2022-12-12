@@ -388,12 +388,12 @@ std::vector<cldnn::data_types> generic_test::test_data_types() {
 double default_tolerance(data_types dt) {
     switch (dt) {
     case data_types::f16:
-        return 1e-3;
+        return 1e-2;
     case data_types::f32:
-        return 1e-5;
+        return 1e-4;
     case data_types::i8:
     case data_types::u8:
-        return 1.;
+        return 1.5;
     default:
         IE_THROW() << "Unknown";
     }
