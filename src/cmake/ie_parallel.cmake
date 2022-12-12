@@ -300,7 +300,7 @@ function(set_ie_threading_interface_for TARGET_NAME)
         endif ()
     endif ()
 
-    target_compile_definitions(${TARGET_NAME} ${LINK_TYPE} -DIE_THREAD=${IE_THREAD_DEFINE})
+    target_compile_definitions(${TARGET_NAME} ${COMPILE_DEF_TYPE} -DIE_THREAD=${IE_THREAD_DEFINE})
 
     if (NOT THREADING STREQUAL "SEQ")
         find_package(Threads REQUIRED)
