@@ -1215,6 +1215,19 @@ struct CreateGraphFunctionDesc {
     std::string subtest_name;
 };
 
+struct CreateGraphFunctionDesc {
+    CreateGraphFunctionDesc() = default;
+    CreateGraphFunctionDesc(CreateGraphF a_model_factory,
+                            CreateGraphF a_reference_model_factory,
+                            std::string a_subtest_name) :
+                            model_factory(a_model_factory),
+                            reference_model_factory(a_reference_model_factory),
+                            subtest_name(a_subtest_name) {}
+    CreateGraphF model_factory;
+    CreateGraphF reference_model_factory;
+    std::string subtest_name;
+};
+
 using TestBinaryParams = std::tuple<BinaryFactoryPtr,
                                     PassFactoryPtr,
                                     CreateGraphFunctionDesc,
