@@ -22,7 +22,7 @@ public:
     std::string get_name() const override {
         return "tflite";
     }
-
+    std::shared_ptr<ov::Model> convert(const ov::frontend::InputModel::Ptr &model) const;
 protected:
     /// \brief Check if FrontEndTensorflowLite can recognize model from given parts
     bool supported_impl(const std::vector<ov::Any>& variants) const override;

@@ -5,7 +5,7 @@
 #include "openvino/frontend/tensorflow_lite/frontend.hpp"
 
 #include "graph_iterator_flatbuffer.hpp"
-#include "input_model.hpp"
+#include "lite_input_model.hpp"
 #include "op_table.hpp"
 #include "openvino/util/common_util.hpp"
 
@@ -46,8 +46,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
             std::string suffix = ".tflite";
             std::string model_path = variants[0].as<std::string>();
             if (ov::util::ends_with(model_path, suffix.c_str())) {
-                return std::make_shared<tensorflow::InputModel>(std::make_shared<GraphIteratorFlatBuffer>(model_path),
-                                                                m_telemetry);
+                return std::make_shared<tensorflow_lite::InputModel>(std::make_shared<GraphIteratorFlatBuffer>(model_path),
+                                                                     m_telemetry);
             }
         }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
@@ -63,4 +63,10 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
 #endif
     }
     return nullptr;
+}
+
+std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr &model) const {
+    auto model_tf = std::dynamic_pointer_cast<InputModel>(model);
+    FRONT_END_GENERAL_CHECK(model_tf != nullptr, "Invalid input model");
+
 }

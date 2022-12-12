@@ -50,53 +50,6 @@ void extract_operation_name_and_port(const std::string& port_name,
     }
 }
 
-class InputModel::InputModelTFImpl {
-public:
-    InputModelTFImpl(const GraphIterator::Ptr& graph_iterator, const ov::frontend::InputModel& input_model);
-    InputModelTFImpl(const GraphIterator::Ptr& graph_iterator,
-                     const ov::frontend::InputModel& input_model,
-                     const std::shared_ptr<TelemetryExtension>& telemetry);
-    std::vector<ov::frontend::Place::Ptr> getInputs() const;
-    std::vector<ov::frontend::Place::Ptr> getOutputs() const;
-    ov::frontend::Place::Ptr getPlaceByTensorName(const std::string& tensorName) const;
-    void overrideAllOutputs(const std::vector<ov::frontend::Place::Ptr>& outputs);
-    void overrideAllInputs(const std::vector<ov::frontend::Place::Ptr>& inputs);
-    void extractSubgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,
-                         const std::vector<ov::frontend::Place::Ptr>& outputs);
-    void setPartialShape(ov::frontend::Place::Ptr place, const ov::PartialShape&);
-    ov::PartialShape getPartialShape(ov::frontend::Place::Ptr place) const;
-    void setElementType(ov::frontend::Place::Ptr place, const ov::element::Type&);
-    ov::element::Type getElementType(ov::frontend::Place::Ptr place) const;
-    void setTensorValue(ov::frontend::Place::Ptr place, const void* value);
-
-    std::vector<std::shared_ptr<OpPlace>> get_op_places() const;
-    std::map<std::string, std::shared_ptr<TensorPlace>> get_tensor_places() const {
-        return m_tensor_places;
-    }
-    std::map<std::string, Output<Node>> get_tensor_values() const {
-        return m_tensor_values;
-    };
-
-private:
-    void loadPlaces();
-    std::vector<std::shared_ptr<OpPlace>> determine_cut_nodes() const;
-
-    std::vector<std::shared_ptr<OpPlace>> m_op_places;
-    std::map<std::string, std::shared_ptr<OpPlace>> m_op_places_map;
-    mutable std::map<std::string, std::shared_ptr<TensorPlace>> m_tensor_places;
-    std::vector<ov::frontend::Place::Ptr> m_inputs;
-    std::vector<ov::frontend::Place::Ptr> m_outputs;
-    std::map<std::string, Output<Node>> m_tensor_values;
-
-    std::shared_ptr<GraphIterator> m_graph_iterator;
-    const ov::frontend::InputModel& m_input_model;
-
-    std::shared_ptr<TelemetryExtension> m_telemetry;
-
-    // shows if some nodes might be deleted from graph
-    bool m_graph_changed = false;
-};
-
 void InputModel::InputModelTFImpl::loadPlaces() {
     std::set<std::string> all_op_names;
     std::set<std::string> op_names_with_consumers;
