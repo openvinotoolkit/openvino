@@ -17,7 +17,6 @@ from openvino.frontend import (
 )  # pylint: disable=no-name-in-module,import-error
 from openvino.runtime import Core
 from openvino.tools.mo.convert_impl import prepare_ir
-from openvino.tools.mo.utils.error import Error
 
 
 def base_args_config(use_legacy_fe: bool = None, use_new_fe: bool = None):
@@ -104,6 +103,22 @@ class TestMoFreezePlaceholder(unittest.TestCase):
             opset_imports=[onnx.helper.make_opsetid("", 13)],
         )
         self.models["test_model_2.onnx"] = model_2
+
+        input_tensors_3 = [
+            make_tensor_value_info("in1", onnx.TensorProto.INT32, (2, 3)),
+            make_tensor_value_info("in2", onnx.TensorProto.INT32, (3,)),
+        ]
+        output_tensors_3 = [
+            make_tensor_value_info("mul_out", onnx.TensorProto.INT32, (2, 3)),
+        ]
+        mul = onnx.helper.make_node("Mul", inputs=["in1", "in2"], outputs=["mul_out"])
+        graph_3 = make_graph([mul], "test_graph_3", input_tensors_3, output_tensors_3)
+        model_3 = make_model(
+            graph_3,
+            producer_name="MO tests",
+            opset_imports=[onnx.helper.make_opsetid("", 13)],
+        )
+        self.models["test_model_int.onnx"] = model_3
 
         for name, model in self.models.items():
             onnx.save(model, name)
@@ -248,6 +263,44 @@ class TestMoFreezePlaceholder(unittest.TestCase):
             args = base_args_config(use_new_fe=use_new_fe)
             args.input_model = "test_model_2.onnx"
             args.input = input_freezing_value
-            self.assertRaisesRegex(Error, "Please specify type for value freezing in1 node explicitly "
-                                          "because the frontend does not support automatic type detection.",
-                                   prepare_ir, args)
+
+            _, model = prepare_ir(args)
+
+            ie = Core()
+            exec_net = ie.compile_model(model, "CPU")
+            req = exec_net.create_infer_request()
+            results = req.infer(inputs)
+            values = list(results.values())[0]
+            if dtype is not None:
+                assert values.dtype == dtype
+            assert np.allclose(values, expected)
+
+    @generate(
+        *[
+            (
+                    "in2->[3 2 5]",
+                    True,
+                    {"in1": np.array([[2, 1, 3], [1, 5, 6]], dtype=np.int32)},
+                    np.array([[6, 2, 15], [3, 10, 30]], dtype=np.int32),
+                    np.int32,
+            ),
+        ],
+    )
+    def test_value_without_type_int32(self, input_freezing_value, use_new_fe, inputs, expected,
+                                      dtype=None):
+        with patch("openvino.tools.mo.convert_impl.get_default_frontends") as default_fe:
+            default_fe.return_value = get_test_default_frontends()
+            args = base_args_config(use_new_fe=use_new_fe)
+            args.input_model = "test_model_int.onnx"
+            args.input = input_freezing_value
+
+            _, model = prepare_ir(args)
+
+            ie = Core()
+            exec_net = ie.compile_model(model, "CPU")
+            req = exec_net.create_infer_request()
+            results = req.infer(inputs)
+            values = list(results.values())[0]
+            if dtype is not None:
+                assert values.dtype == dtype
+            assert np.allclose(values, expected)
