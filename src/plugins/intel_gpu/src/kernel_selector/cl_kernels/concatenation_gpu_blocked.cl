@@ -51,8 +51,7 @@ KERNEL (concatenation_gpu_blocked)(
         OUTPUT_BLOCK_WRITE(output, dst_index, res);
     } else {
         if (lid < INPUT0_FEATURE_NUM % IC_BLOCK) {
-            __attribute__((opencl_unroll_hint))
-            for (uint tx = 0; tx < TILE_XY; ++tx) {
+            unroll_for(uint tx = 0; tx < TILE_XY; ++tx) {
                 OUTPUT_TYPE res = TO_OUTPUT_TYPE(ACTIVATION(((INPUT0_TYPE*)&src)[tx], ACTIVATION_PARAMS));
                 output[dst_index + tx * IC_BLOCK + lid] = res;
             }
@@ -77,8 +76,7 @@ KERNEL (concatenation_gpu_blocked)(
         INPUT_VEC_TYPE src_al1 = 0;
         INPUT_VEC_TYPE src_al2 = 0;
     #endif
-        __attribute__((opencl_unroll_hint))
-        for (uint tx = 0; tx < TILE_XY; ++tx) {
+        unroll_for(uint tx = 0; tx < TILE_XY; ++tx) {
             ((INPUT0_TYPE*)&src_al0)[tx] = _sub_group_shuffle_down(((INPUT0_TYPE*)&src0)[tx], ((INPUT0_TYPE*)&src1)[tx], (IC_BLOCK - MISALIGNMENT));
     #if TILE_F == 4
             ((INPUT0_TYPE*)&src_al1)[tx] = _sub_group_shuffle_down(((INPUT0_TYPE*)&src1)[tx], ((INPUT0_TYPE*)&src2)[tx], (IC_BLOCK - MISALIGNMENT));
@@ -104,8 +102,7 @@ KERNEL (concatenation_gpu_blocked)(
     #endif
 
         dst_index = OUTPUT_GET_INDEX(b, (f_block*IC_BLOCK + lid_f_offset + output_offset_in_concat_axis), y, x);
-        __attribute__((opencl_unroll_hint))
-        for (uint tx = 0; tx < TILE_XY; ++tx) {
+        unroll_for(uint tx = 0; tx < TILE_XY; ++tx) {
             OUTPUT_TYPE res_unal = TO_OUTPUT_TYPE(ACTIVATION(((INPUT0_TYPE*)&src_unal)[tx], ACTIVATION_PARAMS));
             output[dst_index + tx * IC_BLOCK] = res_unal;
         }
@@ -114,15 +111,13 @@ KERNEL (concatenation_gpu_blocked)(
     {
         const uint dst_index = OUTPUT_GET_INDEX(b, (f_block*IC_BLOCK + lid + output_offset_in_concat_axis), y, x);
 
-        __attribute__((opencl_unroll_hint))
-        for (uint fw = 0; fw < TILE_F; ++fw) {
+        unroll_for(uint fw = 0; fw < TILE_F; ++fw) {
             if (TILE_F != 1 && CEIL_DIV(INPUT0_FEATURE_NUM, IC_BLOCK) % TILE_F != 0 && CEIL_DIV(INPUT0_FEATURE_NUM, IC_BLOCK) % TILE_F == fw)
                 break;
 
             bool do_leftover_write = INPUT0_FEATURE_NUM % IC_BLOCK == 0 || f_block * IC_BLOCK + fw * IC_BLOCK + lid < INPUT0_FEATURE_NUM;
             if (do_leftover_write) {
-                __attribute__((opencl_unroll_hint))
-                for (uint tx = 0; tx < TILE_XY; ++tx) {
+                unroll_for(uint tx = 0; tx < TILE_XY; ++tx) {
                     INPUT0_TYPE src = input[input_offset + lid + tx * IC_BLOCK + fw * INPUT0_FEATURE_PITCH * IC_BLOCK];
                     OUTPUT_TYPE res = TO_OUTPUT_TYPE(ACTIVATION(src, ACTIVATION_PARAMS));
                     output[dst_index + tx * IC_BLOCK + fw * OUTPUT_FEATURE_PITCH * IC_BLOCK] = res;

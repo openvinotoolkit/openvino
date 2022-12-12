@@ -119,8 +119,7 @@ KERNEL(fc)(
         INPUT0_TYPE tmp_input = input[input_offset + get_sub_group_local_id() % TILE_B * TILE_IN_B_PITCH];
         MAKE_VECTOR_TYPE(FILTER_TYPE, TILE_OFM) tmp_wei = BLOCK_READN(FILTER_TYPE, TILE_OFM, weights, weights_offset);
 
-        __attribute__((opencl_unroll_hint))
-        for (uint bi = 0; bi < TILE_B; ++bi) {
+        unroll_for(uint bi = 0; bi < TILE_B; ++bi) {
             acc[bi] = _sub_group_shuffle(tmp_input, bi) * tmp_wei;
         }
 
@@ -145,17 +144,13 @@ KERNEL(fc)(
         // NOTE: Manually unrolling multiplication loop leads to lower register pressure and allows for bigger block sizes,
         //       but significantly degrades readability and generality of code.
         //       It doesn't also show noticable performance improvement on tested configurations.
-        __attribute__((opencl_unroll_hint))
-        for (uint ki = 0; ki < (TILE_IFM * SIMD) / TILE_K; ++ki) {
+        unroll_for(uint ki = 0; ki < (TILE_IFM * SIMD) / TILE_K; ++ki) {
             wei = FILTER_BLOCK_READ(weights, weights_offset);
             weights_offset += TILE_K_OFM * SIMD;
 
-            __attribute__((opencl_unroll_hint))
-            for (uint kii = 0; kii < TILE_K; ++kii) {
-                __attribute__((opencl_unroll_hint))
-                for (uint fi = 0; fi < TILE_OFM; ++fi) {
-                    __attribute__((opencl_unroll_hint))
-                    for (uint bi = 0; bi < TILE_B; ++bi) {
+            unroll_for (uint kii = 0; kii < TILE_K; ++kii) {
+                unroll_for (uint fi = 0; fi < TILE_OFM; ++fi) {
+                    unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
                         const uint total_k = ki * TILE_K + kii;
                         INPUT0_TYPE in_val = _sub_group_shuffle(((INPUT0_TYPE*)(&in_0[bi]))[total_k / SIMD], total_k % SIMD);
                         ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((FILTER_TYPE*)(&wei))[kii * TILE_OFM + fi];
@@ -178,17 +173,13 @@ KERNEL(fc)(
         CONST_LOOP(TILE_B, LOAD_IN_0);
         #undef LOAD_IN_0
         input_offset += TILE_IFM * SIMD - TILE_IN_B_PITCH * TILE_B;
-        __attribute__((opencl_unroll_hint))
-        for (uint ki = 0; ki < CEIL_DIV(LEFTOVER_IFM, TILE_K); ++ki) {
+        unroll_for(uint ki = 0; ki < CEIL_DIV(LEFTOVER_IFM, TILE_K); ++ki) {
             wei = FILTER_BLOCK_READ(weights, weights_offset);
             weights_offset += TILE_K_OFM * SIMD;
 
-            __attribute__((opencl_unroll_hint))
-            for (uint kii = 0; kii < TILE_K; ++kii) {
-                __attribute__((opencl_unroll_hint))
-                for (uint fi = 0; fi < TILE_OFM; ++fi) {
-                    __attribute__((opencl_unroll_hint))
-                    for (uint bi = 0; bi < TILE_B; ++bi) {
+            unroll_for (uint kii = 0; kii < TILE_K; ++kii) {
+                unroll_for (uint fi = 0; fi < TILE_OFM; ++fi) {
+                    unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
                         const uint total_k = ki * TILE_K + kii;
                         if (total_k < LEFTOVER_IFM) {
                             INPUT0_TYPE in_val = _sub_group_shuffle(((INPUT0_TYPE*)(&in_0[bi]))[total_k / SIMD], total_k % SIMD);
@@ -213,24 +204,20 @@ KERNEL(fc)(
         BIAS_VEC_TYPE bias = BIAS_BLOCK_READ(biases, out_f);
     #else
         BIAS_VEC_TYPE bias = 0;
-        __attribute__((opencl_unroll_hint))
-        for (uint fi = 0; fi < TILE_OFM; ++fi) {
+        unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
             ((BIAS_TYPE*)(&bias))[fi] = biases[out_f + sglid + fi * SIMD];
         }
     #endif
-    __attribute__((opencl_unroll_hint))
-    for (uint bi = 0; bi < TILE_B; ++bi) {
+    unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
         activated[bi] += TO_ACTIVATION_VEC_TYPE(bias);
     }
 #endif
 
     OUTPUT_VEC_TYPE result[TILE_B] = { };
 #if HAS_FUSED_OPS
-    __attribute__((opencl_unroll_hint))
-    for (uint bi = 0; bi < TILE_B; ++bi) {
+    unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
     #if TILE_OFM > 1
-        __attribute__((opencl_unroll_hint))
-        for (uint fi = 0; fi < TILE_OFM; ++fi) {
+        unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
             FUSED_OPS_VEC;
             result[bi][fi] = FUSED_OPS_RESULT_VEC;
         }
@@ -240,8 +227,7 @@ KERNEL(fc)(
     #endif // TILE_OFM > 1
     }
 #else
-    __attribute__((opencl_unroll_hint))
-    for (uint bi = 0; bi < TILE_B; ++bi) {
+    unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
         result[bi] = TO_OUTPUT_VEC_TYPE(ACTIVATION_TYPED(activated[bi], ACTIVATION_PARAMS_TYPED));
     }
 #endif

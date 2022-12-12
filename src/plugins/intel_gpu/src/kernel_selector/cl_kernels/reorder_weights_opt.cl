@@ -85,8 +85,7 @@ KERNEL(reorder_weights_opt)(const __global INPUT0_TYPE* input, __global OUTPUT_T
     const OUTPUT_TYPE val = TO_OUTPUT_TYPE(input[input_idx]);
 #else
     OUTPUT_VEC_TYPE val = 0;
-    __attribute__((opencl_unroll_hint))
-    for (int b = 0; b < SECOND_BLOCK_SIZE; b++) {
+    unroll_for (int b = 0; b < SECOND_BLOCK_SIZE; b++) {
         val[b] = TO_OUTPUT_TYPE(input[input_idx]);
         input_idx += PITCH;
     }
@@ -100,8 +99,7 @@ KERNEL(reorder_weights_opt)(const __global INPUT0_TYPE* input, __global OUTPUT_T
     if (i_blocked >= OUTPUT_IFM_NUM - FIRST_BLOCK_SIZE) {
 #endif  // OSV_FIRST
 #if SECOND_BLOCK_SIZE > 1
-        __attribute__((opencl_unroll_hint))
-        for (int b = 0; b < SECOND_BLOCK_SIZE; b++)
+        unroll_for(int b = 0; b < SECOND_BLOCK_SIZE; b++)
             if (doWrite)
                 output[output_idx + b * SECOND_SIZE + lid] = val[b];
 #else

@@ -295,8 +295,7 @@ KERNEL(mvn_final_bsv32)(
                                             TO_ACT_PACKED_TYPE(inv_variance), (ACT_PACKED_TYPE)0);
     OUTPUT_PACKED_TYPE result_vec = OUTPUT_VAL_ZERO;
 
-    __attribute__((opencl_unroll_hint))
-    for (uint fi = 0; fi < FSV; fi++) {
+    unroll_for (uint fi = 0; fi < FSV; fi++) {
         ACTIVATION_TYPE normalized = normalized_vec[fi];
 #   if HAS_FUSED_OPS
         FUSED_OPS;
@@ -498,8 +497,7 @@ KERNEL(mvn_final)(
     for (uint spatial_idx = 0; spatial_idx < ITEMS_NUM / GWS; ++spatial_idx) {
         INPUT_PACKED_TYPE in_pack = INPUT_PACKED_BLOCK_READ(input + input_offset);
 
-        __attribute__((opencl_unroll_hint))
-        for (uint si = 0; si < SIMD; ++si) {
+        unroll_for(uint si = 0; si < SIMD; ++si) {
             uint output_spatial = output_spatial_base + si;
             MEAN_TYPE normalized = (TO_MEAN_TYPE(in_pack[si]) - mean) * inv_variance;
             OUTPUT_TYPE result;
@@ -541,8 +539,7 @@ KERNEL(mvn_final)(
         // Process leftovers that can use full sub-group.
         INPUT_PACKED_TYPE in_pack = INPUT_PACKED_BLOCK_READ(input + input_offset);
 
-        __attribute__((opencl_unroll_hint))
-        for (uint si = 0; si < SIMD; ++si) {
+        unroll_for(uint si = 0; si < SIMD; ++si) {
             uint output_spatial = output_spatial_base + si;
             MEAN_TYPE normalized = (TO_MEAN_TYPE(in_pack[si]) - mean) * inv_variance;
             OUTPUT_TYPE result;
@@ -604,8 +601,7 @@ KERNEL(mvn_final)(
         }
 
         OUTPUT_PACKED_TYPE result;
-        __attribute__((opencl_unroll_hint))
-        for (uint si = 0; si < sg_uniform_leftovers; ++si) {
+        unroll_for(uint si = 0; si < sg_uniform_leftovers; ++si) {
             uint output_spatial = output_spatial_base + si;
             MEAN_TYPE normalized = (TO_MEAN_TYPE(in_pack[si]) - mean) * inv_variance;
             OUTPUT_TYPE result;
@@ -645,8 +641,7 @@ KERNEL(mvn_final)(
         INPUT_PACKED_TYPE in_pack = ((const __global INPUT_PACKED_TYPE*)(input + input_offset))[sglid];
 
         OUTPUT_PACKED_TYPE result;
-        __attribute__((opencl_unroll_hint))
-        for (uint set_idx = 0; set_idx < FSV; ++set_idx) {
+        unroll_for(uint set_idx = 0; set_idx < FSV; ++set_idx) {
             MEAN_TYPE normalized = (TO_MEAN_TYPE(in_pack[set_idx]) - _sub_group_shuffle(mean, set_idx)) * _sub_group_shuffle(inv_variance, set_idx);
 #           if HAS_FUSED_OPS
                 FUSED_OPS;
@@ -688,8 +683,7 @@ KERNEL(mvn_final)(
         INPUT_PACKED_TYPE in_pack = ((const __global INPUT_PACKED_TYPE*)(input + input_offset))[sglid];
 
         OUTPUT_PACKED_TYPE result;
-        __attribute__((opencl_unroll_hint))
-        for (uint set_idx = 0; set_idx < FSV; ++set_idx) {
+        unroll_for(uint set_idx = 0; set_idx < FSV; ++set_idx) {
             MEAN_TYPE normalized = (TO_MEAN_TYPE(in_pack[set_idx]) - _sub_group_shuffle(mean, set_idx)) * _sub_group_shuffle(inv_variance, set_idx);
 #           if HAS_FUSED_OPS
                 FUSED_OPS;
@@ -719,8 +713,7 @@ KERNEL(mvn_final)(
         INPUT_PACKED_TYPE in_pack = ((const __global INPUT_PACKED_TYPE*)(input + input_offset))[sglid % sg_uniform_leftovers];
 
         OUTPUT_PACKED_TYPE result;
-        __attribute__((opencl_unroll_hint))
-        for (uint set_idx = 0; set_idx < FSV; ++set_idx) {
+        unroll_for(uint set_idx = 0; set_idx < FSV; ++set_idx) {
             MEAN_TYPE normalized = (TO_MEAN_TYPE(in_pack[set_idx]) - _sub_group_shuffle(mean, set_idx)) * _sub_group_shuffle(inv_variance, set_idx);
 #           if HAS_FUSED_OPS
                 FUSED_OPS;

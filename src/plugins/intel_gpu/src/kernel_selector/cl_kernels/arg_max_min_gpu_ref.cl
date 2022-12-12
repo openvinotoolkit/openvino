@@ -38,8 +38,7 @@ KERNEL(arg_max_gpu_top_k)(const __global INPUT0_TYPE* input, __global OUTPUT_TYP
 
     uint temp_index = global_index;
 
-    __attribute__((opencl_unroll_hint))
-    for (uint i = 0; i < TOP_K; i++){
+    unroll_for(uint i = 0; i < TOP_K; i++){
         accumulator.index = global_index;
         accumulator.value = input[global_index];
         for (int j = 0; j < i; j++){
@@ -87,8 +86,7 @@ KERNEL(arg_max_gpu_top_k)(const __global INPUT0_TYPE* input, __global OUTPUT_TYP
 
         barrier(CLK_LOCAL_MEM_FENCE);
 
-        __attribute__((opencl_unroll_hint))
-        for(uint offset = LOCAL_SIZE / 2; offset > 0; offset /= 2)
+        unroll_for(uint offset = LOCAL_SIZE / 2; offset > 0; offset /= 2)
         {
             if (local_index < offset)
             {

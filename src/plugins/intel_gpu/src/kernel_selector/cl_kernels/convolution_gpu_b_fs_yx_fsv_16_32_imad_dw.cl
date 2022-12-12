@@ -208,8 +208,7 @@ KERNEL(convolution)(
 
     #if ASYMMETRIC_DATA_QUANTIZATION && CHECK_BOUNDARY_IN_SLM
         uint4 azp_uniform[FSV / iteration_preload_bytes];
-        __attribute__((opencl_unroll_hint))
-        for (uint i = 0; i < FSV / iteration_preload_bytes; ++i) {
+        unroll_for(uint i = 0; i < FSV / iteration_preload_bytes; ++i) {
             azp_uniform[i] = ((const __global uint4*)(activations_zp + (f + i * iteration_preload_bytes)))[0];
         }
     #endif
@@ -284,8 +283,7 @@ KERNEL(convolution)(
     if (early_return)
         return;
 
-    __attribute__((opencl_unroll_hint))
-    for (uint fi = 0; fi < FILTER_BLOCKED / 4 * 4; fi += 4) {
+    unroll_for (uint fi = 0; fi < FILTER_BLOCKED / 4 * 4; fi += 4) {
         // Loop over 4 filter spatials that match imad case
         uint4 fis = (uint4)(fi, fi + 1, fi + 2, fi + 3);
 
@@ -306,8 +304,7 @@ KERNEL(convolution)(
         uint4 input_idx = input_spatial_offset + input_offset;
 
         uint tx = 0;
-        __attribute__((opencl_unroll_hint))
-        for (; tx + 16 <= TILE_X * F_PER_WI; tx += 16) {
+        unroll_for(; tx + 16 <= TILE_X * F_PER_WI; tx += 16) {
             INPUT_TYPE16 tmp_in0 = INPUT_BLOCK_READN(16, input_ptr, input_idx.s0);
             INPUT_TYPE16 tmp_in1 = INPUT_BLOCK_READN(16, input_ptr, input_idx.s1);
             INPUT_TYPE16 tmp_in2 = INPUT_BLOCK_READN(16, input_ptr, input_idx.s2);
@@ -373,13 +370,11 @@ KERNEL(convolution)(
         uint4 input_y_offset = fy * dilation_size_y * input_y_pitch;
         uint4 input_spatial_offset = input_x_offset + input_y_offset;
         uint4 input_start_offset = input_spatial_offset + input_offset;
-        __attribute__((opencl_unroll_hint))
-        for (uint tx = 0; tx < TILE_X; ++tx) {
+        unroll_for(uint tx = 0; tx < TILE_X; ++tx) {
             uint4 input_idx = input_start_offset + tx * STRIDE_SIZE_X * input_x_pitch;
             // Block reads along feature slice
             uint fw = 0;
-            __attribute__((opencl_unroll_hint))
-            for (; fw + 4 <= F_PER_WI; fw += 4) {
+            unroll_for(; fw + 4 <= F_PER_WI; fw += 4) {
                 INPUT_TYPE4 tmp_in0 = INPUT_BLOCK_READN(4, input_ptr, input_idx.s0);
                 INPUT_TYPE4 tmp_in1 = INPUT_BLOCK_READN(4, input_ptr, input_idx.s1);
                 INPUT_TYPE4 tmp_in2 = INPUT_BLOCK_READN(4, input_ptr, input_idx.s2);
@@ -416,14 +411,12 @@ KERNEL(convolution)(
 #endif
         // Weights loading:
         FILTER_TYPE4 wei[F_PER_WI];
-        __attribute__((opencl_unroll_hint))
-        for (uint fw = 0; fw < F_PER_WI; ++fw) {
+        unroll_for(uint fw = 0; fw < F_PER_WI; ++fw) {
             wei[fw] = AS_FILTER_TYPE4(_sub_group_block_read((const __global uint*)(weights + weights_offset) + fw * SIMD));
         }
 
     #if CHECK_BOUNDARY && !CHECK_BOUNDARY_IN_SLM
-        __attribute__((opencl_unroll_hint))
-        for (uint tx = 0; tx < TILE_X; ++tx) {
+        unroll_for(uint tx = 0; tx < TILE_X; ++tx) {
             int4 input_x = convert_int4(x * STRIDE_SIZE_X + tx * STRIDE_SIZE_X + fx * DILATION_SIZE_X) - PADDING_SIZE_X;
             int4 input_y = convert_int4(y * STRIDE_SIZE_Y + fy * dilation_size_y) - PADDING_SIZE_Y;
             int4 input_pad = input_x < 0 || input_x >= INPUT0_SIZE_X || input_y < 0 || input_y >= INPUT0_SIZE_Y;
@@ -432,20 +425,16 @@ KERNEL(convolution)(
         #else
             #define padding_value(fw) ((INPUT0_TYPE)0)
         #endif
-            __attribute__((opencl_unroll_hint))
-            for (uint fwp = 0; fwp < F_PER_WI; ++fwp) {
+            unroll_for(uint fwp = 0; fwp < F_PER_WI; ++fwp) {
                 in_trans0[tx * F_PER_WI + fwp] = input_pad.s0 ? padding_value(fwp) : in_trans0[tx * F_PER_WI + fwp];
             }
-            __attribute__((opencl_unroll_hint))
-            for (uint fwp = 0; fwp < F_PER_WI; ++fwp) {
+            unroll_for(uint fwp = 0; fwp < F_PER_WI; ++fwp) {
                 in_trans1[tx * F_PER_WI + fwp] = input_pad.s1 ? padding_value(fwp) : in_trans1[tx * F_PER_WI + fwp];
             }
-            __attribute__((opencl_unroll_hint))
-            for (uint fwp = 0; fwp < F_PER_WI; ++fwp) {
+            unroll_for(uint fwp = 0; fwp < F_PER_WI; ++fwp) {
                 in_trans2[tx * F_PER_WI + fwp] = input_pad.s2 ? padding_value(fwp) : in_trans2[tx * F_PER_WI + fwp];
             }
-            __attribute__((opencl_unroll_hint))
-            for (uint fwp = 0; fwp < F_PER_WI; ++fwp) {
+            unroll_for(uint fwp = 0; fwp < F_PER_WI; ++fwp) {
                 in_trans3[tx * F_PER_WI + fwp] = input_pad.s3 ? padding_value(fwp) : in_trans3[tx * F_PER_WI + fwp];
             }
         #undef padding_value
@@ -454,30 +443,24 @@ KERNEL(convolution)(
 
         // Transpose input:
         INPUT_TYPE4 in[TILE_X * F_PER_WI];
-        __attribute__((opencl_unroll_hint))
-        for (uint tx = 0; tx < TILE_X; ++tx) {
-            __attribute__((opencl_unroll_hint))
-            for (uint fw = 0; fw < F_PER_WI; ++fw) {
+        unroll_for(uint tx = 0; tx < TILE_X; ++tx) {
+            unroll_for(uint fw = 0; fw < F_PER_WI; ++fw) {
                 uint in_offset = tx * F_PER_WI + fw;
                 in[in_offset] = (INPUT_TYPE4)(in_trans0[in_offset], in_trans1[in_offset], in_trans2[in_offset], in_trans3[in_offset]);
             }
         }
 
         // IMAD:
-        __attribute__((opencl_unroll_hint))
-        for (uint tx = 0; tx < TILE_X; ++tx) {
-            __attribute__((opencl_unroll_hint))
-            for (uint fw = 0; fw < F_PER_WI; ++fw) {
+        unroll_for(uint tx = 0; tx < TILE_X; ++tx) {
+            unroll_for(uint fw = 0; fw < F_PER_WI; ++fw) {
                 acc[tx * F_PER_WI + fw] = IMAD(acc[tx * F_PER_WI + fw], in[tx * F_PER_WI + fw], wei[fw]);
             }
         }
 
     #if ASYMMETRIC_WEIGHTS_QUANTIZATION
         // Accumulate for input values for asymmetric weights:
-        __attribute__((opencl_unroll_hint))
-        for (uint tx = 0; tx < TILE_X; ++tx) {
-            __attribute__((opencl_unroll_hint))
-            for (uint fw = 0; fw < F_PER_WI; ++fw) {
+        unroll_for(uint tx = 0; tx < TILE_X; ++tx) {
+            unroll_for(uint fw = 0; fw < F_PER_WI; ++fw) {
                 src_sum[tx * F_PER_WI + fw] = IMAD(src_sum[tx * F_PER_WI + fw], in[tx * F_PER_WI + fw], (char4)(1, 1, 1, 1));
             }
         }
@@ -491,13 +474,11 @@ KERNEL(convolution)(
     // Leftovers in filters spatial - use raw multiplication instead of imad
     // Load inputs before loop to avoid byte scattered reads + there are at most 3 leftovers
     FILTER_TYPE4 wei[F_PER_WI];
-    __attribute__((opencl_unroll_hint))
-    for (uint fw = 0; fw < F_PER_WI; ++fw) {
+    unroll_for (uint fw = 0; fw < F_PER_WI; ++fw) {
         wei[fw] = AS_FILTER_TYPE4(_sub_group_block_read((const __global uint*)(weights + weights_offset) + fw * SIMD));
     }
 
-    __attribute__((opencl_unroll_hint))
-    for (uint fi = 0; fi < FILTER_SPATIAL_SIZE - FILTER_BLOCKED; ++fi) {
+    unroll_for (uint fi = 0; fi < FILTER_SPATIAL_SIZE - FILTER_BLOCKED; ++fi) {
         // Input loading:
         uint fx = (fi + FILTER_BLOCKED) % FILTER_SIZE_X;
         uint fy = (fi + FILTER_BLOCKED) / FILTER_SIZE_X;
@@ -510,8 +491,7 @@ KERNEL(convolution)(
         uint input_idx = input_spatial_offset + input_offset;
 
         uint tx = 0;
-        __attribute__((opencl_unroll_hint))
-        for (; tx + 16 <= TILE_X * F_PER_WI; tx += 16) {
+        unroll_for(; tx + 16 <= TILE_X * F_PER_WI; tx += 16) {
             INPUT_TYPE16 tmp_in0 = INPUT_BLOCK_READN(16, input_ptr, input_idx);
             VEC_TO_ARRAY_16(in_trans0, tmp_in0, tx);
             input_idx += 16 * SIMD;
@@ -542,12 +522,10 @@ KERNEL(convolution)(
         uint input_y_offset = fy * dilation_size_y * input_y_pitch;
         uint input_spatial_offset = input_x_offset + input_y_offset;
         uint input_start_offset = input_spatial_offset + input_offset;
-        __attribute__((opencl_unroll_hint))
-        for (uint tx = 0; tx < TILE_X; ++tx) {
+        unroll_for(uint tx = 0; tx < TILE_X; ++tx) {
             uint input_idx = input_start_offset + tx * STRIDE_SIZE_X * input_x_pitch;
             uint fw = 0;
-            __attribute__((opencl_unroll_hint))
-            for (; fw + 4 <= F_PER_WI; fw += 4) {
+            unroll_for(; fw + 4 <= F_PER_WI; fw += 4) {
                 INPUT_TYPE4 tmp_in0 = INPUT_BLOCK_READN(4, input_ptr, input_idx);
                 VEC_TO_ARRAY_4(in_trans0, tmp_in0, tx * F_PER_WI + fw);
                 input_idx += 4 * SIMD;
@@ -565,8 +543,7 @@ KERNEL(convolution)(
 #   endif
 
     #if CHECK_BOUNDARY && !CHECK_BOUNDARY_IN_SLM
-        __attribute__((opencl_unroll_hint))
-        for (uint tx = 0; tx < TILE_X; ++tx) {
+        unroll_for(uint tx = 0; tx < TILE_X; ++tx) {
             int input_x = (x + tx) * STRIDE_SIZE_X + fx * DILATION_SIZE_X - PADDING_SIZE_X;
             int input_y = y * STRIDE_SIZE_Y + fy * dilation_size_y - PADDING_SIZE_Y;
             int input_pad = input_x < 0 || input_x >= INPUT0_SIZE_X || input_y < 0 || input_y >= INPUT0_SIZE_Y;
@@ -575,8 +552,7 @@ KERNEL(convolution)(
         #else
             #define padding_value(fw) ((INPUT0_TYPE)0)
         #endif
-            __attribute__((opencl_unroll_hint))
-            for (uint fwp = 0; fwp < F_PER_WI; ++fwp) {
+            unroll_for(uint fwp = 0; fwp < F_PER_WI; ++fwp) {
                 in_trans0[tx * F_PER_WI + fwp] = input_pad ? padding_value(fwp) : in_trans0[tx * F_PER_WI + fwp];
             }
         #undef padding_value
@@ -584,20 +560,16 @@ KERNEL(convolution)(
     #endif
 
         // Raw multiply accumulate:
-        __attribute__((opencl_unroll_hint))
-        for (uint tx = 0; tx < TILE_X; ++tx) {
-            __attribute__((opencl_unroll_hint))
-            for (uint fw = 0; fw < F_PER_WI; ++fw) {
+        unroll_for(uint tx = 0; tx < TILE_X; ++tx) {
+            unroll_for(uint fw = 0; fw < F_PER_WI; ++fw) {
                 acc[tx * F_PER_WI + fw] += (int)in_trans0[tx * F_PER_WI + fw] * (int)wei[fw][fi];
             }
         }
 
     #if ASYMMETRIC_WEIGHTS_QUANTIZATION
         // Accumulate input values for asymmetric weights:
-        __attribute__((opencl_unroll_hint))
-        for (uint tx = 0; tx < TILE_X; ++tx) {
-            __attribute__((opencl_unroll_hint))
-            for (uint fw = 0; fw < F_PER_WI; ++fw) {
+        unroll_for(uint tx = 0; tx < TILE_X; ++tx) {
+            unroll_for(uint fw = 0; fw < F_PER_WI; ++fw) {
                 src_sum[tx * F_PER_WI + fw] += (int)in_trans0[tx * F_PER_WI + fw];
             }
         }
@@ -613,18 +585,14 @@ KERNEL(convolution)(
 #if BIAS_TERM
 #   if BIAS_PER_OFM
     MAKE_VECTOR_TYPE(BIAS_TYPE, F_PER_WI) bias_val = BLOCK_READN(BIAS_TYPE, F_PER_WI, biases, f);
-    __attribute__((opencl_unroll_hint))
-    for (uint tx = 0; tx < TILE_X; ++tx) {
-        __attribute__((opencl_unroll_hint))
-        for (uint fw = 0; fw < F_PER_WI; ++fw) {
+    unroll_for (uint tx = 0; tx < TILE_X; ++tx) {
+        unroll_for(uint fw = 0; fw < F_PER_WI; ++fw) {
             dequantized[tx * F_PER_WI + fw] += TO_DEQUANTIZED_TYPE(((BIAS_TYPE*)&bias_val)[fw]);
         }
     }
 #   elif BIAS_PER_OUTPUT
-    __attribute__((opencl_unroll_hint))
-    for (uint tx = 0; tx < TILE_X; ++tx) {
-        __attribute__((opencl_unroll_hint))
-        for (uint fw = 0; fw < F_PER_WI; ++fw) {
+    unroll_for (uint tx = 0; tx < TILE_X; ++tx) {
+        unroll_for(uint fw = 0; fw < F_PER_WI; ++fw) {
             uint bias_offset = GET_BIAS_INDEX(b, f + fw * SIMD + get_sub_group_local_id(), y, x + tx);
             BIAS_TYPE bias = biases[bias_offset];
             dequantized[tx * F_PER_WI + fw] += TO_DEQUANTIZED_TYPE(bias);
@@ -638,10 +606,8 @@ KERNEL(convolution)(
 #if ASYMMETRIC_WEIGHTS_QUANTIZATION
     {
         MAKE_VECTOR_TYPE(WEIGHTS_ZERO_POINTS_TYPE, F_PER_WI) wzp = BLOCK_READN(WEIGHTS_ZERO_POINTS_TYPE, F_PER_WI, weights_zp, f);
-        __attribute__((opencl_unroll_hint))
-        for (uint tx = 0; tx < TILE_X; ++tx) {
-            __attribute__((opencl_unroll_hint))
-            for (uint fw = 0; fw < F_PER_WI; ++fw) {
+        unroll_for(uint tx = 0; tx < TILE_X; ++tx) {
+            unroll_for(uint fw = 0; fw < F_PER_WI; ++fw) {
                 dequantized[tx * F_PER_WI + fw] -= TO_DEQUANTIZED_TYPE(src_sum[tx * F_PER_WI + fw]) * TO_DEQUANTIZED_TYPE(((WEIGHTS_ZERO_POINTS_TYPE*)&wzp)[fw]);
             }
         }
@@ -651,10 +617,8 @@ KERNEL(convolution)(
 #if COMPENSATION_TERM
     {
         MAKE_VECTOR_TYPE(COMPENSATION_TYPE, F_PER_WI) comp = BLOCK_READN(COMPENSATION_TYPE, F_PER_WI, compensation, f);
-        __attribute__((opencl_unroll_hint))
-        for (uint tx = 0; tx < TILE_X; ++tx) {
-            __attribute__((opencl_unroll_hint))
-            for (uint fw = 0; fw < F_PER_WI; ++fw) {
+        unroll_for(uint tx = 0; tx < TILE_X; ++tx) {
+            unroll_for(uint fw = 0; fw < F_PER_WI; ++fw) {
                 dequantized[tx * F_PER_WI + fw] += TO_DEQUANTIZED_TYPE(((COMPENSATION_TYPE*)&comp)[fw]);
             }
         }
@@ -663,14 +627,12 @@ KERNEL(convolution)(
 
     OUTPUT_TYPE out[TILE_X * F_PER_WI];
     // Fused ops and conversion to output type
-    __attribute__((opencl_unroll_hint))
-    for (uint tx = 0; tx < TILE_X; ++tx) {
+    unroll_for (uint tx = 0; tx < TILE_X; ++tx) {
 #if HAS_FUSED_OPS
         uint fused_ops_x = x + tx;
         uint fused_ops_f = f;
         uint fw = 0;
-        __attribute__((opencl_unroll_hint))
-        for (; fw + 4 <= F_PER_WI; fw += 4) {
+        unroll_for(; fw + 4 <= F_PER_WI; fw += 4) {
             DEQUANTIZED_TYPE4 fused_ops_in;
             ARRAY_TO_VEC_4(fused_ops_in, dequantized, tx * F_PER_WI + fw);
             FUSED_OPS_4;
@@ -692,8 +654,7 @@ KERNEL(convolution)(
             out[tx * F_PER_WI + fw] = FUSED_OPS_RESULT_1;
         }
 #else
-        __attribute__((opencl_unroll_hint))
-        for (uint fw = 0; fw < F_PER_WI; ++fw) {
+        unroll_for(uint fw = 0; fw < F_PER_WI; ++fw) {
             out[tx * F_PER_WI + fw] = TO_OUTPUT_TYPE(dequantized[tx * F_PER_WI + fw]);
         }
 #endif
@@ -701,10 +662,8 @@ KERNEL(convolution)(
 
     // Fill results outside output in features with OUTPUT_PAD_VALUE.
     if (OUTPUT_FEATURE_NUM % FSV != 0 && f + FSV > OUTPUT_FEATURE_NUM) {
-        __attribute__((opencl_unroll_hint))
-        for (uint tx = 0; tx < TILE_X; ++tx) {
-            __attribute__((opencl_unroll_hint))
-            for (uint fw = 0; fw < F_PER_WI; ++fw) {
+        unroll_for(uint tx = 0; tx < TILE_X; ++tx) {
+            unroll_for(uint fw = 0; fw < F_PER_WI; ++fw) {
                 const uint sglid = get_sub_group_local_id();
                 // Hint here can save some movs if features are divisible by SIMD and not by FSV
                 ASSUME_HINT(sglid < SIMD);
@@ -720,8 +679,7 @@ KERNEL(convolution)(
         // Full output tile x write using block write ladder
         uint tx = 0;
     #if OUTPUT_TYPE_SIZE * 16 <= MAX_OPT_BLOCK_WRITE_BYTES
-        __attribute__((opencl_unroll_hint))
-        for (; tx + 16 <= TILE_X * F_PER_WI; tx += 16) {
+        unroll_for(; tx + 16 <= TILE_X * F_PER_WI; tx += 16) {
             OUTPUT_TYPE16 tmp_write;
             ARRAY_TO_VEC_16(tmp_write, out, tx);
             DT_OUTPUT_BLOCK_WRITE16(output, output_offset, tmp_write);
@@ -729,8 +687,7 @@ KERNEL(convolution)(
         }
     #endif
     #if OUTPUT_TYPE_SIZE * 8 <= MAX_OPT_BLOCK_WRITE_BYTES
-        __attribute__((opencl_unroll_hint))
-        for (; tx + 8 <= TILE_X * F_PER_WI; tx += 8) {
+        unroll_for(; tx + 8 <= TILE_X * F_PER_WI; tx += 8) {
             OUTPUT_TYPE8 tmp_write;
             ARRAY_TO_VEC_8(tmp_write, out, tx);
             DT_OUTPUT_BLOCK_WRITE8(output, output_offset, tmp_write);
@@ -738,16 +695,14 @@ KERNEL(convolution)(
         }
     #endif
     #if OUTPUT_TYPE_SIZE * 4 <= MAX_OPT_BLOCK_WRITE_BYTES
-        __attribute__((opencl_unroll_hint))
-        for (; tx + 4 <= TILE_X * F_PER_WI; tx += 4) {
+        unroll_for(; tx + 4 <= TILE_X * F_PER_WI; tx += 4) {
             OUTPUT_TYPE4 tmp_write;
             ARRAY_TO_VEC_4(tmp_write, out, tx);
             DT_OUTPUT_BLOCK_WRITE4(output, output_offset, tmp_write);
             output_offset += 4 * SIMD;
         }
     #endif
-        __attribute__((opencl_unroll_hint))
-        for (; tx + 2 <= TILE_X * F_PER_WI; tx += 2) {
+        unroll_for(; tx + 2 <= TILE_X * F_PER_WI; tx += 2) {
             OUTPUT_TYPE2 tmp_write;
             ARRAY_TO_VEC_2(tmp_write, out, tx);
             DT_OUTPUT_BLOCK_WRITE2(output, output_offset, tmp_write);
@@ -758,20 +713,17 @@ KERNEL(convolution)(
         }
     } else {
         // Leftovers write, block writes in f dimension only
-        __attribute__((opencl_unroll_hint))
-        for (uint tx = 0; tx < TILE_X; ++tx) {
+        unroll_for(uint tx = 0; tx < TILE_X; ++tx) {
             if (tx < OUTPUT_SIZE_X % TILE_X) {
                 uint fw = 0;
             #if OUTPUT_TYPE_SIZE * 4 <= MAX_OPT_BLOCK_WRITE_BYTES
-                __attribute__((opencl_unroll_hint))
-                for (; fw + 4 <= F_PER_WI; fw += 4) {
+                unroll_for(; fw + 4 <= F_PER_WI; fw += 4) {
                     OUTPUT_TYPE4 tmp_write;
                     ARRAY_TO_VEC_4(tmp_write, out, tx * F_PER_WI + fw);
                     DT_OUTPUT_BLOCK_WRITE4(output, output_offset + fw * SIMD, tmp_write);
                 }
             #endif
-                __attribute__((opencl_unroll_hint))
-                for (; fw + 2 <= F_PER_WI; fw += 2) {
+                unroll_for(; fw + 2 <= F_PER_WI; fw += 2) {
                     OUTPUT_TYPE2 tmp_write;
                     ARRAY_TO_VEC_2(tmp_write, out, tx * F_PER_WI + fw);
                     DT_OUTPUT_BLOCK_WRITE2(output, output_offset + fw * SIMD, tmp_write);

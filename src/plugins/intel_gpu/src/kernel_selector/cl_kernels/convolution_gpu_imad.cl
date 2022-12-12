@@ -132,8 +132,7 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
             int weights_zp_vec_partial;
             weights_zp_vec_partial = weights_zp_val;
             FILTER_TYPE* wzp_p = (FILTER_TYPE*)&weights_zp_vec_partial;
-            __attribute__((opencl_unroll_hint))
-            for (uint in_f = FILTER_IFM_NUM % PACK; in_f < PACK; in_f++) {
+            unroll_for (uint in_f = FILTER_IFM_NUM % PACK; in_f < PACK; in_f++) {
                 wzp_p[in_f] = 0;
             }
         #endif
@@ -276,10 +275,8 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
                     dotProdAZPxW = TO_ACCUMULATOR_TYPE(IMAD(dotProdAZPxW, AS_INPUT0_TYPE_4(data_zp_val), AS_FILTER_TYPE_4(w[wi])));
                 #endif
 
-                __attribute__((opencl_unroll_hint))
-                for (int br = 0; br < OUT_BLOCK_HEIGHT; br++) {
-                    __attribute__((opencl_unroll_hint))
-                    for (int bc = 0; bc < OUT_BLOCK_WIDTH; bc++) {
+                unroll_for (int br = 0; br < OUT_BLOCK_HEIGHT; br++) {
+                    unroll_for (int bc = 0; bc < OUT_BLOCK_WIDTH; bc++) {
                         INPUT0_TYPE_4 inputs = AS_INPUT0_TYPE_4(sub_group_broadcast(in[br * STRIDE_SIZE_Y + kr * DILATION_SIZE_Y],
                                                                                     bc * STRIDE_SIZE_X + kc * DILATION_SIZE_X));
 

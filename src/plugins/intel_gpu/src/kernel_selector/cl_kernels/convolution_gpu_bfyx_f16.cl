@@ -350,8 +350,7 @@ KERNEL(convolution_bfyx_f16)(
     barrier(CLK_LOCAL_MEM_FENCE);
 
     if (feature_sub_block == 0) {
-        __attribute__((opencl_unroll_hint))
-        for (int i = 1; i < SLM_DIV_FACTOR; i++)
+        unroll_for(int i = 1; i < SLM_DIV_FACTOR; i++)
             dst += partial_summ[lid1 % feature_per_wg + i * feature_per_wg];
 #endif // SLM_DIV_FACTOR > 1
 

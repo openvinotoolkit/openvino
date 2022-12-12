@@ -56,11 +56,9 @@ KERNEL(pooling_gpu_byxf_opt)(
 
     result = INIT_VAL;
 
-    __attribute__((opencl_unroll_hint))
-    for(uint j = 0; j < POOL_SIZE_Y; j++)
+    unroll_for(uint j = 0; j < POOL_SIZE_Y; j++)
     {
-        __attribute__((opencl_unroll_hint))
-        for(uint i = 0; i < POOL_SIZE_X; i++)
+        unroll_for(uint i = 0; i < POOL_SIZE_X; i++)
         {
             feature_block = vload8(input_idx+FEATURE_BLOCK_NUM*i, input);
             result = FUNC_CALL(apply_pooling)(result, TO_ACCUMULATOR_VEC8(feature_block));
@@ -71,8 +69,7 @@ KERNEL(pooling_gpu_byxf_opt)(
     OUTPUT_TYPE final_result;
 
     uint output_pos = GET_DATA_INDEX(OUTPUT, b, f, y, x);
-    __attribute__((opencl_unroll_hint))
-    for(uint i = 0; i < FEATURE_PER_ITEM; i++)
+    unroll_for(uint i = 0; i < FEATURE_PER_ITEM; i++)
     {
         if(f+i < INPUT0_FEATURE_NUM){
 #if defined MAX_POOLING

@@ -113,11 +113,9 @@ KERNEL(convolution_gpu_b_fs_yx_fsv4_dw)(
 #if PRELOAD_INPUT || TILED
     INPUT_TYPE4 in[FILTER_SIZE_Y * INPUT_LINE_SIZE];
 
-    __attribute__((opencl_unroll_hint))
-    for (uint yi = 0; yi < FILTER_SIZE_Y; ++yi) {
+    unroll_for (uint yi = 0; yi < FILTER_SIZE_Y; ++yi) {
         // TODO Try to avoid loading last input line in padded situations
-        __attribute__((opencl_unroll_hint))
-        for (uint xi = 0; xi < INPUT_LINE_SIZE; ++xi) {
+        unroll_for(uint xi = 0; xi < INPUT_LINE_SIZE; ++xi) {
             uint preload_offset = yi * INPUT_LINE_SIZE + xi;
             uint input_x_offset = xi * (INPUT_X_PITCH / FSV);
             uint input_y_offset = yi * (DILATION_SIZE_Y * INPUT_Y_PITCH / FSV);
@@ -134,10 +132,8 @@ KERNEL(convolution_gpu_b_fs_yx_fsv4_dw)(
 
 #if PRELOAD_WEIGHTS
     FILTER_TYPE4 wei[CEIL_DIV(FILTER_SPATIAL_SIZE, 4) * 4];
-    __attribute__((opencl_unroll_hint))
-    for (uint fsi = 0; fsi < FILTER_SPATIAL_SIZE; fsi += 4) {
-        __attribute__((opencl_unroll_hint))
-        for (uint ofi = 0; ofi < 4; ++ofi) {
+    unroll_for (uint fsi = 0; fsi < FILTER_SPATIAL_SIZE; fsi += 4) {
+        unroll_for(uint ofi = 0; ofi < 4; ++ofi) {
             uint preload_offset = (fsi / 4) * 4 + ofi;
             uint weights_idx = weights_offset + ofi * WEIGHTS_I_PITCH + (fsi / 4) * WEIGHTS_YXS_PITCH;
             wei[preload_offset] = weights[weights_idx];
@@ -158,8 +154,7 @@ for (; y < tile_y_end; ++y) {
 
     int acc[OUTPUT_BLOCK_X][4] = { };
 
-    __attribute__((opencl_unroll_hint))
-    for (uint fi = 0; fi < FILTER_BLOCKED / 4 * 4; fi += 4) {
+    unroll_for (uint fi = 0; fi < FILTER_BLOCKED / 4 * 4; fi += 4) {
         uint4 fis = (uint4)(fi, fi + 1, fi + 2, fi + 3);
 
         uint4 fx = fis % FILTER_SIZE_X;
@@ -177,8 +172,7 @@ for (; y < tile_y_end; ++y) {
         wei3 = weights[weights_offset + 3 * WEIGHTS_I_PITCH];
 #endif
 
-        __attribute__((opencl_unroll_hint))
-        for (uint oxi = 0; oxi < OUTPUT_BLOCK_X; ++oxi) {
+        unroll_for(uint oxi = 0; oxi < OUTPUT_BLOCK_X; ++oxi) {
             INPUT_TYPE4 in_trans0;
             INPUT_TYPE4 in_trans1;
             INPUT_TYPE4 in_trans2;
@@ -242,8 +236,7 @@ for (; y < tile_y_end; ++y) {
         wei3 = weights[weights_offset + 3 * WEIGHTS_I_PITCH];
 #   endif
 
-        __attribute__((opencl_unroll_hint))
-        for (uint oxi = 0; oxi < OUTPUT_BLOCK_X; ++oxi) {
+        unroll_for(uint oxi = 0; oxi < OUTPUT_BLOCK_X; ++oxi) {
             INPUT_TYPE4 in_trans0;
             INPUT_TYPE4 in_trans1;
             INPUT_TYPE4 in_trans2;
@@ -316,13 +309,11 @@ for (; y < tile_y_end; ++y) {
         wei3 = weights[weights_offset + 3 * WEIGHTS_I_PITCH];
 #   endif
 
-    __attribute__((opencl_unroll_hint))
-    for (uint fi = 0; fi < FILTER_SPATIAL_SIZE - FILTER_BLOCKED; ++fi) {
+    unroll_for (uint fi = 0; fi < FILTER_SPATIAL_SIZE - FILTER_BLOCKED; ++fi) {
         uint fx = (fi + FILTER_BLOCKED) % FILTER_SIZE_X;
         uint fy = (fi + FILTER_BLOCKED) / FILTER_SIZE_X;
 
-        __attribute__((opencl_unroll_hint))
-        for (uint oxi = 0; oxi < OUTPUT_BLOCK_X; ++oxi) {
+        unroll_for(uint oxi = 0; oxi < OUTPUT_BLOCK_X; ++oxi) {
 
 #   if TILED
             in0 = AS_INPUT_TYPE4(_sub_group_shuffle(as_uint(in[fy]), (fx * DILATION_SIZE_X + tile_x * STRIDE_SIZE_X) % SIMD));
@@ -348,17 +339,14 @@ for (; y < tile_y_end; ++y) {
 #endif
 
 #if TILE_Y != 1
-    __attribute__((opencl_unroll_hint))
-    for (uint yi = 0; yi < FILTER_SIZE_Y - 1; ++yi) {
-        __attribute__((opencl_unroll_hint))
-        for (uint xi = 0; xi < INPUT_LINE_SIZE; ++xi) {
+    unroll_for (uint yi = 0; yi < FILTER_SIZE_Y - 1; ++yi) {
+        unroll_for(uint xi = 0; xi < INPUT_LINE_SIZE; ++xi) {
             in[yi * INPUT_LINE_SIZE + xi] = in[(yi + 1) * INPUT_LINE_SIZE + xi];
         }
     }
     {
         uint yi = FILTER_SIZE_Y - 1;
-        __attribute__((opencl_unroll_hint))
-        for (uint xi = 0; xi < INPUT_LINE_SIZE; ++xi) {
+        unroll_for(uint xi = 0; xi < INPUT_LINE_SIZE; ++xi) {
             in[yi * INPUT_LINE_SIZE + xi] = input[input_offset + xi * (INPUT_X_PITCH / FSV)];
         }
         input_offset += DILATION_SIZE_Y * INPUT_Y_PITCH / FSV;
