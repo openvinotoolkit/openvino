@@ -77,6 +77,7 @@ public:
     virtual StatusCode GetBlob(const char* name, Blob::Ptr& data, ResponseDesc* resp) noexcept = 0;
 
     /**
+     * @deprecated This method will be removed in 2023.1 release
      * @brief Sets pre-process for input data
      * @param name Name of input blob.
      * @param data Reference to input or output blob. The type of Blob must match the network input precision and size.

@@ -107,6 +107,7 @@ public:
     Blob::Ptr GetBlob(const std::string& name);
 
     /**
+     * @deprecated This method will be removed in 2023.1 release
      * @brief Sets blob with a pre-process information
      * @note Returns an error in case if data blob is output
      * @param name Name of input blob.
