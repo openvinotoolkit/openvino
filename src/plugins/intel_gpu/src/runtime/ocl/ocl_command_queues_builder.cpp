@@ -76,7 +76,7 @@ std::vector<cl_queue_properties> command_queues_builder::get_properties(const cl
         using cmp_t = std::common_type<decltype(queue_properties), typename std::underlying_type<cl::QueueProperties>::type>::type;
         if (!(static_cast<cmp_t>(queue_properties) & static_cast<cmp_t>(cl::QueueProperties::OutOfOrder))) {
             out_of_order = false;
-            GPU_DEBUG_LOG(1) << "Requested out-of-order queue is not supported by current device. Use in-order instead\n";
+            GPU_DEBUG_INFO << "Requested out-of-order queue is not supported by current device. Use in-order instead\n";
         }
     }
 

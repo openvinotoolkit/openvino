@@ -22,10 +22,8 @@
 
 using namespace cldnn;
 
-#define LOG_NODE_REMOVAL(id) \
-            GPU_DEBUG_LOG(2) << "[remove_redundant_reorders:" << __LINE__ << "] " << "Remove node: " << (id) << std::endl;
-#define LOG_NODE_REPLACEMENT(id) \
-            GPU_DEBUG_LOG(2) << "[remove_redundant_reorders:" << __LINE__ << "] " << "Replace node: " << (id) << std::endl;
+#define LOG_NODE_REMOVAL(id)      GPU_DEBUG_LOG_PASS << "Remove node: " << (id) << std::endl;
+#define LOG_NODE_REPLACEMENT(id)  GPU_DEBUG_LOG_PASS << "Replace node: " << (id) << std::endl;
 
 
 remove_redundant_reorders::remove_redundant_reorders(layout_optimizer& lo_ref, bool enable_reorder_fusing, bool update_implementations,

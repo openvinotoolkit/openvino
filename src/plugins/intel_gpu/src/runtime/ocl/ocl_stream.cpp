@@ -55,17 +55,17 @@ cl_int set_kernel_arg(ocl_kernel_type& kernel, uint32_t idx, cldnn::memory::cptr
         return CL_INVALID_ARG_VALUE;
 
     if (mem->get_layout().format.is_image_2d()) {
-        auto mem_handle = std::dynamic_pointer_cast<const ocl::gpu_image2d>(mem)->get_buffer();
-        GPU_DEBUG_LOG(4) << "kernel: " << kernel.get() << " set arg (image) " << idx << " mem: " << mem_handle.get() << " size: " << mem->size() << std::endl;
-        return kernel.setArg(idx, mem_handle);
+        auto buf = std::dynamic_pointer_cast<const ocl::gpu_image2d>(mem)->get_buffer();
+        GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set arg (image) " << idx << " mem: " << buf.get() << " size: " << mem->size() << std::endl;
+        return kernel.setArg(idx, buf);
     } else if (memory_capabilities::is_usm_type(mem->get_allocation_type())) {
-        auto mem_handle = std::dynamic_pointer_cast<const ocl::gpu_usm>(mem)->get_buffer();
-        GPU_DEBUG_LOG(4) << "kernel: " << kernel.get() << " set arg (usm) " << idx << " mem: " << mem_handle.get() << " size: " << mem->size() << std::endl;
-        return kernel.setArgUsm(idx, mem_handle);
+        auto buf = std::dynamic_pointer_cast<const ocl::gpu_usm>(mem)->get_buffer();
+        GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set arg (usm) " << idx << " mem: " << buf.get() << " size: " << mem->size() << std::endl;
+        return kernel.setArgUsm(idx, buf);
     } else {
-        auto mem_handle = std::dynamic_pointer_cast<const ocl::gpu_buffer>(mem)->get_buffer();
-        GPU_DEBUG_LOG(4) << "kernel: " << kernel.get() << " set arg (buffer) " << idx << " mem: " << mem_handle.get() << " size: " << mem->size() << std::endl;
-        return kernel.setArg(idx, mem_handle);
+        auto buf = std::dynamic_pointer_cast<const ocl::gpu_buffer>(mem)->get_buffer();
+        GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set arg (buffer) " << idx << " mem: " << buf.get() << " size: " << mem->size() << std::endl;
+        return kernel.setArg(idx, buf);
     }
 
     return CL_INVALID_ARG_VALUE;
@@ -273,7 +273,7 @@ void ocl_stream::set_arguments(kernel& kernel, const kernel_arguments_desc& args
     auto& kern = ocl_kernel.get_handle();
 
     try {
-        GPU_DEBUG_LOG(4) << "Set arguments for primitive: " << args_desc.layerID << " (" << kern.get() << ")\n";
+        GPU_DEBUG_TRACE_DETAIL << "Set arguments for primitive: " << args_desc.layerID << " (" << kern.get() << ")\n";
         set_arguments_impl(kern, args_desc.arguments, args);
     } catch (cl::Error const& err) {
         throw ocl_error(err);

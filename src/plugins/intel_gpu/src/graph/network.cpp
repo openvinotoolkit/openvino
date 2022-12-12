@@ -890,8 +890,8 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "NetworkImpl::Execute");
     // Wait for previous execution completion
     reset_execution(false);
-    GPU_DEBUG_LOG(3) << "----------------------------------------------" << std::endl;
-    GPU_DEBUG_LOG(3) << "Start network execution" << std::endl;
+    GPU_DEBUG_TRACE << "----------------------------------------------" << std::endl;
+    GPU_DEBUG_TRACE << "Start network execution" << std::endl;
 
     std::vector<memory::ptr> in_out_mem;
     auto is_surface_lock_check_needed = [&](const shared_mem_type& shared_mem_type) {
@@ -1120,7 +1120,7 @@ void network::allocate_primitive_instance(program_node const& node) {
     if (_primitives.count(node.id()))
         return;
 
-    GPU_DEBUG_LOG(4) << node.id() << ": allocate primitive instance" << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << node.id() << ": allocate primitive instance" << std::endl;
 
     auto inst = node.type()->create_instance(*this, node);
 
@@ -1188,7 +1188,7 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
         // Allocate and transfer memory
         auto device_mem = inst_mem.get_engine()->allocate_memory(inst_mem.get_layout(), allocation_type::usm_device, false);
         device_mem->copy_from(get_stream(), inst_mem);
-        GPU_DEBUG_LOG(2) << "[" << node.id() << ": constant]" << std::endl;
+        GPU_DEBUG_LOG << "[" << node.id() << ": constant]" << std::endl;
         _memory_pool->release_memory(&inst_mem, node.id(), get_id());
         instance->set_output_memory(device_mem);
     }

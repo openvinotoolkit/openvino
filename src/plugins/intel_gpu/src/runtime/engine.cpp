@@ -266,7 +266,7 @@ std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type,
         throw std::runtime_error("Invalid engine type");
     }
     const auto& info = device->get_info();
-    GPU_DEBUG_LOG(1) << "Selected Device: " << info.dev_name << std::endl;
+    GPU_DEBUG_INFO << "Selected Device: " << info.dev_name << std::endl;
     return ret;
 }
 

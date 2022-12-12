@@ -46,7 +46,7 @@ void select_preferred_formats::run(program& p) {
 
             _lo.select_preferred_formats_for_onednn(*n, prim_desc);
         } catch(std::exception &exception) {
-            GPU_DEBUG_LOG(1) << "WARNING(select_preferred_formats): " << exception.what() << std::endl;
+            GPU_DEBUG_INFO << "WARNING(select_preferred_formats): " << exception.what() << std::endl;
         }
     }
 #endif  // ENABLE_ONEDNN_FOR_GPU

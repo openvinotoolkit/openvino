@@ -108,7 +108,7 @@ KernelsData kernel_selector_base::GetNaiveBestKernel(const Params& params,
         } catch (std::runtime_error& ex) {
             // we have to handle it in order to avoid exception in KernelSelector as much we can
             kernelName = (implementation != nullptr)? implementation->GetName() : "[impl is null]";
-            GPU_DEBUG_LOG(3) << "layerID: " << params.layerID << " kenrel: " << kernelName << " - " << ex.what() << std::endl;
+            GPU_DEBUG_TRACE << "layerID: " << params.layerID << " kenrel: " << kernelName << " - " << ex.what() << std::endl;
         }
     }
 
@@ -199,7 +199,7 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params,
             } catch (std::runtime_error& ex) {
                 // we have to handle it in order to avoid exception in KernelSelector as much we can
                 kernelName = (implementation != nullptr)? implementation->GetName() : "[impl is null]";
-                GPU_DEBUG_LOG(3) << "layerID: " << params.layerID << " kenrel: " << kernelName << " - " << ex.what() << std::endl;
+                GPU_DEBUG_TRACE << "layerID: " << params.layerID << " kenrel: " << kernelName << " - " << ex.what() << std::endl;
             }
         }
     }
@@ -224,7 +224,7 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params,
                 } catch (std::runtime_error& ex) {
                     // we have to handle it in order to avoid exception in KernelSelector as much we can
                     kernelName = (implementation != nullptr)? implementation->GetName() : "[impl is null]";
-                    GPU_DEBUG_LOG(3) << "layerID: " << params.layerID << " kenrel: " << kernelName << " - " << ex.what() << std::endl;
+                    GPU_DEBUG_TRACE << "layerID: " << params.layerID << " kenrel: " << kernelName << " - " << ex.what() << std::endl;
                 }
             }
         }

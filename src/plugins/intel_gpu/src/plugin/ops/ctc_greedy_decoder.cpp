@@ -73,7 +73,7 @@ static void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngr
             cldnn::format::get_default_format(op->get_output_shape(1).size()),
             tensor_from_dims(op->get_output_shape(1)));
 
-        GPU_DEBUG_LOG(2) << "[" << layer_type_name_ID(op) << ": mutable data]" << std::endl;
+        GPU_DEBUG_LOG << "[" << layer_type_name_ID(op) << ": mutable data]" << std::endl;
         shared_memory.emplace_back(p.GetEngine().allocate_memory(mutableLayout));
 
         cldnn::primitive_id ctc_gd_mutable_id_w = layer_type_name_ID(op) + "_md_write";

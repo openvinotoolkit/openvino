@@ -251,13 +251,13 @@ layout program_node::calc_output_layout() const {
     if (allow_new_shape_infer) {
         auto out_layouts = type()->calc_output_layouts(*this, *get_kernel_impl_params());
         if (!out_layouts.empty()) {
-            GPU_DEBUG_LOG(4) << id() << ": calc_output_layout(new):" << out_layouts[0] << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << id() << ": calc_output_layout(new):" << out_layouts[0] << std::endl;
             return out_layouts[0];
         }
     }
 
     auto res = type()->calc_output_layout(*this, *get_kernel_impl_params());
-    GPU_DEBUG_LOG(4) << id() << ": calc_output_layout:" << res << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << id() << ": calc_output_layout:" << res << std::endl;
 
     return res;
 }
@@ -666,18 +666,18 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
     int64_t prev_post_op_idx = 0;
     bool optimization_done = false;
 
-    GPU_DEBUG_LOG(3) << "================================================" << std::endl;
-    GPU_DEBUG_LOG(3) << " " << id() << ", num of post_ops " << p_ops.len() << std::endl;
+    GPU_DEBUG_TRACE << "================================================" << std::endl;
+    GPU_DEBUG_TRACE << " " << id() << ", num of post_ops " << p_ops.len() << std::endl;
     for (size_t i = 0; i < cur_post_ops.size(); i++)
-        GPU_DEBUG_LOG(3) << "    " << i << ": " << cur_post_ops[i].op_type << std::endl;
+        GPU_DEBUG_TRACE << "    " << i << ": " << cur_post_ops[i].op_type << std::endl;
 
     remove_optimized_prefix(cur_post_ops);
 
-    GPU_DEBUG_LOG(3) << "remove optimized prefix ------------------------" << std::endl;
-    GPU_DEBUG_LOG(3) << " " << id() << ", num of post_ops " << p_ops.len() << std::endl;
+    GPU_DEBUG_TRACE << "remove optimized prefix ------------------------" << std::endl;
+    GPU_DEBUG_TRACE << " " << id() << ", num of post_ops " << p_ops.len() << std::endl;
     for (size_t i = 0; i < cur_post_ops.size(); i++)
-        GPU_DEBUG_LOG(3) << "    " << i << ": " << cur_post_ops[i].op_type << std::endl;
-    GPU_DEBUG_LOG(3) << "----------------------------------->>>>>>>>>>>>>" << std::endl;
+        GPU_DEBUG_TRACE << "    " << i << ": " << cur_post_ops[i].op_type << std::endl;
+    GPU_DEBUG_TRACE << "----------------------------------->>>>>>>>>>>>>" << std::endl;
 
     // Get post-ops size for current node
     int64_t post_ops_size = cur_post_ops.size();
@@ -699,7 +699,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
         auto cur_type = cur_post_ops[cur_post_op_idx].op_type;
         auto prev_type = cur_post_ops[prev_post_op_idx].op_type;
 
-        GPU_DEBUG_LOG(3) << "before prev_post_op_idx: " << prev_post_op_idx << ", cur_post_op_idx: " << cur_post_op_idx << std::endl;
+        GPU_DEBUG_TRACE << "before prev_post_op_idx: " << prev_post_op_idx << ", cur_post_op_idx: " << cur_post_op_idx << std::endl;
 
         // Ignore optimized operations for "previous" operation in our operation pair
         while (type_is_any_optimized(prev_type) && prev_post_op_idx < post_ops_size - 1) {
@@ -716,7 +716,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
             cur_type = cur_post_ops[cur_post_op_idx].op_type;
         }
 
-        GPU_DEBUG_LOG(3) << "after prev_post_op_idx: " << prev_post_op_idx << ", cur_post_op_idx: " << cur_post_op_idx << std::endl;
+        GPU_DEBUG_TRACE << "after prev_post_op_idx: " << prev_post_op_idx << ", cur_post_op_idx: " << cur_post_op_idx << std::endl;
 
         auto cur_idx = static_cast<int>(has_out_scales(attr) ? (cur_post_op_idx >= 1 ? cur_post_op_idx - 1 : 0) : cur_post_op_idx);
         auto prev_idx = static_cast<int>(has_out_scales(attr) ? (prev_post_op_idx >= 1 ? prev_post_op_idx - 1 : 0) : prev_post_op_idx);
@@ -753,7 +753,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
 
         bool cur_ops_pair_is_optimized = false;
 
-        GPU_DEBUG_LOG(3) << "prev_idx: " << prev_idx << " " << prev_type
+        GPU_DEBUG_TRACE << "prev_idx: " << prev_idx << " " << prev_type
                          << ", cur_idx: " << cur_idx << " " << cur_type << std::endl;
 
         if (can_try_optimize) {
@@ -990,10 +990,10 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
         remove_optimized_prefix(cur_post_ops);
     }
 
-    GPU_DEBUG_LOG(3) << ">>>>>>>>>>>>>-----------------------------------" << std::endl;
+    GPU_DEBUG_TRACE << ">>>>>>>>>>>>>-----------------------------------" << std::endl;
     for (size_t i = 0; i < cur_post_ops.size(); i++)
-        GPU_DEBUG_LOG(3) << "    " << i << ": " << cur_post_ops[i].op_type << std::endl;
-    GPU_DEBUG_LOG(3) << "------------------------------------------------" << std::endl;
+        GPU_DEBUG_TRACE << "    " << i << ": " << cur_post_ops[i].op_type << std::endl;
+    GPU_DEBUG_TRACE << "------------------------------------------------" << std::endl;
 
     add_onednn_fused_primitives(cur_post_ops);
 
