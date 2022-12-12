@@ -34,6 +34,7 @@ ov::AxisVector ReverseTransposeOrder(const ov::AxisVector& axis_order);
 void SwapOutputNames(ov::Output<ov::Node> output1, ov::Output<ov::Node> output2);
 void SwapFriendlyNames(std::shared_ptr<ov::Node> node1, std::shared_ptr<ov::Node> node2);
 void SwapNames(std::shared_ptr<ov::Node> node1, std::shared_ptr<ov::Node> node2);
+std::shared_ptr<ov::Node> CloneNodeWithoutConsumers(std::shared_ptr<ov::Node> node, ov::NodeVector consumers);
 
 namespace sink_forward {
 // insert input reversed transposes, remove first input tranpose

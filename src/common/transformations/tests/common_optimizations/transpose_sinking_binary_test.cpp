@@ -796,7 +796,9 @@ std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
     else
         binary = binary_factory->create(in_constant, transpose0);
 
-    return std::make_shared<Model>(ov::OutputVector{binary}, ov::ParameterVector{X});
+    auto tanh = std::make_shared<Tanh>(X);
+
+    return std::make_shared<Model>(ov::OutputVector{binary, tanh}, ov::ParameterVector{X});
 }
 
 std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
