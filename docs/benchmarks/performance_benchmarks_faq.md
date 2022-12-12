@@ -20,9 +20,14 @@
 
 .. dropdown:: How can I run the benchmark results on my own?
 
-   All of the performance benchmarks were generated using the
+   All of the performance benchmarks are generated using the
    open-source tool within the Intel® Distribution of OpenVINO™ toolkit
-   called `benchmark_app`. This tool is available in both `C++ <https://github.com/openvinotoolkit/openvino/blob/master/samples/cpp/benchmark_app/README.md>`_ and `Python <https://github.com/openvinotoolkit/openvino/blob/master/tools/benchmark_tool/README.md>`_.
+   called `benchmark_app`. This tool is available 
+   `for C++ apps <openvino_inference_engine_samples_benchmark_app_README>`_ 
+   as well as 
+   `for Python apps<openvino_inference_engine_tools_benchmark_tool_README>`_.
+
+   For a simple instruction on testing performance, see the `Getting Performance Numbers Guide<openvino_docs_MO_DG_Getting_Performance_Numbers>`
 
 .. dropdown:: What image sizes are used for the classification network models?
 
