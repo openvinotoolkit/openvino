@@ -1,8 +1,11 @@
 # Converting a PyTorch Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch}
 
 The PyTorch framework is supported through export to the ONNX format. Model Optimizer Python API allows to convert PyTorch models through usage of convert_model() method which internally converts a model to ONNX.
+
 ## Conversion of PyTorch model from the memory using Python API (Experimental Functionality)
+
 Converting a PyTorch model using convert_model() requires providing of 'input_shape' or 'example_input'.
+
 ```sh
 import torchvision
 import torch
@@ -31,6 +34,7 @@ ov_model = convert_model(model, input_shape=[1,3,100,100], onnx_opset_version=13
 ```
 
 ## Exporting a PyTorch Model to ONNX Format <a name="export-to-onnx"></a>
+
 For complicated cases PyTorch models can be first exported to ONNX prior to MO conversion:
 
 1. [Export a PyTorch model to ONNX](#export-to-onnx).

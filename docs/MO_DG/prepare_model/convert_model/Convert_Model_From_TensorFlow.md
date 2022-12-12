@@ -140,21 +140,27 @@ mo --saved_model_dir BERT --input mask,word_ids,type_ids --input_shape [2,30],[2
 ```
 
 ## Conversion of TensorFlow models from the memory using Python API
+
 * MO Python API supports passing TF/TF2 models directly from memory.
 
 * tf.keras.Model 
+
 ```sh
 model = tf.keras.applications.ResNet50(weights="imagenet")
 ov_model = convert_model(model)
 ```
+
 * tf.keras.layers.Layer. Requires setting of "input_shape".
+
 ```sh
 import tensorflow_hub as hub
 
 model = hub.KerasLayer("https://tfhub.dev/google/imagenet/mobilenet_v1_100_224/classification/5")
 ov_model = convert_model(model, input_shape=[-1, 224, 224, 3])
 ```
+
 * tf.Module. Requires setting of "input_shape".
+
 ```sh
 class MyModule(tf.Module):
     def __init__(self, name=None):
@@ -167,7 +173,9 @@ class MyModule(tf.Module):
 model = MyModule(name="simple_module")
 ov_model = convert_model(model, input_shape=[-1])
 ```
+
 * tf.compat.v1.GraphDef
+
 ```sh
 with tf.compat.v1.Session() as sess:
     inp1 = tf.compat.v1.placeholder(tf.float32, [100], 'Input1')
@@ -178,7 +186,9 @@ with tf.compat.v1.Session() as sess:
 
 ov_model = convert_model(model)  
 ```
+
 * tf.compat.v1.wrap_function
+
 ```sh
 def f(x, y):
     return tf.nn.sigmoid(tf.nn.relu(x + y))
@@ -186,7 +196,9 @@ model = tf.compat.v1.wrap_function(f, [tf.TensorSpec((100), tf.float32),tf.Tenso
 
 ov_model = convert_model(model)  
 ```
+
 * tf.compat.v1.session
+
 ```sh
 with tf.compat.v1.Session() as sess:
     inp1 = tf.compat.v1.placeholder(tf.float32, [100], 'Input1')
@@ -196,7 +208,9 @@ with tf.compat.v1.Session() as sess:
     
     ov_model = convert_model(sess)
 ```
+
 * tf.train.checkpoint
+
 ```sh
 model = tf.keras.Model(...)
 checkpoint = tf.train.Checkpoint(model)
@@ -207,6 +221,7 @@ ov_model = convert_model(checkpoint)
 ```
 
 * tf.python.training.tracking.base.Trackable. Supported only for case of tf.saved_model.load() output.
+
 ```sh
 model = tf.keras.Model(...)
 tf.saved_model.save(model, save_directory)
