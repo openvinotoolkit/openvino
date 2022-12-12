@@ -6,13 +6,12 @@
 
 #include <algorithm>
 
+#include "compare.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/op/gather.hpp"
 #include "ngraph/op/shape_of.hpp"
-#include "ngraph/pass/constant_folding.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/strided_slice.hpp"
 #include "ngraph/slice_plan.hpp"
@@ -109,9 +108,7 @@ void op::v1::StridedSlice::validate_and_infer_types() {
                           "End mask must be an integral number, but is: ",
                           end_mask_et);
 
-    auto are_mask_elem_in_range = [](size_t e) {
-        return e == 0 || e == 1;
-    };
+    constexpr auto are_mask_elem_in_range = cmp::Between<int64_t, cmp::BOTH>(0, 1);
     NODE_VALIDATION_CHECK(
         this,
         std::all_of(m_begin_mask.begin(), m_begin_mask.end(), are_mask_elem_in_range) &&
@@ -140,11 +137,8 @@ void op::v1::StridedSlice::validate_and_infer_types() {
     set_input_is_relevant_to_shape(2);
     set_input_is_relevant_to_shape(3);
 
-    std::vector<ov::PartialShape> input_shapes;
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic()};
-    for (size_t input_idx = 0; input_idx < get_input_size(); ++input_idx) {
-        input_shapes.push_back(get_input_partial_shape(input_idx));
-    }
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    auto output_shapes = std::vector<ov::PartialShape>(1, PartialShape::dynamic());
 
     shape_infer(this, input_shapes, output_shapes);
 
