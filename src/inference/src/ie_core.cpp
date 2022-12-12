@@ -694,6 +694,14 @@ public:
         return GetCPPPluginByName(parsed._deviceName).get_default_context(parsed._config)._impl;
     }
 
+    std::shared_ptr<ov::Model> legacy_to_model(const ie::CNNNetwork& network) {
+        if (isNewAPI())
+            return std::const_pointer_cast<ov::Model>(network.getFunction());
+
+        auto cloned_model = network.getFunction()->clone();
+        return cloned_model;
+    }
+
     ov::SoPtr<ie::IExecutableNetworkInternal> LoadNetwork(const ie::CNNNetwork& network,
                                                           const std::shared_ptr<ie::RemoteContext>& context,
                                                           const std::map<std::string, std::string>& config) override {
@@ -1786,7 +1794,7 @@ ExecutableNetwork Core::ImportNetwork(const std::string& modelFileName,
     auto conf = ov::any_copy(parsed._config);
     std::ifstream modelStream(modelFileName, std::ios::binary);
     if (!modelStream.is_open())
-        IE_THROW() << "Model file " << modelFileName << " cannot be opened!";
+        IE_THROW(NetworkNotRead) << "Model file " << modelFileName << " cannot be opened!";
     auto exec = _impl->GetCPPPluginByName(parsed._deviceName).import_model(modelStream, conf);
     return {exec._ptr, exec._so};
 }
