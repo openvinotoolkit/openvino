@@ -36,7 +36,7 @@ def get_tf_fe_message():
 
 def get_tf_fe_legacy_message():
     link = "https://docs.openvino.ai/latest/openvino_docs_MO_DG_TensorFlow_Frontend.html"
-    message = '[ INFO ] You can try to use new TensorFlow Frontend (preview feature as of 2022.3) by adding `--use_new_frontend` ' \
+    message = '[ INFO ] You can also try to use new TensorFlow Frontend (preview feature as of 2022.3) by adding `--use_new_frontend` ' \
               'option into Model Optimizer command-line.\n' \
               'Find more information about new TensorFlow Frontend at {}'.format(link)
 
