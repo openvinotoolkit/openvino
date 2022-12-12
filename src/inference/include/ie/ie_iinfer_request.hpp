@@ -84,7 +84,7 @@ public:
      * @param resp Optional: pointer to an already allocated object to contain information in case of failure
      * @return Status code of the operation: OK (0) for success
      */
-    OPENVINO_DEPRECATED("This method is deprecated and will be removed in 2023.1 release")
+    INFERENCE_ENGINE_DEPRECATED("This method is deprecated and will be removed in 2023.1 release")
     virtual StatusCode SetBlob(const char* name,
                                const Blob::Ptr& data,
                                const PreProcessInfo& info,
