@@ -916,7 +916,8 @@ void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
 void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &attrs) {
     // attr[0] - Legacy post ops + Legacy zero points.
     attrs.resize(1);
-    setPostOps(attrs[0], outputStaticShape(), true);
+    auto outputShape = outputStaticShape();
+    setPostOps(attrs[0], outputShape, true);
     addLegacyZeroPoints(attrs[0]);
     //dw-conv would be fused into conv only on AVX2 platform. no need attr[1]. Avoid extra useless attribute.
     if (attrs[0].get_post_ops().get()->find(dnnl::impl::primitive_kind::convolution) != -1) {
@@ -938,9 +939,9 @@ void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &att
         //WR to ONEDNN limitation. attr[1] - legacy post ops + stock zero point.
         //@todo:Unify to use binary postops+stock zero point when limitation is fixed.
         //For now, have to adapt to JIT_AMX kernel for performance.
-        setPostOps(attrs[1], ouptuShape.getStaticDims(), true);
+        setPostOps(attrs[1], outputShape, true);
     else
-        setPostOps(attrs[1], ouptuShape.getStaticDims(), false);
+        setPostOps(attrs[1], outputShape, false);
     addZeroPoints(attrs[1]);
 }
 
