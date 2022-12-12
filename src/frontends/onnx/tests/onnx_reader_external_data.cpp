@@ -2,24 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-#include <set>
-#include <string>
-#include <fstream>
-#include <algorithm>
-
-#include <ie_blob.h>
-#include <ie_core.hpp>
 #include <file_utils.h>
+#include <gtest/gtest.h>
+#include <ie_blob.h>
+
+#include <algorithm>
+#include <fstream>
+#include <ie_core.hpp>
+#include <ngraph/ngraph.hpp>
+#include <set>
 #include <streambuf>
+#include <string>
+
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/unicode_utils.hpp"
-#include <ngraph/ngraph.hpp>
 
 TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromFile) {
     InferenceEngine::Core ie;
-    auto cnnNetwork = ie.ReadNetwork(CommonTestUtils::getModelFromTestModelZoo(
-        std::string(ONNX_TEST_MODELS) + "onnx_external_data.onnx"), "");
+    auto cnnNetwork = ie.ReadNetwork(
+        CommonTestUtils::getModelFromTestModelZoo(std::string(ONNX_TEST_MODELS) + "onnx_external_data.onnx"),
+        "");
     auto function = cnnNetwork.getFunction();
 
     int count_additions = 0;
@@ -51,27 +53,21 @@ TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromFile) {
 
 TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromStringException) {
     InferenceEngine::Core ie;
-    const auto path = CommonTestUtils::getModelFromTestModelZoo(
-        std::string(ONNX_TEST_MODELS) + "onnx_external_data.onnx");
-    InferenceEngine::Blob::CPtr weights; // not used
+    const auto path =
+        CommonTestUtils::getModelFromTestModelZoo(std::string(ONNX_TEST_MODELS) + "onnx_external_data.onnx");
+    InferenceEngine::Blob::CPtr weights;  // not used
     std::ifstream stream(path, std::ios::binary);
     std::string modelAsString((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
     stream.close();
     try {
         auto cnnNetwork = ie.ReadNetwork(modelAsString, weights);
-    }
-    catch(const ngraph::ngraph_error& e) {
-        EXPECT_PRED_FORMAT2(
-            testing::IsSubstring,
-            std::string("invalid external data:"),
-            e.what());
+    } catch (const ngraph::ngraph_error& e) {
+        EXPECT_PRED_FORMAT2(testing::IsSubstring, std::string("invalid external data:"), e.what());
 
-        EXPECT_PRED_FORMAT2(
-            testing::IsSubstring,
-            std::string("data/tensor.data, offset: 0, data_length: 0)"),
-            e.what());
-    }
-    catch(...) {
+        EXPECT_PRED_FORMAT2(testing::IsSubstring,
+                            std::string("data/tensor.data, offset: 0, data_length: 0)"),
+                            e.what());
+    } catch (...) {
         FAIL() << "Reading network failed for unexpected reason";
     }
 }
@@ -79,14 +75,12 @@ TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromStringException) {
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromWstringNamedFile) {
     InferenceEngine::Core ie;
-    std::string win_dir_path = CommonTestUtils::getModelFromTestModelZoo(
-        ONNX_TEST_MODELS "onnx_external_data.onnx");
-    std::wstring wmodel = CommonTestUtils::addUnicodePostfixToPath(win_dir_path,
-        CommonTestUtils::test_unicode_postfix_vector[0]);
+    std::string win_dir_path = CommonTestUtils::getModelFromTestModelZoo(ONNX_TEST_MODELS "onnx_external_data.onnx");
+    std::wstring wmodel =
+        CommonTestUtils::addUnicodePostfixToPath(win_dir_path, CommonTestUtils::test_unicode_postfix_vector[0]);
     bool is_copy_successfully = CommonTestUtils::copyFile(win_dir_path, wmodel);
     if (!is_copy_successfully) {
-        FAIL() << "Unable to copy from '" << win_dir_path << "' to '"
-                << ov::util::wstring_to_string(wmodel) << "'";
+        FAIL() << "Unable to copy from '" << win_dir_path << "' to '" << ov::util::wstring_to_string(wmodel) << "'";
     }
 
     auto cnnNetwork = ie.ReadNetwork(wmodel, L"");
