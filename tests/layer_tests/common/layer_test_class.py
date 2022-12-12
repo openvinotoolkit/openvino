@@ -117,10 +117,9 @@ class CommonLayerTest:
             else:
                 custom_eps = 5e-2
         # Compare Ie results with Framework results
-        fw_eps = custom_eps
         assert self.compare_ie_results_with_framework(infer_res=infer_res, framework_res=fw_res,
                                                       mapping_dict=mapping_dict,
-                                                      framework_eps=fw_eps), \
+                                                      framework_eps=custom_eps), \
             "Comparing with Framework failed: ie_res={}; framework_res={}.".format(infer_res,
                                                                                    fw_res)
 
