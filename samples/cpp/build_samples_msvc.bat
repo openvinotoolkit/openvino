@@ -50,6 +50,7 @@ if "%PROCESSOR_ARCHITECTURE%" == "AMD64" (
 if exist "%SAMPLE_BUILD_DIR%\CMakeCache.txt" del "%SAMPLE_BUILD_DIR%\CMakeCache.txt"
 
 cd /d "%ROOT_DIR%" && cmake -E make_directory "%SAMPLE_BUILD_DIR%" && cd /d "%SAMPLE_BUILD_DIR%" && cmake -G "Visual Studio 16 2019" -A %PLATFORM% "%ROOT_DIR%"
+if ERRORLEVEL 1 GOTO errorHandling
 
 echo.
 echo ###############^|^| Build OpenVINO Runtime samples using MS Visual Studio (MSBuild.exe) ^|^|###############
