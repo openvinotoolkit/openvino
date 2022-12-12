@@ -1,7 +1,7 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
 
 from argparse import ArgumentParser
 from pathlib import Path
@@ -34,6 +34,7 @@ def check_file(path: Path):
 def create_hash(in_dir_path: Path):
     core = Core()
     models = in_dir_path.rglob("*.xml")
+    models = sorted(models)
     for model_path in models:
         bin_path = model_path.with_suffix(BIN_EXTENSION)
         meta_path = model_path.with_suffix(META_EXTENSION)
@@ -43,16 +44,31 @@ def create_hash(in_dir_path: Path):
         check_file(meta_path)
 
         str_to_hash = str()
-        model = core.read_model(model_path)
-        for input in model.inputs:
-            str_to_hash += str(len(input.partial_shape)) + str(input.element_type) + str(input.node.type_info) + str(input.partial_shape.is_dynamic)
-        for node in model.get_ordered_ops():
-            str_to_hash += str(node.type_info)
-        for output in model.outputs:      
-            str_to_hash += str(len(output.partial_shape)) + str(output.element_type) + str(output.node.type_info) + str(input.partial_shape.is_dynamic)
-        
+        try:
+            model = core.read_model(model_path)
+            for node in model.get_ordered_ops():
+                for input in node.inputs():
+                    input_node = input.get_node()
+                    len_shape = None
+                    try:
+                        len_shape = len(input.get_partial_shape())
+                    except:
+                        logger.error(f"Impossible to get input_shape for {input_node.name}")
+                    str_to_hash += str(len_shape) + str(input.get_element_type().get_type_name()) + str(input.get_partial_shape().is_dynamic) + \
+                        str(input_node.get_type_info().name) + str(input_node.get_type_info().version)
+                for output in node.outputs():
+                    output_node = output.get_node()
+                    len_shape = None
+                    try:
+                        len_shape = len(output.get_partial_shape())
+                    except:
+                        logger.error(f"Impossible to get output_shape for {output.names.pop()}")
+                    str_to_hash += str(len_shape) + str(output.get_element_type().get_type_name()) + str(output.get_partial_shape().is_dynamic) + \
+                        str(output_node.get_type_info().name) + str(output_node.get_type_info().version)
+        except:
+            logger.error(f"Impossible to create hash for {model_path}")
         ports_info = ET.parse(meta_path).getroot().find("ports_info")
-        str_to_hash += ET.tostring(ports_info).decode('utf8');        
+        str_to_hash += ET.tostring(ports_info).decode('utf8').replace('\t', '')
 
         old_name = model_path
         new_name = model_path.name[:model_path.name.find('_') + 1] + str(sha256(str_to_hash.encode('utf-8')).hexdigest())

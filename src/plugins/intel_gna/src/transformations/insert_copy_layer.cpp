@@ -12,7 +12,6 @@
 #include <legacy/ngraph_ops/crop_ie.hpp>
 #include <openvino/core/except.hpp>
 
-#include "gna_plugin_log.hpp"
 #include "ops/util/util.hpp"
 
 using namespace ov::intel_gna::pass;
@@ -82,7 +81,7 @@ InsertCopyBeforeConcatLayer::InsertCopyBeforeConcatLayer() {
     auto concat_op = ngraph::pattern::wrap_type<ngraph::opset8::Concat>();
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        auto concat = std::dynamic_pointer_cast<ngraph::opset8::Concat>(m.get_match_root());
+        auto concat = m.get_match_root();
 
         std::set<std::shared_ptr<ngraph::Node>> inputs;
         // Insert copy layers after concat inputs with multiple connections to concat

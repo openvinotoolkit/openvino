@@ -7,7 +7,6 @@
 #include <openvino/opsets/opset8.hpp>
 // ! [ov:include]
 
-#include <openvino/pass/serialize.hpp>
 #include <openvino/pass/visualize_tree.hpp>
 #include <openvino/openvino.hpp>
 #include <openvino/opsets/opset8.hpp>
@@ -80,16 +79,8 @@ void ov_api_examples() {
 }
 
 // ! [ov:serialize]
-void serialize_example(const std::shared_ptr<ov::Model>& f) {
-    // Need include:
-    // * openvino/pass/manager.hpp
-    // * openvino/pass/serialize.hpp
-    ov::pass::Manager manager;
-
-    // Serialize ov::Model to IR
-    manager.register_pass<ov::pass::Serialize>("/path/to/file/model.xml", "/path/to/file/model.bin");
-
-    manager.run_passes(f);
+void serialize_example(const std::shared_ptr<ov::Model>& model) {
+    ov::serialize(model, "/path/to/file/model.xml", "/path/to/file/model.bin");
 }
 // ! [ov:serialize]
 

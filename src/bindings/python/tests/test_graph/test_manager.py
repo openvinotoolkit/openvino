@@ -3,18 +3,18 @@
 
 # flake8: noqa
 
-import json
 import os
 
 import numpy as np
 import pytest
 
 import openvino.runtime.opset8 as ov
-from openvino.runtime import Model, PartialShape, Shape
+from openvino.runtime import Model
 from openvino.runtime.passes import Manager
 from tests.test_graph.util import count_ops_of_type
 from openvino.runtime import Core
 
+from tests.test_utils.test_utils import create_filename_for_test
 
 def test_constant_folding():
     node_constant = ov.constant(np.array([[0.0, 0.1, -0.1], [-2.5, 2.5, 3.0]], dtype=np.float32))
@@ -38,10 +38,10 @@ def test_constant_folding():
     assert np.allclose(values_out, values_expected)
 
 
-def test_serialize_seperate_paths_kwargs():
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_serialize_seperate_paths_kwargs(request):
     core = Core()
-    xml_path = "serialized_function.xml"
-    bin_path = "serialized_function.bin"
+    xml_path, bin_path = create_filename_for_test(request.node.name)
     shape = [2, 2]
     parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
@@ -61,10 +61,11 @@ def test_serialize_seperate_paths_kwargs():
     os.remove(xml_path)
     os.remove(bin_path)
 
-def test_serialize_seperate_paths_args():
+
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_serialize_seperate_paths_args(request):
     core = Core()
-    xml_path = "serialized_function.xml"
-    bin_path = "serialized_function.bin"
+    xml_path, bin_path = create_filename_for_test(request.node.name)
     shape = [2, 2]
     parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
@@ -86,10 +87,10 @@ def test_serialize_seperate_paths_args():
     os.remove(bin_path)
 
 
-def test_serialize_pass_mixed_args_kwargs():
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_serialize_pass_mixed_args_kwargs(request):
     core = Core()
-    xml_path = "serialized_function.xml"
-    bin_path = "serialized_function.bin"
+    xml_path, bin_path = create_filename_for_test(request.node.name)
     shape = [3, 2]
     parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
@@ -109,10 +110,10 @@ def test_serialize_pass_mixed_args_kwargs():
     os.remove(bin_path)
 
 
-def test_serialize_pass_mixed_args_kwargs_v2():
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_serialize_pass_mixed_args_kwargs_v2(request):
     core = Core()
-    xml_path = "./serialized_function.xml"
-    bin_path = "./serialized_function.bin"
+    xml_path, bin_path = create_filename_for_test(request.node.name)
     shape = [100, 100, 2]
     parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
@@ -133,9 +134,9 @@ def test_serialize_pass_mixed_args_kwargs_v2():
     os.remove(bin_path)
 
 
-def test_serialize_pass_wrong_num_of_args():
-    xml_path = "serialized_function.xml"
-    bin_path = "serialized_function.bin"
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_serialize_pass_wrong_num_of_args(request):
+    xml_path, bin_path = create_filename_for_test(request.node.name)
 
     pass_manager = Manager()
     with pytest.raises(TypeError) as e:
@@ -143,14 +144,14 @@ def test_serialize_pass_wrong_num_of_args():
     assert "Invoked with:" in str(e.value)
 
 
-def test_serialize_results():
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_serialize_results(request):
     core = Core()
     node_constant = ov.constant(np.array([[0.0, 0.1, -0.1], [-2.5, 2.5, 3.0]], dtype=np.float32))
     node_ceil = ov.ceiling(node_constant)
     func = Model(node_ceil, [], "Model")
 
-    xml_path = "serialized_function.xml"
-    bin_path = "serialized_function.bin"
+    xml_path, bin_path = create_filename_for_test(request.node.name)
     pass_manager = Manager()
     pass_manager.register_pass("Serialize", xml_path=xml_path, bin_path=bin_path)
     pass_manager.run_passes(func)
@@ -165,10 +166,10 @@ def test_serialize_results():
     os.remove(bin_path)
 
 
-def test_serialize_pass_tuple():
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_serialize_pass_tuple(request):
     core = Core()
-    xml_path = "./serialized_function.xml"
-    bin_path = "./serialized_function.bin"
+    xml_path, bin_path = create_filename_for_test(request.node.name)
     shape = [100, 100, 2]
     parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
@@ -189,10 +190,10 @@ def test_serialize_pass_tuple():
     os.remove(bin_path)
 
 
-def test_default_version():
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_default_version(request):
     core = Core()
-    xml_path = "./serialized_function.xml"
-    bin_path = "./serialized_function.bin"
+    xml_path, bin_path = create_filename_for_test(request.node.name)
     shape = [100, 100, 2]
     parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
@@ -213,10 +214,10 @@ def test_default_version():
     os.remove(bin_path)
 
 
-def test_default_version_IR_V11_tuple():
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_default_version_IR_V11_tuple(request):
     core = Core()
-    xml_path = "./serialized_function.xml"
-    bin_path = "./serialized_function.bin"
+    xml_path, bin_path = create_filename_for_test(request.node.name)
     shape = [100, 100, 2]
     parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
@@ -237,10 +238,10 @@ def test_default_version_IR_V11_tuple():
     os.remove(bin_path)
 
 
-def test_default_version_IR_V11_seperate_paths():
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_default_version_IR_V11_seperate_paths(request):
     core = Core()
-    xml_path = "./serialized_function.xml"
-    bin_path = "./serialized_function.bin"
+    xml_path, bin_path = create_filename_for_test(request.node.name)
     shape = [100, 100, 2]
     parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
