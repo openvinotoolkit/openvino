@@ -112,10 +112,12 @@ class CommonLayerTest:
         if 'custom_eps' in kwargs and kwargs['custom_eps'] is not None:
             custom_eps = kwargs['custom_eps']
         else:
-            custom_eps = 1e-4
-
+            if precision == 'FP32':
+                custom_eps = 1e-4
+            else:
+                custom_eps = 5e-2
         # Compare Ie results with Framework results
-        fw_eps = custom_eps if precision == 'FP32' else 5e-2
+        fw_eps = custom_eps
         assert self.compare_ie_results_with_framework(infer_res=infer_res, framework_res=fw_res,
                                                       mapping_dict=mapping_dict,
                                                       framework_eps=fw_eps), \

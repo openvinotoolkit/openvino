@@ -481,7 +481,7 @@ class TestConv(OnnxRuntimeLayerTest):
             *self.create_net(**params, shape=[2, 3, 25, 25, 25], dilations=dilations, pads=pads,
                              strides=strides,
                              bias=bias, ir_version=ir_version),
-            ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
+            ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api, custom_eps=1e-1)
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.parametrize("dilations", [[1, 1, 1], [2, 2, 2], [3, 4, 5]])
