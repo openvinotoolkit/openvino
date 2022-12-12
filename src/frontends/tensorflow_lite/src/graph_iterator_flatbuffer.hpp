@@ -7,7 +7,7 @@
 #include <fstream>
 
 #include "schema_generated.h"
-//#include "decoder_proto.hpp"
+#include "decoder_flatbuffer.h"
 //#include "graph.pb.h"
 //#include "node_def.pb.h"
 #include "openvino/frontend/exception.hpp"
@@ -21,7 +21,7 @@ namespace frontend {
 namespace tensorflow_lite {
 
 class GraphIteratorFlatBuffer : public tensorflow::GraphIterator {
-    std::vector<tflite::Operator*> m_nodes;
+    std::vector<const Operator*> m_nodes;
     size_t node_index = 0;
     std::shared_ptr<tflite::Model> m_graph_def;
 
@@ -39,14 +39,35 @@ public:
         model_file.read(data, length);
         model_file.close();
 
-        auto raw_model = GetMutableModel(data);
-//        m_graph_def = std::shared_ptr<tflite::Model>(raw_model);
+        m_graph_def = std::shared_ptr<tflite::Model>(GetMutableModel(data), [](tflite::Model* p){});
+        const auto subgraphs = m_graph_def->subgraphs();
+        FRONT_END_GENERAL_CHECK(subgraphs->size() == 1,
+                                "Number of sub-graphs in the model is ",
+                                subgraphs->size(),
+                                ". Supported number of sub-graphs is 1.");
+        auto graph = *subgraphs->begin();
+        const auto* operators = graph->operators();
+        m_nodes.reserve(operators->size());
+        std::cout << graph->name()->str() << std::endl;
 
-        std::cout << "Model of version " << raw_model->version() << " read from " << path << std::endl;
-        std::cout << "Description: " << std::string(raw_model->description()->str()) << std::endl;
+        auto opcodes = (m_graph_def->operator_codes());
+        for (const auto& code : *opcodes) {
+            std::cout << "build_in code: " << code->builtin_code() << std::endl;
+            std::cout << "version: " << code->version() << std::endl;
+        }
+        for (const auto* sign : *m_graph_def->signature_defs()) {
+            std::cout << "sign " << sign->signature_key() << std::endl;
+        }
 
-//        auto graph = m_graph_def->subgraphs()->begin();
-//        std::cout << graph->name()->str() << std::endl;
+        const auto& op_names = tflite::EnumNamesBuiltinOperator();
+        for (const auto& node : *operators) {
+            m_nodes.push_back(node);
+            std::cout << node->opcode_index() << std::endl;
+            std::cout << (*opcodes)[node->opcode_index()]->version() << std::endl;
+            std::cout << (*opcodes)[node->opcode_index()]->builtin_code() << std::endl;
+            std::cout << op_names[(*opcodes)[node->opcode_index()]->builtin_code()] << std::endl;
+        }
+
 //        const auto* inputs = graph->inputs();
 //        const auto& input = *(inputs->begin());
 //        const auto* outputs = graph->outputs();
@@ -56,12 +77,9 @@ public:
 //        const auto* tensors = graph->tensors();
 //        const auto& tensor = *(tensors->begin());
 
-        std::cout << "Success with: " << path << std::endl;
     }
 
-    ~GraphIteratorFlatBuffer() {
-
-    }
+    ~GraphIteratorFlatBuffer() = default;
 
     /// Set iterator to the start position
     void reset() override {
@@ -83,9 +101,8 @@ public:
 
     /// Return NodeContext for the current node that iterator points to
     std::shared_ptr<tensorflow::DecoderBase> get_decoder() const override {
-        //        return std::make_shared<DecoderProto>(m_nodes[node_index]);
-        //      FIXME
-        return nullptr;
+        std::string type = tflite::EnumNamesBuiltinOperator()[(*m_graph_def->operator_codes())[m_nodes[node_index]->opcode_index()]->builtin_code()];
+        return std::make_shared<DecoderFlatBuffer>(m_nodes[node_index], type, std::to_string(node_index));
     }
 };
 
