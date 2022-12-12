@@ -1073,7 +1073,7 @@ void RNN::prepareParams() {
     auto pd = prim.get_primitive_desc();
     scratchpadMem = getScratchPadMem(pd);
 
-    if (!wasMemoryPrepared || wFormatWasChanged) {
+    if (true) {
         auto pd = prim.get_primitive_desc();
         auto query_weights_md = [&](int idx = 0) -> dnnl::memory::desc {
             auto what = dnnl::convert_to_c(dnnl::query::weights_md);
@@ -1087,8 +1087,16 @@ void RNN::prepareParams() {
             DnnlExtensionUtils::makeDescriptor(query_weights_md(1)),
             DnnlExtensionUtils::makeDescriptor(query_weights_md(2))
         };
-        prepareMemory(intDescs);
-        wasMemoryPrepared = true;
+
+        if (intDescs[1]->getFormatKind() == dnnl_format_kind_rnn_packed) {
+            // Need to update its weights memory format of rnn_packed as the primitive gets updated.
+            wFormatWasChanged = true;
+        }
+
+        if (!wasMemoryPrepared || wFormatWasChanged) {
+            prepareMemory(intDescs);
+            wasMemoryPrepared = true;
+        }
     }
 }
 
