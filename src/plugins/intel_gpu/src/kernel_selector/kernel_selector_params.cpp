@@ -12,6 +12,28 @@
 
 namespace kernel_selector {
 
+DeviceFeaturesKey EngineInfo::get_supported_device_features_key() const {
+    DeviceFeaturesKey k;
+
+    if (supports_intel_subgroups) {
+        k.enable_subgroup_reduce();
+        k.enable_subgroup_broadcast();
+        k.enable_subgroup_shuffle_relative();
+    }
+
+    if (supports_khr_subgroups || supports_intel_subgroups) {
+        k.enable_subgroups();
+        // if supports_intel_subgroups is not supported, then emulation will be used
+        k.enable_reqd_subgroup_size();
+        k.enable_blocked_read_write();
+        k.enable_subgroup_shuffle();
+        k.enable_blocked_read_write_short();
+        k.enable_blocked_read_write_char();
+    }
+
+    return k;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ParamsKey
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

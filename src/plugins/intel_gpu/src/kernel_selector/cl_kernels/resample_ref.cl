@@ -3,7 +3,7 @@
 //
 
 #include "include/fetch_utils.cl"
-#include "include/batch_headers/data_types.cl"
+
 
 inline int FUNC(get_nearest_val)(float num, bool is_downsample)
 {

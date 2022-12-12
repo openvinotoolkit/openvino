@@ -5,7 +5,7 @@
 #include "include/reshape_dims.cl"
 #include "include/batch_headers/fetch_data.cl"
 
-#include "include/batch_headers/data_types.cl"
+
 
 #if !INPUT0_LAYOUT_BFYX && !INPUT0_LAYOUT_B_FS_YX_32FP
 #error "Data binary reorder: unsupported input layout"

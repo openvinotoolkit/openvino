@@ -5,7 +5,7 @@
 #include "include/reshape_dims.cl"
 #include "include/fetch_utils.cl"
 
-#include "include/batch_headers/data_types.cl"
+
 #include "include/image_data.cl"
 
 #define INPUT_TYPE4 MAKE_VECTOR_TYPE(INPUT_REORDER_TYPE, 4)

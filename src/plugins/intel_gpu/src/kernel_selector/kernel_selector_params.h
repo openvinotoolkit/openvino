@@ -48,16 +48,6 @@ public:
         key.machine_features.raw = 0;
     }
 
-    void requires_subgroups() { key.machine_features.val.subgroups = 1; }
-    void requires_blocked_read_write() { key.machine_features.val.subgroup_blocked_read_write = 1; }
-    void requires_blocked_read_write_short() { key.machine_features.val.subgroup_blocked_read_write_short = 1; }
-    void requires_blocked_read_write_char() { key.machine_features.val.subgroup_blocked_read_write_char = 1; }
-    void requires_subgroup_broadcast() { key.machine_features.val.subgroup_broadcast = 1; }
-    void requires_subgroup_shuffle() { key.machine_features.val.subgroup_shuffle = 1; }
-    void requires_subgroup_shuffle_relative() { key.machine_features.val.subgroup_shuffle_relative = 1; }
-    void requires_subgroup_reduce() { key.machine_features.val.subgroup_reduce = 1; }
-    void requires_reqd_subgroup_size() { key.machine_features.val.reqd_subgroup_size = 1; }
-
     void enable_subgroups() { key.machine_features.val.subgroups = 1; }
     void enable_blocked_read_write() { key.machine_features.val.subgroup_blocked_read_write = 1; }
     void enable_blocked_read_write_short() { key.machine_features.val.subgroup_blocked_read_write_short = 1; }
@@ -67,6 +57,19 @@ public:
     void enable_subgroup_shuffle_relative() { key.machine_features.val.subgroup_shuffle_relative = 1; }
     void enable_subgroup_reduce() { key.machine_features.val.subgroup_reduce = 1; }
     void enable_reqd_subgroup_size() { key.machine_features.val.reqd_subgroup_size = 1; }
+
+    // Aliases for better readability
+    // Kernels are supposed to use requires_* functions while eninge uses enable* functions
+    void requires_subgroups() { enable_subgroups(); }
+    void requires_blocked_read_write() { enable_blocked_read_write(); }
+    void requires_blocked_read_write_short() { enable_blocked_read_write_short(); }
+    void requires_blocked_read_write_char() { enable_blocked_read_write_char(); }
+    void requires_subgroup_broadcast() { enable_subgroup_broadcast(); }
+    void requires_subgroup_shuffle() { enable_subgroup_shuffle(); }
+    void requires_subgroup_shuffle_relative() { enable_subgroup_shuffle_relative(); }
+    void requires_subgroup_reduce() { enable_subgroup_reduce(); }
+    void requires_reqd_subgroup_size() { enable_reqd_subgroup_size(); }
+
 
     void merge(DeviceFeaturesKey k) { key.machine_features.raw = key.machine_features.raw | k.key.machine_features.raw; }
 
@@ -407,27 +410,7 @@ struct EngineInfo {
     std::vector<size_t> supportedSimdSizes = {};
     std::shared_ptr<TuningCache> deviceCache;
 
-    DeviceFeaturesKey get_supported_device_features_key() const {
-        DeviceFeaturesKey k;
-
-        if (supports_intel_subgroups) {
-            k.enable_subgroup_reduce();
-            k.enable_subgroup_broadcast();
-            k.enable_subgroup_shuffle_relative();
-        }
-
-        if (supports_khr_subgroups || supports_intel_subgroups) {
-            k.enable_subgroups();
-            // if supports_intel_subgroups is not supported, then emulation will be used
-            k.enable_reqd_subgroup_size();
-            k.enable_blocked_read_write();
-            k.enable_subgroup_shuffle();
-            k.enable_blocked_read_write_short();
-            k.enable_blocked_read_write_char();
-        }
-
-        return k;
-    }
+    DeviceFeaturesKey get_supported_device_features_key() const;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

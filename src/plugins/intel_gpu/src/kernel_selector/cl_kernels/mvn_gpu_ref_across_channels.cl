@@ -3,7 +3,7 @@
 //
 
 #include "include/batch_headers/fetch_data.cl"
-#include "include/batch_headers/data_types.cl"
+
 
 
 KERNEL (mvn_gpu_ref_across_channels)(

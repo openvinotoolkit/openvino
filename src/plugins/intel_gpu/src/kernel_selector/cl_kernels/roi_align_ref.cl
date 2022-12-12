@@ -3,7 +3,7 @@
 //
 
 #include "include/batch_headers/common.cl"
-#include "include/batch_headers/data_types.cl"
+
 
 #define NUM_ROIS      OUTPUT_BATCH_NUM
 #define NUM_CHANNELS  INPUT0_FEATURE_NUM

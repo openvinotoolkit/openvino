@@ -3,7 +3,7 @@
 //
 
 #include "include/batch_headers/common.cl"
-#include "include/batch_headers/data_types.cl"
+
 
 INIT_INPUT0_INDEX_FUNC_HERE
 INIT_OUTPUT_INDEX_FUNC_HERE

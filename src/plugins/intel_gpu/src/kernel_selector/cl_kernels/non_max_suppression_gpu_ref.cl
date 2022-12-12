@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/data_types.cl"
-#include "include/fetch_data.cl"
+#include "include/batch_headers/fetch_data.cl"
 
 /// Kernels
 /// 0: Only boxes exceeding SCORE_THRESHOLD are copied to intermediate-buffer0.

@@ -3,7 +3,7 @@
 //
 
 #include "include/batch_headers/common.cl"
-#include "include/batch_headers/data_types.cl"
+
 
 #define VSIZE 8
 #define VLOAD CAT(vload, VSIZE)

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
+
 #include "include/batch_headers/fetch_data.cl"
 
 KERNEL(reorder_weights_image_winograd_6x3_s1)(const __global INPUT0_TYPE* input, write_only image2d_t output)

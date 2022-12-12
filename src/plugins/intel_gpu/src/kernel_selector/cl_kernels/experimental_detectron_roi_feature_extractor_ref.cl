@@ -3,7 +3,7 @@
 //
 
 #include "include/batch_headers/common.cl"
-#include "include/batch_headers/data_types.cl"
+
 
 inline int FUNC(get_pyramid_level_index)(uint level, uint c, uint y, uint x) {
     uint idx = 0;

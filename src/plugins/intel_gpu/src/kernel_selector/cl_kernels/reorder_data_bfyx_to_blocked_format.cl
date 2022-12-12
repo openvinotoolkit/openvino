@@ -3,7 +3,7 @@
 //
 
 #include "include/batch_headers/fetch_data.cl"
-#include "include/batch_headers/data_types.cl"
+
 
 #define INPUT0_GET_TILED_INDEX(ORDER) INPUT0_GET_INDEX(ORDER)
 

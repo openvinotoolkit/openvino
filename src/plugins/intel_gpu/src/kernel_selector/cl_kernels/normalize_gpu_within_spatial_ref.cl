@@ -3,7 +3,7 @@
 //
 
 #include "include/batch_headers/common.cl"
-#include "include/batch_headers/data_types.cl"
+
 
 KERNEL (normalize_gpu_within_spatial_ref)(
     const __global INPUT0_TYPE* input,

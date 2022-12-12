@@ -3,7 +3,7 @@
 //
 
 #include "include/batch_headers/common.cl"
-#include "include/batch_headers/data_types.cl"
+
 #include "include/batch_headers/fetch_data.cl"
 
 
@@ -99,4 +99,3 @@ KERNEL (reorg_yolo_ref)(const __global UNIT_TYPE* input, __global UNIT_TYPE* out
 #undef IC
 #undef IH
 #undef IW
-

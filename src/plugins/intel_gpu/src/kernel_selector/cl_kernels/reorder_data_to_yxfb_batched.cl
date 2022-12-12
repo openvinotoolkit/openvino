@@ -5,7 +5,7 @@
 #include "include/reshape_dims.cl"
 #include "include/batch_headers/fetch_data.cl"
 
-#include "include/batch_headers/data_types.cl"
+
 
 inline void FUNC(get_yxfb_coords_from_linear_idx_no_padding)(uint data_idx, uint* b, uint* f, uint* x, uint* y)
 {

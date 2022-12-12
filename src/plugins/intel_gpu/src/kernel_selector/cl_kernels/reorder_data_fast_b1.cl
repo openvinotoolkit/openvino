@@ -3,7 +3,7 @@
 //
 
 #include "include/fetch_utils.cl"
-#include "include/batch_headers/data_types.cl"
+
 #include "include/reshape_dims.cl"
 
 KERNEL (reorder_data_fast_b1)(
