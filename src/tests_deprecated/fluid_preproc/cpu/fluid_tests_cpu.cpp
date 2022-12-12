@@ -268,6 +268,7 @@ INSTANTIATE_TEST_SUITE_P(ColorConvertFluid_4ch, ColorConvertTestIE,
                                 Values(TEST_SIZES),
                                 Values(0)));
 
+IE_SUPPRESS_DEPRECATED_START
 INSTANTIATE_TEST_SUITE_P(ColorConvertYUV420Fluid, ColorConvertYUV420TestIE,
                         Combine(Values(InferenceEngine::NV12, InferenceEngine::I420),
                                 Values(InferenceEngine::NHWC, InferenceEngine::NCHW),
@@ -281,6 +282,7 @@ INSTANTIATE_TEST_SUITE_P(ColorConvertYUV420Fluid, ColorConvertYUV420TestIE,
                                        cv::Size( 300,  300),
                                        cv::Size( 150,  150)),
                                 Values(1)));
+IE_SUPPRESS_DEPRECATED_END
 
 INSTANTIATE_TEST_SUITE_P(Reorder_HWC2CHW, ColorConvertTestIE,
                         Combine(Values(CV_8U, CV_32F, CV_16S, CV_16F),
@@ -402,6 +404,7 @@ INSTANTIATE_TEST_SUITE_P(ColorFormats_4ch, PreprocTest,
                                 Values(std::make_pair(4, 3)),
                                 Values(TEST_SIZES_PREPROC)));
 
+IE_SUPPRESS_DEPRECATED_START
 INSTANTIATE_TEST_SUITE_P(ColorFormat_NV12, PreprocTest,
                         Combine(Values(U8toU8),
                                 Values(IE::ResizeAlgorithm::RESIZE_BILINEAR, IE::ResizeAlgorithm::RESIZE_AREA),
@@ -410,6 +413,7 @@ INSTANTIATE_TEST_SUITE_P(ColorFormat_NV12, PreprocTest,
                                 Values(IE::Layout::NHWC, IE::Layout::NCHW),
                                 Values(std::make_pair(1, 3)),
                                 Values(TEST_SIZES_PREPROC)));
+IE_SUPPRESS_DEPRECATED_END
 
 
 INSTANTIATE_TEST_SUITE_P(PlainPrecisionConversions, PreprocTest,

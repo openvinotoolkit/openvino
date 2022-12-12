@@ -257,6 +257,7 @@ void validateColorFormats(const G::Desc &in_desc,
                 if (desc.d.C != 4) throw_invalid_number_of_channels();
                 break;
             }
+            IE_SUPPRESS_DEPRECATED_START
             case ColorFormat::NV12: {
                 if (desc.d.C != 2) throw_invalid_number_of_channels();
                 break;
@@ -265,6 +266,7 @@ void validateColorFormats(const G::Desc &in_desc,
                 if (desc.d.C != 3) throw_invalid_number_of_channels();
                 break;
             }
+            IE_SUPPRESS_DEPRECATED_END
 
             default: break;
         }
@@ -283,9 +285,11 @@ void validateColorFormats(const G::Desc &in_desc,
         IE_THROW() << "Network's expected color format is unspecified";
     }
 
+    IE_SUPPRESS_DEPRECATED_START
     if (output_color_format == ColorFormat::NV12 || output_color_format == ColorFormat::I420) {
         IE_THROW() << "NV12/I420 network's color format is not supported [by G-API]";
     }
+    IE_SUPPRESS_DEPRECATED_END
 
     verify_layout(in_layout, "Input blob");
     verify_layout(out_layout, "Network's blob");
@@ -489,6 +493,7 @@ class PlanarColorConversions {
 
 public:
     PlanarColorConversions() {
+        IE_SUPPRESS_DEPRECATED_START
         m_conversions = {
             { {ColorFormat::RGB, ColorFormat::BGR}, reverse3 },
             { {ColorFormat::BGR, ColorFormat::RGB}, reverse3 },
@@ -501,6 +506,7 @@ public:
             { {ColorFormat::I420, ColorFormat::BGR}, I420toBGR },
             { {ColorFormat::I420, ColorFormat::RGB}, I420toRGB }
         };
+        IE_SUPPRESS_DEPRECATED_END
     }
 
     const CvtFunction& at(ColorFormat in_fmt, ColorFormat out_fmt) const {
@@ -567,8 +573,10 @@ cv::GComputation buildGraph(const G::Desc &in_desc,
     // 1. Requires interleaved image of type CV_8UC3/CV_8UC4 (except for NV12/I420 input)
     // 2. Supports bilinear resize only
     // 3. Supports NV12/I420 -> RGB/BGR color transformations
+    IE_SUPPRESS_DEPRECATED_START
     const bool nv12_input = (input_color_format == ColorFormat::NV12);
     const bool i420_input = (input_color_format == ColorFormat::I420);
+    IE_SUPPRESS_DEPRECATED_END
     const bool specific_yuv420_input_handling = (nv12_input || i420_input)
         && (output_color_format == ColorFormat::RGB || output_color_format == ColorFormat::BGR);
     const auto io_color_formats = std::make_tuple(input_color_format, output_color_format);
@@ -991,6 +999,7 @@ void PreprocEngine::preprocessWithGAPI(const Blob::Ptr &inBlob, Blob::Ptr &outBl
 
     // if input color format is not NV12, a MemoryBlob is expected. otherwise, NV12Blob is expected
     switch (in_fmt) {
+    IE_SUPPRESS_DEPRECATED_START
     case ColorFormat::NV12: {
         auto inNV12Blob = as<NV12Blob>(inBlob);
         if (!inNV12Blob) {
@@ -1009,6 +1018,7 @@ void PreprocEngine::preprocessWithGAPI(const Blob::Ptr &inBlob, Blob::Ptr &outBl
         return preprocessBlob(inI420Blob, outMemoryBlob, algorithm, in_fmt, out_fmt, omp_serial,
             batch_size);
     }
+    IE_SUPPRESS_DEPRECATED_END
 
     default:
         auto inMemoryBlob = as<MemoryBlob>(inBlob);
