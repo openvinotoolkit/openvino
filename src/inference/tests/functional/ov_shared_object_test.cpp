@@ -43,6 +43,22 @@ TEST_F(SharedObjectOVTests, loaderThrowsIfNoPlugin) {
     EXPECT_THROW(loadDll("wrong_name"), std::runtime_error);
 }
 
+TEST_F(SharedObjectOVTests, loaderThrowsIfRelativePath) {
+    // Loader is trying to search library "./libexample.so" by path only on Linux (see dlopen man),
+    // or in local dir, system dirs or PATH env variable on Windows
+    // (see https://learn.microsoft.com/en-us/windows/win32/dlls/dynamic-link-library-search-order)
+    auto libraryName = FileUtils::makePluginLibraryName<char>(".", std::string("mock_engine") + IE_BUILD_POSTFIX);
+    EXPECT_THROW(loadDll(libraryName), std::runtime_error);
+}
+
+TEST_F(SharedObjectOVTests, loaderThrowsIfOnlyFileName) {
+    // Loader is trying to search library "libexample.so" in env variables on Linux (see dlopen man),
+    // or in local dir, system dirs or PATH env variable on Windows
+    // (see https://learn.microsoft.com/en-us/windows/win32/dlls/dynamic-link-library-search-order)
+    auto libraryName = FileUtils::makePluginLibraryName<char>("", std::string("mock_engine") + IE_BUILD_POSTFIX);
+    EXPECT_THROW(loadDll(libraryName), std::runtime_error);
+}
+
 TEST_F(SharedObjectOVTests, canFindExistedMethod) {
     loadDll(get_mock_engine_name());
 
