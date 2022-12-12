@@ -209,28 +209,22 @@ TEST(type_prop, scatter_update_v3_dynamic_data_shape) {
 }
 
 TEST(type_prop, scatter_update_v3_partial_value_propagation) {
-    // ss should take from 5 to 7 elements from the 10 elements in the input data
+    // strided slice should take from 5 to 7 elements from the 10 elements in the input data
     auto input = make_shared<op::Parameter>(element::i8, PartialShape{ov::Dimension(5, 7)});
     auto shape = make_shared<op::v3::ShapeOf>(input);
     auto scatter_update = make_shared<op::v3::ScatterUpdate>(op::Constant::create(element::i64, Shape{2}, {1, 0}),
                                                              op::Constant::create(element::i64, Shape{1}, {1}),
                                                              shape,
                                                              op::Constant::create(element::i64, Shape{1}, {0}));
+    const auto& masks = std::vector<int64_t>(0, 2);
+    const auto& strided_slice = make_shared<op::v1::StridedSlice>(
+        op::Constant::create(element::i64, Shape{1, 10}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 0}),
+        op::Constant::create(element::i64, Shape{2}, {0, 0}),
+        scatter_update,
+        op::Constant::create(element::i64, Shape{2}, {1, 1}),
+        masks,
+        masks);
 
-    //    TODO: enable better StridedSlice shape inference for dynamic begin and end input values
-    //    const auto& masks = std::vector<int64_t>{0, 0};
-    //    const auto& ss = make_shared<op::v1::StridedSlice>(
-    //            op::Constant::create(element::i64, Shape{1, 10}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 0}),
-    //            op::Constant::create(element::i64, Shape{2}, {0, 0}),
-    //            scatter_update,
-    //            op::Constant::create(element::i64, Shape{2}, {1, 1}),
-    //            masks, masks
-    //    );
-    //    EXPECT_EQ(ss->get_output_partial_shape(0), PartialShape({1, {5, 7}}));
-
-    const auto& reshape =
-        make_shared<op::v1::Reshape>(make_shared<op::Parameter>(element::dynamic, PartialShape({1, {5, 7}})),
-                                     scatter_update,
-                                     false);
+    const auto& reshape = make_shared<op::v1::Reshape>(strided_slice, scatter_update, false);
     EXPECT_EQ(reshape->get_output_partial_shape(0), PartialShape({1, {5, 7}}));
 }
