@@ -186,7 +186,7 @@ ov::pass::TransposeSinkingSplitForward::TransposeSinkingSplitForward() {
 
         TransposeInputsInfo transpose_input_info = GetFirstTransposeInput(main_node);
 
-        sink_forward::RemoveZeroInputNode(main_node);
+        sink_forward::RemoveInputNode(main_node, /* input_idx */ 0);
         for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {
             register_new_node(new_node);
             transpose_sinking::UpdateForwardSinkingAbility(new_node);

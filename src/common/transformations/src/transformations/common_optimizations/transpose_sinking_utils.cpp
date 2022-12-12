@@ -140,7 +140,6 @@ NodePtr CloneNodeWithoutConsumers(NodePtr node, NodeVector consumers) {
 
 namespace sink_forward {
 
-// insert input reversed transposes, remove first input tranpose
 void UpdateInputTransposes(NodePtr main_node, TransposeInputsInfo& transpose_input_info) {
     if (transpose_input_info.isEmpty() || HasDynamicRankInput(main_node))
         return;
@@ -174,12 +173,12 @@ void UpdateInputTransposes(NodePtr main_node, TransposeInputsInfo& transpose_inp
     }
 }
 
-void RemoveZeroInputNode(NodePtr main_node) {
-    auto input_node = main_node->input_value(0);
-    if (input_node.get_node()->get_input_size() < 1)
+void RemoveInputNode(NodePtr main_node, size_t input_idx) {
+    auto input_node = main_node->input_value(input_idx);
+    if (input_node.get_node()->get_input_size() < (input_idx + 1))
         return;
-    auto parent_node = input_node.get_node()->input_value(0);
-    main_node->input(0).replace_source_output(parent_node);
+    auto parent_node = input_node.get_node()->input_value(input_idx);
+    main_node->input(input_idx).replace_source_output(parent_node);
 }
 
 NodeVector InsertOutputTransposes(NodePtr main_node, TransposeInputsInfo& transpose_input_info) {
