@@ -20,7 +20,6 @@ if sys.version_info.major >= 3:
 else:
     import thread
 
-# TEST_BATCH = 1
 FILENAME_LENGTH = 255
 
 TEST_TIMEOUT = 60000
@@ -86,7 +85,7 @@ class TaskManager:
             for pid in range(len(self._process_list)):
                 try:
                     if float((datetime.datetime.now() - self._timers[pid]).total_seconds()) > TEST_TIMEOUT:
-                        # logger.warning("Exit")
+                        logger.warning(f"Process {pid} exceed time limetattion per process")
                         self._workers[pid].exit()
                     self._process_list[pid].wait(timeout=0)
                     return pid
@@ -113,13 +112,12 @@ class TaskManager:
             for pid in range(len(self._process_list)):
                 try:
                     if float((datetime.datetime.now() - self._timers[pid]).total_seconds()) > TEST_TIMEOUT:
-                        # logger.warning("Exit")
+                        logger.warning(f"Process {pid} exceed time limetattion per process")
                         self._process_list[pid].kill()
                     self._process_list[pid].wait(timeout=0)
                     self._process_list.pop(pid)
                     break
                 except TimeoutExpired:
-                    # print("Not finished")
                     continue
     
 
@@ -181,15 +179,21 @@ class TestParallelRunner:
 
 
     def run(self):
+        logger.info(f"Run test parallel is started")
+        t_start = datetime.datetime.now()
         task_manger = TaskManager(self.generate_command_list(self.__parse_test_list_file()), self._working_dir)
         for index in range(self._worker_num):
             task_manger.init_worker()
         while task_manger.update_worker():
             pass
         task_manger.compelete_all_processes()
+        t_end = datetime.datetime.now()
+        logger.info(f"Run test parallel is finished successfully. Total time is {(t_end - t_start).total_seconds()}s")
 
 
     def postprocess_logs(self):
+        logger.info(f"Log analize is started")
+        test_cnt = 0
         def __save_log(logs_dir, dir, test_name):
             test_log_filename = os.path.join(logs_dir, dir, f"{test_name}.txt".replace('/', '_'))
             if len(test_log_filename) > FILENAME_LENGTH:
@@ -217,6 +221,7 @@ class TestParallelRunner:
                     if RUN in line and test_name is None:
                         if test_name is not None:
                             __save_log(logs_dir, "interapted", test_name)
+                            test_cnt += 1
                             test_name = None
                             test_log = list()
                             dir = None
@@ -231,6 +236,7 @@ class TestParallelRunner:
                         test_log.append(line)
                         if test_name in line:
                             __save_log(logs_dir, dir, test_name)
+                            test_cnt += 1
                             test_name = None
                             test_log = list()
                             dir = None
@@ -238,14 +244,18 @@ class TestParallelRunner:
             csv_writer = csv.writer(csv_file, dialect='excel')
             for row in hash_map:
                 csv_writer.writerow(row)
-
-    def get_command(self):
-        return self._command
+        logger.info(f"Log analize is succusfully finished")
+        logger.info(f"Total test count is {test_cnt}. All logs is saved to {logs_dir}")
 
 if __name__ == "__main__":
-    l = get_test_command_line_args()
+    exec_file_args = get_test_command_line_args()
     args = parse_arguments()
-    conformance = TestParallelRunner(args.exec_file, l, args.worker_num, args.working_dir, args.test_batch)
+    logger.info(f"[ARGUMENTS] --exec_file={args.exec_file}")
+    logger.info(f"[ARGUMENTS] --worker_num={args.worker_num}")
+    logger.info(f"[ARGUMENTS] --working_dir={args.working_dir}")
+    logger.info(f"[ARGUMENTS] --test_batch={args.test_batch}")
+    logger.info(f"[ARGUMENTS] Executable file arguments = {exec_file_args}")
+    conformance = TestParallelRunner(args.exec_file, exec_file_args, args.worker_num, args.working_dir, args.test_batch)
     conformance.run()
     conformance.postprocess_logs()
 
