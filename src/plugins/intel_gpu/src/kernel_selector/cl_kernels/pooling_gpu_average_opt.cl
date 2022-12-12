@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-
 #include "include/batch_headers/fetch_data.cl"
 
 REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)

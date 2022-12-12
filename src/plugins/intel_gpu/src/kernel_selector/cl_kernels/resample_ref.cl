@@ -4,7 +4,6 @@
 
 #include "include/fetch_utils.cl"
 
-
 inline int FUNC(get_nearest_val)(float num, bool is_downsample)
 {
 #if defined(NEAREST_ROUND_PREFER_FLOOR)

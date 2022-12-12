@@ -4,7 +4,6 @@
 
 #include "include/batch_headers/common.cl"
 
-
 INIT_INPUT0_INDEX_FUNC_HERE
 INIT_OUTPUT_INDEX_FUNC_HERE
 

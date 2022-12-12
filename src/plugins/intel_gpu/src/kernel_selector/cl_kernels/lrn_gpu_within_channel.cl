@@ -4,7 +4,6 @@
 
 #include "include/batch_headers/common.cl"
 
-
 KERNEL (lrn_gpu_within_channel)(
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output

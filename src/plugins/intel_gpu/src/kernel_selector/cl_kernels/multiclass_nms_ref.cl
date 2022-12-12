@@ -3,7 +3,6 @@
 //
 
 
-
 #if INPUT0_TYPE_SIZE == 2 //f16
     #define HALF_ONE 0.5h
 #else

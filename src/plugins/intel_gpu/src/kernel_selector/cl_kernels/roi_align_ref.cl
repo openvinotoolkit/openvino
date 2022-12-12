@@ -4,7 +4,6 @@
 
 #include "include/batch_headers/common.cl"
 
-
 #define NUM_ROIS      OUTPUT_BATCH_NUM
 #define NUM_CHANNELS  INPUT0_FEATURE_NUM
 #define POOLED_WIDTH  OUTPUT_SIZE_X

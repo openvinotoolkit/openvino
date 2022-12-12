@@ -6,7 +6,6 @@
 // Convert the results using the inverse F(2,3) Winograd transform.
 // --------------------------------------------------------------------------------------------------------------------------------
 
-
 #include "include/batch_headers/fetch_data.cl"
 
 KERNEL(reorder_from_winograd_2x3_s1)(global const UNIT_TYPE* input_winograd, global float* output)

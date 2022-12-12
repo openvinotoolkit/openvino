@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-
 #include "include/batch_headers/fetch_data.cl"
 
 #if OUTPUT_LAYOUT_BFZYX

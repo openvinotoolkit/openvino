@@ -4,7 +4,6 @@
 
 #include "include/batch_headers/common.cl"
 
-
 #if !IS_DYNAMIC
 REQD_SUB_GROUP_SIZE(16)
 #endif

@@ -4,7 +4,6 @@
 
 #include "include/batch_headers/common.cl"
 
-
 inline int FUNC(get_pyramid_level_index)(uint level, uint c, uint y, uint x) {
     uint idx = 0;
     LEVELS_IDX_CALC_FUNCS;

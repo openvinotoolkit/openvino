@@ -3,7 +3,6 @@
 //
 
 
-
 // ==============================================================================================================================
 // DECLARE_PACKED_ACCUMULATE(Name, AccT, InputT, SliceSize, SlicePitch, Items, Workers, AccOp)
 // DECLARE_PACKED_ACCUMULATE_EARGS(Name, AccT, InputT, SliceSize, SlicePitch, Items, Workers, AccOp, ExtraArgsDecl, ExtraArgs)

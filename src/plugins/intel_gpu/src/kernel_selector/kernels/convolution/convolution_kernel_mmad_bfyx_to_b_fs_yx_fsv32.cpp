@@ -48,7 +48,13 @@ ParamsKey ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32::GetSupportedKey() const 
 }
 
 DeviceFeaturesKey ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    return get_common_subgroups_device_features_key(params, options);
+    DeviceFeaturesKey k;
+    k.requires_blocked_read_write();
+    k.requires_blocked_read_write_short();
+    k.requires_blocked_read_write_char();
+    k.requires_subgroups();
+
+    return k;
 }
 
 bool ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32::Validate(const Params &p, const optional_params &o) const {

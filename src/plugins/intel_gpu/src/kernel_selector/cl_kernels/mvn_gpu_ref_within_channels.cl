@@ -4,7 +4,6 @@
 
 #include "include/batch_headers/fetch_data.cl"
 
-
 KERNEL (mvn_gpu_ref_within_channels)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,

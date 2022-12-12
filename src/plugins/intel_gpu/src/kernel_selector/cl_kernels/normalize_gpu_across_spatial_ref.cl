@@ -4,7 +4,6 @@
 
 #include "include/batch_headers/common.cl"
 
-
 KERNEL(normalize_gpu_across_spatial_ref)
 (const __global INPUT0_TYPE* input,
  __global OUTPUT_TYPE* output,

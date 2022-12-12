@@ -6,7 +6,6 @@
 #include "include/batch_headers/fetch_data.cl"
 
 
-
 #if !INPUT0_LAYOUT_BFYX && !INPUT0_LAYOUT_B_FS_YX_32FP
 #error "Data binary reorder: unsupported input layout"
 #endif

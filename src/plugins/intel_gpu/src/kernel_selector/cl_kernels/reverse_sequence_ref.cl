@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-
 #include "include/batch_headers/fetch_data.cl"
 
 KERNEL(reverse_sequence_ref)(const __global INPUT0_TYPE* input, const __global INPUT1_TYPE* seq_lengths, __global OUTPUT_TYPE* output)

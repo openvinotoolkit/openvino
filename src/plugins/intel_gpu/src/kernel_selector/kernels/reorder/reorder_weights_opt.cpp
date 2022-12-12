@@ -83,7 +83,7 @@ DeviceFeaturesKey ReorderWeightsOpt::get_required_device_features_key(const Para
     if (requires_blocked_read_write_char)
         k.requires_blocked_read_write_char();
 
-    k.enable_subgroups();
+    k.requires_subgroups();
 
     return k;
 }

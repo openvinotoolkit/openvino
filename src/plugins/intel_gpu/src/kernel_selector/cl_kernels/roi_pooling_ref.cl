@@ -4,7 +4,6 @@
 
 #include "include/batch_headers/common.cl"
 
-
 /****************************************************************************
  *                                                                          *
  *                               Utility Defines                            *

@@ -4,7 +4,6 @@
 
 #include "include/batch_headers/fetch_data.cl"
 
-
 #define N_ROUNDS 10
 #define STATISTIC_MAXIMIZING_MULTIPLIER_N 0xD2511F53UL
 #define STATISTIC_MAXIMIZING_MULTIPLIER_COUNTER 0xCD9E8D57UL

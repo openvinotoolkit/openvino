@@ -3,7 +3,6 @@
 //
 
 #include "include/batch_headers/fetch_data.cl"
-
 #include "include/acc_type.cl"
 
 KERNEL(normalization)(

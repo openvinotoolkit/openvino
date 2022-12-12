@@ -5,7 +5,6 @@
 #include "include/batch_headers/common.cl"
 
 
-
 INPUT0_TYPE FUNC(find_max_value)(__local INPUT0_TYPE* partial_max, const int global_id, const int idx, const int batch_offset, const int data_sets_count, const __global INPUT0_TYPE* input)
 {
     INPUT0_TYPE value = -UNIT_VAL_MAX;

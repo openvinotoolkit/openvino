@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-
 #include "include/batch_headers/fetch_data.cl"
 
 inline OUTPUT_TYPE FUNC(clip_great)(OUTPUT_TYPE x, OUTPUT_TYPE threshold) {

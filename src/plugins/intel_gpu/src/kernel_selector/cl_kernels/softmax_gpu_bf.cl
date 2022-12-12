@@ -4,8 +4,6 @@
 
 #include "include/batch_headers/common.cl"
 
-
-
 __attribute__((reqd_work_group_size(LWS, 1, 1)))
 KERNEL (softmax_gpu_continuous_bfyx)(
     const __global INPUT0_TYPE* input,

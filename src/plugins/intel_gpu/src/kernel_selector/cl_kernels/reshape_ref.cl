@@ -4,8 +4,6 @@
 
 #include "include/batch_headers/common.cl"
 
-
-
 KERNEL (reshape_ref)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE* output)
 {
     const uint d1 = get_global_id(0);

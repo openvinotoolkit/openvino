@@ -4,7 +4,6 @@
 
 #include "include/batch_headers/common.cl"
 
-
 #define VSIZE 8
 #define VLOAD CAT(vload, VSIZE)
 #define VSTORE CAT(vstore,VSIZE)

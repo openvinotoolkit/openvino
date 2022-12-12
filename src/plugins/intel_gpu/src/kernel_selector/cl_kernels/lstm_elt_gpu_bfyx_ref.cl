@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-
 #include "include/batch_headers/fetch_data.cl"
 
 // tempGEMM = [ batch, 1, direction, 4 * hidden_size ]

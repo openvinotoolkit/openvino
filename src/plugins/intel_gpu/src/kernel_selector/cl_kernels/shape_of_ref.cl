@@ -4,7 +4,6 @@
 
 #include "include/batch_headers/common.cl"
 
-
 KERNEL(shape_of_ref)(
     OPTIONAL_SHAPE_INFO_ARG
     __global OUTPUT_TYPE* output

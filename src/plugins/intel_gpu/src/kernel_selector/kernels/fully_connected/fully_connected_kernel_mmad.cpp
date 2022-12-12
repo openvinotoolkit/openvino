@@ -38,7 +38,10 @@ ParamsKey FullyConnectedKernelMMAD::GetSupportedKey() const {
 }
 
 DeviceFeaturesKey FullyConnectedKernelMMAD::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    auto k = get_common_subgroups_device_features_key(params, options);
+    DeviceFeaturesKey k;
+    k.requires_subgroups();
+    k.requires_reqd_subgroup_size();
+    k.requires_blocked_read_write();
     k.requires_subgroup_broadcast();
 
     return k;

@@ -3,7 +3,6 @@
 //
 
 #include "include/batch_headers/common.cl"
-
 #include "include/batch_headers/fetch_data.cl"
 
 

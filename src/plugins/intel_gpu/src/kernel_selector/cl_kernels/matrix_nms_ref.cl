@@ -4,7 +4,6 @@
 
 #include "include/batch_headers/common.cl"
 
-
 #define NUM_BATCHES INPUT0_BATCH_NUM
 #define NUM_BOXES   INPUT0_FEATURE_NUM
 #define NUM_CLASSES INPUT1_FEATURE_NUM
