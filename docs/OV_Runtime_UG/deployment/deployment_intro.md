@@ -11,7 +11,11 @@
 
 @endsphinxdirective
 
-Once the [OpenVINO™ application development](../integrate_with_your_application.md) has been finished, application developers usually need to deploy their applications to end users. There are several ways to achieve that:
+Once [OpenVINO™ application development](../integrate_with_your_application.md) has been finished, application developers usually need to deploy their applications to end users. There are several ways to achieve that. This section will explain how you can deploy locally, using OpenVINO Runtime.
+
+> **NOTE**: Note that [running inference in OpenVINO Runtime](../openvino_intro.md) is the most basic form of deployment. Before moving forward, make sure you know how to create a proper Inference configuration.
+
+## Local Deployment Options
 
 - Set a dependency on the existing prebuilt packages, also called "centralized distribution":
     - using Debian / RPM packages - a recommended way for Linux operating systems;

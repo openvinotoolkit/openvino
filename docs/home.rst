@@ -11,6 +11,9 @@ OpenVINO™ Documentation
 
 .. raw:: html
 
+
+
+
    <div class="section" id="welcome-to-openvino-toolkit-s-documentation">
    
    <link rel="stylesheet" type="text/css" href="_static/css/homepage_style.css">
@@ -116,10 +119,11 @@ OpenVINO™ Documentation
 .. toctree::
    :maxdepth: 2
    :hidden:
-   
-   get_started
-   documentation
-   tutorials
-   api/api_reference
-   model_zoo
-   resources
+
+   GET STARTED <get_started>
+   LEARN OPENVINO <learn_openvino>
+   DOCUMENTATION <documentation>
+   MODEL ZOO <model_zoo>
+   RESOURCES <resources>
+   RELEASE NOTES <https://software.intel.com/content/www/us/en/develop/articles/openvino-relnotes.html>
+
