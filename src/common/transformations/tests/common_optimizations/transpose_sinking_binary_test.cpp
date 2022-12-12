@@ -721,6 +721,8 @@ std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
 
 namespace output_consumers {
 
+namespace one_binary {
+
 std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
                                           element::Type input_type,
                                           size_t binary_transpose_input_idx) {
@@ -945,6 +947,79 @@ std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
     return std::make_shared<Model>(ov::OutputVector{binary1, tanh1}, ov::ParameterVector{X});
 }
 
+} // namespace one_binary
+
+namespace multiple_binaries {
+
+std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
+                                          element::Type input_type,
+                                          size_t binary_transpose_input_idx) {
+    const Shape input_shape{1, 96, 55, 55};
+    const size_t n_binaries = 10;
+
+    auto X = std::make_shared<Parameter>(input_type, input_shape);
+
+    auto tanh0 = std::make_shared<Tanh>(X);
+
+    NodePtr in_op = tanh0;
+    for (size_t i = 0; i < n_binaries; ++i) {
+        auto in_constant = std::make_shared<Constant>(input_type, input_shape, Shape{1});
+        if (!binary_transpose_input_idx)
+            in_op = binary_factory->create(in_op, in_constant);
+        else
+            in_op = binary_factory->create(in_constant, in_op);
+    }
+
+    auto tanh = std::make_shared<Tanh>(in_op);
+
+    auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
+    auto transpose0 = std::make_shared<Transpose>(in_op, ng_order0);
+
+    return std::make_shared<Model>(ov::OutputVector{transpose0, tanh}, ov::ParameterVector{X});
+}
+
+std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
+                                                   element::Type input_type,
+                                                   size_t binary_transpose_input_idx) {
+    const Shape input_shape{1, 96, 55, 55};
+    const size_t n_binaries = 10;
+
+    auto X = std::make_shared<Parameter>(input_type, input_shape);
+
+    auto tanh0 = std::make_shared<Tanh>(X);
+
+    // left branch
+    NodePtr in_op = tanh0;
+    for (size_t i = 0; i < n_binaries; ++i) {
+        auto in_constant = std::make_shared<Constant>(input_type, input_shape, Shape{1});
+        if (!binary_transpose_input_idx)
+            in_op = binary_factory->create(in_op, in_constant);
+        else
+            in_op = binary_factory->create(in_constant, in_op);
+    }
+
+    auto tanh1 = std::make_shared<Tanh>(in_op);
+
+    // right branch
+    auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
+    auto transpose0 = std::make_shared<Transpose>(tanh0, ng_order0);    
+
+    in_op = transpose0;
+    for (size_t i = 0; i < n_binaries; ++i) {
+        auto in_constant = std::make_shared<Constant>(input_type, input_shape, Shape{1});
+        auto ng_order = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
+        auto transpose = std::make_shared<Transpose>(in_constant, ng_order);
+        if (!binary_transpose_input_idx)
+            in_op = binary_factory->create(in_op, transpose);
+        else
+            in_op = binary_factory->create(transpose, in_op);
+    }
+
+    return std::make_shared<Model>(ov::OutputVector{in_op, tanh1}, ov::ParameterVector{X});
+}
+
+} // namespace multiple_binaries
+
 } // namespace output_consumers
 
 } // namespace backward
@@ -1039,10 +1114,22 @@ INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingFixture,
     ::testing::Combine(::testing::ValuesIn(binary_factories),
                        ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingBinaryElementwiseBackward)),
-                       ::testing::Values(backward::output_consumers::CreateFunction),
-                       ::testing::Values(backward::output_consumers::CreateReferenceFunction),
+                       ::testing::Values(backward::output_consumers::one_binary::CreateFunction),
+                       ::testing::Values(backward::output_consumers::one_binary::CreateReferenceFunction),
                        ::testing::Values(element::f32),
                        ::testing::ValuesIn(binary_transpose_input_indexes)),
                        TransposeSinkingFixture::get_test_name);
+
+INSTANTIATE_TEST_SUITE_P(
+    TransposeSinkingBackwardMultipleBinariesOutputConsumersTestSuite,
+    TransposeSinkingFixture,
+    ::testing::Combine(::testing::ValuesIn(binary_factories),
+                       ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingBinaryElementwiseBackward)),
+                       ::testing::Values(backward::output_consumers::multiple_binaries::CreateFunction),
+                       ::testing::Values(backward::output_consumers::multiple_binaries::CreateReferenceFunction),
+                       ::testing::Values(element::f32),
+                       ::testing::ValuesIn(binary_transpose_input_indexes)),
+                       TransposeSinkingFixture::get_test_name);
+
 
 } // namespace mult_consumers
