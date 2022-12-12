@@ -68,85 +68,20 @@ except ImportError:
 @generator
 class TestMoFreezePlaceholderTFFE(unittest.TestCase):
     def setUp(self):
-        try:
-            import tensorflow.compat.v1 as tf
-        except ImportError:
-            import tensorflow as tf
-
         tm.Telemetry.__init__ = Mock(return_value=None)
         tm.Telemetry.send_event = Mock()
         FrontEnd.add_extension = Mock()
 
-        self.models = []
-        tf.reset_default_graph()
-        with tf.Session() as sess:
-            x = tf.placeholder(tf.float32, [2, 2], 'in1')
-            y = tf.placeholder(tf.float32, [2, 2], 'in2')
-            tf.add(x, y, name="add")
-
-            tf.global_variables_initializer()
-            tf.io.write_graph(sess.graph, '.', 'model_fp32.pb', as_text=False)
-
-        self.models.append("model_fp32.pb")
-
-        tf.reset_default_graph()
-        with tf.Session() as sess:
-            x = tf.placeholder(tf.int32, [2, 3], 'in1')
-            y = tf.placeholder(tf.int32, [2, 3], 'in2')
-            tf.multiply(x, y, name="add")
-
-            tf.global_variables_initializer()
-            tf.io.write_graph(sess.graph, '.', 'model_int32.pb', as_text=False)
-
-        self.models.append("model_int32.pb")
-
-        tf.reset_default_graph()
-        with tf.Session() as sess:
-            x = tf.placeholder(tf.bool, [2, 3], 'in1')
-            y = tf.placeholder(tf.bool, [2, 3], 'in2')
-            tf.math.logical_and(x, y)
-
-            tf.global_variables_initializer()
-            tf.io.write_graph(sess.graph, '.', 'model_bool.pb', as_text=False)
-
-        self.models.append("model_bool.pb")
-
-        tf.reset_default_graph()
-        with tf.Session() as sess:
-            x = tf.placeholder(tf.float32, [3], 'in1')
-            y = tf.placeholder(tf.float32, [3], 'in2')
-            cond = tf.placeholder(tf.bool, [], 'cond')
-            tf.where(cond, x, y)
-
-            tf.global_variables_initializer()
-            tf.io.write_graph(sess.graph, '.', 'model_bool2.pb', as_text=False)
-
-        self.models.append("model_bool2.pb")
-
-        tf.reset_default_graph()
-        with tf.Session() as sess:
-            x = tf.placeholder(tf.float32, [3], 'x')
-            y = tf.placeholder(tf.float32, [3], 'y')
-            z = tf.placeholder(tf.float32, [3], 'z')
-            add = tf.add(x, y, name="add")
-            tf.multiply(add, z, name="multiply")
-
-            tf.global_variables_initializer()
-            tf.io.write_graph(sess.graph, '.', 'model_three_inputs.pb', as_text=False)
-
-        self.models.append("model_three_inputs.pb")
-
-    def tearDown(self):
-        for name in self.models:
-            os.remove(name)
-
     def basic(self, input_model, argv_input, inputs, dtype, expected, freeze_placeholder_with_value=None,
-              input_shape=None, only_conversion=False):
+              input_shape=None, only_conversion=False, input_model_is_text=True):
+        path = os.path.dirname(__file__)
+        input_model = os.path.join(path, "test_models", input_model)
         args = base_args_config()
         args.input_model = input_model
         args.input = argv_input
         args.freeze_placeholder_with_value = freeze_placeholder_with_value
         args.input_shape = input_shape
+        args.input_model_is_text = input_model_is_text
 
         try:
             _, model = prepare_ir(args)
@@ -195,7 +130,7 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
     )
     def test_fp32(self, input_freezing_value, inputs, expected,
                   dtype):
-        self.basic("model_fp32.pb", input_freezing_value, inputs, dtype, expected)
+        self.basic("model_fp32.pbtxt", input_freezing_value, inputs, dtype, expected)
 
     @generate(
         *[
@@ -215,7 +150,7 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
     )
     def test_int32(self, input_freezing_value, inputs, expected,
                    dtype=None):
-        self.basic("model_int32.pb", input_freezing_value, inputs, dtype, expected)
+        self.basic("model_int32.pbtxt", input_freezing_value, inputs, dtype, expected)
 
     @generate(
         *[
@@ -241,7 +176,7 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
     )
     def test_bool(self, input_freezing_value, inputs, expected,
                   dtype=None):
-        self.basic("model_bool.pb", input_freezing_value, inputs, dtype, expected)
+        self.basic("model_bool.pbtxt", input_freezing_value, inputs, dtype, expected)
 
     @generate(
         *[
@@ -276,7 +211,7 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
     )
     def test_bool2(self, input_freezing_value, inputs, expected,
                    dtype=None, freeze_placeholder_with_value=None, input_shape=None, only_conversion=False):
-        self.basic("model_bool2.pb", input_freezing_value, inputs, dtype, expected, freeze_placeholder_with_value,
+        self.basic("model_bool2.pbtxt", input_freezing_value, inputs, dtype, expected, freeze_placeholder_with_value,
                    input_shape, only_conversion)
 
     @generate(
@@ -299,6 +234,63 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
     )
     def test_cutting_fp32(self, input_freezing_value, inputs, expected,
                           dtype=None, freeze_placeholder_with_value=None, input_shape=None, only_conversion=False):
-        self.basic("model_three_inputs.pb", input_freezing_value, inputs, dtype, expected,
+        self.basic("model_three_inputs.pbtxt", input_freezing_value, inputs, dtype, expected,
                    freeze_placeholder_with_value,
-                   input_shape, only_conversion)
+                   input_shape, only_conversion, True)
+
+    @generate(
+        *[
+            (
+                    "x[1,4],y[4]",
+                    {"x": np.array([[3, 2, 1, 5]], dtype=np.int32), "y": np.array([0, -1, -7, 8], dtype=np.int32)},
+                    np.array([[3, 1, -6, 13]], dtype=np.int32),
+                    np.int32,
+                    None
+            ),
+            (
+                    "x,y",
+                    {"x": np.array([[-3, 20, 1]], dtype=np.int32), "y": np.array([[10, -11, -17]], dtype=np.int32)},
+                    np.array([[7, 9, -16]], dtype=np.int32),
+                    np.int32,
+                    None
+            ),
+            (
+                    "x",
+                    {"x": np.array([[-3, 20, 1]], dtype=np.int32)},
+                    np.array([[-2, 22, 4], [1, 25, 7]], dtype=np.int32),
+                    np.int32,
+                    None
+            ),
+        ],
+    )
+    def test_placeholder_with_default(self, inputs, inputs_data, expected,
+                                      dtype=None, freeze_placeholder_with_value=None, input_shape=None,
+                                      only_conversion=False):
+        self.basic("placeholder_with_default.pbtxt", inputs, inputs_data, dtype, expected,
+                   freeze_placeholder_with_value,
+                   input_shape, only_conversion, True)
+
+    @generate(
+        *[
+            (
+                    "x[4],y->2.0",
+                    {"x": np.array([3, 2, 1, 5], dtype=np.float32)},
+                    np.array([6, 4, 2, 10], dtype=np.float32),
+                    np.float32,
+                    None
+            ),
+            (
+                    "x[1],y->[2.0,3.0]",
+                    {"x": np.array([3], dtype=np.float32)},
+                    np.array([6, 9], dtype=np.float32),
+                    np.float32,
+                    None
+            ),
+        ],
+    )
+    def test_freeze_placeholder_with_unknown_rank(self, inputs, inputs_data, expected,
+                                                  dtype=None, freeze_placeholder_with_value=None, input_shape=None,
+                                                  only_conversion=False):
+        self.basic("mul_with_unknown_rank_y.pbtxt", inputs, inputs_data, dtype, expected,
+                   freeze_placeholder_with_value,
+                   input_shape, only_conversion, True)
