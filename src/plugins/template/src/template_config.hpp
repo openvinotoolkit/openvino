@@ -13,6 +13,8 @@
 namespace TemplatePlugin {
 
 // ! [configuration:header]
+using ConfigMap = std::map<std::string, std::string>;
+
 struct Configuration {
     Configuration();
     Configuration(const Configuration&) = default;
@@ -20,7 +22,7 @@ struct Configuration {
     Configuration& operator=(const Configuration&) = default;
     Configuration& operator=(Configuration&&) = default;
 
-    explicit Configuration(const ov::AnyMap& config,
+    explicit Configuration(const ConfigMap& config,
                            const Configuration& defaultCfg = {},
                            const bool throwOnUnsupported = true);
 

@@ -31,7 +31,8 @@ namespace ov {
 class ICore;
 class CoreImpl;
 
-class OPENVINO_RUNTIME_API IPlugin : public InferenceEngine::IInferencePlugin {
+class OPENVINO_RUNTIME_API IPlugin : public std::enable_shared_from_this<IPlugin>,
+                                     private InferenceEngine::IInferencePlugin {
 public:
     /**
      * @brief A shared pointer to ov::IPlugin interface
@@ -103,7 +104,7 @@ public:
      *
      * @return Value of a property corresponding to the property name.
      */
-    virtual ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const;
+    ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const;
 
     /**
      * @brief Creates a remote context instance based on a map of properties
@@ -174,8 +175,8 @@ public:
      * @param properties Optional map of pairs: (property name, property value).
      * @return An object containing a map of pairs an operation name -> a device name supporting this operation.
      */
-    virtual ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
-                                            const ov::AnyMap& properties) const;
+    virtual SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
+                                        const ov::AnyMap& properties) const;
 
     /**
      * @brief Registers legacy extension within plugin
@@ -254,25 +255,3 @@ private:
 };
 
 }  // namespace ov
-
-/**
- * @def OV_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version)
- * @brief Defines the exported `OV_CREATE_PLUGIN` function which is used to create a plugin instance
- * @ingroup ov_dev_api_plugin_api
- */
-#define OV_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, ...)                                          \
-    OPENVINO_PLUGIN_API void OV_CREATE_PLUGIN(                                                              \
-        ::std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin) noexcept(false);                    \
-    void OV_CREATE_PLUGIN(::std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin) noexcept(false) { \
-        try {                                                                                               \
-            std::shared_ptr<ov::IPlugin> ov_plugin = ::std::make_shared<PluginType>(__VA_ARGS__);           \
-            ov_plugin->set_version(version);                                                                \
-            plugin = ov_plugin;                                                                             \
-        } catch (const InferenceEngine::Exception&) {                                                       \
-            throw;                                                                                          \
-        } catch (const std::exception& ex) {                                                                \
-            IE_THROW() << ex.what();                                                                        \
-        } catch (...) {                                                                                     \
-            IE_THROW(Unexpected);                                                                           \
-        }                                                                                                   \
-    }

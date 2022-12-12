@@ -13,7 +13,7 @@ using namespace TemplatePlugin;
 
 Configuration::Configuration() {}
 
-Configuration::Configuration(const ov::AnyMap& config, const Configuration& defaultCfg, bool throwOnUnsupported) {
+Configuration::Configuration(const ConfigMap& config, const Configuration& defaultCfg, bool throwOnUnsupported) {
     *this = defaultCfg;
     // If plugin needs to use InferenceEngine::StreamsExecutor it should be able to process its configuration
     auto streamExecutorConfigKeys = _streamsExecutorConfig.SupportedKeys();
@@ -27,14 +27,15 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
                    std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), key)) {
             _streamsExecutorConfig.SetConfig(key, value);
         } else if (CONFIG_KEY(DEVICE_ID) == key) {
-            deviceId = value.as<int>();
+            deviceId = std::stoi(value);
             if (deviceId > 0) {
                 IE_THROW(NotImplemented) << "Device ID " << deviceId << " is not supported";
             }
         } else if (CONFIG_KEY(PERF_COUNT) == key) {
-            perfCount = value.as<bool>();
+            perfCount = (CONFIG_VALUE(YES) == value);
         } else if (ov::hint::performance_mode == key) {
-            performance_mode = value;
+            std::stringstream strm{value};
+            strm >> performance_mode;
         } else if (throwOnUnsupported) {
             IE_THROW(NotFound) << ": " << key;
         }

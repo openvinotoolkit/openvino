@@ -23,7 +23,9 @@ class Plugin;
 // ! [executable_network:header]
 class ExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDefault {
 public:
-    ExecutableNetwork(const std::shared_ptr<const ov::Model>& model,
+    ExecutableNetwork(const std::shared_ptr<const ngraph::Function>& function,
+                      const InferenceEngine::InputsDataMap& inputInfoMap,
+                      const InferenceEngine::OutputsDataMap& outputsInfoMap,
                       const Configuration& cfg,
                       const std::shared_ptr<Plugin>& plugin);
 
@@ -46,7 +48,7 @@ private:
     friend class TemplateInferRequest;
     friend class Plugin;
 
-    void CompileNetwork(const std::shared_ptr<const ov::Model>& model,
+    void CompileNetwork(const std::shared_ptr<const ngraph::Function>& function,
                         const InferenceEngine::InputsDataMap& inputInfoMap,
                         const InferenceEngine::OutputsDataMap& outputsInfoMap);
     void InitExecutor();
@@ -54,7 +56,7 @@ private:
     std::atomic<std::size_t> _requestId = {0};
     Configuration _cfg;
     std::shared_ptr<Plugin> _plugin;
-    std::shared_ptr<ov::Model> m_model;
+    std::shared_ptr<ngraph::Function> _function;
     std::map<std::string, std::size_t> _inputIndex;
     std::map<std::string, std::size_t> _outputIndex;
 };
