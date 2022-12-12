@@ -214,21 +214,6 @@ class Conformance:
             exit(-1)
         self._model_path = conformance_ir_path
 
-    def _prepare_filelist(self):
-        if os.path.isfile(self._model_path):
-            logger.info(f"{self._model_path} is exists! Skip the step to prepare fileslist")
-            return self._model_path
-        filelist_path = os.path.join(self._model_path, "conformance_ir_files.lst")
-        if os.path.isfile(filelist_path):
-            logger.info(f"{filelist_path} is exists! Skip the step to prepare fileslist")
-            return filelist_path
-        xmls = Path(self._model_path).rglob("*.xml")
-        with open(filelist_path, 'w') as file:
-            for xml in xmls:
-                file.write(str(xml) + '\n')
-            file.close()
-        return filelist_path
-
     def run_conformance(self):
         gtest_parallel_path = os.path.join(self.__download_repo(GTEST_PARALLEL_URL, GTEST_PARALLEL_BRANCH), "thirdparty", "gtest-parallel", "gtest_parallel.py")
         worker_num = os.cpu_count()
@@ -246,7 +231,7 @@ class Conformance:
             logger.info(f"Report dir {report_dir} is cleaned up")
             rmtree(report_dir)
         parallel_report_dir = os.path.join(report_dir, 'parallel')
-        conformance_filelist_path = self._prepare_filelist()
+        conformance_filelist_path = utils.prepare_filelist(self._model_path, "*.xml", logger)
         if not os.path.isdir(report_dir):
             os.mkdir(report_dir)
         if not os.path.isdir(logs_dir):

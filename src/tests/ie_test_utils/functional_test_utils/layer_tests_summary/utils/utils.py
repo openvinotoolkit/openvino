@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
+import os
 import xml.etree.ElementTree as ET
+from pathlib import Path
 
 def get_logger(app_name: str):
     logging.basicConfig()
@@ -60,3 +62,18 @@ def update_conformance_test_counters(results: ET.SubElement, logger: logging.Log
                     op.set("skipped", str(int(op.attrib["skipped"]) + diff))
                     logger.warning(f'{device.tag}: added {diff} skipped tests for {op.tag}')
     update_passrates(results)
+
+def prepare_filelist(input_dir: os.path, pattern: str, logger):
+    if os.path.isfile(input_dir):
+        logger.info(f"{input_dir} is exists! Skip the step to prepare fileslist")
+        return input_dir
+    filelist_path = os.path.join(input_dir, "conformance_ir_files.lst")
+    if os.path.isfile(filelist_path):
+        logger.info(f"{filelist_path} is exists! Skip the step to prepare fileslist")
+        return filelist_path
+    xmls = Path(input_dir).rglob(pattern)
+    with open(filelist_path, 'w') as file:
+        for xml in xmls:
+            file.write(str(xml) + '\n')
+        file.close()
+    return filelist_path
