@@ -26,6 +26,8 @@ public:
 
     OPENVINO_API Shape(const std::vector<size_t>& axis_lengths);
 
+    OPENVINO_API Shape(const std::string& shape);
+
     OPENVINO_API Shape(const Shape& axis_lengths);
 
     OPENVINO_API explicit Shape(size_t n, size_t initial_value = 0);
@@ -37,6 +39,7 @@ public:
 
     OPENVINO_API Shape& operator=(const Shape& v);
     OPENVINO_API Shape& operator=(Shape&& v) noexcept;
+    OPENVINO_API std::string to_string() const;
 };
 
 /**
@@ -110,7 +113,6 @@ class OPENVINO_API AttributeAdapter<ov::Shape> : public IndirectVectorValueAcces
 {
 public:
     OPENVINO_RTTI("AttributeAdapter<Shape>");
-    BWDCMP_RTTI_DECLARATION;
 
     AttributeAdapter(ov::Shape& value) : IndirectVectorValueAccessor<ov::Shape, std::vector<int64_t>>(value) {}
 };

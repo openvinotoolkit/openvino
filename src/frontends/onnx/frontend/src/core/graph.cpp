@@ -384,6 +384,21 @@ OutputVector Graph::make_ng_nodes(const Node& onnx_node) {
         std::rethrow_exception(std::current_exception());
     }
 
+    const size_t outputs_size = std::accumulate(std::begin(ng_subgraph_outputs),
+                                                std::end(ng_subgraph_outputs),
+                                                0,
+                                                [](const size_t lhs, const Output<ov::Node>& rhs) {
+                                                    return lhs + rhs.get_node()->get_output_size();
+                                                });
+    NGRAPH_CHECK(onnx_node.get_outputs_size() <= outputs_size,
+                 "Expected output number of ",
+                 onnx_node.op_type(),
+                 " node is ",
+                 onnx_node.get_outputs_size(),
+                 " while the implementation provides ",
+                 outputs_size,
+                 " outputs");
+
     set_friendly_names(onnx_node, ng_subgraph_outputs);
 
     for (std::size_t i{0}; i < onnx_node.get_outputs_size(); ++i) {
@@ -431,7 +446,8 @@ void Graph::set_friendly_names(const Node& onnx_node, const OutputVector& ng_sub
         if (!ngraph::op::is_null(ng_subgraph_outputs[i])) {
             ng_subgraph_outputs[i].get_tensor().set_names({onnx_node.output(static_cast<int>(i))});
             NGRAPH_SUPPRESS_DEPRECATED_START
-            ng_subgraph_outputs[i].get_tensor().set_name(onnx_node.output(static_cast<int>(i)));
+            ov::descriptor::set_ov_tensor_legacy_name(ng_subgraph_outputs[i].get_tensor(),
+                                                      onnx_node.output(static_cast<int>(i)));
             NGRAPH_SUPPRESS_DEPRECATED_END
         }
     }

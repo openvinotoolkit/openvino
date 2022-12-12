@@ -15,7 +15,7 @@
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
-bool ngraph::pass::InitNodeInfo::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+bool ov::pass::InitNodeInfo::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(InitNodeInfo);
 
     for (auto& node : f->get_ops()) {

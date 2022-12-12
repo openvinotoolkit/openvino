@@ -7,6 +7,7 @@
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "low_precision/network_helper.hpp"
+#include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include <openvino/op/util/assign_base.hpp>
@@ -99,7 +100,7 @@ bool AssignAndReadValueTransformation::transform(TransformationContext& context,
         return true;
     }
 
-    FakeQuantizeTransformation::fuseElementwise(context, this, fakeQuantize);
+    FakeQuantizeTransformation::fuseElementwise(context, this, fakeQuantize, updatePrecisions);
 
     return true;
 }

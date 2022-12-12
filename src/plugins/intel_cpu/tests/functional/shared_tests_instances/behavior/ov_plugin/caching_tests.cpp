@@ -3,9 +3,9 @@
 //
 
 #include "behavior/ov_plugin/caching_tests.hpp"
-#include <ngraph_ops/nms_ie_internal.hpp>
-#include <ngraph_ops/nms_static_shape_ie.hpp>
-#include <ngraph_ops/multiclass_nms_ie_internal.hpp>
+#include <ov_ops/nms_ie_internal.hpp>
+#include <ov_ops/nms_static_shape_ie.hpp>
+#include <ov_ops/multiclass_nms_ie_internal.hpp>
 
 using namespace ov::test::behavior;
 using namespace ngraph;
@@ -128,4 +128,17 @@ namespace {
                                     ::testing::ValuesIn(autoConfigs)),
                             CompileModelCacheTestBase::getTestCaseName);
 
+    const std::vector<ov::AnyMap> LoadFromFileConfigs = {
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU)},
+    };
+    const std::vector<std::string> TestTargets =
+    {CommonTestUtils::DEVICE_AUTO,
+    CommonTestUtils::DEVICE_MULTI,
+    };
+
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_CachingSupportCase_CPU, CompileModelLoadFromFileTestBase,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(TestTargets),
+                                ::testing::ValuesIn(LoadFromFileConfigs)),
+                        CompileModelLoadFromFileTestBase::getTestCaseName);
 } // namespace

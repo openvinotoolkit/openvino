@@ -42,7 +42,8 @@ OPERATIONS_WITH_WEIGHTS = [
 
 CONCAT_UNIFY_OUTPUTS = [
     {'type': 'ConvolutionBackpropData'},
-    {'type': 'Convolution'}
+    {'type': 'Convolution'},
+    {'type': 'MatMul'},
 ]
 
 CONCAT_UNIFY_INPUTS = [
@@ -63,6 +64,9 @@ DETECTION_OUTPUT_FINAL_TYPES = [
     {'type': 'NonMaxSuppression'},
     {'type': 'TopK'}
 ]
+
+# TODO: Add attributes to GraphTransformer hw_config
+TYPES_TO_QUANTIZABLE_PORTS = {'LSTMSequence': [0, 1, 4, 5], 'GRUSequence': [0, 1, 3, 4]}
 
 ELTWISE_TYPES = ['Add', 'Multiply', 'Subtract', 'Divide', 'Less', 'LessEqual', 'Greater', 'GreaterEqual',
                  'Equal', 'NotEqual', 'FloorMod', 'LogicalOr', 'LogicalXor', 'LogicalAnd', 'Maximum', 'Minimum']

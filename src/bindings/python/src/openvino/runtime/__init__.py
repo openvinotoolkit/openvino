@@ -6,9 +6,11 @@
 # noqa: F401
 
 from openvino.utils import add_openvino_libs_to_path
+
 add_openvino_libs_to_path()
 
 from openvino._pyopenvino import get_version
+
 __version__ = get_version()
 
 # Openvino pybind bindings and python extended classes

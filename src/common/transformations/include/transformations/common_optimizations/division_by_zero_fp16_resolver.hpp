@@ -5,11 +5,10 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
+#include <openvino/pass/pattern/matcher.hpp>
 #include <transformations_visibility.hpp>
 #include <utility>
-
-#include "ngraph/pattern/matcher.hpp"
 
 namespace ov {
 namespace pass {
@@ -28,7 +27,7 @@ class TRANSFORMATIONS_API DivisionByZeroFP16Resolver;
  * be zero. We should keep in such patterns eps >= fp16 minimal normalized value so that CompressFloatConstants should
  * not cast them into zero during compression into f16.
  */
-class ov::pass::DivisionByZeroFP16Resolver : public ngraph::pass::MatcherPass {
+class ov::pass::DivisionByZeroFP16Resolver : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("DivisionByZeroFP16Resolver", "0");
     DivisionByZeroFP16Resolver();

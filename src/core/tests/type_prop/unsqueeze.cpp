@@ -80,23 +80,16 @@ TEST(type_prop, unsqueeze_empty_axes) {
     }
 }
 
-class UnsqueezeTestCommon : public Test {
-protected:
-    void SetUp() override {
-        param = std::make_shared<op::Parameter>(element::f32, p_shape);
-    }
+using UnSqueezeTypePropTestParam = std::tuple<PartialShape,          // Input shape
+                                              std::vector<int64_t>,  // Unsqueeze axis
+                                              PartialShape           // Expected shape
+                                              >;
 
-    PartialShape p_shape, exp_shape;
-    std::shared_ptr<op::Parameter> param;
-};
-
-using TypePropTestParam = std::tuple<PartialShape, std::vector<int64_t>, PartialShape>;
-
-class UnsqueezeTest : public WithParamInterface<TypePropTestParam>, public UnsqueezeTestCommon {
+class UnsqueezeTest : public WithParamInterface<UnSqueezeTypePropTestParam>, public UnSqueezeFixture {
 protected:
     void SetUp() override {
         std::tie(p_shape, axes, exp_shape) = GetParam();
-        UnsqueezeTestCommon::SetUp();
+        UnSqueezeFixture::SetUp();
     }
 
     std::pair<std::vector<size_t>, std::vector<size_t>> make_in_exp_labels() const {
@@ -257,17 +250,7 @@ TEST_P(UnsqueezeTest, labels_propagation) {
     EXPECT_EQ(get_shape_labels(unsqueeze->get_output_partial_shape(0)), exp_labels);
 }
 
-using BoundTestParam = std::tuple<PartialShape, PartialShape>;
-
-class UnsqueezeBoundTest : public WithParamInterface<BoundTestParam>, public UnsqueezeTestCommon {
-protected:
-    void SetUp() override {
-        std::tie(p_shape, exp_shape) = GetParam();
-        UnsqueezeTestCommon::SetUp();
-    }
-
-    std::vector<size_t> in_labels;
-};
+using UnsqueezeBoundTest = UnSqueezeBoundTest;
 
 INSTANTIATE_TEST_SUITE_P(
     type_prop_bounds_propagate,
@@ -303,7 +286,7 @@ TEST_P(UnsqueezeBoundTest, propagate_label_and_dynamic_value) {
     const auto gather = std::make_shared<op::v7::Gather>(labeled_shape_of, indices, axis);
     const auto unsqueeze = std::make_shared<op::v0::Unsqueeze>(gather, axis);
 
-    const auto bc = std::make_shared<op::v1::Broadcast>(param, unsqueeze);
+    const auto bc = std::make_shared<op::v3::Broadcast>(param, unsqueeze);
 
     EXPECT_EQ(bc->get_output_partial_shape(0), exp_shape);
     const auto labels = get_shape_labels(bc->get_output_partial_shape(0));

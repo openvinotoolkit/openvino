@@ -13,13 +13,10 @@
 #include <set>
 
 namespace cldnn {
-primitive_type_id broadcast::type_id() {
-    static primitive_type_base<broadcast> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(broadcast)
 
 layout broadcast_inst::calc_output_layout(broadcast_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for broadcast_node!");
     auto input_layout = impl_param.get_input_layout();
     auto desc = impl_param.typed_desc<broadcast>();
