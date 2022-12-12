@@ -1448,3 +1448,54 @@ TEST(crop_gpu, dynamic_in1x4x1x1_varaidic_split) {
     for (size_t i = 0; i < out2.size(); i++)
         EXPECT_EQ(output_ptr_2[i], out2[i]);
 }
+
+TEST(crop_gpu, static_split_batch) {
+    auto& engine = get_test_engine();
+
+    auto input_actual_layout = layout{ ov::PartialShape{3, 4, 1, 1}, data_types::f32, format::bfyx };
+    auto input_mem = engine.allocate_memory(input_actual_layout);
+
+    cldnn::crop_ngraph_op_mode op_mode = cldnn::crop_ngraph_op_mode::none;
+    topology topology;
+    topology.add(input_layout("input", input_actual_layout));
+    topology.add(crop("crop1", { input_info("input") }, tensor(1, 4, 1, 1), { tensor(0, 0, 0, 0) }, op_mode, 0));
+    topology.add(crop("crop2", { input_info("input") }, tensor(1, 4, 1, 1), { tensor(1, 0, 0, 0) }, op_mode, 1));
+    topology.add(crop("crop3", { input_info("input") }, tensor(1, 4, 1, 1), { tensor(2, 0, 0, 0) }, op_mode, 2));
+
+    std::vector<int32_t> input_vec(12);
+    for (size_t i = 0; i < 12; i++) {
+        input_vec[i] = i;
+    }
+
+    std::vector<int32_t> out1 = { 0, 1, 2, 3 };
+    std::vector<int32_t> out2 = { 4, 5, 6, 7 };
+    std::vector<int32_t> out3 = { 8, 9, 10, 11 };
+
+    set_values(input_mem, input_vec);
+
+    build_options bo;
+    bo.set_option(build_option::optimize_data(true));
+    bo.set_option(build_option::outputs(topology.get_primitives_ids()));
+
+    network network(engine, topology, bo);
+    network.set_input_data("input", input_mem);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("crop1").get_memory();
+    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+
+    for (size_t i = 0; i < out1.size(); i++)
+        EXPECT_EQ(output_ptr[i], out1[i]);
+
+    auto output_2 = outputs.at("crop2").get_memory();
+    cldnn::mem_lock<int32_t> output_ptr_2(output_2, get_test_stream());
+
+    for (size_t i = 0; i < out2.size(); i++)
+        EXPECT_EQ(output_ptr_2[i], out2[i]);
+
+    auto output_3 = outputs.at("crop3").get_memory();
+    cldnn::mem_lock<int32_t> output_ptr_3(output_3, get_test_stream());
+
+    for (size_t i = 0; i < out3.size(); i++)
+        EXPECT_EQ(output_ptr_3[i], out3[i]);
+}
