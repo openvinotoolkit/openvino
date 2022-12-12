@@ -25,7 +25,6 @@ namespace v3 {
 class OPENVINO_API GRUCell : public util::RNNCellBase {
 public:
     OPENVINO_OP("GRUCell", "opset3", op::util::RNNCellBase, 3);
-    BWDCMP_RTTI_DECLARATION;
     GRUCell();
     ///
     /// \brief      Constructs GRUCell node.

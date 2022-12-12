@@ -16,7 +16,6 @@ namespace internal {
 class TRANSFORMATIONS_API MulticlassNmsIEInternal : public opset9::MulticlassNms {
 public:
     OPENVINO_OP("MulticlassNmsIEInternal", "ie_internal_opset", opset9::MulticlassNms);
-    BWDCMP_RTTI_DECLARATION;
 
     MulticlassNmsIEInternal() = default;
 

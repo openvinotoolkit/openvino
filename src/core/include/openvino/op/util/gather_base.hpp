@@ -13,7 +13,6 @@ namespace util {
 class OPENVINO_API GatherBase : public Op {
 public:
     OPENVINO_OP("GatherBase", "util");
-    BWDCMP_RTTI_DECLARATION;
     GatherBase() = default;
 
     /// \param data The tensor from which slices are gathered
