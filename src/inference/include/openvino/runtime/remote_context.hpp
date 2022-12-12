@@ -28,6 +28,7 @@ namespace ov {
 class Core;
 class CoreImpl;
 class CompiledModel;
+class IPlugin;
 
 /**
  * @brief This class represents an abstraction
@@ -53,6 +54,7 @@ protected:
     friend class ov::Core;
     friend class ov::CoreImpl;
     friend class ov::CompiledModel;
+    friend class ov::IPlugin;
 
 public:
     /**

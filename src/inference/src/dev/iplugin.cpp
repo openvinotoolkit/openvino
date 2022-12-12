@@ -4,8 +4,13 @@
 
 #include "openvino/iplugin.hpp"
 
+#include <cpp/ie_cnn_network.h>
+#include <ie_common.h>
+
+#include <ie_icnn_network.hpp>
 #include <memory>
 
+#include "cnn_network_ngraph_impl.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "ie_icore.hpp"
@@ -14,6 +19,18 @@
 #include "openvino/core/model.hpp"
 #include "openvino/icompiled_model.hpp"
 #include "threading/ie_executor_manager.hpp"
+
+namespace {
+
+std::map<std::string, std::string> any_map_to_string_map(const ov::AnyMap& any_map) {
+    std::map<std::string, std::string> result;
+    for (const auto& it : any_map) {
+        result[it.first] = it.second.as<std::string>();
+    }
+    return result;
+}
+
+}  // namespace
 
 ov::IPlugin::IPlugin() : m_executor_manager(InferenceEngine::executorManager()), m_is_new_api(true) {}
 
@@ -51,6 +68,13 @@ const std::string& ov::IPlugin::get_name() const {
 std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ov::IPlugin::compile_model(
     const std::shared_ptr<const ov::Model>& model,
     const ov::AnyMap& properties) {
+    if (old_plugin) {
+        auto compiled_model = old_plugin->LoadNetwork(
+            InferenceEngine::CNNNetwork(std::shared_ptr<InferenceEngine::ICNNNetwork>(
+                new InferenceEngine::details::CNNNetworkNGraphImpl(model->clone(), {}, is_new_api()))),
+            any_map_to_string_map(properties));
+        return compiled_model;
+    }
     return compile_model(model, properties, {});
 }
 
@@ -60,7 +84,11 @@ std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ov::IPlugin::compil
     const ov::RemoteContext& context) {
     std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> compiled_model;
     if (old_plugin) {
-        // TODO: Implement fallback to old behaviour
+        compiled_model = old_plugin->LoadNetwork(
+            InferenceEngine::CNNNetwork(std::shared_ptr<InferenceEngine::ICNNNetwork>(
+                new InferenceEngine::details::CNNNetworkNGraphImpl(model->clone(), {}, is_new_api()))),
+            any_map_to_string_map(properties),
+            context._impl);
         return compiled_model;
     }
     std::shared_ptr<ov::Model> cloned_model = model->clone();
@@ -128,38 +156,67 @@ std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ov::IPlugin::compil
 }
 
 void ov::IPlugin::add_extension(const std::shared_ptr<InferenceEngine::IExtension>& extension) {
+    if (old_plugin) {
+        old_plugin->AddExtension(extension);
+        return;
+    }
     OPENVINO_NOT_IMPLEMENTED;
 }
 
 void ov::IPlugin::set_property(const ov::AnyMap& properties) {
+    if (old_plugin) {
+        old_plugin->SetProperties(properties);
+        return;
+    }
     OPENVINO_NOT_IMPLEMENTED;
 }
 
 ov::Any ov::IPlugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
+    if (old_plugin) {
+        try {
+            return old_plugin->GetConfig(name, arguments);
+        } catch (...) {
+            return old_plugin->GetMetric(name, arguments);
+        }
+    }
     OPENVINO_NOT_IMPLEMENTED;
 }
 
 ov::RemoteContext ov::IPlugin::create_context(const ov::AnyMap& remote_properties) {
+    if (old_plugin) {
+        return ov::RemoteContext{old_plugin->CreateContext(remote_properties), {nullptr}};
+    }
     OPENVINO_NOT_IMPLEMENTED;
 }
 
 ov::RemoteContext ov::IPlugin::get_default_context(const ov::AnyMap& remote_properties) {
+    if (old_plugin) {
+        return ov::RemoteContext{old_plugin->GetDefaultContext(remote_properties), {nullptr}};
+    }
     OPENVINO_NOT_IMPLEMENTED;
 }
 
 std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ov::IPlugin::import_model(std::istream& model,
                                                                                        const ov::AnyMap& properties) {
+    if (old_plugin) {
+        return old_plugin->ImportNetwork(model, any_map_to_string_map(properties));
+    }
     OPENVINO_NOT_IMPLEMENTED;
 }
 
 std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ov::IPlugin::import_model(std::istream& model,
                                                                                        const ov::RemoteContext& context,
                                                                                        const ov::AnyMap& properties) {
+    if (old_plugin) {
+        return old_plugin->ImportNetwork(model, context._impl, any_map_to_string_map(properties));
+    }
     OPENVINO_NOT_IMPLEMENTED;
 }
 
 void ov::IPlugin::set_core(std::weak_ptr<ov::ICore> core) {
     OPENVINO_ASSERT(!core.expired());
+    if (old_plugin)
+        old_plugin->SetCore(core);
     m_core = core;
     auto locked_core = m_core.lock();
     if (locked_core)
@@ -167,18 +224,34 @@ void ov::IPlugin::set_core(std::weak_ptr<ov::ICore> core) {
 }
 
 std::shared_ptr<ov::ICore> ov::IPlugin::get_core() const {
+    if (old_plugin)
+        return old_plugin->GetCore();
     return m_core.lock();
 }
 
 bool ov::IPlugin::is_new_api() const {
+    if (old_plugin)
+        return old_plugin->IsNewAPI();
     return m_is_new_api;
 }
 
 const std::shared_ptr<InferenceEngine::ExecutorManager>& ov::IPlugin::get_executor_manager() const {
+    if (old_plugin)
+        return old_plugin->executorManager();
     return m_executor_manager;
 }
 
 ov::SupportedOpsMap ov::IPlugin::query_model(const std::shared_ptr<const ov::Model>& model,
                                              const ov::AnyMap& properties) const {
+    if (old_plugin) {
+        auto res = old_plugin->QueryNetwork(
+            InferenceEngine::CNNNetwork(std::shared_ptr<InferenceEngine::ICNNNetwork>(
+                new InferenceEngine::details::CNNNetworkNGraphImpl(model->clone(), {}, is_new_api()))),
+            any_map_to_string_map(properties));
+        if (res.rc != InferenceEngine::OK) {
+            throw ov::Exception(res.resp.msg);
+        }
+        return res.supportedLayersMap;
+    }
     OPENVINO_NOT_IMPLEMENTED;
 }

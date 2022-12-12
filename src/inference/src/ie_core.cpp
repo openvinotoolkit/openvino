@@ -1784,9 +1784,11 @@ ExecutableNetwork Core::ImportNetwork(const std::string& modelFileName,
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::ImportNetwork");
     auto parsed = ov::parseDeviceNameIntoConfig(deviceName, config);
     auto conf = ov::any_copy(parsed._config);
-    OPENVINO_NOT_IMPLEMENTED;
-    // auto exec = _impl->GetCPPPluginByName(parsed._deviceName).import_model(modelFileName, conf);
-    // return {exec._ptr, exec._so};
+    std::ifstream modelStream(modelFileName, std::ios::binary);
+    if (!modelStream.is_open())
+        IE_THROW() << "Model file " << modelFileName << " cannot be opened!";
+    auto exec = _impl->GetCPPPluginByName(parsed._deviceName).import_model(modelStream, conf);
+    return {exec._ptr, exec._so};
 }
 
 ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
