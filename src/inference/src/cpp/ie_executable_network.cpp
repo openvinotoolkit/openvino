@@ -242,6 +242,7 @@ Any CompiledModel::get_property(const std::string& name) const {
                     supported_properties.emplace_back(rw_property, PropertyMutability::RW);
                 }
                 supported_properties.emplace_back(ov::supported_properties.name(), PropertyMutability::RO);
+                supported_properties.emplace_back(ov::loaded_from_cache.name(), PropertyMutability::RO);
                 return supported_properties;
             }
         }
