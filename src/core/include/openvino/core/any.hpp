@@ -28,6 +28,7 @@ class ExecutableNetwork;
 namespace ov {
 /** @cond INTERNAL */
 class Any;
+class Plugin;
 namespace util {
 template <typename T, typename = void>
 struct Read;
@@ -633,6 +634,7 @@ class OPENVINO_API Any {
     friend class ::ov::RemoteContext;
     friend class ::ov::RemoteTensor;
     friend class ::ov::InferencePlugin;
+    friend class ::ov::Plugin;
 
     Any(const Any& other, const std::vector<std::shared_ptr<void>>& so);
 

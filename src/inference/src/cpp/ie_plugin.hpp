@@ -231,6 +231,37 @@ public:
     }
 
     Any get_property(const std::string& name, const AnyMap& arguments) const {
+        OV_PLUGIN_CALL_STATEMENT({
+            if (ov::supported_properties == name) {
+                try {
+                    return {m_ptr->get_property(name, arguments), {m_so}};
+                } catch (ie::Exception&) {
+                    std::vector<ov::PropertyName> supported_properties;
+                    try {
+                        auto ro_properties = m_ptr->get_property(METRIC_KEY(SUPPORTED_METRICS), arguments)
+                                                 .as<std::vector<std::string>>();
+                        for (auto&& ro_property : ro_properties) {
+                            if (ro_property != METRIC_KEY(SUPPORTED_METRICS) &&
+                                ro_property != METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
+                                supported_properties.emplace_back(ro_property, PropertyMutability::RO);
+                            }
+                        }
+                    } catch (ie::Exception&) {
+                    }
+                    try {
+                        auto rw_properties = m_ptr->get_property(METRIC_KEY(SUPPORTED_CONFIG_KEYS), arguments)
+                                                 .as<std::vector<std::string>>();
+                        for (auto&& rw_property : rw_properties) {
+                            supported_properties.emplace_back(rw_property, PropertyMutability::RW);
+                        }
+                    } catch (ie::Exception&) {
+                    }
+                    supported_properties.emplace_back(ov::supported_properties.name(), PropertyMutability::RO);
+                    return supported_properties;
+                }
+            }
+            return m_ptr->get_property(name, arguments);
+        });
         OV_PLUGIN_CALL_STATEMENT(return m_ptr->get_property(name, arguments););
     }
 
