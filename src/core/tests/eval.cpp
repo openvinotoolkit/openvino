@@ -1090,6 +1090,18 @@ TEST(eval, evaluate_tanh) {
     ASSERT_FLOAT_VECTORS_EQ(input, result_val);
 }
 
+TEST(eval, evaluate_logical_not_dynamic_input_shape) {
+    const auto a = make_shared<op::Parameter>(element::boolean, PartialShape::dynamic());
+    const auto op = make_shared<op::v1::LogicalNot>(a);
+    const auto f = make_shared<Function>(OutputVector{op}, ParameterVector{a});
+    const auto result = make_shared<HostTensor>();
+
+    ASSERT_TRUE(f->evaluate({result}, {make_host_tensor<element::Type_t::boolean>(Shape{2, 1, 2}, {0, 0, 1, 1})}));
+    EXPECT_EQ(result->get_element_type(), element::boolean);
+    EXPECT_EQ(result->get_shape(), Shape({2, 1, 2}));
+    EXPECT_THAT(read_vector<char>(result), ElementsAre(1, 1, 0, 0));
+}
+
 TEST(eval, evaluate_logical_not) {
     auto p = make_shared<op::Parameter>(element::boolean, Shape{2, 2});
     auto logical_not = make_shared<op::v1::LogicalNot>(p);
