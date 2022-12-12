@@ -3,7 +3,7 @@
 //
 
 #include <vector>
-#include "single_layer_tests/is_inf.hpp"
+#include "shared_test_classes/single_layer/is_inf.hpp"
 
 using namespace ov::test;
 using namespace ov::test::subgraph;
