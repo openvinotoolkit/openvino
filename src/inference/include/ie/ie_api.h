@@ -39,7 +39,7 @@
 #        define INFERENCE_ENGINE_ENUM_DEPRECATED(msg)
 #    endif
 #elif defined __INTEL_COMPILER
-#    define INFERENCE_ENGINE_DEPRECATED(msg) __attribute__((deprecated(msg)))
+#    define INFERENCE_ENGINE_DEPRECATED(msg)      __attribute__((deprecated(msg)))
 #    define INFERENCE_ENGINE_ENUM_DEPRECATED(msg) INFERENCE_ENGINE_DEPRECATED(msg)
 #elif defined(__GNUC__)
 #    define INFERENCE_ENGINE_DEPRECATED(msg) __attribute__((deprecated(msg)))
