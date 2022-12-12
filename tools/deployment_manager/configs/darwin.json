@@ -28,7 +28,6 @@
         "runtime/lib/intel64/Release/libopenvino_auto_batch_plugin.so",
         "runtime/lib/intel64/Release/libopenvino_ir_frontend.2022.3.0.dylib",
         "runtime/lib/intel64/Release/libopenvino_ir_frontend.2230.dylib",
-        "runtime/lib/intel64/Release/libopenvino_ir_frontend.dylib",
         "runtime/lib/intel64/Release/libopenvino_onnx_frontend.2022.3.0.dylib",
         "runtime/lib/intel64/Release/libopenvino_onnx_frontend.2230.dylib",
         "runtime/lib/intel64/Release/libopenvino_onnx_frontend.dylib",
