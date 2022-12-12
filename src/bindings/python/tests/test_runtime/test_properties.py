@@ -30,6 +30,11 @@ def test_property_ro():
 
 def test_allow_auto_batching_property():
     core = Core()
+    device_name = core.get_property("CPU", "FULL_DEVICE_NAME")
+
+    if "Intel" not in device_name:
+        pytest.skip("Properties are Intel(R) CPU specific")
+
     core.set_property({"ALLOW_AUTO_BATCHING": False})
     assert core.get_property(properties.hint.allow_auto_batching()) is False
 
@@ -41,24 +46,46 @@ def test_allow_auto_batching_property():
                     reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
 def test_single_property_setting():
     core = Core()
+    device_name = core.get_property("CPU", "FULL_DEVICE_NAME")
+
+    if "Intel" not in device_name:
+        pytest.skip("Properties are Intel(R) CPU specific")
+
     core.set_property("CPU", properties.streams.num(properties.streams.Num.AUTO))
 
     assert properties.streams.Num.AUTO.to_integer() == -1
     assert type(core.get_property("CPU", properties.streams.num())) == int
 
 
+@pytest.mark.parametrize("properties_to_set", [
+    # Dict from list of tuples
+    dict([  # noqa: C406
+        properties.cache_dir("./"),
+    ]),
+    # Pure dict
+    {
+        properties.cache_dir(): "./",
+    },
+])
+def test_setting_properties_to_core(properties_to_set):
+    core = Core()
+    core.set_property(properties_to_set)
+
+    # RW properties without device name
+    assert core.get_property(properties.cache_dir()) == "./"
+    assert core.get_property(properties.force_tbb_terminate()) is False
+
+
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
                     reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
 @pytest.mark.parametrize("properties_to_set", [
+    
     # Dict from list of tuples
     dict([  # noqa: C406
         properties.enable_profiling(True),
         properties.cache_dir("./"),
         properties.inference_num_threads(9),
         properties.affinity(properties.Affinity.NONE),
-        properties.hint.inference_precision(Type.f32),
-        properties.hint.performance_mode(properties.hint.PerformanceMode.LATENCY),
-        properties.hint.num_requests(12),
         properties.streams.num(5),
     ]),
     # Pure dict
@@ -67,9 +94,6 @@ def test_single_property_setting():
         properties.cache_dir(): "./",
         properties.inference_num_threads(): 9,
         properties.affinity(): properties.Affinity.NONE,
-        properties.hint.inference_precision(): Type.f32,
-        properties.hint.performance_mode(): properties.hint.PerformanceMode.LATENCY,
-        properties.hint.num_requests(): 12,
         properties.streams.num(): 5,
     },
     # Mixed dict
@@ -78,9 +102,6 @@ def test_single_property_setting():
         "CACHE_DIR": "./",
         properties.inference_num_threads(): 9,
         properties.affinity(): "NONE",
-        "INFERENCE_PRECISION_HINT": Type.f32,
-        properties.hint.performance_mode(): properties.hint.PerformanceMode.LATENCY,
-        properties.hint.num_requests(): 12,
         "NUM_STREAMS": properties.streams.Num(5),
     },
 ])
@@ -88,18 +109,16 @@ def test_properties_core(properties_to_set):
     core = Core()
     core.set_property(properties_to_set)
 
-    # RW properties without device name
-    assert core.get_property(properties.cache_dir()) == "./"
-    assert core.get_property(properties.force_tbb_terminate()) is False
+    device_name = core.get_property("CPU", "FULL_DEVICE_NAME")
+
+    if "Intel" not in device_name:
+        pytest.skip("Properties are Intel(R) CPU specific")
 
     # RW properties
     assert core.get_property("CPU", properties.enable_profiling()) is True
     assert core.get_property("CPU", properties.cache_dir()) == "./"
     assert core.get_property("CPU", properties.inference_num_threads()) == 9
     assert core.get_property("CPU", properties.affinity()) == properties.Affinity.NONE
-    assert core.get_property("CPU", properties.hint.inference_precision()) == Type.f32
-    assert core.get_property("CPU", properties.hint.performance_mode()) == properties.hint.PerformanceMode.LATENCY
-    assert core.get_property("CPU", properties.hint.num_requests()) == 12
     assert core.get_property("CPU", properties.streams.num()) == 5
 
     # RO properties

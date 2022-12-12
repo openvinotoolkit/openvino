@@ -29,7 +29,7 @@ from tests.conftest import (
 
 from tests.test_utils.test_utils import (
     generate_image,
-    generate_relu_model,
+    generate_relu_compiled_model,
 )
 
 
@@ -87,9 +87,9 @@ def test_compact_api_onnx_posix_path():
     assert np.argmax(results[list(results)[0]]) == 9
 
 
-def test_core_class():
+def test_core_class(device):
     input_shape = [1, 3, 4, 4]
-    model = generate_relu_model(input_shape)
+    model = generate_relu_compiled_model(device, input_shape=input_shape)
 
     request = model.create_infer_request()
     input_data = np.random.rand(*input_shape).astype(np.float32) - 0.5
@@ -97,7 +97,7 @@ def test_core_class():
     expected_output = np.maximum(0.0, input_data)
 
     input_tensor = Tensor(input_data)
-    results = request.infer({"parameter": input_tensor})
+    results = request.infer({"data": input_tensor})
     assert np.allclose(results[list(results)[0]], expected_output)
 
 
@@ -283,6 +283,8 @@ def test_query_model(device):
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
 def test_register_plugin():
     core = Core()
+    if "Intel" not in core.get_property("CPU", "FULL_DEVICE_NAME"):
+        pytest.skip("This test runs only on openvino intel cpu plugin")
     core.register_plugin("openvino_intel_cpu_plugin", "BLA")
     model = core.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = core.compile_model(model, "BLA")
@@ -293,6 +295,8 @@ def test_register_plugin():
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
 def test_register_plugins():
     core = Core()
+    if "Intel" not in core.get_property("CPU", "FULL_DEVICE_NAME"):
+        pytest.skip("This test runs only on openvino intel cpu plugin")
     if platform == "linux" or platform == "linux2":
         core.register_plugins(plugins_xml)
     elif platform == "darwin":

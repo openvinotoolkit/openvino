@@ -16,7 +16,7 @@ from openvino.runtime import Type, PartialShape, Shape, Layout
 from openvino.preprocess import PrePostProcessor
 
 from tests.conftest import model_path
-from tests.test_utils.test_utils import generate_image
+from tests.test_utils.test_utils import generate_image, get_relu_model
 
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
 test_net_xml, test_net_bin = model_path(is_myriad)
@@ -98,7 +98,7 @@ def test_get_profiling_info(device):
     assert request.latency > 0
     prof_info = request.get_profiling_info()
     soft_max_node = next(node for node in prof_info if node.node_name == "fc_out")
-    assert soft_max_node.node_type == "Softmax"
+    assert "Softmax" in soft_max_node.node_type
     assert soft_max_node.status == ProfilingInfo.Status.EXECUTED
     assert isinstance(soft_max_node.real_time, datetime.timedelta)
     assert isinstance(soft_max_node.cpu_time, datetime.timedelta)
@@ -204,6 +204,9 @@ def test_set_tensors(device):
 
 def test_batched_tensors(device):
     core = Core()
+    if device == "CPU":
+        if "Intel" not in core.get_property(device, "FULL_DEVICE_NAME"):
+            pytest.skip("Can't run on ARM plugin")
 
     batch = 4
     one_shape = [1, 2, 2, 2]
@@ -349,7 +352,7 @@ def test_infer_list_as_inputs(device):
 
 def test_infer_mixed_keys(device):
     core = Core()
-    model = core.read_model(test_net_xml, test_net_bin)
+    model = get_relu_model()
     core.set_property(device, {"PERF_COUNT": "YES"})
     model = core.compile_model(model, device)
 
@@ -361,7 +364,7 @@ def test_infer_mixed_keys(device):
 
     request = model.create_infer_request()
     res = request.infer({0: tensor2, "data": tensor})
-    assert np.argmax(res[model.output()]) == 9
+    assert np.argmax(res[model.output()]) == 531
 
 
 @pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
