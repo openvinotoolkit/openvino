@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
+import logging as log
 import os
 import sys
-import logging as log
 
 try:
     import openvino_telemetry as tm
@@ -17,8 +17,10 @@ from openvino.tools.mo.utils.cli_parser import get_model_name_from_args
 from openvino.tools.mo.utils.logger import init_logger
 from openvino.tools.mo.utils.error import Error, FrameworkError
 import traceback
-from openvino.tools.mo.utils.get_ov_update_message import get_ov_update_message, get_ov_api20_message
+from openvino.tools.mo.utils.get_ov_update_message import get_ov_update_message, get_ov_api20_message, \
+    get_tf_fe_message, get_tf_fe_legacy_message
 from openvino.tools.mo.utils.model_analysis import AnalysisResults
+from openvino.tools.mo.utils.guess_framework import deduce_legacy_frontend_by_namespace
 
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager
@@ -37,20 +39,21 @@ def main(cli_parser: argparse.ArgumentParser, framework=None):
     argv = cli_parser.parse_args()
     logger.disabled = False
     argv.model_name = get_model_name_from_args(argv)
-    argv = vars(argv)
-
     if framework is not None:
-        argv['framework'] = framework
+        argv.framework = framework
 
     ngraph_function = None
+    is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
     try:
-        ngraph_function = convert_model(**argv)
+        ngraph_function = convert_model(**vars(argv))
         ov_update_message = get_ov_update_message()
         ov_api20_message = get_ov_api20_message()
         if ov_update_message is not None:
             print(ov_update_message)
         if ov_api20_message is not None and ngraph_function is not None:
             print(ov_api20_message)
+        if argv.use_new_frontend and is_tf:
+            print(get_tf_fe_message())
 
     except (FileNotFoundError, NotADirectoryError) as e:
         log.error('File {} was not found'.format(str(e).split('No such file or directory:')[1]))
@@ -61,6 +64,8 @@ def main(cli_parser: argparse.ArgumentParser, framework=None):
             for el in analysis_results.get_messages():
                 log.error(el, extra={'analysis_info': True})
         log.error(err)
+        if not argv.use_new_frontend and is_tf:
+            print(get_tf_fe_legacy_message())
         log.debug(traceback.format_exc())
     except FrameworkError as err:
         log.error(err, extra={'framework_error': True})
@@ -74,19 +79,21 @@ def main(cli_parser: argparse.ArgumentParser, framework=None):
         log.error(traceback.format_exc())
         log.error("---------------- END OF BUG REPORT --------------")
         log.error("-------------------------------------------------")
+        if not argv.use_new_frontend and is_tf:
+            print(get_tf_fe_legacy_message())
 
     if ngraph_function is None:
         return 1
 
-    output_dir = argv['output_dir'] if argv['output_dir'] != '.' else os.getcwd()
-    model_path_no_ext = os.path.normpath(os.path.join(output_dir, argv['model_name']))
+    output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
+    model_path_no_ext = os.path.normpath(os.path.join(output_dir, argv.model_name))
     model_path = model_path_no_ext + '.xml'
 
     serialize(ngraph_function, model_path.encode('utf-8'), model_path.replace('.xml', '.bin').encode('utf-8'))
 
     # generate .mapping file
     path_to_mapping = model_path_no_ext + ".mapping"
-    extract_names = argv['framework'] in ['tf', 'mxnet', 'kaldi']
+    extract_names = argv.framework in ['tf', 'mxnet', 'kaldi']
     generate_mapping_file(ngraph_function, path_to_mapping, extract_names)
 
     print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
