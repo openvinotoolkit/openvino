@@ -85,6 +85,7 @@ void handle_reshape::run(program& p) {
                     reorder_node_to_split.push_back(user);
             }
 
+            bool update_node_output_layout = false;
             if (!reorder_node_to_split.empty()) {
                 auto& prim_node = node->as<reshape>();
                 const auto& prim = prim_node.get_primitive();
@@ -124,6 +125,7 @@ void handle_reshape::run(program& p) {
                     auto& reorder_reshape_node = reorder_reshape_nodes[reshape_reorder_id];
                     auto reshape_in_layout = reorder_node->get_output_layout();
                     auto dims = cldnn::format::dimension(reshape_in_layout.format);
+                    auto dims_reorder_reshape_node = cldnn::format::dimension(reorder_reshape_node->get_output_layout().format);
                     auto format = cldnn::format::bfyx;
                     if (dims == 5)
                         format = cldnn::format::bfzyx;
@@ -141,7 +143,14 @@ void handle_reshape::run(program& p) {
                                        reshape_input_node.get_dependencies().empty());
                     reshape_reorder_id++;
                     reshape_input_node.recalc_output_layout();
+                    if (dims_reorder_reshape_node > dims)
+                        update_node_output_layout = true;
                 }
+            }
+
+            if (update_node_output_layout) {
+                auto node_new_layout = node->get_dependency(0).get_output_layout();
+                node->set_output_layout(node_new_layout);
             }
 
             auto reshape_layout = node->get_output_layout();
