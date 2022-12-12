@@ -8,6 +8,10 @@ endif()
 
 set(TARGET_NAME "openvino_intel_gna_plugin")
 
+if (ENABLE_INTEL_GNA_DEBUG)
+    add_compile_definitions(GNA_DEBUG)
+endif()
+
 if(CMAKE_COMPILER_IS_GNUCC)
     ie_add_compiler_flags(-Wno-all)
 endif()
