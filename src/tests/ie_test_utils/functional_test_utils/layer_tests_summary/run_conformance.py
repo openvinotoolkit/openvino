@@ -238,7 +238,7 @@ class Conformance:
             os.mkdir(logs_dir)
         
         cmd = f'{PYTHON_NAME} {gtest_parallel_path}  {conformance_path}{OS_BIN_FILE_EXT} -w {worker_num} -d "{logs_dir}" -- ' \
-            f'--device {self._device} --input_folders "{conformance_filelist_path}" --report_unique_name --output_folder "{parallel_report_dir}"'
+            f'--device {self._device} --input_folders "{conformance_filelist_path}" --report_unique_name --output_folder "{parallel_report_dir}" --gtest_filter=*OpImpl*'
         logger.info(f"Stating conformance: {cmd}")
         process = Popen(cmd, shell=True)
         out, err = process.communicate()

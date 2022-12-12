@@ -64,9 +64,6 @@ def update_conformance_test_counters(results: ET.SubElement, logger: logging.Log
     update_passrates(results)
 
 def prepare_filelist(input_dir: os.path, pattern: str, logger):
-    if os.path.isfile(input_dir):
-        logger.info(f"{input_dir} is exists! Skip the step to prepare fileslist")
-        return input_dir
     filelist_path = os.path.join(input_dir, "conformance_ir_files.lst")
     if os.path.isfile(filelist_path):
         logger.info(f"{filelist_path} is exists! Skip the step to prepare fileslist")
