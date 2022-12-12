@@ -24,9 +24,9 @@ TEST(InferRequestCPPTests, throwsOnUninitializedGetBlob) {
 
 TEST(InferRequestCPPTests, throwsOnUninitializedSetBlobPreproc) {
     InferRequest req;
-    OPENVINO_SUPPRESS_DEPRECATED_START
+    IE_SUPPRESS_DEPRECATED_START
     ASSERT_THROW(req.SetBlob({}, {}, {}), InferenceEngine::NotAllocated);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST(InferRequestCPPTests, throwsOnUninitializedGetPreProcess) {
