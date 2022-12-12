@@ -10,7 +10,7 @@
 using namespace ov::opset10;
 
 namespace {
-bool inherit_output_shape(std::shared_ptr<ov::Node> node, std::vector<size_t> input_idxs) {
+bool inherit_output_shape(const std::shared_ptr<ov::Node>& node, const std::vector<size_t>& input_idxs) {
     auto is_changed = false;
     auto output_shape = node->get_output_partial_shape(0);
 
@@ -25,7 +25,7 @@ bool inherit_output_shape(std::shared_ptr<ov::Node> node, std::vector<size_t> in
     return is_changed;
 }
 
-bool inherit_output_rank(std::shared_ptr<ov::Node> node, std::vector<size_t> input_idxs) {
+bool inherit_output_rank(const std::shared_ptr<ov::Node>& node, const std::vector<size_t>& input_idxs) {
     auto is_changed = false;
     auto output_shape = node->get_output_partial_shape(0);
 
@@ -40,7 +40,7 @@ bool inherit_output_rank(std::shared_ptr<ov::Node> node, std::vector<size_t> inp
     return is_changed;
 }
 
-bool inherit_output_type(std::shared_ptr<ov::Node> node, std::vector<size_t> input_idxs) {
+bool inherit_output_type(const std::shared_ptr<ov::Node>& node, const std::vector<size_t>& input_idxs) {
     auto is_changed = false;
     auto output_type = node->get_output_element_type(0);
 
@@ -65,7 +65,6 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
         const auto& op = *it;
         auto output_shape = op->get_output_partial_shape(0);
         auto output_type = op->get_output_element_type(0);
-        std::cout << op->get_type_name() << std::endl;
         if (const auto& param = std::dynamic_pointer_cast<Parameter>(op)) {
             if (param->get_partial_shape().rank().is_dynamic()) {
                 param->set_partial_shape(output_shape);

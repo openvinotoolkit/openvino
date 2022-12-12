@@ -83,7 +83,7 @@ void op::v1::Pad::validate_and_infer_types() {
     if (m_pad_mode == PadMode::CONSTANT && get_input_size() == 4) {
         const auto& arg_pad_element_type = get_input_element_type(3);
         NODE_VALIDATION_CHECK(this,
-                              element::Type::merge(result_et, arg_element_type, arg_pad_element_type),
+                              element::Type::merge(result_et, result_et, arg_pad_element_type),
                               "Argument element types do not match (input arg element type: ",
                               arg_element_type,
                               ", arg_pad element type: ",

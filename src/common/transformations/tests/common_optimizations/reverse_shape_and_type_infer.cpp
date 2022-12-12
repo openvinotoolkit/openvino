@@ -4,11 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include <memory>
-#include <ngraph/pass/manager.hpp>
 #include <openvino/opsets/opset10.hpp>
-#include <queue>
-#include <string>
 #include <transformations/common_optimizations/reverse_shape_and_type_infer.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
