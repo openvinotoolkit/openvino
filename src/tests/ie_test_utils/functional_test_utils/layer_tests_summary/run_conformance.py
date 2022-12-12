@@ -11,6 +11,7 @@ from glob import glob
 from subprocess import Popen
 from shutil import copytree, rmtree
 from summarize import create_summary
+from run_parallel import TestParallelRunner
 from merge_xmls import merge_xml
 from pathlib import Path, PurePath
 from sys import version, platform
@@ -215,10 +216,6 @@ class Conformance:
         self._model_path = conformance_ir_path
 
     def run_conformance(self):
-        gtest_parallel_path = os.path.join(self.__download_repo(GTEST_PARALLEL_URL, GTEST_PARALLEL_BRANCH), "thirdparty", "gtest-parallel", "gtest_parallel.py")
-        worker_num = os.cpu_count()
-        if worker_num > 2:
-            worker_num = worker_num - 1
         conformance_path = None
         if self._type == "OP":
             conformance_path = os.path.join(self._ov_bin_path, OP_CONFORMANCE_BIN_NAME)
@@ -236,18 +233,13 @@ class Conformance:
             os.mkdir(report_dir)
         if not os.path.isdir(logs_dir):
             os.mkdir(logs_dir)
-        
-        cmd = f'{PYTHON_NAME} {gtest_parallel_path}  {conformance_path}{OS_BIN_FILE_EXT} -w {worker_num} -d "{logs_dir}" -- ' \
-            f'--device {self._device} --input_folders "{conformance_filelist_path}" --report_unique_name --output_folder "{parallel_report_dir}" --gtest_filter=*OpImpl*'
-        logger.info(f"Stating conformance: {cmd}")
-        process = Popen(cmd, shell=True)
-        out, err = process.communicate()
-        if err is None:
-            pass
-            for line in str(out).split('\n'):
-                logger.info(line)
-        else:
-            logger.error(err)
+
+        try:
+            command_line_args = ["--device={self._device}", '--input_folders="{conformance_filelist_path}"', "--report_unique_name", '--output_folder="{parallel_report_dir}"']
+            conformance = TestParallelRunner(f"{conformance_path}{OS_BIN_FILE_EXT}", command_line_args, os.cpu_count() - 1 if os.cpu_count() > 2 else 1, logs_dir, 500)
+            conformance.run()
+            conformance.postprocess_logs()
+        except:
             logger.error("Process failed on step: 'Run conformance'")
             exit(-1)
         final_report_name = f'report_{self._type}'
