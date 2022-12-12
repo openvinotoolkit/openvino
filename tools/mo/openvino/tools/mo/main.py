@@ -37,22 +37,23 @@ def main(cli_parser: argparse.ArgumentParser, framework=None):
     # which result in duplicating of warnings
     logger.disabled = True
     argv = cli_parser.parse_args()
+    is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
+    argv = vars(argv)
     logger.disabled = False
     argv.model_name = get_model_name_from_args(argv)
     if framework is not None:
-        argv.framework = framework
+        argv['framework'] = framework
 
     ngraph_function = None
-    is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
     try:
-        ngraph_function = convert_model(**vars(argv))
+        ngraph_function = convert_model(**argv)
         ov_update_message = get_ov_update_message()
         ov_api20_message = get_ov_api20_message()
         if ov_update_message is not None:
             print(ov_update_message)
         if ov_api20_message is not None and ngraph_function is not None:
             print(ov_api20_message)
-        if argv.use_new_frontend and is_tf:
+        if argv['use_new_frontend'] and is_tf:
             print(get_tf_fe_message())
 
     except (FileNotFoundError, NotADirectoryError) as e:
@@ -64,7 +65,7 @@ def main(cli_parser: argparse.ArgumentParser, framework=None):
             for el in analysis_results.get_messages():
                 log.error(el, extra={'analysis_info': True})
         log.error(err)
-        if not argv.use_new_frontend and is_tf:
+        if not argv['use_new_frontend'] and is_tf:
             print(get_tf_fe_legacy_message())
         log.debug(traceback.format_exc())
     except FrameworkError as err:
@@ -79,21 +80,21 @@ def main(cli_parser: argparse.ArgumentParser, framework=None):
         log.error(traceback.format_exc())
         log.error("---------------- END OF BUG REPORT --------------")
         log.error("-------------------------------------------------")
-        if not argv.use_new_frontend and is_tf:
+        if not argv['use_new_frontend'] and is_tf:
             print(get_tf_fe_legacy_message())
 
     if ngraph_function is None:
         return 1
 
-    output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
-    model_path_no_ext = os.path.normpath(os.path.join(output_dir, argv.model_name))
+    output_dir = argv['output_dir'] if argv['output_dir'] != '.' else os.getcwd()
+    model_path_no_ext = os.path.normpath(os.path.join(output_dir, argv['model_name']))
     model_path = model_path_no_ext + '.xml'
 
     serialize(ngraph_function, model_path.encode('utf-8'), model_path.replace('.xml', '.bin').encode('utf-8'))
 
     # generate .mapping file
     path_to_mapping = model_path_no_ext + ".mapping"
-    extract_names = argv.framework in ['tf', 'mxnet', 'kaldi']
+    extract_names = argv['framework'] in ['tf', 'mxnet', 'kaldi']
     generate_mapping_file(ngraph_function, path_to_mapping, extract_names)
 
     print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
