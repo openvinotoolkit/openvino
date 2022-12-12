@@ -52,7 +52,7 @@ void TemplateInferRequest::createInferRequest() {
 
     auto requestID = std::to_string(_executableNetwork->_requestId.fetch_add(1));
 
-    std::string name = _executableNetwork->_function->get_friendly_name() + "_Req" + requestID;
+    std::string name = _executableNetwork->m_model->get_friendly_name() + "_Req" + requestID;
     _profilingTask = {
         openvino::itt::handle("Template" + std::to_string(_executableNetwork->_cfg.deviceId) + "_" + name +
                               "_Preprocess"),
@@ -64,7 +64,7 @@ void TemplateInferRequest::createInferRequest() {
                               "_WaitPipline"),
     };
 
-    _executable = _executableNetwork->_plugin->_backend->compile(_executableNetwork->_function);
+    _executable = _executableNetwork->_plugin->_backend->compile(_executableNetwork->m_model);
 
     allocateDeviceBuffers();
     allocateBlobs();
@@ -124,11 +124,11 @@ static void AllocateImpl(const BlobDataMap& userDataMap,
 }
 
 void TemplateInferRequest::allocateBlobs() {
-    auto&& parameters = _executableNetwork->_function->get_parameters();
+    auto&& parameters = _executableNetwork->m_model->get_parameters();
     AllocateImpl(_networkInputs, _inputs, _deviceInputs, [&](const std::string& blobName) {
         return parameters.at(_executableNetwork->_inputIndex.at(blobName))->get_element_type();
     });
-    auto&& results = _executableNetwork->_function->get_results();
+    auto&& results = _executableNetwork->m_model->get_results();
     AllocateImpl(
         _networkOutputs,
         _outputs,
@@ -266,7 +266,7 @@ void TemplateInferRequest::inferPreprocess() {
     IInferRequestInternal::execDataPreprocessing(_deviceInputs);
     for (auto&& networkInput : _deviceInputs) {
         auto index = _executableNetwork->_inputIndex[networkInput.first];
-        const auto& parameter = _executableNetwork->_function->get_parameters()[index];
+        const auto& parameter = _executableNetwork->m_model->get_parameters()[index];
         auto parameterShape = networkInput.second->getTensorDesc().getDims();
         auto srcShape = networkInput.second->getTensorDesc().getBlockingDesc().getBlockDims();
         const auto& parameterType = parameter->get_element_type();
@@ -327,7 +327,7 @@ void TemplateInferRequest::inferPreprocess() {
         if (outputBlob->getTensorDesc().getPrecision() == networkOutput->getTensorDesc().getPrecision()) {
             networkOutput = outputBlob;
         }
-        const auto& result = _executableNetwork->_function->get_results()[index];
+        const auto& result = _executableNetwork->m_model->get_results()[index];
         if (result->get_output_partial_shape(0).is_dynamic()) {
             _outputTensors[index] = _executableNetwork->_plugin->_backend->create_tensor();
             continue;
@@ -366,7 +366,7 @@ void TemplateInferRequest::inferPostprocess() {
     auto start = Time::now();
     for (auto&& output : _networkOutputs) {
         auto index = _executableNetwork->_outputIndex[output.first];
-        const auto& result = _executableNetwork->_function->get_results()[index];
+        const auto& result = _executableNetwork->m_model->get_results()[index];
         if (result->get_output_partial_shape(0).is_dynamic()) {
             // Touch blob to allocate it
             GetBlob(output.first);
@@ -401,7 +401,7 @@ InferenceEngine::Blob::Ptr TemplateInferRequest::GetBlob(const std::string& name
             data = _inputs[name];
             SizeVector dims;
             if (!data) {
-                auto&& parameters = _executableNetwork->_function->get_parameters();
+                auto&& parameters = _executableNetwork->m_model->get_parameters();
                 const auto& pshape = parameters.at(_executableNetwork->_inputIndex.at(name))->get_partial_shape();
                 dims = pshape.is_dynamic() ? SizeVector({0}) : pshape.get_shape();
                 AllocateImplSingle(
@@ -442,7 +442,7 @@ InferenceEngine::Blob::Ptr TemplateInferRequest::GetBlob(const std::string& name
         }
 
         if (data->getTensorDesc().getDims() != dims) {
-            auto&& results = _executableNetwork->_function->get_results();
+            auto&& results = _executableNetwork->m_model->get_results();
             AllocateImplSingle(
                 _outputs,
                 _networkOutputBlobs,

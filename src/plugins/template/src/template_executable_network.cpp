@@ -9,6 +9,7 @@
 #include <threading/ie_executor_manager.hpp>
 
 #include "cpp/ie_cnn_network.h"
+#include "ie_common.h"
 #include "ie_icnn_network.hpp"
 #include "ie_icore.hpp"
 #include "ie_ngraph_utils.hpp"
@@ -22,11 +23,9 @@
 using namespace TemplatePlugin;
 
 // ! [executable_network:ctor_cnnnetwork]
-TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<const ngraph::Function>& function,
-                                                     const InferenceEngine::InputsDataMap& inputInfoMap,
-                                                     const InferenceEngine::OutputsDataMap& outputsInfoMap,
+TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<const ov::Model>& model,
                                                      const Configuration& cfg,
-                                                     const Plugin::Ptr& plugin)
+                                                     const std::shared_ptr<Plugin>& plugin)
     : InferenceEngine::ExecutableNetworkThreadSafeDefault(nullptr, nullptr),  // Disable default threads creation
       _cfg(cfg),
       _plugin(plugin) {
@@ -34,7 +33,7 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<const
     // you should select proper device based on KEY_DEVICE_ID or automatic behavior
     // In this case, _waitExecutor should also be created per device.
     try {
-        CompileNetwork(function, inputInfoMap, outputsInfoMap);
+        CompileNetwork(model, InferenceEngine::InputsDataMap{}, InferenceEngine::OutputsDataMap{});
         InitExecutor();  // creates thread-based executor using for async requests
     } catch (const InferenceEngine::Exception&) {
         throw;
@@ -49,7 +48,7 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<const
 // ! [executable_network:ctor_import_stream]
 TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream& model,
                                                      const Configuration& cfg,
-                                                     const Plugin::Ptr& plugin)
+                                                     const std::shared_ptr<Plugin>& plugin)
     : _cfg(cfg),
       _plugin(plugin) {
     // read XML content
@@ -71,7 +70,7 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream& model,
         model.read(dataBlob->buffer(), dataSize);
     }
 
-    auto cnnnetwork = _plugin->GetCore()->ReadNetwork(xmlString, std::move(dataBlob));
+    auto cnnnetwork = _plugin->get_core()->ReadNetwork(xmlString, std::move(dataBlob));
 
     // TODO: implement Import / Export of configuration options and merge with `cfg`
     // TODO: implement Import / Export of network precisions, layouts, preprocessing info
@@ -98,32 +97,25 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream& model,
 
 // ! [executable_network:map_graph]
 // forward declaration
-void TransformNetwork(std::shared_ptr<ngraph::Function>& function,
-                      const InferenceEngine::InputsDataMap& inputInfoMap,
-                      const InferenceEngine::OutputsDataMap& outputsInfoMap);
-
-void TemplatePlugin::ExecutableNetwork::CompileNetwork(const std::shared_ptr<const ngraph::Function>& function,
+void TemplatePlugin::ExecutableNetwork::CompileNetwork(const std::shared_ptr<const ov::Model>& model,
                                                        const InferenceEngine::InputsDataMap& inputInfoMap,
                                                        const InferenceEngine::OutputsDataMap& outputsInfoMap) {
     // TODO: perform actual graph compilation / mapping to backend graph representation / kernels
 
     // clone network
-    _function = ngraph::clone_function(*function);
-
-    // apply plugins transformations
-    TransformNetwork(_function, inputInfoMap, outputsInfoMap);
+    m_model = model->clone();
 
     // Generate backend specific blob mappings. For example Inference Engine uses not ngraph::Result nodes friendly name
     // as inference request output names but the name of the layer before.
     size_t idx = 0;
-    for (auto&& result : _function->get_results()) {
+    for (auto&& result : m_model->get_results()) {
         const auto& input = result->input_value(0);
         auto name = ngraph::op::util::get_ie_output_name(input);
         if (_outputIndex.emplace(name, idx).second)
             idx++;
     }
-    for (auto&& parameter : _function->get_parameters()) {
-        _inputIndex.emplace(parameter->get_friendly_name(), _function->get_parameter_index(parameter));
+    for (auto&& parameter : m_model->get_parameters()) {
+        _inputIndex.emplace(parameter->get_friendly_name(), m_model->get_parameter_index(parameter));
     }
 
     // Perform any other steps like allocation and filling backend specific memory handles and so on
@@ -141,7 +133,7 @@ void TemplatePlugin::ExecutableNetwork::InitExecutor() {
     // it is better to avoid threads recreateion as some OSs memory allocator can not manage such usage cases
     // and memory consumption can be larger than it is expected.
     // So Inference Engone provides executors cache.
-    _taskExecutor = _plugin->executorManager()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
+    _taskExecutor = _plugin->get_executor_manager()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
     // NOTE: callback Executor is not configured. So callback will be called in the thread of the last stage of
     // inference request pipeline _callbackExecutor =
     // _plugin->executorManager()->getIdleCPUStreamsExecutor({"TemplateCallbackExecutor"});
@@ -169,7 +161,7 @@ InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::C
 // ! [executable_network:create_infer_request]
 InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::CreateInferRequest() {
     InferenceEngine::IInferRequestInternal::Ptr internalRequest;
-    if (this->_plugin && _plugin->IsNewAPI()) {
+    if (this->_plugin && _plugin->is_new_api()) {
         internalRequest = CreateInferRequestImpl(_parameters, _results);
     }
     if (!internalRequest)
@@ -206,7 +198,7 @@ InferenceEngine::Parameter TemplatePlugin::ExecutableNetwork::GetMetric(const st
         }
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else if (EXEC_NETWORK_METRIC_KEY(NETWORK_NAME) == name) {
-        auto networkName = _function->get_friendly_name();
+        auto networkName = m_model->get_friendly_name();
         IE_SET_METRIC_RETURN(NETWORK_NAME, networkName);
     } else if (EXEC_NETWORK_METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS) == name) {
         unsigned int value = _cfg._streamsExecutorConfig._streams;
@@ -227,7 +219,7 @@ void TemplatePlugin::ExecutableNetwork::Export(std::ostream& modelStream) {
     OPENVINO_SUPPRESS_DEPRECATED_START
     ov::pass::Serialize serializer(xmlFile, binFile, custom_opsets);
     OPENVINO_SUPPRESS_DEPRECATED_END
-    serializer.run_on_model(_function);
+    serializer.run_on_model(m_model);
 
     auto m_constants = binFile.str();
     auto m_model = xmlFile.str();
