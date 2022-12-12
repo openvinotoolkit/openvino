@@ -3,6 +3,8 @@
 //
 
 #include "ngraph/ops.hpp"
+#include "ov_ops/augru_cell.hpp"
+#include "ov_ops/augru_sequence.hpp"
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/utils/compare_results.hpp"
@@ -79,6 +81,7 @@ CompareMap getCompareMap() {
 #include "openvino/opsets/opset9_tbl.hpp"
 #include "openvino/opsets/opset10_tbl.hpp"
 
+#include "ov_ops/opset_private_tbl.hpp"
 #undef _OPENVINO_OP_REG
     };
     return compareMap;

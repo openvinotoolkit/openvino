@@ -19,6 +19,13 @@ struct PrintToDummyParamName {
 
 std::vector<size_t> get_shape_labels(const ov::PartialShape& p_shape);
 
+/**
+ * \brief Set labels on all shape dimensions start from first label.
+ *
+ * \param p_shape      Shape to set labels.
+ * \param first_label  Vale of first label (can't be 0)
+ */
+void set_shape_labels(ov::PartialShape& p_shape, const size_t first_label);
 void set_shape_labels(ov::PartialShape& p_shape, const std::vector<size_t>& labels);
 
 /**
@@ -34,15 +41,26 @@ protected:
     std::shared_ptr<ov::op::v0::Parameter> param;
 };
 
-using BoundTestParam = std::tuple<ov::PartialShape, ov::PartialShape>;
-
 /** \brief Test fixture for Unsqueeze/Squeeze type_prop bound tests. */
-class UnSqueezeBoundTest : public testing::WithParamInterface<BoundTestParam>, public UnSqueezeFixture {
+class UnSqueezeBoundTest : public testing::WithParamInterface<std::tuple<ov::PartialShape, ov::PartialShape>>,
+                           public UnSqueezeFixture {
 protected:
     void SetUp() override {
         std::tie(p_shape, exp_shape) = GetParam();
-        UnSqueezeFixture::SetUp();
+        param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     }
 
     std::vector<size_t> in_labels;
+};
+
+using PartialShapes = std::vector<ov::PartialShape>;
+using Shapes = std::vector<ov::Shape>;
+
+template <class TOp>
+class TypePropOpTest : public testing::Test {
+protected:
+    template <class... Args>
+    std::shared_ptr<TOp> make_op(Args&&... args) {
+        return std::make_shared<TOp>(std::forward<Args>(args)...);
+    }
 };

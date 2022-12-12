@@ -10,10 +10,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id deformable_conv::type_id() {
-    static primitive_type_base<deformable_conv> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(deformable_conv)
 
 layout deformable_conv_inst::calc_output_layout(deformable_conv_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<deformable_conv>();
@@ -21,7 +18,7 @@ layout deformable_conv_inst::calc_output_layout(deformable_conv_node const& node
     auto input_layout = impl_param.get_input_layout();
 
     auto input_type = input_layout.data_type;
-    auto output_type = desc->output_data_type ? *desc->output_data_type : input_type;
+    auto output_type = desc->output_data_types[0].value_or(input_type);
 
     tensor output_size(input_layout.batch(),
                        desc->output_size.feature[0],
@@ -56,10 +53,7 @@ std::string deformable_conv_inst::to_string(deformable_conv_node const& node) {
 deformable_conv_inst::typed_primitive_inst(network& network, deformable_conv_node const& node) : parent(network, node) {
 }
 
-primitive_type_id deformable_interp::type_id() {
-    static primitive_type_base<deformable_interp> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(deformable_interp)
 
 layout deformable_interp_inst::calc_output_layout(deformable_interp_node const& node, kernel_impl_params const& impl_param) {
     auto desc = node.get_primitive();
@@ -68,7 +62,7 @@ layout deformable_interp_inst::calc_output_layout(deformable_interp_node const& 
 
     auto kernel_size = desc->kernel_size;
     auto input_type = input_layout.data_type;
-    auto output_type = node.get_primitive()->output_data_type ? *node.get_primitive()->output_data_type : input_type;
+    auto output_type = node.get_primitive()->output_data_types[0].value_or(input_type);
 
     tensor output_size(input_layout.batch(),
                        input_layout.feature()*kernel_size.spatial[0]*kernel_size.spatial[1],

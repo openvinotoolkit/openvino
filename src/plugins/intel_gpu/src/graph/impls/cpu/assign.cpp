@@ -10,6 +10,8 @@ namespace cldnn {
 namespace cpu {
 
 struct assign_impl : public typed_primitive_impl<assign> {
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<assign_impl>(*this);
     }
@@ -38,8 +40,8 @@ struct assign_impl : public typed_primitive_impl<assign> {
     void init_kernels(const kernels_cache&) override {}
 
 public:
-    static primitive_impl* create(const assign_node& arg, const kernel_impl_params& impl_param) {
-        return new assign_impl{};
+    static std::unique_ptr<primitive_impl> create(const assign_node& arg, const kernel_impl_params& impl_param) {
+        return make_unique<assign_impl>();
     }
 };
 
@@ -53,3 +55,5 @@ attach_assign_impl::attach_assign_impl() {
 }  // namespace detail
 }  // namespace cpu
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::assign_impl)

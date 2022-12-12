@@ -118,6 +118,7 @@ ParamsKey PermuteKernelRef::GetSupportedKey() const {
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
+    k.EnableDynamicShapesSupport();
     return k;
 }
 

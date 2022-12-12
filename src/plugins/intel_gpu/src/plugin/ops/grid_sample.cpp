@@ -15,7 +15,7 @@ namespace {
 void CreateGridSampleOp(Program& p, const std::shared_ptr<ngraph::op::v9::GridSample>& op) {
     validate_inputs_count(op, {2});
 
-    const cldnn::grid_sample grid_sample_prim(layer_type_name_ID(op), p.GetInputPrimitiveIDs(op), op->get_attributes());
+    const cldnn::grid_sample grid_sample_prim(layer_type_name_ID(op), p.GetInputInfo(op), op->get_attributes());
 
     p.add_primitive(*op, grid_sample_prim);
 }

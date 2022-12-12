@@ -7,8 +7,6 @@
 #include "itt.hpp"
 #include "ngraph/op/util/elementwise_args.hpp"
 
-BWDCMP_RTTI_DEFINITION(ov::op::util::UnaryElementwiseArithmetic);
-
 ov::op::util::UnaryElementwiseArithmetic::UnaryElementwiseArithmetic() : Op() {}
 
 ov::op::util::UnaryElementwiseArithmetic::UnaryElementwiseArithmetic(const Output<Node>& arg) : Op({arg}) {}

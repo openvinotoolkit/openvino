@@ -8,10 +8,10 @@
 #include <vector>
 
 #include "itt.hpp"
-#include "ngraph/opsets/opset1.hpp"
 #include "ngraph/pattern/op/wrap_type.hpp"
 #include "ngraph/rt_info.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/opsets/opset1.hpp"
 
 namespace {
 /// \brief      Check for correct Transpose orders which are before and after MatMul. Second Transpose must be back for
@@ -82,7 +82,7 @@ bool check_transposes(const std::vector<int64_t>& before_order,
 /// \return     True - Reshape has right new shape for reshaping, otherwise, Reshape has incorrect new shape for
 /// transformation
 ///
-bool check_input_reshape(const std::shared_ptr<ngraph::opset1::Reshape>& reshape,
+bool check_input_reshape(const std::shared_ptr<ov::opset1::Reshape>& reshape,
                          const std::vector<int64_t>& new_shape,
                          const bool transposed_b) {
     const auto input_shape = reshape->get_input_shape(0);
@@ -107,14 +107,14 @@ bool check_input_reshape(const std::shared_ptr<ngraph::opset1::Reshape>& reshape
 }
 }  // namespace
 
-ngraph::pass::TransposeReshapeEliminationForMatmul::TransposeReshapeEliminationForMatmul() {
+ov::pass::TransposeReshapeEliminationForMatmul::TransposeReshapeEliminationForMatmul() {
     MATCHER_SCOPE(TransposeReshapeEliminationForMatmul);
-    auto input_1_pattern = ngraph::pattern::any_input([](const Output<Node>& node) -> bool {
+    auto input_1_pattern = pass::pattern::any_input([](const Output<Node>& node) -> bool {
         const auto& shape = node.get_partial_shape();
         const auto& rank = shape.rank();
         return rank.is_static() && rank.get_length() == 2 && shape.is_static();
     });
-    auto input_2_pattern = ngraph::pattern::any_input([](const Output<Node>& node) -> bool {
+    auto input_2_pattern = pass::pattern::any_input([](const Output<Node>& node) -> bool {
         return node.get_partial_shape().is_static();
     });
 
@@ -136,7 +136,7 @@ ngraph::pass::TransposeReshapeEliminationForMatmul::TransposeReshapeEliminationF
     auto transpose_after_pattern =
         ngraph::pattern::wrap_type<opset1::Transpose>({reshape_after_pattern, const_transpose_after_pattern});
 
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_value_map = m.get_pattern_value_map();
         const auto& input_1 = pattern_value_map.at(input_1_pattern);
         const auto& input_2 = pattern_value_map.at(input_2_pattern);
@@ -152,7 +152,7 @@ ngraph::pass::TransposeReshapeEliminationForMatmul::TransposeReshapeEliminationF
             pattern_value_map.at(reshape_before_pattern).get_node_shared_ptr());
         auto reshape_after = std::dynamic_pointer_cast<opset1::Reshape>(
             pattern_value_map.at(reshape_after_pattern).get_node_shared_ptr());
-        auto reshape_before_constant = std::dynamic_pointer_cast<ngraph::opset1::Constant>(
+        auto reshape_before_constant = std::dynamic_pointer_cast<opset1::Constant>(
             pattern_value_map.at(const_reshape_before_pattern).get_node_shared_ptr());
         if (!reshape_before || !reshape_after || !reshape_before_constant)
             return false;
@@ -168,9 +168,9 @@ ngraph::pass::TransposeReshapeEliminationForMatmul::TransposeReshapeEliminationF
             return false;
 
         auto transpose_before_constant =
-            std::dynamic_pointer_cast<ngraph::opset1::Constant>(transpose_before->get_input_node_shared_ptr(1));
+            std::dynamic_pointer_cast<opset1::Constant>(transpose_before->get_input_node_shared_ptr(1));
         auto transpose_after_constant =
-            std::dynamic_pointer_cast<ngraph::opset1::Constant>(transpose_after->get_input_node_shared_ptr(1));
+            std::dynamic_pointer_cast<opset1::Constant>(transpose_after->get_input_node_shared_ptr(1));
         if (!transpose_before_constant || !transpose_after_constant)
             return false;
 

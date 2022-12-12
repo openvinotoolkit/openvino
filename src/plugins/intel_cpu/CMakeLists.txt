@@ -75,7 +75,6 @@ target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/sr
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
     $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
-target_compile_definitions(${TARGET_NAME} PRIVATE $<$<CONFIG:Debug>:DNNL_ENABLE_EXCEPTIONS>)
 
 # Cross compiled function
 # TODO: The same for proposal, proposalONNX, topk
@@ -97,7 +96,6 @@ if(BUILD_SHARED_LIBS)
 
     target_include_directories(${TARGET_NAME}_obj
         PRIVATE
-            $<TARGET_PROPERTY:openvino_gapi_preproc_s,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:ov_shape_inference,INTERFACE_INCLUDE_DIRECTORIES>

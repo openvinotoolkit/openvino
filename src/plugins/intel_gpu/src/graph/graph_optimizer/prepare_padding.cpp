@@ -140,6 +140,7 @@ void prepare_padding::run(program& p) {
             continue;
 
         auto conv = node.get_primitive();
+        if (node.is_dynamic()) continue;
         auto& conv_input_node = node.get_dependency(0);
         auto conv_layout = node.get_output_layout();
 
@@ -229,6 +230,7 @@ void prepare_padding::run(program& p) {
         if (node.get_dependencies().empty())
             continue;
 
+        if (node.is_dynamic()) continue;
         auto conv = node.get_primitive();
         auto& conv_input_node = node.get_dependency(0);
         auto conv_layout = node.get_output_layout();

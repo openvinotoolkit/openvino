@@ -1,8 +1,8 @@
 # OpenVINO™ Developer Documentation
 
-Welcome to the OpenVINO™ Toolkit Developer Documentation. This documentation helps to deeper understand the ideology of OpenVINO, provides the complete information about ideas which are applied inside.
+Welcome to the OpenVINO™ Developer Documentation. This documentation helps deeper understand the OpenVINO architecture and gives detailed information on the concepts and ideas used inside.
 
-The OpenVINO™ Toolkit provides a functionality to load model from different frameworks and run it on different accelerators.
+The OpenVINO™ provides a functionality to load models from different frameworks and run them on different accelerators.
 
 ```mermaid
 flowchart LR
@@ -54,23 +54,23 @@ flowchart LR
     openvino--infer--->auto
 ```
 
-## [Get started](./get_started.md)
+## [Get Started](./get_started.md)
 
  * [Build OpenVINO](./build.md)
  * How to:
      * [Add new operation](../../src/core/docs/operation_enabling_flow.md)
+     * [Add new conditional compilation](../../src/common/conditional_compilation/docs/develop_cc_for_new_component.md)
      * [Add new transformation](#todo)
      * [Get code coverage report](./test_coverage.md) 
      * [Add component developer documentation](./dev_doc_guide.md)
- * [OpenVINO contribution guideline](../../CONTRIBUTING.md)
- * [OpenVINO Debug Capabilities](./debug_capabilities.md)
+ * [OpenVINO contributing guidelines](../../CONTRIBUTING.md)
+ * [OpenVINO debug capabilities](./debug_capabilities.md)
 
-## OpenVINO repository structure
+## OpenVINO Repository Structure
 
-The repository is organized in such a way that the components contain all dependencies inside (for example, thirdparty, tests, documentation, and other). 
-With this approach, groups of developers, who are concentrated on different components, can efficiently work together.
+The repository is organized in such a way that the components contain all dependencies (for example, third-party, tests, documentation, and others). 
 
-The OpenVINO Repository compositions from next components, click on the component name to get more information about it:
+The OpenVINO Repository includes the following components. Click on the component name to get more information:
 <pre>
  <code>
  <a href="../../README.md">openvino/</a>                  // OpenVINO Repository
@@ -82,7 +82,7 @@ The OpenVINO Repository compositions from next components, click on the componen
     samples/                // OpenVINO samples
     scripts/                // Helper scripts
     <a href="../../src/README.md">src/</a>                    // Folder with core OpenVINO components
-    tests/                  // Infrastructure tests, which validate full pipelines
+    tests/                  // Infrastructure tests which validate full pipelines
     thirdparty/             // Common third-party dependencies
     tools/                  // OpenVINO tools
  </code>
@@ -90,19 +90,19 @@ The OpenVINO Repository compositions from next components, click on the componen
 
 ### OpenVINO Component Structure
 
-The OpenVINO component should contain all dependencies inside (for example, thirdparty, tests, documentation, and other). The abstract component structure with comments and marks for optional folders is presented below.
+The OpenVINO component contains all dependencies (for example, third-party, tests, documentation, and others). An example component structure with comments and marks for optional folders is presented below.
 
 ```
 ov_component/           // Component folder
-    cmake/              // (optional) CMake scripts which are related only for this component
-    dev_api/            // (optional) Developer API is used in case if component wants to provide some API for internal developers
+    cmake/              // (optional) CMake scripts that are related only to this component 
+    dev_api/            // (optional) Developer API is used when the component provides API for internal developers
     docs/               // (optional) Contains detailed component documentation
     include/            // (optional) Public component API
     src/                // Sources of the component
-    tests/              // Tests on the component
+    tests/              // Tests for the component
     thirdparty/         // (optional) Third-party dependencies
     CMakeLists.txt      // Main CMake script
-    README.md           // (optional) Endtry point for the developer documentation
+    README.md           // (optional) Entry point for the developer documentation
 ```
 
 
@@ -110,5 +110,6 @@ ov_component/           // Component folder
 
  * [Conditional Compilation](./conditional_compilation.md)
 
-## See also
- * [OpenVINO™ README](../../README.md)
+## See Also
+
+ * [OpenVINO README](../../README.md)

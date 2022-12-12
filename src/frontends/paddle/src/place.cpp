@@ -61,6 +61,14 @@ const ::paddle::framework::proto::OpDesc& OpPlace::get_desc() const {
     return m_op_desc;
 }
 
+const std::shared_ptr<DecoderBase> OpPlace::get_decoder() const {
+    return m_op_decoder;
+}
+
+void OpPlace::set_decoder(const std::shared_ptr<DecoderBase> op_decoder) {
+    m_op_decoder = op_decoder;
+}
+
 void OpPlace::add_out_port(const std::shared_ptr<OutPortPlace>& output, const std::string& name) {
     m_output_ports[name].push_back(output);
 }

@@ -35,70 +35,81 @@ struct InterpolateAttrs {
 
 struct interpolate_test_params {
     layout in_layout;
-    layout pattern_layout;
-    std::vector<int64_t> pattern_data;
+    layout sizes_layout;
+    std::vector<int64_t> sizes;
+    layout scales_layout;
     std::vector<float> scales;
     std::vector<int64_t> axes;
     InterpolateAttrs attrs;
     layout expected_layout;
 };
 
-class interpolate_test_two_inputs : public testing::TestWithParam<interpolate_test_params> { };
-TEST_P(interpolate_test_two_inputs, shape_infer) {
+class interpolate_test_three_inputs : public testing::TestWithParam<interpolate_test_params> { };
+TEST_P(interpolate_test_three_inputs, shape_infer) {
     auto p = GetParam();
 
     auto& engine = get_test_engine();
 
     auto input_prim = std::make_shared<input_layout>("input", p.in_layout);
-    auto pattern_prim = std::make_shared<input_layout>("pattern", p.pattern_layout);
-    auto resample_prim = std::make_shared<resample>("output", "input", "pattern", p.scales, p.axes,
+    auto sizes_prim = std::make_shared<input_layout>("sizes", p.sizes_layout);
+    auto scales_prim = std::make_shared<input_layout>("scales", p.scales_layout);
+    auto resample_prim = std::make_shared<resample>("output", input_info("input"), input_info("sizes"), input_info("scales"), p.axes,
                                                     p.attrs.pads_begin, p.attrs.pads_end,
                                                     p.attrs.antialias, p.attrs.cube_coeff,
                                                     p.attrs.mode, p.attrs.shape_calc_mode,
                                                     p.attrs.coordinate_transformation_mode, p.attrs.nearest_mode);
     cldnn::program prog(engine);
 
-    auto pattern_mem = engine.allocate_memory(p.pattern_layout);
-    set_values(pattern_mem, p.pattern_data);
+    auto sizes_mem = engine.allocate_memory(p.sizes_layout);
+    auto scales_mem = engine.allocate_memory(p.scales_layout);
+    set_values(sizes_mem, p.sizes);
+    set_values(scales_mem, p.scales);
 
     auto& input_node = prog.get_or_create(input_prim);
-    auto& pattern_node = prog.get_or_create(pattern_prim);
+    auto& sizes_node = prog.get_or_create(sizes_prim);
+    auto& scales_node = prog.get_or_create(scales_prim);
     auto& resample_node = prog.get_or_create(resample_prim);
     program_wrapper::add_connection(prog, input_node, resample_node);
-    program_wrapper::add_connection(prog, pattern_node, resample_node);
-    auto params = resample_node.get_kernel_impl_params();
+    program_wrapper::add_connection(prog, sizes_node, resample_node);
+    program_wrapper::add_connection(prog, scales_node, resample_node);
 
-    params->memory_deps = {{1, pattern_mem}};
+    auto params = resample_node.get_kernel_impl_params();
+    params->memory_deps = {{1, sizes_mem}, {2, scales_mem}};
+
     auto res_w_data = resample_inst::calc_output_layouts<ov::PartialShape>(resample_node, *params);
 
     ASSERT_EQ(res_w_data.size(), 1);
     ASSERT_EQ(res_w_data[0], p.expected_layout);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke, interpolate_test_two_inputs,
+INSTANTIATE_TEST_SUITE_P(smoke, interpolate_test_three_inputs,
     testing::ValuesIn(std::vector<interpolate_test_params>{
         {
             layout{ov::PartialShape{1, 2, 48, 80}, data_types::f32, format::bfyx},
-            layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {-1, -1, -1, -1},
-            {0.5, 2.0}, {2, 3}, InterpolateAttrs{InterpolateOp::ShapeCalcMode::SCALES},
+            layout{ov::PartialShape{}, data_types::i64, format::bfyx}, {},
+            layout{ov::PartialShape{4}, data_types::f32, format::bfyx}, {1.0f, 1.0f, 0.5f, 2.0f},
+            {0, 1, 2, 3}, InterpolateAttrs{InterpolateOp::ShapeCalcMode::SCALES},
             layout{ov::PartialShape{1, 2, 24, 160}, data_types::f32, format::bfyx}
         },
         {
             layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx},
-            layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {-1, -1, -1, -1},
-            {0.5, 2.0}, {2, 3}, InterpolateAttrs{InterpolateOp::ShapeCalcMode::SCALES},
+            layout{ov::PartialShape{}, data_types::i64, format::bfyx}, {},
+            layout{ov::PartialShape{4}, data_types::f32, format::bfyx}, {1.0f, 1.0f, 0.5f, 2.0f},
+            {0, 1, 2, 3}, InterpolateAttrs{InterpolateOp::ShapeCalcMode::SCALES},
             layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx}
         },
         {
             layout{ov::PartialShape{2, 2, 3, 2}, data_types::f32, format::bfyx},
             layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {2, 2, 2, 3},
-            {}, {}, InterpolateAttrs(InterpolateOp::ShapeCalcMode::SIZES),
+            layout{ov::PartialShape{4}, data_types::f32, format::bfyx}, {1.f, 1.f, 1.f, 1.f},
+            {0, 1, 2, 3}, InterpolateAttrs(InterpolateOp::ShapeCalcMode::SIZES),
             layout{ov::PartialShape{2, 2, 2, 3}, data_types::f32, format::bfyx}
         },
         {
             layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx},
             layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {2, 2, 2, 3},
-            {}, {}, InterpolateAttrs(InterpolateOp::ShapeCalcMode::SIZES),
+            layout{ov::PartialShape{4}, data_types::f32, format::bfyx}, {1.f, 1.f, 1.f, 1.f},
+            {0, 1, 2, 3}, InterpolateAttrs(InterpolateOp::ShapeCalcMode::SIZES),
             layout{ov::PartialShape{2, 2, 2, 3}, data_types::f32, format::bfyx}
         }
     }));
@@ -110,7 +121,7 @@ TEST_P(interpolate_test_single_input, shape_infer) {
     auto& engine = get_test_engine();
 
     auto input_prim = std::make_shared<input_layout>("input", p.in_layout);
-    auto resample_prim = std::make_shared<resample>("output", "input", p.pattern_data, p.scales, p.axes,
+    auto resample_prim = std::make_shared<resample>("output", input_info("input"), p.sizes, p.scales, p.axes,
                                                     p.attrs.pads_begin, p.attrs.pads_end,
                                                     p.attrs.antialias, p.attrs.cube_coeff,
                                                     p.attrs.mode, p.attrs.shape_calc_mode,
@@ -132,26 +143,30 @@ INSTANTIATE_TEST_SUITE_P(smoke, interpolate_test_single_input,
     testing::ValuesIn(std::vector<interpolate_test_params>{
         {
             layout{ov::PartialShape{1, 2, 48, 80}, data_types::f32, format::bfyx},
-            layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {-1, -1, -1, -1},
-            {0.5, 2.0}, {2, 3}, InterpolateAttrs{InterpolateOp::ShapeCalcMode::SCALES},
+            layout{ov::PartialShape{}, data_types::i64, format::bfyx}, {},
+            layout{ov::PartialShape{4}, data_types::f32, format::bfyx}, {1.0f, 1.0f, 0.5f, 2.0f},
+            {0, 1, 2, 3}, InterpolateAttrs{InterpolateOp::ShapeCalcMode::SCALES},
             layout{ov::PartialShape{1, 2, 24, 160}, data_types::f32, format::bfyx}
         },
         {
             layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx},
-            layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {-1, -1, -1, -1},
-            {0.5, 2.0}, {2, 3}, InterpolateAttrs{InterpolateOp::ShapeCalcMode::SCALES},
+            layout{ov::PartialShape{}, data_types::i64, format::bfyx}, {},
+            layout{ov::PartialShape{4}, data_types::f32, format::bfyx}, {1.0f, 1.0f, 0.5f, 2.0f},
+            {0, 1, 2, 3}, InterpolateAttrs{InterpolateOp::ShapeCalcMode::SCALES},
             layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx}
         },
         {
             layout{ov::PartialShape{2, 2, 3, 2}, data_types::f32, format::bfyx},
             layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {2, 2, 2, 3},
-            {}, {}, InterpolateAttrs(InterpolateOp::ShapeCalcMode::SIZES),
+            layout{ov::PartialShape{4}, data_types::f32, format::bfyx}, {1.f, 1.f, 1.f, 1.f},
+            {0, 1, 2, 3}, InterpolateAttrs(InterpolateOp::ShapeCalcMode::SIZES),
             layout{ov::PartialShape{2, 2, 2, 3}, data_types::f32, format::bfyx}
         },
         {
             layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx},
             layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {2, 2, 2, 3},
-            {}, {}, InterpolateAttrs(InterpolateOp::ShapeCalcMode::SIZES),
+            layout{ov::PartialShape{4}, data_types::f32, format::bfyx}, {1.f, 1.f, 1.f, 1.f},
+            {0, 1, 2, 3}, InterpolateAttrs(InterpolateOp::ShapeCalcMode::SIZES),
             layout{ov::PartialShape{2, 2, 2, 3}, data_types::f32, format::bfyx}
         }
     }));

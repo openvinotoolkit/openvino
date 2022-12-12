@@ -6,16 +6,13 @@
 
 #include <algorithm>
 #include <memory>
-#include <ngraph/op/util/op_types.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/pass/graph_rewrite.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/validation_util.hpp>
+#include <openvino/core/rt_info.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 #include <vector>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 // Convert redundant reduce to reshape : expected to be optimized out or modified
@@ -28,53 +25,53 @@ class TRANSFORMATIONS_API ConvertReduceLogicalAndToReshape;
 class TRANSFORMATIONS_API ConvertReduceLogicalOrToReshape;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class CvtReduceBase : public ngraph::pass::MatcherPass {
+class CvtReduceBase : public ov::pass::MatcherPass {
 public:
     template <class T>
-    ngraph::matcher_pass_callback convert_reduce_to_reshape();
+    ov::matcher_pass_callback convert_reduce_to_reshape();
 
-    bool is_redundant(ngraph::Shape input, ngraph::Shape output);
+    bool is_redundant(ov::Shape input, ov::Shape output);
 };
 
-class ngraph::pass::ConvertReduceMeanToReshape : public CvtReduceBase {
+class ov::pass::ConvertReduceMeanToReshape : public CvtReduceBase {
 public:
     OPENVINO_RTTI("ConvertReduceMeanToReshape", "0");
     ConvertReduceMeanToReshape();
 };
 
-class ngraph::pass::ConvertReduceSumToReshape : public CvtReduceBase {
+class ov::pass::ConvertReduceSumToReshape : public CvtReduceBase {
 public:
     OPENVINO_RTTI("ConvertReduceSumToReshape", "0");
     ConvertReduceSumToReshape();
 };
 
-class ngraph::pass::ConvertReduceMaxToReshape : public CvtReduceBase {
+class ov::pass::ConvertReduceMaxToReshape : public CvtReduceBase {
 public:
     OPENVINO_RTTI("ConvertReduceMaxToReshape", "0");
     ConvertReduceMaxToReshape();
 };
 
-class ngraph::pass::ConvertReduceMinToReshape : public CvtReduceBase {
+class ov::pass::ConvertReduceMinToReshape : public CvtReduceBase {
 public:
     OPENVINO_RTTI("ConvertReduceMinToReshape", "0");
     ConvertReduceMinToReshape();
 };
 
-class ngraph::pass::ConvertReduceLogicalAndToReshape : public CvtReduceBase {
+class ov::pass::ConvertReduceLogicalAndToReshape : public CvtReduceBase {
 public:
     OPENVINO_RTTI("ConvertReduceLogicalAndToReshape", "0");
     ConvertReduceLogicalAndToReshape();
 };
 
-class ngraph::pass::ConvertReduceLogicalOrToReshape : public CvtReduceBase {
+class ov::pass::ConvertReduceLogicalOrToReshape : public CvtReduceBase {
 public:
     OPENVINO_RTTI("ConvertReduceLogicalOrToReshape", "0");
     ConvertReduceLogicalOrToReshape();
 };
 
-class ngraph::pass::ConvertReduceToReshape : public ngraph::pass::GraphRewrite {
+class ov::pass::ConvertReduceToReshape : public ov::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("ConvertReduceToReshape", "0");
     // Handling reduce if it can be converted to reshape (check input/output tensor)
@@ -90,8 +87,8 @@ public:
 };
 
 template <class T>
-ngraph::matcher_pass_callback CvtReduceBase::convert_reduce_to_reshape() {
-    return [&](ngraph::pattern::Matcher& m) {
+ov::matcher_pass_callback CvtReduceBase::convert_reduce_to_reshape() {
+    return [&](ov::pass::pattern::Matcher& m) {
         auto reduce = std::dynamic_pointer_cast<T>(m.get_match_root());
         if (!reduce)
             return false;
@@ -103,11 +100,9 @@ ngraph::matcher_pass_callback CvtReduceBase::convert_reduce_to_reshape() {
         // convert redundant reduce to reshape if the input shape is supported by reshape
         if (is_redundant(input_shape, reduce_shape) && input_shape.size() < 6) {
             const auto reshape_shape = reduce->output(0).get_shape();
-            auto reshape = std::make_shared<ngraph::opset1::Reshape>(
+            auto reshape = std::make_shared<ov::opset1::Reshape>(
                 input,
-                ngraph::opset1::Constant::create(ngraph::element::i64,
-                                                 ngraph::Shape{reshape_shape.size()},
-                                                 reshape_shape),
+                ov::opset1::Constant::create(ov::element::i64, ov::Shape{reshape_shape.size()}, reshape_shape),
                 true);
 
             reshape->set_friendly_name(reduce->get_friendly_name());
@@ -119,3 +114,15 @@ ngraph::matcher_pass_callback CvtReduceBase::convert_reduce_to_reshape() {
         return false;
     };
 }
+
+namespace ngraph {
+namespace pass {
+using ov::pass::ConvertReduceLogicalAndToReshape;
+using ov::pass::ConvertReduceLogicalOrToReshape;
+using ov::pass::ConvertReduceMaxToReshape;
+using ov::pass::ConvertReduceMeanToReshape;
+using ov::pass::ConvertReduceMinToReshape;
+using ov::pass::ConvertReduceSumToReshape;
+using ov::pass::ConvertReduceToReshape;
+}  // namespace pass
+}  // namespace ngraph
