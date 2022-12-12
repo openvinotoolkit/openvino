@@ -34,7 +34,7 @@ inline void DoTestBase(engine& engine,
         FAIL();
     }
 
-    auto gather_nd_inst = gather_nd("gather_nd", "InputData", "InputIndices", input_rank, indices_rank, batch_dims, batch_merged_output);
+    auto gather_nd_inst = gather_nd("gather_nd", input_info("InputData"), input_info("InputIndices"), input_rank, indices_rank, batch_dims, batch_merged_output);
     topology.add(input_layout("InputData", input0->get_layout()));
     topology.add(input_layout("InputIndices", input1->get_layout()));
     topology.add(gather_nd_inst);

@@ -27,13 +27,17 @@ from openvino.runtime import serialize
 
 
 def main(cli_parser: argparse.ArgumentParser, framework=None):
-    argv = cli_parser.parse_args()
-    argv.model_name = get_model_name_from_args(argv)
-    argv = vars(argv)
-
     # Initialize logger with 'ERROR' as default level to be able to form nice messages
     # before arg parser deliver log_level requested by user
     init_logger('ERROR', False)
+    logger = log.getLogger()
+    # Disable logging for parse_args() as inner convert runs parse_args() second time
+    # which result in duplicating of warnings
+    logger.disabled = True
+    argv = cli_parser.parse_args()
+    logger.disabled = False
+    argv.model_name = get_model_name_from_args(argv)
+    argv = vars(argv)
 
     if framework is not None:
         argv['framework'] = framework
