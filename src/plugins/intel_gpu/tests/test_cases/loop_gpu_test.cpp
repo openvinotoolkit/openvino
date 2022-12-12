@@ -54,7 +54,7 @@ TEST(loop_gpu, basic_no_concat)
 
     topology body(
         data("eltwise_operand", operand_mem),
-        eltwise("eltwise", "input", "eltwise_operand", eltwise_mode::sum)
+        eltwise("eltwise", input_info("input"), input_info("eltwise_operand"), eltwise_mode::sum)
     );
 
     std::vector<loop::io_primitive_map> input_primitive_maps { loop::io_primitive_map("input", "input") };
@@ -69,7 +69,7 @@ TEST(loop_gpu, basic_no_concat)
         input_layout("trip_count", trip_count_mem->get_layout()),
         input_layout("initial_condition", initial_condition_mem->get_layout()),
         mutable_data("num_iteration", num_iteration_mem),
-        loop("loop", {"input"}, body,
+        loop("loop", { input_info("input") }, body,
              "trip_count", "initial_condition", "num_iteration",
              input_primitive_maps, output_primitive_maps, back_edges, 8)
     );
@@ -151,7 +151,7 @@ TEST(loop_gpu, basic_concat)
     topology body(
         input_layout("input", operand_mem->get_layout()),
         data("eltwise_operand", operand_mem),
-        eltwise("eltwise", "input", "eltwise_operand", eltwise_mode::sum)
+        eltwise("eltwise", input_info("input"), input_info("eltwise_operand"), eltwise_mode::sum)
     );
 
     std::vector<loop::io_primitive_map> input_primitive_maps { loop::io_primitive_map("input", "input", 2) };
@@ -164,7 +164,7 @@ TEST(loop_gpu, basic_concat)
         input_layout("trip_count", trip_count_mem->get_layout()),
         input_layout("initial_condition", initial_condition_mem->get_layout()),
         mutable_data("num_iteration", num_iteration_mem),
-        loop("loop", {"input"}, body,
+        loop("loop", { input_info("input") }, body,
              "trip_count", "initial_condition", "num_iteration",
              input_primitive_maps, output_primitive_maps, back_edges, trip_count)
     );
@@ -258,7 +258,7 @@ TEST(loop_gpu, basic_concat_nested)
     topology inner_loop_body(
         input_layout("inner_input", input_mem->get_layout()),
         data("inner_eltwise_operand", inner_operand_mem),
-        eltwise("inner_eltwise", "inner_input", "inner_eltwise_operand", eltwise_mode::sum)
+        eltwise("inner_eltwise", input_info("inner_input"), input_info("inner_eltwise_operand"), eltwise_mode::sum)
     );
     std::vector<loop::io_primitive_map> inner_input_primitive_maps { loop::io_primitive_map("inner_input", "inner_input", 2) };
     std::vector<loop::io_primitive_map> inner_output_primitive_maps { loop::io_primitive_map("inner_loop", "inner_eltwise", 2) };
@@ -272,7 +272,7 @@ TEST(loop_gpu, basic_concat_nested)
         input_layout("trip_count", inner_trip_count_mem->get_layout()),
         input_layout("initial_condition", inner_initial_condition_mem->get_layout()),
         mutable_data("inner_num_iteration", inner_num_iteration_mem),
-        loop("inner_loop", {"inner_input", "trip_count", "initial_condition"},
+        loop("inner_loop", { input_info("inner_input"), input_info("trip_count"), input_info("initial_condition") },
             inner_loop_body, "trip_count", "initial_condition", "inner_num_iteration",
             inner_input_primitive_maps, inner_output_primitive_maps, inner_back_edges, inner_trip_count)
     );
@@ -296,7 +296,7 @@ TEST(loop_gpu, basic_concat_nested)
         mutable_data("num_iteration", num_iteration_mem),
         input_layout("inner_trip_count", inner_trip_count_mem->get_layout()),
         input_layout("inner_initial_condition", inner_initial_condition_mem->get_layout()),
-        loop("loop", {"input", "inner_trip_count", "inner_initial_condition"},
+        loop("loop", { input_info("input"), input_info("inner_trip_count"), input_info("inner_initial_condition") },
             outer_loop_body, "trip_count", "initial_condition", "num_iteration",
             outer_input_primitive_maps, outer_output_primitive_maps, outer_back_edges, outer_trip_count)
     );

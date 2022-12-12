@@ -2084,13 +2084,14 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
         auto parentParentConstNode = parentNode->getParentEdgesAtPort(1)[0]->getParent();
         auto childChildNode = childNode->getChildEdgeAt(0)->getChild();
 
-        auto &remEdge = parentParentConstNode->getChildEdgeAt(0);
+        auto remEdge = parentNode->getParentEdgesAtPort(1)[0];
         remEdge->drop();
         auto& edges = graph.GetEdges();
         for (auto it = edges.begin(); it != edges.end(); it++) {
             if ((*it) == remEdge) {
                 edges.erase(it);
-                parentParentConstNode->remove();
+                if (parentParentConstNode->getChildEdges().empty())
+                    parentParentConstNode->remove();
                 break;
             }
         }

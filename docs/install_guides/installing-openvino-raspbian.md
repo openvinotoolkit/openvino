@@ -49,7 +49,11 @@
    sudo tar -xf openvino_2022.2.0.7713.tgz
    sudo mv l_openvino_toolkit_debian9_arm_2022.2.0.7713.af16ea1d79a_armhf /opt/intel/openvino_2022.2.0.7713
    ```
-5. For simplicity, it is useful to create a symbolic link as below:
+5. Install required system dependencies on Linux. To do this, OpenVINO provides a script in the extracted installation directory. Run the following command:
+   ```sh
+   sudo -E ./install_dependencies/install_openvino_dependencies.sh
+   ```
+6. For simplicity, it is useful to create a symbolic link as below:
    ```sh
    sudo ln -s openvino_2022.2.0.7713 openvino_2022
    ```

@@ -7,6 +7,7 @@
 #include "include/batch_headers/fetch_weights.cl"
 
 KERNEL(fc)(
+    OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,
     const __global FILTER_TYPE* weights

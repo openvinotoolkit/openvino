@@ -152,9 +152,11 @@ jobs:
       python -m pip install -r $(REPO_DIR)\src\bindings\python\wheel\requirements-dev.txt
       python -m pip install -r $(REPO_DIR)\src\bindings\python\requirements.txt
       rem For running Paddle frontend unit tests
-      python -m pip install -r $(REPO_DIR)\src\core\tests\frontend\paddle\requirements_dev.txt
+      python -m pip install -r $(REPO_DIR)\src\frontends\paddle\tests\requirements.txt
       rem For running ONNX frontend unit tests
       python -m pip install -r $(REPO_DIR)\src\frontends\onnx\tests\requirements.txt
+      rem For running TensorFlow frontend unit tests
+      python -m pip install -r $(REPO_DIR)\src\frontends\tensorflow\tests\requirements.txt
       rem For MO unit tests
       python -m pip install -r $(REPO_DIR)\tools\mo\requirements.txt
       python -m pip install -r $(REPO_DIR)\tools\mo\requirements_dev.txt
@@ -192,7 +194,7 @@ jobs:
         -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
         -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
         -S $(REPO_DIR) -B $(BUILD_DIR)
-    displayName: 'CMake Samples Tests'
+    displayName: 'CMake OpenVINO'
 
   - script: dir $(REPO_DIR)\temp\ /s
     displayName: 'List temp SDKs'
@@ -222,7 +224,7 @@ jobs:
         -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
         -S $(REPO_DIR)\tests\samples_tests ^
         -B $(BUILD_SAMPLES_TESTS_DIR)
-    displayName: 'CMake'
+    displayName: 'CMake Samples Tests'
 
   - script: |
       $(CMAKE_CMD) -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_SAMPLES_TESTS_DIR)\cmake_install.cmake
@@ -264,7 +266,15 @@ jobs:
     displayName: 'OV Core UT'
     continueOnError: false
 
-  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_conditional_complilation_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ConditionalCompilation.xml
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_inference_functional_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-InferenceFunc.xml
+    displayName: 'Inference Func Tests'
+    continueOnError: false
+
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_inference_unit_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-InferenceUnit.xml
+    displayName: 'Inference Unit Tests'
+    continueOnError: false
+
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_conditional_compilation_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ConditionalCompilation.xml
     displayName: 'Conditional Compilation Tests'
     continueOnError: false
 
@@ -282,6 +292,14 @@ jobs:
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-Tensorflow.xml
     displayName: 'TensorFlow Frontend Unit Tests'
+    continueOnError: false
+
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_lp_transformations_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\LpTransformations.xml
+    displayName: 'Low Precision Transformations Tests'
+    continueOnError: false
+
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_transformations_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\Transformations.xml
+    displayName: 'Transformations Tests'
     continueOnError: false
 
     # set PATH=$(IB_DIR);%PATH%

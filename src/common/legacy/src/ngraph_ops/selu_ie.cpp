@@ -13,7 +13,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::SeluIE);
 op::SeluIE::SeluIE(const Output<Node> & input,
                    const float alpha,
                    const float gamma)
