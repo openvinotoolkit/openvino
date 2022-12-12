@@ -113,6 +113,7 @@ public:
      * @param data A reference to input. The type of Blob must correspond to the network input precision and size.
      * @param info Preprocess info for blob.
      */
+    OPENVINO_DEPRECATED("This method is deprecated and will be removed in 2023.1 release")
     void SetBlob(const std::string& name, const Blob::Ptr& data, const PreProcessInfo& info);
 
     /**
