@@ -1,10 +1,10 @@
 # Converting a PyTorch Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch}
 
-The PyTorch framework is supported through export to the ONNX format. Model Optimizer Python API allows to convert PyTorch models through usage of convert_model() method which internally converts a model to ONNX.
+The PyTorch framework is supported through export to the ONNX format. Model Optimizer Python API allows to convert PyTorch models through usage of `convert_model()` method which internally converts a model to ONNX.
 
 ## Conversion of PyTorch model from the memory using Python API (Experimental Functionality)
 
-Converting a PyTorch model using convert_model() requires providing of 'input_shape' or 'example_input'.
+Converting a PyTorch model using `convert_model()` requires providing of `input_shape` or `example_input`.
 
 ```sh
 import torchvision
@@ -17,14 +17,14 @@ ov_model = convert_model(model, example_input=torch.zeros(1, 3, 100, 100))
 
 'example_input' accepts following formats:
 
-* openvino.runtime.Tensor
-* torch.Tensor
-* np.ndarray
-* list or tuple with tensors (openvino.runtime.Tensor / torch.Tensor / np.ndarray)
-* dictionary where key is input name, value is tensor (openvino.runtime.Tensor / torch.Tensor / np.ndarray)
+* `openvino.runtime.Tensor`
+* `torch.Tensor`
+* `np.ndarray`
+* `list` or `tuple` with tensors (`openvino.runtime.Tensor` / `torch.Tensor` / `np.ndarray`)
+* `dictionary` where key is input name, value is tensor (`openvino.runtime.Tensor` / `torch.Tensor` / `np.ndarray`)
 
-ONNX opset version can be set using optional 'onnx_opset_version' parameter.
-If onnx_opset_version is not set default opset from torch.onnx.export() is used.
+ONNX opset version can be set using optional `onnx_opset_version` parameter.
+If `onnx_opset_version` is not set default opset from `torch.onnx.export()` is used.
 
 ```sh
 import torchvision
