@@ -67,6 +67,20 @@ ov::pass::TransposeSinkingBinaryBackward::TransposeSinkingBinaryBackward() {
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto main_node = pattern_to_output.at(main_node_label).get_node_shared_ptr();
 
+        if (main_node->output(0).get_target_inputs().size() > 1) { // FIXME: move to a separate function
+            // reconnect consumers except transpose to new cloned main_node
+            auto new_main_node = main_node->clone_with_new_inputs(main_node->input_values());
+            for (size_t i = 0; i < main_node->get_output_size(); ++i) {
+                for (auto main_node_consumer : main_node->output(i).get_target_inputs()) {
+                    if (transpose->get_instance_id() == main_node_consumer.get_node()->get_instance_id())
+                        continue;
+                    main_node_consumer.replace_source_output(new_main_node);
+                }
+            }
+            copy_runtime_info(main_node, new_main_node);
+            register_new_node(new_main_node);
+        }
+
         for (auto& new_node : sink_backward::InsertTransposeBeforeNode(main_node, transpose_const)) {
             register_new_node(new_node);
         }
