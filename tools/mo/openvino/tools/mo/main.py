@@ -38,9 +38,10 @@ def main(cli_parser: argparse.ArgumentParser, framework=None):
     logger.disabled = True
     argv = cli_parser.parse_args()
     is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
-    argv = vars(argv)
     logger.disabled = False
     argv.model_name = get_model_name_from_args(argv)
+    argv = vars(argv)
+
     if framework is not None:
         argv['framework'] = framework
 
