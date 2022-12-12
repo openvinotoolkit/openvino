@@ -377,14 +377,14 @@ TEST_P(deconv_scale, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        data("weights", get_mem(get_weights_layout(p))),
+        data("weights", get_mem(get_weights_layout(p), -9, 9)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
         deconvolution("deconv", input_info("input"), { "weights" }, p.groups, p.stride, p.pad),
         eltwise("scale", { input_info("deconv"), input_info("scale_data") }, eltwise_mode::prod),
         reorder("out", input_info("scale"), p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-5f;
+    tolerance = default_tolerance(data_types::f16);
     execute(p);
 }
 
@@ -399,7 +399,7 @@ TEST_P(deconv_scale, fp16_scale_out) {
         reorder("out", input_info("scale"), p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-5f;
+    tolerance = default_tolerance(data_types::f16);
     execute(p);
 }
 
