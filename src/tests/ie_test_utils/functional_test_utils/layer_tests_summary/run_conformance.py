@@ -117,6 +117,8 @@ class Conformance:
         self._ov_path = ov_path
         self._ov_bin_path = get_ov_path(self._ov_path, True)
         self._working_dir = working_dir
+        if not os.path.exists(self._working_dir):
+            os.mkdir(self._working_dir)
         if not (type == "OP" or type == "API"):
             logger.error(f"Incorrect conformance type: {type}. Please use 'OP' or 'API'")
             exit(-1)
@@ -228,14 +230,13 @@ class Conformance:
             logger.info(f"Report dir {report_dir} is cleaned up")
             rmtree(report_dir)
         parallel_report_dir = os.path.join(report_dir, 'parallel')
-        conformance_filelist_path = utils.prepare_filelist(self._model_path, "*.xml", logger)
         if not os.path.isdir(report_dir):
             os.mkdir(report_dir)
         if not os.path.isdir(logs_dir):
             os.mkdir(logs_dir)
 
         try:
-            command_line_args = ["--device={self._device}", '--input_folders="{conformance_filelist_path}"', "--report_unique_name", '--output_folder="{parallel_report_dir}"']
+            command_line_args = [f"--device={self._device}", f'--input_folders="{self._model_path}"', f"--report_unique_name", f'--output_folder="{parallel_report_dir}"']
             conformance = TestParallelRunner(f"{conformance_path}{OS_BIN_FILE_EXT}", command_line_args, os.cpu_count() - 1 if os.cpu_count() > 2 else 1, logs_dir, 500)
             conformance.run()
             conformance.postprocess_logs()

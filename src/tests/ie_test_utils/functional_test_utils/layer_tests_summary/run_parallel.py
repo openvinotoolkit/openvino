@@ -10,6 +10,7 @@ import sys
 import threading
 from hashlib import sha256
 from pathlib import Path
+from shutil import rmtree
 
 import csv
 
@@ -142,7 +143,7 @@ class TestParallelRunner:
                 command += f" --input_folders"
                 argument = argument[argument.find("=")+1:]
             if is_input_folder and argument[0] != "-":
-                argument = utils.prepare_filelist(argument, "*.xml", logger)
+                argument = utils.prepare_filelist(argument.replace('"', ''), "*.xml", logger)
             else:
                 is_input_folder = False
             command += f" {argument}"
@@ -205,8 +206,9 @@ class TestParallelRunner:
                 log.close()
 
         logs_dir = os.path.join(self._working_dir, "logs")
-        if not os.path.exists(logs_dir):
-            os.mkdir(logs_dir)
+        if os.path.exists(logs_dir):
+            rmtree(logs_dir)
+        os.mkdir(logs_dir)
         for test_st, string in TEST_STATUS.items():
             if not os.path.exists(os.path.join(logs_dir, test_st)):
                 os.mkdir(os.path.join(logs_dir, test_st))
@@ -240,6 +242,7 @@ class TestParallelRunner:
                             test_name = None
                             test_log = list()
                             dir = None
+            os.remove(log) 
         with open(os.path.join(logs_dir, "hash_table.csv"), "w") as csv_file:
             csv_writer = csv.writer(csv_file, dialect='excel')
             for row in hash_map:
