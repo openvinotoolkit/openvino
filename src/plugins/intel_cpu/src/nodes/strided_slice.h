@@ -64,9 +64,10 @@ private:
     public:
         StridedSliceExecutor(const StridedSliceAttributes& attrs,
                              const std::vector<MemoryCPtr>& srcMemory,
-                             const MemoryCPtr& dstMemory,
+                             const std::vector<MemoryCPtr>& dstMemory,
                              const std::string& errorPrefix) : errorPrefix(errorPrefix) {}
-        virtual void exec(const std::vector<MemoryCPtr>& srcMemory, const MemoryPtr& dstMemory) = 0;
+        virtual void exec(const std::vector<MemoryCPtr>& srcMemory,
+                          const std::vector<MemoryCPtr>& dstMemory) = 0;
         virtual ~StridedSliceExecutor() = default;
 
     protected:
@@ -77,9 +78,10 @@ private:
     public:
         StridedSliceCommonExecutor(const StridedSliceAttributes& attrs,
                                    const std::vector<MemoryCPtr>& srcMemory,
-                                   const MemoryCPtr& dstMemory,
+                                   const std::vector<MemoryCPtr>& dstMemory,
                                    const std::string& errorPrefix);
-        void exec(const std::vector<MemoryCPtr>& srcMemory, const MemoryPtr& dstMemory) override;
+        void exec(const std::vector<MemoryCPtr>& srcMemory,
+                  const std::vector<MemoryCPtr>& dstMemory) override;
 
     private:
         struct StridedSliceParams {
@@ -93,7 +95,9 @@ private:
             bool isOptimized = false;
         };
 
-        void paramsInitialization(const StridedSliceAttributes& attrs, const std::vector<MemoryCPtr>& srcMemory, const MemoryCPtr& dstMemory);
+        void paramsInitialization(const StridedSliceAttributes& attrs,
+                                  const std::vector<MemoryCPtr>& srcMemory,
+                                  const std::vector<MemoryCPtr>& dstMemory);
         void dimsNormalization();
         void dimsGluing();
         void indicesCalculation();
@@ -123,6 +127,9 @@ private:
     bool isConstantInput[AXES_ID + 1] = {false};
     bool shapeHasDataDependency = false;
     bool hasConstAttrInputs = true;
+
+    std::vector<MemoryCPtr> srcMemory;
+    std::vector<MemoryCPtr> dstMemory;
 
     std::string errorPrefix;
 };

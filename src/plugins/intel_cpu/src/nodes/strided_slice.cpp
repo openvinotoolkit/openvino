@@ -300,11 +300,18 @@ bool StridedSlice::needPrepareParams() const {
 void StridedSlice::prepareParams() {
     updateLastInputDims();
 
-    std::vector<MemoryCPtr> srcMemory;
-    for (int i = 0; i < getOriginalInputsNumber(); i++) {
-        srcMemory.push_back(getParentEdgeAt(i)->getMemoryPtr());
+    if (srcMemory.empty()) {
+        for (int i = 0; i < getOriginalInputsNumber(); i++) {
+            srcMemory.push_back(getParentEdgeAt(i)->getMemoryPtr());
+        }
     }
-    execPtr = std::make_shared<StridedSliceCommonExecutor>(attrs, srcMemory, getChildEdgeAt(0)->getMemoryPtr(), errorPrefix);
+    if (dstMemory.empty()) {
+        for (int i = 0; i < getOriginalOutputsNumber(); i++) {
+            dstMemory.push_back(getChildEdgeAt(i)->getMemoryPtr());
+        }
+    }
+
+    execPtr = std::make_shared<StridedSliceCommonExecutor>(attrs, srcMemory, dstMemory, errorPrefix);
 }
 
 bool StridedSlice::needShapeInfer() const {
@@ -315,12 +322,7 @@ void StridedSlice::execute(dnnl::stream strm) {
     if (!execPtr)
         IE_THROW() << errorPrefix << "doesn't have compiled executor!";
 
-    std::vector<MemoryCPtr> srcMemory;
-    for (int i = 0; i < getOriginalInputsNumber(); i++) {
-        srcMemory.push_back(getParentEdgeAt(i)->getMemoryPtr());
-    }
-
-    execPtr->exec(srcMemory, getChildEdgeAt(0)->getMemoryPtr());
+    execPtr->exec(srcMemory, dstMemory);
 }
 
 void StridedSlice::executeDynamicImpl(dnnl::stream strm) {
@@ -333,7 +335,7 @@ bool StridedSlice::created() const {
 
 StridedSlice::StridedSliceCommonExecutor::StridedSliceCommonExecutor(const StridedSliceAttributes& attrs,
                                                                      const std::vector<MemoryCPtr>& srcMemory,
-                                                                     const MemoryCPtr& dstMemory,
+                                                                     const std::vector<MemoryCPtr>& dstMemory,
                                                                      const std::string& errorPrefix)
                                                                     : StridedSliceExecutor(attrs, srcMemory, dstMemory, errorPrefix) {
     paramsInitialization(attrs, srcMemory, dstMemory);
@@ -389,9 +391,9 @@ void StridedSlice::StridedSliceCommonExecutor::orderParametersByLayouts(const Bl
 
 void StridedSlice::StridedSliceCommonExecutor::paramsInitialization(const StridedSliceAttributes& attrs,
                                                                     const std::vector<MemoryCPtr>& srcMemory,
-                                                                    const MemoryCPtr& dstMemory) {
+                                                                    const std::vector<MemoryCPtr>& dstMemory) {
     const auto srcBlockedMemoryDesc = srcMemory[0]->GetDescWithType<BlockedMemoryDesc>();
-    const auto dstBlockedMemoryDesc = dstMemory->GetDescWithType<BlockedMemoryDesc>();
+    const auto dstBlockedMemoryDesc = dstMemory[0]->GetDescWithType<BlockedMemoryDesc>();
 
     params.attrs = attrs;
     params.srcBlockedDims = srcBlockedMemoryDesc->getBlockDims();
@@ -399,7 +401,7 @@ void StridedSlice::StridedSliceCommonExecutor::paramsInitialization(const Stride
     params.dstBlockedDims = dstBlockedMemoryDesc->getBlockDims();
 
     const size_t inputRank = srcMemory[0]->GetShape().getRank();
-    const size_t outputRank = dstMemory->GetShape().getRank();
+    const size_t outputRank = dstMemory[0]->GetShape().getRank();
     const size_t nDims = std::max(inputRank, outputRank);
 
     auto fillingInParameters = [&](std::vector<int> &parameter, const size_t type, const size_t size, const int value) {
@@ -735,9 +737,9 @@ void StridedSlice::StridedSliceCommonExecutor::indicesCalculationForOptimized() 
     }
 }
 
-void StridedSlice::StridedSliceCommonExecutor::exec(const std::vector<MemoryCPtr>& srcMemory, const MemoryPtr& dstMemory) {
+void StridedSlice::StridedSliceCommonExecutor::exec(const std::vector<MemoryCPtr>& srcMemory, const std::vector<MemoryCPtr>& dstMemory) {
     const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemory[0]->GetPtr());
-    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemory->GetPtr());
+    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemory[0]->GetPtr());
     const uint8_t* srcShiftedData = srcData + srcShift;
     parallel_nt(nThreads, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
