@@ -15,7 +15,7 @@ struct GatherNDParams {
     GatherNDParams(
         const reference_tests::Tensor& dataTensor, const reference_tests::Tensor& indicesTensor, int64_t batchDims,
         const reference_tests::Tensor& expectedTensor, const std::string& testcaseName = "") :
-        dataTensor(dataTensor), indicesTensor(indicesTensor), batchDims(batchDims),
+        dataTensor(dataTensor), indicesTensor(indicesTensor), batchDims(static_cast<int32_t>(batchDims)),
         expectedTensor(expectedTensor), testcaseName(testcaseName) {}
 
     reference_tests::Tensor dataTensor;

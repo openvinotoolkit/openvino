@@ -63,9 +63,7 @@ bool evaluate_round(const HostTensorPtr& arg0,
 }  // namespace
 }  // namespace roundop
 
-BWDCMP_RTTI_DEFINITION(op::v5::Round);
-
-op::v5::Round::Round(const Output<Node>& arg, RoundMode mode) : Op({arg}), m_mode(mode) {
+op::v5::Round::Round(const Output<Node>& arg, RoundMode mode) : util::UnaryElementwiseArithmetic(arg), m_mode(mode) {
     constructor_validate_and_infer_types();
 }
 
@@ -128,6 +126,4 @@ NGRAPH_API EnumNames<ngraph::op::v5::Round::RoundMode>& EnumNames<ngraph::op::v5
          {"half_away_from_zero", ngraph::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO}});
     return enum_names;
 }
-
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::v5::Round::RoundMode>);
 }  // namespace ov

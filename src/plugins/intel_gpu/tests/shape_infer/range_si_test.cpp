@@ -24,17 +24,6 @@ struct range_si_test_params {
     std::vector<double> vals;   // {start, stop, step}
 };
 
-std::ostream& operator<<(std::ostream& ost, const range_si_test_params& params) {
-    ost << data_type_traits::name(params.out_data_type) << ",";
-    if (params.vals.size() > 0) {
-        ost << "{START:" << params.vals[0] << ",STOP:" << params.vals[1] << ",STEP:" << params.vals[2] << "},";
-    } else {
-        ost << "{},";
-    }
-    ost << "IN: " << params.input_pshape << ", EXPECTED_OUT: " << params.expected_out_pshape;
-    return ost;
-}
-
 class range_si_test : public testing::TestWithParam<range_si_test_params> { };
 
 TEST_P(range_si_test, shape_infer) {
@@ -43,7 +32,7 @@ TEST_P(range_si_test, shape_infer) {
 
     cldnn::program prog(engine);
     std::vector<std::shared_ptr<primitive>> input_prims;
-    std::vector<std::string> input_prim_ids;
+    std::vector<input_info> input_prim_ids;
     std::vector<layout> input_layouts;
     const size_t num_inputs = 3;
 
@@ -54,7 +43,7 @@ TEST_P(range_si_test, shape_infer) {
         auto prim_id = "const::data_" + std::to_string(idx);
         auto const_data_prim = std::make_shared<input_layout>(prim_id, in_layout);
         input_prims.push_back(const_data_prim);
-        input_prim_ids.push_back(prim_id);
+        input_prim_ids.push_back(input_info(prim_id));
     }
 
     auto range_prim = std::make_shared<range>("range", input_prim_ids, layout{p.expected_out_pshape, p.out_data_type, format::bfyx});

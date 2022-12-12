@@ -47,6 +47,9 @@ public:
 
     static std::shared_ptr<DnnlBlockedMemoryDesc> makeUndefinedDesc(const dnnl::memory::desc &desc, const Shape& shape);
     static size_t getMemSizeForDnnlDesc(const dnnl::memory::desc& desc);
+
+    static std::shared_ptr<DnnlMemoryDesc> query_md(const const_dnnl_primitive_desc_t& pd, const dnnl::query& what, int idx = 0);
+    static std::string query_impl_info_str(const const_dnnl_primitive_desc_t& pd);
 };
 
 }   // namespace intel_cpu

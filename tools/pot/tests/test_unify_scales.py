@@ -15,6 +15,7 @@ from openvino.tools.pot.pipeline.initializer import create_pipeline
 from openvino.tools.pot.engines.ac_engine import ACEngine
 from .utils.config import get_engine_config, merge_configs
 from .utils.path import TEST_ROOT
+from .utils.data_helper import load_json
 
 TEST_MODELS = [
     ('mobilenet-v2-pytorch', 'pytorch', 'MinMaxQuantization', 'performance', 'VPU'),
@@ -69,9 +70,8 @@ def test_unify_scales(_params, tmp_path, models):
 
     ref_path = REFERENCES_PATH.joinpath(model_name + '_to_unify.json')
     if ref_path.exists():
-        with open(ref_path.as_posix(), 'r') as f:
-            to_unify_ref = json.load(f)
-            assert to_unify == to_unify_ref
+        to_unify_ref = load_json(ref_path.as_posix())
+        assert to_unify == to_unify_ref
     else:
         with open(ref_path.as_posix(), 'w+') as f:
             json.dump(to_unify, f, indent=4)

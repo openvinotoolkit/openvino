@@ -270,9 +270,12 @@ calculation in order to perform shape calculation in a correct layout.
 3. Model Optimizer inserts [Transpose](../../../ops/movement/Transpose_1.md) operations for some operations with
 specific conditions, identified during a model conversion, to produce correct inference results.
 
-The list of main transformations responsible for a layout change are: `extensions/middle/ApplyPermutations.py`,
-`extensions/middle/InsertLayoutPropagationTransposes.py`, `extensions/middle/MarkSubgraphsWithCorrectLayout.py`,
-`extensions/middle/ApplyNHWCtoNCHWpermutation.py` and `extensions/middle/LayoutChangeForConstantShapePaths.py`.
+The main transformations responsible for a layout change are: 
+* `extensions/middle/ApplyPermutations.py`
+* `extensions/middle/InsertLayoutPropagationTransposes.py`
+* `extensions/middle/MarkSubgraphsWithCorrectLayout.py`
+* `extensions/middle/ApplyNHWCtoNCHWpermutation.py`
+* `extensions/middle/LayoutChangeForConstantShapePaths.py`
 
 ### Back Phase <a name="back-phase"></a>
 The back phase starts after the layout change to NCHW. This phase contains mostly the following transformations:

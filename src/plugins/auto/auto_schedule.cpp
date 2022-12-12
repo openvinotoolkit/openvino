@@ -122,44 +122,14 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
     _loadContext[ACTUALDEVICE].metaDevices = _autoSContext->_devicePriorities;
     if (isCumulative) {
         std::list<DeviceInformation> validDevices =
-            _autoSContext->_plugin->GetValidDevice(_autoSContext->_devicePriorities, _loadContext[ACTUALDEVICE].networkPrecision);
-
-        // check if device priority is enabled
-        bool enableDevicePriority =
-            std::find_if(std::begin(validDevices), std::end(validDevices), [](DeviceInformation& di) {
-                return di.devicePriority > 0;
-            }) != std::end(validDevices);
-
-        // for the case of -d "AUTO" or "AUTO: -xxx"
-        if (!enableDevicePriority) {
-            std::list<DeviceInformation>::iterator itCPUDevice;
-            int GPUNums = 0, CPUNums = 0;
-            for (auto it = validDevices.begin(); it != validDevices.end(); it++) {
-                if (it->deviceName.find("GPU") != std::string::npos) {
-                    GPUNums++;
-                }
-
-                if (it->deviceName.find("CPU") == 0) {
-                    CPUNums++;
-                    itCPUDevice = it;
-                }
-            }
-
-            // remove CPU from default candidate list for Cumulative Throughput mode
-            if (GPUNums >= 3 && CPUNums > 0 && !_autoSContext->_bindBuffer) {
-                validDevices.erase(itCPUDevice);
-                LOG_INFO_TAG("GPUNums:%d, remove CPU from default candidate list for "
-                         "CUMULATIVE_THROUGHPUT",
-                         GPUNums);
-            }
-        }
+            _autoSContext->_plugin->GetValidDevice(_autoSContext->_devicePriorities,
+                                                   _loadContext[ACTUALDEVICE].networkPrecision);
 
         std::string deviceName = "MULTI:";
         for (auto& device : validDevices) {
             deviceName += device.deviceName;
             deviceName += ((device.deviceName == validDevices.back().deviceName) ? "" : ",");
         }
-
         _loadContext[ACTUALDEVICE].deviceInfo.deviceName = deviceName;
         _loadContext[ACTUALDEVICE].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] =
             InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT;
@@ -175,7 +145,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
     }
     LOG_INFO_TAG("select device:%s", _loadContext[ACTUALDEVICE].deviceInfo.deviceName.c_str());
     bool isActualDevCPU =
-        _loadContext[ACTUALDEVICE].deviceInfo.deviceName.find("CPU") !=std::string::npos;
+        _loadContext[ACTUALDEVICE].deviceInfo.deviceName.find("CPU") !=std::string::npos && !isCumulative;
     // if Actual device is CPU, disabled _loadContext[CPU], only use _loadContext[ACTUALDEVICE]
     if (isActualDevCPU || isCumulative) {
         _loadContext[CPU].isEnabled = false;
@@ -186,8 +156,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
         if (CPUIter != _autoSContext->_devicePriorities.end()) {
             _loadContext[CPU].isEnabled = true;
             _loadContext[CPU].deviceInfo = *CPUIter;
-            _loadContext[CPU].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] =
-                IE::PluginConfigParams::LATENCY;
+            _loadContext[CPU].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] = IE::PluginConfigParams::LATENCY;
             _loadContext[CPU].workName = "CPU_HELP";
             LOG_INFO_TAG("will load CPU for accelerator");
         } else {
@@ -391,7 +360,7 @@ void AutoSchedule::TryToLoadNetWork(AutoLoadContext& context, const std::string&
         std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
         context.deviceInfo = _autoSContext->_plugin->SelectDevice(deviceList,
                 context.networkPrecision, _autoSContext->_modelPriority);
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         return;
     }
     // if the select device is CPU, need to check the config of _loadContext[CPU]

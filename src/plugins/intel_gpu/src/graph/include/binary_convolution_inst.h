@@ -41,8 +41,8 @@ public:
         throw std::runtime_error("bias should not be used in binary convolution");
     }
 
-    std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const layout& out_layout) const override {
-        auto params = parent::get_kernel_impl_params(in_layouts, out_layout);
+    std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const override {
+        auto params = parent::get_kernel_impl_params(in_layouts, out_layouts);
         params->weights_layout = optional_layout(weights().get_output_layout());
         return params;
     }
@@ -57,6 +57,7 @@ using binary_convolution_node = typed_program_node<binary_convolution>;
 template <>
 class typed_primitive_inst<binary_convolution> : public typed_primitive_inst_base<binary_convolution> {
     using parent = typed_primitive_inst_base<binary_convolution>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(binary_convolution_node const& node, kernel_impl_params const& impl_param);
