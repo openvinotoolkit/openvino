@@ -93,7 +93,7 @@ public:
 
     /**
     * @brief Makes a static dummy shape where all undefined values are replaced with the smallest value between the parameter and the upper bound dim
-    * @param shape a shape from which the new static shape is generated
+    * @param shape a Shape object from which the new static shape is generated
     * @param dummyVal Dim value to replace undefined dimensions
     * @return a new Shape with dummy values instead of undefined dims
     */
@@ -101,7 +101,7 @@ public:
 
     /**
     * @brief Makes a static dummy shape where all undefined values are replaced with the smallest value between the parameter and the upper bound dim
-    * @param shape a shape from which the new static shape is generated
+    * @param shape a Shape object from which the new static shape is generated
     * @param dummyVals vector of values to replace undefined dimensions
     * @return a new Shape with dummy values instead of undefined dims
     */

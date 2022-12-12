@@ -113,7 +113,7 @@ private:
     MemoryDescPtr getSumMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it);
     MemoryPtr getOutputMemory() const;
     VectorDims makeInputDummyShape(const Shape& inpShape) const;
-
+    VectorDims outputStaticShape() const;
     void appendLegacyZeroPointsArgs();
     void appendZeroPointsArgs();
     void initTryBrgconvFlag();

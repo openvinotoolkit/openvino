@@ -916,14 +916,7 @@ void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
 void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &attrs) {
     // attr[0] - Legacy post ops + Legacy zero points.
     attrs.resize(1);
-    auto ouptuShape = getOutputShapeAtPort(0);
-    if (ouptuShape.isDynamic()) {
-        auto inpDummyShape = makeInputDummyShape(getInputShapeAtPort(0));
-        auto outputDims = shapeInferGeneric({ Shape(inpDummyShape), Shape(weightDims) });
-        ouptuShape = Shape(outputDims.front());
-    }
-
-    setPostOps(attrs[0], ouptuShape.getStaticDims(), true);
+    setPostOps(attrs[0], outputStaticShape(), true);
     addLegacyZeroPoints(attrs[0]);
     //dw-conv would be fused into conv only on AVX2 platform. no need attr[1]. Avoid extra useless attribute.
     if (attrs[0].get_post_ops().get()->find(dnnl::impl::primitive_kind::convolution) != -1) {
@@ -1619,13 +1612,7 @@ void Convolution::initTryBrgconvFlag() {
             // should remove after binary postops performance issue resolved
             // heuristics: if it's  avx512 ISA model && it doesn't have binary post ops or per channel zero point.
             dnnl::primitive_attr attr;
-            auto ouptuShape = getOutputShapeAtPort(0);
-            if (ouptuShape.isDynamic()) {
-                auto inpDummyShape = makeInputDummyShape(getInputShapeAtPort(0));
-                auto outputDims = shapeInferGeneric({ Shape(inpDummyShape), Shape(weightDims) });
-                ouptuShape = Shape(outputDims.front());
-            }
-            setPostOps(attr, ouptuShape.getStaticDims(), false);
+            setPostOps(attr, outputStaticShape(), false);
             const auto& ops = attr.get_post_ops();
             if (ops.get()->find(dnnl::impl::primitive_kind::binary) != -1) {
                 shouldTryBrgconv = false;
@@ -1674,6 +1661,16 @@ VectorDims Convolution::makeInputDummyShape(const Shape& inpShape) const {
         }
     }
     return MemoryDescUtils::makeDummyShape(inpShape, dummyInputShapeVals).getStaticDims();
+}
+
+VectorDims Convolution::outputStaticShape() const {
+    auto& outputShape = getOutputShapeAtPort(0);
+    if (outputShape.isDynamic()) {
+        auto inpDummyShape = makeInputDummyShape(getInputShapeAtPort(0));
+        auto outputDims = shapeInferGeneric({ Shape(inpDummyShape), Shape(weightDims) });
+        return Shape(outputDims.front()).getStaticDims();
+    }
+    return outputShape.getStaticDims();
 }
 
 }   // namespace node
