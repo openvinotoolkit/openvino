@@ -75,8 +75,6 @@ public:
 
 namespace {
     TEST_F(ReLuConcatConvSumInPlaceTest, smoke_ReLuConcatConvSumInPlace_CPU) {
-        SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
         Run();
     }
 } // namespace
