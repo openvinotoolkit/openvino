@@ -9,58 +9,52 @@
 
 using namespace ov::opset10;
 
-namespace {
-bool inherit_output_shape(const std::shared_ptr<ov::Node>& node, const std::vector<size_t>& input_idxs) {
+bool ov::pass::ReverseShapeAndTypeInfer::inherit_output_shape(const std::shared_ptr<ov::Node>& node,
+                                                              const std::vector<size_t>& input_idxs) {
     auto is_changed = false;
     auto output_shape = node->get_output_partial_shape(0);
 
     for (auto idx : input_idxs) {
         if (node->get_input_partial_shape(idx).rank().is_dynamic()) {
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            node->get_input_tensor(idx).set_partial_shape(output_shape);
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            node->get_input_tensor(idx).m_partial_shape = output_shape;
             is_changed = true;
         }
     }
     return is_changed;
 }
 
-bool inherit_output_rank(const std::shared_ptr<ov::Node>& node, const std::vector<size_t>& input_idxs) {
+bool ov::pass::ReverseShapeAndTypeInfer::inherit_output_rank(const std::shared_ptr<ov::Node>& node,
+                                                             const std::vector<size_t>& input_idxs) {
     auto is_changed = false;
     auto output_shape = node->get_output_partial_shape(0);
 
     for (auto idx : input_idxs) {
         if (idx < node->get_input_size() && node->get_input_partial_shape(idx).rank().is_dynamic()) {
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            node->get_input_tensor(idx).set_partial_shape(ov::PartialShape::dynamic(output_shape.rank()));
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            node->get_input_tensor(idx).m_partial_shape = ov::PartialShape::dynamic(output_shape.rank());
             is_changed = true;
         }
     }
     return is_changed;
 }
 
-bool inherit_output_type(const std::shared_ptr<ov::Node>& node, const std::vector<size_t>& input_idxs) {
+bool ov::pass::ReverseShapeAndTypeInfer::inherit_output_type(const std::shared_ptr<ov::Node>& node,
+                                                             const std::vector<size_t>& input_idxs) {
     auto is_changed = false;
     auto output_type = node->get_output_element_type(0);
 
     for (auto idx : input_idxs) {
         if (node->get_input_element_type(idx).is_dynamic()) {
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            node->get_input_tensor(idx).set_element_type(output_type);
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            node->get_input_tensor(idx).m_element_type = output_type;
             is_changed = true;
         }
     }
     return is_changed;
 }
-}  // namespace
 
 bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_MODEL_SCOPE(ReverseShapeAndTypeInfer);
     bool is_changed = false;
     auto ops = f->get_ordered_ops();
-    OPENVINO_SUPPRESS_DEPRECATED_START
     for (auto it = ops.rbegin(); it != ops.rend(); ++it) {
         const auto& op = *it;
         auto output_shape = op->get_output_partial_shape(0);
@@ -89,10 +83,10 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
                 auto pads_begin_shape = op->get_input_partial_shape(1);
                 auto pads_end_shape = op->get_input_partial_shape(2);
                 if (pads_begin_shape.is_static() && pads_begin_shape.size() > 0) {
-                    op->get_input_tensor(0).set_partial_shape(PartialShape::dynamic(pads_begin_shape[0]));
+                    op->get_input_tensor(0).m_partial_shape = PartialShape::dynamic(pads_begin_shape[0]);
                     is_changed = true;
                 } else if (pads_end_shape.is_static() && pads_end_shape.size() > 0) {
-                    op->get_input_tensor(0).set_partial_shape(PartialShape::dynamic(pads_end_shape[0]));
+                    op->get_input_tensor(0).m_partial_shape = PartialShape::dynamic(pads_end_shape[0]);
                     is_changed = true;
                 }
             }
@@ -106,19 +100,18 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
                 auto in1_rank = op->get_input_partial_shape(1).rank();
                 if (in0_rank.is_dynamic() && in1_rank.is_static()) {
                     if (eltwise->get_autob() == ov::op::AutoBroadcastType::NONE)
-                        op->get_input_tensor(0).set_partial_shape(output_shape);
+                        op->get_input_tensor(0).m_partial_shape = output_shape;
                     else if (in1_rank.get_length() < output_shape.rank().get_length())
-                        op->get_input_tensor(0).set_partial_shape(PartialShape::dynamic(output_shape.rank()));
+                        op->get_input_tensor(0).m_partial_shape = PartialShape::dynamic(output_shape.rank());
                 } else if (in1_rank.is_dynamic() && in0_rank.is_static()) {
                     if (eltwise->get_autob() == ov::op::AutoBroadcastType::NONE)
-                        op->get_input_tensor(1).set_partial_shape(output_shape);
+                        op->get_input_tensor(1).m_partial_shape = output_shape;
                     else if (in0_rank.get_length() < output_shape.rank().get_length())
-                        op->get_input_tensor(1).set_partial_shape(PartialShape::dynamic(output_shape.rank()));
+                        op->get_input_tensor(1).m_partial_shape = PartialShape::dynamic(output_shape.rank());
                 }
             }
             is_changed |= inherit_output_type(op, {0, 1});
         }
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
     return is_changed;
 }

@@ -22,4 +22,8 @@ class ov::pass::ReverseShapeAndTypeInfer : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("ReverseShapeAndTypeInfer", "0");
     bool run_on_model(const std::shared_ptr<ov::Model>& f) override;
+private:
+    bool inherit_output_shape(const std::shared_ptr<ov::Node>& node, const std::vector<size_t>& input_idxs);
+    bool inherit_output_rank(const std::shared_ptr<ov::Node>& node, const std::vector<size_t>& input_idxs);
+    bool inherit_output_type(const std::shared_ptr<ov::Node>& node, const std::vector<size_t>& input_idxs);
 };
