@@ -94,6 +94,7 @@ public:
 
 private:
     void check_if_free();
+    void cleanup_unfinished_submodules();
 
     uint32_t representingIndex_{0};
     std::shared_ptr<ModelWrapper> fullModel_;

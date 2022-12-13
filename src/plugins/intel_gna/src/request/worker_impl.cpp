@@ -7,6 +7,7 @@
 #include <gna2-inference-api.h>
 
 #include "log/debug.hpp"
+#include "log/log.hpp"
 #include "model_wrapper.hpp"
 #include "subrequest.hpp"
 
@@ -42,23 +43,36 @@ Gna2Model* WorkerImpl::model() {
 void WorkerImpl::enqueueRequest() {
     check_if_free();
 
-    for (auto& subrequest : modelSubrequests_) {
-        subrequest->enqueue();
+    try {
+        for (auto& subrequest : modelSubrequests_) {
+            subrequest->enqueue();
+        }
+    } catch (const std::exception& e) {
+        ov::intel_gna::log::error() << "Exception when enqueueing inference: " << e.what() << std::endl;
+        cleanup_unfinished_submodules();
+        throw;
     }
 }
 
 RequestStatus WorkerImpl::wait(int64_t timeoutMilliseconds) {
     bool pending = false;
 
-    // iterate over all configurations for requst
-    for (auto& subrequest : modelSubrequests_) {
-        if (!subrequest->isPending()) {
-            continue;
-        }
+    try {
+        // iterate over all configurations for requst
+        for (auto& subrequest : modelSubrequests_) {
+            if (!subrequest->isPending()) {
+                continue;
+            }
 
-        if (subrequest->wait(timeoutMilliseconds) == RequestStatus::kPending) {
-            pending = true;
+            if (subrequest->wait(timeoutMilliseconds) == RequestStatus::kPending) {
+                pending = true;
+            }
         }
+    } catch (const std::exception& e) {
+        ov::intel_gna::log::error() << "Exception when executiong wait: " << e.what() << std::endl;
+        pending = false;
+        cleanup_unfinished_submodules();
+        throw;
     }
 
     // return kPending if at least one subrequest is pending
@@ -110,6 +124,19 @@ InferenceEngine::BlobMap& WorkerImpl::result() {
 void WorkerImpl::check_if_free() {
     if (!isFree()) {
         THROW_GNA_EXCEPTION << "Trying to propagte on busy request with id: " << representingIndex_;
+    }
+}
+
+void WorkerImpl::cleanup_unfinished_submodules() {
+    for (auto& subrequest : modelSubrequests_) {
+        if (!subrequest->isPending()) {
+            continue;
+        }
+        try {
+            subrequest->wait(0);
+        } catch (...) {
+            ov::intel_gna::log::warning() << "Issue with finalizing unfinished submodels of ongoing inference";
+        }
     }
 }
 

@@ -28,15 +28,19 @@ void GNAInferRequest::InferImpl() {
     // execute input pre-processing.
     execDataPreprocessing(_inputs);
     // result returned from sync infer wait method
-    auto result = plg->Infer(_inputs, _outputs);
 
-    // if result is false we are dealing with QoS feature
-    // if result is ok, next call to wait() will return Ok, if request not in gna_queue
-    if (!result) {
-        inferRequestIdx = -1;
-    } else {
-        inferRequestIdx = -2;
-    }
+    bool result = false;
+    auto infer_call = [&]() {
+        result = plg->Infer(_inputs, _outputs);
+    };
+
+    CallCleanupAndRethrowOnException(std::move(infer_call));
+
+    // if result is false we are dealing with QoS feature and set kRequestIndexInvalid
+    // if result is ok we set kRequestIndexCompleted to not execute request if it is not
+    // in the queue.
+    auto result_request_index = result ? kRequestIndexCompleted : kRequestIndexInvalid;
+    SetRequestIndex(result_request_index);
 }
 
 std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GNAInferRequest::GetPerformanceCounts() const {
@@ -46,7 +50,13 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GNAInferReque
 void GNAInferRequest::StartAsyncImpl() {
     // execute input pre-processing.
     execDataPreprocessing(_inputs);
-    inferRequestIdx = plg->QueueInference(_inputs, _outputs);
+
+    auto queue_call = [&]() {
+        SetRequestIndex(plg->QueueInference(_inputs, _outputs));
+    };
+
+    CallCleanupAndRethrowOnException(std::move(queue_call));
+
     // workaround to unblock callback-based flows
     if (_callback) {
         auto res = Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
@@ -68,33 +78,75 @@ void GNAInferRequest::StartAsyncImpl() {
 }
 
 InferenceEngine::StatusCode GNAInferRequest::Wait(int64_t millis_timeout) {
-    if (inferRequestIdx == -1) {
-        return InferenceEngine::INFER_NOT_STARTED;
-    } else if (millis_timeout < -1) {
-        IE_THROW(ParameterMismatch);
-    }
-
-    if (millis_timeout == InferenceEngine::InferRequest::WaitMode::RESULT_READY) {
-        millis_timeout = MAX_TIMEOUT;
-    }
-    const auto waitStatus = plg->WaitFor(inferRequestIdx, millis_timeout);
-
-    if (waitStatus == RequestStatus::kPending) {
-        // request is still pending so Wait() is needed once again
-        return InferenceEngine::RESULT_NOT_READY;
-    }
-    if (waitStatus == RequestStatus::kAborted) {
-        // need to preserve invalid state here to avoid next Wait() from clearing it
-        inferRequestIdx = -1;
+    if (!IsRequestIndexValid()) {
         return InferenceEngine::INFER_NOT_STARTED;
     }
-    return InferenceEngine::OK;
+
+    if (IsRequestCompleted()) {
+        return InferenceEngine::OK;
+    }
+
+    ValidateAndConfigureTimeout(millis_timeout);
+    auto waitStatus = RequestStatus::kAborted;
+    auto wait_call = [&]() {
+        waitStatus = plg->WaitFor(_infer_request_idx, millis_timeout);
+    };
+    CallCleanupAndRethrowOnException(std::move(wait_call));
+
+    return HandleRequestWaitStatus(waitStatus);
 }
 
 std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> GNAInferRequest::QueryState() {
     auto pluginStates = plg->QueryState();
     std::vector<InferenceEngine::IVariableStateInternal::Ptr> state(pluginStates.begin(), pluginStates.end());
     return plg->QueryState();
+}
+
+bool GNAInferRequest::IsRequestIndexValid() {
+    return _infer_request_idx != kRequestIndexInvalid;
+}
+
+bool GNAInferRequest::IsRequestCompleted() {
+    return _infer_request_idx == kRequestIndexCompleted;
+}
+
+bool GNAInferRequest::SetRequestIndex(uint32_t request_index) {
+    return _infer_request_idx = request_index;
+}
+
+void GNAInferRequest::ValidateAndConfigureTimeout(int64_t& millis_timeout) {
+    if (millis_timeout == InferenceEngine::InferRequest::WaitMode::RESULT_READY) {
+        millis_timeout = MAX_TIMEOUT;
+    }
+
+    if (millis_timeout < 0) {
+        IE_THROW(ParameterMismatch);
+    }
+}
+
+InferenceEngine::StatusCode GNAInferRequest::HandleRequestWaitStatus(const RequestStatus& request_status) {
+    if (request_status == RequestStatus::kPending) {
+        // request is still pending so Wait() is needed once again
+        return InferenceEngine::RESULT_NOT_READY;
+    }
+
+    if (request_status == RequestStatus::kAborted) {
+        // need to preserve invalid state here to avoid next Wait() from clearing it
+        SetRequestIndex(kRequestIndexInvalid);
+        return InferenceEngine::INFER_NOT_STARTED;
+    }
+    return InferenceEngine::OK;
+}
+
+void GNAInferRequest::CallCleanupAndRethrowOnException(std::function<void()>&& function_to_invoke) {
+    try {
+        function_to_invoke();
+    } catch (...) {
+        // need to preserve invalid state here to avoid next Wait() from clearing it
+        // and next rethrow issue.
+        SetRequestIndex(kRequestIndexInvalid);
+        throw;
+    }
 }
 
 void GNAInferRequest::CreateInferRequest() {
