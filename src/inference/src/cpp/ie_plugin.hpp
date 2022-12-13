@@ -140,6 +140,8 @@ struct InferencePlugin {
 
 namespace ov {
 
+class CoreImpl;
+
 #define OV_PLUGIN_CALL_STATEMENT(...)                                                  \
     OPENVINO_ASSERT(m_ptr != nullptr, "OpenVINO Runtime Plugin was not initialized."); \
     try {                                                                              \
@@ -151,6 +153,7 @@ namespace ov {
 class Plugin {
     std::shared_ptr<ov::IPlugin> m_ptr;
     std::shared_ptr<void> m_so;
+    friend ::ov::CoreImpl;
 
 public:
     Plugin() = default;

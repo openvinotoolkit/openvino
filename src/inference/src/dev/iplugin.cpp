@@ -6,6 +6,7 @@
 
 #include <cpp/ie_cnn_network.h>
 #include <ie_common.h>
+#include <ie_layouts.h>
 
 #include <ie_icnn_network.hpp>
 #include <ie_precision.hpp>
@@ -20,6 +21,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/icompiled_model.hpp"
 #include "threading/ie_executor_manager.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace {
 
@@ -47,9 +49,27 @@ InferenceEngine::CNNNetwork create_cnnnetwork(const std::shared_ptr<const ov::Mo
             input_info->getPreProcess() = it->second.as<InferenceEngine::PreProcessInfo>();
             rt_info.erase(it);
         }
-        it = rt_info.find("ie_legacy_precision");
+        it = rt_info.find("ie_legacy_td");
         if (it != rt_info.end()) {
-            input_info->setPrecision(it->second.as<InferenceEngine::Precision>());
+            auto td = it->second.as<InferenceEngine::TensorDesc>();
+            input_info->getInputData()->reshape(td.getDims(), td.getLayout());
+            input_info->setPrecision(td.getPrecision());
+            rt_info.erase(it);
+        }
+    }
+    for (auto&& result : cloned_model->get_results()) {
+        auto output = result->input_value(0);
+        const auto& res_name = ov::op::util::create_ie_output_name(output);
+
+        OPENVINO_ASSERT(network.getOutputsInfo().find(res_name) != network.getOutputsInfo().end());
+        auto output_info = network.getOutputsInfo()[res_name];
+
+        auto& rt_info = output.get_rt_info();
+        auto it = rt_info.find("ie_legacy_td");
+        if (it != rt_info.end()) {
+            auto td = it->second.as<InferenceEngine::TensorDesc>();
+            output_info->reshape(td.getDims(), td.getLayout());
+            output_info->setPrecision(td.getPrecision());
             rt_info.erase(it);
         }
     }

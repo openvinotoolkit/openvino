@@ -705,14 +705,21 @@ public:
 
             OPENVINO_ASSERT(network.getInputsInfo().find(param_name) != network.getInputsInfo().end());
 
-            auto input_info = network.getInputsInfo()[param_name];
+            auto input_info = network.getInputsInfo().at(param_name);
             auto& rt_info = input.get_rt_info();
             rt_info["ie_legacy_preproc"] = input_info->getPreProcess();
-            rt_info["ie_legacy_precision"] = input_info->getPrecision();
+            rt_info["ie_legacy_td"] = input_info->getTensorDesc();
         }
-        // for (const auto& output : cloned_model->outputs()) {
-        //     const auto& res_name = ov::op::util::create_ie_output_name(output);
-        // }
+        for (auto&& result : cloned_model->get_results()) {
+            auto output = result->input_value(0);
+            const auto& res_name = ov::op::util::create_ie_output_name(output);
+
+            OPENVINO_ASSERT(network.getOutputsInfo().find(res_name) != network.getOutputsInfo().end());
+            auto output_info = network.getOutputsInfo().at(res_name);
+
+            auto& rt_info = output.get_rt_info();
+            rt_info["ie_legacy_td"] = output_info->getTensorDesc();
+        }
         return cloned_model;
     }
 
@@ -1563,10 +1570,14 @@ public:
             std::string deviceNameLocal = parser.getDeviceName();
 
             ov::Plugin cppPlugin = GetCPPPluginByName(deviceNameLocal);
-            const ov::Version version = cppPlugin.get_version();
             ie::Version oldVersion;
-            oldVersion.buildNumber = version.buildNumber;
-            oldVersion.description = version.description;
+            if (cppPlugin.m_ptr->old_plugin) {
+                oldVersion = cppPlugin.m_ptr->old_plugin->GetVersion();
+            } else {
+                const ov::Version version = cppPlugin.get_version();
+                oldVersion.buildNumber = version.buildNumber;
+                oldVersion.description = version.description;
+            }
 
             versions[deviceNameLocal] = oldVersion;
         }

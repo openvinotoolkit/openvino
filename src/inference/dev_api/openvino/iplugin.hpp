@@ -247,6 +247,7 @@ private:
     ov::Version m_version;  //!< Member contains plugin version
     bool m_is_new_api;      //!< A flag which shows used API
     std::shared_ptr<InferenceEngine::IInferencePlugin> old_plugin;
+    friend ::ov::CoreImpl;
 };
 
 }  // namespace ov
