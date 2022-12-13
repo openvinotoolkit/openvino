@@ -4,34 +4,35 @@
 
 #include <gtest/gtest.h>
 
-#include <string>
 #include <memory>
-#include <queue>
-
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/opsets/opset8.hpp>
+#include <ngraph/pass/manager.hpp>
+#include <queue>
+#include <string>
 #include <transformations/common_optimizations/simplify_shape_of_sub_graph.hpp>
 #include <transformations/init_node_info.hpp>
-#include <ngraph/pass/manager.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-
 
 using namespace testing;
 using namespace ngraph;
 
-auto gatherv7 = [](const std::shared_ptr<Node> input, std::vector<int64_t> indices, bool scalar = false) -> Output<Node> {
+auto gatherv7 =
+    [](const std::shared_ptr<Node> input, std::vector<int64_t> indices, bool scalar = false) -> Output<Node> {
     std::shared_ptr<Node> indices_node;
     if (scalar)
         indices_node = opset7::Constant::create(element::i64, {}, indices);
     else
         indices_node = opset7::Constant::create(element::i64, {indices.size()}, indices);
-    return std::make_shared<ngraph::opset7::Gather>(
-            input, indices_node, opset7::Constant::create(element::i64, {}, {0}));
+    return std::make_shared<ngraph::opset7::Gather>(input,
+                                                    indices_node,
+                                                    opset7::Constant::create(element::i64, {}, {0}));
 };
 
-auto gatherv8 = [](const std::shared_ptr<Node> input, std::vector<int64_t> indices, bool scalar = false) -> Output<Node> {
+auto gatherv8 =
+    [](const std::shared_ptr<Node> input, std::vector<int64_t> indices, bool scalar = false) -> Output<Node> {
     std::shared_ptr<Node> indices_node;
     if (scalar)
         indices_node = opset7::Constant::create(element::i64, {}, indices);
@@ -49,13 +50,13 @@ TEST_F(TransformationTestsF, ShapeSubGraphTestGatherv7) {
 
         auto shape_op_1 = std::make_shared<opset7::ShapeOf>(data);
         auto gather_1 = gatherv7(shape_op_1, {1}, true);
-        auto unsqueeze_1 = std::make_shared<opset7::Unsqueeze>(
-                gather_1, opset7::Constant::create(element::i64, {1}, {0}));
+        auto unsqueeze_1 =
+            std::make_shared<opset7::Unsqueeze>(gather_1, opset7::Constant::create(element::i64, {1}, {0}));
 
         auto shape_op_2 = std::make_shared<opset7::ShapeOf>(data);
         auto gather_2 = gatherv7(shape_op_2, {2}, true);
-        auto unsqueeze_2 = std::make_shared<opset7::Unsqueeze>(
-                gather_2, opset7::Constant::create(element::i64, {1}, {0}));
+        auto unsqueeze_2 =
+            std::make_shared<opset7::Unsqueeze>(gather_2, opset7::Constant::create(element::i64, {1}, {0}));
 
         auto const_1 = opset7::Constant::create(element::i64, Shape{1}, {2});
         auto const_2 = opset7::Constant::create(element::i64, Shape{1}, {2});
@@ -129,13 +130,13 @@ TEST_F(TransformationTestsF, ShapeNopSubGraphTestGatherv7) {
 
         auto shape_op_1 = std::make_shared<opset7::ShapeOf>(data);
         auto gather_1 = gatherv7(shape_op_1, {0}, true);
-        auto unsqueeze_1 = std::make_shared<opset7::Unsqueeze>(
-                gather_1, opset7::Constant::create(element::i64, {1}, {0}));
+        auto unsqueeze_1 =
+            std::make_shared<opset7::Unsqueeze>(gather_1, opset7::Constant::create(element::i64, {1}, {0}));
 
         auto shape_op_2 = std::make_shared<opset7::ShapeOf>(data);
         auto gather_2 = gatherv7(shape_op_2, {1}, true);
-        auto unsqueeze_2 = std::make_shared<opset7::Unsqueeze>(
-                gather_2, opset7::Constant::create(element::i64, {1}, {0}));
+        auto unsqueeze_2 =
+            std::make_shared<opset7::Unsqueeze>(gather_2, opset7::Constant::create(element::i64, {1}, {0}));
 
         auto concat = std::make_shared<opset7::Concat>(OutputVector{unsqueeze_1, unsqueeze_2}, 0);
 
