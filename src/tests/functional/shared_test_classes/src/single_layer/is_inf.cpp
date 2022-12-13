@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_layer_tests/is_inf.hpp"
+#include "shared_test_classes/single_layer/is_inf.hpp"
 #include "ngraph_functions/builders.hpp"
-#include "ie_test_utils/common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "ie_plugin_config.hpp"
 
 using namespace ov::test::subgraph;
