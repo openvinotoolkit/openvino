@@ -8,5 +8,10 @@
 #include <vector>
 
 std::vector<std::string> disabledTestPatterns() {
-    return {};
+    return {
+#ifndef BUILD_SHARED_LIBS
+        // Disable tests for static libraries
+        ".*FrontendLibCloseTest.*"
+#endif
+    };
 }
