@@ -193,3 +193,103 @@ TEST_F(TransformationTestsF, PadReverseInfer) {
         model_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
     }
 }
+
+TEST_F(TransformationTestsF, ActivationReverseInfer) {
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape::dynamic());
+        auto relu = std::make_shared<opset10::Relu>(data);
+        auto weights =
+            opset10::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1));
+        auto conv = std::make_shared<opset10::Convolution>(relu,
+                                                           weights,
+                                                           Strides{2, 2},
+                                                           CoordinateDiff{3, 3},
+                                                           CoordinateDiff{3, 3},
+                                                           Strides{1, 1});
+        auto result = std::make_shared<opset10::Result>(conv);
+        model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
+        manager.register_pass<pass::ReverseShapeAndTypeInfer>();
+    }
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape::dynamic(4));
+        auto relu = std::make_shared<opset10::Relu>(data);
+        auto weights =
+            opset10::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1));
+        auto conv = std::make_shared<opset10::Convolution>(relu,
+                                                           weights,
+                                                           Strides{2, 2},
+                                                           CoordinateDiff{3, 3},
+                                                           CoordinateDiff{3, 3},
+                                                           Strides{1, 1});
+        auto result = std::make_shared<opset10::Result>(conv);
+        model_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
+    }
+}
+
+TEST_F(TransformationTestsF, EltwiseScalarRightReverseInfer) {
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape::dynamic());
+        auto add_const = opset10::Constant::create(element::f32, Shape{}, {1});
+        auto add = std::make_shared<opset10::Add>(data, add_const);
+        auto weights =
+            opset10::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1));
+        auto conv = std::make_shared<opset10::Convolution>(add,
+                                                           weights,
+                                                           Strides{2, 2},
+                                                           CoordinateDiff{3, 3},
+                                                           CoordinateDiff{3, 3},
+                                                           Strides{1, 1});
+        auto result = std::make_shared<opset10::Result>(conv);
+        model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
+        manager.register_pass<pass::ReverseShapeAndTypeInfer>();
+    }
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape::dynamic(4));
+        auto add_const = opset10::Constant::create(element::f32, Shape{}, {1});
+        auto add = std::make_shared<opset10::Add>(data, add_const);
+        auto weights =
+            opset10::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1));
+        auto conv = std::make_shared<opset10::Convolution>(add,
+                                                           weights,
+                                                           Strides{2, 2},
+                                                           CoordinateDiff{3, 3},
+                                                           CoordinateDiff{3, 3},
+                                                           Strides{1, 1});
+        auto result = std::make_shared<opset10::Result>(conv);
+        model_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
+    }
+}
+
+TEST_F(TransformationTestsF, EltwiseScalarLeftReverseInfer) {
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape::dynamic());
+        auto add_const = opset10::Constant::create(element::f32, Shape{}, {1});
+        auto add = std::make_shared<opset10::Add>(add_const, data);
+        auto weights =
+            opset10::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1));
+        auto conv = std::make_shared<opset10::Convolution>(add,
+                                                           weights,
+                                                           Strides{2, 2},
+                                                           CoordinateDiff{3, 3},
+                                                           CoordinateDiff{3, 3},
+                                                           Strides{1, 1});
+        auto result = std::make_shared<opset10::Result>(conv);
+        model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
+        manager.register_pass<pass::ReverseShapeAndTypeInfer>();
+    }
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape::dynamic(4));
+        auto add_const = opset10::Constant::create(element::f32, Shape{}, {1});
+        auto add = std::make_shared<opset10::Add>(add_const, data);
+        auto weights =
+            opset10::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1));
+        auto conv = std::make_shared<opset10::Convolution>(add,
+                                                           weights,
+                                                           Strides{2, 2},
+                                                           CoordinateDiff{3, 3},
+                                                           CoordinateDiff{3, 3},
+                                                           Strides{1, 1});
+        auto result = std::make_shared<opset10::Result>(conv);
+        model_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
+    }
+}
