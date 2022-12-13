@@ -11,7 +11,6 @@ using namespace std;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-
 TEST(InferRequestCPPTests, throwsOnUninitializedSetBlob) {
     InferRequest req;
     ASSERT_THROW(req.SetBlob({}, {}), InferenceEngine::NotAllocated);
