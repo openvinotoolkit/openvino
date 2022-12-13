@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <array>
 #include <openvino/op/strided_slice.hpp>
 
 #include "slice_shape_inference_utils.hpp"
