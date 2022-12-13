@@ -96,8 +96,6 @@ void shape_infer(const Slice* op,
         got_axes = false;
     }
 
-    auto& output_shape = output_shapes[0];
-
     std::vector<DimType> dims;
     dims.reserve(input_shape.rank().get_length());
     for (size_t dim_idx = 0; dim_idx < static_cast<size_t>(input_shape.rank().get_length()); ++dim_idx) {
@@ -136,11 +134,15 @@ void shape_infer(const Slice* op,
                 // for equal ov::Dimension do merge to get input label (always success)
                 DimType::merge(dims.back(), dims.back(), input_dim);
             }
-        } else {
+        } else if (got_axes) {
+            // dimension not on axes list, no change
             dims.push_back(input_dim);
+        } else {
+            // axes are unknow so any dimension can be sliced
+            dims.emplace_back(0, input_dim.get_max_length());
         }
     }
-    output_shape = T(std::move(dims));
+    output_shapes.front() = T(std::move(dims));
 }
 }  // namespace v8
 }  // namespace op
