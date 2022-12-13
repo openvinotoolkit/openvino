@@ -16,7 +16,7 @@ using namespace testing;
 using namespace ov::util;
 
 TEST(CoreTests_getPluginPathFromXML, UseAbsPathAsIs) {
-    auto libPath = ov::util::get_absolute_file_path("libtest_name.so", false);
+    auto libPath = ov::util::get_absolute_file_path("test_name.ext", false);
     auto absPath = from_file_path(ov::getPluginPathFromXML(libPath));
     EXPECT_TRUE(is_absolute_file_path(absPath));
     EXPECT_STREQ(absPath.c_str(), libPath.c_str());
