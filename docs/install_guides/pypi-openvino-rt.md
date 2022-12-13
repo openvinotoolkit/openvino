@@ -12,11 +12,13 @@ Before you start the installation, check the supported operating systems and req
 
 | Supported Operating System                                   | [Python* Version (64-bit)](https://www.python.org/) |
 | :------------------------------------------------------------| :---------------------------------------------------|
-|   Ubuntu* 18.04 long-term support (LTS), 64-bit              | 3.7, 3.8, 3.9, 3.10                                 |
-|   Ubuntu* 20.04 long-term support (LTS), 64-bit              | 3.7, 3.8, 3.9, 3.10                                 |
-|   Red Hat* Enterprise Linux* 8, 64-bit                       | 3.7, 3.8, 3.9, 3.10                                 |
-|   macOS* 10.15.x versions                                    | 3.7, 3.8, 3.9, 3.10                                 |
-|   Windows 10*, 64-bit                                        | 3.7, 3.8, 3.9, 3.10                                 |
+|   Ubuntu* 18.04 long-term support (LTS) x86, 64-bit          | 3.7, 3.8, 3.9, 3.10                                 |
+|   Ubuntu* 20.04 long-term support (LTS) x86, 64-bit          | 3.7, 3.8, 3.9, 3.10                                 |
+|   Red Hat* Enterprise Linux* 8 x86, 64-bit                   | 3.7, 3.8, 3.9, 3.10                                 |
+|   CentOS 7 x86, 64-bit                                       | 3.7, 3.8, 3.9, 3.10                                 |
+|   macOS* 10.15 and higher versions, x86, 64-bit              | 3.7, 3.8, 3.9, 3.10                                 |
+|   macOS* 11 and higher versions, arm64                       | 3.7, 3.8, 3.9, 3.10                                 |
+|   Windows 10* and higher versions, x86, 64-bit               | 3.7, 3.8, 3.9, 3.10                                 |
 
 **C++ libraries** are also required for the installation on Windows*. To install that, you can [download the Visual Studio Redistributable file (.exe)](https://aka.ms/vs/17/release/vc_redist.x64.exe).
 
