@@ -35,4 +35,4 @@ class TestAdd(PytorchLayerTest):
     @pytest.mark.nightly
     def test_add(self, ie_device, precision, ir_version, alpha, input_rhs):
         self.input_rhs = input_rhs
-        self._test(*self.create_model(alpha), 'CPU', precision, ir_version)
+        self._test(*self.create_model(alpha), ie_device, precision, ir_version)
