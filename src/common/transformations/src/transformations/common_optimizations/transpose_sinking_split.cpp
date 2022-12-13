@@ -115,7 +115,7 @@ bool HasInputSplitAndTransposeSiblings(const Output<Node>& output) {
 ov::pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
     MATCHER_SCOPE(TransposeSinkingSplitBackward);
 
-    auto transpose_const_label = wrap_type<Constant>(consumers_count(1));
+    auto transpose_const_label = wrap_type<Constant>();
     auto transpose_label =
         wrap_type<Transpose>({any_input(), transpose_const_label}, HasInputSplitAndTransposeSiblings);
 
