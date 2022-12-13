@@ -61,7 +61,7 @@ protected:
 public:
     void SetUp() override {
         target_device = GetParam();
-        heteroDeviceName = CommonTestUtils::DEVICE_HETERO + std::string(":") + GetParam() + std::string(",") + CommonTestUtils::DEVICE_CPU;
+        heteroDeviceName = CommonTestUtils::DEVICE_HETERO + std::string(":") + GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         ov::test::behavior::APIBaseTest::SetUp();
         IEClassNetworkTest::SetUp();
@@ -379,7 +379,7 @@ TEST_P(IEClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK, GetMetricNoT
 
     ASSERT_NO_THROW(p = exeNetwork.GetConfig("TARGET_FALLBACK"));
     std::string targets = p;
-    auto expectedTargets = target_device + "," + CommonTestUtils::DEVICE_CPU;
+    auto expectedTargets = target_device;
 
     std::cout << "Exe network fallback targets: " << targets << std::endl;
     ASSERT_EQ(expectedTargets, targets);
