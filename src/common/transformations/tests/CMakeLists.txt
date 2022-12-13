@@ -29,18 +29,28 @@ ov_add_test_target(
     ROOT ${CMAKE_CURRENT_SOURCE_DIR}
     DEPENDENCIES
     LINK_LIBRARIES
-        gtest
-        gtest_main
-        openvino::runtime::dev
-        commonTestUtils
-        lptNgraphFunctions
         gmock
         funcTestUtils
-        inference_engine_legacy
         offline_transformations
         sharedTestClasses
+        lptNgraphFunctions
     INCLUDES
         $<TARGET_PROPERTY:inference_engine_obj,SOURCE_DIR>/src
+    ADD_CPPLINT
     LABELS
         TRANSFORMATIONS
 )
+
+file(GLOB_RECURSE legacy_tests
+    "${CMAKE_CURRENT_SOURCE_DIR}/legacy/*.cpp" # CVS-55385
+    )
+
+set_source_files_properties(${legacy_tests} PROPERTIES INCLUDE_DIRECTORIES
+    $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
+
+if(WIN32)
+    string(REPLACE "/Zi" "/Z7" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
+    string(REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+    string(REPLACE "/Zi" "/Z7" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
+    string(REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+endif()
