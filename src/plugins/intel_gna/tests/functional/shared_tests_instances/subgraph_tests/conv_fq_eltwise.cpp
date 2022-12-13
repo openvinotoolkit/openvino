@@ -13,7 +13,8 @@ using namespace SubgraphTestsDefinitions;
 namespace {
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16,
+        InferenceEngine::Precision::FP32,
+        InferenceEngine::Precision::FP16
 };
 
 const std::vector<std::map<std::string, std::string>> configs = {
@@ -29,9 +30,12 @@ const size_t levels = 65535;
 
 const std::vector<std::vector<float>> inputParams = {{-10, 10, 1}};
 
+const float convFQValue = 2.0f;
+
 const auto fqParams = ::testing::Combine(
         ::testing::Values(levels),
-        ::testing::ValuesIn(inputParams)
+        ::testing::ValuesIn(inputParams),
+        ::testing::Values(convFQValue)
 );
 
 const std::vector<std::vector<size_t>> kernels = {{1, 3}};
