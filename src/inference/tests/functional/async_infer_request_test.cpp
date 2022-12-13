@@ -24,7 +24,9 @@ TEST(InferRequestCPPTests, throwsOnUninitializedGetBlob) {
 
 TEST(InferRequestCPPTests, throwsOnUninitializedSetBlobPreproc) {
     InferRequest req;
+    IE_SUPPRESS_DEPRECATED_START
     ASSERT_THROW(req.SetBlob({}, {}, {}), InferenceEngine::NotAllocated);
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST(InferRequestCPPTests, throwsOnUninitializedGetPreProcess) {
