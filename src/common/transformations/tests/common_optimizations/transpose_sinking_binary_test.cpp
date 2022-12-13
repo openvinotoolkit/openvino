@@ -15,6 +15,8 @@
 using namespace ov;
 using namespace ov::opset9;
 
+namespace transpose_sinking_binary_eltwise {
+
 namespace {
 
 using NodePtr = std::shared_ptr<ov::Node>;
@@ -921,6 +923,8 @@ std::vector<CreateGraphFunctionDesc> backward_subtests = {
     SUBTEST(backward::output_transpose_mult_consumers, "backward_output_transpose_mult_consumers")
 };
 
+#undef SUBTEST
+
 INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingBinaryForwardMultiConsumersTestSuite,
     TransposeSinkingFixture,
@@ -942,3 +946,5 @@ INSTANTIATE_TEST_SUITE_P(
                        TransposeSinkingFixture::get_test_name);
 
 } // namespace mult_consumers
+
+} // namespace transpose_sinking_binary_eltwise
