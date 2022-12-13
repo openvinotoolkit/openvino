@@ -359,7 +359,7 @@ TEST_F(BlobTests, canModifyDataInRangedFor) {
         data = 5;
     }
 
-    for (int i = 0; i < v.size(); i++) {
+    for (size_t i = 0; i < v.size(); i++) {
         ASSERT_EQ(5, blob.data()[i]) << "Mismatch at" << i;
     }
 }
