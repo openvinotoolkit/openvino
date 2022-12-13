@@ -103,7 +103,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::clamp", op::translate_clamp},
         {"aten::clamp_min", op::translate_1to1_match_2_inputs<opset8::Maximum>},
         {"aten::clamp_max", op::translate_1to1_match_2_inputs<opset8::Minimum>},
-        {"aten::clone", op::skip_node}, // ignore clone operators that are inserted by PyTorch autograd
+        {"aten::clone", op::skip_node},       // ignore clone operators that are inserted by PyTorch autograd
         {"aten::contiguous", op::skip_node},  // In openvino how tensors are stored in memory is internal plugin detail,
                                               // we assume all tensors are contiguous
         {"aten::conv2d", op::translate_conv2d},
@@ -182,7 +182,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::sub", op::translate_sub},
         {"aten::sum", op::translate_sum},
         {"aten::tanh", op::translate_1to1_match_1_inputs<opset8::Tanh>},
-        {"aten::type_as", op::translate_1to1_match_2_inputs<opset8::ConvertLike>}, // TODO: overflow semantics is different
+        {"aten::type_as",
+         op::translate_1to1_match_2_inputs<opset8::ConvertLike>},  // TODO: overflow semantics is different
         {"aten::to", op::translate_to},
         {"aten::transpose", op::translate_transpose},
         {"aten::unsqueeze", op::translate_1to1_match_2_inputs<opset8::Unsqueeze>},
