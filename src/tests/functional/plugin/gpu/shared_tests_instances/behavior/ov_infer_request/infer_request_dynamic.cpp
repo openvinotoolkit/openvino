@@ -11,16 +11,17 @@ using namespace ov::test::behavior;
 
 namespace {
 
-const std::vector<ov::AnyMap> configs = {
-    {}
+auto configs = []() {
+    return std::vector<ov::AnyMap>{{}};
 };
 
-const std::vector<ov::AnyMap> AutoConfigs = {
-    {ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU)},
-    {}
+auto AutoConfigs = []() {
+    return std::vector<ov::AnyMap>{{ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU)},
+                                   {}};
 };
 
-const std::vector<ov::AnyMap> AutoNotSupportConfigs = {
+auto AutoNotSupportConfigs = []() {
+    return std::vector<ov::AnyMap>{};
 };
 
 std::shared_ptr<ngraph::Function> getFunction1() {
@@ -67,7 +68,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_1, OVInferRequestDynamicTests,
                                     {{1, 4, 20, 20}, {1, 4, 20, 20}},
                                     {{2, 4, 20, 20}, {2, 4, 20, 20}}}),
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU),
-                                ::testing::ValuesIn(configs)),
+                                ::testing::ValuesIn(configs())),
                         OVInferRequestDynamicTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestDynamicTests,
@@ -77,13 +78,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestDynamicTests,
                                     {{1, 4, 20, 20}, {1, 2, 20, 40}},
                                     {{2, 4, 20, 20}, {2, 2, 20, 40}}}),
                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                ::testing::ValuesIn(AutoConfigs)),
+                                ::testing::ValuesIn(AutoConfigs())),
                         OVInferRequestDynamicTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferenceChaining,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                ::testing::ValuesIn(AutoConfigs)),
+                                ::testing::ValuesIn(AutoConfigs())),
                         OVInferenceChaining::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVNotSupportRequestDynamicTests,
                         ::testing::Combine(
@@ -92,6 +93,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVNotSupportRequestDynamicTes
                                     {{1, 4, 20, 20}, {1, 2, 20, 40}},
                                     {{2, 4, 20, 20}, {2, 2, 20, 40}}}),
                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                ::testing::ValuesIn(AutoNotSupportConfigs)),
+                                ::testing::ValuesIn(AutoNotSupportConfigs())),
                         OVInferRequestDynamicTests::getTestCaseName);
 }  // namespace

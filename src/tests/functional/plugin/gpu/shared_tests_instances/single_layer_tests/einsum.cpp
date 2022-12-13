@@ -30,13 +30,11 @@ const std::vector<EinsumEquationWithInput> equationsWithInput = {
     { "a...j,j...->a...", { {1, 1, 4, 3}, {3, 4, 2, 1} } } // complex multiplication
 };
 
-const auto params = ::testing::Combine(
-        ::testing::ValuesIn(precisions),
-        ::testing::ValuesIn(equationsWithInput),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU));
-
-INSTANTIATE_TEST_SUITE_P(smoke_Einsum, EinsumLayerTest,
-        params,
-        EinsumLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Einsum,
+                         EinsumLayerTest,
+                         ::testing::Combine(::testing::ValuesIn(precisions),
+                                            ::testing::ValuesIn(equationsWithInput),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                         EinsumLayerTest::getTestCaseName);
 
 }  // namespace

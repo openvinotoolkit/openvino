@@ -41,45 +41,42 @@ const size_t coords = 4;
 const int start_axis = 1;
 const int end_axis = 3;
 
-const auto testCase_yolov3 = ::testing::Combine(
-    ::testing::ValuesIn(inShapes_v3),
-    ::testing::Values(classes[0]),
-    ::testing::Values(coords),
-    ::testing::Values(num_regions[1]),
-    ::testing::Values(do_softmax[1]),
-    ::testing::Values(masks[2]),
-    ::testing::Values(start_axis),
-    ::testing::Values(end_axis),
-    ::testing::Values(InferenceEngine::Precision::FP32),
-    ::testing::Values(CommonTestUtils::DEVICE_GPU)
-);
-
-const auto testCase_yolov3_mxnet = ::testing::Combine(
-    ::testing::ValuesIn(inShapes_mxnet),
-    ::testing::Values(classes[1]),
-    ::testing::Values(coords),
-    ::testing::Values(num_regions[1]),
-    ::testing::Values(do_softmax[1]),
-    ::testing::Values(masks[1]),
-    ::testing::Values(start_axis),
-    ::testing::Values(end_axis),
-    ::testing::Values(InferenceEngine::Precision::FP32),
-    ::testing::Values(CommonTestUtils::DEVICE_GPU)
-);
-
-const auto testCase_yolov2_caffe = ::testing::Combine(
-    ::testing::ValuesIn(inShapes_caffe),
-    ::testing::Values(classes[1]),
-    ::testing::Values(coords),
-    ::testing::Values(num_regions[0]),
-    ::testing::Values(do_softmax[0]),
-    ::testing::Values(masks[0]),
-    ::testing::Values(start_axis),
-    ::testing::Values(end_axis),
-    ::testing::Values(InferenceEngine::Precision::FP32),
-    ::testing::Values(CommonTestUtils::DEVICE_GPU)
-);
-
-INSTANTIATE_TEST_SUITE_P(smoke_TestsRegionYolov3, RegionYoloLayerTest, testCase_yolov3, RegionYoloLayerTest::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_TestsRegionYoloMxnet, RegionYoloLayerTest, testCase_yolov3_mxnet, RegionYoloLayerTest::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_TestsRegionYoloCaffe, RegionYoloLayerTest, testCase_yolov2_caffe, RegionYoloLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsRegionYolov3,
+                         RegionYoloLayerTest,
+                         ::testing::Combine(::testing::ValuesIn(inShapes_v3),
+                                            ::testing::Values(classes[0]),
+                                            ::testing::Values(coords),
+                                            ::testing::Values(num_regions[1]),
+                                            ::testing::Values(do_softmax[1]),
+                                            ::testing::Values(masks[2]),
+                                            ::testing::Values(start_axis),
+                                            ::testing::Values(end_axis),
+                                            ::testing::Values(InferenceEngine::Precision::FP32),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                         RegionYoloLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsRegionYoloMxnet,
+                         RegionYoloLayerTest,
+                         ::testing::Combine(::testing::ValuesIn(inShapes_mxnet),
+                                            ::testing::Values(classes[1]),
+                                            ::testing::Values(coords),
+                                            ::testing::Values(num_regions[1]),
+                                            ::testing::Values(do_softmax[1]),
+                                            ::testing::Values(masks[1]),
+                                            ::testing::Values(start_axis),
+                                            ::testing::Values(end_axis),
+                                            ::testing::Values(InferenceEngine::Precision::FP32),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                         RegionYoloLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsRegionYoloCaffe,
+                         RegionYoloLayerTest,
+                         ::testing::Combine(::testing::ValuesIn(inShapes_caffe),
+                                            ::testing::Values(classes[1]),
+                                            ::testing::Values(coords),
+                                            ::testing::Values(num_regions[0]),
+                                            ::testing::Values(do_softmax[0]),
+                                            ::testing::Values(masks[0]),
+                                            ::testing::Values(start_axis),
+                                            ::testing::Values(end_axis),
+                                            ::testing::Values(InferenceEngine::Precision::FP32),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                         RegionYoloLayerTest::getTestCaseName);

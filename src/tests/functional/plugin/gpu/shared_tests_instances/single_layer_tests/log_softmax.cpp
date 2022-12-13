@@ -25,24 +25,18 @@ const std::vector<int64_t> axis2D = {
     -1, 1
 };
 
-const auto params2D = testing::Combine(
-    testing::ValuesIn(netPrecisions),
-    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-    testing::Values(InferenceEngine::Layout::ANY),
-    testing::Values(InferenceEngine::Layout::ANY),
-    testing::ValuesIn(inputShapes2D),
-    testing::ValuesIn(axis2D),
-    testing::Values(CommonTestUtils::DEVICE_GPU),
-    testing::Values(std::map<std::string, std::string>())
-);
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_LogSoftmax2D,
-        LogSoftmaxLayerTest,
-        params2D,
-        LogSoftmaxLayerTest::getTestCaseName
-);
+INSTANTIATE_TEST_SUITE_P(smoke_LogSoftmax2D,
+                         LogSoftmaxLayerTest,
+                         testing::Combine(testing::ValuesIn(netPrecisions),
+                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                          testing::Values(InferenceEngine::Layout::ANY),
+                                          testing::Values(InferenceEngine::Layout::ANY),
+                                          testing::ValuesIn(inputShapes2D),
+                                          testing::ValuesIn(axis2D),
+                                          testing::Values(CommonTestUtils::DEVICE_GPU),
+                                          testing::Values(std::map<std::string, std::string>())),
+                         LogSoftmaxLayerTest::getTestCaseName);
 
 const std::vector<InferenceEngine::SizeVector> inputShapes4D = {
     InferenceEngine::SizeVector {1, 100, 1, 1},
@@ -54,23 +48,17 @@ const std::vector<int64_t> axis4D = {
     -3, -2, -1, 1, 2, 3
 };
 
-const auto params4D = testing::Combine(
-    testing::ValuesIn(netPrecisions),
-    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-    testing::Values(InferenceEngine::Layout::ANY),
-    testing::Values(InferenceEngine::Layout::ANY),
-    testing::ValuesIn(inputShapes4D),
-    testing::ValuesIn(axis4D),
-    testing::Values(CommonTestUtils::DEVICE_GPU),
-    testing::Values(std::map<std::string, std::string>())
-);
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_LogSoftmax4D,
-        LogSoftmaxLayerTest,
-        params4D,
-        LogSoftmaxLayerTest::getTestCaseName
-);
+INSTANTIATE_TEST_SUITE_P(smoke_LogSoftmax4D,
+                         LogSoftmaxLayerTest,
+                         testing::Combine(testing::ValuesIn(netPrecisions),
+                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                          testing::Values(InferenceEngine::Layout::ANY),
+                                          testing::Values(InferenceEngine::Layout::ANY),
+                                          testing::ValuesIn(inputShapes4D),
+                                          testing::ValuesIn(axis4D),
+                                          testing::Values(CommonTestUtils::DEVICE_GPU),
+                                          testing::Values(std::map<std::string, std::string>())),
+                         LogSoftmaxLayerTest::getTestCaseName);
 
 }  // namespace
