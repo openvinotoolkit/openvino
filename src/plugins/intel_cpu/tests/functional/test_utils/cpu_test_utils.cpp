@@ -8,6 +8,7 @@
 #include <cstdint>
 
 namespace CPUTestUtils {
+const char* CPUTestsBase::any_type = "any_type";
 
 const char *CPUTestsBase::cpu_fmt2str(cpu_memory_format_t v) {
 #define CASE(_fmt) do { \
@@ -221,7 +222,7 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
 }
 
 bool CPUTestsBase::primTypeCheck(std::string primType) const {
-    return selectedType == primType;
+    return selectedType.find(CPUTestsBase::any_type) != std::string::npos || selectedType == primType;
 }
 
 std::string CPUTestsBase::getTestCaseName(CPUSpecificParams params) {

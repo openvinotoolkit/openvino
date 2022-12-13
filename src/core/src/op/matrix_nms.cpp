@@ -17,7 +17,6 @@
 #include "ngraph/util.hpp"
 
 using namespace ngraph;
-BWDCMP_RTTI_DEFINITION(op::v8::MatrixNms);
 
 op::v8::MatrixNms::MatrixNms(const Output<Node>& boxes, const Output<Node>& scores, const Attributes& attrs)
     : Op({boxes, scores}),
@@ -153,9 +152,6 @@ EnumNames<ngraph::op::v8::MatrixNms::DecayFunction>::get() {
          {"linear", ngraph::op::v8::MatrixNms::DecayFunction::LINEAR}});
     return enum_names;
 }
-
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v8::MatrixNms::DecayFunction>);
-
 }  // namespace ov
 
 std::ostream& ov::operator<<(std::ostream& s, const op::v8::MatrixNms::SortResultType& type) {
@@ -172,7 +168,4 @@ NGRAPH_API EnumNames<op::v8::MatrixNms::SortResultType>& EnumNames<op::v8::Matri
                                                       {"none", op::v8::MatrixNms::SortResultType::NONE}});
     return enum_names;
 }
-
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v8::MatrixNms::SortResultType>);
-
 }  // namespace ov

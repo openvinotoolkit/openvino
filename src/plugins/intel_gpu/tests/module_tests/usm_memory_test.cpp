@@ -135,7 +135,7 @@ TEST_P(copy_and_read_buffer, basic) {
                 cldnn::mem_lock<float> lock(host_buf, stream);
                 std::copy(src_buffer.begin(), src_buffer.end(), lock.data());
             }
-            casted->copy_from(stream, *host_buf);
+            casted->copy_from(stream, *host_buf, true);
             break;
         }
         default:

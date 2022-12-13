@@ -14,7 +14,6 @@ namespace v0 {
 class OPENVINO_API Cos : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Cos", "opset1", util::UnaryElementwiseArithmetic);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a cosine operation.
     Cos() = default;

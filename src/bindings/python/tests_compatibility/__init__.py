@@ -31,8 +31,6 @@ xfail_issue_33488 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "MaxUnpool")
 skip_issue_38084 = pytest.mark.skip(reason="Aborted (core dumped) Assertion "
                                            "`(layer->get_output_partial_shape(i).is_static())' failed.")
-xfail_issue_33589 = xfail_test(reason="nGraph does not support the following ONNX operations: "
-                                      "IsNaN and isInf")
 xfail_issue_33595 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
                                       "Unique")
 xfail_issue_33596 = xfail_test(reason="RuntimeError: nGraph does not support different sequence operations: "
@@ -145,7 +143,6 @@ xfail_issue_90649 = xfail_test(reason="RuntimeError: OV does not support the fol
                                       "BlackmanWindow, DFT, HammingWindow, HannWindow, LayerNormalization, "
                                       "MelWeightMatrix, SequenceMap, STFT")
 xfail_issue_91151 = xfail_test(reason="RuntimeError: model input (shape={3,4}) and blob (shape=(1)) are incompatible")
-xfail_issue_91152 = xfail_test(reason="RuntimeError: Error validating node '<Node(DequantizeLinear): y>'")
 xfail_issue_91490 = xfail_test(reason="y has zero dimension which is not allowed")
 
 skip_dynamic_model = pytest.mark.skip(reason="CPU plug-in can't load a model with dynamic output shapes via legacy API")

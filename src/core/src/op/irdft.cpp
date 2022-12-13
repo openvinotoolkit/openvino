@@ -11,8 +11,6 @@
 
 using namespace std;
 
-BWDCMP_RTTI_DEFINITION(ov::op::v9::IRDFT);
-
 ov::op::v9::IRDFT::IRDFT(const Output<Node>& data, const Output<Node>& axes) : FFTBase(data, axes) {
     constructor_validate_and_infer_types();
 }

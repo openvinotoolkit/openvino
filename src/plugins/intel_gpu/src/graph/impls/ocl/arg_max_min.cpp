@@ -91,7 +91,7 @@ public:
             argm_params.has_second_output = true;
             if (arg.use_multiple_outputs()) {
                 argm_params.use_multiple_outputs = true;
-                argm_params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout()));
+                argm_params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout(1)));
             } else {
                 argm_params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(2)));
             }
@@ -126,4 +126,4 @@ attach_arg_max_min_impl::attach_arg_max_min_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::arg_max_min_impl, cldnn::object_type::ARG_MAX_MIN_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::arg_max_min_impl)
