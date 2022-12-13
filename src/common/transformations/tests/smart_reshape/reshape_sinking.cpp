@@ -4,10 +4,9 @@
 
 #include <gtest/gtest.h>
 
+#include "common_test_utils/ngraph_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset9.hpp"
-
-#include "common_test_utils/ngraph_test_utils.hpp"
 
 struct ReshapeSinkingAttributes {
     ov::element::Type_t data_et;
@@ -19,9 +18,8 @@ struct ReshapeSinkingAttributes {
     bool transpose_a, transpose_b;
 };
 
-class ReshapeSinkingTest
-        : public testing::WithParamInterface<ReshapeSinkingAttributes>, public CommonTestUtils::TestsCommon {
-};
+class ReshapeSinkingTest : public testing::WithParamInterface<ReshapeSinkingAttributes>,
+                           public CommonTestUtils::TestsCommon {};
 
 TEST_P(ReshapeSinkingTest, ReshapeSinkingOnlyMatMul) {
     auto p = GetParam();
@@ -30,17 +28,19 @@ TEST_P(ReshapeSinkingTest, ReshapeSinkingOnlyMatMul) {
     {
         auto parameter = std::make_shared<ov::opset9::Parameter>(p.data_et, p.input_shape);
         auto reshape = std::make_shared<ov::opset9::Reshape>(parameter, create_constant(p.output_pattern), false);
-        auto matmul = std::make_shared<ov::opset9::MatMul>(reshape, create_zero_constant(p.data_et, p.mm_second_input_shape),
-                                                           p.transpose_a, p.transpose_b);
-        auto reshape_back = std::make_shared<ov::opset9::Reshape>(matmul, create_constant(p.output_pattern_back), false);
+        auto matmul = std::make_shared<ov::opset9::MatMul>(reshape,
+                                                           create_zero_constant(p.data_et, p.mm_second_input_shape),
+                                                           p.transpose_a,
+                                                           p.transpose_b);
+        auto reshape_back =
+            std::make_shared<ov::opset9::Reshape>(matmul, create_constant(p.output_pattern_back), false);
         model = std::make_shared<ov::Model>(ov::NodeVector{reshape_back}, ov::ParameterVector{parameter});
     }
     ASSERT_NO_THROW(model->reshape(p.new_shape));
 }
 
-class ReshapeSinkingTestWithAdd
-        : public testing::WithParamInterface<ReshapeSinkingAttributes>, public CommonTestUtils::TestsCommon {
-};
+class ReshapeSinkingTestWithAdd : public testing::WithParamInterface<ReshapeSinkingAttributes>,
+                                  public CommonTestUtils::TestsCommon {};
 
 TEST_P(ReshapeSinkingTestWithAdd, ReshapeSinkingMatMulAdd) {
     auto p = GetParam();
@@ -49,8 +49,10 @@ TEST_P(ReshapeSinkingTestWithAdd, ReshapeSinkingMatMulAdd) {
     {
         auto parameter = std::make_shared<ov::opset9::Parameter>(p.data_et, p.input_shape);
         auto reshape = std::make_shared<ov::opset9::Reshape>(parameter, create_constant(p.output_pattern), false);
-        auto matmul = std::make_shared<ov::opset9::MatMul>(reshape, create_zero_constant(p.data_et, p.mm_second_input_shape),
-                                                           p.transpose_a, p.transpose_b);
+        auto matmul = std::make_shared<ov::opset9::MatMul>(reshape,
+                                                           create_zero_constant(p.data_et, p.mm_second_input_shape),
+                                                           p.transpose_a,
+                                                           p.transpose_b);
         auto add = std::make_shared<ov::opset9::Add>(matmul, create_zero_constant(p.data_et, {1, 37}));
         auto reshape_back = std::make_shared<ov::opset9::Reshape>(add, create_constant(p.output_pattern_back), false);
         model = std::make_shared<ov::Model>(ov::NodeVector{reshape_back}, ov::ParameterVector{parameter});
@@ -59,10 +61,38 @@ TEST_P(ReshapeSinkingTestWithAdd, ReshapeSinkingMatMulAdd) {
 }
 
 static std::vector<ReshapeSinkingAttributes> params = {
-        ReshapeSinkingAttributes{ov::element::f32, {10, 30, 512}, {20, 30, 512}, {-1, 512}, {10, 30, 37}, {37, 512}, false, true},
-        ReshapeSinkingAttributes{ov::element::f32, {-1, 30, 512}, {20, 30, 512}, {-1, 512}, {10, 30, 37}, {37, 512}, false, true},
-        ReshapeSinkingAttributes{ov::element::f32, {1, 3, 4, 512}, {2, 3, 4, 512}, {-1, 512}, {1, 3, 4, 37}, {37, 512}, false, true},
-        ReshapeSinkingAttributes{ov::element::f32, {1, 3, 4, 512}, {2, 3, 4, 512}, {-1, 512}, {1, 3, 4, 37}, {512, 37}, false, false},
+    ReshapeSinkingAttributes{ov::element::f32,
+                             {10, 30, 512},
+                             {20, 30, 512},
+                             {-1, 512},
+                             {10, 30, 37},
+                             {37, 512},
+                             false,
+                             true},
+    ReshapeSinkingAttributes{ov::element::f32,
+                             {-1, 30, 512},
+                             {20, 30, 512},
+                             {-1, 512},
+                             {10, 30, 37},
+                             {37, 512},
+                             false,
+                             true},
+    ReshapeSinkingAttributes{ov::element::f32,
+                             {1, 3, 4, 512},
+                             {2, 3, 4, 512},
+                             {-1, 512},
+                             {1, 3, 4, 37},
+                             {37, 512},
+                             false,
+                             true},
+    ReshapeSinkingAttributes{ov::element::f32,
+                             {1, 3, 4, 512},
+                             {2, 3, 4, 512},
+                             {-1, 512},
+                             {1, 3, 4, 37},
+                             {512, 37},
+                             false,
+                             false},
 };
 
 INSTANTIATE_TEST_SUITE_P(SmartReshapeTests, ReshapeSinkingTest, ::testing::ValuesIn(params));

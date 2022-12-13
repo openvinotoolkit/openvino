@@ -20,8 +20,8 @@ using namespace ngraph;
 
 TEST_F(TransformationTestsF, ConvertPriorBox8To0) {
     {
-        const Shape input_shape {2, 2};
-        const Shape image_Shape {10, 10};
+        const Shape input_shape{2, 2};
+        const Shape image_Shape{10, 10};
         op::v8::PriorBox::Attributes attrs;
         attrs.min_size = {2.0f};
         attrs.max_size = {5.0f};
@@ -33,13 +33,13 @@ TEST_F(TransformationTestsF, ConvertPriorBox8To0) {
 
         auto prior_box = std::make_shared<opset8::PriorBox>(input, image, attrs);
 
-        function = std::make_shared<Function>(NodeVector {prior_box}, ParameterVector {input, image});
+        function = std::make_shared<Function>(NodeVector{prior_box}, ParameterVector{input, image});
         manager.register_pass<pass::ConvertPriorBox8To0>();
     }
 
     {
-        const Shape input_shape {2, 2};
-        const Shape image_Shape {10, 10};
+        const Shape input_shape{2, 2};
+        const Shape image_Shape{10, 10};
         op::v0::PriorBox::Attributes attrs;
         attrs.min_size = {2.0f};
         attrs.max_size = {5.0f};
@@ -51,14 +51,14 @@ TEST_F(TransformationTestsF, ConvertPriorBox8To0) {
 
         auto prior_box = std::make_shared<opset1::PriorBox>(input, image, attrs);
 
-        function_ref = std::make_shared<Function>(NodeVector {prior_box}, ParameterVector {input, image});
+        function_ref = std::make_shared<Function>(NodeVector{prior_box}, ParameterVector{input, image});
     }
 }
 
 TEST_F(TransformationTestsF, ConvertPriorBox8To0_min_max_aspect_ratios_order) {
     {
-        const Shape input_shape {2, 2};
-        const Shape image_Shape {10, 10};
+        const Shape input_shape{2, 2};
+        const Shape image_Shape{10, 10};
         op::v8::PriorBox::Attributes attrs;
         attrs.min_size = {2.0f};
         attrs.max_size = {5.0f};
@@ -71,7 +71,7 @@ TEST_F(TransformationTestsF, ConvertPriorBox8To0_min_max_aspect_ratios_order) {
 
         auto prior_box = std::make_shared<opset8::PriorBox>(input, image, attrs);
 
-        function = std::make_shared<Function>(NodeVector {prior_box}, ParameterVector {input, image});
+        function = std::make_shared<Function>(NodeVector{prior_box}, ParameterVector{input, image});
         manager.register_pass<pass::ConvertPriorBox8To0>();
     }
 }

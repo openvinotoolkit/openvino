@@ -68,7 +68,6 @@ TEST(ResolveNameCollisionsTest, FixFriendlyNamesForInternalOperations) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 3, 3});
     const auto gen_friendly_name = arg0->get_friendly_name();
 
-
     auto arg1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3, 3});
 
     auto concat1 = std::make_shared<ov::opset8::Concat>(ov::NodeVector{arg0, arg1}, 1);

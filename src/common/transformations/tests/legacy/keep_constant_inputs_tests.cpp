@@ -2,33 +2,32 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
 #include <cpp/ie_cnn_network.h>
-#include <legacy/cnn_network_impl.hpp>  // deprecated API
-#include <legacy/details/ie_cnn_network_iterator.hpp>  // deprecated API
+#include <gtest/gtest.h>
 
+#include <functional_test_utils/precision_utils.hpp>
+#include <ie_precision.hpp>
+#include <legacy/cnn_network_impl.hpp>  // deprecated API
+#include <legacy/convert_function_to_cnn_network.hpp>
+#include <legacy/details/ie_cnn_network_iterator.hpp>  // deprecated API
+#include <legacy/ngraph_ops/convolution_ie.hpp>
+#include <legacy/ngraph_ops/fully_connected.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
-#include <legacy/ngraph_ops/convolution_ie.hpp>
-#include <transformations/init_node_info.hpp>
-
-#include <ie_precision.hpp>
-#include <functional_test_utils/precision_utils.hpp>
-#include "ngraph_functions/subgraph_builders.hpp"
-#include <legacy/convert_function_to_cnn_network.hpp>
-#include <legacy/ngraph_ops/fully_connected.hpp>
+#include <ngraph/pass/manager.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <transformations/init_node_info.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
-#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
-#include <ngraph/pass/manager.hpp>
+#include "ngraph_functions/subgraph_builders.hpp"
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 using namespace testing;
 using namespace InferenceEngine;
 
-int numberOfInputsForLayerInCNNNetwork(const InferenceEngine::CNNNetwork & network, std::string layerType) {
+int numberOfInputsForLayerInCNNNetwork(const InferenceEngine::CNNNetwork& network, std::string layerType) {
     int numberOfInputs = 0;
 
     IE_SUPPRESS_DEPRECATED_START
@@ -43,7 +42,7 @@ int numberOfInputsForLayerInCNNNetwork(const InferenceEngine::CNNNetwork & netwo
     return numberOfInputs;
 }
 
-void transformNetwork(InferenceEngine::CNNNetwork & clonedNetwork, bool keep_constant_inputs) {
+void transformNetwork(InferenceEngine::CNNNetwork& clonedNetwork, bool keep_constant_inputs) {
     if (clonedNetwork.getFunction()) {
         auto nGraphFunc = clonedNetwork.getFunction();
         ngraph::pass::Manager manager;
@@ -60,7 +59,7 @@ void transformNetwork(InferenceEngine::CNNNetwork & clonedNetwork, bool keep_con
 }
 
 TEST(KeepConstantInputsTests, ConvertConvolutionPoolReluNetworkWithTrue) {
-    std::shared_ptr <ngraph::Function> f_ptr;
+    std::shared_ptr<ngraph::Function> f_ptr;
     f_ptr = ngraph::builder::subgraph::makeConvPoolRelu();
     InferenceEngine::CNNNetwork network(f_ptr), originalNetwork = network;
     transformNetwork(originalNetwork, true);
@@ -68,7 +67,7 @@ TEST(KeepConstantInputsTests, ConvertConvolutionPoolReluNetworkWithTrue) {
 }
 
 TEST(KeepConstantInputsTests, ConvertConvolutionPoolReluNetworkWithFalse) {
-    std::shared_ptr <ngraph::Function> f_ptr;
+    std::shared_ptr<ngraph::Function> f_ptr;
     f_ptr = ngraph::builder::subgraph::makeConvPoolRelu();
     InferenceEngine::CNNNetwork network(f_ptr), originalNetwork = network;
     transformNetwork(originalNetwork, false);
@@ -76,7 +75,7 @@ TEST(KeepConstantInputsTests, ConvertConvolutionPoolReluNetworkWithFalse) {
 }
 
 TEST(KeepConstantInputsTests, ConvertConvolutionBiasNetworkWithTrue) {
-    std::shared_ptr <ngraph::Function> f_ptr;
+    std::shared_ptr<ngraph::Function> f_ptr;
     f_ptr = ngraph::builder::subgraph::makeConvBias();
     InferenceEngine::CNNNetwork network(f_ptr), originalNetwork = network;
     transformNetwork(originalNetwork, true);
@@ -84,7 +83,7 @@ TEST(KeepConstantInputsTests, ConvertConvolutionBiasNetworkWithTrue) {
 }
 
 TEST(KeepConstantInputsTests, ConvertConvolutionBiasNetworkWithFalse) {
-    std::shared_ptr <ngraph::Function> f_ptr;
+    std::shared_ptr<ngraph::Function> f_ptr;
     f_ptr = ngraph::builder::subgraph::makeConvBias();
     InferenceEngine::CNNNetwork network(f_ptr), originalNetwork = network;
     transformNetwork(originalNetwork, false);
@@ -92,7 +91,7 @@ TEST(KeepConstantInputsTests, ConvertConvolutionBiasNetworkWithFalse) {
 }
 
 TEST(KeepConstantInputsTests, ConvertFullyConnectedNetworkWithTrue) {
-    std::shared_ptr <ngraph::Function> f_ptr;
+    std::shared_ptr<ngraph::Function> f_ptr;
     auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 128});
     auto weights = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{786, 128}, {1});
     auto empty_bias = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{786}, {0});
@@ -104,7 +103,7 @@ TEST(KeepConstantInputsTests, ConvertFullyConnectedNetworkWithTrue) {
 }
 
 TEST(KeepConstantInputsTests, ConvertFullyConnectedNetworkWithFalse) {
-    std::shared_ptr <ngraph::Function> f_ptr;
+    std::shared_ptr<ngraph::Function> f_ptr;
     auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 128});
     auto weights = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{786, 128}, {1});
     auto empty_bias = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{786}, {0});

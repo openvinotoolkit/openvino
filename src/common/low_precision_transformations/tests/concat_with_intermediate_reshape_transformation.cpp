@@ -2,22 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "layer_transformation.hpp"
-
-#include <string>
-#include <sstream>
-#include <memory>
-
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
+#include <low_precision/concat.hpp>
 #include <low_precision/fake_quantize_decomposition.hpp>
 #include <low_precision/reshape.hpp>
-#include <low_precision/concat.hpp>
+#include <memory>
+#include <sstream>
+#include <string>
+#include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "lpt_ngraph_functions/concat_function.hpp"
+#include "layer_transformation.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "lpt_ngraph_functions/concat_function.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
@@ -59,12 +57,10 @@ inline std::ostream& operator<<(std::ostream& out, const TestValues& values) {
     return out << "_" << values.reshapeOutputShape << "_" << values.actual << "_" << values.result;
 }
 
-typedef std::tuple <
-        ngraph::element::Type,
-        TestValues
-> ConcatTransformationParams;
+typedef std::tuple<ngraph::element::Type, TestValues> ConcatTransformationParams;
 
-class ConcatWithIntermediateReshapeTransformation : public LayerTransformation, public testing::WithParamInterface<ConcatTransformationParams> {
+class ConcatWithIntermediateReshapeTransformation : public LayerTransformation,
+                                                    public testing::WithParamInterface<ConcatTransformationParams> {
 public:
     void SetUp() override {
         const ngraph::element::Type precision = std::get<0>(GetParam());
@@ -79,7 +75,9 @@ public:
 
         SimpleLowPrecisionTransformer transform;
         transform.add<ngraph::pass::low_precision::ConcatTransformation, ngraph::opset1::Concat>(testValues.params);
-        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(testValues.params);
+        transform
+            .add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(
+                testValues.params);
         transform.add<ngraph::pass::low_precision::ReshapeTransformation, ngraph::opset1::Reshape>(testValues.params);
         transform.transform(actualFunction);
 
@@ -97,11 +95,8 @@ public:
         const TestValues testValues = std::get<1>(obj.param);
 
         std::ostringstream result;
-        result <<
-               LayerTransformation::getTestCaseNameByParams(precision, testValues.inputShape, testValues.params) << "_" <<
-               testValues.reshapeOutputShape << "_" <<
-               testValues.actual << "_" <<
-               testValues.result << "_";
+        result << LayerTransformation::getTestCaseNameByParams(precision, testValues.inputShape, testValues.params)
+               << "_" << testValues.reshapeOutputShape << "_" << testValues.actual << "_" << testValues.result << "_";
         return result.str();
     }
 };
@@ -113,33 +108,24 @@ TEST_P(ConcatWithIntermediateReshapeTransformation, CompareFunctions) {
 }
 
 const std::vector<ngraph::element::Type> precisions = {
-        ngraph::element::f32,
-        // ngraph::element::f16
+    ngraph::element::f32,
+    // ngraph::element::f16
 };
 
 const std::vector<TestValues> testValues = {
     // U8: Concat + MaxPool
-    {
-        Shape{ 2, 1, 9 },
-        Shape{ 2, 1, 1, 9 },
-        LayerTransformation::createParamsU8I8(),
-        {
-            { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
-            { 256ul, ngraph::Shape({}), {0.f}, {25.5f}, {0.f}, {25.5f} }
-        },
-        {
-            { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {255.f} },
-            { 256ul, ngraph::Shape({}), {0.f}, {25.5f}, {0.f}, {255.f} },
-            { {ngraph::element::f32}, {}, { {0.01f, 0.1f} } }
-        }
-    },
+    {Shape{2, 1, 9},
+     Shape{2, 1, 1, 9},
+     LayerTransformation::createParamsU8I8(),
+     {{256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f}},
+      {256ul, ngraph::Shape({}), {0.f}, {25.5f}, {0.f}, {25.5f}}},
+     {{256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {255.f}},
+      {256ul, ngraph::Shape({}), {0.f}, {25.5f}, {0.f}, {255.f}},
+      {{ngraph::element::f32}, {}, {{0.01f, 0.1f}}}}},
 };
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    ConcatWithIntermediateReshapeTransformation,
-    ::testing::Combine(
-    ::testing::ValuesIn(precisions),
-    ::testing::ValuesIn(testValues)),
-    ConcatWithIntermediateReshapeTransformation::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         ConcatWithIntermediateReshapeTransformation,
+                         ::testing::Combine(::testing::ValuesIn(precisions), ::testing::ValuesIn(testValues)),
+                         ConcatWithIntermediateReshapeTransformation::getTestCaseName);
 }  // namespace

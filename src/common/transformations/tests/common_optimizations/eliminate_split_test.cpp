@@ -4,9 +4,9 @@
 
 #include <gtest/gtest.h>
 
-#include <queue>
 #include <ngraph/op/parameter.hpp>
 #include <ngraph/opsets/opset8.hpp>
+#include <queue>
 #include <transformations/common_optimizations/nop_elimination.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
@@ -44,7 +44,8 @@ TEST_F(TransformationTestsF, EliminateSplitNegative) {
         auto res1 = std::make_shared<ngraph::opset8::Result>(split->output(0));
         auto res2 = std::make_shared<ngraph::opset8::Result>(split->output(1));
         auto res3 = std::make_shared<ngraph::opset8::Result>(split->output(2));
-        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{res1, res2, res3}, ngraph::ParameterVector{input});
+        function =
+            std::make_shared<ngraph::Function>(ngraph::NodeVector{res1, res2, res3}, ngraph::ParameterVector{input});
 
         manager.register_pass<ngraph::pass::EliminateSplit>();
     }
@@ -64,7 +65,8 @@ TEST_F(TransformationTestsF, EliminateSequenceOfSplits) {
         auto res1 = std::make_shared<ngraph::opset8::Result>(true_split->output(0));
         auto res2 = std::make_shared<ngraph::opset8::Result>(true_split->output(1));
         auto res3 = std::make_shared<ngraph::opset8::Result>(true_split->output(2));
-        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{res1, res2, res3}, ngraph::ParameterVector{input});
+        function =
+            std::make_shared<ngraph::Function>(ngraph::NodeVector{res1, res2, res3}, ngraph::ParameterVector{input});
 
         manager.register_pass<ngraph::pass::EliminateSplit>();
     }
@@ -76,6 +78,7 @@ TEST_F(TransformationTestsF, EliminateSequenceOfSplits) {
         auto res1 = std::make_shared<ngraph::opset8::Result>(split->output(0));
         auto res2 = std::make_shared<ngraph::opset8::Result>(split->output(1));
         auto res3 = std::make_shared<ngraph::opset8::Result>(split->output(2));
-        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{res1, res2, res3}, ngraph::ParameterVector{input});
+        function_ref =
+            std::make_shared<ngraph::Function>(ngraph::NodeVector{res1, res2, res3}, ngraph::ParameterVector{input});
     }
 }

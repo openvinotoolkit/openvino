@@ -4,20 +4,18 @@
 
 #include <gtest/gtest.h>
 
-#include <string>
 #include <memory>
-#include <queue>
-
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset8.hpp>
+#include <ngraph/pass/constant_folding.hpp>
+#include <ngraph/pass/manager.hpp>
+#include <queue>
+#include <string>
 #include <transformations/common_optimizations/leaky_relu_fusion.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
-#include <ngraph/pass/manager.hpp>
-#include <ngraph/pass/constant_folding.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-
 
 using namespace testing;
 using namespace ngraph;

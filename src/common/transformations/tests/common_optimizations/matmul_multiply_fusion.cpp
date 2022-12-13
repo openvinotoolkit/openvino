@@ -6,8 +6,8 @@
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset8.hpp>
-#include <transformations/common_optimizations/matmul_multiply_fusion.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <transformations/common_optimizations/matmul_multiply_fusion.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -101,10 +101,8 @@ TEST_F(TransformationTestsF, MatMulMultiplyFusionNonConstantTransposedWeightsNon
 
 using MatMulMultiplyFusionParams = std::tuple<PartialShape, Shape, bool, Shape, Shape, bool>;
 
-class MatMulMultiplyFusionDynamicShapes
-        : public testing::WithParamInterface<MatMulMultiplyFusionParams>,
-          public TransformationTestsF {
-};
+class MatMulMultiplyFusionDynamicShapes : public testing::WithParamInterface<MatMulMultiplyFusionParams>,
+                                          public TransformationTestsF {};
 
 TEST_P(MatMulMultiplyFusionDynamicShapes, FusionTest) {
     auto params = GetParam();
@@ -163,15 +161,35 @@ std::vector<MatMulMultiplyFusionParams> params = {
     MatMulMultiplyFusionParams(PartialShape::dynamic(4), {4, 3, 3, 2}, true, {1, 1, 1, 3}, {4, 3, 3, 2}, true),
     MatMulMultiplyFusionParams(PartialShape::dynamic(4), {4, 3, 2, 3}, false, {4, 1, 1, 3}, {4, 3, 2, 3}, true),
     MatMulMultiplyFusionParams(PartialShape::dynamic(4), {4, 3, 3, 2}, true, {1, 3, 1, 3}, {4, 3, 3, 2}, true),
-    MatMulMultiplyFusionParams({2, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}, {2, 3}, false, {2, 1, 1, 3}, {2, 1, 2, 3}, true),
-    MatMulMultiplyFusionParams({Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic()}, {2, 3}, false, {1, 3, 1, 3}, {1, 3, 2, 3}, true),
-    MatMulMultiplyFusionParams({2, 3, Dimension::dynamic(), Dimension::dynamic()}, {2, 3}, false, {2, 3, 1, 3}, {2, 3, 2, 3}, true),
+    MatMulMultiplyFusionParams({2, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
+                               {2, 3},
+                               false,
+                               {2, 1, 1, 3},
+                               {2, 1, 2, 3},
+                               true),
+    MatMulMultiplyFusionParams({Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic()},
+                               {2, 3},
+                               false,
+                               {1, 3, 1, 3},
+                               {1, 3, 2, 3},
+                               true),
+    MatMulMultiplyFusionParams({2, 3, Dimension::dynamic(), Dimension::dynamic()},
+                               {2, 3},
+                               false,
+                               {2, 3, 1, 3},
+                               {2, 3, 2, 3},
+                               true),
     // negative cases
     MatMulMultiplyFusionParams(PartialShape::dynamic(), {2, 3}, false, {1, 1, 1}, {}, false),
     MatMulMultiplyFusionParams(PartialShape::dynamic(2), {2, 3}, false, {1, 1, 1}, {}, false),
     MatMulMultiplyFusionParams(PartialShape::dynamic(), {1, 2, 3}, false, {3, 1, 3}, {}, false),
     MatMulMultiplyFusionParams(PartialShape::dynamic(3), {1, 2, 3}, false, {3, 1, 3}, {}, false),
-    MatMulMultiplyFusionParams({1, 1, Dimension::dynamic(), Dimension::dynamic()}, {2, 3}, false, {2, 3, 1, 3}, {}, false),
+    MatMulMultiplyFusionParams({1, 1, Dimension::dynamic(), Dimension::dynamic()},
+                               {2, 3},
+                               false,
+                               {2, 3, 1, 3},
+                               {},
+                               false),
 };
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests, MatMulMultiplyFusionDynamicShapes, ::testing::ValuesIn(params));

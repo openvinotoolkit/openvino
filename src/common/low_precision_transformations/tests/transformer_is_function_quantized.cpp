@@ -2,18 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "layer_transformation.hpp"
+#include <gtest/gtest.h>
 
+#include <low_precision/fake_quantize.hpp>
+#include <low_precision/low_precision.hpp>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include <gtest/gtest.h>
-#include <low_precision/fake_quantize.hpp>
-#include <low_precision/low_precision.hpp>
-
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "layer_transformation.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
 #include "lpt_ngraph_functions/convolution_function.hpp"
@@ -39,12 +38,11 @@ class TransformerIsFunctionQuantized : public LayerTransformation, public testin
 public:
     void SetUp() override {
         const TestValues testValues = GetParam();
-        actualFunction = ngraph::builder::subgraph::ConvolutionFunction::get(
-            Shape({ 1, 3, 16, 16 }),
-            element::f32,
-            testValues.fqOnData,
-            std::vector<float>({1.f}),
-            testValues.fqOnWeights);
+        actualFunction = ngraph::builder::subgraph::ConvolutionFunction::get(Shape({1, 3, 16, 16}),
+                                                                             element::f32,
+                                                                             testValues.fqOnData,
+                                                                             std::vector<float>({1.f}),
+                                                                             testValues.fqOnWeights);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<TestValues> obj) {
@@ -63,26 +61,23 @@ TEST_P(TransformerIsFunctionQuantized, isFunctionQuantized) {
     ASSERT_EQ(expected, isFunctionQuantized);
 }
 
-const std::vector<TestValues> testValues = {
-    {
-        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-        { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
-    },
-    {
-        {},
-        { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
-    },
-    {
-        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-        {},
-    },
-    { {}, {} }
-};
+const std::vector<TestValues> testValues = {{
+                                                {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
+                                                {255ul, Shape({1, 1, 1, 1}), {0.f}, {254.f}, {-1.27f}, {1.27f}},
+                                            },
+                                            {
+                                                {},
+                                                {255ul, Shape({1, 1, 1, 1}), {0.f}, {254.f}, {-1.27f}, {1.27f}},
+                                            },
+                                            {
+                                                {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
+                                                {},
+                                            },
+                                            {{}, {}}};
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    TransformerIsFunctionQuantized,
-    ::testing::ValuesIn(testValues),
-    TransformerIsFunctionQuantized::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         TransformerIsFunctionQuantized,
+                         ::testing::ValuesIn(testValues),
+                         TransformerIsFunctionQuantized::getTestCaseName);
 
-} // namespace
+}  // namespace

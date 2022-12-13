@@ -4,16 +4,16 @@
 
 #include <gtest/gtest.h>
 
-#include <string>
 #include <memory>
-
+#include <ngraph/pass/manager.hpp>
 #include <openvino/core/model.hpp>
 #include <openvino/opsets/opset8.hpp>
-#include <ngraph/pass/manager.hpp>
-#include <transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp>
+#include <string>
 #include <transformations/common_optimizations/remove_concat_zero_dim_input.hpp>
+#include <transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
+
 #include "common_test_utils/ngraph_test_utils.hpp"
 
 using namespace testing;
@@ -145,7 +145,7 @@ TEST_F(TransformationTestsF, RemoveLoopDanglingParametersIfConcatEmptyTensor) {
 
     auto a = std::make_shared<Parameter>(element::f32, Shape{2, 2});
     auto ai = std::make_shared<Parameter>(element::f32, Shape{2, 2});
-    auto b = std::make_shared<Parameter>(element::f32, Shape{0, 2}); // empty tensor
+    auto b = std::make_shared<Parameter>(element::f32, Shape{0, 2});  // empty tensor
     auto bi = std::make_shared<Parameter>(element::f32, Shape{0, 2});
     {
         auto concat = std::make_shared<Concat>(NodeVector{ai, bi}, 0);

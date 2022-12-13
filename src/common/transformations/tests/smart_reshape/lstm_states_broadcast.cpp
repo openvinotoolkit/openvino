@@ -4,10 +4,9 @@
 
 #include <gtest/gtest.h>
 
+#include "common_test_utils/ngraph_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset9.hpp"
-
-#include "common_test_utils/ngraph_test_utils.hpp"
 
 using namespace std;
 using namespace ov::opset9;
@@ -18,9 +17,8 @@ struct LSTMStatesAttributes {
     ov::Dimension input_size, hidden_size;
 };
 
-class LSTMStatesBroadcastTest
-        : public testing::WithParamInterface<LSTMStatesAttributes>, public CommonTestUtils::TestsCommon {
-};
+class LSTMStatesBroadcastTest : public testing::WithParamInterface<LSTMStatesAttributes>,
+                                public CommonTestUtils::TestsCommon {};
 
 TEST_P(LSTMStatesBroadcastTest, BareLSTM) {
     auto p = GetParam();
@@ -33,25 +31,27 @@ TEST_P(LSTMStatesBroadcastTest, BareLSTM) {
         auto W = create_zero_constant(p.data_et, ov::PartialShape{p.hidden_size * 4, p.input_size}.to_shape());
         auto R = create_zero_constant(p.data_et, ov::PartialShape{p.hidden_size * 4, p.hidden_size}.to_shape());
 
-        auto cell = make_shared<LSTMCell>(
-                parameter, initial_hidden_state, initial_cell_state, W, R, static_cast<size_t>(p.hidden_size.get_length()));
+        auto cell = make_shared<LSTMCell>(parameter,
+                                          initial_hidden_state,
+                                          initial_cell_state,
+                                          W,
+                                          R,
+                                          static_cast<size_t>(p.hidden_size.get_length()));
 
         model = make_shared<ov::Model>(ov::NodeVector{cell}, ov::ParameterVector{parameter});
     }
     ASSERT_NO_THROW(model->reshape(ov::PartialShape{p.new_batch_size, p.input_size}));
 }
 
-
-class LSTMStatesBroadcastTestWithTI
-        : public testing::WithParamInterface<LSTMStatesAttributes>, public CommonTestUtils::TestsCommon {
-};
+class LSTMStatesBroadcastTestWithTI : public testing::WithParamInterface<LSTMStatesAttributes>,
+                                      public CommonTestUtils::TestsCommon {};
 
 TEST_P(LSTMStatesBroadcastTestWithTI, TI_With_LSTM) {
     auto p = GetParam();
 
     shared_ptr<ov::Model> model(nullptr);
     {
-        auto X = make_shared<Parameter>(p.data_et, ov::PartialShape{p.data_batch_size, 1,  p.input_size});
+        auto X = make_shared<Parameter>(p.data_et, ov::PartialShape{p.data_batch_size, 1, p.input_size});
         auto H_init = create_zero_constant(ov::element::i64, ov::PartialShape{1, p.hidden_size}.to_shape());
         auto C_init = create_zero_constant(ov::element::i64, ov::PartialShape{1, p.hidden_size}.to_shape());
 
@@ -64,7 +64,8 @@ TEST_P(LSTMStatesBroadcastTestWithTI, TI_With_LSTM) {
         auto W = create_zero_constant(p.data_et, ov::PartialShape{p.hidden_size * 4, p.input_size}.to_shape());
         auto R = create_zero_constant(p.data_et, ov::PartialShape{p.hidden_size * 4, p.hidden_size}.to_shape());
 
-        auto lstm_cell = make_shared<LSTMCell>(squeeze, H_t, C_t, W, R, static_cast<size_t>(p.hidden_size.get_length()));
+        auto lstm_cell =
+            make_shared<LSTMCell>(squeeze, H_t, C_t, W, R, static_cast<size_t>(p.hidden_size.get_length()));
         auto res_1 = make_shared<Result>(lstm_cell->output(0));
         auto unsqueeze = make_shared<Unsqueeze>(lstm_cell->output(0), create_constant<int64_t>({1}));
         auto res_2 = make_shared<Result>(unsqueeze);
@@ -83,15 +84,14 @@ TEST_P(LSTMStatesBroadcastTestWithTI, TI_With_LSTM) {
 
         auto res_ti_1 = make_shared<Result>(tensor_iterator->output(1));
         auto res_ti_2 = make_shared<Result>(tensor_iterator->output(0));
-        model = make_shared<ov::Model>(ov::NodeVector{res_ti_1, res_ti_2},
-                                               ov::ParameterVector{X});
+        model = make_shared<ov::Model>(ov::NodeVector{res_ti_1, res_ti_2}, ov::ParameterVector{X});
     }
     ASSERT_NO_THROW(model->reshape(ov::PartialShape{p.new_batch_size, 1, p.input_size}));
 }
 
 static vector<LSTMStatesAttributes> params = {
-        LSTMStatesAttributes{ov::element::f32, {1}, {2}, {512}, {256}},
-        LSTMStatesAttributes{ov::element::f32, {-1}, {2}, {512}, {256}},
+    LSTMStatesAttributes{ov::element::f32, {1}, {2}, {512}, {256}},
+    LSTMStatesAttributes{ov::element::f32, {-1}, {2}, {512}, {256}},
 };
 
 INSTANTIATE_TEST_SUITE_P(SmartReshapeTests, LSTMStatesBroadcastTest, ::testing::ValuesIn(params));

@@ -4,20 +4,19 @@
 
 #include <gtest/gtest.h>
 
-#include "common_test_utils/test_common.hpp"
-#include <string>
-#include <sstream>
 #include <memory>
-#include <queue>
-
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <queue>
+#include <sstream>
+#include <string>
+#include <transformations/init_node_info.hpp>
 #include <transformations/op_conversions/bidirectional_sequences_decomposition.hpp>
 #include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/test_common.hpp"
 
 using namespace testing;
 using namespace ngraph;
@@ -51,9 +50,14 @@ Inputs getInputs(const unsigned long num_gates) {
     retn.H = std::make_shared<opset5::Parameter>(element::f32, Shape{batch_size, num_directions, retn.hidden_size});
     retn.C = std::make_shared<opset5::Parameter>(element::f32, Shape{batch_size, num_directions, retn.hidden_size});
     retn.S = std::make_shared<opset5::Constant>(element::i32, Shape{batch_size}, seq_len_val);
-    retn.W = std::make_shared<opset5::Constant>(element::f32, Shape{num_directions, num_gates * retn.hidden_size, input_size}, w_val);
-    retn.R = std::make_shared<opset5::Constant>(element::f32, Shape{num_directions, num_gates * retn.hidden_size, retn.hidden_size}, r_val);
-    retn.B = std::make_shared<opset5::Constant>(element::f32, Shape{num_directions, num_gates * retn.hidden_size}, b_val);
+    retn.W = std::make_shared<opset5::Constant>(element::f32,
+                                                Shape{num_directions, num_gates * retn.hidden_size, input_size},
+                                                w_val);
+    retn.R = std::make_shared<opset5::Constant>(element::f32,
+                                                Shape{num_directions, num_gates * retn.hidden_size, retn.hidden_size},
+                                                r_val);
+    retn.B =
+        std::make_shared<opset5::Constant>(element::f32, Shape{num_directions, num_gates * retn.hidden_size}, b_val);
 
     return retn;
 }
@@ -65,10 +69,18 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionLSTM) {
     auto ins = getInputs(num_gates);
 
     {
-        auto lstm_seq = std::make_shared<ngraph::opset5::LSTMSequence>(ins.X, ins.H, ins.C, ins.S, ins.W, ins.R, ins.B,
-                                                                       ins.hidden_size, op::RecurrentSequenceDirection::BIDIRECTIONAL);
-        f = std::make_shared<ngraph::Function>(ngraph::OutputVector{lstm_seq->output(0), lstm_seq->output(1), lstm_seq->output(2)},
-                                               ngraph::ParameterVector{ins.X, ins.H, ins.C});
+        auto lstm_seq = std::make_shared<ngraph::opset5::LSTMSequence>(ins.X,
+                                                                       ins.H,
+                                                                       ins.C,
+                                                                       ins.S,
+                                                                       ins.W,
+                                                                       ins.R,
+                                                                       ins.B,
+                                                                       ins.hidden_size,
+                                                                       op::RecurrentSequenceDirection::BIDIRECTIONAL);
+        f = std::make_shared<ngraph::Function>(
+            ngraph::OutputVector{lstm_seq->output(0), lstm_seq->output(1), lstm_seq->output(2)},
+            ngraph::ParameterVector{ins.X, ins.H, ins.C});
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
@@ -87,16 +99,31 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionLSTM) {
         auto R_split = std::make_shared<opset5::Split>(ins.R, axis_0, 2);
         auto B_split = std::make_shared<opset5::Split>(ins.B, axis_0, 2);
 
-        auto lstm_seq_forward =
-            std::make_shared<ngraph::opset5::LSTMSequence>(ins.X, H_split->output(0), C_split->output(0), ins.S, W_split->output(0), R_split->output(0),
-                                                           B_split->output(0), ins.hidden_size, op::RecurrentSequenceDirection::FORWARD);
-        auto lstm_seq_reverse =
-            std::make_shared<ngraph::opset5::LSTMSequence>(ins.X, H_split->output(1), C_split->output(1), ins.S, W_split->output(1), R_split->output(1),
-                                                           B_split->output(1), ins.hidden_size, op::RecurrentSequenceDirection::REVERSE);
+        auto lstm_seq_forward = std::make_shared<ngraph::opset5::LSTMSequence>(ins.X,
+                                                                               H_split->output(0),
+                                                                               C_split->output(0),
+                                                                               ins.S,
+                                                                               W_split->output(0),
+                                                                               R_split->output(0),
+                                                                               B_split->output(0),
+                                                                               ins.hidden_size,
+                                                                               op::RecurrentSequenceDirection::FORWARD);
+        auto lstm_seq_reverse = std::make_shared<ngraph::opset5::LSTMSequence>(ins.X,
+                                                                               H_split->output(1),
+                                                                               C_split->output(1),
+                                                                               ins.S,
+                                                                               W_split->output(1),
+                                                                               R_split->output(1),
+                                                                               B_split->output(1),
+                                                                               ins.hidden_size,
+                                                                               op::RecurrentSequenceDirection::REVERSE);
 
-        auto concat_0 = std::make_shared<opset5::Concat>(OutputVector{lstm_seq_forward->output(0), lstm_seq_reverse->output(0)}, 1);
-        auto concat_1 = std::make_shared<opset5::Concat>(OutputVector{lstm_seq_forward->output(1), lstm_seq_reverse->output(1)}, 1);
-        auto concat_2 = std::make_shared<opset5::Concat>(OutputVector{lstm_seq_forward->output(2), lstm_seq_reverse->output(2)}, 1);
+        auto concat_0 =
+            std::make_shared<opset5::Concat>(OutputVector{lstm_seq_forward->output(0), lstm_seq_reverse->output(0)}, 1);
+        auto concat_1 =
+            std::make_shared<opset5::Concat>(OutputVector{lstm_seq_forward->output(1), lstm_seq_reverse->output(1)}, 1);
+        auto concat_2 =
+            std::make_shared<opset5::Concat>(OutputVector{lstm_seq_forward->output(2), lstm_seq_reverse->output(2)}, 1);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::OutputVector{concat_0, concat_1, concat_2},
                                                    ngraph::ParameterVector{ins.X, ins.H, ins.C});
@@ -113,8 +140,14 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionGRU) {
     auto ins = getInputs(num_gates);
 
     {
-        auto gru_seq = std::make_shared<ngraph::opset5::GRUSequence>(ins.X, ins.H, ins.S, ins.W, ins.R, ins.B,
-                                                                     ins.hidden_size, op::RecurrentSequenceDirection::BIDIRECTIONAL);
+        auto gru_seq = std::make_shared<ngraph::opset5::GRUSequence>(ins.X,
+                                                                     ins.H,
+                                                                     ins.S,
+                                                                     ins.W,
+                                                                     ins.R,
+                                                                     ins.B,
+                                                                     ins.hidden_size,
+                                                                     op::RecurrentSequenceDirection::BIDIRECTIONAL);
         f = std::make_shared<ngraph::Function>(ngraph::OutputVector{gru_seq->output(0), gru_seq->output(1)},
                                                ngraph::ParameterVector{ins.X, ins.H});
 
@@ -134,15 +167,27 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionGRU) {
         auto R_split = std::make_shared<opset5::Split>(ins.R, axis_0, 2);
         auto B_split = std::make_shared<opset5::Split>(ins.B, axis_0, 2);
 
-        auto gru_seq_forward =
-            std::make_shared<ngraph::opset5::GRUSequence>(ins.X, H_split->output(0), ins.S, W_split->output(0), R_split->output(0),
-                                                          B_split->output(0), ins.hidden_size, op::RecurrentSequenceDirection::FORWARD);
-        auto gru_seq_reverse =
-            std::make_shared<ngraph::opset5::GRUSequence>(ins.X, H_split->output(1), ins.S, W_split->output(1), R_split->output(1),
-                                                          B_split->output(1), ins.hidden_size, op::RecurrentSequenceDirection::REVERSE);
+        auto gru_seq_forward = std::make_shared<ngraph::opset5::GRUSequence>(ins.X,
+                                                                             H_split->output(0),
+                                                                             ins.S,
+                                                                             W_split->output(0),
+                                                                             R_split->output(0),
+                                                                             B_split->output(0),
+                                                                             ins.hidden_size,
+                                                                             op::RecurrentSequenceDirection::FORWARD);
+        auto gru_seq_reverse = std::make_shared<ngraph::opset5::GRUSequence>(ins.X,
+                                                                             H_split->output(1),
+                                                                             ins.S,
+                                                                             W_split->output(1),
+                                                                             R_split->output(1),
+                                                                             B_split->output(1),
+                                                                             ins.hidden_size,
+                                                                             op::RecurrentSequenceDirection::REVERSE);
 
-        auto concat_0 = std::make_shared<opset5::Concat>(OutputVector{gru_seq_forward->output(0), gru_seq_reverse->output(0)}, 1);
-        auto concat_1 = std::make_shared<opset5::Concat>(OutputVector{gru_seq_forward->output(1), gru_seq_reverse->output(1)}, 1);
+        auto concat_0 =
+            std::make_shared<opset5::Concat>(OutputVector{gru_seq_forward->output(0), gru_seq_reverse->output(0)}, 1);
+        auto concat_1 =
+            std::make_shared<opset5::Concat>(OutputVector{gru_seq_forward->output(1), gru_seq_reverse->output(1)}, 1);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::OutputVector{concat_0, concat_1},
                                                    ngraph::ParameterVector{ins.X, ins.H});
@@ -159,8 +204,14 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionRNN) {
     auto ins = getInputs(num_gates);
 
     {
-        auto rnn_seq = std::make_shared<ngraph::opset5::RNNSequence>(ins.X, ins.H, ins.S, ins.W, ins.R, ins.B,
-                                                                     ins.hidden_size, op::RecurrentSequenceDirection::BIDIRECTIONAL);
+        auto rnn_seq = std::make_shared<ngraph::opset5::RNNSequence>(ins.X,
+                                                                     ins.H,
+                                                                     ins.S,
+                                                                     ins.W,
+                                                                     ins.R,
+                                                                     ins.B,
+                                                                     ins.hidden_size,
+                                                                     op::RecurrentSequenceDirection::BIDIRECTIONAL);
         f = std::make_shared<ngraph::Function>(ngraph::OutputVector{rnn_seq->output(0), rnn_seq->output(1)},
                                                ngraph::ParameterVector{ins.X, ins.H});
 
@@ -180,15 +231,27 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionRNN) {
         auto R_split = std::make_shared<opset5::Split>(ins.R, axis_0, 2);
         auto B_split = std::make_shared<opset5::Split>(ins.B, axis_0, 2);
 
-        auto rnn_seq_forward =
-            std::make_shared<ngraph::opset5::RNNSequence>(ins.X, H_split->output(0), ins.S, W_split->output(0), R_split->output(0),
-                                                          B_split->output(0), ins.hidden_size, op::RecurrentSequenceDirection::FORWARD);
-        auto rnn_seq_reverse =
-            std::make_shared<ngraph::opset5::RNNSequence>(ins.X, H_split->output(1), ins.S, W_split->output(1), R_split->output(1),
-                                                          B_split->output(1), ins.hidden_size, op::RecurrentSequenceDirection::REVERSE);
+        auto rnn_seq_forward = std::make_shared<ngraph::opset5::RNNSequence>(ins.X,
+                                                                             H_split->output(0),
+                                                                             ins.S,
+                                                                             W_split->output(0),
+                                                                             R_split->output(0),
+                                                                             B_split->output(0),
+                                                                             ins.hidden_size,
+                                                                             op::RecurrentSequenceDirection::FORWARD);
+        auto rnn_seq_reverse = std::make_shared<ngraph::opset5::RNNSequence>(ins.X,
+                                                                             H_split->output(1),
+                                                                             ins.S,
+                                                                             W_split->output(1),
+                                                                             R_split->output(1),
+                                                                             B_split->output(1),
+                                                                             ins.hidden_size,
+                                                                             op::RecurrentSequenceDirection::REVERSE);
 
-        auto concat_0 = std::make_shared<opset5::Concat>(OutputVector{rnn_seq_forward->output(0), rnn_seq_reverse->output(0)}, 1);
-        auto concat_1 = std::make_shared<opset5::Concat>(OutputVector{rnn_seq_forward->output(1), rnn_seq_reverse->output(1)}, 1);
+        auto concat_0 =
+            std::make_shared<opset5::Concat>(OutputVector{rnn_seq_forward->output(0), rnn_seq_reverse->output(0)}, 1);
+        auto concat_1 =
+            std::make_shared<opset5::Concat>(OutputVector{rnn_seq_forward->output(1), rnn_seq_reverse->output(1)}, 1);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::OutputVector{concat_0, concat_1},
                                                    ngraph::ParameterVector{ins.X, ins.H});
@@ -205,10 +268,18 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionLSTMDisabled) {
     auto ins = getInputs(num_gates);
 
     {
-        auto lstm_seq = std::make_shared<ngraph::opset5::LSTMSequence>(ins.X, ins.H, ins.C, ins.S, ins.W, ins.R, ins.B,
-                                                                       ins.hidden_size, op::RecurrentSequenceDirection::BIDIRECTIONAL);
-        f = std::make_shared<ngraph::Function>(ngraph::OutputVector{lstm_seq->output(0), lstm_seq->output(1), lstm_seq->output(2)},
-                                               ngraph::ParameterVector{ins.X, ins.H, ins.C});
+        auto lstm_seq = std::make_shared<ngraph::opset5::LSTMSequence>(ins.X,
+                                                                       ins.H,
+                                                                       ins.C,
+                                                                       ins.S,
+                                                                       ins.W,
+                                                                       ins.R,
+                                                                       ins.B,
+                                                                       ins.hidden_size,
+                                                                       op::RecurrentSequenceDirection::BIDIRECTIONAL);
+        f = std::make_shared<ngraph::Function>(
+            ngraph::OutputVector{lstm_seq->output(0), lstm_seq->output(1), lstm_seq->output(2)},
+            ngraph::ParameterVector{ins.X, ins.H, ins.C});
 
         const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node>& node) -> bool {
             if (ngraph::as_type<const ngraph::opset5::LSTMSequence>(node.get())) {
@@ -227,10 +298,18 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionLSTMDisabled) {
     }
 
     {
-        auto lstm_seq = std::make_shared<ngraph::opset5::LSTMSequence>(ins.X, ins.H, ins.C, ins.S, ins.W, ins.R, ins.B,
-                                                                       ins.hidden_size, op::RecurrentSequenceDirection::BIDIRECTIONAL);
-        f_ref = std::make_shared<ngraph::Function>(ngraph::OutputVector{lstm_seq->output(0), lstm_seq->output(1), lstm_seq->output(2)},
-                                                   ngraph::ParameterVector{ins.X, ins.H, ins.C});
+        auto lstm_seq = std::make_shared<ngraph::opset5::LSTMSequence>(ins.X,
+                                                                       ins.H,
+                                                                       ins.C,
+                                                                       ins.S,
+                                                                       ins.W,
+                                                                       ins.R,
+                                                                       ins.B,
+                                                                       ins.hidden_size,
+                                                                       op::RecurrentSequenceDirection::BIDIRECTIONAL);
+        f_ref = std::make_shared<ngraph::Function>(
+            ngraph::OutputVector{lstm_seq->output(0), lstm_seq->output(1), lstm_seq->output(2)},
+            ngraph::ParameterVector{ins.X, ins.H, ins.C});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -244,8 +323,14 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionGRUDisabled) {
     auto ins = getInputs(num_gates);
 
     {
-        auto gru_seq = std::make_shared<ngraph::opset5::GRUSequence>(ins.X, ins.H, ins.S, ins.W, ins.R, ins.B,
-                                                                     ins.hidden_size, op::RecurrentSequenceDirection::BIDIRECTIONAL);
+        auto gru_seq = std::make_shared<ngraph::opset5::GRUSequence>(ins.X,
+                                                                     ins.H,
+                                                                     ins.S,
+                                                                     ins.W,
+                                                                     ins.R,
+                                                                     ins.B,
+                                                                     ins.hidden_size,
+                                                                     op::RecurrentSequenceDirection::BIDIRECTIONAL);
         f = std::make_shared<ngraph::Function>(ngraph::OutputVector{gru_seq->output(0), gru_seq->output(1)},
                                                ngraph::ParameterVector{ins.X, ins.H});
 
@@ -266,8 +351,14 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionGRUDisabled) {
     }
 
     {
-        auto gru_seq = std::make_shared<ngraph::opset5::GRUSequence>(ins.X, ins.H, ins.S, ins.W, ins.R, ins.B,
-                                                                     ins.hidden_size, op::RecurrentSequenceDirection::BIDIRECTIONAL);
+        auto gru_seq = std::make_shared<ngraph::opset5::GRUSequence>(ins.X,
+                                                                     ins.H,
+                                                                     ins.S,
+                                                                     ins.W,
+                                                                     ins.R,
+                                                                     ins.B,
+                                                                     ins.hidden_size,
+                                                                     op::RecurrentSequenceDirection::BIDIRECTIONAL);
         f_ref = std::make_shared<ngraph::Function>(ngraph::OutputVector{gru_seq->output(0), gru_seq->output(1)},
                                                    ngraph::ParameterVector{ins.X, ins.H});
     }
@@ -283,8 +374,14 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionRNNDisabled) {
     auto ins = getInputs(num_gates);
 
     {
-        auto rnn_seq = std::make_shared<ngraph::opset5::RNNSequence>(ins.X, ins.H, ins.S, ins.W, ins.R, ins.B,
-                                                                     ins.hidden_size, op::RecurrentSequenceDirection::BIDIRECTIONAL);
+        auto rnn_seq = std::make_shared<ngraph::opset5::RNNSequence>(ins.X,
+                                                                     ins.H,
+                                                                     ins.S,
+                                                                     ins.W,
+                                                                     ins.R,
+                                                                     ins.B,
+                                                                     ins.hidden_size,
+                                                                     op::RecurrentSequenceDirection::BIDIRECTIONAL);
         f = std::make_shared<ngraph::Function>(ngraph::OutputVector{rnn_seq->output(0), rnn_seq->output(1)},
                                                ngraph::ParameterVector{ins.X, ins.H});
 
@@ -305,8 +402,14 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionRNNDisabled) {
     }
 
     {
-        auto rnn_seq = std::make_shared<ngraph::opset5::RNNSequence>(ins.X, ins.H, ins.S, ins.W, ins.R, ins.B,
-                                                                     ins.hidden_size, op::RecurrentSequenceDirection::BIDIRECTIONAL);
+        auto rnn_seq = std::make_shared<ngraph::opset5::RNNSequence>(ins.X,
+                                                                     ins.H,
+                                                                     ins.S,
+                                                                     ins.W,
+                                                                     ins.R,
+                                                                     ins.B,
+                                                                     ins.hidden_size,
+                                                                     op::RecurrentSequenceDirection::BIDIRECTIONAL);
         f_ref = std::make_shared<ngraph::Function>(ngraph::OutputVector{rnn_seq->output(0), rnn_seq->output(1)},
                                                    ngraph::ParameterVector{ins.X, ins.H});
     }
@@ -314,4 +417,3 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionRNNDisabled) {
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 }
-

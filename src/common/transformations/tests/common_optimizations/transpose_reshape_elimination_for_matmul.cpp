@@ -5,21 +5,18 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <queue>
-
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset7.hpp>
-#include <transformations/common_optimizations/transpose_reshape_elimination_for_matmul.hpp>
-#include <transformations/op_conversions/einsum_decomposition.hpp>
-#include <transformations/init_node_info.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <queue>
+#include <transformations/common_optimizations/transpose_reshape_elimination_for_matmul.hpp>
+#include <transformations/init_node_info.hpp>
+#include <transformations/op_conversions/einsum_decomposition.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
-
 using namespace testing;
 using namespace ngraph;
-
 
 TEST_F(TransformationTestsF, TransposeReshapeEliminationForMatMul) {
     Shape data_shape_1{10, 2};
@@ -141,7 +138,8 @@ TEST_F(TransformationTestsF, TransposeReshapeEliminationForMatMul_Einsum) {
         auto data_1 = std::make_shared<opset1::Parameter>(element::f32, data_shape_1);
         auto data_2 = std::make_shared<opset1::Parameter>(element::f32, data_shape_2);
         // for some cases Reshape may be first input for Matmul
-        auto shape_constant = std::make_shared<opset1::Constant>(element::i64, Shape{data_shape_1.size()}, data_shape_1);
+        auto shape_constant =
+            std::make_shared<opset1::Constant>(element::i64, Shape{data_shape_1.size()}, data_shape_1);
         auto reshape = std::make_shared<opset1::Reshape>(data_1, shape_constant, false);
         auto matmul = std::make_shared<opset1::MatMul>(reshape, data_2, false, false);
         function_ref = std::make_shared<Function>(NodeVector{matmul}, ParameterVector{data_1, data_2});

@@ -4,16 +4,14 @@
 
 #include <gtest/gtest.h>
 
-#include <string>
 #include <memory>
-#include <queue>
-
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pass/manager.hpp>
-
-#include <transformations/init_node_info.hpp>
 #include <openvino/pass/make_stateful.hpp>
+#include <queue>
+#include <string>
+#include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -128,9 +126,7 @@ TEST(TransformationTests, make_stateful_by_tensor_name) {
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
-    {
-        f_ref = get_ref_model(true, false);
-    }
+    { f_ref = get_ref_model(true, false); }
     auto res = compare_functions(f, f_ref);
     EXPECT_TRUE(res.first) << res.second;
 }
@@ -149,9 +145,7 @@ TEST(TransformationTests, make_stateful_by_param_res) {
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
-    {
-        f_ref = get_ref_model(true, true);
-    }
+    { f_ref = get_ref_model(true, true); }
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 }
@@ -203,9 +197,7 @@ TEST(TransformationTests, make_stateful_one_out_to_several_results_by_tensor_nam
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
-    {
-        f_ref = get_ref_model(false, false);
-    }
+    { f_ref = get_ref_model(false, false); }
     auto res = compare_functions(f, f_ref);
     EXPECT_TRUE(res.first) << res.second;
 }
@@ -224,9 +216,7 @@ TEST(TransformationTests, make_stateful_one_out_to_several_results_by_param_res)
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
-    {
-        f_ref = get_ref_model(false, true);
-    }
+    { f_ref = get_ref_model(false, true); }
     auto res = compare_functions(f, f_ref);
     EXPECT_TRUE(res.first) << res.second;
 }

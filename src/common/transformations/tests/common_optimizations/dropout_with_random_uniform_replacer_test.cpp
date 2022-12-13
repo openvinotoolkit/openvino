@@ -117,7 +117,6 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerWithConvert) {
     }
 }
 
-
 TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerAddConstNegative) {
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i32, ngraph::Shape{3});
@@ -155,7 +154,6 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerAddConstNegative) {
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
     }
 }
-
 
 TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerNonFloatRUNegative) {
     {
@@ -270,7 +268,6 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerInvalidMaxNegative)
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
     }
 }
-
 
 TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerInvalidAddConstRankNegative) {
     {
