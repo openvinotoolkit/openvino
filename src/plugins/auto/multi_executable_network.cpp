@@ -137,4 +137,14 @@ IE::Parameter MultiExecutableNetwork::GetMetric(const std::string& name) const {
         IE_THROW() << "Unsupported ExecutableNetwork metric key: " << name;
     }
 }
+IE::Parameter MultiExecutableNetwork::GetMetric(const std::string& name, const std::string& target_device) const {
+    auto item = _multiSContext->_networksPerDevice.find(target_device);
+    if (item == _multiSContext->_networksPerDevice.end())
+        IE_THROW() << "Not found ExecutableNetwork for : " << target_device;
+    try {
+        return item->second->GetMetric(name);
+    } catch (...) {
+        return item->second->GetConfig(name);
+    }
+}
 }  // namespace MultiDevicePlugin
