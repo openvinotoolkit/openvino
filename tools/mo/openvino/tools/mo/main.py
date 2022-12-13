@@ -37,9 +37,9 @@ def main(cli_parser: argparse.ArgumentParser, framework=None):
     # which result in duplicating of warnings
     logger.disabled = True
     argv = cli_parser.parse_args()
-    is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
     logger.disabled = False
     argv.model_name = get_model_name_from_args(argv)
+    is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
     argv = vars(argv)
 
     if framework is not None:
