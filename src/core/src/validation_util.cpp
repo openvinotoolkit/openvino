@@ -870,6 +870,10 @@ std::string normalize_axis_error_msg(const int64_t& axis, const int64_t& lower, 
 }
 }  // namespace
 
+int64_t ov::normalize(const int64_t& value, const int64_t& max) {
+    return (value < 0) ? value + max : value;
+};
+
 void ov::normalize_axes(const Node* node, const int64_t& tensor_rank, std::vector<int64_t>& axes) {
     const auto axis_checker = cmp::Between<int64_t, cmp::BOTH>(-tensor_rank, tensor_rank ? (tensor_rank - 1) : 0);
     const auto invalid_axis = std::find_if_not(axes.cbegin(), axes.cend(), axis_checker);
@@ -1659,7 +1663,7 @@ void ov::generate_transpose_default_order(std::vector<int64_t>& axes_order, cons
 }
 
 bool ov::is_valid_axes_order(const std::vector<int64_t>& axes_order, const size_t size) {
-    return (std::unordered_set<size_t>(axes_order.cbegin(), axes_order.cend()).size() == size) &&
+    return are_unique(axes_order) &&
            std::all_of(axes_order.cbegin(), axes_order.cend(), ov::cmp::Between<int64_t, ov::cmp::LOWER>(0, size));
 }
 
@@ -1677,3 +1681,12 @@ bool ov::is_rank_compatible_any_of(const ov::Rank& rank, const std::vector<Rank>
         return rank.compatible(r);
     });
 }
+
+bool ov::are_unique(const std::vector<int64_t>& data) {
+    return std::unordered_set<int64_t>(data.begin(), data.cend()).size() == data.size();
+}
+
+// clip value to min, max
+int64_t ov::clip(const int64_t& value, const int64_t& min, const int64_t& max) {
+    return std::min(std::max(value, min), max);
+};
