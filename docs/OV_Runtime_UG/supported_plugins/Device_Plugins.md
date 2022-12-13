@@ -47,52 +47,9 @@ The table below demonstrates support of key features by OpenVINO device plugins.
 
 For more details on plugin-specific feature limitations, see the corresponding plugin pages.
 
-## Enumerating Available Devices
-The OpenVINO Runtime API features dedicated methods of enumerating devices and their capabilities. See the [Hello Query Device C++ Sample](../../../samples/cpp/hello_query_device/README.md). This is an example output from the sample (truncated to device names only):
+## Querying Available Devices and Properties
+The OpenVINO Runtime API features dedicated methods for querying devices and their capabilities. For information on how to query available devices and check their properties, see the [Query Device Properties](config_properties.md) page.
 
-```sh
-  ./hello_query_device
-  Available devices:
-      Device: CPU
-  ...
-      Device: GPU.0
-  ...
-      Device: GPU.1
-  ...
-      Device: HDDL
-```
-
-A simple programmatic way to enumerate the devices and use with the multi-device is as follows:
-
-@sphinxdirective
-
-.. tab:: C++
-
-    .. doxygensnippet:: docs/snippets/MULTI2.cpp
-       :language: cpp
-       :fragment: [part2]
-
-@endsphinxdirective
-
-Beyond the typical "CPU", "GPU", "HDDL", and so on, when multiple instances of a device are available, the names are more qualified. For example, this is how two Intel® Movidius™ Myriad™ X sticks are listed with the hello_query_sample:
-```
-...
-    Device: MYRIAD.1.2-ma2480
-...
-    Device: MYRIAD.1.4-ma2480
-```
-
-So, the explicit configuration to use both would be "MULTI:MYRIAD.1.2-ma2480,MYRIAD.1.4-ma2480". Accordingly, the code that loops over all available devices of the "MYRIAD" type only is as follows:
-
-@sphinxdirective
-
-.. tab:: C++
-
-    .. doxygensnippet:: docs/snippets/MULTI3.cpp
-       :language: cpp
-       :fragment: [part3]
-
-@endsphinxdirective
-
+The [Hello Query Device C++](../../../samples/cpp/hello_query_device/README.md) and [Hello Query Device Python](../../../samples/python/hello_query_device/README.md) samples provide example code showing how to query devices. 
 
 
