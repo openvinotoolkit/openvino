@@ -20,11 +20,13 @@ OutputVector translate_var(NodeContext& context) {
     std::shared_ptr<ov::Node> mean;
     ov::Output<ov::Node> axes;
     if (context.inputs().size() == 2) {
+        // aten::var(input, unbiased)
         axes = context.mark_node(get_axes_range(context, 0));
         unbiased = context.const_input<bool>(1);
         mean = context.mark_node(std::make_shared<opset8::ReduceMean>(data, axes, keepdims));
         keepdim_mean = keepdims;
     } else {
+        // aten::var(input, dim, unbiased:bool=None, keepdim:bool=None)
         if (!context.input_is_none(2)) {
             unbiased = context.const_input<bool>(2);
         }
@@ -47,12 +49,15 @@ OutputVector translate_var(NodeContext& context) {
     auto sub_v = context.mark_node(std::make_shared<opset8::Subtract>(data, mean));
     auto sqr_sub = context.mark_node(std::make_shared<opset8::Multiply>(sub_v, sub_v));
     auto var = context.mark_node(std::make_shared<opset8::ReduceMean>(sqr_sub, axes, keepdim_mean));
+    // if unbiased=true Bessel’s correction will be used
+    // Correct bias in calculating variance, by dividing it over (N - 1) instead on N
     if (unbiased) {
-        num_elements = context.mark_node(std::make_shared<opset8::Convert>(num_elements, element::f32));
+        num_elements = context.mark_node(std::make_shared<opset8::ConvertLike>(num_elements, data));
         auto one = context.mark_node(opset8::Constant::create(element::f32, Shape{}, {1}));
+        one = context.mark_node(std::make_shared<opset8::ConvertLike>(one, data));
         auto mul = context.mark_node(std::make_shared<opset8::Multiply>(var, num_elements));
-        auto div = context.mark_node(std::make_shared<opset8::Subtract>(num_elements, one));
-        var = context.mark_node(std::make_shared<opset8::Divide>(mul, div));
+        auto n_minus_one = context.mark_node(std::make_shared<opset8::Subtract>(num_elements, one));
+        var = context.mark_node(std::make_shared<opset8::Divide>(mul, n_minus_one));
     }
     return {var};
 };
