@@ -356,21 +356,32 @@ std::wstring ov::util::string_to_wstring(const std::string& string) {
 std::string ov::util::get_absolute_file_path(const std::string& path, bool file_exists) {
     std::string absolutePath;
     absolutePath.resize(MAX_ABS_PATH);
-    char* absPath;
     if (file_exists) {
+        char* absPath;
+        // canonicalize path and check file existence and accessibility
         absPath = get_absolute_path(&absolutePath[0], path);
+        if (!absPath) {
+            std::stringstream ss;
+            ss << "Can't get absolute file path for [" << path << "], err = " << strerror(errno);
+            throw std::runtime_error(ss.str());
+        }
+        absolutePath.resize(strlen(absPath));
+        return absolutePath;
     } else {
-        absPath = get_cwd(&absolutePath[0]);
-    }
-    if (!absPath) {
-        std::stringstream ss;
-        ss << "Can't get absolute file path for [" << path << "], err = " << strerror(errno);
-        throw std::runtime_error(ss.str());
-    }
-    absolutePath.resize(strlen(absPath));
-    if (!file_exists)
+        if (is_absolute_file_path(path))
+            return path;
+        char *cwdPath = get_cwd(&absolutePath[0]);
+        if (!cwdPath) {
+            std::stringstream ss;
+            ss << "Can't determine current working directory to get absolute file path for [" << path << "], err = " << strerror(errno);
+            throw std::runtime_error(ss.str());
+        }
+        absolutePath.resize(strlen(cwdPath));
+        // TODO: add canonicalization of the path
         absolutePath += ov::util::FileTraits<char>::file_separator + path;
-    return absolutePath;
+        return absolutePath;
+    }
+    
 }
 
 bool ov::util::is_absolute_file_path(const std::string& path) {

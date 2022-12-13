@@ -32,6 +32,14 @@ TEST(CoreTests_getPluginPathFromXML, CovertRelativePathAsRelativeToLibDir) {
     EXPECT_STREQ(absPath.c_str(), refPath.c_str());
 }
 
+TEST(CoreTests_getPluginPath, UseAbsPathAsIs) {
+    auto libName = from_file_path(FileUtils::makePluginLibraryName({}, to_file_path("test_name")));  // libtest_name.so
+    auto libPath = ov::util::get_absolute_file_path(libName, false);
+    auto absPath = from_file_path(ov::getPluginPath(libPath));
+    EXPECT_TRUE(is_absolute_file_path(absPath));
+    EXPECT_STREQ(absPath.c_str(), libPath.c_str());
+}
+
 TEST(CoreTests_getPluginPath, RelativePathIsFromWorkDir) {
     auto libName = from_file_path(FileUtils::makePluginLibraryName({}, to_file_path("test_name")));  // libtest_name.so
     auto absPath = from_file_path(ov::getPluginPath(libName));
