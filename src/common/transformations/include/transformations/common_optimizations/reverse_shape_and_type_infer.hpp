@@ -16,7 +16,7 @@ class TRANSFORMATIONS_API ReverseShapeAndTypeInfer;
 }  // namespace ov
 
 /**
- * @brief Perform reverse shape and type infer to duduce input rank and type in certain cases
+ * @brief Perform reverse shape and type infer to deduce input rank and type in certain cases
  */
 class ov::pass::ReverseShapeAndTypeInfer : public ov::pass::ModelPass {
 public:
