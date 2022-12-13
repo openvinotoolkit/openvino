@@ -15,9 +15,10 @@
 #include "request/worker_factory.hpp"
 #include "request/worker_impl.hpp"
 #include "request/worker_pool.hpp"
+#include "gna_plugin.hpp"
 
-using GNAPluginNS::GNAInferRequest;
-using GNAPluginNS::GNAPlugin;
+using namespace GNAPluginNS;
+using namespace GNAPluginNS::request;
 using ::testing::_;
 using ::testing::Return;
 
