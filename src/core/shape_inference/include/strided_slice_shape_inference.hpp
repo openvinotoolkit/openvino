@@ -93,7 +93,7 @@ void shape_infer(const StridedSlice* op,
     } else if (end_number_axes != -1) {
         number_axes = end_number_axes;
     }
-    auto strides_number_axes = got_strides ? strides.size() : static_cast<int64_t>(-1);
+    auto strides_number_axes = got_strides ? static_cast<int64_t>(strides.size()) : static_cast<int64_t>(-1);
     if (number_axes != -1 && strides_number_axes != -1) {
         NODE_VALIDATION_CHECK(op,
                               number_axes == strides_number_axes,
