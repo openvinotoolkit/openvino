@@ -107,7 +107,8 @@ def test_get_profiling_info(device):
 
 def test_tensor_setter(device):
     core = Core()
-    model = core.read_model(test_net_xml, test_net_bin)
+    model = get_relu_model()
+
     compiled_1 = core.compile_model(model=model, device_name=device)
     compiled_2 = core.compile_model(model=model, device_name=device)
     compiled_3 = core.compile_model(model=model, device_name=device)
@@ -124,12 +125,12 @@ def test_tensor_setter(device):
     res = request1.infer({0: tensor})
     key = list(res)[0]
     res_1 = np.sort(res[key])
-    t2 = request1.get_tensor("fc_out")
+    t2 = request1.get_output_tensor()
     assert np.allclose(t2.data, res[key].data, atol=1e-2, rtol=1e-2)
 
     request = compiled_2.create_infer_request()
     res = request.infer({"data": tensor})
-    res_2 = np.sort(request.get_tensor("fc_out").data)
+    res_2 = np.sort(request.get_output_tensor().data)
     assert np.allclose(res_1, res_2, atol=1e-2, rtol=1e-2)
 
     request.set_tensor("data", tensor)
@@ -696,7 +697,7 @@ def test_results_async_infer(device):
     jobs = 8
     num_request = 4
     core = Core()
-    model = core.read_model(test_net_xml, test_net_bin)
+    model = get_relu_model()
     compiled_model = core.compile_model(model, device)
     infer_queue = AsyncInferQueue(compiled_model, num_request)
     jobs_done = [{"finished": False, "latency": 0} for _ in range(jobs)]

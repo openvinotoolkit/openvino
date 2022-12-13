@@ -30,6 +30,7 @@ from tests.conftest import (
 from tests.test_utils.test_utils import (
     generate_image,
     generate_relu_compiled_model,
+    get_relu_model,
 )
 
 
@@ -41,19 +42,15 @@ test_net_onnx = model_onnx_path()
 def test_compact_api_xml():
     img = generate_image()
 
-    model = compile_model(test_net_xml)
+    model = compile_model(get_relu_model())
     assert isinstance(model, CompiledModel)
     results = model.infer_new_request({"data": img})
-    assert np.argmax(results[list(results)[0]]) == 9
+    assert np.argmax(results[list(results)[0]]) == 531
 
 
 def test_compact_api_xml_posix_path():
-    img = generate_image()
-
     model = compile_model(Path(test_net_xml))
     assert isinstance(model, CompiledModel)
-    results = model.infer_new_request({"data": img})
-    assert np.argmax(results[list(results)[0]]) == 9
 
 
 def test_compact_api_wrong_path():
@@ -67,24 +64,6 @@ def test_compact_api_wrong_path():
     with pytest.raises(RuntimeError) as e:
         compile_model(TestClass())
     assert "Path: 'test class' does not exist. Please provide valid model's path either as a string or pathlib.Path" in str(e.value)
-
-
-def test_compact_api_onnx():
-    img = generate_image()
-
-    model = compile_model(test_net_onnx)
-    assert isinstance(model, CompiledModel)
-    results = model.infer_new_request({"data": img})
-    assert np.argmax(results[list(results)[0]]) == 9
-
-
-def test_compact_api_onnx_posix_path():
-    img = generate_image()
-
-    model = compile_model(Path(test_net_onnx))
-    assert isinstance(model, CompiledModel)
-    results = model.infer_new_request({"data": img})
-    assert np.argmax(results[list(results)[0]]) == 9
 
 
 def test_core_class(device):
