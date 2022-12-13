@@ -388,7 +388,7 @@ TEST(type_prop, strided_slice_reverse_end_is_int64_min) {
 
     auto ss = std::make_shared<op::v1::StridedSlice>(data, begin, end, stride, mask, mask);
 
-    EXPECT_EQ(ss->get_output_partial_shape(0), PartialShape({{0, 20}, -1}));
+    EXPECT_EQ(ss->get_output_partial_shape(0), PartialShape({{0, 20}, {0, 21}}));
 }
 
 TEST(type_prop, strided_slice_dynamic_value_and_label_propagation) {
@@ -562,17 +562,17 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                              },
                              StridedSliceTestParams{
                                  "input_has_dynamic_dimensions_and_shrink_one",
-                                 {{8, 40}, 200, {100, 200}, 3},             // input_shape
-                                 {4},                                       // begin shape
-                                 {4},                                       // end shape
-                                 {4},                                       // strides shape
-                                 {0, 0, 0, 0},                              // begin mask
-                                 {0, 0, 0, 0},                              // end mask
-                                 {0, 0, 0, 0},                              // new axis mask
-                                 {1, 0, 0, 0},                              // shrink axis mask
-                                 {0, 0, 0, 0},                              // ellipsis mask
-                                 {{0, 200}, Dimension::dynamic(), {0, 3}},  // reference shape
-                                 element::f32                               // reference type
+                                 {{8, 40}, 200, {100, 200}, 3},  // input_shape
+                                 {4},                            // begin shape
+                                 {4},                            // end shape
+                                 {4},                            // strides shape
+                                 {0, 0, 0, 0},                   // begin mask
+                                 {0, 0, 0, 0},                   // end mask
+                                 {0, 0, 0, 0},                   // new axis mask
+                                 {1, 0, 0, 0},                   // shrink axis mask
+                                 {0, 0, 0, 0},                   // ellipsis mask
+                                 {{0, 200}, {0, 200}, {0, 3}},   // reference shape
+                                 element::f32                    // reference type
                              },
                              StridedSliceTestParams{
                                  "input_is_dynamic_rank",
