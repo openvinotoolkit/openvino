@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <string>
-#include <gtest/gtest.h>
-#include <gmock/gmock-matchers.h>
-
 #include "openvino/runtime/core.hpp"
-#include "ie_core.cpp"
+
+#include <gmock/gmock-matchers.h>
+#include <gtest/gtest.h>
+
+#include <string>
+
 #include "common_test_utils/file_utils.hpp"
+#include "ie_core.cpp"
 
 using namespace testing;
 using namespace ov::util;
@@ -25,12 +27,13 @@ TEST(CoreTests_getPluginPathFromXML, CovertRelativePathAsRelativeToLibDir) {
     auto absPath = from_file_path(ov::getPluginPathFromXML(libPath));
     EXPECT_TRUE(is_absolute_file_path(absPath));
 
-    auto refPath = from_file_path(FileUtils::makePath(InferenceEngine::getInferenceEngineLibraryPath(), to_file_path(libPath)));
+    auto refPath =
+        from_file_path(FileUtils::makePath(InferenceEngine::getInferenceEngineLibraryPath(), to_file_path(libPath)));
     EXPECT_STREQ(absPath.c_str(), refPath.c_str());
 }
 
 TEST(CoreTests_getPluginPath, RelativePathIsFromWorkDir) {
-    auto libName = from_file_path(FileUtils::makePluginLibraryName({}, to_file_path("test_name"))); // libtest_name.so
+    auto libName = from_file_path(FileUtils::makePluginLibraryName({}, to_file_path("test_name")));  // libtest_name.so
     auto absPath = from_file_path(ov::getPluginPath(libName));
     EXPECT_TRUE(is_absolute_file_path(absPath));
     EXPECT_STREQ(absPath.c_str(), get_absolute_file_path(libName, false).c_str());
@@ -41,7 +44,8 @@ TEST(CoreTests_getPluginPath, ConvertNameToAbsPathFromLibDir) {
     auto absPath = from_file_path(ov::getPluginPath(libName));
     EXPECT_TRUE(is_absolute_file_path(absPath));
 
-    auto refPath = from_file_path(FileUtils::makePluginLibraryName(InferenceEngine::getInferenceEngineLibraryPath(), to_file_path(libName)));
+    auto refPath = from_file_path(
+        FileUtils::makePluginLibraryName(InferenceEngine::getInferenceEngineLibraryPath(), to_file_path(libName)));
     EXPECT_STREQ(absPath.c_str(), refPath.c_str());
 }
 
@@ -50,6 +54,7 @@ TEST(CoreTests_getPluginPathFromLibDir, PathIsFromLibDir) {
     auto absPath = from_file_path(ov::getFilePathFromLibDir(libName));
     EXPECT_TRUE(is_absolute_file_path(absPath));
 
-    auto refPath = from_file_path(FileUtils::makePath(InferenceEngine::getInferenceEngineLibraryPath(), to_file_path(libName)));
+    auto refPath =
+        from_file_path(FileUtils::makePath(InferenceEngine::getInferenceEngineLibraryPath(), to_file_path(libName)));
     EXPECT_STREQ(absPath.c_str(), refPath.c_str());
 }
