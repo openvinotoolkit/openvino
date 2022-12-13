@@ -154,14 +154,11 @@ bool op::v8::Slice::evaluate(const HostTensorVector& outputs, const HostTensorVe
     auto input_shapes = std::vector<PartialShape>();
     input_shapes.reserve(inputs.size());
 
-    std::accumulate(inputs.begin(),
-                    inputs.end(),
-                    static_cast<size_t>(0),
-                    [&constant_data, &input_shapes](size_t i, const HostTensorPtr tensor) {
-                        constant_data[i] = tensor;
-                        input_shapes.push_back(tensor->get_partial_shape());
-                        return ++i;
-                    });
+    for (size_t i = 0; i < inputs.size(); ++i) {
+        auto&& tensor = inputs[i];
+        input_shapes.push_back(tensor->get_partial_shape());
+        constant_data.emplace(i, tensor);
+    }
 
     const auto starts = host_tensor_2_vector<int64_t>(inputs[1]);
     const auto stops = host_tensor_2_vector<int64_t>(inputs[2]);
