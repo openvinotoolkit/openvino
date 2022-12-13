@@ -66,30 +66,37 @@ struct Parsed {
 
 namespace {
 
+ov::util::FilePath getFilePathFromLibDir(const std::string& filePath) noexcept {
+    // Assume filePath contains only path relative to library directory
+    // (with libopenvino.so)
+    const auto ieLibraryPath = ie::getInferenceEngineLibraryPath();
+
+    auto filePath_ = ov::util::to_file_path(filePath);
+
+    // file can be found either:
+
+    // 1. in openvino-X.Y.Z folder relative to libopenvino.so
+    std::ostringstream str;
+    str << "openvino-" << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH;
+    const auto subFolder = ov::util::to_file_path(str.str());
+
+    ov::util::FilePath absFilePath = FileUtils::makePath(FileUtils::makePath(ieLibraryPath, subFolder), filePath_);
+    if (FileUtils::fileExist(absFilePath))
+        return absFilePath;
+
+    // 2. in the libopenvino.so location
+    absFilePath = FileUtils::makePath(ieLibraryPath, filePath_);
+    return absFilePath;
+}
+
 #ifndef OPENVINO_STATIC_LIBRARY
 
 std::string findPluginXML(const std::string& xmlFile) {
     std::string xmlConfigFile_ = xmlFile;
     if (xmlConfigFile_.empty()) {
-        const auto ielibraryDir = ie::getInferenceEngineLibraryPath();
-
-        // plugins.xml can be found in either:
-
-        // 1. openvino-X.Y.Z relative to libopenvino.so folder
-        std::ostringstream str;
-        str << "openvino-" << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH;
-        const auto subFolder = ov::util::to_file_path(str.str());
-
-        // register plugins from default openvino-<openvino version>/plugins.xml config
-        ov::util::FilePath xmlConfigFileDefault =
-            FileUtils::makePath(FileUtils::makePath(ielibraryDir, subFolder), ov::util::to_file_path("plugins.xml"));
-        if (FileUtils::fileExist(xmlConfigFileDefault))
-            return xmlConfigFile_ = ov::util::from_file_path(xmlConfigFileDefault);
-
-        // 2. in folder with libopenvino.so
-        xmlConfigFileDefault = FileUtils::makePath(ielibraryDir, ov::util::to_file_path("plugins.xml"));
-        if (FileUtils::fileExist(xmlConfigFileDefault))
-            return xmlConfigFile_ = ov::util::from_file_path(xmlConfigFileDefault);
+        xmlConfigFile_ = ov::util::from_file_path(getFilePathFromLibDir("plugins.xml"));
+        if (FileUtils::fileExist(xmlConfigFile_))
+            return xmlConfigFile_;
 
         throw ov::Exception("Failed to find plugins.xml file");
     }
@@ -98,55 +105,34 @@ std::string findPluginXML(const std::string& xmlFile) {
 
 #endif
 
-ov::util::FilePath getPluginPathFromInstallDir(const std::string& pluginPath) {
-    // Assume pluginPath contains only path relative to install directory
-    // (with plugins.xml or libopenvino.so)
-    const auto ieLibraryPath = ie::getInferenceEngineLibraryPath();
-
-    auto pluginPath_ = ov::util::to_file_path(pluginPath);
-
-    // plugin can be found either:
-
-    // 1. in openvino-X.Y.Z folder relative to libopenvino.so
-    std::ostringstream str;
-    str << "openvino-" << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH;
-    const auto subFolder = ov::util::to_file_path(str.str());
-
-    ov::util::FilePath absFilePath = FileUtils::makePath(FileUtils::makePath(ieLibraryPath, subFolder), pluginPath_);
-    if (FileUtils::fileExist(absFilePath))
-        return absFilePath;
-
-    // 2. in the libopenvino.so location
-    absFilePath = FileUtils::makePath(ieLibraryPath, pluginPath_);
-    return absFilePath;
-}
-
 ov::util::FilePath getPluginPath(const std::string& pluginName) {
     // Assume pluginName may contain:
     // 1. /path/to/libexample.so absolute path
     // 2. ../path/to/libexample.so path relative to working directory
     // 3. libexample.so path relative to working directory
-    // 4. example library name - should be searched in install directory
+    // 4. example library name - will be searched in library directory
 
     // For 4th case - try to find in install directory
     if (!ov::util::ends_with(pluginName, ov::util::FileTraits<char>::library_ext())) {
         auto libName = FileUtils::makePluginLibraryName({}, pluginName);
-        return getPluginPathFromInstallDir(libName);
+        return getFilePathFromLibDir(libName);
     }
 
     // For 1st-3rd cases - make path absolute
-    return ov::util::to_file_path(ov::util::get_absolute_file_path(pluginName));
+    return ov::util::to_file_path(ov::util::get_absolute_file_path(pluginName, false));
 }
 
 ov::util::FilePath getPluginPathFromXML(const std::string& pluginPath) {
     // Assume plugins.xml "location" record contains only:
     // 1. /path/to/libexample.so absolute path
-    // 2. ../path/to/libexample.so path relative to plugins.xml
-    // 3. libexample.so path relative to plugins.xml
+    // 2. ../path/to/libexample.so path relative to library directory
+    // 3. libexample.so path relative to library directory
+
     if (ov::util::is_absolute_file_path(pluginPath))
         return ov::util::to_file_path(pluginPath);
 
-    return getPluginPathFromInstallDir(pluginPath);
+    // TODO: for cases 2-3 search relative to XML file instead of LibDir
+    return getFilePathFromLibDir(pluginPath);
 }
 
 template <typename T = ie::Parameter>

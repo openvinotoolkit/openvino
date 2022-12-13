@@ -24,6 +24,8 @@
 #    define MAX_ABS_PATH _MAX_PATH
 /// @brief Get absolute file path, returns NULL in case of error
 #    define get_absolute_path(result, path) _fullpath(result, path.c_str(), MAX_ABS_PATH)
+/// @brief Get absolute path to current working directory, returns NULL in case of error
+#    define get_cwd(ptr) _getcwd(ptr, MAX_ABS_PATH);
 /// @brief Windows-specific 'stat' wrapper
 #    define stat _stat
 /// @brief Windows-specific 'mkdir' wrapper
@@ -47,7 +49,9 @@
 #    define MAX_ABS_PATH                    PATH_MAX
 /// @brief Get absolute file path, returns NULL in case of error
 #    define get_absolute_path(result, path) realpath(path.c_str(), result)
+/// @brief Get absolute path to current working directory, returns NULL in case of error
 /// @brief mkdir wrapper
+#    define get_cwd(ptr)                    getcwd(ptr, MAX_ABS_PATH);
 #    define makedir(dir)                    mkdir(dir, 0755)
 #endif
 
@@ -349,16 +353,23 @@ std::wstring ov::util::string_to_wstring(const std::string& string) {
 }
 #endif
 
-std::string ov::util::get_absolute_file_path(const std::string& path) {
+std::string ov::util::get_absolute_file_path(const std::string& path, bool file_exists) {
     std::string absolutePath;
     absolutePath.resize(MAX_ABS_PATH);
-    auto absPath = get_absolute_path(&absolutePath[0], path);
+    char* absPath;
+    if (file_exists) {
+        absPath = get_absolute_path(&absolutePath[0], path);
+    } else {
+        absPath = get_cwd(&absolutePath[0]);
+    }
     if (!absPath) {
         std::stringstream ss;
         ss << "Can't get absolute file path for [" << path << "], err = " << strerror(errno);
         throw std::runtime_error(ss.str());
     }
     absolutePath.resize(strlen(absPath));
+    if (!file_exists)
+        absolutePath += ov::util::FileTraits<char>::file_separator + path;
     return absolutePath;
 }
 
