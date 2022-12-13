@@ -86,21 +86,7 @@ bool evaluate_cum_sum(TensorVector& outputs, const TensorVector& inputs, const b
 template <element::Type_t AXIS_ET>
 bool evaluate(TensorVector& outputs, const TensorVector& inputs, const bool exclusive, const bool reverse) {
     switch (inputs[0].get_element_type()) {
-        CUM_SUM_TYPE_CASE(bf16, outputs, inputs, exclusive, reverse);
-        CUM_SUM_TYPE_CASE(f16, outputs, inputs, exclusive, reverse);
         CUM_SUM_TYPE_CASE(f32, outputs, inputs, exclusive, reverse);
-        CUM_SUM_TYPE_CASE(f64, outputs, inputs, exclusive, reverse);
-        CUM_SUM_TYPE_CASE(i4, outputs, inputs, exclusive, reverse);
-        CUM_SUM_TYPE_CASE(i8, outputs, inputs, exclusive, reverse);
-        CUM_SUM_TYPE_CASE(i16, outputs, inputs, exclusive, reverse);
-        CUM_SUM_TYPE_CASE(i32, outputs, inputs, exclusive, reverse);
-        CUM_SUM_TYPE_CASE(i64, outputs, inputs, exclusive, reverse);
-        CUM_SUM_TYPE_CASE(u1, outputs, inputs, exclusive, reverse);
-        CUM_SUM_TYPE_CASE(u4, outputs, inputs, exclusive, reverse);
-        CUM_SUM_TYPE_CASE(u8, outputs, inputs, exclusive, reverse);
-        CUM_SUM_TYPE_CASE(u16, outputs, inputs, exclusive, reverse);
-        CUM_SUM_TYPE_CASE(u32, outputs, inputs, exclusive, reverse);
-        CUM_SUM_TYPE_CASE(u64, outputs, inputs, exclusive, reverse);
     default:
         return false;
     }
