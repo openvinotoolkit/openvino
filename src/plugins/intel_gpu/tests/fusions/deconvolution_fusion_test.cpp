@@ -59,10 +59,12 @@ struct deconv_eltw_test_params {
 class DeconvolutionFusingTest : public ::BaseFusingTest<deconv_test_params> {
 public:
     void execute(deconv_test_params& p) {
+        execute(p, get_mem(get_input_layout(p)));
+    }
+    void execute(deconv_test_params& p, cldnn::memory::ptr input_prim) {
         if (engine.get_device_info().supports_immad)
             p.expected_fused_primitives = p.expected_fused_primitives_onednn;
 
-        auto input_prim = get_mem(get_input_layout(p));
         network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
         network network_fused(this->engine, this->topology_fused, bo_fused);
         network_fused.set_input_data("input", input_prim);
@@ -377,7 +379,7 @@ TEST_P(deconv_scale, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        data("weights", get_mem(get_weights_layout(p), -9, 9)),
+        data("weights", get_mem(get_weights_layout(p), -4, 4)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
         deconvolution("deconv", input_info("input"), { "weights" }, p.groups, p.stride, p.pad),
         eltwise("scale", { input_info("deconv"), input_info("scale_data") }, eltwise_mode::prod),
@@ -385,14 +387,14 @@ TEST_P(deconv_scale, basic) {
     );
 
     tolerance = default_tolerance(data_types::f16);
-    execute(p);
+    execute(p, get_mem(get_input_layout(p), 0, 16));
 }
 
 TEST_P(deconv_scale, fp16_scale_out) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        data("weights", get_mem(get_weights_layout(p))),
+        data("weights", get_mem(get_weights_layout(p), -4, 4)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
         deconvolution("deconv", input_info("input"), { "weights" }, p.groups, p.stride, p.pad),
         eltwise("scale", { input_info("deconv"), input_info("scale_data") }, eltwise_mode::prod, data_types::f16),
@@ -400,7 +402,7 @@ TEST_P(deconv_scale, fp16_scale_out) {
     );
 
     tolerance = default_tolerance(data_types::f16);
-    execute(p);
+    execute(p, get_mem(get_input_layout(p), 0, 16));
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, deconv_scale, ::testing::ValuesIn(std::vector<deconv_test_params>{
