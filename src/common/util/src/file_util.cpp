@@ -353,10 +353,10 @@ std::wstring ov::util::string_to_wstring(const std::string& string) {
 }
 #endif
 
-std::string ov::util::get_absolute_file_path(const std::string& path, bool file_exists) {
+std::string ov::util::get_absolute_file_path(const std::string& path, bool strict) {
     std::string absolutePath;
     absolutePath.resize(MAX_ABS_PATH);
-    if (file_exists) {
+    if (strict) {
         char* absPath;
         // canonicalize path and check file existence and accessibility
         absPath = get_absolute_path(&absolutePath[0], path);
