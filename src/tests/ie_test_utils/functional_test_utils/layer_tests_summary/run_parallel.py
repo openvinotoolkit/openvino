@@ -23,7 +23,6 @@ else:
 
 FILENAME_LENGTH = 255
 
-TEST_TIMEOUT = 60000
 LOG_NAME_REPLACE_STR = "##NAME##"
 
 
@@ -38,13 +37,13 @@ def parse_arguments():
     worker_num_help = "Worker number. Default value is `cpu_count-1` "
     working_dir_num_help = "Working dir"
     test_batch_help = "Test counter in 1 process"
-    # process_timeout = "Process timeout in s"
+    process_timeout_help = "Process timeout in s"
 
     parser.add_argument("-e", "--exec_file", help=exec_file_path_help, type=str, required=True)
     parser.add_argument("-j", "--worker_num", help=worker_num_help, type=int, required=False, default=(os.cpu_count() - 1) if os.cpu_count() > 2 else 1)
     parser.add_argument("-w", "--working_dir", help=working_dir_num_help, type=str, required=False, default=".")
     parser.add_argument("-b", "--test_batch", help=test_batch_help, type=int, required=False, default=1)
-    # parser.add_argument("-t", "--process_timeout", help=process_timeout, required=False, )
+    parser.add_argument("-t", "--process_timeout", help=process_timeout_help, type=int, required=False, default=3600)
     return parser.parse_args()
 
 def get_test_command_line_args():
@@ -57,6 +56,8 @@ def get_test_command_line_args():
     return command_line_args
 
 class TaskManager:
+    process_timeout = 0
+
     def __init__(self, command_list:list, working_dir: os.path):
         self._command_list = command_list
         self._process_list = list()
@@ -66,12 +67,15 @@ class TaskManager:
         self._log_filename = os.path.join(working_dir, f"log_{LOG_NAME_REPLACE_STR}.log")
 
     def __create_and_start_thread(self, func):
-        t = threading.Thread(target=func)
-        t.daemon = True
-        t.start()
-        return t
+        thread = threading.Thread(target=func)
+        thread.daemon = True
+        thread.start()
+        return thread
     
     def init_worker(self):
+        if len(self._command_list) <= self._idx:
+            logger.warning(f"Skip worker initialiazation. Command list lenght <= worker index")
+            return
         log_file_name = self._log_filename.replace(LOG_NAME_REPLACE_STR, str(self._idx))
         with open(log_file_name, "w") as log_file:
             worker = self.__create_and_start_thread(
@@ -85,7 +89,7 @@ class TaskManager:
         while True:
             for pid in range(len(self._process_list)):
                 try:
-                    if float((datetime.datetime.now() - self._timers[pid]).total_seconds()) > TEST_TIMEOUT:
+                    if float((datetime.datetime.now() - self._timers[pid]).total_seconds()) > self.process_timeout:
                         logger.warning(f"Process {pid} exceed time limetattion per process")
                         self._workers[pid].exit()
                     self._process_list[pid].wait(timeout=0)
@@ -112,7 +116,7 @@ class TaskManager:
         while len(self._process_list) > 0:
             for pid in range(len(self._process_list)):
                 try:
-                    if float((datetime.datetime.now() - self._timers[pid]).total_seconds()) > TEST_TIMEOUT:
+                    if float((datetime.datetime.now() - self._timers[pid]).total_seconds()) > self.process_timeout:
                         logger.warning(f"Process {pid} exceed time limetattion per process")
                         self._process_list[pid].kill()
                     self._process_list[pid].wait(timeout=0)
@@ -169,7 +173,7 @@ class TestParallelRunner:
         self._run_num_per_executor = int(len(filters[0]) / self._test_batch) + 1
         return [["".join(filter[self._test_batch * i:self._test_batch * (i + 1):]).replace(' ', '') for i in range(self._run_num_per_executor)] for filter in filters]
 
-    def generate_command_list(self, test_filters:list):
+    def __generate_command_list(self, test_filters:list):
         cmd_list = list()
         for it in range(self._run_num_per_executor):
             for idx in range(self._worker_num):
@@ -182,7 +186,7 @@ class TestParallelRunner:
     def run(self):
         logger.info(f"Run test parallel is started")
         t_start = datetime.datetime.now()
-        task_manger = TaskManager(self.generate_command_list(self.__parse_test_list_file()), self._working_dir)
+        task_manger = TaskManager(self.__generate_command_list(self.__parse_test_list_file()), self._working_dir)
         for index in range(self._worker_num):
             task_manger.init_worker()
         while task_manger.update_worker():
@@ -257,7 +261,9 @@ if __name__ == "__main__":
     logger.info(f"[ARGUMENTS] --worker_num={args.worker_num}")
     logger.info(f"[ARGUMENTS] --working_dir={args.working_dir}")
     logger.info(f"[ARGUMENTS] --test_batch={args.test_batch}")
+    logger.info(f"[ARGUMENTS] --process_timeout={args.process_timeout}")
     logger.info(f"[ARGUMENTS] Executable file arguments = {exec_file_args}")
+    TaskManager.process_timeout = args.process_timeout
     conformance = TestParallelRunner(args.exec_file, exec_file_args, args.worker_num, args.working_dir, args.test_batch)
     conformance.run()
     conformance.postprocess_logs()
