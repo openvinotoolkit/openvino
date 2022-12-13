@@ -3,9 +3,10 @@
 //
 
 #include <gtest/gtest.h>
+
 #include "low_precision/network_helper.hpp"
-#include "low_precision/rt_info/precision_preserved_attribute.hpp"
 #include "low_precision/rt_info/avg_pool_precision_preserved_attribute.hpp"
+#include "low_precision/rt_info/precision_preserved_attribute.hpp"
 
 using LPT_ReshapeTransformation = ::testing::Test;
 
@@ -18,7 +19,7 @@ TEST(LPT_SharedAttribute, assign) {
 
     ngraph::pass::low_precision::NetworkHelper::reassign<ngraph::AvgPoolPrecisionPreservedAttribute>(
         attribute1.attribute->sharedValue,
-        { attribute1.attribute, attribute2.attribute });
+        {attribute1.attribute, attribute2.attribute});
 
     ASSERT_EQ(2ul, attribute1.attribute->sharedValue->getAttributes().size());
     ASSERT_EQ(2ul, attribute2.attribute->sharedValue->getAttributes().size());
