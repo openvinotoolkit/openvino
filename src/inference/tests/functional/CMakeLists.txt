@@ -17,13 +17,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ie_add_compiler_flags(/wd4309)
     ie_add_compiler_flags(/wd4804)
 endif()
-if(NOT MSVC)
-    ie_add_compiler_flags(-Wno-missing-declarations)
-    ie_add_compiler_flags(-Wno-sign-compare)
-    ie_add_compiler_flags(-Wno-odr)
-    ie_add_compiler_flags(-Wno-all)
-    ie_add_compiler_flags(-Wno-suggest-override)
-endif()
 
 set(DEPENDENCIES
     mock_engine
