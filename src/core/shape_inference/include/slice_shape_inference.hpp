@@ -4,7 +4,8 @@
 
 #pragma once
 
-#include <openvino/core/validation_util.hpp>
+#include <ngraph/validation_util.hpp>
+#include <openvino/op/constant.hpp>
 #include <openvino/op/slice.hpp>
 
 #include "sequnce_generator.hpp"
@@ -180,6 +181,38 @@ inline int64_t get_step_elements(const int64_t& dim, const int64_t& start, const
         return step_elements;
     }
 }
+
+/**
+ * \brief Get the input bounds from constants maps or evaluate bunds
+ *  and return them as pair of vector (lower, upper)
+ *
+ * \tparam TShape        Shape type,
+ * \tparam TOp           Operator type,
+ *
+ * \param op             Operator pointer,
+ * \param idx            Input index.
+ * \param constant_data  Map with constant data.
+ *
+ * \return Return pairs of vector.
+ */
+template <class TShape, class TOp>
+std::pair<std::vector<int64_t>, std::vector<int64_t>> get_input_bounds(
+    const TOp* op,
+    size_t idx,
+    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
+    std::vector<int64_t> lower, upper;
+    if (!get_data_as_int64<TShape>(idx, op, lower, constant_data)) {
+        // if no const data try get input bounds
+        auto bounds = ngraph::evaluate_both_bounds(op->get_input_source_output(idx));
+
+        if (bounds.first && bounds.second) {
+            lower = std::make_shared<op::v0::Constant>(bounds.first)->template cast_vector<int64_t>();
+            upper = std::make_shared<op::v0::Constant>(bounds.second)->template cast_vector<int64_t>();
+        }
+    }
+
+    return std::make_pair(lower, upper);
+}
 }  // namespace slice
 namespace v8 {
 
@@ -236,11 +269,13 @@ void shape_infer(const Slice* op,
         return;
     }
 
-    std::vector<int64_t> start, stop, steps, axes;
+    std::vector<int64_t> steps, axes;
 
     // compute constant values of begin, end, and strides if possible
-    const auto got_start = get_data_as_int64<T>(1, op, start, constant_data);
-    const auto got_stop = get_data_as_int64<T>(2, op, stop, constant_data);
+    auto start = slice::get_input_bounds<T>(op, 1, constant_data);
+    auto stop = slice::get_input_bounds<T>(op, 2, constant_data);
+    auto got_start = !start.first.empty();
+    auto got_stop = !stop.first.empty();
     const auto got_steps = get_data_as_int64<T>(3, op, steps, constant_data);
 
     bool got_axes;
@@ -254,8 +289,8 @@ void shape_infer(const Slice* op,
             ov::normalize_axes(op, input_shape.rank().get_length(), axes);
         }
     } else if (got_start) {
-        axes.reserve(start.size());
-        std::generate_n(std::back_inserter(axes), start.size(), SeqGen<int64_t>(0));
+        axes.reserve(start.first.size());
+        std::generate_n(std::back_inserter(axes), start.first.size(), SeqGen<int64_t>(0));
         got_axes = true;
     } else {
         got_axes = false;
@@ -276,11 +311,19 @@ void shape_infer(const Slice* op,
                 const auto& step = steps[i];
                 NODE_VALIDATION_CHECK(op, step != 0, "Step must be non-zero");
 
-                const auto& start_lb = element::get_value_or_limit_of<int64_t>(op->get_input_element_type(1), start[i]);
-                auto& start_ub = start_lb;
+                const auto& start_lb =
+                    element::get_value_or_limit_of<int64_t>(op->get_input_element_type(1), start.first[i]);
+                const auto& start_ub =
+                    start.second.empty()
+                        ? start_lb
+                        : element::get_value_or_limit_of<int64_t>(op->get_input_element_type(1), start.second[i]);
 
-                const auto& stop_lb = element::get_value_or_limit_of<int64_t>(op->get_input_element_type(1), stop[i]);
-                auto& stop_ub = stop_lb;
+                const auto& stop_lb =
+                    element::get_value_or_limit_of<int64_t>(op->get_input_element_type(1), stop.first[i]);
+                const auto& stop_ub =
+                    stop.second.empty()
+                        ? stop_lb
+                        : element::get_value_or_limit_of<int64_t>(op->get_input_element_type(1), stop.second[i]);
 
                 auto lb = slice::get_step_elements(input_dim.get_min_length(), start_ub, stop_lb, step);
                 auto ub = slice::get_step_elements(input_dim.get_max_length(), start_lb, stop_ub, step);

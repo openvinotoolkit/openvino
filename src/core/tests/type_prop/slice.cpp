@@ -1116,3 +1116,54 @@ TEST(type_prop, slice_v8_use_default_ctor) {
 
     ASSERT_EQ(slice->get_output_partial_shape(0), PartialShape({1, 5, 12, 2}));
 }
+
+TEST(type_prop, slice_v8_stop_is_shape_of_with_bounds) {
+    auto shape = PartialShape{1, {5, 7}};
+    set_shape_labels(shape, 20);
+    const auto p_stop = std::make_shared<op::Parameter>(element::i64, shape);
+    const auto shape_of_stop = std::make_shared<op::ShapeOf>(p_stop);
+
+    auto data = op::Constant::create(element::i64, Shape{1, 10}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 0});
+    auto start = op::Constant::create(element::i64, Shape{2}, {0, 0});
+    auto steps = op::Constant::create(element::i64, Shape{2}, {1, 1});
+
+    auto slice = std::make_shared<op::v8::Slice>(data, start, shape_of_stop, steps);
+
+    EXPECT_EQ(slice->get_output_partial_shape(0), PartialShape({1, {5, 7}}));
+    EXPECT_THAT(get_shape_labels(slice->get_output_partial_shape(0)), Each(ov::no_label));
+}
+
+TEST(type_prop, slice_v8_start_is_shape_of_with_bounds) {
+    auto shape = PartialShape{0, {3, 5}};
+    set_shape_labels(shape, 20);
+    const auto p_start = std::make_shared<op::Parameter>(element::i64, shape);
+    const auto shape_of_start = std::make_shared<op::ShapeOf>(p_start);
+
+    auto data = op::Constant::create(element::i64, Shape{1, 10}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 0});
+    auto stop = op::Constant::create(element::i64, Shape{2}, {1, 7});
+    auto steps = op::Constant::create(element::i64, Shape{2}, {1, 1});
+
+    auto slice = std::make_shared<op::v8::Slice>(data, shape_of_start, stop, steps);
+
+    EXPECT_EQ(slice->get_output_partial_shape(0), PartialShape({1, {2, 4}}));
+    EXPECT_THAT(get_shape_labels(slice->get_output_partial_shape(0)), Each(ov::no_label));
+}
+
+TEST(type_prop, slice_v8_start_stop_is_shape_of_with_bounds) {
+    auto start_shape = PartialShape{0, {3, 5}};
+    auto stop_shape = PartialShape{2, {6, 7}};
+    set_shape_labels(start_shape, 10);
+    set_shape_labels(stop_shape, 20);
+    const auto p_start = std::make_shared<op::Parameter>(element::i64, start_shape);
+    const auto p_stop = std::make_shared<op::Parameter>(element::i64, stop_shape);
+    const auto shape_of_start = std::make_shared<op::ShapeOf>(p_start);
+    const auto shape_of_stop = std::make_shared<op::ShapeOf>(p_stop);
+
+    auto data = op::Constant::create(element::i64, Shape{1, 10}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 0});
+    auto steps = op::Constant::create(element::i64, Shape{2}, {1, 1});
+
+    auto slice = std::make_shared<op::v8::Slice>(data, shape_of_start, shape_of_stop, steps);
+
+    EXPECT_EQ(slice->get_output_partial_shape(0), PartialShape({1, {1, 4}}));
+    EXPECT_THAT(get_shape_labels(slice->get_output_partial_shape(0)), Each(ov::no_label));
+}
