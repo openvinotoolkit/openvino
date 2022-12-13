@@ -114,7 +114,7 @@ Once the build has been completed, sample binaries can be find in the following 
 * C samples - `~/openvino_c_samples_build/intel64/Release`
 * C++ samples - `~/openvino_cpp_samples_build/intel64/Release`
 
-Also sample applications can be build manually:
+Also, sample applications can be built manually:
 
 > **NOTE**: If you have installed the product as a root user, switch to root mode (`sudo -i`) before you continue.
 
@@ -143,7 +143,7 @@ cd build
 make
 ```
 
-The sample application binaries can be find in:
+The sample application binaries can be found in:
 
 * For release configuration - `<path_to_build_directory>/intel64/Release/`
 * For debug configuration - `<path_to_build_directory>/intel64/Debug/`
@@ -164,11 +164,11 @@ build_samples_msvc.bat
 
 By default, the script automatically detects the highest Microsoft Visual Studio version installed on the machine and uses it to create and build a solution for a sample code.
 
-Once the build has been completed, sample binaries can be find in the following folders:
+Once the build has been completed, sample binaries will be in the following folders:
 * C samples - `C:\Users\<user>\Documents\Intel\OpenVINO\openvino_c_samples_build\intel64\Release`
 * C++ samples - `C:\Users\<user>\Documents\Intel\OpenVINO\openvino_cpp_samples_build\intel64\Release`
 
-Generated solution can also be build manually. For example, to build C++ sample binaries in Debug configuration, run the suitable version of the
+A generated solution can also be built manually. For example, to build C++ sample binaries in Debug configuration, run the suitable version of the
 Microsoft Visual Studio and open the generated solution file from the `C:\Users\<user>\Documents\Intel\OpenVINO\openvino_cpp_samples_build\Samples.sln`
 directory.
 
@@ -187,11 +187,11 @@ To build C or C++ sample applications for macOS, go to the `<INSTALL_DIR>/sample
 build_samples.sh
 ```
 
-Once the build has been completed, sample binaries can be find in the following folders:
+Once the build has been completed, sample binaries will be in the following folders:
 * C samples - `~/openvino_c_samples_build/intel64/Release`
 * C++ samples - `~/openvino_cpp_samples_build/intel64/Release`
 
-The sample applications can also be build manually:
+The sample applications can also be built manually:
 
 > **NOTE**: If you have installed the product as a root user, switch to root mode (`sudo -i`) before you continue.
 
