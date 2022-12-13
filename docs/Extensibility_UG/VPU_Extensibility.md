@@ -64,7 +64,7 @@ Each custom layer is described with the `CustomLayer` node. It has the following
     - Node `Source` must contain the following attributes:
       - `filename` – The path to a compiled binary relative to the XML configuration file.
   - Sub-node `Parameters` – Describes parameters bindings. For more information, see the description below.
-  - Sub-node `WorkSizes` – Describes local and global work group sizes and the source for dimension deduction as a pair `direction,port`. In the example above, the work group is described relatively to the dimension of the input tensor that comes through port 0 in the OpenVINO IR. Work group configurations, namely`global` and `local` support any simple math expressions with +,-,\*,/, and () from `B`(batch), `Y`(height), `X`(width) and `F`(channels).
+  - Sub-node `WorkSizes` – Describes local and global work group sizes and the source for dimension deduction as a pair `direction,port`. In the example above, the work group is described relatively to the dimension of the input tensor that comes through port 0 in the OpenVINO IR. Work group configurations, namely `global` and `local` support any simple math expressions with +,-,\*,/, and () from `B`(batch), `Y`(height), `X`(width) and `F`(channels).
   - Sub-node `Where` – Allows to customize bindings with the `key="value"` attribute. For example, to substitute only 3x3 convolutions, write `<Where kernel="3,3"/>` in the binding xml.
 
   Parameter description supports `Tensor` of one of tensor types such as `input`, `output`, `input_buffer`, `output_buffer` or `data`, `Scalar`, or `Data` nodes and has the following format:
