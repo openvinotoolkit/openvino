@@ -4,23 +4,22 @@
 
 #include <gtest/gtest.h>
 
-#include "common_test_utils/test_common.hpp"
-#include <string>
-#include <sstream>
 #include <fstream>
-#include <memory>
-#include <queue>
 #include <map>
-
+#include <memory>
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
+#include <queue>
+#include <sstream>
+#include <string>
+#include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
+#include <transformations/init_node_info.hpp>
+#include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/test_common.hpp"
 
 using namespace testing;
 using namespace ngraph;
@@ -64,7 +63,6 @@ TEST_F(TransformationTestsF, MulMulMulFusion) {
         auto mul1 = std::make_shared<opset3::Multiply>(input, mul1_const);
         auto mul2 = std::make_shared<opset3::Multiply>(mul1, mul2_const);
         auto mul3 = std::make_shared<opset3::Multiply>(mul2, mul3_const);
-
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul2}, ngraph::ParameterVector{input});
         manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
