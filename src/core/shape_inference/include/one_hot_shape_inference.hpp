@@ -43,14 +43,13 @@ void shape_infer(const OneHot* op,
                           "off_value input must be scalar.");
 
     auto& result_shape = output_shapes[0];
-    std::vector<int64_t> depth_vals;
-    bool depth_is_set = get_data_as_int64<T>(1, op, depth_vals, constant_data);
     if (indices_shape.rank().is_static()) {
-        // decide result rank
         result_shape = indices_shape;
         const auto indices_rank = indices_shape.rank().get_length();
         const auto axis = ov::normalize_axis(op, op->get_axis(), indices_rank + 1, -indices_rank - 1, indices_rank);
 
+        std::vector<int64_t> depth_vals;
+        bool depth_is_set = get_data_as_int64<T>(1, op, depth_vals, constant_data);
         if (depth_is_set) {
             int64_t depth_val = depth_vals[0];
             NODE_VALIDATION_CHECK(op,
@@ -60,6 +59,12 @@ void shape_infer(const OneHot* op,
                                   depth_val,
                                   ").");
             result_shape.insert(result_shape.begin() + axis, DimType(depth_val));
+            return;
+        }
+
+        T depth_dim_as_shape;
+        if (get_data_as_shape<T>(1, op, depth_dim_as_shape, constant_data) && depth_dim_as_shape.size() == 1) {
+            result_shape.insert(result_shape.begin() + axis, depth_dim_as_shape[0]);
         } else {
             result_shape.insert(result_shape.begin() + axis, DimType());
         }
