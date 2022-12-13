@@ -472,6 +472,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
                 execNetwork = context ? plugin.import_model(networkStream, context, config)
                                       : plugin.import_model(networkStream, config);
                 networkIsImported = true;
+                execNetwork->loadedFromCache();
             });
         } catch (const HeaderException&) {
             // For these exceptions just remove old cache and set that import didn't work
