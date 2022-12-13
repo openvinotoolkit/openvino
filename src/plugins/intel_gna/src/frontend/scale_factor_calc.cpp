@@ -24,6 +24,7 @@ constexpr float k_identity = 6;
 constexpr double pow_domain = 16;
 constexpr float min_search_weights_val = 1.0f;
 constexpr float max_search_weights_val = 1024.0f;
+constexpr double initial_weights_reducer_val = 1.0;
 
 float GetScaleFactor(InferenceEngine::CNNLayerPtr layer, QuantizedDataType data_type) {
     IE_ASSERT(layer != nullptr);
@@ -207,10 +208,9 @@ std::vector<float> ScaleFactorCalculator::generateScaleFactors(float startRange,
 double ScaleFactorCalculator::calculateWeightsReducerFromDstStats(QuantizationParams dst_quant) {
     auto maxAbsVal = std::max(std::abs(dst_quant.GetMinValues().front()),
         std::abs(dst_quant.GetMaxValues().front()));
-
     auto maxIntVal = static_cast<int64_t>(maxAbsVal * dst_quant.GetScale() + 0.5f);
     double weightsReducer = static_cast<double>(maxIntVal) / std::numeric_limits<int32_t>::max();
-    weightsReducer = std::max(1.0, weightsReducer);
+    weightsReducer = std::max(initial_weights_reducer_val, weightsReducer);
     return weightsReducer;
 }
 
@@ -894,16 +894,15 @@ bool ScaleFactorCalculator::ScaleFactorPerLayerEltwise(InferenceEngine::EltwiseL
                 if (requantizeInput(in1, newOutputScale, result, infiniteLoopCount)) {
                     return true;
                 }
-                // we unable to rescale the input - results might be bad
+                // Unable to rescale the input - results might be bad
                 log::warning() << "[INFO] weights saturated for " << eltwiseLayer->name << "\n";
             }
 
             if (!quantData->_dst_quant.IsStatsSet()) {
                 return true;
             }
-
             auto weightsReducer = calculateWeightsReducerFromDstStats(quantData->_dst_quant);
-            if (!common::fp32eq(weightsReducer, 1.0f)) {
+            if (weightsReducer > initial_weights_reducer_val) {
                 float newOutputScale = quantParams1->_dst_quant.GetScale() / weightsReducer;
                 if (requantizeInput(in1, newOutputScale, result, infiniteLoopCount)) {
                     return true;
@@ -912,8 +911,10 @@ bool ScaleFactorCalculator::ScaleFactorPerLayerEltwise(InferenceEngine::EltwiseL
             }
         }
         break;
+
         default : THROW_GNA_EXCEPTION << "Unsupported Eltwise layer for quantisation: " << eltwiseLayer->_operation;
     }
+
     return true;
 }
 
@@ -1277,68 +1278,34 @@ bool ScaleFactorCalculator::ScaleFactorPerLayerWeightable(InferenceEngine::Weigh
             }
         }
 
-        auto weightsReducer = calculateWeightsReducerFromDstStats(quant->_dst_quant);
-        if (!common::fp32eq(weightsReducer, 1.0f)) {
-            quant->_weights_quant.SetScale(quant->_weights_quant.GetScale() / weightsReducer);
+        if (calculateWeightsReducerFromDstStats(quant->_dst_quant) > initial_weights_reducer_val) {
+            log::warning() << "Potential overload correction issue at layer " << wl->name;
         }
-
-        if (common::fp32eq(quant->_weights_quant.GetScale(), 0.0f) || std::isinf(quant->_weights_quant.GetScale())) {
-            quant->_weights_quant.SetScale(1.0f);
-        }
-
-        quant->_dst_quant.SetScale(quant->_weights_quant.GetScale() * quant->_src_quant.GetScale());
     }
 
     return true;
 }
 
-bool ScaleFactorCalculator::ScaleFactorPerLayerGemm(InferenceEngine::GemmLayer* gemmLayer,
+bool ScaleFactorCalculator::ScaleFactorPerLayerGemm(InferenceEngine::GemmLayer* gl,
                          ScaleFactorUpdateResult& result,
                          int infiniteLoopCount,
                          const Config& gna_config) const {
-    if ( !gemmLayer ) {
+    if (!gl) {
         THROW_GNA_EXCEPTION << "Incorrect Gemm Layer pointer \n";
     }
-    auto in0 = InferenceEngine::CNNNetPrevLayer(gemmLayer, 0);
-    auto in1 = InferenceEngine::CNNNetPrevLayer(gemmLayer, 1);
+    auto in0 = InferenceEngine::CNNNetPrevLayer(gl, 0);
+    auto in1 = InferenceEngine::CNNNetPrevLayer(gl, 1);
 
-    auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(*gemmLayer);
+    auto quant = InferenceEngine::getInjectedData<QuantizedLayerParams>(*gl);
     auto quantParams1 = InferenceEngine::getInjectedData<QuantizedLayerParams>(in1);
     auto quantParams0 = InferenceEngine::getInjectedData<QuantizedLayerParams>(in0);
-    quantData->_src_quant.SetScale(quantParams0->_dst_quant.GetScale());
-    quantData->_weights_quant.SetScale(quantParams1->_dst_quant.GetScale());
-    quantData->_dst_quant.SetScale(
-            quantData->_src_quant.GetScale() * quantData->_weights_quant.GetScale());
+    quant->_src_quant.SetScale(quantParams0->_dst_quant.GetScale());
+    quant->_weights_quant.SetScale(quantParams1->_dst_quant.GetScale());
+    quant->_dst_quant.SetScale(quant->_src_quant.GetScale() * quant->_weights_quant.GetScale());
 
-    if (!quantData->_dst_quant.IsStatsSet()) {
-        return true;
-    }
-
-    // Adjust weights scale factor if output values exceed int32 maximum value
-    auto weightsReducer = calculateWeightsReducerFromDstStats(quantData->_dst_quant);
-    if (LayerInfo(in0).isConst()) {
-        if (!common::fp32eq(weightsReducer, 1.0f)) {
-            quantParams0->_dst_quant.SetScale(quantData->_src_quant.GetScale() / weightsReducer);
-            quantData->_src_quant.SetScale(quantData->_src_quant.GetScale() / weightsReducer);
-        }
-        if (common::fp32eq(quantData->_src_quant.GetScale(), 0.0f) || std::isinf(quantData->_src_quant.GetScale())) {
-            quantParams0->_dst_quant.SetScale(1.0f);
-            quantData->_src_quant.SetScale(1.0f);
-        }
-
-        quantData->_dst_quant.SetScale(quantData->_weights_quant.GetScale() * quantData->_src_quant.GetScale());
-    } else {
-        if (!common::fp32eq(weightsReducer, 1.0f)) {
-            for (int i = 0; i < 2; ++i) {
-                auto input = InferenceEngine::CNNNetPrevLayer(gemmLayer, i);
-                auto quantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(input);
-                float newOutputScale = quantParams->_dst_quant.GetScale() / weightsReducer;
-                if (requantizeInput(input, newOutputScale, result, infiniteLoopCount)) {
-                    return true;
-                }
-            }
-            THROW_GNA_EXCEPTION << "Unable to quantize " << gemmLayer->name;
-        }
+    if (quant->_dst_quant.IsStatsSet() &&
+        calculateWeightsReducerFromDstStats(quant->_dst_quant) > initial_weights_reducer_val) {
+        log::warning() << "Potential overload correction issue at layer " << gl->name;
     }
 
     return true;
