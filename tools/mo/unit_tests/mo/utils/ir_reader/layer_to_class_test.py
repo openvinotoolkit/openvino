@@ -138,11 +138,11 @@ class TestFunction(unittest.TestCase):
             'input': {'kind': 'op', 'type': 'Parameter'},
             'input_data': {'shape': [2, 1, 3], 'kind': 'data'},
 
-            'axis': {'kind': 'op', 'type': 'Const', 'value': np.array(1)},
+            'axis': {'kind': 'op', 'type': 'Const', 'op': 'Const', 'value': np.array(1), 'shape': []},
             'axis_data': {'shape': [], 'kind': 'data', 'value': np.array(1)},
 
             'squeeze': {'kind': 'op', 'type': 'Squeeze'},
-            'squeeze_data': {'shape': [2, 3], 'kind': 'data'},
+            'squeeze_data': {'shape': [2, 3], 'kind': 'data', 'value': None},
 
             'result': {'kind': 'op', 'type': 'Result'}
         }
@@ -171,11 +171,11 @@ class TestFunction(unittest.TestCase):
             'input': {'kind': 'op', 'type': 'Parameter'},
             'input_data': {'shape': [2, 3], 'kind': 'data'},
 
-            'axis': {'kind': 'op', 'type': 'Const', 'value': np.array(1)},
+            'axis': {'kind': 'op', 'type': 'Const', 'op': 'Const', 'value': np.array(1), 'shape': []},
             'axis_data': {'shape': [], 'kind': 'data', 'value': np.array(1)},
 
             'unsqueeze': {'kind': 'op', 'type': 'Unsqueeze'},
-            'unsqueeze_data': {'shape': [2, 1, 3], 'kind': 'data'},
+            'unsqueeze_data': {'shape': [2, 1, 3], 'kind': 'data', 'value': None},
 
             'result': {'kind': 'op', 'type': 'Result'}
         }
