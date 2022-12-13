@@ -545,6 +545,21 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         return ie::NetworkCompilationContext::computeHash(modelName, compileConfig);
     }
 
+    std::string CalculateMemoryHash(const std::string& modelStr,
+                                    const ie::Blob::CPtr& weights,
+                                    const std::string& deviceFamily,
+                                    const ov::InferencePlugin& plugin,
+                                    const std::map<std::string, std::string>& config) const {
+        auto compileConfig = CreateCompileConfig(plugin, deviceFamily, config);
+        char* ptr = nullptr;
+        size_t count = 0;
+        if (weights) {
+            ptr = weights->cbuffer().as<char*>();
+            count = weights->byteSize();
+        }
+        return ie::NetworkCompilationContext::computeHash(modelStr, ptr, count, compileConfig);
+    }
+
 public:
     CoreImpl(bool _newAPI) : newAPI(_newAPI) {
         add_mutex("");  // Register global mutex
@@ -807,13 +822,6 @@ public:
         }
     }
 
-    void SetCacheDirIfPossible(const std::string& deviceName, const std::string& dir) {
-        auto plugin = GetCPPPluginByName(deviceName);
-        if (DeviceSupportsCacheDir(plugin) && !coreConfig.getCacheConfigForDevice(deviceName)._cacheManager) {
-            coreConfig.setCacheForDevice(dir, deviceName);
-        }
-    }
-
     ie::SoExecutableNetworkInternal LoadNetwork(const ie::CNNNetwork& network,
                                                 const std::string& deviceNameOrig,
                                                 const std::map<std::string, std::string>& config) override {
@@ -882,6 +890,43 @@ public:
             res = plugin.compile_model(modelPath, parsed._config);
         } else {
             auto cnnNetwork = ReadNetwork(modelPath, std::string());
+            if (val) {
+                val(cnnNetwork);
+            }
+            res = compile_model_impl(cnnNetwork, plugin, parsed._config, nullptr, cacheContent);
+        }
+        return {res._ptr, res._so};
+    }
+
+    ie::SoExecutableNetworkInternal LoadNetwork(const std::string& modelStr,
+                                                const ie::Blob::CPtr& weights,
+                                                const std::string& deviceName,
+                                                const std::map<std::string, std::string>& config,
+                                                const std::function<void(const CNNNetwork&)>& val = nullptr) override {
+        OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::LoadNetwork::Memory");
+        auto parsed = parseDeviceNameIntoConfig(deviceName, config);
+        auto plugin = GetCPPPluginByName(parsed._deviceName);
+        ov::SoPtr<ie::IExecutableNetworkInternal> res;
+
+        auto cacheManager =
+            coreConfig.getCacheConfigForDevice(parsed._deviceName, DeviceSupportsCacheDir(plugin), parsed._config)
+                ._cacheManager;
+        auto cacheContent = CacheContent{cacheManager};
+        if (cacheManager && DeviceSupportsImportExport(plugin)) {
+            bool loadedFromCache = false;
+            cacheContent.blobId = CalculateMemoryHash(modelStr, weights, parsed._deviceName, plugin, parsed._config);
+            std::cout << "Calculate cacheContent.blobId = " << cacheContent.blobId.c_str() << std::endl;
+            auto lock = cacheGuard.getHashLock(cacheContent.blobId);
+            res = LoadNetworkFromCache(cacheContent, plugin, parsed._config, nullptr, loadedFromCache);
+            if (!loadedFromCache) {
+                auto cnnNetwork = ReadNetwork(modelStr, weights);
+                if (val) {
+                    val(cnnNetwork);
+                }
+                res = compile_model_impl(cnnNetwork, plugin, parsed._config, nullptr, cacheContent);
+            }
+        } else {
+            auto cnnNetwork = ReadNetwork(modelStr, weights);
             if (val) {
                 val(cnnNetwork);
             }
@@ -2018,12 +2063,7 @@ CompiledModel Core::compile_model(const std::string& model,
         blob = weights._impl;
     }
     OV_CORE_CALL_STATEMENT({
-        auto _model = _impl->ReadNetwork(model, blob);
-        if (config.find(ov::cache_dir.name()) == config.end()) {
-            const std::string default_dir = "./";
-            _impl->SetCacheDirIfPossible(deviceName, default_dir);
-        }
-        auto exec = _impl->LoadNetwork(_model, deviceName, any_copy(flatten_sub_properties(deviceName, config)));
+        auto exec = _impl->LoadNetwork(model, blob, deviceName, any_copy(flatten_sub_properties(deviceName, config)));
         return {exec._ptr, exec._so};
     });
 }

@@ -140,6 +140,27 @@ std::string NetworkCompilationContext::computeHash(const std::string& modelName,
     return std::to_string(seed);
 }
 
+std::string NetworkCompilationContext::computeHash(const std::string& modelStr,
+                                                   const char* dataPtr,
+                                                   const size_t dataCount,
+                                                   const std::map<std::string, std::string>& compileOptions) {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::computeHash - Model Memory");
+    uint64_t seed = 0;
+    // model string
+    seed = hash_combine(seed, modelStr);
+    // model weights data
+    if (dataPtr && dataCount > 0) {
+        for (size_t i = 0; i < dataCount; i++) {
+            seed = hash_combine(seed, dataPtr[i]);
+        }
+    }
+    // compile options
+    for (const auto& kvp : compileOptions) {
+        seed = hash_combine(seed, kvp.first + kvp.second);
+    }
+    return std::to_string(seed);
+}
+
 //////////////////////////////////////////////////
 
 CompiledBlobHeader::CompiledBlobHeader() {}
