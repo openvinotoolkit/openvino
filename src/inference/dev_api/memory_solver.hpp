@@ -81,7 +81,7 @@ public:
 
         // remove unused timestamps (not a begin of some box)
         // each ts should start a box
-        std::vector<bool> ts_exist(max_ts + 1);
+        std::vector<bool> ts_exist((size_t)max_ts + 1);
         for (const Box& b : boxes)
             ts_exist[b.start] = true;
 
@@ -210,7 +210,7 @@ private:
             depth += box.size;
             top_depth++;
 
-            release_at[box.finish + 1].push_back(&box);
+            release_at[(size_t)box.finish + 1].push_back(&box);
 
             for (const Box* b : release_at[time]) {
                 depth -= b->size;
