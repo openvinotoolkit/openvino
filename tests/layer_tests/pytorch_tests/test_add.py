@@ -9,12 +9,12 @@ import torch
 
 @pytest.mark.parametrize('alpha', (-0.5, 0, 0.5, 1, 2))
 @pytest.mark.parametrize('input_rhs', (np.random.randn(2, 5, 3, 4).astype(np.float32),
-                                       np.random.randn(1, 5, 3, 4).astype(np.float64),
-                                       np.random.randn(1).astype(np.int32)))
+                                       np.random.randn(1, 5, 3, 4).astype(np.float32),
+                                       np.random.randn(1).astype(np.float32)))
 class TestAdd(PytorchLayerTest):
 
     def _prepare_input(self):
-        return (np.random.randn(2, 5, 3, 4), self.input_rhs)
+        return (np.random.randn(2, 5, 3, 4).astype(np.float32), self.input_rhs)
 
     def create_model(self, alpha):
         class aten_add(torch.nn.Module):
@@ -24,8 +24,7 @@ class TestAdd(PytorchLayerTest):
                 self.alpha = alpha
 
             def forward(self, lhs, rhs):
-
-                return torch.add(lhs, rhs, self.alpha)
+                return torch.add(lhs, rhs, alpha=self.alpha)
 
         ref_net = None
 
