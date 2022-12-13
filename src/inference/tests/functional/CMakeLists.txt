@@ -4,20 +4,6 @@
 
 set(TARGET_NAME ov_inference_functional_tests)
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    ie_add_compiler_flags(/wd4244)
-    ie_add_compiler_flags(/wd4267)
-    ie_add_compiler_flags(/wd4305)
-    ie_add_compiler_flags(/wd4018)
-    ie_add_compiler_flags(/wd4050)
-    ie_add_compiler_flags(/wd4250)
-    ie_add_compiler_flags(/wd4334)
-    ie_add_compiler_flags(/wd4661)
-    ie_add_compiler_flags(/wd4273)
-    ie_add_compiler_flags(/wd4309)
-    ie_add_compiler_flags(/wd4804)
-endif()
-
 set(DEPENDENCIES
     mock_engine
     template_extension
