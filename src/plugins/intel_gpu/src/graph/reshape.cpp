@@ -32,6 +32,7 @@ layout reshape_inst::calc_output_layout(reshape_node const& node, kernel_impl_pa
 
     auto sizes = desc->output_shape.sizes();
     auto input_sizes = input_layout.get_tensor().sizes();
+    auto dims = format::dimension(input_layout.format);
     size_t need_recalc = 0;
     uint32_t shape_count = 1;
 
@@ -50,6 +51,13 @@ layout reshape_inst::calc_output_layout(reshape_node const& node, kernel_impl_pa
     }
     if (need_recalc)
         sizes[need_recalc] = static_cast<int>(input_layout.count()) / shape_count;
+
+    // Fix error when input format dims is reduced during reshape_handle
+    // Keep size info which is outside of new input format dimension
+    if ((sizes[dims] != 1) && (sizes[dims - 1] == 1)) {
+        sizes[dims - 1] = sizes[dims];
+        sizes[dims] = 1;
+    }
 
     return layout{input_layout.data_type, input_layout.format, tensor(sizes)};
 }
