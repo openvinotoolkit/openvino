@@ -79,12 +79,12 @@ bool evaluate_mod(const ov::Tensor& arg0,
 }  // namespace mod_op
 
 bool op::v1::Mod::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v1_Mod_evaluate);
+    OV_OP_SCOPE(v1_Mod_evaluate);
     return mod_op::evaluate_mod(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
 bool op::v1::Mod::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v1_Mod_has_evaluate);
+    OV_OP_SCOPE(v1_Mod_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i8:
     case ngraph::element::i16:
