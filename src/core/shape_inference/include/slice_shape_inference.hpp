@@ -34,12 +34,13 @@ void shape_infer(const Slice* op,
     const auto& input_shape = input_shapes[0];
     const auto& input_rank = input_shape.rank();
 
-    std::accumulate(input_shapes.begin() + 1, input_shapes.end(), 0, [&op, &input_rank](int i, const T& shape) -> int {
+    for (size_t i = 1; i < input_shapes.size(); ++i) {
+        const auto& shape = input_shapes[i];
         const auto& shape_rank = shape.rank();
         NODE_VALIDATION_CHECK(op,
                               shape_rank.compatible(1),
                               "Slice `",
-                              shape_names[i],
+                              shape_names[i - 1],
                               "` input must be a 1D tensor. Got rank: ",
                               shape_rank);
 
@@ -47,11 +48,10 @@ void shape_infer(const Slice* op,
             NODE_VALIDATION_CHECK(op,
                                   shape_rank.is_dynamic() || shape[0].get_min_length() <= input_rank.get_length(),
                                   "Slice `",
-                                  shape_names[i],
+                                  shape_names[i - 1],
                                   "` input dim size can't be bigger than `data` rank.");
         }
-        return ++i;
-    });
+    }
 
     const auto& start_shape = input_shapes[1];
     const auto& stop_shape = input_shapes[2];
@@ -100,7 +100,7 @@ void shape_infer(const Slice* op,
 
     std::vector<DimType> dims;
     dims.reserve(input_shape.rank().get_length());
-    for (size_t dim_idx = 0; dim_idx < input_shape.rank().get_length(); ++dim_idx) {
+    for (size_t dim_idx = 0; dim_idx < static_cast<size_t>(input_shape.rank().get_length()); ++dim_idx) {
         const DimType& input_dim = input_shape[dim_idx];
 
         const auto axis_it = std::find(axes.begin(), axes.end(), dim_idx);

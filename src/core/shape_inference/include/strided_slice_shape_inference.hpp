@@ -27,24 +27,23 @@ void shape_infer(const StridedSlice* op,
 
     const auto& input_shape = input_shapes[0];
 
-    std::accumulate(input_shapes.begin() + 1, input_shapes.end(), 0, [&op](int i, const T& shape) -> int {
-        const auto capitalize = [](std::string s) -> std::string {
-            if (!s.empty()) {
-                s.front() = std::toupper(s.front());
-            }
-            return std::move(s);
-        };
+    const auto capitalize = [](std::string s) -> std::string {
+        if (!s.empty()) {
+            s.front() = std::toupper(s.front());
+        }
+        return std::move(s);
+    };
 
-        const auto& shape_rank = shape.rank();
+    for (size_t i = 1; i < input_shapes.size(); ++i) {
+        const auto& shape_rank = input_shapes[i].rank();
         NODE_VALIDATION_CHECK(op,
                               shape_rank.compatible(1),
-                              capitalize(shape_names[i]),
+                              capitalize(shape_names[i - 1]),
                               " input must be 1D (",
-                              shape_names[i],
+                              shape_names[i - 1],
                               " rank: ",
                               shape_rank);
-        return ++i;
-    });
+    }
 
     const auto& begin_shape = input_shapes[1];
     const auto& end_shape = input_shapes[2];
