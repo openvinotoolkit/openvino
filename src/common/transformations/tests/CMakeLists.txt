@@ -36,7 +36,6 @@ ov_add_test_target(
         lptNgraphFunctions
     INCLUDES
         $<TARGET_PROPERTY:inference_engine_obj,SOURCE_DIR>/src
-    ADD_CPPLINT
     LABELS
         TRANSFORMATIONS
 )
