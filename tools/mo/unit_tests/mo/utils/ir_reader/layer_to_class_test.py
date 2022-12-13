@@ -139,7 +139,7 @@ class TestFunction(unittest.TestCase):
             'input_data': {'shape': [2, 1, 3], 'kind': 'data'},
 
             'axis': {'kind': 'op', 'type': 'Const', 'value': np.array(1)},
-            'axis_data': {'shape': [], 'kind': 'data'},
+            'axis_data': {'shape': [], 'kind': 'data', 'value': np.array(1)},
 
             'squeeze': {'kind': 'op', 'type': 'Squeeze'},
             'squeeze_data': {'shape': [2, 3], 'kind': 'data'},
@@ -172,7 +172,7 @@ class TestFunction(unittest.TestCase):
             'input_data': {'shape': [2, 3], 'kind': 'data'},
 
             'axis': {'kind': 'op', 'type': 'Const', 'value': np.array(1)},
-            'axis_data': {'shape': [], 'kind': 'data'},
+            'axis_data': {'shape': [], 'kind': 'data', 'value': np.array(1)},
 
             'unsqueeze': {'kind': 'op', 'type': 'Unsqueeze'},
             'unsqueeze_data': {'shape': [2, 1, 3], 'kind': 'data'},
