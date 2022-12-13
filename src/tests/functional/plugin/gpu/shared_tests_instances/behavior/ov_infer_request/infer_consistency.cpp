@@ -73,6 +73,22 @@ std::vector<Configs> AutoConfigs = {
             {ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)}
         },
         {CommonTestUtils::DEVICE_CPU, {}},  {CommonTestUtils::DEVICE_GPU, {}}
+    },
+    {
+        {
+            CommonTestUtils::DEVICE_AUTO + std::string(":") + CommonTestUtils::DEVICE_GPU +
+            "," + CommonTestUtils::DEVICE_CPU,
+            {ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT), ov::intel_auto::device_bind_buffer(true)}
+        },
+        {CommonTestUtils::DEVICE_GPU, {}},  {CommonTestUtils::DEVICE_CPU, {}}
+    },
+    {
+        {
+            CommonTestUtils::DEVICE_AUTO + std::string(":") + CommonTestUtils::DEVICE_CPU +
+            "," + CommonTestUtils::DEVICE_GPU,
+            {ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT), ov::intel_auto::device_bind_buffer(true)}
+        },
+        {CommonTestUtils::DEVICE_CPU, {}},  {CommonTestUtils::DEVICE_GPU, {}}
     }
 };
 
@@ -109,7 +125,35 @@ std::vector<Configs> MultiConfigs = {
     }
 };
 
+std::vector<Configs> MultiBindConfigs = {
+    {
+        {
+            CommonTestUtils::DEVICE_MULTI + std::string(":") + CommonTestUtils::DEVICE_GPU +
+            "," + CommonTestUtils::DEVICE_CPU,
+            {ov::intel_auto::device_bind_buffer(true)}
+        },
+        {CommonTestUtils::DEVICE_GPU, {}},  {CommonTestUtils::DEVICE_CPU, {}}
+    }
+};
 
+std::vector<Configs> AutoBindConfigs = {
+    {
+        {
+            CommonTestUtils::DEVICE_AUTO + std::string(":") + CommonTestUtils::DEVICE_GPU +
+            "," + CommonTestUtils::DEVICE_CPU,
+            {ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT), ov::intel_auto::device_bind_buffer(true)}
+        },
+        {CommonTestUtils::DEVICE_GPU, {}},  {CommonTestUtils::DEVICE_CPU, {}}
+    },
+    {
+        {
+            CommonTestUtils::DEVICE_AUTO + std::string(":") + CommonTestUtils::DEVICE_CPU +
+            "," + CommonTestUtils::DEVICE_GPU,
+            {ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT), ov::intel_auto::device_bind_buffer(true)}
+        },
+        {CommonTestUtils::DEVICE_CPU, {}},  {CommonTestUtils::DEVICE_GPU, {}}
+    }
+};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferConsistencyTest,
     ::testing::Combine(
@@ -131,4 +175,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferConsistencyTest,
         ::testing::Values(50),// infer counts
         ::testing::ValuesIn(MultiConfigs)),
     OVInferConsistencyTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_Bind_BehaviorTests, OVInferConsistencyTest,
+    ::testing::Combine(
+        ::testing::Values(0),// inferRequest num, will use optimal request number if set 0
+        ::testing::Values(100),// infer counts
+        ::testing::ValuesIn(AutoBindConfigs)),
+    OVInferConsistencyTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_Bind_BehaviorTests, OVInferConsistencyTest,
+    ::testing::Combine(
+        ::testing::Values(0),// inferRequest num, will use optimal request number if set 0
+        ::testing::Values(100),// infer counts
+        ::testing::ValuesIn(MultiBindConfigs)),
+    OVInferConsistencyTest::getTestCaseName);
+
 }  // namespace

@@ -34,11 +34,16 @@ const std::vector<ov::AnyMap> configs = {
 };
 
 const std::vector<ov::AnyMap> Multiconfigs = {
-        {ov::device::priorities(CommonTestUtils::DEVICE_GPU)}
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU)},
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU), ov::intel_auto::device_bind_buffer(false)},
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU), ov::intel_auto::device_bind_buffer(true)},
 };
 
 const std::vector<ov::AnyMap> Autoconfigs = {
-        {ov::device::priorities(CommonTestUtils::DEVICE_GPU)}
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU)},
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU),
+            ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT),
+            ov::intel_auto::device_bind_buffer(true)}
 };
 
 const std::vector<ov::AnyMap> AutoBatchConfigs = {
