@@ -41,8 +41,12 @@ bool FoldFakeQuantizeTransformation::transform(TransformationContext& context, n
     if (fakeQuantize) {
         std::shared_ptr<Node> constOutputSrc = getConstOutput(fakeQuantize);
         if (constOutputSrc) {
-            // since outputLow & outputHigh are same constant, the output
-            // can be built by broadcasting the outputLow/outputHigh
+            //    y = FakeQuantize(x, inputLow, inputHigh, outputLow, outputHigh)
+            // given:
+            //    outputLow is const
+            //    outputHigh is const
+            //    outputLow == outputHigh
+            // => y = Broadcast(Convert(outputLow, typeof(y))), ShapeOf(x))
             auto dst_element_type = fakeQuantize->get_output_element_type(0);
             const auto data_shape_node = std::make_shared<opset1::ShapeOf>(fakeQuantize->input_value(0));
             if (constOutputSrc->get_output_element_type(0) != dst_element_type) {
@@ -72,7 +76,8 @@ bool FoldFakeQuantizeTransformation::transform(TransformationContext& context, n
         }
     }
 
-
+    //    y = Multiply(x, [0,0,....,0])
+    // => y = Broadcast(Constant(0, typeof(y))), ShapeOf(x))
     const auto dequantMultiply = ov::as_type_ptr<opset1::Multiply>(m.get_match_root());
     if (dequantMultiply) {
         auto multiplyInputs = dequantMultiply->input_values();
