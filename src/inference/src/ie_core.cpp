@@ -112,9 +112,10 @@ ov::util::FilePath getPluginPath(const std::string& pluginName) {
     // 3. libexample.so path relative to working directory
     // 4. example library name - will be searched in library directory
 
-    // For 4th case - try to find in install directory
+    // For 4th case - try to find in library directory
     if (!ov::util::ends_with(pluginName, ov::util::FileTraits<char>::library_ext())) {
         auto libName = FileUtils::makePluginLibraryName({}, pluginName);
+        // TODO: search as 3rd case, don't force user to put libs in library directory
         return getFilePathFromLibDir(libName);
     }
 
