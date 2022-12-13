@@ -1123,7 +1123,7 @@ std::string GNAPluginNS::GNAPlugin::effectiveGnaCompileTarget() const {
     } else if (!config.gnaCompileTarget.empty()) {
         return config.gnaCompileTarget;
     }
-    return common::kGnaTarget3_0;
+    return common::kGnaDefaultTarget;
 }
 
 std::shared_ptr<request::Worker> GNAPlugin::createWorkerForLoadNetwork(bool trivial, bool fp32Mode) {

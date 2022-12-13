@@ -223,21 +223,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_GnaConv2DNegativeTestInvalid##whats_wrong, GnaCon
     ::testing::Values(CommonTestUtils::DEVICE_GNA)),                                                            \
     GnaConv2DNegativeTest##whats_wrong::getTestCaseName);
 
-constexpr auto g3 = ov::intel_gna::HWGeneration::GNA_3_0;
-constexpr auto g35 = ov::intel_gna::HWGeneration::GNA_3_5;
+constexpr auto GNA_3_0 = ov::intel_gna::HWGeneration::GNA_3_0;
+constexpr auto GNA_3_5 = ov::intel_gna::HWGeneration::GNA_3_5;
 
-GNA_NEG_INSTANTIATE(FilterNumber, InvalidFilterNumber, Fine, "Unsupported number of kernels", g3)
-GNA_NEG_INSTANTIATE(Kernel, InvalidKernel, Fine, "Unsupported kernel shape", g3)
-GNA_NEG_INSTANTIATE(BigKernelFor56InC, InvalidKernelFor56InC, WithInC56, "Unsupported kernel shape", g3)
-GNA_NEG_INSTANTIATE(BigKernelFor120InC, InvalidKernelFor120InC, WithInC120, "Unsupported kernel shape", g3)
-GNA_NEG_INSTANTIATE(InputH, Fine, InvalidInputH, "Unsupported input height", g3)
-GNA_NEG_INSTANTIATE(InputW, Fine, InvalidInputW, "Unsupported input width", g3)
-GNA_NEG_INSTANTIATE(InputC, Fine, InvalidInputC, "Unsupported number of input channels", g3)
-GNA_NEG_INSTANTIATE(Padding, InvalidPadding, Fine, "Unsupported convolution input padding", g3)
-GNA_NEG_INSTANTIATE(Stride, InvalidStride, Fine, "Unsupported convolution stride shape", g3)
-GNA_NEG_INSTANTIATE(Dilation, InvalidDilation, Fine, "dilation is not supported on GNA", g3)
-GNA_NEG_INSTANTIATE(Dilation35, InvalidDilation, Fine, "dilation is not supported on GNA", g35)
-GNA_NEG_INSTANTIATE(PaddingSize, InvalidPaddingSize, Fine, "Unsupported convolution input padding", g3)
-GNA_NEG_INSTANTIATE(PaddingSize35, InvalidPaddingSize, Fine, "Unsupported convolution input padding", g35)
+GNA_NEG_INSTANTIATE(FilterNumber, InvalidFilterNumber, Fine, "Unsupported number of kernels", GNA_3_0)
+GNA_NEG_INSTANTIATE(Kernel, InvalidKernel, Fine, "Unsupported kernel shape", GNA_3_0)
+GNA_NEG_INSTANTIATE(BigKernelFor56InC, InvalidKernelFor56InC, WithInC56, "Unsupported kernel shape", GNA_3_0)
+GNA_NEG_INSTANTIATE(BigKernelFor120InC, InvalidKernelFor120InC, WithInC120, "Unsupported kernel shape", GNA_3_0)
+GNA_NEG_INSTANTIATE(InputH, Fine, InvalidInputH, "Unsupported input height", GNA_3_0)
+GNA_NEG_INSTANTIATE(InputW, Fine, InvalidInputW, "Unsupported input width", GNA_3_0)
+GNA_NEG_INSTANTIATE(InputC, Fine, InvalidInputC, "Unsupported number of input channels", GNA_3_0)
+GNA_NEG_INSTANTIATE(Padding, InvalidPadding, Fine, "Unsupported convolution input padding", GNA_3_0)
+GNA_NEG_INSTANTIATE(Stride, InvalidStride, Fine, "Unsupported convolution stride shape", GNA_3_0)
+GNA_NEG_INSTANTIATE(Dilation, InvalidDilation, Fine, "dilation is not supported on GNA", GNA_3_0)
+GNA_NEG_INSTANTIATE(Dilation35, InvalidDilation, Fine, "dilation is not supported on GNA", GNA_3_5)
+GNA_NEG_INSTANTIATE(PaddingSize, InvalidPaddingSize, Fine, "Unsupported convolution input padding", GNA_3_0)
+GNA_NEG_INSTANTIATE(PaddingSize35, InvalidPaddingSize, Fine, "Unsupported convolution input padding", GNA_3_5)
 
 }  // namespace

@@ -66,15 +66,15 @@ inline bool IsTransposeSupported(const std::vector<size_t>& shape) {
 }
 
 namespace Cnn2D {
-struct EqualLimit {
-    uint32_t expected_value;
+struct IsEqualToLimit {
+    uint32_t compared_value;
     std::string what;
     bool isValid(const uint32_t val) const;
     std::string GetErrorOrEmpty(const uint32_t val) const;
 };
 
 struct LessLimit {
-    uint32_t greater;
+    uint32_t compared_value;
     std::string what;
     bool isValid(const uint32_t val) const;
     std::string GetErrorOrEmpty(const uint32_t val) const;

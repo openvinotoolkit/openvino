@@ -21,26 +21,27 @@ namespace GNAPluginNS {
 namespace GNALimitations {
 namespace Cnn2D {
 
-bool EqualLimit::isValid(const uint32_t val) const {
-    return val == expected_value;
+bool IsEqualToLimit::isValid(const uint32_t val) const {
+    return val == compared_value;
 }
 
-std::string EqualLimit::GetErrorOrEmpty(const uint32_t val) const {
+std::string IsEqualToLimit::GetErrorOrEmpty(const uint32_t val) const {
     std::ostringstream out;
     if (!isValid(val)) {
-        out << "Unsupported " << what << ", actual value: " << val << ", should be equal to [" << expected_value << "]\n";
+        out << "Unsupported " << what << ", actual value: " << val << ", but should be equal to " << compared_value
+            << "\n";
     }
     return out.str();
 }
 
 bool LessLimit::isValid(const uint32_t val) const {
-    return val < greater;
+    return val < compared_value;
 }
 
 std::string LessLimit::GetErrorOrEmpty(const uint32_t val) const {
     std::ostringstream out;
     if (!isValid(val)) {
-        out << "Unsupported " << what << ", actual value: " << val << ", should be less than [" << greater << "]\n";
+        out << "Unsupported " << what << ", actual value: " << val << ", but should be less than " << compared_value << "\n";
     }
     return out.str();
 }
@@ -208,7 +209,7 @@ bool Validator_30::ValidateInputPadding(const std::string& name,
     const uint32_t,
     const uint32_t,
     const bool throwOnError) const {
-    const EqualLimit padding_zero{0, "convolution input padding must be zero"};
+    const IsEqualToLimit padding_zero{0, "convolution input padding size (must equal zero)"};
     auto error = padding_zero.GetErrorOrEmpty(pad_h_begin);
     error += padding_zero.GetErrorOrEmpty(pad_h_end);
     error += padding_zero.GetErrorOrEmpty(pad_w_begin);
@@ -306,8 +307,8 @@ bool Validator_35::ValidateInputPadding(const std::string& name,
     const uint32_t kernel_h,
     const uint32_t kernel_w,
     const bool throwOnError) const {
-    const EqualLimit padding_h_symetric{pad_h_end, "convolution input padding along height axis must be symmetric"};
-    const EqualLimit padding_w_symetric{pad_w_end, "convolution input padding along width axis must be symmetric"};
+    const IsEqualToLimit padding_h_symetric{pad_h_end, "convolution input padding along height axis (must be symmetric)"};
+    const IsEqualToLimit padding_w_symetric{pad_w_end, "convolution input padding along width axis (must be symmetric)"};
 
     const LessLimit padding_h_limit{kernel_h, "convolution input padding height (must be less than kernel height)"};
     const LessLimit padding_w_limit{kernel_w, "convolution input padding width (must be less than kernel width)"};
