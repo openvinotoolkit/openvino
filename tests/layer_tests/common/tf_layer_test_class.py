@@ -1,6 +1,5 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-
 import os
 
 from common.layer_test_class import CommonLayerTest
@@ -39,9 +38,31 @@ def save_to_pb(tf_model, path_to_saved_tf_model):
     return os.path.join(path_to_saved_tf_model, 'model.pb')
 
 
+def save_pb_to_tflite(pb_model):
+    import tensorflow as tf
+    from pathlib import Path
+
+    graph_summary = summarize_graph(pb_model)
+    inputs = [k for k in graph_summary['inputs'].keys()]
+    outputs = graph_summary['outputs']
+
+    converter = tf.compat.v1.lite.TFLiteConverter.from_frozen_graph(pb_model, inputs, outputs)
+    tflite_model = converter.convert()
+
+    tflite_model_path = Path(pb_model).parent / 'model.tflite'
+    with tf.io.gfile.GFile(tflite_model_path, 'wb') as f:
+        f.write(tflite_model)
+
+    return tflite_model_path
+
+
 class CommonTFLayerTest(CommonLayerTest):
     def produce_model_path(self, framework_model, save_path):
-        return save_to_pb(framework_model, save_path)
+        if not getattr(self, 'tflite', False):
+            return save_to_pb(framework_model, save_path)
+        else:
+            pb_model = save_to_pb(framework_model, save_path)
+            return save_pb_to_tflite(pb_model)
 
     def get_framework_results(self, inputs_dict, model_path):
         # Evaluate model via Tensorflow and IE
