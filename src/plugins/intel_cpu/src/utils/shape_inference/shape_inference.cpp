@@ -10,6 +10,7 @@
 #include <openvino/opsets/opset6.hpp>
 #include <openvino/opsets/opset7.hpp>
 #include <openvino/opsets/opset8.hpp>
+#include <openvino/opsets/opset9.hpp>
 
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
@@ -46,12 +47,14 @@
 #include "gru_sequence_shape_inference.hpp"
 #include "gru_cell_shape_inference.hpp"
 #include "interpolate_shape_inference.hpp"
+#include "irdft_shape_inference.hpp"
 #include "lstm_cell_shape_inference.hpp"
 #include "matmul_shape_inference.hpp"
 #include "one_hot_shape_inference.hpp"
 #include "pad_shape_inference.hpp"
 #include "proposal_shape_inference.hpp"
 #include "range_shape_inference.hpp"
+#include "rdft_shape_inference.hpp"
 #include "read_value_shape_inference.hpp"
 #include "reduce_shape_inference.hpp"
 #include "region_yolo_shape_inference.hpp"
@@ -517,6 +520,10 @@ std::shared_ptr<IShapeInferCommon> make_shape_inference(const std::shared_ptr<ng
     } else if (auto node = ov::as_type_ptr<ov::opset7::DFT>(op)) {
         return make_shared_entryIOC(node);
     } else if (auto node = ov::as_type_ptr<ov::opset7::IDFT>(op)) {
+        return make_shared_entryIOC(node);
+    } else if (auto node = ov::as_type_ptr<ov::opset9::RDFT>(op)) {
+        return make_shared_entryIOC(node);
+    } else if (auto node = ov::as_type_ptr<ov::opset9::IRDFT>(op)) {
         return make_shared_entryIOC(node);
     } else if (auto node = ov::as_type_ptr<ov::opset6::CTCGreedyDecoderSeqLen>(op)) {
         return make_shared_entryIO(node);

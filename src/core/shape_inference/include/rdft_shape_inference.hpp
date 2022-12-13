@@ -10,7 +10,7 @@
 
 namespace ov {
 namespace op {
-namespace util {
+namespace v9 {
 template <typename B>
 B get_ouput_dimension_bound(B b) {
     if (b <= 0) {
@@ -25,10 +25,10 @@ DimType get_rdft_output_dimension(DimType d) {
 }
 
 template <class T>
-void rdft_shape_infer(const ov::op::v9::RDFT* op,
-                      const std::vector<T>& input_shapes,
-                      std::vector<T>& output_shapes,
-                      const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
+void shape_infer(const ov::op::v9::RDFT* op,
+                 const std::vector<T>& input_shapes,
+                 std::vector<T>& output_shapes,
+                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
     using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 2 || input_shapes.size() == 3) && output_shapes.size() == 1);
 
@@ -38,11 +38,11 @@ void rdft_shape_infer(const ov::op::v9::RDFT* op,
     std::vector<int64_t> axes;
     bool axes_are_known = get_data_as_int64<T>(1, op, axes, constant_data);
 
-    rfft_common_validation::shape_validation(op,
-                                             input_shapes,
-                                             axes,
-                                             axes_are_known,
-                                             rfft_common_validation::RFFTKind::Forward);
+    util::rfft_common_validation::shape_validation(op,
+                                                   input_shapes,
+                                                   axes,
+                                                   axes_are_known,
+                                                   util::rfft_common_validation::RFFTKind::Forward);
 
     if (input_shape.rank().is_dynamic()) {
         output_shape = ov::PartialShape::dynamic();
@@ -86,6 +86,6 @@ void rdft_shape_infer(const ov::op::v9::RDFT* op,
     }
     output_shape[last_axis] = get_rdft_output_dimension(output_shape[last_axis]);
 }
-}  // namespace util
+}  // namespace v9
 }  // namespace op
 }  // namespace ov

@@ -10,12 +10,12 @@
 
 namespace ov {
 namespace op {
-namespace util {
+namespace v9 {
 template <class T>
-void irdft_shape_infer(const ov::op::v9::IRDFT* op,
-                       const std::vector<T>& input_shapes,
-                       std::vector<T>& output_shapes,
-                       const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
+void shape_infer(const ov::op::v9::IRDFT* op,
+                 const std::vector<T>& input_shapes,
+                 std::vector<T>& output_shapes,
+                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
     using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 2 || input_shapes.size() == 3) && output_shapes.size() == 1);
 
@@ -25,11 +25,11 @@ void irdft_shape_infer(const ov::op::v9::IRDFT* op,
     std::vector<int64_t> axes;
     bool axes_are_known = get_data_as_int64<T>(1, op, axes, constant_data);
 
-    rfft_common_validation::shape_validation(op,
-                                             input_shapes,
-                                             axes,
-                                             axes_are_known,
-                                             rfft_common_validation::RFFTKind::Inverse);
+    util::rfft_common_validation::shape_validation(op,
+                                                   input_shapes,
+                                                   axes,
+                                                   axes_are_known,
+                                                   util::rfft_common_validation::RFFTKind::Inverse);
 
     if (input_shape.rank().is_dynamic()) {
         output_shape = ov::PartialShape::dynamic();
@@ -74,6 +74,6 @@ void irdft_shape_infer(const ov::op::v9::IRDFT* op,
         output_shape[last_axis] = DimType(2) * (input_shape[last_axis] - DimType(1));
     }
 }
-}  // namespace util
+}  // namespace v9
 }  // namespace op
 }  // namespace ov
