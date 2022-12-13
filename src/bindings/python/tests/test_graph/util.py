@@ -8,9 +8,9 @@ import numpy as np
 import openvino.runtime as ov
 
 
-def type_to_ovtype(type):
-    if isinstance(type, ov.Type):
-        return type
+def type_to_ovtype(general_type):
+    if isinstance(general_type, ov.Type):
+        return general_type
     types_map = {
         np.float32: ov.Type.f32,
         np.float64: ov.Type.f64,

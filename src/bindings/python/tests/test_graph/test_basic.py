@@ -86,7 +86,7 @@ def test_graph_function_api():
         Type.u64,
     ],
 )
-def test_simple_computation_on_ndarrays(dtype):
+def test_simple_model_on_parameters(dtype):
     shape = [2, 2]
     parameter_a = ops.parameter(shape, dtype=dtype, name="A")
     parameter_b = ops.parameter(shape, dtype=dtype, name="B")
@@ -96,26 +96,6 @@ def test_simple_computation_on_ndarrays(dtype):
     assert model.get_output_size() == 1
     assert model.get_output_element_type(0) == type_to_ovtype(dtype)
     assert list(model.get_output_shape(0)) == [2, 2]
-
-
-def test_serialization():
-    dtype = np.float32
-    shape = [2, 2]
-    parameter_a = ops.parameter(shape, dtype=dtype, name="A")
-    parameter_b = ops.parameter(shape, dtype=dtype, name="B")
-    parameter_c = ops.parameter(shape, dtype=dtype, name="C")
-    model = (parameter_a + parameter_b) * parameter_c
-
-    runtime = get_runtime()
-    computation = runtime.computation(model, parameter_a, parameter_b, parameter_c)
-    try:
-        serialized = computation.serialize(2)
-        serial_json = json.loads(serialized)
-
-        assert serial_json[0]["name"] != ""
-        assert 10 == len(serial_json[0]["ops"])
-    except Exception:
-        pass
 
 
 def test_broadcast_1():
@@ -158,8 +138,8 @@ def test_convert_to_bool(destination_type, input_data):
     node = ops.convert(input_data, destination_type)
     assert node.get_type_name() == "Convert"
     assert node.get_output_size() == 1
-    assert node.get_output_element_type(0) == destination_type
-    assert list(node.get_output_shape(0)) == [3, 3]
+    assert node.get_output_element_type(0) == Type.boolean
+    assert list(node.get_output_shape(0)) == [2, 2]
 
 
 @pytest.mark.parametrize(
@@ -271,41 +251,37 @@ def test_constant_get_data_unsigned_integer(data_type):
 
 
 def test_set_argument():
-    runtime = get_runtime()
-
     data1 = np.array([1, 2, 3])
     data2 = np.array([4, 5, 6])
     data3 = np.array([7, 8, 9])
 
     node1 = ops.constant(data1, dtype=np.float32)
     node2 = ops.constant(data2, dtype=np.float32)
-    node3 = ops.constant(data3, dtype=np.float32)
+    node3 = ops.constant(data3, dtype=np.float64)
+    node4 = ops.constant(data3, dtype=np.float64)
     node_add = ops.add(node1, node2)
 
     # Original arguments
-    computation = runtime.computation(node_add)
-    output = computation()
-    assert np.allclose(data1 + data2, output)
-
-    # Arguments changed by set_argument
-    node_add.set_argument(1, node3.output(0))
-    output = computation()
-    assert np.allclose(data1 + data3, output)
+    node_inputs = node_add.inputs()
+    assert node_inputs[0].get_element_type() == Type.f32
+    assert node_inputs[1].get_element_type() == Type.f32
 
     # Arguments changed by set_argument
     node_add.set_argument(0, node3.output(0))
-    output = computation()
-    assert np.allclose(data3 + data3, output)
+    node_add.set_argument(1, node4.output(0))
+    node_inputs = node_add.inputs()
+    assert node_inputs[0].get_element_type() == Type.f64
+    assert node_inputs[1].get_element_type() == Type.f64
 
     # Arguments changed by set_argument(OutputVector)
-    node_add.set_arguments([node2.output(0), node3.output(0)])
-    output = computation()
-    assert np.allclose(data2 + data3, output)
+    node_add.set_arguments([node1.output(0), node2.output(0)])
+    assert node_inputs[0].get_element_type() == Type.f32
+    assert node_inputs[1].get_element_type() == Type.f32
 
     # Arguments changed by set_arguments(NodeVector)
-    node_add.set_arguments([node1, node2])
-    output = computation()
-    assert np.allclose(data1 + data2, output)
+    node_add.set_arguments([node3, node4])
+    assert node_inputs[0].get_element_type() == Type.f64
+    assert node_inputs[1].get_element_type() == Type.f64
 
 
 def test_clone_model():

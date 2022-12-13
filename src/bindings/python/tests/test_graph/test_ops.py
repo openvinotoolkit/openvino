@@ -532,7 +532,9 @@ def test_max_pool_1d():
     assert model.get_type_name() == "MaxPool"
     assert model.get_output_size() == 2
     assert list(model.get_output_shape(0)) == [1, 1, 8]
+    assert list(model.get_output_shape(1)) == [1, 1, 8]
     assert model.get_output_element_type(0) == element_type
+    assert model.get_output_element_type(1) == Type.i32
 
 def test_max_pool_1d_with_strides():
     element_type = Type.f32
@@ -562,7 +564,9 @@ def test_max_pool_1d_with_strides():
     assert model.get_type_name() == "MaxPool"
     assert model.get_output_size() == 2
     assert list(model.get_output_shape(0)) == [1, 1, 4]
+    assert list(model.get_output_shape(1)) == [1, 1, 4]
     assert model.get_output_element_type(0) == element_type
+    assert model.get_output_element_type(1) == Type.i32
 
 def test_max_pool_2d():
     element_type = Type.f32
@@ -592,7 +596,9 @@ def test_max_pool_2d():
     assert model.get_type_name() == "MaxPool"
     assert model.get_output_size() == 2
     assert list(model.get_output_shape(0)) == [1, 1, 8, 8]
+    assert list(model.get_output_shape(1)) == [1, 1, 8, 8]
     assert model.get_output_element_type(0) == element_type
+    assert model.get_output_element_type(1) == Type.i32
 
 
 def test_max_pool_2d_with_strides():
@@ -622,7 +628,9 @@ def test_max_pool_2d_with_strides():
     assert model.get_type_name() == "MaxPool"
     assert model.get_output_size() == 2
     assert list(model.get_output_shape(0)) == [1, 1, 4, 4]
+    assert list(model.get_output_shape(1)) == [1, 1, 4, 4]
     assert model.get_output_element_type(0) == element_type
+    assert model.get_output_element_type(1) == Type.i32
 
 
 def convolution2d(

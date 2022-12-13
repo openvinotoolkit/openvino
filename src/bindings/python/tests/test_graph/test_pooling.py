@@ -138,9 +138,9 @@ def test_max_pool_kernel_shape1x1():
     assert node.get_type_name() == "MaxPool"
     assert node.get_output_size() == 2
     assert list(node.get_output_shape(0)) == [1, 1, 4, 4]
-    assert list(node.get_output_shape(0)) == [1, 1, 4, 4]
+    assert list(node.get_output_shape(1)) == [1, 1, 4, 4]
     assert node.get_output_element_type(0) == Type.f32
-    assert node.get_output_element_type(0) == Type.f32
+    assert node.get_output_element_type(1) == Type.i32
 
 
 def test_max_pool_kernel_shape3x3():
@@ -169,9 +169,9 @@ def test_max_pool_kernel_shape3x3():
     assert node.get_type_name() == "MaxPool"
     assert node.get_output_size() == 2
     assert list(node.get_output_shape(0)) == [1, 1, 2, 2]
-    assert list(node.get_output_shape(0)) == [1, 1, 2, 2]
+    assert list(node.get_output_shape(1)) == [1, 1, 2, 2]
     assert node.get_output_element_type(0) == Type.f32
-    assert node.get_output_element_type(0) == Type.f32
+    assert node.get_output_element_type(1) == Type.i32
 
 
 def test_max_pool_non_zero_pads():
@@ -200,9 +200,9 @@ def test_max_pool_non_zero_pads():
     assert node.get_type_name() == "MaxPool"
     assert node.get_output_size() == 2
     assert list(node.get_output_shape(0)) == [1, 1, 5, 5]
-    assert list(node.get_output_shape(0)) == [1, 1, 5, 5]
+    assert list(node.get_output_shape(1)) == [1, 1, 5, 5]
     assert node.get_output_element_type(0) == Type.f32
-    assert node.get_output_element_type(0) == Type.f32
+    assert node.get_output_element_type(1) == Type.i32
 
 
 def test_max_pool_same_upper_auto_pads():
@@ -231,9 +231,9 @@ def test_max_pool_same_upper_auto_pads():
     assert node.get_type_name() == "MaxPool"
     assert node.get_output_size() == 2
     assert list(node.get_output_shape(0)) == [1, 1, 4, 4]
-    assert list(node.get_output_shape(0)) == [1, 1, 4, 4]
+    assert list(node.get_output_shape(1)) == [1, 1, 4, 4]
     assert node.get_output_element_type(0) == Type.f32
-    assert node.get_output_element_type(0) == Type.f32
+    assert node.get_output_element_type(1) == Type.i32
 
 
 def test_max_pool_same_lower_auto_pads():
@@ -262,6 +262,6 @@ def test_max_pool_same_lower_auto_pads():
     assert node.get_type_name() == "MaxPool"
     assert node.get_output_size() == 2
     assert list(node.get_output_shape(0)) == [1, 1, 4, 4]
-    assert list(node.get_output_shape(0)) == [1, 1, 4, 4]
+    assert list(node.get_output_shape(1)) == [1, 1, 4, 4]
     assert node.get_output_element_type(0) == Type.f32
-    assert node.get_output_element_type(0) == Type.f32
+    assert node.get_output_element_type(1) == Type.i32
