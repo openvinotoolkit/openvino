@@ -111,8 +111,8 @@ build_samples.sh
 ```
 
 Once the build has been completed, sample binaries will be in the following folders:
-* C samples - `~/inference_engine_c_samples_build/intel64/Release`
-* C++ samples - `~/inference_engine_cpp_samples_build/intel64/Release`
+* C samples - `~/openvino_c_samples_build/intel64/Release`
+* C++ samples - `~/openvino_cpp_samples_build/intel64/Release`
 
 Also, sample applications can be built manually:
 
@@ -122,7 +122,7 @@ Also, sample applications can be built manually:
 ```sh
 mkdir build
 ```
-> **NOTE**: If you run the Image Classification verification script during the installation, the C++ samples build directory is created in your home directory - `~/inference_engine_cpp_samples_build/`.
+> **NOTE**: If you run the Image Classification verification script during the installation, the C++ samples build directory is created in your home directory - `~/openvino_cpp_samples_build/`
 
 2. Go to the newly created directory:
 ```sh
@@ -165,11 +165,11 @@ build_samples_msvc.bat
 By default, the script automatically detects the highest Microsoft Visual Studio version installed on the machine and uses it to create and build a solution for a sample code.
 
 Once the build has been completed, sample binaries will be in the following folders:
-* C samples - `C:\Users\<user>\Documents\Intel\OpenVINO\inference_engine_c_samples_build\intel64\Release`
-* C++ samples - `C:\Users\<user>\Documents\Intel\OpenVINO\inference_engine_cpp_samples_build\intel64\Release`
+* C samples - `C:\Users\<user>\Documents\Intel\OpenVINO\openvino_c_samples_build\intel64\Release`
+* C++ samples - `C:\Users\<user>\Documents\Intel\OpenVINO\openvino_cpp_samples_build\intel64\Release`
 
 A generated solution can also be built manually. For example, to build C++ sample binaries in Debug configuration, run the suitable version of the
-Microsoft Visual Studio and open the generated solution file from the `C:\Users\<user>\Documents\Intel\OpenVINO\inference_engine_cpp_samples_build\Samples.sln`
+Microsoft Visual Studio and open the generated solution file from the `C:\Users\<user>\Documents\Intel\OpenVINO\openvino_cpp_samples_build\Samples.sln`
 directory.
 
 ### <a name="build-samples-macos"></a>Build the Sample Applications on macOS*
