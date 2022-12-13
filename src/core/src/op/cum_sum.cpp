@@ -5,15 +5,13 @@
 #include "openvino/op/cum_sum.hpp"
 
 #include "itt.hpp"
-#include "ngraph/graph_util.hpp"
 #include "ngraph/runtime/reference/cum_sum.hpp"
-#include "ngraph/validation_util.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/op/constant.hpp"
 
 using namespace std;
-using namespace ov;
 
+namespace ov {
 op::v0::CumSum::CumSum(const Output<Node>& arg, const Output<Node>& axis, const bool exclusive, const bool reverse)
     : Op({arg, axis}),
       m_exclusive(exclusive),
@@ -67,17 +65,13 @@ OPENVINO_SUPPRESS_DEPRECATED_END
 
 namespace {
 template <element::Type_t DATA_ET, element::Type_t AXIS_ET>
-bool evaluate_cum_sum(const HostTensorPtr& output,
-                      const HostTensorPtr& data,
-                      const HostTensorPtr& axis,
-                      const bool exclusive,
-                      const bool reverse) {
+bool evaluate_cum_sum(TensorVector& outputs, const TensorVector& inputs, const bool exclusive, const bool reverse) {
     using data_t = fundamental_type_for<DATA_ET>;
     using axis_t = fundamental_type_for<AXIS_ET>;
-    ngraph::runtime::reference::cumsum<data_t, axis_t>(data->get_data_ptr<data_t>(),
-                                                       axis->get_data_ptr<axis_t>(),
-                                                       output->get_data_ptr<data_t>(),
-                                                       data->get_shape(),
+    ngraph::runtime::reference::cumsum<data_t, axis_t>(inputs[0].data<data_t>(),
+                                                       inputs[1].data<axis_t>(),
+                                                       outputs[0].data<data_t>(),
+                                                       inputs[0].get_shape(),
                                                        exclusive,
                                                        reverse);
     return true;
@@ -90,41 +84,33 @@ bool evaluate_cum_sum(const HostTensorPtr& output,
     }
 
 template <element::Type_t AXIS_ET>
-bool evaluate(const HostTensorPtr& output,
-              const HostTensorPtr& data,
-              const HostTensorPtr& axis,
-              const bool exclusive,
-              const bool reverse) {
-    switch (data->get_element_type()) {
-        CUM_SUM_TYPE_CASE(bf16, output, data, axis, exclusive, reverse);
-        CUM_SUM_TYPE_CASE(f16, output, data, axis, exclusive, reverse);
-        CUM_SUM_TYPE_CASE(f32, output, data, axis, exclusive, reverse);
-        CUM_SUM_TYPE_CASE(f64, output, data, axis, exclusive, reverse);
-        CUM_SUM_TYPE_CASE(i4, output, data, axis, exclusive, reverse);
-        CUM_SUM_TYPE_CASE(i8, output, data, axis, exclusive, reverse);
-        CUM_SUM_TYPE_CASE(i16, output, data, axis, exclusive, reverse);
-        CUM_SUM_TYPE_CASE(i32, output, data, axis, exclusive, reverse);
-        CUM_SUM_TYPE_CASE(i64, output, data, axis, exclusive, reverse);
-        CUM_SUM_TYPE_CASE(u1, output, data, axis, exclusive, reverse);
-        CUM_SUM_TYPE_CASE(u4, output, data, axis, exclusive, reverse);
-        CUM_SUM_TYPE_CASE(u8, output, data, axis, exclusive, reverse);
-        CUM_SUM_TYPE_CASE(u16, output, data, axis, exclusive, reverse);
-        CUM_SUM_TYPE_CASE(u32, output, data, axis, exclusive, reverse);
-        CUM_SUM_TYPE_CASE(u64, output, data, axis, exclusive, reverse);
+bool evaluate(TensorVector& outputs, const TensorVector& inputs, const bool exclusive, const bool reverse) {
+    switch (inputs[0].get_element_type()) {
+        CUM_SUM_TYPE_CASE(bf16, outputs, inputs, exclusive, reverse);
+        CUM_SUM_TYPE_CASE(f16, outputs, inputs, exclusive, reverse);
+        CUM_SUM_TYPE_CASE(f32, outputs, inputs, exclusive, reverse);
+        CUM_SUM_TYPE_CASE(f64, outputs, inputs, exclusive, reverse);
+        CUM_SUM_TYPE_CASE(i4, outputs, inputs, exclusive, reverse);
+        CUM_SUM_TYPE_CASE(i8, outputs, inputs, exclusive, reverse);
+        CUM_SUM_TYPE_CASE(i16, outputs, inputs, exclusive, reverse);
+        CUM_SUM_TYPE_CASE(i32, outputs, inputs, exclusive, reverse);
+        CUM_SUM_TYPE_CASE(i64, outputs, inputs, exclusive, reverse);
+        CUM_SUM_TYPE_CASE(u1, outputs, inputs, exclusive, reverse);
+        CUM_SUM_TYPE_CASE(u4, outputs, inputs, exclusive, reverse);
+        CUM_SUM_TYPE_CASE(u8, outputs, inputs, exclusive, reverse);
+        CUM_SUM_TYPE_CASE(u16, outputs, inputs, exclusive, reverse);
+        CUM_SUM_TYPE_CASE(u32, outputs, inputs, exclusive, reverse);
+        CUM_SUM_TYPE_CASE(u64, outputs, inputs, exclusive, reverse);
     default:
         return false;
     }
 }
 
-bool evaluate_cum_sum(const HostTensorPtr& output,
-                      const HostTensorPtr& data,
-                      const HostTensorPtr& axis,
-                      const bool exclusive,
-                      const bool reverse) {
+bool evaluate_cum_sum(TensorVector& outputs, const TensorVector& inputs, const bool exclusive, const bool reverse) {
     auto rc = true;
-    switch (axis->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_cum_sum, i32, output, data, axis, exclusive, reverse);
-        NGRAPH_TYPE_CASE(evaluate_cum_sum, i64, output, data, axis, exclusive, reverse);
+    switch (inputs[1].get_element_type()) {
+        NGRAPH_TYPE_CASE(evaluate_cum_sum, i32, outputs, inputs, exclusive, reverse);
+        NGRAPH_TYPE_CASE(evaluate_cum_sum, i64, outputs, inputs, exclusive, reverse);
     default:
         return false;
     }
@@ -132,12 +118,12 @@ bool evaluate_cum_sum(const HostTensorPtr& output,
 }
 }  // namespace
 
-bool op::v0::CumSum::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool op::v0::CumSum::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v0_CumSum_evaluate);
-    OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(inputs, 2), "Invalid CumSum input TensorVector.");
-    OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(outputs, 1), "Invalid CumSum output TensorVector.");
+    OPENVINO_ASSERT(inputs.size() == 2, "Invalid CumSum inputs TensorVector.");
+    OPENVINO_ASSERT(outputs.size() == 1, "Invalid CumSum output TensorVector.");
 
-    return evaluate_cum_sum(outputs[0], inputs[0], inputs[1], is_exclusive(), is_reverse());
+    return evaluate_cum_sum(outputs, inputs, is_exclusive(), is_reverse());
 }
 
 bool op::v0::CumSum::has_evaluate() const {
@@ -145,3 +131,4 @@ bool op::v0::CumSum::has_evaluate() const {
     const auto& input_1_element_type = get_input_element_type(1);
     return input_1_element_type == element::i32 || input_1_element_type == element::i64;
 }
+}  // namespace ov
