@@ -35,11 +35,6 @@ class OPENVINO_RUNTIME_API IPlugin : public std::enable_shared_from_this<IPlugin
                                      private InferenceEngine::IInferencePlugin {
 public:
     /**
-     * @brief A shared pointer to ov::IPlugin interface
-     */
-    using Ptr = std::shared_ptr<IPlugin>;
-
-    /**
      * @brief Sets a plugin version
      *
      * @param version A version to set

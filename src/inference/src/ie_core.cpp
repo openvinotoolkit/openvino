@@ -48,6 +48,7 @@
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "so_extension.hpp"
+#include "transformations/utils/utils.hpp"
 #include "xml_parse_utils.h"
 
 #ifdef OPENVINO_STATIC_LIBRARY
@@ -668,10 +669,9 @@ public:
         return newAPI;
     }
 
-    static std::tuple<bool, std::string> CheckStatic(const ie::CNNNetwork& network) {
+    static std::tuple<bool, std::string> CheckStatic(const std::shared_ptr<const ov::Model>& model) {
         bool res = true;
         std::stringstream errMsg;
-        auto model = network.getFunction();
         if (model) {
             for (const auto& input : model->inputs()) {
                 if (input.get_partial_shape().is_dynamic()) {
@@ -700,6 +700,19 @@ public:
             return std::const_pointer_cast<ov::Model>(network.getFunction());
 
         auto cloned_model = network.getFunction()->clone();
+        for (auto&& input : cloned_model->inputs()) {
+            auto param_name = input.get_node()->get_friendly_name();
+
+            OPENVINO_ASSERT(network.getInputsInfo().find(param_name) != network.getInputsInfo().end());
+
+            auto input_info = network.getInputsInfo()[param_name];
+            auto& rt_info = input.get_rt_info();
+            rt_info["ie_legacy_preproc"] = input_info->getPreProcess();
+            rt_info["ie_legacy_precision"] = input_info->getPrecision();
+        }
+        // for (const auto& output : cloned_model->outputs()) {
+        //     const auto& res_name = ov::op::util::create_ie_output_name(output);
+        // }
         return cloned_model;
     }
 
@@ -732,13 +745,13 @@ public:
             auto lock = cacheGuard.getHashLock(cacheContent.blobId);
             res = LoadNetworkFromCache(cacheContent, plugin, conf, context, loadedFromCache);
             if (!loadedFromCache) {
-                res = compile_model_impl(network.getFunction(), plugin, conf, context, cacheContent);
+                res = compile_model_impl(legacy_to_model(network), plugin, conf, context, cacheContent);
             } else {
                 // Temporary workaround until all plugins support caching of original model inputs
                 InferenceEngine::SetExeNetworkInfo(res._ptr, network.getFunction(), isNewAPI());
             }
         } else {
-            res = compile_model_impl(network.getFunction(), plugin, conf, context, cacheContent);
+            res = compile_model_impl(legacy_to_model(network), plugin, conf, context, cacheContent);
         }
         return res;
     }
@@ -853,13 +866,18 @@ public:
             auto lock = cacheGuard.getHashLock(cacheContent.blobId);
             res = LoadNetworkFromCache(cacheContent, plugin, conf, nullptr, loadedFromCache);
             if (!loadedFromCache) {
-                res = compile_model_impl(network.getFunction(), plugin, conf, nullptr, cacheContent, forceDisableCache);
+                res = compile_model_impl(legacy_to_model(network),
+                                         plugin,
+                                         conf,
+                                         nullptr,
+                                         cacheContent,
+                                         forceDisableCache);
             } else {
                 // Temporary workaround until all plugins support caching of original model inputs
                 InferenceEngine::SetExeNetworkInfo(res._ptr, network.getFunction(), isNewAPI());
             }
         } else {
-            res = compile_model_impl(network.getFunction(), plugin, conf, nullptr, cacheContent, forceDisableCache);
+            res = compile_model_impl(legacy_to_model(network), plugin, conf, nullptr, cacheContent, forceDisableCache);
         }
         return {res._ptr, res._so};
     }
@@ -887,18 +905,18 @@ public:
                 if (val) {
                     val(cnnNetwork);
                 }
-                res = compile_model_impl(cnnNetwork.getFunction(), plugin, conf, nullptr, cacheContent);
+                res = compile_model_impl(legacy_to_model(cnnNetwork), plugin, conf, nullptr, cacheContent);
             }
         } else if (cacheManager) {
             auto cnnNetwork = ReadNetwork(modelPath, std::string());
             // TODO: 'validation' for dynamic API doesn't work for this case, as it affects a lot of plugin API
-            res = plugin.compile_model(cnnNetwork.getFunction(), conf);
+            res = plugin.compile_model(legacy_to_model(cnnNetwork), conf);
         } else {
             auto cnnNetwork = ReadNetwork(modelPath, std::string());
             if (val) {
                 val(cnnNetwork);
             }
-            res = compile_model_impl(cnnNetwork.getFunction(), plugin, conf, nullptr, cacheContent);
+            res = compile_model_impl(legacy_to_model(cnnNetwork), plugin, conf, nullptr, cacheContent);
         }
         return {res._ptr, res._so};
     }
@@ -1714,7 +1732,7 @@ ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network, const std::map<st
 ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
                                     const std::string& deviceName,
                                     const std::map<std::string, std::string>& config) {
-    auto valid = ov::CoreImpl::CheckStatic(network);
+    auto valid = ov::CoreImpl::CheckStatic(network.getFunction());
     OPENVINO_ASSERT(std::get<0>(valid),
                     "InferenceEngine::Core::LoadNetwork doesn't support inputs having dynamic shapes. ",
                     "Use ov::Core::compile_model API instead. Dynamic inputs are :",
@@ -1726,7 +1744,7 @@ ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
 ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
                                     RemoteContext::Ptr context,
                                     const std::map<std::string, std::string>& config) {
-    auto valid = ov::CoreImpl::CheckStatic(network);
+    auto valid = ov::CoreImpl::CheckStatic(network.getFunction());
     OPENVINO_ASSERT(std::get<0>(valid),
                     "InferenceEngine::Core::LoadNetwork doesn't support inputs having dynamic shapes. ",
                     "Use ov::Core::compile_model API instead. Dynamic inputs are :",
@@ -1739,7 +1757,7 @@ ExecutableNetwork Core::LoadNetwork(const std::string& modelPath,
                                     const std::string& deviceName,
                                     const std::map<std::string, std::string>& config) {
     auto exec = _impl->LoadNetwork(modelPath, deviceName, config, [](const CNNNetwork& network) {
-        auto valid = ov::CoreImpl::CheckStatic(network);
+        auto valid = ov::CoreImpl::CheckStatic(network.getFunction());
         OPENVINO_ASSERT(std::get<0>(valid),
                         "InferenceEngine::Core::LoadNetwork doesn't support inputs having dynamic shapes. ",
                         "Use ov::Core::compile_model API instead. Dynamic inputs are :",
@@ -1854,7 +1872,7 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
 QueryNetworkResult Core::QueryNetwork(const CNNNetwork& network,
                                       const std::string& deviceName,
                                       const std::map<std::string, std::string>& config) const {
-    auto valid = ov::CoreImpl::CheckStatic(network);
+    auto valid = ov::CoreImpl::CheckStatic(network.getFunction());
     OPENVINO_ASSERT(std::get<0>(valid),
                     "InferenceEngine::Core::QueryNetwork doesn't support inputs having dynamic shapes. ",
                     "Use ov::Core::compile_model API instead. Dynamic inputs are :",

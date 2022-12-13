@@ -8,6 +8,7 @@
 #include <ie_common.h>
 
 #include <ie_icnn_network.hpp>
+#include <ie_precision.hpp>
 #include <memory>
 
 #include "cnn_network_ngraph_impl.hpp"
@@ -28,6 +29,31 @@ std::map<std::string, std::string> any_map_to_string_map(const ov::AnyMap& any_m
         result[it.first] = it.second.as<std::string>();
     }
     return result;
+}
+
+InferenceEngine::CNNNetwork create_cnnnetwork(const std::shared_ptr<const ov::Model>& model, bool is_new_api) {
+    auto network = InferenceEngine::CNNNetwork(std::shared_ptr<InferenceEngine::ICNNNetwork>(
+        new InferenceEngine::details::CNNNetworkNGraphImpl(model->clone(), {}, is_new_api)));
+    std::shared_ptr<ov::Model> cloned_model = network.getFunction();
+    for (auto&& input : cloned_model->inputs()) {
+        auto param_name = input.get_node()->get_friendly_name();
+
+        OPENVINO_ASSERT(network.getInputsInfo().find(param_name) != network.getInputsInfo().end());
+
+        auto input_info = network.getInputsInfo()[param_name];
+        auto& rt_info = input.get_rt_info();
+        auto it = rt_info.find("ie_legacy_preproc");
+        if (it != rt_info.end()) {
+            input_info->getPreProcess() = it->second.as<InferenceEngine::PreProcessInfo>();
+            rt_info.erase(it);
+        }
+        it = rt_info.find("ie_legacy_precision");
+        if (it != rt_info.end()) {
+            input_info->setPrecision(it->second.as<InferenceEngine::Precision>());
+            rt_info.erase(it);
+        }
+    }
+    return network;
 }
 
 }  // namespace
@@ -69,10 +95,8 @@ std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ov::IPlugin::compil
     const std::shared_ptr<const ov::Model>& model,
     const ov::AnyMap& properties) {
     if (old_plugin) {
-        auto compiled_model = old_plugin->LoadNetwork(
-            InferenceEngine::CNNNetwork(std::shared_ptr<InferenceEngine::ICNNNetwork>(
-                new InferenceEngine::details::CNNNetworkNGraphImpl(model->clone(), {}, is_new_api()))),
-            any_map_to_string_map(properties));
+        auto compiled_model =
+            old_plugin->LoadNetwork(create_cnnnetwork(model, is_new_api()), any_map_to_string_map(properties));
         return compiled_model;
     }
     return compile_model(model, properties, {});
@@ -84,11 +108,9 @@ std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ov::IPlugin::compil
     const ov::RemoteContext& context) {
     std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> compiled_model;
     if (old_plugin) {
-        compiled_model = old_plugin->LoadNetwork(
-            InferenceEngine::CNNNetwork(std::shared_ptr<InferenceEngine::ICNNNetwork>(
-                new InferenceEngine::details::CNNNetworkNGraphImpl(model->clone(), {}, is_new_api()))),
-            any_map_to_string_map(properties),
-            context._impl);
+        compiled_model = old_plugin->LoadNetwork(create_cnnnetwork(model, is_new_api()),
+                                                 any_map_to_string_map(properties),
+                                                 context._impl);
         return compiled_model;
     }
     std::shared_ptr<ov::Model> cloned_model = model->clone();
@@ -244,10 +266,7 @@ const std::shared_ptr<InferenceEngine::ExecutorManager>& ov::IPlugin::get_execut
 ov::SupportedOpsMap ov::IPlugin::query_model(const std::shared_ptr<const ov::Model>& model,
                                              const ov::AnyMap& properties) const {
     if (old_plugin) {
-        auto res = old_plugin->QueryNetwork(
-            InferenceEngine::CNNNetwork(std::shared_ptr<InferenceEngine::ICNNNetwork>(
-                new InferenceEngine::details::CNNNetworkNGraphImpl(model->clone(), {}, is_new_api()))),
-            any_map_to_string_map(properties));
+        auto res = old_plugin->QueryNetwork(create_cnnnetwork(model, is_new_api()), any_map_to_string_map(properties));
         if (res.rc != InferenceEngine::OK) {
             throw ov::Exception(res.resp.msg);
         }
