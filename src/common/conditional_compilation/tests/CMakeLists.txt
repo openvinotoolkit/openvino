@@ -11,8 +11,10 @@ ov_add_test_target(
         LINK_LIBRARIES
             gmock
             funcTestUtils
+            commonTestUtils
         INCLUDES
             "${CMAKE_CURRENT_SOURCE_DIR}/../include"
+            "${CMAKE_CURRENT_SOURCE_DIR}/../../itt/include"
         ADD_CLANG_FORMAT
         LABELS
             OV
