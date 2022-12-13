@@ -16,8 +16,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v4::ReduceL1);
-
 op::v4::ReduceL1::ReduceL1(const Output<Node>& arg, const Output<Node>& reduction_axes, bool keep_dims)
     : ArithmeticReductionKeepDims(arg, reduction_axes, keep_dims) {
     constructor_validate_and_infer_types();

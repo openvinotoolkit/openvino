@@ -10,8 +10,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(ov::op::v0::PSROIPooling);
-
 ov::op::v0::PSROIPooling::PSROIPooling(const Output<Node>& input,
                                        const Output<Node>& coords,
                                        const size_t output_dim,
