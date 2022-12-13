@@ -32,6 +32,7 @@ ov_add_test_target(
         LINK_LIBRARIES
             unitTestUtils
         INCLUDES
+        ADD_CLANG_FORMAT
         LABELS
             OV
 )

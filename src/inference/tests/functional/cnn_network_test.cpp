@@ -3,11 +3,13 @@
 //
 
 #include <gtest/gtest.h>
+
+#include <common_test_utils/file_utils.hpp>
+
 #include "cpp/ie_cnn_network.h"
 #include "inference_engine.hpp"
 #include "openvino/opsets/opset.hpp"
 #include "openvino/pass/serialize.hpp"
-#include <common_test_utils/file_utils.hpp>
 #include "openvino/util/file_util.hpp"
 
 using namespace InferenceEngine;
@@ -82,13 +84,13 @@ static std::shared_ptr<ov::Model> CNNNetworkTests_create_model() {
     auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
     param1->set_friendly_name("p1_friendly");
     param1->output(0).set_names({"p1_1", "p1_2"});
-    auto param2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape {-1, 3, 224, 224});
+    auto param2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 3, 224, 224});
     param2->set_friendly_name("p2_friendly");
     param2->output(0).set_names({"p2_1", "p2_2"});
-    auto param3 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape {1, 3, 224, 224});
+    auto param3 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 224, 224});
     param3->set_friendly_name("p3_friendly");
     param3->output(0).set_names({"p3_1", "p3_2"});
-    return std::make_shared<ov::Model>(ov::OutputVector {param1, param2, param3},
+    return std::make_shared<ov::Model>(ov::OutputVector{param1, param2, param3},
                                        ov::ParameterVector{param1, param2, param3});
 }
 
@@ -151,12 +153,15 @@ protected:
     std::string modelName = "CNNNetworkTests_LoadFromFileTest.xml";
     std::string weightsName = "CNNNetworkTests_LoadFromFileTest.bin";
     InferenceEngine::Core core;
+
 public:
     void SetUp() override {
         std::shared_ptr<ov::Model> model = CNNNetworkTests_create_model();
         ov::pass::Serialize(modelName, weightsName).run_on_model(model);
-        ASSERT_NO_THROW(core.RegisterPlugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
-            std::string("mock_engine") + IE_BUILD_POSTFIX), "mock"));
+        ASSERT_NO_THROW(
+            core.RegisterPlugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+                                                                   std::string("mock_engine") + IE_BUILD_POSTFIX),
+                                "mock"));
     }
 
     void TearDown() override {
@@ -179,5 +184,4 @@ TEST_F(CNNNetworkTests_LoadFromFileTest, throwsHasDynamicInputs_fromPath) {
         EXPECT_TRUE(std::string(e.what()).find("p3_2") == std::string::npos) << e.what();
     }
 }
-#endif //defined(ENABLE_OV_IR_FRONTEND)
-
+#endif  // defined(ENABLE_OV_IR_FRONTEND)
