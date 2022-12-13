@@ -179,8 +179,6 @@ private:
 };
 
 TEST_P(ReduceCPULayerTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
 
     CheckPluginRelatedResults(compiledModel, "Reduce");

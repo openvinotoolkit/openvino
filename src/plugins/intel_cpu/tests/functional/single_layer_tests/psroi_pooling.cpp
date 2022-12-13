@@ -101,7 +101,6 @@ protected:
 };
 
 TEST_P(PSROIPoolingLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Run();
     CheckPluginRelatedResults(executableNetwork, "PSROIPooling");
 }

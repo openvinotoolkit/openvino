@@ -237,7 +237,6 @@ INSTANTIATE_TEST_SUITE_P(
 struct GenerateProposalsBenchmarkTest : ov::test::BenchmarkLayerTest<GenerateProposalsLayerTest> {};
 
 TEST_P(GenerateProposalsBenchmarkTest, DISABLED_GenerateProposals_Benchmark) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run_benchmark("GenerateProposals", std::chrono::milliseconds(2000), 10000);
 }
 

@@ -218,7 +218,6 @@ protected:
 };
 
 TEST_P(ROIPoolingCPULayerTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     CheckPluginRelatedResults(compiledModel, "ROIPooling");
 }

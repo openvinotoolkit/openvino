@@ -396,7 +396,6 @@ private:
 };
 
 TEST_P(NmsLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     // CheckPluginRelatedResults(compiledModel, "NonMaxSuppression");
 };

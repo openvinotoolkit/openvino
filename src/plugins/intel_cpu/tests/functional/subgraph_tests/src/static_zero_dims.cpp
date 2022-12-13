@@ -54,8 +54,6 @@ protected:
 };
 
 TEST_F(StaticZeroDims, smoke_CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
 }
 

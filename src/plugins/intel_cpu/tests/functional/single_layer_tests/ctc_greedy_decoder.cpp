@@ -130,7 +130,6 @@ protected:
 };
 
 TEST_P(CTCGreedyDecoderLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
     CheckPluginRelatedResults(compiledModel, "CTCGreedyDecoder");
 }

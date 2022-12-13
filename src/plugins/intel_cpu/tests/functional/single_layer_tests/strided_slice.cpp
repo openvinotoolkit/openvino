@@ -82,8 +82,6 @@ protected:
 };
 
 TEST_P(StridedSliceLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
     CheckPluginRelatedResults(compiledModel, "StridedSlice");
 }
@@ -415,8 +413,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Dynamic_5D_Subset2, Stride
 class StridedSliceLayerDescriptorCPUTest : public StridedSliceLayerCPUTest {};
 
 TEST_P(StridedSliceLayerDescriptorCPUTest, DescriptorsCheck) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     ASSERT_THROW(compile_model(), ov::Exception);
 }
 

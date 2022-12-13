@@ -254,8 +254,6 @@ private:
 };
 
 TEST_P(DeconvolutionLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     if (!fusedOps.empty()) {
         bool isSupportedParams = stride[stride.size() - 1] <= kernel[kernel.size() - 1];
         if (stride.size() > 1)

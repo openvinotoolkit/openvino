@@ -80,7 +80,6 @@ protected:
 };
 
 TEST_P(SoftMaxLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     CheckPluginRelatedResults(compiledModel, "Softmax");
 }

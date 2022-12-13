@@ -205,15 +205,11 @@ protected:
 };
 
 TEST_P(PoolingLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
     CheckPluginRelatedResults(compiledModel, "Pooling");
 }
 
 TEST_P(MaxPoolingV8LayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
     CheckPluginRelatedResults(compiledModel, "Pooling");
 }

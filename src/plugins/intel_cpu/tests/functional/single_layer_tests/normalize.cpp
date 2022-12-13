@@ -97,8 +97,6 @@ protected:
 };
 
 TEST_P(NormalizeL2LayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
 
     CheckPluginRelatedResults(compiledModel, "NormalizeL2");

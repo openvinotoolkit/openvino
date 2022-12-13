@@ -79,8 +79,6 @@ protected:
 };
 
 TEST_P(Slice8LayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
     CheckPluginRelatedResults(compiledModel, "Slice8");
 }

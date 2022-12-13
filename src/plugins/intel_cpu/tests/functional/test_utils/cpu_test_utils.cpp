@@ -116,6 +116,7 @@ std::string CPUTestsBase::impls2str(const std::vector<std::string> &priority) {
 }
 
 void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, const std::string& nodeType) const {
+    if (!execNet) return;
     if (nodeType.empty()) return;
 
     ASSERT_TRUE(!selectedType.empty()) << "Node type is not defined.";
@@ -125,6 +126,7 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
 }
 
 void CPUTestsBase::CheckPluginRelatedResults(const ov::CompiledModel &execNet, const std::string& nodeType) const {
+    if (!execNet) return;
     if (nodeType.empty()) return;
 
     ASSERT_TRUE(!selectedType.empty()) << "Node type is not defined.";
@@ -371,11 +373,15 @@ inline void CheckNumberOfNodesWithTypeImpl(std::shared_ptr<const ov::Model> func
 }
 
 void CheckNumberOfNodesWithType(ov::CompiledModel &compiledModel, std::string nodeType, size_t expectedCount) {
+    if (!compiledModel) return;
+
     std::shared_ptr<const ov::Model> function = compiledModel.get_runtime_model();
     CheckNumberOfNodesWithTypeImpl(function, nodeType, expectedCount);
 }
 
 void CheckNumberOfNodesWithType(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType, size_t expectedCount) {
+    if (!execNet) return;
+
     InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
     std::shared_ptr<const ov::Model> function = execGraphInfo.getFunction();
     CheckNumberOfNodesWithTypeImpl(function, nodeType, expectedCount);

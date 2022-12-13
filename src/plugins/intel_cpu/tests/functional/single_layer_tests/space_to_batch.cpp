@@ -78,8 +78,6 @@ protected:
 };
 
 TEST_P(SpaceToBatchCPULayerTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
     CPUTestsBase::CheckPluginRelatedResults(compiledModel, "SpaceToBatch");
 };

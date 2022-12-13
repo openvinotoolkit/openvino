@@ -147,8 +147,6 @@ protected:
 };
 
 TEST_P(GatherLayerTestCPU, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
     CheckPluginRelatedResults(compiledModel, "Gather");
 }
