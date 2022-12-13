@@ -30,7 +30,6 @@ protected:
 
 public:
     OPENVINO_OP("LogicalReduction", "util");
-    BWDCMP_RTTI_DECLARATION;
     void validate_and_infer_types() override;
 };
 }  // namespace util

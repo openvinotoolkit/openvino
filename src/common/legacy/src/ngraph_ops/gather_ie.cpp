@@ -16,8 +16,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::GatherIE);
-
 op::GatherIE::GatherIE(const Output<Node>& params, const Output<Node>& indices, int64_t axis)
         : Op({params, indices})
         , m_axis(axis) {

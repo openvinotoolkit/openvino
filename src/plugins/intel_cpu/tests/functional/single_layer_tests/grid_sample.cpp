@@ -129,8 +129,6 @@ protected:
 };
 
 TEST_P(GridSampleLayerTestCPU, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
     CheckPluginRelatedResults(compiledModel, "GridSample");
 }

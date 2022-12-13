@@ -31,7 +31,7 @@ public:
     LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network,
                        const std::map<std::string, std::string>& config) override;
 
-    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
+    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>
     LoadNetwork(const std::string &modelPath,
                 const std::map<std::string, std::string> &config) override;
 

@@ -36,6 +36,7 @@ ov_add_test_target(
             lptNgraphFunctions
             gmock
         INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}
+        ADD_CLANG_FORMAT
         LABELS
             LP_TRANSFORMATIONS
 )

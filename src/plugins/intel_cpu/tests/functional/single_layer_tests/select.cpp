@@ -72,9 +72,7 @@
 //};
 //
 //TEST_P(SelectLayerCPUTest, CompareWithRefs) {
-//    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-//
-//    Run();
+//    run();
 //    CheckPluginRelatedResults(executableNetwork, "Select");
 //}
 //

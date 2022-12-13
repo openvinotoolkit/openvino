@@ -62,7 +62,6 @@ convert_lstm_peepholes_format(const Output<Node>& node,
 class OPENVINO_API RNNCellBase : public Op {
 public:
     OPENVINO_OP("RNNCellBase", "util");
-    BWDCMP_RTTI_DECLARATION;
 
     ///
     /// \brief      Constructs a RNNCellBase class.
