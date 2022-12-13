@@ -218,6 +218,8 @@ int main(int argc, char* argv[]) {
             return 0;
         }
 
+        check_system_configuration();
+
         bool isNetworkCompiled = fileExt(FLAGS_m) == "blob";
         if (isNetworkCompiled) {
             slog::info << "Model is compiled" << slog::endl;

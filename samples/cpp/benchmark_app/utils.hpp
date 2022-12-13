@@ -48,6 +48,11 @@ using InputsInfo = std::map<std::string, InputInfo>;
 using PartialShapes = std::map<std::string, ngraph::PartialShape>;
 }  // namespace benchmark_app
 
+/// <summary>
+/// Checks for performance settings that might affect the benchmarking results.
+/// </summary>
+void check_system_configuration();
+
 std::vector<std::string> parse_devices(const std::string& device_string);
 uint32_t device_default_device_duration_in_seconds(const std::string& device);
 std::map<std::string, std::string> parse_value_per_device(const std::vector<std::string>& devices,
