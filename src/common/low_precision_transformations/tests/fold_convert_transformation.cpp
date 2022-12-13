@@ -2,24 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "layer_transformation.hpp"
-
-#include <string>
-#include <sstream>
-#include <memory>
-
 #include <gtest/gtest.h>
 
-#include <utility>
-#include <transformations/utils/utils.hpp>
+#include <low_precision/fold_convert.hpp>
+#include <memory>
+#include <sstream>
+#include <string>
 #include <transformations/init_node_info.hpp>
+#include <transformations/utils/utils.hpp>
+#include <utility>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "simple_low_precision_transformer.hpp"
-
-#include <low_precision/fold_convert.hpp>
+#include "layer_transformation.hpp"
 #include "lpt_ngraph_functions/common/builders.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "simple_low_precision_transformer.hpp"
 
 namespace {
 using namespace testing;
@@ -35,27 +32,26 @@ public:
     ngraph::builder::subgraph::DequantizationOperations dequantizationExpected;
 };
 
-typedef std::tuple<
-    ngraph::PartialShape,
-    FoldConvertTransformationTestValues> FoldConvertTransformationParams;
+typedef std::tuple<ngraph::PartialShape, FoldConvertTransformationTestValues> FoldConvertTransformationParams;
 
-class FoldConvertTransformation : public LayerTransformation, public testing::WithParamInterface<FoldConvertTransformationParams> {
+class FoldConvertTransformation : public LayerTransformation,
+                                  public testing::WithParamInterface<FoldConvertTransformationParams> {
 public:
     void SetUp() override {
         const ngraph::PartialShape inputShape = std::get<0>(GetParam());
         const FoldConvertTransformationTestValues testValues = std::get<1>(GetParam());
 
-        const auto createFunction = [](
-            const ngraph::element::Type precision,
-            const ngraph::PartialShape& inputShape,
-            const ngraph::builder::subgraph::DequantizationOperations& dequantization) -> std::shared_ptr<ngraph::Function> {
+        const auto createFunction = [](const ngraph::element::Type precision,
+                                       const ngraph::PartialShape& inputShape,
+                                       const ngraph::builder::subgraph::DequantizationOperations& dequantization)
+            -> std::shared_ptr<ngraph::Function> {
             auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
             std::shared_ptr<ngraph::Node> output = makeDequantization(input, dequantization);
             output->set_friendly_name("output");
 
             return std::make_shared<ngraph::Function>(
-                ngraph::ResultVector{ std::make_shared<ngraph::opset1::Result>(output) },
-                ngraph::ParameterVector{ input },
+                ngraph::ResultVector{std::make_shared<ngraph::opset1::Result>(output)},
+                ngraph::ParameterVector{input},
                 "FoldConvertTransformation");
         };
         actualFunction = createFunction(testValues.precision, inputShape, testValues.dequantizationActual);
@@ -72,11 +68,8 @@ public:
         const FoldConvertTransformationTestValues testValues = std::get<1>(obj.param);
 
         std::ostringstream result;
-        result <<
-            testValues.precision << "_" <<
-            inputShape << "_" <<
-            testValues.dequantizationActual << "_" <<
-            testValues.dequantizationExpected;
+        result << testValues.precision << "_" << inputShape << "_" << testValues.dequantizationActual << "_"
+               << testValues.dequantizationExpected;
         return result.str();
     }
 };
@@ -92,8 +85,7 @@ TEST_P(FoldConvertTransformation, CompareFunctions) {
 const std::vector<ngraph::PartialShape> inputShapes = {
     {1, 4, 16, 16},
     {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
-    PartialShape::dynamic()
-};
+    PartialShape::dynamic()};
 
 const std::vector<FoldConvertTransformationTestValues> testValues = {
     // Actual:
@@ -121,20 +113,10 @@ const std::vector<FoldConvertTransformationTestValues> testValues = {
     //      \FP32    /FP32
     //       \      /
     //       Multiply
-    {
-        LayerTransformation::createParamsU8I8(),
-        ngraph::element::f32,
-        {
-            {ngraph::element::f32},
-            { {7.f}, ngraph::element::f32, {}, false, 1, ngraph::element::u8, true },
-            { 10.f }
-        },
-        {
-            {ngraph::element::f32},
-            { {7.f}, ngraph::element::f32, {}, false, 1 },
-            { 10.f }
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     ngraph::element::f32,
+     {{ngraph::element::f32}, {{7.f}, ngraph::element::f32, {}, false, 1, ngraph::element::u8, true}, {10.f}},
+     {{ngraph::element::f32}, {{7.f}, ngraph::element::f32, {}, false, 1}, {10.f}}},
 
     // Actual:
     //
@@ -161,27 +143,13 @@ const std::vector<FoldConvertTransformationTestValues> testValues = {
     //      \FP32    /FP32
     //       \      /
     //       Multiply
-    {
-        LayerTransformation::createParamsU8I8(),
-        ngraph::element::f32,
-        {
-            {ngraph::element::f32},
-            { {7.f}, ngraph::element::f32, {}, false, 0, ngraph::element::u8, true },
-            { 10.f }
-        },
-        {
-            {ngraph::element::f32},
-            { {7.f}, ngraph::element::f32, {}, false, 0 },
-            { 10.f }
-        }
-    }
-};
+    {LayerTransformation::createParamsU8I8(),
+     ngraph::element::f32,
+     {{ngraph::element::f32}, {{7.f}, ngraph::element::f32, {}, false, 0, ngraph::element::u8, true}, {10.f}},
+     {{ngraph::element::f32}, {{7.f}, ngraph::element::f32, {}, false, 0}, {10.f}}}};
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    FoldConvertTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(inputShapes),
-        ::testing::ValuesIn(testValues)),
-    FoldConvertTransformation::getTestCaseName);
-} // namespace
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         FoldConvertTransformation,
+                         ::testing::Combine(::testing::ValuesIn(inputShapes), ::testing::ValuesIn(testValues)),
+                         FoldConvertTransformation::getTestCaseName);
+}  // namespace
