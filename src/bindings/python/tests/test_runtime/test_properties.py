@@ -79,7 +79,6 @@ def test_setting_properties_to_core(properties_to_set):
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
                     reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
 @pytest.mark.parametrize("properties_to_set", [
-    
     # Dict from list of tuples
     dict([  # noqa: C406
         properties.enable_profiling(True),

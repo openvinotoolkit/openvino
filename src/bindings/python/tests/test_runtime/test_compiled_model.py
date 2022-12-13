@@ -24,7 +24,6 @@ def test_get_property(device):
 
 
 def test_get_runtime_model(device):
-    #compiled_model = generate_relu_compiled_model(device)
     core = Core()
     model = core.read_model(model=test_net_xml, weights=test_net_bin)
     compiled_model = core.compile_model(model, device)
