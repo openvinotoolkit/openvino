@@ -143,4 +143,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_OVClassAutoExcutableNetowrkGetDeviceProperti
                          OVClassExecutableNetworkGetMetricTest_DEVICE_PROPERTIES,
                          ::testing::ValuesIn(devicePropertiesConfigsNoThrow),
                          OVClassExecutableNetworkGetMetricTest_DEVICE_PROPERTIES::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_OVClassAutoExcutableNetowrkGetDevicePropertiesTestThrow,
+                         OVClassExecutableNetworkGetMetricTestThrow_DEVICE_PROPERTIES,
+                         ::testing::ValuesIn(devicePropertiesConfigsThrow),
+                         OVClassExecutableNetworkGetMetricTestThrow_DEVICE_PROPERTIES::getTestCaseName);
 }  // namespace

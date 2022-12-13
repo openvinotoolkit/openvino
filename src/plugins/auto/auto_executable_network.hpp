@@ -29,7 +29,6 @@ public:
     void SetConfig(const std::map<std::string, IE::Parameter>& config) override;
     IE::Parameter GetConfig(const std::string& name) const override;
     IE::Parameter GetMetric(const std::string& name) const override;
-    IE::Parameter GetConfig(const std::string& name, const std::string& target_device) const override;
     IE::Parameter GetMetric(const std::string& name, const std::string& target_device) const override;
     std::shared_ptr<IE::RemoteContext> GetContext() const override;
     virtual ~AutoExecutableNetwork() = default;

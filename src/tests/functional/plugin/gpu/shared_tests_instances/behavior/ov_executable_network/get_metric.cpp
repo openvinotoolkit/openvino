@@ -92,5 +92,24 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassHeteroExecutableNetworlGetMetricTest,
                          OVClassHeteroExecutableNetworkGetMetricTest_EXEC_DEVICES,
                          ::testing::Values("GPU.0"));
 
+const std::vector<DevicePropertiesNumStreamsParams> devicePropertiesConfigsNoThrow = {
+    DevicePropertiesNumStreamsParams{"AUTO:GPU", {ov::device::properties("GPU", ov::num_streams(5))}, "GPU"},
+    DevicePropertiesNumStreamsParams{"AUTO", {ov::device::properties("GPU", ov::num_streams(5))}, "GPU"},
+    DevicePropertiesNumStreamsParams{"AUTO", {ov::device::properties("CPU", ov::num_streams(5))}, "CPU"},
+    DevicePropertiesNumStreamsParams{"AUTO:GPU,CPU", {ov::device::properties("CPU", ov::num_streams(2))}, "CPU"},
+    DevicePropertiesNumStreamsParams{"AUTO:GPU,CPU", {ov::device::properties("GPU", ov::num_streams(2))}, "GPU"}};
+
+const std::vector<DevicePropertiesNumStreamsParams> devicePropertiesConfigsThrow = {
+    DevicePropertiesNumStreamsParams{"AUTO:GPU", {ov::device::properties("CPU", ov::num_streams(2))}, "CPU"}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_OVClassAutoExcutableNetowrkGetDevicePropertiesTestNoThrow,
+                         OVClassExecutableNetworkGetMetricTest_DEVICE_PROPERTIES,
+                         ::testing::ValuesIn(devicePropertiesConfigsNoThrow),
+                         OVClassExecutableNetworkGetMetricTest_DEVICE_PROPERTIES::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_OVClassAutoExcutableNetowrkGetDevicePropertiesTestThrow,
+                         OVClassExecutableNetworkGetMetricTestThrow_DEVICE_PROPERTIES,
+                         ::testing::ValuesIn(devicePropertiesConfigsThrow),
+                         OVClassExecutableNetworkGetMetricTestThrow_DEVICE_PROPERTIES::getTestCaseName);
 } // namespace
 
