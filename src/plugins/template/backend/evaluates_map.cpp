@@ -509,6 +509,35 @@ bool evaluate(const shared_ptr<op::v1::Equal>& op, const HostTensorVector& outpu
     return true;
 }
 
+namespace cum_sum_v0 {
+template <element::Type_t t1, element::Type_t t2>
+inline void evaluate(const shared_ptr<op::v0::CumSum>& op,
+                     const HostTensorVector& outputs,
+                     const HostTensorVector& inputs) {
+    using T1 = typename element_type_traits<t1>::value_type;
+    using T2 = typename element_type_traits<t2>::value_type;
+    runtime::reference::cumsum<T1, T2>(inputs[0]->get_data_ptr<T1>(),
+                                       inputs[1]->get_data_ptr<T2>(),
+                                       outputs[0]->get_data_ptr<T1>(),
+                                       inputs[0]->get_shape(),
+                                       op->is_exclusive(),
+                                       op->is_reverse());
+}
+}  // namespace cum_sum_v0
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v0::CumSum>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
+    switch (inputs[1]->get_element_type()) {
+    case element::Type_t::i64:
+        cum_sum_v0::evaluate<ET, element::Type_t::i64>(op, outputs, inputs);
+        break;
+    default:
+        cum_sum_v0::evaluate<ET, element::Type_t::i32>(op, outputs, inputs);
+        break;
+    }
+    return true;
+}
+
 namespace if_op {
 bool call(const HostTensorVector& func_outputs,
           const HostTensorVector& func_inputs,
