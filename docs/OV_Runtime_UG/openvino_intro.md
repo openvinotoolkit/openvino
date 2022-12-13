@@ -12,9 +12,7 @@
    openvino_docs_Runtime_Inference_Modes_Overview
    openvino_docs_OV_UG_Working_with_devices
    openvino_docs_OV_UG_ShapeInference
-   openvino_docs_OV_UG_Preprocessing_Overview
    openvino_docs_OV_UG_DynamicShapes
-   openvino_docs_OV_UG_Performance_Hints
    openvino_docs_OV_UG_network_state_intro
    
 @endsphinxdirective

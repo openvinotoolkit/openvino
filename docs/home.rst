@@ -122,6 +122,7 @@ Get Started
 
    GET STARTED <get_started>
    LEARN OPENVINO <learn_openvino>
+   OPENVINO WORKFLOW <openvino_workflow>
    DOCUMENTATION <documentation>
    MODEL ZOO <model_zoo>
    RESOURCES <resources>
