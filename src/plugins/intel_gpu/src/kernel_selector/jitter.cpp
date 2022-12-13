@@ -578,8 +578,8 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
         } else {
             auto f_pad = toCodeString(_tensor.Feature().pad.before);
             auto f_size = toCodeString(_tensor.Feature().v);
-            definitions.push_back({ safe_index_func_name, "((" + f_pad + " + (f)) % " + f_size + ")" });
-            definitions.push_back({ index_func_name, "(" + toCodeString(_tensor.Feature().pad.before) + " + (f))" });
+            definitions.push_back({ safe_index_func_name, "((" + offset + " + (f)) % " + f_size + ")" });
+            definitions.push_back({ index_func_name, "(" + offset + " + (f))" });
         }
     } else {
         definitions.push_back({ safe_index_func_name, safe_index_func_val });
