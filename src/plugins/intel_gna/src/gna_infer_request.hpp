@@ -10,7 +10,6 @@
 #include "request_status.hpp"
 
 namespace GNAPluginNS {
-
 class GNAPlugin;
 
 class GNAInferRequest : public InferenceEngine::IInferRequestInternal {
@@ -18,10 +17,9 @@ public:
     GNAInferRequest(const std::shared_ptr<GNAPlugin>& plg,
                     const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                     const std::vector<std::shared_ptr<const ov::Node>>& outputs);
-
     GNAInferRequest(const std::shared_ptr<GNAPlugin>& plg,
-                    InferenceEngine::InputsDataMap networkInputs,
-                    InferenceEngine::OutputsDataMap networkOutputs);
+                    InferenceEngine::InputsDataMap network_inputs,
+                    InferenceEngine::OutputsDataMap network_outputs);
     /**
      * @brief Infers specified input(s) in synchronous mode
      * @note blocks all method of InferRequest while request is ongoing (running or waiting in queue)
@@ -46,10 +44,20 @@ public:
     std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> QueryState() override;
 
 protected:
-    std::shared_ptr<GNAPlugin> plg;
-    uint32_t inferRequestIdx = -1;
+    bool SetRequestIndex(uint32_t request_index);
+    bool IsRequestIndexValid();
+    bool IsRequestCompleted();
 
 private:
     void CreateInferRequest();
+    InferenceEngine::StatusCode HandleRequestWaitStatus(const RequestStatus& request_status);
+    void ValidateAndConfigureTimeout(int64_t& millis_timeout);
+    void CallCleanupAndRethrowOnException(std::function<void()>&& function_to_invoke);
+
+    static constexpr const uint32_t kRequestIndexInvalid = std::numeric_limits<uint32_t>::max();
+    static constexpr const uint32_t kRequestIndexCompleted = std::numeric_limits<uint32_t>::max() - 1;
+
+    uint32_t _infer_request_idx = kRequestIndexInvalid;
+    std::shared_ptr<GNAPlugin> plg;
 };
 }  // namespace GNAPluginNS

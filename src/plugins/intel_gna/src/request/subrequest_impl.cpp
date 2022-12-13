@@ -24,7 +24,12 @@ RequestStatus SubrequestImpl::wait(int64_t timeoutMilliseconds) {
         return status_;
     }
 
-    status_ = waitHandler_(requestID_, timeoutMilliseconds);
+    try {
+        status_ = waitHandler_(requestID_, timeoutMilliseconds);
+    } catch (...) {
+        status_ = RequestStatus::kNone;
+        throw;
+    }
 
     return status_;
 }
