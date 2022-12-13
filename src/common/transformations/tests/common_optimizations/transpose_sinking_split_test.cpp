@@ -183,9 +183,76 @@ std::shared_ptr<Model> CreateReferenceFunction(size_t num_split_ops,
         return std::make_shared<Model>(outputs, ov::ParameterVector{X});
 }
 
+} // namespace input_node_consumers
+
+namespace input_transpose_consumers {
+
+std::shared_ptr<Model> CreateFunction(size_t num_split_ops,
+                                          size_t num_split_outputs,
+                                          element::Type input_type) {
+        const Shape input_shape{96, static_cast<size_t>(std::pow(num_split_outputs, num_split_ops + 1)), 55, 55};
+
+        auto X = std::make_shared<Parameter>(input_type, input_shape);
+        
+        auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 3, 1, 2});
+        auto transpose0 = std::make_shared<Transpose>(X, ng_order0);
+
+        ov::OutputVector outputs;
+        auto in_op = transpose0->output(0);
+        for (size_t i = 0; i < num_split_ops; ++i) {
+            auto split_axis_const = std::make_shared<Constant>(element::u64,
+                                                                           Shape{},
+                                                                           2);
+            auto split = std::make_shared<Split>(in_op, split_axis_const, num_split_outputs);
+            for (size_t num_output = 0; num_output < num_split_outputs - 1; ++num_output) {
+                outputs.push_back(split->output(num_output));
+            }
+            in_op = split->output(num_split_outputs - 1);
+        }
+        outputs.push_back(in_op);
+
+        auto tanh = std::make_shared<Tanh>(transpose0);
+        outputs.push_back(tanh);
+
+        return std::make_shared<Model>(outputs, ov::ParameterVector{X});
 }
 
+std::shared_ptr<Model> CreateReferenceFunction(size_t num_split_ops,
+                                                   size_t num_split_outputs,
+                                                   element::Type input_type) {
+        const Shape input_shape{96, static_cast<size_t>(std::pow(num_split_outputs, num_split_ops + 1)), 55, 55};
+
+        auto X = std::make_shared<Parameter>(input_type, input_shape);
+
+        ov::OutputVector outputs;
+        auto in_op = X->output(0);
+        for (size_t i = 0; i < num_split_ops; ++i) {
+            auto split_axis_const = std::make_shared<Constant>(element::u64, Shape{}, 1);
+            auto split = std::make_shared<Split>(in_op, split_axis_const, num_split_outputs);
+            for (size_t num_output = 0; num_output < num_split_outputs - 1; ++num_output) {
+                auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 3, 1, 2});
+                auto transpose0 = std::make_shared<Transpose>(split->output(num_output), ng_order0);
+                outputs.push_back(transpose0);
+            }
+            in_op = split->output(num_split_outputs - 1);
+        }
+
+        auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 3, 1, 2});
+        auto transpose0 = std::make_shared<Transpose>(in_op, ng_order0);
+        outputs.push_back(transpose0);
+
+        auto ng_order1 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 3, 1, 2});
+        auto transpose1 = std::make_shared<Transpose>(X, ng_order1);
+
+        auto tanh = std::make_shared<Tanh>(transpose1);
+        outputs.push_back(tanh);
+
+        return std::make_shared<Model>(outputs, ov::ParameterVector{X});
 }
+
+} // namespace input_transpose_consumers
+
+} // namespace mult_consumers
 
 } // namespace forward
 
@@ -349,7 +416,7 @@ INSTANTIATE_TEST_SUITE_P(
                        TransposeSinkingSplitTestFixture::get_test_name);
 
 INSTANTIATE_TEST_SUITE_P(
-    TransposeSinkingSplitForwardMultConsumersTestSuite,
+    TransposeSinkingSplitForwardMultInputNodeConsumersTestSuite,
     TransposeSinkingSplitTestFixture,
     ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingSplitForward)),
                        ::testing::ValuesIn(split_operations_numbers),
@@ -359,6 +426,16 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(element::f32)),
                        TransposeSinkingSplitTestFixture::get_test_name);
 
+INSTANTIATE_TEST_SUITE_P(
+    TransposeSinkingSplitForwardMultInputTransposeConsumersTestSuite,
+    TransposeSinkingSplitTestFixture,
+    ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingSplitForward)),
+                       ::testing::ValuesIn(split_operations_numbers),
+                       ::testing::ValuesIn(split_outputs_numbers),
+                       ::testing::Values(forward::mult_consumers::input_transpose_consumers::CreateFunction),
+                       ::testing::Values(forward::mult_consumers::input_transpose_consumers::CreateReferenceFunction),
+                       ::testing::Values(element::f32)),
+                       TransposeSinkingSplitTestFixture::get_test_name);
 
 INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingSplitBackwardTestSuite,
