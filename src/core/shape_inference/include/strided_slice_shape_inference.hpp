@@ -4,14 +4,16 @@
 
 #pragma once
 
-#include <ngraph/validation_util.hpp>
 #include <openvino/op/strided_slice.hpp>
 
+#include "slice_shape_inference_utils.hpp"
 #include "utils.hpp"
 
 namespace ov {
 namespace op {
 namespace v1 {
+
+const std::array<std::string, 3> shape_names{"begin", "end", "strides"};
 
 template <class T>
 void shape_infer(const StridedSlice* op,
@@ -23,26 +25,28 @@ void shape_infer(const StridedSlice* op,
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 3 || input_shapes.size() == 4) && output_shapes.size() == 1);
 
     const auto& input_shape = input_shapes[0];
+
+    std::accumulate(input_shapes.begin() + 1, input_shapes.end(), 0, [&op](int i, const T& shape) -> int {
+        const auto capitalize = [](std::string s) -> std::string {
+            if (!s.empty()) {
+                s.front() = std::toupper(s.front());
+            }
+            return std::move(s);
+        };
+
+        const auto& shape_rank = shape.rank();
+        NODE_VALIDATION_CHECK(op,
+                              shape_rank.compatible(1),
+                              capitalize(shape_names[i]),
+                              " input must be 1D (",
+                              shape_names[i],
+                              " rank: ",
+                              shape_rank);
+        return ++i;
+    });
+
     const auto& begin_shape = input_shapes[1];
-    NODE_VALIDATION_CHECK(op,
-                          begin_shape.rank().compatible(1),
-                          "Begin input must be 1D (begin rank: ",
-                          begin_shape.rank(),
-                          ").");
-
     const auto& end_shape = input_shapes[2];
-    NODE_VALIDATION_CHECK(op,
-                          end_shape.rank().compatible(1),
-                          "End input must be 1D (end rank: ",
-                          end_shape.rank(),
-                          ").");
-
-    const auto& strides_shape = input_shapes.size() < 4 ? op->get_input_shape(3) : input_shapes[3];
-    NODE_VALIDATION_CHECK(op,
-                          strides_shape.rank().compatible(1),
-                          "Strides input must be 1D (strides rank: ",
-                          strides_shape.rank(),
-                          ").");
 
     // it is not possible to define output shape if input data shape rank is undefined
     // even the lengths of begin, end, or strides are defined
@@ -51,21 +55,6 @@ void shape_infer(const StridedSlice* op,
         return;
     }
     auto input_rank = input_shape.size();
-
-    const auto get_input_bounds = [&](size_t idx) {
-        std::vector<int64_t> lower, upper;
-        if (!get_data_as_int64<T>(idx, op, lower, constant_data)) {
-            // if no const data try get input bounds
-            auto bounds = ngraph::evaluate_both_bounds(op->get_input_source_output(idx));
-
-            if (bounds.first && bounds.second) {
-                lower = std::make_shared<op::v0::Constant>(bounds.first)->cast_vector<int64_t>();
-                upper = std::make_shared<op::v0::Constant>(bounds.second)->cast_vector<int64_t>();
-            }
-        }
-
-        return std::make_pair(lower, upper);
-    };
 
     auto number_elements_in_1d = [](const StridedSlice* op, const T& shape_1d) -> int64_t {
         auto rank_1d = shape_1d.rank();
@@ -79,8 +68,8 @@ void shape_infer(const StridedSlice* op,
     };
 
     // compute constant values of begin, end, and strides if possible
-    auto begin = get_input_bounds(1);
-    auto end = get_input_bounds(2);
+    auto begin = slice::get_input_bounds<T>(op, 1, constant_data);
+    auto end = slice::get_input_bounds<T>(op, 2, constant_data);
     auto got_begin = !begin.first.empty();
     auto got_end = !end.first.empty();
 
@@ -103,7 +92,7 @@ void shape_infer(const StridedSlice* op,
     } else if (end_number_axes != -1) {
         number_axes = end_number_axes;
     }
-    auto strides_number_axes = number_elements_in_1d(op, strides_shape);
+    auto strides_number_axes = got_strides ? strides.size() : static_cast<int64_t>(-1);
     if (number_axes != -1 && strides_number_axes != -1) {
         NODE_VALIDATION_CHECK(op,
                               number_axes == strides_number_axes,
@@ -176,40 +165,24 @@ void shape_infer(const StridedSlice* op,
             // calculating dimension (begin, end, begin_mask, end_mask, stride)
             else if (got_begin && got_end && got_strides) {
                 // set default value for stride or use given value
+                const auto& input_dim = input_shape[input_shape_idx];
                 auto stride = (strides.size() > static_cast<size_t>(axis)) ? strides[axis] : static_cast<int64_t>(1);
                 NODE_VALIDATION_CHECK(op, stride != 0, "Stride must be non-zero");
-                // normalize by add max to value if negative
-                const auto normalize = [](const int64_t& value, const int64_t& max) -> int64_t {
-                    return (value < 0) ? value + max : value;
-                };
-
-                // clip value to min, max
-                const auto clip = [](const int64_t& value, const int64_t& min, const int64_t& max) -> int64_t {
-                    return std::min(std::max(value, min), max);
-                };
 
                 // get stride output dimension for dimension and bounds
                 // may not be called for stride 0 (div by 0!!!) assert check done above
-                const auto get_output_dim = [&](const int64_t& dim, const int64_t& lower, const int64_t& upper) {
+                const auto get_stride_elements = [&](const int64_t& dim, const int64_t& lower, const int64_t& upper) {
+                    constexpr int64_t inf_bound = -1;
                     const auto is_reverse_stride = stride < 0;
 
-                    constexpr int64_t lower_min = 0;
-                    const int64_t lower_max = is_reverse_stride ? dim - 1 : dim;
-                    const int64_t upper_min = is_reverse_stride ? -1 : lower_min;
-                    const int64_t default_min = is_reverse_stride ? lower_max : lower_min;
-                    const int64_t default_max = is_reverse_stride ? -1 : dim;
+                    const auto& norm_dim = dim == inf_bound ? std::numeric_limits<int64_t>::max() : dim;
+                    const int64_t default_start = is_reverse_stride ? norm_dim : 0;
+                    const int64_t default_stop = is_reverse_stride ? inf_bound - norm_dim : norm_dim;
 
-                    auto lb = begin_mask.count(axis) ? default_min : clip(normalize(lower, dim), lower_min, lower_max);
-                    auto ub = end_mask.count(axis) ? default_max : clip(normalize(upper, dim), upper_min, dim);
+                    const auto start = begin_mask.count(axis) ? default_start : lower;
+                    const auto stop = end_mask.count(axis) ? default_stop : upper;
 
-                    // decrees range by modifing lower bound depends on stride direction
-                    is_reverse_stride ? --lb : ++lb;
-
-                    if ((is_reverse_stride && lb >= ub) || (!is_reverse_stride && lb <= ub)) {
-                        return ((ub - lb) / stride) + 1;
-                    } else {
-                        return static_cast<int64_t>(0);
-                    }
+                    return slice::get_step_elements(norm_dim, start, stop, stride);
                 };
 
                 const auto& begin_lb = begin.first[axis];
@@ -218,34 +191,18 @@ void shape_infer(const StridedSlice* op,
                 const auto& end_lb = end.first[axis];
                 const auto& end_ub = end.second.empty() ? end_lb : end.second[axis];
 
-                if (input_shape[input_shape_idx].is_dynamic()) {
-                    // the relationship between input and output length is monotonically increasing
-                    // so we repeat the dimension inference twice to infer dynamic dimension
-                    const auto& interval = input_shape[input_shape_idx].get_interval();
-                    auto lb = get_output_dim(interval.get_min_val(), begin_ub, end_lb);
-                    auto ub =
-                        interval.has_upper_bound() ? get_output_dim(interval.get_max_val(), begin_lb, end_ub) : -1;
-                    dims.emplace_back(lb, ub);
-                } else {
-                    const auto& dimension = input_shape[input_shape_idx].get_length();
-                    auto lb = get_output_dim(dimension, begin_ub, end_lb);
-                    auto ub = get_output_dim(dimension, begin_lb, end_ub);
-                    dims.emplace_back(lb, ub);
-                }
+                auto lb = get_stride_elements(input_dim.get_min_length(), begin_ub, end_lb);
+                auto ub = get_stride_elements(input_dim.get_max_length(), begin_lb, end_ub);
+                dims.emplace_back(lb, ub);
 
-                if (std::is_same<DimType, ov::Dimension>::value && dims.back() == input_shape[input_shape_idx]) {
+                if (std::is_same<DimType, ov::Dimension>::value && dims.back() == input_dim) {
                     // for equal ov::Dimension do merge to get input label (always success)
-                    DimType::merge(dims.back(), dims.back(), input_shape[input_shape_idx]);
+                    DimType::merge(dims.back(), dims.back(), input_dim);
                 }
 
                 input_shape_idx++;
             } else {
-                if (input_shape[input_shape_idx].is_static()) {
-                    auto dim_value = input_shape[input_shape_idx].get_length();
-                    dims.emplace_back(0, dim_value);
-                } else {
-                    dims.emplace_back(-1);
-                }
+                dims.emplace_back(0, input_shape[input_shape_idx].get_max_length());
 
                 input_shape_idx++;
             }
