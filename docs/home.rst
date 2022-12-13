@@ -11,6 +11,9 @@ OpenVINO™ Documentation
 
 .. raw:: html
 
+
+
+
    <div class="section" id="welcome-to-openvino-toolkit-s-documentation">
    
    <link rel="stylesheet" type="text/css" href="_static/css/homepage_style.css">
@@ -120,7 +123,6 @@ OpenVINO™ Documentation
    GET STARTED <get_started>
    LEARN OPENVINO <learn_openvino>
    DOCUMENTATION <documentation>
-   API REFERENCE <api/api_reference>
    MODEL ZOO <model_zoo>
    RESOURCES <resources>
    RELEASE NOTES <https://software.intel.com/content/www/us/en/develop/articles/openvino-relnotes.html>
