@@ -1167,3 +1167,15 @@ TEST(type_prop, slice_v8_start_stop_is_shape_of_with_bounds) {
     EXPECT_EQ(slice->get_output_partial_shape(0), PartialShape({1, {1, 4}}));
     EXPECT_THAT(get_shape_labels(slice->get_output_partial_shape(0)), Each(ov::no_label));
 }
+
+TEST(type_prop, slice_v8_unknowns_axes) {
+    const auto data = std::make_shared<op::Parameter>(element::i64, Shape{5, 10, 15});
+    const auto start = std::make_shared<op::Parameter>(element::i64, PartialShape{-1});
+    const auto stop = std::make_shared<op::Parameter>(element::i64, Shape{1});
+    const auto steps = std::make_shared<op::Parameter>(element::i64, Shape{1});
+    const auto axes = std::make_shared<op::Parameter>(element::i64, Shape{1});
+
+    auto slice = std::make_shared<op::v8::Slice>(data, start, stop, steps, axes);
+
+    EXPECT_EQ(slice->get_output_partial_shape(0), PartialShape({{0, 5}, {0, 10}, {0, 15}}));
+}
