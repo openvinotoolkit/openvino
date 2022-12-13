@@ -40,10 +40,13 @@ static bool is_static_reshape_op(std::shared_ptr<ov::Node> node) {
     if (!output_shape_const_op)
         return false;
 
-    const auto input_shape = input.get_shape();
+    const auto& input_shape = input.get_shape();
     const auto output_shape = output_shape_const_op->cast_vector<int64_t>();
-    const auto input_elems = std::accumulate(input_shape.begin(), input_shape.end(), 1, std::multiplies<int64_t>());
-    const auto output_elems = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int64_t>());
+    // below casts are needed due to VC warning C4244, literals are not enough in this case
+    const auto input_elems =
+        std::accumulate(input_shape.begin(), input_shape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
+    const auto output_elems =
+        std::accumulate(output_shape.begin(), output_shape.end(), static_cast<int64_t>(1), std::multiplies<int64_t>());
     if (output_elems <= 0 || input_elems == output_elems)
         return false;
     return true;
