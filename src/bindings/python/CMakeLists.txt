@@ -66,7 +66,7 @@ function(ov_check_python_build_conditions)
     # check pyopenvino requirements to OV 2.0 API
     ov_check_pip_packages(REQUIREMENTS_FILE ${ov_python_req}
                           RESULT_VAR ov_python_req_FOUND
-                          WARNING_MESSAGE "install python3 -m install -r ${ov_python_req} for OV API 2.0 requirements"
+                          WARNING_MESSAGE "install python3 -m pip install -r ${ov_python_req} for OV API 2.0 requirements"
                           MESSAGE_MODE TRACE)
     # ov_python_req are not mandatory for build
     set(ov_python_req_FOUND ON)

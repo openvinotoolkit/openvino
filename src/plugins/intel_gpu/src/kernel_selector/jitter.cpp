@@ -249,13 +249,15 @@ public:
         auto type_defs = MakeTypeJitConstants(t.GetDType(), _name).GetDefinitions();
         definitions.insert(definitions.end(), type_defs.begin(), type_defs.end());
 
-        definitions.push_back({_name + "_SIZE", toCodeString(t.GetDims().size())});
-        definitions.push_back(
-            {_name + "_SIZES_DATA",
-             toVectorString(t.GetDims(), "", KERNEL_SELECTOR_TENSOR_DIM_MAX, 1, [](const Tensor::Dim& d) { return d.v; })});
-        definitions.push_back(
-            {_name + "_PITCHES",
-             toVectorString(t.GetDims(), "size_t", KERNEL_SELECTOR_TENSOR_DIM_MAX, 1, [](const Tensor::Dim& d) { return d.pitch; })});
+        if (!t.is_dynamic()) {
+            definitions.push_back({_name + "_SIZE", toCodeString(t.GetDims().size())});
+            definitions.push_back(
+                {_name + "_SIZES_DATA",
+                toVectorString(t.GetDims(), "", KERNEL_SELECTOR_TENSOR_DIM_MAX, 1, [](const Tensor::Dim& d) { return d.v; })});
+            definitions.push_back(
+                {_name + "_PITCHES",
+                toVectorString(t.GetDims(), "size_t", KERNEL_SELECTOR_TENSOR_DIM_MAX, 1, [](const Tensor::Dim& d) { return d.pitch; })});
+        }
         definitions.push_back(
             {_name + "_PAD_BEFORE",
              toVectorString(t.GetDims(), "size_t", KERNEL_SELECTOR_TENSOR_DIM_MAX, 0, [](const Tensor::Dim& d) { return d.pad.before; })});
@@ -576,8 +578,8 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
         } else {
             auto f_pad = toCodeString(_tensor.Feature().pad.before);
             auto f_size = toCodeString(_tensor.Feature().v);
-            definitions.push_back({ safe_index_func_name, "((" + f_pad + " + (f)) % " + f_size + ")" });
-            definitions.push_back({ index_func_name, "(" + toCodeString(_tensor.Feature().pad.before) + " + (f))" });
+            definitions.push_back({ safe_index_func_name, "((" + offset + " + (f)) % " + f_size + ")" });
+            definitions.push_back({ index_func_name, "(" + offset + " + (f))" });
         }
     } else {
         definitions.push_back({ safe_index_func_name, safe_index_func_val });
@@ -649,7 +651,7 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
     )
                 )V0G0N";
             } else if (l == WeightsLayout::os_iyx_osv16 || l == WeightsLayout::os_iyx_osv32 ||
-                       l == WeightsLayout::os_iyx_osv32__ai32 || l == WeightsLayout::g_os_iyx_osv16 ||
+                       l == WeightsLayout::os_iyx_osv32__ai32 || l == WeightsLayout::g_os_iyx_osv8 || l == WeightsLayout::g_os_iyx_osv16 ||
                        l == WeightsLayout::g_os_iyx_osv32) {
                 args macroNameArgs = {"prefix", "g", "o", "i", "y", "x", "sub_group_size"};
                 this->calcFunction = FuncBody(layout_name);
@@ -881,6 +883,8 @@ JitDefinitions WeightTensorJitConstant::GetDefinitions() const {
                     index_func_val = called_func_name + "(" + _name + ", g, o, i, 0, y, x)";
                 else if (layout == WeightsLayout::g_os_is_yx_isv16_osv16)
                     index_func_val = called_func_name + "(" + _name + ", g, o, i, 0, y, x, 16)";
+                else if (layout == WeightsLayout::g_os_iyx_osv8)
+                    index_func_val = called_func_name + "(" + _name + ", g, o, i, y, x, 8)";
                 else if (layout == WeightsLayout::g_os_iyx_osv16)
                     index_func_val = called_func_name + "(" + _name + ", g, o, i, y, x, 16)";
                 else if (layout == WeightsLayout::g_is_os_yx_isv16_osv16)

@@ -37,8 +37,8 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
     /// @param second_output Id of primitive specifying output for scores for each selected box.
     /// @param third_output Id of primitive specifying output for total number of selected boxes.
     non_max_suppression(const primitive_id& id,
-                        const primitive_id& boxes_positions,
-                        const primitive_id& boxes_score,
+                        const input_info& boxes_positions,
+                        const input_info& boxes_score,
                         int selected_indices_num,
                         bool center_point_box = false,
                         bool sort_result_descending = true,
@@ -48,9 +48,8 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
                         const primitive_id& soft_nms_sigma = primitive_id(),
                         const primitive_id& second_output = primitive_id(),
                         const primitive_id& third_output = primitive_id(),
-                        const std::vector<input_info>& inputs = {},
                         const size_t num_outputs = 1)
-        : primitive_base(id, {boxes_positions, boxes_score}, padding(), optional_data_type(), inputs, num_outputs)
+        : primitive_base(id, {boxes_positions, boxes_score}, {padding()}, {optional_data_type()}, num_outputs)
         , selected_indices_num(selected_indices_num)
         , center_point_box(center_point_box)
         , sort_result_descending(sort_result_descending)
@@ -85,20 +84,6 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
             ret.push_back(second_output);
         if (!third_output.empty())
             ret.push_back(third_output);
-
-        return ret;
-    }
-
-    std::vector<std::pair<std::reference_wrapper<const primitive_id>, int>> get_dependencies_new() const override {
-        std::vector<std::pair<std::reference_wrapper<const primitive_id>, int>> ret;
-        if (!num_select_per_class.empty())
-            ret.push_back({num_select_per_class, 0});
-        if (!iou_threshold.empty())
-            ret.push_back({iou_threshold, 0});
-        if (!score_threshold.empty())
-            ret.push_back({score_threshold, 0});
-        if (!soft_nms_sigma.empty())
-            ret.push_back({soft_nms_sigma, 0});
 
         return ret;
     }

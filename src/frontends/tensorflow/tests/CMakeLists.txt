@@ -22,10 +22,11 @@ ov_add_test_target(
 )
 
 # Test model generating
-ov_check_pip_package(REQUIREMENT tensorflow
-                     MESSAGE_MODE WARNING
-                     WARNING_MESSAGE "TensorFlow frontend unit tests will be skipped"
-                     RESULT_VAR tensorflow_FOUND)
+
+ov_check_pip_packages(REQUIREMENTS_FILE "${CMAKE_CURRENT_SOURCE_DIR}/requirements.txt"
+                      MESSAGE_MODE WARNING
+                      WARNING_MESSAGE "TensorFlow frontend unit tests will be skipped"
+                      RESULT_VAR tensorflow_FOUND)
 
 set(TEST_TENSORFLOW_MODELS_DIRNAME test_model_zoo/tensorflow_test_models)
 target_compile_definitions(${TARGET_NAME} PRIVATE -D TEST_TENSORFLOW_MODELS_DIRNAME=\"${TEST_TENSORFLOW_MODELS_DIRNAME}/\")
@@ -38,6 +39,8 @@ if (tensorflow_FOUND)
     set(TEST_TENSORFLOW_MODELS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TEST_TENSORFLOW_MODELS_DIRNAME}/)
 
     file(GLOB_RECURSE TENSORFLOW_GEN_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_scripts/generate_*.py)
+    file(GLOB_RECURSE TENSORFLOW_MODELS_PBTXT ${CMAKE_CURRENT_SOURCE_DIR}/test_models/models_pbtxt/*.pbtxt)
+    list (APPEND TENSORFLOW_GEN_SCRIPTS ${TENSORFLOW_MODELS_PBTXT})
     file(GLOB_RECURSE TENSORFLOW_ALL_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/*.py)
     set(OUT_FILES "")
     foreach(GEN_SCRIPT ${TENSORFLOW_GEN_SCRIPTS})

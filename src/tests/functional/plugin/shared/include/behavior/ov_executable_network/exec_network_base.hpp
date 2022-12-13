@@ -4,7 +4,7 @@
 
 #include <exec_graph_info.hpp>
 #include <fstream>
-#include <transformations/serialize.hpp>
+#include <openvino/pass/serialize.hpp>
 
 #include "base/ov_behavior_test_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
@@ -328,9 +328,8 @@ TEST_P(OVExecutableNetworkBaseTest, canExport) {
     std::ofstream out(modelName, std::ios::out);
     EXPECT_NO_THROW(execNet.export_model(out));
     out.close();
-    EXPECT_TRUE(CommonTestUtils::fileExists(modelName + ".xml"));
-    EXPECT_TRUE(CommonTestUtils::fileExists(modelName + ".bin"));
-    CommonTestUtils::removeIRFiles(modelName + ".xml", modelName + ".bin");
+    EXPECT_TRUE(CommonTestUtils::fileExists(modelName));
+    CommonTestUtils::removeFile(modelName);
 }
 
 TEST_P(OVExecutableNetworkBaseTest, pluginDoesNotChangeOriginalNetwork) {

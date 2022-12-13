@@ -32,7 +32,6 @@ public:
     };
 
     OPENVINO_OP("Loop", "opset5", op::util::SubGraphOp, 5);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a Loop operation.
     Loop() = default;
@@ -86,7 +85,6 @@ public:
         : DirectValueAccessor<op::v5::Loop::SpecialBodyPorts>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v5::Loop::SpecialBodyPorts>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov
