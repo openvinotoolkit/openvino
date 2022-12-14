@@ -246,9 +246,9 @@ static constexpr char input_image_scale_message[] =
 
 static constexpr char mean_values_message[] =
     "Optional. Mean values to be used for the input image per channel. Values to be provided in the [R,G,B] format. "
-    "Can be defined for desired input of the model, for example: \"--mean_values data[255,255,255],info[255,255,255]\". "
-    "The exact meaning and order of channels depend on how the original model was trained. Applying the values affects "
-    "performance and may cause type conversion";
+    "Can be defined for desired input of the model, for example: \"--mean_values "
+    "data[255,255,255],info[255,255,255]\". The exact meaning and order of channels depend on how the original model "
+    "was trained. Applying the values affects performance and may cause type conversion";
 
 static constexpr char scale_values_message[] =
     "Optional. Scale values to be used for the input image per channel. Values are provided in the [R,G,B] format. Can "
