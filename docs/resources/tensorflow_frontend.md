@@ -1,7 +1,7 @@
 # OpenVINO TensorFlow Frontend Capabilities and Limitations {#openvino_docs_MO_DG_TensorFlow_Frontend}
 
 TensorFlow Frontend is C++ based Frontend for conversion of TensorFlow models and is available as a preview feature starting from 2022.3.
-That means that you can start experimenting with `–use_new_frontend` option passed to Model Optimizer to enjoy improved conversion time for limited scope of models
+That means that you can start experimenting with `--use_new_frontend` option passed to Model Optimizer to enjoy improved conversion time for limited scope of models
 or directly loading TensorFlow models through `read_model()` method.
 
 The current limitations:
