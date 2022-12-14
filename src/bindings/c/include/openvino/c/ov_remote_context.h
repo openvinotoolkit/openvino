@@ -63,19 +63,11 @@ OPENVINO_C_VAR(const char*) ov_property_key_intel_gpu_dev_object_handle;
 //!< Read-write property<uint32_t string>: video decoder surface plane in a shared memory blob parameter map.
 OPENVINO_C_VAR(const char*) ov_property_key_intel_gpu_va_plane;
 
-// RemoteContext
-/**
- * @defgroup remote_context remote_context
- * @ingroup openvino_c
- * Set of functions representing of RemoteContext.
- * @{
- */
-
 /**
  * @brief Allocates memory tensor in device memory or wraps user-supplied memory handle
  * using the specified tensor description and low-level device-specific parameters.
  * Returns a pointer to the object that implements the RemoteTensor interface.
- * @ingroup remote_context
+ * @ingroup ov_remote_context_c_api
  * @param context A pointer to the ov_remote_context_t instance.
  * @param type Defines the element type of the tensor.
  * @param shape Defines the shape of the tensor.
@@ -94,7 +86,7 @@ ov_remote_context_create_tensor(const ov_remote_context_t* context,
 
 /**
  * @brief Returns name of a device on which underlying object is allocated.
- * @ingroup remote_context
+ * @ingroup ov_remote_context_c_api
  * @param context A pointer to the ov_remote_context_t instance.
  * @param device_name Device name will be returned.
  * @return Status code of the operation: OK(0) for success.
@@ -109,7 +101,7 @@ ov_remote_context_get_device_name(const ov_remote_context_t* context, char** dev
  * etc. Content of the returned map depends on a remote execution context that is
  * currently set on the device (working scenario).
  * One actaul example: "CONTEXT_TYPE:OCL;OCL_CONTEXT:0x559ff6dab620;OCL_QUEUE:0x559ff6df06a0;"
- * @ingroup remote_context
+ * @ingroup ov_remote_context_c_api
  * @param context A pointer to the ov_remote_context_t instance.
  * @param size The size of param pairs.
  * @param params Param name:value list.
@@ -122,7 +114,7 @@ ov_remote_context_get_params(const ov_remote_context_t* context, size_t* size, c
  * @brief This method is used to create a host tensor object friendly for the device in current context.
  * For example, GPU context may allocate USM host memory (if corresponding extension is available),
  * which could be more efficient than regular host memory.
- * @ingroup remote_context
+ * @ingroup ov_remote_context_c_api
  * @param context A pointer to the ov_remote_context_t instance.
  * @param type Defines the element type of the tensor.
  * @param shape Defines the shape of the tensor.
@@ -137,7 +129,7 @@ ov_remote_context_create_host_tensor(const ov_remote_context_t* context,
 
 /**
  * @brief Release the memory allocated by ov_remote_context_t.
- * @ingroup remote_context
+ * @ingroup ov_remote_context_c_api
  * @param context A pointer to the ov_remote_context_t to free memory.
  * @return Status code of the operation: OK(0) for success.
  */
@@ -150,7 +142,7 @@ OPENVINO_C_API(void) ov_remote_context_free(ov_remote_context_t* context);
  * etc. Content of the returned map depends on remote execution context that is
  * currently set on the device (working scenario).
  * One example: "MEM_HANDLE:0x559ff6904b00;OCL_CONTEXT:0x559ff71d62f0;SHARED_MEM_TYPE:OCL_BUFFER;"
- * @ingroup remote_context
+ * @ingroup ov_remote_context_c_api
  * @param tensor Pointer to ov_tensor_t that contains host tensor.
  * @param size The size of param pairs.
  * @param params Param name:value list.
@@ -161,7 +153,7 @@ ov_remote_tensor_get_params(ov_tensor_t* tensor, size_t* size, char** params);
 
 /**
  * @brief Returns name of a device on which underlying object is allocated.
- * @ingroup remote_context
+ * @ingroup ov_remote_context_c_api
  * @param remote_tensor A pointer to the remote tensor instance.
  * @param device_name Device name will be return.
  * @return Status code of the operation: OK(0) for success.

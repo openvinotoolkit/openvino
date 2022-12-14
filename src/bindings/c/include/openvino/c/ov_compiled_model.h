@@ -187,7 +187,7 @@ OPENVINO_C_API(void) ov_compiled_model_free(ov_compiled_model_t* compiled_model)
 /**
  * @brief Returns pointer to device-specific shared context
  * on a remote accelerator device that was used to create this CompiledModel.
- * @ingroup compiled_model
+ * @ingroup ov_compiled_model_c_api
  * @param compiled_model A pointer to the ov_compiled_model_t.
  * @param context Return context.
  * @return Status code of the operation: OK(0) for success.
@@ -195,5 +195,3 @@ OPENVINO_C_API(void) ov_compiled_model_free(ov_compiled_model_t* compiled_model)
  */
 OPENVINO_C_API(ov_status_e)
 ov_compiled_model_get_context(const ov_compiled_model_t* compiled_model, ov_remote_context_t** context);
-
-/** @} */  // end of compiled_model

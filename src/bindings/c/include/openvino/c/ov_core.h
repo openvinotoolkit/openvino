@@ -349,7 +349,7 @@ OPENVINO_C_API(void) ov_core_versions_free(ov_core_version_list_t* versions);
 /**
  * @brief Creates a new remote shared context object on the specified accelerator device
  * using specified plugin-specific low-level device API parameters (device handle, pointer, context, etc.).
- * @ingroup Core
+ * @ingroup ov_core_c_api
  * @param core A pointer to the ov_core_t instance.
  * @param device_name Device name to identify a plugin.
  * @param context_args_size How many property args will be for this remote context creation.
@@ -366,7 +366,7 @@ ov_core_create_context(const ov_core_t* core,
 
 /**
  * @brief Creates a compiled model from a source model within a specified remote context.
- * @ingroup Core
+ * @ingroup ov_core_c_api
  * @param core A pointer to the ov_core_t instance.
  * @param model Model object acquired from ov_core_read_model.
  * @param context A pointer to the newly created remote context.
@@ -385,7 +385,7 @@ ov_core_compile_model_with_context(const ov_core_t* core,
 
 /**
  * @brief Gets a pointer to default (plugin-supplied) shared context object for the specified accelerator device.
- * @ingroup Core
+ * @ingroup ov_core_c_api
  * @param core A pointer to the ov_core_t instance.
  * @param device_name Name of a device to get a default shared context from.
  * @param context A pointer to the referenced remote context.
@@ -393,5 +393,3 @@ ov_core_compile_model_with_context(const ov_core_t* core,
  */
 OPENVINO_C_API(ov_status_e)
 ov_core_get_default_context(const ov_core_t* core, const char* device_name, ov_remote_context_t** context);
-
-/** @} */  // end of Core
