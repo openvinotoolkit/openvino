@@ -63,7 +63,7 @@ struct roll_test : testing::TestWithParam<roll_test_params<T>> {
 
         ASSERT_EQ(output_ptr.size(), p.expected_values.size());
         for (size_t i = 0; i < output_ptr.size(); ++i) {
-            EXPECT_NEAR(p.expected_values[i], output_ptr[i], 1e-5f);
+            ASSERT_NEAR(p.expected_values[i], output_ptr[i], 1e-5f);
         }
     }
 

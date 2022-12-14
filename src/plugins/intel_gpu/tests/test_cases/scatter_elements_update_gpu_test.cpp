@@ -304,7 +304,7 @@ public:
         ASSERT_EQ(params.data.size(), output_ptr.size());
         ASSERT_EQ(params.expected.size(), output_ptr.size());
         for (uint32_t i = 0; i < output_ptr.size(); i++) {
-            EXPECT_NEAR(output_ptr[i], params.expected[i], getError<T>())
+            ASSERT_NEAR(output_ptr[i], params.expected[i], getError<T>())
                                 << "format=" << fmt_to_str(target_data_format) << ", i=" << i;
         }
     }

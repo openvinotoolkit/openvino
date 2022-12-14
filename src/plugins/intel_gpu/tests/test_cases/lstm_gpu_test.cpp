@@ -260,7 +260,7 @@ void generic_lstm_gemm_gpu_test(int sequence_len, int direction, int batch_size,
     int i = 0;
     for (int b = 0; b < batch_size; ++b) {
         for (int x = 0; x < 4 * hidden_size; ++x)
-            EXPECT_FLOAT_EQ(ref_output[b][0][0][x], output_ptr[i++]);
+            ASSERT_FLOAT_EQ(ref_output[b][0][0][x], output_ptr[i++]);
     }
 }
 

@@ -199,11 +199,11 @@ public:
         const auto& expected_scores = param.expected_scores;
         for (int i = 0; i < param.max_detections_per_image; ++i) {
             if (!is_caching_test) {
-                EXPECT_NEAR(expected_scores[i], output_scores_ptr[i], 0.001) << "i=" << i;
+                ASSERT_NEAR(expected_scores[i], output_scores_ptr[i], 0.001) << "i=" << i;
             }
             for (size_t coord = 0; coord < 4; ++coord) {
                 const auto roi_idx = i * 4 + coord;
-                EXPECT_NEAR(expected_boxes[roi_idx], output_boxes_ptr[roi_idx], getError<T>())
+                ASSERT_NEAR(expected_boxes[roi_idx], output_boxes_ptr[roi_idx], getError<T>())
                     << "i=" << i << ", coord=" << coord;
             }
             if (!is_caching_test) {

@@ -59,7 +59,7 @@ TEST(add_reorders_gpu, two_convolutions_and_concatenation) {
     for (auto& it : outputs) {
         cldnn::mem_lock<float> output(it.second.get_memory(), get_test_stream());
         for (size_t cntr = 0; cntr < 2 * 2; cntr++) {
-            EXPECT_NEAR(expected_out[cntr], output[cntr], epsilon);
+            ASSERT_NEAR(expected_out[cntr], output[cntr], epsilon);
         }
     }
 }

@@ -121,7 +121,7 @@ public:
         const auto expected_output = convert<T>(test_inputs.expected_output);
         ASSERT_EQ(expected_output.size(), output_ptr.size());
         for (size_t i = 0; i < expected_output.size(); ++i) {
-            EXPECT_NEAR(expected_output[i], output_ptr[i], THRESHOLD);
+            ASSERT_NEAR(expected_output[i], output_ptr[i], THRESHOLD);
         }
 
         ASSERT_EQ(test_inputs.expected_selected_boxes.size(), selected_boxes_ptr.size());

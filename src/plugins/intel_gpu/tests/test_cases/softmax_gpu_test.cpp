@@ -931,7 +931,7 @@ public:
 
         ASSERT_EQ(params.input_tensor.count(), output_ptr.size());
         for (uint32_t i = 0; i < output_ptr.size(); i++) {
-            EXPECT_NEAR(output_ptr[i], params.expected[i], getError<T>()) << "target_format=" << target_format << ", i=" << i;
+            ASSERT_NEAR(output_ptr[i], params.expected[i], getError<T>()) << "target_format=" << target_format << ", i=" << i;
         }
     }
 };

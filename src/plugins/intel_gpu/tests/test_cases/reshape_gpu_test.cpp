@@ -18,7 +18,7 @@ using namespace testing;
 
 namespace {
 void verify_float(const float& output_value, const float& value) {
-    EXPECT_FLOAT_EQ(output_value, value);
+    ASSERT_FLOAT_EQ(output_value, value);
 }
 
 void verify_int(const int32_t& output_value, const int32_t& value) {

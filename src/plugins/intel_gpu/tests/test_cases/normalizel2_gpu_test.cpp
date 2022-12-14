@@ -185,7 +185,7 @@ TYPED_TEST(normalize_basic, basic) {
         cldnn::mem_lock<half_t> output_ptr(output, get_test_stream());
         auto expected_results = this->get_expected_result();
         for (size_t i = 0; i < expected_results.size(); ++i) {
-            EXPECT_NEAR(expected_results[i], output_ptr[i], 0.001);
+            ASSERT_NEAR(expected_results[i], output_ptr[i], 0.001);
         }
     } else {
         cldnn::mem_lock<float> output_ptr(output, get_test_stream());

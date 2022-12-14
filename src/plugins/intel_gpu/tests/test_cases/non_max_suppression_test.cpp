@@ -343,13 +343,13 @@ TYPED_TEST(non_max_suppression_basic, optional_outputs) {
         cldnn::mem_lock<float> second_output_ptr(plane_scores_mem, get_test_stream());
 
         for (size_t i = 0; i < expected_second_out.size(); ++i) {
-            EXPECT_FLOAT_EQ(expected_second_out[i], second_output_ptr[i]);
+            ASSERT_FLOAT_EQ(expected_second_out[i], second_output_ptr[i]);
         }
     } else {
         cldnn::mem_lock<half_t> second_output_ptr(plane_scores_mem, get_test_stream());
 
         for (size_t i = 0; i < expected_second_out.size(); ++i) {
-            EXPECT_NEAR(expected_second_out[i], half_to_float(second_output_ptr[i]), 0.0002f);
+            ASSERT_NEAR(expected_second_out[i], half_to_float(second_output_ptr[i]), 0.0002f);
         }
     }
 
@@ -463,13 +463,13 @@ TYPED_TEST(non_max_suppression_basic, multiple_outputs) {
         cldnn::mem_lock<float> second_output_ptr(plane_scores_mem, get_test_stream());
 
         for (size_t i = 0; i < expected_second_out.size(); ++i) {
-            EXPECT_FLOAT_EQ(expected_second_out[i], second_output_ptr[i]);
+            ASSERT_FLOAT_EQ(expected_second_out[i], second_output_ptr[i]);
         }
     } else {
         cldnn::mem_lock<half_t> second_output_ptr(plane_scores_mem, get_test_stream());
 
         for (size_t i = 0; i < expected_second_out.size(); ++i) {
-            EXPECT_NEAR(expected_second_out[i], half_to_float(second_output_ptr[i]), 0.0002f);
+            ASSERT_NEAR(expected_second_out[i], half_to_float(second_output_ptr[i]), 0.0002f);
         }
     }
 

@@ -195,7 +195,7 @@ void runRegionTest(region_yolo_test_params& params) {
 
     /// compare values
     for (size_t i = 0; i < inputData.size(); ++i) {
-        EXPECT_NEAR(refOutputData[i], outputData[i], 0.01);
+        ASSERT_NEAR(refOutputData[i], outputData[i], 0.01);
     }
 }
 }  // namespace

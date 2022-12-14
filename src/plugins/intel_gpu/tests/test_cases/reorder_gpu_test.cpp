@@ -299,7 +299,7 @@ TEST(reorder_gpu_optimization, bfyx_to_fsv16_without_f_remainder) {
             for (int32_t y = 0; y < y_in; y++) {
                 for (int32_t x = 0; x < x_in; x++) {
                     int32_t b_fs_yx_fsv16_index = get_fsv16_index(b_in, f_in, y_in, x_in, b, f, y, x);
-                    EXPECT_FLOAT_EQ(input_ptr[linear_index++], output_ptr[b_fs_yx_fsv16_index]);
+                    ASSERT_FLOAT_EQ(input_ptr[linear_index++], output_ptr[b_fs_yx_fsv16_index]);
                 }
             }
         }
@@ -380,7 +380,7 @@ TEST(reorder_gpu_f32, basic) {
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_FLOAT_EQ(answers[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
     }
 }
 
@@ -472,7 +472,7 @@ TEST(reorder_gpu_f32, basic_subtract) {
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_FLOAT_EQ(answers[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
     }
 }
 
@@ -1069,7 +1069,7 @@ TEST(reorder_gpu_f32, basic_yxfb_to_bfyx_input_padding)
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_FLOAT_EQ(answers[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
     }
 
 }
@@ -1150,7 +1150,7 @@ TEST(reorder_gpu_f32, basic_bfyx_to_yxfb_input_padding)
     for (int i = 0; i < 16; i++)
     {
         out.push_back(output_ptr[i]);
-        EXPECT_FLOAT_EQ(answers[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
     }
 
 }
@@ -1215,7 +1215,7 @@ TEST(reorder_gpu_f32, basic_bfyx_to_bfzyx)
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_FLOAT_EQ(answers[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
     }
 }
 
@@ -1346,7 +1346,7 @@ TEST(reorder_gpu_f32, basic_yxfb_to_bfzyx)
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_FLOAT_EQ(answers[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
     }
 }
 
@@ -1434,7 +1434,7 @@ TEST(reorder_gpu_f32, basic_bfzyx_to_bfyx)
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_FLOAT_EQ(answers[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
     }
 }
 
@@ -1485,8 +1485,8 @@ TEST(reorder_gpu_opt, remove_redundant_activation_fuse)
     net.set_input_data("in", in);
     auto outputs = net.execute();
     cldnn::mem_lock<float> out_ptr(outputs.begin()->second.get_memory(), get_test_stream());
-    EXPECT_FLOAT_EQ(out_ptr[0], -0.02f);
-    EXPECT_FLOAT_EQ(out_ptr[1], -0.02f);
+    ASSERT_FLOAT_EQ(out_ptr[0], -0.02f);
+    ASSERT_FLOAT_EQ(out_ptr[1], -0.02f);
 }
 
 TEST(reorder_gpu_opt, basic_remove_redundant_output_due_to_implicit_reorders)
@@ -1604,7 +1604,7 @@ TEST(reorder_gpu_opt, mean_mul)
     cldnn::mem_lock<float> ptr(output, get_test_stream());
     float* a_ptr = answers;
     for (auto& val : ptr)
-        EXPECT_FLOAT_EQ(*(a_ptr++), val);
+        ASSERT_FLOAT_EQ(*(a_ptr++), val);
 
 }
 
@@ -1639,7 +1639,7 @@ TEST(reorder_gpu_opt, mean_div)
     cldnn::mem_lock<float> ptr(output, get_test_stream());
     float* a_ptr = answers;
     for (auto& val : ptr)
-        EXPECT_FLOAT_EQ(*(a_ptr++), val);
+        ASSERT_FLOAT_EQ(*(a_ptr++), val);
 
 }
 
@@ -1670,7 +1670,7 @@ TEST(reorder_gpu_opt, mean_mul_val)
     cldnn::mem_lock<float> ptr(output, get_test_stream());
     float* a_ptr = answers;
     for (auto& val : ptr)
-        EXPECT_FLOAT_EQ(*(a_ptr++), val);
+        ASSERT_FLOAT_EQ(*(a_ptr++), val);
 }
 
 TEST(reorder_gpu_opt, mean_mul_val_float_to_int)
@@ -1952,7 +1952,7 @@ TEST(reorder_gpu_f32, bfwzyx_bfyx_chain)
 
     for (size_t i = 0; i < expected.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected[i], output_ptr[i]);
     }
 }
 
@@ -2025,7 +2025,7 @@ TEST(reorder_gpu_f32, bfzyx_to_bsv16_fsv16)
                                                                           0, z, 0,
                                                                           0, y, 0,
                                                                           0, x, 0);
-                        EXPECT_FLOAT_EQ(input_ptr[linear_index++], output_ptr[bsv16_fsv16_index]);
+                        ASSERT_FLOAT_EQ(input_ptr[linear_index++], output_ptr[bsv16_fsv16_index]);
                     }
                 }
             }
@@ -2107,7 +2107,7 @@ TEST(reorder_gpu_f32, bfzyx_to_bsv16_fsv16_padded)
                                                                           z_pad, z, z_pad,
                                                                           y_pad, y, y_pad,
                                                                           x_pad, x, x_pad);
-                        EXPECT_FLOAT_EQ(input_ptr[linear_index++], output_ptr[bsv16_fsv16_index]);
+                        ASSERT_FLOAT_EQ(input_ptr[linear_index++], output_ptr[bsv16_fsv16_index]);
                     }
                 }
             }
@@ -2155,7 +2155,7 @@ TEST(reorder_gpu_f32, b_fs_yx_fsv16_to_bfyx_opt_allowed)
     ASSERT_EQ(output_ptr.size(), 24);
     for (size_t i = 0; i < output_ptr.size(); i++)
     {
-        EXPECT_FLOAT_EQ(answers[i], output_ptr[i]) << "i=" << i;
+        ASSERT_FLOAT_EQ(answers[i], output_ptr[i]) << "i=" << i;
     }
 }
 
@@ -2198,7 +2198,7 @@ TEST(reorder_gpu_f32, b_fs_yx_fsv16_to_bfyx_opt_not_allowed)
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     for (int i = 0; i < 1; i++)
     {
-        EXPECT_FLOAT_EQ(answers[i], output_ptr[i]) << "i=" << i;
+        ASSERT_FLOAT_EQ(answers[i], output_ptr[i]) << "i=" << i;
     }
 }
 
@@ -2257,7 +2257,7 @@ TEST(reorder_gpu_f32, b_fs_yx_fsv16_to_bfyx_opt_padded)
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     ASSERT_EQ(output_ptr.size(), 8);
     for (size_t i = 0; i < output_ptr.size(); i++) {
-        EXPECT_FLOAT_EQ(answers[i], output_ptr[i]) << "i=" << i;
+        ASSERT_FLOAT_EQ(answers[i], output_ptr[i]) << "i=" << i;
     }
 }
 
@@ -2326,7 +2326,7 @@ TEST(reorder_image2d_rgba_to_bfyx_gpu, basic)
     cldnn::mem_lock<FLOAT16> output_ptr (output, get_test_stream());
     for (int i = 0; i < 12; i++)
     {
-        EXPECT_NEAR(FLOAT16(answers[i] / 255.f), output_ptr[i], 1e-3f);
+        ASSERT_NEAR(FLOAT16(answers[i] / 255.f), output_ptr[i], 1e-3f);
     }
 
 }

@@ -1485,17 +1485,17 @@ TEST(crop_gpu, static_split_batch) {
     cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < out1.size(); i++)
-        EXPECT_EQ(output_ptr[i], out1[i]);
+        ASSERT_EQ(output_ptr[i], out1[i]);
 
     auto output_2 = outputs.at("crop2").get_memory();
     cldnn::mem_lock<int32_t> output_ptr_2(output_2, get_test_stream());
 
     for (size_t i = 0; i < out2.size(); i++)
-        EXPECT_EQ(output_ptr_2[i], out2[i]);
+        ASSERT_EQ(output_ptr_2[i], out2[i]);
 
     auto output_3 = outputs.at("crop3").get_memory();
     cldnn::mem_lock<int32_t> output_ptr_3(output_3, get_test_stream());
 
     for (size_t i = 0; i < out3.size(); i++)
-        EXPECT_EQ(output_ptr_3[i], out3[i]);
+        ASSERT_EQ(output_ptr_3[i], out3[i]);
 }

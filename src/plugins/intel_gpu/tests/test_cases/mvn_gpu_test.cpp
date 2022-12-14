@@ -53,12 +53,12 @@ void mvn_compute_mean_across_channels(cldnn::memory::ptr output, bool normalize_
         }
         sum /= feature_size * y_size * x_size * z_size;
         T result_sum = static_cast<T>(sum);
-        EXPECT_NEAR(result_sum, 0.f, err_margin) << "at b=" << b;
+        ASSERT_NEAR(result_sum, 0.f, err_margin) << "at b=" << b;
 
         if (normalize_variance) {
             variance /= feature_size * y_size * x_size * z_size;
             T result_variance = static_cast<T>(variance);
-            EXPECT_NEAR(result_variance, 1.f, err_margin) << " at b=" << b;
+            ASSERT_NEAR(result_variance, 1.f, err_margin) << " at b=" << b;
         }
     }
 }
@@ -95,12 +95,12 @@ void mvn_compute_mean_within_channels(cldnn::memory::ptr output, bool normalize_
             }
             sum /= y_size * x_size * z_size;
             T result_sum = static_cast<T>(sum);
-            EXPECT_NEAR(result_sum, 0.f, err_margin) << "at b=" << b << ", f=" << f;
+            ASSERT_NEAR(result_sum, 0.f, err_margin) << "at b=" << b << ", f=" << f;
 
             if (normalize_variance) {
                 variance /= y_size * x_size * z_size;
                 T result_variance = static_cast<T>(variance);
-                EXPECT_NEAR(result_variance, 1.f, err_margin) << " at b=" << b << ", f=" << f;
+                ASSERT_NEAR(result_variance, 1.f, err_margin) << " at b=" << b << ", f=" << f;
             }
         }
     }
@@ -794,7 +794,7 @@ struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
     }
 
     template <typename T>
-    bool compare_outputs(const cldnn::memory::ptr out_ref, const cldnn::memory::ptr out_opt) {
+    void compare_outputs(const cldnn::memory::ptr out_ref, const cldnn::memory::ptr out_opt) {
         auto output_lay = out_ref->get_layout();
         auto opt_output_lay = out_opt->get_layout();
 
@@ -817,13 +817,11 @@ struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
                     for (size_t xi = 0; xi < x; ++xi) {
                         auto ref_out_val = ref_ptr[ref_out_offset + xi * ref_x_pitch];
                         auto opt_out_val = opt_ptr[opt_out_offset + xi * opt_x_pitch];
-                        EXPECT_NEAR(static_cast<float>(opt_out_val), static_cast<float>(ref_out_val), 1.e-1f);
+                        ASSERT_NEAR(static_cast<float>(opt_out_val), static_cast<float>(ref_out_val), 1.e-1f);
                     }
                 }
             }
         }
-
-        return true;
     }
 
     void execute(const mvn_basic_test_params& params) {

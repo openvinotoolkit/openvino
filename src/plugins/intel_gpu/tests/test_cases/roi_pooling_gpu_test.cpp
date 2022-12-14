@@ -199,7 +199,7 @@ public:
 
         ASSERT_EQ(output_ptr.size(), p.output_values.size());
         for (size_t i = 0; i < output_ptr.size(); ++i) {
-            EXPECT_NEAR(p.output_values[i], output_ptr[i], threshold);
+            ASSERT_NEAR(p.output_values[i], output_ptr[i], threshold);
         }
     }
 

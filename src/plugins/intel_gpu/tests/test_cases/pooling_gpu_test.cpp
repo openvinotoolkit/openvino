@@ -739,10 +739,10 @@ TEST(pooling_forward_gpu, offsets_avg_bfyx_f32_wsiz3x3_wstr3x3_i1x1x3x3_zeropad)
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
-    EXPECT_NEAR(output_ptr[0], 0.177777f, 1e-05F);
-    EXPECT_NEAR(output_ptr[1], -0.133333f, 1e-05F);
-    EXPECT_NEAR(output_ptr[2], 0.333333f, 1e-05F);
-    EXPECT_NEAR(output_ptr[3], 0.55f, 1e-05F);
+    ASSERT_NEAR(output_ptr[0], 0.177777f, 1e-05F);
+    ASSERT_NEAR(output_ptr[1], -0.133333f, 1e-05F);
+    ASSERT_NEAR(output_ptr[2], 0.333333f, 1e-05F);
+    ASSERT_NEAR(output_ptr[3], 0.55f, 1e-05F);
 }
 
 TEST(pooling_forward_gpu, offsets_avg_yxfb_f32_wsiz2x2_wstr2x2_i3x3x1x1_zeropad) {
@@ -1238,7 +1238,7 @@ static void generic_average_wo_padding_test(format fmt, tensor output, tensor in
     cldnn::mem_lock<DataType> out_ptr(output_mem, get_test_stream());
 
     for (size_t i = 0; i < expected_output.size(); ++i)
-        EXPECT_FLOAT_EQ(out_ptr[i], expected_output[i]);
+        ASSERT_FLOAT_EQ(out_ptr[i], expected_output[i]);
 }
 
 //bfyx fp32
@@ -1901,7 +1901,7 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_avg_65x5x6x7_input_3x3_pool_4x4_stride_3
     ASSERT_EQ(fsv32_results.size(), golden_results.size());
     for (size_t i = 0; i < golden_results.size(); i++)
     {
-        EXPECT_NEAR(golden_results[i], fsv32_results[i], 0.001f);
+        ASSERT_NEAR(golden_results[i], fsv32_results[i], 0.001f);
     }
 }
 

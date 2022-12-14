@@ -51,7 +51,7 @@ TEST(gpu_streams, can_create_networks_for_stream) {
     ASSERT_EQ(b_size, 1);
 
     for (size_t i = 0; i < output_vec.size(); ++i) {
-        EXPECT_FLOAT_EQ(output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(output_vec[i], output_ptr[i]);
     }
 }
 

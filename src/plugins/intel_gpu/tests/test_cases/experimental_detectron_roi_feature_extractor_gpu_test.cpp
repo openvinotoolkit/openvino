@@ -87,7 +87,7 @@ void test_experimental_detectron_roi_feature_extractor_gpu_fp32_one_level(bool i
 
     ASSERT_EQ(expected_first_output.size(), first_output_ptr.size());
     for (std::size_t i = 0; i < expected_first_output.size(); i++) {
-        EXPECT_FLOAT_EQ(expected_first_output[i], first_output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_first_output[i], first_output_ptr[i]);
     }
 
     if (is_caching_test)
@@ -101,7 +101,7 @@ void test_experimental_detectron_roi_feature_extractor_gpu_fp32_one_level(bool i
 
     ASSERT_EQ(expected_second_output.size(), second_output_ptr.size());
     for (std::size_t i = 0; i < expected_second_output.size(); i++) {
-        EXPECT_FLOAT_EQ(expected_second_output[i], second_output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_second_output[i], second_output_ptr[i]);
     }
 }
 
@@ -171,7 +171,7 @@ TEST(experimental_detectron_roi_feature_extractor_gpu_fp32, two_levels) {
 
     ASSERT_EQ(expected_first_output.size(), first_output_ptr.size());
     for (std::size_t i = 0; i < expected_first_output.size(); i++) {
-        EXPECT_FLOAT_EQ(expected_first_output[i], first_output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_first_output[i], first_output_ptr[i]);
     }
 
     std::vector<float>& expected_second_output = rois;
@@ -182,7 +182,7 @@ TEST(experimental_detectron_roi_feature_extractor_gpu_fp32, two_levels) {
 
     ASSERT_EQ(expected_second_output.size(), second_output_ptr.size());
     for (std::size_t i = 0; i < expected_second_output.size(); i++) {
-        EXPECT_FLOAT_EQ(expected_second_output[i], second_output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_second_output[i], second_output_ptr[i]);
     }
 }
 
@@ -269,7 +269,7 @@ TEST(experimental_detectron_roi_feature_extractor_gpu_fp32, multiple_feature_ext
 
     ASSERT_EQ(expected_first_output_first_instance.size(), first_output_ptr_first_instance.size());
     for (std::size_t i = 0; i < expected_first_output_first_instance.size(); i++) {
-        EXPECT_FLOAT_EQ(expected_first_output_first_instance[i], first_output_ptr_first_instance[i]);
+        ASSERT_FLOAT_EQ(expected_first_output_first_instance[i], first_output_ptr_first_instance[i]);
     }
 
     std::vector<float>& expected_second_output_first_instance = rois_first_instance;
@@ -280,7 +280,7 @@ TEST(experimental_detectron_roi_feature_extractor_gpu_fp32, multiple_feature_ext
 
     ASSERT_EQ(expected_second_output_first_instance.size(), second_output_ptr_first_instance.size());
     for (std::size_t i = 0; i < expected_second_output_first_instance.size(); i++) {
-        EXPECT_FLOAT_EQ(expected_second_output_first_instance[i], second_output_ptr_first_instance[i]);
+        ASSERT_FLOAT_EQ(expected_second_output_first_instance[i], second_output_ptr_first_instance[i]);
     }
 
     std::vector<float> expected_first_output_second_instance {7.41662f,   7.7499523f, 8.0832853f,  8.41662f,   8.74995f,   9.0832853f, 9.16664f,   9.49998f,   9.83331f,
@@ -293,7 +293,7 @@ TEST(experimental_detectron_roi_feature_extractor_gpu_fp32, multiple_feature_ext
 
     ASSERT_EQ(expected_first_output_second_instance.size(), first_output_ptr_second_instance.size());
     for (std::size_t i = 0; i < expected_first_output_second_instance.size(); i++) {
-        EXPECT_FLOAT_EQ(expected_first_output_second_instance[i], first_output_ptr_second_instance[i]);
+        ASSERT_FLOAT_EQ(expected_first_output_second_instance[i], first_output_ptr_second_instance[i]);
     }
 
     std::vector<float>& expected_second_output_second_instance = rois_second_instance;
@@ -304,6 +304,6 @@ TEST(experimental_detectron_roi_feature_extractor_gpu_fp32, multiple_feature_ext
 
     ASSERT_EQ(expected_second_output_second_instance.size(), second_output_ptr_second_instance.size());
     for (std::size_t i = 0; i < expected_second_output_second_instance.size(); i++) {
-        EXPECT_FLOAT_EQ(expected_second_output_second_instance[i], second_output_ptr_second_instance[i]);
+        ASSERT_FLOAT_EQ(expected_second_output_second_instance[i], second_output_ptr_second_instance[i]);
     }
 }

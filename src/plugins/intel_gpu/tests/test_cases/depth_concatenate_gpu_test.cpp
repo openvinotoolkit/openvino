@@ -79,16 +79,16 @@ TEST(depth_concatenate_f32_gpu, test01) {
     auto output = outputs.at("depth1").get_memory();
 
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
-    EXPECT_FLOAT_EQ(0.5f, output_ptr[0]);
-    EXPECT_FLOAT_EQ(0.7f, output_ptr[1]);
-    EXPECT_FLOAT_EQ(0.2f, output_ptr[2]);
-    EXPECT_FLOAT_EQ(0.4f, output_ptr[3]);
-    EXPECT_FLOAT_EQ(1.0f, output_ptr[4]);
-    EXPECT_FLOAT_EQ(0.1f, output_ptr[5]);
-    EXPECT_FLOAT_EQ(0.3f, output_ptr[6]);
-    EXPECT_FLOAT_EQ(-0.5f, output_ptr[7]);
-    EXPECT_FLOAT_EQ(0.0f, output_ptr[8]);
-    EXPECT_FLOAT_EQ(-0.2f, output_ptr[9]);
+    ASSERT_FLOAT_EQ(0.5f, output_ptr[0]);
+    ASSERT_FLOAT_EQ(0.7f, output_ptr[1]);
+    ASSERT_FLOAT_EQ(0.2f, output_ptr[2]);
+    ASSERT_FLOAT_EQ(0.4f, output_ptr[3]);
+    ASSERT_FLOAT_EQ(1.0f, output_ptr[4]);
+    ASSERT_FLOAT_EQ(0.1f, output_ptr[5]);
+    ASSERT_FLOAT_EQ(0.3f, output_ptr[6]);
+    ASSERT_FLOAT_EQ(-0.5f, output_ptr[7]);
+    ASSERT_FLOAT_EQ(0.0f, output_ptr[8]);
+    ASSERT_FLOAT_EQ(-0.2f, output_ptr[9]);
 }
 
 template <data_types DType>
@@ -143,7 +143,7 @@ void concat_basic_with_reorder() {
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     int ptr_cntr = 0;
     for (const auto& ref : outs) {
-        EXPECT_FLOAT_EQ(ref, output_ptr[ptr_cntr++]);
+        ASSERT_FLOAT_EQ(ref, output_ptr[ptr_cntr++]);
     }
 }
 
@@ -218,22 +218,22 @@ TEST(depth_concatenate_f32_gpu, test02) {
     auto output = outputs.at("depth1").get_memory();
 
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
-    EXPECT_FLOAT_EQ(0.5f, output_ptr[0]);
-    EXPECT_FLOAT_EQ(0.7f, output_ptr[1]);
-    EXPECT_FLOAT_EQ(0.2f, output_ptr[2]);
-    EXPECT_FLOAT_EQ(0.4f, output_ptr[3]);
-    EXPECT_FLOAT_EQ(1.0f, output_ptr[4]);
-    EXPECT_FLOAT_EQ(0.1f, output_ptr[5]);
-    EXPECT_FLOAT_EQ(0.3f, output_ptr[6]);
-    EXPECT_FLOAT_EQ(-0.5f, output_ptr[7]);
-    EXPECT_FLOAT_EQ(0.0f, output_ptr[8]);
-    EXPECT_FLOAT_EQ(-0.2f, output_ptr[9]);
-    EXPECT_FLOAT_EQ(1.0f, output_ptr[10]);
-    EXPECT_FLOAT_EQ(0.1f, output_ptr[11]);
-    EXPECT_FLOAT_EQ(0.3f, output_ptr[12]);
-    EXPECT_FLOAT_EQ(-0.5f, output_ptr[13]);
-    EXPECT_FLOAT_EQ(0.0f, output_ptr[14]);
-    EXPECT_FLOAT_EQ(-0.2f, output_ptr[15]);
+    ASSERT_FLOAT_EQ(0.5f, output_ptr[0]);
+    ASSERT_FLOAT_EQ(0.7f, output_ptr[1]);
+    ASSERT_FLOAT_EQ(0.2f, output_ptr[2]);
+    ASSERT_FLOAT_EQ(0.4f, output_ptr[3]);
+    ASSERT_FLOAT_EQ(1.0f, output_ptr[4]);
+    ASSERT_FLOAT_EQ(0.1f, output_ptr[5]);
+    ASSERT_FLOAT_EQ(0.3f, output_ptr[6]);
+    ASSERT_FLOAT_EQ(-0.5f, output_ptr[7]);
+    ASSERT_FLOAT_EQ(0.0f, output_ptr[8]);
+    ASSERT_FLOAT_EQ(-0.2f, output_ptr[9]);
+    ASSERT_FLOAT_EQ(1.0f, output_ptr[10]);
+    ASSERT_FLOAT_EQ(0.1f, output_ptr[11]);
+    ASSERT_FLOAT_EQ(0.3f, output_ptr[12]);
+    ASSERT_FLOAT_EQ(-0.5f, output_ptr[13]);
+    ASSERT_FLOAT_EQ(0.0f, output_ptr[14]);
+    ASSERT_FLOAT_EQ(-0.2f, output_ptr[15]);
 }
 
 TEST(concatenate_f32_gpu, test_concatenation_of_pool_and_unpool) {
@@ -265,7 +265,7 @@ TEST(concatenate_f32_gpu, test_concatenation_of_pool_and_unpool) {
     std::vector<float> out_ref = {6.4f, 8.f, 51.2f, 64.f};
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     for (int i = 0; i < 4; i++) {
-        EXPECT_NEAR(output_ptr[i], out_ref[i], 1e-3);
+        ASSERT_NEAR(output_ptr[i], out_ref[i], 1e-3);
     }
 }
 
@@ -306,22 +306,22 @@ TEST(depth_concatenate_f32_gpu, test03_cascade_concat_opt) {
     ASSERT_TRUE(executed_primitives.count("depth2") == 0);
     ASSERT_TRUE(executed_primitives.count("depth3") == 0);
 
-    EXPECT_NEAR(1.4142f, output_ptr[0], 1e-3);
-    EXPECT_NEAR(1.5422f, output_ptr[1], 1e-3);
-    EXPECT_NEAR(1.8340f, output_ptr[2], 1e-3);
-    EXPECT_NEAR(2.0f, output_ptr[3], 1e-3);
-    EXPECT_NEAR(2.0f, output_ptr[4], 1e-3);
-    EXPECT_NEAR(2.3784f, output_ptr[5], 1e-3);
-    EXPECT_NEAR(3.3635f, output_ptr[6], 1e-3);
-    EXPECT_NEAR(4.0f, output_ptr[7], 1e-3);
-    EXPECT_NEAR(2.0f, output_ptr[8], 1e-3);
-    EXPECT_NEAR(2.3784f, output_ptr[9], 1e-3);
-    EXPECT_NEAR(3.3635f, output_ptr[10], 1e-3);
-    EXPECT_NEAR(4.0f, output_ptr[11], 1e-3);
-    EXPECT_NEAR(4.0f, output_ptr[12], 1e-3);
-    EXPECT_NEAR(5.6568f, output_ptr[13], 1e-3);
-    EXPECT_NEAR(11.3137f, output_ptr[14], 1e-3);
-    EXPECT_NEAR(16.0f, output_ptr[15], 1e-3);
+    ASSERT_NEAR(1.4142f, output_ptr[0], 1e-3);
+    ASSERT_NEAR(1.5422f, output_ptr[1], 1e-3);
+    ASSERT_NEAR(1.8340f, output_ptr[2], 1e-3);
+    ASSERT_NEAR(2.0f, output_ptr[3], 1e-3);
+    ASSERT_NEAR(2.0f, output_ptr[4], 1e-3);
+    ASSERT_NEAR(2.3784f, output_ptr[5], 1e-3);
+    ASSERT_NEAR(3.3635f, output_ptr[6], 1e-3);
+    ASSERT_NEAR(4.0f, output_ptr[7], 1e-3);
+    ASSERT_NEAR(2.0f, output_ptr[8], 1e-3);
+    ASSERT_NEAR(2.3784f, output_ptr[9], 1e-3);
+    ASSERT_NEAR(3.3635f, output_ptr[10], 1e-3);
+    ASSERT_NEAR(4.0f, output_ptr[11], 1e-3);
+    ASSERT_NEAR(4.0f, output_ptr[12], 1e-3);
+    ASSERT_NEAR(5.6568f, output_ptr[13], 1e-3);
+    ASSERT_NEAR(11.3137f, output_ptr[14], 1e-3);
+    ASSERT_NEAR(16.0f, output_ptr[15], 1e-3);
 }
 
 TEST(depth_concatenate_f32_gpu, test04_fused_relu) {
@@ -359,9 +359,9 @@ TEST(depth_concatenate_f32_gpu, test04_fused_relu) {
     unsigned int input_element_count = 300;
     for (unsigned int i = 0; i < 600; i++) {
         if (i < input_element_count)
-            EXPECT_FLOAT_EQ(input1_vec[i] < 0.0f ? 0.0f : input1_vec[i], output_ptr[i]);
+            ASSERT_FLOAT_EQ(input1_vec[i] < 0.0f ? 0.0f : input1_vec[i], output_ptr[i]);
         else
-            EXPECT_FLOAT_EQ(input2_vec[i - input_element_count] < 0.0f ? 0.0f : input2_vec[i - input_element_count], output_ptr[i]);
+            ASSERT_FLOAT_EQ(input2_vec[i - input_element_count] < 0.0f ? 0.0f : input2_vec[i - input_element_count], output_ptr[i]);
     }
 }
 
@@ -679,7 +679,7 @@ TEST(depth_concatenate_f32_gpu, concat_with_different_format_inputs) {
     for (unsigned i = 0; i < input1->count(); i++)
     {
         int value = i + 1;
-        EXPECT_FLOAT_EQ(float(value), output_ptr[out_offset++]);
+        ASSERT_FLOAT_EQ(float(value), output_ptr[out_offset++]);
 
         if ((value % input1_values_count) == 0)
         {
@@ -693,7 +693,7 @@ TEST(depth_concatenate_f32_gpu, concat_with_different_format_inputs) {
         for (unsigned j = 0; j < b; j++)
         {
             int value = i + input2_start_value + j * input2_batch_offset;
-            EXPECT_FLOAT_EQ(float(value), output_ptr[out_offset++]);
+            ASSERT_FLOAT_EQ(float(value), output_ptr[out_offset++]);
 
             if ((out_offset % all_values_count) == 0)
             {
@@ -738,7 +738,7 @@ TEST(depth_concatenate_f32_gpu, concat_with_reshape_input) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_FLOAT_EQ(values[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(values[i], output_ptr[i]);
     }
 }
 

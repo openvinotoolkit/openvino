@@ -20,14 +20,14 @@ template<typename T>
 void start_broadcast_test(format cldnn_format, data_types cldnn_data_type, std::vector<size_t> output_shape,
                           std::vector<size_t> input_shape, std::vector<size_t> broadcast_axes) {
     size_t input_data_size = accumulate(input_shape.rbegin(), input_shape.rend(), (size_t)1, std::multiplies<size_t>());
-    EXPECT_GE(input_data_size, (size_t)1);
+    ASSERT_GE(input_data_size, (size_t)1);
     std::vector<T> input_data = {};
     for (size_t i = 1; i <= input_data_size; ++i) {
         input_data.push_back((T)i);
     }
 
     size_t output_data_size = accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>());
-    EXPECT_GE(output_data_size, (size_t)1);
+    ASSERT_GE(output_data_size, (size_t)1);
     std::vector<T> output_data(output_data_size);
     ngraph::runtime::reference::broadcast(reinterpret_cast<const char*>(input_data.data()), reinterpret_cast<char*>(output_data.data()),
                                           ov::Shape(input_shape.begin(), input_shape.end()), ov::Shape(output_shape.begin(), output_shape.end()),
@@ -90,14 +90,14 @@ void start_broadcast_test_dynamic(format input_format,
                                   ov::AxisSet broadcast_axes,
                                   bool is_output_static = false) {
     size_t input_data_size = accumulate(input_data_shape.rbegin(), input_data_shape.rend(), (size_t)1, std::multiplies<size_t>());
-    EXPECT_GE(input_data_size, (size_t)1);
+    ASSERT_GE(input_data_size, (size_t)1);
     std::vector<T> input_data = {};
     for (size_t i = 1; i <= input_data_size; ++i) {
         input_data.push_back((T)i);
     }
 
     size_t output_data_size = accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>());
-    EXPECT_GE(output_data_size, (size_t)1);
+    ASSERT_GE(output_data_size, (size_t)1);
     std::vector<T> output_data(output_data_size);
     ngraph::runtime::reference::broadcast(reinterpret_cast<const char*>(input_data.data()), reinterpret_cast<char*>(output_data.data()),
                                           ov::Shape(input_data_shape.begin(), input_data_shape.end()), ov::Shape(output_shape.begin(), output_shape.end()),
@@ -168,14 +168,14 @@ void start_broadcast_test_5d(format cldnn_format, data_types cldnn_data_type, st
                              std::vector<size_t> input_shape, std::vector<size_t> broadcast_axes, bool is_caching_test=false)
 {
     size_t input_data_size = accumulate(input_shape.rbegin(), input_shape.rend(), (size_t)1, std::multiplies<size_t>());
-    EXPECT_GE(input_data_size, (size_t)1);
+    ASSERT_GE(input_data_size, (size_t)1);
     std::vector<T> input_data = {};
     for (size_t i = 1; i <= input_data_size; ++i) {
         input_data.push_back((T)i);
     }
 
     size_t output_data_size = accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>());
-    EXPECT_GE(output_data_size, (size_t)1);
+    ASSERT_GE(output_data_size, (size_t)1);
     std::vector<T> output_data(output_data_size);
     ngraph::runtime::reference::broadcast(reinterpret_cast<const char*>(input_data.data()), reinterpret_cast<char*>(output_data.data()),
                                           ov::Shape(input_shape.begin(), input_shape.end()), ov::Shape(output_shape.begin(), output_shape.end()),

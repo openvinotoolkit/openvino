@@ -114,7 +114,7 @@ void generic_fully_connected_test(cldnn::format test_input_fmt, cldnn::format te
     VF<T> output_cpu_vec = flatten_4d<T>(layout_4d(output_layout.format), output_cpu);
     for (size_t i = 0; i < output_cpu_vec.size(); ++i) {
         if (std::abs(float(output_cpu_vec[i]) - float(output_ptr[i])) > ulp) {
-            EXPECT_FLOAT_EQ(output_cpu_vec[i], output_ptr[i]); // to print the problematic values
+            ASSERT_FLOAT_EQ(output_cpu_vec[i], output_ptr[i]); // to print the problematic values
             test_is_correct = false;
             break;
         }
@@ -1407,7 +1407,7 @@ public:
 
         for (size_t bi = 0; bi < batch_num(); ++bi) {
             for (size_t fi = 0; fi < output_f(); ++fi) {
-                EXPECT_NEAR(out_ptr[bi * output_f() + fi], expected[bi][fi], 1) << "at b = " << bi << ", fi = " << fi;
+                ASSERT_NEAR(out_ptr[bi * output_f() + fi], expected[bi][fi], 1) << "at b = " << bi << ", fi = " << fi;
             }
         }
     }

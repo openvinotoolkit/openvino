@@ -134,7 +134,7 @@ TEST(resample_gpu, basic_in2x3x2x2_bilinear) {
     for (int k = 0; k < 4; ++k) { // Y
         for (int l = 0; l < 4; ++l) { // X
             auto linear_id = l + k * 4;
-            EXPECT_NEAR(answers[linear_id], output_ptr[linear_id], 1e-05F);
+            ASSERT_NEAR(answers[linear_id], output_ptr[linear_id], 1e-05F);
         }
     }
 }
@@ -185,7 +185,7 @@ TEST(resample_gpu, nearest_asymmetric) {
     for (int k = 0; k < 4; ++k) { // Y
         for (int l = 0; l < 5; ++l) { // X
             auto linear_id = l + k * 5;
-            EXPECT_NEAR(answers[linear_id], output_ptr[linear_id], 1e-05F);
+            ASSERT_NEAR(answers[linear_id], output_ptr[linear_id], 1e-05F);
         }
     }
 }
@@ -287,7 +287,7 @@ TEST(resample_gpu, bilinear_asymmetric) {
     for (int k = 0; k < 4; ++k) { // Y
         for (int l = 0; l < 6; ++l) { // X
             auto linear_id = l + k * 6;
-            EXPECT_NEAR(answers[linear_id], output_ptr[linear_id], 5e-03F) << l << " " << k;
+            ASSERT_NEAR(answers[linear_id], output_ptr[linear_id], 5e-03F) << l << " " << k;
         }
     }
 }
@@ -1852,7 +1852,7 @@ TYPED_TEST(onnx_5d_format, interpolate_linear_onnx5d)
         ASSERT_EQ(this->expected_results[i].size(), output_ptr.size());
         for (size_t j = 0; j < this->expected_results[i].size(); ++j) {
             //ASSERT_TRUE(are_equal(expected_results[i][j], output_ptr[i])) << i;
-            EXPECT_NEAR(this->expected_results[i][j], output_ptr[j], 0.001) << j;
+            ASSERT_NEAR(this->expected_results[i][j], output_ptr[j], 0.001) << j;
         }
 
         ++i;

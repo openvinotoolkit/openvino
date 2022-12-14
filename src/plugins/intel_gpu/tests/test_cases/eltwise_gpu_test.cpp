@@ -3509,7 +3509,7 @@ struct eltwise_same_input_test : testing::TestWithParam<eltwise_same_input_test_
                         auto input_out_val = input_ptr[opt_out_offset];
 
                         ASSERT_EQ((input_out_val+input_out_val), ref_out_val);
-                        // EXPECT_NEAR(static_cast<float>(opt_out_val), static_cast<float>(ref_out_val), 1.e-1f);
+                        // ASSERT_NEAR(static_cast<float>(opt_out_val), static_cast<float>(ref_out_val), 1.e-1f);
                     }
                 }
             }
@@ -4095,7 +4095,7 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
                         auto opt_out_val = opt_ptr[opt_out_offset];
 
                         ASSERT_EQ(opt_out_val, ref_out_val);
-                        // EXPECT_NEAR(static_cast<float>(opt_out_val), static_cast<float>(ref_out_val), 1.e-1f);
+                        // ASSERT_NEAR(static_cast<float>(opt_out_val), static_cast<float>(ref_out_val), 1.e-1f);
                     }
                 }
             }

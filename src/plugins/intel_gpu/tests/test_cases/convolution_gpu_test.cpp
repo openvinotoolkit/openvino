@@ -363,7 +363,7 @@ TEST(deformable_convolution_f32_fw_gpu, basic_deformable_convolution_def_group1_
     ASSERT_EQ(b_size, 1);
 
     for (size_t i = 0; i < output_vec.size(); ++i) {
-        EXPECT_NEAR(output_vec[i], output_ptr[i], 0.1);
+        ASSERT_NEAR(output_vec[i], output_ptr[i], 0.1);
     }
 }
 
@@ -494,7 +494,7 @@ TEST(deformable_convolution_f32_fw_gpu, basic_deformable_convolution_def_group1)
     ASSERT_EQ(b_size, 1);
 
     for (size_t i = 0; i < output_vec.size(); ++i) {
-        EXPECT_NEAR(output_vec[i], output_ptr[i], 0.1);
+        ASSERT_NEAR(output_vec[i], output_ptr[i], 0.1);
     }
 }
 
@@ -657,7 +657,7 @@ TEST(deformable_convolution_f32_fw_gpu, basic_deformable_convolution) {
     ASSERT_EQ(b_size, 1);
 
     for (size_t i = 0; i < output_vec.size(); ++i) {
-        EXPECT_NEAR(output_vec[i], output_ptr[i], 0.1);
+        ASSERT_NEAR(output_vec[i], output_ptr[i], 0.1);
     }
 }
 
@@ -1206,7 +1206,7 @@ TEST(convolution_f32_fw_gpu, three_convolutions_same_weights) {
 
     for (int y = 0; y < y_size; ++y) {
         for (int x = 0; x < x_size; ++x) {
-            EXPECT_FLOAT_EQ(8.0f, output_ptr[y * x_size + x]);
+            ASSERT_FLOAT_EQ(8.0f, output_ptr[y * x_size + x]);
         }
     }
 }
@@ -2091,7 +2091,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x1x1_nopad_random) {
 
     for (size_t i = 0; i < output_rnd.size(); ++i) {
         float x = float_round(output_rnd_vec[i]), y = float_round(output_ptr[i]);
-        EXPECT_FLOAT_EQ(x, y) << "random seed = " << random_seed << std::endl;
+        ASSERT_FLOAT_EQ(x, y) << "random seed = " << random_seed << std::endl;
     }
 }
 
@@ -2161,7 +2161,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in2x2x1x2_nopad_random) {
 
     for (size_t i = 0; i < output_rnd.size(); ++i) {
         float x = float_round(output_rnd_vec[i]), y = float_round(output_ptr[i]);
-        EXPECT_FLOAT_EQ(x, y) << "random seed = " << random_seed << std::endl;
+        ASSERT_FLOAT_EQ(x, y) << "random seed = " << random_seed << std::endl;
     }
 }
 
@@ -2217,10 +2217,10 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x1x1_nopad) {
 
     cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
 
-    EXPECT_FLOAT_EQ(8.0f, output_ptr[0]);
-    EXPECT_FLOAT_EQ(0.5f, output_ptr[1]);
-    EXPECT_FLOAT_EQ(6.0f, output_ptr[2]);
-    EXPECT_FLOAT_EQ(9.0f, output_ptr[3]);
+    ASSERT_FLOAT_EQ(8.0f, output_ptr[0]);
+    ASSERT_FLOAT_EQ(0.5f, output_ptr[1]);
+    ASSERT_FLOAT_EQ(6.0f, output_ptr[2]);
+    ASSERT_FLOAT_EQ(9.0f, output_ptr[3]);
 }
 
 TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in2x2x1x2_nopad) {
@@ -2271,8 +2271,8 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in2x2x1x2_nopad) {
 
     cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
 
-    EXPECT_FLOAT_EQ(3.65f, output_ptr[0]);
-    EXPECT_FLOAT_EQ(-5.36f, output_ptr[1]);
+    ASSERT_FLOAT_EQ(3.65f, output_ptr[0]);
+    ASSERT_FLOAT_EQ(-5.36f, output_ptr[1]);
 }
 
 TEST(convolution_f32_fw_gpu, basic_ofm_wsiz2x1x2x1_in1x2x1_nopad) {
@@ -2323,8 +2323,8 @@ TEST(convolution_f32_fw_gpu, basic_ofm_wsiz2x1x2x1_in1x2x1_nopad) {
 
     cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
 
-    EXPECT_FLOAT_EQ(5.1f, output_ptr[0]);
-    EXPECT_FLOAT_EQ(-5.2f, output_ptr[1]);
+    ASSERT_FLOAT_EQ(5.1f, output_ptr[0]);
+    ASSERT_FLOAT_EQ(-5.2f, output_ptr[1]);
 }
 
 TEST(convolution_f32_fw_gpu, basic_ofm_wsiz3x2x2x1_in2x2x1_nopad) {
@@ -2382,9 +2382,9 @@ TEST(convolution_f32_fw_gpu, basic_ofm_wsiz3x2x2x1_in2x2x1_nopad) {
 
     cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
 
-    EXPECT_FLOAT_EQ(25.0f, output_ptr[0]);
-    EXPECT_FLOAT_EQ(64.0f, output_ptr[1]);
-    EXPECT_FLOAT_EQ(103.0f, output_ptr[2]);
+    ASSERT_FLOAT_EQ(25.0f, output_ptr[0]);
+    ASSERT_FLOAT_EQ(64.0f, output_ptr[1]);
+    ASSERT_FLOAT_EQ(103.0f, output_ptr[2]);
 }
 
 TEST(convolution_f32_fw_gpu, basic_wsiz2x2x1x3_wstr2x2_in2x2x1x1_nopad) {
@@ -2494,7 +2494,7 @@ TEST(convolution_f32_fw_gpu, wsiz3x3_wstr2x2_in2x2x1x1_zeropad) {
 
     cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
 
-    EXPECT_FLOAT_EQ(12.25f, output_ptr[0]);
+    ASSERT_FLOAT_EQ(12.25f, output_ptr[0]);
 }
 
 TEST(convolution_f32_fw_gpu, offsets_wsiz3x3_wstr2x2_in2x2x1x1_zeropad) {
@@ -2559,7 +2559,7 @@ TEST(convolution_f32_fw_gpu, offsets_wsiz3x3_wstr2x2_in2x2x1x1_zeropad) {
 
     cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
 
-    EXPECT_FLOAT_EQ(-7.25f, output_ptr[4]);
+    ASSERT_FLOAT_EQ(-7.25f, output_ptr[4]);
 }
 
 TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x1_nopad_split2) {
@@ -2639,14 +2639,14 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x1_nopad_split2) {
 
     cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
 
-    EXPECT_FLOAT_EQ(8.0f,   output_ptr[0]);
-    EXPECT_FLOAT_EQ(3.65f,  output_ptr[1]);
-    EXPECT_FLOAT_EQ(0.5f,   output_ptr[2]);
-    EXPECT_FLOAT_EQ(-5.36f, output_ptr[3]);
-    EXPECT_FLOAT_EQ(6.0f,   output_ptr[4]);
-    EXPECT_FLOAT_EQ(3.65f,  output_ptr[5]);
-    EXPECT_FLOAT_EQ(9.0f,   output_ptr[6]);
-    EXPECT_FLOAT_EQ(-5.36f, output_ptr[7]);
+    ASSERT_FLOAT_EQ(8.0f,   output_ptr[0]);
+    ASSERT_FLOAT_EQ(3.65f,  output_ptr[1]);
+    ASSERT_FLOAT_EQ(0.5f,   output_ptr[2]);
+    ASSERT_FLOAT_EQ(-5.36f, output_ptr[3]);
+    ASSERT_FLOAT_EQ(6.0f,   output_ptr[4]);
+    ASSERT_FLOAT_EQ(3.65f,  output_ptr[5]);
+    ASSERT_FLOAT_EQ(9.0f,   output_ptr[6]);
+    ASSERT_FLOAT_EQ(-5.36f, output_ptr[7]);
 }
 
 TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_split2) {
@@ -2737,22 +2737,22 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_split2) {
 
     cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
 
-    EXPECT_FLOAT_EQ(8.0f,   output_ptr[0]);
-    EXPECT_FLOAT_EQ(8.0f,   output_ptr[1]);
-    EXPECT_FLOAT_EQ(3.65f,  output_ptr[2]);
-    EXPECT_FLOAT_EQ(3.65f,  output_ptr[3]);
-    EXPECT_FLOAT_EQ(0.5f,   output_ptr[4]);
-    EXPECT_FLOAT_EQ(0.5f,   output_ptr[5]);
-    EXPECT_FLOAT_EQ(-5.36f, output_ptr[6]);
-    EXPECT_FLOAT_EQ(-5.36f, output_ptr[7]);
-    EXPECT_FLOAT_EQ(6.0f,   output_ptr[8]);
-    EXPECT_FLOAT_EQ(6.0f,   output_ptr[9]);
-    EXPECT_FLOAT_EQ(3.65f,  output_ptr[10]);
-    EXPECT_FLOAT_EQ(3.65f,  output_ptr[11]);
-    EXPECT_FLOAT_EQ(9.0f,   output_ptr[12]);
-    EXPECT_FLOAT_EQ(9.0f,   output_ptr[13]);
-    EXPECT_FLOAT_EQ(-5.36f, output_ptr[14]);
-    EXPECT_FLOAT_EQ(-5.36f, output_ptr[15]);
+    ASSERT_FLOAT_EQ(8.0f,   output_ptr[0]);
+    ASSERT_FLOAT_EQ(8.0f,   output_ptr[1]);
+    ASSERT_FLOAT_EQ(3.65f,  output_ptr[2]);
+    ASSERT_FLOAT_EQ(3.65f,  output_ptr[3]);
+    ASSERT_FLOAT_EQ(0.5f,   output_ptr[4]);
+    ASSERT_FLOAT_EQ(0.5f,   output_ptr[5]);
+    ASSERT_FLOAT_EQ(-5.36f, output_ptr[6]);
+    ASSERT_FLOAT_EQ(-5.36f, output_ptr[7]);
+    ASSERT_FLOAT_EQ(6.0f,   output_ptr[8]);
+    ASSERT_FLOAT_EQ(6.0f,   output_ptr[9]);
+    ASSERT_FLOAT_EQ(3.65f,  output_ptr[10]);
+    ASSERT_FLOAT_EQ(3.65f,  output_ptr[11]);
+    ASSERT_FLOAT_EQ(9.0f,   output_ptr[12]);
+    ASSERT_FLOAT_EQ(9.0f,   output_ptr[13]);
+    ASSERT_FLOAT_EQ(-5.36f, output_ptr[14]);
+    ASSERT_FLOAT_EQ(-5.36f, output_ptr[15]);
 }
 
 TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x1_nopad_group2) {
@@ -2801,14 +2801,14 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x1_nopad_group2) {
 
     cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
 
-    EXPECT_FLOAT_EQ(8.0f, output_ptr[0]);
-    EXPECT_FLOAT_EQ(3.65f, output_ptr[1]);
-    EXPECT_FLOAT_EQ(0.5f, output_ptr[2]);
-    EXPECT_FLOAT_EQ(-5.36f, output_ptr[3]);
-    EXPECT_FLOAT_EQ(6.0f, output_ptr[4]);
-    EXPECT_FLOAT_EQ(3.65f, output_ptr[5]);
-    EXPECT_FLOAT_EQ(9.0f, output_ptr[6]);
-    EXPECT_FLOAT_EQ(-5.36f, output_ptr[7]);
+    ASSERT_FLOAT_EQ(8.0f, output_ptr[0]);
+    ASSERT_FLOAT_EQ(3.65f, output_ptr[1]);
+    ASSERT_FLOAT_EQ(0.5f, output_ptr[2]);
+    ASSERT_FLOAT_EQ(-5.36f, output_ptr[3]);
+    ASSERT_FLOAT_EQ(6.0f, output_ptr[4]);
+    ASSERT_FLOAT_EQ(3.65f, output_ptr[5]);
+    ASSERT_FLOAT_EQ(9.0f, output_ptr[6]);
+    ASSERT_FLOAT_EQ(-5.36f, output_ptr[7]);
 }
 
 TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x1_nopad_group2_bfyx) {
@@ -2859,14 +2859,14 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x1_nopad_group2_bfyx) 
 
     cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
 
-    EXPECT_FLOAT_EQ(8.0f, output_ptr[0]);
-    EXPECT_FLOAT_EQ(0.5f, output_ptr[1]);
-    EXPECT_FLOAT_EQ(6.0f, output_ptr[2]);
-    EXPECT_FLOAT_EQ(9.0f, output_ptr[3]);
-    EXPECT_FLOAT_EQ(3.65f, output_ptr[4]);
-    EXPECT_FLOAT_EQ(-5.36f, output_ptr[5]);
-    EXPECT_FLOAT_EQ(3.65f, output_ptr[6]);
-    EXPECT_FLOAT_EQ(-5.36f, output_ptr[7]);
+    ASSERT_FLOAT_EQ(8.0f, output_ptr[0]);
+    ASSERT_FLOAT_EQ(0.5f, output_ptr[1]);
+    ASSERT_FLOAT_EQ(6.0f, output_ptr[2]);
+    ASSERT_FLOAT_EQ(9.0f, output_ptr[3]);
+    ASSERT_FLOAT_EQ(3.65f, output_ptr[4]);
+    ASSERT_FLOAT_EQ(-5.36f, output_ptr[5]);
+    ASSERT_FLOAT_EQ(3.65f, output_ptr[6]);
+    ASSERT_FLOAT_EQ(-5.36f, output_ptr[7]);
 }
 
 TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_group2) {
@@ -2916,22 +2916,22 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_group2) {
 
     cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
 
-    EXPECT_FLOAT_EQ(8.0f, output_ptr[0]);
-    EXPECT_FLOAT_EQ(8.0f, output_ptr[1]);
-    EXPECT_FLOAT_EQ(3.65f, output_ptr[2]);
-    EXPECT_FLOAT_EQ(3.65f, output_ptr[3]);
-    EXPECT_FLOAT_EQ(0.5f, output_ptr[4]);
-    EXPECT_FLOAT_EQ(0.5f, output_ptr[5]);
-    EXPECT_FLOAT_EQ(-5.36f, output_ptr[6]);
-    EXPECT_FLOAT_EQ(-5.36f, output_ptr[7]);
-    EXPECT_FLOAT_EQ(6.0f, output_ptr[8]);
-    EXPECT_FLOAT_EQ(6.0f, output_ptr[9]);
-    EXPECT_FLOAT_EQ(3.65f, output_ptr[10]);
-    EXPECT_FLOAT_EQ(3.65f, output_ptr[11]);
-    EXPECT_FLOAT_EQ(9.0f, output_ptr[12]);
-    EXPECT_FLOAT_EQ(9.0f, output_ptr[13]);
-    EXPECT_FLOAT_EQ(-5.36f, output_ptr[14]);
-    EXPECT_FLOAT_EQ(-5.36f, output_ptr[15]);
+    ASSERT_FLOAT_EQ(8.0f, output_ptr[0]);
+    ASSERT_FLOAT_EQ(8.0f, output_ptr[1]);
+    ASSERT_FLOAT_EQ(3.65f, output_ptr[2]);
+    ASSERT_FLOAT_EQ(3.65f, output_ptr[3]);
+    ASSERT_FLOAT_EQ(0.5f, output_ptr[4]);
+    ASSERT_FLOAT_EQ(0.5f, output_ptr[5]);
+    ASSERT_FLOAT_EQ(-5.36f, output_ptr[6]);
+    ASSERT_FLOAT_EQ(-5.36f, output_ptr[7]);
+    ASSERT_FLOAT_EQ(6.0f, output_ptr[8]);
+    ASSERT_FLOAT_EQ(6.0f, output_ptr[9]);
+    ASSERT_FLOAT_EQ(3.65f, output_ptr[10]);
+    ASSERT_FLOAT_EQ(3.65f, output_ptr[11]);
+    ASSERT_FLOAT_EQ(9.0f, output_ptr[12]);
+    ASSERT_FLOAT_EQ(9.0f, output_ptr[13]);
+    ASSERT_FLOAT_EQ(-5.36f, output_ptr[14]);
+    ASSERT_FLOAT_EQ(-5.36f, output_ptr[15]);
 }
 
 TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_split2_depthwise_sep_opt) {
@@ -3020,7 +3020,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_split2_depthw
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -3113,7 +3113,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_split2_depthw
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -3208,7 +3208,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_group16) {
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -3307,7 +3307,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_group16_bfyx)
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -3389,10 +3389,10 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_group16_bfyx)
 
     cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
 
-    EXPECT_FLOAT_EQ(-2.25f, output_ptr[0]);
-    EXPECT_FLOAT_EQ(7.5f, output_ptr[1]);
-    EXPECT_FLOAT_EQ(-1.75f, output_ptr[2]);
-    EXPECT_FLOAT_EQ(2.25f, output_ptr[3]);
+    ASSERT_FLOAT_EQ(-2.25f, output_ptr[0]);
+    ASSERT_FLOAT_EQ(7.5f, output_ptr[1]);
+    ASSERT_FLOAT_EQ(-1.75f, output_ptr[2]);
+    ASSERT_FLOAT_EQ(2.25f, output_ptr[3]);
 }
 
 TEST(convolution_f32_fw_gpu, basic_wsiz1x1_wstr2x2_in1x1x2x1_nopad_split2) {
@@ -3470,10 +3470,10 @@ TEST(convolution_f32_fw_gpu, basic_wsiz1x1_wstr2x2_in1x1x2x1_nopad_split2) {
 
     cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
 
-    EXPECT_FLOAT_EQ(-2.0f, output_ptr[0]);
-    EXPECT_FLOAT_EQ(6.5f, output_ptr[1]);
-    EXPECT_FLOAT_EQ(1.0f, output_ptr[2]);
-    EXPECT_FLOAT_EQ(3.5f, output_ptr[3]);
+    ASSERT_FLOAT_EQ(-2.0f, output_ptr[0]);
+    ASSERT_FLOAT_EQ(6.5f, output_ptr[1]);
+    ASSERT_FLOAT_EQ(1.0f, output_ptr[2]);
+    ASSERT_FLOAT_EQ(3.5f, output_ptr[3]);
 }
 
 TEST(convolution_f32_fw_gpu, basic_wsiz1x1_wstr2x2_in1x1x4x1_filter_1x3x2x1x1_nopad_split2) {
@@ -3557,12 +3557,12 @@ TEST(convolution_f32_fw_gpu, basic_wsiz1x1_wstr2x2_in1x1x4x1_filter_1x3x2x1x1_no
 
     cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
 
-    EXPECT_FLOAT_EQ(-1.5f, output_ptr[0]);
-    EXPECT_FLOAT_EQ(8.0f, output_ptr[1]);
-    EXPECT_FLOAT_EQ(7.75f, output_ptr[2]);
-    EXPECT_FLOAT_EQ(11.0f, output_ptr[3]);
-    EXPECT_FLOAT_EQ(6.0f, output_ptr[4]);
-    EXPECT_FLOAT_EQ(-2.0f, output_ptr[5]);
+    ASSERT_FLOAT_EQ(-1.5f, output_ptr[0]);
+    ASSERT_FLOAT_EQ(8.0f, output_ptr[1]);
+    ASSERT_FLOAT_EQ(7.75f, output_ptr[2]);
+    ASSERT_FLOAT_EQ(11.0f, output_ptr[3]);
+    ASSERT_FLOAT_EQ(6.0f, output_ptr[4]);
+    ASSERT_FLOAT_EQ(-2.0f, output_ptr[5]);
 
 }*/
 
@@ -3636,10 +3636,10 @@ TEST(convolution_gpu, trivial_convolution_relu) {
 
     cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
 
-    EXPECT_FLOAT_EQ(4.0f, output_ptr[0]);
-    EXPECT_FLOAT_EQ(0.0f, output_ptr[1]);
-    EXPECT_FLOAT_EQ(2.0f, output_ptr[2]);
-    EXPECT_FLOAT_EQ(5.0f, output_ptr[3]);
+    ASSERT_FLOAT_EQ(4.0f, output_ptr[0]);
+    ASSERT_FLOAT_EQ(0.0f, output_ptr[1]);
+    ASSERT_FLOAT_EQ(2.0f, output_ptr[2]);
+    ASSERT_FLOAT_EQ(5.0f, output_ptr[3]);
 }
 
 TEST(convolution_gpu, relu_with_negative_slope) {
@@ -3714,10 +3714,10 @@ TEST(convolution_gpu, relu_with_negative_slope) {
 
     cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
 
-    EXPECT_FLOAT_EQ(4.0f, output_ptr[0]);
-    EXPECT_FLOAT_EQ(-0.35f, output_ptr[1]);
-    EXPECT_FLOAT_EQ(2.0f, output_ptr[2]);
-    EXPECT_FLOAT_EQ(5.0f, output_ptr[3]);
+    ASSERT_FLOAT_EQ(4.0f, output_ptr[0]);
+    ASSERT_FLOAT_EQ(-0.35f, output_ptr[1]);
+    ASSERT_FLOAT_EQ(2.0f, output_ptr[2]);
+    ASSERT_FLOAT_EQ(5.0f, output_ptr[3]);
 }
 
 TEST(convolution_gpu, DISABLED_two_1x1_kernels_after_each_other) {
@@ -4039,7 +4039,7 @@ TEST(convolution_f32_fw_gpu, byte_activation) {
     for (int f = 0; f < f_size; f++)
         for (int y = 0; y < y_size; ++y) {
             for (int x = 0; x < x_size; ++x) {
-                EXPECT_NEAR(output_vec[f][y][x], ((float)output_ptr[f * y_size * x_size + y * x_size + x]), 3.0f);
+                ASSERT_NEAR(output_vec[f][y][x], ((float)output_ptr[f * y_size * x_size + y * x_size + x]), 3.0f);
             }
         }
 }
@@ -4105,7 +4105,7 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_symmetric) {
     for (int f = 0; f < f_size; f++)
         for (int y = 0; y < y_size; ++y) {
             for (int x = 0; x < x_size; ++x) {
-                EXPECT_NEAR(output_vec[f][y][x], ((float)output_ptr[f * y_size * x_size + y * x_size + x]), 1e-5f) <<
+                ASSERT_NEAR(output_vec[f][y][x], ((float)output_ptr[f * y_size * x_size + y * x_size + x]), 1e-5f) <<
                 " x="<<x << " y=" << y << " f=" << f;
             }
         }
@@ -4179,7 +4179,7 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_weight_an
     for (int f = 0; f < f_size; f++)
         for (int y = 0; y < y_size; ++y) {
             for (int x = 0; x < x_size; ++x) {
-                EXPECT_NEAR(output_vec[f][y][x], ((float)output_ptr[f * y_size * x_size + y * x_size + x]), 1e-5f) <<
+                ASSERT_NEAR(output_vec[f][y][x], ((float)output_ptr[f * y_size * x_size + y * x_size + x]), 1e-5f) <<
                 " x="<< x << " y=" << y << " f=" << f;
             }
         }
@@ -4250,7 +4250,7 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_activatio
     for (int f = 0; f < f_size; f++)
         for (int y = 0; y < y_size; ++y) {
             for (int x = 0; x < x_size; ++x) {
-                EXPECT_NEAR(output_vec[f][y][x], ((float)output_ptr[f * y_size * x_size + y * x_size + x]), 1e-5f) <<
+                ASSERT_NEAR(output_vec[f][y][x], ((float)output_ptr[f * y_size * x_size + y * x_size + x]), 1e-5f) <<
                 " x="<< x << " y=" << y << " f=" << f;
             }
         }
@@ -4335,7 +4335,7 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_activatio
     for (int f = 0; f < f_size; f++)
         for (int y = 0; y < y_size; ++y) {
             for (int x = 0; x < x_size; ++x) {
-                EXPECT_NEAR(output_vec[f][y][x], ((float)output_ptr[f * y_size * x_size + y * x_size + x]), 1e-5f) <<
+                ASSERT_NEAR(output_vec[f][y][x], ((float)output_ptr[f * y_size * x_size + y * x_size + x]), 1e-5f) <<
                 " x="<< x << " y=" << y << " f=" << f;
             }
         }
@@ -4436,7 +4436,7 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_activatio
     for (int f = 0; f < f_size; f++)
         for (int y = 0; y < y_size; ++y) {
             for (int x = 0; x < x_size; ++x) {
-                EXPECT_NEAR(output_vec[f][y][x], ((float)output_ptr[f * y_size * x_size + y * x_size + x]), 1e-5f) <<
+                ASSERT_NEAR(output_vec[f][y][x], ((float)output_ptr[f * y_size * x_size + y * x_size + x]), 1e-5f) <<
                 " x="<< x << " y=" << y << " f=" << f;
             }
         }
@@ -4507,7 +4507,7 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_weights_p
     for (int f = 0; f < f_size; f++)
         for (int y = 0; y < y_size; ++y) {
             for (int x = 0; x < x_size; ++x) {
-                EXPECT_NEAR(output_vec[f][y][x], ((float)output_ptr[f * y_size * x_size + y * x_size + x]), 1e-5f) <<
+                ASSERT_NEAR(output_vec[f][y][x], ((float)output_ptr[f * y_size * x_size + y * x_size + x]), 1e-5f) <<
                 " x="<< x << " y=" << y << " f=" << f;
             }
         }

@@ -60,7 +60,7 @@ TEST(trim_to_outputs, one_node_to_eliminate_case1) {
         cldnn::mem_lock<float> output_ptr(it.second.get_memory(), get_test_stream());
         for (size_t cntr = 0; cntr < out_data.size(); cntr++)
         {
-            EXPECT_NEAR(output_ptr[cntr], out_data[cntr], 1e-4);
+            ASSERT_NEAR(output_ptr[cntr], out_data[cntr], 1e-4);
         }
         ASSERT_EQ(it.first, "conv1");
     }
@@ -116,7 +116,7 @@ TEST(trim_to_outputs, one_node_to_eliminate_case2) {
 
         for (size_t cntr = 0; cntr < out_data.size(); cntr++)
         {
-            EXPECT_NEAR(output_ptr[cntr], out_data[cntr], 1e-4);
+            ASSERT_NEAR(output_ptr[cntr], out_data[cntr], 1e-4);
         }
         ASSERT_EQ(it.first, "conv1");
     }
@@ -175,7 +175,7 @@ TEST(trim_to_outputs, two_nodes_to_eliminate_case1) {
 
         for (size_t cntr = 0; cntr < out_data.size(); cntr++)
         {
-            EXPECT_NEAR(output_ptr[cntr], out_data[cntr], 1e-4);
+            ASSERT_NEAR(output_ptr[cntr], out_data[cntr], 1e-4);
         }
         ASSERT_EQ(it.first, "conv4");
     }

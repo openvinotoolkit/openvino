@@ -219,7 +219,7 @@ public:
 
                 for (size_t j = 0; j < 6; ++j) {
                     const auto idx = box * 6 + j;
-                    EXPECT_NEAR(param.expected_selected_outputs[idx], output_boxes_ptr[idx], getError<T>())
+                    ASSERT_NEAR(param.expected_selected_outputs[idx], output_boxes_ptr[idx], getError<T>())
                                         << "format=" << fmt_to_str(target_format) << " box=" << box << ", j=" << j;
                 }
             }
