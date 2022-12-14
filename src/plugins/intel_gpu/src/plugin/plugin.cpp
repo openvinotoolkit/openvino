@@ -268,23 +268,7 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
     auto config = ConvertPerfHintsToConfig(orig_config, conf);
     UpdateConfig(conf, network, config);
 
-    RemoteCLContext::Ptr context;
-
-    auto canReuseDefaultContext = [&]() -> bool {
-        if (m_defaultContexts.find(conf.device_id) == m_defaultContexts.end())
-            return false;
-
-        return m_defaultContexts.at(conf.device_id)->GetConfig().CanShareContextWith(conf);
-    };
-
-    {
-        OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::LoadExeNetworkImpl::CreateContext");
-        std::lock_guard<std::mutex> lock(engine_mutex);
-        if (!canReuseDefaultContext())
-            m_defaultContexts[conf.device_id] = std::make_shared<RemoteCLContext>(shared_from_this(), AnyMap(), conf);
-    }
-
-    context = m_defaultContexts[conf.device_id];
+    RemoteCLContext::Ptr context = GetDefaultContext(conf);
 
     auto transformedNetwork = CloneAndTransformNetwork(network, conf);
     {
@@ -331,8 +315,19 @@ InferenceEngine::RemoteContext::Ptr Plugin::CreateContext(const AnyMap& params) 
     }
 }
 
+RemoteCLContext::Ptr Plugin::GetDefaultContext(const Config& config) const {
+    if (m_defaultContexts.find(config.device_id) == m_defaultContexts.end()) {
+        m_defaultContexts[config.device_id] = std::make_shared<RemoteCLContext>(
+            std::const_pointer_cast<InferenceEngine::IInferencePlugin>(shared_from_this()), AnyMap(), config);
+    }
+
+    RemoteCLContext::Ptr ctx = m_defaultContexts.at(config.device_id);
+    ctx->update_params(config);
+
+    return ctx;
+}
+
 InferenceEngine::RemoteContext::Ptr Plugin::GetDefaultContext(const AnyMap& params) {
-    RemoteCLContext::Ptr ctx;
     std::string device_id = "";
 
     if (params.find(CONFIG_KEY(DEVICE_ID)) != params.end())
@@ -340,14 +335,7 @@ InferenceEngine::RemoteContext::Ptr Plugin::GetDefaultContext(const AnyMap& para
 
     const Config conf = _impl->m_configs.GetConfig(device_id);
 
-    if (m_defaultContexts.find(conf.device_id) != m_defaultContexts.end() &&
-        m_defaultContexts.at(conf.device_id)->GetConfig().CanShareContextWith(conf)) {
-        ctx = m_defaultContexts.at(conf.device_id);
-    } else {
-        ctx = std::make_shared<RemoteCLContext>(shared_from_this(), AnyMap(), conf);
-    }
-
-    return ctx;
+    return GetDefaultContext(conf);
 }
 
 void Plugin::SetConfig(const std::map<std::string, std::string> &config) {
@@ -392,16 +380,7 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
 
     UpdateConfig(conf, network, config);
 
-    RemoteCLContext::Ptr ctx;
-    if (m_defaultContexts.find(conf.device_id) != m_defaultContexts.end() &&
-        m_defaultContexts.at(conf.device_id)->GetConfig().CanShareContextWith(conf)) {
-        ctx = m_defaultContexts.at(conf.device_id);
-    } else {
-        ctx = std::make_shared<RemoteCLContext>(
-            std::const_pointer_cast<InferenceEngine::IInferencePlugin>(shared_from_this()),
-            AnyMap(), conf);
-        m_defaultContexts[conf.device_id] = ctx;
-    }
+    auto ctx = GetDefaultContext(conf);
     Program prog(ctx->getImpl()->GetEngine(), conf);
     bool dyn_shape_batch_found = false;
 
@@ -465,26 +444,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(std::istr
 
     auto config = ConvertPerfHintsToConfig(orig_config, conf);
 
-    RemoteCLContext::Ptr context;
-
-    auto canReuseDefaultContext = [&]() -> bool {
-        if (m_defaultContexts.find(conf.device_id) == m_defaultContexts.end())
-            return false;
-
-        return m_defaultContexts.at(conf.device_id)->GetConfig().CanShareContextWith(conf);
-    };
-
-    {
-        OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork::CreateContext");
-        std::lock_guard<std::mutex> lock(engine_mutex);
-        if (!canReuseDefaultContext()) {
-            context = std::make_shared<RemoteCLContext>(shared_from_this(), AnyMap(), conf);
-            m_defaultContexts[conf.device_id] = context;
-        }
-    }
-
-    context = m_defaultContexts[conf.device_id];
-
+    auto context = GetDefaultContext(conf);
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork::CreateExeNetwork");
         CompiledModel::Ptr exeNetwork = std::make_shared<CompiledModel>(networkModel, context, conf);
@@ -863,11 +823,11 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         InferenceEngine::CNNNetwork network(model);
         size_t base_batch_size = 16; // empirically decided for DG1
         auto engine_params = Plugin::GetParams(config, device, nullptr);
-        auto engine = cldnn::engine::create(engine_params.engine_type, engine_params.runtime_type, device,
-                                cldnn::engine_configuration(false, engine_params.queue_type, std::string(),
-                                config.queuePriority, config.queueThrottle, true,
-                                engine_params.use_unified_shared_memory, std::string(), config.throughput_streams),
-                                engine_params.task_executor);
+        auto engine = cldnn::engine::create(engine_params.engine_type,
+                                            engine_params.runtime_type,
+                                            device,
+                                            engine_params.engine_config,
+                                            engine_params.task_executor);
 
         std::shared_ptr<Program> program;
 

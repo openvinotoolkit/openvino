@@ -69,6 +69,10 @@ const device::ptr engine::get_device() const {
     return _device;
 }
 
+void engine::set_config(const engine_configuration& config) {
+    _configuration = config;
+}
+
 bool engine::use_unified_shared_memory() const {
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(debug_config->disable_usm) {

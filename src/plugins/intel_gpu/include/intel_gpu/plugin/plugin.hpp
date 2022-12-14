@@ -43,6 +43,7 @@ class Plugin : public InferenceEngine::IInferencePlugin,
     void RegisterPrimitives();
     void UpdateConfig(Config& conf, const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &params) const;
     void UpdateStatistics(const RemoteCLContext::Ptr& context) const;
+    RemoteCLContext::Ptr GetDefaultContext(const Config& config) const;
 public:
     Plugin();
 
@@ -66,10 +67,9 @@ public:
     std::shared_ptr<InferenceEngine::RemoteContext> GetDefaultContext(const InferenceEngine::ParamMap& params) override;
 
     struct PluginParams {
-        cldnn::queue_types queue_type;
         cldnn::engine_types engine_type;
         cldnn::runtime_types runtime_type;
-        bool use_unified_shared_memory;
+        cldnn::engine_configuration engine_config;
         InferenceEngine::ITaskExecutor::Ptr task_executor;
     };
 
@@ -78,14 +78,25 @@ public:
         PluginParams params;
         params.engine_type = cldnn::engine_types::ocl;
         params.runtime_type = cldnn::runtime_types::ocl;
+        cldnn::queue_types queue_type;
         if (external_queue) {
-            params.queue_type = cldnn::stream::detect_queue_type(params.engine_type, external_queue);
+            queue_type = cldnn::stream::detect_queue_type(params.engine_type, external_queue);
         } else if (dev->get_info().supports_immad) {
-            params.queue_type = cldnn::queue_types::in_order;
+            queue_type = cldnn::queue_types::in_order;
         } else {
-            params.queue_type = cldnn::queue_types::out_of_order;
+            queue_type = cldnn::queue_types::out_of_order;
         }
-        params.use_unified_shared_memory = true;
+        bool use_unified_shared_memory = true;
+
+        params.engine_config = cldnn::engine_configuration(config.useProfiling,
+                                                           queue_type,
+                                                           std::string(),
+                                                           config.queuePriority,
+                                                           config.queueThrottle,
+                                                           true,
+                                                           use_unified_shared_memory,
+                                                           config.kernels_cache_dir,
+                                                           config.throughput_streams);
         params.task_executor = std::make_shared<InferenceEngine::CPUStreamsExecutor>(config.task_exec_config);
         return params;
     }

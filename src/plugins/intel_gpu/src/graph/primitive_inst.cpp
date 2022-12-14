@@ -96,9 +96,13 @@ void primitive_inst::check_memory_to_set(const memory& mem, const layout& layout
     // check shared image/buffer compatibility, if applicable
     auto params = mem.get_internal_params();
     if (params.mem_type != shared_mem_type::shared_mem_empty) {
-        if (!mem.is_allocated_by(get_network().get_engine())) {
-            CLDNN_ERROR_MESSAGE(_node->id(), "Memory object is not suitable");
-        }
+        auto& net_engine = get_network().get_engine();
+        auto& mem_engine = *mem.get_engine();
+        OPENVINO_ASSERT(mem.is_allocated_by(net_engine), "[GPU] Can't set memory due to engines mismatch. ",
+                        "Network was created for ", &net_engine, " (",
+                        net_engine.get_device_info().dev_name, ") engine",
+                        " while memory object was allocated for ", &mem_engine, "(",
+                        mem_engine.get_device_info().dev_name, ")");
 
         switch (params.mem_type) {
         case shared_mem_type::shared_mem_vasurface:

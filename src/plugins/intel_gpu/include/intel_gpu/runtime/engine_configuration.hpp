@@ -53,23 +53,23 @@ enum class queue_types : int16_t {
 
 /// @brief Configuration parameters for created engine.
 struct engine_configuration {
-    const bool enable_profiling;              ///< Enable per-primitive profiling.
-    const queue_types queue_type;             ///< Specifies type of queue used by the runtime
-    const std::string sources_dumps_dir;      ///< Specifies a directory where sources of cldnn::program objects should be dumped.
+    bool enable_profiling;              ///< Enable per-primitive profiling.
+    queue_types queue_type;             ///< Specifies type of queue used by the runtime
+    std::string sources_dumps_dir;      ///< Specifies a directory where sources of cldnn::program objects should be dumped.
                                               ///< Empty by default (means no dumping).
-    const priority_mode_types priority_mode;  ///< Priority mode (support of priority hints in command queue). If cl_khr_priority_hints extension
+    priority_mode_types priority_mode;  ///< Priority mode (support of priority hints in command queue). If cl_khr_priority_hints extension
                                               ///< is not supported by current OpenCL implementation, the value must be set to cldnn_priority_disabled.
 
-    const throttle_mode_types throttle_mode;  ///< Throttle mode (support of throttle hints in command queue). If cl_khr_throttle_hints extension
+    throttle_mode_types throttle_mode;  ///< Throttle mode (support of throttle hints in command queue). If cl_khr_throttle_hints extension
                                               ///< is not supported by current OpenCL implementation, the value must be set to cldnn_throttle_disabled.
 
     bool use_memory_pool;                     ///< Enables memory usage optimization. memory objects will be reused when possible
                                               ///< (switched off for older drivers then NEO).
     bool use_unified_shared_memory;           ///< Enables USM usage
-    const std::string kernels_cache_path;     ///< Path to compiled kernels cache
+    std::string kernels_cache_path;     ///< Path to compiled kernels cache
     uint16_t throughput_streams;              ///< Number of queues/streams executed in parallel by GPU plugin
 
-    const std::string tuning_cache_path;      ///< Path to tuning kernel cache
+    std::string tuning_cache_path;      ///< Path to tuning kernel cache
 
     /// @brief Constructs engine configuration with specified options.
     /// @param enable_profiling Enable per-primitive profiling.

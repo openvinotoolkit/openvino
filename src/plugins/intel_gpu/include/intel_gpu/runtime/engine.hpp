@@ -93,6 +93,7 @@ public:
 
     /// Returns configuration of current engine
     const engine_configuration& configuration() const { return _configuration; }
+    engine_configuration& configuration() { return _configuration; }
 
     /// Returns device structure which represents stores device capabilities
     device_info get_device_info() const;
@@ -145,6 +146,9 @@ public:
 #endif
     /// Return GPU plugin internal task executor
     const InferenceEngine::ITaskExecutor::Ptr get_task_executor();
+
+    /// Set new engine configuration for already created device/context
+    void set_config(const engine_configuration& config);
 
     /// Factory method which creates engine object with impl configured by @p engine_type
     /// @param engine_type requested engine type

@@ -22,7 +22,8 @@ RemoteBlobImpl::RemoteBlobImpl(ClContext::Ptr context,
     cldnn::shared_handle mem,
     cldnn::shared_surface surf,
     uint32_t plane,
-    BlobType mem_type)
+    BlobType mem_type,
+    cldnn::memory::ptr mem_handle)
     : m_context(context)
     , m_stream(stream)
     , m_mem(mem)
@@ -30,25 +31,27 @@ RemoteBlobImpl::RemoteBlobImpl(ClContext::Ptr context,
     , m_plane(plane)
     , m_layout(layout)
     , m_mem_type(mem_type)
-    , m_memObject(nullptr)
+    , m_memObject(mem_handle)
+    , m_reused_memory_object(mem_handle != nullptr)
     , lockedCounter(0)
     , lockedHolder(nullptr)
     , _handle(nullptr)
     , _allocator(nullptr) {
-    auto _impl = getContextImpl(m_context.lock());
-    m_engine = _impl->GetEngine();
+    auto _impl = getContextImpl(m_context);
 
-    // Verify shared buffer/usm memory and ensure that requested byte size is not greater than allocated one
-    switch (m_mem_type) {
-    case BlobType::BT_BUF_SHARED: {
-        m_engine->share_buffer(m_layout, m_mem);
-        break;
-    }
-    case BlobType::BT_USM_SHARED: {
-        m_engine->share_usm(m_layout, m_mem);
-        break;
-    }
-    default: break;
+    if (!m_reused_memory_object) {
+        // Verify shared buffer/usm memory and ensure that requested byte size is not greater than allocated one
+        switch (m_mem_type) {
+        case BlobType::BT_BUF_SHARED: {
+            _impl->GetEngine()->share_buffer(m_layout, m_mem);
+            break;
+        }
+        case BlobType::BT_USM_SHARED: {
+            _impl->GetEngine()->share_usm(m_layout, m_mem);
+            break;
+        }
+        default: break;
+        }
     }
 }
 
@@ -129,47 +132,50 @@ void RemoteBlobImpl::allocate() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "RemoteBlobImpl::Allocate");
     assert(m_memObject == nullptr);
 
-    auto _impl = getContextImpl(m_context.lock());
+    if (m_reused_memory_object)
+        return;
+
+    auto _impl = getContextImpl(m_context);
     std::lock_guard<ExecutionContextImpl> locker(*_impl);
 
     switch (m_mem_type) {
     case BlobType::BT_BUF_INTERNAL: {
-        m_memObject = m_engine->allocate_memory(m_layout, cldnn::allocation_type::cl_mem);
+        m_memObject = _impl->GetEngine()->allocate_memory(m_layout, cldnn::allocation_type::cl_mem);
         break;
     }
     case BlobType::BT_USM_HOST_INTERNAL: {
-        m_memObject = m_engine->allocate_memory(m_layout, cldnn::allocation_type::usm_host);
+        m_memObject = _impl->GetEngine()->allocate_memory(m_layout, cldnn::allocation_type::usm_host);
         break;
     }
     case BlobType::BT_USM_DEVICE_INTERNAL: {
-        m_memObject = m_engine->allocate_memory(m_layout, cldnn::allocation_type::usm_device);
+        m_memObject = _impl->GetEngine()->allocate_memory(m_layout, cldnn::allocation_type::usm_device);
         break;
     }
     case BlobType::BT_BUF_SHARED: {
-        m_memObject = m_engine->share_buffer(m_layout, m_mem);
+        m_memObject = _impl->GetEngine()->share_buffer(m_layout, m_mem);
         break;
     }
     case BlobType::BT_USM_SHARED: {
-        m_memObject = m_engine->share_usm(m_layout, m_mem);
+        m_memObject = _impl->GetEngine()->share_usm(m_layout, m_mem);
         break;
     }
 #ifdef _WIN32
     case BlobType::BT_SURF_SHARED: {
-        m_memObject = m_engine->share_surface(m_layout, m_mem, m_plane);
+        m_memObject = _impl->GetEngine()->share_surface(m_layout, m_mem, m_plane);
         break;
     }
     case BlobType::BT_DX_BUF_SHARED: {
-        m_memObject = m_engine->share_dx_buffer(m_layout, m_mem);
+        m_memObject = _impl->GetEngine()->share_dx_buffer(m_layout, m_mem);
         break;
     }
 #else
     case BlobType::BT_SURF_SHARED: {
-        m_memObject = m_engine->share_surface(m_layout, m_surf, m_plane);
+        m_memObject = _impl->GetEngine()->share_surface(m_layout, m_surf, m_plane);
         break;
     }
 #endif
     case BlobType::BT_IMG_SHARED: {
-        m_memObject = m_engine->share_image(m_layout, m_mem);
+        m_memObject = _impl->GetEngine()->share_image(m_layout, m_mem);
         break;
     }
     default:
@@ -185,11 +191,11 @@ const std::shared_ptr<IAllocator>& RemoteBlobImpl::getAllocator() const noexcept
 };
 
 std::string RemoteBlobImpl::getDeviceName() const noexcept {
-    return getContextImpl(m_context.lock())->getDeviceName();
+    return getContextImpl(m_context)->getDeviceName();
 };
 
 std::shared_ptr<InferenceEngine::RemoteContext> RemoteBlobImpl::getContext() const noexcept {
-    return m_context.lock();
+    return m_context;
 }
 
 void RemoteBlobImpl::reinterpret(cldnn::layout new_layout) {
@@ -338,16 +344,9 @@ ExecutionContextImpl::ExecutionContextImpl(const std::shared_ptr<IInferencePlugi
 
     auto engine_params = Plugin::GetParams(m_config, dev, m_external_queue);
     m_engine = cldnn::engine::create(engine_params.engine_type,
-                                     engine_params.runtime_type, dev,
-                                     cldnn::engine_configuration(m_config.useProfiling,
-                                         engine_params.queue_type,
-                                         std::string(),
-                                         m_config.queuePriority,
-                                         m_config.queueThrottle,
-                                         true,
-                                         engine_params.use_unified_shared_memory,
-                                         m_config.kernels_cache_dir,
-                                         m_config.throughput_streams),
+                                     engine_params.runtime_type,
+                                     dev,
+                                     engine_params.engine_config,
                                      engine_params.task_executor);
 }
 
@@ -368,6 +367,15 @@ AnyMap ExecutionContextImpl::getParams() const {
     }
 
     return ret;
+}
+
+void ExecutionContextImpl::update_params(const Config& config) {
+    OPENVINO_ASSERT(m_engine, "[GPU] Can't update params as engine object hasn't been created");
+    auto engine_params = Plugin::GetParams(config, m_engine->get_device(), m_external_queue);
+    m_engine->set_config(engine_params.engine_config);
+}
+
+ExecutionContextImpl::~ExecutionContextImpl() {
 }
 
 std::string ExecutionContextImpl::getDeviceName() const noexcept {
