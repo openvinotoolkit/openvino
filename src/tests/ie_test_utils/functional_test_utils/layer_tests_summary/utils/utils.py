@@ -65,9 +65,6 @@ def update_conformance_test_counters(results: ET.SubElement, logger: logging.Log
 
 def prepare_filelist(input_dir: os.path, pattern: str, logger):
     filelist_path = os.path.join(input_dir, "conformance_ir_files.lst")
-    if os.path.isfile(filelist_path):
-        logger.info(f"{filelist_path} is exists! Skip the step to prepare fileslist")
-        return filelist_path
     xmls = Path(input_dir).rglob(pattern)
     with open(filelist_path, 'w') as file:
         for xml in xmls:

@@ -25,6 +25,8 @@ FILENAME_LENGTH = 255
 
 LOG_NAME_REPLACE_STR = "##NAME##"
 
+DEFAUALT_PROCESS_TIMEOUT = 3600
+
 
 TEST_STATUS = {'passed': "[       OK ]", 'failed': "[  FAILED  ]", 'hanged': "Test finished by timeout", 'crashed': "Crash happens", 'skipped': "[  SKIPPED ]"}
 RUN = "[ RUN      ]"
@@ -43,7 +45,7 @@ def parse_arguments():
     parser.add_argument("-j", "--worker_num", help=worker_num_help, type=int, required=False, default=(os.cpu_count() - 1) if os.cpu_count() > 2 else 1)
     parser.add_argument("-w", "--working_dir", help=working_dir_num_help, type=str, required=False, default=".")
     parser.add_argument("-b", "--test_batch", help=test_batch_help, type=int, required=False, default=1)
-    parser.add_argument("-t", "--process_timeout", help=process_timeout_help, type=int, required=False, default=3600)
+    parser.add_argument("-t", "--process_timeout", help=process_timeout_help, type=int, required=False, default=DEFAUALT_PROCESS_TIMEOUT)
     return parser.parse_args()
 
 def get_test_command_line_args():
@@ -56,7 +58,7 @@ def get_test_command_line_args():
     return command_line_args
 
 class TaskManager:
-    process_timeout = 0
+    process_timeout = -1
 
     def __init__(self, command_list:list, working_dir: os.path):
         self._command_list = command_list
@@ -65,6 +67,7 @@ class TaskManager:
         self._timers = list()
         self._idx = 0
         self._log_filename = os.path.join(working_dir, f"log_{LOG_NAME_REPLACE_STR}.log")
+
 
     def __create_and_start_thread(self, func):
         thread = threading.Thread(target=func)
@@ -184,6 +187,8 @@ class TestParallelRunner:
 
 
     def run(self):
+        if TaskManager.process_timeout == -1:
+            TaskManager.process_timeout = DEFAUALT_PROCESS_TIMEOUT
         logger.info(f"Run test parallel is started")
         t_start = datetime.datetime.now()
         task_manger = TaskManager(self.__generate_command_list(self.__parse_test_list_file()), self._working_dir)
