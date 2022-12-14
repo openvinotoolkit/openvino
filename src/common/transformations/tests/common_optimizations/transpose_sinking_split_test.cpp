@@ -60,10 +60,10 @@ std::shared_ptr<Model> CreateFunction(size_t num_split_ops,
                                       element::Type input_type) {
         const Shape input_shape{96, static_cast<size_t>(std::pow(num_split_outputs, num_split_ops + 1)), 55, 55};
 
-        auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
+        auto X = std::make_shared<Parameter>(input_type, input_shape);
 
-        auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
-        auto transpose0 = std::make_shared<ov::opset9::Transpose>(X, ng_order0);
+        auto ng_order0 = std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
+        auto transpose0 = std::make_shared<Transpose>(X, ng_order0);
 
         ov::OutputVector outputs;
         ov::Output<ov::Node> in_op = transpose0->output(0);
@@ -85,7 +85,7 @@ std::shared_ptr<Model> CreateReferenceFunction(size_t num_split_ops,
                                                element::Type input_type) {
         const Shape input_shape{96, static_cast<size_t>(std::pow(num_split_outputs, num_split_ops + 1)), 55, 55};
 
-        auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
+        auto X = std::make_shared<Parameter>(input_type, input_shape);
 
         ov::OutputVector outputs;
         ov::Output<ov::Node> in_op = X->output(0);
@@ -93,15 +93,15 @@ std::shared_ptr<Model> CreateReferenceFunction(size_t num_split_ops,
             auto split_axis_const = std::make_shared<Constant>(element::u64, Shape{}, 1);
             auto split = std::make_shared<Split>(in_op, split_axis_const, num_split_outputs);
             for (size_t num_output = 0; num_output < num_split_outputs - 1; ++num_output) {
-                auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
-                auto transpose0 = std::make_shared<ov::opset9::Transpose>(split->output(num_output), ng_order0);
+                auto ng_order0 = std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
+                auto transpose0 = std::make_shared<Transpose>(split->output(num_output), ng_order0);
                 outputs.push_back(transpose0);
             }
             in_op = split->output(num_split_outputs - 1);
         }
 
-        auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
-        auto transpose0 = std::make_shared<ov::opset9::Transpose>(in_op, ng_order0);
+        auto ng_order0 = std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
+        auto transpose0 = std::make_shared<Transpose>(in_op, ng_order0);
         outputs.push_back(transpose0);
 
         return std::make_shared<ov::Model>(outputs, ov::ParameterVector{X});
@@ -354,10 +354,12 @@ std::shared_ptr<Model> CreateFunction(size_t split_tree_depth,
 
         auto X = std::make_shared<Parameter>(input_type, input_shape);
 
+        auto tanh = std::make_shared<Tanh>(X);
+
         ov::OutputVector split_tree_leaves;
         {
             SplitFactory split_factory(/* axis */ 1, num_split_outputs, /* elem_type */ element::u64);
-            CreateSplitTree(split_tree_depth, /* depth */ 0, X->output(0), split_factory, split_tree_leaves);
+            CreateSplitTree(split_tree_depth, /* depth */ 0, tanh->output(0), split_factory, split_tree_leaves);
         }
 
         ov::OutputVector outputs;
@@ -371,6 +373,9 @@ std::shared_ptr<Model> CreateFunction(size_t split_tree_depth,
             outputs.push_back(reshape);
         }
 
+        auto tanh1 = std::make_shared<Tanh>(tanh);
+        outputs.push_back(tanh1);
+
         return std::make_shared<Model>(outputs, ov::ParameterVector{X});
 }
 
@@ -382,8 +387,10 @@ std::shared_ptr<Model> CreateReferenceFunction(size_t split_tree_depth,
 
         auto X = std::make_shared<Parameter>(input_type, input_shape);
 
+        auto tanh = std::make_shared<Tanh>(X);
+
         auto ng_order = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 3, 1, 2});
-        auto transpose = std::make_shared<Transpose>(X, ng_order);
+        auto transpose = std::make_shared<Transpose>(tanh, ng_order);
 
         ov::OutputVector split_tree_leaves;
         {
@@ -398,6 +405,9 @@ std::shared_ptr<Model> CreateReferenceFunction(size_t split_tree_depth,
             auto reshape = std::make_shared<Reshape>(split_tree_leaf, reshape_const, false);
             outputs.push_back(reshape);
         }
+
+        auto tanh1 = std::make_shared<Tanh>(tanh);
+        outputs.push_back(tanh1);
 
         return std::make_shared<Model>(outputs, ov::ParameterVector{X});
 }
