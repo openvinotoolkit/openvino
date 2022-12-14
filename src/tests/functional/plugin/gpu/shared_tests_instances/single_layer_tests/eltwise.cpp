@@ -55,19 +55,19 @@ std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {
 
 ov::AnyMap additional_config = {};
 
-const auto multiply_params = ::testing::Combine(
-        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes)),
-        ::testing::ValuesIn(eltwiseOpTypes),
-        ::testing::ValuesIn(secondaryInputTypes),
-        ::testing::ValuesIn(opTypes),
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
-        ::testing::Values(additional_config));
-
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs, EltwiseLayerTest, multiply_params, EltwiseLayerTest::getTestCaseName);
-
+INSTANTIATE_TEST_SUITE_P(
+    smoke_CompareWithRefs,
+    EltwiseLayerTest,
+    ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes)),
+                       ::testing::ValuesIn(eltwiseOpTypes),
+                       ::testing::ValuesIn(secondaryInputTypes),
+                       ::testing::ValuesIn(opTypes),
+                       ::testing::ValuesIn(netPrecisions),
+                       ::testing::Values(ov::element::undefined),
+                       ::testing::Values(ov::element::undefined),
+                       ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                       ::testing::Values(additional_config)),
+    EltwiseLayerTest::getTestCaseName);
 
 std::vector<std::vector<std::vector<size_t>>> inShapesSingleThread = {
         {{1, 2, 3, 4}},

@@ -25,13 +25,6 @@ const std::vector<std::vector<std::vector<size_t>>> noneShapes = {
     {{2, 3, 4, 5}, {2, 3, 4, 5}, {2, 3, 4, 5}}
 };
 
-const auto noneCases = ::testing::Combine(
-    ::testing::ValuesIn(noneShapes),
-    ::testing::ValuesIn(inputPrecision),
-    ::testing::Values(ngraph::op::AutoBroadcastType::NONE),
-    ::testing::Values(CommonTestUtils::DEVICE_GPU)
-);
-
 const std::vector<std::vector<std::vector<size_t>>> numpyShapes = {
     {{1}, {16}, {1}},
     {{1}, {1}, {16}},
@@ -57,13 +50,18 @@ const std::vector<std::vector<std::vector<size_t>>> numpyShapes = {
     {{1, 1, 3}, {1, 3, 1}, {3, 1, 1}}
 };
 
-const auto numpyCases = ::testing::Combine(
-    ::testing::ValuesIn(numpyShapes),
-    ::testing::ValuesIn(inputPrecision),
-    ::testing::Values(ngraph::op::AutoBroadcastType::NUMPY),
-    ::testing::Values(CommonTestUtils::DEVICE_GPU)
-);
+INSTANTIATE_TEST_SUITE_P(smoke_CLDNN_TestsSelect_none,
+                         SelectLayerTest,
+                         ::testing::Combine(::testing::ValuesIn(noneShapes),
+                                            ::testing::ValuesIn(inputPrecision),
+                                            ::testing::Values(ngraph::op::AutoBroadcastType::NONE),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                         SelectLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_CLDNN_TestsSelect_none, SelectLayerTest, noneCases, SelectLayerTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_CLDNN_TestsSelect_numpy, SelectLayerTest, numpyCases, SelectLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CLDNN_TestsSelect_numpy,
+                         SelectLayerTest,
+                         ::testing::Combine(::testing::ValuesIn(numpyShapes),
+                                            ::testing::ValuesIn(inputPrecision),
+                                            ::testing::Values(ngraph::op::AutoBroadcastType::NUMPY),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                         SelectLayerTest::getTestCaseName);
