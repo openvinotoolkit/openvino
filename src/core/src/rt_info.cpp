@@ -4,8 +4,7 @@
 
 #include "openvino/core/rt_info.hpp"
 
-#include "ngraph/op/util/op_types.hpp"
-#include "ngraph/variant.hpp"
+#include "openvino/op/util/op_types.hpp"
 
 namespace {
 

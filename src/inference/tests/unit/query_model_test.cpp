@@ -416,5 +416,5 @@ TEST_F(GetSupportedNodesTest, ShapeOfNonConstantNode) {
             return ov::op::util::is_parameter(op) || ov::op::util::is_constant(op) || ov::op::util::is_output(op) ||
                    (std::dynamic_pointer_cast<ov::opset9::PRelu>(op) != nullptr);
         },
-        {"input", "slope_compressed", "slope", "prelu"});  // kepp dummy only since it has no unsupported consumers
+        {"input", "slope_compressed", "slope", "prelu"});  // keep dummy only since it has no unsupported consumers
 }

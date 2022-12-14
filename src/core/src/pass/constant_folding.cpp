@@ -9,10 +9,10 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/util/op_types.hpp"
+#include "openvino/op/util/read_value_base.hpp"
+#include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset3.hpp"
-#include "openvino/opsets/opset6.hpp"
 
 using namespace std;
 
@@ -102,10 +102,11 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
 }
 
 void ov::pass::ConstantFolding::copy_runtime_info_from_input_values(const std::shared_ptr<Node>& node) {
-    if (is_type<ov::opset1::ShapeOf>(node) || is_type<ov::opset3::ShapeOf>(node)) {
+    if (is_type<op::util::ShapeOfBase>(node)) {
         // Don't propogate names of ShapeOf source node since it is not fused itself
         return;
     }
+    // Add node itself to merge original rt info with rt info of inputs
     ov::NodeVector from = {node};
     for (auto& input : node->input_values()) {
         from.push_back(input.get_node_shared_ptr());
@@ -124,14 +125,14 @@ bool ov::pass::ConstantFolding::pre_calculated_values_folding(const std::shared_
 
         if (constant_folding_is_disabled(node)) {
             can_be_folded = false;
-        } else if (is_type<ov::opset1::ShapeOf>(node) || is_type<ov::opset3::ShapeOf>(node)) {
+        } else if (is_type<op::util::ShapeOfBase>(node)) {
             // In case if node is ShapeOf operation we stop propagation of can_be_folded attribute. We have to limit
             // propagation because we can't detect borders of shape_of sub-graphs, so we propagate can_be_folded
             // attribute through all nodes including nodes on data path. So to limit the spread of attribute to other
             // shape-of sub-graphs we do not propagate it through ShapeOf nodes.
             can_be_folded = input_values.begin()->get_partial_shape().is_static();
         } else if (op::util::is_parameter(node) || op::util::is_output(node) || op::util::is_sink(node) ||
-                   is_type<ov::opset3::ReadValue>(node) || is_type<ov::opset6::ReadValue>(node)) {
+                   is_type<op::util::ReadValueBase>(node)) {
             can_be_folded = false;
         } else {
             can_be_folded = std::all_of(input_values.cbegin(), input_values.cend(), is_output_foldable);
