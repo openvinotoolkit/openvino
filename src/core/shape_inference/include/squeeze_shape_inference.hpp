@@ -87,8 +87,13 @@ void shape_infer(const Squeeze* op,
             std::copy_if(arg_shape.cbegin(), arg_shape.cend(), back_inserter(out_dims), not_squeezable_at_axis);
         }
         // When arg shape has got static rank but shape is dynamic and output shape dimensions is empty
-        // make dynamic output.
-        output_shape = arg_shape.is_dynamic() && out_dims.empty() ? PartialShape::dynamic() : T(out_dims);
+        // make dynamic output except the case of the rank of arg shape is 1 and 0 <= arg_shape[0] <= 1.
+        if (arg_shape.is_dynamic() && out_dims.empty()) {
+            output_shape = arg_shape.rank().get_length() == 1 && arg_shape[0].get_max_length() <= 1
+                               ? T{}  // Output shape is a scalar
+                               : PartialShape::dynamic();
+        } else
+            output_shape = T(out_dims);
     } else {
         output_shape = PartialShape::dynamic();
     }
