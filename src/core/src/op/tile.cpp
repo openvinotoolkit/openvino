@@ -27,19 +27,18 @@ bool ngraph::op::v0::Tile::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v0::Tile::validate_and_infer_types() {
     OV_OP_SCOPE(v0_Tile_validate_and_infer_types);
-    auto arg_et = get_input_element_type(0);
 
     // Repeats should have integer data type. For now we only allow i64
-    auto repeats_et = get_input_element_type(1);
+    const auto& repeats_et = get_input_element_type(1);
     NODE_VALIDATION_CHECK(this,
                           repeats_et.is_integral(),
                           "Tile repeats must have any integer element type, but has ",
                           repeats_et);
 
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
-    std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0), get_input_partial_shape(1)};
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    auto output_shapes = std::vector<PartialShape>(1, ov::PartialShape{});
     shape_infer(this, input_shapes, output_shapes);
-    set_output_type(0, arg_et, output_shapes[0]);
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
 
     set_input_is_relevant_to_shape(0);
     set_input_is_relevant_to_shape(1);
