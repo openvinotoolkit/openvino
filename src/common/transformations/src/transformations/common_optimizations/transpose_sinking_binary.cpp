@@ -57,7 +57,7 @@ ov::pass::TransposeSinkingBinaryElementwiseBackward::TransposeSinkingBinaryEleme
 
     auto main_node_label = wrap_type<op::util::BinaryElementwiseArithmetic>(IfSinkingEnabled);
     auto transpose_const_label = wrap_type<Constant>(IfSinkingEnabled);
-    auto transpose_label = wrap_type<Transpose>({main_node_label, transpose_const_label}, consumers_count(1));
+    auto transpose_label = wrap_type<Transpose>({main_node_label, transpose_const_label}, IfSinkingEnabled);
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();

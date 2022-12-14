@@ -8,6 +8,11 @@
 #include <openvino/pass/manager.hpp>
 #include <transformations/common_optimizations/transpose_sinking_general.hpp>
 #include <transformations/init_node_info.hpp>
+#include "common_test_utils/ngraph_test_utils.hpp"
+
+#include "ngraph/pass/visualize_tree.hpp" // DEBUG
+
+#include <functional>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "gtest/gtest.h"
@@ -175,7 +180,9 @@ TEST_F(TransformationTestsF, TransposeSinkingGeneralTestBinaryGeneral) {
         function_ref = std::make_shared<ov::Model>(transpose0, ov::ParameterVector{X});
     }
 
+    manager.register_pass<ngraph::pass::VisualizeTree>("./0before.png"); // DEBUG
     manager.register_pass<ov::pass::TransposeSinkingGeneral>();
+    manager.register_pass<ngraph::pass::VisualizeTree>("./1after.png"); // DEBUG
 }
 
 TEST_F(TransformationTestsF, TransposeSinkingGeneralTestConcatGeneral) {
