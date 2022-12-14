@@ -3,7 +3,6 @@
 //
 
 #include <gtest/gtest.h>
-
 #include "description_buffer.hpp"
 
 using namespace std;

@@ -3,7 +3,6 @@
 //
 
 #include <gtest/gtest.h>
-
 #include <threading/ie_executor_manager.hpp>
 
 using namespace ::testing;

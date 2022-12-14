@@ -3,7 +3,6 @@
 //
 
 #include <gtest/gtest.h>
-
 #include <openvino/core/except.hpp>
 #include <openvino/runtime/compiled_model.hpp>
 

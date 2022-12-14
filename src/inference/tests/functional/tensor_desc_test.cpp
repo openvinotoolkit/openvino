@@ -3,11 +3,12 @@
 //
 
 #include <gtest/gtest.h>
-#include <ie_blob.h>
-#include <ie_layouts.h>
 
-#include <chrono>
 #include <random>
+#include <chrono>
+
+#include <ie_layouts.h>
+#include <ie_blob.h>
 
 using namespace ::testing;
 using namespace std;
@@ -16,7 +17,7 @@ using namespace InferenceEngine;
 using TensorDescTests = ::testing::Test;
 
 TEST_F(TensorDescTests, CreateBlobWithIncorrectLayout) {
-    ASSERT_THROW(make_shared_blob<float>({Precision::FP32, {1, 3, 32}, Layout::NC}), Exception);
+    ASSERT_THROW(make_shared_blob<float>({ Precision::FP32, {1, 3, 32}, Layout::NC }), Exception);
 }
 
 TEST_F(TensorDescTests, CreateBlockedBlobNCHW) {
@@ -93,7 +94,7 @@ TEST_F(TensorDescTests, SetLayout) {
 
 TEST_F(TensorDescTests, setDimsForBLOCKED) {
     TensorDesc desc(Precision::FP32, {1, 2, 3, 4, 5, 6}, Layout::BLOCKED);
-    SizeVector newDims{7, 7, 7, 7, 7, 7};
+    SizeVector newDims {7, 7, 7, 7, 7, 7};
     desc.setDims(newDims);
     EXPECT_EQ(desc.getDims(), newDims);
     EXPECT_EQ(desc.getBlockingDesc().getBlockDims(), newDims);
@@ -102,7 +103,7 @@ TEST_F(TensorDescTests, setDimsForBLOCKED) {
 TEST_F(TensorDescTests, setDimsForNHWC) {
     TensorDesc desc(Precision::FP32, {1, 2, 3, 4}, Layout::NHWC);
     auto refOrder = desc.getBlockingDesc().getOrder();
-    SizeVector newDims{7, 7, 7, 7};
+    SizeVector newDims {7, 7, 7, 7};
     desc.setDims(newDims);
     EXPECT_EQ(desc.getDims(), newDims);
     EXPECT_EQ(desc.getLayout(), Layout::NHWC);

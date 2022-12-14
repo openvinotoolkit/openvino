@@ -3,9 +3,7 @@
 //
 
 #include <gtest/gtest.h>
-
 #include <unordered_map>
-
 #include "caseless.hpp"
 #include "debug.h"
 
@@ -41,7 +39,7 @@ TEST_F(CaselessTests, canFindCaslessInMap) {
 }
 
 TEST_F(CaselessTests, canFindCaslessInUnordered) {
-    caseless_unordered_map<string, int> storage = {
+    caseless_unordered_map <string, int> storage = {
         {"Abc", 1},
         {"bC", 2},
         {"AbcD", 3},

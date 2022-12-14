@@ -3,7 +3,6 @@
 //
 
 #include <gtest/gtest.h>
-
 #include <cpp/ie_executable_network.hpp>
 
 using namespace ::testing;
