@@ -40,7 +40,7 @@ struct gemm : public primitive_base<gemm> {
     /// @brief Variable containing BETA parameter
 
     gemm(const primitive_id& id,
-         const std::vector<primitive_id>& inputs,
+         const std::vector<input_info>& inputs,
          const data_types data_type,
          const bool transpose_input0 = false,
          const bool transpose_input1 = false,
@@ -49,7 +49,7 @@ struct gemm : public primitive_base<gemm> {
          const size_t input_rank = 4,
          const size_t weight_rank = 4,
          const padding& output_padding = padding())
-        : primitive_base(id, inputs, output_padding, optional_data_type{ data_type }),
+        : primitive_base(id, inputs, {output_padding}, {optional_data_type{ data_type }}),
           transpose_input0(transpose_input0),
           transpose_input1(transpose_input1),
           alpha(alpha),

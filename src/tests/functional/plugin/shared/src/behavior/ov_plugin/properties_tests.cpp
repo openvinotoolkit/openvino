@@ -154,6 +154,16 @@ TEST_P(OVSetPropComplieModleWihtIncorrectPropTests, CanNotCompileModelWithIncorr
     ASSERT_THROW(core->compile_model(model, target_device, properties), ov::Exception);
 }
 
+TEST_P(OVSetSupportPropComplieModleWithoutConfigTests, SetPropertyComplieModelWithCorrectProperty) {
+    OV_ASSERT_NO_THROW(core->set_property(target_device, properties));
+    ASSERT_NO_THROW(core->compile_model(model, target_device, {}));
+}
+
+TEST_P(OVSetUnsupportPropComplieModleWithoutConfigTests, SetPropertyComplieModelWithIncorrectProperty) {
+    OV_ASSERT_NO_THROW(core->set_property(target_device, properties));
+    ASSERT_THROW(core->compile_model(model, target_device, {}), ov::Exception);
+}
+
 std::string OVCompileModelGetExecutionDeviceTests::getTestCaseName(testing::TestParamInfo<OvPropertiesParams> obj) {
     std::string target_device;
     std::pair<ov::AnyMap, std::string> userConfig;

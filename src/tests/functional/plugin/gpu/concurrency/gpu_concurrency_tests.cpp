@@ -189,6 +189,68 @@ TEST(canSwapTensorsBetweenInferRequests, inputs) {
     }
 }
 
+TEST(smoke_InferRequestDeviceMemoryAllocation, usmHostIsNotChanged) {
+    auto fn = ngraph::builder::subgraph::makeDetectionOutput(ngraph::element::Type_t::f32);
+
+    auto ie = ov::Core();
+    auto compiled_model = ie.compile_model(fn, CommonTestUtils::DEVICE_GPU);
+
+    ov::InferRequest infer_request1 = compiled_model.create_infer_request();
+    ov::InferRequest infer_request2 = compiled_model.create_infer_request();
+
+    auto input_tensor1 = infer_request1.get_input_tensor();
+    FuncTestUtils::fill_tensor(input_tensor1, 20, 0, 1, 0);
+
+    auto output_tensor1 = FuncTestUtils::create_and_fill_tensor(compiled_model.output().get_element_type(), compiled_model.output().get_shape());
+    auto output_tensor2 = infer_request2.get_output_tensor();
+
+    // Use tensor from infer request #2 as an output for infer request #1
+    infer_request1.set_output_tensor(output_tensor2);
+    ASSERT_NO_THROW(infer_request1.infer());
+
+    // Modify tensor somehow and save as a reference values
+    FuncTestUtils::fill_tensor(output_tensor2);
+
+    std::vector<float> ref_values;
+    ref_values.resize(output_tensor2.get_byte_size());
+    std::memcpy(ref_values.data(), output_tensor2.data(), output_tensor2.get_byte_size());
+
+    // Perform second infer() call with a system host memory tensor
+    infer_request1.set_output_tensor(output_tensor1);
+    ASSERT_NO_THROW(infer_request1.infer());
+
+    // Expect that output_tensor2 will not change it's data after infer() call
+    auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
+    FuncTestUtils::compareRawBuffers(ref_values.data(),
+                                     output_tensor2.data<float>(),
+                                     ref_values.size(),
+                                     ov::shape_size(output_tensor2.get_shape()),
+                                     thr);
+}
+
+TEST(smoke_InferRequestDeviceMemoryAllocation, canSetSystemHostTensor) {
+    auto fn = ngraph::builder::subgraph::makeDetectionOutput(ngraph::element::Type_t::f32);
+
+    auto ie = ov::Core();
+    auto compiled_model = ie.compile_model(fn, CommonTestUtils::DEVICE_GPU);
+
+    ov::InferRequest infer_request1 = compiled_model.create_infer_request();
+    ov::InferRequest infer_request2 = compiled_model.create_infer_request();
+
+    auto input_tensor1 = infer_request1.get_input_tensor();
+    FuncTestUtils::fill_tensor(input_tensor1, 20, 0, 1, 0);
+
+    auto output_tensor1 = FuncTestUtils::create_and_fill_tensor(compiled_model.output().get_element_type(), compiled_model.output().get_shape());
+    auto output_tensor2 = infer_request2.get_output_tensor();
+
+    infer_request1.set_output_tensor(output_tensor2);
+    ASSERT_NO_THROW(infer_request1.infer());
+
+    FuncTestUtils::fill_tensor(input_tensor1, 10, 0, 1, 1);
+    infer_request1.set_output_tensor(output_tensor1);
+    ASSERT_NO_THROW(infer_request1.infer());
+}
+
 TEST(canSwapTensorsBetweenInferRequests, outputs) {
     std::vector<std::vector<uint8_t>> ref;
     std::vector<ov::Tensor> input_tensors;
@@ -241,7 +303,7 @@ TEST(canSwapTensorsBetweenInferRequests, outputs) {
         } else {
             iter1++;
             ov::Tensor output_tensor = infer_request1.get_output_tensor();
-            compare_results(output_tensor, ref[iter1 % 2].data());
+            compare_results(output_tensor, ref[0].data());
             if (iter1 < niter_limit) {
                 infer_request1.set_output_tensor(output_tensors[(iter1 + 1) % 2]);
                 infer_request1.start_async();
@@ -255,7 +317,7 @@ TEST(canSwapTensorsBetweenInferRequests, outputs) {
         } else {
             iter2++;
             ov::Tensor output_tensor = infer_request2.get_output_tensor();
-            compare_results(output_tensor, ref[(iter2 + 1) % 2].data());
+            compare_results(output_tensor, ref[1].data());
             if (iter2 < niter_limit) {
                 infer_request2.set_output_tensor(output_tensors[iter2 % 2]);
                 infer_request2.start_async();

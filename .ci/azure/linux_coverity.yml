@@ -79,7 +79,7 @@ jobs:
 
   - script: |
       set -e
-      $(REPO_DIR)/install_build_dependencies.sh
+      sudo -E $(REPO_DIR)/install_build_dependencies.sh
       # Move jdk into contrib
       sudo apt --assume-yes install openjdk-11-jdk
       # Speed up build
