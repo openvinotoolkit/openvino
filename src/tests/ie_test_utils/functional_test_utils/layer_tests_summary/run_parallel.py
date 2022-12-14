@@ -76,6 +76,7 @@ class TaskManager:
         return thread
     
     def init_worker(self):
+        logger.info(f"Initialize worker {self._idx}")
         if len(self._command_list) <= self._idx:
             logger.warning(f"Skip worker initialiazation. Command list lenght <= worker index")
             return
@@ -107,6 +108,7 @@ class TaskManager:
         if self._idx >= len(self._command_list):
             return False
         pid = self.__find_free_process()
+        logger.info(f"Update worker {pid}")
         log_file_name = self._log_filename.replace(LOG_NAME_REPLACE_STR, str(self._idx))
         with open(log_file_name, "w") as log_file:
             self._workers[pid] = self.__create_and_start_thread(self.__update_process(pid, log_file))
@@ -150,7 +152,11 @@ class TestParallelRunner:
                 command += f" --input_folders"
                 argument = argument[argument.find("=")+1:]
             if is_input_folder and argument[0] != "-":
-                argument = utils.prepare_filelist(argument.replace('"', ''), "*.xml", logger)
+                buf = ""
+                for in_folder in argument.split(','):
+                    buf = utils.prepare_filelist(argument.replace('"', ''), "*.xml", logger)
+                    buf += ","
+                argument = buf 
             else:
                 is_input_folder = False
             command += f" {argument}"
@@ -172,6 +178,7 @@ class TestParallelRunner:
                     test_list.append(f"*{test_name[0:pos].replace(' ', '')}*:")
             test_list_file.close()
         os.remove(test_list_file_name)
+        logger.info(f"Total command list lenght is {len(test_list)}")
         filters = [test_list[i::self._worker_num] for i in range(self._worker_num)]
         self._run_num_per_executor = int(len(filters[0]) / self._test_batch) + 1
         return [["".join(filter[self._test_batch * i:self._test_batch * (i + 1):]).replace(' ', '') for i in range(self._run_num_per_executor)] for filter in filters]
@@ -216,6 +223,7 @@ class TestParallelRunner:
 
         logs_dir = os.path.join(self._working_dir, "logs")
         if os.path.exists(logs_dir):
+            logger.info(f"Logs directory {logs_dir} is cleaned up")
             rmtree(logs_dir)
         os.mkdir(logs_dir)
         for test_st, string in TEST_STATUS.items():
@@ -256,7 +264,7 @@ class TestParallelRunner:
             csv_writer = csv.writer(csv_file, dialect='excel')
             for row in hash_map:
                 csv_writer.writerow(row)
-        logger.info(f"Log analize is succusfully finished")
+        logger.info(f"Log analize is succesfully finished")
         logger.info(f"Total test count is {test_cnt}. All logs is saved to {logs_dir}")
 
 if __name__ == "__main__":
