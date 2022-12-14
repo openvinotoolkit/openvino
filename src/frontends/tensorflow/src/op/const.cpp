@@ -17,7 +17,7 @@ namespace op {
 
 OutputVector translate_const_op(const NodeContext& node) {
     auto ov_type = node.get_attribute<element::Type>("dtype");
-    std::shared_ptr<ov::op::Op> const_node;
+    std::shared_ptr<op::Op> const_node;
     if (ov_type == element::undefined) {
         const_node = std::make_shared<UndefinedConstant>();
     } else {
