@@ -136,6 +136,9 @@ TEST_P(OVExecutableNetworkBaseTest, canLoadNetworkFromMemory) {
         </net>
         )V0G0N";
 
+    if (target_device.find("GNA") != std::string::npos) {
+        GTEST_SKIP();
+    }
     EXPECT_NO_THROW(auto execNet = core->compile_model(model, ov::Tensor(), target_device, configuration));
 }
 
