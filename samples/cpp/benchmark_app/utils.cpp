@@ -30,6 +30,7 @@
 #endif
 
 #ifdef _WIN32
+#    define NOMINMAX
 #    include <windows.h>
 #    include <powrprof.h>
 #    pragma comment(lib, "powrprof.lib")
