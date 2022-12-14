@@ -12,12 +12,12 @@
 @sphinxdirective
 .. tab:: Operating Systems
 
-  * Raspbian Buster, ARM, 32-bit
-  * Raspbian Stretch, ARM, 32-bit
+  * Raspbian Buster, ARM, 32-bit & 64-bit
+  * Raspbian Stretch, ARM, 32-bit & 64-bit
 
 .. tab:: Hardware
 
-  * Raspberry Pi board with ARM ARMv7-A CPU architecture. Check that `uname -m` returns `armv7l`.
+  * Raspberry Pi board with ARM ARMv7-A CPU architecture. To check that, run `uname -m` to see if it returns `armv7l`.
   * Intel® Neural Compute Stick 2, which as one of the Intel® Movidius™ Visual Processing Units (VPUs)
 
   .. note::
@@ -39,23 +39,49 @@
    ```
    > **NOTE**: The `/opt/intel` path is the recommended folder path for administrators or root users. If you prefer to install OpenVINO in regular userspace, the recommended path is `/home/<USER>/intel`. You may use a different path if desired.
 
-3. Go to your `~/Downloads` directory and download OpenVINO Runtime archive file for Debian from [OpenVINO package repository](https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.2/linux/).
-   ```sh
-   cd ~/Downloads/
-   sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.2/linux/l_openvino_toolkit_debian9_arm_2022.2.0.7713.af16ea1d79a_armhf.tgz -O openvino_2022.2.0.7713.tgz
-   ```
+3. Go to your `~/Downloads` directory and download OpenVINO Runtime archive file for Debian from [OpenVINO package repository](https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/).
+@sphinxdirective
+   .. tab:: ARM 32-bit
+
+      .. code-block:: sh
+
+         cd ~/Downloads/
+         sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/l_openvino_toolkit_debian9_arm_2022.3.0.<update>.<patch>_armhf.tgz -O openvino_2022.3.0.tgz
+
+   .. tab:: ARM 64-bit
+
+      .. code-block:: sh
+
+         cd ~/Downloads/
+         sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/l_openvino_toolkit_debian9_arm_2022.3.0.<update>.<patch>_arm64.tgz -O openvino_2022.3.0.tgz
+
+@endsphinxdirective
+
 4. Extract the archive file and move it to the installation folder:
-   ```sh
-   sudo tar -xf openvino_2022.2.0.7713.tgz
-   sudo mv l_openvino_toolkit_debian9_arm_2022.2.0.7713.af16ea1d79a_armhf /opt/intel/openvino_2022.2.0.7713
-   ```
+@sphinxdirective
+   .. tab:: ARM 32-bit
+
+      .. code-block:: sh
+
+         sudo tar -xf openvino_2022.3.0.tgz
+         sudo mv l_openvino_toolkit_debian9_arm_2022.3.0.<update>.<patch>_armhf /opt/intel/openvino_2022.3.0
+
+   .. tab:: ARM 64-bit
+
+      .. code-block:: sh
+
+         sudo tar -xf openvino_2022.3.0.tgz
+         sudo mv l_openvino_toolkit_debian9_arm_2022.3.0.<update>.<patch>_arm64 /opt/intel/openvino_2022.3.0
+
+@endsphinxdirective
+
 5. Install required system dependencies on Linux. To do this, OpenVINO provides a script in the extracted installation directory. Run the following command:
    ```sh
    sudo -E ./install_dependencies/install_openvino_dependencies.sh
    ```
 6. For simplicity, it is useful to create a symbolic link as below:
    ```sh
-   sudo ln -s openvino_2022.2.0.7713 openvino_2022
+   sudo ln -s openvino_2022.3.0 openvino_2022
    ```
    > **NOTE**: If you have already installed a previous release of OpenVINO 2022, a symbolic link to the `openvino_2022` folder may already exist. Unlink the previous link with `sudo unlink openvino_2022`, and then re-run the command above.
 
