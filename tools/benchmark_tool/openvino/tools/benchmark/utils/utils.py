@@ -413,16 +413,16 @@ def print_perf_counters(perf_counts_list):
         total_time_cpu = timedelta()
         logger.info(f"Performance counts for {ni}-th infer request")
         for pi in perf_counts:
-            print(f"{pi.node_name[:max_layer_name - 4] + '...' if (len(pi.node_name) >= max_layer_name) else pi.node_name:<30}"
-                                                                f"{str(pi.status):<15}"
-                                                                f"{'layerType: ' + pi.node_type:<30}"
-                                                                f"{'realTime: ' + str((pi.real_time // timedelta(microseconds=1)) / 1000.0):<20}"
-                                                                f"{'cpu: ' +  str((pi.cpu_time // timedelta(microseconds=1)) / 1000.0):<20}"
-                                                                f"{'execType: ' + pi.exec_type:<20}")
+            print(f"{pi.node_name[:max_layer_name - 4] + '...' if (len(pi.node_name) >= max_layer_name) else pi.node_name:<30} "
+                                                                f"{str(pi.status):<15} "
+                                                                f"layerType: {str(pi.node_type):<15} "
+                                                                f"execType: {pi.exec_type:<15} "
+                                                                f"realTime (ms): {float(int(pi.real_time // timedelta(microseconds=1)) / 1000.0):.6f} "
+                                                                f"cpuTime (ms): {float(int(pi.cpu_time // timedelta(microseconds=1)) / 1000.0):.6f}")
             total_time += pi.real_time
             total_time_cpu += pi.cpu_time
-        print(f'Total time:     {(total_time // timedelta(microseconds=1)) / 1000.0} seconds')
-        print(f'Total CPU time: {(total_time_cpu // timedelta(microseconds=1)) / 1000.0} seconds\n')
+        print(f'Total time:     {int(total_time // timedelta(microseconds=1)) / 1000.0} seconds')
+        print(f'Total CPU time: {int(total_time_cpu // timedelta(microseconds=1)) / 1000.0} seconds\n')
 
 
 def get_command_line_arguments(argv):
