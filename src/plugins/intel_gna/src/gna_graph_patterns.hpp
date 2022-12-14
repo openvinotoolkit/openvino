@@ -283,9 +283,7 @@ inline std::vector<TranspositionInfo> FindTranspositionInfoFromPrevLayers(Infere
         if (LayerInfo(layer).isEltwise()) {
             auto input1 = InferenceEngine::CNNNetPrevLayer(layer, 0);
             auto input2 = InferenceEngine::CNNNetPrevLayer(layer, 1);
-            if (LayerInfo(input1).isConst() || LayerInfo(input1).isInput()) {
-                return findTranspositionInfoRecursive(input2);
-            }
+            if (LayerInfo(input1).isConst()) return findTranspositionInfoRecursive(input2);
             return findTranspositionInfoRecursive(input1);
         }
 
