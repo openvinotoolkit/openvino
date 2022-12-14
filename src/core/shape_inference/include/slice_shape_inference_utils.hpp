@@ -187,17 +187,16 @@ inline int64_t get_step_elements(const int64_t& dim, const int64_t& start, const
  *  and return them as pair of vector (lower, upper)
  *
  * \tparam TShape        Shape type,
- * \tparam TOp           Operator type,
  *
- * \param op             Operator pointer,
+ * \param op             Operator pointer.
  * \param idx            Input index.
  * \param constant_data  Map with constant data.
  *
  * \return Return pairs of vector.
  */
-template <class TShape, class TOp>
+template <class TShape>
 std::pair<std::vector<int64_t>, std::vector<int64_t>> get_input_bounds(
-    const TOp* op,
+    const ov::Node* op,
     size_t idx,
     const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
     std::vector<int64_t> lower, upper;
@@ -206,8 +205,8 @@ std::pair<std::vector<int64_t>, std::vector<int64_t>> get_input_bounds(
         auto bounds = ngraph::evaluate_both_bounds(op->get_input_source_output(idx));
 
         if (bounds.first && bounds.second) {
-            lower = std::make_shared<op::v0::Constant>(bounds.first)->template cast_vector<int64_t>();
-            upper = std::make_shared<op::v0::Constant>(bounds.second)->template cast_vector<int64_t>();
+            lower = std::make_shared<op::v0::Constant>(bounds.first)->cast_vector<int64_t>();
+            upper = std::make_shared<op::v0::Constant>(bounds.second)->cast_vector<int64_t>();
         }
     }
 
