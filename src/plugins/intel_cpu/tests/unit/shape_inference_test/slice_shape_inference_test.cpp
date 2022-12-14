@@ -19,6 +19,7 @@ protected:
     }
 
     size_t num_of_outputs = 1;
+    StaticDimension::value_type max_d = std::numeric_limits<StaticDimension::value_type>::max();
 };
 
 TEST_F(SliceStaticShapeInferenceTest, reverse_steps_start_stop_outside_dimension_default_axes) {
@@ -30,13 +31,13 @@ TEST_F(SliceStaticShapeInferenceTest, reverse_steps_start_stop_outside_dimension
 
     const auto op = make_op(data, start, stop, steps);
 
-    input_shapes.push_back({3, 4, 5, -1, -1});
+    input_shapes.push_back({3, 4, 5, max_d, max_d});
     input_shapes.resize(4, start->get_shape());
 
     shape_inference(op.get(), input_shapes, output_shapes);
 
     EXPECT_EQ(output_shapes.size(), num_of_outputs);
-    EXPECT_EQ(output_shapes.front(), StaticShape({3, 2, 5, -1, 3}));
+    EXPECT_EQ(output_shapes.front(), StaticShape({3, 2, 5, max_d, 3}));
 }
 
 TEST_F(SliceStaticShapeInferenceTest, reverse_step_on_signle_axis_but_start_stop_steps_in_const_map) {
@@ -92,7 +93,7 @@ TEST_F(SliceStaticShapeInferenceTest, forward_step_all_data_in_const_map) {
 
     const auto op = make_op(data, start, stop, steps);
 
-    input_shapes.push_back({10, 10, 8, -1, -1, -1, 10});
+    input_shapes.push_back({10, 10, 8, max_d, max_d, max_d, 10});
     input_shapes.resize(5, common_shape);
 
     const std::map<size_t, std::shared_ptr<HostTensor>>& constant_data = {{1, start_tensor},
@@ -103,5 +104,5 @@ TEST_F(SliceStaticShapeInferenceTest, forward_step_all_data_in_const_map) {
     shape_inference(op.get(), input_shapes, output_shapes, constant_data);
 
     EXPECT_EQ(output_shapes.size(), num_of_outputs);
-    EXPECT_EQ(output_shapes.front(), StaticShape({10, 3, 0, 4, -1, -1, 3}));
+    EXPECT_EQ(output_shapes.front(), StaticShape({10, 3, 0, 4, max_d, max_d, 3}));
 }
