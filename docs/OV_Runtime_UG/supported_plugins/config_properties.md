@@ -16,22 +16,19 @@ To find all the available processing devices and accelerators in the system, use
 
 Based on the `ov::available_devices` read-only property, OpenVINO Core collects information about currently available devices enabled by OpenVINO plugins and returns information, using the `ov::Core::get_available_devices` method:
 
-@sphinxtabset
+@sphinxdirective
 
-@sphinxtab{C++}
-
-@snippet docs/snippets/ov_properties_api.cpp get_available_devices
-
-@endsphinxtab
-
-@sphinxtab{Python}
-
-@snippet docs/snippets/ov_properties_api.py get_available_devices
-
-@endsphinxtab
-
-@endsphinxtabset
-
+.. tab:: C++
+   .. code_block:: sh
+   
+   auto property_keys = core.get_property(“CPU”, ov::supported_properties);
+   
+.. tab:: Python
+   .. code_block:: sh
+   
+   property_keys = core.get_property(“CPU”, “SUPPORTED_PROPERTIES”)
+   
+@endsphinxdirective
 
 This returns a list of available device names, for example:
 
