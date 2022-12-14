@@ -9,6 +9,7 @@ from shutil import copyfile
 from setuptools import setup, find_packages
 from setuptools.command.install import install
 
+
 UNKNOWN_VERSION = "unknown version"
 here = os.path.abspath(os.path.dirname(__file__))
 prefix = os.path.join("openvino", "tools")
