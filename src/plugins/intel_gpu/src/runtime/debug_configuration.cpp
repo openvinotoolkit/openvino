@@ -124,6 +124,7 @@ static void print_help_messages() {
                               " For primitives, fc:onednn, fc:ocl, do:cpu, do:ocl, reduce:onednn, reduce:ocl, concat:onednn,"
                               " and concat:ocl are supported");
     message_list.emplace_back("OV_GPU_MaxKernelsPerBatch", "Maximum number of kernels in a batch during compiling kernels");
+    message_list.emplace_back("OV_GPU_DisableMemoryPool", "Disable memory pool. If false, memory could not be re-used");
 
     auto max_name_length_item = std::max_element(message_list.begin(), message_list.end(),
         [](std::pair<std::string, std::string>& a, std::pair<std::string, std::string>& b){
@@ -181,6 +182,7 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("SerialCompile", serialize_compile);
     get_gpu_debug_env_var("ForceImplType", forced_impl_type);
     get_gpu_debug_env_var("MaxKernelsPerBatch", max_kernels_per_batch);
+    get_gpu_debug_env_var("DisableMemoryPool", disable_memory_pool);
 
     if (help > 0) {
         print_help_messages();

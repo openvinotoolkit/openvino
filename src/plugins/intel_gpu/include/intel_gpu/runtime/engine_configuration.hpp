@@ -10,6 +10,7 @@
 #include <stdexcept>
 #include <thread>
 #include <threading/ie_cpu_streams_executor.hpp>
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 namespace cldnn {
 
@@ -103,7 +104,12 @@ struct engine_configuration {
         , use_unified_shared_memory(use_unified_shared_memory)
         , kernels_cache_path(kernels_cache_path)
         , throughput_streams(throughput_streams)
-        , tuning_cache_path(tuning_cache_path) { }
+        , tuning_cache_path(tuning_cache_path) {
+            GPU_DEBUG_GET_INSTANCE(debug_config);
+            GPU_DEBUG_IF(debug_config->disable_memory_pool) {
+                this->use_memory_pool = false;
+            }
+        }
 };
 
 /// @}

@@ -52,6 +52,7 @@ public:
     int serialize_compile;                  // Serialize creating primitives and compiling kernels
     std::string forced_impl_type;           // Force implementation type either ocl or onednn
     int max_kernels_per_batch;              // Maximum number of kernels in a batch during compiling kernels
+    bool disable_memory_pool;               // Disable memory pool. If false, memory could not be re-used.
     static const debug_configuration *get_instance();
     bool is_dumped_layer(const std::string& layerName, bool is_output = false) const;
 };
