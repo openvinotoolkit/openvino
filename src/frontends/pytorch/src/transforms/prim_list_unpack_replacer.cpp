@@ -122,6 +122,26 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
             return true;
         }
 
+        if (auto slice = std::dynamic_pointer_cast<opset8::Slice>(input_node)) {
+            // case aten::slice as input
+            // Number of ListUnpack outputs should be equal to rank of input shape.
+            auto axis_0 = opset8::Constant::create(element::i64, Shape{}, {0});
+            auto split = std::make_shared<opset8::Split>(slice, axis_0, list_unpack->get_output_size());
+
+            NodeVector to_copy_rt{axis_0, split};
+            OutputVector res;
+            for (auto output : split->outputs()) {
+                auto squeeze = std::make_shared<opset8::Squeeze>(output, axis_0);
+                to_copy_rt.push_back(squeeze);
+                res.push_back(squeeze);
+            }
+
+            copy_runtime_info({list_unpack, input_node}, to_copy_rt);
+            replace_node(list_unpack, res);
+
+            return true;
+        }
+
         return false;
     };
 
