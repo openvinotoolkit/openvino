@@ -14,13 +14,13 @@
 #ifdef OPENVINO_STATIC_LIBRARY
 #    define RETURN_STATIC_
 #    undef OPENVINO_STATIC_LIBRARY  // Skip include of "ie_plugins.hpp" during include of "ie_core.cpp"
-#endif  // OPENVINO_STATIC_LIBRARY
+#endif // OPENVINO_STATIC_LIBRARY
 
 #include "ie_core.cpp"
 
 #ifdef RETURN_STATIC_
 #    define OPENVINO_STATIC_LIBRARY
-#endif  // STATIC_
+#endif // RETURN_STATIC_
 
 using namespace testing;
 using namespace ov::util;

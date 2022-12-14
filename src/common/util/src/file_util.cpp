@@ -370,10 +370,11 @@ std::string ov::util::get_absolute_file_path(const std::string& path, bool stric
     } else {
         if (is_absolute_file_path(path))
             return path;
-        char *cwdPath = get_cwd(&absolutePath[0]);
+        char* cwdPath = get_cwd(&absolutePath[0]);
         if (!cwdPath) {
             std::stringstream ss;
-            ss << "Can't determine current working directory to get absolute file path for [" << path << "], err = " << strerror(errno);
+            ss << "Can't determine current working directory to get absolute file path for [" << path
+               << "], err = " << strerror(errno);
             throw std::runtime_error(ss.str());
         }
         absolutePath.resize(strlen(cwdPath));
@@ -381,7 +382,6 @@ std::string ov::util::get_absolute_file_path(const std::string& path, bool stric
         absolutePath += ov::util::FileTraits<char>::file_separator + path;
         return absolutePath;
     }
-    
 }
 
 bool ov::util::is_absolute_file_path(const std::string& path) {
