@@ -25,6 +25,7 @@
    openvino_docs_OV_Glossary
    openvino_docs_Legal_Information
    openvino_docs_telemetry_information
+   openvino_docs_MO_DG_TensorFlow_Frontend
    Case Studies <https://www.intel.com/openvino-success-stories>
 
 
