@@ -60,18 +60,15 @@ static std::shared_ptr<ov::Model> simple_function_relu(ov::element::Type type, s
     return func;
 }
 
-std::vector<ovModelWithName> CompileModelCacheTestBase::getStandardFunctions() {
-    // Wrapper of most part of available builder functions
-    using ovModelIS = std::function<std::shared_ptr<ov::Model>(std::vector<size_t> inputShape,
-                                                                      ov::element::Type_t type)>;
-    auto inputShapeWrapper = [](ovModelIS fun, std::vector<size_t> inputShape) {
-        return [fun, inputShape](ngraph::element::Type type, std::size_t batchSize) {
-            auto shape = inputShape;
-            shape[0] = batchSize;
-            return fun(shape, type);
-        };
+ovModelGenerator CompileModelCacheTestBase::inputShapeWrapper(ovModelIS fun, std::vector<size_t> inputShape) {
+    return [fun, inputShape](ngraph::element::Type type, std::size_t batchSize) {
+        auto shape = inputShape;
+        shape[0] = batchSize;
+        return fun(shape, type);
     };
+}
 
+std::vector<ovModelWithName> CompileModelCacheTestBase::getNumericTypeFunctions() {
     std::vector<ovModelWithName> res;
     res.push_back(ovModelWithName { simple_function_multiply, "SimpleFunctionMultiply"});
     res.push_back(ovModelWithName { simple_function_relu, "SimpleFunctionRelu"});
@@ -84,9 +81,6 @@ std::vector<ovModelWithName> CompileModelCacheTestBase::getStandardFunctions() {
     res.push_back(ovModelWithName {
         inputShapeWrapper(ngraph::builder::subgraph::makeKSOFunction, {1, 4, 20, 20}),
         "KSOFunction"});
-    res.push_back(ovModelWithName { [](ngraph::element::Type type, size_t batchSize) {
-        return ngraph::builder::subgraph::makeTIwithLSTMcell(type, batchSize);
-    }, "TIwithLSTMcell1"});
     res.push_back(ovModelWithName {
         inputShapeWrapper(ngraph::builder::subgraph::makeSingleConv, {1, 3, 24, 24}),
         "SingleConv"});
@@ -108,13 +102,25 @@ std::vector<ovModelWithName> CompileModelCacheTestBase::getStandardFunctions() {
     res.push_back(ovModelWithName {
         inputShapeWrapper(ngraph::builder::subgraph::makeConvBias, {1, 3, 24, 24}),
         "ConvBias"});
-    res.push_back(ovModelWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeReadConcatSplitAssign, {1, 1, 2, 4}),
-        "ReadConcatSplitAssign"});
     res.push_back(ovModelWithName{
         inputShapeWrapper(ngraph::builder::subgraph::makeMatMulBias, {1, 3, 24, 24}),
         "MatMulBias" });
+    return res;
+}
 
+std::vector<ovModelWithName> CompileModelCacheTestBase::getAnyTypeFunctions() {
+    std::vector<ovModelWithName> res;
+    res.push_back(ovModelWithName {
+        inputShapeWrapper(ngraph::builder::subgraph::makeReadConcatSplitAssign, {1, 1, 2, 4}),
+        "ReadConcatSplitAssign"});
+    return res;
+}
+
+std::vector<ovModelWithName> CompileModelCacheTestBase::getFloatingPointFunctions() {
+    std::vector<ovModelWithName> res;
+    res.push_back(ovModelWithName { [](ngraph::element::Type type, size_t batchSize) {
+        return ngraph::builder::subgraph::makeTIwithLSTMcell(type, batchSize);
+    }, "TIwithLSTMcell1"});
     return res;
 }
 
