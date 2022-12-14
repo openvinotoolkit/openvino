@@ -149,7 +149,6 @@ private:
 };
 
 TEST_P(FakeQuantizeLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
 
     CheckPluginRelatedResults(compiledModel, layerName);

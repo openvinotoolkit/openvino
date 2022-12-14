@@ -93,8 +93,6 @@ protected:
 };
 
 TEST_P(ReshapeFcCPUTest, CompareWithRefs) {
-   SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
    run();
    CheckPluginRelatedResults(compiledModel, "FullyConnected");
 }
