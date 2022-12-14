@@ -40,40 +40,40 @@ Gna2Model* WorkerImpl::model() {
     return &fullModel_->object();
 }
 
-void WorkerImpl::enqueueRequest() {
-    check_if_free();
-
-    try {
-        for (auto& subrequest : modelSubrequests_) {
-            subrequest->enqueue();
-        }
-    } catch (const std::exception& e) {
-        ov::intel_gna::log::error() << "Exception when enqueueing inference: " << e.what() << std::endl;
-        cleanup_unfinished_submodules();
-        throw;
+bool WorkerImpl::enqueueRequest() {
+    if (!isFree()) {
+        ov::intel_gna::log::warning() << "Trying to propagte on busy request with id: " << representingIndex_;
+        return false;
     }
+
+    for (auto& subrequest : modelSubrequests_) {
+        if (!subrequest->enqueue()) {
+            cleanup_subrequests();
+            return false;
+        }
+    }
+    return true;
 }
 
 RequestStatus WorkerImpl::wait(int64_t timeoutMilliseconds) {
     bool pending = false;
 
-    try {
         // iterate over all configurations for requst
-        for (auto& subrequest : modelSubrequests_) {
-            if (!subrequest->isPending()) {
-                continue;
-            }
-
-            if (subrequest->wait(timeoutMilliseconds) == RequestStatus::kPending) {
-                pending = true;
-            }
+    for (auto& subrequest : modelSubrequests_) {
+        if (!subrequest->isPending()) {
+            continue;
         }
-    } catch (const std::exception& e) {
-        ov::intel_gna::log::error() << "Exception when executiong wait: " << e.what() << std::endl;
-        pending = false;
-        cleanup_unfinished_submodules();
-        throw;
+
+        auto result = subrequest->wait(timeoutMilliseconds);
+
+        if (result == RequestStatus::kPending) {
+            pending = true;
+        } else if (result == RequestStatus::kCompletedWithError) {
+            cleanup_subrequests();
+            return result;
+        }
     }
+
 
     // return kPending if at least one subrequest is pending
     if (pending) {
@@ -121,21 +121,10 @@ InferenceEngine::BlobMap& WorkerImpl::result() {
     return requestResult_;
 }
 
-void WorkerImpl::check_if_free() {
-    if (!isFree()) {
-        THROW_GNA_EXCEPTION << "Trying to propagte on busy request with id: " << representingIndex_;
-    }
-}
-
-void WorkerImpl::cleanup_unfinished_submodules() {
+void WorkerImpl::cleanup_subrequests() {
     for (auto& subrequest : modelSubrequests_) {
-        if (!subrequest->isPending()) {
-            continue;
-        }
-        try {
-            subrequest->wait(0);
-        } catch (...) {
-            ov::intel_gna::log::warning() << "Issue with finalizing unfinished submodels of ongoing inference";
+        if (subrequest->isPending()) {
+            subrequest->cleanup();
         }
     }
 }

@@ -10,12 +10,12 @@
 #define IMPLEMENT_INFERENCE_ENGINE_PLUGIN
 #include "gna_infer_request.hpp"
 #include "gna_mock_api.hpp"
+#include "gna_plugin.hpp"
 #include "request/model_wrapper_factory.hpp"
 #include "request/subrequest_impl.hpp"
 #include "request/worker_factory.hpp"
 #include "request/worker_impl.hpp"
 #include "request/worker_pool.hpp"
-#include "gna_plugin.hpp"
 
 using namespace GNAPluginNS;
 using namespace GNAPluginNS::request;
@@ -71,8 +71,7 @@ public:
     // Prepare underlining object to enable Wait() working
     GNAInferRequestForGNAWaitTest(std::shared_ptr<GNAPluginForGNAWaitTest> plugin)
         : GNAInferRequest{plugin, plugin->GetNetworkInputs(), plugin->GetNetworkOutputs()},
-          _plugin(plugin) {
-    }
+          _plugin(plugin) {}
 
     void EnqueTestRequest() {
         _plugin->EnqueTestRequest();
