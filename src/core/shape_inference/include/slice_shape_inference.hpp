@@ -10,10 +10,9 @@
 #include "slice_shape_inference_utils.hpp"
 
 namespace ov {
-
 namespace op {
-
 namespace v8 {
+
 const std::array<std::string, 4> shape_names{"start", "stop", "step", "axes"};
 
 template <class T>
