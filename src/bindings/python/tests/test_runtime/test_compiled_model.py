@@ -35,8 +35,7 @@ def test_export_import(device):
     core = Core()
 
     if "EXPORT_IMPORT" not in core.get_property(device, "OPTIMIZATION_CAPABILITIES"):
-        device_name = core.get_property(device, "FULL_DEVICE_NAME")
-        pytest.skip(f"{device_name} plugin due-to export, import model API isn't implemented.")
+        pytest.skip(f"{core.get_property(device, 'FULL_DEVICE_NAME')} plugin due-to export, import model API isn't implemented.")
 
     model = core.read_model(model=test_net_xml, weights=test_net_bin)
     compiled_model = core.compile_model(model, device)
@@ -57,8 +56,7 @@ def test_export_import_advanced(device):
     core = Core()
 
     if "EXPORT_IMPORT" not in core.get_property(device, "OPTIMIZATION_CAPABILITIES"):
-        device_name = core.get_property(device, "FULL_DEVICE_NAME")
-        pytest.skip(f"{device_name} plugin due-to export, import model API isn't implemented.")
+        pytest.skip(f"{core.get_property(device, 'FULL_DEVICE_NAME')} plugin due-to export, import model API isn't implemented.")
 
     model = core.read_model(model=test_net_xml, weights=test_net_bin)
     compiled_model = core.compile_model(model, device)
@@ -75,42 +73,18 @@ def test_export_import_advanced(device):
     assert np.argmax(res[new_compiled.outputs[0]]) == 9
 
 
-def test_get_input_i(device):
+@pytest.mark.parametrize("input_arguments", [[0], ["data"], []])
+def test_get_input(device, input_arguments):
     compiled_model = generate_relu_compiled_model(device)
-    net_input = compiled_model.input(0)
-    input_node = net_input.get_node()
-    name = input_node.friendly_name
+    net_input = compiled_model.input(*input_arguments)
     assert isinstance(net_input, ConstOutput)
-    assert name == "data"
+    assert net_input.get_node().friendly_name == "data"
 
 
-def test_get_input_tensor_name(device):
+@pytest.mark.parametrize("output_arguments", [[0], []])
+def test_get_output(device, output_arguments):
     compiled_model = generate_relu_compiled_model(device)
-    net_input = compiled_model.input("data")
-    input_node = net_input.get_node()
-    name = input_node.friendly_name
-    assert isinstance(net_input, ConstOutput)
-    assert name == "data"
-
-
-def test_get_input(device):
-    compiled_model = generate_relu_compiled_model(device)
-    net_input = compiled_model.input()
-    input_node = net_input.get_node()
-    name = input_node.friendly_name
-    assert isinstance(net_input, ConstOutput)
-    assert name == "data"
-
-
-def test_get_output_i(device):
-    compiled_model = generate_relu_compiled_model(device)
-    output = compiled_model.output(0)
-    assert isinstance(output, ConstOutput)
-
-
-def test_get_output(device):
-    compiled_model = generate_relu_compiled_model(device)
-    output = compiled_model.output()
+    output = compiled_model.output(*output_arguments)
     assert isinstance(output, ConstOutput)
 
 
@@ -139,11 +113,6 @@ def test_outputs(device):
     outputs = compiled_model.outputs
     assert isinstance(outputs, list)
     assert len(outputs) == 1
-
-
-def test_outputs_items(device):
-    compiled_model = generate_relu_compiled_model(device)
-    outputs = compiled_model.outputs
     assert isinstance(outputs[0], ConstOutput)
 
 
@@ -164,8 +133,7 @@ def test_output_shape(device):
 def test_input_get_index(device):
     compiled_model = generate_relu_compiled_model(device)
     net_input = compiled_model.input(0)
-    expected_idx = 0
-    assert net_input.get_index() == expected_idx
+    assert net_input.get_index() == 0
 
 
 def test_inputs(device):
@@ -173,28 +141,19 @@ def test_inputs(device):
     inputs = compiled_model.inputs
     assert isinstance(inputs, list)
     assert len(inputs) == 1
-
-
-def test_inputs_items(device):
-    compiled_model = generate_relu_compiled_model(device)
-    inputs = compiled_model.inputs
     assert isinstance(inputs[0], ConstOutput)
 
 
 def test_inputs_get_friendly_name(device):
     compiled_model = generate_relu_compiled_model(device)
-    inputs = compiled_model.inputs
-    input_0 = inputs[0]
-    node = input_0.get_node()
+    node = compiled_model.inputs[0].get_node()
     name = node.friendly_name
     assert name == "data"
 
 
 def test_inputs_set_friendly_name(device):
     compiled_model = generate_relu_compiled_model(device)
-    inputs = compiled_model.inputs
-    input_0 = inputs[0]
-    node = input_0.get_node()
+    node = compiled_model.inputs[0].get_node()
     node.set_friendly_name("input_0")
     name = node.friendly_name
     assert name == "input_0"
@@ -203,10 +162,8 @@ def test_inputs_set_friendly_name(device):
 def test_inputs_docs(device):
     compiled_model = generate_relu_compiled_model(device)
 
-    inputs = compiled_model.inputs
-    input_0 = inputs[0]
-    expected_string = "openvino.runtime.ConstOutput represents port/node output."
-    assert input_0.__doc__ == expected_string
+    input_0 = compiled_model.inputs[0]
+    assert input_0.__doc__ == "openvino.runtime.ConstOutput represents port/node output."
 
 
 def test_infer_new_request_numpy(device):

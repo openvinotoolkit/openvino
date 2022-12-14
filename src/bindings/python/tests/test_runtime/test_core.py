@@ -42,15 +42,15 @@ test_net_onnx = model_onnx_path()
 def test_compact_api_xml():
     img = generate_image()
 
-    model = compile_model(get_relu_model())
-    assert isinstance(model, CompiledModel)
-    results = model.infer_new_request({"data": img})
+    compiled_model = compile_model(get_relu_model())
+    assert isinstance(compiled_model, CompiledModel)
+    results = compiled_model.infer_new_request({"data": img})
     assert np.argmax(results[list(results)[0]]) == 531
 
 
 def test_compact_api_xml_posix_path():
-    model = compile_model(Path(test_net_xml))
-    assert isinstance(model, CompiledModel)
+    compiled_model = compile_model(Path(test_net_xml))
+    assert isinstance(compiled_model, CompiledModel)
 
 
 def test_compact_api_wrong_path():
@@ -68,9 +68,9 @@ def test_compact_api_wrong_path():
 
 def test_core_class(device):
     input_shape = [1, 3, 4, 4]
-    model = generate_relu_compiled_model(device, input_shape=input_shape)
+    compiled_model = generate_relu_compiled_model(device, input_shape=input_shape)
 
-    request = model.create_infer_request()
+    request = compiled_model.create_infer_request()
     input_data = np.random.rand(*input_shape).astype(np.float32) - 0.5
 
     expected_output = np.maximum(0.0, input_data)
@@ -266,8 +266,8 @@ def test_register_plugin():
         pytest.skip("This test runs only on openvino intel cpu plugin")
     core.register_plugin("openvino_intel_cpu_plugin", "BLA")
     model = core.read_model(model=test_net_xml, weights=test_net_bin)
-    exec_net = core.compile_model(model, "BLA")
-    assert isinstance(exec_net, CompiledModel), "Cannot load the network to the registered plugin with name 'BLA'"
+    compiled_model = core.compile_model(model, "BLA")
+    assert isinstance(compiled_model, CompiledModel), "Cannot load the network to the registered plugin with name 'BLA'"
 
 
 @pytest.mark.dynamic_library()
@@ -284,8 +284,8 @@ def test_register_plugins():
         core.register_plugins(plugins_win_xml)
 
     model = core.read_model(model=test_net_xml, weights=test_net_bin)
-    exec_net = core.compile_model(model, "CUSTOM")
-    assert isinstance(exec_net, CompiledModel), (
+    compiled_model = core.compile_model(model, "CUSTOM")
+    assert isinstance(compiled_model, CompiledModel), (
         "Cannot load the network to "
         "the registered plugin with name 'CUSTOM' "
         "registered in the XML file"
@@ -319,8 +319,8 @@ def test_add_extension_template_extension(device):
     model.reshape(new_shapes)
     # compile to check objects can be destroyed
     # in order core -> model -> compiled
-    compiled = core.compile_model(model, device)
-    assert compiled.input().partial_shape == after_reshape
+    compiled_model = core.compile_model(model, device)
+    assert compiled_model.input().partial_shape == after_reshape
 
 
 def test_add_extension():

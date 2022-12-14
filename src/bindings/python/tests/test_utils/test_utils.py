@@ -41,7 +41,7 @@ def get_relu_model(input_shape: List[int] = None) -> openvino.runtime.Model:
     return model
 
 
-def generate_relu_compiled_model(device, input_shape: List[int] = None) -> openvino.runtime.ie_api.CompiledModel:
+def generate_relu_compiled_model(device, input_shape: List[int] = None) -> openvino.runtime.CompiledModel:
     if input_shape is None:
         input_shape = [1, 3, 32, 32]
     model = get_relu_model(input_shape)

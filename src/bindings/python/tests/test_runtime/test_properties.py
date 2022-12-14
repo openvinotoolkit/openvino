@@ -28,11 +28,11 @@ def test_property_ro():
     assert "available_devices(): incompatible function arguments." in str(e.value)
 
 
-def test_allow_auto_batching_property():
+def test_allow_auto_batching_property(device):
     core = Core()
-    device_name = core.get_property("CPU", "FULL_DEVICE_NAME")
+    device_name = core.get_property(device, "FULL_DEVICE_NAME")
 
-    if "Intel" not in device_name:
+    if device != "CPU" and "Intel" not in device_name:
         pytest.skip("Properties are Intel(R) CPU specific")
 
     core.set_property({"ALLOW_AUTO_BATCHING": False})
@@ -47,7 +47,6 @@ def test_allow_auto_batching_property():
 def test_single_property_setting():
     core = Core()
     device_name = core.get_property("CPU", "FULL_DEVICE_NAME")
-
     if "Intel" not in device_name:
         pytest.skip("Properties are Intel(R) CPU specific")
 
