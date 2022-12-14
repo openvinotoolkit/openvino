@@ -52,8 +52,9 @@ The shape can be a `list` or `tuple` of dimensions (`int` or `openvino.runtime.D
 ov_model = convert_model(model, input=("input_name", [3], np.float32))
 ```
 
-For complex cases, when a value needs to be set in the `input` parameter, the `InputCutInfo` class can be used. `InputCutInfo` accepts four parameters: `name`, `shape`, `type`, and `value`.
-  `InputCutInfo("input_name", [3], np.float32, [0.5, 2.1, 3.4])` is equivalent of `InputCutInfo(name="input_name", shape=[3], type=np.float32, value=[0.5, 2.1, 3.4])`.
+For complex cases, when a value needs to be set in the `input` parameter, the `InputCutInfo` class can be used. `InputCutInfo` accepts four parameters: `name`, `shape`, `type`, and `value`. 
+
+`InputCutInfo("input_name", [3], np.float32, [0.5, 2.1, 3.4])` is equivalent of `InputCutInfo(name="input_name", shape=[3], type=np.float32, value=[0.5, 2.1, 3.4])`.
 Supported types for `InputCutInfo`:
 - name: `string`.
 - shape: `list` or `tuple` of dimensions (`int` or `openvino.runtime.Dimension`), `openvino.runtime.PartialShape`,` openvino.runtime.Shape`.
