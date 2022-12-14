@@ -4,7 +4,8 @@
 
 from dataclasses import dataclass, field
 from functools import singledispatchmethod
-from typing import List, Optional, Any, Dict
+from typing import List, Optional, Any, Dict, ClassVar
+
 from openvino.runtime.exceptions import UserInputError, OVTypeError
 
 
@@ -35,23 +36,10 @@ class NormalizationStep(BasePipelineStep):
 
 
 @dataclass
-class NFCNormalizationStep(NormalizationStep):
-    pass
+class UnicodeNormalizationStep(NormalizationStep):
+    normalization_form: str = "NFD"
 
-
-@dataclass
-class NFDNormalizationStep(NormalizationStep):
-    pass
-
-
-@dataclass
-class NFKCNormalizationStep(NormalizationStep):
-    pass
-
-
-@dataclass
-class NFKDNormalizationStep(NormalizationStep):
-    pass
+    tf_node_name: ClassVar[str] = "NormalizeUTF8"
 
 
 @dataclass
@@ -64,13 +52,15 @@ class NMTNormalizationStep(NormalizationStep):
 
 @dataclass
 class LowercaseStep(NormalizationStep):
-    pass
+    tf_node_name: ClassVar[str] = "CaseFoldUTF8"
 
 
 @dataclass
 class RegExpNormalizationStep(NormalizationStep):
     regex_search_pattern: str
     replace_term: str
+
+    tf_node_name: ClassVar[str] = "StaticRegexReplace"
 
     @classmethod
     def strip_accents_regex(cls) -> "RegExpNormalizationStep":
@@ -119,6 +109,8 @@ class RegExpSplitStep(PreTokenizatinStep):
     split_pattern: str
     invert: bool = False
     behaviour: str = "Remove"
+
+    tf_node_name: ClassVar[str] = "RegexSplitWithOffsets/delim_regex_pattern"
 
     @classmethod
     def bert_splitter(cls) -> "RegExpSplitStep":

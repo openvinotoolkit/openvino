@@ -11,10 +11,7 @@ from openvino.runtime.exceptions import OVTypeError
 from .tokenizer_pipeline import (
     TokenizerPipeline,
     NormalizationStep,
-    NFCNormalizationStep,
-    NFDNormalizationStep,
-    NFKCNormalizationStep,
-    NFKDNormalizationStep,
+    UnicodeNormalizationStep,
     NMTNormalizationStep,
     LowercaseStep,
     RegExpNormalizationStep,
@@ -97,10 +94,10 @@ class TransformersTokenizerPipelineParser:
         return self.pipeline
 
     normalizers_map: Dict[str, Callable[[Dict[str, Any]], Union[NormalizationStep, List[NormalizationStep]]]] = {
-        "NFC": lambda step_dict: NFCNormalizationStep(),
-        "NFD": lambda step_dict: NFDNormalizationStep(),
-        "NFKC": lambda step_dict: NFKCNormalizationStep(),
-        "NFKD": lambda step_dict: NFKDNormalizationStep(),
+        "NFC": lambda step_dict: UnicodeNormalizationStep("NFC"),
+        "NFD": lambda step_dict: UnicodeNormalizationStep("NFD"),
+        "NFKC": lambda step_dict: UnicodeNormalizationStep("NFKC"),
+        "NFKD": lambda step_dict: UnicodeNormalizationStep("NFKD"),
         "Nmt": lambda step_dict: NMTNormalizationStep(),
         "Lowercase": lambda step_dict: LowercaseStep(),
         "StripAccents": lambda step_dict: RegExpNormalizationStep.strip_accents_regex(),
