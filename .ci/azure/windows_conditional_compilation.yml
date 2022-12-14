@@ -173,6 +173,9 @@ jobs:
   - script: dir $(REPO_DIR)\bin\ /s
     displayName: 'List bin files ON'
 
+  - script: type $(BUILD_DIR_2)\src\common\conditional_compilation\conditional_compilation_gen.h
+    displayName: 'Check conditional_compilation_gen.h header'
+
   # TODO: Enable after the fix on CPU side
   - script: |
       set path=%path%;$(REPO_DIR)\temp\tbb\bin
