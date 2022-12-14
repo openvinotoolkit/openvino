@@ -23,7 +23,7 @@ def type_to_ovtype(general_type):
         np.uint32: ov.Type.u32,
         np.uint64: ov.Type.u64,
     }
-    return types_map[type]
+    return types_map[general_type]
 
 
 def count_ops_of_type(func, op_type):
