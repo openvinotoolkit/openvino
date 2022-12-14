@@ -68,21 +68,43 @@ public:
         std::vector<int32_t> end(prim->end.begin(), prim->end.end());
         std::vector<int32_t> strides(prim->strides.begin(), prim->strides.end());
         // Getting data from constant inputs. There are 3 args: Begin, End, Stride
-        if (!begin.empty() && !end.empty() && !strides.empty()) {
+        if (!begin.empty()) {
             pad_vector_to_size(begin, dims_num, 0);
+            params.begin_type = kernel_selector::StridedSliceArgType::Constant;
             params.striding_params.push_back(begin);
+        } else {
+            params.begin_type = kernel_selector::StridedSliceArgType::Input;
+            params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
+        }
+
+        auto get_index_end = [&]() {
+            size_t offset = 1;
+            if (begin.empty() && params.begin_type == kernel_selector::StridedSliceArgType::Input)
+                offset++;
+            return offset;
+        };
+        if (!end.empty()) {
             pad_vector_to_size(end, dims_num, 1);
+            params.end_type = kernel_selector::StridedSliceArgType::Constant;
             params.striding_params.push_back(end);
+        } else {
+            params.end_type = kernel_selector::StridedSliceArgType::Input;
+            params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(get_index_end())));
+        }
+
+        auto get_index_stride = [&]() {
+            size_t offset = get_index_end();
+            if (end.empty() && params.end_type == kernel_selector::StridedSliceArgType::Input)
+                offset++;
+            return offset;
+        };
+        if (!strides.empty()) {
             pad_vector_to_size(strides, dims_num, 1);
+            params.stride_type = kernel_selector::StridedSliceArgType::Constant;
             params.striding_params.push_back(strides);
         } else {
-            for (size_t i = 1; i < arg.get_dependencies().size(); ++i) {
-                OPENVINO_ASSERT(impl_param.memory_deps.count(i) > 0, "[GPU] Can't find StridedSlice memory dependency");
-                auto mem = impl_param.memory_deps.at(i);
-                std::vector<int32_t> sizes = read_vector<int32_t>(mem, impl_param.prog->get_stream());
-                pad_vector_to_size(sizes, dims_num, i != 1);  // for "begin" completion used 0 value, for other - 1
-                params.striding_params.push_back(sizes);
-            }
+            params.stride_type = kernel_selector::StridedSliceArgType::Input;
+            params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(get_index_stride())));
         }
 
         auto begin_mask_ = prim->begin_mask;
@@ -115,34 +137,36 @@ public:
         std::vector<int32_t> out_shape;
         for (const auto& dim : logical_dims)
             out_shape.push_back(static_cast<int32_t>(dim));
-        // If the ith bit of begin_mask is not set, begin[i] is ignored and the range of the appropriate dimension starts from 0.
-        vector_assign_if_not_mask(params.striding_params[0], 0, params.begin_mask);
-        // If the ith bit of end_mask is not set, end[i] is ignored and the fullest possible range in that dimension is used
-        // instead.
-        vector_assign_if_not_mask(params.striding_params[1], out_shape, params.end_mask);
-        for (size_t dim = 0; dim < params.striding_params[2].size(); dim++) {
-            if (params.striding_params[0][dim] < 0)
-                params.striding_params[0][dim] = std::max(out_shape[dim] + params.striding_params[0][dim], (int32_t)0);
-            if (params.striding_params[1][dim] < 0)
-                params.striding_params[1][dim] = std::max(out_shape[dim] + params.striding_params[1][dim], (int32_t)0);
+        if (params.striding_params.size() == 3) {
+            // If the ith bit of begin_mask is not set, begin[i] is ignored and the range of the appropriate dimension starts from 0.
+            vector_assign_if_not_mask(params.striding_params[0], 0, params.begin_mask);
+            // If the ith bit of end_mask is not set, end[i] is ignored and the fullest possible range in that dimension is used
+            // instead.
+            vector_assign_if_not_mask(params.striding_params[1], out_shape, params.end_mask);
+            for (size_t dim = 0; dim < params.striding_params[2].size(); dim++) {
+                if (params.striding_params[0][dim] < 0)
+                    params.striding_params[0][dim] = std::max(out_shape[dim] + params.striding_params[0][dim], (int32_t)0);
+                if (params.striding_params[1][dim] < 0)
+                    params.striding_params[1][dim] = std::max(out_shape[dim] + params.striding_params[1][dim], (int32_t)0);
 
-            params.striding_params[0][dim] = std::min(params.striding_params[0][dim], out_shape[dim]);
-            params.striding_params[1][dim] = std::min(params.striding_params[1][dim], out_shape[dim]);
+                params.striding_params[0][dim] = std::min(params.striding_params[0][dim], out_shape[dim]);
+                params.striding_params[1][dim] = std::min(params.striding_params[1][dim], out_shape[dim]);
 
-            auto& begin = params.striding_params[0][dim];
-            auto& end = params.striding_params[1][dim];
-            auto& stride = params.striding_params[2][dim];
-            bool is_reverse = stride < 0;
-            // If begin > end && is_reverse, then we don't need to adjust begin/end values, the kernel will process it correctly
-            // If begin <= end, then we swap begin/end values and subtruct 1 from each of them
-            // E.g. out_shape[dim] = 100; begin=0; end=100; stride=-1
-            // swap: begin=100; end=0;
-            // sub: begin=99; end=-1;
-            // So the kernel will put the slices [99, 0] in reversed order as expected.
-            if (is_reverse && begin <= end) {
-                std::swap(begin, end);
-                begin--;
-                end--;
+                auto& begin = params.striding_params[0][dim];
+                auto& end = params.striding_params[1][dim];
+                auto& stride = params.striding_params[2][dim];
+                bool is_reverse = stride < 0;
+                // If begin > end && is_reverse, then we don't need to adjust begin/end values, the kernel will process it correctly
+                // If begin <= end, then we swap begin/end values and subtruct 1 from each of them
+                // E.g. out_shape[dim] = 100; begin=0; end=100; stride=-1
+                // swap: begin=100; end=0;
+                // sub: begin=99; end=-1;
+                // So the kernel will put the slices [99, 0] in reversed order as expected.
+                if (is_reverse && begin <= end) {
+                    std::swap(begin, end);
+                    begin--;
+                    end--;
+                }
             }
         }
 
