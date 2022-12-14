@@ -101,7 +101,42 @@ Each individual device property can be queried using the device name and the pro
 
 This will return a value similar to: `12th Gen Intel(R) Core(TM) i7-12700`
 
-#### Setting Devices Properties
+#### Setting Device Properties
+Devices have writable properties that globally configure how a model is compiled on the device. Once the configuration property is set, every model compiled on that device will use that configuration (unless it is specifically overwritten when calling the compile_model method as described below). These global properties are set using the set_property method, which takes the device name, property name, and desired property value as input arguments.
+
+For example, setting the CPU’s “PERFORMANCE_HINT” property to “LATENCY” will cause every model that is compiled on the CPU to use LATENCY mode by default. However, if a different value is specified when calling compile_model, it will override the default value:
+
+@sphinxdirective
+
+.. tab:: C++
+   .. code-block::
+   
+   // Set LATENCY hint as a default for all models compiled on CPU
+   core.set_proprety(“CPU”, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY));
+   
+   // Now, when model is compiled on CPU, it will use LATENCY mode by default
+   auto compiled_model_latency = core.compile_model(model, “CPU”);
+   
+   // If a different performance hint is called out by compile_model, it will override the default value
+   auto compiled_model_thrp = core.compile_model(model, “CPU”, ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT));
+   
+.. tab:: Python
+   .. code-block::
+   
+   # Set LATENCY hint as a default for all models compiled on CPU
+   core.set_proprety(“CPU”, {“PERFORMANCE_HINT”: “LATENCY”})
+   
+   # Now, when model is compiled on CPU, it will use LATENCY mode by default
+   compiled_model_latency = core.compile_model(model, “CPU”)
+   
+   # If a different performance hint is called out by compile_model, it will override the default value
+   compiled_model_thrp = core.compile_model(model, “CPU”, {“PERFORMANCE_HINT”:”THROUGHPUT”})
+   
+@endsphinxdirective
+   
+### Compiled Model Properties
+
+
 
 
 To extract device properties such as available devices (`ov::available_devices`), device name (`ov::device::full_name`), supported properties (`ov::supported_properties`), and others, use the `ov::Core::get_property` method:
