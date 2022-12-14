@@ -96,8 +96,8 @@ protected:
             inputLowNode1, inputHighNode1, inputLowNode1, inputHighNode1, levels);
 
         auto filterWeightsNode = ngraph::builder::makeConstant<float>(ngPrc, {8, inputShape[1], 1, 8}, { 1.0f });
-        auto convLowNode = ngraph::builder::makeConstant(ngraph::element::f32, std::vector<size_t>{ 1 }, std::vector<float>{inputDataMin1});
-        auto convHighNode = ngraph::builder::makeConstant(ngraph::element::f32, std::vector<size_t>{ 1 }, std::vector<float>{inputDataMax1});
+        auto convLowNode = ngraph::builder::makeConstant(ngraph::element::f32, std::vector<size_t>{ 1 }, std::vector<float>{inputDataMin1 * 35});
+        auto convHighNode = ngraph::builder::makeConstant(ngraph::element::f32, std::vector<size_t>{ 1 }, std::vector<float>{inputDataMax1 * 35});
         auto convWeightsFQNode = std::make_shared<ngraph::opset1::FakeQuantize>(filterWeightsNode,
             convLowNode, convHighNode, convLowNode, convHighNode, levels);
         auto convWeightsFQ = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(convWeightsFQNode);
@@ -148,7 +148,7 @@ const std::vector<std::map<std::string, std::string>> configs = {
 
 const std::vector<std::vector<size_t>> inputShape = {
     {1, 1, 1, 1024},
-    {1, 8, 1, 168},
+    {1, 8, 1, 168}
 };
 
 const std::vector<std::pair<float, float>> inputMinMax = {
@@ -156,11 +156,11 @@ const std::vector<std::pair<float, float>> inputMinMax = {
     {-2, 2},
     {-8, 8},
     {-5, 5},
-    {-17.5, 17.5},
+    {-17.5, 17.5}
 };
 
 const std::vector<size_t> levels = {
-    65535,
+    65535
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_fq_maxpool_reordering, FQMaxpoolReordering,

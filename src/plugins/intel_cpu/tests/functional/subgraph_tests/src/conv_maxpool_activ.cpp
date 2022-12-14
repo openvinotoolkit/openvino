@@ -74,8 +74,6 @@ protected:
 };
 
 TEST_P(ConvPoolActivTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     Run();
     CheckPluginRelatedResults(executableNetwork, "Convolution");
 }
