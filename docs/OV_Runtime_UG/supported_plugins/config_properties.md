@@ -111,25 +111,25 @@ For example, setting the CPU’s “PERFORMANCE_HINT” property to “LATENCY�
 .. tab:: C++
    .. code-block:: sh
    
-   // Set LATENCY hint as a default for all models compiled on CPU
+   //Set LATENCY hint as a default for all models compiled on CPU
    core.set_proprety(“CPU”, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY));
    
-   // Now, when model is compiled on CPU, it will use LATENCY mode by default
+   //Now, when model is compiled on CPU, it will use LATENCY mode by default
    auto compiled_model_latency = core.compile_model(model, “CPU”);
    
-   // If a different performance hint is called out by compile_model, it will override the default value
+   //If a different performance hint is called out by compile_model, it will override the default value
    auto compiled_model_thrp = core.compile_model(model, “CPU”, ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT));
    
 .. tab:: Python
    .. code-block:: sh
    
-   # Set LATENCY hint as a default for all models compiled on CPU
+   #Set LATENCY hint as a default for all models compiled on CPU
    core.set_proprety(“CPU”, {“PERFORMANCE_HINT”: “LATENCY”})
    
-   # Now, when model is compiled on CPU, it will use LATENCY mode by default
+   #Now, when model is compiled on CPU, it will use LATENCY mode by default
    compiled_model_latency = core.compile_model(model, “CPU”)
    
-   # If a different performance hint is called out by compile_model, it will override the default value
+   #If a different performance hint is called out by compile_model, it will override the default value
    compiled_model_thrp = core.compile_model(model, “CPU”, {“PERFORMANCE_HINT”:”THROUGHPUT”})
    
 @endsphinxdirective
@@ -172,7 +172,7 @@ Model properties can be set using the CompiledModel set_property method. The onl
    .. code_block:: sh
    auto compiled_model = core.compile_model(model, "MULTI", ov::device::priorities("CPU", "GPU"));
    
-   // Change the order of priorities
+   //Change the order of priorities
    compiled_model.set_property(ov::device::priorities("GPU", "CPU"));
    
 .. tab:: Python
@@ -180,8 +180,12 @@ Model properties can be set using the CompiledModel set_property method. The onl
    config = {"MULTI_DEVICE_PRIORITIES": "CPU,GPU"}
    compiled_model = core.compile_model(model, "MULTI", config)
    
-   # Change the order of priorities
+   #Change the order of priorities
    compiled_model.set_property({"MULTI_DEVICE_PRIORITIES": "GPU,CPU"})
    
 @endsphinxdirective
 
+### Example: Hello Query Device
+To see a full example of how to list all devices and their properties in an OpenVINO application, try the following samples:
+* [Hello Query Device C++](../../../samples/cpp/hello_query_device/README.md)
+* [Hello Query Device Python](../../../samples/python/hello_query_device/README.md)
