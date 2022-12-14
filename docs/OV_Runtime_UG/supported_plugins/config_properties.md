@@ -12,8 +12,7 @@ The following sections show how to query device and model properties and configu
 
 ### Querying Available Devices
 
-To find all the available processing devices and accelerators in the system, use the ov::Core::get_available_devices (C++) or [Core.available_devices](api/ie_python_api/_autosummary/openvino.runtime.Core.html#openvino.runtime.Core.available_devices) (Python) method:
-
+To find all the available processing devices and accelerators in the system, use the `ov::Core::get_available_devices` (C++) or [Core.available_devices](api/ie_python_api/_autosummary/openvino.runtime.Core.html#openvino.runtime.Core.available_devices) (Python) method:
 
 Based on the `ov::available_devices` read-only property, OpenVINO Core collects information about currently available devices enabled by OpenVINO plugins and returns information, using the `ov::Core::get_available_devices` method:
 
@@ -46,43 +45,64 @@ If there are multiple instances of a specific device, each device is assigned a 
 
 Note: Devices that have not been configured to work with OpenVINO will not be listed by get_available_devices. To configure hardware to work with OpenVINO, follow the instructions on the [Additional Configurations for Hardware](../../install_guides/configurations-header.md) page.
 
-### Working with Properties in Your Code
+### Device Properties
 
-The `ov::Core` class provides the following method to query device information, set or get different device configuration properties:
+Each hardware device has a set of read-only properties that describe characteristics of the device and a set of writeable properties that can be used to configure how models are compiled on the device. To see a full list of properties and definitions for each type of hardware device, see the [Device Properties API specification](https://docs.openvino.ai/latest/groupov_runtime_cpp_prop_api.html). 
 
-* `ov::Core::get_property` - Gets the current value of a specific property.
-* `ov::Core::set_property` - Sets a new value for the property globally for specified `device_name`.
+OpenVINO provides two methods to query device information or set configuration parameters:
+* `ov::Core::get_property` (C++) or [Core.get_property](api/ie_python_api/_autosummary/openvino.runtime.Core.html#openvino.runtime.Core.get_property) (Python) - Gets the current value of a specific property for a device.
+* `ov::Core::set_property` (C++) or [Core.set_property](api/ie_python_api/_autosummary/openvino.runtime.Core.html#openvino.runtime.Core.set_property) (Python) - Sets a new value for the specific property for a device (writeable properties only).
 
-The `ov::CompiledModel` class is also extended to support the properties:
-
-* `ov::CompiledModel::get_property`
-* `ov::CompiledModel::set_property`
-
-For documentation about OpenVINO common device-independent properties, refer to the `openvino/runtime/properties.hpp`. Device-specific configuration keys can be found in corresponding device folders (for example, `openvino/runtime/intel_gpu/properties.hpp`).
-
-### Working with Properties via Core
+The properties can also be listed using the get_property method with the “SUPPORTED_PROPERTIES” key as described in the next section. Each dedicated device page gives more information on device-specific properties:
+* [CPU Device](CPU.md)
+* [GPU Device](GPU.md)
+* [VPU Devices](VPU.md)
+* [GNA Device](GNA.md)
+* [Arm® CPU Device](ARM_CPU)
 
 #### Getting Device Properties
+The get_property method is used to query properties of each device. It takes the name of the device and the specific property key as arguments, and returns the value for that property on that device. 
 
-The code below demonstrates how to query `HETERO` device priority of devices which will be used to infer the model:
+To list all of the property keys of a certain device, query the `SUPPORTED_PROPERTIES` property:
 
-@sphinxtabset
+@sphinxdirective
 
-@sphinxtab{C++}
+.. tab:: C++
+   .. code-block::
+   
+     auto property_keys = core.get_property("CPU", ov::supported_properties);
+     
+   It will return a vector of property keynames. Properties which can be changed will have the `ov::PropertyName::is_mutable` value set as `true`.
+     
+.. tab:: Python
+   .. code-block
+   
+     property_keys = core.get_property("CPU", "SUPPORTED_PROPERTIES")
+     
+   It will return a dictionary of property key names and whether the property is read-only (`"RO"`) or writable (`"RW"`).
+   
+@endsphinxdirective
 
-@snippet docs/snippets/ov_properties_api.cpp hetero_priorities
+Each individual device property can be queried using the device name and the property name. For example, to query the “FULL_DEVICE_NAME” property of the “CPU” device, use:
 
-@endsphinxtab
+@sphinxdirective
 
-@sphinxtab{Python}
+.. tab:: C++
+   .. code-block::
+   
+     auto cpu_device_name = core.get_property(“CPU”, ov::device::full_name);
+     
+.. tab:: Python
+   .. code-block
+   
+     cpu_device_name = core.get_property(“CPU”, “FULL_DEVICE_NAME”)
+   
+@endsphinxdirective
 
-@snippet docs/snippets/ov_properties_api.py hetero_priorities
+This will return a value similar to: `12th Gen Intel(R) Core(TM) i7-12700`
 
-@endsphinxtab
+#### Setting Devices Properties
 
-@endsphinxtabset
-
-> **NOTE**: All properties have a type, which is specified during property declaration. Based on this, actual type under `auto` is automatically deduced by C++ compiler.
 
 To extract device properties such as available devices (`ov::available_devices`), device name (`ov::device::full_name`), supported properties (`ov::supported_properties`), and others, use the `ov::Core::get_property` method:
 
