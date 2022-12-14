@@ -49,17 +49,15 @@ PassFactoryPtr CreatePassFactory() {
     return std::make_shared<PassFactory<PassT>>();
 }
 
-std::vector<BinaryFactoryPtr> binary_factories = {
-    CreateBinaryFactory<ov::opset9::Add>(),
-    CreateBinaryFactory<ov::opset9::Divide>(),
-    CreateBinaryFactory<ov::opset9::Maximum>(),
-    CreateBinaryFactory<ov::opset9::Minimum>(),
-    CreateBinaryFactory<ov::opset9::Mod>(),
-    CreateBinaryFactory<ov::opset9::Multiply>(),
-    CreateBinaryFactory<ov::opset9::Power>(),
-    CreateBinaryFactory<ov::opset9::SquaredDifference>(),
-    CreateBinaryFactory<ov::opset9::Subtract>()
-};
+std::vector<BinaryFactoryPtr> binary_factories = {CreateBinaryFactory<ov::opset9::Add>(),
+                                                  CreateBinaryFactory<ov::opset9::Divide>(),
+                                                  CreateBinaryFactory<ov::opset9::Maximum>(),
+                                                  CreateBinaryFactory<ov::opset9::Minimum>(),
+                                                  CreateBinaryFactory<ov::opset9::Mod>(),
+                                                  CreateBinaryFactory<ov::opset9::Multiply>(),
+                                                  CreateBinaryFactory<ov::opset9::Power>(),
+                                                  CreateBinaryFactory<ov::opset9::SquaredDifference>(),
+                                                  CreateBinaryFactory<ov::opset9::Subtract>()};
 
 std::vector<size_t> binary_operations_numbers = {1, 10};
 
