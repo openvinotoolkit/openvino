@@ -54,7 +54,3 @@ endif()
 # install
 
 ie_cpack_add_component(${PYTHON_COMPONENT} HIDDEN)
-
-install(FILES requirements.txt
-        DESTINATION ${OV_CPACK_PYTHONDIR}
-        COMPONENT ${PYTHON_COMPONENT})

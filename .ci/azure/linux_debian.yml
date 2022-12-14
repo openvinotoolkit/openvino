@@ -125,7 +125,6 @@ jobs:
       sudo apt --assume-yes install --no-install-recommends libopencv-imgproc-dev libopencv-imgcodecs-dev
       # For opencv-python: python3-setuptools and pip upgrade
       python3 -m pip install --upgrade pip
-      python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements.txt
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/requirements.txt
       # For running Python API tests

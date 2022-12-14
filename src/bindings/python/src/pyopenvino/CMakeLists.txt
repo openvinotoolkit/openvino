@@ -84,7 +84,9 @@ addVersionDefines(pyopenvino.cpp CI_BUILD_NUMBER)
 if(OpenVINO_SOURCE_DIR)
     add_custom_command(TARGET ${PROJECT_NAME}
             POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/../openvino ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
+            COMMAND ${CMAKE_COMMAND} -E copy_directory ${OpenVINOPython_SOURCE_DIR}/src/openvino ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
+            COMMAND ${CMAKE_COMMAND} -E copy ${OpenVINOPython_SOURCE_DIR}/requirements.txt ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../requirements.txt
+            COMMAND ${CMAKE_COMMAND} -E copy ${OpenVINOPython_SOURCE_DIR}/requirements.txt ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../../requirements.txt
             )
 endif()
 
@@ -103,6 +105,10 @@ if(OpenVINO_SOURCE_DIR OR OpenVINODeveloperPackage_FOUND)
 
     install(TARGETS ${PROJECT_NAME}
             DESTINATION ${OV_CPACK_PYTHONDIR}/openvino
+            COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion})
+
+    install(FILES ${OpenVINOPython_SOURCE_DIR}/requirements.txt
+            DESTINATION ${OV_CPACK_PYTHONDIR}
             COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion})
 
     install(DIRECTORY ${OpenVINOPython_SOURCE_DIR}/tests
