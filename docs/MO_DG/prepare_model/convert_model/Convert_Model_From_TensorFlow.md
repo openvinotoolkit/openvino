@@ -141,7 +141,7 @@ mo --saved_model_dir BERT --input mask,word_ids,type_ids --input_shape [2,30],[2
 
 ## Conversion of TensorFlow models from the memory using Python API
 
-MO Python API supports passing TF/TF2 models directly from memory.
+MO Python API supports passing TensorFlow/TensorFlow2 models directly from memory.
 
 * `tf.keras.Model`
 
@@ -220,7 +220,7 @@ checkpoint.restore(save_path)
 ov_model = convert_model(checkpoint)
 ```
 
-* `tf.python.training.tracking.base.Trackable`. Supported only for case of `tf.saved_model.load()` output.
+* `tf.python.training.tracking.base.Trackable`. Supported only in case of the `tf.saved_model.load()` output.
 
 ```sh
 model = tf.keras.Model(...)
