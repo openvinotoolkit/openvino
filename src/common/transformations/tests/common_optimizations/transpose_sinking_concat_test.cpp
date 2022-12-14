@@ -347,17 +347,6 @@ INSTANTIATE_TEST_SUITE_P(TransposeSinkingConcatBackwardTestSuite, TransposeSinki
                                             ::testing::ValuesIn(concat_transpose_input_indexes),
                                             ::testing::Values(5)));
 
-INSTANTIATE_TEST_SUITE_P(
-    TransposeSinkingConcatBackwardTestSuite,
-    TransposeSinkingConcatTestFixture,
-    ::testing::Combine(::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingConcatBackward>()),
-                       ::testing::ValuesIn(concat_operations_numbers),
-                       ::testing::Values(single_consumer::backward::CreateFunction),
-                       ::testing::Values(single_consumer::backward::CreateReferenceFunction),
-                       ::testing::Values(ov::element::f32),
-                       ::testing::ValuesIn(concat_transpose_input_indexes),
-                       ::testing::Values(5)));
-
 // --------------------------------------------------------------------------------------
 
 using CreateGraphConcatAllTransposesInputF = std::function<
