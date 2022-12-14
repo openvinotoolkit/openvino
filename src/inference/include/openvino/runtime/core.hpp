@@ -256,7 +256,7 @@ public:
     }
 
     /**
-     * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD file.
+     * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD memory.
      * @param model String with a model in IR/ONNX/PDPD format.
      * @param weights Shared pointer to a constant tensor with weights.
      * Reading ONNX/PDPD models does not support loading weights from the @p weights tensors.
@@ -274,7 +274,7 @@ public:
                                 const AnyMap& properties = {});
 
     /**
-     * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD file.
+     * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD memory.
      * @param model String with a model in IR/ONNX/PDPD format.
      * @param weights Shared pointer to a constant tensor with weights.
      * Reading ONNX/PDPD models does not support loading weights from the @p weights tensors.
