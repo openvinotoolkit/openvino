@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "layer_transformation.hpp"
-
-#include <string>
-#include <sstream>
-#include <memory>
-
 #include <gtest/gtest.h>
+
+#include <memory>
+#include <sstream>
+#include <string>
 #include <transformations/utils/utils.hpp>
+
+#include "layer_transformation.hpp"
 
 // general transformations
 #include "low_precision/add.hpp"
@@ -25,34 +25,31 @@
 #include "low_precision/mvn.hpp"
 #include "low_precision/normalize_l2.hpp"
 #include "low_precision/prelu.hpp"
-#include "low_precision/reshape.hpp"
 #include "low_precision/relu.hpp"
+#include "low_precision/reshape.hpp"
 #include "low_precision/squeeze.hpp"
-#include "low_precision/subtract.hpp"
 #include "low_precision/strided_slice.hpp"
+#include "low_precision/subtract.hpp"
 #include "low_precision/transpose.hpp"
 #include "low_precision/unsqueeze.hpp"
 
 // cleanup transformations
-#include "low_precision/fuse_convert.hpp"
-#include "low_precision/fuse_subtract_to_fake_quantize.hpp"
-#include "low_precision/fuse_multiply_to_fake_quantize.hpp"
-#include "low_precision/multiply_to_group_convolution.hpp"
-
-#include "lpt_ngraph_functions/transformations_after_split_function.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "low_precision/fuse_convert.hpp"
+#include "low_precision/fuse_multiply_to_fake_quantize.hpp"
+#include "low_precision/fuse_subtract_to_fake_quantize.hpp"
+#include "low_precision/multiply_to_group_convolution.hpp"
+#include "lpt_ngraph_functions/transformations_after_split_function.hpp"
 #include "simple_low_precision_transformer.hpp"
-
 
 namespace {
 using namespace testing;
 using namespace ngraph;
 using namespace ngraph::pass;
 
-void getTransformerWithTransformationByName(
-    SimpleLowPrecisionTransformer& transformer,
-    const TestTransformationParams& params,
-    const std::string name) {
+void getTransformerWithTransformationByName(SimpleLowPrecisionTransformer& transformer,
+                                            const TestTransformationParams& params,
+                                            const std::string name) {
     using namespace pass::low_precision;
 
     if (name == "AddTransformationWithoutConcat" || name == "AddTransformationWithConcat") {
@@ -150,7 +147,8 @@ void getTransformerWithTransformationByName(
     throw std::runtime_error("unexpected transformation name");
 }
 
-class TransformationsAfterSplitTransformation : public LayerTransformation, public testing::WithParamInterface<std::string> {
+class TransformationsAfterSplitTransformation : public LayerTransformation,
+                                                public testing::WithParamInterface<std::string> {
 public:
     void SetUp() override {
         const auto layerName = GetParam();
@@ -179,38 +177,35 @@ TEST_P(TransformationsAfterSplitTransformation, Run) {
     ASSERT_NO_THROW(transformer.transform(function));
 }
 
-const std::vector<std::string> transformationNames = {
-    "AddTransformationWithoutConcat",
-    "AddTransformationWithConcat",
-    "AvgPoolTransformation",
-    "ClampTransformation",
-    "ConvolutionTransformation",
-    "AsymmetricConvolutionTransformation",
-    "DepthToSpaceTransformation",
-    "FakeQuantizeTransformation",
-    "InterpolateTransformation",
-    "MatMulTransformation",
-    "MaxPoolTransformation",
-    "MultiplyTransformation",
-    "MVNTransformation",
-    "NormalizeL2Transformation",
-    "PReluTransformation",
-    "ReluTransformation",
-    "ReshapeTransformation",
-    "SqueezeTransformation",
-    "StridedSliceTransformation",
-    "TransposeTransformation",
-    "UnsqueezeTransformation",
-    "FuseConvertTransformation",
-    "FuseSubtractToFakeQuantizeTransformation",
-    "FuseMultiplyToFakeQuantizeTransformation",
-    "MultiplyToGroupConvolutionTransformation"
-};
+const std::vector<std::string> transformationNames = {"AddTransformationWithoutConcat",
+                                                      "AddTransformationWithConcat",
+                                                      "AvgPoolTransformation",
+                                                      "ClampTransformation",
+                                                      "ConvolutionTransformation",
+                                                      "AsymmetricConvolutionTransformation",
+                                                      "DepthToSpaceTransformation",
+                                                      "FakeQuantizeTransformation",
+                                                      "InterpolateTransformation",
+                                                      "MatMulTransformation",
+                                                      "MaxPoolTransformation",
+                                                      "MultiplyTransformation",
+                                                      "MVNTransformation",
+                                                      "NormalizeL2Transformation",
+                                                      "PReluTransformation",
+                                                      "ReluTransformation",
+                                                      "ReshapeTransformation",
+                                                      "SqueezeTransformation",
+                                                      "StridedSliceTransformation",
+                                                      "TransposeTransformation",
+                                                      "UnsqueezeTransformation",
+                                                      "FuseConvertTransformation",
+                                                      "FuseSubtractToFakeQuantizeTransformation",
+                                                      "FuseMultiplyToFakeQuantizeTransformation",
+                                                      "MultiplyToGroupConvolutionTransformation"};
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    TransformationsAfterSplitTransformation,
-    ::testing::ValuesIn(transformationNames),
-    TransformationsAfterSplitTransformation::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         TransformationsAfterSplitTransformation,
+                         ::testing::ValuesIn(transformationNames),
+                         TransformationsAfterSplitTransformation::getTestCaseName);
 
-} // namespace
+}  // namespace

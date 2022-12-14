@@ -4,13 +4,12 @@
 
 #include <gtest/gtest.h>
 
-#include <string>
 #include <memory>
-
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset9.hpp>
-#include <transformations/op_conversions/softsign_decomposition.hpp>
+#include <string>
 #include <transformations/init_node_info.hpp>
+#include <transformations/op_conversions/softsign_decomposition.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -29,9 +28,9 @@ TEST_F(TransformationTestsF, SoftSignDecomposition) {
     {
         auto input = std::make_shared<ngraph::opset9::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
         auto abs = std::make_shared<ngraph::opset9::Abs>(input);
-        auto add = std::make_shared<ngraph::opset9::Add>(abs, ngraph::opset9::Constant::create(ngraph::element::f32,
-                                                                                               ngraph::Shape{1},
-                                                                                               {1}));
+        auto add = std::make_shared<ngraph::opset9::Add>(
+            abs,
+            ngraph::opset9::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1}));
         auto div = std::make_shared<ngraph::opset9::Divide>(input, add);
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{div}, ngraph::ParameterVector{input});
@@ -51,9 +50,9 @@ TEST_F(TransformationTestsF, SoftSignDecompositionFP16) {
     {
         auto input = std::make_shared<ngraph::opset9::Parameter>(ngraph::element::f16, ngraph::Shape{3, 1, 2});
         auto abs = std::make_shared<ngraph::opset9::Abs>(input);
-        auto add = std::make_shared<ngraph::opset9::Add>(abs, ngraph::opset9::Constant::create(ngraph::element::f16,
-                                                                                               ngraph::Shape{1},
-                                                                                               {1}));
+        auto add = std::make_shared<ngraph::opset9::Add>(
+            abs,
+            ngraph::opset9::Constant::create(ngraph::element::f16, ngraph::Shape{1}, {1}));
         auto div = std::make_shared<ngraph::opset9::Divide>(input, add);
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{div}, ngraph::ParameterVector{input});

@@ -90,14 +90,10 @@ protected:
 };
 
 TEST_P(GatherNDLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
 }
 
 TEST_P(GatherND8LayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
 }
 

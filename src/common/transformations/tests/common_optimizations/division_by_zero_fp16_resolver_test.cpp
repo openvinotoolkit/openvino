@@ -4,12 +4,11 @@
 
 #include <gtest/gtest.h>
 
-#include <string>
 #include <memory>
-
 #include <ngraph/function.hpp>
 #include <openvino/opsets/opset4.hpp>
 #include <openvino/pass/manager.hpp>
+#include <string>
 #include <transformations/common_optimizations/division_by_zero_fp16_resolver.hpp>
 #include <transformations/init_node_info.hpp>
 
@@ -18,7 +17,6 @@
 using namespace testing;
 using namespace ov;
 constexpr float normalized_fp16_min = 6.103515625e-05f;  // fp16 minimal normalized value
-
 
 TEST_F(TransformationTestsF, DivisionByZeroMinimalPattern) {
     const float eps_value = 1.e-12;
@@ -172,7 +170,6 @@ TEST_F(TransformationTestsF, DivisionByZeroInL2NormWithSqrtAndWithMax) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
-
 
 TEST_F(TransformationTestsF, DivisionByZeroInL2NormWithSqrtAndWithAdd) {
     const float eps_value = 1.e-12;

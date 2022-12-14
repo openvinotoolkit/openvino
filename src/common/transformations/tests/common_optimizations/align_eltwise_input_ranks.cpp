@@ -9,17 +9,13 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
-
 using namespace testing;
 using namespace ngraph;
 
-
 using AlignEltwiseInputRanksParams = std::tuple<PartialShape, Shape, Shape, bool>;
 
-class AlignEltwiseInputRanksTest
-        : public testing::WithParamInterface<AlignEltwiseInputRanksParams>,
-          public TransformationTestsF {
-};
+class AlignEltwiseInputRanksTest : public testing::WithParamInterface<AlignEltwiseInputRanksParams>,
+                                   public TransformationTestsF {};
 
 TEST_P(AlignEltwiseInputRanksTest, FusionTest) {
     auto params = GetParam();
@@ -32,9 +28,11 @@ TEST_P(AlignEltwiseInputRanksTest, FusionTest) {
         auto data = std::make_shared<opset8::Parameter>(element::f32, input_shape);
         auto add = std::make_shared<opset8::Add>(data, op::Constant::create(element::f32, const_shape, {3}));
         auto less = std::make_shared<opset8::Less>(data, op::Constant::create(element::f32, const_shape, {5}));
-        auto sqr_diff = std::make_shared<opset8::SquaredDifference>(data, op::Constant::create(element::f32, const_shape, {5}));
+        auto sqr_diff =
+            std::make_shared<opset8::SquaredDifference>(data, op::Constant::create(element::f32, const_shape, {5}));
         auto convert = std::make_shared<opset8::Convert>(data, element::boolean);
-        auto logical_or = std::make_shared<opset8::LogicalOr>(convert, op::Constant::create(element::boolean, const_shape, {false}));
+        auto logical_or =
+            std::make_shared<opset8::LogicalOr>(convert, op::Constant::create(element::boolean, const_shape, {false}));
         auto low = op::Constant::create(element::f32, const_shape, {0});
         auto high = op::Constant::create(element::f32, const_shape, {20});
         auto fq = std::make_shared<opset8::FakeQuantize>(add, low, high, low, high, 256);
@@ -47,9 +45,13 @@ TEST_P(AlignEltwiseInputRanksTest, FusionTest) {
         auto data = std::make_shared<opset8::Parameter>(element::f32, input_shape);
         auto add = std::make_shared<opset8::Add>(data, op::Constant::create(element::f32, expected_const_shape, {3}));
         auto less = std::make_shared<opset8::Less>(data, op::Constant::create(element::f32, expected_const_shape, {5}));
-        auto sqr_diff = std::make_shared<opset8::SquaredDifference>(data, op::Constant::create(element::f32, expected_const_shape, {5}));
+        auto sqr_diff =
+            std::make_shared<opset8::SquaredDifference>(data,
+                                                        op::Constant::create(element::f32, expected_const_shape, {5}));
         auto convert = std::make_shared<opset8::Convert>(data, element::boolean);
-        auto logical_or = std::make_shared<opset8::LogicalOr>(convert, op::Constant::create(element::boolean, expected_const_shape, {false}));
+        auto logical_or =
+            std::make_shared<opset8::LogicalOr>(convert,
+                                                op::Constant::create(element::boolean, expected_const_shape, {false}));
         auto low = op::Constant::create(element::f32, expected_const_shape, {0});
         auto high = op::Constant::create(element::f32, expected_const_shape, {20});
         auto fq = std::make_shared<opset8::FakeQuantize>(add, low, high, low, high, 256);

@@ -4,14 +4,13 @@
 
 #include <gtest/gtest.h>
 
-#include <string>
-#include <memory>
-#include <map>
-
-#include <ngraph/opsets/opset4.hpp>
-#include <ngraph/function.hpp>
 #include <common_test_utils/ngraph_test_utils.hpp>
+#include <map>
+#include <memory>
+#include <ngraph/function.hpp>
+#include <ngraph/opsets/opset4.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <string>
 #include <transformations/init_node_info.hpp>
 #include <transformations/smart_reshape/matmul_sr.hpp>
 
@@ -32,7 +31,8 @@ struct ReshapeMatMulTestCase {
     reshape_map new_shapes;
 };
 
-class SmartReshapeMatMulTests : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<std::tuple<ReshapeMatMulTestCase>> {
+class SmartReshapeMatMulTests : public CommonTestUtils::TestsCommon,
+                                public testing::WithParamInterface<std::tuple<ReshapeMatMulTestCase>> {
 public:
     void SetUp() override {
         const auto& test_case = std::get<0>(GetParam());
@@ -44,15 +44,21 @@ public:
             auto input_B = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, test_case.B_shape);
             input_B->set_friendly_name("input_B");
 
-            auto reshape_pattern = std::make_shared<ngraph::opset4::Constant>(
-                    ngraph::element::i64, ngraph::Shape{test_case.reshape_pattern.size()}, test_case.reshape_pattern);
+            auto reshape_pattern =
+                std::make_shared<ngraph::opset4::Constant>(ngraph::element::i64,
+                                                           ngraph::Shape{test_case.reshape_pattern.size()},
+                                                           test_case.reshape_pattern);
             reshape_pattern->set_friendly_name("reshape_pattern");
-            auto reshape = std::make_shared<ngraph::opset4::Reshape>(test_case.reshape_is_A_input ? input_A : input_B, reshape_pattern, true);
+            auto reshape = std::make_shared<ngraph::opset4::Reshape>(test_case.reshape_is_A_input ? input_A : input_B,
+                                                                     reshape_pattern,
+                                                                     true);
             reshape->set_friendly_name("reshape");
 
-            auto mat_mul = std::make_shared<ngraph::opset4::MatMul>(test_case.reshape_is_A_input ? reshape->output(0) : input_A->output(0),
-                                                                    test_case.reshape_is_A_input ? input_B->output(0) : reshape->output(0),
-                                                                    test_case.transpose_a, test_case.transpose_b);
+            auto mat_mul = std::make_shared<ngraph::opset4::MatMul>(
+                test_case.reshape_is_A_input ? reshape->output(0) : input_A->output(0),
+                test_case.reshape_is_A_input ? input_B->output(0) : reshape->output(0),
+                test_case.transpose_a,
+                test_case.transpose_b);
             reshape->set_friendly_name("matmul");
 
             auto result = std::make_shared<ngraph::op::Result>(mat_mul);
@@ -62,15 +68,17 @@ public:
         }
 
         InferenceEngine::details::CNNNetworkNGraphImpl network(ngraph);
-        const auto & resp = network.reshape(test_case.new_shapes, nullptr);
+        const auto& resp = network.reshape(test_case.new_shapes, nullptr);
         ASSERT_EQ(resp, StatusCode::OK);
     }
 };
 
-TEST_P(SmartReshapeMatMulTests, ReshapeMatMul) {
-}
+TEST_P(SmartReshapeMatMulTests, ReshapeMatMul) {}
 
-INSTANTIATE_TEST_SUITE_P(NGraph, SmartReshapeMatMulTests, testing::Values(
+INSTANTIATE_TEST_SUITE_P(
+    NGraph,
+    SmartReshapeMatMulTests,
+    testing::Values(
         ReshapeMatMulTestCase{true, {1, 20, 30}, {30, 40}, {20, -1}, false, false, {{"input_A", {2, 20, 30}}}},
         ReshapeMatMulTestCase{true, {1, 20, 30}, {40, 30}, {20, -1}, false, true, {{"input_A", {2, 20, 30}}}},
         ReshapeMatMulTestCase{true, {1, 30, 20}, {30, 20}, {-1, 20}, true, false, {{"input_A", {2, 30, 20}}}},
@@ -273,13 +281,15 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeBothMatMulWithAttrFuse) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto data_A = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3, 2});
-        auto split_A = std::make_shared<ngraph::opset4::VariadicSplit>(data_A,
-                       ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0}),
-                       ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 1}));
+        auto split_A = std::make_shared<ngraph::opset4::VariadicSplit>(
+            data_A,
+            ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0}),
+            ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 1}));
         auto data_B = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3, 5});
-        auto split_B = std::make_shared<ngraph::opset4::VariadicSplit>(data_B,
-                                                                       ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0}),
-                                                                       ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 1}));
+        auto split_B = std::make_shared<ngraph::opset4::VariadicSplit>(
+            data_B,
+            ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0}),
+            ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 1}));
         auto order = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {0, 2, 1});
         auto transpose_A = std::make_shared<ngraph::opset4::Transpose>(split_A->output(0), order);
         auto transpose_B = std::make_shared<ngraph::opset4::Transpose>(split_B->output(1), order);
@@ -294,13 +304,15 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeBothMatMulWithAttrFuse) {
     }
     {
         auto data_A = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3, 2});
-        auto split_A = std::make_shared<ngraph::opset4::VariadicSplit>(data_A,
-                                                                       ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0}),
-                                                                       ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 1}));
+        auto split_A = std::make_shared<ngraph::opset4::VariadicSplit>(
+            data_A,
+            ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0}),
+            ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 1}));
         auto data_B = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3, 5});
-        auto split_B = std::make_shared<ngraph::opset4::VariadicSplit>(data_B,
-                                                                       ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0}),
-                                                                       ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 1}));
+        auto split_B = std::make_shared<ngraph::opset4::VariadicSplit>(
+            data_B,
+            ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0}),
+            ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 1}));
         auto matmul = std::make_shared<ngraph::opset4::MatMul>(split_A->output(0), split_B->output(1), true, false);
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{data_A, data_B});
     }

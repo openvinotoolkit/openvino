@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/utils/utils.hpp"
+
 #include <gtest/gtest.h>
 
-#include <string>
 #include <memory>
 #include <queue>
+#include <string>
 
 #include "ngraph/opsets/opset4.hpp"
-#include "transformations/utils/utils.hpp"
 
 TEST(TransformationTests, HasConstantValueHelper) {
     auto float32_scalar = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{}, {1.234f});
