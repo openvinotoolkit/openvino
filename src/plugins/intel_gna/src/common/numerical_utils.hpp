@@ -4,17 +4,17 @@
 
 #pragma once
 
-#include <cstdlib>
 #include <algorithm>
+#include <cstdlib>
 
 namespace ov {
 namespace intel_gna {
 namespace common {
 
-#define FLOAT_TO_INT8(a) static_cast<int8_t>(((a) < 0)?((a) - 0.5f):((a) + 0.5f))
-#define FLOAT_TO_INT16(a) static_cast<int16_t>(((a) < 0)?((a) - 0.5f):((a) + 0.5f))
-#define FLOAT_TO_INT32(a) static_cast<int32_t>(((a) < 0)?((a)-0.5f):((a)+0.5f))
-#define FLOAT_TO_INT64(a) static_cast<int64_t>(((a) < 0)?((a)-0.5f):((a)+0.5f))
+#define FLOAT_TO_INT8(a)  static_cast<int8_t>(((a) < 0) ? ((a)-0.5f) : ((a) + 0.5f))
+#define FLOAT_TO_INT16(a) static_cast<int16_t>(((a) < 0) ? ((a)-0.5f) : ((a) + 0.5f))
+#define FLOAT_TO_INT32(a) static_cast<int32_t>(((a) < 0) ? ((a)-0.5f) : ((a) + 0.5f))
+#define FLOAT_TO_INT64(a) static_cast<int64_t>(((a) < 0) ? ((a)-0.5f) : ((a) + 0.5f))
 
 /**
  * @brief Compares two float values and returns if they are equal
@@ -26,6 +26,18 @@ inline bool fp32eq(float p1, float p2, float accuracy = 0.00001f) {
     return (std::abs(p1 - p2) <= accuracy * std::min(std::abs(p1), std::abs(p2)));
 }
 
-} // namespace common
-} // namespace intel_gna
-} // namespace ov
+/**
+ * @brief Compare two floating point values and return true if they are equal with given accuracy
+ * @param p1 First floating point value
+ * @param p2 Second floating point value
+ * @param accuracy accuracy of comparision
+ * @return Returns true if two floating point values are equal
+ */
+template <typename T, typename std::enable_if<std::is_floating_point<T>::value, int>::type = 0>
+bool AreFpEq(T p1, T p2, T accuracy = std::numeric_limits<T>::epsilon()) {
+    return (std::abs(p1 - p2) <= accuracy * std::min(std::abs(p1), std::abs(p2)));
+}
+
+}  // namespace common
+}  // namespace intel_gna
+}  // namespace ov
