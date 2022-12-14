@@ -40,7 +40,7 @@ A typical workflow with OpenVINO is shown below.
 	   			<img src="_static/images/OV_flow_arrow.svg" alt="" /> 
 	   	</div>
 	   	<div class="HP_flow-btn">
-	   		<a href="https://docs.openvino.ai/latest/openvino_docs_optimization_guide_dldt_optimization_guide.html">
+	   		<a href="https://docs.openvino.ai/latest/openvino_docs_deployment_optimization_guide_dldt_optimization_guide.html">
 	   			<img src="_static/images/OV_flow_optimization_hvr.svg" alt="link to an optimization guide" /> 
 	   		</a>
 	   	</div>
