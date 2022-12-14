@@ -72,6 +72,14 @@ def get_element_type(precision):
     raise Exception(f"Undefined precision: '{precision}' !")
 
 
+def fuse_mean_scale(preproc: PrePostProcessor, app_inputs_info):
+    for input_info in app_inputs_info:
+        if input_info.mean.size:
+            preproc.input(input_info.name).preprocess().convert_element_type(Type.f32).mean(input_info.mean)
+        if input_info.scale.size:
+            preproc.input(input_info.name).preprocess().convert_element_type(Type.f32).scale(input_info.mean)
+
+
 def pre_post_processing(model: Model, app_inputs_info, input_precision: str, output_precision: str, input_output_precision: str):
     pre_post_processor = PrePostProcessor(model)
     if input_precision:
@@ -117,6 +125,8 @@ def pre_post_processing(model: Model, app_inputs_info, input_precision: str, out
             elif app_inputs_info[i].is_image:
                 app_inputs_info[i].element_type = Type.u8
                 pre_post_processor.input(i).tensor().set_element_type(Type.u8)
+
+    fuse_mean_scale(pre_post_processor, app_inputs_info)
 
     # set layout for model input
     for info in app_inputs_info:
