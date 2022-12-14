@@ -440,66 +440,43 @@ TEST_F(ov_preprocess, ov_preprocess_prepostprocessor_build_apply) {
 
     ov_shape_free(&shape);
     ov_model_free(new_model);
-    ov_preprocess_prepostprocessor_free(preprocess);
-    ov_model_free(model);
-    ov_core_free(core);
 }
 
-TEST(ov_preprocess, ov_preprocess_prepostprocessor_for_nv12_input) {
-    ov_core_t* core = nullptr;
-    OV_EXPECT_OK(ov_core_create(&core));
-    EXPECT_NE(nullptr, core);
-
-    ov_model_t* model = nullptr;
-    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
-    EXPECT_NE(nullptr, model);
-
-    ov_preprocess_prepostprocessor_t* preprocess = nullptr;
+TEST_F(ov_preprocess, ov_preprocess_prepostprocessor_for_nv12_input) {
     OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     EXPECT_NE(nullptr, preprocess);
 
-    ov_preprocess_input_info_t* preprocess_input_info = nullptr;
-    OV_EXPECT_OK(ov_preprocess_prepostprocessor_get_input_info(preprocess, &preprocess_input_info));
-    EXPECT_NE(nullptr, preprocess_input_info);
+    OV_EXPECT_OK(ov_preprocess_prepostprocessor_get_input_info(preprocess, &input_info));
+    EXPECT_NE(nullptr, input_info);
 
-    ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info = nullptr;
-    OV_EXPECT_OK(ov_preprocess_input_info_get_tensor_info(preprocess_input_info, &preprocess_input_tensor_info));
-    EXPECT_NE(nullptr, preprocess_input_tensor_info);
+    OV_EXPECT_OK(ov_preprocess_input_info_get_tensor_info(input_info, &input_tensor_info));
+    EXPECT_NE(nullptr, input_tensor_info);
 
-    OV_EXPECT_OK(ov_preprocess_input_tensor_info_set_element_type(preprocess_input_tensor_info, ov_element_type_e::U8));
-    OV_EXPECT_OK(ov_preprocess_input_tensor_info_set_color_format(preprocess_input_tensor_info,
+    OV_EXPECT_OK(ov_preprocess_input_tensor_info_set_element_type(input_tensor_info, ov_element_type_e::U8));
+    OV_EXPECT_OK(ov_preprocess_input_tensor_info_set_color_format(input_tensor_info,
                                                                   ov_color_format_e::NV12_TWO_PLANES,
                                                                   2,
                                                                   "y",
                                                                   "uv"));
-    OV_EXPECT_OK(ov_preprocess_input_tensor_info_set_memory_type(preprocess_input_tensor_info, "GPU_SURFACE"));
-    OV_EXPECT_OK(ov_preprocess_input_tensor_info_set_spatial_static_shape(preprocess_input_tensor_info, 640, 480));
+    OV_EXPECT_OK(ov_preprocess_input_tensor_info_set_memory_type(input_tensor_info, "GPU_SURFACE"));
+    OV_EXPECT_OK(ov_preprocess_input_tensor_info_set_spatial_static_shape(input_tensor_info, 640, 480));
 
-    ov_preprocess_preprocess_steps_t* preprocess_input_steps = nullptr;
-    OV_EXPECT_OK(ov_preprocess_input_info_get_preprocess_steps(preprocess_input_info, &preprocess_input_steps));
-    EXPECT_NE(nullptr, preprocess_input_steps);
-    OV_EXPECT_OK(ov_preprocess_preprocess_steps_convert_color(preprocess_input_steps, ov_color_format_e::BGR));
-    OV_EXPECT_OK(ov_preprocess_preprocess_steps_resize(preprocess_input_steps, RESIZE_LINEAR));
+    OV_EXPECT_OK(ov_preprocess_input_info_get_preprocess_steps(input_info, &input_process));
+    EXPECT_NE(nullptr, input_process);
+    OV_EXPECT_OK(ov_preprocess_preprocess_steps_convert_color(input_process, ov_color_format_e::BGR));
+    OV_EXPECT_OK(ov_preprocess_preprocess_steps_resize(input_process, RESIZE_LINEAR));
 
-    ov_preprocess_input_model_info_t* preprocess_input_model_info = nullptr;
-    OV_EXPECT_OK(ov_preprocess_input_info_get_model_info(preprocess_input_info, &preprocess_input_model_info));
-    EXPECT_NE(nullptr, preprocess_input_model_info);
+    OV_EXPECT_OK(ov_preprocess_input_info_get_model_info(input_info, &input_model));
+    EXPECT_NE(nullptr, input_model);
 
     ov_layout_t* layout = nullptr;
     ov_layout_create("NCHW", &layout);
-    OV_EXPECT_OK(ov_preprocess_input_model_info_set_layout(preprocess_input_model_info, layout));
+    OV_EXPECT_OK(ov_preprocess_input_model_info_set_layout(input_model, layout));
 
     ov_model_t* new_model = nullptr;
     OV_EXPECT_OK(ov_preprocess_prepostprocessor_build(preprocess, &new_model));
     EXPECT_NE(nullptr, new_model);
 
     ov_layout_free(layout);
-    ov_preprocess_input_model_info_free(preprocess_input_model_info);
-    ov_preprocess_preprocess_steps_free(preprocess_input_steps);
-    ov_preprocess_input_tensor_info_free(preprocess_input_tensor_info);
-    ov_preprocess_input_info_free(preprocess_input_info);
     ov_model_free(new_model);
-    ov_preprocess_prepostprocessor_free(preprocess);
-    ov_model_free(model);
-    ov_core_free(core);
 }
