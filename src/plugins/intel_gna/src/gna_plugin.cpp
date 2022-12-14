@@ -441,8 +441,16 @@ void GNAPlugin::UpdateInputsAndOutputsInfoFromNetwork(InferenceEngine::CNNNetwor
             (*inputs_ptr_)[input.first].Update(input.second);
 
             // update scale factor from config
-            if (config.inputScaleFactorsPerInput.count(input.first)) {
-                (*inputs_ptr_)[input.first].scale_factor = config.inputScaleFactorsPerInput[input.first];
+            std::unordered_set<std::string> names((*inputs_ptr_)[input.first].tensor_names);
+            names.insert(input.first);
+            // to support the both legacy and 2.0 API we need to check all possible names in the configuration
+            auto sf_it = std::find_if(config.inputScaleFactorsPerInput.begin(), config.inputScaleFactorsPerInput.end(),
+                [&names](const std::pair<std::string, float> &sf_item) {
+                    return (std::count(names.begin(), names.end(), sf_item.first) == 1);
+            });
+
+            if (sf_it != config.inputScaleFactorsPerInput.end()) {
+                (*inputs_ptr_)[input.first].scale_factor = sf_it->second;
             } else if (id < config.inputScaleFactors.size()) {
                 config.inputScaleFactorsPerInput[input.first] = config.inputScaleFactors[id];
                 (*inputs_ptr_)[input.first].scale_factor = config.inputScaleFactorsPerInput[input.first];
