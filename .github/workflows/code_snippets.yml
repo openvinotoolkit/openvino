@@ -9,6 +9,10 @@ on:
       - '.github/workflows/code_snippets.yml'
       - 'docs/snippets/**'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   Build:
     strategy:

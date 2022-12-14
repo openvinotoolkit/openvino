@@ -16,15 +16,19 @@ namespace cldnn {
 // -----------------------------------------------
 // count_nonzero
 // -----------------------------------------------
-primitive_type_id count_nonzero::type_id() {
-    static primitive_type_base<count_nonzero> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(count_nonzero)
 
 layout count_nonzero_inst::calc_output_layout(count_nonzero_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+    assert(static_cast<bool>(node.get_primitive()->output_data_types[0]) == false &&
            "Output data type forcing is not supported for count_nonzero_node!");
-    return layout{cldnn::data_types::i32, cldnn::format::bfyx, tensor{1, 1, 1, 4}};
+    return layout{cldnn::data_types::i32, cldnn::format::bfyx, tensor{1, 1, 1, 1}};
+}
+
+template<typename ShapeType>
+std::vector<layout> count_nonzero_inst::calc_output_layouts(count_nonzero_node const& /*node*/, kernel_impl_params const& impl_param) {
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
+            "Output data type forcing is not supported for count_nonzero_node!");
+    return {layout{ov::PartialShape{1}, cldnn::data_types::i32, cldnn::format::bfyx}};
 }
 
 std::string count_nonzero_inst::to_string(count_nonzero_node const& node) {
@@ -53,21 +57,37 @@ void count_nonzero_inst::on_execute() {
 // -----------------------------------------------
 // gather_nonzero
 // -----------------------------------------------
-primitive_type_id gather_nonzero::type_id() {
-    static primitive_type_base<gather_nonzero> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(gather_nonzero)
 
 layout gather_nonzero_inst::calc_output_layout(gather_nonzero_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+    assert(static_cast<bool>(node.get_primitive()->output_data_types[0]) == false &&
            "Output data type forcing is not supported for gather_nonzero_node!");
     if (impl_param.memory_deps.count(1)) {
-        auto out_size = read_vector<int64_t>(impl_param.memory_deps.at(1), impl_param.prog.get_stream());
+        auto out_size = read_vector<int64_t>(impl_param.memory_deps.at(1), impl_param.prog->get_stream());
         ov::Shape output_shape(out_size.begin(), out_size.end());
         ov::PartialShape output_pshape(output_shape);
         return layout{output_pshape, cldnn::data_types::i32, cldnn::format::bfyx};
     } else {
         return layout{ov::PartialShape({ov::Dimension::dynamic(), ov::Dimension::dynamic(), 1, 1}), cldnn::data_types::i32, cldnn::format::bfyx};
+    }
+}
+
+template<typename ShapeType>
+std::vector<layout> gather_nonzero_inst::calc_output_layouts(gather_nonzero_node const& /*node*/, kernel_impl_params const& impl_param) {
+    auto desc = impl_param.typed_desc<gather_nonzero>();
+    assert(static_cast<bool>(desc->output_data_types[0]) == false &&
+           "Output data type forcing is not supported for gather_nonzero_node!");
+    if (impl_param.memory_deps.count(1)) {
+        auto out_size = read_vector<int64_t>(impl_param.memory_deps.at(1), impl_param.prog->get_stream());
+        // output shape of nonzero is [input_rank, count_non_zero]
+        auto rank = static_cast<size_t>(impl_param.get_input_layout(0).get<ShapeType>().rank().get_length());
+        auto count = static_cast<size_t>(out_size[0]);
+        ov::Shape output_shape({rank, count});
+        ov::PartialShape output_pshape(output_shape);
+        auto out_layout = layout{output_pshape, cldnn::data_types::i32, cldnn::format::bfyx};
+        return {out_layout};
+    } else {
+        return {layout{ov::PartialShape({ov::Dimension::dynamic(), ov::Dimension::dynamic()}), cldnn::data_types::i32, cldnn::format::bfyx}};
     }
 }
 
@@ -80,7 +100,6 @@ std::string gather_nonzero_inst::to_string(gather_nonzero_node const& node) {
 
     json_composite gather_nonzero_info;
     gather_nonzero_info.add("input id", input.id());
-    gather_nonzero_info.add("output layout", node.get_output_layout().to_string());
 
     node_info->add("gather_nonzero info", gather_nonzero_info);
     node_info->dump(primitive_description);

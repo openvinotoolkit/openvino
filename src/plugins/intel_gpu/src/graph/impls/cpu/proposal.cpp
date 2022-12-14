@@ -188,7 +188,14 @@ struct im_info_t {
 };
 
 struct proposal_impl : typed_primitive_impl<proposal> {
+    using parent = typed_primitive_impl<proposal>;
+    using parent::parent;
+
+    proposal_impl() : parent() {}
+
     explicit proposal_impl(const proposal_node& arg) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<proposal_impl>(*this);
@@ -200,7 +207,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
         mem_lock<dtype, mem_lock_type::read> image_info_ptr{image_info, stream};
         const dtype* image_info_mem = image_info_ptr.data();
 
-        bool swap_xy = instance.argument.swap_xy;
+        bool swap_xy = instance.argument->swap_xy;
 
         // original input image to the graph (after possible scaling etc.) so that coordinates are valid for it
         int img_w = 1;
@@ -212,7 +219,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
         auto image_info_size = image_info->get_layout().get_tensor();
         auto image_info_count = image_info_size.feature[0] == 1 ? image_info_size.batch[0] : image_info_size.feature[0];
 
-        int scaled_min_bbox_size = instance.argument.min_bbox_size;
+        int scaled_min_bbox_size = instance.argument->min_bbox_size;
 
         if (image_info_count == 4) {
             img_w =
@@ -264,14 +271,14 @@ struct proposal_impl : typed_primitive_impl<proposal> {
         auto cls_scores = instance.dep_memory_ptr(proposal_inst::cls_scores_index);
         auto bbox_pred = instance.dep_memory_ptr(proposal_inst::bbox_pred_index);
 
-        bool swap_xy = instance.argument.swap_xy;
-        bool initial_clip = instance.argument.initial_clip;
-        bool clip_before_nms = instance.argument.clip_before_nms;
-        bool clip_after_nms = instance.argument.clip_after_nms;
-        float coordinates_offset = instance.argument.coordinates_offset;
-        float box_coordinate_scale = instance.argument.box_coordinate_scale;
-        float box_size_scale = instance.argument.box_size_scale;
-        bool for_deformable = instance.argument.for_deformable;
+        bool swap_xy = instance.argument->swap_xy;
+        bool initial_clip = instance.argument->initial_clip;
+        bool clip_before_nms = instance.argument->clip_before_nms;
+        bool clip_after_nms = instance.argument->clip_after_nms;
+        float coordinates_offset = instance.argument->coordinates_offset;
+        float box_coordinate_scale = instance.argument->box_coordinate_scale;
+        float box_size_scale = instance.argument->box_size_scale;
+        bool for_deformable = instance.argument->for_deformable;
 
         // feat map sizes
         const auto& score_layout = cls_scores->get_layout();
@@ -291,8 +298,8 @@ struct proposal_impl : typed_primitive_impl<proposal> {
             sorted_proposals_confidence.reserve(num_proposals);
             for (int y = 0; y < fm_h; ++y) {
                 for (int x = 0; x < fm_w; ++x) {
-                    const int anchor_shift_x = (swap_xy ? y : x) * instance.argument.feature_stride;
-                    const int anchor_shift_y = (swap_xy ? x : y) * instance.argument.feature_stride;
+                    const int anchor_shift_x = (swap_xy ? y : x) * instance.argument->feature_stride;
+                    const int anchor_shift_y = (swap_xy ? x : y) * instance.argument->feature_stride;
                     const int location_index = y * fm_w + x;
 
                     // we assume proposals are grouped by window location
@@ -337,19 +344,19 @@ struct proposal_impl : typed_primitive_impl<proposal> {
                 }
             }
 
-            size_t pre_nms = std::min(instance.argument.pre_nms_topn, static_cast<int>(sorted_proposals_confidence.size()));
+            size_t pre_nms = std::min(instance.argument->pre_nms_topn, static_cast<int>(sorted_proposals_confidence.size()));
             sort_and_keep_n_items(sorted_proposals_confidence, pre_nms);
             std::vector<roi_t> res = perform_nms(sorted_proposals_confidence,
-                                                 instance.argument.iou_threshold,
-                                                 instance.argument.post_nms_topn,
+                                                 instance.argument->iou_threshold,
+                                                 instance.argument->post_nms_topn,
                                                  coordinates_offset);
 
             auto output = instance.output_memory_ptr();
 
             mem_lock<dtype, mem_lock_type::write> output_ptr{output, stream};
-            dtype* top_data = output_ptr.data() + n * instance.argument.post_nms_topn * 5;
+            dtype* top_data = output_ptr.data() + n * instance.argument->post_nms_topn * 5;
 
-            dtype* top_data_prob = proposal_prob_ptr == nullptr ? nullptr : proposal_prob_ptr + n * instance.argument.post_nms_topn;
+            dtype* top_data_prob = proposal_prob_ptr == nullptr ? nullptr : proposal_prob_ptr + n * instance.argument->post_nms_topn;
 
             size_t res_num_rois = res.size();
 
@@ -362,16 +369,16 @@ struct proposal_impl : typed_primitive_impl<proposal> {
                 }
 
                 float_write_helper(top_data + 5 * i + 0, static_cast<float>(n));
-                float_write_helper(top_data + 5 * i + 1, res[i].x0 / (instance.argument.normalize ? im_info.img_w : 1.0f));
-                float_write_helper(top_data + 5 * i + 2, res[i].y0 / (instance.argument.normalize ? im_info.img_h : 1.0f));
-                float_write_helper(top_data + 5 * i + 3, res[i].x1 / (instance.argument.normalize ? im_info.img_w : 1.0f));
-                float_write_helper(top_data + 5 * i + 4, res[i].y1 / (instance.argument.normalize ? im_info.img_h : 1.0f));
+                float_write_helper(top_data + 5 * i + 1, res[i].x0 / (instance.argument->normalize ? im_info.img_w : 1.0f));
+                float_write_helper(top_data + 5 * i + 2, res[i].y0 / (instance.argument->normalize ? im_info.img_h : 1.0f));
+                float_write_helper(top_data + 5 * i + 3, res[i].x1 / (instance.argument->normalize ? im_info.img_w : 1.0f));
+                float_write_helper(top_data + 5 * i + 4, res[i].y1 / (instance.argument->normalize ? im_info.img_h : 1.0f));
                 if (top_data_prob != nullptr && i < sorted_proposals_confidence.size()) {
                     float_write_helper(top_data_prob + i, sorted_proposals_confidence[i].confidence);
                 }
             }
 
-            for (size_t i = res_num_rois; i < (size_t)instance.argument.post_nms_topn; i++) {
+            for (size_t i = res_num_rois; i < (size_t)instance.argument->post_nms_topn; i++) {
                 float_write_helper(top_data + 5 * i + 0, -1.0f);
                 float_write_helper(top_data + 5 * i + 1, 0.0f);
                 float_write_helper(top_data + 5 * i + 2, 0.0f);
@@ -425,7 +432,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
 
     void init_kernels(const kernels_cache&) override {}
 
-    static primitive_impl* create(const proposal_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const proposal_node& arg, const kernel_impl_params& impl_param) {
         const layout& l = impl_param.input_layouts[2];
         const size_t count = l.feature() == 1 ? static_cast<size_t>(l.batch()) : static_cast<size_t>(l.feature());
 
@@ -437,7 +444,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
             CLDNN_ERROR_MESSAGE(arg.id(), "image_info must have either 3, 4 or 6 items");
         }
 
-        return new proposal_impl(arg);
+        return make_unique<proposal_impl>(arg);
     }
 };
 
@@ -453,3 +460,5 @@ attach_proposal_impl::attach_proposal_impl() {
 }  // namespace detail
 }  // namespace cpu
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::proposal_impl)

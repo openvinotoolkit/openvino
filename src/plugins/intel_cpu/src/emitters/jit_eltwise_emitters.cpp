@@ -46,12 +46,24 @@ void jit_add_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
     Vmm vmm_dst = Vmm(out_vec_idxs[0]);
 
+    auto uni_vadd = [this](Vmm vmm_dst, Vmm vmm_src0, Vmm vmm_src1) {
+        switch (exec_prc_) {
+            case Precision::FP32: h->uni_vaddps(vmm_dst, vmm_src0, vmm_src1); break;
+            case Precision::I32:  h->uni_vpaddd(vmm_dst, vmm_src0, vmm_src1); break;
+            default: assert(!"unsupported precision");
+        }
+    };
+
     if (isa == cpu::x64::sse41) {
         h->uni_vmovups(vmm_dst, vmm_src0);
-        h->uni_vaddps(vmm_dst, vmm_dst, vmm_src1);
+        uni_vadd(vmm_dst, vmm_dst, vmm_src1);
     } else {
-        h->uni_vaddps(vmm_dst, vmm_src0, vmm_src1);
+        uni_vadd(vmm_dst, vmm_src0, vmm_src1);
     }
+}
+
+std::set<InferenceEngine::Precision> jit_add_emitter::get_supported_precisions() {
+    return {Precision::FP32, Precision::I32};
 }
 
 /// MUL_ADD ///
@@ -85,35 +97,66 @@ void jit_mul_add_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const
     Vmm vmm_aux0 = Vmm(aux_vec_idxs[0]);
     Vmm vmm_dst = Vmm(out_vec_idxs[0]);
 
-    if (isa == cpu::x64::sse41) {
+    auto uni_vfmadd231_xmm = [this](Xmm vmm_dst, Xmm vmm_src0, Xmm vmm_src1, Xmm vmm_src2) {
         h->uni_vmovups(vmm_dst, vmm_src0);
-        h->uni_vmulps(vmm_dst, vmm_dst, vmm_src1);
-        h->uni_vaddps(vmm_dst, vmm_dst, vmm_src2);
+        switch (exec_prc_) {
+            case Precision::FP32: {
+                h->uni_vmulps(vmm_dst, vmm_dst, vmm_src1);
+                h->uni_vaddps(vmm_dst, vmm_dst, vmm_src2);
+            } break;
+            case Precision::I32: {
+                h->uni_vpmulld(vmm_dst, vmm_dst, vmm_src1);
+                h->uni_vpaddd(vmm_dst, vmm_dst, vmm_src2);
+            } break;
+            default: assert(!"unsupported precision");
+        }
+    };
+
+    auto uni_vfmadd231_vmm = [this, vmm_aux0](Vmm vmm_dst, Vmm vmm_src0, Vmm vmm_src1, Vmm vmm_src2) {
+        switch (exec_prc_) {
+            case Precision::FP32: {
+                Vmm vmm_mul0;
+                if (vmm_dst.getIdx() == vmm_src0.getIdx()) {
+                    h->uni_vmovups(vmm_aux0, vmm_src0);
+                    vmm_mul0 = vmm_aux0;
+                } else {
+                    vmm_mul0 = vmm_src0;
+                }
+
+                Vmm vmm_mul1;
+                if (vmm_dst.getIdx() == vmm_src1.getIdx()) {
+                    h->uni_vmovups(vmm_aux0, vmm_src1);
+                    vmm_mul1 = vmm_aux0;
+                } else {
+                    vmm_mul1 = vmm_src1;
+                }
+
+                if (vmm_dst.getIdx() != vmm_src2.getIdx())
+                    h->uni_vmovups(vmm_dst, vmm_src2);
+
+                h->uni_vfmadd231ps(vmm_dst, vmm_mul0, vmm_mul1);
+            } break;
+            case Precision::I32: {
+                h->uni_vpmulld(vmm_dst, vmm_src0, vmm_src1);
+                h->uni_vpaddd(vmm_dst, vmm_dst, vmm_src2);
+            } break;
+            default: assert(!"unsupported precision");
+        }
+    };
+
+    if (isa == cpu::x64::sse41) {
+        uni_vfmadd231_xmm(vmm_dst, vmm_src0, vmm_src1, vmm_src2);
     } else {
-        Vmm vmm_mul0;
-        if (vmm_dst.getIdx() == vmm_src0.getIdx()) {
-            h->uni_vmovups(vmm_aux0, vmm_src0);
-            vmm_mul0 = vmm_aux0;
-        } else {
-            vmm_mul0 = vmm_src0;
-        }
-
-        Vmm vmm_mul1;
-        if (vmm_dst.getIdx() == vmm_src1.getIdx()) {
-            h->uni_vmovups(vmm_aux0, vmm_src1);
-            vmm_mul1 = vmm_aux0;
-        } else {
-            vmm_mul1 = vmm_src1;
-        }
-
-        if (vmm_dst.getIdx() != vmm_src2.getIdx())
-            h->uni_vmovups(vmm_dst, vmm_src2);
-        h->uni_vfmadd231ps(vmm_dst, vmm_mul0, vmm_mul1);
+        uni_vfmadd231_vmm(vmm_dst, vmm_src0, vmm_src1, vmm_src2);
     }
 }
 
 size_t jit_mul_add_emitter::aux_vecs_count() const {
     return 1;
+}
+
+std::set<InferenceEngine::Precision> jit_mul_add_emitter::get_supported_precisions() {
+    return {Precision::FP32, Precision::I32};
 }
 
 /// SUB ///
@@ -145,14 +188,25 @@ void jit_subtract_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, cons
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
     Vmm vmm_dst = Vmm(out_vec_idxs[0]);
 
+    auto uni_vsub = [this](Vmm vmm_dst, Vmm vmm_src0, Vmm vmm_src1) {
+        switch (exec_prc_) {
+            case Precision::FP32: h->uni_vsubps(vmm_dst, vmm_src0, vmm_src1); break;
+            case Precision::I32:  h->uni_vpsubd(vmm_dst, vmm_src0, vmm_src1); break;
+            default: assert(!"unsupported precision");
+        }
+    };
+
     if (isa == cpu::x64::sse41) {
         h->uni_vmovups(vmm_dst, vmm_src0);
-        h->uni_vsubps(vmm_dst, vmm_dst, vmm_src1);
+        uni_vsub(vmm_dst, vmm_dst, vmm_src1);
     } else {
-        h->uni_vsubps(vmm_dst, vmm_src0, vmm_src1);
+        uni_vsub(vmm_dst, vmm_src0, vmm_src1);
     }
 }
 
+std::set<InferenceEngine::Precision> jit_subtract_emitter::get_supported_precisions() {
+    return {Precision::FP32, Precision::I32};
+}
 
 /// MULTIPLY ///
 jit_multiply_emitter::jit_multiply_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
@@ -183,14 +237,25 @@ void jit_multiply_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, cons
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
     Vmm vmm_dst = Vmm(out_vec_idxs[0]);
 
+    auto uni_vmul = [this](Vmm vmm_dst, Vmm vmm_src0, Vmm vmm_src1) {
+        switch (exec_prc_) {
+            case Precision::FP32: h->uni_vmulps(vmm_dst, vmm_src0, vmm_src1); break;
+            case Precision::I32:  h->uni_vpmulld(vmm_dst, vmm_src0, vmm_src1); break;
+            default: assert(!"unsupported precision");
+        }
+    };
+
     if (isa == cpu::x64::sse41) {
         h->uni_vmovups(vmm_dst, vmm_src0);
-        h->uni_vmulps(vmm_dst, vmm_dst, vmm_src1);
+        uni_vmul(vmm_dst, vmm_dst, vmm_src1);
     } else {
-        h->uni_vmulps(vmm_dst, vmm_src0, vmm_src1);
+        uni_vmul(vmm_dst, vmm_src0, vmm_src1);
     }
 }
 
+std::set<InferenceEngine::Precision> jit_multiply_emitter::get_supported_precisions() {
+    return {Precision::FP32, Precision::I32};
+}
 
 /// DIVIDE ///
 jit_divide_emitter::jit_divide_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
@@ -554,17 +619,32 @@ void jit_squared_difference_emitter::emit_isa(const std::vector<size_t> &in_vec_
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
     Vmm vmm_dst = Vmm(out_vec_idxs[0]);
 
+    auto uni_vsqdiff = [this](Vmm vmm_dst, Vmm vmm_src0, Vmm vmm_src1) {
+        switch (exec_prc_) {
+            case Precision::FP32: {
+                h->uni_vsubps(vmm_dst, vmm_src0, vmm_src1);
+                h->uni_vmulps(vmm_dst, vmm_dst, vmm_dst);
+            } break;
+            case Precision::I32: {
+                h->uni_vpsubd(vmm_dst, vmm_src0, vmm_src1);
+                h->uni_vpmulld(vmm_dst, vmm_dst, vmm_dst);
+            } break;
+            default: assert(!"unsupported precision");
+        }
+    };
+
     if (isa == cpu::x64::sse41) {
         if (vmm_src0.getIdx() != vmm_dst.getIdx())
             h->uni_vmovups(vmm_dst, vmm_src0);
-        h->uni_vsubps(vmm_dst, vmm_dst, vmm_src1);
-        h->uni_vmulps(vmm_dst, vmm_dst, vmm_dst);
+        uni_vsqdiff(vmm_dst, vmm_dst, vmm_src1);
     } else {
-        h->uni_vsubps(vmm_dst, vmm_src0, vmm_src1);
-        h->uni_vmulps(vmm_dst, vmm_dst, vmm_dst);
+        uni_vsqdiff(vmm_dst, vmm_src0, vmm_src1);
     }
 }
 
+std::set<InferenceEngine::Precision> jit_squared_difference_emitter::get_supported_precisions() {
+    return {Precision::FP32, Precision::I32};
+}
 
 /// POWER_DYNAMIC ///
 jit_power_dynamic_emitter::jit_power_dynamic_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)

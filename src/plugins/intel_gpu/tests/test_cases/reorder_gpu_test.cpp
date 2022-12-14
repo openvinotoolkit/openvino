@@ -14,6 +14,8 @@
 #include "intel_gpu/primitives/resample.hpp"
 #include <intel_gpu/primitives/data.hpp>
 
+#include "reorder_inst.h"
+
 #include <cmath>
 #include <limits>
 
@@ -80,7 +82,7 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reorder", "input", output_layout));
+        reorder("reorder", input_info("input"), output_layout));
 
     // run on reference(reorder_data) kernel
     cldnn::build_options options_ref;
@@ -263,7 +265,7 @@ TEST(reorder_gpu_optimization, bfyx_to_fsv16_without_f_remainder) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reorder", "input", output_layout));
+        reorder("reorder", input_info("input"), output_layout));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -350,7 +352,7 @@ TEST(reorder_gpu_f32, basic) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reorder", "input", output_layout));
+        reorder("reorder", input_info("input"), output_layout));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -442,7 +444,7 @@ TEST(reorder_gpu_f32, basic_subtract) {
     topology topology(
         input_layout("input", input->get_layout()),
         input_layout("subtract", subtract->get_layout()),
-        reorder("reorder", "input", output_layout, "subtract"));
+        reorder("reorder", input_info("input"), output_layout, "subtract"));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -524,7 +526,7 @@ TEST(reorder_gpu_f32, basic_subtract_value) {
     });
 
     topology topology;
-    topology.add(input_layout("input", input->get_layout()), reorder("reorder", "input", output_layout, subtract_val));
+    topology.add(input_layout("input", input->get_layout()), reorder("reorder", input_info("input"), output_layout, subtract_val));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -622,7 +624,7 @@ TEST(reorder_gpu_f16, basic_subtract_f32_output_f32) {
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("subtract", subtract));
-    topology.add(reorder("reorder", "input", output_layout, "subtract"));
+    topology.add(reorder("reorder", input_info("input"), output_layout, "subtract"));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -710,7 +712,7 @@ TEST(reorder_gpu_f16, basic_subtract_value) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(reorder("reorder", "input", output_layout, subtract_val));
+    topology.add(reorder("reorder", input_info("input"), output_layout, subtract_val));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -782,8 +784,8 @@ TEST(reorder_gpu, basic_convert_f16_f32_f16) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(reorder("reorder_f16_f32", "input", interm_layout));
-    topology.add(reorder("reorder_f32_f16", "reorder_f16_f32", output_layout));
+    topology.add(reorder("reorder_f16_f32", input_info("input"), interm_layout));
+    topology.add(reorder("reorder_f32_f16", input_info("reorder_f16_f32"), output_layout));
 
     network network(
         engine,
@@ -850,10 +852,10 @@ TEST(reorder_gpu, basic_convert_int8) {
         // 2. reorder primitive with id "reorder_input"
         reorder("reorder_input",
             // input primitive for reorder (implicitly converted to primitive_id)
-            input,
+            input_info(input),
             // output layout for reorder
             byte_layout),
-        reorder("reorder2", "reorder_input", in_layout)
+        reorder("reorder2", input_info("reorder_input"), in_layout)
     );
 
     network network(
@@ -921,7 +923,7 @@ TEST(reorder_gpu, basic_convert_uint8rgbabyxf_to_fp32_bfyx) {
         // 2. reorder primitive with id "reorder_input"
         reorder("reorder_input",
             // input primitive for reorder (implicitly converted to primitive_id)
-            input,
+            input_info(input),
             // output layout for reorder
             output_layout)
     );
@@ -932,7 +934,7 @@ TEST(reorder_gpu, basic_convert_uint8rgbabyxf_to_fp32_bfyx) {
     topology.add(
         // cropping primitive with id "crop1"
         crop("crop",
-             "reorder_input",               // primitive id of the cropping input
+             input_info("reorder_input"),               // primitive id of the cropping input
              crop_reference_input_tensor,   // input tensor
              crop_offset_tensor,            // bias primitive id
              output_padding
@@ -1039,8 +1041,8 @@ TEST(reorder_gpu_f32, basic_yxfb_to_bfyx_input_padding)
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reorder", "input", input->get_layout().format, input->get_layout().data_type, "", reorder_mean_mode::subtract, padding{ { 0, 0, 1, 2 }, 0 }),
-        reorder("reorder2", "reorder", output_layout));
+        reorder("reorder", input_info("input"), input->get_layout().format, input->get_layout().data_type, "", reorder_mean_mode::subtract, padding{ { 0, 0, 1, 2 }, 0 }),
+        reorder("reorder2", input_info("reorder"), output_layout));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1118,8 +1120,8 @@ TEST(reorder_gpu_f32, basic_bfyx_to_yxfb_input_padding)
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reorder", "input", input->get_layout().format, input->get_layout().data_type, "", reorder_mean_mode::subtract, padding{ { 0, 0, 2, 1 }, 0 }),
-        reorder("reorder2", "reorder", output_layout));
+        reorder("reorder", input_info("input"), input->get_layout().format, input->get_layout().data_type, "", reorder_mean_mode::subtract, padding{ { 0, 0, 2, 1 }, 0 }),
+        reorder("reorder2", input_info("reorder"), output_layout));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1178,7 +1180,7 @@ TEST(reorder_gpu_f32, basic_bfyx_to_bfzyx)
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reorder", "input", format::bfzyx, data_types::f32));
+        reorder("reorder", input_info("input"), format::bfzyx, data_types::f32));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1217,6 +1219,73 @@ TEST(reorder_gpu_f32, basic_bfyx_to_bfzyx)
     }
 }
 
+TEST(reorder_gpu_f32, dynamic_bfyx_to_bfzyx) {
+    auto& engine = get_test_engine();
+
+    ov::Shape in_shape{ 1, 2, 4, 2 };
+    layout in_layout{ov::PartialShape::dynamic(in_shape.size()), data_types::f16, format::bfyx};
+    auto input = engine.allocate_memory({ov::PartialShape(in_shape), data_types::f16, format::bfyx});
+
+    set_values<FLOAT16>(input, {
+        FLOAT16(1.f), FLOAT16(0.f),
+        FLOAT16(5.f), FLOAT16(1.5f),
+
+        FLOAT16(2.f), FLOAT16(0.f),
+        FLOAT16(6.f), FLOAT16(5.2f),
+
+        FLOAT16(3.f), FLOAT16(0.5f),
+        FLOAT16(7.f), FLOAT16(12.f),
+
+        FLOAT16(4.f), FLOAT16(-0.5f),
+        FLOAT16(8.f), FLOAT16(8.f)
+    });
+
+    topology topology(
+        input_layout("input", in_layout),
+        reorder("reorder", input_info("input"), format::bfzyx, data_types::f32));
+
+    build_options options;
+    options.set_option(build_option::optimize_data(true));
+    options.set_option(build_option::allow_new_shape_infer(true));
+    network network(engine, topology, options);
+
+    auto inst = network.get_primitive("reorder");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "reorder");
+
+    auto output = outputs.begin()->second.get_memory();
+    EXPECT_TRUE(output->get_layout().format == format::bfzyx);
+    auto l = output->get_layout();
+    auto expected_shape = ov::PartialShape(in_shape);
+    EXPECT_EQ(l.get_partial_shape(), expected_shape);
+
+    float answers[16] = {
+        1.f, 0.f,
+        5.f, 1.5f,
+
+        2.f, 0.f,
+        6.f, 5.2f,
+
+        3.f, 0.5f,
+        7.f, 12.f,
+
+        4.f, -0.5f,
+        8.f, 8.f
+    };
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    for (int i = 0; i < 16; i++) {
+        ASSERT_NEAR(answers[i], output_ptr[i], 1e-2f);
+    }
+}
+
 TEST(reorder_gpu_f32, basic_yxfb_to_bfzyx)
 {
     //  Input               : yxfb:2x2x2x2
@@ -1242,7 +1311,7 @@ TEST(reorder_gpu_f32, basic_yxfb_to_bfzyx)
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reorder", "input", format::bfzyx, data_types::f32));
+        reorder("reorder", input_info("input"), format::bfzyx, data_types::f32));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1318,7 +1387,7 @@ TEST(reorder_gpu_f32, basic_bfzyx_to_bfyx)
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reorder", "input", format::bfyx, data_types::f32));
+        reorder("reorder", input_info("input"), format::bfyx, data_types::f32));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1376,8 +1445,8 @@ TEST(reorder_gpu_opt, basic_remove_redundant)
     memory::ptr in = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 2, 2, 1 } });
     topology tpl{
         input_layout("in", in->get_layout()),
-        reorder("r1", "in", format::bfyx, data_types::f32),
-        reorder("r2", "r1", format::yxfb, data_types::f32)
+        reorder("r1", input_info("in"), format::bfyx, data_types::f32),
+        reorder("r2", input_info("r1"), format::yxfb, data_types::f32)
     };
 
     build_options opts;
@@ -1403,10 +1472,10 @@ TEST(reorder_gpu_opt, remove_redundant_activation_fuse)
     set_values(scale_mem, { 2.0f });
     topology tpl{
         input_layout("in", in->get_layout()),
-        reorder("r1", "in", format::bfyx, data_types::f32),
-        activation("relu", "r1", activation_func::relu_negative_slope, { 0.01f, 0.0f }),
+        reorder("r1", input_info("in"), format::bfyx, data_types::f32),
+        activation("relu", input_info("r1"), activation_func::relu_negative_slope, { 0.01f, 0.0f }),
         data("scale_data", scale_mem),
-        eltwise("output", { "relu", "scale_data" }, eltwise_mode::prod)
+        eltwise("output", { input_info("relu"), input_info("scale_data") }, eltwise_mode::prod)
     };
 
     build_options opts;
@@ -1428,9 +1497,9 @@ TEST(reorder_gpu_opt, basic_remove_redundant_output_due_to_implicit_reorders)
     memory::ptr weights = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 2, 2, 1 } });
     topology tpl{
         input_layout("in", in->get_layout()),
-        convolution("conv", "in",{ "weights" }),
+        convolution("conv", input_info("in"),{ "weights" }),
         data("weights", weights),
-        reorder("r1", "conv", format::bfyx, data_types::f32) //optimize data should add conversion from yxfb to bfyx and 'conv' should output data in bfyx as well (IE case)
+        reorder("r1", input_info("conv"), format::bfyx, data_types::f32) //optimize data should add conversion from yxfb to bfyx and 'conv' should output data in bfyx as well (IE case)
     };
 
     build_options opts;
@@ -1456,10 +1525,10 @@ TEST(reorder_gpu_opt, basic_remove_redundant_due_to_implicit_reorders)
     memory::ptr weights = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 2, 2, 1 } });
     topology tpl{
         input_layout("in", in->get_layout()),
-        convolution("conv", "in",{ "weights" }),
+        convolution("conv", input_info("in"),{ "weights" }),
         data("weights", weights),
-        reorder("r1", "conv", format::bfyx, data_types::f32), //optimize data should add conversion from yxfb to bfyx and 'conv' should output data in bfyx as well (IE case)
-        softmax("output", "r1")
+        reorder("r1", input_info("conv"), format::bfyx, data_types::f32), //optimize data should add conversion from yxfb to bfyx and 'conv' should output data in bfyx as well (IE case)
+        softmax("output", input_info("r1"))
     };
 
     build_options opts;
@@ -1484,7 +1553,7 @@ TEST(reorder_gpu_opt, non_trivial_remove_redundant)
     memory::ptr in = engine.allocate_memory({ data_types::f32, format::yxfb, tensor{ 1, 1, 5, 2 } });
     topology tpl{
         input_layout("in", in->get_layout()),
-        reorder("r1", "in", format::bfyx, data_types::f32)
+        reorder("r1", input_info("in"), format::bfyx, data_types::f32)
     };
 
     build_options opts;
@@ -1521,7 +1590,7 @@ TEST(reorder_gpu_opt, mean_mul)
     topology tpl{
         input_layout("in", in->get_layout()),
         data("mul",mul),
-        reorder("r1", "in", format::bfyx, data_types::f32,"mul", reorder_mean_mode::mul)
+        reorder("r1", input_info("in"), format::bfyx, data_types::f32,"mul", reorder_mean_mode::mul)
     };
 
     float answers[] = { 0.5f, 5.0f, -15.0f, 17.2f, 6.0f, -21.0f };
@@ -1556,7 +1625,7 @@ TEST(reorder_gpu_opt, mean_div)
     topology tpl{
         input_layout("in", in->get_layout()),
         data("mul",mul),
-        reorder("r1", "in", format::bfyx, data_types::f32,"mul", reorder_mean_mode::div)
+        reorder("r1", input_info("in"), format::bfyx, data_types::f32,"mul", reorder_mean_mode::div)
     };
 
     float answers[] = { 2.0f, 1.0f, -1.0f, 0.5f, 4.0f, -2.0f };
@@ -1587,7 +1656,7 @@ TEST(reorder_gpu_opt, mean_mul_val)
     std::vector<float> mul_val = { 2.0f, 0.5f, 10.0f };
     topology tpl{
         input_layout("in", in->get_layout()),
-        reorder("r1", "in", format::bfyx, data_types::f32, mul_val, reorder_mean_mode::mul)
+        reorder("r1", input_info("in"), format::bfyx, data_types::f32, mul_val, reorder_mean_mode::mul)
     };
 
     float answers[] = { 2.0f, 4.0f, 1.5f, 2.0f, 50.0f, 600.0f };
@@ -1617,7 +1686,7 @@ TEST(reorder_gpu_opt, mean_mul_val_float_to_int)
     std::vector<float> mul_val = { 1.4f, 0.5f, 5.0f };
     topology tpl{
         input_layout("in", in->get_layout()),
-        reorder("r1", "in", format::bfyx, data_types::i8, mul_val, reorder_mean_mode::mul)
+        reorder("r1", input_info("in"), format::bfyx, data_types::i8, mul_val, reorder_mean_mode::mul)
     };
 
     char answers[] = { 0, 2, 1, 2, 25, 127 };
@@ -1651,7 +1720,7 @@ TEST(reorder_gpu_i32, basic)
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reorder", "input", output_layout));
+        reorder("reorder", input_info("input"), output_layout));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1692,7 +1761,7 @@ TEST(reorder_gpu_i64, basic)
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reorder", "input", output_layout));
+        reorder("reorder", input_info("input"), output_layout));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1737,7 +1806,7 @@ TEST(reorder_gpu_binary, binary_output)
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reorder", "input", output_layout));
+        reorder("reorder", input_info("input"), output_layout));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1788,7 +1857,7 @@ TEST(reorder_gpu_binary, binary_input)
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reorder", "input", output_layout));
+        reorder("reorder", input_info("input"), output_layout));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1852,13 +1921,13 @@ TEST(reorder_gpu_f32, bfwzyx_bfyx_chain)
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reorder1", "input", format::bfwzyx, data_types::f32),
-        reshape("reshape1", "reorder1", tensor(batch(2), feature(2), spatial(1, 1, 2, 2) )),
-        reorder("reorder2", "reshape1", format::bfwzyx, data_types::f32, sub_bfwzyx),
-        reshape("reshape2", "reorder2", tensor(batch(4), feature(2), spatial(1, 1, 1, 2))),
-        reshape("reshape3", "reshape2", tensor(batch(1), feature(4), spatial(2, 2))),
-        reorder("reorder3", "reshape3", format::bfyx, data_types::f32, sub_bfyx),
-        reorder("out_reorder", "reorder3", format::bfwzyx, data_types::f32)
+        reorder("reorder1", input_info("input"), format::bfwzyx, data_types::f32),
+        reshape("reshape1", input_info("reorder1"), tensor(batch(2), feature(2), spatial(1, 1, 2, 2) )),
+        reorder("reorder2", input_info("reshape1"), format::bfwzyx, data_types::f32, sub_bfwzyx),
+        reshape("reshape2", input_info("reorder2"), tensor(batch(4), feature(2), spatial(1, 1, 1, 2))),
+        reshape("reshape3", input_info("reshape2"), tensor(batch(1), feature(4), spatial(2, 2))),
+        reorder("reorder3", input_info("reshape3"), format::bfyx, data_types::f32, sub_bfyx),
+        reorder("out_reorder", input_info("reorder3"), format::bfwzyx, data_types::f32)
         );
     build_options bo;
     bo.set_option(build_option::optimize_data(true));
@@ -1903,7 +1972,7 @@ TEST(reorder_gpu_f32, bfzyx_to_bsv16_fsv16)
 
     topology topology(
             input_layout("input", input->get_layout()),
-            reorder("reorder", "input", output_layout));
+            reorder("reorder", input_info("input"), output_layout));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1985,7 +2054,7 @@ TEST(reorder_gpu_f32, bfzyx_to_bsv16_fsv16_padded)
 
     topology topology(
             input_layout("input", input->get_layout()),
-            reorder("reorder", "input", output_layout.with_padding(padding({ 0, 0, x_pad, y_pad, 0 }, 0.f))));
+            reorder("reorder", input_info("input"), output_layout.with_padding(padding({ 0, 0, x_pad, y_pad, 0 }, 0.f))));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -2058,9 +2127,9 @@ TEST(reorder_gpu_f32, b_fs_yx_fsv16_to_bfyx_opt_allowed)
     const std::string reorder_name = "reorder_prim";
     topology topology(
             input_layout("input", input->get_layout()),
-            activation("first_activation", "input", activation_func::abs),
-            reorder(reorder_name, "first_activation", format::bfyx, data_types::f32),
-            activation("second_activation", reorder_name, activation_func::abs));
+            activation("first_activation", input_info("input"), activation_func::abs),
+            reorder(reorder_name, input_info("first_activation"), format::bfyx, data_types::f32),
+            activation("second_activation", input_info(reorder_name), activation_func::abs));
 
     build_options bo;
     bo.set_option(build_option::optimize_data(true));
@@ -2106,8 +2175,8 @@ TEST(reorder_gpu_f32, b_fs_yx_fsv16_to_bfyx_opt_not_allowed)
     topology topology(
             input_layout("input", input->get_layout()),
             data("weights", weights),
-            reorder(reorder_name, "input", format::bfyx, data_types::f32),
-            convolution("convolution", reorder_name, {"weights"}, { 1, 1 }, { 1, 1 }, { 1, 1 }));
+            reorder(reorder_name, input_info("input"), format::bfyx, data_types::f32),
+            convolution("convolution", input_info(reorder_name), {"weights"}, { 1, 1 }, { 1, 1 }, { 1, 1 }));
 
     build_options bo;
     bo.set_option(build_option::optimize_data(true));
@@ -2162,8 +2231,8 @@ TEST(reorder_gpu_f32, b_fs_yx_fsv16_to_bfyx_opt_padded)
     const std::string reorder_name = "reorder_prim";
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder(reorder_name, "input", format::bfyx, data_types::f32),
-        activation("activation", reorder_name, activation_func::abs));
+        reorder(reorder_name, input_info("input"), format::bfyx, data_types::f32),
+        activation("activation", input_info(reorder_name), activation_func::abs));
 
     build_options bo;
     bo.set_option(build_option::optimize_data(true));
@@ -2199,7 +2268,7 @@ TEST(reorder_gpu, any_format) {
 
     topology topo;
     topo.add(input_layout("in", input->get_layout()));
-    topo.add(reorder("out", "in", format::any, data_types::f32));
+    topo.add(reorder("out", input_info("in"), format::any, data_types::f32));
 
     network net(engine, topo);
 
@@ -2232,7 +2301,7 @@ TEST(reorder_image2d_rgba_to_bfyx_gpu, basic)
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reorder", "input", output_layout));
+        reorder("reorder", input_info("input"), output_layout));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -2282,7 +2351,7 @@ TEST(reorder_bfyx_to_image2d_rgba_gpu, basic)
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reorder", "input", output_layout));
+        reorder("reorder", input_info("input"), output_layout));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -2348,7 +2417,7 @@ public:
             for (const auto& output_layout : output_layouts)
             {
                 //TODO: check input + output padding.
-                all_test_params.emplace_back(std::make_tuple(test_param, std::make_shared<reorder>("reorder", "input0", output_layout, subtract)));
+                all_test_params.emplace_back(std::make_tuple(test_param, std::make_shared<reorder>("reorder", input_info("input0"), output_layout, subtract)));
 
             }
         }
@@ -2374,7 +2443,7 @@ public:
         assert(mean == "");
         assert(subtract_per_feature.size() == 0);
 
-        auto output = engine.allocate_memory(cldnn::layout(*reorder->output_data_type, inputs[0]->get_layout().format, inputs[0]->get_layout().get_tensor()));
+        auto output = engine.allocate_memory(cldnn::layout(*reorder->output_data_types[0], inputs[0]->get_layout().format, inputs[0]->get_layout().get_tensor()));
 
         cldnn::mem_lock<InputType> input_mem(inputs[0], get_test_stream());
         cldnn::mem_lock<OutputType> output_mem(output, get_test_stream());
@@ -2393,7 +2462,7 @@ public:
     {
         if (generic_params->data_type == data_types::f32)
         {
-            if (*layer_params->output_data_type == data_types::f32)
+            if (*layer_params->output_data_types[0] == data_types::f32)
             {
                 return generate_reference_typed<float, float>(inputs);
             }
@@ -2404,7 +2473,7 @@ public:
         }
         else
         {
-            if (*layer_params->output_data_type == data_types::f32)
+            if (*layer_params->output_data_types[0] == data_types::f32)
             {
                 return generate_reference_typed<FLOAT16, float>(inputs);
             }
@@ -2540,14 +2609,14 @@ class testing_removal_reorder : public ReorderTest<reorder_test_param> {};
 TEST_P(testing_removal_reorder, removal_reorder_1d_along_f) {
     auto p = GetParam();
     create_topologies(input_layout("input", get_input_layout(p)),
-                reorder("reorder_input", "input", format::b_fs_yx_fsv16, data_types::f16),
+                reorder("reorder_input", input_info("input"), format::b_fs_yx_fsv16, data_types::f16),
                 data("weights", get_mem(get_weights_layout(p))),
                 data("bias1", get_mem(get_bias_layout(p))),
-                reorder("reorder_bias1", "bias1", format::b_fs_yx_fsv16, data_types::f16),
-                convolution("conv_prim", "reorder_input", {"weights"}, std::vector<primitive_id>{}, 1, p.stride, p.pad),
-                reorder("reorder_conv", "conv_prim", format::b_fs_yx_fsv16, data_types::f16),
-                eltwise("add_bias1", {"reorder_conv", "reorder_bias1"}, eltwise_mode::sum),
-                reorder("reorder_bfyx", "add_bias1", p.default_format, data_types::f16)
+                reorder("reorder_bias1", input_info("bias1"), format::b_fs_yx_fsv16, data_types::f16),
+                convolution("conv_prim", input_info("reorder_input"), {"weights"}, std::vector<primitive_id>{}, 1, p.stride, p.pad),
+                reorder("reorder_conv", input_info("conv_prim"), format::b_fs_yx_fsv16, data_types::f16),
+                eltwise("add_bias1", { input_info("reorder_conv"), input_info("reorder_bias1") }, eltwise_mode::sum),
+                reorder("reorder_bfyx", input_info("add_bias1"), p.default_format, data_types::f16)
     );
 
     execute(p);
@@ -2564,13 +2633,13 @@ TEST_P(testing_removal_reorder, only_remove_reorder_shallow_depth_input) {
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
         data("weights_sec", get_mem(get_weights_layout(p))),
-        reorder("reorder_fp32", "input", format::bfyx, data_types::f32),
-        convolution("conv_prim", "reorder_fp32", { "weights" }, { "bias" }, 1, p.stride, p.pad, {1, 1}, p.in_shape, data_types::u8, false),
-        reorder("reorder_conv", "conv_prim", reorder_layout),
-        convolution("conv_output", "reorder_conv", { "weights_sec" }, 1, p.stride, p.pad),
-        reorder("reorder_bfyx", "conv_output", format::b_fs_yx_fsv32, data_types::f32),
-        resample("resample", "reorder_bfyx", p.out_shape, 1),
-        reorder("reorder_output", "resample", p.default_format, data_types::f32)
+        reorder("reorder_fp32", input_info("input"), format::bfyx, data_types::f32),
+        convolution("conv_prim", input_info("reorder_fp32"), { "weights" }, { "bias" }, 1, p.stride, p.pad, {1, 1}, p.in_shape, data_types::u8, false),
+        reorder("reorder_conv", input_info("conv_prim"), reorder_layout),
+        convolution("conv_output", input_info("reorder_conv"), { "weights_sec" }, 1, p.stride, p.pad),
+        reorder("reorder_bfyx", input_info("conv_output"), format::b_fs_yx_fsv32, data_types::f32),
+        resample("resample", input_info("reorder_bfyx"), p.out_shape, 1),
+        reorder("reorder_output", input_info("resample"), p.default_format, data_types::f32)
     );
 
     execute(p);
@@ -2589,11 +2658,11 @@ TEST_P(testing_removal_reorder, removal_no_padded_reorder) {
     create_topologies(input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
-        reorder("reorder_fp32", "input", format::bfyx, data_types::f16),
-        convolution("conv_prim", "reorder_fp32", { "weights" }, 1, p.stride, p.pad),
-        reorder("reorder_conv", "conv_prim", reorder_layout),
-        convolution("conv_output", "reorder_conv", { "weights" }, 1, p.stride, p.pad),
-        reorder("reorder_output", "conv_output", p.default_format, data_types::f32)
+        reorder("reorder_fp32", input_info("input"), format::bfyx, data_types::f16),
+        convolution("conv_prim", input_info("reorder_fp32"), { "weights" }, 1, p.stride, p.pad),
+        reorder("reorder_conv", input_info("conv_prim"), reorder_layout),
+        convolution("conv_output", input_info("reorder_conv"), { "weights" }, 1, p.stride, p.pad),
+        reorder("reorder_output", input_info("conv_output"), p.default_format, data_types::f32)
     );
 
     auto build_opts = build_options();
@@ -2618,11 +2687,11 @@ TEST_P(testing_removal_reorder, removal_padded_reorder) {
     create_topologies(input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
-        reorder("reorder_fp32", "input", format::bfyx, data_types::f16),
-        convolution("conv_prim", "reorder_fp32", { "weights" }, 1, p.stride, p.pad),
-        reorder("reorder_conv", "conv_prim", reorder_layout),
-        convolution("conv_output", "reorder_conv", { "weights" }, 1, p.stride, p.pad),
-        reorder("reorder_output", "conv_output", p.default_format, data_types::f32)
+        reorder("reorder_fp32", input_info("input"), format::bfyx, data_types::f16),
+        convolution("conv_prim", input_info("reorder_fp32"), { "weights" }, 1, p.stride, p.pad),
+        reorder("reorder_conv", input_info("conv_prim"), reorder_layout),
+        convolution("conv_output", input_info("reorder_conv"), { "weights" }, 1, p.stride, p.pad),
+        reorder("reorder_output", input_info("conv_output"), p.default_format, data_types::f32)
     );
 
     auto build_opts = build_options();
@@ -2669,10 +2738,10 @@ TEST(reorder_onednn_gpu, basic_convert_int8) {
         // 2. reorder primitive with id "reorder_input"
         reorder("reorder_input",
             // input primitive for reorder (implicitly converted to primitive_id)
-            input,
+            input_info(input),
             // output layout for reorder
             byte_layout),
-        reorder("reorder2", "reorder_input", in_layout)
+        reorder("reorder2", input_info("reorder_input"), in_layout)
     );
 
     build_options options_target;

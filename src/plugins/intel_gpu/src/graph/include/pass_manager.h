@@ -278,7 +278,7 @@ private:
     bool has_non_const_user(program_node& node) const;
     void handle_constant(program& prog, program_node& node);
     void add_constant(program& prog, program_node& node);
-    void add_deps_to_tpl(program& prog, const std::vector<program_node*>& node);
+    void add_deps_to_tpl(program& prog, const std::vector<std::pair<program_node*, int32_t>>& node);
 
     bool has_non_trivial_constants = false;
     std::list<typed_program_node<data>*> const_inputs;
@@ -310,12 +310,14 @@ private:
     reorder_factory& _rf;
 };
 
-class set_required_layouts : public base_pass {
+class select_preferred_formats : public base_pass {
 public:
-    set_required_layouts() : base_pass("set_required_layouts") {}
+    explicit select_preferred_formats(layout_optimizer& lo_ref) :
+        base_pass("select_preferred_formats"), _lo(lo_ref) {}
 
 private:
     void run(program& p) override;
+    layout_optimizer& _lo;
 };
 
 class trim_to_outputs : public base_pass {
@@ -371,8 +373,8 @@ public:
                 return;
             }
             for (auto subdep : dep->get_dependencies()) {
-                add_memory_dependency(node, subdep);
-                add_memory_dependency(subdep, node);
+                add_memory_dependency(node, subdep.first);
+                add_memory_dependency(subdep.first, node);
             }
         }
     }

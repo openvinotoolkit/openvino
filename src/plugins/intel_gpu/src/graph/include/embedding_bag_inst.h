@@ -26,6 +26,7 @@ using embedding_bag_node = typed_program_node<embedding_bag>;
 template <>
 class typed_primitive_inst<embedding_bag> : public typed_primitive_inst_base<embedding_bag> {
     using parent = typed_primitive_inst_base<embedding_bag>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(embedding_bag_node const& node, kernel_impl_params const& impl_param);

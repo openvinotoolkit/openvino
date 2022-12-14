@@ -11,21 +11,12 @@
 
 namespace cldnn {
 
-template <>
-struct typed_program_node<grn> : public typed_program_node_base<grn> {
-    using parent = typed_program_node_base<grn>;
-
-public:
-    using parent::parent;
-
-    program_node& input() const { return get_dependency(0); }
-};
-
 using grn_node = typed_program_node<grn>;
 
 template <>
 class typed_primitive_inst<grn> : public typed_primitive_inst_base<grn> {
     using parent = typed_primitive_inst_base<grn>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(grn_node const& node, kernel_impl_params const& impl_param);

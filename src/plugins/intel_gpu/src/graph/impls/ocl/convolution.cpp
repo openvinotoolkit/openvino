@@ -20,10 +20,16 @@ namespace ocl {
 struct convolution_impl : typed_primitive_impl_ocl<convolution> {
     using parent = typed_primitive_impl_ocl<convolution>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::convolution_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::convolution_params, kernel_selector::convolution_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<convolution_impl>(*this);
     }
+
+    convolution_impl() : parent() {}
 
     explicit convolution_impl(const convolution_impl& other) : parent(other),
       _split(other._split),
@@ -46,20 +52,20 @@ protected:
     bool validate_impl(const typed_primitive_inst<convolution>& instance) const override {
         bool res = true;
 
-        auto data_type = instance.node.input().get_output_layout().data_type;
+        auto data_type = instance.node->input().get_output_layout().data_type;
 
         // Integer signed/unsigned is ok for convoluiton
         CLDNN_ERROR_DATA_TYPES_MISMATCH_IGNORE_SIGN(_node_id,
                                                     "Input memory",
                                                     data_type,
                                                     "filter memory",
-                                                    instance.node.weights().get_output_layout().data_type,
+                                                    instance.node->weights().get_output_layout().data_type,
                                                     "");
 
         return res;
     }
 
-    kernel_arguments_data get_arguments(typed_primitive_inst<convolution>& instance, int32_t split) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<convolution>& instance, int32_t split) const override {
         kernel_arguments_data args = parent::get_arguments(instance, split);
 
         args.weights = instance.weights_memory(split);
@@ -76,8 +82,22 @@ protected:
     bool get_depthwise_sep_opt() const override { return _depthwise_sep_opt; }
 
 public:
-    static primitive_impl* create(const convolution_node& arg, const kernel_impl_params& impl_param) {
-        const auto& primitive = arg.get_primitive();
+    void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
+        ob << _split;
+        ob << _groups;
+        ob << _depthwise_sep_opt;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        ib >> _split;
+        ib >> _groups;
+        ib >> _depthwise_sep_opt;
+    }
+
+    static std::unique_ptr<primitive_impl> create(const convolution_node& arg, const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<convolution>();
 
         const auto &split = primitive->split();
         auto stride = primitive->stride;
@@ -90,7 +110,7 @@ public:
         auto conv_params = get_weight_bias_zero_point_default_params<kernel_selector::convolution_params>(
             impl_param, split, 1, primitive->grouped_weights_shape);
         auto conv_optional_params =
-            get_default_weights_bias_optional_params<kernel_selector::convolution_optional_params>(arg.get_program());
+            get_default_weights_bias_optional_params<kernel_selector::convolution_optional_params>(impl_param.get_program());
 
         if (primitive->deformable_mode) {
             conv_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
@@ -146,7 +166,7 @@ public:
             conv_params.quantization = kernel_selector::QuantizationType::NONE;
         }
 
-        auto format = impl_param.output_layout.format;
+        auto format = impl_param.get_output_layout().format;
         if (format == format::b_fs_zyx_fsv16 ||
             format == format::bs_fs_zyx_bsv16_fsv16 ||
             format == format::bs_fs_yx_bsv16_fsv16 ||
@@ -163,15 +183,9 @@ public:
                 std::make_shared<gpu::kernel_runner>(arg.get_program().get_engine(), arg.get_program().get_id(), true, true);
         }
 
-        kernel_selector::KernelsData best_kernels = kernel_selector.GetBestKernels(conv_params, conv_optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(conv_params, conv_optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with these arguments");
-        auto conv = new convolution_impl(arg, best_kernels[0]);
-
-        return conv;
+        return make_unique<convolution_impl>(arg, best_kernel);
     }
 
 private:
@@ -266,3 +280,5 @@ attach_convolution_impl::attach_convolution_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::convolution_impl)

@@ -12,13 +12,10 @@
 #include <algorithm>
 
 namespace cldnn {
-primitive_type_id border::type_id() {
-    static primitive_type_base<border> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(border)
 
 layout border_inst::calc_output_layout(border_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for border_node!");
     auto input_layout = impl_param.get_input_layout();
     auto input_format = input_layout.format;
@@ -28,8 +25,8 @@ layout border_inst::calc_output_layout(border_node const& node, kernel_impl_para
     auto new_dims = input_layout.get_dims();
 
     for (size_t i = 0; i < new_dims.size(); ++i) {
-        new_dims[i] += desc->pads_begin[i];
-        new_dims[i] += desc->pads_end[i];
+        new_dims[i] += (i < desc->pads_begin.size()) ? desc->pads_begin[i] : 0;
+        new_dims[i] += (i < desc->pads_end.size()) ? desc->pads_end[i] : 0;
     }
     return layout{ input_layout.data_type, input_format, tensor(dims_format, new_dims) };
 }
@@ -61,11 +58,11 @@ std::vector<layout> border_inst::calc_output_layouts(border_node const& /*node*/
 
     if (memory_deps.count(1) && memory_deps.count(2)) {
         auto pads_begin_mem = memory_deps.at(1);
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> pads_begin_lock(pads_begin_mem, impl_param.prog.get_stream());
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> pads_begin_lock(pads_begin_mem, impl_param.prog->get_stream());
         const_data.emplace(1, make_host_tensor(pads_begin_mem->get_layout(), pads_begin_lock.data()));
 
         auto pads_end_mem = memory_deps.at(2);
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> pads_end_lock(pads_end_mem, impl_param.prog.get_stream());
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> pads_end_lock(pads_end_mem, impl_param.prog->get_stream());
         const_data.emplace(2, make_host_tensor(pads_end_mem->get_layout(), pads_end_lock.data()));
 
         ov::op::v1::shape_infer(&op, input_shapes, output_shapes, const_data);
@@ -106,21 +103,24 @@ std::string border_inst::to_string(border_node const& node) {
 
 border_inst::typed_primitive_inst(network& network, border_node const& node) : parent(network, node) {
     auto input_layout = node.input().get_output_layout();
+    if (input_layout.is_dynamic()) {
+        return;
+    }
 
     const auto& input_sizes = input_layout.get_dims();
-    auto pad_mode = argument.pad_mode;
+    auto pad_mode = argument->pad_mode;
 
     // Check if sizes of border are in proper range.
     CLDNN_ERROR_BOOL(node.id(),
                      "pads_begin border sizes",
-                     std::any_of(argument.pads_begin.begin(), argument.pads_begin.end(),
+                     std::any_of(argument->pads_begin.begin(), argument->pads_begin.end(),
                                  [](std::ptrdiff_t pad) {
                                     return pad < 0;
                                 }),
                      "Invalid border size: negative value");
     CLDNN_ERROR_BOOL(node.id(),
                      "pads_end border sizes",
-                     std::any_of(argument.pads_end.begin(), argument.pads_end.end(),
+                     std::any_of(argument->pads_end.begin(), argument->pads_end.end(),
                                  [](std::ptrdiff_t pad) {
                                     return pad < 0;
                                 }),
@@ -129,9 +129,9 @@ border_inst::typed_primitive_inst(network& network, border_node const& node) : p
     if (pad_mode == ov::op::PadMode::SYMMETRIC) {
         bool valid_pads = true;
 
-        for (size_t i = 0; i < input_sizes.size(); ++i) {
-            valid_pads &= argument.pads_begin[i] <= input_sizes[i];
-            valid_pads &= argument.pads_end[i] <= input_sizes[i];
+        for (size_t i = 0; i < argument->pads_begin.size(); ++i) {
+            valid_pads &= argument->pads_begin[i] <= input_sizes[i];
+            valid_pads &= argument->pads_end[i] <= input_sizes[i];
         }
         CLDNN_ERROR_BOOL(node.id(),
                          "pads_begin/pads_end border sizes",
@@ -140,9 +140,9 @@ border_inst::typed_primitive_inst(network& network, border_node const& node) : p
     } else if (pad_mode == ov::op::PadMode::REFLECT) {
         bool valid_pads = true;
 
-        for (size_t i = 0; i < input_sizes.size(); ++i) {
-            valid_pads &= argument.pads_begin[i] < input_sizes[i];
-            valid_pads &= argument.pads_end[i] < input_sizes[i];
+        for (size_t i = 0; i < argument->pads_begin.size(); ++i) {
+            valid_pads &= argument->pads_begin[i] < input_sizes[i];
+            valid_pads &= argument->pads_end[i] < input_sizes[i];
         }
         CLDNN_ERROR_BOOL(node.id(),
                          "pads_begin/pads_end border sizes",

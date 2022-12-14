@@ -196,82 +196,6 @@ float std_dev_error(ScoreErrorT error) {
                  (error.sumError / error.numScores) * (error.sumError / error.numScores)));
 }
 
-#if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
-#    ifdef _WIN32
-#        include <intrin.h>
-#        include <windows.h>
-#    else
-
-#        include <cpuid.h>
-
-#    endif
-
-inline void native_cpuid(unsigned int* eax, unsigned int* ebx, unsigned int* ecx, unsigned int* edx) {
-    size_t level = *eax;
-#    ifdef _WIN32
-    int regs[4] = {static_cast<int>(*eax), static_cast<int>(*ebx), static_cast<int>(*ecx), static_cast<int>(*edx)};
-    __cpuid(regs, level);
-    *eax = static_cast<uint32_t>(regs[0]);
-    *ebx = static_cast<uint32_t>(regs[1]);
-    *ecx = static_cast<uint32_t>(regs[2]);
-    *edx = static_cast<uint32_t>(regs[3]);
-#    else
-    __get_cpuid(level, eax, ebx, ecx, edx);
-#    endif
-}
-
-/**
- * @brief Get GNA module frequency
- * @return GNA module frequency in MHz
- */
-float get_gna_frequency_mhz() {
-    uint32_t eax = 1;
-    uint32_t ebx = 0;
-    uint32_t ecx = 0;
-    uint32_t edx = 0;
-    uint32_t family = 0;
-    uint32_t model = 0;
-    const uint8_t sixth_family = 6;
-    const uint8_t cannon_lake_model = 102;
-    const uint8_t gemini_lake_model = 122;
-    const uint8_t ice_lake_model = 126;
-    const uint8_t tgl_model = 140;
-    const uint8_t adl_s_model = 151;
-    const uint8_t adl_p_model = 154;
-
-    native_cpuid(&eax, &ebx, &ecx, &edx);
-    family = (eax >> 8) & 0xF;
-
-    // model is the concatenation of two fields
-    // | extended model | model |
-    // copy extended model data
-    model = (eax >> 16) & 0xF;
-    // shift
-    model <<= 4;
-    // copy model data
-    model += (eax >> 4) & 0xF;
-
-    if (family == sixth_family) {
-        switch (model) {
-        case cannon_lake_model:
-        case ice_lake_model:
-        case tgl_model:
-        case adl_s_model:
-        case adl_p_model:
-            return 400;
-        case gemini_lake_model:
-            return 200;
-        default:
-            return 1;
-        }
-    } else {
-        // counters not supported and we returns just default value
-        return 1;
-    }
-}
-
-#endif  // if not ARM
-
 /**
  * @brief Print a report on the statistical score error
  * @param totalError reference to a total score error struct
@@ -318,11 +242,9 @@ void print_performance_counters(std::map<std::string, ov::ProfilingInfo> const& 
     stream << std::setw(24) << "(us per call)";
     stream << std::endl;
     // if GNA HW counters
-    // get frequency of GNA module
-    float freq = get_gna_frequency_mhz();
     for (const auto& it : utterancePerfMap) {
         std::string const& counter_name = it.first;
-        float current_units_us = static_cast<float>(it.second.real_time.count()) / freq;
+        float current_units_us = static_cast<float>(it.second.real_time.count());
         float call_units_us = 0;
         if (numberOfFrames == 0) {
             throw std::logic_error("Number off frames = 0,  division by zero.");
@@ -583,4 +505,29 @@ std::pair<std::string, std::vector<std::string>> parse_parameters(const std::str
             filename += comma_delim;
     }
     return {filename, layers_names};
+}
+
+std::vector<std::pair<std::string, size_t>> parse_to_extract_port(const std::vector<std::string>& full_names) {
+    std::vector<std::pair<std::string, size_t>> result;
+    for (const auto& full_name : full_names) {
+        auto pos_layer = full_name.rfind(":");
+        if (pos_layer == std::string::npos) {
+            throw std::logic_error("Output " + full_name + " doesn't have a port");
+        }
+        const auto name = full_name.substr(0, pos_layer);
+        try {
+            const size_t port = std::stoul(full_name.substr(pos_layer + 1));
+            result.push_back({name, port});
+        } catch (const std::exception&) {
+            throw std::logic_error("Ports should have integer type");
+        }
+    }
+    return result;
+}
+
+const std::vector<std::string>& get_first_non_empty(const std::vector<std::string>& first,
+                                                    const std::vector<std::string>& second) {
+    if (!first.empty())
+        return first;
+    return second;
 }

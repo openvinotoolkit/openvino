@@ -20,7 +20,7 @@ TEST(attributes, assign_v3_op) {
     const string variable_id = "v0";
     const auto read_value = make_shared<opset3::ReadValue>(in, variable_id);
     const auto assign = make_shared<opset3::Assign>(read_value, variable_id);
-    NodeBuilder builder(assign);
+    NodeBuilder builder(assign, {read_value});
 
     // attribute count
     const auto expected_attr_count = 1;
@@ -33,7 +33,7 @@ TEST(attributes, assign_v6_op) {
     const auto variable = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "v0"});
     const auto read_value = make_shared<opset6::ReadValue>(in, variable);
     const auto assign = make_shared<opset6::Assign>(read_value, variable);
-    NodeBuilder builder(assign);
+    NodeBuilder builder(assign, {read_value});
 
     // attribute count
     const auto expected_attr_count = 1;

@@ -27,10 +27,10 @@ static void CreateExperimentalDetectronPriorGridGeneratorOp(
     auto& attrs = op->get_attrs();
     auto& featmap_shape = op->get_input_shape(1);
     auto& image_shape = op->get_input_shape(2);
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
-    inputPrimitives.resize(1);  // only priors is read
+    auto inputs = p.GetInputInfo(op);
+    inputs.resize(1);  // only priors is read
     cldnn::experimental_detectron_prior_grid_generator prim{layer_type_name_ID(op),
-                                                            inputPrimitives,
+                                                            inputs,
                                                             attrs.flatten,
                                                             static_cast<uint64_t>(attrs.h),
                                                             static_cast<uint64_t>(attrs.w),

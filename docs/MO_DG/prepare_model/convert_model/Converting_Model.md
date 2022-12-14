@@ -38,7 +38,7 @@ mo --input_model ocr.onnx --input data,seq_len --input_shape [3,150,200,1],[3]
 Alternatively, specify input shapes, using the `--input` parameter as follows:
 
 ```sh
-mo --input_model ocr.onnx --input data[3 150 200 1],seq_len[3]
+mo --input_model ocr.onnx --input data[3,150,200,1],seq_len[3]
 ```
 
 The `--input_shape` parameter allows overriding original input shapes to ones compatible with a given model.
@@ -71,7 +71,7 @@ It is worth noting that the `--input_shape` parameter does not affect reshapeabi
 For example, launch Model Optimizer for the ONNX OCR model using `--static_shape`:
 
 ```sh
-mo --input_model ocr.onnx --input data[3 150 200 1],seq_len[3] --static_shape
+mo --input_model ocr.onnx --input data[3,150,200,1],seq_len[3] --static_shape
 ```
 
 ## Additional Resources

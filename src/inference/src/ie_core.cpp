@@ -182,13 +182,15 @@ void allowNotImplemented(F&& f) {
 
 ov::AnyMap flatten_sub_properties(const std::string& device, const ov::AnyMap& properties) {
     ov::AnyMap result = properties;
+    bool isVirtualDev = device.find("AUTO") != std::string::npos || device.find("MULTI") != std::string::npos ||
+                        device.find("HETERO") != std::string::npos;
     for (auto item = result.begin(); item != result.end();) {
         auto parsed = parseDeviceNameIntoConfig(item->first);
         if (!item->second.is<ov::AnyMap>()) {
             item++;
             continue;
         }
-        if (device.find(parsed._deviceName) != std::string::npos) {
+        if (device == parsed._deviceName) {
             // 1. flatten the scondary property for target device
             for (auto&& sub_property : item->second.as<ov::AnyMap>()) {
                 // 1.1 1st level property overides 2nd level property
@@ -197,12 +199,12 @@ ov::AnyMap flatten_sub_properties(const std::string& device, const ov::AnyMap& p
                 result[sub_property.first] = sub_property.second;
             }
             item = result.erase(item);
-        } else if (device != "AUTO" && device != "MULTI" && device != "HETERO") {
-            // 2. remove the secondary property setting for other hard ware device
-            item = result.erase(item);
-        } else {
-            // 3. keep the secondary property for the other virtual devices
+        } else if (isVirtualDev) {
+            // 2. keep the secondary property for the other virtual devices
             item++;
+        } else {
+            // 3. remove the secondary property setting for other hardware device
+            item = result.erase(item);
         }
     }
     return result;
@@ -227,7 +229,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         std::lock_guard<std::mutex> lock(global_mutex);
         try {
             return dev_mutexes.at(dev_name);
-        } catch (const std::out_of_range& ex) {
+        } catch (const std::out_of_range&) {
             throw ov::Exception("Cannot get mutex for device: " + dev_name);
         }
     }
@@ -470,6 +472,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
                 execNetwork = context ? plugin.import_model(networkStream, context, config)
                                       : plugin.import_model(networkStream, config);
                 networkIsImported = true;
+                execNetwork->loadedFromCache();
             });
         } catch (const HeaderException&) {
             // For these exceptions just remove old cache and set that import didn't work
@@ -488,32 +491,41 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
                                                            const std::string& deviceFamily,
                                                            const std::map<std::string, std::string>& origConfig) const {
         std::map<std::string, Any> getMetricConfig;
-        auto compileConfig = origConfig;
+        std::map<std::string, std::string> compileConfig;
 
-        // 0. Remove TARGET_FALLBACK key, move it to getMetricConfig
-        auto targetFallbackIt = compileConfig.find("TARGET_FALLBACK");
-        if (targetFallbackIt == compileConfig.end()) {
-            targetFallbackIt = compileConfig.find(ov::device::priorities.name());
+        // 0. Move TARGET_FALLBACK key to getMetricConfig
+        auto targetFallbackIt = origConfig.find("TARGET_FALLBACK");
+        if (targetFallbackIt == origConfig.end()) {
+            targetFallbackIt = origConfig.find(ov::device::priorities.name());
         }
-        if (targetFallbackIt != compileConfig.end()) {
+        if (targetFallbackIt != origConfig.end()) {
             getMetricConfig[targetFallbackIt->first] = targetFallbackIt->second;
-            compileConfig.erase(targetFallbackIt);
         }
 
-        // 1. remove DEVICE_ID key
-        auto deviceIt = compileConfig.find(ov::device::id.name());
-        if (deviceIt != compileConfig.end()) {
+        // 1. Move DEVICE_ID key to getMetricConfig
+        auto deviceIt = origConfig.find(ov::device::id.name());
+        if (deviceIt != origConfig.end()) {
             getMetricConfig[deviceIt->first] = deviceIt->second;
-            compileConfig.erase(deviceIt);
         }
 
-        // 2. replace it with DEVICE_ARCHITECTURE value
+        // 2. Replace it with DEVICE_ARCHITECTURE value
         if (DeviceSupportsConfigKey(plugin, ov::device::architecture.name())) {
             compileConfig[ov::device::architecture.name()] =
                 plugin.get_property(ov::device::architecture, getMetricConfig);
         } else {
             // Take device name if device does not support DEVICE_ARCHITECTURE metric
             compileConfig[ov::device::architecture.name()] = deviceFamily;
+        }
+
+        // 3. Extract config keys which affect compile config
+        if (DeviceSupportsConfigKey(plugin, ov::caching_properties.name())) {
+            auto cachingProps = plugin.get_property(ov::caching_properties);
+            for (const auto& prop : cachingProps) {
+                // origConfig values have higher priority than plugin parameters
+                auto it = origConfig.find(prop);
+                compileConfig[prop] =
+                    it == origConfig.end() ? plugin.get_property(prop, {}).as<std::string>() : it->second;
+            }
         }
         return compileConfig;
     }
@@ -538,14 +550,9 @@ public:
     CoreImpl(bool _newAPI) : newAPI(_newAPI) {
         add_mutex("");  // Register global mutex
         executorManagerPtr = executorManager();
-        opsetNames.insert("opset1");
-        opsetNames.insert("opset2");
-        opsetNames.insert("opset3");
-        opsetNames.insert("opset4");
-        opsetNames.insert("opset5");
-        opsetNames.insert("opset6");
-        opsetNames.insert("opset7");
-        opsetNames.insert("opset8");
+        for (const auto& it : ov::get_available_opsets()) {
+            opsetNames.insert(it.first);
+        }
     }
 
     ~CoreImpl() override = default;
@@ -695,7 +702,7 @@ public:
         std::map<std::string, std::string>& config_with_batch = parsed._config;
         // if auto-batching is applicable, the below function will patch the device name and config accordingly:
         ApplyAutoBatching(network, deviceName, config_with_batch);
-        CleanUpProperties(deviceName, config_with_batch);
+        CleanUpProperties(deviceName, config_with_batch, ov::auto_batch_timeout);
         parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch);
 
         auto plugin = GetCPPPluginByName(parsed._deviceName);
@@ -790,10 +797,10 @@ public:
         }
     }
 
-    void CleanUpProperties(std::string& deviceName, std::map<std::string, std::string>& config) {
+    void CleanUpProperties(std::string& deviceName, std::map<std::string, std::string>& config, ov::Any property) {
         // auto-batching is not applicable, if there is auto_batch_timeout, delete it
         if (deviceName.find("BATCH") == std::string::npos) {
-            const auto& batch_timeout_mode = config.find(ov::auto_batch_timeout.name());
+            const auto& batch_timeout_mode = config.find(property.as<std::string>());
             if (batch_timeout_mode != config.end()) {
                 if (deviceName.find("AUTO") == std::string::npos && deviceName.find("MULTI") == std::string::npos)
                     config.erase(batch_timeout_mode);
@@ -809,7 +816,7 @@ public:
         std::map<std::string, std::string> config_with_batch = config;
         // if auto-batching is applicable, the below function will patch the device name and config accordingly:
         ApplyAutoBatching(network, deviceName, config_with_batch);
-        CleanUpProperties(deviceName, config_with_batch);
+        CleanUpProperties(deviceName, config_with_batch, ov::auto_batch_timeout);
 
         bool forceDisableCache = config_with_batch.count(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE)) > 0;
         auto parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch);
@@ -988,7 +995,24 @@ public:
                         "set_property is supported only for BATCH itself (without devices). "
                         "You can configure the devices with set_property before creating the BATCH on top.");
 
-        ExtractAndSetDeviceConfig(properties);
+        bool isMetaDevice = device_name.find("AUTO") != std::string::npos ||
+                            device_name.find("MULTI") != std::string::npos ||
+                            device_name.find("HETERO") != std::string::npos;
+        if (!isMetaDevice) {
+            // unsupport to set ov::device::properties to HW device through this function
+            auto devices = GetListOfDevicesInRegistry();
+            for (auto&& config : properties) {
+                auto parsed = parseDeviceNameIntoConfig(config.first);
+                auto is_secondary_config_for_hw_device =
+                    std::any_of(devices.begin(), devices.end(), [&](const std::string& device) {
+                        return device == parsed._deviceName;
+                    });
+                OPENVINO_ASSERT(
+                    !is_secondary_config_for_hw_device,
+                    "set_property only supported ov::device::propreties for Meta device (AUTO/MULTI/HETERO). "
+                    "You can configure the devices through the compile_model()/loadNetwork() API.");
+            }
+        }
         SetConfigForPlugins(properties, device_name);
     }
 
