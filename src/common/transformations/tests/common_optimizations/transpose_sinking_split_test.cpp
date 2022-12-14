@@ -319,9 +319,7 @@ public:
     SplitFactory(size_t axis, size_t n_outputs, element::Type elem_type) :
         _axis(axis), _n_outputs(n_outputs), _elem_type(elem_type) {}
     NodePtr create(ov::Output<ov::Node> parent) const {
-        auto split_axis_const = std::make_shared<Constant>(_elem_type,
-                                                                       Shape{},
-                                                                       _axis);
+        auto split_axis_const = std::make_shared<Constant>(_elem_type, Shape{}, _axis);
         return std::make_shared<Split>(parent, split_axis_const, _n_outputs);
     }
 
@@ -331,7 +329,11 @@ private:
     const element::Type _elem_type;
 };
 
-void CreateSplitTree(size_t max_depth, size_t depth, ov::Output<ov::Node> parent, const SplitFactory & split_factory, ov::OutputVector & leaves) {
+void CreateSplitTree(size_t max_depth,
+                     size_t depth,
+                     ov::Output<ov::Node> parent,
+                     const SplitFactory& split_factory,
+                     ov::OutputVector& leaves) {
     if (depth == max_depth) {
         leaves.push_back(parent);
         return;
@@ -345,8 +347,8 @@ void CreateSplitTree(size_t max_depth, size_t depth, ov::Output<ov::Node> parent
 }
 
 std::shared_ptr<Model> CreateFunction(size_t split_tree_depth,
-                                          size_t num_split_outputs,
-                                          element::Type input_type) {
+                                      size_t num_split_outputs,
+                                      element::Type input_type) {
         const size_t split_input_dim_value = static_cast<size_t>(std::pow(num_split_outputs, split_tree_depth + 1));
         const Shape input_shape{96, split_input_dim_value, 55, 55};
 
@@ -373,8 +375,8 @@ std::shared_ptr<Model> CreateFunction(size_t split_tree_depth,
 }
 
 std::shared_ptr<Model> CreateReferenceFunction(size_t split_tree_depth,
-                                                   size_t num_split_outputs,
-                                                   element::Type input_type) {
+                                               size_t num_split_outputs,
+                                               element::Type input_type) {
         const size_t split_input_dim_value = static_cast<size_t>(std::pow(num_split_outputs, split_tree_depth + 1));
         const Shape input_shape{96, split_input_dim_value, 55, 55};
 
@@ -403,8 +405,8 @@ std::shared_ptr<Model> CreateReferenceFunction(size_t split_tree_depth,
 } // namespace backward
 
 using CreateGraphSplitF = std::function< std::shared_ptr<Model> (size_t num_split_ops,
-                                                                            size_t num_split_outputs,
-                                                                            element::Type input_type)>;
+                                                                 size_t num_split_outputs,
+                                                                 element::Type input_type)>;
 
 using TestSplitParams = std::tuple<PassFactoryPtr,
                               size_t, /* num_split_ops */
