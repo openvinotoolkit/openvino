@@ -180,9 +180,7 @@ TEST_F(TransformationTestsF, TransposeSinkingGeneralTestBinaryGeneral) {
         function_ref = std::make_shared<ov::Model>(transpose0, ov::ParameterVector{X});
     }
 
-    manager.register_pass<ngraph::pass::VisualizeTree>("./0before.png"); // DEBUG
     manager.register_pass<ov::pass::TransposeSinkingGeneral>();
-    manager.register_pass<ngraph::pass::VisualizeTree>("./1after.png"); // DEBUG
 }
 
 TEST_F(TransformationTestsF, TransposeSinkingGeneralTestConcatGeneral) {

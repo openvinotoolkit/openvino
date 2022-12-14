@@ -67,17 +67,15 @@ PassFactoryPtr CreatePassFactory() {
     return std::make_shared<PassFactory<PassT>>();
 }
 
-std::vector<BinaryFactoryPtr> binary_factories = {
-    CreateBinaryFactory<ov::opset9::Add>(),
-    CreateBinaryFactory<ov::opset9::Divide>(),
-    CreateBinaryFactory<ov::opset9::Maximum>(),
-    CreateBinaryFactory<ov::opset9::Minimum>(),
-    CreateBinaryFactory<ov::opset9::Mod>(),
-    CreateBinaryFactory<ov::opset9::Multiply>(),
-    CreateBinaryFactory<ov::opset9::Power>(),
-    CreateBinaryFactory<ov::opset9::SquaredDifference>(),
-    CreateBinaryFactory<ov::opset9::Subtract>()
-};
+std::vector<BinaryFactoryPtr> binary_factories = {CreateBinaryFactory<ov::opset9::Add>(),
+                                                  CreateBinaryFactory<ov::opset9::Divide>(),
+                                                  CreateBinaryFactory<ov::opset9::Maximum>(),
+                                                  CreateBinaryFactory<ov::opset9::Minimum>(),
+                                                  CreateBinaryFactory<ov::opset9::Mod>(),
+                                                  CreateBinaryFactory<ov::opset9::Multiply>(),
+                                                  CreateBinaryFactory<ov::opset9::Power>(),
+                                                  CreateBinaryFactory<ov::opset9::SquaredDifference>(),
+                                                  CreateBinaryFactory<ov::opset9::Subtract>()};
 
 std::vector<size_t> binary_operations_numbers = {1, 10};
 
@@ -284,17 +282,19 @@ std::shared_ptr<ov::Model> CreateReferenceFunction(size_t num_concat_ops,
     auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
     auto transpose0 = std::make_shared<ov::opset9::Transpose>(X, ng_order0);
 
-        NodePtr in_op = transpose0;
-        for (size_t i = 0; i < num_concat_ops; ++i) {
-            ov::OutputVector concat_inputs;
-            for (size_t j = 0; j < num_concat_inputs; ++j) {
-                if (j == concat_transpose_input_idx) {
-                    concat_inputs.push_back(in_op);
-                } else {
-                    auto in_constant = std::make_shared<ov::opset9::Constant>(input_type, input_shape, ov::Shape{1});
+    NodePtr in_op = transpose0;
+    for (size_t i = 0; i < num_concat_ops; ++i) {
+        ov::OutputVector concat_inputs;
+        for (size_t j = 0; j < num_concat_inputs; ++j) {
+            if (j == concat_transpose_input_idx) {
+                concat_inputs.push_back(in_op);
+            } else {
+                auto in_constant = std::make_shared<ov::opset9::Constant>(input_type, input_shape, ov::Shape{1});
 
-                    auto transpose_reversed_const = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
-                    auto transpose_reversed = std::make_shared<ov::opset9::Transpose>(in_constant, transpose_reversed_const);
+                auto transpose_reversed_const =
+                    std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
+                auto transpose_reversed =
+                    std::make_shared<ov::opset9::Transpose>(in_constant, transpose_reversed_const);
 
                 concat_inputs.push_back(transpose_reversed);
             }
@@ -329,23 +329,27 @@ TEST_P(TransposeSinkingConcatTestFixture, CompareFunctions) {
     pass_factory->registerPass(manager);
 }
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingConcatForwardTestSuite, TransposeSinkingConcatTestFixture,
-                         ::testing::Combine(::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingConcatForward>()),
-                                            ::testing::ValuesIn(concat_operations_numbers),
+INSTANTIATE_TEST_SUITE_P(
+    TransposeSinkingConcatForwardTestSuite,
+    TransposeSinkingConcatTestFixture,
+    ::testing::Combine(::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingConcatForward>()),
+                       ::testing::ValuesIn(concat_operations_numbers),
                        ::testing::Values(single_consumer::forward::one_input_transpose::CreateFunction),
                        ::testing::Values(single_consumer::forward::one_input_transpose::CreateReferenceFunction),
-                                            ::testing::Values(ov::element::f32),
-                                            ::testing::ValuesIn(concat_transpose_input_indexes),
-                                            ::testing::Values(5)));
+                       ::testing::Values(ov::element::f32),
+                       ::testing::ValuesIn(concat_transpose_input_indexes),
+                       ::testing::Values(5)));
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingConcatBackwardTestSuite, TransposeSinkingConcatTestFixture,
-                         ::testing::Combine(::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingConcatBackward>()),
-                                            ::testing::ValuesIn(concat_operations_numbers),
-                                            ::testing::Values(single_consumer::backward::CreateFunction),
-                                            ::testing::Values(single_consumer::backward::CreateReferenceFunction),
-                                            ::testing::Values(ov::element::f32),
-                                            ::testing::ValuesIn(concat_transpose_input_indexes),
-                                            ::testing::Values(5)));
+INSTANTIATE_TEST_SUITE_P(
+    TransposeSinkingConcatBackwardTestSuite,
+    TransposeSinkingConcatTestFixture,
+    ::testing::Combine(::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingConcatBackward>()),
+                       ::testing::ValuesIn(concat_operations_numbers),
+                       ::testing::Values(single_consumer::backward::CreateFunction),
+                       ::testing::Values(single_consumer::backward::CreateReferenceFunction),
+                       ::testing::Values(ov::element::f32),
+                       ::testing::ValuesIn(concat_transpose_input_indexes),
+                       ::testing::Values(5)));
 
 // --------------------------------------------------------------------------------------
 
