@@ -114,7 +114,8 @@ bool op::v0::CumSum::evaluate(TensorVector& outputs, const TensorVector& inputs)
 
 bool op::v0::CumSum::has_evaluate() const {
     OV_OP_SCOPE(v0_CumSum_has_evaluate);
-    const auto& input_1_element_type = get_input_element_type(1);
-    return input_1_element_type == element::i32 || input_1_element_type == element::i64;
+    const auto& input_0_et = get_input_element_type(0);
+    const auto& input_1_et = get_input_element_type(1);
+    return input_0_et == element::f32 && (input_1_et == element::i32 || input_1_et == element::i64);
 }
 }  // namespace ov
