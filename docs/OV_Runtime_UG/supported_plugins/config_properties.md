@@ -68,14 +68,14 @@ To list all of the property keys of a certain device, query the `SUPPORTED_PROPE
 @sphinxdirective
 
 .. tab:: C++
-   .. code-block::
+   .. code-block:: sh
    
      auto property_keys = core.get_property("CPU", ov::supported_properties);
      
    It will return a vector of property keynames. Properties which can be changed will have the `ov::PropertyName::is_mutable` value set as `true`.
      
 .. tab:: Python
-   .. code-block
+   .. code-block:: sh
    
      property_keys = core.get_property("CPU", "SUPPORTED_PROPERTIES")
      
@@ -88,12 +88,12 @@ Each individual device property can be queried using the device name and the pro
 @sphinxdirective
 
 .. tab:: C++
-   .. code-block::
+   .. code-block:: sh
    
      auto cpu_device_name = core.get_property(“CPU”, ov::device::full_name);
      
 .. tab:: Python
-   .. code-block
+   .. code-block:: sh
    
      cpu_device_name = core.get_property(“CPU”, “FULL_DEVICE_NAME”)
    
@@ -109,7 +109,7 @@ For example, setting the CPU’s “PERFORMANCE_HINT” property to “LATENCY�
 @sphinxdirective
 
 .. tab:: C++
-   .. code-block::
+   .. code-block:: sh
    
    // Set LATENCY hint as a default for all models compiled on CPU
    core.set_proprety(“CPU”, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY));
@@ -121,7 +121,7 @@ For example, setting the CPU’s “PERFORMANCE_HINT” property to “LATENCY�
    auto compiled_model_thrp = core.compile_model(model, “CPU”, ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT));
    
 .. tab:: Python
-   .. code-block::
+   .. code-block:: sh
    
    # Set LATENCY hint as a default for all models compiled on CPU
    core.set_proprety(“CPU”, {“PERFORMANCE_HINT”: “LATENCY”})
@@ -136,154 +136,52 @@ For example, setting the CPU’s “PERFORMANCE_HINT” property to “LATENCY�
    
 ### Compiled Model Properties
 
+When models are compiled in OpenVINO using the `ov::Core::compile_model` (C++) or [Core.compile_model](api/ie_python_api/_autosummary/openvino.runtime.Core.html#openvino.runtime.Core.compile_model) (Python) method, a CompiledModel object is created that represents the model. The compiled model has its own properties that show its configuration (such as how many processing streams the model will use) and give optimal parameters for running inference (such as optimal batch size on GPUs).
+
+Similar to device properties, OpenVINO provides two methods to query device information or set configuration parameters:
+* `ov::CompiledModel::get_property` (C++) or [CompiledModel.get_property](api/ie_python_api/_autosummary/openvino.runtime.CompiledModel.html#openvino.runtime.CompiledModel.get_property) (Python) - Gets the current value of a specific property for a compiled model.
+* `ov::CompiledModel::set_property` (C++) or [CompiledModel.set_property](api/ie_python_api/_autosummary/openvino.runtime.CompiledModel.html#openvino.runtime.CompiledModel.set_property) (Python) - Sets a new value for the specific property for a compiled model (writeable properties only).
+
+#### Getting Compiled Model Properties
+The CompiledModel get_property method is used to query properties of compiled models of a CompiledModel object. It takes the specific property key as an argument, and returns the value of that property.
+
+To list all the property keys of a CompiledModel object, query the “SUPPORTED_PROPERTIES” key:
+
+@sphinxdirective
+
+.. tab:: C++
+   .. code_block:: sh
+   
+   auto compiled_model = core.compile_model(model, "CPU");
+   auto model_property_keys = compiled_model.get_property(ov::supported_properties);
+   
+.. tab:: Python
+   .. code_block:: sh
+   
+   compiled_model = core.compile_model(model, “CPU”)
+   model_property_keys = compiled_model.get_property(“SUPPORTED_PROPERTIES”)
+   
+@endsphinxdirective
+
+#### Setting Compiled Model Properties
+Model properties can be set using the CompiledModel set_property method. The only mode that supports setting compiled model properties is [Multi-Device execution](../multi_device.md) mode. It allows you to set the device priorities for a model that has been compiled with “MULTI”:
+
+@sphinxdirective
+
+.. tab:: C++
+   .. code_block:: sh
+   auto compiled_model = core.compile_model(model, "MULTI", ov::device::priorities("CPU", "GPU"));
+   
+   // Change the order of priorities
+   compiled_model.set_property(ov::device::priorities("GPU", "CPU"));
+   
+.. tab:: Python
+   .. code_block:: sh
+   config = {"MULTI_DEVICE_PRIORITIES": "CPU,GPU"}
+   compiled_model = core.compile_model(model, "MULTI", config)
+   
+   # Change the order of priorities
+   compiled_model.set_property({"MULTI_DEVICE_PRIORITIES": "GPU,CPU"})
+   
+@endsphinxdirective
 
-
-
-To extract device properties such as available devices (`ov::available_devices`), device name (`ov::device::full_name`), supported properties (`ov::supported_properties`), and others, use the `ov::Core::get_property` method:
-
-@sphinxtabset
-
-@sphinxtab{C++}
-
-@snippet docs/snippets/ov_properties_api.cpp cpu_device_name
-
-@endsphinxtab
-
-@sphinxtab{Python}
-
-@snippet docs/snippets/ov_properties_api.py cpu_device_name
-
-@endsphinxtab
-
-@endsphinxtabset
-
-A returned value appears as follows: `Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz`.
-
-> **NOTE**: In order to understand a list of supported properties on `ov::Core` or `ov::CompiledModel` levels, use `ov::supported_properties` which contains a vector of supported property names. Properties which can be changed, has `ov::PropertyName::is_mutable` returning the `true` value. Most of the properites which are changable on `ov::Core` level, cannot be changed once the model is compiled, so it becomes immutable read-only property.
-
-#### Configure a Work with a Model
-
-The `ov::Core` methods like:
-
-* `ov::Core::compile_model`
-* `ov::Core::import_model`
-* `ov::Core::query_model`
-
-accept a selection of properties as last arguments. Each of the properties should be used as a function call to pass a property value with a specified property type.
-
-@sphinxtabset
-
-@sphinxtab{C++}
-
-@snippet docs/snippets/ov_properties_api.cpp compile_model_with_property
-
-@endsphinxtab
-
-@sphinxtab{Python}
-
-@snippet  docs/snippets/ov_properties_api.py compile_model_with_property
-
-@endsphinxtab
-
-@endsphinxtabset
-
-The example below specifies hints that a model should be compiled to be inferred with multiple inference requests in parallel to achieve best throughput, while inference should be performed without accuracy loss with FP32 precision.
-
-#### Setting Properties Globally
-
-`ov::Core::set_property` with a given device name should be used to set global configuration properties, which are the same across multiple `ov::Core::compile_model`, `ov::Core::query_model`, and other calls. However, setting properties on a specific `ov::Core::compile_model` call applies properties only for the current call:
-
-@sphinxtabset
-
-@sphinxtab{C++}
-
-@snippet docs/snippets/ov_properties_api.cpp core_set_property_then_compile
-
-@endsphinxtab
-
-@sphinxtab{Python}
-
-@snippet  docs/snippets/ov_properties_api.py core_set_property_then_compile
-
-@endsphinxtab
-
-@endsphinxtabset
-
-### Properties on CompiledModel Level
-
-#### Getting Property
-
-The `ov::CompiledModel::get_property` method is used to get property values the compiled model has been created with or a compiled model level property such as `ov::optimal_number_of_infer_requests`:
-
-@sphinxtabset
-
-@sphinxtab{C++}
-
-@snippet docs/snippets/ov_properties_api.cpp optimal_number_of_infer_requests
-
-@endsphinxtab
-
-@sphinxtab{Python}
-
-@snippet  docs/snippets/ov_properties_api.py optimal_number_of_infer_requests
-
-@endsphinxtab
-
-@endsphinxtabset
-
-Or the current temperature of the `MYRIAD` device:
-
-@sphinxtabset
-
-@sphinxtab{C++}
-
-@snippet docs/snippets/ov_properties_api.cpp device_thermal
-
-@endsphinxtab
-
-@sphinxtab{Python}
-
-@snippet  docs/snippets/ov_properties_api.py device_thermal
-
-@endsphinxtab
-
-@endsphinxtabset
-
-
-Or the number of threads that would be used for inference on `CPU` device:
-
-@sphinxtabset
-
-@sphinxtab{C++}
-
-@snippet docs/snippets/ov_properties_api.cpp inference_num_threads
-
-@endsphinxtab
-
-@sphinxtab{Python}
-
-@snippet  docs/snippets/ov_properties_api.py inference_num_threads
-
-@endsphinxtab
-
-@endsphinxtabset
-
-#### Setting Properties for Compiled Model
-
-The only mode that supports this method is [Multi-Device execution](../multi_device.md):
-
-@sphinxtabset
-
-@sphinxtab{C++}
-
-@snippet docs/snippets/ov_properties_api.cpp multi_device
-
-@endsphinxtab
-
-@sphinxtab{Python}
-
-@snippet  docs/snippets/ov_properties_api.py multi_device
-
-@endsphinxtab
-
-@endsphinxtabset
