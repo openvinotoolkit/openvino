@@ -204,8 +204,8 @@ void warn_if_no_batch(const benchmark_app::InputsInfo& first_inputs) {
 void fuse_mean_scale(ov::preprocess::PrePostProcessor& preproc, const benchmark_app::InputsInfo& app_inputs_info) {
     // TODO: remove warning after 23.3 release
     bool warned = false;
-    constexpr char warn_msg[] =
-        "Mean/scale values are fused into the model. This slows down performance compared to --imean and --iscale which existed before";
+    constexpr char warn_msg[] = "Mean/scale values are fused into the model. This slows down performance compared to "
+                                "--imean and --iscale which existed before";
     for (const std::pair<std::string, benchmark_app::InputInfo>& input_info : app_inputs_info) {
         if (!input_info.second.mean.empty()) {
             if (!warned) {
