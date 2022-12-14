@@ -402,7 +402,7 @@ public:
              reference_model_factory,
              input_type,
              binary_transpose_input_idx) = obj.param;
-        
+
         std::ostringstream test_name;
         test_name << "binary_factory=" << binary_factory->getTypeName() << "_";
         test_name << "pass_factory=" << pass_factory->getTypeName() << "_";
@@ -451,7 +451,7 @@ std::shared_ptr<ov::Model> CreateFunction(BinaryFactoryPtr binary_factory,
     auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
 
     auto in_constant = std::make_shared<ov::opset9::Constant>(input_type, constant_shape, ov::Shape{1});
-    
+
     NodePtr binary_op;
     if (!binary_transpose_input_idx)
         binary_op = binary_factory->create(X, in_constant);
