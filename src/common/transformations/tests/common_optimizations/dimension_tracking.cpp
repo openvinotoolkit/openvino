@@ -4,19 +4,17 @@
 
 #include <gtest/gtest.h>
 
-#include <string>
-#include <memory>
-#include <queue>
-
-#include <ngraph/function.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
-#include <ngraph/pass/manager.hpp>
-
 #include <dimension_tracker.hpp>
+#include <memory>
+#include <ngraph/function.hpp>
+#include <ngraph/pass/manager.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <queue>
+#include <string>
 #include <transformations/common_optimizations/dimension_tracking.hpp>
 #include <transformations/common_optimizations/divide_fusion.hpp>
+#include <transformations/init_node_info.hpp>
+#include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
@@ -46,8 +44,12 @@ TEST(TransformationTests, AutoBatch_LabelPropagation_Convolution) {
     auto arg = std::make_shared<ov::opset1::Parameter>(ov::element::f32, p_shape);
 
     const auto& filters = std::make_shared<ov::opset1::Constant>(ov::element::f32, ov::Shape{1, 4, 3, 3});
-    const auto& conv = std::make_shared<ov::opset1::Convolution>(
-            arg, filters, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, ov::Strides{1, 1});
+    const auto& conv = std::make_shared<ov::opset1::Convolution>(arg,
+                                                                 filters,
+                                                                 ov::Strides{1, 1},
+                                                                 ov::CoordinateDiff{0, 0},
+                                                                 ov::CoordinateDiff{0, 0},
+                                                                 ov::Strides{1, 1});
 
     EXPECT_EQ(conv->get_output_element_type(0), ov::element::f32);
     EXPECT_EQ(conv->get_output_partial_shape(0), ov::PartialShape({batch, 1, 4, 6}));
@@ -57,12 +59,17 @@ TEST(TransformationTests, AutoBatch_LabelPropagation_Convolution) {
 TEST(TransformationTests, AutoBatch_FindBatch_Transpose_and_Convolution) {
     const auto& data = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{4, 1, 10, 10});
 
-    const auto& order = std::make_shared<ov::opset1::Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{1, 0, 2, 3});
+    const auto& order =
+        std::make_shared<ov::opset1::Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{1, 0, 2, 3});
     const auto& transpose = std::make_shared<ov::opset1::Transpose>(data, order);
 
     const auto& filters = std::make_shared<ov::opset1::Constant>(ov::element::f32, ov::Shape{1, 4, 3, 3});
-    const auto& conv = std::make_shared<ov::opset1::Convolution>(
-            transpose, filters, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, ov::Strides{1, 1});
+    const auto& conv = std::make_shared<ov::opset1::Convolution>(transpose,
+                                                                 filters,
+                                                                 ov::Strides{1, 1},
+                                                                 ov::CoordinateDiff{0, 0},
+                                                                 ov::CoordinateDiff{0, 0},
+                                                                 ov::Strides{1, 1});
 
     const auto& f = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{data});
 
@@ -109,12 +116,17 @@ TEST(TransformationTests, AutoBatch_FindBatch_SingleMultiply) {
 TEST(TransformationTests, AutoBatch_FindBatch_Two_Outputs) {
     const auto& data = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 1, 10, 10});
 
-    const auto& order = std::make_shared<ov::opset1::Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{1, 0, 2, 3});
+    const auto& order =
+        std::make_shared<ov::opset1::Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{1, 0, 2, 3});
     const auto& transpose = std::make_shared<ov::opset1::Transpose>(data, order);
 
     const auto& filters = std::make_shared<ov::opset1::Constant>(ov::element::f32, ov::Shape{1, 1, 3, 3});
-    const auto& conv = std::make_shared<ov::opset1::Convolution>(
-            data, filters, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, ov::Strides{1, 1});
+    const auto& conv = std::make_shared<ov::opset1::Convolution>(data,
+                                                                 filters,
+                                                                 ov::Strides{1, 1},
+                                                                 ov::CoordinateDiff{0, 0},
+                                                                 ov::CoordinateDiff{0, 0},
+                                                                 ov::Strides{1, 1});
 
     const auto& f = std::make_shared<ov::Model>(ov::NodeVector{conv, transpose}, ov::ParameterVector{data});
 
@@ -135,10 +147,15 @@ TEST(TransformationTests, AutoBatch_FindBatch_TwoOutputsReversed) {
     const auto& data = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 1, 10, 10});
 
     const auto& filters = std::make_shared<ov::opset1::Constant>(ov::element::f32, ov::Shape{1, 1, 3, 3});
-    const auto& conv = std::make_shared<ov::opset1::Convolution>(
-            data, filters, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, ov::Strides{1, 1});
+    const auto& conv = std::make_shared<ov::opset1::Convolution>(data,
+                                                                 filters,
+                                                                 ov::Strides{1, 1},
+                                                                 ov::CoordinateDiff{0, 0},
+                                                                 ov::CoordinateDiff{0, 0},
+                                                                 ov::Strides{1, 1});
 
-    const auto& order = std::make_shared<ov::opset1::Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{1, 0, 2, 3});
+    const auto& order =
+        std::make_shared<ov::opset1::Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{1, 0, 2, 3});
     const auto& transpose = std::make_shared<ov::opset1::Transpose>(data, order);
 
     const auto& f = std::make_shared<ov::Model>(ov::NodeVector{transpose, conv}, ov::ParameterVector{data});
@@ -166,8 +183,12 @@ TEST(TransformationTests, AutoBatch_FindBatch_IndependentBranchesConcated) {
     const auto& mul_1 = std::make_shared<ov::opset1::Multiply>(data, constant_1);
 
     const auto& filters = std::make_shared<ov::opset1::Constant>(ov::element::f32, ov::Shape{1, 4, 1, 1});
-    const auto& conv = std::make_shared<ov::opset1::Convolution>(
-            mul_0, filters, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, ov::Strides{1, 1});
+    const auto& conv = std::make_shared<ov::opset1::Convolution>(mul_0,
+                                                                 filters,
+                                                                 ov::Strides{1, 1},
+                                                                 ov::CoordinateDiff{0, 0},
+                                                                 ov::CoordinateDiff{0, 0},
+                                                                 ov::Strides{1, 1});
 
     const auto& concat = std::make_shared<ov::opset1::Concat>(ov::NodeVector{conv, mul_1}, 1);
 
@@ -190,11 +211,19 @@ TEST(TransformationTests, AutoBatch_FindBatch_TwoConvNetwork) {
     const auto& data = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 4, 10, 10});
 
     const auto& filters = std::make_shared<ov::opset1::Constant>(ov::element::f32, ov::Shape{1, 4, 3, 3});
-    const auto& conv_0 = std::make_shared<ov::opset1::Convolution>(
-            data, filters, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, ov::Strides{1, 1});
+    const auto& conv_0 = std::make_shared<ov::opset1::Convolution>(data,
+                                                                   filters,
+                                                                   ov::Strides{1, 1},
+                                                                   ov::CoordinateDiff{0, 0},
+                                                                   ov::CoordinateDiff{0, 0},
+                                                                   ov::Strides{1, 1});
 
-    const auto& conv_1 = std::make_shared<ov::opset1::Convolution>(
-            data, filters, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, ov::Strides{1, 1});
+    const auto& conv_1 = std::make_shared<ov::opset1::Convolution>(data,
+                                                                   filters,
+                                                                   ov::Strides{1, 1},
+                                                                   ov::CoordinateDiff{0, 0},
+                                                                   ov::CoordinateDiff{0, 0},
+                                                                   ov::Strides{1, 1});
 
     const auto& f = std::make_shared<ov::Model>(ov::NodeVector{conv_0, conv_1}, ov::ParameterVector{data});
 
@@ -215,11 +244,14 @@ TEST(TransformationTests, AutoBatch_FindBatch_NegativeTracking) {
     const auto& data = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 4, 10, 10});
 
     const auto& filters = std::make_shared<ov::opset1::Constant>(ov::element::f32, ov::Shape{1, 4, 3, 3});
-    const auto& conv_0 = std::make_shared<ov::opset1::Convolution>(
-            data, filters, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, ov::Strides{1, 1});
+    const auto& conv_0 = std::make_shared<ov::opset1::Convolution>(data,
+                                                                   filters,
+                                                                   ov::Strides{1, 1},
+                                                                   ov::CoordinateDiff{0, 0},
+                                                                   ov::CoordinateDiff{0, 0},
+                                                                   ov::Strides{1, 1});
     const auto& pattern = ov::op::v0::Constant::create(ov::element::i64, {1}, std::vector<int64_t>{-1});
-    const auto& reshape = std::make_shared<ov::opset1::Reshape>(
-            conv_0, pattern, false);
+    const auto& reshape = std::make_shared<ov::opset1::Reshape>(conv_0, pattern, false);
 
     const auto& f = std::make_shared<ov::Model>(ov::NodeVector{reshape}, ov::ParameterVector{data});
 
@@ -241,7 +273,7 @@ TEST(TransformationTests, AutoBatch_FindBatch_NegativeTracking) {
 
 TEST(TransformationTests, AutoBatch_FindBatch_AutoBatch_LabelPropagation_DO_detachment) {
     auto f = ngraph::builder::subgraph::makeDetectionOutput();
-    auto & data =  f->get_parameters()[0];
+    auto& data = f->get_parameters()[0];
 
     ov::pass::Manager m;
     m.register_pass<ngraph::pass::InitNodeInfo>();
