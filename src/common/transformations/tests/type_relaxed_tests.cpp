@@ -144,10 +144,9 @@ TEST_F(TypeRelaxedTests, notSupportedTypeOverride) {
         auto param2 = make_shared<ngraph::opset1::Parameter>(overriden_type, shape);
         auto op = ngraph::opset1::LogicalAnd(ov::op::TemporaryReplaceOutputType(param1, orig_type).get(),
                                              ov::op::TemporaryReplaceOutputType(param2, orig_type).get());
-        auto relaxed_op =
-            make_shared<ov::op::TypeRelaxed<ngraph::opset1::LogicalAnd>>(op,
-                                                                         TypeVector{orig_type, orig_type},
-                                                                         TypeVector{overriden_type});
+        auto relaxed_op = make_shared<ov::op::TypeRelaxed<ngraph::opset1::LogicalAnd>>(op,
+                                                                                       TypeVector{orig_type, orig_type},
+                                                                                       TypeVector{overriden_type});
         auto result = make_shared<ngraph::opset1::Result>(relaxed_op);
 
         ngraph = make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param1, param2});
@@ -169,8 +168,7 @@ TEST_F(TypeRelaxedTests, notSupportedTypeOverridePartially) {
         ngraph::PartialShape shape({1, 3, 22, 22});
         auto param1 = make_shared<ngraph::opset1::Parameter>(some_type, shape);
         auto param2 = make_shared<ngraph::opset1::Parameter>(overriden_type, ngraph::PartialShape{1});
-        auto op =
-            ngraph::opset1::Reshape(param1, ov::op::TemporaryReplaceOutputType(param2, orig_type).get(), false);
+        auto op = ngraph::opset1::Reshape(param1, ov::op::TemporaryReplaceOutputType(param2, orig_type).get(), false);
         auto relaxed_op =
             make_shared<ov::op::TypeRelaxed<ngraph::opset1::Reshape>>(op,
                                                                       TypeVector{element::undefined, orig_type},
@@ -352,9 +350,8 @@ TEST_F(TypeRelaxedTests, ConstantFoldingCheck1) {
         auto const1 = ngraph::opset1::Constant::create(element::i32, ngraph::Shape{}, {2});
         auto const2 = ngraph::opset1::Constant::create(element::i32, ngraph::Shape{}, {2});
         auto equal = ngraph::opset1::Equal(const1, const2);
-        auto relaxed_equal = make_shared<ov::op::TypeRelaxed<ngraph::opset1::Equal>>(equal,
-                                                                                     TypeVector{},
-                                                                                     TypeVector{element::boolean});
+        auto relaxed_equal =
+            make_shared<ov::op::TypeRelaxed<ngraph::opset1::Equal>>(equal, TypeVector{}, TypeVector{element::boolean});
 
         f = make_shared<ngraph::Function>(ngraph::OutputVector{relaxed_equal}, ngraph::ParameterVector{});
         ngraph::pass::Manager manager;

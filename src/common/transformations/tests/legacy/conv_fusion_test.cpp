@@ -117,8 +117,8 @@ private:
             }
             ngraph::Shape const_shape(weights_shape.size(), 1);
             const_shape[0] = weights_shape[0];
-            weights = std::make_shared<ngraph::opset5::Multiply>(weights,
-                                                                 ov::op::util::reshapeTo(const_node, const_shape));
+            weights =
+                std::make_shared<ngraph::opset5::Multiply>(weights, ov::op::util::reshapeTo(const_node, const_shape));
             conv = conv.get_node_shared_ptr()->copy_with_new_inputs({input, weights});
         } else {
             throw ngraph::ngraph_error("Unsupported element type");

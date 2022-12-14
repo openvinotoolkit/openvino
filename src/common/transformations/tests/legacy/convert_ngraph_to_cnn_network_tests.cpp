@@ -191,8 +191,7 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertTopKWithOneInput) {
 
     manager.register_pass<ov::pass::ConvertPrecision>(convert_precision_list);
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
-    manager.register_pass<ov::pass::ConvertPrecision>(
-        precisions_array{{ngraph::element::i64, ngraph::element::i32}});
+    manager.register_pass<ov::pass::ConvertPrecision>(precisions_array{{ngraph::element::i64, ngraph::element::i32}});
 
     manager.run_passes(f);
 
