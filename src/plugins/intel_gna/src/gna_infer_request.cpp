@@ -135,6 +135,12 @@ InferenceEngine::StatusCode GNAInferRequest::HandleRequestWaitStatus(const Reque
         SetRequestIndex(kRequestIndexInvalid);
         return InferenceEngine::INFER_NOT_STARTED;
     }
+
+    if (request_status == RequestStatus::kCompletedWithError) {
+        SetRequestIndex(kRequestIndexInvalid);
+        THROW_GNA_EXCEPTION << "Error when waiting for inference results!";
+    }
+
     return InferenceEngine::OK;
 }
 
