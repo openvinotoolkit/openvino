@@ -74,6 +74,7 @@ public:
     std::string expectedDeviceName;
 };
 
+using OVClassExecutableNetworkGetMetricTest_EXEC_DEVICES = OVCompileModelGetExecutionDeviceTests;
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
