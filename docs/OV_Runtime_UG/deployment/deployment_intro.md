@@ -1,4 +1,4 @@
-# Deploying Your Applications with OpenVINO™ {#openvino_deployment_guide}
+# Deploy via OpenVINO Runtime {#openvino_deployment_guide}
 
 @sphinxdirective
 
@@ -6,14 +6,15 @@
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_install_guides_deployment_manager_tool
-   openvino_docs_deploy_local_distribution
+   Run Inference <openvino_docs_OV_UG_OV_Runtime_User_Guide>
+   Optimize Inference <openvino_docs_deployment_optimization_guide_dldt_optimization_guide>
+   Deploy Application with Deployment Manager <openvino_docs_install_guides_deployment_manager_tool>
+   Local Distribution Libraries <openvino_docs_deploy_local_distribution>
 
 @endsphinxdirective
 
-Once [OpenVINO™ application development](../integrate_with_your_application.md) has been finished, application developers usually need to deploy their applications to end users. There are several ways to achieve that. This section will explain how you can deploy locally, using OpenVINO Runtime.
+> **NOTE**: Note that [running inference in OpenVINO Runtime](../openvino_intro.md) is the most basic form of deployment. Before moving forward, make sure you know how to create a proper Inference configuration and [develop your application properly](../integrate_with_your_application.md)
 
-> **NOTE**: Note that [running inference in OpenVINO Runtime](../openvino_intro.md) is the most basic form of deployment. Before moving forward, make sure you know how to create a proper Inference configuration.
 
 ## Local Deployment Options
 
