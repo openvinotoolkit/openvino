@@ -47,4 +47,4 @@ class Testwhere(PytorchLayerTest):
     @pytest.mark.nightly
     def test_where_as_nonzero(self, mask_fill, mask_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(True),
-                   ie_device, precision, ir_version, kwargs_to_prepare_input={'mask_fill': mask_fill, 'mask_dtype': mask_dtype, 'return_x_y': False})
+                   ie_device, precision, ir_version, kwargs_to_prepare_input={'mask_fill': mask_fill, 'mask_dtype': mask_dtype, 'return_x_y': False}, trace_model=True)
