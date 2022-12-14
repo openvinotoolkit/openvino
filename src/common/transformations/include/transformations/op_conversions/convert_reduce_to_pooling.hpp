@@ -257,7 +257,7 @@ ov::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
                 input = std::make_shared<ov::opset1::Reshape>(
                     input,
                     ov::opset1::Constant::create(ov::element::i64, ov::Shape{1}, {0}),
-                    false);
+                    true);
             } else {
                 input = std::make_shared<ov::opset1::Reshape>(
                     input,
