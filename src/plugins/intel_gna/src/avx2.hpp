@@ -12,6 +12,8 @@
 #    define HAVE_AVX2
 #endif
 
+#include <ie_system_conf.h>
+
 namespace ov {
 namespace intel_gna {
 inline bool isAvx2Supported() {
@@ -24,7 +26,6 @@ inline bool isAvx2Supported() {
 }  // namespace intel_gna
 }  // namespace ov
 
-#include <ie_system_conf.h>
 #include <stdint.h>
 
 namespace GNAPluginNS {

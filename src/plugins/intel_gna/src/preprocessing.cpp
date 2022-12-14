@@ -55,7 +55,7 @@ void GNAPluginNS::ExportScores(void* ptr_dst,
                                const InferenceEngine::Precision& precision_in,
                                const InferenceEngine::Precision& precision_out,
                                const float scale_factor,
-                               bool isAvx2Supported) {
+                               bool is_avx2_supported) {
     OV_ITT_SCOPED_TASK(itt::domains::GNAPlugin, "ExportScores");
 
     if (ptr_src == nullptr || ptr_dst == nullptr) {
@@ -74,7 +74,7 @@ void GNAPluginNS::ExportScores(void* ptr_dst,
     case Precision::FP32:
         switch (precision_in) {
         case Precision::I8:
-            if (isAvx2Supported && !needsZeroPadding) {
+            if (is_avx2_supported && !needsZeroPadding) {
                 ConvertMatrixInt8ToFp32Avx(reinterpret_cast<float*>(ptr_dst),
                                            reinterpret_cast<const int8_t*>(ptr_src),
                                            num_vector_stride,
@@ -94,7 +94,7 @@ void GNAPluginNS::ExportScores(void* ptr_dst,
                                     scale_factor);
             break;
         case Precision::I16:
-            if (isAvx2Supported && !needsZeroPadding) {
+            if (is_avx2_supported && !needsZeroPadding) {
                 ConvertMatrixInt16ToFp32Avx(reinterpret_cast<float*>(ptr_dst),
                                             reinterpret_cast<const int16_t*>(ptr_src),
                                             num_vector_stride,
@@ -114,7 +114,7 @@ void GNAPluginNS::ExportScores(void* ptr_dst,
                                     scale_factor);
             break;
         case Precision::I32:
-            if (isAvx2Supported && !needsZeroPadding) {
+            if (is_avx2_supported && !needsZeroPadding) {
                 ConvertMatrixInt32ToFp32Avx(reinterpret_cast<float*>(ptr_dst),
                                             reinterpret_cast<const int32_t*>(ptr_src),
                                             num_vector_stride,
@@ -192,8 +192,8 @@ void GNAPluginNS::ImportFrames(void* ptr_dst,
                                uint32_t num_vector_elements,
                                uint32_t num_vector_stride,
                                bool input_low_precision,
-                               bool isGnaDevice,
-                               bool isAvx2Supported) {
+                               bool is_gna_device,
+                               bool is_avx2_supported) {
     switch (input_precision) {
     case Precision::U8:
     case Precision::I8: {
@@ -252,7 +252,7 @@ void GNAPluginNS::ImportFrames(void* ptr_dst,
     }
     case Precision::FP32: {
         auto src = reinterpret_cast<const float*>(ptr_src);
-        if (!isGnaDevice) {
+        if (!is_gna_device) {
             auto dst = reinterpret_cast<float*>(ptr_dst);
             CopyInputData(dst,
                           src,
@@ -272,7 +272,7 @@ void GNAPluginNS::ImportFrames(void* ptr_dst,
             if (!input_low_precision) {
                 auto dst = reinterpret_cast<int16_t*>(ptr_dst);
 
-                if (isAvx2Supported && !needsZeroPadding) {
+                if (is_avx2_supported && !needsZeroPadding) {
                     ConvertMatrixFp32ToInt16(dst, src, num_group, num_vector_stride, scaleFactor, transpose);
                     break;
                 }
@@ -289,7 +289,7 @@ void GNAPluginNS::ImportFrames(void* ptr_dst,
             } else {
                 auto dst = reinterpret_cast<int8_t*>(ptr_dst);
 
-                if (isAvx2Supported && !needsZeroPadding) {
+                if (is_avx2_supported && !needsZeroPadding) {
                     ConvertMatrixFp32ToInt8(dst, src, num_group, num_vector_stride, scaleFactor, transpose);
                     break;
                 }
@@ -309,7 +309,7 @@ void GNAPluginNS::ImportFrames(void* ptr_dst,
     }
     case Precision::I32: {
         auto src = reinterpret_cast<const float*>(ptr_src);
-        if (!isGnaDevice) {
+        if (!is_gna_device) {
             auto dst = reinterpret_cast<float*>(ptr_dst);
             CopyInputData(dst,
                           src,

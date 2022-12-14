@@ -59,7 +59,7 @@ void CopyInputData(T* dst,
                    uint32_t num_vector_elements,
                    uint32_t num_vector_stride,
                    intel_dnn_orientation_t orientation,
-                   float scaleFactor,
+                   float scale_factor,
                    bool input_low_precision) {
     if (!dst || !src) {
         return;
@@ -69,9 +69,9 @@ void CopyInputData(T* dst,
             for (uint32_t j = 0; j < num_vector_elements; j++) {
                 if (!std::is_same<T, U>::value) {
                     if (!input_low_precision) {
-                        dst[j * num_group + i] = ConvertFloatToInt16(src[i * num_vector_elements + j] * scaleFactor);
+                        dst[j * num_group + i] = ConvertFloatToInt16(src[i * num_vector_elements + j] * scale_factor);
                     } else {
-                        dst[j * num_group + i] = ConvertFloatToInt8(src[i * num_vector_elements + j] * scaleFactor);
+                        dst[j * num_group + i] = ConvertFloatToInt8(src[i * num_vector_elements + j] * scale_factor);
                     }
                 } else {
                     dst[j * num_group + i] = src[i * num_vector_elements + j];
@@ -96,11 +96,11 @@ void CopyInputData(T* dst,
                 std::memset(ptr_dst_vec, 0, num_vector_stride * sizeof(T));
                 if (!input_low_precision) {
                     for (uint32_t j = 0; j < num_vector_elements; j++) {
-                        ptr_dst_vec[j] = ConvertFloatToInt16(ptr_src_vec[j] * scaleFactor);
+                        ptr_dst_vec[j] = ConvertFloatToInt16(ptr_src_vec[j] * scale_factor);
                     }
                 } else {
                     for (uint32_t j = 0; j < num_vector_elements; j++) {
-                        ptr_dst_vec[j] = ConvertFloatToInt8(ptr_src_vec[j] * scaleFactor);
+                        ptr_dst_vec[j] = ConvertFloatToInt8(ptr_src_vec[j] * scale_factor);
                     }
                 }
             }
@@ -130,8 +130,8 @@ void ImportFrames(void* ptr_dst,
                   uint32_t num_vector_elements,
                   uint32_t num_vector_stride,
                   bool input_low_precision,
-                  bool isGnaDevice,
-                  bool isAvx2Supported);
+                  bool is_gna_device,
+                  bool is_avx2_supported);
 
 void ExportScores(void* ptr_dst,
                   const void* ptr_src,
@@ -144,5 +144,5 @@ void ExportScores(void* ptr_dst,
                   const InferenceEngine::Precision& precision_in,
                   const InferenceEngine::Precision& precision_out,
                   const float scale_factor,
-                  bool isAvx2Supported);
+                  bool is_avx2_supported);
 }  // namespace GNAPluginNS
