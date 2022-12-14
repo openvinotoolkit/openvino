@@ -148,12 +148,12 @@ std::string NetworkCompilationContext::computeHash(const std::string& modelStr,
     uint64_t seed = 0;
     // model string
     seed = hash_combine(seed, modelStr);
+
     // model weights data
-    if (dataPtr && dataCount > 0) {
-        for (size_t i = 0; i < dataCount; i++) {
-            seed = hash_combine(seed, dataPtr[i]);
-        }
-    }
+    std::string dataStr(dataPtr);
+    seed = hash_combine(seed, dataCount);
+    seed = hash_combine(seed, dataStr);
+
     // compile options
     for (const auto& kvp : compileOptions) {
         seed = hash_combine(seed, kvp.first + kvp.second);

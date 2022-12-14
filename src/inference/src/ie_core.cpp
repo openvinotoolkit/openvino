@@ -915,7 +915,6 @@ public:
         if (cacheManager && DeviceSupportsImportExport(plugin)) {
             bool loadedFromCache = false;
             cacheContent.blobId = CalculateMemoryHash(modelStr, weights, parsed._deviceName, plugin, parsed._config);
-            std::cout << "Calculate cacheContent.blobId = " << cacheContent.blobId.c_str() << std::endl;
             auto lock = cacheGuard.getHashLock(cacheContent.blobId);
             res = LoadNetworkFromCache(cacheContent, plugin, parsed._config, nullptr, loadedFromCache);
             if (!loadedFromCache) {
