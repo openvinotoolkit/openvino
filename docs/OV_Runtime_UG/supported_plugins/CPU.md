@@ -298,5 +298,5 @@ To enable denormals optimization in the application, the `denormals_optimization
 
 ## Additional Resources
 * [Supported Devices](Supported_Devices.md)
-* [Optimization guide](@ref openvino_docs_optimization_guide_dldt_optimization_guide)
+* [Optimization guide](@ref openvino_docs_deployment_optimization_guide_dldt_optimization_guide)
 * [СPU plugin developers documentation](https://github.com/openvinotoolkit/openvino/wiki/CPUPluginDevelopersDocs)

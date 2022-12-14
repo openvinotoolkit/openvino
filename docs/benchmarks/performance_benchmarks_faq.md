@@ -23,11 +23,11 @@
    All of the performance benchmarks are generated using the
    open-source tool within the Intel® Distribution of OpenVINO™ toolkit
    called `benchmark_app`. This tool is available 
-   `for C++ apps <openvino_inference_engine_samples_benchmark_app_README>`_ 
+   `for C++ apps <http://openvino-doc.iotg.sclab.intel.com/2022.3/openvino_inference_engine_samples_benchmark_app_README.html>`_ 
    as well as 
-   `for Python apps<openvino_inference_engine_tools_benchmark_tool_README>`_.
+   `for Python apps <http://openvino-doc.iotg.sclab.intel.com/2022.3/openvino_inference_engine_tools_benchmark_tool_README.html>`_.
 
-   For a simple instruction on testing performance, see the `Getting Performance Numbers Guide<openvino_docs_MO_DG_Getting_Performance_Numbers>`
+   For a simple instruction on testing performance, see the `Getting Performance Numbers Guide <http://openvino-doc.iotg.sclab.intel.com/2022.3/openvino_docs_MO_DG_Getting_Performance_Numbers.html>`_.
 
 .. dropdown:: What image sizes are used for the classification network models?
 
@@ -107,16 +107,16 @@
 .. dropdown:: Where can I purchase the specific hardware used in the benchmarking?
 
    Intel partners with vendors all over the world. For a list of Hardware Manufacturers, see the 
-   [Intel® AI: In Production Partners & Solutions Catalog](https://www.intel.com/content/www/us/en/internet-of-things/ai-in-production/partners-solutions-catalog.html). 
+   `Intel® AI: In Production Partners & Solutions Catalog <https://www.intel.com/content/www/us/en/internet-of-things/ai-in-production/partners-solutions-catalog.html>`_. 
    For more details, see the [Supported Devices](../OV_Runtime_UG/supported_plugins/Supported_Devices.md)
    documentation. Before purchasing any hardware, you can test and run
-   models remotely, using [Intel® DevCloud for the Edge](http://devcloud.intel.com/edge/).
+   models remotely, using `Intel® DevCloud for the Edge <http://devcloud.intel.com/edge/>`_.
 
 .. dropdown:: How can I optimize my models for better performance or accuracy?
 
    Set of guidelines and recommendations to optimize models are available in the 
-   [optimization guide](../optimization_guide/dldt_optimization_guide.md).
-   Join the conversation in the [Community Forum](https://software.intel.com/en-us/forums/intel-distribution-of-openvino-toolkit)
+   [optimization guide](../optimization_guide/dldt_deployment_optimization_guide.md).
+   Join the conversation in the `Community Forum <https://software.intel.com/en-us/forums/intel-distribution-of-openvino-toolkit>` 
    for further support.
 
 .. dropdown:: Why are INT8 optimized models used for benchmarking on CPUs with no VNNI support?
