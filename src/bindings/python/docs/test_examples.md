@@ -1,7 +1,10 @@
 # How to test OpenVINO:tm: Python API?
 
 #### Prerequisites
-*To be added...*
+Install the special requirements file for testing:
+```
+python -m pip install -r openvino/src/bindings/python/requirements_test.txt
+```
 
 ##### Enviroment
 <!-- TODO: Link to enviroment setup -->
@@ -17,9 +20,14 @@
 cd .../openvino/src/bindings/python/
 ```
 
-To run **all tests**:
+To run new Python API tests (since 2022.1 release):
 ```shell
 pytest tests/
+```
+
+For running compatibility Python API tests execute this command:
+```
+pytest tests_compatibility/
 ```
 
 Test framework *pytest* allows to filter tests with `-k` flag.
@@ -41,6 +49,21 @@ pytest tests/test_runtime/test_core.py -v
 To run full test suite one can utilize `tox` command:
 ```shell
 tox
+```
+
+### Check codestyle of Python API
+For checking the codestyle of Python API execute this command:
+```
+python -m flake8 ./src/openvino --config=setup.cfg
+```
+For checking the codestyle of compatibility nGraph Python API execute this command:
+```
+python -m flake8 ./src/compatibility/ngraph --config=setup.cfg
+```
+For checking the codestyle of compatibility InferenceEngine Python API execute this command:
+```
+cd src/compatibility/openvino
+python -m flake8 ./ --config=setup.cfg
 ```
 
 ### Writing OpenVINO:tm: Python API tests
