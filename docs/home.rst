@@ -12,7 +12,7 @@
 
 .. rst-class:: openvino-chart
 
-   .. image:: _static/images/openvino_chart.png
+   .. image:: _static/images/openvino_diagram.svg
 
 
 Overview
