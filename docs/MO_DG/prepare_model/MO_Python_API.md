@@ -1,8 +1,8 @@
 ## Model Optimizer Python API {#openvino_docs_MO_DG_Python_API}
 
 Model Optimizer has Python API for model conversion, which is represented by `convert_model()` method in openvino.tools.mo namespace.
-  `convert_model()` has all the functionality available from command line tool plus the possibility of passing Python objects (models, extensions) to `convert_model()` directly from memory without leaving the training environment (Jupyter Notebook or training scripts).
-  `convert_model()` returns openvino.runtime.Model object which can be compiled and inferred or serialized to IR.
+  `convert_model()` has all the functionality available from the command-line tool, plus the ability to pass Python objects (models, extensions) to `convert_model()` directly from memory without leaving the training environment (Jupyter Notebook or training scripts).
+  `convert_model()` returns an openvino.runtime.Model object which can be compiled and inferred or serialized to IR.
 
 ```sh
 from openvino.tools.mo import convert_model
@@ -10,7 +10,7 @@ from openvino.tools.mo import convert_model
 ov_model = convert_model("resnet.onnx")
 ```
 
-MO Python API allows conversion of PyTorch models.
+MO Python API allows the conversion of PyTorch models.
 
 ```sh
 import torchvision
@@ -21,8 +21,8 @@ ov_model = convert_model(model, input_shape=[1,3,100,100])
 
 Following types are supported as input model for `convert_model()`:
 
-* PyTorch - `torch.nn.Module`, `torch.jit.ScriptModule`, `torch.jit.ScriptFunction`. Refer to the [Converting a PyTorch Model](@ref openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch) for more details.
-* TF/ TF2 / Keras - `tf.keras.Model`, `tf.keras.layers.Layer`, `tf.compat.v1.GraphDef`, `tf.Module`, `tf.compat.v1.wrap_function`, `tf.compat.v1.session`, `tf.train.checkpoint`, `tf.python.training.tracking.base.Trackable`(with limitations). Refer to the [Converting a TensorFlow Model](@ref openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow) for more details.
+* PyTorch - `torch.nn.Module`, `torch.jit.ScriptModule`, `torch.jit.ScriptFunction`. Refer to the [Converting a PyTorch Model](@ref openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch) article for more details.
+* TensorFlow/ TensorFlow2 / Keras - `tf.keras.Model`, `tf.keras.layers.Layer`, `tf.compat.v1.GraphDef`, `tf.Module`, `tf.compat.v1.wrap_function`, `tf.compat.v1.session`, `tf.train.checkpoint`, `tf.python.training.tracking.base.Trackable`(with limitations). Refer to the [Converting a TensorFlow Model](@ref openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow) article for more details.
 
 `convert_model()` accepts all parameters available in MO command line tool. Parameters can be specified by Python classes or string analogs identically to command line tool.
 Example 1:

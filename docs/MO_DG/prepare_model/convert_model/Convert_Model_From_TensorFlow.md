@@ -150,7 +150,7 @@ model = tf.keras.applications.ResNet50(weights="imagenet")
 ov_model = convert_model(model)
 ```
 
-* `tf.keras.layers.Layer`. Requires setting of "input_shape".
+* `tf.keras.layers.Layer`. Requires setting the "input_shape".
 
 ```sh
 import tensorflow_hub as hub
