@@ -231,16 +231,19 @@ class TestParallelRunner:
                 os.mkdir(os.path.join(logs_dir, test_st))
         hash_map = [["Dir", "Hash", "Test Name"]]
         for log in Path(self._working_dir).rglob("log_*.log"):
+            test_cnt_log = 0
             log_filename = os.path.join(self._working_dir, log)
             with open(log_filename, "r") as log_file:
                 test_name = None
                 test_log = list()
                 dir = None
                 for line in log_file.readlines():
-                    if RUN in line and test_name is None:
+                    if RUN in line:
+                        test_cnt += 1
+                        test_cnt_log += 1
+                    if RUN in line:
                         if test_name is not None:
                             __save_log(logs_dir, "interapted", test_name)
-                            test_cnt += 1
                             test_name = None
                             test_log = list()
                             dir = None
@@ -255,10 +258,10 @@ class TestParallelRunner:
                         test_log.append(line)
                         if test_name in line:
                             __save_log(logs_dir, dir, test_name)
-                            test_cnt += 1
                             test_name = None
                             test_log = list()
                             dir = None
+            logger.info(f"Number of tests in {log}: {test_cnt_log}")
             os.remove(log) 
         with open(os.path.join(logs_dir, "hash_table.csv"), "w") as csv_file:
             csv_writer = csv.writer(csv_file, dialect='excel')
