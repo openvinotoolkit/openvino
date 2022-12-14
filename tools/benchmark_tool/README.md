@@ -217,13 +217,13 @@ Options:
   --mean_values [R,G,B]
                         Optional. Mean values to be used for the input image per channel. Values to be provided in the [R,G,B] format. Can be defined for desired input
                         of the model, for example: "--mean_values data[255,255,255],info[255,255,255]". The exact meaning and order of channels depend on how the
-                        original model was trained
+                        original model was trained. Applying the values affects performance and may cause type conversion
 
   --scale_values [R,G,B]
                         Optional. Scale values to be used for the input image per channel. Values are provided in the [R,G,B] format. Can be defined for desired input
                         of the model, for example: "--scale_values data[255,255,255],info[255,255,255]". The exact meaning and order of channels depend on how the
                         original model was trained. If both --mean_values and --scale_values are specified, the mean is subtracted first and then scale is applied
-                        regardless of the order of options in command line
+                        regardless of the order of options in command line. Applying the values affects performance and may cause type conversion
 ```
 
 Running the application with the empty list of options yields the usage message given above and an error message.
