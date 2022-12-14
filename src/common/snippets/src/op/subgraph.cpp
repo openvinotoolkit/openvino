@@ -49,7 +49,7 @@ void snippets::op::Subgraph::set_virtual_port_count(const size_t count) {
     m_virtual_port_count = count;
 }
 
-void snippets::op::Subgraph::buffer_needed(const bool need) {
+void snippets::op::Subgraph::set_buffer_needed(const bool need) {
     m_buffer_needed = need;
 }
 
@@ -201,7 +201,7 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Nod
         need_buffer |= true;
     }
     subgraph->set_virtual_port_count(hidden_data_count);
-    subgraph->buffer_needed(need_buffer);
+    subgraph->set_buffer_needed(need_buffer);
 
     for (size_t i = 0; i < body->get_parameters().size(); i++) {
         body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
@@ -496,7 +496,7 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
     ngraph::snippets::Generator::GeneratorConfig generatorConfig;
     generatorConfig.m_save_lowered_code = config.m_has_domain_sensitive_ops;
     generatorConfig.m_need_fill_tail_register = config.m_has_domain_sensitive_ops;
-    generatorConfig.m_one_evaluation_optimizations = std::none_of(ops.begin(), ops.end(), [](const std::shared_ptr<ov::Node>& op) {
+    generatorConfig.m_optimize_single_evaluation = std::none_of(ops.begin(), ops.end(), [](const std::shared_ptr<ov::Node>& op) {
         return ov::is_type<ngraph::snippets::op::Buffer>(op);
     });
     // actual code emission

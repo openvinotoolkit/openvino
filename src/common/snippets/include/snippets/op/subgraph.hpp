@@ -111,7 +111,7 @@ public:
     void set_generator(std::shared_ptr<ngraph::snippets::Generator> generator);
     void set_tile_rank(size_t newRank) {tileRank = newRank;}
     void set_virtual_port_count(const size_t count);
-    void buffer_needed(const bool need);
+    void set_buffer_needed(const bool need);
 
     void print() const;
     void print_statistics(bool verbose);

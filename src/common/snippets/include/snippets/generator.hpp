@@ -120,8 +120,12 @@ public:
     public:
         // True if the lowered Emitters need to be accessed during runtime. Normally they're destroyed after code emission.
         bool m_save_lowered_code = false;
-        // True if one evaluation optimizations are enabled
-        bool m_one_evaluation_optimizations = true;
+        // True if we can optimize tails for single evaluation during code generation
+        // More details with optimization examples you can see in generate() method
+        // For example, tails with Buffer ops doesn't support single evaluation optimizations
+        //              because of that we should always reset memory pointer using finalization offsets
+        //              after data storing to Buffer
+        bool m_optimize_single_evaluation = true;
         // True if we should check runtime info for nodes to call specific needed transformations
         bool m_need_fill_tail_register = false;
     };

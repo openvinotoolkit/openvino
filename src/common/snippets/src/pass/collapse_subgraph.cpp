@@ -623,7 +623,7 @@ TokenizeSnippets::TokenizeSnippets() {
         }
         subgraph->get_rt_info()["originalLayersNames"] = fusedNames;
         subgraph->set_virtual_port_count(hidden_data_count);
-        subgraph->buffer_needed(need_buffer);
+        subgraph->set_buffer_needed(need_buffer);
 
         remark(1) << "Replacement (merge) done for: "
                     << subgraph->get_friendly_name()

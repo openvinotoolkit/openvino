@@ -21,6 +21,8 @@ std::shared_ptr<Node> snippets::op::HorizonMax::clone_with_new_inputs(const Outp
 void snippets::op::HorizonMax::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(HorizonMax_validate_and_infer_types);
     auto new_shape = get_input_partial_shape(0);
-    new_shape[new_shape.size() - 1] = 1lu;
+    if (!ov::is_scalar(new_shape)) {
+        new_shape[new_shape.size() - 1] = 1lu;
+    }
     set_output_type(0, get_input_element_type(0), new_shape);
 }

@@ -33,6 +33,8 @@ public:
     Buffer() = default;
 
     size_t get_offset() const { return m_offset; }
+    // NOTE: If a buffer offset is changed, we should update it
+    //       in the corresponding memory access operations as well (Load, Store, MatMul)
     void set_offset(const size_t offset);
 
     int32_t get_allocation_rank() const { return m_allocation_rank; }

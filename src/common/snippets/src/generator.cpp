@@ -155,7 +155,7 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
                 if (need_tail)
                     vector_loop_end->set_finalization_offsets(std::vector<int64_t>(tail_finalization_offsets.size(), 0));
 
-                if (config.m_one_evaluation_optimizations) {
+                if (config.m_optimize_single_evaluation) {
                     // force ptr increments if there is tail
                     optimize_single_evaluation(vector_loop_end, need_tail);
                 }
@@ -178,7 +178,7 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
                 tail_loop_end->set_work_amount(tail_size);
                 tail_loop_end->has_outer_loop = vector_loop_end->has_outer_loop;
 
-                if (config.m_one_evaluation_optimizations) {
+                if (config.m_optimize_single_evaluation) {
                     // tail loop is always executed once
                     optimize_single_evaluation(tail_loop_end);
                 }

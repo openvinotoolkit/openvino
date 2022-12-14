@@ -13,10 +13,10 @@ namespace op {
 /**
  * @interface Fill
  * @brief Generated in Tail Loop vector representation in code generation step for cases when we should
- *        refill regsiters by special numbers.
+ *        refill registers by special values.
  *        For example, for cases with ReduceMax or ReduceSum in Softmax
  *        Where:
- *          -  offset - is value shift for filling
+ *          - offset - starting element index there filling is performed while begging of input data is untouched
  *          - fill_value - hexadecimal filling value
  * @ingroup snippets
  */

@@ -627,8 +627,13 @@ void LoadEmitter::emit_data() const {
 BroadcastLoadEmitter::BroadcastLoadEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
                                            const std::shared_ptr<ov::Node>& n) : MemoryEmitter(h, isa, n) {
     if (src_prc != dst_prc)
-            IE_THROW() << "BroadcastEmitters support only equal input and output types but gets: " << src_prc.name() << " and " << dst_prc.name();
+        IE_THROW() << "BroadcastEmitters support only equal input and output types but gets: " << src_prc.name() << " and " << dst_prc.name();
 
+    const auto broadcast_load = std::dynamic_pointer_cast<ngraph::snippets::op::BroadcastLoad>(n);
+    if (!broadcast_load)
+        IE_THROW() << "BroadcastLoadEmitter expects BroadcastLoad snippets op";
+
+    byte_offset = broadcast_load->get_offset();
     in_out_type_ = emitter_in_out_map::gpr_to_vec;
 }
 
@@ -658,9 +663,9 @@ void BroadcastLoadEmitter::emit_isa(const std::vector<size_t> &in, const std::ve
     // In doesn't really matter if we broadcast or `movss` for vector tails so keep only one version for `BroadcastLoad`,
     // key point here is not to add post-increment, it might be fixed by some other approach in future
     switch (src_prc.size()) {
-        case 4: h->uni_vbroadcastss(vmm_dst, h->ptr[in_reg]); break;
-        case 2: h->vpbroadcastw(vmm_dst, h->ptr[in_reg]); break;
-        case 1: h->vpbroadcastb(vmm_dst, h->ptr[in_reg]); break;
+        case 4: h->uni_vbroadcastss(vmm_dst, h->ptr[in_reg + byte_offset]); break;
+        case 2: h->vpbroadcastw(vmm_dst, h->ptr[in_reg + byte_offset]); break;
+        case 1: h->vpbroadcastb(vmm_dst, h->ptr[in_reg + byte_offset]); break;
         default: assert(!"unsupported data type");
     }
 }
