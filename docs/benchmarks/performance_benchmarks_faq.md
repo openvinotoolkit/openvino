@@ -115,7 +115,7 @@
 .. dropdown:: How can I optimize my models for better performance or accuracy?
 
    Set of guidelines and recommendations to optimize models are available in the 
-   [optimization guide](../optimization_guide/dldt_optimization_guide.md).
+   [optimization guide](../optimization_guide/dldt_deployment_optimization_guide.md).
    Join the conversation in the `Community Forum <https://software.intel.com/en-us/forums/intel-distribution-of-openvino-toolkit>` 
    for further support.
 
