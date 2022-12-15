@@ -23,7 +23,7 @@ jobs:
           sudo apt update
           sudo apt --assume-yes install libusb-1.0-0-dev
           python3 -m pip install --upgrade pip
-          python3 -m pip install -r ./src/bindings/python/src/compatibility/openvino/requirements.txt
+          python3 -m pip install -r ./src/bindings/python/requirements.txt
           # Add for -DENABLE_PYTHON=ON, no cython
           python3 -m pip install -r ./src/bindings/python/src/compatibility/openvino/requirements-dev.txt
 
@@ -70,7 +70,7 @@ jobs:
           sudo apt --assume-yes install shellcheck
 
       - name: Install dependencies
-        run: python3 -m pip install -r ./src/bindings/python/src/compatibility/openvino/requirements.txt
+        run: python3 -m pip install -r ./src/bindings/python/requirements.txt
 
       - name: CMake
         run: |

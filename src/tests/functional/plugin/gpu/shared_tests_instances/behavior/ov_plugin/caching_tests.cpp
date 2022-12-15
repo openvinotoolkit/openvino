@@ -37,16 +37,21 @@ namespace {
                                     ::testing::Values(std::make_pair(ov::AnyMap{}, "cl_cache"))),
                             CompiledKernelsCacheTest::getTestCaseName);
 
-    std::vector<std::pair<ov::AnyMap, std::string>> autoConfigs = {
+    auto autoConfigs = []() {
+        return std::vector<std::pair<ov::AnyMap, std::string>>{
             std::make_pair(ov::AnyMap{{ov::device::priorities(CommonTestUtils::DEVICE_GPU)}}, "cl_cache"),
-            std::make_pair(ov::AnyMap{{ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU)}}, "blob,cl_cache"),
-            std::make_pair(ov::AnyMap{{ov::device::priorities(CommonTestUtils::DEVICE_CPU, CommonTestUtils::DEVICE_GPU)}}, "blob")
+            std::make_pair(
+                ov::AnyMap{{ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU)}},
+                "blob,cl_cache"),
+            std::make_pair(
+                ov::AnyMap{{ov::device::priorities(CommonTestUtils::DEVICE_CPU, CommonTestUtils::DEVICE_GPU)}},
+                "blob")};
     };
 
     INSTANTIATE_TEST_SUITE_P(smoke_Auto_KernelCachingSupportCase_GPU, CompiledKernelsCacheTest,
                             ::testing::Combine(
                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                    ::testing::ValuesIn(autoConfigs)),
+                                    ::testing::ValuesIn(autoConfigs())),
                             CompiledKernelsCacheTest::getTestCaseName);
 
     const std::vector<ov::AnyMap> LoadFromFileConfigs = {

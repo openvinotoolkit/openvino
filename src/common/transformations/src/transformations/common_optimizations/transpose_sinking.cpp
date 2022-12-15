@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "transformations/common_optimizations/transpose_sinking_utils.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
@@ -294,15 +295,21 @@ ov::pass::TransposeFuse::TransposeFuse() {
                 is_ordered = false;
         }
 
+        auto transpose_order_type = transpose1_order->get_element_type();
+        if (transpose_order_type != transpose2_order->get_element_type())
+            transpose_order_type = element::i64;
+
         if (is_ordered) {
             return ngraph::replace_output_update_name(transpose2->output(0), input);
         } else {
-            auto new_order = opset7::Constant::create(element::i64, {order2.size()}, order2);
+            auto new_order = opset7::Constant::create(transpose_order_type, {order2.size()}, order2);
             auto new_transpose = register_new_node<opset7::Transpose>(input, new_order);
 
             new_transpose->set_friendly_name(m.get_match_root()->get_friendly_name());
             ngraph::copy_runtime_info({transpose1, transpose2}, new_transpose);
             ngraph::replace_node(m.get_match_root(), new_transpose);
+
+            transpose_sinking::UpdateForwardSinkingAbility(new_transpose);
         }
 
         return true;

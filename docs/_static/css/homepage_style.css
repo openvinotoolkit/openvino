@@ -8,7 +8,32 @@
 img {
 	cursor: default;
 }
+/* === OPENVINO INTRO ================================================= */
 
+.openvino-intro-text {
+
+	font-size: 1.3em;
+}
+/* === OPENVINO CHART ================================================= */
+
+.openvino-chart {
+	width: 100%;
+	margin: 0px auto;
+}
+
+/* === PANELS ================================================= */
+
+.homepage-panels {
+	background: #0068B5;
+	border: none!important;
+	border-radius: 0!important;
+}
+.homepage-panels p.card-text  {
+	color:white;
+}
+.homepage-panels p:first-of-type {
+	border-bottom: 1px solid white;
+}
 
 /* === SEPARATOR HEADERS ================================================= */
 .HP_separator-header { 

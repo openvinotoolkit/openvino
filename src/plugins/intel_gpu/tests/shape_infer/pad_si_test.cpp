@@ -125,6 +125,13 @@ INSTANTIATE_TEST_SUITE_P(smoke, pad_test_single_input,
             layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {1, 0, 3, 7},
             ov::op::PadMode::CONSTANT, 1.f,
             layout{ov::PartialShape{{1, -1},{5, -1},{5, -1},{8, -1}}, data_types::f32, format::bfyx}
+        },
+        {
+            layout{ov::PartialShape::dynamic(2), data_types::f32, format::bfyx},
+            layout{ov::PartialShape{2}, data_types::i64, format::bfyx}, {0, 5},
+            layout{ov::PartialShape{2}, data_types::i64, format::bfyx}, {1, 0},
+            ov::op::PadMode::CONSTANT, 1.f,
+            layout{ov::PartialShape{{1, -1},{5, -1}}, data_types::f32, format::bfyx}
         }
     }));
 
