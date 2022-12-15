@@ -198,7 +198,7 @@ void InputModel::InputModelTFImpl::loadPlaces() {
 }
 
 std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::get_op_places() const {
-    return topologically_sort_op_nodes();    
+    return topologically_sort_op_nodes();
 }
 
 std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::topologically_sort_op_nodes() const {
