@@ -160,7 +160,11 @@ std::vector<ov::Tensor> interpretFunction(const std::shared_ptr<Function> &funct
         const auto &input = funcInputs[i];
         const auto &inputShape = input.get_shape();
         const auto &inputType = input.get_element_type();
-        const auto &inputSize = shape_size(inputShape) * inputType.size();
+        auto inputSize = shape_size(inputShape) * inputType.size();
+        if (inputType == ov::element::u1) {
+            size_t addendum = (inputSize % 8) ? 1 : 0;
+            inputSize = (inputSize / 8) + addendum; // ov::element::u1 has a bit per element. Byte size is element_size / 8
+        }
 
         auto inputIt = std::find_if(inputs.begin(), inputs.end(),
                                     [&input](std::pair<std::shared_ptr<ov::Node>, ov::Tensor> elem) {

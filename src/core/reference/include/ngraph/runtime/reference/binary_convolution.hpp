@@ -130,7 +130,7 @@ void binary_convolution(const T_IN* in,
 
     const size_t filters_count = filters_shape[filter_out_ch_axis];
     const Shape filter_shape(++filters_shape.begin(), filters_shape.end());
-    const size_t filter_size = shape_size(filter_shape);
+    const size_t filter_size = shape_size(filter_shape) / 8;
 
     auto batch = in;
     for (size_t batch_idx = 0; batch_idx < batches_count; ++batch_idx) {
