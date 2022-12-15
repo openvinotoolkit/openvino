@@ -44,7 +44,17 @@ TEST_F(TypePropTileTest, repeats_has_negative_values) {
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({0, 0, 4, 0, 0}));
 }
 
-TEST_F(TypePropTileTest, repeats_are_undefined) {
+TEST_F(TypePropTileTest, repeats_are_undefined_and_its_rank_lt_data_rank) {
+    const auto data = make_shared<op::Parameter>(element::f32, Shape{6, 8, 10});
+    const auto repeats = make_shared<op::Parameter>(element::i32, Shape{2});
+
+    const auto op = make_op(data, repeats);
+
+    EXPECT_EQ(op->get_element_type(), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape::dynamic(3));
+}
+
+TEST_F(TypePropTileTest, repeats_are_undefined_and_its_rank_gt_data_rank) {
     const auto data = make_shared<op::Parameter>(element::f32, Shape{6, 8, 10});
     const auto repeats = make_shared<op::Parameter>(element::i32, Shape{5});
 

@@ -73,5 +73,22 @@ public:
         return _exp_value == value;
     }
 };
+
+/**
+ * \brief Compare if value is less than expected.
+ *
+ * \tparam T  Value type to compare.
+ */
+template <class T>
+class Less {
+    T _exp_value;
+
+public:
+    constexpr Less(const T& exp_value) : _exp_value{exp_value} {}
+
+    constexpr bool operator()(const T& value) const {
+        return value < _exp_value;
+    }
+};
 }  // namespace cmp
 }  // namespace ov
