@@ -326,6 +326,7 @@ public:
     std::vector<fused_primitive_desc_onednn>& get_fused_primitives_onednn() { return fused_prims_onednn; }
 
     void init_onednn_primitive_attributes();
+    bool has_out_scales() const { return out_scales; }
 #endif // ENABLE_ONEDNN_FOR_GPU
 
     size_t get_fused_inputs_count() const {

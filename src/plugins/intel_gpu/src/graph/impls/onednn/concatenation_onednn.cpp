@@ -19,7 +19,7 @@ namespace onednn {
 
 struct concatenation_onednn : typed_primitive_onednn_impl<concatenation, dnnl::concat::primitive_desc, dnnl::concat> {
     using parent = typed_primitive_onednn_impl<concatenation, dnnl::concat::primitive_desc, dnnl::concat>;
-    using parent::parent;
+    using parent::parent;   
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
