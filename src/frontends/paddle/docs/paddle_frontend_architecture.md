@@ -27,8 +27,8 @@ flowchart TB
     convert--recursively parse all operations from the model-->ov_model
 ```
 
-* The input to the Paddle Frontend is the PaddlePaddle protobuf model, and the output is the `ov::Model` which is semantically equivalent to the input.
-* Paddle Frontend is the implementation of the OpenVINO Frontend, which implements two major interfaces. The first interface is `load` that reads the Paddle protobuf model and represents it to `InputModel` with `OpPlaces` and `TensorPlaces`. The second interface is `convert` that represents `InputModel` with `ov::Model` by semantically mapping these Places into OpenVINO opset.
+* The input to the Paddle Frontend is a PaddlePaddle protobuf model, and the output is the `ov::Model` which is semantically equivalent to the input.
+* Paddle Frontend is an implementation of the OpenVINO Frontend, which implements two main interfaces. The first interface is `load`, which reads a Paddle protobuf model and represents it using `InputModel` with `OpPlaces` and `TensorPlaces`. The second interface is `convert`, which represents the `InputModel` with `ov::Model` by semantically mapping these Places to the OpenVINO opset.
 
 
 ## See also
