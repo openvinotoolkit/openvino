@@ -77,12 +77,11 @@ def test_broadcast_1():
 def test_broadcast_2():
     input_data = np.arange(4, dtype=np.int32)
     new_shape = [3, 4, 2, 4]
-    expected_shape = np.broadcast_to(input_data, new_shape).shape
     node = ng.broadcast(input_data, new_shape)
     assert node.get_type_name() == "Broadcast"
     assert node.get_output_size() == 1
     assert node.get_output_element_type(0) == Type.i32
-    assert list(node.get_output_shape(0)) == list(expected_shape)
+    assert list(node.get_output_shape(0)) == [3, 4, 2, 4]
 
 
 def test_broadcast_3():
