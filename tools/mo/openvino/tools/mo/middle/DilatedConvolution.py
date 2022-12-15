@@ -30,29 +30,37 @@ class DilatedConvolutionConverter(MiddleReplacementPattern):
                 ('conv', dict(kind='op', op=lambda value: value in ['Conv2D', 'DepthwiseConv2dNative', 'Conv3D'])),
                 ('space_to_batch', dict(kind='op', op='SpaceToBatch')),
                 ('batch_to_space', dict(kind='op', op='BatchToSpace')),
+                ('stb_pad_begin', dict(kind='op', op='Const')),
+                ('stb_pad_end', dict(kind='op', op='Const')),
+                ('bts_crop_begin', dict(kind='op', op='Const')),
+                ('bts_crop_end', dict(kind='op', op='Const')),
                 ('input', dict(kind='data')),
                 ('output', dict(kind='data')),
                 ('conv_output', dict(kind='data')),
                 ('stb_output', dict(kind='data')),
                 ('stb_bs', dict(kind='data')),
-                ('stb_pad_begin', dict(kind='data')),
-                ('stb_pad_end', dict(kind='data')),
+                ('stb_pad_begin_d', dict(kind='data')),
+                ('stb_pad_end_d', dict(kind='data')),
                 ('bts_bs', dict(kind='data')),
-                ('bts_crop_begin', dict(kind='data')),
-                ('bts_crop_end', dict(kind='data'))
+                ('bts_crop_begin_d', dict(kind='data')),
+                ('bts_crop_end_d', dict(kind='data'))
             ],
             edges=[
                 ('input', 'space_to_batch', {'in': 0}),
                 ('stb_bs', 'space_to_batch', {'in': 1}),
-                ('stb_pad_begin', 'space_to_batch', {'in': 2}),
-                ('stb_pad_end', 'space_to_batch', {'in': 3}),
+                ('stb_pad_begin', 'stb_pad_begin_d', {'in': 0}),
+                ('stb_pad_begin_d', 'space_to_batch', {'in': 2}),
+                ('stb_pad_end', 'stb_pad_end_d', {'in': 0}),
+                ('stb_pad_end_d', 'space_to_batch', {'in': 3}),
                 ('space_to_batch', 'stb_output', {'out': 0}),
                 ('stb_output', 'conv', {'in': 0}),
                 ('conv', 'conv_output', {'out': 0}),
                 ('conv_output', 'batch_to_space', {'in': 0}),
                 ('bts_bs', 'batch_to_space', {'in': 1}),
-                ('bts_crop_begin', 'batch_to_space', {'in': 2}),
-                ('bts_crop_end', 'batch_to_space', {'in': 3}),
+                ('bts_crop_begin', 'bts_crop_begin_d', {'in': 0}),
+                ('bts_crop_begin_d', 'batch_to_space', {'in': 2}),
+                ('bts_crop_end', 'bts_crop_end_d', {'in': 0}),
+                ('bts_crop_end_d', 'batch_to_space', {'in': 3}),
                 ('batch_to_space', 'output', {'out': 0}),
             ])
 
@@ -63,30 +71,16 @@ class DilatedConvolutionConverter(MiddleReplacementPattern):
 
         block_size = match['stb_bs']
 
-        input = match['input']
-        output = match['output']
-        stb_out = match['stb_output']
-        conv_out = match['conv_output']
-
-        in_edge_attrs = graph.get_edge_data(input.id, stb.id)[0]
-        out_edge_attrs = graph.get_edge_data(bts.id, output.id)[0]
-
-        graph.remove_edge(input.id, stb.id)
-        graph.remove_edge(stb_out.id, conv.id)
-        graph.remove_edge(conv.id, conv_out.id)
-        graph.remove_edge(bts.id, output.id)
+        conv.in_port(0).disconnect()
+        stb.in_port(0).get_connection().set_destination(conv.in_port(0))
+        bts.out_port(0).get_connection().set_source(conv.out_port(0))
 
         conv.dilation[conv.spatial_dims] = block_size.value[conv.spatial_dims]
 
-        pad_begin = match['stb_pad_begin'].value - match['bts_crop_begin'].value
-        pad_end = match['stb_pad_end'].value - match['bts_crop_end'].value
+        pad_begin = match['stb_pad_begin_d'].value - match['bts_crop_begin_d'].value
+        pad_end = match['stb_pad_end_d'].value - match['bts_crop_end_d'].value
         conv.pad[conv.spatial_dims] = [[pad_begin[x], pad_end[x]] for x in conv.spatial_dims]
         conv['auto_pad'] = None
-
-        graph.add_edges_from([
-            (input.id, conv.id, {'in': 0, **in_edge_attrs}),
-            (conv.id, output.id, {'out': 0, **out_edge_attrs}),
-        ])
 
 
 class DilatedConvolution1DConverter(MiddleReplacementPattern):
