@@ -771,7 +771,11 @@ def pack_params_to_args_namespace(**kwargs):
     for arg in vars(argv):
         arg_value = getattr(argv, arg)
         if arg_value != cli_parser.get_default(arg):
-            non_default_params[arg] = depersonalize(arg_value, arg)
+            value = depersonalize(arg_value, arg)
+            # Skip complex classes in params to prevent
+            # serializing it to rt_info
+            if isinstance(value, (str, bool)):
+                non_default_params[arg] = value
     return argv, non_default_params
 
 
@@ -893,8 +897,6 @@ def _convert(**args):
                 return ov_model
         args = params_to_string(**args)
         argv, non_default_params = pack_params_to_args_namespace(**args)
-        if inp_model_is_object and 'input_model' in non_default_params:
-            del non_default_params['input_model']
 
         if inp_model_is_object:
             argv.model_name = "model"
