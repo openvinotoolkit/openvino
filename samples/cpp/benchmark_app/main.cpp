@@ -600,6 +600,7 @@ int main(int argc, char* argv[]) {
 
         // If set batch size, disable the auto batching
         if (FLAGS_b > 0) {
+            slog::warn << "Batch size is set. Auto batching will be disabled" << slog::endl;
             core.set_property(ov::hint::allow_auto_batching(false));
         }
 
