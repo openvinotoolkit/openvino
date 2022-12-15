@@ -7,7 +7,7 @@ The basic quantization flow is the simplest way to apply 8-bit quantization to t
 * Prepare the **calibration dataset** that is used to estimate quantization parameters of the activations within the model.
 * Call the quantization API to apply 8-bit quantization to the model.
 
-## Setup an environment
+## Set up an Environment
 
 It is recommented to setup a separate Python environment for quantization with NNCF. To do this, run the following command:
 ```bash
