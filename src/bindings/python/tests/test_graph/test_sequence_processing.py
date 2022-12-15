@@ -4,7 +4,6 @@
 
 import numpy as np
 
-import openvino.runtime as ov_runtime
 import openvino.runtime.opset8 as ov
 
 
@@ -13,7 +12,6 @@ def test_onehot():
     model = ov.one_hot(param, 3, 1, 0, 0)
     assert model.get_output_size() == 1
     assert model.get_type_name() == "OneHot"
-    assert model.get_output_element_type(0) == ov_runtime.Type.i64
     assert list(model.get_output_shape(0)) == [3, 3]
 
 
@@ -27,7 +25,6 @@ def test_one_hot():
     node = ov.one_hot(data, depth, on_value, off_value, axis)
     assert node.get_output_size() == 1
     assert node.get_type_name() == "OneHot"
-    assert node.get_output_element_type(0) == ov_runtime.Type.i64
     assert list(node.get_output_shape(0)) == [3, 2]
 
 

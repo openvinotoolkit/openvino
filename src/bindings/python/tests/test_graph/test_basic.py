@@ -1,8 +1,7 @@
-# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-get_element_type
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import json
 
 import numpy as np
 import pytest
@@ -16,7 +15,7 @@ from openvino.runtime import Tensor, OVAny
 from openvino._pyopenvino import DescriptorTensor
 from openvino.runtime.op import Parameter
 
-from tests.test_graph.util import type_to_ovtype
+from openvino.runtime.utils.types import get_element_type
 
 
 def test_graph_function_api():
@@ -92,9 +91,10 @@ def test_simple_model_on_parameters(dtype):
     parameter_b = ops.parameter(shape, dtype=dtype, name="B")
     parameter_c = ops.parameter(shape, dtype=dtype, name="C")
     model = (parameter_a + parameter_b) * parameter_c
+    expected_type = dtype if isinstance(dtype, Type) else get_element_type(dtype)
     assert model.get_type_name() == "Multiply"
     assert model.get_output_size() == 1
-    assert model.get_output_element_type(0) == type_to_ovtype(dtype)
+    assert model.get_output_element_type(0) == expected_type
     assert list(model.get_output_shape(0)) == [2, 2]
 
 
@@ -157,7 +157,7 @@ def test_convert_to_float(destination_type, rand_range, in_dtype, expected_type)
     node = ops.convert(input_data, destination_type)
     assert node.get_type_name() == "Convert"
     assert node.get_output_size() == 1
-    assert node.get_output_element_type(0) == type_to_ovtype(expected_type)
+    assert node.get_output_element_type(0) == get_element_type(expected_type)
     assert list(node.get_output_shape(0)) == [2, 2]
 
 
@@ -181,7 +181,7 @@ def test_convert_to_int(destination_type, expected_type):
     node = ops.convert(input_data, destination_type)
     assert node.get_type_name() == "Convert"
     assert node.get_output_size() == 1
-    assert node.get_output_element_type(0) == type_to_ovtype(expected_type)
+    assert node.get_output_element_type(0) == get_element_type(expected_type)
     assert list(node.get_output_shape(0)) == [2, 3, 4]
 
 
@@ -204,7 +204,7 @@ def test_convert_to_uint(destination_type, expected_type):
     node = ops.convert(input_data, destination_type)
     assert node.get_type_name() == "Convert"
     assert node.get_output_size() == 1
-    assert node.get_output_element_type(0) == type_to_ovtype(expected_type)
+    assert node.get_output_element_type(0) == get_element_type(expected_type)
     assert list(node.get_output_shape(0)) == [2, 3, 4]
 
 
@@ -265,6 +265,7 @@ def test_set_argument():
     node_inputs = node_add.inputs()
     assert node_inputs[0].get_element_type() == Type.f32
     assert node_inputs[1].get_element_type() == Type.f32
+    assert len(node_inputs) == 2
 
     # Arguments changed by set_argument
     node_add.set_argument(0, node3.output(0))
@@ -272,16 +273,19 @@ def test_set_argument():
     node_inputs = node_add.inputs()
     assert node_inputs[0].get_element_type() == Type.f64
     assert node_inputs[1].get_element_type() == Type.f64
+    assert len(node_inputs) == 2
 
     # Arguments changed by set_argument(OutputVector)
     node_add.set_arguments([node1.output(0), node2.output(0)])
     assert node_inputs[0].get_element_type() == Type.f32
     assert node_inputs[1].get_element_type() == Type.f32
+    assert len(node_inputs) == 2
 
     # Arguments changed by set_arguments(NodeVector)
     node_add.set_arguments([node3, node4])
     assert node_inputs[0].get_element_type() == Type.f64
     assert node_inputs[1].get_element_type() == Type.f64
+    assert len(node_inputs) == 2
 
 
 def test_clone_model():

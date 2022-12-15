@@ -7,7 +7,7 @@ import openvino.runtime.opset8 as ov
 import numpy as np
 import pytest
 
-from tests.test_graph.util import type_to_ovtype
+from openvino.runtime.utils.types import get_element_type
 
 
 def test_concat():
@@ -54,7 +54,7 @@ def test_constant_from_scalar(val_type, value):
     node = ov.constant(value, val_type)
     assert node.get_type_name() == "Constant"
     assert node.get_output_size() == 1
-    assert node.get_output_element_type(0) == type_to_ovtype(val_type)
+    assert node.get_output_element_type(0) == get_element_type(val_type)
     assert list(node.get_output_shape(0)) == []
 
 
@@ -71,7 +71,7 @@ def test_constant_from_float_array(val_type):
     node = ov.constant(input_data, val_type)
     assert node.get_type_name() == "Constant"
     assert node.get_output_size() == 1
-    assert node.get_output_element_type(0) == type_to_ovtype(val_type)
+    assert node.get_output_element_type(0) == get_element_type(val_type)
     assert list(node.get_output_shape(0)) == [2, 3, 4]
 
 
@@ -96,7 +96,7 @@ def test_constant_from_integer_array(val_type, range_start, range_end):
     node = ov.constant(input_data, val_type)
     assert node.get_type_name() == "Constant"
     assert node.get_output_size() == 1
-    assert node.get_output_element_type(0) == type_to_ovtype(val_type)
+    assert node.get_output_element_type(0) == get_element_type(val_type)
     assert list(node.get_output_shape(0)) == [2, 2]
 
 

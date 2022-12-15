@@ -21,36 +21,38 @@ NumericType = Union[type, np.dtype]
 ScalarData = Union[int, float]
 NodeInput = Union[Node, NumericData]
 
-openvino_to_numpy_types_map = [
-    (Type.boolean, bool),
-    (Type.f16, np.float16),
-    (Type.f32, np.float32),
-    (Type.f64, np.float64),
-    (Type.i8, np.int8),
-    (Type.i16, np.int16),
-    (Type.i32, np.int32),
-    (Type.i64, np.int64),
-    (Type.u8, np.uint8),
-    (Type.u16, np.uint16),
-    (Type.u32, np.uint32),
-    (Type.u64, np.uint64),
-    (Type.bf16, np.uint16),
-]
+openvino_to_numpy_types_map = {
+    Type.boolean: bool,
+    Type.f16: np.float16,
+    Type.f32: np.float32,
+    Type.f64: np.float64,
+    Type.i8: np.int8,
+    Type.i16: np.int16,
+    Type.i32: np.int32,
+    Type.i64: np.int64,
+    Type.u8: np.uint8,
+    Type.u16: np.uint16,
+    Type.u32: np.uint32,
+    Type.u64: np.uint64,
+    Type.bf16: np.uint16,
+}
+numpy_to_openvino_types_map = {v: k for k, v in openvino_to_numpy_types_map.items()}
 
-openvino_to_numpy_types_str_map = [
-    ("boolean", bool),
-    ("f16", np.float16),
-    ("f32", np.float32),
-    ("f64", np.float64),
-    ("i8", np.int8),
-    ("i16", np.int16),
-    ("i32", np.int32),
-    ("i64", np.int64),
-    ("u8", np.uint8),
-    ("u16", np.uint16),
-    ("u32", np.uint32),
-    ("u64", np.uint64),
-]
+openvino_to_numpy_types_str_map = {
+    "boolean": bool,
+    "f16": np.float16,
+    "f32": np.float32,
+    "f64": np.float64,
+    "i8": np.int8,
+    "i16": np.int16,
+    "i32": np.int32,
+    "i64": np.int64,
+    "u8": np.uint8,
+    "u16": np.uint16,
+    "u32": np.uint32,
+    "u64": np.uint64,
+}
+numpy_to_openvino_types_str_map = {v: k for k, v in openvino_to_numpy_types_str_map.items()}
 
 
 def get_element_type(data_type: NumericType) -> Type:
@@ -63,13 +65,9 @@ def get_element_type(data_type: NumericType) -> Type:
         log.warning("Converting float type of undefined bitwidth to 32-bit ngraph float.")
         return Type.f32
 
-    ov_type = next(
-        (ov_type for (ov_type, np_type) in openvino_to_numpy_types_map if np_type == data_type),
-        None,
-    )
+    ov_type = numpy_to_openvino_types_map.get(data_type)
     if ov_type:
         return ov_type
-
     raise OVTypeError("Unidentified data type %s", data_type)
 
 
@@ -83,39 +81,25 @@ def get_element_type_str(data_type: NumericType) -> str:
         log.warning("Converting float type of undefined bitwidth to 32-bit ngraph float.")
         return "f32"
 
-    ov_type = next(
-        (ov_type for (ov_type, np_type) in openvino_to_numpy_types_str_map if np_type == data_type),
-        None,
-    )
-    if ov_type:
-        return ov_type
-
+    ov_str_type = numpy_to_openvino_types_str_map.get(data_type)
+    if ov_str_type:
+        return ov_str_type
     raise OVTypeError("Unidentified data type %s", data_type)
 
 
 def get_dtype(openvino_type: Type) -> np.dtype:
     """Return a numpy.dtype for an openvino element type."""
-    np_type = next(
-        (np_type for (ov_type, np_type) in openvino_to_numpy_types_map if ov_type == openvino_type),
-        None,
-    )
-
+    np_type = numpy_to_openvino_types_str_map.get(openvino_type)
     if np_type:
         return np.dtype(np_type)
-
     raise OVTypeError("Unidentified data type %s", openvino_type)
 
 
 def get_numpy_ctype(openvino_type: Type) -> type:
     """Return numpy ctype for an openvino element type."""
-    np_type = next(
-        (np_type for (ov_type, np_type) in openvino_to_numpy_types_map if ov_type == openvino_type),
-        None,
-    )
-
+    np_type = numpy_to_openvino_types_str_map.get(openvino_type)
     if np_type:
         return np_type
-
     raise OVTypeError("Unidentified data type %s", openvino_type)
 
 
