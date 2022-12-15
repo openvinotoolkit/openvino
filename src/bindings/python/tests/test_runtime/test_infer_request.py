@@ -351,11 +351,12 @@ def test_infer_list_as_inputs(device):
     check_fill_inputs(request, inputs)
 
 
+@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
+                    reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
 def test_infer_mixed_keys(device):
     core = Core()
     model = get_relu_model()
-    core.set_property(device, {"PERF_COUNT": "YES"})
-    model = core.compile_model(model, device)
+    compiled_model = core.compile_model(model, device)
 
     img = generate_image()
     tensor = Tensor(img)
@@ -363,9 +364,9 @@ def test_infer_mixed_keys(device):
     data2 = np.ones(shape=img.shape, dtype=np.float32)
     tensor2 = Tensor(data2)
 
-    request = model.create_infer_request()
+    request = compiled_model.create_infer_request()
     res = request.infer({0: tensor2, "data": tensor})
-    assert np.argmax(res[model.output()]) == 531
+    assert np.argmax(res[compiled_model.output()]) == 531
 
 
 @pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
@@ -474,28 +475,13 @@ def test_infer_queue(device):
 
     img = generate_image()
     infer_queue.set_callback(callback)
+    assert infer_queue.is_ready()
+
     for i in range(jobs):
         infer_queue.start_async({"data": img}, i)
     infer_queue.wait_all()
     assert all(job["finished"] for job in jobs_done)
     assert all(job["latency"] > 0 for job in jobs_done)
-
-
-def test_infer_queue_is_ready(device):
-    core = Core()
-    param = ops.parameter([10])
-    model = Model(ops.relu(param), [param])
-    compiled_model = core.compile_model(model, device)
-    infer_queue = AsyncInferQueue(compiled_model, 1)
-
-    def callback(request, _):
-        time.sleep(0.001)
-
-    infer_queue.set_callback(callback)
-    assert infer_queue.is_ready()
-    infer_queue.start_async()
-    assert not infer_queue.is_ready()
-    infer_queue.wait_all()
 
 
 def test_infer_queue_iteration(device):
@@ -582,10 +568,10 @@ def test_infer_queue_fail_in_inference(device, with_callback):
     jobs = 6
     num_request = 4
     core = Core()
-    data = ops.parameter([5, 2], dtype=np.float32, name="data")
-    indexes = ops.parameter(Shape([3, 2]), dtype=np.int32, name="indexes")
-    emb = ops.embedding_bag_packed_sum(data, indexes)
-    model = Model(emb, [data, indexes])
+    data = ops.parameter([10], dtype=np.float32, name="data")
+    k_op = ops.parameter(Shape([]), dtype=np.int32, name="k")
+    emb = ops.topk(data, k_op, axis=0, mode="max", sort="value")
+    model = Model(emb, [data, k_op])
     compiled_model = core.compile_model(model, device)
     infer_queue = AsyncInferQueue(compiled_model, num_request)
 
@@ -595,15 +581,15 @@ def test_infer_queue_fail_in_inference(device, with_callback):
     if with_callback:
         infer_queue.set_callback(callback)
 
-    data_tensor = Tensor(np.arange(10).reshape((5, 2)).astype(np.float32))
-    indexes_tensor = Tensor(np.array([[100, 101], [102, 103], [104, 105]], dtype=np.int32))
+    data_tensor = Tensor(np.arange(10).astype(np.float32))
+    k_tensor = Tensor(np.array(11, dtype=np.int32))
 
     with pytest.raises(RuntimeError) as e:
         for _ in range(jobs):
-            infer_queue.start_async({"data": data_tensor, "indexes": indexes_tensor})
+            infer_queue.start_async({"data": data_tensor, "k": k_tensor})
         infer_queue.wait_all()
 
-    assert "has invalid embedding bag index:" in str(e.value)
+    assert "Can not clone with new dims" in str(e.value)
 
 
 def test_infer_queue_get_idle_handle(device):

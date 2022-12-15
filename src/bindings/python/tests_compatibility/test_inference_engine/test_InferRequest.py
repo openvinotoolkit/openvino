@@ -482,23 +482,23 @@ def test_getting_preprocess(device):
 
 def test_resize_algorithm_work(device):
     ie_core = ie.IECore()
-    net = ie_core.read_network(test_net_xml, test_net_bin)
+    net = generate_relu_model([1, 3, 32, 32])
     exec_net_1 = ie_core.load_network(network=net, device_name=device, num_requests=1)
 
     img = generate_image()
-    res_1 = np.sort(exec_net_1.infer({"data": img})['fc_out'])
+    res_1 = np.sort(exec_net_1.infer({"parameter": img})['relu'])
 
-    net.input_info['data'].preprocess_info.resize_algorithm = ie.ResizeAlgorithm.RESIZE_BILINEAR
+    net.input_info['parameter'].preprocess_info.resize_algorithm = ie.ResizeAlgorithm.RESIZE_BILINEAR
 
     exec_net_2 = ie_core.load_network(net, device)
 
     tensor_desc = ie.TensorDesc("FP32", [1, 3, img.shape[2], img.shape[3]], "NCHW")
     img_blob = ie.Blob(tensor_desc, img)
     request = exec_net_2.requests[0]
-    assert request.preprocess_info["data"].resize_algorithm == ie.ResizeAlgorithm.RESIZE_BILINEAR
-    request.set_blob('data', img_blob)
+    assert request.preprocess_info["parameter"].resize_algorithm == ie.ResizeAlgorithm.RESIZE_BILINEAR
+    request.set_blob('parameter', img_blob)
     request.infer()
-    res_2 = np.sort(request.output_blobs['fc_out'].buffer)
+    res_2 = np.sort(request.output_blobs['relu'].buffer)
 
     assert np.allclose(res_1, res_2, atol=1e-2, rtol=1e-2)
 
