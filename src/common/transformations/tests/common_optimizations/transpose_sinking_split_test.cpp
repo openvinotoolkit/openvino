@@ -346,6 +346,8 @@ void CreateSplitTree(size_t max_depth,
     }
 }
 
+namespace single_consumer {
+
 std::shared_ptr<Model> CreateFunction(size_t split_tree_depth,
                                       size_t num_split_outputs,
                                       element::Type input_type) {
@@ -411,6 +413,70 @@ std::shared_ptr<Model> CreateReferenceFunction(size_t split_tree_depth,
 
         return std::make_shared<Model>(outputs, ov::ParameterVector{X});
 }
+
+} // namespace single_consumer
+
+namespace mult_output_consumers {
+
+std::shared_ptr<Model> CreateFunction(size_t split_tree_depth,
+                                      size_t num_split_outputs,
+                                      element::Type input_type) {
+        const size_t split_input_dim_value = static_cast<size_t>(std::pow(num_split_outputs, split_tree_depth + 1));
+        const Shape input_shape{96, split_input_dim_value, 55, 55};
+
+        auto X = std::make_shared<Parameter>(input_type, input_shape);
+
+        ov::OutputVector split_tree_leaves;
+        {
+            SplitFactory split_factory(/* axis */ 1, num_split_outputs, /* elem_type */ element::u64);
+            CreateSplitTree(split_tree_depth, /* depth */ 0, X->output(0), split_factory, split_tree_leaves);
+        }
+
+        ov::OutputVector outputs;
+        for (auto& split_tree_leaf : split_tree_leaves) {
+            auto ng_order = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 3, 1, 2});
+            auto transpose = std::make_shared<Transpose>(split_tree_leaf, ng_order);
+
+            auto tanh0 = std::make_shared<Tanh>(transpose);
+            auto tanh1 = std::make_shared<Tanh>(transpose);
+
+            outputs.push_back(tanh0);
+            outputs.push_back(tanh1);
+        }
+
+        return std::make_shared<Model>(outputs, ov::ParameterVector{X});
+}
+
+std::shared_ptr<Model> CreateReferenceFunction(size_t split_tree_depth,
+                                               size_t num_split_outputs,
+                                               element::Type input_type) {
+        const size_t split_input_dim_value = static_cast<size_t>(std::pow(num_split_outputs, split_tree_depth + 1));
+        const Shape input_shape{96, split_input_dim_value, 55, 55};
+
+        auto X = std::make_shared<Parameter>(input_type, input_shape);
+
+        auto ng_order = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 3, 1, 2});
+        auto transpose = std::make_shared<Transpose>(X, ng_order);
+
+        ov::OutputVector split_tree_leaves;
+        {
+            SplitFactory split_factory(/* axis */ 2, num_split_outputs, /* elem_type */ element::u64);
+            CreateSplitTree(split_tree_depth, /* depth */ 0, transpose->output(0), split_factory, split_tree_leaves);
+        }
+
+        ov::OutputVector outputs;
+        for (auto& split_tree_leaf : split_tree_leaves) {
+            auto tanh0 = std::make_shared<Tanh>(split_tree_leaf);
+            auto tanh1 = std::make_shared<Tanh>(split_tree_leaf);
+
+            outputs.push_back(tanh0);
+            outputs.push_back(tanh1);
+        }
+
+        return std::make_shared<Model>(outputs, ov::ParameterVector{X});
+}
+
+} // namespace mult_output_consumers
 
 } // namespace backward
 
@@ -522,8 +588,19 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingSplitBackward)),
                        ::testing::ValuesIn(split_tree_depth_nums),
                        ::testing::ValuesIn(split_outputs_numbers),
-                       ::testing::Values(backward::CreateFunction),
-                       ::testing::Values(backward::CreateReferenceFunction),
+                       ::testing::Values(backward::single_consumer::CreateFunction),
+                       ::testing::Values(backward::single_consumer::CreateReferenceFunction),
+                       ::testing::Values(element::f32)),
+                       TransposeSinkingSplitTestFixture::get_test_name);
+
+INSTANTIATE_TEST_SUITE_P(
+    TransposeSinkingSplitBackwardMultOutputConsumersTestSuite,
+    TransposeSinkingSplitTestFixture,
+    ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingSplitBackward)),
+                       ::testing::ValuesIn(split_tree_depth_nums),
+                       ::testing::ValuesIn(split_outputs_numbers),
+                       ::testing::Values(backward::mult_output_consumers::CreateFunction),
+                       ::testing::Values(backward::mult_output_consumers::CreateReferenceFunction),
                        ::testing::Values(element::f32)),
                        TransposeSinkingSplitTestFixture::get_test_name);
 
@@ -765,6 +842,8 @@ INSTANTIATE_TEST_SUITE_P(
                        TransposeSinkingSplitBackwardRestrictTestFixture::get_test_name);
 
 } // namespace restrictions
+
+
 } // namespace backward
 
 } // namespace transpose_sinking_split
