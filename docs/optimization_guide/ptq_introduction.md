@@ -23,7 +23,7 @@ Post-training model optimization is the process of applying special methods that
 
 To apply post-training methods in OpenVINO&trade;, you need:
 * A floating-point precision model, FP32 or FP16, converted into the OpenVINO&trade; Intermediate Representation (IR) format that can be run on CPU.
-* A representative calibration dataset representing a use case scenario, for example, 300 samples.
+* A representative calibration dataset, representing a use case scenario, for example, of 300 samples.
 * In case of accuracy constraints, a validation dataset and accuracy metrics should be available.
 
 Currently, there are OpenVINO&trade; Toolkit provides two workflows that provide post-training quantization capabilities:
