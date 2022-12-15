@@ -17,7 +17,7 @@ OpenVINO Paddle Frontend has the following structure:
  * [docs](./docs) contains developer documentation for the component.
  * [include](./include) contains module API and detailed information about the provided API.
  * [src](./src) folder contains sources of the component.
- * [tests](./tests) contains tests for the component. To get more information, read [How to run and add tests](./docs/tests.md).
+ * [tests](./tests) contains tests for the component. To get more information, read [How to run and add tests](./docs/tests.md) page.
 
 ## Debug capabilities
 
