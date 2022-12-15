@@ -32,16 +32,21 @@ ov_install_static_lib(xbyak ${OV_CPACK_COMP_CORE})
 #
 if(ENABLE_SAMPLES OR ENABLE_TESTS)
     if(NOT ANDROID)
-        find_package(PkgConfig QUIET)
+        if(CONAN_EXPORTED)
+            find_package(ZLIB REQUIRED)
+            set(zlib_FOUND ${ZLIB_FOUND})
+        else()
+            find_package(PkgConfig QUIET)
 
-        if(PkgConfig_FOUND)
-            pkg_search_module(zlib QUIET
-                IMPORTED_TARGET GLOBAL
-                zlib)
+            if(PkgConfig_FOUND)
+                pkg_search_module(zlib QUIET
+                    IMPORTED_TARGET GLOBAL
+                    zlib)
 
-            if(zlib_FOUND)
-                add_library(zlib::zlib ALIAS PkgConfig::zlib)
-                message(STATUS "${PKG_CONFIG_EXECUTABLE}: zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
+                if(zlib_FOUND)
+                    add_library(zlib::zlib ALIAS PkgConfig::zlib)
+                    message(STATUS "${PKG_CONFIG_EXECUTABLE}: zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
+                endif()
             endif()
         endif()
     endif()
