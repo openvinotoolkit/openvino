@@ -18,7 +18,7 @@ Install all the packages required to instantiate the model object, for example, 
 pip install nncf
 ```
 
-## Prepare calibration dataset
+## Prepare a Calibration Dataset
 
 At this step, create an instance of the `nncf.Dataset` class that represents the calibration dataset. The `nncf.Dataset` class can be a wrapper over the framework dataset object that is used for model training or validation. The class constructor receives the dataset object and the transformation function. For example, if you use PyTorch, you can pass an instance of the `torch.utils.data.DataLoader` object. 
 
