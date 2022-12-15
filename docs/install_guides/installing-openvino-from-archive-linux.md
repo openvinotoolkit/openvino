@@ -44,7 +44,7 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
 
   * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
   * GCC 7.5.0 (for Ubuntu 18.04) or GCC 9.3.0 (for Ubuntu 20.04)
-  * `Python 3.7 - 3.9, 64-bit <https://www.python.org/downloads/windows/>`_
+  * `Python 3.7 - 3.10, 64-bit <https://www.python.org/downloads/windows/>`_
 
 @endsphinxdirective
 
