@@ -5,6 +5,8 @@
 #include <openvino/frontend/exception.hpp>
 #include <openvino/frontend/manager.hpp>
 
+#include "common_test_utils/ngraph_test_utils.hpp"
+#include "gtest/gtest.h"
 #include "test_common.hpp"
 #include "tf_utils.hpp"
 #include "utils.hpp"
@@ -68,4 +70,9 @@ TEST(FrontEndConvertTrickyModels, model_with_output_shapes) {
             ASSERT_TRUE(node->get_output_partial_shape(0).same_scheme(ov::PartialShape{2, 3}));
         }
     }
+}
+
+TEST_F(TransformationTestsF, UnsortedNodes) {
+    { function = convert_model("forward_edge_model_unsorted/forward_edge_model_unsorted.pb"); }
+    { function_ref = convert_model("forward_edge_model/forward_edge_model.pb"); }
 }
