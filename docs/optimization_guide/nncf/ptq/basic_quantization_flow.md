@@ -3,9 +3,9 @@
 ## Introduction
 
 The basic quantization flow is the simplest way to apply 8-bit quantization to the model. It is available for models in the following frameworks: PyTorch, TensorFlow 2.x, ONNX, and OpenVINO. The basic quantization flow is based on the following steps:
-* Setup an environment and install dependencies.
-* Prepare the **calibration dataset** that used to estimate quantization parameters of the activations within the model.
-* Call quantization API to apply 8-bit quantization to the model.
+* Set up an environment and install dependencies.
+* Prepare the **calibration dataset** that is used to estimate quantization parameters of the activations within the model.
+* Call the quantization API to apply 8-bit quantization to the model.
 
 ## Setup an environment
 
