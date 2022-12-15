@@ -57,7 +57,7 @@ If there is no framework dataset object, you can create your own entity that imp
 
 ## Run quantized model
 
-Once dataset is ready and model object is instantiated, you can apply 8-bit quantization to it. The following code snippet shows how to do this:
+Once the dataset is ready and the model object is instantiated, you can apply 8-bit quantization to it:
 @sphinxtabset
 
 @sphinxtab{PyTorch}
