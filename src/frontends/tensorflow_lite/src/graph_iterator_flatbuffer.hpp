@@ -7,6 +7,8 @@
 #include <fstream>
 
 #include "schema_generated.h"
+#include "flatbuffers/flatbuffers.h"
+
 #include "decoder_flatbuffer.h"
 //#include "graph.pb.h"
 //#include "node_def.pb.h"
@@ -20,6 +22,29 @@ namespace ov {
 namespace frontend {
 namespace tensorflow_lite {
 
+void print_buffer(const tflite::TensorType& tf_type, const ov::Shape& ov_shape, const void* my_buffer) {
+    if (tf_type == tflite::TensorType_INT32) {
+        auto vec_ = ov::op::v0::Constant::create(element::i32, ov_shape, my_buffer)->cast_vector<int32_t>();
+        size_t num = 0;
+        for (const auto &elem: vec_) {
+            if (num++ > 24)
+                break;
+            std::cout << elem << " ";
+        }
+        std::cout << std::endl;
+    } else if (tf_type == tflite::TensorType_UINT8) {
+        auto vec_ = ov::op::v0::Constant::create(element::u8, ov_shape, my_buffer)->cast_vector<int32_t>();
+        size_t num = 0;
+        for (const auto &elem: vec_) {
+            if (num++ > 24)
+                break;
+            std::cout << elem << " ";
+        }
+        std::cout << std::endl;
+    } else {
+        std::cout << "Buffer of unknown type: " << EnumNameTensorType(tf_type) << std::endl;
+    }
+}
 class GraphIteratorFlatBuffer : public tensorflow::GraphIterator {
     std::vector<const Operator*> m_nodes;
     size_t node_index = 0;
@@ -38,6 +63,7 @@ public:
         char* data = new char[length];
         model_file.read(data, length);
         model_file.close();
+        int i = 0;
 
         m_graph_def = std::shared_ptr<tflite::Model>(GetMutableModel(data), [](tflite::Model* p){});
         const auto subgraphs = m_graph_def->subgraphs();
@@ -46,37 +72,55 @@ public:
                                 subgraphs->size(),
                                 ". Supported number of sub-graphs is 1.");
         auto graph = *subgraphs->begin();
-        const auto* operators = graph->operators();
-        m_nodes.reserve(operators->size());
-        std::cout << graph->name()->str() << std::endl;
 
-        auto opcodes = (m_graph_def->operator_codes());
-        for (const auto& code : *opcodes) {
-            std::cout << "build_in code: " << code->builtin_code() << std::endl;
-            std::cout << "version: " << code->version() << std::endl;
-        }
-        for (const auto* sign : *m_graph_def->signature_defs()) {
-            std::cout << "sign " << sign->signature_key() << std::endl;
-        }
+        const auto* operators = graph->operators();
+        std::cout << "Num operations: " << operators->size() << std::endl;
+        const auto tensors = graph->tensors();
+        std::cout << "Num tensors: " << tensors->size() << std::endl;
+        std::cout << "Num tensors: " << tensors->size() << std::endl;
+        const auto buffers = m_graph_def->buffers();
+        std::cout << "Num buffers: " << buffers->size() << std::endl;
 
         const auto& op_names = tflite::EnumNamesBuiltinOperator();
+        auto opcodes = (m_graph_def->operator_codes());
+
+        const auto inputs = graph->inputs();
+        const auto outputs = graph->outputs();
+        std::unordered_set<int> intermediates;
+        i = 0;
         for (const auto& node : *operators) {
+            std::cout << "Op #" << i++ << ": " << op_names[(*opcodes)[node->opcode_index()]->builtin_code()] << std::endl;
             m_nodes.push_back(node);
-            std::cout << node->opcode_index() << std::endl;
-            std::cout << (*opcodes)[node->opcode_index()]->version() << std::endl;
-            std::cout << (*opcodes)[node->opcode_index()]->builtin_code() << std::endl;
-            std::cout << op_names[(*opcodes)[node->opcode_index()]->builtin_code()] << std::endl;
+            std::cout << "    Inputs: " << std::endl;
+            for (const auto& input : *node->inputs()) {
+                bool model_input = std::find(inputs->begin(), inputs->end(), input) != inputs->end();
+                auto tensor = (*tensors)[input];
+                const auto& tf_shape = tensor->shape();
+                const auto& ov_shape = ov::Shape{tf_shape->begin(), tf_shape->end()};
+                const auto& tf_type = tensor->type();
+                const auto& name = tensor->name()->str();
+                std::cout << "        Tensor #" << input << ": " << "shape " << ov_shape << " type: " << EnumNameTensorType(tf_type) << " name: " << name << " " << (model_input ? " model input" : "") << std::endl;
+
+                auto my_buffer = (*buffers)[tensor->buffer()]->data()->data();
+                bool buffer_has_no_data = input == 0;
+                if (buffer_has_no_data || intermediates.find(input) != intermediates.end()) {
+                    std::cout << "        No data in the buffer!" << std::endl;
+                } else {
+                    std::cout << "        Buffer #" << tensor->buffer() << std::endl;
+                    print_buffer(tf_type, ov_shape, my_buffer);
+                }
+            }
+            std::cout << "Outputs: " << std::endl;
+            for (const auto& output : *node->outputs()) {
+                std::cout << output << std::endl;
+                intermediates.insert(output);
+            }
         }
 
-//        const auto* inputs = graph->inputs();
-//        const auto& input = *(inputs->begin());
-//        const auto* outputs = graph->outputs();
-//        const auto& output = *(outputs->begin());
-//        const auto* operators = graph->operators();
-//        const auto& operator_ = *(operators->begin());
-//        const auto* tensors = graph->tensors();
-//        const auto& tensor = *(tensors->begin());
-
+        m_nodes.reserve(operators->size());
+        for (const auto& node : *operators) {
+            m_nodes.push_back(node);
+        }
     }
 
     ~GraphIteratorFlatBuffer() = default;

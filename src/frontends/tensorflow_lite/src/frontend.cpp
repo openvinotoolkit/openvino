@@ -5,7 +5,7 @@
 #include "openvino/frontend/tensorflow_lite/frontend.hpp"
 
 #include "graph_iterator_flatbuffer.hpp"
-#include "lite_input_model.hpp"
+#include "input_model.hpp"
 #include "op_table.hpp"
 #include "openvino/util/common_util.hpp"
 
@@ -68,5 +68,19 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
 std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr &model) const {
     auto model_tf = std::dynamic_pointer_cast<InputModel>(model);
     FRONT_END_GENERAL_CHECK(model_tf != nullptr, "Invalid input model");
+    std::shared_ptr<ov::Model> f = std::make_shared<ov::Model>(ResultVector{}, ParameterVector{}, "Tensorflow Lite IR");
+    // translate inputs
+    model->get_inputs();
+    // translate intermediates
 
+    // translate output
+    std::cout << "FrontEnd::convert" << std::endl;
+    return f;
+}
+
+void FrontEnd::translate_graph(const InputModel::Ptr &model, const std::string &model_name, bool fail_fast,
+                               bool no_conversion, std::shared_ptr<ov::Model> &ng_function) const {
+    const auto& model_lite = std::dynamic_pointer_cast<ov::frontend::tensorflow_lite::InputModel>(model);
+    FRONT_END_GENERAL_CHECK(model_lite, "nullptr for InputModel is given for translation into OV Model");
+    model_lite->get_inputs();
 }

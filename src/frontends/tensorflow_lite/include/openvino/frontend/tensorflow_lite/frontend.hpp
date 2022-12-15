@@ -22,7 +22,12 @@ public:
     std::string get_name() const override {
         return "tflite";
     }
-    std::shared_ptr<ov::Model> convert(const ov::frontend::InputModel::Ptr &model) const;
+    void translate_graph(const ov::frontend::InputModel::Ptr& model,
+                         const std::string& model_name,
+                         bool fail_fast,
+                         bool no_conversion,
+                         std::shared_ptr<ov::Model>& ng_function) const override;
+    std::shared_ptr<ov::Model> convert(const ov::frontend::InputModel::Ptr &model) const override;
 protected:
     /// \brief Check if FrontEndTensorflowLite can recognize model from given parts
     bool supported_impl(const std::vector<ov::Any>& variants) const override;
