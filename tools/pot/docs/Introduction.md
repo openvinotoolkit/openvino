@@ -1,4 +1,4 @@
-# Quantizing Models Post-training {#pot_introduction}
+# Post-training Quantization w/ POT {#pot_introduction}
 
 @sphinxdirective
 
@@ -16,14 +16,8 @@
 
 @endsphinxdirective
 
-## Introduction
-Post-training quantization is a model compression technique where the values in a neural network are converted from a 32-bit or 16-bit format to an 8-bit integer format after the network has been fine-tuned on a training dataset. This helps to reduce the model’s latency by taking advantage of computationally efficient 8-bit integer arithmetic. It also reduces the model's size and memory footprint. 
 
-Post-training quantization is easy to implement and is a quick way to boost model performance. It only requires a representative dataset, and it can be performed using the Post-training Optimization Tool (POT) in OpenVINO. POT is distributed as part of the [OpenVINO Development Tools](@ref openvino_docs_install_guides_install_dev_tools) package. To apply post-training quantization with POT, you need:
-
-* A floating-point precision model, FP32 or FP16, converted into the OpenVINO Intermediate Representation (IR) format.
-* A representative dataset (annotated or unannotated) of around 300 samples that depict typical use cases or scenarios.
-* (Optional) An annotated validation dataset that can be used for checking the model’s accuracy.
+For the needs of post-training optimization, OpenVINO&trade; provides a **Post-training Optimization Tool (POT)** which supports the **uniform integer quantization** method. This method allows moving from floating-point precision to integer precision (for example, 8-bit) for weights and activations during the inference time. It helps to reduce the model size, memory footprint and latency, as well as improve the computational efficiency, using integer arithmetic. During the quantization process the model undergoes the transformation process when additional operations, that contain quantization information, are inserted into the model. The actual transition to integer arithmetic happens at model inference.
 
 The post-training quantization algorithm takes samples from the representative dataset, inputs them into the network, and calibrates the network based on the resulting weights and activation values. Once calibration is complete, values in the network are converted to 8-bit integer format.
 
