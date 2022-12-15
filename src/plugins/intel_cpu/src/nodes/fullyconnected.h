@@ -112,7 +112,6 @@ private:
 
     // sparse weights
     bool useSparseWeights = false;
-    int nnzCount = -1;
     float minSparseRate = 1.f;
     float weiSparseRate = 0.f;
     bool useSparseWeightsDecompression();
