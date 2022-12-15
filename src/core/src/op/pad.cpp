@@ -66,16 +66,24 @@ bool ngraph::op::v1::Pad::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v1::Pad::validate_and_infer_types() {
     OV_OP_SCOPE(v1_Pad_validate_and_infer_types);
-    element::Type result_et;
+    element::Type result_et = element::dynamic;
 
     const auto& arg_element_type = get_input_element_type(0);
     const auto& pads_begin_element_type = get_input_element_type(1);
     const auto& pads_end_element_type = get_input_element_type(2);
 
+    NODE_VALIDATION_CHECK(this,
+                          element::Type::merge(result_et, result_et, arg_element_type),
+                          "Cannot merge element types (input arg element type: ",
+                          arg_element_type,
+                          ", with: ",
+                          result_et,
+                          ").");
+
     if (m_pad_mode == PadMode::CONSTANT && get_input_size() == 4) {
         const auto& arg_pad_element_type = get_input_element_type(3);
         NODE_VALIDATION_CHECK(this,
-                              element::Type::merge(result_et, arg_element_type, arg_pad_element_type),
+                              element::Type::merge(result_et, result_et, arg_pad_element_type),
                               "Argument element types do not match (input arg element type: ",
                               arg_element_type,
                               ", arg_pad element type: ",
@@ -100,7 +108,7 @@ void op::v1::Pad::validate_and_infer_types() {
     for (size_t i = 0; i < get_input_size(); i++)
         input_shapes.push_back(get_input_partial_shape(i));
     shape_infer(this, input_shapes, output_shapes);
-    set_output_type(0, get_input_element_type(0), output_shapes[0]);
+    set_output_type(0, result_et, output_shapes[0]);
 }
 
 shared_ptr<Node> op::v1::Pad::clone_with_new_inputs(const OutputVector& new_args) const {
