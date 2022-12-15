@@ -26,6 +26,6 @@ To apply post-training methods in OpenVINO&trade;, you need:
 * A representative calibration dataset, representing a use case scenario, for example, of 300 samples.
 * In case of accuracy constraints, a validation dataset and accuracy metrics should be available.
 
-Currently, there are OpenVINO&trade; Toolkit provides two workflows that provide post-training quantization capabilities:
+Currently, OpenVINO provides two workflows with post-training quantization capabilities:
 * [Post-training Quantization w/ POT](@ref pot_introduction) - works with models in OpenVINO Intermediate Representation (IR) only.
 * [Post-training Quantization w/ NNCF](@ref nncf_ptq_introduction) - cross-framework solution for model optimization that provides a new simple API for post-training quantization.
