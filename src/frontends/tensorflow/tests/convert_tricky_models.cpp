@@ -4,13 +4,19 @@
 
 #include <openvino/frontend/exception.hpp>
 #include <openvino/frontend/manager.hpp>
+#include <openvino/opsets/opset10.hpp>
+#include <transformations/common_optimizations/moc_transformations.hpp>
 
+#include "common_test_utils/ngraph_test_utils.hpp"
+#include "gtest/gtest.h"
 #include "test_common.hpp"
 #include "tf_utils.hpp"
 #include "utils.hpp"
 
 using namespace std;
 using namespace ov;
+using namespace ov::element;
+using namespace ov::opset10;
 using namespace ov::frontend;
 
 namespace {
@@ -67,5 +73,21 @@ TEST(FrontEndConvertTrickyModels, model_with_output_shapes) {
         } else if (node->get_friendly_name() == "relu") {
             ASSERT_TRUE(node->get_output_partial_shape(0).same_scheme(ov::PartialShape{2, 3}));
         }
+    }
+}
+
+TEST_F(TransformationTestsF, AssertAndStringTensors) {
+    {
+        model = convert_model("string_tensors_model/string_tensors_model.pb");
+        // TODO: investigate - why we have redundant nodes after the conversion
+        manager.register_pass<pass::MOCTransformations>(false);
+    }
+    {
+        auto x = make_shared<Parameter>(f32, Shape{2, 3});
+        auto y = make_shared<Parameter>(f32, Shape{2, 3});
+        auto cond = make_shared<Constant>(boolean, Shape{1, 1}, std::vector<bool>{true});
+        auto select = make_shared<Select>(cond, x, y);
+
+        model_ref = make_shared<Model>(OutputVector{select}, ParameterVector{x, y});
     }
 }
