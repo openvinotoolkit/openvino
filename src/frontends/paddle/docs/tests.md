@@ -9,7 +9,7 @@ OpenVINO Paddle Frontend [tests](../tests) have the next structure:
 
 OpenVINO Paddle Frontend is covered by tests from the binary `paddle_tests`. This binary can be built by the target with the same name.
 
-## How to add a unit test
+## How to add a unit-test
 1. Implement python script in `test_models/gen_scripts/` to get PaddlePaddle test model and the reference inputs and outputs from PaddlePaddle. 
 2. Register the test case name to `tests/src/op_fuzzy.cpp`.
 
