@@ -10,7 +10,7 @@
 
    OpenVINO is an open-source toolkit for optimizing and deploying deep learning models. It provides boosted deep learning performance for vision, audio, and language models from popular frameworks like TensorFlow, PyTorch, and more. `Get started with OpenVINO. <get_started.html>`__
 
-.. rst-class:: openvino-chart
+.. rst-class:: openvino-diagram
 
    .. image:: _static/images/openvino_diagram.svg
 
@@ -22,38 +22,42 @@ OpenVINO enables you to optimize a deep learning model from almost any framework
 
 A typical workflow with OpenVINO is shown below.
 
+.. container:: section
+   :name: welcome-to-openvino-toolkit-s-documentation
+
+   .. container::
+      :name: hp-flow-container
+
+      .. container:: hp-flow-btn
+
+         .. image:: _static/images/OV_flow_model_hvr.svg
+            :alt: link to model processing introduction
+            :target: openvino_docs_model_processing_introduction.html
+
+      .. container:: hp-flow-arrow
+
+         .. image:: _static/images/OV_flow_arrow.svg
+
+      .. container:: hp-flow-btn
+
+         .. image:: _static/images/OV_flow_optimization_hvr.svg
+            :alt: link to an optimization guide
+            :target: openvino_docs_optimization_guide_dldt_optimization_guide.html
+
+      .. container:: hp-flow-arrow
+
+         .. image:: _static/images/OV_flow_arrow.svg
+
+      .. container:: hp-flow-btn
+
+         .. image:: _static/images/OV_flow_deployment_hvr.svg
+            :alt: link to deployment introduction
+            :target: openvino_docs_deployment_guide_introduction.html
+
+
 .. raw:: html
 
-   <div class="section" id="welcome-to-openvino-toolkit-s-documentation">
-
    <link rel="stylesheet" type="text/css" href="_static/css/homepage_style.css">
-
-      <div style="clear:both;"> </div>
-
-      <div id="HP_flow-container">
-		   <div class="HP_flow-btn">
-	   		<a href="https://docs.openvino.ai/latest/openvino_docs_model_processing_introduction.html">
-	   			<img src="_static/images/OV_flow_model_hvr.svg" alt="link to model processing introduction" /> 
-	   		</a>
-	   	</div>
-	   	<div class="HP_flow-arrow" >
-	   			<img src="_static/images/OV_flow_arrow.svg" alt="" /> 
-	   	</div>
-	   	<div class="HP_flow-btn">
-	   		<a href="https://docs.openvino.ai/latest/openvino_docs_deployment_optimization_guide_dldt_optimization_guide.html">
-	   			<img src="_static/images/OV_flow_optimization_hvr.svg" alt="link to an optimization guide" /> 
-	   		</a>
-	   	</div>
-	   	<div class="HP_flow-arrow" >
-	   			<img src="_static/images/OV_flow_arrow.svg" alt="" /> 
-	   	</div>
-	   	<div class="HP_flow-btn">
-	   		<a href="https://docs.openvino.ai/latest/openvino_docs_deployment_guide_introduction.html">
-	   			<img src="_static/images/OV_flow_deployment_hvr.svg" alt="link to deployment introduction" /> 
-	   		</a>
-		   </div>
-	   </div>
-
 
 High-Performance Deep Learning
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -122,9 +126,7 @@ Get Started
 
    GET STARTED <get_started>
    LEARN OPENVINO <learn_openvino>
-   OPENVINO WORKFLOW <openvino_workflow>
    DOCUMENTATION <documentation>
    MODEL ZOO <model_zoo>
    RESOURCES <resources>
    RELEASE NOTES <https://software.intel.com/content/www/us/en/develop/articles/openvino-relnotes.html>
-
