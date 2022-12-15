@@ -20,7 +20,7 @@ pip install nncf
 
 ## Prepare calibration dataset
 
-At this step, you should create an instance of `nncf.Dataset` class that represents the calibration dataset. The `nncf.Dataset` class can be a wrapper over the framework dataset object that is used for model training or validation. The class constructor receives dataset object and the so-called transformation function. For example, if you use PyTorch, you can pass an instance of `torch.utils.data.DataLoader` object. 
+At this step, create an instance of the `nncf.Dataset` class that represents the calibration dataset. The `nncf.Dataset` class can be a wrapper over the framework dataset object that is used for model training or validation. The class constructor receives the dataset object and the transformation function. For example, if you use PyTorch, you can pass an instance of the `torch.utils.data.DataLoader` object. 
 
 The transformation function is a function that takes a sample from the dataset and returns a data that can be passed to the model for inference. For example, this function can take a tuple of data tensor and labels tensor and return the former while ignoring the latter. The transformation function is used to avoid the need to modify the dataset code to make it compatible with the quantization API. The function is applied to each sample from the dataset before passing it to the model for inference. The following code snippet shows how to create an instance of `nncf.Dataset` class:
 
