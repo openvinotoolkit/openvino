@@ -51,6 +51,94 @@ std::vector<size_t> concat_operations_numbers = {1, 10};
 
 std::vector<size_t> concat_transpose_input_indexes = {0, 2};
 
+NodePtr CreateConcatChain(NodePtr input_node,
+                          size_t num_concat_ops,
+                          element::Type input_type,
+                          size_t concat_transpose_input_idx,
+                          size_t num_concat_inputs,
+                          const Shape& const_shape,
+                          int64_t axis) {
+    NodePtr in_op = input_node;
+    for (size_t i = 0; i < num_concat_ops; ++i) {
+        OutputVector concat_inputs;
+        for (size_t j = 0; j < num_concat_inputs; ++j) {
+            if (j == concat_transpose_input_idx)
+                concat_inputs.push_back(in_op);
+            else
+                concat_inputs.push_back(std::make_shared<Constant>(input_type, const_shape, Shape{1}));
+        }
+        in_op = std::make_shared<Concat>(concat_inputs, axis);
+    }
+
+    return in_op;
+}
+
+NodePtr CreateConcatTransposedChain(NodePtr input_node,
+                                    size_t num_concat_ops,
+                                    element::Type input_type,
+                                    size_t concat_transpose_input_idx,
+                                    size_t num_concat_inputs,
+                                    const Shape& const_shape,
+                                    int64_t axis,
+                                    const Shape& transpose_order) {
+    NodePtr in_op = input_node;
+    for (size_t i = 0; i < num_concat_ops; ++i) {
+        OutputVector concat_inputs;
+        for (size_t j = 0; j < num_concat_inputs; ++j) {
+            if (j == concat_transpose_input_idx) {
+                concat_inputs.push_back(in_op);
+            } else {
+                auto in_constant = std::make_shared<Constant>(input_type, const_shape, Shape{1});
+
+                auto transpose_const =
+                    std::make_shared<Constant>(element::u64, Shape{transpose_order.size()}, transpose_order);
+                auto transpose =
+                    std::make_shared<Transpose>(in_constant, transpose_const);
+
+                concat_inputs.push_back(transpose);
+            }
+        }
+        in_op = std::make_shared<Concat>(concat_inputs, axis);
+    }
+
+    return in_op;
+}
+
+NodePtr CreateConcatDoubleTransposedChain(NodePtr input_node,
+                                          size_t num_concat_ops,
+                                          element::Type input_type,
+                                          size_t concat_transpose_input_idx,
+                                          size_t num_concat_inputs,
+                                          const Shape& const_shape,
+                                          int64_t axis,
+                                          const Shape& transpose1_order,
+                                          const Shape& transpose2_order) {
+    NodePtr in_op = input_node;
+    for (size_t i = 0; i < num_concat_ops; ++i) {
+        OutputVector concat_inputs;
+        for (size_t j = 0; j < num_concat_inputs; ++j) {
+            if (j == concat_transpose_input_idx) {
+                concat_inputs.push_back(in_op);
+            } else {
+                auto in_constant = std::make_shared<Constant>(input_type, const_shape, Shape{1});
+
+                auto ng_order1 =
+                    std::make_shared<Constant>(element::u64, Shape{transpose1_order.size()}, transpose1_order);
+                auto transpose1 = std::make_shared<Transpose>(in_constant, ng_order1);
+
+                auto ng_order2 =
+                    std::make_shared<Constant>(element::u64, Shape{transpose2_order.size()}, transpose2_order);
+                auto transpose2 = std::make_shared<Transpose>(transpose1, ng_order2);
+
+                concat_inputs.push_back(transpose2);
+            }
+        }
+        in_op = std::make_shared<Concat>(concat_inputs, axis);
+    }
+
+    return in_op;
+}
+
 } // namespace
 
 namespace single_consumer {
@@ -69,19 +157,15 @@ std::shared_ptr<Model> CreateFunction(size_t num_concat_ops,
     auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
     auto transpose0 = std::make_shared<Transpose>(X, ng_order0);
 
-    NodePtr in_op = transpose0;
-    for (size_t i = 0; i < num_concat_ops; ++i) {
-        OutputVector concat_inputs;
-        for (size_t j = 0; j < num_concat_inputs; ++j) {
-            if (j == concat_transpose_input_idx)
-                concat_inputs.push_back(in_op);
-            else
-                concat_inputs.push_back(std::make_shared<Constant>(input_type, const_shape, Shape{1}));
-        }
-        in_op = std::make_shared<Concat>(concat_inputs, 1);
-    }
+    auto concat = CreateConcatChain(transpose0,
+                                    num_concat_ops,
+                                    input_type,
+                                    concat_transpose_input_idx,
+                                    num_concat_inputs,
+                                    const_shape,
+                                    /* axis */ 1);
 
-    return std::make_shared<Model>(OutputVector{in_op}, ParameterVector{X});
+    return std::make_shared<Model>(OutputVector{concat}, ParameterVector{X});
 }
 
 std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
@@ -93,28 +177,17 @@ std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
 
     auto X = std::make_shared<Parameter>(input_type, input_shape);
 
-    NodePtr in_op = X;
-    for (size_t i = 0; i < num_concat_ops; ++i) {
-        OutputVector concat_inputs;
-        for (size_t j = 0; j < num_concat_inputs; ++j) {
-            if (j == concat_transpose_input_idx) {
-                concat_inputs.push_back(in_op);
-            } else {
-                auto in_constant = std::make_shared<Constant>(input_type, const_shape, Shape{1});
-
-                auto transpose_reversed_const =
-                    std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 3, 1, 2});
-                auto transpose_reversed =
-                    std::make_shared<Transpose>(in_constant, transpose_reversed_const);
-
-                concat_inputs.push_back(transpose_reversed);
-            }
-        }
-        in_op = std::make_shared<Concat>(concat_inputs, 2);
-    }
+    auto concat = CreateConcatTransposedChain(X,
+                                              num_concat_ops,
+                                              input_type,
+                                              concat_transpose_input_idx,
+                                              num_concat_inputs,
+                                              const_shape,
+                                              /* axis */ 2,
+                                              /* transpose order */ Shape{0, 3, 1, 2});
 
     auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
-    auto transpose0 = std::make_shared<Transpose>(in_op, ng_order0);
+    auto transpose0 = std::make_shared<Transpose>(concat, ng_order0);
 
     return std::make_shared<Model>(OutputVector{transpose0}, ParameterVector{X});
 }
@@ -133,21 +206,16 @@ std::shared_ptr<Model> CreateFunction(size_t num_concat_ops,
     auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
     auto transpose0 = std::make_shared<Transpose>(X, ng_order0);
 
-    NodePtr in_op = transpose0;
-    for (size_t i = 0; i < num_concat_ops; ++i) {
-        OutputVector concat_inputs;
-        concat_inputs.push_back(in_op);
-        for (size_t j = 1; j < num_concat_inputs; ++j) {
-            auto in_constant = std::make_shared<Constant>(input_type, input_shape, Shape{1});
-            auto ng_order1 =
-                std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
-            auto transpose1 = std::make_shared<Transpose>(in_constant, ng_order1);
-            concat_inputs.push_back(transpose1);
-        }
-        in_op = std::make_shared<Concat>(concat_inputs, 1);
-    }
+    auto concat = CreateConcatTransposedChain(transpose0,
+                                              num_concat_ops,
+                                              input_type,
+                                              /* concat_transpose_input_idx */ 0,
+                                              num_concat_inputs,
+                                              input_shape,
+                                              /* axis */ 1,
+                                              /* transpose order */ Shape{0, 2, 3, 1});
 
-    return std::make_shared<Model>(OutputVector{in_op}, ParameterVector{X});
+    return std::make_shared<Model>(OutputVector{concat}, ParameterVector{X});
 }
 
 std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
@@ -157,30 +225,18 @@ std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
 
     auto X = std::make_shared<Parameter>(input_type, input_shape);
 
-    NodePtr in_op = X;
-    for (size_t i = 0; i < num_concat_ops; ++i) {
-        OutputVector concat_inputs;
-
-        concat_inputs.push_back(in_op);
-
-        for (size_t j = 1; j < num_concat_inputs; ++j) {
-            auto in_constant = std::make_shared<Constant>(input_type, input_shape, Shape{1});
-
-            auto ng_order1 =
-                std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
-            auto transpose1 = std::make_shared<Transpose>(in_constant, ng_order1);
-
-            auto transpose_reversed_const =
-                std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 3, 1, 2});
-            auto transpose_reversed = std::make_shared<Transpose>(transpose1, transpose_reversed_const);
-
-            concat_inputs.push_back(transpose_reversed);
-        }
-        in_op = std::make_shared<Concat>(concat_inputs, 2);
-    }
+    auto concat = CreateConcatDoubleTransposedChain(X,
+                                                    num_concat_ops,
+                                                    input_type,
+                                                    /* concat_transpose_input_idx */ 0,
+                                                    num_concat_inputs,
+                                                    input_shape,
+                                                    /* axis */ 2,
+                                                    /* transpose1 order */ Shape{0, 2, 3, 1},
+                                                    /* transpose2 order */ Shape{0, 3, 1, 2});
 
     auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
-    auto transpose0 = std::make_shared<Transpose>(in_op, ng_order0);
+    auto transpose0 = std::make_shared<Transpose>(concat, ng_order0);
 
     return std::make_shared<Model>(OutputVector{transpose0}, ParameterVector{X});
 }
@@ -199,20 +255,16 @@ std::shared_ptr<Model> CreateFunction(size_t num_concat_ops,
 
     auto X = std::make_shared<Parameter>(input_type, input_shape);
 
-    NodePtr in_op = X;
-    for (size_t i = 0; i < num_concat_ops; ++i) {
-        OutputVector concat_inputs;
-        for (size_t j = 0; j < num_concat_inputs; ++j) {
-            if (j == concat_transpose_input_idx)
-                concat_inputs.push_back(in_op);
-            else
-                concat_inputs.push_back(std::make_shared<Constant>(input_type, input_shape, Shape{1}));
-        }
-        in_op = std::make_shared<Concat>(concat_inputs, 1);
-    }
+    auto concat = CreateConcatChain(X,
+                                    num_concat_ops,
+                                    input_type,
+                                    concat_transpose_input_idx,
+                                    num_concat_inputs,
+                                    input_shape,
+                                    /* axis */ 1);
 
     auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
-    auto transpose0 = std::make_shared<Transpose>(in_op, ng_order0);
+    auto transpose0 = std::make_shared<Transpose>(concat, ng_order0);
 
     return std::make_shared<Model>(OutputVector{transpose0}, ParameterVector{X});
 }
@@ -228,27 +280,16 @@ std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
     auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
     auto transpose0 = std::make_shared<Transpose>(X, ng_order0);
 
-    NodePtr in_op = transpose0;
-    for (size_t i = 0; i < num_concat_ops; ++i) {
-        OutputVector concat_inputs;
-        for (size_t j = 0; j < num_concat_inputs; ++j) {
-            if (j == concat_transpose_input_idx) {
-                concat_inputs.push_back(in_op);
-            } else {
-                auto in_constant = std::make_shared<Constant>(input_type, input_shape, Shape{1});
+    auto concat = CreateConcatTransposedChain(transpose0,
+                                              num_concat_ops,
+                                              input_type,
+                                              concat_transpose_input_idx,
+                                              num_concat_inputs,
+                                              input_shape,
+                                              /* axis */ 3,
+                                              /* transpose order */ Shape{0, 2, 3, 1});
 
-                auto transpose_reversed_const =
-                    std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
-                auto transpose_reversed =
-                    std::make_shared<Transpose>(in_constant, transpose_reversed_const);
-
-                concat_inputs.push_back(transpose_reversed);
-            }
-        }
-        in_op = std::make_shared<Concat>(concat_inputs, 3);
-    }
-
-    return std::make_shared<Model>(OutputVector{in_op}, ParameterVector{X});
+    return std::make_shared<Model>(OutputVector{concat}, ParameterVector{X});
 }
 
 }  // namespace backward
@@ -436,19 +477,15 @@ std::shared_ptr<Model> CreateFunction(size_t num_concat_ops,
 
     auto tanh = std::make_shared<Tanh>(transpose0);
 
-    NodePtr in_op = transpose0;
-    for (size_t i = 0; i < num_concat_ops; ++i) {
-        OutputVector concat_inputs;
-        for (size_t j = 0; j < num_concat_inputs; ++j) {
-            if (j == concat_transpose_input_idx)
-                concat_inputs.push_back(in_op);
-            else
-                concat_inputs.push_back(std::make_shared<Constant>(input_type, const_shape, Shape{1}));
-        }
-        in_op = std::make_shared<Concat>(concat_inputs, 1);
-    }
+    auto concat = CreateConcatChain(transpose0,
+                                    num_concat_ops,
+                                    input_type,
+                                    concat_transpose_input_idx,
+                                    num_concat_inputs,
+                                    const_shape,
+                                    /* axis */ 1);
 
-    return std::make_shared<Model>(OutputVector{in_op, tanh}, ov::ParameterVector{X});
+    return std::make_shared<Model>(OutputVector{concat, tanh}, ov::ParameterVector{X});
 }
 
 std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
@@ -472,28 +509,17 @@ std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
         std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 3, 1, 2});
     auto transpose_reversed = std::make_shared<Transpose>(in_constant, transpose_reversed_const);
 
-    NodePtr in_op = X;
-    for (size_t i = 0; i < num_concat_ops; ++i) {
-        OutputVector concat_inputs;
-        for (size_t j = 0; j < num_concat_inputs; ++j) {
-            if (j == concat_transpose_input_idx) {
-                concat_inputs.push_back(in_op);
-            } else {
-                auto in_constant = std::make_shared<Constant>(input_type, const_shape, Shape{1});
-
-                auto transpose_reversed_const =
-                    std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 3, 1, 2});
-                auto transpose_reversed =
-                    std::make_shared<Transpose>(in_constant, transpose_reversed_const);
-
-                concat_inputs.push_back(transpose_reversed);
-            }
-        }
-        in_op = std::make_shared<Concat>(concat_inputs, 2);
-    }
+    auto concat = CreateConcatTransposedChain(X,
+                                              num_concat_ops,
+                                              input_type,
+                                              concat_transpose_input_idx,
+                                              num_concat_inputs,
+                                              const_shape,
+                                              /* axis */ 2,
+                                              /* transpose order */ Shape{0, 3, 1, 2});
 
     auto ng_order1 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
-    auto transpose1 = std::make_shared<Transpose>(in_op, ng_order1);
+    auto transpose1 = std::make_shared<Transpose>(concat, ng_order1);
 
     return std::make_shared<Model>(ov::OutputVector{transpose1, tanh}, ov::ParameterVector{X});
 }
@@ -514,20 +540,16 @@ std::shared_ptr<Model> CreateFunction(size_t num_concat_ops,
     auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
     auto transpose0 = std::make_shared<Transpose>(X, ng_order0);
 
-    NodePtr in_op = transpose0;
-    for (size_t i = 0; i < num_concat_ops; ++i) {
-        OutputVector concat_inputs;
-        for (size_t j = 0; j < num_concat_inputs; ++j) {
-            if (j == concat_transpose_input_idx)
-                concat_inputs.push_back(in_op);
-            else
-                concat_inputs.push_back(std::make_shared<Constant>(input_type, const_shape, Shape{1}));
-        }
-        in_op = std::make_shared<Concat>(concat_inputs, 1);
-    }
+    auto concat = CreateConcatChain(transpose0,
+                                    num_concat_ops,
+                                    input_type,
+                                    concat_transpose_input_idx,
+                                    num_concat_inputs,
+                                    const_shape,
+                                    /* axis */ 1);
 
-    auto tanh1 = std::make_shared<Tanh>(in_op);
-    auto tanh2 = std::make_shared<Tanh>(in_op);
+    auto tanh1 = std::make_shared<Tanh>(concat);
+    auto tanh2 = std::make_shared<Tanh>(concat);
 
     return std::make_shared<Model>(ov::OutputVector{tanh1, tanh2}, ov::ParameterVector{X});
 }
@@ -548,28 +570,17 @@ std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
         std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 3, 1, 2});
     auto transpose_reversed = std::make_shared<Transpose>(in_constant, transpose_reversed_const);
 
-    NodePtr in_op = X;
-    for (size_t i = 0; i < num_concat_ops; ++i) {
-        OutputVector concat_inputs;
-        for (size_t j = 0; j < num_concat_inputs; ++j) {
-            if (j == concat_transpose_input_idx) {
-                concat_inputs.push_back(in_op);
-            } else {
-                auto in_constant = std::make_shared<Constant>(input_type, const_shape, Shape{1});
-
-                auto transpose_reversed_const =
-                    std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 3, 1, 2});
-                auto transpose_reversed =
-                    std::make_shared<Transpose>(in_constant, transpose_reversed_const);
-
-                concat_inputs.push_back(transpose_reversed);
-            }
-        }
-        in_op = std::make_shared<Concat>(concat_inputs, 2);
-    }
+    auto concat = CreateConcatTransposedChain(X,
+                                              num_concat_ops,
+                                              input_type,
+                                              concat_transpose_input_idx,
+                                              num_concat_inputs,
+                                              const_shape,
+                                              /* axis */ 2,
+                                              /* transpose order */ Shape{0, 3, 1, 2});
 
     auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
-    auto transpose0 = std::make_shared<Transpose>(in_op, ng_order0);
+    auto transpose0 = std::make_shared<Transpose>(concat, ng_order0);
 
     auto tanh1 = std::make_shared<Tanh>(transpose0);
     auto tanh2 = std::make_shared<Tanh>(transpose0);
@@ -595,19 +606,15 @@ std::shared_ptr<Model> CreateFunction(size_t num_concat_ops,
     auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
     auto transpose0 = std::make_shared<Transpose>(X, ng_order0);
 
-    NodePtr in_op = transpose0;
-    for (size_t i = 0; i < num_concat_ops; ++i) {
-        OutputVector concat_inputs;
-        for (size_t j = 0; j < num_concat_inputs; ++j) {
-            if (j == concat_transpose_input_idx)
-                concat_inputs.push_back(in_op);
-            else
-                concat_inputs.push_back(std::make_shared<Constant>(input_type, const_shape, Shape{1}));
-        }
-        in_op = std::make_shared<Concat>(concat_inputs, 1);
-    }
+    auto concat = CreateConcatChain(transpose0,
+                                    num_concat_ops,
+                                    input_type,
+                                    concat_transpose_input_idx,
+                                    num_concat_inputs,
+                                    const_shape,
+                                    /* axis */ 1);
 
-    return std::make_shared<Model>(ov::OutputVector{in_op, tanh}, ov::ParameterVector{X});
+    return std::make_shared<Model>(ov::OutputVector{concat, tanh}, ov::ParameterVector{X});
 }
 
 std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
@@ -627,33 +634,17 @@ std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
     NodePtr binary;
     auto in_constant = std::make_shared<Constant>(input_type, const_shape, Shape{1});
 
-    // FIXME: do we need this?
-    auto transpose_reversed_const =
-        std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 3, 1, 2});
-    auto transpose_reversed = std::make_shared<Transpose>(in_constant, transpose_reversed_const);
-
-    NodePtr in_op = X;
-    for (size_t i = 0; i < num_concat_ops; ++i) {
-        OutputVector concat_inputs;
-        for (size_t j = 0; j < num_concat_inputs; ++j) {
-            if (j == concat_transpose_input_idx) {
-                concat_inputs.push_back(in_op);
-            } else {
-                auto in_constant = std::make_shared<Constant>(input_type, const_shape, Shape{1});
-
-                auto transpose_reversed_const =
-                    std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 3, 1, 2});
-                auto transpose_reversed =
-                    std::make_shared<Transpose>(in_constant, transpose_reversed_const);
-
-                concat_inputs.push_back(transpose_reversed);
-            }
-        }
-        in_op = std::make_shared<Concat>(concat_inputs, 2);
-    }
+    auto concat = CreateConcatTransposedChain(X,
+                                              num_concat_ops,
+                                              input_type,
+                                              concat_transpose_input_idx,
+                                              num_concat_inputs,
+                                              const_shape,
+                                              /* axis */ 2,
+                                              /* transpose order */ Shape{0, 3, 1, 2});
 
     auto ng_order1 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
-    auto transpose1 = std::make_shared<Transpose>(in_op, ng_order1);
+    auto transpose1 = std::make_shared<Transpose>(concat, ng_order1);
 
     return std::make_shared<Model>(ov::OutputVector{transpose1, tanh}, ov::ParameterVector{X});
 }
@@ -678,22 +669,18 @@ std::shared_ptr<Model> CreateFunction(size_t num_concat_ops,
 
     auto tanh0 = std::make_shared<Tanh>(X);
 
-    NodePtr in_op = tanh0;
-    for (size_t i = 0; i < num_concat_ops; ++i) {
-        OutputVector concat_inputs;
-        for (size_t j = 0; j < num_concat_inputs; ++j) {
-            if (j == concat_transpose_input_idx)
-                concat_inputs.push_back(in_op);
-            else
-                concat_inputs.push_back(std::make_shared<Constant>(input_type, input_shape, Shape{1}));
-        }
-        in_op = std::make_shared<Concat>(concat_inputs, 1);
-    }
+    auto concat = CreateConcatChain(tanh0,
+                                    num_concat_ops,
+                                    input_type,
+                                    concat_transpose_input_idx,
+                                    num_concat_inputs,
+                                    input_shape,
+                                    /* axis */ 1);
 
-    auto tanh = std::make_shared<Tanh>(in_op);
+    auto tanh = std::make_shared<Tanh>(concat);
 
     auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
-    auto transpose0 = std::make_shared<Transpose>(in_op, ng_order0);
+    auto transpose0 = std::make_shared<Transpose>(concat, ng_order0);
 
     return std::make_shared<Model>(ov::OutputVector{transpose0, tanh}, ov::ParameterVector{X});
 }
@@ -708,44 +695,29 @@ std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
 
     auto tanh0 = std::make_shared<Tanh>(X);
 
-    NodePtr in_op = tanh0;
-    for (size_t i = 0; i < num_concat_ops; ++i) {
-        OutputVector concat_inputs;
-        for (size_t j = 0; j < num_concat_inputs; ++j) {
-            if (j == concat_transpose_input_idx)
-                concat_inputs.push_back(in_op);
-            else
-                concat_inputs.push_back(std::make_shared<Constant>(input_type, input_shape, Shape{1}));
-        }
-        in_op = std::make_shared<Concat>(concat_inputs, 1);
-    }
+    auto concat0 = CreateConcatChain(tanh0,
+                                     num_concat_ops,
+                                     input_type,
+                                     concat_transpose_input_idx,
+                                     num_concat_inputs,
+                                     input_shape,
+                                     /* axis */ 1);
 
-    auto tanh1 = std::make_shared<Tanh>(in_op);
+    auto tanh1 = std::make_shared<Tanh>(concat0);
 
     auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
     auto transpose0 = std::make_shared<Transpose>(tanh0, ng_order0);
 
-    in_op = transpose0;
-    for (size_t i = 0; i < num_concat_ops; ++i) {
-        OutputVector concat_inputs;
-        for (size_t j = 0; j < num_concat_inputs; ++j) {
-            if (j == concat_transpose_input_idx) {
-                concat_inputs.push_back(in_op);
-            } else {
-                auto in_constant = std::make_shared<Constant>(input_type, input_shape, Shape{1});
+    auto concat1 = CreateConcatTransposedChain(transpose0,
+                                               num_concat_ops,
+                                               input_type,
+                                               concat_transpose_input_idx,
+                                               num_concat_inputs,
+                                               input_shape,
+                                               /* axis */ 3,
+                                               /* transpose order */ Shape{0, 2, 3, 1});
 
-                auto transpose_const =
-                    std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
-                auto transpose =
-                    std::make_shared<Transpose>(in_constant, transpose_const);
-
-                concat_inputs.push_back(transpose);
-            }
-        }
-        in_op = std::make_shared<Concat>(concat_inputs, 3);
-    }
-
-    return std::make_shared<Model>(ov::OutputVector{in_op, tanh1}, ov::ParameterVector{X});
+    return std::make_shared<Model>(ov::OutputVector{concat1, tanh1}, ov::ParameterVector{X});
 }
 
 } // namespace one_binary
@@ -762,22 +734,18 @@ std::shared_ptr<Model> CreateFunction(size_t num_concat_ops,
 
     auto tanh0 = std::make_shared<Tanh>(X);
 
-    NodePtr in_op = tanh0;
-    for (size_t i = 0; i < num_concat_ops; ++i) {
-        OutputVector concat_inputs;
-        for (size_t j = 0; j < num_concat_inputs; ++j) {
-            if (j == concat_transpose_input_idx)
-                concat_inputs.push_back(in_op);
-            else
-                concat_inputs.push_back(std::make_shared<Constant>(input_type, input_shape, Shape{1}));
-        }
-        in_op = std::make_shared<Concat>(concat_inputs, 1);
-    }
+    auto concat = CreateConcatChain(tanh0,
+                                    num_concat_ops,
+                                    input_type,
+                                    concat_transpose_input_idx,
+                                    num_concat_inputs,
+                                    input_shape,
+                                    /* axis */ 1);
 
-    auto tanh = std::make_shared<Tanh>(in_op);
+    auto tanh = std::make_shared<Tanh>(concat);
 
     auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
-    auto transpose0 = std::make_shared<Transpose>(in_op, ng_order0);
+    auto transpose0 = std::make_shared<Transpose>(concat, ng_order0);
 
     return std::make_shared<Model>(ov::OutputVector{transpose0, tanh}, ov::ParameterVector{X});
 }
@@ -792,45 +760,30 @@ std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
     auto tanh0 = std::make_shared<Tanh>(X);
 
     // left branch
-    NodePtr in_op = tanh0;
-    for (size_t i = 0; i < num_concat_ops; ++i) {
-        OutputVector concat_inputs;
-        for (size_t j = 0; j < num_concat_inputs; ++j) {
-            if (j == concat_transpose_input_idx)
-                concat_inputs.push_back(in_op);
-            else
-                concat_inputs.push_back(std::make_shared<Constant>(input_type, input_shape, Shape{1}));
-        }
-        in_op = std::make_shared<Concat>(concat_inputs, 1);
-    }
+    auto concat = CreateConcatChain(tanh0,
+                                    num_concat_ops,
+                                    input_type,
+                                    concat_transpose_input_idx,
+                                    num_concat_inputs,
+                                    input_shape,
+                                    /* axis */ 1);
 
-    auto tanh1 = std::make_shared<Tanh>(in_op);
+    auto tanh1 = std::make_shared<Tanh>(concat);
 
     // right branch
     auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
     auto transpose0 = std::make_shared<Transpose>(tanh0, ng_order0);    
 
-    in_op = transpose0;
-    for (size_t i = 0; i < num_concat_ops; ++i) {
-        OutputVector concat_inputs;
-        for (size_t j = 0; j < num_concat_inputs; ++j) {
-            if (j == concat_transpose_input_idx) {
-                concat_inputs.push_back(in_op);
-            } else {
-                auto in_constant = std::make_shared<Constant>(input_type, input_shape, Shape{1});
+    concat = CreateConcatTransposedChain(transpose0,
+                                         num_concat_ops,
+                                         input_type,
+                                         concat_transpose_input_idx,
+                                         num_concat_inputs,
+                                         input_shape,
+                                         /* axis */ 3,
+                                         /* transpose order */ Shape{0, 2, 3, 1});
 
-                auto transpose_const =
-                    std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
-                auto transpose =
-                    std::make_shared<Transpose>(in_constant, transpose_const);
-
-                concat_inputs.push_back(transpose);
-            }
-        }
-        in_op = std::make_shared<Concat>(concat_inputs, 3);
-    }
-
-    return std::make_shared<Model>(ov::OutputVector{in_op, tanh1}, ov::ParameterVector{X});
+    return std::make_shared<Model>(ov::OutputVector{concat, tanh1}, ov::ParameterVector{X});
 }
 
 } // namespace multiple_binaries
@@ -849,20 +802,16 @@ std::shared_ptr<Model> CreateFunction(size_t num_concat_ops,
 
     auto tanh0 = std::make_shared<Tanh>(X);
 
-    NodePtr in_op = tanh0;
-    for (size_t i = 0; i < num_concat_ops; ++i) {
-        OutputVector concat_inputs;
-        for (size_t j = 0; j < num_concat_inputs; ++j) {
-            if (j == concat_transpose_input_idx)
-                concat_inputs.push_back(in_op);
-            else
-                concat_inputs.push_back(std::make_shared<Constant>(input_type, input_shape, Shape{1}));
-        }
-        in_op = std::make_shared<Concat>(concat_inputs, 1);
-    }
+    auto concat = CreateConcatChain(tanh0,
+                                    num_concat_ops,
+                                    input_type,
+                                    concat_transpose_input_idx,
+                                    num_concat_inputs,
+                                    input_shape,
+                                    /* axis */ 1);
 
     auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
-    auto transpose0 = std::make_shared<Transpose>(in_op, ng_order0);
+    auto transpose0 = std::make_shared<Transpose>(concat, ng_order0);
 
     auto tanh1 = std::make_shared<Tanh>(tanh0);
 
@@ -882,29 +831,18 @@ std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
     auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
     auto transpose0 = std::make_shared<Transpose>(tanh0, ng_order0);
 
-    NodePtr in_op = transpose0;
-    for (size_t i = 0; i < num_concat_ops; ++i) {
-        OutputVector concat_inputs;
-        for (size_t j = 0; j < num_concat_inputs; ++j) {
-            if (j == concat_transpose_input_idx) {
-                concat_inputs.push_back(in_op);
-            } else {
-                auto in_constant = std::make_shared<Constant>(input_type, input_shape, Shape{1});
-
-                auto transpose_const =
-                    std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
-                auto transpose =
-                    std::make_shared<Transpose>(in_constant, transpose_const);
-
-                concat_inputs.push_back(transpose);
-            }
-        }
-        in_op = std::make_shared<Concat>(concat_inputs, 3);
-    }
+    auto concat = CreateConcatTransposedChain(transpose0,
+                                              num_concat_ops,
+                                              input_type,
+                                              concat_transpose_input_idx,
+                                              num_concat_inputs,
+                                              input_shape,
+                                              /* axis */ 3,
+                                              /* transpose order */ Shape{0, 2, 3, 1});
 
     auto tanh1 = std::make_shared<Tanh>(tanh0);
 
-    return std::make_shared<Model>(ov::OutputVector{in_op, tanh1}, ov::ParameterVector{X});
+    return std::make_shared<Model>(ov::OutputVector{concat, tanh1}, ov::ParameterVector{X});
 }
 
 } // input_node_consumers
@@ -919,20 +857,16 @@ std::shared_ptr<Model> CreateFunction(size_t num_concat_ops,
 
     auto X = std::make_shared<Parameter>(input_type, input_shape);
 
-    NodePtr in_op = X;
-    for (size_t i = 0; i < num_concat_ops; ++i) {
-        OutputVector concat_inputs;
-        for (size_t j = 0; j < num_concat_inputs; ++j) {
-            if (j == concat_transpose_input_idx)
-                concat_inputs.push_back(in_op);
-            else
-                concat_inputs.push_back(std::make_shared<Constant>(input_type, input_shape, Shape{1}));
-        }
-        in_op = std::make_shared<Concat>(concat_inputs, 1);
-    }
+    auto concat = CreateConcatChain(X,
+                                    num_concat_ops,
+                                    input_type,
+                                    concat_transpose_input_idx,
+                                    num_concat_inputs,
+                                    input_shape,
+                                    /* axis */ 1);
 
     auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
-    auto transpose0 = std::make_shared<Transpose>(in_op, ng_order0);
+    auto transpose0 = std::make_shared<Transpose>(concat, ng_order0);
 
     auto tanh0 = std::make_shared<Tanh>(transpose0);
     auto tanh1 = std::make_shared<Tanh>(transpose0);
@@ -951,28 +885,17 @@ std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
     auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
     auto transpose0 = std::make_shared<Transpose>(X, ng_order0);
 
-    NodePtr in_op = transpose0;
-    for (size_t i = 0; i < num_concat_ops; ++i) {
-        OutputVector concat_inputs;
-        for (size_t j = 0; j < num_concat_inputs; ++j) {
-            if (j == concat_transpose_input_idx) {
-                concat_inputs.push_back(in_op);
-            } else {
-                auto in_constant = std::make_shared<Constant>(input_type, input_shape, Shape{1});
+    auto concat = CreateConcatTransposedChain(transpose0,
+                                              num_concat_ops,
+                                              input_type,
+                                              concat_transpose_input_idx,
+                                              num_concat_inputs,
+                                              input_shape,
+                                              /* axis */ 3,
+                                              /* transpose order */ Shape{0, 2, 3, 1});
 
-                auto transpose_const =
-                    std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
-                auto transpose =
-                    std::make_shared<Transpose>(in_constant, transpose_const);
-
-                concat_inputs.push_back(transpose);
-            }
-        }
-        in_op = std::make_shared<Concat>(concat_inputs, 3);
-    }
-
-    auto tanh0 = std::make_shared<Tanh>(in_op);
-    auto tanh1 = std::make_shared<Tanh>(in_op);
+    auto tanh0 = std::make_shared<Tanh>(concat);
+    auto tanh1 = std::make_shared<Tanh>(concat);
 
     return std::make_shared<Model>(ov::OutputVector{tanh0, tanh1}, ov::ParameterVector{X});
 }
