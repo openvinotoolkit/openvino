@@ -76,9 +76,6 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
                 replace_node(getitem, split);
             } else {
                 auto getitem_index_ptr = getitem->input_value(1).get_node_shared_ptr();
-                if (!cast_fw_node(getitem_index_ptr, "prim::Constant")) {
-                    return false;
-                }
                 auto getitem_index_const = std::dynamic_pointer_cast<opset8::Constant>(getitem_index_ptr);
                 auto index_val = getitem_index_const->cast_vector<int64_t>();
                 auto split = std::make_shared<opset8::VariadicSplit>(torch_split->get_input_source_output(0),
