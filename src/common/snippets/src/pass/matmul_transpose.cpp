@@ -35,10 +35,11 @@ ngraph::snippets::pass::MatMulTranspose::MatMulTranspose() {
             return false;
         auto parent1 = matmul0->get_input_node_shared_ptr(1);
         auto transpose1 = ngraph::as_type_ptr<ngraph::opset1::Transpose>(parent1);
-        while (!transpose1 && !ov::is_type<ngraph::opset1::Parameter>(parent1)) {
-            parent1 = parent1->get_input_node_shared_ptr(0);
-            transpose1 = ngraph::as_type_ptr<ngraph::opset1::Transpose>(parent1);
-        }
+        // TODO: Add support of nodes between Transpose and MatMul
+        // while (!transpose1 && !ov::is_type<ngraph::opset1::Parameter>(parent1)) {
+        //     parent1 = parent1->get_input_node_shared_ptr(0);
+        //     transpose1 = ngraph::as_type_ptr<ngraph::opset1::Transpose>(parent1);
+        // }
         if (!transpose1)
             return false;
 
