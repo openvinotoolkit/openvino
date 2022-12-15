@@ -917,7 +917,10 @@ def _convert(**args):
         init_logger('ERROR', False)
 
         argv.feManager = FrontEndManager()
-        ov_model, legacy_path = driver(argv, {"conversion_parameters": non_default_params})
+        meta_data = {}
+        if len(non_default_params) > 0:
+            meta_data = {"conversion_parameters": non_default_params}
+        ov_model, legacy_path = driver(argv, meta_data)
 
         # add MO meta data to model
         ov_model.set_rt_info(get_version(), "MO_version")
