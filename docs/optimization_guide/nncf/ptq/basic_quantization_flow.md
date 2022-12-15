@@ -86,7 +86,7 @@ Once the dataset is ready and the model object is instantiated, you can apply 8-
 
 @endsphinxtabset
 
-> **NOTE**: model is an instance of `torch.nn.Module` class in the case of PyTorch, `onnx.ModelProto` in the case of ONNX, and `openvino.runtime.Model` in the case of OpenVINO.
+> **NOTE**: The `model` is an instance of the `torch.nn.Module` class for PyTorch, `onnx.ModelProto` for ONNX, and `openvino.runtime.Model` for OpenVINO.
 
 After that the model can be exported into th OpenVINO Intermediate Representation if needed and run faster with OpenVINO.
 
