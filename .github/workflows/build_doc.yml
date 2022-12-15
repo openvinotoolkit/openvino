@@ -1,6 +1,10 @@
 name: Documentation
 on: [push, pull_request]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   Build_Doc:
     if: github.repository == 'openvinotoolkit/openvino'
@@ -9,18 +13,51 @@ jobs:
       - name: Clone OpenVINO
         uses: actions/checkout@v2
         with:
-          submodules: recursive
+          submodules: true
           lfs: true
+
+      # cache from ccache
+      - name: Cache ccache
+        id: cache_restore
+        uses: actions/cache@v3
+        with:
+          path: .ccache
+          key: doc-ccache-cache
+
+      - name: Install ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: doc-ccache-cache
+          save: false
+
+      # cache from doxygen build
+      - name: Cache doxygen make
+        id: cache_doxygen_make
+        uses: actions/cache@v3
+        with:
+          path: doxygen-build
+          key: build-doxygen-cache
+
+      # cache from python packages
+      - name: Cache python requirements
+        id: cache_python_requirements
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: doc-python-requirements
+
+      - name: Install apt-get tools
+        uses: awalsh128/cache-apt-pkgs-action@v1.1.3
+        # install doc dependencies
+        with:
+          packages: graphviz texlive liblua5.2-0
+          version: 3.0
 
       - name: Install dependencies
         run: |
           set -e
-          # install doc dependencies
-          sudo apt update
-          sudo apt --assume-yes install libusb-1.0-0-dev graphviz texlive liblua5.2-0
-          cd docs
-          python3 -m pip install -r requirements.txt --user
-          cd openvino_sphinx_theme
+          python3 -m pip install -r docs/requirements.txt --user
+          cd docs/openvino_sphinx_theme
           python3 setup.py install --user
           cd ../..
           # install doxyrest
@@ -30,25 +67,35 @@ jobs:
           # install doxygen
           mkdir doxygen
           cd doxygen
-          git clone https://github.com/doxygen/doxygen.git
-          cd doxygen
-          git checkout Release_1_9_2
-          mkdir build
-          cd build
-          cmake ..
-          cmake --build . -j`nproc`
-          sudo make install
+          git clone --depth 1 https://github.com/doxygen/doxygen.git -b Release_1_9_2
+          cmake \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -S doxygen \
+            -B ../doxygen-build
+          cmake --build ../doxygen-build -j`nproc`
+          sudo cmake --build ../doxygen-build --target install
 
       - name: CMake doc
         run: |
-          mkdir build
-          cd build
-          cmake -DENABLE_DOCS=ON -DENABLE_PYTHON=ON -DCMAKE_BUILD_TYPE=Release ..
+          cmake \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DENABLE_INTEL_MYRIAD_COMMON=OFF \
+            -DENABLE_DOCS=ON \
+            -DCMAKE_BUILD_TYPE=Release \
+            -B build
 
+      - name: Cache documentation
+        id: cache_sphinx_docs
+        uses: actions/cache@v3
+        with:
+          path: build/docs/_build/.doctrees
+          key: sphinx-docs-cache
+      
       - name: Build doc
         run: |
-          cmake --build . --target sphinx_docs -j8
-        working-directory: build
+          cmake --build build --target sphinx_docs -j`nproc`
       
       - name: Archive HTML
         run: |

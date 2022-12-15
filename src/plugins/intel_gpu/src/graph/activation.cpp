@@ -10,13 +10,10 @@
 #include <vector>
 
 namespace cldnn {
-primitive_type_id activation::type_id() {
-    static primitive_type_base<activation> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(activation)
 
 layout activation_inst::calc_output_layout(activation_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for activation_node!");
 
     auto input_node_layout = impl_param.get_non_padded_input_layout();
@@ -72,18 +69,5 @@ activation_inst::typed_primitive_inst(network& network, activation_node const& n
                           "ReLU output rank",
                           output_layout.get_rank(),
                           "Relu input/output rank mismatch");
-
-    if (is_parameterized()) {
-        /// Slope input x dimension should be equal to input feature size (one slope per channel).
-        auto slope_layout = node.slope_input().get_output_layout();
-
-        CLDNN_ERROR_LESS_THAN(node.id(),
-                              "Slope x size",
-                              slope_layout.feature(),
-                              "input feature size",
-                              input_layout.feature(),
-                              "Dimensions mismatch between input and slope input in Activation layer(slope x size "
-                              "should be equal to input feature size)!");
-    }
 }
 }  // namespace cldnn

@@ -81,7 +81,7 @@ The function accepts a const shared pointer to `ov::Model` object and performs t
 
 1. Deep copies a const object to a local object, which can later be modified.
 2. Applies common and plugin-specific transformations on a copied graph to make the graph more friendly to hardware operations. For details how to write custom plugin-specific transformation, please, refer to [Writing OpenVINO™ transformations](@ref openvino_docs_transformations) guide. See detailed topics about network representation:
-    * [Intermediate Representation and Operation Sets](../_docs_MO_DG_IR_and_opsets.html)
+    * [Intermediate Representation and Operation Sets](@ref openvino_docs_MO_DG_IR_and_opsets)
     * [Quantized networks](@ref openvino_docs_ie_plugin_dg_quantized_networks).
 
 @snippet template/src/template_plugin.cpp plugin:transform_network

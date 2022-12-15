@@ -13,13 +13,10 @@
 using namespace ov::intel_gpu;
 
 namespace cldnn {
-primitive_type_id deconvolution::type_id() {
-    static primitive_type_base<deconvolution> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(deconvolution)
 
 layout deconvolution_inst::calc_output_layout(deconvolution_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for deconvolution_node!");
     auto desc = impl_param.typed_desc<deconvolution>();
 
@@ -40,6 +37,11 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node, ke
     auto strd = desc->stride;
 
     int32_t number_of_features = weights_layout.group() * weights_layout.ofm();
+
+    format out_fmt = input_layout.format;
+    if (node.get_preferred_impl_type() == impl_types::onednn && node.get_preferred_output_fmt() != format::any) {
+        out_fmt = node.get_preferred_output_fmt();
+    }
 
     if (desc->with_output_size) {
         CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
@@ -66,7 +68,7 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node, ke
                            desc->output_size.spatial[0],
                            desc->output_size.spatial[1],
                            desc->output_size.spatial[2]);
-        return {data_type, input_layout.format, output_size};
+        return {data_type, out_fmt, output_size};
     }
 
     int32_t off_factor = -2;
@@ -90,7 +92,7 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node, ke
 
     tensor output_size(input_layout.batch(),
                        number_of_features, x, y, z);
-    return {data_type, input_layout.format, output_size};
+    return {data_type, out_fmt, output_size};
 }
 
 std::string deconvolution_inst::to_string(deconvolution_node const& node) {
@@ -136,9 +138,11 @@ std::string deconvolution_inst::to_string(deconvolution_node const& node) {
 }
 
 deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node const& node)
-    : parent(network, node) {
-    auto stride = argument.stride;
-    auto pad = argument.pad;
+    : parent(network, node),
+    _groups(node.get_groups()),
+    _split(node.get_split()) {
+    auto stride = argument->stride;
+    auto pad = argument->pad;
 
     auto input_layout = node.input().get_output_layout();
     auto output_layout = node.get_output_layout();
@@ -165,9 +169,9 @@ deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node co
 
     auto split = node.get_split();
     for (decltype(split) j = 0; j < split; j++) {
-        auto filter_inst = node.weights(j).get_output_layout().convert_to_weights_layout(argument.grouped_weights_shape);
+        auto filter_inst = node.weights(j).get_output_layout().convert_to_weights_layout(argument->grouped_weights_shape);
 
-        if (argument.bias.size() != 0) {
+        if (argument->bias.size() != 0) {
             auto bias_inst = node.bias(j).get_output_layout();
             CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Bias batch[0]",
@@ -214,5 +218,19 @@ deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node co
                               input_layout.feature(),
                               "Weights/ifm mismatch");
     }
+}
+
+void deconvolution_inst::save(cldnn::BinaryOutputBuffer& ob) const {
+    parent::save(ob);
+
+    ob << _groups;
+    ob << _split;
+}
+
+void deconvolution_inst::load(cldnn::BinaryInputBuffer& ib) {
+    parent::load(ib);
+
+    ib >> _groups;
+    ib >> _split;
 }
 }  // namespace cldnn

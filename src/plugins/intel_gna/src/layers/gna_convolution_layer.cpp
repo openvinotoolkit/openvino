@@ -12,22 +12,30 @@
 
 #include <legacy/ie_layers.h>
 #include "gna_graph_tools.hpp"
-#include "gna_plugin_log.hpp"
+#include "log/debug.hpp"
 
 namespace GNAPluginNS {
 namespace GNAConvolutionLayer {
+bool should_transpose_h_w(const uint32_t in_height,
+                          const uint32_t kernel_height,
+                          const uint32_t in_channels,
+                          const uint32_t stride_height) {
+    return in_height == kernel_height && in_channels == 1 && stride_height == 1;
+}
 
 bool isMappableFrom2DTo1D(const uint32_t inHeight, const uint32_t inWidth, const uint32_t in_channels,
                           const uint32_t kernelHeight, const uint32_t kernelWidth,
                           const uint32_t strideHeight, const uint32_t strideWidth) {
-    return ((inHeight > 1 && inWidth > 1) &&
-            ((inWidth == kernelWidth && strideWidth == 1) ||
-             (inHeight == kernelHeight && strideHeight == 1 && in_channels == 1)));
+    if (inHeight <= 1 || inWidth <= 1) {
+        // Mapping not needed since input is already 1D
+        return false;
+    }
+    return (inWidth == kernelWidth && strideWidth == 1) ||
+           should_transpose_h_w(inHeight, kernelHeight, in_channels, strideHeight);
 }
 
-// 3D input or 2D kernel
-bool isConv2D(const uint32_t inHeight, const uint32_t inWidth, const uint32_t inDepth,
-                 const uint32_t kernelHeight, const uint32_t kernelWidth) {
+bool is3DInputOr2DKernel(const uint32_t inHeight, const uint32_t inWidth, const uint32_t inDepth,
+                         const uint32_t kernelHeight, const uint32_t kernelWidth) {
     return (kernelHeight > 1 && kernelWidth > 1) || (inHeight > 1 && inWidth > 1 && inDepth > 1);
 }
 
@@ -40,10 +48,12 @@ double getWeightsReducer(InferenceEngine::ConvolutionLayer& conv) {
     // for kernelSize in {7, 8}  -> 1.2
     const std::vector< KRT > reducers{ {49, 3.0}, {36, 2.6}, {21, 2.3}, {14, 1.7}, {9, 1.3}, {7, 1.2} };
     auto reducer = 1.0;
-    const auto inDepth = GetDataDimSize(conv.insData.front().lock(), InferenceEngine::DataDimName::C);
-    const auto inHeight = GetDataDimSize(conv.insData.front().lock(), InferenceEngine::DataDimName::H);
-    const auto inWidth = GetDataDimSize(conv.insData.front().lock(), InferenceEngine::DataDimName::W);
-    if (isConv2D(inHeight, inWidth, inDepth, conv._kernel_y, conv._kernel_x) &&
+    const auto inDepth = InferenceEngine::GetDataDimByName(conv.insData.front().lock(), InferenceEngine::DataDimName::C);
+    const auto inHeight =
+        InferenceEngine::GetDataDimByName(conv.insData.front().lock(), InferenceEngine::DataDimName::H);
+    const auto inWidth =
+        InferenceEngine::GetDataDimByName(conv.insData.front().lock(), InferenceEngine::DataDimName::W);
+    if (is3DInputOr2DKernel(inHeight, inWidth, inDepth, conv._kernel_y, conv._kernel_x) &&
          !isMappableFrom2DTo1D(inHeight, inWidth, inDepth, conv._kernel_y, conv._kernel_x, conv._stride_y, conv._stride_x)) {
         const auto kernelSize = conv._kernel_x * conv._kernel_y;
         auto r = std::lower_bound(reducers.begin(), reducers.end(), kernelSize,

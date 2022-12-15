@@ -49,7 +49,7 @@ template <cpu_isa_t isa>
 struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_binarization_kernel)
 
-    explicit jit_uni_binarization_kernel(const jit_quantize_params& jqp) : jit_uni_quantize_kernel(jqp), jit_generator() {}
+    explicit jit_uni_binarization_kernel(const jit_quantize_params& jqp) : jit_uni_quantize_kernel(jqp), jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -217,7 +217,7 @@ template <cpu_isa_t isa>
 struct jit_uni_quantization_kernel : public jit_uni_quantize_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_quantization_kernel)
 
-    explicit jit_uni_quantization_kernel(const jit_quantize_params& jqp) : jit_uni_quantize_kernel(jqp), jit_generator() {}
+    explicit jit_uni_quantization_kernel(const jit_quantize_params& jqp) : jit_uni_quantize_kernel(jqp), jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -915,7 +915,7 @@ struct FakeQuantKey {
 }  // namespace
 
 FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache) {
+        Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         algorithm = Algorithm::FQCommon;
@@ -1746,8 +1746,8 @@ void FakeQuantize::execute(dnnl::stream strm) {
     }
 }
 
-void FakeQuantize::initializePostOpData(const VectorDims &dims, const size_t bufferAlignment) {
-    if (isPostOpDataInitialized)
+void FakeQuantize::initializePostOpData(const VectorDims &dims, const size_t bufferAlignment, bool doRounding) {
+    if (postOpDataVersion == parameterVersion)
         return;
 
     if (getAlgorithm() == Algorithm::FQBinarization) {
@@ -1765,32 +1765,14 @@ void FakeQuantize::initializePostOpData(const VectorDims &dims, const size_t buf
             std::fill(binarizationThresholds.begin() + realAxisSize, binarizationThresholds.end(), 0.f);
         }
     } else {
-        if (cropLow.size() > 1)
-            cropLow.resize(rnd_up(cropLow.size(), bufferAlignment), 0);
-        if (cropHigh.size() > 1)
-            cropHigh.resize(rnd_up(cropHigh.size(), bufferAlignment), 0);
-        if (inputScale.size() > 1)
-            inputScale.resize(rnd_up(inputScale.size(), bufferAlignment), 0);
-        if (inputShift.size() > 1)
-            inputShift.resize(rnd_up(inputShift.size(), bufferAlignment), 0);
-        if (outputScale.size() > 1)
-            outputScale.resize(rnd_up(outputScale.size(), bufferAlignment), 0);
-        if (outputShift.size() > 1)
-            outputShift.resize(rnd_up(outputShift.size(), bufferAlignment), 0);
-
-        cropLowData.set(cropLow.size(), 1 << 1, &cropLow[0]);
-        cropHighData.set(cropHigh.size(), 1 << 1, &cropHigh[0]);
-        inputScaleData.set(inputScale.size(), 1 << 1, &inputScale[0]);
-        inputShiftData.set(inputShift.size(), 1 << 1, &inputShift[0]);
-        outputScaleData.set(outputScale.size(), 1 << 1, &outputScale[0]);
-        outputShiftData.set(outputShift.size(), 1 << 1, &outputShift[0]);
+        updateOptimizedFormula(doRounding);
     }
 
-    isPostOpDataInitialized = true;
+    postOpDataVersion = parameterVersion;
 }
 
 void FakeQuantize::initializePostOpDataLegacy(const VectorDims &dims, const size_t bufferAlignment) {
-    if (isLegacyPostOpDataInitialized)
+    if (legacyPostOpDataVersion == parameterVersion)
         return;
 
     if (getAlgorithm() == Algorithm::FQBinarization) {
@@ -1822,7 +1804,7 @@ void FakeQuantize::initializePostOpDataLegacy(const VectorDims &dims, const size
         quantizationData.resize(quantizationDataSize + bufferPaddingSize, 0);
     }
 
-    isLegacyPostOpDataInitialized = true;
+    legacyPostOpDataVersion = parameterVersion;
 }
 
 void FakeQuantize::appendMemory(const size_t dataSize, const void *data, MemoryPtr &memPtr, std::vector<MemoryPtr>& postOpsMem) {
@@ -1841,6 +1823,9 @@ void FakeQuantize::appendMemory(const size_t dataSize, const void *data, MemoryP
 
 template <typename T>
 void FakeQuantize::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<T>& postOpsMem) {
+    // try to map fakeQuantizeNode using output scale & eltwise first
+    // if failed, fallback to append_quantization()
+
     // oneDNN quantization_injectors assumes that quantization data memory is always aligned on 16
     // by length of AVX512 vector register which is also enough for AVX2 and SSE42 implementations.
     // Otherwise it can lead to buffer over-read and performance penalties due to denormals.
@@ -1878,9 +1863,16 @@ void FakeQuantize::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &post
     }
 }
 
-void FakeQuantize::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem,
+void FakeQuantize::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::unordered_map<int, MemoryPtr>& postOpsMem,
                                  const int channelAxis) {
-    appendPostOpsImpl(ops, postOpDims, postOpsMem);
+    std::vector<MemoryPtr> postOpsMemPtrs;
+    appendPostOpsImpl(ops, postOpDims, postOpsMemPtrs);
+
+    IE_ASSERT(postOpsMemPtrs.size() <= 1) << "at most 1 post ops memory args can be appended.";
+
+    if (!postOpsMemPtrs.empty()) {
+        postOpsMem[DNNL_ARG_ATTR_MULTIPLE_POST_OP(ops.len() - 1) | DNNL_ARG_SRC_1] = postOpsMemPtrs[0];
+    }
 }
 
 void FakeQuantize::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem,
@@ -1888,153 +1880,205 @@ void FakeQuantize::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDi
     appendPostOpsImpl(ops, postOpDims, postOpsMem);
 }
 
-void FakeQuantize::appendBinPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::vector<MemoryPtr>& binaryPostOpsMem) {
-    static const size_t bufferAlignment = 1;
+static float roundHalfToEven(float f) {
+    const float RHAFZ = std::round(f);  // r is round-half-away-from-zero
+    const float d = RHAFZ - f;          // f + d -> RHAFZ
+    if ((d != 0.5f) && (d != -0.5f))
+        return RHAFZ;
 
-    initializePostOpData(postOpDims, bufferAlignment);
+    // already even +/-1.5 -> +/-2
+    if (std::fmod(RHAFZ, 2.0f) == 0.0f)
+        return RHAFZ;
 
-    VectorDims broadcastBinaryShape(postOpDims.size(), 1);
-
-    auto appendBinary = [&](const dnnl::algorithm alg, const size_t dataSize, MemoryPtr &memPtr, const void *data) {
-        DnnlBlockedMemoryDesc memoryDesc(Precision::FP32, dataSize == 1 ? Shape(broadcastBinaryShape) : Shape(postOpDims));
-        ops.append_binary(alg, memoryDesc.getDnnlDesc());
-
-        if (!memPtr) {
-            memPtr.reset(new Memory(getEngine()));
-            memPtr->Create(memoryDesc, data);
-
-            binaryPostOpsMem.push_back(memPtr);
-        }
-    };
-
-    dnnl::algorithm alg = getAlgorithm() == Algorithm::FQCommon || getAlgorithm() == Algorithm::FQRequantization
-                                ? dnnl::algorithm::quantization_quantize_dequantize
-                                : dnnl::algorithm::quantization_quantize;
-
-    appendBinary(dnnl::algorithm::binary_min, cropHighSize, cropHighMemory, &cropHighData.shifts_[0]);
-    appendBinary(dnnl::algorithm::binary_max, cropLowSize, cropLowMemory, &cropLowData.shifts_[0]);
-    appendBinary(dnnl::algorithm::binary_mul, inputScaleSize, inputScaleMemory, &inputScaleData.scales_[0]);
-    appendBinary(dnnl::algorithm::binary_add, inputShiftSize, inputShiftMemory, &inputShiftData.shifts_[0]);
-    if (alg == dnnl::algorithm::quantization_quantize_dequantize) {
-        ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_round_half_to_even, 0, 0);
-    }
-    appendBinary(dnnl::algorithm::binary_mul, outputScaleSize, outputScaleMemory, &outputScaleData.scales_[0]);
-    appendBinary(dnnl::algorithm::binary_add, outputShiftSize, outputShiftMemory, &outputShiftData.shifts_[0]);
+    // +/-2.5 -> +/-3, but we need it to to +/-2
+    // RHAFZ (f+d) goes the wrong way, should be (f-d)
+    return f - d;
 }
 
-void FakeQuantize::appendBinPostOpsOptimized(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& binaryPostOpsMem,
-                                             bool isLastPostOp, dnnl::memory::data_type outDataType) {
-    static const size_t bufferAlignment = 1;
+void FakeQuantize::updateOptimizedFormula(bool do_rounding) {
+    auto& f = optimizedFormula;
 
-    initializePostOpData(postOpDims, bufferAlignment);
+    auto isPerTensor =
+        [](const std::vector<float>& v, float ref, const float zero_thr = std::numeric_limits<float>::min()) {
+            return std::all_of(v.cbegin(), v.cend(), [&](float val) {
+                return abs(val - ref) < zero_thr;
+            });
+        };
+    int OC = std::max({inputScale.size(),
+                       inputShift.size(),
+                       cropLow.size(),
+                       cropHigh.size(),
+                       outputScale.size(),
+                       outputShift.size()});
 
-    VectorDims broadcastBinaryShape(postOpDims.size(), 1);
+    IE_ASSERT(inputScale.size() == 1 || inputScale.size() == OC);
+    IE_ASSERT(inputShift.size() == 1 || inputShift.size() == OC);
+    IE_ASSERT(cropLow.size() == 1 || cropLow.size() == OC);
+    IE_ASSERT(cropHigh.size() == 1 || cropHigh.size() == OC);
+    IE_ASSERT(outputScale.size() == 1 || outputScale.size() == OC);
+    IE_ASSERT(outputShift.size() == 1 || outputShift.size() == OC);
 
-    auto appendBinary = [&](const dnnl::algorithm alg, const size_t dataSize, MemoryPtr &memPtr, const void *data) {
-        DnnlBlockedMemoryDesc memoryDesc(Precision::FP32, dataSize == 1 ? Shape(broadcastBinaryShape) : Shape(postOpDims));
-        ops.append_binary(alg, memoryDesc.getDnnlDesc());
+    // WA: a per-Tensor input shift may little drift away randomly
+    //     from it's orginal value when FQ was fused with any
+    //     preceding per-channel multiply and create a false
+    //     per-channel input shift, this threshold was chosen carefully
+    //     to recorver the per-Tensor nature w/o mistaking a real
+    //     per-channel FQ.
+    if (isPerTensor(inputShift, inputShift[0], 0.00005f)) {
+        f.ish.resize(OC);
+        for (auto & v : f.ish)
+            v = inputShift[0];
+    } else {
+        f.ish = inputShift;
+    }
+    f.clo = cropLow;
+    f.chi = cropHigh;
+    f.isc = inputScale;
+    f.osc = outputScale;
+    f.osh = outputShift;
 
-        if (!memPtr) {
-            memPtr.reset(new Memory(getEngine()));
-            memPtr->Create(memoryDesc, data);
+    if (f.clo.size() == 1)
+        f.clo.resize(OC, f.clo[0]);
+    if (f.chi.size() == 1)
+        f.chi.resize(OC, f.chi[0]);
+    if (f.isc.size() == 1)
+        f.isc.resize(OC, f.isc[0]);
+    if (f.ish.size() == 1)
+        f.ish.resize(OC, f.ish[0]);
 
-            binaryPostOpsMem.push_back(memPtr);
-        }
-    };
+    for (int i = 0; i < OC; i++) {
+        auto& clo = f.clo[i];
+        auto& chi = f.chi[i];
+        auto& isc = f.isc[i];
+        auto& ish = f.ish[i];
+        const auto& osc = f.osc[f.osc.size() == 1 ? 0 : i];
+        const auto& osh = f.osh[f.osh.size() == 1 ? 0 : i];
 
-    dnnl::algorithm alg = getAlgorithm() == Algorithm::FQCommon || getAlgorithm() == Algorithm::FQRequantization
-                                ? dnnl::algorithm::quantization_quantize_dequantize
-                                : dnnl::algorithm::quantization_quantize;
+        clo = roundHalfToEven(clo * isc + ish);
+        chi = roundHalfToEven(chi * isc + ish);
+        if (clo > chi)
+            std::swap(clo, chi);
 
-    if (isLastPostOp &&
-        outDataType == memory::data_type::u8 &&
-        getAlgorithm() == Algorithm::FQQuantization
-        /*levels == 256*/) {
-        auto &cl = getCropLow();
-        auto &isc = getInputScale();
-        auto &ish = getInputShift();
-
-        if (std::all_of(cl.cbegin(), cl.cend(), [](float val) { return val == 0.0f; }) &&
-            std::all_of(isc.cbegin(), isc.cend(), [&](float val) { return val == isc[0]; }) &&
-            std::all_of(ish.cbegin(), ish.cend(), [&](float val) { return val == ish[0]; })) {
-            ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, isc[0], ish[0]);
-
-            return;
-        } else if (std::all_of(cl.cbegin(), cl.cend(), [](float val) { return val == 0.0f; })) {
-            appendBinary(dnnl::algorithm::binary_mul, inputScaleSize, inputScaleMemory, &inputScaleData.scales_[0]);
-            appendBinary(dnnl::algorithm::binary_add, inputShiftSize, inputShiftMemory, &inputShiftData.shifts_[0]);
-
-            return;
+        if (!do_rounding) {
+            // when no rounding is needed, outputScale/outputShift can be
+            // merged with inputScale/inputShift with updated cropLow/cropHigh
+            clo = clo * osc + osh;
+            chi = chi * osc + osh;
+            //  crop(x*isc + ish, a, b)*osc + osh
+            //  crop(x*isc*osc + ish*osc + osh, a', b')
+            isc = isc * osc;
+            ish = ish * osc + osh;
         }
     }
 
-    appendBinary(dnnl::algorithm::binary_min, cropHighSize, cropHighMemory, &cropHighData.shifts_[0]);
-    appendBinary(dnnl::algorithm::binary_max, cropLowSize, cropLowMemory, &cropLowData.shifts_[0]);
-    appendBinary(dnnl::algorithm::binary_mul, inputScaleSize, inputScaleMemory, &inputScaleData.scales_[0]);
-    appendBinary(dnnl::algorithm::binary_add, inputShiftSize, inputShiftMemory, &inputShiftData.shifts_[0]);
-    if (alg == dnnl::algorithm::quantization_quantize_dequantize) {
-        ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_round_half_to_even, 0, 0);
+    if (!do_rounding) {
+        f.osc.clear();
+        f.osh.clear();
     }
-    appendBinary(dnnl::algorithm::binary_mul, outputScaleSize, outputScaleMemory, &outputScaleData.scales_[0]);
-    appendBinary(dnnl::algorithm::binary_add, outputShiftSize, outputShiftMemory, &outputShiftData.shifts_[0]);
+
+    f.shrinkLength();
+
+    if (f.osc.size() == 1 && f.osc[0] == 1.0f && f.osh.size() == 1 && f.osh[0] == std::trunc(f.osh[0])) {
+        // if outputScale == 1.0f and outputShift is interger, it can be further optimized
+        //   x = clip2(round(x * inputScale + ish),c2lo,c2hi)*osc + osh
+        //     = clip2(round(x * inputScale + ish),c2lo,c2hi) + osh
+        //     = clip2(round(x * inputScale + ish) + osh, c2lo+osh,c2hi+osh)
+        //     = clip2(round(x * inputScale + ish + osh), c2lo+osh,c2hi+osh)
+        for (auto& v : f.ish) {
+            v += f.osh[0];
+        }
+        for (auto& v : f.clo) {
+            v += f.osh[0];
+        }
+        for (auto& v : f.chi) {
+            v += f.osh[0];
+        }
+        f.osc.clear();
+        f.osh.clear();
+    }
+
+    // we can save an additional eltwise linear for negligible shift
+    if (f.ish.size() == 1 && f.clo.size() == 1 && f.chi.size() == 1) {
+        auto range = (f.chi[0] - f.clo[0]);
+        if (abs(f.ish[0]) < range * 0.00001f) {
+            f.ish[0] = 0.0f;
+        }
+    }
 }
 
-std::vector<float> FakeQuantize::simplifyToScale(dnnl::memory::data_type outDataType, size_t OC) {
-    auto &cl = getCropLow();
-    auto &ch = getCropHigh();
-    auto &isc = getInputScale();
-    auto &ish = getInputShift();
-    auto &osc = getOutputScale();
-    auto &osh = getOutputShift();
+// map FQ to oneDNN's attribuites & postOps
+// equation:
+//      y = clip2(round(x * inputScale + inputShift))*outputScale + outputShift
+bool FakeQuantize::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc,
+                                     bool isLastPostOp,
+                                     dnnl::memory::data_type outDataType,
+                                     bool allowBinary,
+                                     bool doRounding) {
+    DEBUG_LOG(getName(),
+              ", isLastPostOp=",
+              isLastPostOp,
+              ", outDataType=",
+              outDataType,
+              ", allowBinary=",
+              allowBinary,
+              ", doRounding=",
+              doRounding);
+    DEBUG_LOG("\t ---- Original formula ----");
+    DEBUG_LOG("\t    cropLow =[", PrintableVector<float>(cropLow), "]");
+    DEBUG_LOG("\t   cropHigh =[", PrintableVector<float>(cropHigh), "]");
+    DEBUG_LOG("\t inputScale =[", PrintableVector<float>(inputScale), "]");
+    DEBUG_LOG("\t inputShift =[", PrintableVector<float>(inputShift), "]");
+    DEBUG_LOG("\t outputScale=[", PrintableVector<float>(outputScale), "]");
+    DEBUG_LOG("\t outputShift=[", PrintableVector<float>(outputShift), "]");
 
-    std::vector<float> outScale;
+    const size_t bufferAlignment = 1;
+    initializePostOpData(dnnlpoc.getOutputDims(), bufferAlignment, doRounding);
 
-    if (outDataType == memory::data_type::u8 &&
-        getAlgorithm() == Algorithm::FQQuantization &&
-        std::all_of(cl.cbegin(), cl.cend(), [](float val) { return val == 0.0f; }) &&
-        std::all_of(ish.cbegin(), ish.cend(), [](float val) { return val == 0.0f; })) {
-        outScale = isc;
-        if (!outScale.empty()) {
-            size_t size = outScale.size();
-            if (size == 1 && Shape::UNDEFINED_DIM != OC) {
-                outScale.resize(OC);
-                for (size_t k = 0; k < OC; k++)
-                    outScale[k] = outScale[0];
-            }
+    auto& f = optimizedFormula;
+
+    DEBUG_LOG("\t ---- Optimized formula ----");
+    DEBUG_LOG("\t inputScale =[", PrintableVector<float>(f.isc), "]");
+    DEBUG_LOG("\t inputShift =[", PrintableVector<float>(f.ish), "]");
+    DEBUG_LOG("\t    cropLow =[", PrintableVector<float>(f.clo), "]");
+    DEBUG_LOG("\t   cropHigh =[", PrintableVector<float>(f.chi), "]");
+    DEBUG_LOG("\toutputScale =[", PrintableVector<float>(f.osc), "]");
+    DEBUG_LOG("\toutputShift =[", PrintableVector<float>(f.osh), "]");
+
+    // when FQ is last postOps and output data type is u8/s8
+    // round & clip2 can be further optimized since saturation will be performed by oneDNN by default
+    bool skipRoundClipOutputLinear = false;
+    if (isLastPostOp && (levels == 256) && f.clo.size() == 1 && f.chi.size() == 1 && f.osc.empty() && f.osh.empty()) {
+        if (outDataType == memory::data_type::u8 && f.clo[0] <= 0.0f && f.chi[0] >= 255.0f) {
+            skipRoundClipOutputLinear = true;
+        }
+        if (outDataType == memory::data_type::s8 && f.clo[0] <= -128.0f && f.chi[0] >= 127.0f) {
+            skipRoundClipOutputLinear = true;
         }
     }
 
-    if (outDataType == memory::data_type::s8 &&
-        std::all_of(ish.cbegin(), ish.cend(), [](float val) { return std::abs(val - 128.f) < 0.0001f; }) &&
-        std::all_of(osc.cbegin(), osc.cend(), [](float val) { return val == 1.f; }) &&
-        std::all_of(osh.cbegin(), osh.cend(), [](float val) { return std::abs(val + 128.f) < 0.0001f; })) {
-        bool isCropAligned = true;
-        for (int i = 0; i < std::max(cl.size(), isc.size()); i++) {
-            if (std::abs(cl[cl.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] + 128.f) > 0.0001f) {
-                isCropAligned = false;
-            }
-        }
-
-        for (int i = 0; i < std::max(ch.size(), isc.size()); i++) {
-            if (std::abs(ch[ch.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] - 127.f) > 0.0001f) {
-                isCropAligned = false;
-            }
-        }
-
-        if (isCropAligned) {
-            outScale = isc;
-            if (!outScale.empty()) {
-                size_t size = outScale.size();
-                if (size == 1 && Shape::UNDEFINED_DIM != OC) {
-                    outScale.resize(OC);
-                    for (size_t k = 0; k < OC; k++)
-                        outScale[k] = outScale[0];
-                }
-            }
+    // return false before committing any change to DnnlPostOpsComposer
+    if (!allowBinary) {
+        if (f.ish.size() > 1)
+            return false;
+        if (!skipRoundClipOutputLinear) {
+            if (f.clo.size() > 1 || f.chi.size() > 1)
+                return false;
+            if (f.osc.size() > 1 || f.osh.size() > 1)
+                return false;
         }
     }
 
-    return outScale;
+    if (!dnnlpoc.appendLinear(f.isc, f.ish, allowBinary))
+        return false;
+
+    if (skipRoundClipOutputLinear)
+        return true;
+
+    if (doRounding)
+        dnnlpoc.appendRoundHTE();
+    dnnlpoc.appendClip(f.clo, f.chi);
+    dnnlpoc.appendLinear(f.osc, f.osh, allowBinary);
+    return true;
 }
 
 FakeQuantize::FakeQuantizeJitExecutor::FakeQuantizeJitExecutor(const jit_quantize_params &_jqp) {

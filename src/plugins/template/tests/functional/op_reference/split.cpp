@@ -46,12 +46,8 @@ public:
         result << "aShape=" << param.axisTensor.shape << "_";
         result << "nSplit=" << param.numSplits << "_";
         result << "eType=" << param.expectedTensors[0].type << "_";
-        if (param.testcaseName != "") {
-            result << "eShape=" << param.expectedTensors[0].shape << "_";
-            result << "eShape=" << param.testcaseName;
-        } else {
-            result << "eShape=" << param.expectedTensors[0].shape;
-        }
+        result << "eShape=" << param.expectedTensors[0].shape << "_";
+        result << "eShape=" << param.testcaseName;
         return result.str();
     }
 
@@ -159,12 +155,21 @@ std::vector<SplitParams> generateSplitParams() {
                                         reference_tests::Tensor({2, 1, 2, 2}, IN_ET, std::vector<T>{2, 3, 8, 9, 14, 15, 20, 21}),
                                         reference_tests::Tensor({2, 1, 2, 2}, IN_ET, std::vector<T>{4, 5, 10, 11, 16, 17, 22, 23})},
                     "split_4d_axis_3"),
+        // split_4d_axis_negative_2
+        SplitParams(reference_tests::Tensor({2, 1, 4, 1}, IN_ET, std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7}),
+                    reference_tests::Tensor({}, element::i32, std::vector<int32_t>{-2}),
+                    2,
+                    std::vector<reference_tests::Tensor>{
+                        reference_tests::Tensor({2, 1, 2, 1}, IN_ET, std::vector<T>{0, 1, 4, 5}),
+                        reference_tests::Tensor({2, 1, 2, 1}, IN_ET, std::vector<T>{2, 3, 6, 7})},
+                    "split_4d_axis_negative_2"),
     };
     return splitParams;
 }
 
 std::vector<SplitParams> generateSplitCombinedParams() {
     const std::vector<std::vector<SplitParams>> splitTypeParams {
+        generateSplitParams<element::Type_t::boolean>(),
         generateSplitParams<element::Type_t::i8>(),
         generateSplitParams<element::Type_t::i16>(),
         generateSplitParams<element::Type_t::i32>(),

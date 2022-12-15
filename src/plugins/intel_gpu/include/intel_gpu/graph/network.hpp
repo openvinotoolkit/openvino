@@ -6,11 +6,13 @@
 
 #include "intel_gpu/graph/topology.hpp"
 #include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/runtime/compounds.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/stream.hpp"
+#include "intel_gpu/runtime/lru_cache.hpp"
 
 #include <map>
 #include <vector>
@@ -48,6 +50,7 @@ private:
 };
 
 class primitive_inst;
+class ICompilationContext;
 
 struct network {
 public:
@@ -78,8 +81,11 @@ public:
 
     network(program::ptr program, stream::ptr stream, uint16_t stream_id);
 
+    network(cldnn::BinaryInputBuffer& ifs, stream::ptr stream, engine& engine, uint16_t stream_id = 0);
+
     ~network();
 
+    void save(cldnn::BinaryOutputBuffer& ob);
 
     static ptr build_network(engine& engine,
                              const topology& topology,
@@ -101,7 +107,7 @@ public:
                                 bool is_primary_stream = false);
     program::cptr get_program() const { return _program; }
     program::ptr get_program() { return _program; }
-    engine& get_engine() const { return _program->get_engine(); }
+    engine& get_engine() const { return _engine; }
 
     void reset_execution(bool wait = true);
     void set_input_data(const primitive_id& id, memory::ptr data);
@@ -121,6 +127,9 @@ public:
     }
 
     memory::ptr get_output_memory(const primitive_id& output_id);
+    layout get_node_output_layout(const primitive_id& output_id) const;
+    layout get_output_layout(const primitive_id& output_id) const;
+    std::vector<layout> get_input_layouts() const;
 
     /// @brief Returns the list of primitive ids before and after graph optimization.
     /// @details If primitive was not optimized, the old and actual id will be the same.
@@ -177,13 +186,15 @@ public:
     void validate_primitives();
     void set_arguments();
     // Implementation specific calls
+    bool is_cpu_impl(const primitive_id& id) const;
     std::shared_ptr<primitive_inst> get_primitive(const primitive_id& id);
+    std::shared_ptr<const primitive_inst> get_primitive(const primitive_id& id) const;
     std::string get_primitive_info(const primitive_id& id) const;
     std::string get_implementation_info(const primitive_id& id) const;
     const event::ptr& get_primitive_event(const primitive_id& id) const { return _events.at(id); }
     bool has_event(const primitive_id& id) const { return _events.count(id); }
     std::vector<std::shared_ptr<primitive_inst>> get_primitives(const std::vector<primitive_id>& ids);
-    std::vector<std::shared_ptr<primitive_inst>> get_primitives(const std::vector<program_node*>& nodes);
+    std::vector<std::pair<std::shared_ptr<primitive_inst>, int>> get_primitives(const std::vector<std::pair<program_node*, int>>& nodes);
     void execute_primitive(const std::shared_ptr<primitive_inst>& primitive,
                            const std::vector<event::ptr>& events);
     void allocate_primitives();
@@ -213,10 +224,23 @@ public:
     /// Returns memory state @p variable_id of stateful network
     VariableState& get_variable_memory(const std::string &variable_id);
 
+    /// Return kernels_cache
+    kernels_cache& get_kernels_cache() const { return *_kernels_cache; }
+
+    /// Return implentations_cache
+    ImplementationsCache& get_implementations_cache() const { return *_impls_cache; }
+
+    /// Return in_mem_kernels_cache
+    KernelsCache& get_in_mem_kernels_cache() const { return *_in_mem_kernels_cache; }
+
+    ICompilationContext& get_compilation_context() const { return *_compilation_context; }
+    std::mutex& get_impl_cache_mutex() const { return _in_mem_cache_mutex; }
+
 private:
     using output_chains_map = std::map<primitive_id, std::vector<std::shared_ptr<primitive_inst>>>;
     uint32_t net_id = 0;
     program::ptr _program;
+    engine& _engine;
     stream::ptr _stream;
     std::unique_ptr<memory_pool> _memory_pool;
     bool _internal;
@@ -236,14 +260,24 @@ private:
     std::unordered_map<primitive_id, event::ptr> _events;
     output_chains_map _output_chains;
 
+    mutable std::mutex _in_mem_cache_mutex;
+    std::unique_ptr<ICompilationContext> _compilation_context;
+
     void build_exec_order();
     void allocate_primitive_instance(program_node const& node);
     void transfer_memory_to_device(std::shared_ptr<primitive_inst> instance, program_node const& node);
     void add_to_exec_order(const primitive_id& id);
-    std::shared_ptr<primitive_inst> find_in_internal_networks(const primitive_id& id);
-    std::shared_ptr<primitive_inst> find_primitive(const primitive_id& id);
+    std::shared_ptr<primitive_inst> find_in_internal_networks(const primitive_id& id) const;
+    std::shared_ptr<primitive_inst> find_primitive(const primitive_id& id) const;
     void check_names();
     void add_default_output_chains();
     output_chains_map::iterator add_output_chain(std::shared_ptr<primitive_inst>& p_inst);
+
+    std::unique_ptr<kernels_cache> _kernels_cache;
+    // Move from cldnn::program to cldnn::network for multi-threads issue.
+    std::unique_ptr<ImplementationsCache> _impls_cache;
+    std::unique_ptr<KernelsCache> _in_mem_kernels_cache;
+    const size_t _impls_cache_capacity = 10000;
+    const size_t _in_mem_kernels_cache_capacity = 10000;
 };
 }  // namespace cldnn

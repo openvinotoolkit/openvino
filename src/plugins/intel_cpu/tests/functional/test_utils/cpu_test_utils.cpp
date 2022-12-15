@@ -8,6 +8,7 @@
 #include <cstdint>
 
 namespace CPUTestUtils {
+const char* CPUTestsBase::any_type = "any_type";
 
 const char *CPUTestsBase::cpu_fmt2str(cpu_memory_format_t v) {
 #define CASE(_fmt) do { \
@@ -115,6 +116,7 @@ std::string CPUTestsBase::impls2str(const std::vector<std::string> &priority) {
 }
 
 void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, const std::string& nodeType) const {
+    if (!execNet) return;
     if (nodeType.empty()) return;
 
     ASSERT_TRUE(!selectedType.empty()) << "Node type is not defined.";
@@ -124,6 +126,7 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
 }
 
 void CPUTestsBase::CheckPluginRelatedResults(const ov::CompiledModel &execNet, const std::string& nodeType) const {
+    if (!execNet) return;
     if (nodeType.empty()) return;
 
     ASSERT_TRUE(!selectedType.empty()) << "Node type is not defined.";
@@ -215,13 +218,13 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
 
             auto primType = getExecValue(ExecGraphInfoSerialization::IMPL_TYPE);
 
-            ASSERT_TRUE(primTypeCheck(primType)) << "primType is unexpected: " << primType;
+            ASSERT_TRUE(primTypeCheck(primType)) << "primType is unexpected: " << primType << " Expected: " << selectedType;
         }
     }
 }
 
 bool CPUTestsBase::primTypeCheck(std::string primType) const {
-    return selectedType == primType;
+    return selectedType.find(CPUTestsBase::any_type) != std::string::npos || selectedType == primType;
 }
 
 std::string CPUTestsBase::getTestCaseName(CPUSpecificParams params) {
@@ -370,11 +373,15 @@ inline void CheckNumberOfNodesWithTypeImpl(std::shared_ptr<const ov::Model> func
 }
 
 void CheckNumberOfNodesWithType(ov::CompiledModel &compiledModel, std::string nodeType, size_t expectedCount) {
+    if (!compiledModel) return;
+
     std::shared_ptr<const ov::Model> function = compiledModel.get_runtime_model();
     CheckNumberOfNodesWithTypeImpl(function, nodeType, expectedCount);
 }
 
 void CheckNumberOfNodesWithType(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType, size_t expectedCount) {
+    if (!execNet) return;
+
     InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
     std::shared_ptr<const ov::Model> function = execGraphInfo.getFunction();
     CheckNumberOfNodesWithTypeImpl(function, nodeType, expectedCount);

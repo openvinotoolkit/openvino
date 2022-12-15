@@ -32,6 +32,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/runtime_attribute.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "threading/ie_executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -149,9 +150,8 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
         function->get_rt_info() = orig_function->get_rt_info();
     }
     if (function && !IsNewAPI()) {
-        auto& rt_info = function->get_rt_info();
-        if (rt_info.find("version") == rt_info.end()) {
-            rt_info["version"] = int64_t(10);
+        if (!function->has_rt_info("version")) {
+            function->set_rt_info(int64_t(10), "version");
 
             // re-create `network` with new patched `function`
             using namespace InferenceEngine;
@@ -193,11 +193,10 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
     return impl;
 }
 
-std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
-    const std::string& modelPath,
-    const std::map<std::string, std::string>& config) {
+ov::SoPtr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(const std::string& modelPath,
+                                                                    const std::map<std::string, std::string>& config) {
     auto cnnNet = GetCore()->ReadNetwork(modelPath, std::string());
-    return GetCore()->LoadNetwork(cnnNet, GetName(), config)._ptr;
+    return GetCore()->LoadNetwork(cnnNet, GetName(), config);
 }
 
 void IInferencePlugin::AddExtension(const std::shared_ptr<IExtension>&) {
@@ -380,27 +379,28 @@ std::unordered_set<std::string> GetSupportedNodes(
     for (auto&& node : model->get_ops()) {
         if (InferenceEngine::details::contains(supported, node->get_friendly_name())) {
             for (auto&& inputNodeOutput : node->input_values()) {
-                if (ngraph::op::is_constant(inputNodeOutput.get_node()) ||
-                    ngraph::op::is_parameter(inputNodeOutput.get_node())) {
+                if (ov::op::util::is_constant(inputNodeOutput.get_node()) ||
+                    ov::op::util::is_parameter(inputNodeOutput.get_node())) {
                     supported.emplace(inputNodeOutput.get_node()->get_friendly_name());
                 }
             }
             for (auto&& outputs : node->outputs()) {
                 for (auto&& outputNodeInput : outputs.get_target_inputs()) {
-                    if (ngraph::op::is_output(outputNodeInput.get_node())) {
+                    if (ov::op::util::is_output(outputNodeInput.get_node())) {
                         supported.emplace(outputNodeInput.get_node()->get_friendly_name());
                     }
                 }
             }
         }
 
-        if (ngraph::op::is_constant(node) || ngraph::op::is_parameter(node)) {
-            if (!InferenceEngine::details::contains(
+        if (ov::op::util::is_constant(node) || ov::op::util::is_parameter(node)) {
+            if (node->output(0).get_target_inputs().size() &&
+                !InferenceEngine::details::contains(
                     supported,
                     node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name())) {
                 supported.erase(node->get_friendly_name());
             }
-        } else if (ngraph::op::is_output(node)) {
+        } else if (ov::op::util::is_output(node)) {
             if (!InferenceEngine::details::contains(supported,
                                                     node->input_values().begin()->get_node()->get_friendly_name())) {
                 supported.erase(node->get_friendly_name());
@@ -421,10 +421,8 @@ void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNet
 
     std::unordered_set<std::string> leaf_names;
     bool add_operation_names = false;
-    const auto& rt_info = function->get_rt_info();
-    const auto it = rt_info.find("version");
-    if (it != rt_info.end()) {
-        const int64_t ir_version = it->second.as<int64_t>();
+    if (function->has_rt_info("version")) {
+        const int64_t ir_version = function->get_rt_info<int64_t>("version");
         // here we decide whether we need to add operation_names as tensor names for
         // getInputs / getOutputs. Since these functions are designed to be used in new API only
         // always need to add operation names for IR v10

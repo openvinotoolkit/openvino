@@ -13,23 +13,21 @@
 
 #include <functional>
 #include <memory>
-#include <ngraph/attribute_visitor.hpp>
-#include <ngraph/node.hpp>
-#include <ngraph/variant.hpp>
 #include <openvino/core/rtti.hpp>
 #include <set>
 #include <string>
 
 #include "openvino/core/runtime_attribute.hpp"
+#include "transformations_visibility.hpp"
 
-namespace ngraph {
+namespace ov {
 
 /**
  * @ingroup ie_runtime_attr_api
  * @brief FusedName class represents runtime info attribute that stores
  * all operation names that was fully or partially fused into node
  */
-class NGRAPH_API FusedNames : public ov::RuntimeAttribute {
+class TRANSFORMATIONS_API FusedNames : public ov::RuntimeAttribute {
     std::set<std::string> fused_names;
 
 public:
@@ -65,9 +63,9 @@ public:
      */
     std::vector<std::string> getVectorNames() const;
 
-    ov::Any merge(const ngraph::NodeVector& nodes) const override;
+    ov::Any merge(const ov::NodeVector& nodes) const override;
 
-    ov::Any init(const std::shared_ptr<ngraph::Node>& node) const override;
+    ov::Any init(const std::shared_ptr<ov::Node>& node) const override;
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
@@ -79,7 +77,7 @@ public:
  * @brief getFusedNames return string with operation names separated by coma in alphabetical order
  * @param[in] node The node will be used to get FusedNames attribute
  */
-NGRAPH_API std::string getFusedNames(const std::shared_ptr<ngraph::Node>& node);
+TRANSFORMATIONS_API std::string getFusedNames(const std::shared_ptr<ov::Node>& node);
 
 /**
  * @ingroup ie_runtime_attr_api
@@ -87,6 +85,12 @@ NGRAPH_API std::string getFusedNames(const std::shared_ptr<ngraph::Node>& node);
  * @param[in] node The node will be used to get FusedNames attribute
  * @return vector of strings
  */
-NGRAPH_API std::vector<std::string> getFusedNamesVector(const std::shared_ptr<ngraph::Node>& node);
+TRANSFORMATIONS_API std::vector<std::string> getFusedNamesVector(const std::shared_ptr<ov::Node>& node);
 
+}  // namespace ov
+
+namespace ngraph {
+using ov::FusedNames;
+using ov::getFusedNames;
+using ov::getFusedNamesVector;
 }  // namespace ngraph

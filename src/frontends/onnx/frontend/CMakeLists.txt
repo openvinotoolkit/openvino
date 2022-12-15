@@ -2,6 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    ie_add_compiler_flags(/wd4267)
+    ie_add_compiler_flags(/wd4018)
+    ie_add_compiler_flags(/wd4244)
+endif()
+
 ov_add_frontend(NAME onnx
                 LINKABLE_FRONTEND
                 PROTOBUF_LITE
@@ -9,7 +15,7 @@ ov_add_frontend(NAME onnx
                 FILEDESCRIPTION "FrontEnd to load and convert ONNX file format"
                 LINK_LIBRARIES ngraph::builder openvino::util onnx_common openvino::runtime::dev)
 
-set(ONNX_OPSET_VERSION 16 CACHE INTERNAL "Supported version of ONNX operator set")
+set(ONNX_OPSET_VERSION 17 CACHE INTERNAL "Supported version of ONNX operator set")
 target_compile_definitions(${TARGET_NAME} PRIVATE ONNX_OPSET_VERSION=${ONNX_OPSET_VERSION})
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}

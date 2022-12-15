@@ -182,9 +182,9 @@ REGISTER_FACTORY(v4, ReduceL1);
 REGISTER_FACTORY(v4, ReduceL2);
 REGISTER_FACTORY(v4, SoftPlus);
 REGISTER_FACTORY(v4, Swish);
+REGISTER_FACTORY(v4, CTCLoss);
 
 // ----------------------------- Unsupported v4 ops ----------------------------- //
-// REGISTER_FACTORY(v4, CTCLoss);
 // REGISTER_FACTORY(v4, Range);
 
 // ------------------------------ Supported v5 ops ------------------------------ //
@@ -237,6 +237,7 @@ REGISTER_FACTORY(v8, Softmax);
 REGISTER_FACTORY(v8, PriorBox);
 
 // ------------------------------ Supported v9 ops ------------------------------ //
+REGISTER_FACTORY(v9, GridSample)
 REGISTER_FACTORY(v9, SoftSign)
 REGISTER_FACTORY(v9, ROIAlign);
 REGISTER_FACTORY(v9, RDFT);
@@ -246,3 +247,5 @@ REGISTER_FACTORY(v9, Eye);
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);
 REGISTER_FACTORY(internal, GenerateProposalsIEInternal);
+REGISTER_FACTORY(internal, NmsStaticShapeIE8);
+REGISTER_FACTORY(internal, MulticlassNmsIEInternal);

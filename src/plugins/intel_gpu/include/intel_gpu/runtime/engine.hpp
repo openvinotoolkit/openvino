@@ -85,6 +85,9 @@ public:
     /// Returns preferred allocation type which can be mapped to host ptr
     allocation_type get_lockable_preferred_memory_allocation_type(bool is_image_layout = false) const;
 
+    /// Returns preferred device allocation type which may be not lockable
+    allocation_type get_preferred_memory_allocation_type(bool is_image_layout = false) const;
+
     /// Checks if the current engine supports speicied allocation @p type
     bool supports_allocation(allocation_type type) const;
 
@@ -133,6 +136,8 @@ public:
 
     /// Returns service stream which can be used during program build and optimizations
     virtual stream& get_program_stream() const = 0;
+
+    virtual allocation_type detect_usm_allocation_type(const void* memory) const = 0;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     /// Returns onednn engine object which shares device and context with current engine

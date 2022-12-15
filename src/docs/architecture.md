@@ -114,4 +114,4 @@ flowchart TB
 ```
 
 ## See also
- * [OpenVINO Developer documentation](./index.md)
+ * [OpenVINO Developer documentation](../../docs/dev/index.md)

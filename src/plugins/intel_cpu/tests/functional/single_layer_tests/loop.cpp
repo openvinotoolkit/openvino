@@ -299,21 +299,81 @@ protected:
     }
 };
 
-TEST_P(LoopLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+class LoopForConcatLayerCPUTest : public LoopLayerCPUTest {
+    // for 10:
+    //   x = y + 10;
+    //   y = concat(y, x)
+    //   return y
 
+protected:
+    void SetUp() override {
+        InputLayerType trip_count_type;
+        int64_t trip_count;
+        bool exec_cond;
+        std::vector<InputShape> shapes;
+        std::vector<LOOP_IN_TYPE> types;
+        std::tie(trip_count_type, trip_count, exec_cond, shapes, types, inType) = this->GetParam();
+
+        targetDevice = CommonTestUtils::DEVICE_CPU;
+        init_input_shapes(shapes);
+
+        auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
+
+        // Body parameters
+        const std::vector<ngraph::PartialShape> body_params_shapes(shapes.size(), ngraph::PartialShape::dynamic());
+        auto body_params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
+
+        auto body_condition_const = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
+        auto exec_condition = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, exec_cond);
+        std::shared_ptr<ngraph::Node> trip_count_input;
+        int shift = 0;
+        if (trip_count_type == InputLayerType::PARAMETER) {
+            for (auto& target : targetStaticShapes)
+                target.insert(target.begin(), ngraph::Shape{});
+            trip_count_input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::i64, ngraph::Shape{1});
+            trip_count_input->set_friendly_name("trip_count");
+            params.insert(params.begin(), ov::as_type_ptr<ngraph::opset5::Parameter>(trip_count_input));
+            shift++;
+        } else {
+            trip_count_input = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1}, trip_count);
+        }
+
+        // Body
+        auto constant = ngraph::builder::makeConstant(inType, std::vector<size_t>{1}, std::vector<float>{10});
+        auto add = std::make_shared<ngraph::opset5::Add>(body_params[0], constant);
+        auto concat = ngraph::builder::makeConcat({body_params[1], add}, 0);
+
+        auto body = std::make_shared<ov::Model>(ngraph::OutputVector{body_condition_const, concat}, body_params);
+
+        auto loop = std::make_shared<ngraph::opset5::Loop>(trip_count_input, exec_condition);
+        loop->set_function(body);
+        loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{-1, 0});
+
+        loop->set_invariant_input(body_params[0], params[shift]);
+        loop->set_merged_input(body_params[1], params[shift + 1], concat);
+
+        auto out0 = loop->get_iter_value(body_condition_const, -1);
+        auto out1 = loop->get_iter_value(concat, -1);
+
+        auto result0 = std::make_shared<ngraph::opset5::Result>(out0);
+        auto result1 = std::make_shared<ngraph::opset5::Result>(out1);
+        function = std::make_shared<ov::Model>(ngraph::ResultVector{result0, result1}, params, "loop");
+    }
+};
+
+TEST_P(LoopLayerCPUTest, CompareWithRefs) {
     run();
 }
 
 TEST_P(LoopWhileLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
 }
 
 TEST_P(LoopForDiffShapesLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run();
+}
 
+TEST_P(LoopForConcatLayerCPUTest, CompareWithRefs) {
     run();
 }
 
@@ -473,6 +533,59 @@ INSTANTIATE_TEST_SUITE_P(smoke_LoopForDiffShapesConcat, LoopForDiffShapesLayerCP
                                  ::testing::ValuesIn(trip_count),
                                  ::testing::ValuesIn(exec_cond),
                                  ::testing::ValuesIn(inputs_3),
+                                 ::testing::Values(std::vector<LOOP_IN_TYPE>{}),
+                                 ::testing::ValuesIn(inputPrecisions)),
+                         LoopLayerCPUTest::getTestCaseName);
+
+std::vector<std::vector<InputShape>> inputs_4 = {
+        {  // first test suit
+            {  // first input
+                {-1, 10, 10},
+                { // target static shapes
+                    {10, 10, 10},
+                    {5, 10, 10},
+                    {5, 10, 10},
+                    {8, 10, 10},
+                }
+            },
+            {  // second input
+                {-1, 10, 10},
+                { // target static shapes
+                    {0, 10, 10},
+                    {0, 10, 10},
+                    {0, 10, 10},
+                    {0, 10, 10},
+                }
+            },
+        },
+        {  // second test suit
+            {  // first input
+                {{0, 10}, 10, 10},
+                { // target static shapes
+                    {10, 10, 10},
+                    {5, 10, 10},
+                    {5, 10, 10},
+                    {8, 10, 10},
+                }
+            },
+            {  // second input
+                {-1, 10, 10},
+                { // target static shapes
+                    {0, 10, 10},
+                    {0, 10, 10},
+                    {0, 10, 10},
+                    {0, 10, 10},
+                }
+            },
+        },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_LoopForConcat, LoopForConcatLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(trip_count_type),
+                                 ::testing::ValuesIn(trip_count),
+                                 ::testing::ValuesIn(exec_cond),
+                                 ::testing::ValuesIn(inputs_4),
                                  ::testing::Values(std::vector<LOOP_IN_TYPE>{}),
                                  ::testing::ValuesIn(inputPrecisions)),
                          LoopLayerCPUTest::getTestCaseName);

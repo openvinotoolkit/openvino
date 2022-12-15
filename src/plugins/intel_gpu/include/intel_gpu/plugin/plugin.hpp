@@ -23,6 +23,7 @@ class Plugin : public InferenceEngine::IInferencePlugin,
     std::shared_ptr<impl> _impl;
     bool streamsSet = false;
     bool throttlingSet = false;
+    bool isModelCachingEnabled = false;
 
     // key: device_id, value: cldnn device
     std::map<std::string, cldnn::device::ptr> device_map;
@@ -30,7 +31,7 @@ class Plugin : public InferenceEngine::IInferencePlugin,
     mutable std::map<RemoteCLContext::Ptr, std::map<std::string, uint64_t>> statistics_map;
     mutable std::mutex engine_mutex;
 
-    mutable RemoteCLContext::Ptr m_defaultContext;
+    mutable std::map<std::string, RemoteCLContext::Ptr> m_defaultContexts;
 
     cldnn::device_info GetDeviceInfo(const std::map<std::string, std::string> &config) const;
     InferenceEngine::CNNNetwork CloneAndTransformNetwork(const InferenceEngine::CNNNetwork& network,
@@ -58,6 +59,8 @@ public:
     InferenceEngine::Parameter GetMetric(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
     InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork& network,
                                                      const std::map<std::string, std::string>& config) const override;
+    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& networkModel,
+                                                     const std::map<std::string, std::string>& config) override;
 
     std::shared_ptr<InferenceEngine::RemoteContext> CreateContext(const InferenceEngine::ParamMap& params) override;
     std::shared_ptr<InferenceEngine::RemoteContext> GetDefaultContext(const InferenceEngine::ParamMap& params) override;

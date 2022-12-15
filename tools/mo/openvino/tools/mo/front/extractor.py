@@ -8,6 +8,7 @@ from collections import defaultdict
 from copy import copy
 
 import numpy as np
+from openvino.runtime import PartialShape, Dimension
 
 from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension_value, shape_array
 from openvino.tools.mo.front.onnx.extractors.utils import get_backend_pad
@@ -631,6 +632,8 @@ def input_user_data_repack(graph: Graph, input_user_shapes: [None, list, dict, n
     if input_user_shapes is None:
         # None User did not provide neither --input nor --input_shape keys
         _input_shapes = None
+    elif isinstance(input_user_shapes, list) and len(input_user_shapes) > 1 and isinstance(input_user_shapes[0], PartialShape):
+        raise Error('Please provide input layer names for input layer shapes. ' + refer_to_faq_msg(58))
     elif isinstance(input_user_shapes, list) or isinstance(input_user_shapes, dict):
         # list [layer names w or w/o ports]. User provided only --input key
         # dict {layer names w or w/o ports as keys: shapes as values}. User provided both --input and --input_shape
@@ -647,8 +650,8 @@ def input_user_data_repack(graph: Graph, input_user_shapes: [None, list, dict, n
             [_input_shapes[ph_id].append({'shape': None, 'port': None}) for ph_id in _freeze_placeholder
              if ph_id not in _input_shapes]
     else:
-        # np.ndarray is a shape. User provided only --input_shape key
-        assert isinstance(input_user_shapes, tuple)
+        # User provided only --input_shape key
+        assert isinstance(input_user_shapes, PartialShape)
         if len(placeholders_ids) == 1:
             # There is only one placeholder in the original network
             _input_shapes[placeholders_ids[0]].append({'shape': input_user_shapes, 'port': None})
@@ -1020,15 +1023,15 @@ def add_input_ops(graph: Graph, user_defined_inputs: dict, before_infer: bool):
     """
     This function add user defined input operations.
     For cutting without port:
-    Op_1 -> Op_2 -> output, user_defined_inputs = {'Op_2': {'shape':[1, 2]}} =>
+    Op_1 -> Op_2 -> output, user_defined_inputs = {'Op_2': {'shape': PartialShape([1, 2])}} =>
     Op_1,  New_input (op=Parameter, shape=[1, 2]) -> Op_2 -> output
 
     For cutting with input port:
-    Op_1 -> Op_2 -> output, user_defined_inputs = {'Op_2': {'shape':[1, 2], 'in': 0}} =>
+    Op_1 -> Op_2 -> output, user_defined_inputs = {'Op_2': {'shape':PartialShape([1, 2]), 'in': 0}} =>
     Op_1,  New_input (op=Parameter, shape=[1, 2]) -> Op_2 -> output
 
     For cutting with output port:
-    Op_1 -> Op_2 -> output, user_defined_inputs = {'Op_2': {'shape':[1, 2], 'out': 0}} =>
+    Op_1 -> Op_2 -> output, user_defined_inputs = {'Op_2': {'shape':PartialShape([1, 2]), 'out': 0}} =>
     Op_1 -> Op_2, New_input (op=Parameter, shape=[1, 2]) -> output
 
     For case with before_infer=False data nodes are added to this schemes.
@@ -1051,8 +1054,20 @@ def add_input_ops(graph: Graph, user_defined_inputs: dict, before_infer: bool):
                 user_shape = None
                 if shape is not None:
                     user_shape = shape
-                    shape = shape_array(
-                        [dim if type(dim) != tuple and dim >= 0 else dynamic_dimension_value for dim in shape])
+                    shape_list = []
+                    for dim in shape:
+                        if isinstance(dim, Dimension):
+                            if dim.is_static:
+                                shape_list.append(dim.get_min_length())
+                            else:
+                                shape_list.append(dynamic_dimension_value)
+                            continue
+                        if dim >= 0:
+                            shape_list.append(dim)
+                        else:
+                            shape_list.append(dynamic_dimension_value)
+
+                    shape = shape_array(shape_list)
                 data_type = port_and_shape_info['data_type'] if 'data_type' in port_and_shape_info else None
                 smart_node = Node(graph, node_id)
 

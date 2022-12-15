@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,29 +23,54 @@ enum Bound : uint8_t { NONE, LOWER, UPPER, BOTH };
  */
 template <class T, Bound BMode = Bound::NONE>
 class Between {
-    T _lower_bound, _upper_bound;
+    const T m_lower_bound, m_upper_bound;
 
 public:
-    constexpr Between(const T& lower, const T& upper) : _lower_bound{lower}, _upper_bound{upper} {}
+    constexpr Between(const T& lower, const T& upper) : m_lower_bound{lower}, m_upper_bound{upper} {}
 
     template <Bound B = BMode, typename std::enable_if<B == Bound::NONE>::type* = nullptr>
     constexpr bool operator()(const T& value) const {
-        return (_lower_bound < value) && (value < _upper_bound);
+        return (lower() < value) && (value < upper());
     }
 
     template <Bound B = BMode, typename std::enable_if<B == Bound::LOWER>::type* = nullptr>
     constexpr bool operator()(const T& value) const {
-        return (_lower_bound <= value) && (value < _upper_bound);
+        return (lower() <= value) && (value < upper());
     }
 
     template <Bound B = BMode, typename std::enable_if<B == Bound::UPPER>::type* = nullptr>
     constexpr bool operator()(const T& value) const {
-        return (_lower_bound < value) && (value <= _upper_bound);
+        return (lower() < value) && (value <= upper());
     }
 
     template <Bound B = BMode, typename std::enable_if<B == Bound::BOTH>::type* = nullptr>
     constexpr bool operator()(const T& value) const {
-        return (_lower_bound <= value) && (value <= _upper_bound);
+        return (lower() <= value) && (value <= upper());
+    }
+
+    const T& upper() const {
+        return m_upper_bound;
+    }
+
+    const T& lower() const {
+        return m_lower_bound;
+    }
+};
+
+/**
+ * \brief Compare if value is equal to expected.
+ *
+ * \tparam T  Value type to compare.
+ */
+template <class T>
+class Equal {
+    T _exp_value;
+
+public:
+    constexpr Equal(const T& exp_value) : _exp_value{exp_value} {}
+
+    constexpr bool operator()(const T& value) const {
+        return _exp_value == value;
     }
 };
 }  // namespace cmp

@@ -18,7 +18,6 @@ namespace v0 {
 class OPENVINO_API MVN : public Op {
 public:
     OPENVINO_OP("MVN", "opset2");
-    BWDCMP_RTTI_DECLARATION;
 
     MVN() = default;
     /// \brief Constructs an MVN operation.
@@ -101,7 +100,6 @@ namespace v6 {
 class OPENVINO_API MVN : public Op {
 public:
     OPENVINO_OP("MVN", "opset6", op::Op, 6);
-    BWDCMP_RTTI_DECLARATION;
 
     MVN() = default;
     /// \brief Constructs an MVN operation.
@@ -124,6 +122,10 @@ public:
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+
+    bool evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const override;
+
+    bool has_evaluate() const override;
 
     float get_eps() const {
         return m_eps;
@@ -158,7 +160,6 @@ public:
     AttributeAdapter(op::MVNEpsMode& value) : EnumAttributeAdapterBase<op::MVNEpsMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::MVNEpsMode>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

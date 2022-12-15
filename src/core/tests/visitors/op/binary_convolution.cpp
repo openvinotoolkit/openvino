@@ -40,7 +40,7 @@ TEST(attributes, bin_convolution) {
                                                        mode,
                                                        pad_value,
                                                        auto_pad);
-    NodeBuilder builder(conv);
+    NodeBuilder builder(conv, {data_batch, filters});
     auto g_convolution = ov::as_type_ptr<op::v1::BinaryConvolution>(builder.create());
 
     // attribute count

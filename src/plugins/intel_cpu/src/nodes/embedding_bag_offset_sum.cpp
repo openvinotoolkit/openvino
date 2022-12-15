@@ -28,7 +28,7 @@ bool EmbeddingBagOffsetSum::isSupportedOperation(const std::shared_ptr<const ngr
 }
 
 EmbeddingBagOffsetSum::EmbeddingBagOffsetSum(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache), EmbeddingBagSum(op, 3lu, 1lu, 4lu, 3lu) {
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)), EmbeddingBagSum(op, 3lu, 1lu, 4lu, 3lu) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -131,14 +131,13 @@ bool EmbeddingBagOffsetSum::isExecutable() const {
 
 void EmbeddingBagOffsetSum::execute(dnnl::stream strm) {
     const auto *srcData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    auto *dstData = reinterpret_cast<uint8_t *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
     const uint8_t* weightsData = nullptr;
     if (_withWeights)
         weightsData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(PER_SAMPLE_WEIGHTS_IDX)->getMemoryPtr()->GetPtr());
 
     const auto &inputMem  = getParentEdgeAt(0)->getMemory();
-    EmbeddingBagSum::execute(srcData, weightsData, dstData, inputMem .getDesc().getPrecision(),
-                                       inputMem .getStaticDims(), getChildEdgesAtPort(0)[0]->getMemory().GetShape().getStaticDims());
+    EmbeddingBagSum::execute(srcData, weightsData, inputMem.getDesc().getPrecision(),
+                                       inputMem.getStaticDims(), getChildEdgesAtPort(0)[0]->getMemoryPtr());
 }
 
 bool EmbeddingBagOffsetSum::created() const {

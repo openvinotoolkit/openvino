@@ -140,9 +140,9 @@ def get_bias_for_node(node: Node):
     if len(node_outputs) == 1:
         potential_bias = node_outputs[0]
         if potential_bias.type == 'Add' and len(get_node_inputs(potential_bias)) > 1:
-            potential_bias_const = get_node_input(potential_bias, 1)
-            if potential_bias_const.type == 'Const':
-                return potential_bias_const
+            for potential_bias_const in get_node_inputs(potential_bias):
+                if potential_bias_const.type == 'Const':
+                    return potential_bias_const
     return None
 
 
@@ -191,7 +191,12 @@ def get_quantized_input_key(quantized_node):
     If input node of quantized node have one output port -> key is name of fq_input node.
     Otherwise, key is tuple (fq_input name, output port number)
     """
-    quantized_input = get_node_input(quantized_node, 0)
+    if quantized_node.type == 'Add':
+        for quantized_node_input in get_node_inputs(quantized_node):
+            if quantized_node_input.type != 'Const':
+                quantized_input = quantized_node_input
+    else:
+        quantized_input = get_node_input(quantized_node, 0)
     key = quantized_input.fullname
     if len(quantized_input.out_ports()) > 1:
         port_number = quantized_node.in_port(0).get_source().out
@@ -283,7 +288,8 @@ def create_node_name(input_node, mode=tuple):
 
 
 def get_node_data_type(node, port_id=0):
-    if node.type != 'Const' and node.in_port(port_id).get_source() is not None \
+    if node.type != 'Const' and port_id in node.in_ports() \
+            and node.in_port(port_id).get_source() is not None \
             and node.in_port(port_id).get_source().is_data_type_defined():
         return node.in_port(port_id).get_source().get_data_type()
     return None

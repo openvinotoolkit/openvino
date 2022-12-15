@@ -56,6 +56,7 @@
 #include "nodes/matrix_nms.h"
 #include "nodes/mvn.h"
 #include "nodes/gather.h"
+#include "nodes/grid_sample.hpp"
 #include "nodes/scatter_update.h"
 #include "nodes/gather_tree.h"
 #include "nodes/def_conv.h"
@@ -88,7 +89,9 @@
 #include "nodes/priorbox.h"
 #include "nodes/priorbox_clustered.h"
 #include "nodes/eye.h"
+#include "nodes/interaction.h"
 #include "nodes/mha.h"
+#include "nodes/unique.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -178,6 +181,7 @@ Node::NodesFactory::NodesFactory()
     INTEL_CPU_NODE(DepthToSpace, Type::DepthToSpace);
     INTEL_CPU_NODE(Deconvolution, Type::Deconvolution);
     INTEL_CPU_NODE(Gather, Type::Gather);
+    INTEL_CPU_NODE(GridSample, Type::GridSample);
     INTEL_CPU_NODE(RegionYolo, Type::RegionYolo);
     INTEL_CPU_NODE(Range, Type::Range);
     INTEL_CPU_NODE(TopK, Type::TopK);
@@ -189,7 +193,9 @@ Node::NodesFactory::NodesFactory()
     INTEL_CPU_NODE(PriorBox, Type::PriorBox);
     INTEL_CPU_NODE(PriorBoxClustered, Type::PriorBoxClustered);
     INTEL_CPU_NODE(Eye, Type::Eye);
+    INTEL_CPU_NODE(Interaction, Type::Interaction);
     INTEL_CPU_NODE(MHA, Type::MHA);
+    INTEL_CPU_NODE(Unique, Type::Unique);
 }
 
 #undef INTEL_CPU_NODE

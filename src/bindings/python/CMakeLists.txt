@@ -11,8 +11,9 @@ project(OpenVINOPython DESCRIPTION "OpenVINO Runtime Python bindings")
 #
 
 if(NOT DEFINED OpenVINO_SOURCE_DIR)
-    find_package(InferenceEngineDeveloperPackage REQUIRED)
-    set(OpenVINO_BINARY_DIR "${InferenceEngineDeveloperPackage_DIR}")
+    find_package(OpenVINODeveloperPackage REQUIRED
+                 PATHS "${InferenceEngineDeveloperPackage_DIR}")
+    set(OpenVINO_BINARY_DIR "${OpenVINODeveloperPackage_DIR}")
 endif()
 
 #
@@ -65,7 +66,7 @@ function(ov_check_python_build_conditions)
     # check pyopenvino requirements to OV 2.0 API
     ov_check_pip_packages(REQUIREMENTS_FILE ${ov_python_req}
                           RESULT_VAR ov_python_req_FOUND
-                          WARNING_MESSAGE "install python3 -m install -r ${ov_python_req} for OV API 2.0 requirements"
+                          WARNING_MESSAGE "install python3 -m pip install -r ${ov_python_req} for OV API 2.0 requirements"
                           MESSAGE_MODE TRACE)
     # ov_python_req are not mandatory for build
     set(ov_python_req_FOUND ON)
@@ -111,14 +112,6 @@ ov_check_python_build_conditions()
 
 ie_option(ENABLE_PYTHON "Enables OpenVINO Python API build" ${ENABLE_PYTHON_DEFAULT})
 
-if(NOT ENABLE_PYTHON)
-    if(CMAKE_SOURCE_DIR STREQUAL OpenVINOPython_SOURCE_DIR)
-        message(FATAL_ERROR "Python OpenVINO API requirements are not satisfied. Please, install ${ie_python_req} and ${ov_python_req}")
-    else()
-        return()
-    endif()
-endif()
-
 #
 # Check for wheel package
 #
@@ -147,9 +140,22 @@ if(LINUX)
     endif()
 endif()
 
-# this option should not be a part of InferenceEngineDeveloperPackage
+if(CMAKE_VERSION VERSION_LESS 3.15)
+    message(${message_mode} "Cmake version 3.15 and higher is required. Provided version ${CMAKE_VERSION}")
+    set(ENABLE_WHEEL_DEFAULT OFF)
+endif()
+
+# this option should not be a part of OpenVINODeveloperPackage
 # since wheels can be built only together with main OV build
 ie_dependent_option(ENABLE_WHEEL "Build wheel packages for PyPI" ${ENABLE_WHEEL_DEFAULT} "ENABLE_PYTHON" OFF)
+
+if(NOT ENABLE_PYTHON)
+    if(CMAKE_SOURCE_DIR STREQUAL OpenVINOPython_SOURCE_DIR)
+        message(FATAL_ERROR "Python OpenVINO API requirements are not satisfied. Please, install ${ie_python_req} and ${ov_python_req}")
+    else()
+        return()
+    endif()
+endif()
 
 #
 # Build the code
@@ -179,6 +185,6 @@ if(ENABLE_TESTS)
     add_subdirectory(tests/mock/pyngraph_fe_mock_api)
 endif()
 
-if(InferenceEngineDeveloperPackage_FOUND)
+if(OpenVINODeveloperPackage_FOUND)
     ie_cpack(${IE_CPACK_COMPONENTS_ALL})
 endif()

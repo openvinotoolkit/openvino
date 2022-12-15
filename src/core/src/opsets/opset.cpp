@@ -7,14 +7,25 @@
 #include "itt.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/ops.hpp"
+#include "openvino/opsets/opset.hpp"
 
 ngraph::OpSet::OpSet(const ov::OpSet& opset) : ov::OpSet(opset) {}
 
+ngraph::OpSet::OpSet(const ngraph::OpSet& opset) : ov::OpSet(opset) {}
+
 ov::OpSet::OpSet(const std::string& name) : m_name(name) {}
 
-std::mutex& ov::OpSet::get_mutex() {
-    static std::mutex opset_mutex;
-    return opset_mutex;
+ov::OpSet::OpSet(const ov::OpSet& opset) {
+    *this = opset;
+}
+
+ov::OpSet& ov::OpSet::operator=(const ov::OpSet& opset) {
+    m_factory_registry = opset.m_factory_registry;
+    m_name = opset.m_name;
+    m_op_types = opset.m_op_types;
+    m_name_type_info_map = opset.m_name_type_info_map;
+    m_case_insensitive_type_info_map = opset.m_case_insensitive_type_info_map;
+    return *this;
 }
 
 ov::Node* ov::OpSet::create(const std::string& name) const {
@@ -35,6 +46,40 @@ ov::Node* ov::OpSet::create_insensitive(const std::string& name) const {
     }
     REGISTER_OP(m_name, name);
     return m_factory_registry.create(type_info_it->second);
+}
+
+const std::map<std::string, std::function<const ngraph::OpSet&()>>& ngraph::get_available_opsets() {
+#define _NGRAPH_REG_OPSET(OPSET) \
+    { #OPSET, ngraph::get_##OPSET }
+    const static std::map<std::string, std::function<const ngraph::OpSet&()>> opset_map = {_NGRAPH_REG_OPSET(opset1),
+                                                                                           _NGRAPH_REG_OPSET(opset2),
+                                                                                           _NGRAPH_REG_OPSET(opset3),
+                                                                                           _NGRAPH_REG_OPSET(opset4),
+                                                                                           _NGRAPH_REG_OPSET(opset5),
+                                                                                           _NGRAPH_REG_OPSET(opset6),
+                                                                                           _NGRAPH_REG_OPSET(opset7),
+                                                                                           _NGRAPH_REG_OPSET(opset8),
+                                                                                           _NGRAPH_REG_OPSET(opset9),
+                                                                                           _NGRAPH_REG_OPSET(opset10)};
+#undef _NGRAPH_REG_OPSET
+    return opset_map;
+}
+
+const std::map<std::string, std::function<const ov::OpSet&()>>& ov::get_available_opsets() {
+#define _OPENVINO_REG_OPSET(OPSET) \
+    { #OPSET, ov::get_##OPSET }
+    const static std::map<std::string, std::function<const ov::OpSet&()>> opset_map = {_OPENVINO_REG_OPSET(opset1),
+                                                                                       _OPENVINO_REG_OPSET(opset2),
+                                                                                       _OPENVINO_REG_OPSET(opset3),
+                                                                                       _OPENVINO_REG_OPSET(opset4),
+                                                                                       _OPENVINO_REG_OPSET(opset5),
+                                                                                       _OPENVINO_REG_OPSET(opset6),
+                                                                                       _OPENVINO_REG_OPSET(opset7),
+                                                                                       _OPENVINO_REG_OPSET(opset8),
+                                                                                       _OPENVINO_REG_OPSET(opset9),
+                                                                                       _OPENVINO_REG_OPSET(opset10)};
+#undef _OPENVINO_REG_OPSET
+    return opset_map;
 }
 
 const ov::OpSet& ov::get_opset1() {

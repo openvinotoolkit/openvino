@@ -48,7 +48,6 @@ protected:
 
 public:
     OPENVINO_OP("BinaryElementwiseArithmetic", "util");
-    BWDCMP_RTTI_DECLARATION;
 
     void validate_and_infer_types() override;
 
@@ -66,7 +65,7 @@ public:
 
 private:
     AutoBroadcastSpec m_autob;
-    void validate_and_infer_elementwise_arithmetic(const op::AutoBroadcastSpec& autob);
+    void validate_and_infer_elementwise_arithmetic();
 };
 }  // namespace util
 }  // namespace op

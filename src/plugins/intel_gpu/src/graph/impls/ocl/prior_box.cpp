@@ -18,15 +18,18 @@ namespace ocl {
 struct prior_box_impl : typed_primitive_impl_ocl<prior_box> {
     using parent = typed_primitive_impl_ocl<prior_box>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::prior_box_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::prior_box_params, kernel_selector::prior_box_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<prior_box_impl>(*this);
     }
 
-    static primitive_impl* create(const prior_box_node& arg, const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<prior_box>();
         auto params = get_default_params<kernel_selector::prior_box_params>(impl_param);
-        const auto& kernel_selector = kernel_selector::prior_box_kernel_selector::Instance();
-        const auto& primitive = arg.get_primitive();
 
         const auto width = primitive->output_size.spatial[0];
         const auto height = primitive->output_size.spatial[1];
@@ -71,16 +74,11 @@ struct prior_box_impl : typed_primitive_impl_ocl<prior_box> {
         }
         params.widths = primitive->widths;
         params.heights = primitive->heights;
-        const auto output_shape = impl_param.output_layout.get_shape();
+        const auto output_shape = impl_param.get_output_layout().get_shape();
         params.num_priors_4 = output_shape[1] / (params.width * params.height);
 
-        params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
-        const auto best_kernels = kernel_selector.GetBestKernels(params, kernel_selector::prior_box_optional_params());
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-        return new prior_box_impl(arg, best_kernels[0]);
+        params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
+        return {params, {}};
     }
 };
 
@@ -94,9 +92,11 @@ attach_prior_box_impl::attach_prior_box_impl() {
                     format::bs_fs_yx_bsv16_fsv16,
                     format::bs_fs_yx_bsv32_fsv16,
                     format::bs_fs_yx_bsv32_fsv32};
-    implementation_map<prior_box>::add(impl_types::ocl, prior_box_impl::create, types, formats);
+    implementation_map<prior_box>::add(impl_types::ocl, typed_primitive_impl_ocl<prior_box>::create<prior_box_impl>, types, formats);
 }
 }  // namespace detail
 
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::prior_box_impl)

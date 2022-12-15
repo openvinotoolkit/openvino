@@ -11,8 +11,7 @@ namespace op {
 namespace v9 {
 class OPENVINO_API SoftSign : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_OP("SoftSign", "opset9");
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("SoftSign", "opset9", util::UnaryElementwiseArithmetic);
 
     SoftSign() = default;
     /// \brief Constructs a SoftSign operation.

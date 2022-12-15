@@ -5,7 +5,7 @@ import itertools
 import os
 import re
 import warnings
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
 from pathlib import Path
 
 import numpy as np
@@ -83,7 +83,8 @@ class CommonLayerTest:
         else:
             ie_engine = InferAPI20(model=path_to_xml,
                                    weights=path_to_bin,
-                                   device=ie_device)
+                                   device=ie_device,
+                                   use_new_frontend=use_new_frontend)
         # Prepare feed dict
         if 'kwargs_to_prepare_input' in kwargs and kwargs['kwargs_to_prepare_input']:
             inputs_dict = self._prepare_input(ie_engine.get_inputs_info(precision),
