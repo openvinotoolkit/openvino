@@ -190,8 +190,8 @@ TEST_P(OVClassExecutableNetworkGetMetricTest_DEVICE_PROPERTIES, GetMetricWithDev
 TEST_P(OVClassExecutableNetworkGetMetricTestThrow_DEVICE_PROPERTIES, GetMetricWithDevicePropertiesThrow) {
     ov::Core ie = createCoreWithTemplate();
     auto compiled_model = ie.compile_model(simpleNetwork, target_device, configuration);
-    // unsupported property ov::hint::allow_auto_batching
-    ASSERT_THROW(compiled_model.get_property(ov::device::properties(device_name, ov::hint::allow_auto_batching)),
+    // throw exception when getting unsupported property through device's executable network via this API
+    ASSERT_THROW(compiled_model.get_property(ov::device::properties(device_name, ov::device::priorities)),
                  ov::Exception);
     // executable network is not found in meta plugin
     ASSERT_THROW(compiled_model.get_property(ov::device::properties(device_name, ov::num_streams)), ov::Exception);
