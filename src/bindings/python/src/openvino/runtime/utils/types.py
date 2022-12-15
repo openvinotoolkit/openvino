@@ -69,7 +69,7 @@ def get_element_type(data_type: NumericType) -> Type:
         return numpy_to_openvino_types_map[data_type]
     except KeyError:
         raise OVTypeError("Unidentified data type %s", data_type)
-    
+
 
 def get_element_type_str(data_type: NumericType) -> str:
     """Return an ngraph element type string representation for a Python type or numpy dtype."""
