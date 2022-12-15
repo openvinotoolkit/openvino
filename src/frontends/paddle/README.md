@@ -2,8 +2,8 @@
 
 OpenVINO Paddle Frontend is one of the OpenVINO Frontend libraries created for the Baidu PaddlePaddle™ framework.
 The component is responsible for:
- * Paddle Reader - reads PaddlePaddle protobuf model and parses it to the frontend InputModel [paddle frontend architecture](./docs/paddle_frontend_architecture.md).
- * Paddle Converter - decodes the PaddlePaddle model and operators and maps them semantically to the OpenVINO opset [operator mapping flow](./docs/operation_mapping_flow.md).
+ * Paddle Reader - reads a PaddlePaddle protobuf model and parses it to the frontend InputModel. [Learn more about Paddle Frontend architecture.](./docs/paddle_frontend_architecture.md).
+ * Paddle Converter - decodes a PaddlePaddle model and operators and maps them semantically to the OpenVINO opset. [Learn more about the operator mapping flow.](./docs/operation_mapping_flow.md).
 
 OpenVINO Paddle Frontend uses [the common coding style rules](../../../docs/dev/coding_style.md).
 
