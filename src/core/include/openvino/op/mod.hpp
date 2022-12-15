@@ -27,6 +27,9 @@ public:
         const AutoBroadcastSpec& auto_broadcast = AutoBroadcastSpec(AutoBroadcastType::NUMPY));
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+
+    bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override;
+    bool has_evaluate() const override;
 };
 }  // namespace v1
 }  // namespace op
