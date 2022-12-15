@@ -14,12 +14,14 @@
 #include <threading/ie_executor_manager.hpp>
 #include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
 #include <ie_icore.hpp>
+#include <ie_system_conf.h>
 
 namespace ov {
 namespace intel_gna {
 
 class GNAExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal {
     std::shared_ptr<GNAPlugin> plg;
+    std::string networkName;
 
  public:
      GNAExecutableNetwork(const std::string& aotFileName, std::shared_ptr<GNAPlugin> plg)
@@ -51,6 +53,7 @@ class GNAExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal 
     GNAExecutableNetwork(const InferenceEngine::CNNNetwork &network, std::shared_ptr<GNAPlugin> plg)
         : plg(plg) {
         plg->LoadNetwork(network);
+        networkName = network.getName();
     }
 
     GNAExecutableNetwork(const std::string& aotFileName, const std::map<std::string, std::string>& config)
@@ -128,8 +131,16 @@ class GNAExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal 
     }
 
     InferenceEngine::Parameter GetMetric(const std::string& name) const override {
-        if (ov::supported_properties == name) {
+        if (ov::supported_properties == name || InferenceEngine::Metrics::METRIC_SUPPORTED_CONFIG_KEYS == name) {
             return Config::GetSupportedProperties(true);
+        } else if (ov::model_name == name) {
+            return networkName;
+        } else if (InferenceEngine::Metrics::METRIC_SUPPORTED_METRICS == name) {
+            return std::vector<std::string>{ov::model_name.name(),
+                                            ov::supported_properties.name(),
+                                            InferenceEngine::Metrics::METRIC_SUPPORTED_METRICS,
+                                            InferenceEngine::Metrics::METRIC_SUPPORTED_CONFIG_KEYS,
+                                            ov::optimal_number_of_infer_requests.name()};
         } else {
             return plg->GetMetric(name, {});
         }
