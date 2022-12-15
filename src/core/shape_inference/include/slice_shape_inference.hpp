@@ -141,7 +141,7 @@ void shape_infer(const Slice* op,
             dims.emplace_back(0, input_dim.get_max_length());
         }
     }
-    output_shapes.front() = T(std::move(dims));
+    output_shapes.front() = T(dims);
 }
 }  // namespace v8
 }  // namespace op
