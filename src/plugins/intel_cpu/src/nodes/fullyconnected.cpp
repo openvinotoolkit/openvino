@@ -591,7 +591,7 @@ void FullyConnected::createDescriptorInternal(const dnnl::memory::desc &inputDes
     dnnl::memory::desc wgh_candidate;
     if (useSparseWeights) {
         wgh_candidate = { DnnlExtensionUtils::convertToDnnlDims(getInputShapeAtPort(WEIGHTS_ID).getStaticDims()),
-                wdt, memory::desc::packed(nnzCount) };
+                wdt, memory::desc::packed() };
     } else {
         wgh_candidate = { DnnlExtensionUtils::convertToDnnlDims(getInputShapeAtPort(WEIGHTS_ID).getStaticDims()),
                                         wdt, dnnl::memory::format_tag::any };
@@ -930,17 +930,11 @@ bool FullyConnected::useSparseWeightsDecompression() {
             zerosCounts++;
         }
     }
-    nnzCount = elementsCount - zerosCounts;
 
     DEBUG_LOG(getName(), ", weightsData.size() = ", elementsCount, ", zerosCounts = ",
-        zerosCounts, ", nnzCount = ", nnzCount);
+        zerosCounts, ", nnzCount = ", elementsCount - zerosCounts);
 
     weiSparseRate = static_cast<float>(zerosCounts) / static_cast<float>(elementsCount);
-
-    // [av] WA: there is no point in using sparse decompression when the sparse rate is low
-    // todo: add heuristic
-    if (minSparseRate < 0.5)
-        minSparseRate = 0.5;
 
     DEBUG_LOG(getName(), " | sparse rate = ", weiSparseRate * 100, "%, min sparse rate = ",
         minSparseRate * 100, "%, use sparse weights = ", weiSparseRate >= minSparseRate);

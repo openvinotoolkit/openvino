@@ -281,7 +281,7 @@ To enable denormals optimization in the application, the `denormals_optimization
 
 `Sparse weights decompression feature` allows to pack weights for Matrix Multiplication operations directly in the CPU plugin at the model compilation stage and store non-zero values in a special packed format. Then, during the execution of the model, the weights are unpacked and used in the computational kernel. Since the weights are loaded from DDR/L3 cache in the packed format this significantly decreases memory consumption and as a consequence improve inference performance.
 
-To use this feature, the user is provided with property `sparse_weights_decompression_rate`, which can take values from the interval \[0.5, 1\] (values from \[0, 0.5\] are not supported in current implementation, see limitations below). `sparse_weights_decompression_rate` defines sparse rate threashold: only operations with higher sparse rate will be executed using `sparse weights decompression feature`. The default value is `1`, which means the option is disabled.
+To use this feature, the user is provided with property `sparse_weights_decompression_rate`, which can take values from the interval \[0, 1\]. `sparse_weights_decompression_rate` defines sparse rate threashold: only operations with higher sparse rate will be executed using `sparse weights decompression feature`. The default value is `1`, which means the option is disabled.
 
 > **NOTE**: `Sparse weights decompression feature` is disabled by default since overall speed-up highly depends on particular workload and for some cases the feature may introduce performance degradations.
 
@@ -315,7 +315,6 @@ Currently, the `sparse weights decompression feature` is supported with the foll
 2. Feature is only supported for Matrix Multiplication operations.
 3. HW target must have Intel AMX extension support (e.g., Intel® 4th Generation Xeon® processors (code name Sapphire Rapids)).
 4. The number of input and output channels of the weights must be a multiple of 64.
-5. Current feature implementation supports only sparse rate higher than 0.5.
 
 ## Additional Resources
 * [Supported Devices](Supported_Devices.md)
