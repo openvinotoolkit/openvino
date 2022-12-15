@@ -149,7 +149,6 @@ jobs:
       sudo apt --assume-yes install openjdk-11-jdk libbz2-dev clang
       # For Python API
       python3 -m pip install --upgrade pip
-      python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements.txt
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/requirements.txt
       # For running Python API tests

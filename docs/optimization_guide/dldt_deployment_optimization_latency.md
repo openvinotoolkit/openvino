@@ -1,4 +1,4 @@
-## Optimizing for the Latency {#openvino_docs_deployment_optimization_guide_latency}
+## Optimizing for Latency {#openvino_docs_deployment_optimization_guide_latency}
 
 @sphinxdirective
 
