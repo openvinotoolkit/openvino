@@ -76,13 +76,14 @@ namespace {
 std::set<size_t> GetNodeIds(NodeVector nodes) {
     std::set<size_t> node_ids;
 
-    std::transform(nodes.begin(), nodes.end(), std::inserter(node_ids, node_ids.begin()),
-                   [](NodePtr node) -> size_t { return node->get_instance_id(); });
+    std::transform(nodes.begin(), nodes.end(), std::inserter(node_ids, node_ids.begin()), [](NodePtr node) -> size_t {
+        return node->get_instance_id();
+    });
 
     return node_ids;
 }
 
-} // namespace
+}  // namespace
 
 NodePtr CloneNodeWithoutConsumers(NodePtr node, NodeVector consumers) {
     const auto consumer_ids = GetNodeIds(consumers);

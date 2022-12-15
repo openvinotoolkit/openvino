@@ -70,7 +70,8 @@ std::shared_ptr<ov::Node> CloneNodeWithoutConsumers(std::shared_ptr<ov::Node> no
 namespace sink_forward {
 // insert input reversed transposes, remove first input tranpose
 /**
- * @brief Insert reversed transposed on @args main_node inputs. Remove input transpose specified in @arg transpose_input_info
+ * @brief Insert reversed transposed on @args main_node inputs. Remove input transpose specified in @arg
+ * transpose_input_info
  */
 void UpdateInputTransposes(std::shared_ptr<ov::Node> main_node, TransposeInputsInfo& transpose_input_info);
 
