@@ -12,10 +12,10 @@
 @endsphinxdirective
 
 Post-training model optimization is the process of applying special methods that transform the model into a more hardware-friendly representation without retraining or fine-tuning. The most popular and widely-spread method here is 8-bit post-training quantization because it is:
-* Easy-to-use
-* It does not hurt accuracy a lot
-* Provides significant performance improvement
-* Suites to many HW available in stock since most of it supports 8-bit computation natively
+* It is easy-to-use.
+* It does not hurt accuracy a lot.
+* It provides significant performance improvement.
+* It suites many hardware available in stock since most of them support 8-bit computation natively.
 
 8-bit integer quantization lowers precision of weights and activations to 8 bits which leads to almost 4x reduction in the model footprint and significant improvements in inference speed mostly due to lower throughput required for the inference. This lowering step is done offline, i.e. before the actual inference, so that the model gets transformed to the quantized representation. The process does not require a training dataset or a training pipeline in the source DL framework. 
 
