@@ -10,7 +10,6 @@
 namespace kernel_selector {
 
 enum class StridedSliceArgType {
-    None,
     Input,
     Constant
 };
@@ -27,9 +26,9 @@ struct strided_slice_params : public base_params {
     std::vector<uint8_t> ellipsis_mask;
     std::vector<uint8_t> new_axis_mask;
     std::vector<uint8_t> shrink_axis_mask;
-    StridedSliceArgType begin_type = StridedSliceArgType::None;
-    StridedSliceArgType end_type = StridedSliceArgType::None;
-    StridedSliceArgType stride_type = StridedSliceArgType::None;
+    StridedSliceArgType begin_type;
+    StridedSliceArgType end_type;
+    StridedSliceArgType stride_type;
 
     uint32_t GetIndexBegin() const {
         uint32_t input_idx = 0;

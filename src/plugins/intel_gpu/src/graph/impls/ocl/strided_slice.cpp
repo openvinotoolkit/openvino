@@ -26,7 +26,7 @@ std::vector<T>& pad_vector_to_size(std::vector<T>& data, size_t size, DT value) 
 template <typename T, typename MT>
 std::vector<T>& vector_assign_if_not_mask(std::vector<T>& dst, const T& src, const std::vector<MT>& mask) {
     for (size_t i = 0; i < dst.size(); ++i) {
-        if (!mask[i])
+        if (mask[i])
             dst[i] = src;
     }
     return dst;
@@ -35,7 +35,7 @@ std::vector<T>& vector_assign_if_not_mask(std::vector<T>& dst, const T& src, con
 template <typename T, typename MT>
 std::vector<T>& vector_assign_if_not_mask(std::vector<T>& dst, const std::vector<T>& src, const std::vector<MT>& mask) {
     for (size_t i = 0; i < dst.size(); ++i) {
-        if (!mask[i])
+        if (mask[i])
             dst[i] = src[i];
     }
     return dst;
@@ -116,17 +116,10 @@ public:
         std::vector<uint8_t> end_mask(end_mask_.begin(), end_mask_.end());
         std::vector<uint8_t> new_axis_mask(new_axis_mask_.begin(), new_axis_mask_.end());
         std::vector<uint8_t> shrink_axis_mask(shrink_axis_mask_.begin(), shrink_axis_mask_.end());
-        // Plugin requires inverted mask values. Consider changing primitive impl to be aligned with the spec.
-        for (auto& b : begin_mask) {
-            b = 1 - b;
-        }
-        for (auto& e : end_mask) {
-            e = 1 - e;
-        }
         params.end_mask = end_mask;
-        pad_vector_to_size(params.end_mask, dims_num, 1);
+        pad_vector_to_size(params.end_mask, dims_num, 0);
         params.begin_mask = begin_mask;
-        pad_vector_to_size(params.begin_mask, dims_num, 1);
+        pad_vector_to_size(params.begin_mask, dims_num, 0);
 
         params.new_axis_mask = new_axis_mask;
         params.shrink_axis_mask = shrink_axis_mask;

@@ -49,16 +49,16 @@ inline void FUNC(get_slice_end)(const __global END_TYPE* end,
     const uint out_y_num = INPUT0_SIZE_Y;
     const uint out_x_num = INPUT0_SIZE_X;
 #ifdef OUTPUT_LAYOUT_BFYX
-    const END_TYPE batch = (END_BATCH == 1) ? end[END_GET_INDEX(0, 0, 0, 0)] : TO_END_TYPE(out_batch_num);
-    const END_TYPE feature = (END_FEATURE == 1) ? end[END_GET_INDEX(1, 0, 0, 0)] : TO_END_TYPE(out_feature_num);
-    const END_TYPE y = (END_Y == 1) ? end[END_GET_INDEX(2, 0, 0, 0)] : TO_END_TYPE(out_y_num);
-    const END_TYPE x = (END_X == 1) ? end[END_GET_INDEX(3, 0, 0, 0)] : TO_END_TYPE(out_x_num);
+    const END_TYPE batch = (END_BATCH == 0) ? end[END_GET_INDEX(0, 0, 0, 0)] : TO_END_TYPE(out_batch_num);
+    const END_TYPE feature = (END_FEATURE == 0) ? end[END_GET_INDEX(1, 0, 0, 0)] : TO_END_TYPE(out_feature_num);
+    const END_TYPE y = (END_Y == 0) ? end[END_GET_INDEX(2, 0, 0, 0)] : TO_END_TYPE(out_y_num);
+    const END_TYPE x = (END_X == 0) ? end[END_GET_INDEX(3, 0, 0, 0)] : TO_END_TYPE(out_x_num);
 #elif OUTPUT_LAYOUT_BFZYX
-    const END_TYPE batch = (END_BATCH == 1) ? end[END_GET_INDEX(0, 0, 0, 0, 0)] : TO_END_TYPE(out_batch_num);
-    const END_TYPE feature = (END_FEATURE == 1) ? end[END_GET_INDEX(1, 0, 0, 0, 0)] : TO_END_TYPE(out_feature_num);
-    const END_TYPE z = (END_Z == 1) ? end[END_GET_INDEX(2, 0, 0, 0, 0)] : TO_END_TYPE(out_z_num);
-    const END_TYPE y = (END_Y == 1) ? end[END_GET_INDEX(3, 0, 0, 0, 0)] : TO_END_TYPE(out_y_num);
-    const END_TYPE x = (END_X == 1) ? end[END_GET_INDEX(4, 0, 0, 0, 0)] : TO_END_TYPE(out_x_num);
+    const END_TYPE batch = (END_BATCH == 0) ? end[END_GET_INDEX(0, 0, 0, 0, 0)] : TO_END_TYPE(out_batch_num);
+    const END_TYPE feature = (END_FEATURE == 0) ? end[END_GET_INDEX(1, 0, 0, 0, 0)] : TO_END_TYPE(out_feature_num);
+    const END_TYPE z = (END_Z == 0) ? end[END_GET_INDEX(2, 0, 0, 0, 0)] : TO_END_TYPE(out_z_num);
+    const END_TYPE y = (END_Y == 0) ? end[END_GET_INDEX(3, 0, 0, 0, 0)] : TO_END_TYPE(out_y_num);
+    const END_TYPE x = (END_X == 0) ? end[END_GET_INDEX(4, 0, 0, 0, 0)] : TO_END_TYPE(out_x_num);
 #endif
     *end_batch = FUNC_CALL(check_end_bound)(batch, out_batch_num);
     *end_feature = FUNC_CALL(check_end_bound)(feature, out_feature_num);
@@ -148,16 +148,16 @@ inline void FUNC(get_slice_begin)(const __global BEGIN_TYPE* begin,
     const uint out_y_num = INPUT0_SIZE_Y;
     const uint out_x_num = INPUT0_SIZE_X;
 #ifdef OUTPUT_LAYOUT_BFYX
-    const BEGIN_TYPE batch = (BEGIN_BATCH == 1) ? begin[BEGIN_GET_INDEX(0, 0, 0, 0)] : 0;
-    const BEGIN_TYPE feature = (BEGIN_FEATURE == 1) ? begin[BEGIN_GET_INDEX(1, 0, 0, 0)] : 0;
-    const BEGIN_TYPE y = (BEGIN_Y == 1) ? begin[BEGIN_GET_INDEX(2, 0, 0, 0)] : 0;
-    const BEGIN_TYPE x = (BEGIN_X == 1) ? begin[BEGIN_GET_INDEX(3, 0, 0, 0)] : 0;
+    const BEGIN_TYPE batch = (BEGIN_BATCH == 0) ? begin[BEGIN_GET_INDEX(0, 0, 0, 0)] : 0;
+    const BEGIN_TYPE feature = (BEGIN_FEATURE == 0) ? begin[BEGIN_GET_INDEX(1, 0, 0, 0)] : 0;
+    const BEGIN_TYPE y = (BEGIN_Y == 0) ? begin[BEGIN_GET_INDEX(2, 0, 0, 0)] : 0;
+    const BEGIN_TYPE x = (BEGIN_X == 0) ? begin[BEGIN_GET_INDEX(3, 0, 0, 0)] : 0;
 #elif OUTPUT_LAYOUT_BFZYX
-    const BEGIN_TYPE batch = (BEGIN_BATCH == 1) ? begin[BEGIN_GET_INDEX(0, 0, 0, 0, 0)] : 0;
-    const BEGIN_TYPE feature = (BEGIN_FEATURE == 1) ? begin[BEGIN_GET_INDEX(1, 0, 0, 0, 0)] : 0;
-    const BEGIN_TYPE z = (BEGIN_Z == 1) ? begin[BEGIN_GET_INDEX(2, 0, 0, 0, 0)] : 0;
-    const BEGIN_TYPE y = (BEGIN_Y == 1) ? begin[BEGIN_GET_INDEX(3, 0, 0, 0, 0)] : 0;
-    const BEGIN_TYPE x = (BEGIN_X == 1) ? begin[BEGIN_GET_INDEX(4, 0, 0, 0, 0)] : 0;
+    const BEGIN_TYPE batch = (BEGIN_BATCH == 0) ? begin[BEGIN_GET_INDEX(0, 0, 0, 0, 0)] : 0;
+    const BEGIN_TYPE feature = (BEGIN_FEATURE == 0) ? begin[BEGIN_GET_INDEX(1, 0, 0, 0, 0)] : 0;
+    const BEGIN_TYPE z = (BEGIN_Z == 0) ? begin[BEGIN_GET_INDEX(2, 0, 0, 0, 0)] : 0;
+    const BEGIN_TYPE y = (BEGIN_Y == 0) ? begin[BEGIN_GET_INDEX(3, 0, 0, 0, 0)] : 0;
+    const BEGIN_TYPE x = (BEGIN_X == 0) ? begin[BEGIN_GET_INDEX(4, 0, 0, 0, 0)] : 0;
 #endif
     *begin_batch = FUNC_CALL(check_begin_bound)(batch, out_batch_num);
     *begin_feature = FUNC_CALL(check_begin_bound)(feature, out_feature_num);
