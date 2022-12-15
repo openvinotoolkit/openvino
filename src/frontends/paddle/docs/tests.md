@@ -1,6 +1,6 @@
 # OpenVINO Paddle Frontend Tests
 
-OpenVINO Paddle Frontend [tests](../tests) have the next structure:
+OpenVINO Paddle Frontend [tests](../tests) have the following structure:
  * `test_models/gen_scripts/` - Python script to generate PaddlePaddle test models with handy helpers.
  * `standalone_build` - PaddlePaddle frontend standalone build test.
  * a couple of files - PaddlePaddle frontend tests suite written using Google Test.
