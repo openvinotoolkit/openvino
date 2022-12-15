@@ -16,3 +16,15 @@ This section will help you get a hands-on experience with OpenVINO even if you a
 to learn what OpenVINO is and how it works. It includes various types of learning materials 
 accommodating different learning needs, which means you should find it useful if you are a beginning, 
 as well as an experienced user.
+
+## Tutorials
+
+The collection of Python tutorials gives an introduction to the OpenVINO™ toolkit and explain how to use the Python API and tools for optimized deep learning inference. The tutorials are available in Jupyter notebooks. 
+
+## OpenVINO Samples
+
+The OpenVINO samples (Python and C++) are simple console applications that show how to use specific OpenVINO API features within an application. They can assist you in executing specific tasks such as loading a model, running inference, querying specific device capabilities, etc.
+
+## OpenVINO™ API 2.0 Transition Guide
+
+Transition Guide introduces OpenVINO™ API 2.0 to align the logic of working with models as it is done in their origin frameworks - no layout and precision changes, operating with tensor names and indices to address inputs and outputs.

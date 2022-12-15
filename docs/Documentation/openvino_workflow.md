@@ -14,8 +14,18 @@
 @endsphinxdirective
 
 
+## Model Preparation
 
-THIS IS A PAGE ABOUT THE WORKFLOW
+With Model Downloader and Model Optimizer guides, you will learn to download pre-trained models and convert them for use with OpenVINO™. You can use your own models or choose some from a broad selection provided in the Open Model Zoo.
+
+## Model Optimization and Compression
+
+In this section you will find out how to increase model performance. It can be achieved by optimizing the model or optimizing inference at runtime.
+
+## Deployment
+
+This section explains the process of creating your own inference application using OpenVINO™ Runtime or OpenVINO Model Server and documents the OpenVINO Runtime API for both Python and C++. It also provides a guide on deploying applications with OpenVINO and directs you to other sources on this topic.
+
 
 @sphinxdirective
 
