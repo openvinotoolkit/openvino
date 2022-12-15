@@ -9,7 +9,7 @@ The basic quantization flow is the simplest way to apply 8-bit quantization to t
 
 ## Set up an Environment
 
-It is recommented to setup a separate Python environment for quantization with NNCF. To do this, run the following command:
+It is recommended to set up a separate Python environment for quantization with NNCF. To do this, run the following command:
 ```bash
 python3 -m venv nncf_ptq_env
 ```
