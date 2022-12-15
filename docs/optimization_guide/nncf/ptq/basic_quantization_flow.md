@@ -52,7 +52,7 @@ The transformation function is a function that takes a sample from the dataset a
 
 @endsphinxtabset
 
-In the case when there is no framework dataset object you can create your own entity which implements `Iterable` interface in Python and returns data samples feasible for inference. No transformation function is required in this case.
+If there is no framework dataset object, you can create your own entity that implements the `Iterable` interface in Python and returns data samples feasible for inference. In this case, a transformation function is not required.
 
 
 ## Run quantized model
