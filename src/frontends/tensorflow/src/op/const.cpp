@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "helper_ops/undefined_constant.hpp"
+#include "helper_ops/unsupported_constant.hpp"
 #include "op_table.hpp"
 #include "openvino/opsets/opset8.hpp"
 
@@ -17,9 +17,9 @@ namespace op {
 
 OutputVector translate_const_op(const NodeContext& node) {
     auto ov_type = node.get_attribute<element::Type>("dtype");
-    std::shared_ptr<op::Op> const_node;
+    std::shared_ptr<ov::op::Op> const_node;
     if (ov_type == element::undefined) {
-        const_node = std::make_shared<UndefinedConstant>();
+        const_node = std::make_shared<UnsupportedConstant>();
     } else {
         auto tensor = node.get_attribute<Tensor>("value");
         const_node = std::make_shared<Constant>(tensor.get_element_type(), tensor.get_shape(), tensor.data());

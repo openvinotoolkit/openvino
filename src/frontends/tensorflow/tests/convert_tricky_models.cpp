@@ -83,6 +83,6 @@ TEST_F(TransformationTestsF, AssertAndStringTensors) {
         auto cond = make_shared<Constant>(boolean, Shape{}, std::vector<bool>{true});
         auto select = make_shared<Select>(cond, x, y);
 
-        auto function_ref = make_shared<Model>(OutputVector{select}, ParameterVector{x, y});
+        function_ref = make_shared<Model>(OutputVector{select}, ParameterVector{x, y});
     }
 }

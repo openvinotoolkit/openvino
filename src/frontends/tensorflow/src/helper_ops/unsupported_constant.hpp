@@ -13,11 +13,11 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 
-class UndefinedConstant : public InternalOperation {
+class UnsupportedConstant : public InternalOperation {
 public:
-    OPENVINO_OP("UndefinedConstant", "ov::frontend::tensorflow::util", InternalOperation);
+    OPENVINO_OP("UnsupportedConstant", "ov::frontend::tensorflow::util", InternalOperation);
 
-    UndefinedConstant(const std::shared_ptr<DecoderBase>& decoder = std::make_shared<DecoderFake>())
+    UnsupportedConstant(const std::shared_ptr<DecoderBase>& decoder = std::make_shared<DecoderFake>())
         : InternalOperation(decoder, {}, 1) {
         validate_and_infer_types();
     }
