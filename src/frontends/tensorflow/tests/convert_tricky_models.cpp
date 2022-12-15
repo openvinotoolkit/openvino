@@ -96,4 +96,3 @@ TEST_F(TransformationTestsF, UnsortedNodes) {
     { function = convert_model("forward_edge_model_unsorted/forward_edge_model_unsorted.pb"); }
     { function_ref = convert_model("forward_edge_model/forward_edge_model.pb"); }
 }
-
