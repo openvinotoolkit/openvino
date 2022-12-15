@@ -400,6 +400,7 @@ const Parameter Config::GetSupportedProperties(bool compiled) {
         { ov::hint::inference_precision.name(), model_mutability },
         { ov::hint::num_requests.name(), model_mutability },
         { ov::log::level.name(), ov::PropertyMutability::RW },
+        { ov::execution_devices.name(), ov::PropertyMutability::RO },
     };
     return supported_properties;
 }
