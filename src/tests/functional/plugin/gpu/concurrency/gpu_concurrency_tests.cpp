@@ -303,7 +303,7 @@ TEST(canSwapTensorsBetweenInferRequests, outputs) {
         } else {
             iter1++;
             ov::Tensor output_tensor = infer_request1.get_output_tensor();
-            compare_results(output_tensor, ref[iter1 % 2].data());
+            compare_results(output_tensor, ref[0].data());
             if (iter1 < niter_limit) {
                 infer_request1.set_output_tensor(output_tensors[(iter1 + 1) % 2]);
                 infer_request1.start_async();
@@ -317,7 +317,7 @@ TEST(canSwapTensorsBetweenInferRequests, outputs) {
         } else {
             iter2++;
             ov::Tensor output_tensor = infer_request2.get_output_tensor();
-            compare_results(output_tensor, ref[(iter2 + 1) % 2].data());
+            compare_results(output_tensor, ref[1].data());
             if (iter2 < niter_limit) {
                 infer_request2.set_output_tensor(output_tensors[iter2 % 2]);
                 infer_request2.start_async();

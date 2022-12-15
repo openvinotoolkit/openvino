@@ -13,8 +13,6 @@
 using namespace std;
 using namespace ov;
 
-BWDCMP_RTTI_DEFINITION(op::internal::ConditionalBlock);
-
 op::internal::ConditionalBlock::ConditionalBlock(
     const Output<Node>& cond,
     bool is_scalar_condition,

@@ -14,8 +14,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::HardSigmoid_IE);
-
 op::HardSigmoid_IE::HardSigmoid_IE(const ngraph::Output<ngraph::Node> &arg,
                    float alpha,
                    float beta)

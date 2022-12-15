@@ -91,8 +91,6 @@ protected:
 };
 
 TEST_P(SplitLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
 //     CheckPluginRelatedResults(executableNetwork, "Split");
 }
