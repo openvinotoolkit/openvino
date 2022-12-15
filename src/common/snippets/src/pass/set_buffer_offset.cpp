@@ -13,9 +13,10 @@
 
 ngraph::snippets::pass::SetBufferOffset::SetBufferOffset() {
     MATCHER_SCOPE(SetBufferOffset);
-    register_matcher(std::make_shared<ngraph::pattern::Matcher>(
-        ngraph::pattern::wrap_type<op::Buffer>(), matcher_name),
-        [&](ngraph::pattern::Matcher &m) {
+
+    auto m_buffer = ngraph::pattern::wrap_type<op::Buffer>();
+
+    auto callback = [&](ngraph::pattern::Matcher &m) {
         OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::SetBufferOffset")
         auto root = m.get_match_root();
         const auto buffer = ov::as_type_ptr<op::Buffer>(root);
@@ -29,7 +30,7 @@ ngraph::snippets::pass::SetBufferOffset::SetBufferOffset() {
         {
             auto parent = buffer->get_input_node_shared_ptr(0);
             auto idx = buffer->input(0).get_source_output().get_index();
-            while (std::dynamic_pointer_cast<snippets::op::LoopBase>(parent) != nullptr) {
+            while (std::dynamic_pointer_cast<snippets::op::LoopBase>(parent)) {
                 const auto source_output = parent->input_value(idx);
                 parent = source_output.get_node_shared_ptr();
                 idx = source_output.get_index();
@@ -75,5 +76,8 @@ ngraph::snippets::pass::SetBufferOffset::SetBufferOffset() {
 
         current_offset += buffer->get_byte_size();
         return true;
-    });
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(m_buffer, matcher_name);
+    register_matcher(m, callback);
 }

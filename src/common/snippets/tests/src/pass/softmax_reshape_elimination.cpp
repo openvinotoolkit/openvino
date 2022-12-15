@@ -17,8 +17,7 @@
 using namespace testing;
 using namespace ngraph;
 
-TEST(TransformationTests, SoftmaxV1ReshapeElimination) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, SoftmaxV1ReshapeElimination) {
     {
         auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 3, 240});
         auto shape0 = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{6, 240});
@@ -26,26 +25,19 @@ TEST(TransformationTests, SoftmaxV1ReshapeElimination) {
         auto softmax_v1 = std::make_shared<ov::op::v1::Softmax>(reshape0, 1);
         auto shape1 = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{2, 3, 240});
         auto reshape1 = std::make_shared<ov::op::v1::Reshape>(softmax_v1, shape1, false);
-        f = std::make_shared<Function>(NodeVector{reshape1}, ParameterVector{data});
+        function = std::make_shared<Function>(NodeVector{reshape1}, ParameterVector{data});
 
-        pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<snippets::pass::SoftmaxReshapeElimination>();
-        m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        manager.register_pass<pass::InitNodeInfo>();
+        manager.register_pass<snippets::pass::SoftmaxReshapeElimination>();
     }
     {
         auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 3, 240});
         auto softmax_v1 = std::make_shared<ov::op::v1::Softmax>(data, 2);
-        f_ref = std::make_shared<Function>(NodeVector{softmax_v1}, ParameterVector{data});
+        function_ref = std::make_shared<Function>(NodeVector{softmax_v1}, ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, SoftmaxV8ReshapeElimination) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, SoftmaxV8ReshapeElimination) {
     {
         auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 2, 340, 240});
         auto shape0 = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{680, 240});
@@ -53,26 +45,19 @@ TEST(TransformationTests, SoftmaxV8ReshapeElimination) {
         auto softmax_v1 = std::make_shared<ov::op::v8::Softmax>(reshape0, -1);
         auto shape1 = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, std::vector<int32_t>{1, 2, 340, 240});
         auto reshape1 = std::make_shared<ov::op::v1::Reshape>(softmax_v1, shape1, false);
-        f = std::make_shared<Function>(NodeVector{reshape1}, ParameterVector{data});
+        function = std::make_shared<Function>(NodeVector{reshape1}, ParameterVector{data});
 
-        pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<snippets::pass::SoftmaxReshapeElimination>();
-        m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        manager.register_pass<pass::InitNodeInfo>();
+        manager.register_pass<snippets::pass::SoftmaxReshapeElimination>();
     }
     {
         auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 2, 340, 240});
         auto softmax_v1 = std::make_shared<ov::op::v8::Softmax>(data, 3);
-        f_ref = std::make_shared<Function>(NodeVector{softmax_v1}, ParameterVector{data});
+        function_ref = std::make_shared<Function>(NodeVector{softmax_v1}, ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, SoftmaxReshapeElimination_IncorrectReshape) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, SoftmaxReshapeElimination_IncorrectReshape) {
     {
         auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 2, 340, 240});
         auto shape0 = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{2, 81600});
@@ -80,13 +65,10 @@ TEST(TransformationTests, SoftmaxReshapeElimination_IncorrectReshape) {
         auto softmax_v1 = std::make_shared<ov::op::v8::Softmax>(reshape0, -1);
         auto shape1 = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, std::vector<int32_t>{1, 2, 340, 240});
         auto reshape1 = std::make_shared<ov::op::v1::Reshape>(softmax_v1, shape1, false);
-        f = std::make_shared<Function>(NodeVector{reshape1}, ParameterVector{data});
+        function = std::make_shared<Function>(NodeVector{reshape1}, ParameterVector{data});
 
-        pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<snippets::pass::SoftmaxReshapeElimination>();
-        m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        manager.register_pass<pass::InitNodeInfo>();
+        manager.register_pass<snippets::pass::SoftmaxReshapeElimination>();
     }
     {
         auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 2, 340, 240});
@@ -95,9 +77,6 @@ TEST(TransformationTests, SoftmaxReshapeElimination_IncorrectReshape) {
         auto softmax_v1 = std::make_shared<ov::op::v8::Softmax>(reshape0, -1);
         auto shape1 = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, std::vector<int32_t>{1, 2, 340, 240});
         auto reshape1 = std::make_shared<ov::op::v1::Reshape>(softmax_v1, shape1, false);
-        f_ref = std::make_shared<Function>(NodeVector{reshape1}, ParameterVector{data});
+        function_ref = std::make_shared<Function>(NodeVector{reshape1}, ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }

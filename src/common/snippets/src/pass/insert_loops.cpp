@@ -71,7 +71,7 @@ void insert_explicitly_loops(const ov::NodeVector& ops, const ov::PartialShape& 
     auto add_body_results = [](const std::shared_ptr<ov::Node>& op, std::vector<ov::Input<ov::Node>>& body_results) {
         for (auto output : op->outputs()) {
             for (auto target_input : output.get_target_inputs()) {
-                auto child = target_input.get_node()->shared_from_this();
+                auto child = target_input.get_node();
                 if (ov::is_type<op::LoopBegin>(child) ||
                     ov::is_type<op::Buffer>(child) ||
                     ov::is_type<ov::op::v0::Result>(child) ||
@@ -111,8 +111,10 @@ void insert_explicitly_loops(const ov::NodeVector& ops, const ov::PartialShape& 
                        [](const ov::Input<ov::Node>& in) { return in.get_partial_shape(); });
 
         auto body_master_shape = body_shapes.front();
-        for (const auto& shape : body_shapes)
-            PartialShape::broadcast_merge_into(body_master_shape, shape, ::ngraph::op::AutoBroadcastType::NUMPY);
+        for (const auto& shape : body_shapes) {
+            NGRAPH_CHECK(PartialShape::broadcast_merge_into(body_master_shape, shape, ::ngraph::op::AutoBroadcastType::NUMPY),
+                         "Loop input and output must be numpy broadcastable");
+        }
         const auto inner_work_amount = utils::get_inner_dim(body_master_shape).get_length();
         const auto outer_work_amount = utils::get_outer_dim(body_master_shape).get_length();
 

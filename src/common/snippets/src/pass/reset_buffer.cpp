@@ -39,8 +39,7 @@ ngraph::snippets::pass::ResetBufferState::ResetBufferState() {
     // MatMul doesn't change Buffer memory pointer after execution
     auto m_loop_end = ngraph::pattern::wrap_type<op::LoopEnd>();
 
-    register_matcher(std::make_shared<ngraph::pattern::Matcher>(m_loop_end, matcher_name),
-        [=](ngraph::pattern::Matcher &m) {
+    auto callback = [=](ngraph::pattern::Matcher &m) {
         OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::ResetBufferState")
         auto& pattern_to_output = m.get_pattern_value_map();
 
@@ -82,7 +81,7 @@ ngraph::snippets::pass::ResetBufferState::ResetBufferState() {
         for (size_t i = 0; i < o_size; ++i) {
             const auto result_shape = body_shapes[i_size + i].get_shape();
             // check for first target input is enough for Buffer searching because operations can have only single Buffer per each output port as op
-            const auto consumer = loop_end->output(i).get_target_inputs().begin()->get_node()->shared_from_this();
+            const auto consumer = loop_end->output(i).get_target_inputs().begin()->get_node();
             if (ov::is_type<ngraph::snippets::op::Buffer>(consumer)) {
                 // To calculate finalization offset we should know index of nesting Loop
                 auto loop_index = 0lu;
@@ -108,5 +107,8 @@ ngraph::snippets::pass::ResetBufferState::ResetBufferState() {
         loop_end->set_ptr_increments(ptr_increments);
 
         return true;
-    });
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(m_loop_end, matcher_name);
+    register_matcher(m, callback);
 }

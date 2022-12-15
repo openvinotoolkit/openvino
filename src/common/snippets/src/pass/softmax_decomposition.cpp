@@ -20,9 +20,10 @@
 
 ngraph::snippets::pass::SoftmaxDecomposition::SoftmaxDecomposition(const size_t vector_size, const int32_t buffer_allocation_rank) {
     MATCHER_SCOPE(SoftmaxDecomposition);
-    register_matcher(std::make_shared<ngraph::pattern::Matcher>(
-        ngraph::pattern::wrap_type<ngraph::op::v1::Softmax, ngraph::op::v8::Softmax>(), matcher_name),
-        [this, vector_size, buffer_allocation_rank](ngraph::pattern::Matcher &m) {
+
+    auto m_softmax = ngraph::pattern::wrap_type<ngraph::op::v1::Softmax, ngraph::op::v8::Softmax>();
+
+    auto callback = [=](ngraph::pattern::Matcher &m) {
         OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::SoftmaxDecomposition")
         auto root = m.get_match_root();
         const auto master_pshape = root->get_input_partial_shape(0);
@@ -39,7 +40,7 @@ ngraph::snippets::pass::SoftmaxDecomposition::SoftmaxDecomposition(const size_t 
             return false;
         }
 
-        const auto shape_rank = static_cast<int64_t>(rank.get_length());
+        const auto shape_rank = rank.get_length();
         if (axis != shape_rank - 1)
             return false;
 
@@ -186,5 +187,8 @@ ngraph::snippets::pass::SoftmaxDecomposition::SoftmaxDecomposition(const size_t 
         /* =========================================== */
 
         return true;
-    });
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(m_softmax, matcher_name);
+    register_matcher(m, callback);
 }
