@@ -207,7 +207,6 @@ protected:
 using ExpectFailedGroupConvolutionLayerCPUTest = GroupConvolutionLayerCPUTest;
 
 TEST_P(ExpectFailedGroupConvolutionLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     if (isBias) {
         checkBiasFusing(compiledModel);
