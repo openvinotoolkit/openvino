@@ -27,7 +27,6 @@ TEST_F(TransformationTestsF, SoftmaxV1ReshapeElimination) {
         auto reshape1 = std::make_shared<ov::op::v1::Reshape>(softmax_v1, shape1, false);
         function = std::make_shared<Function>(NodeVector{reshape1}, ParameterVector{data});
 
-        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<snippets::pass::SoftmaxReshapeElimination>();
     }
     {
@@ -47,7 +46,6 @@ TEST_F(TransformationTestsF, SoftmaxV8ReshapeElimination) {
         auto reshape1 = std::make_shared<ov::op::v1::Reshape>(softmax_v1, shape1, false);
         function = std::make_shared<Function>(NodeVector{reshape1}, ParameterVector{data});
 
-        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<snippets::pass::SoftmaxReshapeElimination>();
     }
     {
@@ -67,7 +65,6 @@ TEST_F(TransformationTestsF, SoftmaxReshapeElimination_IncorrectReshape) {
         auto reshape1 = std::make_shared<ov::op::v1::Reshape>(softmax_v1, shape1, false);
         function = std::make_shared<Function>(NodeVector{reshape1}, ParameterVector{data});
 
-        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<snippets::pass::SoftmaxReshapeElimination>();
     }
     {
