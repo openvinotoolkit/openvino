@@ -84,3 +84,22 @@ bool op::v0::Tile::has_evaluate() const {
     OV_OP_SCOPE(v0_Tile_has_evaluate);
     return true;
 }
+
+bool op::v0::Tile::evaluate_lower(const HostTensorVector& output_values) const {
+    OV_OP_SCOPE(v0_Tile_evaluate_lower);
+
+    return get_input_tensor(1).has_and_set_bound() && default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::v0::Tile::evaluate_upper(const HostTensorVector& output_values) const {
+    OV_OP_SCOPE(v0_Tile_evaluate_upper);
+
+    return get_input_tensor(1).has_and_set_bound() && default_upper_bound_evaluator(this, output_values);
+}
+
+bool op::v0::Tile::evaluate_label(TensorLabelVector& output_labels) const {
+    OV_OP_SCOPE(v0_Tile_evaluate_label);
+    OPENVINO_ASSERT(output_labels.size() == 1);
+
+    return get_input_tensor(1).has_and_set_bound() && default_label_evaluator(this, output_labels);
+}

@@ -84,6 +84,46 @@ TEST_F(TypePropTileTest, data_and_repeats_are_dynamic_rank) {
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape::dynamic());
 }
 
+TEST_F(TypePropTileTest, propagate_label_and_dynamic_value_no_repeats) {
+    auto p_shape = PartialShape{{2, 5}, 3};
+    set_shape_labels(p_shape, 1);
+
+    constexpr auto et = element::i64;
+    const auto labeled_param = std::make_shared<op::Parameter>(et, p_shape);
+    const auto labeled_shape_of = std::make_shared<op::ShapeOf>(labeled_param);
+
+    const auto repeats = op::Constant::create(element::i32, Shape{1}, {1});
+    const auto op = make_op(labeled_shape_of, repeats);
+    const auto bc =
+        std::make_shared<op::v3::Broadcast>(std::make_shared<op::Parameter>(ov::element::i32, PartialShape{1}),
+                                            op,
+                                            "BIDIRECTIONAL");
+
+    const auto& out_shape = bc->get_output_partial_shape(0);
+    EXPECT_EQ(out_shape, p_shape);
+    EXPECT_THAT(get_shape_labels(out_shape), ElementsAre(1, 2));
+}
+
+TEST_F(TypePropTileTest, propagate_label_and_dynamic_value) {
+    auto p_shape = PartialShape{{2, 5}, 3};
+    set_shape_labels(p_shape, 1);
+
+    constexpr auto et = element::i64;
+    const auto labeled_param = std::make_shared<op::Parameter>(et, p_shape);
+    const auto labeled_shape_of = std::make_shared<op::ShapeOf>(labeled_param);
+
+    const auto repeats = op::Constant::create(element::i32, Shape{1}, {2});
+    const auto op = make_op(labeled_shape_of, repeats);
+    const auto bc =
+        std::make_shared<op::v3::Broadcast>(std::make_shared<op::Parameter>(ov::element::i32, PartialShape{1}),
+                                            op,
+                                            "BIDIRECTIONAL");
+
+    const auto& out_shape = bc->get_output_partial_shape(0);
+    EXPECT_EQ(out_shape, PartialShape({{2, 5}, 3, {2, 5}, 3}));
+    EXPECT_THAT(get_shape_labels(out_shape), ElementsAre(1, 2, 1, 2));
+}
+
 using TileTestParam = std::tuple<PartialShape, std::vector<int64_t>, PartialShape>;
 
 class TileTest : public TypePropTileTest, public WithParamInterface<TileTestParam> {
