@@ -124,6 +124,21 @@ TEST_F(TypePropTileTest, propagate_label_and_dynamic_value) {
     EXPECT_THAT(get_shape_labels(out_shape), ElementsAre(1, 2, 1, 2));
 }
 
+TEST_F(TypePropTileTest, preserve_partial_values_and_labels) {
+    auto shape = PartialShape{1, {1, 2}, {-1, 3}, {2, -1}, -1};
+    set_shape_labels(shape, 20);
+    const auto p_repeats = std::make_shared<op::Parameter>(element::i64, shape);
+    const auto shape_of_repeats = std::make_shared<op::ShapeOf>(p_repeats);
+
+    auto data = op::Constant::create(element::i64, Shape{2, 2, 2, 1, 1}, {1, 2, 3, 4, 5, 6, 7, 8});
+
+    const auto op = make_op(data, shape_of_repeats);
+
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({2, {2, 4}, {-1, 6}, -1, -1}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)),
+                ElementsAre(ov::no_label, ov::no_label, ov::no_label, 23, 24));
+}
+
 using TileTestParam = std::tuple<PartialShape, std::vector<int64_t>, PartialShape>;
 
 class TileTest : public TypePropTileTest, public WithParamInterface<TileTestParam> {

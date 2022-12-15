@@ -4,7 +4,6 @@
 #pragma once
 #include <openvino/op/tile.hpp>
 
-#include "compare.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -26,9 +25,21 @@ void shape_infer(const Tile* op,
     const auto& arg_shape = input_shapes[0];
     auto& output_shape = output_shapes[0];
 
-    // Get repeats
-    std::vector<int64_t> repeats;
-    bool has_repeats = get_data_as_int64<T>(1, op, repeats, constant_data);
+    // Get repeats and pre process values
+    T repeats;
+    bool has_repeats;
+    if (auto rep_data = get_input_const_data_as<T, int64_t>(op, 1, constant_data)) {
+        // set negatives repeats to 0
+        repeats.resize(rep_data->size());
+        std::transform(rep_data->begin(), rep_data->end(), repeats.begin(), [](int64_t r) -> TDim {
+            return {static_cast<typename TDim::value_type>(std::max(static_cast<int64_t>(0), r))};
+        });
+        has_repeats = true;
+    } else if (get_data_as_shape(1, op, repeats)) {
+        has_repeats = true;
+    } else {
+        has_repeats = false;
+    }
 
     const auto& arg_rank = arg_shape.rank();
     if (arg_rank.is_static() && has_repeats) {
@@ -37,12 +48,11 @@ void shape_infer(const Tile* op,
         std::vector<TDim> dims;
         dims.reserve(output_rank);
 
-        // add missing repeats and set negatives to 0
-        auto rep_it = repeats.insert(repeats.begin(), output_rank - repeats.size(), 1);
-        std::replace_if(rep_it, repeats.end(), cmp::Less<int64_t>(0), 0);
+        // add missing repeats
+        repeats.insert(repeats.begin(), output_rank - repeats.size(), TDim{1});
 
         // insert missing input dimensions
-        rep_it = std::next(repeats.begin(), output_rank - arg_shape.size());
+        auto rep_it = std::next(repeats.begin(), output_rank - arg_shape.size());
         dims.insert(dims.begin(), repeats.begin(), rep_it);
 
         // calc repeated output dimensions
