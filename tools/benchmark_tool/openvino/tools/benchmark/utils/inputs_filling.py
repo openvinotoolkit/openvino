@@ -314,7 +314,7 @@ def parse_path(path, app_input_info):
     """
     input_names = list(info.name for info in app_input_info)
     input_node_names = list(info.node_name for info in app_input_info)
-    parsed_names = re.findall(r"([^,]\w+):", path)
+    parsed_names = re.findall(r"((?=[^,])(?![a-zA-Z]:\\)[\w\.]+):", path)
     wrong_names = list(name for name in parsed_names if name not in input_names + input_node_names)
     if wrong_names:
         raise Exception(
@@ -323,7 +323,7 @@ def parse_path(path, app_input_info):
             "Please check `-i` input data"
         )
     tensor_names = [parsed_name if parsed_name in input_names else input_names[input_node_names.index(parsed_name)] for parsed_name in parsed_names]
-    input_pathes = [path for path in re.split(r"[^,]\w+:", path) if path]
+    input_pathes = [path for path in re.split(r"(?=[^,])(?![a-zA-Z]:\\)[\w\.]+:", path) if path]
     input_path_mapping = defaultdict(list)
     # input mapping is used
     if tensor_names:
