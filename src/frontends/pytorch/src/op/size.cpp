@@ -12,7 +12,7 @@ namespace pytorch {
 namespace op {
 
 OutputVector translate_size(NodeContext& context) {
-    auto shape = context.mark_node(std::make_shared<opset8::ShapeOf>(context.get_input(0)));
+    auto shape = context.mark_node(std::make_shared<opset8::ShapeOf>(context.get_input(0), element::i32));
     if (context.input_is_none(1)) {
         return shape->outputs();
     } else {
