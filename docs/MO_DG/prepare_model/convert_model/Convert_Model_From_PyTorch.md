@@ -35,7 +35,7 @@ ov_model = convert_model(model, input_shape=[1,3,100,100], onnx_opset_version=13
 
 ## Exporting a PyTorch Model to ONNX Format <a name="export-to-onnx"></a>
 
-For complicated cases, PyTorch models can be first exported to ONNX before MO conversion:
+When `convert_model()` fails to convert the model you can convert it to ONNX first with specific `torch.onnx.export()` parameters which are not available in `convert_model()`, explore the model and apply model cutting techniques (with `input`/`output` parameters) if there are ONNX operators that are not supported by OpenVINO.
 
 1. [Export a PyTorch model to ONNX](#export-to-onnx).
 2. [Convert the ONNX model](Convert_Model_From_ONNX.md) to produce an optimized [Intermediate Representation](@ref openvino_docs_MO_DG_IR_and_opsets) of the model based on the trained network topology, weights, and biases values.
