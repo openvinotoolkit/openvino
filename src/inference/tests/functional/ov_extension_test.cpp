@@ -353,4 +353,4 @@ TEST_F(OVExtensionTests, load_old_extension) {
 TEST_F(OVExtensionTests, load_incorrect_extension) {
     EXPECT_THROW(core.add_extension(getIncorrectExtensionPath()), ov::Exception);
 }
-#endif //defined(ENABLE_OV_IR_FRONTEND)
+#endif  // defined(ENABLE_OV_IR_FRONTEND)

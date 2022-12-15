@@ -34,26 +34,28 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassExecutableNetworkGetMetricTest,
                          OVClassExecutableNetworkGetMetricTest_ThrowsUnsupported,
                          ::testing::Values("GPU", "MULTI:GPU", "HETERO:GPU", "AUTO:GPU,CPU", "BATCH:GPU"));
 
-const std::vector<ov::AnyMap> multiDevicePriorityConfigs = {
-        {ov::device::priorities(CommonTestUtils::DEVICE_CPU)},
-        {ov::device::priorities(CommonTestUtils::DEVICE_GPU)},
-        {ov::device::priorities(CommonTestUtils::DEVICE_CPU, CommonTestUtils::DEVICE_GPU)}};
+auto multiDevicePriorityConfigs = []() {
+    return std::vector<ov::AnyMap>{{ov::device::priorities(CommonTestUtils::DEVICE_CPU)},
+                                   {ov::device::priorities(CommonTestUtils::DEVICE_GPU)},
+                                   {ov::device::priorities(CommonTestUtils::DEVICE_CPU, CommonTestUtils::DEVICE_GPU)}};
+};
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassExecutableNetworkGetMetricTest,
                          OVClassExecutableNetworkGetMetricTest_DEVICE_PRIORITY,
                          ::testing::Combine(::testing::Values("MULTI", "AUTO"),
-                                            ::testing::ValuesIn(multiDevicePriorityConfigs)));
+                                            ::testing::ValuesIn(multiDevicePriorityConfigs())));
 
-const std::vector<ov::AnyMap> multiModelPriorityConfigs = {
-        {ov::hint::model_priority(ov::hint::Priority::HIGH)},
-        {ov::hint::model_priority(ov::hint::Priority::MEDIUM)},
-        {ov::hint::model_priority(ov::hint::Priority::LOW)},
-        {ov::hint::model_priority(ov::hint::Priority::DEFAULT)}};
+auto multiModelPriorityConfigs = []() {
+    return std::vector<ov::AnyMap>{{ov::hint::model_priority(ov::hint::Priority::HIGH)},
+                                   {ov::hint::model_priority(ov::hint::Priority::MEDIUM)},
+                                   {ov::hint::model_priority(ov::hint::Priority::LOW)},
+                                   {ov::hint::model_priority(ov::hint::Priority::DEFAULT)}};
+};
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassExecutableNetworkGetMetricTest,
                          OVClassExecutableNetworkGetMetricTest_MODEL_PRIORITY,
                          ::testing::Combine(::testing::Values("AUTO"),
-                                            ::testing::ValuesIn(multiModelPriorityConfigs)));
+                                            ::testing::ValuesIn(multiModelPriorityConfigs())));
 
 
 //

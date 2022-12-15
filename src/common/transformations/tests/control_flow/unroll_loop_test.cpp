@@ -4,19 +4,18 @@
 
 #include <gtest/gtest.h>
 
-#include "common_test_utils/test_common.hpp"
-#include <string>
 #include <memory>
-#include <queue>
-
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <queue>
+#include <string>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
-#include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
+#include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/test_common.hpp"
 
 using namespace testing;
 using namespace ngraph;
@@ -35,8 +34,8 @@ TEST(TransformationTests, UnrollLoopGRUCell) {
         auto axis = Constant::create(element::i64, Shape{}, {0});
         auto squeeze = std::make_shared<Squeeze>(Xi, axis);
 
-        auto w_val = std::vector<float>(384*16, 0);
-        auto r_val = std::vector<float>(384*128, 0);
+        auto w_val = std::vector<float>(384 * 16, 0);
+        auto r_val = std::vector<float>(384 * 128, 0);
         auto b_val = std::vector<float>(384, 0);
         auto W = Constant::create(element::f32, Shape{384, 16}, w_val);
         auto R = Constant::create(element::f32, Shape{384, 128}, r_val);
@@ -46,15 +45,13 @@ TEST(TransformationTests, UnrollLoopGRUCell) {
         auto res_1 = std::make_shared<Result>(gru_cell);
         auto unsqueeze = std::make_shared<Unsqueeze>(gru_cell, axis);
         auto res_2 = std::make_shared<Result>(unsqueeze);
-        auto body_condition = std::make_shared<ngraph::opset6::Constant>(
-                ngraph::element::boolean, ngraph::Shape{1}, true);
-        auto body = std::make_shared<Function>(OutputVector{res_1, res_2, body_condition},
-                                               ParameterVector{Xi, Yi});
+        auto body_condition =
+            std::make_shared<ngraph::opset6::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
+        auto body = std::make_shared<Function>(OutputVector{res_1, res_2, body_condition}, ParameterVector{Xi, Yi});
 
-        auto trip_count =
-                std::make_shared<ngraph::opset6::Constant>(ngraph::element::i64, ngraph::Shape{}, 2);
+        auto trip_count = std::make_shared<ngraph::opset6::Constant>(ngraph::element::i64, ngraph::Shape{}, 2);
         auto exec_condition =
-                std::make_shared<ngraph::opset6::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+            std::make_shared<ngraph::opset6::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
         auto loop = std::make_shared<Loop>(trip_count, exec_condition);
         loop->set_special_body_ports({-1, 2});
         loop->set_function(body);
@@ -66,9 +63,8 @@ TEST(TransformationTests, UnrollLoopGRUCell) {
         auto out1 = loop->get_concatenated_slices(res_2, 0, 1, 1, -1, 0);
 
         auto res_ti_1 = std::make_shared<Result>(loop->output(1));
-        //auto res_ti_2 = std::make_shared<Result>(loop->output(0));
-        f = std::make_shared<Function>(NodeVector{res_ti_1},
-                                               ParameterVector{X, Y});
+        // auto res_ti_2 = std::make_shared<Result>(loop->output(0));
+        f = std::make_shared<Function>(NodeVector{res_ti_1}, ParameterVector{X, Y});
 
         pass::Manager manager;
         manager.register_pass<pass::InitNodeInfo>();
@@ -88,8 +84,8 @@ TEST(TransformationTests, UnrollLoopGRUCell) {
         auto squeeze_1 = std::make_shared<Squeeze>(split->output(0), axis);
         auto squeeze_2 = std::make_shared<Squeeze>(split->output(1), axis);
 
-        auto w_val = std::vector<float>(384*16, 0);
-        auto r_val = std::vector<float>(384*128, 0);
+        auto w_val = std::vector<float>(384 * 16, 0);
+        auto r_val = std::vector<float>(384 * 128, 0);
         auto b_val = std::vector<float>(384, 0);
         auto W = Constant::create(element::f32, Shape{384, 16}, w_val);
         auto R = Constant::create(element::f32, Shape{384, 128}, r_val);
@@ -103,7 +99,7 @@ TEST(TransformationTests, UnrollLoopGRUCell) {
         auto concat = std::make_shared<Concat>(OutputVector{unsqueeze_1, unsqueeze_2}, 0);
 
         auto res_ti_1 = std::make_shared<Result>(concat);
-        //auto res_ti_2 = std::make_shared<Result>(unsqueeze_2);
+        // auto res_ti_2 = std::make_shared<Result>(unsqueeze_2);
         f_ref = std::make_shared<Function>(NodeVector{res_ti_1}, ParameterVector{X, Y});
     }
 
@@ -124,8 +120,8 @@ TEST(TransformationTests, UnrollLoopRNNCell) {
         auto axis = Constant::create(element::i64, Shape{}, {0});
         auto squeeze = std::make_shared<Squeeze>(Xi, axis);
 
-        auto w_val = std::vector<float>(128*16, 0);
-        auto r_val = std::vector<float>(128*128, 0);
+        auto w_val = std::vector<float>(128 * 16, 0);
+        auto r_val = std::vector<float>(128 * 128, 0);
         auto b_val = std::vector<float>(128, 0);
         auto W = Constant::create(element::f32, Shape{128, 16}, w_val);
         auto R = Constant::create(element::f32, Shape{128, 128}, r_val);
@@ -135,15 +131,13 @@ TEST(TransformationTests, UnrollLoopRNNCell) {
         auto res_1 = std::make_shared<Result>(rnn_cell);
         auto unsqueeze = std::make_shared<Unsqueeze>(rnn_cell, axis);
         auto res_2 = std::make_shared<Result>(unsqueeze);
-        auto body_condition = std::make_shared<ngraph::opset6::Constant>(
-                ngraph::element::boolean, ngraph::Shape{1}, true);
-        auto body = std::make_shared<Function>(OutputVector{res_1, res_2, body_condition},
-                                               ParameterVector{Xi, Yi});
+        auto body_condition =
+            std::make_shared<ngraph::opset6::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
+        auto body = std::make_shared<Function>(OutputVector{res_1, res_2, body_condition}, ParameterVector{Xi, Yi});
 
-        auto trip_count =
-                std::make_shared<ngraph::opset6::Constant>(ngraph::element::i64, ngraph::Shape{}, 2);
+        auto trip_count = std::make_shared<ngraph::opset6::Constant>(ngraph::element::i64, ngraph::Shape{}, 2);
         auto exec_condition =
-                std::make_shared<ngraph::opset6::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+            std::make_shared<ngraph::opset6::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
         auto loop = std::make_shared<Loop>(trip_count, exec_condition);
         loop->set_special_body_ports({-1, 2});
         loop->set_function(body);
@@ -155,9 +149,8 @@ TEST(TransformationTests, UnrollLoopRNNCell) {
         auto out1 = loop->get_concatenated_slices(res_2, 0, 1, 1, -1, 0);
 
         auto res_ti_1 = std::make_shared<Result>(loop->output(1));
-        //auto res_ti_2 = std::make_shared<Result>(loop->output(0));
-        f = std::make_shared<Function>(NodeVector{res_ti_1},
-                                               ParameterVector{X, Y});
+        // auto res_ti_2 = std::make_shared<Result>(loop->output(0));
+        f = std::make_shared<Function>(NodeVector{res_ti_1}, ParameterVector{X, Y});
 
         pass::Manager manager;
         manager.register_pass<pass::InitNodeInfo>();
@@ -177,8 +170,8 @@ TEST(TransformationTests, UnrollLoopRNNCell) {
         auto squeeze_1 = std::make_shared<Squeeze>(split->output(0), axis);
         auto squeeze_2 = std::make_shared<Squeeze>(split->output(1), axis);
 
-        auto w_val = std::vector<float>(128*16, 0);
-        auto r_val = std::vector<float>(128*128, 0);
+        auto w_val = std::vector<float>(128 * 16, 0);
+        auto r_val = std::vector<float>(128 * 128, 0);
         auto b_val = std::vector<float>(128, 0);
         auto W = Constant::create(element::f32, Shape{128, 16}, w_val);
         auto R = Constant::create(element::f32, Shape{128, 128}, r_val);
@@ -192,7 +185,7 @@ TEST(TransformationTests, UnrollLoopRNNCell) {
         auto concat = std::make_shared<Concat>(OutputVector{unsqueeze_1, unsqueeze_2}, 0);
 
         auto res_ti_1 = std::make_shared<Result>(concat);
-        //auto res_ti_2 = std::make_shared<Result>(unsqueeze_2);
+        // auto res_ti_2 = std::make_shared<Result>(unsqueeze_2);
         f_ref = std::make_shared<Function>(NodeVector{res_ti_1}, ParameterVector{X, Y});
     }
 
@@ -215,8 +208,8 @@ TEST(TransformationTests, UnrollLoopLSTMCell) {
         auto axis = Constant::create(element::i64, Shape{}, {0});
         auto squeeze = std::make_shared<Squeeze>(Xi, axis);
 
-        auto w_val = std::vector<float>(512*16, 0);
-        auto r_val = std::vector<float>(512*128, 0);
+        auto w_val = std::vector<float>(512 * 16, 0);
+        auto r_val = std::vector<float>(512 * 128, 0);
         auto b_val = std::vector<float>(512, 0);
         auto W = Constant::create(element::f32, Shape{512, 16}, w_val);
         auto R = Constant::create(element::f32, Shape{512, 128}, r_val);
@@ -226,15 +219,13 @@ TEST(TransformationTests, UnrollLoopLSTMCell) {
         auto res_1 = std::make_shared<Result>(lstm_cell);
         auto unsqueeze = std::make_shared<Unsqueeze>(lstm_cell, axis);
         auto res_2 = std::make_shared<Result>(unsqueeze);
-        auto body_condition = std::make_shared<ngraph::opset6::Constant>(
-                ngraph::element::boolean, ngraph::Shape{1}, true);
-        auto body = std::make_shared<Function>(OutputVector{res_1, res_2, body_condition},
-                                               ParameterVector{Xi, Yi, Zi});
+        auto body_condition =
+            std::make_shared<ngraph::opset6::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
+        auto body = std::make_shared<Function>(OutputVector{res_1, res_2, body_condition}, ParameterVector{Xi, Yi, Zi});
 
-        auto trip_count =
-                std::make_shared<ngraph::opset6::Constant>(ngraph::element::i64, ngraph::Shape{}, 2);
+        auto trip_count = std::make_shared<ngraph::opset6::Constant>(ngraph::element::i64, ngraph::Shape{}, 2);
         auto exec_condition =
-                std::make_shared<ngraph::opset6::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+            std::make_shared<ngraph::opset6::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
         auto loop = std::make_shared<Loop>(trip_count, exec_condition);
         loop->set_special_body_ports({-1, 2});
         loop->set_function(body);
@@ -247,9 +238,8 @@ TEST(TransformationTests, UnrollLoopLSTMCell) {
         auto out1 = loop->get_concatenated_slices(res_2, 0, 1, 1, -1, 0);
 
         auto res_ti_1 = std::make_shared<Result>(loop->output(1));
-        //auto res_ti_2 = std::make_shared<Result>(loop->output(0));
-        f = std::make_shared<Function>(NodeVector{res_ti_1},
-                                               ParameterVector{X, Y, Z});
+        // auto res_ti_2 = std::make_shared<Result>(loop->output(0));
+        f = std::make_shared<Function>(NodeVector{res_ti_1}, ParameterVector{X, Y, Z});
 
         pass::Manager manager;
         manager.register_pass<pass::InitNodeInfo>();
@@ -270,8 +260,8 @@ TEST(TransformationTests, UnrollLoopLSTMCell) {
         auto squeeze_1 = std::make_shared<Squeeze>(split->output(0), axis);
         auto squeeze_2 = std::make_shared<Squeeze>(split->output(1), axis);
 
-        auto w_val = std::vector<float>(512*16, 0);
-        auto r_val = std::vector<float>(512*128, 0);
+        auto w_val = std::vector<float>(512 * 16, 0);
+        auto r_val = std::vector<float>(512 * 128, 0);
         auto b_val = std::vector<float>(512, 0);
         auto W = Constant::create(element::f32, Shape{512, 16}, w_val);
         auto R = Constant::create(element::f32, Shape{512, 128}, r_val);
@@ -285,7 +275,7 @@ TEST(TransformationTests, UnrollLoopLSTMCell) {
         auto concat = std::make_shared<Concat>(OutputVector{unsqueeze_1, unsqueeze_2}, 0);
 
         auto res_ti_1 = std::make_shared<Result>(concat);
-        //auto res_ti_2 = std::make_shared<Result>(unsqueeze_2);
+        // auto res_ti_2 = std::make_shared<Result>(unsqueeze_2);
         f_ref = std::make_shared<Function>(NodeVector{res_ti_1}, ParameterVector{X, Y, Z});
     }
 
@@ -306,8 +296,8 @@ TEST(TransformationTests, UnrollLoopGRUCellSingleIteration) {
         auto axis = Constant::create(element::i64, Shape{}, {0});
         auto squeeze = std::make_shared<Squeeze>(Xi, axis);
 
-        auto w_val = std::vector<float>(384*16, 0);
-        auto r_val = std::vector<float>(384*128, 0);
+        auto w_val = std::vector<float>(384 * 16, 0);
+        auto r_val = std::vector<float>(384 * 128, 0);
         auto b_val = std::vector<float>(384, 0);
         auto W = Constant::create(element::f32, Shape{384, 16}, w_val);
         auto R = Constant::create(element::f32, Shape{384, 128}, r_val);
@@ -317,15 +307,13 @@ TEST(TransformationTests, UnrollLoopGRUCellSingleIteration) {
         auto res_1 = std::make_shared<Result>(gru_cell);
         auto unsqueeze = std::make_shared<Unsqueeze>(gru_cell, axis);
         auto res_2 = std::make_shared<Result>(unsqueeze);
-        auto body_condition = std::make_shared<ngraph::opset6::Constant>(
-                ngraph::element::boolean, ngraph::Shape{1}, true);
-        auto body = std::make_shared<Function>(OutputVector{res_1, res_2, body_condition},
-                                               ParameterVector{Xi, Yi});
+        auto body_condition =
+            std::make_shared<ngraph::opset6::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
+        auto body = std::make_shared<Function>(OutputVector{res_1, res_2, body_condition}, ParameterVector{Xi, Yi});
 
-        auto trip_count =
-                std::make_shared<ngraph::opset6::Constant>(ngraph::element::i64, ngraph::Shape{}, 1);
+        auto trip_count = std::make_shared<ngraph::opset6::Constant>(ngraph::element::i64, ngraph::Shape{}, 1);
         auto exec_condition =
-                std::make_shared<ngraph::opset6::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+            std::make_shared<ngraph::opset6::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
         auto loop = std::make_shared<Loop>(trip_count, exec_condition);
         loop->set_special_body_ports({-1, 2});
         loop->set_function(body);
@@ -337,9 +325,8 @@ TEST(TransformationTests, UnrollLoopGRUCellSingleIteration) {
         auto out1 = loop->get_concatenated_slices(res_2, 0, 1, 1, -1, 0);
 
         auto res_ti_1 = std::make_shared<Result>(loop->output(1));
-        //auto res_ti_2 = std::make_shared<Result>(loop->output(0));
-        f = std::make_shared<Function>(NodeVector{res_ti_1},
-                                               ParameterVector{X, Y});
+        // auto res_ti_2 = std::make_shared<Result>(loop->output(0));
+        f = std::make_shared<Function>(NodeVector{res_ti_1}, ParameterVector{X, Y});
 
         pass::Manager manager;
         manager.register_pass<pass::InitNodeInfo>();
@@ -356,8 +343,8 @@ TEST(TransformationTests, UnrollLoopGRUCellSingleIteration) {
         auto axis = Constant::create(element::i64, Shape{}, {0});
         auto squeeze_1 = std::make_shared<Squeeze>(X, axis);
 
-        auto w_val = std::vector<float>(384*16, 0);
-        auto r_val = std::vector<float>(384*128, 0);
+        auto w_val = std::vector<float>(384 * 16, 0);
+        auto r_val = std::vector<float>(384 * 128, 0);
         auto b_val = std::vector<float>(384, 0);
         auto W = Constant::create(element::f32, Shape{384, 16}, w_val);
         auto R = Constant::create(element::f32, Shape{384, 128}, r_val);
@@ -368,7 +355,7 @@ TEST(TransformationTests, UnrollLoopGRUCellSingleIteration) {
         auto unsqueeze_1 = std::make_shared<Unsqueeze>(gru_cell_1, axis);
 
         auto res_ti_1 = std::make_shared<Result>(unsqueeze_1);
-        //auto res_ti_2 = std::make_shared<Result>(unsqueeze_2);
+        // auto res_ti_2 = std::make_shared<Result>(unsqueeze_2);
         f_ref = std::make_shared<Function>(NodeVector{res_ti_1}, ParameterVector{X, Y});
     }
 
@@ -389,8 +376,8 @@ TEST(TransformationTests, UnrollLoopRNNCellSingleIteration) {
         auto axis = Constant::create(element::i64, Shape{}, {0});
         auto squeeze = std::make_shared<Squeeze>(Xi, axis);
 
-        auto w_val = std::vector<float>(128*16, 0);
-        auto r_val = std::vector<float>(128*128, 0);
+        auto w_val = std::vector<float>(128 * 16, 0);
+        auto r_val = std::vector<float>(128 * 128, 0);
         auto b_val = std::vector<float>(128, 0);
         auto W = Constant::create(element::f32, Shape{128, 16}, w_val);
         auto R = Constant::create(element::f32, Shape{128, 128}, r_val);
@@ -400,15 +387,13 @@ TEST(TransformationTests, UnrollLoopRNNCellSingleIteration) {
         auto res_1 = std::make_shared<Result>(rnn_cell);
         auto unsqueeze = std::make_shared<Unsqueeze>(rnn_cell, axis);
         auto res_2 = std::make_shared<Result>(unsqueeze);
-        auto body_condition = std::make_shared<ngraph::opset6::Constant>(
-                ngraph::element::boolean, ngraph::Shape{1}, true);
-        auto body = std::make_shared<Function>(OutputVector{res_1, res_2, body_condition},
-                                               ParameterVector{Xi, Yi});
+        auto body_condition =
+            std::make_shared<ngraph::opset6::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
+        auto body = std::make_shared<Function>(OutputVector{res_1, res_2, body_condition}, ParameterVector{Xi, Yi});
 
-        auto trip_count =
-                std::make_shared<ngraph::opset6::Constant>(ngraph::element::i64, ngraph::Shape{}, 1);
+        auto trip_count = std::make_shared<ngraph::opset6::Constant>(ngraph::element::i64, ngraph::Shape{}, 1);
         auto exec_condition =
-                std::make_shared<ngraph::opset6::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+            std::make_shared<ngraph::opset6::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
         auto loop = std::make_shared<Loop>(trip_count, exec_condition);
         loop->set_special_body_ports({-1, 2});
         loop->set_function(body);
@@ -420,9 +405,8 @@ TEST(TransformationTests, UnrollLoopRNNCellSingleIteration) {
         auto out1 = loop->get_concatenated_slices(res_2, 0, 1, 1, -1, 0);
 
         auto res_ti_1 = std::make_shared<Result>(loop->output(1));
-        //auto res_ti_2 = std::make_shared<Result>(loop->output(0));
-        f = std::make_shared<Function>(NodeVector{res_ti_1},
-                                               ParameterVector{X, Y});
+        // auto res_ti_2 = std::make_shared<Result>(loop->output(0));
+        f = std::make_shared<Function>(NodeVector{res_ti_1}, ParameterVector{X, Y});
 
         pass::Manager manager;
         manager.register_pass<pass::InitNodeInfo>();
@@ -439,8 +423,8 @@ TEST(TransformationTests, UnrollLoopRNNCellSingleIteration) {
         auto axis = Constant::create(element::i64, Shape{}, {0});
         auto squeeze_1 = std::make_shared<Squeeze>(X, axis);
 
-        auto w_val = std::vector<float>(128*16, 0);
-        auto r_val = std::vector<float>(128*128, 0);
+        auto w_val = std::vector<float>(128 * 16, 0);
+        auto r_val = std::vector<float>(128 * 128, 0);
         auto b_val = std::vector<float>(128, 0);
         auto W = Constant::create(element::f32, Shape{128, 16}, w_val);
         auto R = Constant::create(element::f32, Shape{128, 128}, r_val);
@@ -473,8 +457,8 @@ TEST(TransformationTests, UnrollLoopLSTMCellSingleIteration) {
         auto axis = Constant::create(element::i64, Shape{}, {0});
         auto squeeze = std::make_shared<Squeeze>(Xi, axis);
 
-        auto w_val = std::vector<float>(512*16, 0);
-        auto r_val = std::vector<float>(512*128, 0);
+        auto w_val = std::vector<float>(512 * 16, 0);
+        auto r_val = std::vector<float>(512 * 128, 0);
         auto b_val = std::vector<float>(512, 0);
         auto W = Constant::create(element::f32, Shape{512, 16}, w_val);
         auto R = Constant::create(element::f32, Shape{512, 128}, r_val);
@@ -484,15 +468,13 @@ TEST(TransformationTests, UnrollLoopLSTMCellSingleIteration) {
         auto res_1 = std::make_shared<Result>(lstm_cell);
         auto unsqueeze = std::make_shared<Unsqueeze>(lstm_cell, axis);
         auto res_2 = std::make_shared<Result>(unsqueeze);
-        auto body_condition = std::make_shared<ngraph::opset6::Constant>(
-                ngraph::element::boolean, ngraph::Shape{1}, true);
-        auto body = std::make_shared<Function>(OutputVector{res_1, res_2, body_condition},
-                                               ParameterVector{Xi, Yi, Zi});
+        auto body_condition =
+            std::make_shared<ngraph::opset6::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
+        auto body = std::make_shared<Function>(OutputVector{res_1, res_2, body_condition}, ParameterVector{Xi, Yi, Zi});
 
-        auto trip_count =
-                std::make_shared<ngraph::opset6::Constant>(ngraph::element::i64, ngraph::Shape{}, 1);
+        auto trip_count = std::make_shared<ngraph::opset6::Constant>(ngraph::element::i64, ngraph::Shape{}, 1);
         auto exec_condition =
-                std::make_shared<ngraph::opset6::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+            std::make_shared<ngraph::opset6::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
         auto loop = std::make_shared<Loop>(trip_count, exec_condition);
         loop->set_special_body_ports({-1, 2});
         loop->set_function(body);
@@ -505,9 +487,8 @@ TEST(TransformationTests, UnrollLoopLSTMCellSingleIteration) {
         auto out1 = loop->get_concatenated_slices(res_2, 0, 1, 1, -1, 0);
 
         auto res_ti_1 = std::make_shared<Result>(loop->output(1));
-        //auto res_ti_2 = std::make_shared<Result>(loop->output(0));
-        f = std::make_shared<Function>(NodeVector{res_ti_1},
-                                               ParameterVector{X, Y, Z});
+        // auto res_ti_2 = std::make_shared<Result>(loop->output(0));
+        f = std::make_shared<Function>(NodeVector{res_ti_1}, ParameterVector{X, Y, Z});
 
         pass::Manager manager;
         manager.register_pass<pass::InitNodeInfo>();
@@ -525,8 +506,8 @@ TEST(TransformationTests, UnrollLoopLSTMCellSingleIteration) {
         auto axis = Constant::create(element::i64, Shape{}, {0});
         auto squeeze_1 = std::make_shared<Squeeze>(X, axis);
 
-        auto w_val = std::vector<float>(512*16, 0);
-        auto r_val = std::vector<float>(512*128, 0);
+        auto w_val = std::vector<float>(512 * 16, 0);
+        auto r_val = std::vector<float>(512 * 128, 0);
         auto b_val = std::vector<float>(512, 0);
         auto W = Constant::create(element::f32, Shape{512, 16}, w_val);
         auto R = Constant::create(element::f32, Shape{512, 128}, r_val);
@@ -536,7 +517,7 @@ TEST(TransformationTests, UnrollLoopLSTMCellSingleIteration) {
 
         auto unsqueeze_1 = std::make_shared<Unsqueeze>(lstm_cell_1, axis);
         auto res_ti_1 = std::make_shared<Result>(unsqueeze_1);
-        //auto res_ti_2 = std::make_shared<Result>(unsqueeze_2);
+        // auto res_ti_2 = std::make_shared<Result>(unsqueeze_2);
         f_ref = std::make_shared<Function>(NodeVector{res_ti_1}, ParameterVector{X, Y, Z});
     }
 

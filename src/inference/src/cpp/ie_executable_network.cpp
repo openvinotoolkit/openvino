@@ -214,6 +214,9 @@ void CompiledModel::set_property(const AnyMap& config) {
 
 Any CompiledModel::get_property(const std::string& name, const std::string& target_device) const {
     OV_EXEC_NET_CALL_STATEMENT({
+        if (ov::loaded_from_cache == name) {
+            return _impl->isLoadedFromCache();
+        }
         if (ov::supported_properties == name) {
             try {
                 auto supported_properties = _impl->GetMetric(name).as<std::vector<PropertyName>>();
@@ -239,6 +242,7 @@ Any CompiledModel::get_property(const std::string& name, const std::string& targ
                     supported_properties.emplace_back(rw_property, PropertyMutability::RW);
                 }
                 supported_properties.emplace_back(ov::supported_properties.name(), PropertyMutability::RO);
+                supported_properties.emplace_back(ov::loaded_from_cache.name(), PropertyMutability::RO);
                 return supported_properties;
             }
         }

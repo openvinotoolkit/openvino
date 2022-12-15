@@ -125,6 +125,14 @@ std::shared_ptr<IInferRequestInternal> IExecutableNetworkInternal::CreateInferRe
     IE_THROW(NotImplemented);
 }
 
+void IExecutableNetworkInternal::loadedFromCache() {
+    _loadedFromCache = true;
+}
+
+bool IExecutableNetworkInternal::isLoadedFromCache() const {
+    return _loadedFromCache;
+}
+
 std::shared_ptr<IInferRequestInternal> IExecutableNetworkInternal::CreateInferRequestImpl(
     const std::vector<std::shared_ptr<const ov::Node>>& inputs,
     const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
