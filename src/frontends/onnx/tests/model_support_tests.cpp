@@ -2,21 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/file_utils.hpp"
-#include "ie_common.h"
 #include <gtest/gtest.h>
-#include <fstream>
 
+#include <fstream>
 #include <ie_core.hpp>
 
+#include "common_test_utils/file_utils.hpp"
+#include "ie_common.h"
+
 namespace {
-    std::string model_path(const char* model) {
-        std::string path = ONNX_TEST_MODELS;
-        path += "support_test/";
-        path += model;
-        return CommonTestUtils::getModelFromTestModelZoo(path);
-    }
+std::string model_path(const char* model) {
+    std::string path = ONNX_TEST_MODELS;
+    path += "support_test/";
+    path += model;
+    return CommonTestUtils::getModelFromTestModelZoo(path);
 }
+}  // namespace
 
 TEST(ONNXReader_ModelSupported, basic_model) {
     // this model is a basic ONNX model taken from ngraph's unit test (add_abc.onnx)

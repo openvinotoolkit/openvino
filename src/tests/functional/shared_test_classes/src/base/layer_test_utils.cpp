@@ -16,6 +16,7 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/core_config.hpp"
+#include "ie_icore.hpp"
 
 namespace LayerTestsUtils {
 
@@ -122,7 +123,7 @@ void LayerTestsCommon::QueryNetwork() {
             ASSERT_EQ(res.second, ctx->getDeviceName());
         } catch (...) {
             // otherwise, compare with originally used device name
-            ASSERT_EQ(res.second, targetDevice);
+            ASSERT_EQ(InferenceEngine::DeviceIDParser(res.second).getDeviceName(), targetDevice);
         }
         actual.insert(res.first);
     }
