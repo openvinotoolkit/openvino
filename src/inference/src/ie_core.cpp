@@ -245,6 +245,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
             std::shared_ptr<ie::ICacheManager> _cacheManager;
         };
 
+        // Set core properties with input config map, it will update core properties data.
         void set_core_config(ov::AnyMap& config) {
             for (auto it = config.begin(); it != config.end();) {
                 {
@@ -281,6 +282,63 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
             }
         }
 
+        // Check whether this global config is supported by plugin, and the coresponding propertie will be removed
+        // from plugin in the furture. It is a whitelist to check.
+        bool is_plugin_config_supported(ov::InferencePlugin& plugin, const std::string& config_name) const {
+            std::string device_name = plugin.get_name();
+            auto supported = false;
+
+            // There will be a global properties whitelist for each plugin, such as:
+            //     ov::auto_batch_timeout         - only for BATCH/AUTO/MULTI plugins
+            //     ov::hint::allow_auto_batching  - only for AUTO/MULTTI plugins
+            //     ov::cache_dir                  - only for CPU/GPU/AUTO/BATCH plugins
+            if (config_name == ov::auto_batch_timeout.name()) {
+                supported = device_name.find("BATCH") != std::string::npos ||
+                            device_name.find("AUTO") != std::string::npos ||
+                            device_name.find("MULTI") != std::string::npos;
+            } else if (config_name == ov::hint::allow_auto_batching.name()) {
+                supported =
+                    device_name.find("AUTO") != std::string::npos || device_name.find("MULTI") != std::string::npos;
+            } else if (config_name == ov::cache_dir.name()) {
+                supported = device_name.find("CPU") != std::string::npos ||
+                            device_name.find("BATCH") != std::string::npos ||
+                            device_name.find("AUTO") != std::string::npos;
+                // GPU plugin need an env varible to enable ov::cache_dir supported
+                if (!supported) {
+                    supported = util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir);
+                }
+            }
+            return supported;
+        }
+
+        // Intercept global config that will be set to plugin by calling plugin.set_property().
+        // Put it into global config map
+        void intercept_config(ov::InferencePlugin& plugin, ov::AnyMap& config) {
+            std::lock_guard<std::mutex> lock(_core_property_mutex);
+            for (auto& it : _core_plugins_properties) {
+                auto item = config.find(it.first);
+                if (item != config.end()) {
+                    _core_plugins_properties[it.first] = item->second;
+                    if (it.first == ov::cache_dir.name() && is_plugin_config_supported(plugin, it.first)) {
+                        std::string device_name = plugin.get_name();
+                        setCacheForDevice(item->second, device_name);
+                    }
+                    config.erase(item);
+                }
+            }
+        }
+
+        // Clean up global config from input config.
+        void cleanup_config(ov::InferencePlugin& plugin, ov::AnyMap& config) const {
+            std::lock_guard<std::mutex> lock(_core_property_mutex);
+            for (auto& it : _core_plugins_properties) {
+                auto item = config.find(it.first);
+                if (item != config.end()) {
+                    config.erase(item);
+                }
+            }
+        }
+
         // Update input config with the help of core_plugins_properties:
         //  1. Remove the global properties that this plugin doesn't support
         //  2. Don't overwritten global properties if they have been in config
@@ -290,43 +348,23 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
             std::lock_guard<std::mutex> lock(_core_property_mutex);
             std::string device_name = plugin.get_name();
             for (auto& it : _core_plugins_properties) {
-                // ov::cache_dir has been updated, ignore it.
-                if (it.first == ov::cache_dir.name())
-                    continue;
-
                 // If the property has been contained in input config, it will not be overwritten.
                 auto item = config.find(it.first);
                 if (item != config.end()) {
                     // Erase if it is not supported by this device.
-                    if (it.first == ov::auto_batch_timeout.name()) {
-                        if (device_name.find("BATCH") == std::string::npos &&
-                            device_name.find("MULTI") == std::string::npos &&
-                            device_name.find("AUTO") == std::string::npos) {
-                            config.erase(item);
-                        }
-                    } else if (it.first == ov::hint::allow_auto_batching.name()) {
-                        if (device_name.find("AUTO") == std::string::npos &&
-                            device_name.find("MULTI") == std::string::npos) {
-                            config.erase(item);
-                        }
+                    if (!is_plugin_config_supported(plugin, it.first)) {
+                        config.erase(item);
                     }
                     continue;
                 }
 
                 // Add whitelist global properties into config if it doesn't have.
-                // There will be a global properties whitelist for each plugin, such as:
-                //     ov::auto_batch_timeout         - only for BATCH/AUTO/MULTI plugins
-                //     ov::hint::allow_auto_batching  - only for AUTO/MULTTI plugins
-                if (it.first == ov::auto_batch_timeout.name()) {
-                    if (device_name.find("BATCH") != std::string::npos ||
-                        device_name.find("AUTO") != std::string::npos ||
-                        device_name.find("MULTI") != std::string::npos) {
-                        config[it.first] = it.second.as<std::string>();
-                    }
-                } else if (it.first == ov::hint::allow_auto_batching.name()) {
-                    if (device_name.find("AUTO") != std::string::npos ||
-                        device_name.find("MULTI") != std::string::npos) {
-                        config[it.first] = it.second.as<std::string>();
+                if (is_plugin_config_supported(plugin, it.first)) {
+                    config[it.first] = it.second.as<std::string>();
+                    if (it.first == ov::cache_dir.name()) {
+                        auto cacheConfig = getCacheConfigForDevice(device_name);
+                        if (cacheConfig._cacheManager)
+                            config[it.first] = cacheConfig._cacheDir;
                     }
                 }
             }
@@ -491,10 +529,6 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
             }
         }
         return supported;
-    }
-
-    bool DeviceSupportsCacheDir(const ov::InferencePlugin& plugin) const {
-        return util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir);
     }
 
     ov::SoPtr<ie::IExecutableNetworkInternal> compile_model_impl(const InferenceEngine::CNNNetwork& network,
@@ -794,7 +828,10 @@ public:
         auto plugin = GetCPPPluginByName(parsed._deviceName);
         ov::SoPtr<ie::IExecutableNetworkInternal> res;
         auto cacheManager =
-            coreConfig.getCacheConfigForDevice(parsed._deviceName, DeviceSupportsCacheDir(plugin), parsed._config)
+            coreConfig
+                .getCacheConfigForDevice(parsed._deviceName,
+                                         coreConfig.is_plugin_config_supported(plugin, ov::cache_dir.name()),
+                                         parsed._config)
                 ._cacheManager;
         auto cacheContent = CacheContent{cacheManager};
         if (cacheManager && DeviceSupportsImportExport(plugin)) {
@@ -901,7 +938,10 @@ public:
         auto plugin = GetCPPPluginByName(parsed._deviceName);
         ov::SoPtr<ie::IExecutableNetworkInternal> res;
         auto cacheManager =
-            coreConfig.getCacheConfigForDevice(parsed._deviceName, DeviceSupportsCacheDir(plugin), parsed._config)
+            coreConfig
+                .getCacheConfigForDevice(parsed._deviceName,
+                                         coreConfig.is_plugin_config_supported(plugin, ov::cache_dir.name()),
+                                         parsed._config)
                 ._cacheManager;
         auto cacheContent = CacheContent{cacheManager};
         if (!forceDisableCache && cacheManager && DeviceSupportsImportExport(plugin)) {
@@ -930,7 +970,10 @@ public:
         auto plugin = GetCPPPluginByName(parsed._deviceName);
         ov::SoPtr<ie::IExecutableNetworkInternal> res;
         auto cacheManager =
-            coreConfig.getCacheConfigForDevice(parsed._deviceName, DeviceSupportsCacheDir(plugin), parsed._config)
+            coreConfig
+                .getCacheConfigForDevice(parsed._deviceName,
+                                         coreConfig.is_plugin_config_supported(plugin, ov::cache_dir.name()),
+                                         parsed._config)
                 ._cacheManager;
         auto cacheContent = CacheContent{cacheManager, modelPath};
         if (cacheManager && DeviceSupportsImportExport(plugin)) {
@@ -1246,15 +1289,7 @@ public:
 
             // configuring
             {
-                if (DeviceSupportsCacheDir(plugin)) {
-                    auto cacheConfig = coreConfig.getCacheConfigForDevice(deviceName);
-                    if (cacheConfig._cacheManager) {
-                        desc.defaultConfig[CONFIG_KEY(CACHE_DIR)] = cacheConfig._cacheDir;
-                    }
-                } else if (desc.defaultConfig.count(CONFIG_KEY(CACHE_DIR)) > 0) {
-                    // Remove "CACHE_DIR" from config if it is not supported by plugin
-                    desc.defaultConfig.erase(CONFIG_KEY(CACHE_DIR));
-                }
+                coreConfig.cleanup_config(plugin, desc.defaultConfig);
 
                 allowNotImplemented([&]() {
                     // Add device specific value to support device_name.device_id cases
@@ -1420,15 +1455,7 @@ public:
             allowNotImplemented([&]() {
                 std::lock_guard<std::mutex> lock(get_mutex(plugin.first));
                 auto configCopy = config;
-                if (DeviceSupportsCacheDir(plugin.second)) {
-                    auto cacheConfig = coreConfig.getCacheConfigForDevice(deviceName);
-                    if (cacheConfig._cacheManager) {
-                        configCopy[CONFIG_KEY(CACHE_DIR)] = cacheConfig._cacheDir;
-                    }
-                } else if (configCopy.count(CONFIG_KEY(CACHE_DIR)) > 0) {
-                    // Remove "CACHE_DIR" from config if it is not supported by plugin
-                    configCopy.erase(CONFIG_KEY(CACHE_DIR));
-                }
+                coreConfig.intercept_config(plugin.second, configCopy);
 
                 // Add device specific value to support device_name.device_id cases
                 std::vector<std::string> supportedConfigKeys =
