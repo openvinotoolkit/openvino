@@ -868,7 +868,7 @@ using TestBinaryParams = std::tuple<BinaryFactoryPtr,
                                     element::Type, /* input type */
                                     size_t>;       /*binary_transpose_input_idx*/
 
-class TransposeSinkingFixture
+class TransposeBinaryMultiSinkingFixture
     : public ::testing::WithParamInterface<TestBinaryParams>,
                                           public TransformationTestsF {
 public:
@@ -893,7 +893,7 @@ public:
     }
 };
 
-TEST_P(TransposeSinkingFixture, CompareFunctions) {
+TEST_P(TransposeBinaryMultiSinkingFixture, CompareFunctions) {
     BinaryFactoryPtr binary_factory;
     PassFactoryPtr pass_factory;
     CreateGraphFunctionDesc function_desc;
@@ -927,23 +927,23 @@ std::vector<CreateGraphFunctionDesc> backward_subtests = {
 
 INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingBinaryForwardMultiConsumersTestSuite,
-    TransposeSinkingFixture,
+    TransposeBinaryMultiSinkingFixture,
     ::testing::Combine(::testing::ValuesIn(binary_factories),
                        ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingBinaryElementwiseForward)),
                        ::testing::ValuesIn(forward_subtests),
                        ::testing::Values(element::f32),
                        ::testing::ValuesIn(binary_transpose_input_indexes)),
-                       TransposeSinkingFixture::get_test_name);
+                       TransposeBinaryMultiSinkingFixture::get_test_name);
 
 INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingBinaryBackwardMultiConsumersTestSuite,
-    TransposeSinkingFixture,
+    TransposeBinaryMultiSinkingFixture,
     ::testing::Combine(::testing::ValuesIn(binary_factories),
                        ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingBinaryElementwiseBackward)),
                        ::testing::ValuesIn(backward_subtests),
                        ::testing::Values(element::f32),
                        ::testing::ValuesIn(binary_transpose_input_indexes)),
-                       TransposeSinkingFixture::get_test_name);
+                       TransposeBinaryMultiSinkingFixture::get_test_name);
 
 } // namespace mult_consumers
 
