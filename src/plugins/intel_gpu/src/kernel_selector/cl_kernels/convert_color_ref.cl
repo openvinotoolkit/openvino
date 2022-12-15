@@ -34,8 +34,8 @@ KERNEL(convert_color_ref)(const __global INPUT0_TYPE* input1,
     float U = input1[GET_DATA_INDEX(INPUT0, b, 0, y / 2, (x / 2) * 2) + input_uv_offset];
     float V = input1[GET_DATA_INDEX(INPUT0, b, 1, y / 2, (x / 2) * 2) + input_uv_offset];
 #elif CONVERT_FROM_I420
-    float U = input1[GET_DATA_INDEX(INPUT0, b, 0, y / 2, (x / 2) * 2) + input_uv_offset];
-    float V = input1[GET_DATA_INDEX(INPUT0, b, 1, y / 2, (x / 2) * 2) + input_uv_offset];
+    float U = input1[GET_DATA_INDEX(INPUT0, b, 0, 0, x / 2 + (y / 2)*(INPUT0_Y_PITCH / 2)) + input_uv_offset];
+    float V = input1[GET_DATA_INDEX(INPUT0, b, 0, 0, x / 2 + (y / 2)*(INPUT0_Y_PITCH / 2)) + 5 * input_uv_offset / 4];
 #endif
 #endif
 
