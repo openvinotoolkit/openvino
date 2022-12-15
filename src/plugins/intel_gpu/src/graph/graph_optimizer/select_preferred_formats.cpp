@@ -34,16 +34,17 @@ void select_preferred_formats::run(program& p) {
     for (auto n : p.get_processing_order()) {
         // Onednn primitive descriptor creation may fail, for example, due to asymmetric weight.
         try {
-            dnnl::primitive_desc prim_desc;
             if (n->is_type<convolution>()) {
-                auto desc = onednn::get_convolution_descriptor(*n->get_kernel_impl_params(), dnnl::memory::format_tag::any);
-                prim_desc = dnnl::primitive_desc(&desc->data, nullptr, engine.get_onednn_engine(), nullptr);
+                auto prim_desc = onednn::get_convolution_primitive_descriptor(*n->get_kernel_impl_params(),
+                                                                              dnnl::primitive_attr(),
+                                                                              dnnl::memory::format_tag::any);
+                _lo.select_preferred_formats_for_onednn(*n, *prim_desc);
             } else if (n->is_type<deconvolution>()) {
-                auto desc = onednn::get_deconvolution_descriptor(*n->get_kernel_impl_params(), dnnl::memory::format_tag::any);
-                prim_desc = dnnl::primitive_desc(&desc->data, nullptr, engine.get_onednn_engine(), nullptr);
+                auto prim_desc = onednn::get_deconvolution_primitive_descriptor(*n->get_kernel_impl_params(),
+                                                                                dnnl::primitive_attr(),
+                                                                                dnnl::memory::format_tag::any);
+                _lo.select_preferred_formats_for_onednn(*n, *prim_desc);
             }
-
-            _lo.select_preferred_formats_for_onednn(*n, prim_desc);
         } catch(std::exception &exception) {
             GPU_DEBUG_INFO << "WARNING(select_preferred_formats): " << exception.what() << std::endl;
         }

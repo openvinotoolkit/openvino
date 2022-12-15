@@ -18,8 +18,8 @@
 namespace cldnn {
 namespace onednn {
 
-struct deconvolution_onednn : typed_primitive_onednn_impl<deconvolution, dnnl::deconvolution_forward::desc> {
-    using parent = typed_primitive_onednn_impl<deconvolution, dnnl::deconvolution_forward::desc>;
+struct deconvolution_onednn : typed_primitive_onednn_impl<deconvolution> {
+    using parent = typed_primitive_onednn_impl<deconvolution>;
     using parent::parent;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
@@ -48,9 +48,7 @@ protected:
     }
 
     static std::shared_ptr<dnnl::primitive_attr> get_primitive_attributes(const typed_program_node<deconvolution>& arg) {
-        auto attrs = arg.get_onednn_primitive_attributes();
-
-        return attrs;
+        return arg.get_onednn_primitive_attributes();
     }
 
     static kernel_selector::WeightsReorderParams get_weights_reorder(const kernel_impl_params& impl_params, const dnnl::primitive_desc& pd) {
@@ -88,6 +86,7 @@ protected:
 
 public:
     void save(BinaryOutputBuffer& ob) const override {
+#if 0
         parent::save(ob);
 
         ob << make_data(&_desc->data, sizeof(dnnl_deconvolution_desc_t));
@@ -95,9 +94,11 @@ public:
         std::vector<uint8_t> prim_cache;
         prim_cache = _prim.get_cache_blob();
         ob << prim_cache;
+#endif
     }
 
     void load(BinaryInputBuffer& ib) override {
+#if 0
         parent::load(ib);
 
         const char dummy_mem[sizeof(dnnl::deconvolution_forward::desc)] = {};
@@ -111,16 +112,16 @@ public:
 
         _pd = dnnl::primitive_desc(&_desc->data, _attrs.get(), ib.get_engine().get_onednn_engine(), nullptr);
         _prim = dnnl::primitive(_pd, prim_cache);
+#endif
     }
 
     static std::unique_ptr<primitive_impl> create(const deconvolution_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
         auto& config = impl_params.prog->get_config();
-        auto desc = get_deconvolution_descriptor(impl_params);
         auto attr = get_primitive_attributes(arg);
-        dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
+        auto prim_desc = get_deconvolution_primitive_descriptor(impl_params, *attr);
 
-        return cldnn::make_unique<deconvolution_onednn>(engine, config, desc, attr, prim_desc, get_weights_reorder(impl_params, prim_desc));
+        return cldnn::make_unique<deconvolution_onednn>(engine, config, attr, *prim_desc, get_weights_reorder(impl_params, *prim_desc));
     }
 };
 
