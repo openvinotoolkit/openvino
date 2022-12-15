@@ -4,11 +4,8 @@
 
 #include "decoder_flatbuffer.h"
 #include "schema_generated.h"
-//#include "attr_value.pb.h"
-//#include "node_def.pb.h"
 #include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/frontend/tensorflow/special_types.hpp"
-//#include "types.pb.h"
 
 namespace ov {
 namespace frontend {

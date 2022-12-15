@@ -68,8 +68,6 @@ private:
 
 
 void InputModel::InputModelTFLiteImpl::loadModel() {
-    std::cout << " I'm loading model " << std::endl;
-
     std::unordered_set<size_t> non_constant_tensors;
 
     // inputs
@@ -92,7 +90,7 @@ void InputModel::InputModelTFLiteImpl::loadModel() {
         const auto& names = std::vector<std::string>{tensor->name()->str()};
         const auto& ov_shape = get_ov_shape(tensor->shape());
         const auto& ov_type = get_ov_type(tensor->type());
-        m_inputs.push_back(std::make_shared<ov::frontend::tensorflow::TensorPlace>(m_input_model, ov_shape, ov_type, names));
+        m_outputs.push_back(std::make_shared<ov::frontend::tensorflow::TensorPlace>(m_input_model, ov_shape, ov_type, names));
         non_constant_tensors.insert(i);
     }
 

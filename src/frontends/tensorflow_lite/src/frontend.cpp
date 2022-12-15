@@ -70,10 +70,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
 std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr &model) const {
     auto model_tf = std::dynamic_pointer_cast<InputModel>(model);
     FRONT_END_GENERAL_CHECK(model_tf != nullptr, "Invalid input model");
-    std::cout << "FrontEnd::convert" << std::endl;
     std::shared_ptr<ov::Model> ov_model;
     translate_graph(model, "TF Lite Frontend IR", true, false, ov_model);
-    ov::pass::VisualizeTree("frontend_converted.svg").run_on_model(ov_model);
     return ov_model;
 }
 
