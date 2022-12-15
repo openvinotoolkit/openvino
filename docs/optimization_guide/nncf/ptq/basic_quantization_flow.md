@@ -55,7 +55,7 @@ The transformation function is a function that takes a sample from the dataset a
 If there is no framework dataset object, you can create your own entity that implements the `Iterable` interface in Python and returns data samples feasible for inference. In this case, a transformation function is not required.
 
 
-## Run quantized model
+## Run a Quantized Model
 
 Once the dataset is ready and the model object is instantiated, you can apply 8-bit quantization to it:
 @sphinxtabset
