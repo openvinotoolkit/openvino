@@ -13,7 +13,7 @@ It is recommended to set up a separate Python environment for quantization with 
 ```bash
 python3 -m venv nncf_ptq_env
 ```
-You should also install all the packages required to instantiate the model object, for example DL fraework. After that you need to install NNCF on top of the environment:
+Install all the packages required to instantiate the model object, for example, DL framework. After that, install NNCF on top of the environment:
 ```bash
 pip install nncf
 ```
