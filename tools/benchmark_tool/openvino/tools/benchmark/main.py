@@ -332,6 +332,7 @@ def main():
 
         ## If set batch size, disable the auto batching
         if args.batch_size:
+            logger.warning("Batch size is set. Auto batching will be disabled")
             benchmark.set_allow_auto_batching(False)
 
         topology_name = ""
