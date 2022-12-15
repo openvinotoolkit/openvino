@@ -22,37 +22,16 @@ namespace ov {
 namespace frontend {
 namespace tensorflow_lite {
 
-void print_buffer(const tflite::TensorType& tf_type, const ov::Shape& ov_shape, const void* my_buffer) {
-    if (tf_type == tflite::TensorType_INT32) {
-        auto vec_ = ov::op::v0::Constant::create(element::i32, ov_shape, my_buffer)->cast_vector<int32_t>();
-        size_t num = 0;
-        for (const auto &elem: vec_) {
-            if (num++ > 24)
-                break;
-            std::cout << elem << " ";
-        }
-        std::cout << std::endl;
-    } else if (tf_type == tflite::TensorType_UINT8) {
-        auto vec_ = ov::op::v0::Constant::create(element::u8, ov_shape, my_buffer)->cast_vector<int32_t>();
-        size_t num = 0;
-        for (const auto &elem: vec_) {
-            if (num++ > 24)
-                break;
-            std::cout << elem << " ";
-        }
-        std::cout << std::endl;
-    } else {
-        std::cout << "Buffer of unknown type: " << EnumNameTensorType(tf_type) << std::endl;
-    }
-}
-class GraphIteratorFlatBuffer : public tensorflow::GraphIterator {
+class GraphIteratorFlatBuffer {
     std::vector<const Operator*> m_nodes;
     size_t node_index = 0;
-    std::shared_ptr<tflite::Model> m_graph_def;
+    std::shared_ptr<tflite::Model> m_model;
+    std::vector<const tflite::Tensor *> m_tensors;
+    std::vector<const tflite::Buffer *> m_buffers;
 
 public:
     template <typename T>
-    GraphIteratorFlatBuffer(const std::basic_string<T>& path) {
+    explicit GraphIteratorFlatBuffer(const std::basic_string<T>& path) {
         std::ifstream model_file;
         model_file.open(path, std::ios::binary | std::ios::in);
         FRONT_END_GENERAL_CHECK(model_file && model_file.is_open(), "Model file does not exist: ", path);
@@ -65,8 +44,8 @@ public:
         model_file.close();
         int i = 0;
 
-        m_graph_def = std::shared_ptr<tflite::Model>(GetMutableModel(data), [](tflite::Model* p){});
-        const auto subgraphs = m_graph_def->subgraphs();
+        m_model = std::shared_ptr<tflite::Model>(GetMutableModel(data), [](tflite::Model* p){});
+        const auto subgraphs = m_model->subgraphs();
         FRONT_END_GENERAL_CHECK(subgraphs->size() == 1,
                                 "Number of sub-graphs in the model is ",
                                 subgraphs->size(),
@@ -76,13 +55,18 @@ public:
         const auto* operators = graph->operators();
         std::cout << "Num operations: " << operators->size() << std::endl;
         const auto tensors = graph->tensors();
+        m_tensors = std::vector<const tflite::Tensor*>(tensors->begin(), tensors->end());
+
         std::cout << "Num tensors: " << tensors->size() << std::endl;
         std::cout << "Num tensors: " << tensors->size() << std::endl;
-        const auto buffers = m_graph_def->buffers();
+        const auto buffers = m_model->buffers();
+
+        m_buffers = {buffers->begin(), buffers->end()};
+
         std::cout << "Num buffers: " << buffers->size() << std::endl;
 
         const auto& op_names = tflite::EnumNamesBuiltinOperator();
-        auto opcodes = (m_graph_def->operator_codes());
+        auto opcodes = (m_model->operator_codes());
 
         const auto inputs = graph->inputs();
         const auto outputs = graph->outputs();
@@ -107,7 +91,6 @@ public:
                     std::cout << "        No data in the buffer!" << std::endl;
                 } else {
                     std::cout << "        Buffer #" << tensor->buffer() << std::endl;
-                    print_buffer(tf_type, ov_shape, my_buffer);
                 }
             }
             std::cout << "Outputs: " << std::endl;
@@ -122,31 +105,59 @@ public:
             m_nodes.push_back(node);
         }
     }
+    using Ptr = std::shared_ptr<GraphIteratorFlatBuffer>;
 
     ~GraphIteratorFlatBuffer() = default;
 
     /// Set iterator to the start position
-    void reset() override {
+    void reset() {
         node_index = 0;
     }
 
-    size_t size() const override {
+    size_t size() const {
         return m_nodes.size();
     }
 
     /// Moves to the next node in the graph
-    void next() override {
+    void next() {
         node_index++;
     }
 
-    bool is_end() const override {
+    bool is_end() const {
         return node_index >= m_nodes.size();
     }
 
+    std::vector<size_t> get_input_tensor_indices() const {
+        auto inputs = (*(m_model->subgraphs()))[0]->inputs();
+        return {inputs->begin(), inputs->end()};
+    }
+
+    std::vector<size_t> get_output_tensor_indices() const {
+        auto outputs = (*(m_model->subgraphs()))[0]->outputs();
+        return {outputs->begin(), outputs->end()};
+    }
+
+    const tflite::Tensor* get_tensor(size_t index) const {
+        FRONT_END_GENERAL_CHECK(m_tensors.size() > index,
+                                "Input tensor index is out of range. Tensor index: ",
+                                index,
+                                " Number of inputs: ",
+                                m_tensors.size());
+        return m_tensors[index];
+    }
+
+    std::vector<const tflite::Tensor *> get_tensors() const {
+        return m_tensors;
+    }
+
+    std::vector<const tflite::Buffer *> get_buffers() const {
+        return m_buffers;
+    }
+
     /// Return NodeContext for the current node that iterator points to
-    std::shared_ptr<tensorflow::DecoderBase> get_decoder() const override {
-        std::string type = tflite::EnumNamesBuiltinOperator()[(*m_graph_def->operator_codes())[m_nodes[node_index]->opcode_index()]->builtin_code()];
-        return std::make_shared<DecoderFlatBuffer>(m_nodes[node_index], type, std::to_string(node_index));
+    std::shared_ptr<DecoderFlatBuffer> get_decoder() const {
+        std::string type = tflite::EnumNamesBuiltinOperator()[(*m_model->operator_codes())[m_nodes[node_index]->opcode_index()]->builtin_code()];
+        return std::make_shared<DecoderFlatBuffer>(m_nodes[node_index], type, std::to_string(node_index), m_tensors);
     }
 };
 

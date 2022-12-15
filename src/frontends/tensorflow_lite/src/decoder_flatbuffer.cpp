@@ -25,7 +25,14 @@ size_t DecoderFlatBuffer::get_input_size() const {
 void DecoderFlatBuffer::get_input_node(size_t input_port_idx,
                                       std::string& producer_name,
                                       size_t& producer_output_port_index) const {
-
+    const auto inputs = m_node_def->inputs();
+    FRONT_END_GENERAL_CHECK(inputs->size() > input_port_idx, "Input port index is out of range for node ", get_op_name(), ". Requested input index: ", input_port_idx, ". Number of inputs: ", inputs->size());
+    auto input_tensor_idx = (*inputs)[input_port_idx];
+    FRONT_END_GENERAL_CHECK(m_tensors.size() > input_tensor_idx, "Input tensor index is out of range for node ", get_op_name(), ". Requested input index: ", input_port_idx, ". Tensor index: ", input_tensor_idx, " Number of inputs: ", inputs->size());
+    auto tensor = m_tensors[input_tensor_idx];
+    std::string name = (*tensor).name()->str();
+    producer_name = name;
+    producer_output_port_index = input_tensor_idx;
 }
 
 const std::string& DecoderFlatBuffer::get_op_type() const {
@@ -34,6 +41,21 @@ const std::string& DecoderFlatBuffer::get_op_type() const {
 
 const std::string& DecoderFlatBuffer::get_op_name() const {
     return m_name;
+}
+
+std::vector<size_t> DecoderFlatBuffer::get_output_tensor_indices() const {
+    const auto outputs = m_node_def->outputs();
+    return {outputs->begin(), outputs->end()};
+}
+
+size_t DecoderFlatBuffer::get_output_size() const {
+    return m_node_def->outputs()->size();
+}
+
+std::string DecoderFlatBuffer::get_output_tensor_name(size_t idx) const {
+    // FIXME add checks
+    const auto tensor_idx = (*m_node_def->outputs())[idx];
+    return m_tensors[tensor_idx]->name()->str();
 }
 
 
