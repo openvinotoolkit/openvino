@@ -9,17 +9,19 @@
 #include "multi/multi_remote_blob_multidevice_test.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-const std::vector<DevicesNamesAndSupportPair> device_names_and_support_for_remote_blobs {
-        {{GPU}, true}, // GPU via MULTI,
-        {{"GPU.0"}, true}, // GPU.0 via MULTI,
+auto device_names_and_support_for_remote_blobs = []() {
+    return std::vector<DevicesNamesAndSupportPair>{
+        {{GPU}, true},      // GPU via MULTI,
+        {{"GPU.0"}, true},  // GPU.0 via MULTI,
 #ifdef ENABLE_INTEL_CPU
-        {{GPU, CPU}, true}, // GPU+CPU
-        {{CPU, GPU}, true}, // CPU+GPU
+        {{GPU, CPU}, true},  // GPU+CPU
+        {{CPU, GPU}, true},  // CPU+GPU
 #endif
+    };
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_RemoteBlobMultiGPU, MultiDevice_SupportTest,
-                        ::testing::ValuesIn(device_names_and_support_for_remote_blobs), MultiDevice_SupportTest::getTestCaseName);
+                        ::testing::ValuesIn(device_names_and_support_for_remote_blobs()), MultiDevice_SupportTest::getTestCaseName);
 
 TEST_P(MultiDevice_Test, cannotInferRemoteBlobIfNotInitializedForDevice) {
     InferenceEngine::CNNNetwork net(fn_ptr);
@@ -48,23 +50,29 @@ TEST_P(MultiDevice_Test, cannotInferRemoteBlobIfNotInitializedForDevice) {
     ASSERT_THROW(req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY), InferenceEngine::Exception);
 }
 
-const std::vector<DevicesNames> device_names_and_support_for_remote_blobs2 {
+auto device_names_and_support_for_remote_blobs2 = []() {
+    return std::vector<DevicesNames>{
 #ifdef ENABLE_INTEL_CPU
         {CPU},  // stand-alone CPU via MULTI (no GPU), no OCL context
 #endif
         {"GPU.1"},  // another GPU (the test will test its presence), different OCL contexts
+    };
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_RemoteBlobMultiInitializedWithoutGPU, MultiDevice_Test,
-                        ::testing::ValuesIn(device_names_and_support_for_remote_blobs2), MultiDevice_Test::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_RemoteBlobMultiInitializedWithoutGPU,
+                         MultiDevice_Test,
+                         ::testing::ValuesIn(device_names_and_support_for_remote_blobs2()),
+                         MultiDevice_Test::getTestCaseName);
 
-const std::vector<DevicesNames> multi_device_names_and_support_for_remote_blobs {
+auto multi_device_names_and_support_for_remote_blobs = []() {
+    return std::vector<DevicesNames>{
 #ifdef ENABLE_INTEL_CPU
         {CPU, "GPU.0"},
         {CPU, "GPU.0", "GPU.1"},  // another GPU (the test will test its presence), different OCL contexts
 #endif
-        {"GPU.0", "GPU.1"}
+        {"GPU.0", "GPU.1"}};
 };
-INSTANTIATE_TEST_SUITE_P(smoke_RemoteBlobMultiInitializedWithoutGPU, MultiDeviceMultipleGPU_Test,
-                        ::testing::ValuesIn(multi_device_names_and_support_for_remote_blobs), MultiDeviceMultipleGPU_Test::getTestCaseName);
-
+INSTANTIATE_TEST_SUITE_P(smoke_RemoteBlobMultiInitializedWithoutGPU,
+                         MultiDeviceMultipleGPU_Test,
+                         ::testing::ValuesIn(multi_device_names_and_support_for_remote_blobs()),
+                         MultiDeviceMultipleGPU_Test::getTestCaseName);

@@ -60,7 +60,7 @@ protected:
         std::set<int64_t> axes_to_remove;
         if (axes.empty()) {
             for (auto dim = p_shape.begin(); dim != p_shape.end(); ++dim) {
-                if (*dim == 1 || exp_shape.rank().is_dynamic()) {
+                if (dim->get_max_length() == 1 || exp_shape.rank().is_dynamic()) {
                     axes_to_remove.insert(std::distance(p_shape.begin(), dim));
                 }
             }
@@ -92,6 +92,7 @@ protected:
 
 const auto static_partial_shapes_test_values =
     Values(std::make_tuple(PartialShape{1}, std::vector<int64_t>{0}, PartialShape{}),
+           std::make_tuple(PartialShape{}, std::vector<int64_t>{0}, PartialShape{}),
            std::make_tuple(PartialShape{1, 2}, std::vector<int64_t>{0}, PartialShape{2}),
            std::make_tuple(PartialShape{1, 2}, std::vector<int64_t>{-2}, PartialShape{2}),
            std::make_tuple(PartialShape{1, 2, 1}, std::vector<int64_t>{0}, PartialShape{2, 1}),
@@ -105,6 +106,7 @@ const auto empty_axes_test_values =
                            std::vector<int64_t>{},
                            PartialShape{Dimension(2, 5), Dimension(3, 4), 6}),
            std::make_tuple(PartialShape::dynamic(6), std::vector<int64_t>{}, PartialShape::dynamic()),
+           std::make_tuple(PartialShape{Dimension(0, 1)}, std::vector<int64_t>{}, PartialShape{}),
            std::make_tuple(PartialShape{Dimension::dynamic(), 1, Dimension::dynamic()},
                            std::vector<int64_t>{},
                            PartialShape::dynamic()),

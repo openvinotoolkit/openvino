@@ -69,8 +69,6 @@ public:
 
 namespace {
     TEST_P(ConcatConstantInPlaceTest, smoke_ConcatConstantInPlaceTest_CPU) {
-        SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
         Run();
         if (this->GetParam() == Precision::BF16)
             CheckNumberOfNodesWithType(executableNetwork, "Reorder", 4);
