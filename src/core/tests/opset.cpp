@@ -18,165 +18,55 @@
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/opsets/opset9.hpp"
 
-TEST(opset, opset1) {
-    auto op = std::make_shared<ov::opset1::Parameter>();
+struct OpsetTestParams {
+    using OpsetGetterFunction = std::function<const ov::OpSet&()>;
+    OpsetTestParams(const OpsetGetterFunction& opset_getter_, const uint32_t expected_ops_count_)
+        : opset_getter{opset_getter_},
+          expected_ops_count{expected_ops_count_} {}
+
+    OpsetGetterFunction opset_getter;
+    uint32_t expected_ops_count;
+};
+
+class OpsetTests : public testing::TestWithParam<OpsetTestParams> {};
+
+struct OpsetTestNameGenerator {
+    std::string operator()(const testing::TestParamInfo<OpsetTestParams>& info) const {
+        return "opset" + std::to_string(info.index + 1);
+    }
+};
+
+TEST_P(OpsetTests, create_parameter) {
+    const auto& params = GetParam();
+    const auto op = std::unique_ptr<ov::Node>(params.opset_getter().create("Parameter"));
     ASSERT_NE(nullptr, op);
-    EXPECT_TRUE(ov::op::util::is_parameter(op));
+    EXPECT_TRUE(ov::op::util::is_parameter(op.get()));
 }
 
-TEST(opset, opset1_dump) {
-    const auto& opset = ov::get_opset1();
-    std::cout << "All opset1 operations: ";
+TEST_P(OpsetTests, opset_dump) {
+    const auto& params = GetParam();
+    const auto& opset = params.opset_getter();
+    std::cout << "All opset operations: ";
     for (const auto& t : opset.get_types_info()) {
         std::cout << t.name << " ";
     }
     std::cout << std::endl;
-    ASSERT_EQ(110, opset.get_types_info().size());
+    ASSERT_EQ(params.expected_ops_count, opset.get_types_info().size());
 }
 
-TEST(opset, opset2) {
-    auto op = std::make_shared<ov::opset2::Parameter>();
-    ASSERT_NE(nullptr, op);
-    EXPECT_TRUE(ov::op::util::is_parameter(op));
-}
-
-TEST(opset, opset2_dump) {
-    const auto& opset = ov::get_opset2();
-    std::cout << "All opset2 operations: ";
-    for (const auto& t : opset.get_types_info()) {
-        std::cout << t.name << " ";
-    }
-    std::cout << std::endl;
-    ASSERT_EQ(112, opset.get_types_info().size());
-}
-
-TEST(opset, opset3) {
-    auto op = std::make_shared<ov::opset3::Parameter>();
-    ASSERT_NE(nullptr, op);
-    EXPECT_TRUE(ov::op::util::is_parameter(op));
-}
-
-TEST(opset, opset3_dump) {
-    const auto& opset = ov::get_opset3();
-    std::cout << "All opset3 operations: ";
-    for (const auto& t : opset.get_types_info()) {
-        std::cout << t.name << " ";
-    }
-    std::cout << std::endl;
-    ASSERT_EQ(127, opset.get_types_info().size());
-}
-
-TEST(opset, opset4) {
-    auto op = std::make_shared<ov::opset4::Parameter>();
-    ASSERT_NE(nullptr, op);
-    EXPECT_TRUE(ov::op::util::is_parameter(op));
-}
-
-TEST(opset, opset4_dump) {
-    const auto& opset = ov::get_opset4();
-    std::cout << "All opset4 operations: ";
-    for (const auto& t : opset.get_types_info()) {
-        std::cout << t.name << " ";
-    }
-    std::cout << std::endl;
-    ASSERT_EQ(137, opset.get_types_info().size());
-}
-
-TEST(opset, opset5) {
-    auto op = std::make_shared<ov::opset5::Parameter>();
-    ASSERT_NE(nullptr, op);
-    EXPECT_TRUE(ov::op::util::is_parameter(op));
-}
-
-TEST(opset, opset5_dump) {
-    const auto& opset = ov::get_opset5();
-    std::cout << "All opset5 operations: ";
-    for (const auto& t : opset.get_types_info()) {
-        std::cout << t.name << " ";
-    }
-    std::cout << std::endl;
-    ASSERT_EQ(145, opset.get_types_info().size());
-}
-
-TEST(opset, opset6) {
-    auto op = std::make_shared<ov::opset6::Parameter>();
-    ASSERT_NE(nullptr, op);
-    EXPECT_TRUE(ov::op::util::is_parameter(op));
-}
-
-TEST(opset, opset6_dump) {
-    const auto& opset = ov::get_opset6();
-    std::cout << "All opset6 operations: ";
-    for (const auto& t : opset.get_types_info()) {
-        std::cout << t.name << " ";
-    }
-    std::cout << std::endl;
-    ASSERT_EQ(152, opset.get_types_info().size());
-}
-
-TEST(opset, opset7) {
-    auto op = std::make_shared<ov::opset7::Parameter>();
-    ASSERT_NE(nullptr, op);
-    EXPECT_TRUE(ov::op::util::is_parameter(op));
-}
-
-TEST(opset, opset7_dump) {
-    const auto& opset = ov::get_opset7();
-    std::cout << "All opset7 operations: ";
-    for (const auto& t : opset.get_types_info()) {
-        std::cout << t.name << " ";
-    }
-    std::cout << std::endl;
-    ASSERT_EQ(156, opset.get_types_info().size());
-}
-
-TEST(opset, opset8) {
-    auto op = std::make_shared<ov::opset8::Parameter>();
-    ASSERT_NE(nullptr, op);
-    EXPECT_TRUE(ov::op::util::is_parameter(op));
-}
-
-TEST(opset, opset8_dump) {
-    const auto& opset = ov::get_opset8();
-    std::cout << "All opset8 operations: ";
-    for (const auto& t : opset.get_types_info()) {
-        std::cout << t.name << " ";
-    }
-    std::cout << std::endl;
-    ASSERT_EQ(167, opset.get_types_info().size());
-}
-
-TEST(opset, opset9) {
-    auto op = std::make_shared<ov::opset9::Parameter>();
-    ASSERT_NE(nullptr, op);
-    EXPECT_TRUE(ov::op::util::is_parameter(op));
-}
-
-TEST(opset, opset9_dump) {
-    const auto& opset = ov::get_opset9();
-    std::cout << "All opset9 operations: ";
-    for (const auto& t : opset.get_types_info()) {
-        std::cout << t.name << " ";
-    }
-    std::cout << std::endl;
-    ASSERT_EQ(173, opset.get_types_info().size());
-}
-
-TEST(opset, opset10) {
-    auto op = std::make_shared<ov::opset10::Parameter>();
-    ASSERT_NE(nullptr, op);
-    EXPECT_TRUE(ov::op::util::is_parameter(op));
-}
-
-TEST(opset, opset10_dump) {
-    const auto& opset = ov::get_opset10();
-    std::cout << "All opset10 operations: ";
-    for (const auto& t : opset.get_types_info()) {
-        std::cout << t.name << " ";
-    }
-    std::cout << std::endl;
-    ASSERT_EQ(177, opset.get_types_info().size());
-}
+INSTANTIATE_TEST_SUITE_P(opset,
+                         OpsetTests,
+                         testing::Values(OpsetTestParams{ov::get_opset1, 110},
+                                         OpsetTestParams{ov::get_opset2, 112},
+                                         OpsetTestParams{ov::get_opset3, 127},
+                                         OpsetTestParams{ov::get_opset4, 137},
+                                         OpsetTestParams{ov::get_opset5, 145},
+                                         OpsetTestParams{ov::get_opset6, 152},
+                                         OpsetTestParams{ov::get_opset7, 156},
+                                         OpsetTestParams{ov::get_opset8, 167},
+                                         OpsetTestParams{ov::get_opset9, 173},
+                                         OpsetTestParams{ov::get_opset10, 177}),
+                         OpsetTestNameGenerator{});
 
 class MyOpOld : public ov::op::Op {
 public:
@@ -196,15 +86,12 @@ constexpr ov::DiscreteTypeInfo MyOpOld::type_info;
 class MyOpNewFromOld : public MyOpOld {
 public:
     OPENVINO_OP("MyOpNewFromOld", "custom_opset", MyOpOld);
-    BWDCMP_RTTI_DECLARATION;
     MyOpNewFromOld() = default;
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override {
         return nullptr;
     }
 };
-
-BWDCMP_RTTI_DEFINITION(MyOpNewFromOld);
 
 class MyOpIncorrect : public MyOpOld {
 public:
@@ -228,20 +115,11 @@ public:
 
 TEST(opset, custom_opset) {
     ov::OpSet opset;
-#ifndef OPENVINO_STATIC_LIBRARY
-    opset.insert<MyOpOld>();
-#endif
     opset.insert<MyOpIncorrect>();
     opset.insert<MyOpNewFromOld>();
     opset.insert<MyOpNew>();
-#ifdef OPENVINO_STATIC_LIBRARY
-    EXPECT_EQ(opset.get_types_info().size(), 2);
-#else
     EXPECT_EQ(opset.get_types_info().size(), 3);
-    EXPECT_TRUE(opset.contains_type("MyOpOld"));
-    // TODO: why is it not registered?
     EXPECT_TRUE(opset.contains_type("MyOpNewFromOld"));
-#endif
     EXPECT_TRUE(opset.contains_type("MyOpNew"));
-    EXPECT_FALSE(opset.contains_type("MyOpIncorrect"));
+    EXPECT_TRUE(opset.contains_type("MyOpIncorrect"));
 }

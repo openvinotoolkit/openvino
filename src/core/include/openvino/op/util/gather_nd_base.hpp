@@ -13,7 +13,6 @@ namespace util {
 class OPENVINO_API GatherNDBase : public Op {
 public:
     OPENVINO_OP("GatherNDBase", "util");
-    BWDCMP_RTTI_DECLARATION;
     GatherNDBase() = default;
 
     /// \brief Constructs a GatherND operation.

@@ -268,8 +268,6 @@ private:
 };
 
 TEST_P(SequenceCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
     CheckNumberOfNodesWithType(compiledModel, "RNNSeq", 1);
     CheckNumberOfNodesWithType(compiledModel, "Transpose", 0);

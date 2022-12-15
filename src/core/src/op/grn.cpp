@@ -11,8 +11,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::GRN);
-
 op::v0::GRN::GRN(const Output<Node>& data, float bias) : util::UnaryElementwiseArithmetic(data), m_bias(bias) {
     constructor_validate_and_infer_types();
 }

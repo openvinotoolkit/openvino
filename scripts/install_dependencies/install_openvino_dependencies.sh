@@ -191,7 +191,13 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
     fi
 
     pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake3 json-devel.$arch zlib-devel.$arch sudo)
-
+    
+    if [ "$os" == "centos7" ] || [ "$os" == "amzn2" ] ; then
+        pkgs_dev+=(pkgconfig)
+    else
+        pkgs_dev+=(pkgconf-pkg-config)
+    fi
+    
     if [ "$os" == "rhel9.1" ] ; then
         pkgs_dev+=(curl-minimal)
     else
@@ -218,14 +224,17 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
             gstreamer1-plugins-bad-free.$arch
         )
         extra_repos+=(https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm)
-    elif [ "$os" == "centos8" ] || [ "$os" == "rhel8 "] || [ "$os" == "almalinux8.7" ] ; then
+    elif [ "$os" == "centos8" ] || [ "$os" == "rhel8" ] || [ "$os" == "almalinux8.7" ] ; then
         pkgs_core+=(
             https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/tbb-2018.2-9.el8.$arch.rpm
             https://download-ib01.fedoraproject.org/pub/epel/8/Everything/$arch/Packages/p/pugixml-1.13-1.el8.$arch.rpm
             https://vault.centos.org/centos/8/PowerTools/$arch/os/Packages/gflags-2.1.2-6.el8.$arch.rpm
         )
         pkgs_python+=(python38 python38-pip)
-        pkgs_dev+=(https://vault.centos.org/centos/8/PowerTools/$arch/os/Packages/gflags-devel-2.1.2-6.el8.$arch.rpm)
+        pkgs_dev+=(
+            https://vault.centos.org/centos/8/PowerTools/$arch/os/Packages/gflags-devel-2.1.2-6.el8.$arch.rpm
+            https://download-ib01.fedoraproject.org/pub/epel/8/Everything/$arch/Packages/j/json-devel-3.6.1-2.el8.$arch.rpm
+        )
         pkgs_opencv_req=(gtk3)
         pkgs_opencv_opt=(
             https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/libcdio-2.0.0-3.el8.$arch.rpm
