@@ -79,20 +79,47 @@ TEST_F(TransformationTestsF, ConvertMVN1ToMVN6_5D) {
 }
 
 TEST_F(TransformationTestsF, ConvertMVN1ToMVN6_no_downgrade) {
-    constexpr double no_float_eps = 1e-40;
+    manager.register_pass<ngraph::pass::ConvertMVN1ToMVN6>();
+
+    const auto non_float32_values = std::vector<double>{-1e-40, 1e-50};
+    for (const auto non_float32_eps : non_float32_values) {
+        {
+            auto data = std::make_shared<ngraph::opset2::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 3, 4});
+            auto mvn = std::make_shared<ngraph::op::v0::MVN>(data, true, true, non_float32_eps);
+
+            function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mvn}, ngraph::ParameterVector{data});
+        }
+        {
+            auto data = std::make_shared<ngraph::opset2::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 3, 4});
+            auto mvn = std::make_shared<ngraph::op::v0::MVN>(data, true, true, non_float32_eps);
+
+            function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mvn}, ngraph::ParameterVector{data});
+        }
+    }
+}
+
+namespace {
+class ConvertMVN1ToMVN6_NonFloat32Eps : public testing::WithParamInterface<double>, public TransformationTestsF {};
+
+TEST_P(ConvertMVN1ToMVN6_NonFloat32Eps, NoDowncast) {
+    manager.register_pass<ngraph::pass::ConvertMVN1ToMVN6>();
+
+    const auto& non_float32_eps = GetParam();
     {
         auto data = std::make_shared<ngraph::opset2::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 3, 4});
-        auto mvn = std::make_shared<ngraph::op::v0::MVN>(data, false, true, no_float_eps);
+        auto mvn = std::make_shared<ngraph::op::v0::MVN>(data, true, true, non_float32_eps);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mvn}, ngraph::ParameterVector{data});
-
-        manager.register_pass<ngraph::pass::ConvertMVN1ToMVN6>();
     }
-
     {
         auto data = std::make_shared<ngraph::opset2::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 3, 4});
-        auto mvn = std::make_shared<ngraph::op::v0::MVN>(data, false, true, no_float_eps);
+        auto mvn = std::make_shared<ngraph::op::v0::MVN>(data, true, true, non_float32_eps);
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mvn}, ngraph::ParameterVector{data});
     }
 }
+
+const auto non_float32_values = std::vector<double>{-1e+39, -1e-39, 1e-39, 1e+39};
+}  // namespace
+
+INSTANTIATE_TEST_SUITE_P(TransformationTests, ConvertMVN1ToMVN6_NonFloat32Eps, ::testing::ValuesIn(non_float32_values));

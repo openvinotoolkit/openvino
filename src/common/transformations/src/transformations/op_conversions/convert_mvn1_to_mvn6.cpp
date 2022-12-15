@@ -33,7 +33,9 @@ ov::pass::ConvertMVN1ToMVN6::ConvertMVN1ToMVN6() {
         }
 
         const auto eps = mvn_node->get_eps();
-        if (eps > std::numeric_limits<float>::max() || eps < std::numeric_limits<float>::min())
+        const auto eps_abs = std::abs(eps);
+        if (eps > std::numeric_limits<float>::max() || eps < std::numeric_limits<float>::lowest() ||
+            eps_abs != 0 && eps_abs < std::numeric_limits<float>::min())
             return false;
 
         std::vector<int64_t> axes_v(input_rank.get_length() - start_axis);
