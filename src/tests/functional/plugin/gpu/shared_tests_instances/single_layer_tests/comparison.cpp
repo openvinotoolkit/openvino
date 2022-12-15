@@ -40,16 +40,16 @@ std::vector<ngraph::helpers::InputLayerType> secondInputTypes = {
 
 std::map<std::string, std::string> additional_config = {};
 
-const auto ComparisonTestParams = ::testing::Combine(
-        ::testing::ValuesIn(CommonTestUtils::combineParams(inputShapes)),
-        ::testing::ValuesIn(inputsPrecisions),
-        ::testing::ValuesIn(comparisonOpTypes),
-        ::testing::ValuesIn(secondInputTypes),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
-        ::testing::Values(additional_config));
-
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs, ComparisonLayerTest, ComparisonTestParams, ComparisonLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs,
+                         ComparisonLayerTest,
+                         ::testing::Combine(::testing::ValuesIn(CommonTestUtils::combineParams(inputShapes)),
+                                            ::testing::ValuesIn(inputsPrecisions),
+                                            ::testing::ValuesIn(comparisonOpTypes),
+                                            ::testing::ValuesIn(secondInputTypes),
+                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                            ::testing::Values(additional_config)),
+                         ComparisonLayerTest::getTestCaseName);
 
 }  // namespace

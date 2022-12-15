@@ -97,38 +97,44 @@ if(NOT DEFINED CMAKE_CXX_STANDARD)
 endif()
 ####################################
 
-if(NOT TARGET gflags)
-    if(APPLE OR DEFINED ENV{CONDA_PREFIX} OR DEFINED ENV{HOMEBREW_PREFIX})
-        # conda-forge and brew contains only shared version of gflags
-        if(ENV{CONDA_PREFIX} AND WIN32)
-            # conda-forge windows compiled as gflags
-            find_package(gflags QUIET COMPONENTS shared)
-        else()
-            find_package(gflags QUIET COMPONENTS nothreads_shared)
-        endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/utils")
+    # gflags is used only in C++ samples
+    set(gflags_required ON)
+endif()
+
+if(TARGET gflags)
+    set(GFLAGS_TARGET gflags)
+elseif(gflags_required)
+    if(EXISTS /etc/debian_version)
+        set(gflags_component nothreads_static)
     else()
-        find_package(gflags QUIET COMPONENTS nothreads_static)
+        set(gflags_component shared)
+    endif()
+    find_package(gflags QUIET OPTIONAL_COMPONENTS ${gflags_component})
+    if(gflags_FOUND)
+        if(TARGET ${GFLAGS_TARGET})
+            # nothing
+        elseif(TARGET gflags_nothreads-static)
+            # Debian 9: gflag_component is ignored
+            set(GFLAGS_TARGET gflags_nothreads-static)
+        elseif(TARGET gflags-shared)
+            # gflags shared case for CentOS / RHEL / Fedora
+            set(GFLAGS_TARGET gflags-shared)
+        else()
+            message(FATAL_ERROR "Internal error: failed to find imported target 'gflags' using '${gflags_component}' component")
+        endif()
+
+        message(STATUS "gflags (${gflags_VERSION}) is found at ${gflags_DIR} using '${gflags_component}' component")
     endif()
 
-    if(gflags_FOUND)
-        if(NOT TARGET ${GFLAGS_TARGET})
-            if(TARGET gflags_nothreads-static)
-                # arm cross-compilation
-                set(GFLAGS_TARGET gflags_nothreads-static)
-            elseif(TARGET gflags_nothreads-shared)
-                # centos/rhel8
-                set(GFLAGS_TARGET gflags_nothreads-shared)    
-            else()
-                message(FATAL_ERROR "Failed to set GFLAGS_TARGET target")
-            endif()
+    if(NOT gflags_FOUND)
+        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
+            add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
+            set(GFLAGS_TARGET gflags_nothreads_static)
+        else()
+            message(FATAL_ERROR "Failed to find 'gflags' library using '${gflags_component}' component")
         endif()
-        message(STATUS "gflags (${gflags_VERSION}) is found at ${gflags_DIR}")
-    elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
-        add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
-        set(GFLAGS_TARGET gflags_nothreads_static)
     endif()
-else()
-    set(GFLAGS_TARGET gflags)
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/utils")
@@ -222,9 +228,6 @@ macro(ie_add_sample)
     target_include_directories(${IE_SAMPLE_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../common")
 
     target_link_libraries(${IE_SAMPLE_NAME} PRIVATE ${ov_link_libraries} Threads::Threads ${IE_SAMPLE_DEPENDENCIES})
-    if(NOT c_sample)
-        target_link_libraries(${IE_SAMPLE_NAME} PRIVATE ${GFLAGS_TARGET})
-    endif()
 
     install(TARGETS ${IE_SAMPLE_NAME}
             RUNTIME DESTINATION samples_bin/

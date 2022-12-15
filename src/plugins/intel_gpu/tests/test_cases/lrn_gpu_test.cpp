@@ -38,7 +38,7 @@ TEST(lrn_fp32_gpu, basic) {
     float k = 0.5f;
     float alpha = 9.9e-05f;
     float beta = 1.f;
-    topology.add(lrn("lrn", "input", size, k, alpha, beta, cldnn::lrn_norm_region_across_channel));
+    topology.add(lrn("lrn", input_info("input"), size, k, alpha, beta, cldnn::lrn_norm_region_across_channel));
 
     network network(engine, topology);
 
@@ -87,7 +87,7 @@ TEST(lrn_fp32_gpu, basic2) {
     float k = 0.5f;
     float alpha = 9.9e-05f;
     float beta = 1.f;
-    topology.add(lrn("lrn", "input", size, k, alpha, beta, cldnn::lrn_norm_region_across_channel));
+    topology.add(lrn("lrn", input_info("input"), size, k, alpha, beta, cldnn::lrn_norm_region_across_channel));
 
     network network(engine, topology);
 
@@ -136,7 +136,7 @@ TEST(lrn_fp16_gpu, basic1) {
     float k = 0.5f;
     float alpha = 9.9e-05f;
     float beta = 1.f;
-    topology.add(lrn("lrn", "input", size, k, alpha, beta, cldnn::lrn_norm_region_across_channel));
+    topology.add(lrn("lrn", input_info("input"), size, k, alpha, beta, cldnn::lrn_norm_region_across_channel));
 
     network network(engine, topology);
 
@@ -185,7 +185,7 @@ TEST(lrn_fp32_gpu, basic3) {
     float k = 1.f;
     float alpha = 9.89999971e-05f;
     float beta = 0.75f;
-    topology.add(lrn("lrn", "input", size, k, alpha, beta, cldnn::lrn_norm_region_across_channel));
+    topology.add(lrn("lrn", input_info("input"), size, k, alpha, beta, cldnn::lrn_norm_region_across_channel));
 
     network network(engine, topology);
 

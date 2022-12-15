@@ -87,12 +87,14 @@ macro(ov_cpack_settings)
         execute_process(COMMAND "${rpmlint_PROGRAM}" --version
                         WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
                         RESULT_VARIABLE rpmlint_code
-                        OUTPUT_VARIABLE rpmlint_version)
+                        OUTPUT_VARIABLE rpmlint_version
+                        OUTPUT_STRIP_TRAILING_WHITESPACE
+                        ERROR_STRIP_TRAILING_WHITESPACE)
 
         if(NOT rpmlint_code EQUAL 0)
             message(FATAL_ERROR "Internal error: Failed to determine rpmlint version")
         else()
-            if(rpmlint_version MATCHES ".*version ([0-9]+\.[0-9]+) Copyright.*")
+            if(rpmlint_version MATCHES "([0-9]+\.[0-9]+)")
                 set(rpmlint_version "${CMAKE_MATCH_1}")
             else()
                 message(WARNING "Failed to extract rpmlint version from '${rpmlint_version}'")
@@ -201,7 +203,6 @@ macro(ov_cpack_settings)
 
     if(ENABLE_OV_IR_FRONTEND)
         set(CPACK_COMPONENT_IR_DESCRIPTION "OpenVINO IR Frontend")
-        set(CPACK_RPM_IR_PACKAGE_REQUIRES "${core_package}")
         set(CPACK_RPM_IR_PACKAGE_NAME "libopenvino-ir-frontend-${cpack_name_ver}")
         set(CPACK_RPM_IR_POST_INSTALL_SCRIPT_FILE "${def_triggers}")
         set(CPACK_RPM_IR_POST_UNINSTALL_SCRIPT_FILE "${def_triggers}")
@@ -211,7 +212,6 @@ macro(ov_cpack_settings)
 
     if(ENABLE_OV_ONNX_FRONTEND)
         set(CPACK_COMPONENT_ONNX_DESCRIPTION "OpenVINO ONNX Frontend")
-        set(CPACK_RPM_ONNX_PACKAGE_REQUIRES "${core_package}")
         set(CPACK_RPM_ONNX_PACKAGE_NAME "libopenvino-onnx-frontend-${cpack_name_ver}")
         set(CPACK_RPM_ONNX_POST_INSTALL_SCRIPT_FILE "${def_triggers}")
         set(CPACK_RPM_ONNX_POST_UNINSTALL_SCRIPT_FILE "${def_triggers}")
@@ -221,7 +221,6 @@ macro(ov_cpack_settings)
 
     if(ENABLE_OV_TF_FRONTEND)
         set(CPACK_COMPONENT_TENSORFLOW_DESCRIPTION "OpenVINO TensorFlow Frontend")
-        set(CPACK_RPM_TENSORFLOW_PACKAGE_REQUIRES "${core_package}")
         set(CPACK_RPM_TENSORFLOW_PACKAGE_NAME "libopenvino-tensorflow-frontend-${cpack_name_ver}")
         set(CPACK_RPM_TENSORFLOW_POST_INSTALL_SCRIPT_FILE "${def_triggers}")
         set(CPACK_RPM_TENSORFLOW_POST_UNINSTALL_SCRIPT_FILE "${def_triggers}")
@@ -231,7 +230,6 @@ macro(ov_cpack_settings)
 
     if(ENABLE_OV_PADDLE_FRONTEND)
         set(CPACK_COMPONENT_PADDLE_DESCRIPTION "OpenVINO Paddle Frontend")
-        set(CPACK_RPM_PADDLE_PACKAGE_REQUIRES "${core_package}")
         set(CPACK_RPM_PADDLE_PACKAGE_NAME "libopenvino-paddle-frontend-${cpack_name_ver}")
         set(CPACK_RPM_PADDLE_POST_INSTALL_SCRIPT_FILE "${def_triggers}")
         set(CPACK_RPM_PADDLE_POST_UNINSTALL_SCRIPT_FILE "${def_triggers}")
@@ -279,7 +277,7 @@ macro(ov_cpack_settings)
     # Samples
     #
 
-    set(samples_build_deps "cmake3, gcc-c++, gcc, glibc-devel, make")
+    set(samples_build_deps "cmake3, gcc-c++, gcc, glibc-devel, make, pkgconf-pkg-config")
     set(samples_build_deps_suggest "opencv-devel >= 3.0")
 
     # c_samples / cpp_samples
@@ -297,7 +295,11 @@ macro(ov_cpack_settings)
         "devel-file-in-non-devel-package /usr/${OV_CPACK_SAMPLESDIR}/cpp/*"
         "devel-file-in-non-devel-package /usr/${OV_CPACK_SAMPLESDIR}/c/*"
         # depends on gflags-devel
-        "devel-dependency gflags-devel")
+        "devel-dependency gflags-devel"
+        # duplicated files are OK
+        "files-duplicate /usr/${OV_CPACK_SAMPLESDIR}/cpp/CMakeLists.txt /usr/${OV_CPACK_SAMPLESDIR}/c/CMakeLists.txt"
+        "files-duplicate /usr/${OV_CPACK_SAMPLESDIR}/cpp/build_samples.sh /usr/${OV_CPACK_SAMPLESDIR}/c/build_samples.sh"
+        )
     set(samples_copyright "generic")
 
     # python_samples

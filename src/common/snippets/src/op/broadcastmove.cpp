@@ -17,6 +17,7 @@ snippets::op::BroadcastMove::BroadcastMove(const Output<Node>& x, Shape shape) :
 }
 
 bool snippets::op::BroadcastMove::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("output_shape", output_shape);
     return true;
 }
 

@@ -194,10 +194,7 @@ std::string getIncorrectExtensionPath() {
 
 class CustomOldIdentity : public ngraph::op::Op {
 public:
-    static constexpr ngraph::NodeTypeInfo type_info{"Identity", static_cast<uint64_t>(0)};
-    const ngraph::NodeTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_OP("Identity");
 
     CustomOldIdentity() = default;
     CustomOldIdentity(const ngraph::Output<ngraph::Node>& arg) : Op({arg}) {
@@ -220,8 +217,6 @@ public:
         return true;
     }
 };
-
-constexpr ngraph::NodeTypeInfo CustomOldIdentity::type_info;
 
 class TestTileOldExtension : public InferenceEngine::IExtension {
 public:
@@ -288,6 +283,7 @@ public:
     }
 };
 
+#if defined(ENABLE_OV_IR_FRONTEND)
 TEST_F(OVExtensionTests, ReshapeIRWithOldExtension) {
     OPENVINO_SUPPRESS_DEPRECATED_START
     core.add_extension(std::make_shared<TestTileOldExtension>());
@@ -357,3 +353,4 @@ TEST_F(OVExtensionTests, load_old_extension) {
 TEST_F(OVExtensionTests, load_incorrect_extension) {
     EXPECT_THROW(core.add_extension(getIncorrectExtensionPath()), ov::Exception);
 }
+#endif  // defined(ENABLE_OV_IR_FRONTEND)

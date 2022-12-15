@@ -4,21 +4,21 @@
 import argparse
 import io
 import logging as log
-from typing import List
 import sys
-from os import environ
-
-from openvino.tools.mo.moc_frontend.analysis import json_model_analysis_dump
-from openvino.tools.mo.moc_frontend.extractor import fe_user_data_repack
-from openvino.tools.mo.middle.passes.infer import validate_batch_in_shape
-from openvino.tools.mo.utils.class_registration import get_enabled_and_disabled_transforms
-from openvino.tools.mo.utils.error import Error
-
-from openvino.runtime import Dimension, PartialShape, Type        # pylint: disable=no-name-in-module,import-error
-from openvino.frontend import FrontEnd, InputModel, NotImplementedFailure, Place # pylint: disable=no-name-in-module,import-error
-from openvino.runtime.utils.types import get_element_type   # pylint: disable=no-name-in-module,import-error
+from typing import List
 
 import numpy as np
+
+from openvino.frontend import FrontEnd, InputModel, NotImplementedFailure, \
+    Place  # pylint: disable=no-name-in-module,import-error
+from openvino.runtime import Dimension, PartialShape, Type  # pylint: disable=no-name-in-module,import-error
+from openvino.runtime.utils.types import get_element_type, \
+    get_numpy_ctype  # pylint: disable=no-name-in-module,import-error
+from openvino.tools.mo.middle.passes.infer import validate_batch_in_shape
+from openvino.tools.mo.moc_frontend.analysis import json_model_analysis_dump
+from openvino.tools.mo.moc_frontend.extractor import fe_user_data_repack
+from openvino.tools.mo.utils.class_registration import get_enabled_and_disabled_transforms
+from openvino.tools.mo.utils.error import Error
 
 
 def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
@@ -136,17 +136,58 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
 
     if freeze_placeholder:
         for name, value in freeze_placeholder.items():
-            for node in user_shapes:
-                if node.get('input_name') == name:
-                    place = node['node']
-                    if node.get('shape'):
-                        input_model.set_partial_shape(place, node['shape'])
-                    if node.get('data_type'):
-                        value = np.array(value, dtype=node['data_type'])
-                        input_model.set_element_type(place, Type(node['data_type']))
-                    else:
-                        value = np.array(value, dtype=np.float32)
-                    input_model.set_tensor_value(place, value)
+            node = None
+            # look for the certain place in user_shapes
+            for node_cur in user_shapes:
+                if node_cur.get('input_name') == name:
+                    node = node_cur
+                    break
+            if node is None:
+                raise Error("Please check correctness of the command-line. "
+                            "Place (operation or tensor) with name {} is not found.".format(name))
+            place = node.get('node')
+
+            if node.get('data_type'):
+                dtype = node['data_type']
+                ov_type = Type(dtype)
+            else:
+                # we need to detect type of Placeholder
+                try:
+                    ov_type = input_model.get_element_type(place)
+                except NotImplementedFailure:
+                    raise Error("Please specify type for value freezing {} node explicitly "
+                                "because the frontend does not support automatic type detection.".format(name))
+                # in case of cutting graph (or using custom inputs) and unspecified type,
+                # the default type is fp32
+                if ov_type == Type.undefined:
+                    ov_type = Type.f32
+                dtype = get_numpy_ctype(ov_type)
+
+            input_model.set_element_type(place, ov_type)
+            # prepare and cast value to dtype
+            from openvino.tools.mo.utils.type_utils import np_map_cast
+            from openvino.tools.mo.front.common.partial_infer.utils import mo_array
+            if isinstance(value, list):
+                casted_list = list()
+                for v in mo_array(value):
+                    casted_list.append(np_map_cast[dtype](v))
+                value = mo_array(casted_list, dtype=dtype)
+            else:
+                value = np_map_cast[dtype](value)
+            value = np.array(value, dtype=dtype)
+
+            ov_shape = input_model.get_partial_shape(place)
+            if node.get('shape'):
+                # set user defined shape
+                ov_shape = PartialShape(node['shape'])
+                input_model.set_partial_shape(place, ov_shape)
+            elif ov_shape.is_dynamic:
+                # in case of dynamic shape (dynamic rank or dynamic dimension)
+                # deduce it based on the value shape and set it
+                ov_shape = PartialShape(value.shape)
+                input_model.set_partial_shape(place, ov_shape)
+
+            input_model.set_tensor_value(place, value)
 
     def shape_to_array(shape: PartialShape):
         return [shape.get_dimension(i) for i in range(shape.rank.get_length())]

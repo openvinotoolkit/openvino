@@ -9,8 +9,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v1::DeformablePSROIPooling);
-
 op::v1::DeformablePSROIPooling::DeformablePSROIPooling(const Output<Node>& input,
                                                        const Output<Node>& coords,
                                                        const Output<Node>& offsets,

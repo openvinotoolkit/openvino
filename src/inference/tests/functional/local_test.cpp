@@ -3,7 +3,9 @@
 //
 
 #include <gtest/gtest.h>
+
 #include <ie_core.hpp>
+
 #include "ngraph/ops.hpp"
 
 using namespace ::testing;
@@ -215,9 +217,9 @@ class LocaleTests : public ::testing::Test {
 
 protected:
     void SetUp() override {
-        originalLocale  = setlocale(LC_ALL, nullptr);
+        originalLocale = setlocale(LC_ALL, nullptr);
     }
-    void TearDown() override  {
+    void TearDown() override {
         setlocale(LC_ALL, originalLocale.c_str());
     }
 
@@ -231,7 +233,7 @@ protected:
 
         auto funcs = net.getFunction();
 
-        for (const auto & op : funcs->get_ops()) {
+        for (const auto& op : funcs->get_ops()) {
             if (!isLSTM) {
                 if (op->get_friendly_name() == "output") {
                     const auto roi = std::dynamic_pointer_cast<ngraph::op::v3::ROIAlign>(op);
@@ -251,6 +253,7 @@ protected:
     }
 };
 
+#if defined(ENABLE_OV_IR_FRONTEND)
 TEST_F(LocaleTests, WithRULocale) {
     setlocale(LC_ALL, "ru_RU.UTF-8");
     testBody();
@@ -284,3 +287,4 @@ TEST_F(LocaleTests, DISABLED_WithUSLocaleCPP) {
     testBody();
     std::locale::global(prev);
 }
+#endif  // defined(ENABLE_OV_IR_FRONTEND)
