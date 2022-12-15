@@ -65,11 +65,11 @@ def get_element_type(data_type: NumericType) -> Type:
         log.warning("Converting float type of undefined bitwidth to 32-bit ngraph float.")
         return Type.f32
 
-    ov_type = numpy_to_openvino_types_map.get(data_type)
-    if ov_type:
-        return ov_type
-    raise OVTypeError("Unidentified data type %s", data_type)
-
+    try:
+        return numpy_to_openvino_types_map[data_type]
+    except KeyError:
+        raise OVTypeError("Unidentified data type %s", data_type)
+    
 
 def get_element_type_str(data_type: NumericType) -> str:
     """Return an ngraph element type string representation for a Python type or numpy dtype."""
@@ -81,26 +81,26 @@ def get_element_type_str(data_type: NumericType) -> str:
         log.warning("Converting float type of undefined bitwidth to 32-bit ngraph float.")
         return "f32"
 
-    ov_str_type = numpy_to_openvino_types_str_map.get(data_type)
-    if ov_str_type:
-        return ov_str_type
-    raise OVTypeError("Unidentified data type %s", data_type)
+    try:
+        return numpy_to_openvino_types_str_map[data_type]
+    except KeyError:
+        raise OVTypeError("Unidentified data type %s", data_type)
 
 
 def get_dtype(openvino_type: Type) -> np.dtype:
     """Return a numpy.dtype for an openvino element type."""
-    np_type = numpy_to_openvino_types_str_map.get(openvino_type)
-    if np_type:
-        return np.dtype(np_type)
-    raise OVTypeError("Unidentified data type %s", openvino_type)
+    try:
+        return np.dtype(numpy_to_openvino_types_str_map[openvino_type])
+    except KeyError:
+        raise OVTypeError("Unidentified data type %s", openvino_type)
 
 
 def get_numpy_ctype(openvino_type: Type) -> type:
     """Return numpy ctype for an openvino element type."""
-    np_type = numpy_to_openvino_types_str_map.get(openvino_type)
-    if np_type:
-        return np_type
-    raise OVTypeError("Unidentified data type %s", openvino_type)
+    try:
+        return openvino_to_numpy_types_map[openvino_type]
+    except KeyError:
+        raise OVTypeError("Unidentified data type %s", openvino_type)
 
 
 def get_ndarray(data: NumericData) -> np.ndarray:
