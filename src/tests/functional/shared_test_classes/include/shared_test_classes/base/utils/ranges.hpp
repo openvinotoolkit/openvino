@@ -44,6 +44,8 @@ static std::map<ov::NodeTypeInfo, std::vector<std::vector<InputGenerateData>>> i
         { ov::op::v4::Proposal::get_type_info_static(), {{{0, 1, 1000, 8234231}}, {{0, 1, 1000, 8234231}}} },
         { ov::op::v4::ReduceL1::get_type_info_static(), {{{0, 5}}, {{0, 5, 1000}}} },
         { ov::op::v4::ReduceL2::get_type_info_static(), {{{0, 5}}, {{0, 5, 1000}}} },
+        { ov::op::v1::Convolution::get_type_info_static(), {{{-1, 2}}, {{-1, 2, 1000}}} },
+        { ov::op::v1::DeformableConvolution::get_type_info_static(), {{{-1, 2}}, {{-1, 2, 1000}}} },
 };
 
 } // namespace utils
