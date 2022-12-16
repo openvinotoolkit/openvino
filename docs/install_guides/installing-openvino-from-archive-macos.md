@@ -8,7 +8,7 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
 
 > **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter can be installed via [pypi.org](https://pypi.org/project/openvino-dev/) only.
 
-> **NOTE**: The Intel® Distribution of OpenVINO™ toolkit is supported on macOS with Intel® processor-based machines.
+> **NOTE**: Intel® Distribution of OpenVINO™ toolkit is supported on macOS with Intel® processor-based machines.
 
 ## System Requirements
 
