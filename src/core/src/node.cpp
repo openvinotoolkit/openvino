@@ -5,6 +5,7 @@
 #include "ngraph/node.hpp"
 
 #include <memory>
+#include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
 #include <sstream>
 #include <typeindex>
@@ -814,8 +815,10 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
     if (!all_constants)
         return false;
 
+    NodeVector nodes;
     TensorVector input_tensors;
     for (const auto& input : input_values) {
+        nodes.push_back(input.get_node_shared_ptr());
         auto constant = ov::as_type_ptr<ngraph::op::v0::Constant>(input.get_node_shared_ptr());
         auto tensor = ov::Tensor(input.get_element_type(), input.get_shape());
         std::copy_n(constant->get_data_ptr<uint8_t>(), constant->get_byte_size(), static_cast<uint8_t*>(tensor.data()));
@@ -833,6 +836,7 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
             output_values[i] = make_shared<ngraph::op::Constant>(output_tensors[i].get_element_type(),
                                                                  output_tensors[i].get_shape(),
                                                                  output_tensors[i].data());
+            copy_runtime_info(nodes, output_values[i].get_node_shared_ptr());
         }
         return true;
     }

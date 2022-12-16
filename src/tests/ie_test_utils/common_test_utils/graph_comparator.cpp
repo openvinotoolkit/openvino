@@ -837,10 +837,8 @@ void check_rt_info(const std::shared_ptr<ngraph::Function>& f) {
     static const std::vector<std::string> attrs_to_check{"fused_names_0"};
 
     std::ostringstream err_log;
-    for (auto& op : f->get_ops()) {
-        if (ov::op::util::is_constant(op))
-            continue;
 
+    for (auto& op : f->get_ops()) {
         const auto& rt_info = op->get_rt_info();
         for (const auto& attr_name : attrs_to_check) {
             if (!rt_info.count(attr_name)) {

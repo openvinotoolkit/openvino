@@ -67,7 +67,9 @@ ngraph::pass::CompressQuantizeWeights::CompressQuantizeWeights() {
         if (fq_users.size() == 1 && has_dequantization_subgraph(fq_users[0])) {
             auto& first_convert = fq_users[0];
             if (auto new_weights = ov::get_constant_from_source(first_convert)) {
+                new_weights->set_friendly_name(first_convert->get_friendly_name());
                 replace_node(first_convert, new_weights);
+                copy_runtime_info(first_convert, new_weights);
                 // preserve dequantization subgraph for LP transformations
                 auto weights_users = new_weights->get_users();
                 if (weights_users.size() == 1 && ov::is_type<ngraph::opset8::Convert>(weights_users[0])) {

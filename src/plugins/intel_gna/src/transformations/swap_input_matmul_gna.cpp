@@ -29,21 +29,23 @@ static void SwapAndTransposeInputs(
     std::shared_ptr<ngraph::Node> fq = nullptr,
     std::shared_ptr<ngraph::Node> act = nullptr,
     std::shared_ptr<ngraph::Node> transpose = nullptr) {
+    ngraph::NodeVector new_ops;
+
     auto create_transpose =
-        [](ngraph::Output<ngraph::Node> node, const std::string& transpose_name) -> std::shared_ptr<ngraph::Node> {
+        [&new_ops](ngraph::Output<ngraph::Node> node, const std::string& transpose_name) -> std::shared_ptr<ngraph::Node> {
         ngraph::Shape output_shape = node.get_node_shared_ptr()->get_shape();
 
         std::vector<size_t> transpose_order(output_shape.size());
         std::iota(transpose_order.begin(), transpose_order.end(), 0);
         std::swap(*(transpose_order.end() - 1), *(transpose_order.end() - 2));
 
-        auto transpose = std::make_shared<ngraph::opset8::Transpose>(
-                node, ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape {transpose_order.size()}, transpose_order));
+        auto transpose_const = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape {transpose_order.size()}, transpose_order);
+        new_ops.push_back(transpose_const);
+        auto transpose = std::make_shared<ngraph::opset8::Transpose>(node, transpose_const);
         transpose->set_friendly_name(transpose_name);
+        new_ops.push_back(transpose);
         return transpose;
     };
-
-    ngraph::NodeVector new_ops;
 
     auto transpose_matmul_input = [matmul_node, &new_ops, create_transpose](size_t ix) {
         std::shared_ptr<ngraph::Node> matmul_input = matmul_node->input_value(ix).get_node_shared_ptr();
@@ -53,7 +55,6 @@ static void SwapAndTransposeInputs(
             ngraph::replace_output_update_name(input_transpose->output(0), input_transpose->input_value(0));
         } else {
             matmul_input = create_transpose(matmul_node->input_value(ix), matmul_node->get_friendly_name() + "/input_transpose");
-            new_ops.push_back(matmul_input);
         }
         return matmul_input;
     };
@@ -90,18 +91,17 @@ static void SwapAndTransposeInputs(
         // output of MatMul will be transposed comparing with original one, so the bias should be transposed too
         if (bias->get_output_shape(0).size() > 1) {
             bias = create_transpose(bias, bias->get_friendly_name() + "/transpose");
-            new_ops.push_back(bias);
 
             auto transpose_shape = bias->get_output_shape(0);
             auto matmul_shape = matmul_node->get_output_shape(0);
             if (transpose_shape.size() > matmul_shape.size()) {
                 std::vector<size_t> reshape_shape(matmul_shape.size(), 1);
                 std::copy_if(transpose_shape.begin(), transpose_shape.end(), reshape_shape.begin(), [](size_t e) { return e > 1; });
-                bias = std::make_shared<ngraph::opset8::Reshape>(bias,
-                    std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64,
-                        ngraph::Shape{reshape_shape.size()}, reshape_shape), false);
+                auto bias_const = std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64,
+                        ngraph::Shape{reshape_shape.size()}, reshape_shape);
+                bias = std::make_shared<ngraph::opset8::Reshape>(bias, bias_const, false);
                 bias->set_friendly_name(add->get_friendly_name() + "/reshape");
-                ngraph::copy_runtime_info(add, bias);
+                ngraph::copy_runtime_info(add, {bias, bias_const});
                 new_ops.push_back(bias);
             }
         }
@@ -126,7 +126,6 @@ static void SwapAndTransposeInputs(
 
     if (transpose == nullptr) {
         new_node = create_transpose(new_node, last_layer_name);
-        new_ops.push_back(new_node);
     } else {
         ngraph::replace_output_update_name(transpose->output(0), transpose->input_value(0));
         new_node->set_friendly_name(last_layer_name);

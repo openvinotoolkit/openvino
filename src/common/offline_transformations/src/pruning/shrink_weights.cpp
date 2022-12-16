@@ -118,6 +118,7 @@ static bool handle_variadic_split(const std::shared_ptr<ov::Node>& split) {
     const auto& split_lengths_type = split_lengths_node->get_output_element_type(0);
     const auto sub_const = ngraph::opset6::Constant::create(split_lengths_type, {sub_values.size()}, sub_values);
     const auto sub = std::make_shared<ngraph::opset6::Subtract>(split->input_value(2), sub_const);
+    copy_runtime_info(split->get_input_source_output(2).get_node_shared_ptr(), {sub_const, sub});
     split->input(2).replace_source_output(sub);
 
     return true;
@@ -259,6 +260,7 @@ bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Fun
             }
             auto new_const = opset6::Constant::create(const_node->get_element_type(), Shape{res.size()}, res);
             replace_node(const_node, new_const);
+            copy_runtime_info(const_node, new_const);
             NGRAPH_DEBUG << "Transform shape like (" << last_output.get_node()->get_friendly_name()
                          << "): " << const_node->get_shape_val() << " to " << new_const->get_shape_val() << std::endl;
             new_const->set_friendly_name(const_node->get_friendly_name());
@@ -303,6 +305,7 @@ bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Fun
             for (auto consumer : consumers) {
                 consumer.replace_source_output(last_output);
             }
+            copy_runtime_info(const_node, last_output.get_node_shared_ptr());
         }
     }
     NGRAPH_DEBUG << "[ INFO ]   TOTAL WEIGHTS: " << total_weights_count << std::endl;

@@ -21,7 +21,9 @@
 using namespace std;
 using namespace ngraph;
 
-op::v3::ShapeOf::ShapeOf(const Output<Node>& arg, element::Type output_type) : Op({arg}), m_output_type(output_type) {
+op::v3::ShapeOf::ShapeOf(const Output<Node>& arg, element::Type output_type)
+    : ShapeOfBase({arg}),
+      m_output_type(output_type) {
     constructor_validate_and_infer_types();
 }
 
@@ -206,7 +208,7 @@ bool op::v3::ShapeOf::constant_fold(OutputVector& output_values, const OutputVec
 }
 
 // op::v0::ShapeOf
-op::v0::ShapeOf::ShapeOf(const Output<Node>& arg) : Op({arg}) {
+op::v0::ShapeOf::ShapeOf(const Output<Node>& arg) : ShapeOfBase({arg}) {
     constructor_validate_and_infer_types();
 }
 

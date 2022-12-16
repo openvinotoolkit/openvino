@@ -25,15 +25,18 @@ void ReplaceTransposeWithReshape(std::shared_ptr<ngraph::Node> transpose_node) {
         ngraph::Shape{shape.size()}, shape);
     auto reshape_node = std::make_shared<ngraph::opset8::Reshape>(transpose_node->input_value(0), reshape_const, false);
     reshape_node->set_friendly_name(transpose_node->get_friendly_name());
-    ngraph::copy_runtime_info(transpose_node, reshape_node);
+    ngraph::copy_runtime_info(transpose_node, {reshape_node, reshape_const });
     transpose_node->output(0).replace(reshape_node->output(0));
 }
 
 void InsertTranspose(std::shared_ptr<ngraph::Node> prev_node, const std::string& base_name, bool before_matmul) {
-    auto create_reshape = [](const ngraph::Shape& shape, std::shared_ptr<ngraph::Node> input_node, const std::string& name) {
+    ngraph::NodeVector new_ops;
+    auto create_reshape = [&new_ops](const ngraph::Shape& shape, std::shared_ptr<ngraph::Node> input_node, const std::string& name) {
         auto reshape_const = std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64,
             ngraph::Shape{shape.size()}, shape);
+        new_ops.push_back(reshape_const);
         auto node = std::make_shared<ngraph::opset8::Reshape>(input_node, reshape_const, false);
+        new_ops.push_back(node);
         node->set_friendly_name(name);
         return node;
     };
@@ -51,23 +54,21 @@ void InsertTranspose(std::shared_ptr<ngraph::Node> prev_node, const std::string&
     std::iota(std::begin(permute_order), std::end(permute_order), 0);
     std::swap(permute_order[transpose_ids[0]], permute_order[transpose_ids[1]]);
 
-    ngraph::NodeVector new_ops;
     std::shared_ptr<ngraph::Node> node = prev_node;
     if (!before_matmul) {
         auto shape = prev_node->get_output_shape(0);
         std::swap(shape[0], shape[1]);
         node = create_reshape(shape, node, base_name + "/reshape_before_transpose");
-        new_ops.push_back(node);
     }
 
     auto transpose_order = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{permute_order.size()}, permute_order);
+    new_ops.push_back(transpose_order);
     node = std::make_shared<ngraph::opset8::Transpose>(node, transpose_order);
     node->set_friendly_name(base_name + "/in_transpose");
     new_ops.push_back(node);
 
     if (before_matmul) {
         node = create_reshape(orig_shape, node, base_name + "/reshape_after_transpose");
-        new_ops.push_back(node);
     }
 
     ngraph::copy_runtime_info(prev_node, new_ops);
