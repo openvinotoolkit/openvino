@@ -33,6 +33,11 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
+    /// \brief Set Einsum equation
+    ///
+    /// \param equation Equation string to be set.
+    void set_equation(std::string equation);
+
     /// \brief      Get an equation of Einsum operation
     ///
     /// \return     Einsum equation

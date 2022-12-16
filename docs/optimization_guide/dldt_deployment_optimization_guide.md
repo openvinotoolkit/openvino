@@ -1,4 +1,4 @@
-# Runtime Inference Optimizations {#openvino_docs_deployment_optimization_guide_dldt_optimization_guide}
+# Optimize Inference {#openvino_docs_deployment_optimization_guide_dldt_optimization_guide}
 
 @sphinxdirective
 
@@ -7,14 +7,16 @@
    :hidden:
 
    openvino_docs_deployment_optimization_guide_common
+   openvino_docs_OV_UG_Performance_Hints
    openvino_docs_deployment_optimization_guide_latency
    openvino_docs_deployment_optimization_guide_tput
    openvino_docs_deployment_optimization_guide_tput_advanced
+   openvino_docs_OV_UG_Preprocessing_Overview
    openvino_docs_deployment_optimization_guide_internals
 
 @endsphinxdirective
 
-Runtime optimizations, or deployment optimizations, focus on tuning inference parameters and execution means (e.g., the optimum number of requests executed simultaneously). Unlike model-level optimizations, they are highly specific to the hardware and case they are used for, and often come at a cost.
+Runtime optimization, or deployment optimization, focuses on tuning inference parameters and execution means (e.g., the optimum number of requests executed simultaneously). Unlike model-level optimizations, they are highly specific to the hardware and case they are used for, and often come at a cost.
 `ov::hint::inference_precision` is a "typical runtime configuration" which trades accuracy for performance, allowing `fp16/bf16` execution for the layers that remain in `fp32` after quantization of the original `fp32` model. 
 
 Therefore, optimization should start with defining the use case. For example, if it is about processing millions of samples by overnight jobs in data centers, throughput could be prioritized over latency. On the other hand, real-time usages would likely trade off throughput to deliver the results at minimal latency. A combined scenario is also possible, targeting the highest possible throughput, while maintaining a specific latency threshold.
@@ -22,12 +24,11 @@ Therefore, optimization should start with defining the use case. For example, if
 It is also important to understand how the full-stack application would use the inference component "end-to-end." For example, to know what stages need to be orchestrated to save workload devoted to fetching and preparing input data. 
 
 For more information on this topic, see the following articles:
-* [feature support by device](@ref features_support_matrix),
- 
-* [Inputs Pre-processing with the OpenVINO](@ref inputs_pre_processing).
-* [Async API](@ref async_api).
-* [The 'get_tensor' Idiom](@ref tensor_idiom).
-* For variably-sized inputs, consider [dynamic shapes](../OV_Runtime_UG/ov_dynamic_shapes.md).
+* [feature support by device](@ref features_support_matrix)
+* [Inputs Pre-processing with the OpenVINO](@ref inputs_pre_processing)
+* [Async API](@ref async_api)
+* [The 'get_tensor' Idiom](@ref tensor_idiom)
+* For variably-sized inputs, consider [dynamic shapes](../OV_Runtime_UG/ov_dynamic_shapes.md)
 
 See the [latency](./dldt_deployment_optimization_latency.md) and [throughput](./dldt_deployment_optimization_tput.md) optimization guides, for **use-case-specific optimizations** 
 

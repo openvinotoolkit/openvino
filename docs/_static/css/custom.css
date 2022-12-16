@@ -24,18 +24,32 @@ ul#navbar-main-elements li:first-of-type {
 #bd-docs-nav div ul a:hover {
     text-decoration: underline;
 }
-/* top bar items on hover */
 ul#navbar-main-elements > li:hover { 
     text-decoration: underline;
 }
-/* first level items in the side menu */
+
+/* first-level items in the side menu */
+#bd-docs-nav > div > ul > li {
+    padding-bottom: 15px;
+}
 #bd-docs-nav > div > ul > li > a {
-    color: #0068B5;
+    color: #000000;
+    font-weight: bold;
 }
-/* second level items left padding */
+/* second level items                 */
 #bd-docs-nav > div > ul > li > ul {
-    padding-left: 0.5rem;
+    padding-left: 0.3rem;
 }
+/* overwrite menu chevron directions for open and closed states  */
+.toctree-checkbox~label i {
+    transform: rotate(270deg);
+}
+.toctree-checkbox:checked~label i {
+    transform: rotate(0deg);
+}
+
+
+
 
 /* footer links */
 /* =================================================== */

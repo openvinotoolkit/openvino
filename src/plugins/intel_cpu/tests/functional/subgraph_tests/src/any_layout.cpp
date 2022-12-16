@@ -77,7 +77,6 @@ protected:
 };
 
 TEST_P(AnyLayoutOnInputsAndOutputs, CheckExpectedResult) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Run();
 }
 

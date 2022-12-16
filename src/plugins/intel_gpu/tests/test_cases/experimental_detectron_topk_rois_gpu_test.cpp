@@ -34,7 +34,7 @@ struct experimental_detectron_topk_rois_gpu_test : public testing::Test {
         cldnn::mem_lock<input_type> out_ptr(mem, get_test_stream());
         ASSERT_EQ(expected_output.size(), out_ptr.size());
         for (size_t i = 0; i < expected_output.size(); ++i) {
-            EXPECT_NEAR(static_cast<input_type>(expected_output[i]), out_ptr[i], 0.0001) << "at i = " << i;
+            ASSERT_NEAR(static_cast<input_type>(expected_output[i]), out_ptr[i], 0.0001) << "at i = " << i;
         }
     }
 };
@@ -187,6 +187,6 @@ TEST(experimental_detectron_topk_rois_gpu_test, export_import) {
     cldnn::mem_lock<float> out_ptr(out_mem, get_test_stream());
     ASSERT_EQ(expected_output.size(), out_ptr.size());
     for (size_t i = 0; i < expected_output.size(); ++i) {
-        EXPECT_NEAR(static_cast<float>(expected_output[i]), out_ptr[i], 0.0001) << "at i = " << i;
+        ASSERT_NEAR(static_cast<float>(expected_output[i]), out_ptr[i], 0.0001) << "at i = " << i;
     }
 }
