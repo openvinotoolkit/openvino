@@ -45,7 +45,7 @@ public:
     static QueueTypes detect_queue_type(engine_types engine_type, void* queue_handle);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    virtual dnnl::stream& get_onednn_stream() const = 0;
+    virtual dnnl::stream& get_onednn_stream() = 0;
 #endif
 
 protected:

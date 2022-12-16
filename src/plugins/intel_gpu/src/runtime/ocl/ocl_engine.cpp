@@ -55,7 +55,7 @@ ocl_engine::ocl_engine(const device::ptr dev, runtime_types runtime_type,
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-dnnl::engine& ocl_engine::get_onednn_engine() const {
+void ocl_engine::create_onednn_engine(const ExecutionConfig& config) {
     const std::lock_guard<std::mutex> lock(onednn_mutex);
     OPENVINO_ASSERT(_device->get_info().vendor_id == INTEL_VENDOR_ID, "[GPU] OneDNN engine can be used for Intel GPUs only");
     if (!_onednn_engine) {
@@ -63,7 +63,7 @@ dnnl::engine& ocl_engine::get_onednn_engine() const {
         if (!casted)
             throw ov::Exception("[GPU] Invalid device type stored in ocl_engine");
 
-        std::string cache_dir = ""; //  config.get_property(ov::cache_dir);
+        std::string cache_dir = config.get_property(ov::cache_dir);
         if (cache_dir.empty()) {
             _onednn_engine = std::make_shared<dnnl::engine>(dnnl::ocl_interop::make_engine(casted->get_device().get(), casted->get_context().get()));
         } else {
@@ -77,7 +77,7 @@ dnnl::engine& ocl_engine::get_onednn_engine() const {
             if (blob_id.empty()) {
                 // Create engine without cache_blob
                 _onednn_engine = std::make_shared<dnnl::engine>(dnnl::ocl_interop::make_engine(casted->get_device().get(), casted->get_context().get()));
-                return *_onednn_engine;
+                return;
             }
 
             std::string id_str(blob_id.begin(), blob_id.end());
@@ -96,7 +96,10 @@ dnnl::engine& ocl_engine::get_onednn_engine() const {
             }
         }
     }
+}
 
+dnnl::engine& ocl_engine::get_onednn_engine() const {
+    OPENVINO_ASSERT(_onednn_engine, "[GPU] Can't get onednn engine handle as it was not initialized. Please check that create_onednn_engine() was called");
     return *_onednn_engine;
 }
 #endif

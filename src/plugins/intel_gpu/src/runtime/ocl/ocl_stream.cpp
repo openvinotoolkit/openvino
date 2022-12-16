@@ -214,13 +214,6 @@ ocl_stream::ocl_stream(const ocl_engine &engine, const ExecutionConfig& config)
     queue_builder.set_supports_queue_families(queue_families_extension);
 
     _command_queue = queue_builder.build(context, device);
-
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    if (queue_type == QueueTypes::in_order && engine.get_device_info().vendor_id == INTEL_VENDOR_ID) {
-        auto onednn_engine = engine.get_onednn_engine();
-        _onednn_stream = std::make_shared<dnnl::stream>(dnnl::ocl_interop::make_stream(engine.get_onednn_engine(), _command_queue.get()));
-    }
-#endif
 }
 
 ocl_stream::ocl_stream(const ocl_engine &engine, const ExecutionConfig& config, void *handle)
@@ -233,18 +226,15 @@ ocl_stream::ocl_stream(const ocl_engine &engine, const ExecutionConfig& config, 
     OPENVINO_ASSERT(ocl_stream::detect_queue_type(handle) == queue_type,
                     "[GPU] Inconsistent engine config and external user queue are passed to ocl_stream");
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    if (queue_type == QueueTypes::in_order) {
-        auto onednn_engine = engine.get_onednn_engine();
-        _onednn_stream = std::make_shared<dnnl::stream>(dnnl::ocl_interop::make_stream(engine.get_onednn_engine(), _command_queue.get()));
-    }
-#endif
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-dnnl::stream& ocl_stream::get_onednn_stream() const {
-    if (!_onednn_stream)
-        throw std::runtime_error("[GPU] onednn stream is nullptr");
+dnnl::stream& ocl_stream::get_onednn_stream() {
+    OPENVINO_ASSERT(queue_type == QueueTypes::in_order, "[GPU] Can't create onednn stream handle as onednn doesn't support out-of-order queue");
+    OPENVINO_ASSERT(_engine.get_device_info().vendor_id == INTEL_VENDOR_ID, "[GPU] Can't create onednn stream handle as for non-Intel devices");
+    if (!_onednn_stream) {
+        _onednn_stream = std::make_shared<dnnl::stream>(dnnl::ocl_interop::make_stream(_engine.get_onednn_engine(), _command_queue.get()));
+    }
 
     return *_onednn_stream;
 }

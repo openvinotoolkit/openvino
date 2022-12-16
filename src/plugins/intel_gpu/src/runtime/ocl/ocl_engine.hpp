@@ -46,6 +46,7 @@ public:
     stream& get_service_stream(ExecutionConfig cfg = ExecutionConfig()) override;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+    void create_onednn_engine(const ExecutionConfig& config) override;
     // Returns onednn engine object which shares device and context with current engine
     // If onednn engine has not been created yet, it creates on-demand.
     dnnl::engine& get_onednn_engine() const override;
@@ -61,7 +62,7 @@ private:
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     mutable std::mutex onednn_mutex;
-    mutable std::shared_ptr<dnnl::engine> _onednn_engine;
+    std::shared_ptr<dnnl::engine> _onednn_engine;
 #endif
 };
 

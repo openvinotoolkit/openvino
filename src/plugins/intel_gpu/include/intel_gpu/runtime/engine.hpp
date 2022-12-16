@@ -138,6 +138,9 @@ public:
     virtual allocation_type detect_usm_allocation_type(const void* memory) const = 0;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+    /// Creates onednn engine object which shares device and context with current engine
+    virtual void create_onednn_engine(const ExecutionConfig& config) = 0;
+
     /// Returns onednn engine object which shares device and context with current engine
     virtual dnnl::engine& get_onednn_engine() const = 0;
 #endif

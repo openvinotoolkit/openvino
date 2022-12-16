@@ -83,7 +83,7 @@ public:
     static QueueTypes detect_queue_type(void* queue_handle);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    dnnl::stream& get_onednn_stream() const override;
+    dnnl::stream& get_onednn_stream() override;
 #endif
 
 private:
