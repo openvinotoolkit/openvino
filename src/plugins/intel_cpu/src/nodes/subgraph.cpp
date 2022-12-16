@@ -87,11 +87,13 @@ void Snippet::initSupportedPrimitiveDescriptors() {
     }
 
     const size_t ndims = outputShapes[0].getRank();
-    const bool isChannelsFirstApplicable = dnnl::impl::utils::one_of(ndims, 1, 2, 3, 4, 5) && dimRanksAreEqual;
+    // Domain sensitive operations support only Planar layout
+    const bool isOnlyPlanarApplicable = snippet->has_domain_sensitive_ops();
+    const bool isChannelsFirstApplicable = dnnl::impl::utils::one_of(ndims, 1, 2, 3, 4, 5) && dimRanksAreEqual && !isOnlyPlanarApplicable;
     // Todo: Snippets currently don't support per-channel broadcasting of Blocked descriptors because
     //  canonicalization can't distinguish between <N, C, H, W, c> and <N, C, D, H, W> cases.
     //  See snippets::op::Subgraph::canonicalize for details.
-    bool isBlockedApplicable = dnnl::impl::utils::one_of(ndims,  4, 5) && dimRanksAreEqual;
+    bool isBlockedApplicable = dnnl::impl::utils::one_of(ndims,  4, 5) && dimRanksAreEqual && !isOnlyPlanarApplicable;
 
     for (const auto& inShape : inputShapes) {
         if (isDynamic && inShape.getRank() != 1)
