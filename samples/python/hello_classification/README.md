@@ -100,17 +100,17 @@ The sample application logs each step in a standard output stream and outputs to
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 
-<!-- [openvino.runtime.Core]:
-[openvino.runtime.Core.read_model]:
-[openvino.runtime.Core.compile_model]:
-[openvino.runtime.CompiledModel.infer_new_request]:
-[openvino.runtime.Model.inputs]:
-[openvino.runtime.Model.outputs]:
-[openvino.preprocess.PrePostProcessor]:
-[openvino.preprocess.InputTensorInfo.set_element_type]:
-[openvino.preprocess.InputTensorInfo.set_layout]:
-[openvino.preprocess.InputTensorInfo.set_spatial_static_shape]:
-[openvino.preprocess.PreProcessSteps.resize]:
-[openvino.preprocess.InputModelInfo.set_layout]:
-[openvino.preprocess.OutputTensorInfo.set_element_type]:
-[openvino.preprocess.PrePostProcessor.build]: -->
+[openvino.runtime.Core]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.Core.html
+[openvino.runtime.Core.read_model]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.Core.html#openvino.runtime.Core.read_model
+[openvino.runtime.Core.compile_model]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.Core.html#openvino.runtime.Core.compile_model
+[openvino.runtime.CompiledModel.infer_new_request]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.CompiledModel.html#openvino.runtime.CompiledModel.infer_new_request
+[openvino.runtime.Model.inputs]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.inputs
+[openvino.runtime.Model.outputs]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.outputs
+[openvino.preprocess.PrePostProcessor]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.preprocess.PrePostProcessor.html
+[openvino.preprocess.InputTensorInfo.set_element_type]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.preprocess.InputTensorInfo.html#openvino.preprocess.InputTensorInfo.set_element_type
+[openvino.preprocess.InputTensorInfo.set_layout]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.preprocess.InputTensorInfo.html#openvino.preprocess.InputTensorInfo.set_layout
+[openvino.preprocess.InputTensorInfo.set_spatial_static_shape]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.preprocess.InputTensorInfo.html#openvino.preprocess.InputTensorInfo.set_spatial_static_shape
+[openvino.preprocess.PreProcessSteps.resize]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.preprocess.PreProcessSteps.html#openvino.preprocess.PreProcessSteps.resize
+[openvino.preprocess.InputModelInfo.set_layout]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.preprocess.InputModelInfo.html#openvino.preprocess.InputModelInfo.set_layout
+[openvino.preprocess.OutputTensorInfo.set_element_type]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.preprocess.OutputTensorInfo.html#openvino.preprocess.OutputTensorInfo.set_element_type
+[openvino.preprocess.PrePostProcessor.build]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.preprocess.PrePostProcessor.html#openvino.preprocess.PrePostProcessor.build

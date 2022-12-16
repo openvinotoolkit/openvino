@@ -132,15 +132,15 @@ The sample application logs each step in a standard output stream and outputs 10
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 
-<!-- [openvino.runtime.Model]:
-[openvino.runtime.set_batch]:
-[openvino.runtime.Model.input]:
-[openvino.runtime.op.Parameter]:
-[openvino.runtime.op.Constant]:
-[openvino.runtime.opset8.convolution]:
-[openvino.runtime.opset8.add]:
-[openvino.runtime.opset1.max_pool]:
-[openvino.runtime.opset8.reshape]:
-[openvino.runtime.opset8.matmul]:
-[openvino.runtime.opset8.relu]:
-[openvino.runtime.opset8.softmax]: -->
+[openvino.runtime.Model]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.Model.html
+[openvino.runtime.set_batch]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.set_batch.html
+[openvino.runtime.Model.input]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.input
+[openvino.runtime.op.Parameter]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.op.Parameter.html
+[openvino.runtime.op.Constant]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.op.Constant.html
+[openvino.runtime.opset8.convolution]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.opset8.convolution.html
+[openvino.runtime.opset8.add]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.opset8.add.html
+[openvino.runtime.opset1.max_pool]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.opset1.max_pool.html
+[openvino.runtime.opset8.reshape]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.opset8.reshape.html
+[openvino.runtime.opset8.matmul]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.opset8.matmul.html
+[openvino.runtime.opset8.relu]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.opset8.relu.html
+[openvino.runtime.opset8.softmax]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.opset8.softmax.html
