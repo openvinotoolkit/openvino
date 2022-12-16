@@ -4,17 +4,16 @@
 
 #include <gtest/gtest.h>
 
-#include <string>
+#include <legacy/ngraph_ops/gather_ie.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_gather_to_gather_ie.hpp>
 #include <memory>
-#include <queue>
-
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_gather_to_gather_ie.hpp>
+#include <ngraph/pass/manager.hpp>
+#include <queue>
+#include <string>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
-#include <legacy/ngraph_ops/gather_ie.hpp>
-#include <ngraph/pass/manager.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -55,7 +54,8 @@ TEST_F(TransformationTestsF, ConvertGatherToGatherIEStatic2) {
     {
         auto input = std::make_shared<opset1::Parameter>(element::f32, Shape{6, 12, 10, 24});
         auto indices = std::make_shared<opset1::Parameter>(element::f32, Shape{});
-        auto unsqueeze = std::make_shared<opset1::Unsqueeze>(indices, opset1::Constant::create(element::i64, Shape{1}, {0}));
+        auto unsqueeze =
+            std::make_shared<opset1::Unsqueeze>(indices, opset1::Constant::create(element::i64, Shape{1}, {0}));
         auto gather = std::make_shared<op::GatherIE>(input, unsqueeze, 1);
         auto squeeze = std::make_shared<opset1::Squeeze>(gather, opset1::Constant::create(element::i64, Shape{1}, {1}));
 
@@ -97,7 +97,8 @@ TEST_F(TransformationTestsF, ConvertGatherToGatherIEDynamic2) {
     {
         auto input = std::make_shared<opset1::Parameter>(element::f32, PartialShape{DYN, DYN});
         auto indices = std::make_shared<opset1::Parameter>(element::f32, Shape{});
-        auto unsqueeze = std::make_shared<opset1::Unsqueeze>(indices, opset1::Constant::create(element::i64, Shape{1}, {0}));
+        auto unsqueeze =
+            std::make_shared<opset1::Unsqueeze>(indices, opset1::Constant::create(element::i64, Shape{1}, {0}));
         auto gather = std::make_shared<op::GatherIE>(input, unsqueeze, 1);
         auto squeeze = std::make_shared<opset1::Squeeze>(gather, opset1::Constant::create(element::i64, Shape{1}, {1}));
 

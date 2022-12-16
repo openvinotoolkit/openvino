@@ -19,8 +19,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::ShuffleChannels);
-
 op::ShuffleChannels::ShuffleChannels(const Output<Node>& data, const int64_t axis, const int64_t group)
     : Op({data}),
       m_axis(axis),

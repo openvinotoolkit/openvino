@@ -31,9 +31,16 @@ struct border_impl : typed_primitive_impl_ocl<border> {
         auto params = get_default_params<kernel_selector::border_params>(impl_param, 1);
         auto optional_params = get_default_optional_params<kernel_selector::border_optional_params>(impl_param.get_program());
 
-        format pads_format = format::adjust_to_rank(format::bfyx, impl_param.get_input_layout(0).get_rank());
+        size_t rank = impl_param.get_input_layout(0).get_rank();
+        format pads_format = format::adjust_to_rank(format::bfyx, rank);
         std::vector<tensor::value_type> pads_begin(primitive->pads_begin.begin(), primitive->pads_begin.end());
         std::vector<tensor::value_type> pads_end(primitive->pads_end.begin(), primitive->pads_end.end());
+
+        if (pads_begin.size() < rank) {
+            size_t zeros_to_add = rank - pads_begin.size();
+            pads_begin.insert(pads_begin.end(), zeros_to_add, 0);
+            pads_end.insert(pads_end.end(), zeros_to_add, 0);
+        }
 
         params.lt_sizes = convert_dim_vector(tensor(pads_format, pads_begin, 0));
         params.rb_sizes = convert_dim_vector(tensor(pads_format, pads_end, 0));

@@ -17,7 +17,8 @@ std::string ConvFqEltwiseTest::getTestCaseName(const testing::TestParamInfo<Conv
 
     size_t levels;
     std::vector<float> inputArg;
-    std::tie(levels, inputArg) = fqParams;
+    float convFQValue;
+    std::tie(levels, inputArg, convFQValue) = fqParams;
 
     std::vector<size_t> kernelShape;
     std::vector<size_t> strides;
@@ -36,6 +37,7 @@ std::string ConvFqEltwiseTest::getTestCaseName(const testing::TestParamInfo<Conv
      if (inputArg.size() == 3) {
         result << "_inputArg=" << inputArg[0] << "_" << inputArg[1] << "_" << inputArg[2];
     }
+    result << "_convFQ=" << convFQValue;
     result << "_KERNEL=" << CommonTestUtils::vec2str(kernelShape) << "_";
     result << "STRIDES=" << CommonTestUtils::vec2str(strides) << "_";
     result << "IC=" << inputChannels << "_";
@@ -54,7 +56,8 @@ void ConvFqEltwiseTest::SetUp() {
 
     size_t levels;
     std::vector<float> inputArg;
-    std::tie(levels, inputArg) = fqParams;
+    float convFQValue;
+    std::tie(levels, inputArg, convFQValue) = fqParams;
     if (inputArg.size() == 3) {
         inputDataMin = inputArg[0];
         inputDataMax = inputArg[1];
@@ -80,8 +83,10 @@ void ConvFqEltwiseTest::SetUp() {
     float weightVal = 0.2;
     auto filterWeightsNode = ngraph::builder::makeConstant<float>(ngPrc, {outputChannels, inputChannels, kernelShape[0], kernelShape[1]},
                                                                   { weightVal });
-    auto convLowNode = ngraph::builder::makeConstant(ngraph::element::f32, std::vector<size_t>{ 1 }, std::vector<float>{-weightVal});
-    auto convHighNode = ngraph::builder::makeConstant(ngraph::element::f32, std::vector<size_t>{ 1 }, std::vector<float>{weightVal});
+    auto convLowNode =
+        ngraph::builder::makeConstant(ngraph::element::f32, std::vector<size_t>{1}, std::vector<float>{-convFQValue});
+    auto convHighNode =
+        ngraph::builder::makeConstant(ngraph::element::f32, std::vector<size_t>{1}, std::vector<float>{convFQValue});
     auto convWeightsFQNode = std::make_shared<ngraph::opset1::FakeQuantize>(filterWeightsNode,
         convLowNode, convHighNode, convLowNode, convHighNode, levels);
     auto convWeightsFQ = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(convWeightsFQNode);

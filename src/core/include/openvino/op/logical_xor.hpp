@@ -17,7 +17,6 @@ namespace v1 {
 class OPENVINO_API LogicalXor : public util::BinaryElementwiseLogical {
 public:
     OPENVINO_OP("LogicalXor", "opset2", util::BinaryElementwiseLogical, 1);
-    BWDCMP_RTTI_DECLARATION;
     LogicalXor() = default;
     /// \brief Constructs a logical-xor operation.
     ///

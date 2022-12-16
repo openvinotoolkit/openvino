@@ -10,8 +10,6 @@
 using namespace std;
 using namespace ov;
 
-BWDCMP_RTTI_DEFINITION(op::internal::MulticlassNmsIEInternal);
-
 op::internal::MulticlassNmsIEInternal::MulticlassNmsIEInternal(const Output<Node>& boxes,
                                                                const Output<Node>& scores,
                                                                const op::util::MulticlassNmsBase::Attributes& attrs)
