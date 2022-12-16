@@ -32,15 +32,20 @@
 
 ## <a name="install-openvino"></a>Step 1: Download and Install OpenVINO Runtime
 
+@sphinxdirective
+
 1. Open the Terminal or your preferred console application.
 2. Create an installation folder for OpenVINO. If the folder already exists, skip this step.
-   ```sh
-   sudo mkdir -p /opt/intel
-   ```
-   > **NOTE**: The `/opt/intel` path is the recommended folder path for administrators or root users. If you prefer to install OpenVINO in regular userspace, the recommended path is `/home/<USER>/intel`. You may use a different path if desired.
 
-3. Go to your `~/Downloads` directory and download OpenVINO Runtime archive file for Debian from [OpenVINO package repository](https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/).
-@sphinxdirective
+   .. code-block:: sh
+
+      sudo mkdir -p /opt/intel
+   
+   .. note::
+   
+      The `/opt/intel` path is the recommended folder path for administrators or root users. If you prefer to install OpenVINO in regular userspace, the recommended path is `/home/<USER>/intel`. You may use a different path if desired.
+
+3. Go to your `~/Downloads` directory and download OpenVINO Runtime archive file for Debian from `OpenVINO package repository <https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/>`_.
 
    .. tab:: ARM 32-bit
 
@@ -56,10 +61,7 @@
          cd ~/Downloads/
          sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/l_openvino_toolkit_debian9_arm_2022.3.0.<update>.<patch>_arm64.tgz -O openvino_2022.3.0.tgz
 
-@endsphinxdirective
-
 4. Extract the archive file and move it to the installation folder:
-@sphinxdirective
 
    .. tab:: ARM 32-bit
 
@@ -75,18 +77,23 @@
          sudo tar -xf openvino_2022.3.0.tgz
          sudo mv l_openvino_toolkit_debian9_arm_2022.3.0.<update>.<patch>_arm64 /opt/intel/openvino_2022.3.0
 
-@endsphinxdirective
-
 5. Install required system dependencies on Linux. To do this, OpenVINO provides a script in the extracted installation directory. Run the following command:
-   ```sh
-   sudo -E ./install_dependencies/install_openvino_dependencies.sh
-   ```
-6. For simplicity, it is useful to create a symbolic link as below:
-   ```sh
-   sudo ln -s openvino_2022.3.0 openvino_2022
-   ```
-   > **NOTE**: If you have already installed a previous release of OpenVINO 2022, a symbolic link to the `openvino_2022` folder may already exist. Unlink the previous link with `sudo unlink openvino_2022`, and then re-run the command above.
 
+   .. code-block:: sh
+
+      sudo -E ./install_dependencies/install_openvino_dependencies.sh
+   
+6. For simplicity, it is useful to create a symbolic link as below:
+
+   .. code-block:: sh
+
+      sudo ln -s openvino_2022.3.0 openvino_2022
+   
+   .. note::
+   
+      If you have already installed a previous release of OpenVINO 2022, a symbolic link to the `openvino_2022` folder may already exist. Unlink the previous link with `sudo unlink openvino_2022`, and then re-run the command above.
+
+@endsphinxdirective
 
 Congratulations, you finished the installation! The `/opt/intel/openvino_2022` folder now contains the core components for OpenVINO. If you used a different path in Step 2, for example, `/home/<USER>/intel/`, OpenVINO is then installed in `/home/<USER>/intel/openvino_2022`. The path to the `openvino_2022` directory is also referred as `<INSTALL_DIR>` throughout the OpenVINO documentation.
 
