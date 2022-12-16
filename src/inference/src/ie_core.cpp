@@ -312,30 +312,54 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         }
 
         // Intercept global config that will be set to plugin by calling plugin.set_property().
-        // Put it into global config map
-        void intercept_config(ov::InferencePlugin& plugin, ov::AnyMap& config) {
+        // Put it into global config map if this plugin supported
+        void intercept_config(ov::InferencePlugin& plugin, ov::AnyMap& config, bool enable = true) {
             std::lock_guard<std::mutex> lock(_core_property_mutex);
             for (auto& it : _core_plugins_properties) {
                 auto item = config.find(it.first);
                 if (item != config.end()) {
-                    _core_plugins_properties[it.first] = item->second;
-                    if (it.first == ov::cache_dir.name() && is_plugin_config_supported(plugin, it.first)) {
-                        std::string device_name = plugin.get_name();
-                        setCacheForDevice(item->second, device_name);
+                    if (!is_plugin_config_supported(plugin, it.first)) {
+                        config.erase(item);
+                    } else {
+                        _core_plugins_properties[it.first] = item->second;
+                        if (it.first == ov::cache_dir.name()) {
+                            std::string device_name = plugin.get_name();
+                            setCacheForDevice(item->second, device_name);
+                        }
+                        // Keep false until cache_dir is not supported by plugin.set_property().
+                        if (enable)
+                            config.erase(item);
                     }
-                    config.erase(item);
                 }
             }
+
+            // Keep it until cache_dir is not supported by plugin.set_property().
+            process_cache_dir(plugin, config);
         }
 
-        // Clean up global config from input config.
+        // Clean up global config for input config.
         void cleanup_config(ov::InferencePlugin& plugin, ov::AnyMap& config) const {
             std::lock_guard<std::mutex> lock(_core_property_mutex);
             for (auto& it : _core_plugins_properties) {
                 auto item = config.find(it.first);
-                if (item != config.end()) {
+                if (item != config.end() && it.first != ov::cache_dir.name()) {
                     config.erase(item);
                 }
+            }
+
+            // Keep it until cache_dir is not supported by plugin.set_property().
+            process_cache_dir(plugin, config);
+        }
+
+        void process_cache_dir(ov::InferencePlugin& plugin, ov::AnyMap& config) const {
+            if (is_plugin_config_supported(plugin, ov::cache_dir.name())) {
+                std::string device_name = plugin.get_name();
+                auto cacheConfig = getCacheConfigForDevice(device_name);
+                if (cacheConfig._cacheManager) {
+                    config[ov::cache_dir.name()] = cacheConfig._cacheDir;
+                }
+            } else if (config.count(ov::cache_dir.name()) > 0) {
+                config.erase(ov::cache_dir.name());
             }
         }
 
@@ -348,6 +372,10 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
             std::lock_guard<std::mutex> lock(_core_property_mutex);
             std::string device_name = plugin.get_name();
             for (auto& it : _core_plugins_properties) {
+                // Keep it until cache_dir is not supported by plugin.set_property().
+                if (it.first == ov::cache_dir.name())
+                    continue;
+
                 // If the property has been contained in input config, it will not be overwritten.
                 auto item = config.find(it.first);
                 if (item != config.end()) {
@@ -384,6 +412,12 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
 
             // Other property will report exception.
             IE_THROW() << "Exception: ov::core get_property with unsupported core property name: '" << name << "'";
+        }
+
+        ov::Any get_device_cache_dir(const std::string& device_name) const {
+            std::lock_guard<std::mutex> lock(_cacheConfigMutex);
+            auto cache_config = getCacheConfigForDevice(device_name);
+            return cache_config._cacheDir;
         }
 
         void setCacheForDevice(const std::string& dir, const std::string& name) {
@@ -678,6 +712,13 @@ public:
     }
 
     ~CoreImpl() override = default;
+
+    /**
+     * @brief Get the reference to CoreConfig.
+     */
+    CoreConfig& getCoreConfig() {
+        return coreConfig;
+    }
 
     /**
      * @brief Register plugins for devices which are located in .xml configuration file.
@@ -1151,6 +1192,8 @@ public:
 
         if (device_name.empty()) {
             return coreConfig.get_core_config(name);
+        } else if (name == ov::cache_dir.name()) {
+            return coreConfig.get_device_cache_dir(device_name);
         }
 
         auto parsed = parseDeviceNameIntoConfig(device_name, arguments);
@@ -1456,7 +1499,7 @@ public:
             allowNotImplemented([&]() {
                 std::lock_guard<std::mutex> lock(get_mutex(plugin.first));
                 auto configCopy = config;
-                coreConfig.intercept_config(plugin.second, configCopy);
+                coreConfig.intercept_config(plugin.second, configCopy, false);
 
                 // Add device specific value to support device_name.device_id cases
                 std::vector<std::string> supportedConfigKeys =
@@ -1969,9 +2012,10 @@ Parameter Core::GetConfig(const std::string& deviceName, const std::string& name
         }
     }
 
-    if (name == CONFIG_KEY(FORCE_TBB_TERMINATE)) {
-        const auto flag = executorManager()->getTbbFlag();
-        return flag ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
+    if (deviceName.empty()) {
+        return _impl->getCoreConfig().get_core_config(name);
+    } else if (name == CONFIG_KEY(CACHE_DIR)) {
+        return _impl->getCoreConfig().get_device_cache_dir(deviceName);
     }
 
     auto parsed = ov::parseDeviceNameIntoConfig(deviceName);
