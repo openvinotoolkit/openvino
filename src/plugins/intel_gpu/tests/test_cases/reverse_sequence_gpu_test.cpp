@@ -52,7 +52,7 @@ TEST(reverese_sequence_gpu_test, fp32_d2_2_ba1_sa0) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -98,7 +98,7 @@ TEST(reverese_sequence_gpu_test, fp32_d3_3_3_ba0_sa1) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -144,7 +144,7 @@ TEST(reverese_sequence_gpu_test, fp32_d3_3_3_ba2_sa0) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -191,7 +191,7 @@ TEST(reverese_sequence_gpu_test, fp32_d2_2_3_2ba0_sa3) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -238,7 +238,7 @@ TEST(reverese_sequence_gpu_test, fp32_d2_2_3_2ba0_sa2) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -285,7 +285,7 @@ TEST(reverese_sequence_gpu_test, fp32_d2_2_3_2ba2_sa0) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -327,7 +327,7 @@ TEST(reverese_sequence_gpu_test, fp16_d2_2_ba1_sa0) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -369,7 +369,7 @@ TEST(reverese_sequence_gpu_test, fp16x2_d2_2_ba1_sa0) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -415,7 +415,7 @@ TEST(reverese_sequence_gpu_test, fp16_d3_3_3_ba0_sa1) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -461,7 +461,7 @@ TEST(reverese_sequence_gpu_test, fp16_d3_3_3_ba2_sa0) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -508,7 +508,7 @@ TEST(reverese_sequence_gpu_test, fp16_d2_2_3_2ba0_sa3) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -555,7 +555,7 @@ TEST(reverese_sequence_gpu_test, fp16_d2_2_3_2ba0_sa2) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -602,6 +602,6 @@ TEST(reverese_sequence_gpu_test, fp16_d2_2_3_2ba2_sa0) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }

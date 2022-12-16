@@ -108,8 +108,6 @@ protected:
 };
 
 TEST_P(MvnLayerCPUTest, CompareWithRefs) {
-   SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
    run();
    CheckPluginRelatedResults(compiledModel, "MVN");
 }

@@ -36,14 +36,14 @@ const std::vector<std::vector<int64_t>> idxValue = {
         {0, 2, 4, 6, 1, 3, 5, 7}
 };
 
-const auto ScatterUpdateCase = ::testing::Combine(
-        ::testing::ValuesIn(ScatterUpdateLayerTest::combineShapes(axesShapeInShape)),
-        ::testing::ValuesIn(idxValue),
-        ::testing::ValuesIn(inputPrecisions),
-        ::testing::ValuesIn(idxPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)
-);
-
-INSTANTIATE_TEST_SUITE_P(smoke_ScatterUpdate, ScatterUpdateLayerTest, ScatterUpdateCase, ScatterUpdateLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+    smoke_ScatterUpdate,
+    ScatterUpdateLayerTest,
+    ::testing::Combine(::testing::ValuesIn(ScatterUpdateLayerTest::combineShapes(axesShapeInShape)),
+                       ::testing::ValuesIn(idxValue),
+                       ::testing::ValuesIn(inputPrecisions),
+                       ::testing::ValuesIn(idxPrecisions),
+                       ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+    ScatterUpdateLayerTest::getTestCaseName);
 
 }  // namespace

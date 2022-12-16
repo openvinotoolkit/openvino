@@ -18,6 +18,7 @@
 #include "pass/transpose_sinking.hpp"
 #include "so_extension.hpp"
 #include "tf_framework_node.hpp"
+#include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
 #include "utils.hpp"
 
 using namespace ov;
@@ -119,7 +120,13 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
 
         // prepare a list of OV node inputs for each node
         ov::OutputVector ng_inputs;
-        for (size_t input_port_idx = 0; input_port_idx < operation_decoder->get_input_size(); ++input_port_idx) {
+        size_t operation_input_size = operation_decoder->get_input_size();
+
+        if (operation_decoder->get_op_type() == "NextIteration") {
+            // we expect no inputs for NextIteration because we break-up the cycle in InputModel
+            operation_input_size = 0;
+        }
+        for (size_t input_port_idx = 0; input_port_idx < operation_input_size; ++input_port_idx) {
             // TODO: Implement more general approach. Skipping Constants that have input edges
             if (operation_decoder->get_op_type() == "Const") {
                 break;
@@ -442,6 +449,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
 
     // TODO: reimplement TransposeSinking that does not corrupt filters for Convolution
     manager.register_pass<ov::frontend::tensorflow::pass::TransposeSinking>();
+    manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
     manager.run_passes(function);
 }
 

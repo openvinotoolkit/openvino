@@ -16,7 +16,6 @@ namespace v8 {
 class OPENVINO_API AdaptiveAvgPool : public Op {
 public:
     OPENVINO_OP("AdaptiveAvgPool", "opset8");
-    BWDCMP_RTTI_DECLARATION;
 
     AdaptiveAvgPool() = default;
 
@@ -31,7 +30,6 @@ public:
     AdaptiveAvgPool(const Output<Node>& data, const Output<Node>& output_shape);
 
     void validate_and_infer_types() override;
-    bool visit_attributes(AttributeVisitor& visitor) override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };

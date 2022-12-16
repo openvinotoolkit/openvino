@@ -37,13 +37,14 @@ TEST(TransformationTests, EliminateDuplicateTIInputs) {
     auto relu = make_shared<Relu>(merged_A);
 
     auto res_A = make_shared<Result>(relu);
-    auto concat = make_shared<Concat>(ov::OutputVector{inv_A, inv_B, inv_C, split_A, split_B, split_C,
-                                                       merged_A, merged_B, merged_C}, 0);
+    auto concat = make_shared<Concat>(
+        ov::OutputVector{inv_A, inv_B, inv_C, split_A, split_B, split_C, merged_A, merged_B, merged_C},
+        0);
 
     auto ti_res = make_shared<Result>(concat);
-    auto body = make_shared<ov::Model>(ov::ResultVector{ti_res, res_A},
-                                    ov::ParameterVector{inv_A, inv_B, inv_C, split_A, split_B, split_C,
-                                                        merged_A, merged_B, merged_C});
+    auto body = make_shared<ov::Model>(
+        ov::ResultVector{ti_res, res_A},
+        ov::ParameterVector{inv_A, inv_B, inv_C, split_A, split_B, split_C, merged_A, merged_B, merged_C});
 
     ti->set_body(body);
     ti->set_invariant_input(inv_A, invariant);

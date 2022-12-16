@@ -622,7 +622,7 @@ TEST_P(OVClassNetworkTestP, QueryNetworkHeteroActualNoThrow) {
     ASSERT_LT(0, res.size());
 }
 
-TEST_P(OVClassNetworkTestP, QueryNetworkMultiThrows) {
+TEST_P(OVClassNetworkTestP, QueryNetworkMultiNoThrows) {
     ov::Core ie = createCoreWithTemplate();
     ASSERT_NO_THROW(ie.query_model(actualNetwork, CommonTestUtils::DEVICE_MULTI));
 }
@@ -970,7 +970,15 @@ TEST_P(OVClassNetworkTestP, LoadNetworkActualNoThrow) {
 
 TEST_P(OVClassNetworkTestP, LoadNetworkMultiWithoutSettingDevicePrioritiesThrows) {
     ov::Core ie = createCoreWithTemplate();
-    ie.compile_model(actualNetwork, CommonTestUtils::DEVICE_MULTI);
+    try {
+        ie.compile_model(actualNetwork, CommonTestUtils::DEVICE_MULTI);
+    } catch (ov::Exception& error) {
+        EXPECT_PRED_FORMAT2(testing::IsSubstring,
+                            std::string("KEY_MULTI_DEVICE_PRIORITIES key is not set for"),
+                            error.what());
+    } catch (...) {
+        FAIL() << "compile_model is failed for unexpected reason.";
+    }
 }
 
 TEST_P(OVClassNetworkTestP, LoadNetworkActualHeteroDeviceNoThrow) {
@@ -1296,7 +1304,7 @@ TEST_P(OVClassLoadNetworkTest, QueryNetworkMULTIWithHETERONoThrow_V10) {
     std::string devices;
     auto availableDevices = ie.get_property(target_device, ov::available_devices);
     for (auto&& device : availableDevices) {
-        devices += std::string(CommonTestUtils::DEVICE_HETERO) + "." + target_device;
+        devices += std::string(CommonTestUtils::DEVICE_HETERO) + "." + device;
         if (&device != &(availableDevices.back())) {
             devices += ',';
         }

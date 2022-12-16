@@ -108,6 +108,11 @@ UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
 
     const auto data_shape_strides = ngraph::row_major_strides(data_shape);
 
+    if (axis && *axis < 0) {
+        const auto normalized_axis = *axis + data_shape.size();
+        *axis = normalized_axis;
+    }
+
     const auto ascending_order = [&data](const TensorSlice<Index_t, Count_t>& lhs,
                                          const TensorSlice<Index_t, Count_t>& rhs) {
         return *(data + lhs.idx) < *(data + rhs.idx);
@@ -137,6 +142,10 @@ UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
 
             if (*(data + lhs_elem_idx) < *(data + rhs_elem_idx)) {
                 return true;
+            } else if (*(data + lhs_elem_idx) > *(data + rhs_elem_idx)) {
+                return false;
+            } else {
+                continue;
             }
         }
 
@@ -269,6 +278,10 @@ std::tuple<Shape, Shape, Shape> make_tensor_shapes(const UniqueElements<Index_t,
                                                    const Shape& data_shape,
                                                    std::unique_ptr<int64_t> axis) {
     if (axis) {
+        if (*axis < 0) {
+            const auto normalized_axis = *axis + data_shape.size();
+            *axis = normalized_axis;
+        }
         // if the axis was specified we need to return a data shape with a modified dimension-at-axis
         // this is where we need to insert the number of detected unique elements
         // all other dimensions stay the same as in the original data_shape

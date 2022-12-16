@@ -16,8 +16,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v1::OneHot);
-
 op::v1::OneHot::OneHot(const Output<Node>& indices,
                        const Output<Node>& depth,
                        const Output<Node>& on_value,

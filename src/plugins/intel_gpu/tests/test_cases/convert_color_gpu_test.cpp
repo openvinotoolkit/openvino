@@ -94,7 +94,7 @@ TEST(convert_color, nv12_to_rgb_two_planes_buffer_fp32) {
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_res.size(); ++i) {
-        EXPECT_NEAR(ref_res[i], output_ptr[i], 1.001f);
+        ASSERT_NEAR(ref_res[i], output_ptr[i], 1.001f);
     }
 }
 
@@ -134,7 +134,7 @@ TEST(convert_color, nv12_to_bgr_two_planes_buffer_fp32) {
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_res.size(); ++i) {
-        EXPECT_NEAR(ref_res[i], output_ptr[i], 1.001f);
+        ASSERT_NEAR(ref_res[i], output_ptr[i], 1.001f);
     }
 }
 
@@ -174,7 +174,7 @@ TEST(convert_color, nv12_to_rgb_two_planes_buffer_u8) {
     cldnn::mem_lock<uint8_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_res.size(); ++i) {
-        EXPECT_NEAR(ref_res[i], static_cast<float>(output_ptr[i]), 1.001f);
+        ASSERT_NEAR(ref_res[i], static_cast<float>(output_ptr[i]), 1.001f);
     }
 }
 
@@ -214,7 +214,7 @@ TEST(convert_color, nv12_to_rgb_two_planes_buffer_fp16) {
     cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
      for (size_t i = 0; i < ref_res.size(); ++i) {
-        EXPECT_NEAR(ref_res[i], half_to_float(output_ptr[i]), 1.001f);
+        ASSERT_NEAR(ref_res[i], half_to_float(output_ptr[i]), 1.001f);
     }
 }
 
@@ -250,7 +250,7 @@ TEST(convert_color, nv12_to_rgb_single_plane_buffer_fp32) {
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_res.size(); ++i) {
-        EXPECT_NEAR(ref_res[i], output_ptr[i], 1.001f);
+        ASSERT_NEAR(ref_res[i], output_ptr[i], 1.001f);
     }
 }
 
@@ -286,7 +286,7 @@ TEST(convert_color, nv12_to_rgb_single_plane_buffer_u8) {
     cldnn::mem_lock<uint8_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_res.size(); ++i) {
-        EXPECT_NEAR(ref_res[i], static_cast<float>(output_ptr[i]), 1.001f);
+        ASSERT_NEAR(ref_res[i], static_cast<float>(output_ptr[i]), 1.001f);
     }
 }
 
@@ -363,7 +363,7 @@ TEST(convert_color, nv12_to_rgb_two_planes_surface_u8) {
     auto output_prim = outputs.begin()->second.get_memory();
     cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
     for (size_t i = 0; i < reference_results.size(); i++) {
-        EXPECT_NEAR(reference_results[i], output_ptr[i], 1.001f);
+        ASSERT_NEAR(reference_results[i], output_ptr[i], 1.001f);
     }
     checkStatus(clReleaseMemObject(nv12_image_plane_uv), "clReleaseMemObject");
     checkStatus(clReleaseMemObject(nv12_image_plane_y), "clReleaseMemObject");
@@ -426,7 +426,7 @@ TEST(convert_color, nv12_to_rgb_single_plane_surface_u8) {
     auto output_prim = outputs.begin()->second.get_memory();
     cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
     for (size_t i = 0; i < reference_results.size(); i++) {
-        EXPECT_NEAR(reference_results[i], output_ptr[i], 1.001f);
+        ASSERT_NEAR(reference_results[i], output_ptr[i], 1.001f);
     }
     checkStatus(clReleaseMemObject(nv12_image), "clReleaseMemObject");
 }
@@ -521,7 +521,7 @@ TEST(convert_color, i420_to_rgb_three_planes_buffer_fp32) {
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_res.size(); ++i) {
-        EXPECT_NEAR(ref_res[i], output_ptr[i], 1.001f);
+        ASSERT_NEAR(ref_res[i], output_ptr[i], 1.001f);
     }
 }
 
@@ -625,7 +625,7 @@ void test_convert_color_i420_to_rgb_three_planes_surface_u8(bool is_caching_test
     auto output_prim = outputs.begin()->second.get_memory();
     cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
     for (size_t i = 0; i < reference_results.size(); i++) {
-        EXPECT_NEAR(reference_results[i], output_ptr[i], 1.001f);
+        ASSERT_NEAR(reference_results[i], output_ptr[i], 1.001f);
     }
     checkStatus(clReleaseMemObject(i420_image_plane_y), "clReleaseMemObject");
     checkStatus(clReleaseMemObject(i420_image_plane_u), "clReleaseMemObject");

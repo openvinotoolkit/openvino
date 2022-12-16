@@ -32,5 +32,3 @@ ov::Strides& ov::Strides::operator=(Strides&& v) noexcept {
     static_cast<std::vector<size_t>*>(this)->operator=(v);
     return *this;
 }
-
-BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::Strides>);
