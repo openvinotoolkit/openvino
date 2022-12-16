@@ -13,6 +13,7 @@
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include "nodes/common/cpu_memcpy.h"
 #include "nodes/common/cpu_convert.h"
+#include "nodes/common/reorder_prim.h"
 #include "convert.h"
 #include <common/primitive_hashing_utils.hpp>
 #include <utils/shape_inference/shape_inference_pass_through.hpp>
@@ -23,33 +24,6 @@ using namespace InferenceEngine;
 namespace ov {
 namespace intel_cpu {
 namespace node {
-namespace {
-
-struct ReorderKey {
-    dnnl::memory::desc src;
-    dnnl::memory::desc dest;
-    size_t hash() const;
-    bool operator==(const ReorderKey& rhs) const;
-};
-
-size_t ReorderKey::hash() const {
-    using namespace dnnl::impl;
-    using namespace dnnl::impl::primitive_hashing;
-
-    size_t seed = 0;
-    seed = hash_combine(seed, get_md_hash(src.data));
-    seed = hash_combine(seed, get_md_hash(dest.data));
-
-    return seed;
-}
-
-bool ReorderKey::operator==(const ReorderKey& rhs) const {
-    bool retVal = true;
-    retVal = src == rhs.src && dest == rhs.dest;
-    return retVal;
-}
-
-}  // namespace
 
 bool Reorder::isExecutable() const {
     return Node::isExecutable() && !isOptimized;
@@ -233,24 +207,8 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
     }
 
     impl_desc_type impl_type = selectedPD->getImplementationType();
-    ReorderKey key = {src_desc, dst_blocked->GetPrimitive().get_desc()};
+    auto dst_desc = dst_blocked->GetPrimitive().get_desc();
 
-    auto builder = [&engine, &impl_type](const ReorderKey& key) -> std::shared_ptr<dnnl::primitive> {
-        dnnl::primitive_attr attr;
-        DEBUG_LOG(key.src, "->", key.dest);
-        reorder::primitive_desc pd = dnnl::reorder::primitive_desc(engine, key.src, engine, key.dest, attr, true);
-
-        if (!pd)
-            return nullptr;
-        auto info = pd.impl_info_str();
-        impl_type = parse_impl_name(info);
-        return std::make_shared<dnnl::reorder>(pd);
-    };
-
-    auto cache = getRuntimeCache();
-    std::pair<std::shared_ptr<dnnl::primitive>, CacheEntryBase::LookUpStatus> result{
-        nullptr,
-        CacheEntryBase::LookUpStatus::Miss};
     // TODO: We should keep shape consistency for const and expected shape for node.
     //       If it requires reshape operation it should explicitly injected into graph.
     //
@@ -272,16 +230,14 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
                                             newFormat);
         src_blocked->Create(DnnlExtensionUtils::makeDescriptor(newDesc), srcPtr, false);
 
-        key.src = src_blocked->GetPrimitive().get_desc();
-        result = cache->getOrCreate(key, builder);
-    } else {
-        result = cache->getOrCreate(key, builder);
+        src_desc = src_blocked->GetPrimitive().get_desc();
     }
 
-    if (!result.first) {
+    auto result = getReorderPrim(getRuntimeCache(), getEngine(), src_desc, dst_desc, &impl_type);
+    if (!result) {
         IE_THROW() << "Cannot create reorder primitive: unsupported reorder case";
     }
-    prim = result.first;
+    prim = result;
     supportedPrimitiveDescriptors[0].setImplementationType(impl_type);
     auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
     auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
@@ -431,40 +387,14 @@ void Reorder::reorderData(const Memory &input, const Memory &output, MultiCacheP
         auto copySize = output.GetSize();
         cpu_memcpy(dstPtr, srcPtr, copySize);
     } else {
-        auto getReorder = [] (MultiCachePtr& cache, const dnnl::memory& srcMemory, const dnnl::memory& dstMemory)
-            -> std::shared_ptr<dnnl::reorder> {
-            const auto& engine = dstMemory.get_engine();
-
-            auto builder = [&engine](const ReorderKey& key) -> std::shared_ptr<dnnl::reorder> {
-                dnnl::primitive_attr attr;
-                reorder::primitive_desc pd = dnnl::reorder::primitive_desc(engine, key.src, engine, key.dest, attr, true);
-                DEBUG_LOG(key.src, "->", key.dest);
-                if (!pd)
-                    return nullptr;
-                return std::make_shared<dnnl::reorder>(pd);
-            };
-
-            std::shared_ptr<dnnl::reorder> reorder;
-            auto src_desc = srcMemory.get_desc();
-            auto dst_desc = dstMemory.get_desc();
-            ReorderKey key = {src_desc, dst_desc};
-            if (!cache) {
-                reorder = builder(key);
-            } else {
-                auto result = cache->getOrCreate(key, builder);
-                reorder = std::move(result.first);
-            }
-            return reorder;
-        };
-
-        std::shared_ptr<dnnl::reorder> pReorder;
+        std::shared_ptr<dnnl::primitive> pReorder;
         std::vector<uint8_t> tmpBuff;
 
         auto srcMemory = input.GetPrimitive();
         auto dstMemory = output.GetPrimitive();
         auto engine = output.getEngine();
         // try directly reorder
-        pReorder = getReorder(cache, srcMemory, dstMemory);
+        pReorder = getReorderPrim(cache, srcMemory, dstMemory);
         if (!pReorder) {
             // try precision conversion then do the reorder
             if (output.GetDataType() != input.GetDataType() && Convert::isSupportedDesc(input.getDesc()) &&
@@ -483,7 +413,7 @@ void Reorder::reorderData(const Memory &input, const Memory &output, MultiCacheP
                 tmpMem.Create(std::move(tmpDesc), tmpBuff.data());
 
                 srcMemory = tmpMem.GetPrimitive();
-                pReorder = getReorder(cache, srcMemory, dstMemory);
+                pReorder = getReorderPrim(cache, srcMemory, dstMemory);
             }
             if (!pReorder) {
                 IE_THROW() << "No reorder available for the following tensor descriptors: "
@@ -492,7 +422,7 @@ void Reorder::reorderData(const Memory &input, const Memory &output, MultiCacheP
         }
         if (pReorder) {
             dnnl::stream loc_stream(engine, dnnl::stream::flags::in_order);
-            pReorder->execute(loc_stream, srcMemory, dstMemory);
+            pReorder->execute(loc_stream, {{DNNL_ARG_FROM, srcMemory}, {DNNL_ARG_TO, dstMemory}});
         } else {
             IE_THROW() << "Could not make onednn reorder.";
         }

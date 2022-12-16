@@ -38,7 +38,7 @@ public:
     virtual ~PortMapHelper() = default;
     virtual void execute(dnnl::stream strm, int n_iter = -1) = 0;
 protected:
-    dnnl::reorder reorder;
+    std::shared_ptr<dnnl::primitive> reorder;
     dnnl::memory mem_holder_src;
     dnnl::memory mem_holder_dst;
 };
