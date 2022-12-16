@@ -7,6 +7,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 
+#include "intel_gpu/primitives/implementation_desc.hpp"
 namespace ov {
 namespace intel_gpu {
 
@@ -38,8 +39,11 @@ static constexpr Property<bool, PropertyMutability::RW> allow_static_input_reord
 static constexpr Property<bool, PropertyMutability::RW> partial_build_program{"GPU_PARTIAL_BUILD"};
 static constexpr Property<bool, PropertyMutability::RW> allow_new_shape_infer{"GPU_ALLOW_NEW_SHAPE_INFER"};
 
+static constexpr Property<std::string, PropertyMutability::RW> dump_sources{"GPU_DUMP_SOURCES"};
+static constexpr Property<std::string, PropertyMutability::RW> dump_graphs{"GPU_DUMP_GRAPHS"};
+static constexpr Property<std::string, PropertyMutability::RW> dump_blobs{"GPU_DUMP_BLOBS"};
+
 static constexpr Property<std::vector<std::string>, PropertyMutability::RW> custom_outputs{"GPU_CUSTOM_OUTPUTS"};
-static constexpr Property<std::vector<std::string>, PropertyMutability::RW> force_implementations{"GPU_FORCE_IMPLEMENTATIONS"};
 
 /// @brief Tuning mode.
 enum class TuningMode {
@@ -68,6 +72,8 @@ struct TuningConfig {
     TuningConfig() : mode(TuningMode::tuning_disabled), cache_file_path("") {}
 };
 static constexpr Property<TuningConfig, PropertyMutability::RW> tuning_config{"GPU_TUNING_CONFIG"};
+
+static constexpr Property<ImplForcingMap, PropertyMutability::RW> force_implementations{"GPU_FORCE_IMPLEMENTATIONS"};
 
 }  // namespace intel_gpu
 }  // namespace ov

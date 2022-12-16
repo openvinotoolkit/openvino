@@ -36,11 +36,11 @@ class FullyConnectedFusingTest : public ::BaseFusingTest<fully_connected_test_pa
 public:
 
     void execute(fully_connected_test_params& p, bool is_dynamic = false) {
-        bo_not_fused.set_option(build_option::allow_new_shape_infer(is_dynamic));
-        bo_fused.set_option(build_option::allow_new_shape_infer(is_dynamic));
+        cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
+        cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
         auto input_prim = this->get_mem(get_input_layout(p));
-        network network_not_fused(this->engine, this->topology_non_fused, this->bo_not_fused);
-        network network_fused(this->engine, this->topology_fused, this->bo_fused);
+        network network_not_fused(this->engine, this->topology_non_fused, this->cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, this->cfg_fused);
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
 
@@ -80,8 +80,7 @@ public:
 
         auto input_prim = p.data_type == data_types::u8 ? get_mem(get_input_layout(p), 0, 10) : get_mem(get_input_layout(p));
 
-        auto impl_forcing_bo = bo_fused.get<build_option_type::force_implementations>();
-        const auto& impl_forcing = impl_forcing_bo->forcing;
+        auto impl_forcing = cfg_fused.get_property(ov::intel_gpu::force_implementations);
 
         auto forcing_format = p.input_format;
         for (auto& forcing : impl_forcing)
@@ -89,10 +88,9 @@ public:
                 forcing_format = forcing.second.output_format;
 
         implementation_desc conv_impl = { forcing_format, "", impl_types::onednn };
-        bo_fused.set_option(build_option::force_implementations({ { "fc_prim", conv_impl } }));
-        ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::in_order));
-        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused, cfg);
-        network network_fused(this->engine, this->topology_fused, bo_fused, cfg);
+        cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "fc_prim", conv_impl } }));
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, cfg_fused);
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
 

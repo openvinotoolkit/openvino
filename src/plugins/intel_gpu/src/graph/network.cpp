@@ -321,17 +321,15 @@ network::network(engine& engine,
 
 network::network(engine& engine,
                  const topology& topo,
-                 const build_options& options,
                  const ExecutionConfig& config,
                  bool is_internal)
-    : network(program::build_program(engine, topo, options, config, is_internal), engine.create_stream(config), is_internal) {}
+    : network(program::build_program(engine, topo, config, is_internal), engine.create_stream(config), is_internal) {}
 
 network::network(engine& engine,
                  const std::set<std::shared_ptr<program_node>>& nodes,
-                 const build_options& options,
                  const ExecutionConfig& config,
                  bool is_internal)
-    : network(program::build_program(engine, nodes, options, config, is_internal), engine.create_stream(config), is_internal) {}
+    : network(program::build_program(engine, nodes, config, is_internal), engine.create_stream(config), is_internal) {}
 
 network::network(program::ptr program, uint16_t stream_id)
     : network(program, program->get_config(), program->get_engine().create_stream(program->get_config()), false, stream_id == 0) {}
@@ -534,18 +532,10 @@ network::ptr network::build_network(engine& engine,
 }
 
 network::ptr network::build_network(engine& engine,
-                                              const std::set<std::shared_ptr<program_node>>& nodes,
-                                              const build_options& options,
-                                              bool is_internal) {
-    return std::make_shared<network>(engine, nodes, options, ExecutionConfig{}, is_internal);
-}
-
-network::ptr network::build_network(engine& engine,
-                                              const std::set<std::shared_ptr<program_node>>& nodes,
-                                              const build_options& options,
-                                              const ExecutionConfig& config,
-                                              bool is_internal) {
-    return std::make_shared<network>(engine, nodes, options, config, is_internal);
+                                    const std::set<std::shared_ptr<program_node>>& nodes,
+                                    const ExecutionConfig& config,
+                                    bool is_internal) {
+    return std::make_shared<network>(engine, nodes, config, is_internal);
 }
 
 void network::validate_primitives() {

@@ -41,7 +41,7 @@ void exexute_network(cldnn::engine& engine, const ExecutionConfig& cfg, bool is_
     if (is_caching_test) {
         membuf mem_buf;
         {
-            cldnn::network _network(engine, topology, build_options(), cfg);
+            cldnn::network _network(engine, topology, cfg);
             std::ostream out_mem(&mem_buf);
             BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
             _network.save(ob);
@@ -52,7 +52,7 @@ void exexute_network(cldnn::engine& engine, const ExecutionConfig& cfg, bool is_
             network = std::make_shared<cldnn::network>(ib, cfg, get_test_stream_ptr(), engine);
         }
     } else {
-        network = std::make_shared<cldnn::network>(engine, topology, build_options(), cfg);
+        network = std::make_shared<cldnn::network>(engine, topology, cfg);
     }
 
     network->set_input_data("input", input);

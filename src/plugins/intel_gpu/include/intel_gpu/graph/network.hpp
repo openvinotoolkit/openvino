@@ -74,12 +74,10 @@ public:
             bool is_internal = false);
     network(engine& engine,
             const topology& topo,
-            const build_options& options,
             const ExecutionConfig& config,
             bool is_internal = false);
     network(engine& engine,
             const std::set<std::shared_ptr<program_node>>& nodes,
-            const build_options& options,
             const ExecutionConfig& config,
             bool is_internal);
 
@@ -100,11 +98,6 @@ public:
                              bool is_internal = false);
     static ptr build_network(engine& engine,
                              const std::set<std::shared_ptr<program_node>>& nodes,
-                             const build_options& options,
-                             bool is_internal);
-    static ptr build_network(engine& engine,
-                             const std::set<std::shared_ptr<program_node>>& nodes,
-                             const build_options& options,
                              const ExecutionConfig& config,
                              bool is_internal);
 

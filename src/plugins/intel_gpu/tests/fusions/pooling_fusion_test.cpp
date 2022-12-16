@@ -36,14 +36,14 @@ public:
         if (engine.get_device_info().supports_immad)
             p.expected_fused_primitives = p.expected_fused_primitives_onednn;
         auto input_prim = get_mem(get_input_layout(p));
-        build_options options;
-        options.set_option(build_option::optimize_data(true));
+        ExecutionConfig config;
+        config.set_property(ov::intel_gpu::optimize_data(true));
         if (!p.kernel_name.empty()) {
             implementation_desc impl = { p.input_format, p.kernel_name };
-            options.set_option(build_option::force_implementations({ { "pooling", impl } }));
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "pooling", impl } }));
         }
-        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-        network network_fused(this->engine, this->topology_fused, options);
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, config);
 
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
@@ -537,21 +537,19 @@ public:
 
         auto input_prim = get_mem(get_input_layout(p));
 
-        build_options onednn_options;
-        build_options cldnn_options;
-
-        onednn_options.set_option(build_option::optimize_data(true));
-        cldnn_options.set_option(build_option::optimize_data(true));
-
         implementation_desc onednn_impl = { p.input_format, "", impl_types::onednn };
         implementation_desc cldnn_impl = { p.input_format, "", impl_types::ocl };
-        onednn_options.set_option(build_option::force_implementations({ { "pooling", onednn_impl } }));
-        cldnn_options.set_option(build_option::force_implementations({ { "pooling", cldnn_impl } }));
-        ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::in_order));
+
+        ExecutionConfig cldnn_cfg{ov::intel_gpu::queue_type(QueueTypes::in_order),
+                                  ov::intel_gpu::optimize_data(true),
+                                  ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "pooling", cldnn_impl } })};
+        ExecutionConfig onednn_cfg{ov::intel_gpu::queue_type(QueueTypes::in_order),
+                                   ov::intel_gpu::optimize_data(true),
+                                   ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "pooling", onednn_impl } })};
 
         // for onednn fusing test, topology_non_fused means cldnn, topology_fused is onednn
-        network network_fused_cldnn(this->engine, this->topology_non_fused, cldnn_options, cfg);
-        network network_fused_onednn(this->engine, this->topology_fused, onednn_options, cfg);
+        network network_fused_cldnn(this->engine, this->topology_non_fused, cldnn_cfg);
+        network network_fused_onednn(this->engine, this->topology_fused, onednn_cfg);
 
         network_fused_cldnn.set_input_data("input", input_prim);
         network_fused_onednn.set_input_data("input", input_prim);

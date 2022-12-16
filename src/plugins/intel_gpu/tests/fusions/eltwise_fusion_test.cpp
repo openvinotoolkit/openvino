@@ -34,8 +34,8 @@ public:
         auto input_prim = get_mem(get_input_layout(p));
         auto input_prim2 = get_mem(get_input_layout2(p));
 
-        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-        network network_fused(this->engine, this->topology_fused, bo_fused);
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, cfg_fused);
 
         auto inputs = network_fused.get_input_ids();
         network_fused.set_input_data("input", input_prim);
@@ -223,7 +223,7 @@ TEST_P(eltwise_fp32_fsv16, add) {
         p.expected_fused_primitives++;
 
     implementation_desc eltw_impl = { format::b_fs_yx_fsv16, "eltwise_b_fs_yx_fsv16" };
-    bo_fused.set_option(build_option::force_implementations({ { "eltwise", eltw_impl } }));
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "eltwise", eltw_impl } }));
 
     tolerance = 1e-5f;
     execute(p);
@@ -245,7 +245,7 @@ TEST_P(eltwise_fp32_fsv16, add_per_element) {
         p.expected_fused_primitives++;
 
     implementation_desc eltw_impl = { format::b_fs_yx_fsv16, "eltwise_b_fs_yx_fsv16" };
-    bo_fused.set_option(build_option::force_implementations({ { "eltwise", eltw_impl } }));
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "eltwise", eltw_impl } }));
 
     tolerance = 1e-5f;
     execute(p);
@@ -297,7 +297,7 @@ TEST_P(eltwise_fp32_fsv32, add) {
         p.expected_fused_primitives++;
 
     implementation_desc eltw_impl = { format::fs_b_yx_fsv32, "eltwise_fs_b_yx_fsv32" };
-    bo_fused.set_option(build_option::force_implementations({ { "eltwise", eltw_impl } }));
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "eltwise", eltw_impl } }));
 
     tolerance = 1e-5f;
     execute(p);
@@ -319,7 +319,7 @@ TEST_P(eltwise_fp32_fsv32, add_per_element) {
         p.expected_fused_primitives++;
 
     implementation_desc eltw_impl = { format::fs_b_yx_fsv32, "eltwise_fs_b_yx_fsv32" };
-    bo_fused.set_option(build_option::force_implementations({ { "eltwise", eltw_impl } }));
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "eltwise", eltw_impl } }));
 
     tolerance = 1e-5f;
     execute(p);
@@ -348,7 +348,7 @@ TEST_P(eltwise_fp32_fsv4, add) {
         p.expected_fused_primitives++;
 
     implementation_desc eltw_impl = { format::b_fs_yx_fsv4, "eltwise_b_fs_yx_fsv4" };
-    bo_fused.set_option(build_option::force_implementations({ { "eltwise", eltw_impl } }));
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "eltwise", eltw_impl } }));
 
     tolerance = 1e-5f;
     execute(p);
@@ -370,7 +370,7 @@ TEST_P(eltwise_fp32_fsv4, add_per_element) {
         p.expected_fused_primitives++;
 
     implementation_desc eltw_impl = { format::b_fs_yx_fsv4, "eltwise_b_fs_yx_fsv4" };
-    bo_fused.set_option(build_option::force_implementations({ { "eltwise", eltw_impl } }));
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "eltwise", eltw_impl } }));
 
     tolerance = 1e-5f;
     execute(p);
@@ -501,7 +501,7 @@ TEST_P(eltwise_fp16_byxf, add) {
         p.expected_fused_primitives++;
 
     implementation_desc eltw_impl = { format::byxf, "generic_eltwise_ref" };
-    bo_fused.set_option(build_option::force_implementations({ { "eltwise", eltw_impl } }));
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "eltwise", eltw_impl } }));
 
     tolerance = 1e-5f;
     execute(p);

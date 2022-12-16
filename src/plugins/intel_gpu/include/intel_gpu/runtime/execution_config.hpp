@@ -12,9 +12,9 @@ namespace intel_gpu {
 class ExecutionConfig {
 public:
     ExecutionConfig();
-    ExecutionConfig(std::initializer_list<ov::AnyMap::value_type> values) : ExecutionConfig(ov::AnyMap({values})) {}
-    explicit ExecutionConfig(const ov::AnyMap& properties) : properties(properties) {}
-    explicit ExecutionConfig(const ov::AnyMap::value_type& property) : ExecutionConfig(ov::AnyMap{property}) {}
+    ExecutionConfig(std::initializer_list<ov::AnyMap::value_type> values) : ExecutionConfig() { set_property(ov::AnyMap(values)); }
+    explicit ExecutionConfig(const ov::AnyMap& properties) : ExecutionConfig() { set_property(properties); }
+    explicit ExecutionConfig(const ov::AnyMap::value_type& property) : ExecutionConfig() { set_property(property); }
     /**
      * @brief Sets properties for the current compiled model.
      *

@@ -1617,15 +1617,14 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
         prim.additional_params = additional_params;
         topo.add(prim);
 
-        auto build_opts = build_options();
-        build_opts.set_option(build_option::outputs({"activation"}));
+        ExecutionConfig config{ov::intel_gpu::custom_outputs(std::vector<std::string>{"activation"})};
 
         std::shared_ptr<cldnn::network> net;
 
         if (is_caching_test) {
             membuf mem_buf;
             {
-                cldnn::network _network(engine, topo, build_opts);
+                cldnn::network _network(engine, topo, config);
                 std::ostream out_mem(&mem_buf);
                 BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
                 _network.save(ob);
@@ -1633,10 +1632,10 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
             {
                 std::istream in_mem(&mem_buf);
                 BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                net = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+                net = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
             }
         } else {
-            net = std::make_shared<cldnn::network>(engine, topo, build_opts);
+            net = std::make_shared<cldnn::network>(engine, topo, config);
         }
 
         net->set_input_data("in", in_mem);
@@ -1654,14 +1653,14 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
         // force output format to input format.
         topo_opt.add(reorder("res_to_input_format", input_info("activation_blocked"), input_format, input_type));
 
-        auto build_opts_opt = build_options();
-        build_opts_opt.set_option(build_option::outputs({"activation_blocked", "res_to_input_format"}));
         auto activation_impl_desc = implementation_desc();
         activation_impl_desc.output_format = input_format;
-        build_opts_opt.set_option(
-            build_option::force_implementations({{"activation_blocked", {input_format, "activation_ref"}}}));
+        ExecutionConfig config_opt{
+            ov::intel_gpu::custom_outputs(std::vector<std::string>{"activation_blocked", "res_to_input_format"}),
+            ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"activation_blocked", {input_format, "activation_ref"}}})
+        };
 
-        network net_opt(engine, topo_opt, build_opts_opt);
+        network net_opt(engine, topo_opt, config_opt);
 
         // Use in_mem from ref network
         net_opt.set_input_data("in", in_mem);

@@ -466,10 +466,8 @@ struct resample_random_test : testing::TestWithParam<resample_random_test_params
         auto prim = resample("resample", input_info("in"), params.output_size, params.num_filter, params.operation_type);
         topo.add(prim);
 
-        auto build_opts = build_options(
-            build_option::force_implementations({ {"resample", {params.out_format, ""}} })
-        );
-        cldnn::network net(engine, topo, build_opts);
+        ExecutionConfig config(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"resample", {params.out_format, ""}} }));
+        cldnn::network net(engine, topo, config);
 
         auto in_mem = engine.allocate_memory(in_layout);
         fill_random(in_mem);
@@ -627,11 +625,11 @@ struct caffe_resample_random_test : testing::TestWithParam<caffe_resample_random
         prim.pads_end = params.pads_end;
         topo.add(prim);
 
-        auto build_opts = build_options();
-        build_opts.set_option(build_option::outputs({"resample"}));
-        build_opts.set_option(build_option::force_implementations({ {"resample", {params.in_format, "resample_ref"}} }));
+        ExecutionConfig config;
+        config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"resample"}));
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"resample", {params.in_format, "resample_ref"}} }));
 
-        cldnn::network net(engine, topo, build_opts);
+        cldnn::network net(engine, topo, config);
         net.set_input_data("in", in_mem);
 
         auto result = net.execute();
@@ -645,11 +643,11 @@ struct caffe_resample_random_test : testing::TestWithParam<caffe_resample_random
         prim_opt.pads_end = params.pads_end;
         topo_opt.add(prim_opt);
 
-        auto build_opts_opt = build_options();
-        build_opts_opt.set_option(build_option::outputs({"resample_opt"}));
-        build_opts_opt.set_option(build_option::force_implementations({ {"resample_opt", {params.in_format, "resample_opt"}} }));
+        ExecutionConfig config_opt;
+        config_opt.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"resample_opt"}));
+        config_opt.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"resample_opt", {params.in_format, "resample_opt"}} }));
 
-        cldnn::network net_opt(engine, topo_opt, build_opts_opt);
+        cldnn::network net_opt(engine, topo_opt, config_opt);
 
         // Use in_mem from ref network
         net_opt.set_input_data("in", in_mem);
@@ -721,8 +719,8 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest1) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    cldnn::build_options options;
-    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
+    cldnn::ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 2;
     int f = 2;
@@ -754,7 +752,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest1) {
         21.f, 22.f, 23.f,
     });
 
-    cldnn::network net{ engine, topology, options };
+    cldnn::network net{ engine, topology, config };
 
     net.set_input_data("input", input);
 
@@ -811,8 +809,8 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest2) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    cldnn::build_options options;
-    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
+    cldnn::ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 2;
     int f = 2;
@@ -844,7 +842,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest2) {
         21.f, 22.f, 23.f,
     });
 
-    cldnn::network net{ engine, topology, options };
+    cldnn::network net{ engine, topology, config };
 
     net.set_input_data("input", input);
 
@@ -901,8 +899,8 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest3) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    cldnn::build_options options;
-    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
+    cldnn::ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 2;
     int f = 2;
@@ -934,7 +932,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest3) {
         21.f, 22.f, 23.f,
     });
 
-    cldnn::network net{ engine, topology, options };
+    cldnn::network net{ engine, topology, config };
 
     net.set_input_data("input", input);
 
@@ -991,8 +989,8 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest4) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    cldnn::build_options options;
-    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
+    cldnn::ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 2;
     int f = 2;
@@ -1024,7 +1022,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest4) {
         21.f, 22.f, 23.f,
     });
 
-    cldnn::network net{ engine, topology, options };
+    cldnn::network net{ engine, topology, config };
 
     net.set_input_data("input", input);
 
@@ -1081,8 +1079,8 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest5) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    cldnn::build_options options;
-    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
+    cldnn::ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 2;
     int f = 2;
@@ -1114,7 +1112,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest5) {
         21.f, 22.f, 23.f,
     });
 
-    cldnn::network net{ engine, topology, options };
+    cldnn::network net{ engine, topology, config };
 
     net.set_input_data("input", input);
 
@@ -1171,8 +1169,8 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode1) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    cldnn::build_options options;
-    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
+    cldnn::ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 2;
     int f = 2;
@@ -1206,7 +1204,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode1) {
         21.f, 22.f, 23.f,
     });
 
-    cldnn::network net{ engine, topology, options };
+    cldnn::network net{ engine, topology, config };
 
     net.set_input_data("input", input);
 
@@ -1241,8 +1239,8 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode2) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    cldnn::build_options options;
-    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
+    cldnn::ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 2;
     int f = 2;
@@ -1276,7 +1274,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode2) {
         21.f, 22.f, 23.f,
     });
 
-    cldnn::network net{ engine, topology, options };
+    cldnn::network net{ engine, topology, config };
 
     net.set_input_data("input", input);
 
@@ -1305,8 +1303,8 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode3) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    cldnn::build_options options;
-    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
+    cldnn::ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 2;
     int f = 2;
@@ -1340,7 +1338,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode3) {
         21.f, 22.f, 23.f,
     });
 
-    cldnn::network net{ engine, topology, options };
+    cldnn::network net{ engine, topology, config };
 
     net.set_input_data("input", input);
 
@@ -1375,8 +1373,8 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode4) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    cldnn::build_options options;
-    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
+    cldnn::ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 2;
     int f = 2;
@@ -1410,7 +1408,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode4) {
         21.f, 22.f, 23.f,
     });
 
-    cldnn::network net{ engine, topology, options };
+    cldnn::network net{ engine, topology, config };
 
     net.set_input_data("input", input);
 
@@ -1445,8 +1443,8 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode5) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    cldnn::build_options options;
-    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
+    cldnn::ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 2;
     int f = 2;
@@ -1480,7 +1478,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode5) {
         21.f, 22.f, 23.f,
     });
 
-    cldnn::network net{ engine, topology, options };
+    cldnn::network net{ engine, topology, config };
 
     net.set_input_data("input", input);
 
@@ -1515,8 +1513,8 @@ TEST(resample_gpu, interpolate_in2x2x3x2_cubic) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    cldnn::build_options options;
-    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
+    cldnn::ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 2;
     int f = 2;
@@ -1548,7 +1546,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_cubic) {
         21.f, 22.f, 23.f,
     });
 
-    cldnn::network net{ engine, topology, options };
+    cldnn::network net{ engine, topology, config };
 
     net.set_input_data("input", input);
 
@@ -1583,8 +1581,8 @@ TEST(resample_gpu, interpolate_in2x2x3x2_cubic2) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    cldnn::build_options options;
-    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
+    cldnn::ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 1;
     int f = 1;
@@ -1609,7 +1607,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_cubic2) {
         3.f, 4.f, 5.f,
     });
 
-    cldnn::network net{ engine, topology, options };
+    cldnn::network net{ engine, topology, config };
 
     net.set_input_data("input", input);
 
@@ -1636,8 +1634,8 @@ TEST(resample_gpu, interpolate_in2x2x3x2_linear) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    cldnn::build_options options;
-    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
+    cldnn::ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 2;
     int f = 2;
@@ -1669,7 +1667,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_linear) {
         21.f, 22.f, 23.f,
     });
 
-    cldnn::network net{ engine, topology, options };
+    cldnn::network net{ engine, topology, config };
 
     net.set_input_data("input", input);
 
@@ -1863,8 +1861,8 @@ TEST(resample_gpu, interpolate_in1x1x2x4_linear_scale) {
     //  Sample Type: Linear
 
     auto& engine = get_test_engine();
-    cldnn::build_options options;
-    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
+    cldnn::ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 1;
     int f = 1;
@@ -1891,7 +1889,7 @@ TEST(resample_gpu, interpolate_in1x1x2x4_linear_scale) {
         5.f, 6.f, 7.f, 8.f,
     });
 
-    cldnn::network net{ engine, topology, options };
+    cldnn::network net{ engine, topology, config };
 
     net.set_input_data("input", input);
 
@@ -2022,10 +2020,10 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
         prim.pads_end = params.pads_end;
         topo.add(prim);
 
-        auto build_opts = build_options();
-        build_opts.set_option(build_option::outputs({"resample"}));
+        ExecutionConfig config;
+        config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"resample"}));
 
-        network net(engine, topo, build_opts);
+        network net(engine, topo, config);
         net.set_input_data("in", in_mem);
 
         // first execution of ref
@@ -2041,11 +2039,11 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
         topo_opt.add(prim_opt);
         topo_opt.add(reorder("res_to_bfyx", input_info("resample_opt"), origin_format, params.input_type));
 
-        auto build_opts_opt = build_options();
-        build_opts_opt.set_option(build_option::outputs({"resample_opt", "res_to_bfyx"}));
-        build_opts_opt.set_option(build_option::force_implementations({ {"resample_opt", {params.in_format, kernel}} }));
+        ExecutionConfig config_opt;
+        config_opt.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"resample_opt", "res_to_bfyx"}));
+        config_opt.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"resample_opt", {params.in_format, kernel}} }));
 
-        network net_opt(engine, topo_opt, build_opts_opt);
+        network net_opt(engine, topo_opt, config_opt);
 
         // Use in_mem from ref network
         net_opt.set_input_data("in", in_mem);
@@ -2117,7 +2115,6 @@ struct resample_opt_random_test_ext : resample_opt_random_test
 
     void execute_perf_test(const resample_opt_random_test_params& params, const std::string& kernel, const bool do_planar = false) {
         auto& engine = get_test_engine();
-        ExecutionConfig cfg(ov::enable_profiling(true));
 
         const format origin_format = format::dimension(params.in_format) == 4 ? format::bfyx : format::bfzyx;
         auto in_layout = layout(params.input_type, origin_format, params.input_size);
@@ -2135,13 +2132,12 @@ struct resample_opt_random_test_ext : resample_opt_random_test
         topo_opt.add(prim_opt);
         topo_opt.add(reorder("res_to_bfyx", input_info("resample_opt"), origin_format, params.input_type));
 
-        auto build_opts_opt = build_options();
-        build_opts_opt.set_option(build_option::outputs({"res_to_bfyx"}));
-        build_opts_opt.set_option(build_option::force_implementations({ {"resample_opt", {working_format, kernel}} }));
-        build_opts_opt.set_option(build_option::debug(true));
-        // optimize_data is turned on to test cross-layout
+        ExecutionConfig cfg{ov::enable_profiling(true),
+                            ov::intel_gpu::custom_outputs(std::vector<std::string>{"res_to_bfyx"}),
+                            ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"resample_opt", {working_format, kernel}} })
+        };
 
-        network net_opt(engine, topo_opt, build_opts_opt, cfg);
+        network net_opt(engine, topo_opt, cfg);
 
         // Use in_mem from ref network
         net_opt.set_input_data("in", in_mem);

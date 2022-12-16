@@ -525,11 +525,11 @@ public:
         }
         topology.add(input_layout("input", input_mem->get_layout()));
         topology.add(red);
-        build_options options;
-        options.set_option(build_option::optimize_data(true));
+        ExecutionConfig config;
+        config.set_property(ov::intel_gpu::optimize_data(true));
         implementation_desc reduce_impl = {input_format, kernel_name};
-        options.set_option(build_option::force_implementations({{"reduce", reduce_impl}}));
-        network network(engine, topology, options);
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"reduce", reduce_impl}}));
+        network network(engine, topology, config);
         network.set_input_data("input", input_mem);
 
         network.execute();
@@ -1739,11 +1739,11 @@ public:
             }
             topology.add(input_layout("input", input_mem->get_layout()));
             topology.add(red);
-            build_options options;
-            options.set_option(build_option::optimize_data(true));
+            ExecutionConfig config;
+            config.set_property(ov::intel_gpu::optimize_data(true));
             implementation_desc reduce_impl = {input_format, kernel_name};
-            options.set_option(build_option::force_implementations({{"reduce", reduce_impl}}));
-            network network(engine, topology, options);
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"reduce", reduce_impl}}));
+            network network(engine, topology, config);
             network.set_input_data("input", input_mem);
 
             network.execute();
@@ -1893,12 +1893,12 @@ public:
         }
         topology.add(input_layout("input", input_mem->get_layout()));
         topology.add(red);
-        build_options options;
-        options.set_option(build_option::optimize_data(true));
+        ExecutionConfig config;
+        config.set_property(ov::intel_gpu::optimize_data(true));
         implementation_desc reduce_impl = {input_format, kernel_name, impl_types::onednn};
-        options.set_option(build_option::force_implementations({{"reduce", reduce_impl}}));
-        ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::in_order));
-        network network(engine, topology, options, cfg);
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"reduce", reduce_impl}}));
+        config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+        network network(engine, topology, config);
         network.set_input_data("input", input_mem);
 
         network.execute();

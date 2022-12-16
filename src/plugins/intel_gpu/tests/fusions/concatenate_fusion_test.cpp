@@ -38,21 +38,18 @@ public:
         auto input0_prim = get_mem(get_input_layout(p));
         auto input1_prim = get_mem(get_input_layout(p));
 
-        build_options onednn_options;
-        build_options cldnn_options;
-
-        onednn_options.set_option(build_option::optimize_data(true));
-        cldnn_options.set_option(build_option::optimize_data(true));
-
         implementation_desc onednn_impl = { p.input_format, "", impl_types::onednn };
         implementation_desc cldnn_impl = { p.input_format, "", impl_types::ocl };
-        onednn_options.set_option(build_option::force_implementations({ { "concat", onednn_impl } }));
-        cldnn_options.set_option(build_option::force_implementations({ { "concat", cldnn_impl } }));
 
         // for onednn fusing test, topology_non_fused means cldnn, topology_fused is onednn
-        ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::in_order));
-        network network_fused_cldnn(this->engine, this->topology_non_fused, cldnn_options, cfg);
-        network network_fused_onednn(this->engine, this->topology_fused, onednn_options, cfg);
+        ExecutionConfig cldnn_cfg{ov::intel_gpu::queue_type(QueueTypes::in_order),
+                                  ov::intel_gpu::optimize_data(true),
+                                  ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "concat", cldnn_impl } })};
+        ExecutionConfig onednn_cfg{ov::intel_gpu::queue_type(QueueTypes::in_order),
+                                   ov::intel_gpu::optimize_data(true),
+                                   ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "concat", onednn_impl } })};
+        network network_fused_cldnn(this->engine, this->topology_non_fused, cldnn_cfg);
+        network network_fused_onednn(this->engine, this->topology_fused, onednn_cfg);
 
         network_fused_cldnn.set_input_data("input0", input0_prim);
         network_fused_cldnn.set_input_data("input1", input1_prim);

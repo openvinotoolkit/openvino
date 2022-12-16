@@ -338,14 +338,14 @@ public:
         return add_node(id, reference_tensor_typed<T, 4>(output_data), {input, weights, bias});
     }
 
-    cldnn::network::ptr build_network(cldnn::build_options opts, bool is_caching_test=false) {
-        opts.set_option(cldnn::build_option::force_implementations(forced_impls));
+    cldnn::network::ptr build_network(ExecutionConfig config, bool is_caching_test=false) {
+        config.set_property(ov::intel_gpu::force_implementations(forced_impls));
         cldnn::network::ptr net;
 
         if (is_caching_test) {
             membuf mem_buf;
             {
-                cldnn::network _network(eng, topo, opts);
+                cldnn::network _network(eng, topo, config);
                 std::ostream out_mem(&mem_buf);
                 BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
                 _network.save(ob);
@@ -356,7 +356,7 @@ public:
                 net = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), eng);
             }
         } else {
-            net = std::make_shared<cldnn::network>(eng, topo, opts);
+            net = std::make_shared<cldnn::network>(eng, topo, config);
         }
 
         for (auto& in_data : inputs) {
@@ -365,8 +365,8 @@ public:
         return net;
     }
 
-    void run(cldnn::build_options opts, bool is_caching_test=false) {
-        auto net = build_network(opts, is_caching_test);
+    void run(ExecutionConfig config, bool is_caching_test=false) {
+        auto net = build_network(config, is_caching_test);
         if (!is_caching_test) {
             std::stringstream network_info;
             network_info << "Executed kernels: " << std::endl;

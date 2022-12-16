@@ -42,9 +42,9 @@ TEST(reorder_inputs, propagation) {
     topology.add(pooling("pool", input_info("conv1"), pooling_mode::max, { 1, 1 }, { 1, 1 }));
     topology.add(convolution("conv2", input_info("pool"), { "weights" }));
 
-    build_options build_opts;
-    build_opts.set_option(build_option::optimize_data(true));
-    auto prog = program::build_program(engine, topology, build_opts);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    auto prog = program::build_program(engine, topology, config);
 
     auto prog_impl = prog.get();
 
@@ -79,10 +79,10 @@ TEST(reorder_inputs, impl_forcing_basic_format) {
 
     implementation_desc pool_impl = { format::yxfb, "" };
 
-    build_options build_opts;
-    build_opts.set_option(build_option::force_implementations({ {"pool", pool_impl} }));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"pool", pool_impl} }));
 
-    network network(engine, topology, build_opts);
+    network network(engine, topology, config);
 
     set_values(input, { 1.f, 2.f, 3.f, 2.f,
                         7.f, 3.f, -2.f, -1.f });
@@ -117,10 +117,10 @@ TEST(reorder_inputs, impl_forcing_not_existing) {
 
     implementation_desc pool_impl = { format::any, "NOT_EXISTING" };
 
-    build_options build_opts;
-    build_opts.set_option(build_option::force_implementations({ {"pool", pool_impl} }));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"pool", pool_impl} }));
 
-    ASSERT_ANY_THROW(network network(engine, topology, build_opts));
+    ASSERT_ANY_THROW(network network(engine, topology, config));
 }
 
 TEST(reorder_inputs, impl_forcing_basic_format_kernel) {
@@ -133,10 +133,10 @@ TEST(reorder_inputs, impl_forcing_basic_format_kernel) {
 
     implementation_desc actv_impl = { format::yxfb, "activation_ref" };
 
-    build_options build_opts;
-    build_opts.set_option(build_option::force_implementations({ {"actv", actv_impl} }));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"actv", actv_impl} }));
 
-    network network(engine, topology, build_opts);
+    network network(engine, topology, config);
 
     set_values(input, { -1.f, 2.f, -3.f, 0.5f,
                         7.f, 3.f, -2.f, -1.f });
@@ -189,10 +189,10 @@ TEST(reorder_inputs, impl_forcing_basic_format_kernel) {
 //    for (auto impl : possible_impls) {
 //        SCOPED_TRACE(to_string(impl));
 //
-//        build_options build_opts;
-//        build_opts.set_option(build_option::force_implementations({ {"conv", impl} }));
+//        ExecutionConfig config;
+//        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv", impl} }));
 //
-//        network network(engine, topology, build_opts);
+//        network network(engine, topology, config);
 //
 //        network.set_input_data("input", input);
 //        network.execute();

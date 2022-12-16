@@ -325,7 +325,6 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
                                                       InferenceEngine::OutputsDataMap networkOutputs,
                                                       bool createTopologyOnly, bool partialBuild) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Program::BuildProgram");
-    cldnn::build_options options;
 
     for (const auto& op : ops) {
         if (op->is_dynamic()) {
@@ -334,11 +333,11 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
         }
     }
 
-    options.set_option(cldnn::build_option::allow_new_shape_infer(allow_new_shape_infer));
-    options.set_option(cldnn::build_option::optimize_data(true));
-    if (partialBuild) {
-        options.set_option(cldnn::build_option::partial_build_program(true));
-    }
+    ExecutionConfig conf = m_new_config;
+    conf.set_property(ov::intel_gpu::partial_build_program(partialBuild));
+    conf.set_property(ov::intel_gpu::optimize_data(true));
+    conf.set_property(ov::intel_gpu::allow_new_shape_infer(allow_new_shape_infer));
+
     PrepareBuild(networkInputs, networkOutputs);
     {
         GPU_DEBUG_DEFINE_MEM_LOGGER("CreateSingleLayerPrimitives");
@@ -352,7 +351,7 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Program::CreateProgram");
         cldnn::program::ptr program;
         try {
-            program = cldnn::program::build_program(*m_engine, *m_topology, options, m_new_config);
+            program = cldnn::program::build_program(*m_engine, *m_topology, conf);
         } catch (std::exception& e) {
             IE_THROW() << "cldnn program build failed! " << e.what();
         }

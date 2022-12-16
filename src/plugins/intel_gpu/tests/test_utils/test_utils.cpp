@@ -59,14 +59,14 @@ void generic_test::run_single_test() {
             }
         }
         std::string input_name = "input" + std::to_string(i);
-        if ((i == 0) && generic_params->network_build_options.get<cldnn::build_option_type::optimize_data>()->enabled()) {
+        if ((i == 0) && generic_params->network_config.get_property(ov::intel_gpu::optimize_data)) {
             // Add reorder after the first input in case of optimize data flag since it might change the input layout.
             input_name = "input0_init";
         }
 
         // First input is provided to the network as input_layout.
         // Other inputs are provided as input_layout if optimize data flag is off. Otherwise they are provided as data.
-        if ((i == 0) || !generic_params->network_build_options.get<cldnn::build_option_type::optimize_data>()->enabled()) {
+        if ((i == 0) || !generic_params->network_config.get_property(ov::intel_gpu::optimize_data)) {
             topology.add(input_layout(input_name, input_mems[i]->get_layout()));
             input_layouts_names.push_back(input_name);
         } else {
@@ -79,7 +79,7 @@ void generic_test::run_single_test() {
         }
     }
 
-    if (generic_params->network_build_options.get<cldnn::build_option_type::optimize_data>()->enabled()) {
+    if (generic_params->network_config.get_property(ov::intel_gpu::optimize_data)) {
         // Add reorder after the first input in case of optimize data flag since it might change the input layout.
         topology.add(reorder("input0", input_info("input0_init"), input_mems[0]->get_layout()));
     }
@@ -91,7 +91,7 @@ void generic_test::run_single_test() {
 
     prepare_input_for_test(input_mems);
 
-    network network(engine, topology, generic_params->network_build_options);
+    network network(engine, topology, generic_params->network_config);
 
     for (size_t i = 0 ; i < input_layouts_names.size() ; i++) {
         network.set_input_data(input_layouts_names[i], input_mems[i]);

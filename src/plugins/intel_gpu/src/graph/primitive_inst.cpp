@@ -937,10 +937,8 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
                 in = _node->get_dependency(i).id();
             }
         }
-        build_options bo;
-        bo.set_option(build_option::allow_static_input_reorder(true));
-        bo.set_option(build_option::allow_new_shape_infer(true));
-        auto prog = program::build_program(get_network().get_engine(), t, bo, {}, true, false);
+        ExecutionConfig conf{ov::intel_gpu::allow_static_input_reorder(true), ov::intel_gpu::allow_new_shape_infer(true)};
+        auto prog = program::build_program(get_network().get_engine(), t, conf, {}, true, false);
 
         _unfused_subgraph = network::allocate_network(get_network().get_stream_ptr(), prog, true, get_network().is_primary_stream());
     }

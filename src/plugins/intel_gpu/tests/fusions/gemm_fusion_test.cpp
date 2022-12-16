@@ -43,12 +43,12 @@ public:
         if (!p.kernel_name.empty()) {
             implementation_desc gemm_ref_impl = { format::bfyx, "gemm_ref" };
             implementation_desc gemm_target_impl = { format::bfyx, p.kernel_name };
-            bo_fused.set_option(build_option::force_implementations({ {"gemm_prim", gemm_target_impl} }));
-            bo_not_fused.set_option(build_option::force_implementations({ {"gemm_prim", gemm_ref_impl} }));
+            cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm_prim", gemm_target_impl} }));
+            cfg_not_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm_prim", gemm_ref_impl} }));
         }
 
-        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-        network network_fused(this->engine, this->topology_fused, bo_fused);
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, cfg_fused);
         network_fused.set_input_data("input0", input0_prim);
         network_not_fused.set_input_data("input0", input0_prim);
         network_fused.set_input_data("input1", input1_prim);
@@ -208,7 +208,7 @@ TEST_P(gemm_2in_quantize_float_in, basic) {
     );
 
     implementation_desc gemm_impl = { format::bfyx, "gemm_tiled_opt" };
-    bo_fused.set_option(build_option::force_implementations({ { "gemm_prim", gemm_impl } }));
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "gemm_prim", gemm_impl } }));
 
     tolerance = default_tolerance(data_types::u8);
     execute(p);

@@ -127,6 +127,18 @@ public:
 
     program(engine& engine_ref,
             topology const& topology,
+            const ExecutionConfig& config,
+            bool is_internal = false,
+            bool no_optimizations = false,
+            bool is_body_program = false);
+
+    program(engine& engine_ref,
+            std::set<std::shared_ptr<program_node>> const& nodes,
+            const ExecutionConfig& config,
+            bool is_internal);
+
+    program(engine& engine_ref,
+            topology const& topology,
             build_options const& options,
             const ExecutionConfig& config,
             bool is_internal = false,
@@ -138,6 +150,7 @@ public:
             build_options const& options,
             const ExecutionConfig& config,
             bool is_internal);
+
     explicit program(engine& engine);
     ~program();
     engine& get_engine() const { return _engine; }
@@ -245,14 +258,12 @@ public:
 
     static ptr build_program(engine& engine,
                              const topology& topology,
-                             const build_options& options,
                              const ExecutionConfig& config,
                              bool is_internal = false,
                              bool no_optimizations = false,
                              bool is_body_program = false);
     static ptr build_program(engine& engine,
                              const std::set<std::shared_ptr<program_node>>& nodes,
-                             const build_options& options,
                              const ExecutionConfig& config,
                              bool is_internal);
     static void init_primitives();

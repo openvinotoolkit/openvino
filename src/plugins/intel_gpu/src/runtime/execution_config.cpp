@@ -3,6 +3,7 @@
 //
 
 #include "intel_gpu/runtime/execution_config.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -17,10 +18,18 @@ ExecutionConfig::ExecutionConfig() {
     set_property(ov::intel_gpu::enable_memory_pool(true));
     set_property(ov::intel_gpu::allow_static_input_reorder(true));
     set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{}));
-    // set_property(ov::intel_gpu::tuning_config({}));
-    set_property(ov::intel_gpu::force_implementations(std::vector<std::string>{})); // TODO fix type
+    set_property(ov::intel_gpu::tuning_config(ov::intel_gpu::TuningConfig{}));
+    set_property(ov::intel_gpu::dump_graphs(""));
+    set_property(ov::intel_gpu::dump_sources(""));
+    set_property(ov::intel_gpu::dump_blobs(""));
+    set_property(ov::intel_gpu::force_implementations(ImplForcingMap{}));
     set_property(ov::intel_gpu::partial_build_program(false));
     set_property(ov::intel_gpu::allow_new_shape_infer(false));
+
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
+        set_property(ov::intel_gpu::dump_graphs(debug_config->dump_graphs));
+    }
 }
 
 void ExecutionConfig::set_property(const AnyMap& config) {

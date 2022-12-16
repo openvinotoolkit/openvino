@@ -98,6 +98,59 @@ using namespace ov::intel_gpu;
 
 program::program(engine& engine_ref,
                  topology const& topology,
+                 const ExecutionConfig& config,
+                 bool is_internal,
+                 bool no_optimizations,
+                 bool is_body_program)
+    : _engine(engine_ref),
+      _stream(_engine.create_stream(config)),
+      _config(config),
+      processing_order(),
+      tuning_cache(nullptr),
+      is_body_program(is_body_program),
+      is_subgroup_local_block_io_supported(-1) {
+    init_primitives();
+    set_options();
+    query_local_block_io_supported();
+
+    std::cerr << "config: " << config.to_string() << std::endl;
+
+    pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
+    prepare_nodes(topology);
+    _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id,
+                                                                      kernel_selector::KernelBase::get_db().get_batch_header_str()));
+    program_node::reset_unique_id();
+
+    if (no_optimizations) {
+        init_graph();
+    } else {
+        build_program(is_internal);
+    }
+}
+
+program::program(engine& engine_ref,
+                 std::set<std::shared_ptr<program_node>> const& nodes,
+                 const ExecutionConfig& config,
+                 bool is_internal)
+    : _engine(engine_ref),
+      _stream(_engine.create_stream(config)),
+      _config(config),
+      processing_order(),
+      tuning_cache(nullptr),
+      is_subgroup_local_block_io_supported(-1) {
+    init_primitives();
+    set_options();
+    query_local_block_io_supported();
+
+    _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id,
+                                                                      kernel_selector::KernelBase::get_db().get_batch_header_str()));
+    pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
+    prepare_nodes(nodes);
+    build_program(is_internal);
+}
+
+program::program(engine& engine_ref,
+                 topology const& topology,
                  build_options const& options,
                  const ExecutionConfig& config,
                  bool is_internal,
@@ -231,20 +284,18 @@ program::ptr program::build_program(engine& engine,
 
 program::ptr program::build_program(engine& engine,
                                     const topology& topology,
-                                    const build_options& options,
                                     const ExecutionConfig& config,
                                     bool is_internal,
                                     bool no_optimizations,
                                     bool is_body_program) {
-    return std::make_shared<program>(engine, topology, options, config, is_internal, no_optimizations, is_body_program);
+    return std::make_shared<program>(engine, topology, config, is_internal, no_optimizations, is_body_program);
 }
 
 program::ptr program::build_program(engine& engine,
                                     const std::set<std::shared_ptr<program_node>>& nodes,
-                                    const build_options& options,
                                     const ExecutionConfig& config,
                                     bool is_internal) {
-    return std::make_shared<program>(engine, nodes, options, config, is_internal);
+    return std::make_shared<program>(engine, nodes, config, is_internal);
 }
 
 program_node& program::get_node(primitive_id const& id) {
@@ -472,15 +523,6 @@ void program::set_options() {
     static std::atomic<uint32_t> id_gen{0};
     prog_id = ++id_gen;
     assert(prog_id != 0);
-
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
-        options.set_option(cldnn::build_option::graph_dumps_dir(debug_config->dump_graphs));
-    }
-
-    if (!options.get<build_option_type::force_implementations>()->forcing.empty()) {
-        options.set_option(build_option::optimize_data(true));
-    }
 }
 
 bool program::is_local_block_io_supported() const {
@@ -550,7 +592,7 @@ void program::build_program(bool is_internal) {
 #endif
         prepare_memory_dependencies();
 
-        if (options.get<build_option_type::partial_build_program>()->enabled()) {
+        if (_config.get_property(ov::intel_gpu::partial_build_program)) {
             return;
         }
 
@@ -599,11 +641,8 @@ void program::pre_optimize_graph(bool is_internal) {
             node->get_output_layouts();
     }
 
-    std::cerr << "PROGRAM:  << " << _config.to_string() << std::endl;
-    auto enabled = _config.get_property(ov::intel_gpu::optimize_data);
-    std::cerr << "optimize_data: " << options.get<build_option_type::optimize_data>()->enabled() << " " << enabled << std::endl;
-
-    if (options.get<build_option_type::optimize_data>()->enabled()) {
+    bool optimize_data = _config.get_property(ov::intel_gpu::optimize_data);
+    if (optimize_data) {
         apply_opt_pass<prepare_quantization>();
     }
 
@@ -611,7 +650,7 @@ void program::pre_optimize_graph(bool is_internal) {
     set_layout_optimizer_attributes(lo);
 
     reorder_factory rf;
-    if (options.get<build_option_type::optimize_data>()->enabled()) {
+    if (optimize_data) {
         apply_opt_pass<prepare_primitive_fusing_through>();
 
         apply_opt_pass<pre_replace_deconv>(lo);
@@ -644,7 +683,7 @@ void program::pre_optimize_graph(bool is_internal) {
 
     apply_opt_pass<prepare_padding>(output_size_handling_enabled);
 
-    apply_opt_pass<remove_redundant_reorders>(lo, options.get<build_option_type::optimize_data>()->enabled());
+    apply_opt_pass<remove_redundant_reorders>(lo, optimize_data);
 
     if (!is_internal) {
         // ToDo remove hidden dependencies from propagate_constants pass
@@ -652,7 +691,7 @@ void program::pre_optimize_graph(bool is_internal) {
     }
 
     // try to fuse buffers (i.e. depth_concat in bfyx format) after padding calculations
-    if (options.get<build_option_type::optimize_data>()->enabled()) {
+    if (optimize_data) {
         apply_opt_pass<prepare_buffer_fusing>();
     }
 
@@ -674,17 +713,18 @@ void program::post_optimize_graph(bool is_internal) {
 
     apply_opt_pass<remove_redundant_reorders>(lo, false, true);  // TODO: do we need it at this place also?
 
+    auto partial_build = _config.get_property(ov::intel_gpu::partial_build_program);
 #ifdef GPU_DEBUG_CONFIG
     GPU_DEBUG_GET_INSTANCE(debug_config);
-    if (!is_internal && (!options.get<build_option_type::partial_build_program>()->enabled() || !debug_config->dry_run_path.empty())) {
+    if (!is_internal && (!partial_build || !debug_config->dry_run_path.empty())) {
 #else
-    if (!is_internal && !options.get<build_option_type::partial_build_program>()->enabled()) {
+    if (!is_internal && !partial_build) {
 #endif
         // ToDo remove hidden dependencies from propagate_constants pass
         apply_opt_pass<propagate_constants>();
     }
 
-    if (options.get<build_option_type::optimize_data>()->enabled())
+    if (_config.get_property(ov::intel_gpu::optimize_data))
         apply_opt_pass<remove_redundant_reorders>(lo, false, true, true); // pass to remove output reorders while all others graph optimizations were done
 
     // update loop input/output primitive mappings
@@ -1269,7 +1309,7 @@ void program::remove_nodes(std::vector<program_node*>& to_remove) {
 void program::dump_program(const char* stage,
                            bool with_full_info,
                            std::function<bool(program_node const&)> const& filter) const {
-    std::string path = get_dir_path(options);
+    std::string path = get_dir_path(_config);
     if (path.empty() || !with_full_info) {
         return;
     }
@@ -1393,7 +1433,7 @@ program::primitives_info program::get_current_stage_info() const {
 
 void program::save_pass_info(std::string pass_name) {
     // TODO: Directory path here can be probably changed to some bool flag
-    if (!options.get<build_option_type::graph_dumps_dir>()->directory_path.empty())
+    if (!_config.get_property(ov::intel_gpu::dump_graphs).empty())
         optimizer_passes_info.emplace_back(pass_name, get_current_stage_info());
 }
 
@@ -1421,7 +1461,10 @@ const program::primitives_info& program::get_primitives_info() const { return pr
 void program::apply_opt_pass(base_pass& pass) { pm->run(*this, pass); }
 
 void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
-    lo.set_implementation_forcing(options.get<build_option_type::force_implementations>()->forcing);
+    // lo.set_implementation_forcing(options.get<build_option_type::force_implementations>()->forcing);
+    // FIXME: replace with new DT
+    // lo.set_implementation_forcing(_config.get_property(ov::intel_gpu::force_implementations));
+
 
     // first pass to set layout optimization_attributes for topology
     bool can_use_fsv16 = true;
