@@ -58,7 +58,7 @@ StructuralTypeProp::StructuralTypeProp() {
         std::cerr << "[ INFO TF FE ] Matching data movement op: " << node->get_type_name() << "\n";
 
         // Depending on operation, propagate structural type field
-        // TODO: This code should be moved to the operaitons themselves, but now we are trying
+        // TODO: This code should be moved to the operations themselves, but now we are trying
         // to avoid any impact on OV structures and implement it externally.
         // Code amount required to implement it in core will be similar to what we are doing
         // here except we won't have similar mega-switches based on op types.
@@ -74,7 +74,7 @@ StructuralTypeProp::StructuralTypeProp() {
             std::cerr << "[ INFO TF FE ] Detected Reshape\n";
             StructuralTypeAttribute::copy(reshape->get_input_tensor(0).get_rt_info(), reshape->get_output_tensor(0).get_rt_info());
         }
-        
+
         return false;
     };
 
@@ -90,8 +90,8 @@ ReplaceStrByU81D::ReplaceStrByU81D() {
             //return false;
             std::cerr.flush();
             return StructuralTypeAttribute::has_type(x.get_tensor().get_rt_info(), element::StructuralType::Str());
-            // FIXME: Check that this is scalar, otherwise this transformation doesn't work
-            // FIXME: For now we retreat all tensors that have Str type as a scalar tensors
+            // FIXME: Check that this is a scalar, otherwise this transformation doesn't work
+            // FIXME: For now we re-interpret all tensors that have Str type as a scalar tensors
         }));
 
     std::cerr << "[ INFO TF FE ] Registering ReplaceStrByU81D\n";

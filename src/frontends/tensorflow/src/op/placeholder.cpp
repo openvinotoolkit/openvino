@@ -4,6 +4,7 @@
 
 #include "op_table.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "openvino/frontend/tensorflow/frontend.hpp"
 
 using namespace std;
 using namespace ov::opset8;
@@ -38,10 +39,10 @@ OutputVector translate_placeholder_op(const NodeContext& node) {
     std::cerr << "[ INFO PT FE ] Placeholder '" << node.get_name() << "' conversion: shape = " << tf_shape << "\n";
 
     auto res = std::make_shared<Parameter>(tf_dtype, tf_shape);
-    
+
     if(!is_element_type) {
         // There is not representable type information in tf_dtype, save it to RT info
-        res->get_rt_info()["structural_type"] = structural_type;
+        res->get_rt_info()["structural_type"] = StructuralTypeAttribute(structural_type);
     }
 
     set_node_name(node.get_name(), res);

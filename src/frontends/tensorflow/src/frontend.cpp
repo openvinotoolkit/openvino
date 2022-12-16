@@ -52,7 +52,8 @@ void StructuralTypeAttribute::copy (const Node::RTMap& src, Node::RTMap& dst) {
     auto pstructural_type = src.find("structural_type");
     if(pstructural_type != src.end()) {
         std::cerr << "[ INFO TF FE ] Copying `structural_type` from src to dst RTMap node to output tensor\n";
-        dst["structural_type"] = pstructural_type->second;
+        std::cerr << "Is required type: " << pstructural_type->second.is<StructuralTypeAttribute>() << '\n';
+        dst["structural_type"] = StructuralTypeAttribute(pstructural_type->second.as<StructuralTypeAttribute>().value);
     };
 }
 
@@ -63,9 +64,13 @@ bool StructuralTypeAttribute::has_type (const Node::RTMap& rt_info, const ov::An
         //return true;
         //auto rt_info_type = pstructural_type->second.as<StructuralTypeAttribute>().value;
         //if(type.is<element::StructuralType::Str>() && rt_info_type.is<element::StructuralType::Str>())
-        //    return true; 
-        
+        //    return true;
+
         // FIXME: Leads to crash
+        std::cerr << "Found structural_type\n";
+        std::cerr << "Is required type: " << pstructural_type->second.is<StructuralTypeAttribute>() << '\n';
+        std::cerr.flush();
+        //return false;
         return type == pstructural_type->second.as<StructuralTypeAttribute>().value;
     }
     return false;
@@ -235,6 +240,7 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
                                                                ng_inputs,
                                                                operation_place->get_output_ports().size());
                 set_node_name(operation_name, ng_node);
+                std::cerr << "node: " << ng_node << "\n";
                 ng_outputs = ng_node->outputs();
             }
         }

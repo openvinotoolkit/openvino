@@ -3,6 +3,7 @@
 //
 
 #include "op_table.hpp"
+#include "helper_ops/str_ops.hpp"
 
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset9.hpp"
@@ -137,6 +138,9 @@ OP_CONVERTER(translate_unique_op);
 // Experimental translator for String/Tokenization/Structural Types
 OP_CONVERTER(translate_case_fold_utf8_op);
 OP_CONVERTER(translate_normalize_utf8_op);
+
+// Save files, put implementations here
+
 
 const std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
@@ -332,6 +336,13 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         // Experimental translator for String/Tokenization/Structural Types
         {"CaseFoldUTF8", translate_case_fold_utf8_op},
         {"NormalizeUTF8", translate_normalize_utf8_op},
+
+        {"StaticRegexReplace", [](const NodeContext& node) -> OutputVector {
+            return std::make_shared<StaticRegexReplace>(
+                OutputVector{node.get_input(0)},
+                node.get_attribute<std::string>("pattern"),
+                node.get_attribute<std::string>("rewrite")
+            )->outputs(); }},
     };
 };
 }  // namespace op

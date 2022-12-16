@@ -14,7 +14,10 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 OutputVector translate_normalize_utf8_op(const NodeContext& node) {
-    return std::make_shared<NormalizeUTF8>(OutputVector{node.get_input(0)})->outputs();
+    return std::make_shared<NormalizeUTF8>(
+        OutputVector{node.get_input(0)},
+        node.get_attribute<std::string>("normalization_form")
+    )->outputs();
 }
 }  // namespace op
 }  // namespace tensorflow
