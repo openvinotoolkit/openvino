@@ -109,11 +109,6 @@ OpenVINO is supported on a wide range of hardware platforms. Visit the `Supporte
 
 Check the `Performance Benchmarks <openvino_docs_performance_benchmarks.html>`__ page to see how fast OpenVINO runs popular models on a variety of processors. OpenVINO supports deployment on Windows, Linux, and macOS.
 
-Install OpenVINO
-~~~~~~~~~~~~~~~~
-
-`Go to installation to set up OpenVINO on your device. <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html>`__
-
 Get Started
 ~~~~~~~~~~~
 
