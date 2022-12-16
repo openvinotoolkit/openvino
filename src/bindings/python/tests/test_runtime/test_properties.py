@@ -94,7 +94,7 @@ def test_properties_enums(ov_enum, expected_values):
 # Read-Only properties
 ###
 @pytest.mark.parametrize(
-    "ov_property_ro, expected_value",
+    ("ov_property_ro", "expected_value"),
     [
         (properties.supported_properties, "SUPPORTED_PROPERTIES"),
         (properties.available_devices, "AVAILABLE_DEVICES"),
@@ -121,7 +121,7 @@ def test_properties_ro(ov_property_ro, expected_value):
 # Read-Write properties
 ###
 @pytest.mark.parametrize(
-    "ov_property_rw, expected_value, test_values",
+    ("ov_property_rw", "expected_value", "test_values"),
     [
         (
             properties.enable_profiling,
@@ -214,10 +214,10 @@ def test_properties_rw(ov_property_rw, expected_value, test_values):
     assert ov_property_rw() == expected_value
 
     # Test if property process values correctly
-    for val in test_values:
-        property_tuple = ov_property_rw(val[0])
+    for values in test_values:
+        property_tuple = ov_property_rw(values[0])
         assert property_tuple[0] == expected_value
-        assert property_tuple[1].value == val[1]
+        assert property_tuple[1].value == values[1]
 
 
 ###
@@ -291,7 +291,7 @@ def test_single_property_setting():
     "properties_to_set",
     [
         # Dict from list of tuples
-        dict(
+        dict(  # noqa: C406
             [  # noqa: C406
                 properties.enable_profiling(True),
                 properties.cache_dir("./"),
@@ -301,7 +301,7 @@ def test_single_property_setting():
                 properties.hint.performance_mode(properties.hint.PerformanceMode.LATENCY),
                 properties.hint.num_requests(12),
                 properties.streams.num(5),
-            ]
+            ],
         ),
         # Pure dict
         {
