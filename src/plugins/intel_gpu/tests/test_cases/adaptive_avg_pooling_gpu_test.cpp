@@ -164,7 +164,7 @@ public:
         ASSERT_EQ(params.outputTensor.count(), out_ptr.size());
         ASSERT_EQ(params.outputTensor.count(), expected.size());
         for (size_t i = 0; i < expected.size(); ++i) {
-            EXPECT_NEAR(expected[i], out_ptr[i], getError<T>())
+            ASSERT_NEAR(expected[i], out_ptr[i], getError<T>())
                 << "i = " << i << ", format=" << fmt_to_str(target_layout);
         }
     }

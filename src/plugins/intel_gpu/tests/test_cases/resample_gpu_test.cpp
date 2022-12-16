@@ -81,7 +81,7 @@ TEST(resample_gpu, basic_in2x3x2x2_nearest) {
             for (int k = 0; k < 4; ++k) { // Y
                 for (int l = 0; l < 6; ++l) { // X
                     auto linear_id = l + k * 6 + j * 4 * 6 + i * 2 * 4 * 6;
-                    EXPECT_TRUE(are_equal(answers[linear_id], output_ptr[linear_id]));
+                    ASSERT_TRUE(are_equal(answers[linear_id], output_ptr[linear_id]));
                 }
             }
         }
@@ -122,7 +122,7 @@ TEST(resample_gpu, basic_in2x3x2x2_bilinear) {
     auto output = outputs.at("upsampling").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
-    EXPECT_EQ(output->get_layout().get_linear_size(), (size_t) 16);
+    ASSERT_EQ(output->get_layout().get_linear_size(), (size_t) 16);
 
     float answers[16] = {
         1.f, 1.25f, 1.75f, 2.f,
@@ -134,7 +134,7 @@ TEST(resample_gpu, basic_in2x3x2x2_bilinear) {
     for (int k = 0; k < 4; ++k) { // Y
         for (int l = 0; l < 4; ++l) { // X
             auto linear_id = l + k * 4;
-            EXPECT_NEAR(answers[linear_id], output_ptr[linear_id], 1e-05F);
+            ASSERT_NEAR(answers[linear_id], output_ptr[linear_id], 1e-05F);
         }
     }
 }
@@ -173,7 +173,7 @@ TEST(resample_gpu, nearest_asymmetric) {
     auto output = outputs.at("upsampling").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
-    EXPECT_EQ(output->get_layout().get_linear_size(), (size_t)20);
+    ASSERT_EQ(output->get_layout().get_linear_size(), (size_t)20);
 
     float answers[20] = {
         1.f, 1.f, 1.f, 2.f, 2.f,
@@ -185,7 +185,7 @@ TEST(resample_gpu, nearest_asymmetric) {
     for (int k = 0; k < 4; ++k) { // Y
         for (int l = 0; l < 5; ++l) { // X
             auto linear_id = l + k * 5;
-            EXPECT_NEAR(answers[linear_id], output_ptr[linear_id], 1e-05F);
+            ASSERT_NEAR(answers[linear_id], output_ptr[linear_id], 1e-05F);
         }
     }
 }
@@ -224,7 +224,7 @@ TEST(resample_gpu, nearest_asymmetric_i8) {
     auto output = outputs.at("upsampling").get_memory();
     cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
 
-    EXPECT_EQ(output->get_layout().get_linear_size(), (size_t)20);
+    ASSERT_EQ(output->get_layout().get_linear_size(), (size_t)20);
 
     int8_t answers[20] = {
             1, 1, 1, 2, 2,
@@ -236,7 +236,7 @@ TEST(resample_gpu, nearest_asymmetric_i8) {
     for (int k = 0; k < 4; ++k) { // Y
         for (int l = 0; l < 5; ++l) { // X
             auto linear_id = l + k * 5;
-            EXPECT_EQ(answers[linear_id], output_ptr[linear_id]);
+            ASSERT_EQ(answers[linear_id], output_ptr[linear_id]);
         }
     }
 }
@@ -275,7 +275,7 @@ TEST(resample_gpu, bilinear_asymmetric) {
     auto output = outputs.at("upsampling").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
-    EXPECT_EQ(output->get_layout().get_linear_size(), (size_t)24);
+    ASSERT_EQ(output->get_layout().get_linear_size(), (size_t)24);
 
     float answers[24] = {
         1.f, 1.f, 1.33333f, 1.66667f, 2.f, 2.f,
@@ -287,7 +287,7 @@ TEST(resample_gpu, bilinear_asymmetric) {
     for (int k = 0; k < 4; ++k) { // Y
         for (int l = 0; l < 6; ++l) { // X
             auto linear_id = l + k * 6;
-            EXPECT_NEAR(answers[linear_id], output_ptr[linear_id], 5e-03F) << l << " " << k;
+            ASSERT_NEAR(answers[linear_id], output_ptr[linear_id], 5e-03F) << l << " " << k;
         }
     }
 }
@@ -373,7 +373,7 @@ struct resample_random_test : testing::TestWithParam<resample_random_test_params
                         auto out_coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
                         auto out_offset = output->get_layout().get_linear_offset(out_coords);
                         auto out_val = out_ptr[out_offset];
-                        EXPECT_EQ(in_val, out_val) << " at bi=" << bi << ", fi=" << fi << ", xi=" << xi << ", yi=" << yi;
+                        ASSERT_EQ(in_val, out_val) << " at bi=" << bi << ", fi=" << fi << ", xi=" << xi << ", yi=" << yi;
                     }
                 }
             }
@@ -586,7 +586,7 @@ struct caffe_resample_random_test : testing::TestWithParam<caffe_resample_random
     }
 
     template <typename T>
-    bool compare_outputs(const memory::ptr out_ref, const memory::ptr out_opt) {
+    void compare_outputs(const memory::ptr out_ref, const memory::ptr out_opt) {
         auto output_lay = out_ref->get_layout();
         auto opt_output_lay = out_opt->get_layout();
 
@@ -607,15 +607,12 @@ struct caffe_resample_random_test : testing::TestWithParam<caffe_resample_random
                         auto opt_out_offset = opt_output_lay.get_linear_offset(ref_out_coords);
                         auto opt_out_val = opt_ptr[opt_out_offset];
 
-                        EXPECT_EQ(ref_out_offset, opt_out_offset);
-                        EXPECT_EQ(opt_out_val, ref_out_val);
-                        // EXPECT_NEAR(static_cast<float>(opt_out_val), static_cast<float>(ref_out_val), 1.e-1f);
+                        ASSERT_EQ(ref_out_offset, opt_out_offset);
+                        ASSERT_EQ(opt_out_val, ref_out_val);
                     }
                 }
             }
         }
-
-        return true;
     }
 
     void execute_compare(const caffe_resample_random_test_params& params, bool check_result) {
@@ -803,7 +800,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest1) {
             for (int k = 0; k < 4; ++k) { // Y
                 for (int l = 0; l < 6; ++l) { // X
                     auto linear_id = l + k * 6 + j * 4 * 6 + i * 2 * 4 * 6;
-                    EXPECT_TRUE(are_equal(answers[linear_id], output_ptr[linear_id])) << linear_id;
+                    ASSERT_TRUE(are_equal(answers[linear_id], output_ptr[linear_id])) << linear_id;
                 }
             }
         }
@@ -893,7 +890,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest2) {
             for (int k = 0; k < 4; ++k) { // Y
                 for (int l = 0; l < 6; ++l) { // X
                     auto linear_id = l + k * 6 + j * 4 * 6 + i * 2 * 4 * 6;
-                    EXPECT_TRUE(are_equal(answers[linear_id], output_ptr[linear_id])) << linear_id;
+                    ASSERT_TRUE(are_equal(answers[linear_id], output_ptr[linear_id])) << linear_id;
                 }
             }
         }
@@ -983,7 +980,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest3) {
             for (int k = 0; k < 4; ++k) { // Y
                 for (int l = 0; l < 6; ++l) { // X
                     auto linear_id = l + k * 6 + j * 4 * 6 + i * 2 * 4 * 6;
-                    EXPECT_TRUE(are_equal(answers[linear_id], output_ptr[linear_id])) << linear_id;
+                    ASSERT_TRUE(are_equal(answers[linear_id], output_ptr[linear_id])) << linear_id;
                 }
             }
         }
@@ -1073,7 +1070,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest4) {
             for (int k = 0; k < 4; ++k) { // Y
                 for (int l = 0; l < 6; ++l) { // X
                     auto linear_id = l + k * 6 + j * 4 * 6 + i * 2 * 4 * 6;
-                    EXPECT_TRUE(are_equal(answers[linear_id], output_ptr[linear_id])) << linear_id;
+                    ASSERT_TRUE(are_equal(answers[linear_id], output_ptr[linear_id])) << linear_id;
                 }
             }
         }
@@ -1163,7 +1160,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest5) {
             for (int k = 0; k < 4; ++k) { // Y
                 for (int l = 0; l < 6; ++l) { // X
                     auto linear_id = l + k * 6 + j * 4 * 6 + i * 2 * 4 * 6;
-                    EXPECT_TRUE(are_equal(answers[linear_id], output_ptr[linear_id])) << linear_id;
+                    ASSERT_TRUE(are_equal(answers[linear_id], output_ptr[linear_id])) << linear_id;
                 }
             }
         }
@@ -1236,7 +1233,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode1) {
 
     ASSERT_EQ(answers.size(), output_ptr.size());
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
     }
 }
 
@@ -1300,7 +1297,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode2) {
 
     ASSERT_EQ(answers.size(), output_ptr.size());
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
     }
 }
 
@@ -1370,7 +1367,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode3) {
 
     ASSERT_EQ(answers.size(), output_ptr.size());
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
     }
 }
 
@@ -1440,7 +1437,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode4) {
 
     ASSERT_EQ(answers.size(), output_ptr.size());
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
     }
 }
 
@@ -1510,7 +1507,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode5) {
 
     ASSERT_EQ(answers.size(), output_ptr.size());
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
     }
 }
 
@@ -1578,7 +1575,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_cubic) {
 
     ASSERT_EQ(answers.size(), output_ptr.size());
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
     }
 }
 
@@ -1631,7 +1628,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_cubic2) {
 
     ASSERT_EQ(answers.size(), output_ptr.size());
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
     }
 }
 
@@ -1699,7 +1696,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_linear) {
 
     ASSERT_EQ(answers.size(), output_ptr.size());
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
     }
 }
 
@@ -1854,8 +1851,8 @@ TYPED_TEST(onnx_5d_format, interpolate_linear_onnx5d)
 
         ASSERT_EQ(this->expected_results[i].size(), output_ptr.size());
         for (size_t j = 0; j < this->expected_results[i].size(); ++j) {
-            //EXPECT_TRUE(are_equal(expected_results[i][j], output_ptr[i])) << i;
-            EXPECT_NEAR(this->expected_results[i][j], output_ptr[j], 0.001) << j;
+            //ASSERT_TRUE(are_equal(expected_results[i][j], output_ptr[i])) << i;
+            ASSERT_NEAR(this->expected_results[i][j], output_ptr[j], 0.001) << j;
         }
 
         ++i;
@@ -1911,7 +1908,7 @@ TEST(resample_gpu, interpolate_in1x1x2x4_linear_scale) {
 
     ASSERT_EQ(answers.size(), output_ptr.size());
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
     }
 }
 
@@ -1977,7 +1974,7 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
     }
 
     template <typename T>
-    bool compare_outputs(const memory::ptr out_ref, const memory::ptr out_opt) {
+    void compare_outputs(const memory::ptr out_ref, const memory::ptr out_opt) {
         auto output_lay = out_ref->get_layout();
         auto opt_output_lay = out_opt->get_layout();
 
@@ -1998,19 +1995,17 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
                             auto ref_out_val = ref_ptr[ref_out_offset];
                             auto opt_out_offset = opt_output_lay.get_linear_offset(ref_out_coords);
                             auto opt_out_val = opt_ptr[opt_out_offset];
-                            EXPECT_EQ(ref_out_offset, opt_out_offset);
+                            ASSERT_EQ(ref_out_offset, opt_out_offset);
                             if (std::is_same<T, FLOAT16>::value) {
-                                EXPECT_NEAR(static_cast<float>(opt_out_val), static_cast<float>(ref_out_val), 1.e-1f);
+                                ASSERT_NEAR(static_cast<float>(opt_out_val), static_cast<float>(ref_out_val), 1.e-1f);
                             } else {
-                                EXPECT_EQ(opt_out_val, ref_out_val);
+                                ASSERT_EQ(opt_out_val, ref_out_val);
                             }
                         }
                     }
                 }
             }
         }
-
-        return true;
     }
 
     void execute_compare(const resample_opt_random_test_params& params, bool check_result, const std::string& kernel = "resample_opt") {
@@ -2078,7 +2073,6 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
             }
         }
     }
-
 };
 
 struct resample_opt_random_test_ext : resample_opt_random_test

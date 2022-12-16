@@ -81,7 +81,7 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_b) {
     cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
     for (unsigned int i = 0; i < output_ref->count(); ++i) {
-        EXPECT_EQ(output_ptr[i], output_ref_ptr[i]) << "Index=" << i;
+        ASSERT_EQ(output_ptr[i], output_ref_ptr[i]) << "Index=" << i;
     }
 }
 
@@ -113,7 +113,7 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_f) {
     cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
     for (unsigned int i = 0; i < output_ref->count(); ++i) {
-        EXPECT_EQ(output_ptr[i], output_ref_ptr[i]) << "Index=" << i;
+        ASSERT_EQ(output_ptr[i], output_ref_ptr[i]) << "Index=" << i;
     }
 }
 
@@ -149,7 +149,7 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_y) {
     cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
     for (unsigned int i = 0; i < output_ref->count(); ++i) {
-        EXPECT_EQ(output_ptr[i], output_ref_ptr[i]) << "Index=" << i;
+        ASSERT_EQ(output_ptr[i], output_ref_ptr[i]) << "Index=" << i;
     }
 }
 
@@ -181,7 +181,7 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_x) {
     cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
     for (unsigned int i = 0; i < output_ref->count(); ++i) {
-        EXPECT_EQ(output_ptr[i], output_ref_ptr[i]) << "Index=" << i;
+        ASSERT_EQ(output_ptr[i], output_ref_ptr[i]) << "Index=" << i;
     }
 }
 
@@ -209,7 +209,7 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_x_dense) {
     cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
     for (unsigned int i = 0; i < output_ref->count(); ++i) {
-        EXPECT_EQ(output_ptr[i], output_ref_ptr[i]) << "Index=" << i;
+        ASSERT_EQ(output_ptr[i], output_ref_ptr[i]) << "Index=" << i;
     }
 }
 
@@ -246,7 +246,7 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_z) {
     cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
     for (unsigned int i = 0; i < output_ref->count(); ++i) {
-        EXPECT_EQ(output_ptr[i], output_ref_ptr[i]) << "Index=" << i;
+        ASSERT_EQ(output_ptr[i], output_ref_ptr[i]) << "Index=" << i;
     }
 }
 
@@ -612,7 +612,7 @@ public:
         ASSERT_EQ(params.output_tensor.count(), out_ptr.size());
 
         for (size_t i = 0; i < params.outputs.size(); ++i) {
-            EXPECT_NEAR(params.outputs[i], out_ptr[i], 0.005) << "at i = " << i;
+            ASSERT_NEAR(params.outputs[i], out_ptr[i], 0.005) << "at i = " << i;
         }
     }
 };

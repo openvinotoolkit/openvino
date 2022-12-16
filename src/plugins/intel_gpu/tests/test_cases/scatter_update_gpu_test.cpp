@@ -112,7 +112,7 @@ TEST(scatter_update_gpu_fp16, d2411_axisB) {
         };
 
         for (size_t i = 0; i < expected_results.size(); ++i) {
-            EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]))
+            ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]))
                 << "i=" << i << ", target_format=" << target_format;
         }
     }
@@ -188,7 +188,7 @@ TEST(scatter_update_gpu_fp32, d8111_axisB) {
         };
 
         for (size_t i = 0; i < expected_results.size(); ++i) {
-            EXPECT_EQ(expected_results[i], output_ptr[i])
+            ASSERT_EQ(expected_results[i], output_ptr[i])
                                 << "i=" << i << ", target_format=" << target_format;
         }
     }
@@ -284,7 +284,7 @@ TEST(scatter_update_gpu_fp16, d4311_axisB) {
         };
 
         for (size_t i = 0; i < expected_results.size(); ++i) {
-            EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]))
+            ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]))
                 << "i=" << i << ", target_format=" << target_format;
         }
     }
@@ -418,7 +418,7 @@ TEST(scatter_update_gpu_fp16, d2521_axisF) {
         };
 
         for (size_t i = 0; i < expected_results.size(); ++i) {
-            EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]))
+            ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]))
                                 << "i=" << i << ", target_format=" << target_format;
         }
     }
@@ -525,7 +525,7 @@ TEST(scatter_update_gpu_fp16, d2241_axisY) {
 
 
         for (size_t i = 0; i < expected_results.size(); ++i) {
-            EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]))
+            ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]))
                                 << "i=" << i << ", target_format=" << target_format;
         }
     }
@@ -716,7 +716,7 @@ TEST(scatter_update_gpu_fp16, d8x2x20x1_axisB) {
         };
 
         for (size_t i = 0; i < expected_results.size(); ++i) {
-            EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]))
+            ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]))
                                 << "i=" << i << ", target_format=" << target_format;
         }
     }
@@ -812,7 +812,7 @@ TEST(scatter_update_gpu_fp32, d2214_axisX) {
 
 
         for (size_t i = 0; i < expected_results.size(); ++i) {
-            EXPECT_EQ(expected_results[i], output_ptr[i])
+            ASSERT_EQ(expected_results[i], output_ptr[i])
                                 << "i=" << i << ", target_format=" << target_format;
         }
     }
@@ -915,7 +915,7 @@ TEST(scatter_update_gpu_int32, d6211_axisB) {
         };
 
         for (size_t i = 0; i < expected_results.size(); ++i) {
-            EXPECT_EQ(expected_results[i], output_ptr[i])
+            ASSERT_EQ(expected_results[i], output_ptr[i])
                                 << "i=" << i << ", target_format=" << target_format;
         }
     }
@@ -1011,7 +1011,7 @@ TEST(scatter_update_gpu_int32, d3151_axisY) {
         };
 
         for (size_t i = 0; i < expected_results.size(); ++i) {
-            EXPECT_EQ(expected_results[i], output_ptr[i])
+            ASSERT_EQ(expected_results[i], output_ptr[i])
                 << "i=" << i << ", target_format=" << target_format;
         }
     }
@@ -1094,7 +1094,7 @@ TEST(scatter_update_gpu_fp32, d24111_axisF_bfzyx) {
             };
 
             for (size_t i = 0; i < expected_results.size(); ++i) {
-                EXPECT_EQ(expected_results[i], output_ptr[i])
+                ASSERT_EQ(expected_results[i], output_ptr[i])
                                     << "i=" << i
                                     << ", target_format_2d=" << target_format
                                     << ", target_format_3d=" << target_format_3d;
@@ -1202,7 +1202,7 @@ TEST(scatter_update_gpu_int32, d121251_bfwzyx_axisB) {
         };
 
         for (size_t i = 0; i < expected_results.size(); ++i) {
-            EXPECT_EQ(expected_results[i], output_ptr[i])
+            ASSERT_EQ(expected_results[i], output_ptr[i])
                 << "i=" << i << ", target_format=" << target_format;
         }
     }
@@ -1292,7 +1292,7 @@ TEST(scatter_update_gpu_fp32, d21511_bfzyx_axisX) {
             };
 
             for (size_t i = 0; i < expected_results.size(); ++i) {
-                EXPECT_EQ(expected_results[i], output_ptr[i])
+                ASSERT_EQ(expected_results[i], output_ptr[i])
                                     << "i=" << i
                                     << ", target_format_2d=" << target_format
                                     << ", target_format_3d=" << target_format_3d;
@@ -1397,7 +1397,7 @@ TEST(scatter_update_gpu_fp32, d1252_axisY_bfwzyx) {
         };
 
         for (size_t i = 0; i < expected_results.size(); ++i) {
-            EXPECT_EQ(expected_results[i], output_ptr[i])
+            ASSERT_EQ(expected_results[i], output_ptr[i])
                                 << "i=" << i << ", target_format=" << target_format;
         }
     }
@@ -1487,7 +1487,7 @@ TEST(scatter_update_gpu_int32, d2115_axisX_bfwzyx) {
         };
 
         for (size_t i = 0; i < expected_results.size(); ++i) {
-            EXPECT_EQ(expected_results[i], output_ptr[i])
+            ASSERT_EQ(expected_results[i], output_ptr[i])
                                 << "i=" << i << ", target_format=" << target_format;
         }
     }
@@ -1582,7 +1582,7 @@ TEST(scatter_update_gpu_fp16, d21214_bfzyx_axisX_bfwzyx) {
             };
 
             for (size_t i = 0; i < expected_results.size(); ++i) {
-                EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]))
+                ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]))
                                     << "i=" << i
                                     << ", target_format_2d=" << target_format
                                     << ", target_format_3d=" << target_format_3d;

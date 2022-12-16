@@ -69,7 +69,7 @@ public:
 
         ASSERT_EQ(params.expected_out.size(), out_ptr.size());
         for (size_t i = 0; i < params.expected_out.size(); ++i) {
-            EXPECT_NEAR(params.expected_out[i], out_ptr[i], 0.0001) << "at i = " << i;
+            ASSERT_NEAR(params.expected_out[i], out_ptr[i], 0.0001) << "at i = " << i;
         }
     }
 };

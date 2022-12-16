@@ -135,10 +135,10 @@ public:
         auto output = outputs.at("output").get_memory();
         cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
-        EXPECT_EQ(output_ptr.size(), out_data.size());
+        ASSERT_EQ(output_ptr.size(), out_data.size());
         const auto abs_error = type == data_types::f16 ? 0.1 : 0.0001;
         for (uint32_t i = 0; i < out_data.size(); ++i) {
-            EXPECT_NEAR(output_ptr[i], out_data[i], abs_error);
+            ASSERT_NEAR(output_ptr[i], out_data[i], abs_error);
         }
     }
 };
@@ -284,9 +284,9 @@ TEST(gemm_gpu, basic_bfyx_t2_inplace_crop_with_pad) {
     auto output = outputs.at("output").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
-    EXPECT_EQ(output_ptr.size(), (uint32_t)3);
+    ASSERT_EQ(output_ptr.size(), (uint32_t)3);
     for (uint32_t i = 0; i < out_data.size(); ++i) {
-        EXPECT_FLOAT_EQ(output_ptr[i], out_data[i]);
+        ASSERT_FLOAT_EQ(output_ptr[i], out_data[i]);
     }
 }
 
@@ -338,9 +338,9 @@ TEST(gemm_gpu, dynamic) {
     auto output = outputs.at("gemm").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
-    EXPECT_EQ(output_ptr.size(), (uint32_t)3);
+    ASSERT_EQ(output_ptr.size(), (uint32_t)3);
     for (uint32_t i = 0; i < out_data.size(); ++i) {
-        EXPECT_FLOAT_EQ(output_ptr[i], out_data[i]);
+        ASSERT_FLOAT_EQ(output_ptr[i], out_data[i]);
     }
 }
 
@@ -1132,18 +1132,18 @@ public:
         const float threshold_fp16 = 1e-1;
         const float threshold_fp32 = 3e-4;
 
-        EXPECT_EQ(output_ptr.size(), (size_t)(p.b_out_num * p.f_out_num * p.m_size * p.n_size));
+        ASSERT_EQ(output_ptr.size(), (size_t)(p.b_out_num * p.f_out_num * p.m_size * p.n_size));
         if (sizeof(input0_type) == 1) {
             for (size_t i = 0; i < out_data.size(); ++i) {
-                EXPECT_NEAR(float(output_ptr[i]), float(out_data[i]), threshold_int8) << "index = " << i;
+                ASSERT_NEAR(float(output_ptr[i]), float(out_data[i]), threshold_int8) << "index = " << i;
             }
         } else if (sizeof(input0_type) == 2) {
             for (size_t i = 0; i < out_data.size(); ++i) {
-                EXPECT_NEAR(float(output_ptr[i]), float(out_data[i]), threshold_fp16) << "index = " << i;
+                ASSERT_NEAR(float(output_ptr[i]), float(out_data[i]), threshold_fp16) << "index = " << i;
             }
         } else {
             for (size_t i = 0; i < out_data.size(); ++i) {
-                EXPECT_NEAR(float(output_ptr[i]), float(out_data[i]), threshold_fp32) << "index = " << i;
+                ASSERT_NEAR(float(output_ptr[i]), float(out_data[i]), threshold_fp32) << "index = " << i;
             }
         }
     }

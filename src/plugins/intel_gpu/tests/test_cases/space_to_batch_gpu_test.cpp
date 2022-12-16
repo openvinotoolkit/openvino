@@ -55,7 +55,7 @@ TEST(space_to_batch_fp16_gpu, i1222_bs1222_pb0000_pe0000) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -102,7 +102,7 @@ TEST(space_to_batch_fp16_gpu, i1242_bs1221_pb0020_pe0000) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -148,7 +148,7 @@ TEST(space_to_batch_fp16_gpu, i2132_bs1222_pb0010_pe0100) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -192,7 +192,7 @@ TEST(space_to_batch_fp16_gpu, i12132_bs12122_pb00010_pe00000) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -246,7 +246,7 @@ TEST(space_to_batch_fp16_gpu, i134121_bs142121_pb010100_pe000000) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -299,7 +299,7 @@ TEST(space_to_batch_fp16_gpu, i11611_bs1222_pb0010_pe0001_b_fs_yx_fsv16) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -348,7 +348,7 @@ TEST(space_to_batch_fp16_gpu, i1812_bs1221_pb0010_pe0200_b_fs_yx_fsv16) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -390,7 +390,7 @@ TEST(space_to_batch_fp32_gpu, i1222_bs1222_pb0000_pe0000) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -437,7 +437,7 @@ TEST(space_to_batch_fp32_gpu, i1242_bs1221_pb0020_pe0000) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -483,7 +483,7 @@ TEST(space_to_batch_fp32_gpu, i2132_bs1222_pb0010_pe0100) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -527,7 +527,7 @@ TEST(space_to_batch_fp32_gpu, i12132_bs12122_pb00010_pe00000) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -579,7 +579,7 @@ TEST(space_to_batch_fp32_gpu, i134121_bs142121_pb010100_pe000000) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -636,7 +636,7 @@ TEST(space_to_batch_fp32_gpu, i11622_bs1421_pb0000_pe0000_b_fs_yx_fsv16) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -688,6 +688,6 @@ TEST(space_to_batch_fp32_gpu, i1623_bs1312_pb0001_pe0000_b_fs_yx_fsv16) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }

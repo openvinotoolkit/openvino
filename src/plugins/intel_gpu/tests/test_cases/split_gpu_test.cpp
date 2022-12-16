@@ -35,7 +35,7 @@ void check_feature_map(T* output_ptr, std::vector<T> &input_vec, size_t batch_nu
             for (size_t x = 0; x < x_size; ++x) { //X
                 auto linear_id = x + x_size * (y + y_size * (feature_id + feature_num * b));
                 auto output_linear_id = x + x_size * (y + y_size * b);
-                EXPECT_EQ(output_ptr[output_linear_id], input_vec[linear_id] * factor);
+                ASSERT_EQ(output_ptr[output_linear_id], input_vec[linear_id] * factor);
             }
         }
     }
@@ -78,7 +78,7 @@ void split_test(int batch_num, int feature_num, int x_size, int y_size, std::vec
     auto outputs = network.execute();
 
     // The number of splits should match the expected number of splits
-    EXPECT_EQ(outputs.size(), size_t(split_offsets.size()));
+    ASSERT_EQ(outputs.size(), size_t(split_offsets.size()));
 
     std::vector<cldnn::tensor> expected_sizes;
     for (size_t splitNum = 0; splitNum < split_offsets.size(); splitNum++)  // Calculate the expected sizes
@@ -111,7 +111,7 @@ void split_test(int batch_num, int feature_num, int x_size, int y_size, std::vec
         primitive_id split_id = "split:" + create_split_id(splitNum);
         cldnn::memory::ptr output = outputs.at(split_id).get_memory();
         auto prim = output->get_layout();
-        EXPECT_EQ(prim.get_tensor(), expected_sizes[splitNum]);
+        ASSERT_EQ(prim.get_tensor(), expected_sizes[splitNum]);
         cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
         // Output tensor size
@@ -147,7 +147,7 @@ void split_test(int batch_num, int feature_num, int x_size, int y_size, std::vec
                     for (auto x = 0; x < output_x; x++) {  // X
                         auto linear_id = input_x_itr + x_size * (input_y_itr + y_size * (input_feature_itr + feature_num * input_batch_itr)); // index in input
                         auto output_linear_id = x + output_x * (y + output_y * (f + output_feature * b)); // index in output
-                        EXPECT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
+                        ASSERT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
                         input_x_itr++;  // update the input x iterator
                     }
                     input_y_itr++;  // update the input y iterator
@@ -237,7 +237,7 @@ TEST(split_gpu_f32, basic_split_concat_optimization) {
 
     for (int i = 0; i < 25*256; ++i)
     {
-        EXPECT_EQ(output_ptr[i], input_ptr[i]);
+        ASSERT_EQ(output_ptr[i], input_ptr[i]);
     }
 }
 
@@ -277,7 +277,7 @@ TEST(split_gpu_i64, basic_split_concat_optimization) {
 
     for (int i = 0; i < 25*256; ++i)
     {
-        EXPECT_EQ(output_ptr[i], input_ptr[i]);
+        ASSERT_EQ(output_ptr[i], input_ptr[i]);
     }
 }
 
@@ -544,7 +544,7 @@ TEST(split_gpu_f32, basic_in2x3x2x2_split_feature_bfyx) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(3));
+    ASSERT_EQ(outputs.size(), size_t(3));
 
     for (unsigned int i = 0; i < 3; i++)
     {
@@ -590,7 +590,7 @@ TEST(split_gpu_i64, basic_in2x3x2x2_split_feature_bfyx) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(3));
+    ASSERT_EQ(outputs.size(), size_t(3));
 
     for (unsigned int i = 0; i < 3; i++)
     {
@@ -656,7 +656,7 @@ TEST(split_gpu_f32, basic_in2x3x2x2_split_scale_feature_bfyx) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(3));
+    ASSERT_EQ(outputs.size(), size_t(3));
 
     for (unsigned int i = 0; i < 3; i++)
     {

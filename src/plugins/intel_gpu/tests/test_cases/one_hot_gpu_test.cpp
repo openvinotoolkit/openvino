@@ -89,24 +89,24 @@ void generic_one_hot_test_int(cldnn::format test_input_fmt, int input_b, int inp
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "output");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "output");
 
     auto output_memory = outputs.at("output").get_memory();
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<T> output_ptr(output_memory, get_test_stream());
 
     VVVVF<T> output_cpu = one_hot_cpu<T>(input_rnd, one_hot_axis, one_hot_limit, input_padding_y, input_padding_x, output_padding_y, output_padding_x);
-    EXPECT_EQ(output_layout.format.value, test_input_fmt.value);
+    ASSERT_EQ(output_layout.format.value, test_input_fmt.value);
     tensor output_tensor = output_layout.get_buffer_size();
     int y_size = output_tensor.spatial[1];
     int x_size = output_tensor.spatial[0];
     int f_size = output_tensor.feature[0];
     int b_size = output_tensor.batch[0];
-    EXPECT_EQ(y_size, (int)output_cpu[0][0].size());
-    EXPECT_EQ(x_size, (int)output_cpu[0][0][0].size());
-    EXPECT_EQ(f_size, (int)output_cpu[0].size());
-    EXPECT_EQ(b_size, (int)output_cpu.size());
+    ASSERT_EQ(y_size, (int)output_cpu[0][0].size());
+    ASSERT_EQ(x_size, (int)output_cpu[0][0][0].size());
+    ASSERT_EQ(f_size, (int)output_cpu[0].size());
+    ASSERT_EQ(b_size, (int)output_cpu.size());
 
     bool test_is_correct = true;
     VF<T> output_cpu_vec = flatten_4d<T>(test_input_fmt, output_cpu);
@@ -117,7 +117,7 @@ void generic_one_hot_test_int(cldnn::format test_input_fmt, int input_b, int inp
             break;
         }
     }
-    EXPECT_EQ(test_is_correct, true) << std::endl
+    ASSERT_EQ(test_is_correct, true) << std::endl
         << "failing test parameters:" << std::endl
         << "input_b = " << input_b << std::endl
         << "input_f = " << input_f << std::endl
@@ -172,8 +172,8 @@ TEST(one_hot_gpu_i32, bfzyx_ax4) {
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "output");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "output");
 
     auto output_memory = outputs.at("output").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -185,11 +185,11 @@ TEST(one_hot_gpu_i32, bfzyx_ax4) {
     int x_size = output_tensor.spatial[0];
     int f_size = output_tensor.feature[0];
     int b_size = output_tensor.batch[0];
-    EXPECT_EQ(z_size, 2);
-    EXPECT_EQ(y_size, 1);
-    EXPECT_EQ(x_size, 5);
-    EXPECT_EQ(f_size, 1);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(z_size, 2);
+    ASSERT_EQ(y_size, 1);
+    ASSERT_EQ(x_size, 5);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 1);
 
     bool test_is_correct = true;
 
@@ -201,7 +201,7 @@ TEST(one_hot_gpu_i32, bfzyx_ax4) {
             test_is_correct = false;
         }
     }
-    EXPECT_EQ(test_is_correct, true);
+    ASSERT_EQ(test_is_correct, true);
 }
 
 TEST(one_hot_gpu_i64, bfzyx_ax4) {
@@ -231,8 +231,8 @@ TEST(one_hot_gpu_i64, bfzyx_ax4) {
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "output");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "output");
 
     auto output_memory = outputs.at("output").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -244,11 +244,11 @@ TEST(one_hot_gpu_i64, bfzyx_ax4) {
     int x_size = output_tensor.spatial[0];
     int f_size = output_tensor.feature[0];
     int b_size = output_tensor.batch[0];
-    EXPECT_EQ(z_size, 2);
-    EXPECT_EQ(y_size, 1);
-    EXPECT_EQ(x_size, 5);
-    EXPECT_EQ(f_size, 1);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(z_size, 2);
+    ASSERT_EQ(y_size, 1);
+    ASSERT_EQ(x_size, 5);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 1);
 
     bool test_is_correct = true;
 
@@ -260,7 +260,7 @@ TEST(one_hot_gpu_i64, bfzyx_ax4) {
             test_is_correct = false;
         }
     }
-    EXPECT_EQ(test_is_correct, true);
+    ASSERT_EQ(test_is_correct, true);
 }
 
 TEST(one_hot_gpu_i32_to_f32, bfyx_ax4) {
@@ -290,8 +290,8 @@ TEST(one_hot_gpu_i32_to_f32, bfyx_ax4) {
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "output");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "output");
 
     auto output_memory = outputs.at("output").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -302,11 +302,11 @@ TEST(one_hot_gpu_i32_to_f32, bfyx_ax4) {
     int x_size = output_layout.spatial(0);
     int f_size = output_layout.feature();
     int b_size = output_layout.batch();
-    EXPECT_EQ(z_size, 2);
-    EXPECT_EQ(y_size, 1);
-    EXPECT_EQ(x_size, 5);
-    EXPECT_EQ(f_size, 1);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(z_size, 2);
+    ASSERT_EQ(y_size, 1);
+    ASSERT_EQ(x_size, 5);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 1);
 
     std::vector<float> output_cpu_vec = {1.f, 0.f, 0.f, 0.f, 0.f,
                                          0.f, 1.f, 0.f, 0.f, 0.f};
@@ -343,8 +343,8 @@ TEST(one_hot_gpu_i64_to_f32, bfyx_ax4) {
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "output");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "output");
 
     auto output_memory = outputs.at("output").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -356,11 +356,11 @@ TEST(one_hot_gpu_i64_to_f32, bfyx_ax4) {
     int x_size = output_tensor.spatial[0];
     int f_size = output_tensor.feature[0];
     int b_size = output_tensor.batch[0];
-    EXPECT_EQ(z_size, 2);
-    EXPECT_EQ(y_size, 1);
-    EXPECT_EQ(x_size, 5);
-    EXPECT_EQ(f_size, 1);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(z_size, 2);
+    ASSERT_EQ(y_size, 1);
+    ASSERT_EQ(x_size, 5);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 1);
 
     std::vector<float> output_cpu_vec = {1.f, 0.f, 0.f, 0.f, 0.f,
                                          0.f, 1.f, 0.f, 0.f, 0.f};
@@ -394,8 +394,8 @@ TEST(one_hot_gpu_i32, bfzyx_ax0) {
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "output");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "output");
 
     auto output_memory = outputs.at("output").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -407,11 +407,11 @@ TEST(one_hot_gpu_i32, bfzyx_ax0) {
     int x_size = output_tensor.spatial[0];
     int f_size = output_tensor.feature[0];
     int b_size = output_tensor.batch[0];
-    EXPECT_EQ(z_size, 1);
-    EXPECT_EQ(y_size, 1);
-    EXPECT_EQ(x_size, 2);
-    EXPECT_EQ(f_size, 1);
-    EXPECT_EQ(b_size, 3);
+    ASSERT_EQ(z_size, 1);
+    ASSERT_EQ(y_size, 1);
+    ASSERT_EQ(x_size, 2);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 3);
 
     bool test_is_correct = true;
 
@@ -422,7 +422,7 @@ TEST(one_hot_gpu_i32, bfzyx_ax0) {
             test_is_correct = false;
         }
     }
-    EXPECT_EQ(test_is_correct, true);
+    ASSERT_EQ(test_is_correct, true);
 }
 
 TEST(one_hot_gpu_i64, bfzyx_ax0) {
@@ -449,8 +449,8 @@ TEST(one_hot_gpu_i64, bfzyx_ax0) {
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "output");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "output");
 
     auto output_memory = outputs.at("output").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -462,11 +462,11 @@ TEST(one_hot_gpu_i64, bfzyx_ax0) {
     int x_size = output_tensor.spatial[0];
     int f_size = output_tensor.feature[0];
     int b_size = output_tensor.batch[0];
-    EXPECT_EQ(z_size, 1);
-    EXPECT_EQ(y_size, 1);
-    EXPECT_EQ(x_size, 2);
-    EXPECT_EQ(f_size, 1);
-    EXPECT_EQ(b_size, 3);
+    ASSERT_EQ(z_size, 1);
+    ASSERT_EQ(y_size, 1);
+    ASSERT_EQ(x_size, 2);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 3);
 
     bool test_is_correct = true;
 
@@ -477,7 +477,7 @@ TEST(one_hot_gpu_i64, bfzyx_ax0) {
             test_is_correct = false;
         }
     }
-    EXPECT_EQ(test_is_correct, true);
+    ASSERT_EQ(test_is_correct, true);
 }
 
 TEST(one_hot_gpu_i32, bfzyx_ax1) {
@@ -504,8 +504,8 @@ TEST(one_hot_gpu_i32, bfzyx_ax1) {
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "output");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "output");
 
     auto output_memory = outputs.at("output").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -517,11 +517,11 @@ TEST(one_hot_gpu_i32, bfzyx_ax1) {
     int x_size = output_tensor.spatial[0];
     int f_size = output_tensor.feature[0];
     int b_size = output_tensor.batch[0];
-    EXPECT_EQ(z_size, 1);
-    EXPECT_EQ(y_size, 1);
-    EXPECT_EQ(x_size, 2);
-    EXPECT_EQ(f_size, 3);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(z_size, 1);
+    ASSERT_EQ(y_size, 1);
+    ASSERT_EQ(x_size, 2);
+    ASSERT_EQ(f_size, 3);
+    ASSERT_EQ(b_size, 1);
 
     bool test_is_correct = true;
 
@@ -532,7 +532,7 @@ TEST(one_hot_gpu_i32, bfzyx_ax1) {
             test_is_correct = false;
         }
     }
-    EXPECT_EQ(test_is_correct, true);
+    ASSERT_EQ(test_is_correct, true);
 }
 
 TEST(one_hot_gpu_i64, bfzyx_ax1) {
@@ -559,8 +559,8 @@ TEST(one_hot_gpu_i64, bfzyx_ax1) {
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "output");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "output");
 
     auto output_memory = outputs.at("output").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -572,11 +572,11 @@ TEST(one_hot_gpu_i64, bfzyx_ax1) {
     int x_size = output_tensor.spatial[0];
     int f_size = output_tensor.feature[0];
     int b_size = output_tensor.batch[0];
-    EXPECT_EQ(z_size, 1);
-    EXPECT_EQ(y_size, 1);
-    EXPECT_EQ(x_size, 2);
-    EXPECT_EQ(f_size, 3);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(z_size, 1);
+    ASSERT_EQ(y_size, 1);
+    ASSERT_EQ(x_size, 2);
+    ASSERT_EQ(f_size, 3);
+    ASSERT_EQ(b_size, 1);
 
     bool test_is_correct = true;
 
@@ -587,7 +587,7 @@ TEST(one_hot_gpu_i64, bfzyx_ax1) {
             test_is_correct = false;
         }
     }
-    EXPECT_EQ(test_is_correct, true);
+    ASSERT_EQ(test_is_correct, true);
 }
 
 TEST(one_hot_gpu_i32, bfzyx_ax2) {
@@ -614,8 +614,8 @@ TEST(one_hot_gpu_i32, bfzyx_ax2) {
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "output");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "output");
 
     auto output_memory = outputs.at("output").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -627,11 +627,11 @@ TEST(one_hot_gpu_i32, bfzyx_ax2) {
     int x_size = output_tensor.spatial[0];
     int f_size = output_tensor.feature[0];
     int b_size = output_tensor.batch[0];
-    EXPECT_EQ(z_size, 3);
-    EXPECT_EQ(y_size, 1);
-    EXPECT_EQ(x_size, 2);
-    EXPECT_EQ(f_size, 1);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(z_size, 3);
+    ASSERT_EQ(y_size, 1);
+    ASSERT_EQ(x_size, 2);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 1);
 
     bool test_is_correct = true;
 
@@ -642,7 +642,7 @@ TEST(one_hot_gpu_i32, bfzyx_ax2) {
             test_is_correct = false;
         }
     }
-    EXPECT_EQ(test_is_correct, true);
+    ASSERT_EQ(test_is_correct, true);
 }
 
 TEST(one_hot_gpu_i64, bfzyx_ax2) {
@@ -669,8 +669,8 @@ TEST(one_hot_gpu_i64, bfzyx_ax2) {
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "output");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "output");
 
     auto output_memory = outputs.at("output").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -682,11 +682,11 @@ TEST(one_hot_gpu_i64, bfzyx_ax2) {
     int x_size = output_tensor.spatial[0];
     int f_size = output_tensor.feature[0];
     int b_size = output_tensor.batch[0];
-    EXPECT_EQ(z_size, 3);
-    EXPECT_EQ(y_size, 1);
-    EXPECT_EQ(x_size, 2);
-    EXPECT_EQ(f_size, 1);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(z_size, 3);
+    ASSERT_EQ(y_size, 1);
+    ASSERT_EQ(x_size, 2);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 1);
 
     bool test_is_correct = true;
 
@@ -697,7 +697,7 @@ TEST(one_hot_gpu_i64, bfzyx_ax2) {
             test_is_correct = false;
         }
     }
-    EXPECT_EQ(test_is_correct, true);
+    ASSERT_EQ(test_is_correct, true);
 }
 
 TEST(one_hot_gpu_i32, bfzyx_ax3) {
@@ -724,8 +724,8 @@ TEST(one_hot_gpu_i32, bfzyx_ax3) {
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "output");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "output");
 
     auto output_memory = outputs.at("output").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -737,11 +737,11 @@ TEST(one_hot_gpu_i32, bfzyx_ax3) {
     int x_size = output_tensor.spatial[0];
     int f_size = output_tensor.feature[0];
     int b_size = output_tensor.batch[0];
-    EXPECT_EQ(z_size, 1);
-    EXPECT_EQ(y_size, 3);
-    EXPECT_EQ(x_size, 2);
-    EXPECT_EQ(f_size, 1);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(z_size, 1);
+    ASSERT_EQ(y_size, 3);
+    ASSERT_EQ(x_size, 2);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 1);
 
     bool test_is_correct = true;
 
@@ -752,7 +752,7 @@ TEST(one_hot_gpu_i32, bfzyx_ax3) {
             test_is_correct = false;
         }
     }
-    EXPECT_EQ(test_is_correct, true);
+    ASSERT_EQ(test_is_correct, true);
 }
 
 TEST(one_hot_gpu_i64, bfzyx_ax3) {
@@ -779,8 +779,8 @@ TEST(one_hot_gpu_i64, bfzyx_ax3) {
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "output");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "output");
 
     auto output_memory = outputs.at("output").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -791,11 +791,11 @@ TEST(one_hot_gpu_i64, bfzyx_ax3) {
     int x_size = output_layout.spatial(0);
     int f_size = output_layout.feature();
     int b_size = output_layout.batch();
-    EXPECT_EQ(z_size, 1);
-    EXPECT_EQ(y_size, 3);
-    EXPECT_EQ(x_size, 2);
-    EXPECT_EQ(f_size, 1);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(z_size, 1);
+    ASSERT_EQ(y_size, 3);
+    ASSERT_EQ(x_size, 2);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 1);
 
     bool test_is_correct = true;
 
@@ -806,7 +806,7 @@ TEST(one_hot_gpu_i64, bfzyx_ax3) {
             test_is_correct = false;
         }
     }
-    EXPECT_EQ(test_is_correct, true);
+    ASSERT_EQ(test_is_correct, true);
 }
 
 TEST(one_hot_error, basic_error_wrong_axis) {

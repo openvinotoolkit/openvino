@@ -80,19 +80,19 @@ TEST(loop_gpu, basic_no_concat)
     network.set_input_data("initial_condition", initial_condition_mem);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), 1);
+    ASSERT_EQ(outputs.size(), 1);
     auto output = outputs.begin()->second.get_memory();
     auto output_layout = output->get_layout();
 
-    EXPECT_EQ(output_layout.batch(), 1);
-    EXPECT_EQ(output_layout.feature(), 1);
-    EXPECT_EQ(output_layout.spatial(0), 4);
-    EXPECT_EQ(output_layout.spatial(1), 5);
+    ASSERT_EQ(output_layout.batch(), 1);
+    ASSERT_EQ(output_layout.feature(), 1);
+    ASSERT_EQ(output_layout.spatial(0), 4);
+    ASSERT_EQ(output_layout.spatial(1), 5);
 
     // value check
     {
         mem_lock<float> output_ptr{ output, get_test_stream() };
-        EXPECT_EQ(output_ptr.size(), input_data.size());
+        ASSERT_EQ(output_ptr.size(), input_data.size());
         for (size_t i = 0, iend = input_data.size(); i < iend; ++i) {
             ASSERT_FLOAT_EQ(output_ptr[i], input_data[i] + eltwise_operand[i] * trip_count);
         }
@@ -111,11 +111,11 @@ TEST(loop_gpu, basic_no_concat)
     outputs = network.execute();
 
     // check everything once again
-    EXPECT_EQ(outputs.size(), 1);
+    ASSERT_EQ(outputs.size(), 1);
     auto output2 = outputs.begin()->second.get_memory();
     {
         mem_lock<float> output_ptr2{ output2, get_test_stream() };
-        EXPECT_EQ(output_ptr2.size(), input_data.size());
+        ASSERT_EQ(output_ptr2.size(), input_data.size());
         for (size_t i = 0, iend = input_data.size(); i < iend; ++i) {
             ASSERT_FLOAT_EQ(output_ptr2[i], input_data[i] + eltwise_operand[i] * trip_count);
         }
@@ -175,14 +175,14 @@ TEST(loop_gpu, basic_concat)
     network.set_input_data("initial_condition", initial_condition_mem);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), 1);
+    ASSERT_EQ(outputs.size(), 1);
     auto output = outputs.begin()->second.get_memory();
     auto output_layout = output->get_layout();
 
-    EXPECT_EQ(output_layout.batch(), 1);
-    EXPECT_EQ(output_layout.feature(), 1);
-    EXPECT_EQ(output_layout.spatial(0), 4);
-    EXPECT_EQ(output_layout.spatial(1), 5);
+    ASSERT_EQ(output_layout.batch(), 1);
+    ASSERT_EQ(output_layout.feature(), 1);
+    ASSERT_EQ(output_layout.spatial(0), 4);
+    ASSERT_EQ(output_layout.spatial(1), 5);
 
     // value check
     {
@@ -312,7 +312,7 @@ TEST(loop_gpu, basic_concat_nested)
     network.set_input_data("inner_initial_condition", inner_initial_condition_mem);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), 1);
+    ASSERT_EQ(outputs.size(), 1);
     auto output = outputs.begin()->second.get_memory();
     auto output_layout = output->get_layout();
 
@@ -333,13 +333,13 @@ TEST(loop_gpu, basic_concat_nested)
     /////////////////////////////////
     // compare
     /////////////////////////////////
-    EXPECT_EQ(output_layout.batch(), 1);
-    EXPECT_EQ(output_layout.feature(), 1);
-    EXPECT_EQ(output_layout.spatial(0), 4);
-    EXPECT_EQ(output_layout.spatial(1), 5);
+    ASSERT_EQ(output_layout.batch(), 1);
+    ASSERT_EQ(output_layout.feature(), 1);
+    ASSERT_EQ(output_layout.spatial(0), 4);
+    ASSERT_EQ(output_layout.spatial(1), 5);
 
     // check output values
-    EXPECT_EQ(output_layout.count(), expected.size());
+    ASSERT_EQ(output_layout.count(), expected.size());
     {
         mem_lock<float> output_ptr{ output, get_test_stream() };
         for (size_t i = 0; i < output_layout.count(); ++i) {

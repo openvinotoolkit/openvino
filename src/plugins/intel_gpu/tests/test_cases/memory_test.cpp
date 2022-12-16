@@ -85,7 +85,7 @@ TEST(memory_pool, basic_non_padded_relu_pipe) {
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(engine->get_max_used_device_memory(), (uint64_t)64);
+    ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t)64);
  }
 
 TEST(memory_pool, basic_non_padded_relu_and_pooling_pipe) {
@@ -117,7 +117,7 @@ TEST(memory_pool, basic_non_padded_relu_and_pooling_pipe) {
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(engine->get_max_used_device_memory(), (uint64_t)896);
+    ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t)896);
 }
 
 TEST(memory_pool, multi_outputs_network) {
@@ -152,7 +152,7 @@ TEST(memory_pool, multi_outputs_network) {
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(engine->get_max_used_device_memory(), (uint64_t) 1536);
+    ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t) 1536);
 }
 
 TEST(memory_pool, oooq) {
@@ -190,7 +190,7 @@ TEST(memory_pool, oooq) {
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(engine->get_max_used_device_memory(), (uint64_t) 2560);
+    ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t) 2560);
 }
 
 TEST(memory_pool, DISABLED_shared_mem_pool_same_topology_twice) {
@@ -239,7 +239,7 @@ TEST(memory_pool, DISABLED_shared_mem_pool_same_topology_twice) {
     auto output_layout_first = output_memory_first->get_layout();
     cldnn::mem_lock<float> output_ptr_first(output_memory_first, get_test_stream());
 
-    EXPECT_EQ(engine->get_max_used_device_memory(), (uint64_t) 2560);
+    ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t) 2560);
 
     network network_second(*engine, topology, bo);
     network_second.set_input_data("input", input);
@@ -249,9 +249,9 @@ TEST(memory_pool, DISABLED_shared_mem_pool_same_topology_twice) {
     auto output_layout_second = output_memory_second->get_layout();
     cldnn::mem_lock<float> output_ptr_second(output_memory_second, get_test_stream());
 
-    EXPECT_EQ(engine->get_max_used_device_memory(), (uint64_t) 3328);
+    ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t) 3328);
 
-    EXPECT_EQ(output_layout_first, output_layout_second);
+    ASSERT_EQ(output_layout_first, output_layout_second);
 
     int y_size = output_layout_first.spatial(1);
     int x_size = output_layout_first.spatial(0);
@@ -268,7 +268,7 @@ TEST(memory_pool, DISABLED_shared_mem_pool_same_topology_twice) {
                 for (int x = 0; x < x_size; ++x)
                 {
                     int idx = b * b_offset + f * f_offset + y * x_size + x;
-                    EXPECT_EQ(output_ptr_first[idx], output_ptr_second[idx]);
+                    ASSERT_EQ(output_ptr_first[idx], output_ptr_second[idx]);
                 }
             }
         }
@@ -313,7 +313,7 @@ TEST(memory_pool, DISABLED_shared_mem_pool_same_topology_twice_weights) {
     uint64_t usm_result = 1208; // USM have a higher peak, since transfering memory to device adds temporay memory bytes allocated. Old memory is deallocated quickly, but max peak is higher.
     auto is_correct = engine->get_max_used_device_memory() == cl_mem_result
         || engine->get_max_used_device_memory() == usm_result;
-    EXPECT_TRUE(is_correct) << "Memory max peak is not correct";
+    ASSERT_TRUE(is_correct) << "Memory max peak is not correct";
 
     auto output_memory_first = outputs.at("softmax").get_memory();
     auto output_layout_first = output_memory_first->get_layout();
@@ -331,8 +331,8 @@ TEST(memory_pool, DISABLED_shared_mem_pool_same_topology_twice_weights) {
     usm_result = 1992; // USM have a higher peak, since transfering memory to device adds temporay memory bytes allocated. Old memory is deallocated quickly, but max peak is higher.
     is_correct = engine->get_max_used_device_memory() == cl_mem_result
         || engine->get_max_used_device_memory() == usm_result;
-    EXPECT_TRUE(is_correct) << "Memory max peak is not correct";
-    EXPECT_EQ(output_layout_first, output_layout_second);
+    ASSERT_TRUE(is_correct) << "Memory max peak is not correct";
+    ASSERT_EQ(output_layout_first, output_layout_second);
 
     int y_size = output_layout_first.spatial(1);
     int x_size = output_layout_first.spatial(0);
@@ -349,7 +349,7 @@ TEST(memory_pool, DISABLED_shared_mem_pool_same_topology_twice_weights) {
                 for (int x = 0; x < x_size; ++x)
                 {
                     int idx = b * b_offset + f * f_offset + y * x_size + x;
-                    EXPECT_EQ(output_ptr_first[idx], output_ptr_second[idx]);
+                    ASSERT_EQ(output_ptr_first[idx], output_ptr_second[idx]);
                 }
             }
         }
@@ -397,14 +397,14 @@ TEST(memory_pool, shared_mem_pool_diff_batches) {
     auto outputs = network_first.execute();
 
     auto dev_info = engine->get_device_info();
-    EXPECT_EQ(engine->get_max_used_device_memory(), (uint64_t)4744);
+    ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t)4744);
 
     topo.change_input_layout("input", input_1->get_layout());//change input layout to batch=1
 
     network network_second(*engine, topo, bo);
     network_second.set_input_data("input", input_1);
     auto outputs_second = network_second.execute();
-    EXPECT_EQ(engine->get_max_used_device_memory(), (uint64_t)5912);
+    ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t)5912);
 }
 
 TEST(memory_pool, shared_dep_two_output) {
@@ -450,7 +450,7 @@ TEST(memory_pool, shared_dep_two_output) {
 
     network network(*engine, topo, bo);
     auto outputs = network.execute();
-    EXPECT_EQ(engine->get_max_used_device_memory(), (uint64_t)192);
+    ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t)192);
 }
 
 TEST(memory_pool, non_opt_intermidate_opt_after) {
@@ -492,15 +492,15 @@ TEST(memory_pool, non_opt_intermidate_opt_after) {
     network.set_input_data("input1", input_memory1);
     network.set_input_data("input2", input_memory2);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), static_cast<size_t>(2));
+    ASSERT_EQ(outputs.size(), static_cast<size_t>(2));
 
     auto out1 = outputs.at("elt1");
     auto out2 = outputs.at("elt2");
 
     cldnn::mem_lock<float> out1_ptr(out1.get_memory(), get_test_stream());
     cldnn::mem_lock<float> out2_ptr(out2.get_memory(), get_test_stream());
-    EXPECT_EQ(out1_ptr[0], 1.0f);
-    EXPECT_EQ(out2_ptr[0], 2.0f);
+    ASSERT_EQ(out1_ptr[0], 1.0f);
+    ASSERT_EQ(out2_ptr[0], 2.0f);
 }
 
 TEST(memory_pool, add_mem_dep_test) {
@@ -540,20 +540,20 @@ TEST(memory_pool, add_mem_dep_test) {
     network network(engine, topology, bo);
     network.set_input_data("input1", input_memory1);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), static_cast<size_t>(2));
+    ASSERT_EQ(outputs.size(), static_cast<size_t>(2));
 
     auto out1 = outputs.at("out3");
     auto out2 = outputs.at("out4");
 
     cldnn::mem_lock<float> out1_ptr(out1.get_memory(), get_test_stream());
     cldnn::mem_lock<float> out2_ptr(out2.get_memory(), get_test_stream());
-    EXPECT_EQ(out1_ptr[0], 1.0f);
-    EXPECT_EQ(out1_ptr[1], 2.0f);
-    EXPECT_EQ(out1_ptr[2], 3.0f);
-    EXPECT_EQ(out1_ptr[3], 4.0f);
+    ASSERT_EQ(out1_ptr[0], 1.0f);
+    ASSERT_EQ(out1_ptr[1], 2.0f);
+    ASSERT_EQ(out1_ptr[2], 3.0f);
+    ASSERT_EQ(out1_ptr[3], 4.0f);
 
-    EXPECT_EQ(out2_ptr[0], 5.0f);
-    EXPECT_EQ(out2_ptr[1], 6.0f);
-    EXPECT_EQ(out2_ptr[2], 7.0f);
-    EXPECT_EQ(out2_ptr[3], 8.0f);
+    ASSERT_EQ(out2_ptr[0], 5.0f);
+    ASSERT_EQ(out2_ptr[1], 6.0f);
+    ASSERT_EQ(out2_ptr[2], 7.0f);
+    ASSERT_EQ(out2_ptr[3], 8.0f);
 }

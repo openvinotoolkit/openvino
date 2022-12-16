@@ -149,7 +149,7 @@ public:
         const auto expected_values = convert<T>(p.expected_values);
         ASSERT_EQ(output_ptr.size(), expected_values.size());
         for (size_t i = 0; i < output_ptr.size(); ++i) {
-            EXPECT_NEAR(expected_values[i], output_ptr[i], getThreshold<T>(type));
+            ASSERT_NEAR(expected_values[i], output_ptr[i], getThreshold<T>(type));
         }
     }
 
@@ -2081,7 +2081,7 @@ TEST(dft_gpu_test, irdft_output_shape) {
             auto output = outputs.at("dft").get_memory();
             auto output_format = output->get_layout().format;
 
-            EXPECT_EQ(output_format, format::adjust_to_rank(blocked_format, p.output_shape.size()));
+            ASSERT_EQ(output_format, format::adjust_to_rank(blocked_format, p.output_shape.size()));
         }
 
         topology.add(reorder("out", input_info("dft"), format::bfwzyx, data_type));
@@ -2099,7 +2099,7 @@ TEST(dft_gpu_test, irdft_output_shape) {
         const auto expected_values = convert<T>(p.expected_values);
         ASSERT_EQ(output_ptr.size(), expected_values.size());
         for (size_t i = 0; i < output_ptr.size(); ++i) {
-            EXPECT_NEAR(expected_values[i], output_ptr[i], getThreshold<T>(type));
+            ASSERT_NEAR(expected_values[i], output_ptr[i], getThreshold<T>(type));
         }
     }
 }
