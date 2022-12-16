@@ -1,4 +1,3 @@
-opencv-python>=3.4.4.19
 pytest>=5.0,<=7.0.1; python_version < '3.10'
 pytest==7.2.0; python_version >= '3.10'
 py>=1.9.0
