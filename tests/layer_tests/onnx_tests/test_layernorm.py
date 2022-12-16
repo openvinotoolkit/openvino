@@ -12,6 +12,7 @@ class TestLN(OnnxRuntimeLayerTest):
     def create_net(self, shape, epsilon, axis, stash_type, ir_version):
         """
             ONNX net                   IR net
+
             Input->LN->Output   =>    Input->Norm->Power
         """
 
@@ -23,16 +24,16 @@ class TestLN(OnnxRuntimeLayerTest):
         from onnx import helper
         from onnx import TensorProto
 
-        input = helper.make_tensor_value_info('input', TensorProto.FLOAT, shape)
-        output = helper.make_tensor_value_info('output', TensorProto.FLOAT, shape)
+        input = helper.make_tensor_value_info(
+            'input', TensorProto.FLOAT, shape)
+        output = helper.make_tensor_value_info(
+            'output', TensorProto.FLOAT, shape)
 
         other_shape = shape.copy()[axis:]
 
         min_val = -127
         const1 = np.random.randint(min_val, 127, other_shape).astype(float)
         const2 = np.random.randint(min_val, 127, other_shape).astype(float)
-        print('scale={}'.format(const1))
-        print('bias={}'.format(const2))
         node_scale_def = helper.make_node(
             'Constant',
             inputs=[],
@@ -60,7 +61,7 @@ class TestLN(OnnxRuntimeLayerTest):
         args = dict()
         args['epsilon'] = epsilon
         args['axis'] = axis
-        if stash_type != None :
+        if stash_type != None:
             args['stash_type'] = stash_type
 
         node_def = onnx.helper.make_node(
@@ -86,18 +87,14 @@ class TestLN(OnnxRuntimeLayerTest):
 
         return onnx_net, ref_net
 
-
     test_data = [
         dict(shape=[2, 3, 4],    epsilon=9.9999e-05, axis=2, stash_type=None),
         dict(shape=[2, 2, 3, 4], epsilon=9.9999e-05, axis=3, stash_type=None),
-        ]
-
-
+    ]
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     def test_ln(self, params, ie_device, precision, ir_version, temp_dir, api_2):
- #       self.skip_framework = True
         self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
                    temp_dir=temp_dir, api_2=api_2)
