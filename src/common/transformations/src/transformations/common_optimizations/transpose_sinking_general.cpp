@@ -21,7 +21,7 @@
 ov::pass::TransposeSinkingGeneralForward::TransposeSinkingGeneralForward() {
     MATCHER_SCOPE(TransposeSinkingGeneralForward);
     add_matcher<ov::pass::TransposeSinkingUnaryForward>();
-    add_matcher<ov::pass::TransposeSinkingBinaryElementwiseForward>();
+    add_matcher<ov::pass::TransposeSinkingBinaryForward>();
     add_matcher<ov::pass::TransposeSinkingConcatForward>();
     add_matcher<ov::pass::TransposeSinkingSplitForward>();
     add_matcher<ngraph::pass::TransposeFuse>();
@@ -30,7 +30,7 @@ ov::pass::TransposeSinkingGeneralForward::TransposeSinkingGeneralForward() {
 ov::pass::TransposeSinkingGeneralBackward::TransposeSinkingGeneralBackward() {
     MATCHER_SCOPE(TransposeSinkingGeneralBackward);
     add_matcher<ov::pass::TransposeSinkingUnaryBackward>();
-    add_matcher<ov::pass::TransposeSinkingBinaryElementwiseBackward>();
+    add_matcher<ov::pass::TransposeSinkingBinaryBackward>();
     add_matcher<ov::pass::TransposeSinkingConcatBackward>();
     add_matcher<ov::pass::TransposeSinkingSplitBackward>();
     add_matcher<ngraph::pass::TransposeFuse>();
