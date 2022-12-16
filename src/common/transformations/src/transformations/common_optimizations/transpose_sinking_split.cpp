@@ -13,6 +13,7 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/log.hpp"
 #include "transformations/common_optimizations/transpose_sinking_utils.hpp"
+#include "transformations/rt_info/transpose_sinking_attr.hpp"
 
 using namespace ov::pass::pattern;
 using namespace ov;
@@ -64,6 +65,9 @@ NodePtr FindSplitInput(Node* node) {
 std::shared_ptr<Constant> GetTransposeConstant(Input<Node> input) {
     auto transpose_node = dynamic_cast<Transpose*>(input.get_node());
     if (!transpose_node)
+        return {};
+
+    if (!is_sinking_node(input.get_node()))
         return {};
 
     auto constant_node = as_type_ptr<Constant>(transpose_node->input_value(1).get_node_shared_ptr());
@@ -151,6 +155,10 @@ ov::pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
                                                                Shape{},
                                                                reversed_transposed_split_axis);
         split->input(1).replace_source_output(new_split_axis_const);
+        copy_runtime_info({split_axis_constant,
+                           output_transpose.transpose->shared_from_this(),
+                           output_transpose.transpose_const->shared_from_this()},
+                          new_split_axis_const);
 
         // remove split output transposes
         for (size_t output_idx = 0; output_idx < split->get_output_size(); ++output_idx) {
@@ -181,6 +189,7 @@ ov::pass::TransposeSinkingSplitForward::TransposeSinkingSplitForward() {
         sink_forward::RemoveZeroInputNode(main_node);
         for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {
             register_new_node(new_node);
+            transpose_sinking::UpdateForwardSinkingAbility(new_node);
         }
 
         const auto transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();
@@ -191,6 +200,8 @@ ov::pass::TransposeSinkingSplitForward::TransposeSinkingSplitForward() {
         auto new_split_axis_const =
             std::make_shared<Constant>(split_axis_constant->get_element_type(), Shape{}, transposed_split_axis);
         split_node->input(1).replace_source_output(new_split_axis_const);
+        copy_runtime_info({split_axis_constant, transpose_input_info.transpose, transpose_input_info.transpose_const},
+                          new_split_axis_const);
 
         return true;
     };

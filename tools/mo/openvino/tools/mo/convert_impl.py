@@ -9,6 +9,7 @@ import platform
 import sys
 from collections import OrderedDict
 from copy import deepcopy
+from pathlib import Path
 
 import numpy as np
 
@@ -472,14 +473,15 @@ def emit_ir(graph: Graph, argv: argparse.Namespace, non_default_params: dict):
         t = tm.Telemetry()
         t.send_event('mo', 'offline_transformations_status', message)
 
-        if return_code != 0:
-            raise Error("offline transformations step has failed.")
-
         for suf in [".xml", ".bin", ".mapping"]:
             # remove existing files
             path_to_file = orig_model_name + "_tmp" + suf
             if os.path.exists(path_to_file):
                 os.remove(path_to_file)
+
+        if return_code != 0:
+            raise Error("offline transformations step has failed.")
+
     return func
 
 
@@ -834,7 +836,7 @@ def show_mo_convert_help():
 
 
 def input_model_is_object(argv):
-    if isinstance(argv['input_model'], str):
+    if isinstance(argv['input_model'], (str, Path)):
         return False
     if argv['input_model'] is None:
         return False

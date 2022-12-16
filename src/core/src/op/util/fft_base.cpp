@@ -12,8 +12,6 @@
 
 using namespace std;
 
-BWDCMP_RTTI_DEFINITION(ov::op::util::FFTBase);
-
 ov::op::util::FFTBase::FFTBase(const Output<Node>& data, const Output<Node>& axes) : Op({data, axes}) {}
 
 ov::op::util::FFTBase::FFTBase(const Output<Node>& data, const Output<Node>& axes, const Output<Node>& signal_size)

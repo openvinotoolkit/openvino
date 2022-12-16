@@ -10,8 +10,6 @@
 
 using namespace std;
 
-BWDCMP_RTTI_DEFINITION(ov::op::util::BinaryElementwiseLogical);
-
 ov::op::util::BinaryElementwiseLogical::BinaryElementwiseLogical() = default;
 
 ov::op::util::BinaryElementwiseLogical::BinaryElementwiseLogical(const Output<Node>& arg0,

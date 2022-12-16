@@ -17,7 +17,8 @@ namespace SubgraphTestsDefinitions {
 
 typedef std::tuple<
         size_t,                           // levels
-        std::vector<float>                // input generator data: low, high, resolution
+        std::vector<float>,               // input generator data: low, high, resolution
+        float                             // convolution weights' FQ min and max value
 > FqSpecificParams;
 
 typedef std::tuple<

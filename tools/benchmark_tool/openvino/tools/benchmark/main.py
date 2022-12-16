@@ -69,12 +69,15 @@ def main():
         device_name = args.target_device
 
         devices = parse_devices(device_name)
+        is_dev_set_property = {device: True for device in devices}
         device_number_streams = parse_value_per_device(devices, args.number_streams, "nstreams")
         device_infer_precision = parse_value_per_device(devices, args.infer_precision, "infer_precision")
 
         config = {}
+        is_load_config = False
         if args.load_config:
             load_config(args.load_config, config)
+            is_load_config = True
 
         if is_network_compiled:
             logger.info("Model is compiled")
@@ -184,12 +187,21 @@ def main():
             if is_flag_set_in_command_line('nireq'):
                 config[device]['PERFORMANCE_HINT_NUM_REQUESTS'] = str(args.number_infer_requests)
 
-            ## insert or append multiple pairs of <key ,value> into dict
-            def update_configs(key, property_name, property_value):
-                if key not in config[device].keys():
-                    config[device][key] = ' '.join([property_name, property_value])
+            ## insert or append property into hw device properties list
+            def update_configs(hw_device, property_name, property_value):
+                is_set_streams_auto = property_name == 'NUM_STREAMS' and property_value == 'AUTO'
+                if not is_set_streams_auto and is_load_config and is_dev_set_property[hw_device] and hw_device in config[device].keys():
+                    # overwrite the device properties loaded from configuration file if
+                    # 1. not setting 'NUM_STREAMS' to default value 'AUTO',
+                    # 2. enable loading device properties from configuration file,
+                    # 3. device properties in config[device] is loaded from configuration file, and never setting device properties before
+                    is_dev_set_property[hw_device] = False
+                    del config[device][hw_device]
+                # add property into hw device properties list.
+                if hw_device not in config[device].keys():
+                    config[device][hw_device] = ' '.join([property_name, property_value])
                 else:
-                    config[device][key] += " " + property_name + " " + property_value
+                    config[device][hw_device] += " " + property_name + " " + property_value
 
             ## infer precision
             def set_infer_precision():
@@ -205,8 +217,8 @@ def main():
                         else:
                             # set device nstreams properties in the AUTO/MULTI plugin
                             device_properties  = {value_vec[i]: value_vec[i + 1] for i in range(0, len(value_vec), 2)}
-                            for key in device_properties.keys():
-                                update_configs(key, "INFERENCE_PRECISION_HINT", device_properties[key])
+                            for hw_device in device_properties.keys():
+                                update_configs(hw_device, "INFERENCE_PRECISION_HINT", device_properties[hw_device])
                     else:
                         raise Exception(f"Device {device} doesn't support config key INFERENCE_PRECISION_HINT!" \
                                         " Please specify -infer_precision for correct devices in format" \
@@ -232,8 +244,8 @@ def main():
                         else:
                             # set device nstreams properties in the AUTO/MULTI plugin
                             device_properties  = {value_vec[i]: value_vec[i + 1] for i in range(0, len(value_vec), 2)}
-                            for key in device_properties.keys():
-                                update_configs(key, "NUM_STREAMS", device_properties[key])
+                            for hw_device in device_properties.keys():
+                                update_configs(hw_device, "NUM_STREAMS", device_properties[hw_device])
                     else:
                         raise Exception(f"Device {device} doesn't support config key '{key}'! " +
                                         "Please specify -nstreams for correct devices in format  <dev1>:<nstreams1>,<dev2>:<nstreams2>")
@@ -320,6 +332,7 @@ def main():
 
         ## If set batch size, disable the auto batching
         if args.batch_size:
+            logger.warning("Batch size is set. Auto batching will be disabled")
             benchmark.set_allow_auto_batching(False)
 
         topology_name = ""
