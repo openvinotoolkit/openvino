@@ -29,18 +29,16 @@ void GNAInferRequest::InferImpl() {
     execDataPreprocessing(_inputs);
     // result returned from sync infer wait method
 
-    bool result = false;
     auto infer_call = [&]() {
-        result = plg->Infer(_inputs, _outputs);
+        auto result = plg->Infer(_inputs, _outputs);
+        // if result is false we are dealing with QoS feature and set kRequestIndexInvalid
+        // if result is ok we set kRequestIndexCompleted to not execute request if it is not
+        // in the queue.
+        auto result_request_index = result ? kRequestIndexCompleted : kRequestIndexInvalid;
+        SetRequestIndex(result_request_index);
     };
 
     CallCleanupAndRethrowOnException(std::move(infer_call));
-
-    // if result is false we are dealing with QoS feature and set kRequestIndexInvalid
-    // if result is ok we set kRequestIndexCompleted to not execute request if it is not
-    // in the queue.
-    auto result_request_index = result ? kRequestIndexCompleted : kRequestIndexInvalid;
-    SetRequestIndex(result_request_index);
 }
 
 std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GNAInferRequest::GetPerformanceCounts() const {
@@ -82,11 +80,12 @@ InferenceEngine::StatusCode GNAInferRequest::Wait(int64_t millis_timeout) {
         return InferenceEngine::INFER_NOT_STARTED;
     }
 
+    ValidateAndConfigureTimeout(millis_timeout);
+
     if (IsRequestCompleted()) {
         return InferenceEngine::OK;
     }
 
-    ValidateAndConfigureTimeout(millis_timeout);
     auto waitStatus = RequestStatus::kAborted;
     auto wait_call = [&]() {
         waitStatus = plg->WaitFor(_infer_request_idx, millis_timeout);
@@ -120,7 +119,7 @@ void GNAInferRequest::ValidateAndConfigureTimeout(int64_t& millis_timeout) {
     }
 
     if (millis_timeout < 0) {
-        IE_THROW(ParameterMismatch);
+        IE_THROW(ParameterMismatch) << "Invalid timeout value in milliseconds: " << millis_timeout << "!";
     }
 }
 

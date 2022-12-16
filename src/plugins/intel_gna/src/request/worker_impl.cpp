@@ -42,7 +42,7 @@ Gna2Model* WorkerImpl::model() {
 
 bool WorkerImpl::enqueueRequest() {
     if (!isFree()) {
-        ov::intel_gna::log::warning() << "Trying to propagte on busy request with id: " << representingIndex_;
+        ov::intel_gna::log::warning() << "Trying to propagate on busy request with id: " << representingIndex_;
         return false;
     }
 
@@ -58,7 +58,7 @@ bool WorkerImpl::enqueueRequest() {
 RequestStatus WorkerImpl::wait(int64_t timeoutMilliseconds) {
     bool pending = false;
 
-        // iterate over all configurations for requst
+    // iterate over all configurations for requst
     for (auto& subrequest : modelSubrequests_) {
         if (!subrequest->isPending()) {
             continue;
@@ -73,7 +73,6 @@ RequestStatus WorkerImpl::wait(int64_t timeoutMilliseconds) {
             return result;
         }
     }
-
 
     // return kPending if at least one subrequest is pending
     if (pending) {
