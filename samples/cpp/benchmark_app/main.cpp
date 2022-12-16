@@ -225,7 +225,7 @@ void fuse_mean_scale(ov::preprocess::PrePostProcessor& preproc, const benchmark_
             preproc.input(input_info.first)
                 .preprocess()
                 .convert_element_type(ov::element::f32)
-                .scale(input_info.second.mean);
+                .scale(input_info.second.scale);
         }
     }
 }

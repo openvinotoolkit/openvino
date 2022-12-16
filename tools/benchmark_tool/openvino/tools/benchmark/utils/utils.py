@@ -88,7 +88,7 @@ def fuse_mean_scale(preproc: PrePostProcessor, app_inputs_info):
             if not warned:
                 logger.warning(warn_msg)
                 warned = True
-            preproc.input(input_info.name).preprocess().convert_element_type(Type.f32).scale(input_info.mean)
+            preproc.input(input_info.name).preprocess().convert_element_type(Type.f32).scale(input_info.scale)
 
 
 def pre_post_processing(model: Model, app_inputs_info, input_precision: str, output_precision: str, input_output_precision: str):
