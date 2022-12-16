@@ -54,8 +54,6 @@ public:
 
 namespace {
     TEST_F(ConvAndFQWithSharedConstants, smoke_ConvAndFQWithSharedConstants_CPU) {
-        SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
         run();
         CheckPluginRelatedResults(compiledModel, "Convolution");
     }
