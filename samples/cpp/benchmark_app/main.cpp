@@ -206,6 +206,7 @@ void warn_if_no_batch(const benchmark_app::InputsInfo& first_inputs) {
  * @brief The entry point of the benchmark application
  */
 int main(int argc, char* argv[]) {
+    // kek
     std::shared_ptr<StatisticsReport> statistics;
     try {
         ov::CompiledModel compiledModel;
