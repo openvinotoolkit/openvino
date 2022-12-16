@@ -47,6 +47,5 @@ class TestAdaptiveMaxPool2D(PytorchLayerTest):
     ]))
     @pytest.mark.nightly
     def test_adaptive_max_pool2d(self, ie_device, precision, ir_version, input_tensor, output_size, return_indices):
-        if ie_device == "CPU":
-            self.input_tensor = input_tensor
-            self._test(*self.create_model(output_size, return_indices), ie_device, precision, ir_version)
+        self.input_tensor = input_tensor
+        self._test(*self.create_model(output_size, return_indices), ie_device, precision, ir_version)
