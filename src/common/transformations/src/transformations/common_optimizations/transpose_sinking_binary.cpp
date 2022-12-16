@@ -20,8 +20,8 @@ using namespace ov;
 using namespace ov::opset9;
 using namespace transpose_sinking;
 
-ov::pass::TransposeSinkingBinaryElementwiseForward::TransposeSinkingBinaryElementwiseForward() {
-    MATCHER_SCOPE(TransposeSinkingBinaryElementwiseForward);
+ov::pass::TransposeSinkingBinaryForward::TransposeSinkingBinaryForward() {
+    MATCHER_SCOPE(TransposeSinkingBinaryForward);
 
     auto main_node_label = wrap_type<op::util::BinaryElementwiseArithmetic>(IfNodeHasTransposeInputs);
 
@@ -46,8 +46,8 @@ ov::pass::TransposeSinkingBinaryElementwiseForward::TransposeSinkingBinaryElemen
     register_matcher(m, matcher_pass_callback);
 }
 
-ov::pass::TransposeSinkingBinaryElementwiseBackward::TransposeSinkingBinaryElementwiseBackward() {
-    MATCHER_SCOPE(TransposeSinkingBinaryElementwiseBackward);
+pass::TransposeSinkingBinaryBackward::TransposeSinkingBinaryBackward() {
+    MATCHER_SCOPE(TransposeSinkingBinaryBackward);
 
     auto main_node_label = wrap_type<op::util::BinaryElementwiseArithmetic>(has_static_rank());
 
