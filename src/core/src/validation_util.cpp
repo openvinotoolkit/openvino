@@ -1164,6 +1164,10 @@ void ngraph::evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
 }
 
 bool ngraph::could_propagate(const Output<Node>& output, std::vector<Node*>& order) {
+    if (is_type<op::Parameter>(output.get_node())) {
+        return false;
+    }
+
     bool status = true;
 
     std::deque<Node*> nodes_to_calculate = {output.get_node()};
@@ -1173,14 +1177,17 @@ bool ngraph::could_propagate(const Output<Node>& output, std::vector<Node*>& ord
         auto current_node = nodes_to_calculate.front();
         nodes_to_calculate.pop_front();
 
-        if (current_node->inputs().empty() && !is_type<op::Constant>(current_node))
+        if (current_node->inputs().empty() && !is_type<op::Constant>(current_node) &&
+            !is_type<op::Parameter>(current_node)) {
             status = false;
-        else if (!is_type<op::v0::ShapeOf>(current_node) && !is_type<op::v3::ShapeOf>(current_node)) {
+        } else if (!is_type<op::v0::ShapeOf>(current_node) && !is_type<op::v3::ShapeOf>(current_node)) {
             // not a leaf, not a shape_of -- continue to search
             for (const auto& input_value : current_node->input_values()) {
                 const auto& input_node = input_value.get_node();
-                order.push_back(input_node);
-                nodes_to_calculate.push_front(input_node);
+                if (!is_type<op::Parameter>(input_node)) {
+                    order.push_back(input_node);
+                    nodes_to_calculate.push_front(input_node);
+                }
             }
         }
     }
