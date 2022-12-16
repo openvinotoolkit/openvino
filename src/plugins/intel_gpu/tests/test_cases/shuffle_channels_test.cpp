@@ -52,7 +52,7 @@ TEST(shuffle_channels_fp32_gpu, d1_15_2_2_ax1_g5) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -94,7 +94,7 @@ TEST(shuffle_channels_fp32_gpu, d1_15_2_2_axm3_g5) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -136,7 +136,7 @@ TEST(shuffle_channels_fp32_gpu, d15_2_2_ax0_g5) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -178,7 +178,7 @@ TEST(shuffle_channels_fp32_gpu, d15_2_2_axm4_g5) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -216,7 +216,7 @@ TEST(shuffle_channels_fp32_gpu, d2_2_6_axm2_g3) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -254,7 +254,7 @@ TEST(shuffle_channels_fp32_gpu, d2_6_2_axm3_g3) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -292,7 +292,7 @@ TEST(shuffle_channels_fp32_gpu, d2_2_6_axm2_g2) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -330,7 +330,7 @@ TEST(shuffle_channels_fp32_gpu, d2_6_2_axm3_g2) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -365,6 +365,6 @@ TEST(shuffle_channels_fp32_gpu, d6_axm0_g2) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
