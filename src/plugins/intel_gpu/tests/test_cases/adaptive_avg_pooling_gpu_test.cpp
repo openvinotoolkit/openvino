@@ -131,9 +131,9 @@ public:
 
         topology topology;
         topology.add(input_layout("input", input->get_layout()));
-        topology.add(reorder("input_reordered", "input", target_layout, data_type));
-        topology.add(adaptive_pooling("adaptive_avg_pooling_blocked", "input_reordered", params.outputTensor));
-        topology.add(reorder("adaptive_avg_pooling", "adaptive_avg_pooling_blocked", plain_layout, data_type));
+        topology.add(reorder("input_reordered", input_info("input"), target_layout, data_type));
+        topology.add(adaptive_pooling("adaptive_avg_pooling_blocked", input_info("input_reordered"), params.outputTensor));
+        topology.add(reorder("adaptive_avg_pooling", input_info("adaptive_avg_pooling_blocked"), plain_layout, data_type));
 
         cldnn::network::ptr network;
 
@@ -164,7 +164,7 @@ public:
         ASSERT_EQ(params.outputTensor.count(), out_ptr.size());
         ASSERT_EQ(params.outputTensor.count(), expected.size());
         for (size_t i = 0; i < expected.size(); ++i) {
-            EXPECT_NEAR(expected[i], out_ptr[i], getError<T>())
+            ASSERT_NEAR(expected[i], out_ptr[i], getError<T>())
                 << "i = " << i << ", format=" << fmt_to_str(target_layout);
         }
     }

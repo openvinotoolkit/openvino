@@ -10,7 +10,7 @@ and run on CPU with the OpenVINO&trade;.
 * A representative calibration dataset representing a use case scenario, for example, 300 samples.
 
 Figure below shows the optimization workflow:
-![](docs/images/workflow_simple.png)
+![](docs/images/workflow_simple.svg)
 
 To get started with POT tool refer to the corresponding OpenVINO&trade; [documentation](https://docs.openvino.ai/latest/openvino_docs_model_optimization_guide.html).
 

@@ -61,7 +61,7 @@ TEST(custom_gpu_primitive_f32, add_basic_in2x2x2x2) {
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(custom_gpu_primitive(
         "user_kernel",
-        { "input", "input2" },
+        { input_info("input"), input_info("input2") },
         { kernel_code },
         entry_point,
         parameters,
@@ -88,8 +88,8 @@ TEST(custom_gpu_primitive_f32, add_basic_in2x2x2x2) {
     network.set_input_data("input2", input2);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "user_kernel");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "user_kernel");
 
     auto output = outputs.at("user_kernel").get_memory();
 
@@ -101,7 +101,7 @@ TEST(custom_gpu_primitive_f32, add_basic_in2x2x2x2) {
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++) {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -162,18 +162,18 @@ void add_basic_in2x2x2x2_with_reorder()
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
-    topology.add(reorder("to_int1", "input", { DType, format::yxfb,{ 2,2,2,2 } }));
-    topology.add(reorder("to_int2", "input2", { DType, format::yxfb,{ 2,2,2,2 } }));
+    topology.add(reorder("to_int1", input_info("input"), { DType, format::yxfb,{ 2,2,2,2 } }));
+    topology.add(reorder("to_int2", input_info("input2"), { DType, format::yxfb,{ 2,2,2,2 } }));
     topology.add(custom_gpu_primitive(
         "user_kernel",
-        { "to_int1", "to_int2" },
+        { input_info("to_int1"), input_info("to_int2") },
         { kernel_code },
         entry_point,
         parameters,
         "-cl-mad-enable",
         output_layout,
         gws));
-    topology.add(reorder("to_float", "user_kernel", { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } }));
+    topology.add(reorder("to_float", input_info("user_kernel"), { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } }));
 
     set_values(input, {
         1.f,   0.f, 5.f, 1.f,
@@ -195,7 +195,7 @@ void add_basic_in2x2x2x2_with_reorder()
     auto outputs = network.execute();
 
     ASSERT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "to_float");
+    ASSERT_EQ(outputs.begin()->first, "to_float");
 
     auto output = outputs.at("to_float").get_memory();
 
@@ -208,7 +208,7 @@ void add_basic_in2x2x2x2_with_reorder()
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -264,10 +264,10 @@ TEST(custom_gpu_primitive_f32, eltwise_add_basic_in2x2x2x2) {
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
-    topology.add(eltwise("eltwise", {"input", "input2"}, eltwise_mode::sum));
+    topology.add(eltwise("eltwise", { input_info("input"), input_info("input2") }, eltwise_mode::sum));
     topology.add(custom_gpu_primitive(
         "user_kernel",
-        { "eltwise" },
+        { input_info("eltwise") },
         { kernel_code },
         entry_point,
         parameters,
@@ -294,8 +294,8 @@ TEST(custom_gpu_primitive_f32, eltwise_add_basic_in2x2x2x2) {
     network.set_input_data("input2", input2);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "user_kernel");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "user_kernel");
 
     auto output = outputs.at("user_kernel").get_memory();
 
@@ -309,7 +309,7 @@ TEST(custom_gpu_primitive_f32, eltwise_add_basic_in2x2x2x2) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -359,14 +359,14 @@ TEST(custom_gpu_primitive_f32, add_eltwise_basic_in2x2x2x2) {
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(custom_gpu_primitive(
         "user_kernel",
-        { "input" },
+        { input_info("input") },
         { kernel_code },
         entry_point,
         parameters,
         "-cl-mad-enable -DSCALAR=1",
         output_layout,
         gws));
-    topology.add(eltwise("eltwise", {"user_kernel", "input2"}, eltwise_mode::sum));
+    topology.add(eltwise("eltwise", { input_info("user_kernel"), input_info("input2") }, eltwise_mode::sum));
 
     set_values(input, {
         1.f,   0.f, 5.f, 1.5f,
@@ -387,8 +387,8 @@ TEST(custom_gpu_primitive_f32, add_eltwise_basic_in2x2x2x2) {
     network.set_input_data("input2", input2);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "eltwise");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
 
@@ -402,7 +402,7 @@ TEST(custom_gpu_primitive_f32, add_eltwise_basic_in2x2x2x2) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -459,7 +459,7 @@ TEST(custom_gpu_primitive_f32, two_kernels_with_same_entry_point_basic_in2x2x2x2
     topology.add(input_layout("input", input->get_layout()));
     topology.add(custom_gpu_primitive(
         "user_kernel1",
-        { "input" },
+        { input_info("input") },
         { kernel_code1 },
         entry_point,
         parameters,
@@ -468,7 +468,7 @@ TEST(custom_gpu_primitive_f32, two_kernels_with_same_entry_point_basic_in2x2x2x2
         gws));
     topology.add(custom_gpu_primitive(
         "user_kernel2",
-        { "user_kernel1" },
+        { input_info("user_kernel1") },
         { kernel_code2 },
         entry_point,
         parameters,
@@ -488,8 +488,8 @@ TEST(custom_gpu_primitive_f32, two_kernels_with_same_entry_point_basic_in2x2x2x2
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "user_kernel2");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "user_kernel2");
 
     auto output = outputs.at("user_kernel2").get_memory();
 
@@ -497,7 +497,7 @@ TEST(custom_gpu_primitive_f32, two_kernels_with_same_entry_point_basic_in2x2x2x2
     cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
     for (int i = 0; i < 16; i++) {
-        EXPECT_TRUE(are_equal(input_ptr[i] + 7, output_ptr[i]));
+        ASSERT_TRUE(are_equal(input_ptr[i] + 7, output_ptr[i]));
     }
 }
 
@@ -525,7 +525,7 @@ void test_custom_gpu_primitive_u8_add_basic_in2x2x2x2(bool is_caching_test) {
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(custom_gpu_primitive(
         "user_kernel",
-        { "input", "input2" },
+        { input_info("input"), input_info("input2") },
         { kernel_code },
         entry_point,
         parameters,
@@ -570,8 +570,8 @@ void test_custom_gpu_primitive_u8_add_basic_in2x2x2x2(bool is_caching_test) {
     network->set_input_data("input2", input2);
     auto outputs = network->execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "user_kernel");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "user_kernel");
 
     auto output = outputs.at("user_kernel").get_memory();
 
@@ -585,7 +585,7 @@ void test_custom_gpu_primitive_u8_add_basic_in2x2x2x2(bool is_caching_test) {
     cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++) {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 

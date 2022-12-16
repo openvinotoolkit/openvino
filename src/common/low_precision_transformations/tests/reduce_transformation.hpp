@@ -2,21 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "layer_transformation.hpp"
-
-#include <string>
-#include <sstream>
-#include <memory>
-
 #include <gtest/gtest.h>
 
-#include <utility>
+#include <memory>
+#include <sstream>
+#include <string>
 #include <transformations/utils/utils.hpp>
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include <utility>
 
-#include "lpt_ngraph_functions/reduce_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "common_test_utils/ngraph_test_utils.hpp"
+#include "layer_transformation.hpp"
 #include "lpt_ngraph_functions/common/constant.hpp"
+#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "lpt_ngraph_functions/reduce_function.hpp"
 
 using namespace testing;
 using namespace ngraph;
@@ -46,24 +44,22 @@ public:
     Expected expected;
 };
 
-typedef std::tuple <
-    ngraph::PartialShape,
-    ReduceTransformationTestValues
-> ReduceTransformationParams;
+typedef std::tuple<ngraph::PartialShape, ReduceTransformationTestValues> ReduceTransformationParams;
 
 template <typename ReduceType>
-class ReduceTransformation : public LayerTransformation, public testing::WithParamInterface<ReduceTransformationParams> {
+class ReduceTransformation : public LayerTransformation,
+                             public testing::WithParamInterface<ReduceTransformationParams> {
 public:
     void SetUp() override {
         const ngraph::PartialShape inputShape = std::get<0>(GetParam());
         const ReduceTransformationTestValues testValues = std::get<1>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::ReduceFunction::getOriginal<ReduceType>(
-            testValues.actual.inputPrecision,
-            inputShape,
-            testValues.actual.dequantization,
-            testValues.constantValues,
-            testValues.keepDims);
+        actualFunction =
+            ngraph::builder::subgraph::ReduceFunction::getOriginal<ReduceType>(testValues.actual.inputPrecision,
+                                                                               inputShape,
+                                                                               testValues.actual.dequantization,
+                                                                               testValues.constantValues,
+                                                                               testValues.keepDims);
 
         referenceFunction = ngraph::builder::subgraph::ReduceFunction::getReference<ReduceType>(
             testValues.expected.inputPrecision,
@@ -80,15 +76,13 @@ public:
         const ReduceTransformationTestValues testValues = std::get<1>(obj.param);
 
         std::ostringstream result;
-        result <<
-            testValues.actual.inputPrecision << "_" <<
-            LayerTransformation::getTestCaseNameByParams(testValues.actual.inputPrecision, inputShape, testValues.params) << "_" <<
-            testValues.actual.dequantization << "_" <<
-            testValues.expected.dequantizationBefore << "_" <<
-            testValues.expected.preicsionAfterOperation << "_" <<
-            testValues.expected.dequantizationAfter << "_" <<
-            (testValues.keepDims ? "_keep_dims_" : "_") <<
-            "reduction_axes_";
+        result << testValues.actual.inputPrecision << "_"
+               << LayerTransformation::getTestCaseNameByParams(testValues.actual.inputPrecision,
+                                                               inputShape,
+                                                               testValues.params)
+               << "_" << testValues.actual.dequantization << "_" << testValues.expected.dequantizationBefore << "_"
+               << testValues.expected.preicsionAfterOperation << "_" << testValues.expected.dequantizationAfter << "_"
+               << (testValues.keepDims ? "_keep_dims_" : "_") << "reduction_axes_";
         for (const auto& elem : testValues.constantValues) {
             result << "_" << elem << "_";
         }

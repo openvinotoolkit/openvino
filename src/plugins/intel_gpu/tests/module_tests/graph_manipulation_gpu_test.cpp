@@ -43,11 +43,11 @@ TEST(basic, test1) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weights1", weights1));
     topology.add(data("weights2", weights2));
-    topology.add(reshape("reshape1", "weights1", tensor(spatial(1, 2))));
-    topology.add(reorder("reorder2", "input", layout(data_types::f32, format::byxf, tensor(4))));
-    topology.add(reorder("reorder1", "reshape1", layout(data_types::f32, format::byxf, tensor(4))));
-    topology.add(concatenation("concat", { "reorder1", "weights2" }, 3));
-    topology.add(convolution("conv2", { "reorder2" }, { "concat" }));
+    topology.add(reshape("reshape1", input_info("weights1"), tensor(spatial(1, 2))));
+    topology.add(reorder("reorder2", input_info("input"), layout(data_types::f32, format::byxf, tensor(4))));
+    topology.add(reorder("reorder1", input_info("reshape1"), layout(data_types::f32, format::byxf, tensor(4))));
+    topology.add(concatenation("concat", { input_info("reorder1"), input_info("weights2") }, 3));
+    topology.add(convolution("conv2", { input_info("reorder2") }, { "concat" }));
 
     program::ptr prog = program::build_program(engine, topology, build_opt, false);
     network::ptr network = network::allocate_network(engine, prog);
@@ -59,7 +59,7 @@ TEST(basic, test1) {
     for (auto& it : outputs)
     {
         cldnn::mem_lock<float> output(it.second.get_memory(), get_test_stream());
-        EXPECT_NEAR(7.8f, output[0], epsilon);
+        ASSERT_NEAR(7.8f, output[0], epsilon);
     }
 }
 
@@ -88,10 +88,10 @@ TEST(add_intermediate_gpu, test1)
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weights", weights));
     topology.add(data("weights2", weights2));
-    topology.add(cldnn::convolution("conv1a", { "input" }, { "weights" }));
-    topology.add(cldnn::convolution("conv1b", { "input" }, { "weights" }));
-    topology.add(cldnn::convolution("conv2a", { "conv1a" }, { "weights2" }));
-    auto new_reorder = std::make_shared<reorder>("reorder","nothing", input->get_layout());
+    topology.add(cldnn::convolution("conv1a", { input_info("input") }, { "weights" }));
+    topology.add(cldnn::convolution("conv1b", { input_info("input") }, { "weights" }));
+    topology.add(cldnn::convolution("conv2a", { input_info("conv1a") }, { "weights2" }));
+    auto new_reorder = std::make_shared<reorder>("reorder", input_info("nothing"), input->get_layout());
     program::ptr prog = program::build_program(engine, topology, build_opt, false, true);
     prog->add_intermediate(new_reorder, prog->get_node("conv1a"), 0);
     prog->dump_program("custom_dump", true);
@@ -114,7 +114,7 @@ TEST(add_intermediate_gpu, test1)
         cldnn::mem_lock<float> output(it.second.get_memory(), get_test_stream());
         for (uint32_t x = 0; x < output_size; x++)
         {
-            EXPECT_FLOAT_EQ(expected_output_vec[x+output_size*output_index], output[x]);
+            ASSERT_FLOAT_EQ(expected_output_vec[x+output_size*output_index], output[x]);
         }
         output_index++;
     }
@@ -146,12 +146,12 @@ TEST(add_intermediate_gpu, test2)
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weights2", weights2));
 
-    topology.add(cldnn::convolution("conv2a", { "input" }, { "weights2" }));
-    topology.add(cldnn::convolution("conv2b", { "input" }, { "weights2" }));
+    topology.add(cldnn::convolution("conv2a", { input_info("input") }, { "weights2" }));
+    topology.add(cldnn::convolution("conv2b", { input_info("input") }, { "weights2" }));
 
     std::vector<primitive_id> w_vec;
     w_vec.push_back("weights");
-    auto new_conv = std::make_shared<convolution>("conv1a", "input", w_vec);
+    auto new_conv = std::make_shared<convolution>("conv1a", input_info("input"), w_vec);
     auto weights_node = std::make_shared<data>("weights", weights);
     program::ptr prog = program::build_program(engine, topology, build_opt, false, true);
 
@@ -175,7 +175,7 @@ TEST(add_intermediate_gpu, test2)
         cldnn::mem_lock<float> output(it.second.get_memory(), get_test_stream());
         for (uint32_t x = 0; x < output_size; x++)
         {
-            EXPECT_FLOAT_EQ(expected_output_vec[x], output[x]);
+            ASSERT_FLOAT_EQ(expected_output_vec[x], output[x]);
         }
     }
 }

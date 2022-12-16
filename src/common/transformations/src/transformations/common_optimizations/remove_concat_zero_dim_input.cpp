@@ -53,6 +53,7 @@ ov::pass::RemoveConcatZeroDimInput::RemoveConcatZeroDimInput() {
                 const auto& empty_constant = opset8::Constant::create(concat->get_output_element_type(0),
                                                                       concat->get_output_partial_shape(0).to_shape(),
                                                                       {});
+                copy_runtime_info(concat, empty_constant);
                 concat->output(0).replace(empty_constant);
                 empty_constant->set_friendly_name(concat->get_friendly_name());
             } else {
@@ -61,7 +62,7 @@ ov::pass::RemoveConcatZeroDimInput::RemoveConcatZeroDimInput() {
         }
         return inputs_removed;
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(concat_pattern, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(concat_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
 

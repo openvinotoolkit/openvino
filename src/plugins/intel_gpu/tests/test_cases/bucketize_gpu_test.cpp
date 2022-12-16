@@ -47,17 +47,17 @@ struct bucketize_test : testing::TestWithParam<bucketize_test_params<I, B, O>> {
         topology topology;
         topology.add(input_layout("input", input->get_layout()));
         topology.add(input_layout("buckets", buckets->get_layout()));
-        topology.add(reorder("reordered_input", "input", fmt, type_to_data_type<I>::value));
-        topology.add(reorder("reordered_buckets", "buckets", fmt, type_to_data_type<B>::value));
+        topology.add(reorder("reordered_input", input_info("input"), fmt, type_to_data_type<I>::value));
+        topology.add(reorder("reordered_buckets", input_info("buckets"), fmt, type_to_data_type<B>::value));
 
         topology.add(
-            bucketize("bucketize_right_bound", {"reordered_input", "buckets"}, type_to_data_type<O>::value, true));
+            bucketize("bucketize_right_bound", { input_info("reordered_input"), input_info("buckets") }, type_to_data_type<O>::value, true));
         topology.add(
-            bucketize("bucketize_left_bound", {"reordered_input", "buckets"}, type_to_data_type<O>::value, false));
+            bucketize("bucketize_left_bound", { input_info("reordered_input"), input_info("buckets") }, type_to_data_type<O>::value, false));
         topology.add(
-            reorder("plane_bucketize_right_bound", "bucketize_right_bound", format::bfyx, type_to_data_type<O>::value));
+            reorder("plane_bucketize_right_bound", input_info("bucketize_right_bound"), format::bfyx, type_to_data_type<O>::value));
         topology.add(
-            reorder("plane_bucketize_left_bound", "bucketize_left_bound", format::bfyx, type_to_data_type<O>::value));
+            reorder("plane_bucketize_left_bound", input_info("bucketize_left_bound"), format::bfyx, type_to_data_type<O>::value));
 
         cldnn::network::ptr network;
 
@@ -87,7 +87,7 @@ struct bucketize_test : testing::TestWithParam<bucketize_test_params<I, B, O>> {
             cldnn::mem_lock<O> output_ptr(output, get_test_stream());
             ASSERT_EQ(output_ptr.size(), p.output_values_right_bound.size());
             for (size_t i = 0; i < output_ptr.size(); ++i) {
-                EXPECT_EQ(p.output_values_right_bound[i], output_ptr[i]);
+                ASSERT_EQ(p.output_values_right_bound[i], output_ptr[i]);
             }
         }
 
@@ -96,7 +96,7 @@ struct bucketize_test : testing::TestWithParam<bucketize_test_params<I, B, O>> {
             cldnn::mem_lock<O> output_ptr(output, get_test_stream());
             ASSERT_EQ(output_ptr.size(), p.output_values_left_bound.size());
             for (size_t i = 0; i < output_ptr.size(); ++i) {
-                EXPECT_EQ(p.output_values_left_bound[i], output_ptr[i]);
+                ASSERT_EQ(p.output_values_left_bound[i], output_ptr[i]);
             }
         }
     }

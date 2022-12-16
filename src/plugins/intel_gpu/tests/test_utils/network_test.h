@@ -77,7 +77,7 @@ struct reference_tensor_typed<T, 1> : reference_tensor {
             size_t offset = actual->get_layout().get_linear_offset(coords);
             auto& ref = reference[bi];
             auto& val = ptr[offset];
-            TYPED_EXPECT_EQ(ref, val) << " at bi=" << bi;
+            TYPED_ASSERT_EQ(ref, val) << " at bi=" << bi;
         }
     }
 
@@ -110,7 +110,7 @@ struct reference_tensor_typed<T, 2> : reference_tensor {
                 size_t offset = actual->get_layout().get_linear_offset(coords);
                 auto& ref = reference[bi][fi];
                 auto& val = ptr[offset];
-                TYPED_EXPECT_EQ(ref, val) << "at bi=" << bi << " fi=" << fi;
+                TYPED_ASSERT_EQ(ref, val) << "at bi=" << bi << " fi=" << fi;
             }
         }
     }
@@ -147,7 +147,7 @@ struct reference_tensor_typed<T, 4> : reference_tensor {
                         size_t offset = actual->get_layout().get_linear_offset(coords);
                         auto& ref = reference[bi][fi][yi][xi];
                         auto& val = ptr[offset];
-                        TYPED_EXPECT_EQ(ref, val) << "at bi=" << bi << " fi=" << fi << " yi=" << yi << " xi=" << xi;
+                        TYPED_ASSERT_EQ(ref, val) << "at bi=" << bi << " fi=" << fi << " yi=" << yi << " xi=" << xi;
                     }
                 }
             }
@@ -313,7 +313,7 @@ public:
                                                            std::shared_ptr<reference_node<WeightsT, InputN>> weights,
                                                            std::shared_ptr<reference_node<BiasT, 2>> bias,
                                                            cldnn::implementation_desc force = cldnn::implementation_desc{ cldnn::format::any, "" }) {
-        topo.add(cldnn::fully_connected(id, input->id, weights->id, bias->id, cldnn::type_to_data_type<T>::value));
+        topo.add(cldnn::fully_connected(id, input_info(input->id), weights->id, bias->id, cldnn::type_to_data_type<T>::value));
         if (force.output_format != cldnn::format::any || force.kernel_name != "")
             forced_impls[id] = force;
         VVF<T> output_data = fully_connected_reference_typed<T>(input->reference.reference,
@@ -329,7 +329,7 @@ public:
                                                            std::shared_ptr<reference_node<BiasT, 2>> bias,
                                                            cldnn::implementation_desc force = cldnn::implementation_desc{cldnn::format::any, ""},
                                                            size_t input_dim_size = 3) {
-        topo.add(cldnn::fully_connected(id, input->id, weights->id, bias->id, cldnn::type_to_data_type<T>::value, cldnn::padding(), input_dim_size));
+        topo.add(cldnn::fully_connected(id, input_info(input->id), weights->id, bias->id, cldnn::type_to_data_type<T>::value, cldnn::padding(), input_dim_size));
         if (force.output_format != cldnn::format::any || force.kernel_name != "")
             forced_impls[id] = force;
         VVVVF<T> output_data = fully_connected_reference_typed_3d<T>(input->reference.reference,

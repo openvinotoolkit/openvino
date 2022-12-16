@@ -14,7 +14,6 @@ namespace v0 {
 class OPENVINO_API Erf : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Erf", "opset1", util::UnaryElementwiseArithmetic);
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a floor operation.
     Erf() = default;
     /// \brief Constructs a floor operation.

@@ -16,19 +16,17 @@ namespace {
             InferenceEngine::Precision::FP16
     };
 
-    const auto basicCases = ::testing::Combine(
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(std::vector<size_t>({ 1, 3, 30, 30 }),
-                            std::vector<size_t>({ 2, 16, 15, 20})),
-        ::testing::Values(0.33f, 1.1f),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU));
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Grn_Basic, GrnLayerTest,
-                            basicCases,
-                            GrnLayerTest::getTestCaseName);
+    INSTANTIATE_TEST_SUITE_P(smoke_Grn_Basic,
+                             GrnLayerTest,
+                             ::testing::Combine(::testing::ValuesIn(netPrecisions),
+                                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                                ::testing::Values(std::vector<size_t>({1, 3, 30, 30}),
+                                                                  std::vector<size_t>({2, 16, 15, 20})),
+                                                ::testing::Values(0.33f, 1.1f),
+                                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                             GrnLayerTest::getTestCaseName);
 
 }  // namespace

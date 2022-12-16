@@ -45,7 +45,7 @@ void test_experimental_detectron_roi_feature_extractor_gpu_fp32_one_level(bool i
     topology.add(input_layout(input_level_1_id, level_1->get_layout()));
     topology.add(mutable_data(second_output_w_id, second_output));
     topology.add(experimental_detectron_roi_feature_extractor(feature_extractor_id,
-                                                              {input_rois_id, input_level_1_id, second_output_w_id},
+                                                              { input_info(input_rois_id), input_info(input_level_1_id), input_info(second_output_w_id) },
                                                               output_dim,
                                                               pyramid_scales,
                                                               sampling_ratio,
@@ -87,7 +87,7 @@ void test_experimental_detectron_roi_feature_extractor_gpu_fp32_one_level(bool i
 
     ASSERT_EQ(expected_first_output.size(), first_output_ptr.size());
     for (std::size_t i = 0; i < expected_first_output.size(); i++) {
-        EXPECT_FLOAT_EQ(expected_first_output[i], first_output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_first_output[i], first_output_ptr[i]);
     }
 
     if (is_caching_test)
@@ -96,12 +96,12 @@ void test_experimental_detectron_roi_feature_extractor_gpu_fp32_one_level(bool i
     std::vector<T>& expected_second_output = rois;
 
     auto second_network_output = outputs.at(second_output_r_id).get_memory();
-    EXPECT_TRUE(engine.is_the_same_buffer(*second_output, *second_network_output));
+    ASSERT_TRUE(engine.is_the_same_buffer(*second_output, *second_network_output));
     cldnn::mem_lock<T> second_output_ptr(second_network_output, get_test_stream());
 
     ASSERT_EQ(expected_second_output.size(), second_output_ptr.size());
     for (std::size_t i = 0; i < expected_second_output.size(); i++) {
-        EXPECT_FLOAT_EQ(expected_second_output[i], second_output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_second_output[i], second_output_ptr[i]);
     }
 }
 
@@ -145,7 +145,7 @@ TEST(experimental_detectron_roi_feature_extractor_gpu_fp32, two_levels) {
     topology.add(input_layout(input_level_2_id, level_2->get_layout()));
     topology.add(mutable_data(second_output_w_id, second_output));
     topology.add(experimental_detectron_roi_feature_extractor(feature_extractor_id,
-                                                              {input_rois_id, input_level_1_id, input_level_2_id, second_output_w_id},
+                                                              { input_info(input_rois_id), input_info(input_level_1_id), input_info(input_level_2_id), input_info(second_output_w_id) },
                                                               output_dim,
                                                               pyramid_scales,
                                                               sampling_ratio,
@@ -171,18 +171,18 @@ TEST(experimental_detectron_roi_feature_extractor_gpu_fp32, two_levels) {
 
     ASSERT_EQ(expected_first_output.size(), first_output_ptr.size());
     for (std::size_t i = 0; i < expected_first_output.size(); i++) {
-        EXPECT_FLOAT_EQ(expected_first_output[i], first_output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_first_output[i], first_output_ptr[i]);
     }
 
     std::vector<float>& expected_second_output = rois;
 
     auto second_network_output = outputs.at(second_output_r_id).get_memory();
-    EXPECT_TRUE(engine.is_the_same_buffer(*second_output, *second_network_output));
+    ASSERT_TRUE(engine.is_the_same_buffer(*second_output, *second_network_output));
     cldnn::mem_lock<float> second_output_ptr(second_network_output, get_test_stream());
 
     ASSERT_EQ(expected_second_output.size(), second_output_ptr.size());
     for (std::size_t i = 0; i < expected_second_output.size(); i++) {
-        EXPECT_FLOAT_EQ(expected_second_output[i], second_output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_second_output[i], second_output_ptr[i]);
     }
 }
 
@@ -221,7 +221,7 @@ TEST(experimental_detectron_roi_feature_extractor_gpu_fp32, multiple_feature_ext
     topology.add(input_layout(input_level_1_first_instance_id, level_1->get_layout()));
     topology.add(mutable_data(second_output_w_first_instance_id, second_output_first_instance));
     topology.add(experimental_detectron_roi_feature_extractor(feature_extractor_first_instance_id,
-                                                              {input_rois_first_instance_id, input_level_1_first_instance_id, second_output_w_first_instance_id},
+                                                              { input_info(input_rois_first_instance_id), input_info(input_level_1_first_instance_id), input_info(second_output_w_first_instance_id) },
                                                               output_dim,
                                                               pyramid_scales_first_instance,
                                                               sampling_ratio,
@@ -241,13 +241,13 @@ TEST(experimental_detectron_roi_feature_extractor_gpu_fp32, multiple_feature_ext
     topology.add(input_layout(input_level_2_second_instance_id, level_2->get_layout()));
     topology.add(mutable_data(second_output_w_second_instance_id, second_output_second_instance));
     topology.add(experimental_detectron_roi_feature_extractor(feature_extractor_second_instance_id,
-                                                              {input_rois_second_instance_id, input_level_1_second_instance_id, input_level_2_second_instance_id, second_output_w_second_instance_id},
+                                                              { input_info(input_rois_second_instance_id), input_info(input_level_1_second_instance_id), input_info(input_level_2_second_instance_id), input_info(second_output_w_second_instance_id) },
                                                               output_dim,
                                                               pyramid_scales_second_instance,
                                                               sampling_ratio,
                                                               aligned));
-    topology.add(activation(activation_abs_second_instance_id, feature_extractor_second_instance_id,  activation_func::abs));
-    topology.add(mutable_data(second_output_r_second_instance_id, {feature_extractor_second_instance_id}, second_output_second_instance));
+    topology.add(activation(activation_abs_second_instance_id, input_info(feature_extractor_second_instance_id),  activation_func::abs));
+    topology.add(mutable_data(second_output_r_second_instance_id, { input_info(feature_extractor_second_instance_id) }, second_output_second_instance));
 
     network network(engine, topology);
 
@@ -269,18 +269,18 @@ TEST(experimental_detectron_roi_feature_extractor_gpu_fp32, multiple_feature_ext
 
     ASSERT_EQ(expected_first_output_first_instance.size(), first_output_ptr_first_instance.size());
     for (std::size_t i = 0; i < expected_first_output_first_instance.size(); i++) {
-        EXPECT_FLOAT_EQ(expected_first_output_first_instance[i], first_output_ptr_first_instance[i]);
+        ASSERT_FLOAT_EQ(expected_first_output_first_instance[i], first_output_ptr_first_instance[i]);
     }
 
     std::vector<float>& expected_second_output_first_instance = rois_first_instance;
 
     auto second_network_output_first_instance = outputs.at(second_output_r_first_instance_id).get_memory();
-    EXPECT_TRUE(engine.is_the_same_buffer(*second_output_first_instance, *second_network_output_first_instance));
+    ASSERT_TRUE(engine.is_the_same_buffer(*second_output_first_instance, *second_network_output_first_instance));
     cldnn::mem_lock<float> second_output_ptr_first_instance(second_network_output_first_instance, get_test_stream());
 
     ASSERT_EQ(expected_second_output_first_instance.size(), second_output_ptr_first_instance.size());
     for (std::size_t i = 0; i < expected_second_output_first_instance.size(); i++) {
-        EXPECT_FLOAT_EQ(expected_second_output_first_instance[i], second_output_ptr_first_instance[i]);
+        ASSERT_FLOAT_EQ(expected_second_output_first_instance[i], second_output_ptr_first_instance[i]);
     }
 
     std::vector<float> expected_first_output_second_instance {7.41662f,   7.7499523f, 8.0832853f,  8.41662f,   8.74995f,   9.0832853f, 9.16664f,   9.49998f,   9.83331f,
@@ -293,17 +293,17 @@ TEST(experimental_detectron_roi_feature_extractor_gpu_fp32, multiple_feature_ext
 
     ASSERT_EQ(expected_first_output_second_instance.size(), first_output_ptr_second_instance.size());
     for (std::size_t i = 0; i < expected_first_output_second_instance.size(); i++) {
-        EXPECT_FLOAT_EQ(expected_first_output_second_instance[i], first_output_ptr_second_instance[i]);
+        ASSERT_FLOAT_EQ(expected_first_output_second_instance[i], first_output_ptr_second_instance[i]);
     }
 
     std::vector<float>& expected_second_output_second_instance = rois_second_instance;
 
     auto second_network_output_second_instance = outputs.at(second_output_r_second_instance_id).get_memory();
-    EXPECT_TRUE(engine.is_the_same_buffer(*second_output_second_instance, *second_network_output_second_instance));
+    ASSERT_TRUE(engine.is_the_same_buffer(*second_output_second_instance, *second_network_output_second_instance));
     cldnn::mem_lock<float> second_output_ptr_second_instance(second_network_output_second_instance, get_test_stream());
 
     ASSERT_EQ(expected_second_output_second_instance.size(), second_output_ptr_second_instance.size());
     for (std::size_t i = 0; i < expected_second_output_second_instance.size(); i++) {
-        EXPECT_FLOAT_EQ(expected_second_output_second_instance[i], second_output_ptr_second_instance[i]);
+        ASSERT_FLOAT_EQ(expected_second_output_second_instance[i], second_output_ptr_second_instance[i]);
     }
 }

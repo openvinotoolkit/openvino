@@ -51,7 +51,7 @@ public:
 
         cldnn::layout outLayout{data_type, cldnn::format::bfyx, params.outputTensor};
         topology.add(experimental_detectron_prior_grid_generator(experimental_detectron_prior_grid_generator_id,
-                                                                 {priors_id},
+                                                                 { input_info(priors_id) },
                                                                  params.flatten,
                                                                  params.h,
                                                                  params.w,
@@ -90,7 +90,7 @@ public:
 
         ASSERT_EQ(params.outputTensor.count(), out_ptr.size());
         for (size_t i = 0; i < params.expectedOutput.size(); ++i) {
-            EXPECT_NEAR(params.expectedOutput[i], out_ptr[i], 0.0001) << "at i = " << i;
+            ASSERT_NEAR(params.expectedOutput[i], out_ptr[i], 0.0001) << "at i = " << i;
         }
     }
 };

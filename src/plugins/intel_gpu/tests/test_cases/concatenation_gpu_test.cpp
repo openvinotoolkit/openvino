@@ -55,7 +55,7 @@ TEST(concat_gpu, mixed_input_types) {
             input_layout("input3", input3->get_layout()),
             input_layout("input4", input4->get_layout()),
             concatenation("concat",
-                          { "input0", "input1", "input2", "input3", "input4" },
+                          { input_info("input0"), input_info("input1"), input_info("input2"), input_info("input3"), input_info("input4") },
                           1,
                           data_types::f32,
                           padding{ { 0,0,0,0 }, 0 })
@@ -69,8 +69,8 @@ TEST(concat_gpu, mixed_input_types) {
     network.set_input_data("input4", input4);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "concat");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "concat");
 
     auto output_memory = outputs.at("concat").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -80,14 +80,14 @@ TEST(concat_gpu, mixed_input_types) {
     int x_size = output_layout.spatial(0);
     int f_size = output_layout.feature();
     int b_size = output_layout.batch();
-    EXPECT_EQ(output_layout.format, format::bfyx);
-    EXPECT_EQ(y_size, 3);
-    EXPECT_EQ(x_size, 4);
-    EXPECT_EQ(f_size, 5);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(output_layout.format, format::bfyx);
+    ASSERT_EQ(y_size, 3);
+    ASSERT_EQ(x_size, 4);
+    ASSERT_EQ(f_size, 5);
+    ASSERT_EQ(b_size, 1);
 
     for (size_t x = 0; x < output_layout.count(); ++x) {
-        EXPECT_EQ(output_vec[x], output_ptr[x]);
+        ASSERT_EQ(output_vec[x], output_ptr[x]);
     }
 }
 
@@ -128,7 +128,7 @@ TEST(concat_gpu, mixed_input_types_5d) {
             input_layout("input2", input2->get_layout()),
             input_layout("input3", input3->get_layout()),
             concatenation("concat",
-                          { "input0", "input1", "input2", "input3" },
+                          { input_info("input0"), input_info("input1"), input_info("input2"), input_info("input3") },
                           1,
                           data_types::f32,
                           padding{ { 0,0,0,0 }, 0 })
@@ -141,8 +141,8 @@ TEST(concat_gpu, mixed_input_types_5d) {
     network.set_input_data("input3", input3);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "concat");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "concat");
 
     auto output_memory = outputs.at("concat").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -153,15 +153,15 @@ TEST(concat_gpu, mixed_input_types_5d) {
     int x_size = output_layout.spatial(0);
     int f_size = output_layout.feature();
     int b_size = output_layout.batch();
-    EXPECT_EQ(output_layout.format, format::bfzyx);
-    EXPECT_EQ(z_size, 3);
-    EXPECT_EQ(y_size, 4);
-    EXPECT_EQ(x_size, 1);
-    EXPECT_EQ(f_size, 4);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(output_layout.format, format::bfzyx);
+    ASSERT_EQ(z_size, 3);
+    ASSERT_EQ(y_size, 4);
+    ASSERT_EQ(x_size, 1);
+    ASSERT_EQ(f_size, 4);
+    ASSERT_EQ(b_size, 1);
 
     for (size_t x = 0; x < output_layout.count(); ++x) {
-        EXPECT_EQ(output_vec[x], output_ptr[x]);
+        ASSERT_EQ(output_vec[x], output_ptr[x]);
     }
 }
 
@@ -199,14 +199,14 @@ TEST(concat_gpu, i8_optimization_with_pool) {
     layout reorder_layout(data_types::i8, format::yxfb, {7, 2, 2, 1});
     topology topology(input_layout("input0", input0->get_layout()),
                       input_layout("input1", input1->get_layout()),
-                      pooling("pool0", "input0", pooling_mode::max, {2, 2}, {1, 1}),
-                      pooling("pool1", "input1", pooling_mode::max, {2, 2}, {1, 1}),
+                      pooling("pool0", input_info("input0"), pooling_mode::max, {2, 2}, {1, 1}),
+                      pooling("pool1", input_info("input1"), pooling_mode::max, {2, 2}, {1, 1}),
                       concatenation("concat",
-                                    {"pool0", "pool1"},
+                                    { input_info("pool0"), input_info("pool1") },
                                     1,
                                     data_types::i8,
                                     padding{{0, 0, 0, 0}, 0}),
-                      reorder("reorder", "concat", reorder_layout));
+                      reorder("reorder", input_info("concat"), reorder_layout));
     cldnn::build_options options;
     options.set_option(cldnn::build_option::optimize_data(true));
     network network(engine, topology, options);
@@ -214,8 +214,8 @@ TEST(concat_gpu, i8_optimization_with_pool) {
     network.set_input_data("input1", input1);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "reorder");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "reorder");
 
     auto output_memory = outputs.at("reorder").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -225,14 +225,14 @@ TEST(concat_gpu, i8_optimization_with_pool) {
     int x_size = output_layout.spatial(1);
     int f_size = output_layout.feature();
     int b_size = output_layout.batch();
-    EXPECT_EQ(output_layout.format, format::yxfb);
-    EXPECT_EQ(y_size, 7);
-    EXPECT_EQ(x_size, 2);
-    EXPECT_EQ(f_size, 2);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(output_layout.format, format::yxfb);
+    ASSERT_EQ(y_size, 7);
+    ASSERT_EQ(x_size, 2);
+    ASSERT_EQ(f_size, 2);
+    ASSERT_EQ(b_size, 1);
 
     for (size_t x = 0; x < output_layout.count(); ++x) {
-        EXPECT_EQ(output_vec[x], output_ptr[x]);
+        ASSERT_EQ(output_vec[x], output_ptr[x]);
     }
 }
 
@@ -302,13 +302,13 @@ TEST(concat_gpu, i8_optimization_with_conv) {
                       input_layout("input1", input1->get_layout()),
                       input_layout("input2", input2->get_layout()),
                       concatenation("concat",
-                                    {"input0", "input1", "input2"},
+                                    { input_info("input0"), input_info("input1"), input_info("input2") },
                                     1,
                                     data_types::i8,
                                     padding{{0, 0, 0, 0}, 0}),
                       data("weights", weights),
-                      convolution("conv", "concat", { "weights" }, { 2, 1 }),
-                      reorder("output", "conv", reorder_layout));
+                      convolution("conv", input_info("concat"), { "weights" }, { 2, 1 }),
+                      reorder("output", input_info("conv"), reorder_layout));
     cldnn::build_options options;
     options.set_option(cldnn::build_option::optimize_data(true));
     network network(engine, topology, options);
@@ -317,8 +317,8 @@ TEST(concat_gpu, i8_optimization_with_conv) {
     network.set_input_data("input2", input2);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "output");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "output");
 
     auto output_memory = outputs.at("output").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -328,14 +328,14 @@ TEST(concat_gpu, i8_optimization_with_conv) {
     int x_size = output_layout.spatial(0);
     int f_size = output_layout.feature();
     int b_size = output_layout.batch();
-    EXPECT_EQ(output_layout.format, format::bfyx);
-    EXPECT_EQ(y_size, 2);
-    EXPECT_EQ(x_size, 3);
-    EXPECT_EQ(f_size, 1);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(output_layout.format, format::bfyx);
+    ASSERT_EQ(y_size, 2);
+    ASSERT_EQ(x_size, 3);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 1);
 
     for (size_t x = 0; x < output_layout.count(); ++x) {
-        EXPECT_EQ(output_vec[x], output_ptr[x]);
+        ASSERT_EQ(output_vec[x], output_ptr[x]);
     }
 }
 
@@ -400,16 +400,16 @@ TEST(concat_gpu, i8_optimization_with_pool_conv) {
     layout reorder_layout(data_types::i8, format::bfyx, {1, 1, 3, 1});
     topology topology(input_layout("input0", input0->get_layout()),
                       input_layout("input1", input1->get_layout()),
-                      pooling("pool0", "input0", pooling_mode::max, {2, 2}, {1, 1}),
-                      pooling("pool1", "input1", pooling_mode::max, {2, 2}, {1, 1}),
+                      pooling("pool0", input_info("input0"), pooling_mode::max, {2, 2}, {1, 1}),
+                      pooling("pool1", input_info("input1"), pooling_mode::max, {2, 2}, {1, 1}),
                       concatenation("concat",
-                                    {"pool0", "pool1"},
+                                    { input_info("pool0"), input_info("pool1") },
                                     1,
                                     data_types::i8,
                                     padding{{0, 0, 0, 0}, 0}),
                       data("weights", weights),
-                      convolution("conv", "concat", {"weights"}, {1, 1}, {0, 1}),
-                      reorder("output", "conv", reorder_layout) );
+                      convolution("conv", input_info("concat"), {"weights"}, {1, 1}, {0, 1}),
+                      reorder("output", input_info("conv"), reorder_layout) );
     cldnn::build_options options;
     options.set_option(cldnn::build_option::optimize_data(true));
     network network(engine, topology, options);
@@ -417,8 +417,8 @@ TEST(concat_gpu, i8_optimization_with_pool_conv) {
     network.set_input_data("input1", input1);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "output");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "output");
 
     auto output_memory = outputs.at("output").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -428,14 +428,14 @@ TEST(concat_gpu, i8_optimization_with_pool_conv) {
     int x_size = output_layout.spatial(1);
     int f_size = output_layout.feature();
     int b_size = output_layout.batch();
-    EXPECT_EQ(output_layout.format, format::bfyx);
-    EXPECT_EQ(y_size, 3);
-    EXPECT_EQ(x_size, 1);
-    EXPECT_EQ(f_size, 1);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(output_layout.format, format::bfyx);
+    ASSERT_EQ(y_size, 3);
+    ASSERT_EQ(x_size, 1);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 1);
 
     for (size_t x = 0; x < output_layout.count(); ++x) {
-        EXPECT_EQ(output_vec[x], output_ptr[x]);
+        ASSERT_EQ(output_vec[x], output_ptr[x]);
     }
 }
 
@@ -553,7 +553,7 @@ public:
 
         std::vector<VVVVF<Type>> in_data;
         std::vector<memory::ptr> in_memory;
-        std::vector<primitive_id> input_ids;
+        std::vector<input_info> input_ids;
         for (size_t i = 0; i < in_features.size(); i++) {
             auto size = tensor(static_cast<int32_t>(batch_num),
                                static_cast<int32_t>(in_features[i]),
@@ -582,7 +582,7 @@ public:
 
             topology.add(input_layout("input" + std::to_string(i), in_lay));
             in_data.emplace_back(std::move(data));
-            input_ids.push_back("input" + std::to_string(i));
+            input_ids.push_back(input_info("input" + std::to_string(i)));
         }
 
         topology.add(concatenation("concat", input_ids, 1));
@@ -592,7 +592,7 @@ public:
         network network(engine, topology, options);
 
         for (size_t i = 0; i < in_features.size(); i++) {
-            network.set_input_data(input_ids[i], in_memory[i]);
+            network.set_input_data(input_ids[i].pid, in_memory[i]);
         }
 
         network.execute();
@@ -611,7 +611,7 @@ public:
 
                             auto ref_val = in_data[in_i][bi][fi][yi][xi];
                             auto actual_val = out_ptr[output_offset];
-                            EXPECT_EQ(ref_val, actual_val)
+                            ASSERT_EQ(ref_val, actual_val)
                                 << " b=" << bi << ", f=" << f_sum + fi << "(input " << in_i << "), y=" << yi << ", x=" << xi;
                         }
                     }
@@ -643,7 +643,7 @@ public:
 
         std::vector<VVVVF<Type>> in_data;
         std::vector<memory::ptr> in_memory;
-        std::vector<primitive_id> input_ids;
+        std::vector<input_info> input_ids;
         for (size_t i = 0; i < input_x.size(); i++) {
             auto size = tensor(static_cast<int32_t>(batch_num),
                                static_cast<int32_t>(in_feature),
@@ -672,7 +672,7 @@ public:
 
             topology.add(input_layout("input" + std::to_string(i), in_lay));
             in_data.emplace_back(std::move(data));
-            input_ids.push_back("input" + std::to_string(i));
+            input_ids.push_back(input_info("input" + std::to_string(i)));
         }
 
         topology.add(concatenation("concat", input_ids, 3));
@@ -682,7 +682,7 @@ public:
         network network(engine, topology, options);
 
         for (size_t i = 0; i < input_x.size(); i++) {
-            network.set_input_data(input_ids[i], in_memory[i]);
+            network.set_input_data(input_ids[i].pid, in_memory[i]);
         }
 
         network.execute();
@@ -701,7 +701,7 @@ public:
 
                             auto ref_val = in_data[in_i][bi][fi][yi][xi];
                             auto actual_val = out_ptr[output_offset];
-                            EXPECT_EQ(ref_val, actual_val)
+                            ASSERT_EQ(ref_val, actual_val)
                                 << " b=" << bi << ", f=" << fi << ", y=" << yi << ", x=" << x_sum + xi << "(input " << in_i << ")";
                         }
                         x_sum += input_x[in_i];
@@ -792,7 +792,7 @@ public:
 
         std::vector<VVVVF<Type>> in_data;
         std::vector<memory::ptr> in_memory;
-        std::vector<primitive_id> input_ids;
+        std::vector<input_info> input_ids;
         for (size_t i = 0; i < in_features.size(); i++) {
             auto size = tensor(static_cast<int32_t>(batch_num),
                                static_cast<int32_t>(in_features[i]),
@@ -821,7 +821,7 @@ public:
 
             topology.add(input_layout("input" + std::to_string(i), in_lay));
             in_data.emplace_back(std::move(data));
-            input_ids.push_back("input" + std::to_string(i));
+            input_ids.push_back(input_info("input" + std::to_string(i)));
         }
 
         topology.add(concatenation("concat", input_ids, 1));
@@ -839,7 +839,7 @@ public:
             }
         }
         topology.add(data("weights", weights_mem));
-        topology.add(convolution("conv", "concat", { "weights" }));
+        topology.add(convolution("conv", input_info("concat"), { "weights" }));
 
         build_options options;
         options.set_option(build_option::optimize_data(true));
@@ -848,7 +848,7 @@ public:
         network network(engine, topology, options);
 
         for (size_t i = 0; i < in_features.size(); i++) {
-            network.set_input_data(input_ids[i], in_memory[i]);
+            network.set_input_data(input_ids[i].pid, in_memory[i]);
         }
 
         network.execute();
@@ -931,7 +931,7 @@ public:
 
         std::vector<memory::ptr> in_memory;
         std::vector<primitive_id> input_ids;
-        std::vector<primitive_id> pooling_ids;
+        std::vector<input_info> pooling_ids;
 
         for (size_t i = 0; i < in_features.size(); i++) {
             auto size = tensor(static_cast<int32_t>(batch_num),
@@ -959,10 +959,10 @@ public:
             in_memory.push_back(in_mem);
 
             topology.add(input_layout("input" + std::to_string(i), in_lay));
-            topology.add(pooling("pool" +  std::to_string(i), "input" + std::to_string(i), pooling_mode::max, {1, 1}, {1, 1}));
+            topology.add(pooling("pool" +  std::to_string(i), input_info("input" + std::to_string(i)), pooling_mode::max, {1, 1}, {1, 1}));
 
             input_ids.push_back("input" + std::to_string(i));
-            pooling_ids.push_back("pool" + std::to_string(i));
+            pooling_ids.push_back(input_info("pool" + std::to_string(i)));
         }
 
         topology.add(concatenation("concat", pooling_ids, 1));
@@ -979,9 +979,9 @@ public:
             }
         }
         topology.add(data("weights" , weights_mem));
-        topology.add(convolution("conv", "concat", { "weights" }));
-        topology.add(pooling("pool_final", "conv", pooling_mode::max, {1, 1}, {1, 1}));
-        topology.add(reorder("reorder", "pool_final", layout(data_type, format::bfyx, {(int32_t)batch_num, (int32_t)output_f, (int32_t)input_y, (int32_t)input_x})));
+        topology.add(convolution("conv", input_info("concat"), { "weights" }));
+        topology.add(pooling("pool_final", input_info("conv"), pooling_mode::max, {1, 1}, {1, 1}));
+        topology.add(reorder("reorder", input_info("pool_final"), layout(data_type, format::bfyx, {(int32_t)batch_num, (int32_t)output_f, (int32_t)input_y, (int32_t)input_x})));
 
         std::shared_ptr<cldnn::network> concat_network;
 
@@ -1009,7 +1009,7 @@ public:
 
         bool concat_opt_enabled = options.get<build_option_type::optimize_data>()->enabled();
         bool concat_opt_result = std::static_pointer_cast<concatenation_inst>(concat_network->get_primitive("concat"))->can_be_optimized();
-        EXPECT_TRUE(concat_opt_enabled==concat_opt_result);
+        EXPECT_EQ(concat_opt_enabled, concat_opt_result);
 
         return concat_network->get_output("reorder").get_memory();
     }
@@ -1042,12 +1042,12 @@ public:
         auto out_mem2 = run_concat_network(input, fmt, options2);
         cldnn::mem_lock<Type> out_ptr2(out_mem2, get_test_stream());
 
-        EXPECT_EQ(out_ptr1.size(), out_ptr2.size());
+        ASSERT_EQ(out_ptr1.size(), out_ptr2.size());
         size_t diff_count = 0;
         for (size_t i = 0; i < out_ptr1.size(); ++i) {
             if (out_ptr1[i] != out_ptr2[i]) diff_count++;
         }
-        EXPECT_EQ(diff_count, 0);
+        ASSERT_EQ(diff_count, 0);
     }
 };
 
@@ -1110,7 +1110,7 @@ TEST(concat_gpu_onednn, basic_input_types) {
             input_layout("input3", input3->get_layout()),
             input_layout("input4", input4->get_layout()),
             concatenation("concat",
-                          { "input0", "input1", "input2", "input3", "input4" },
+                          { input_info("input0"), input_info("input1"), input_info("input2"), input_info("input3"), input_info("input4") },
                           1,
                           data_types::f32,
                           padding{ { 0,0,0,0 }, 0 })
@@ -1129,8 +1129,8 @@ TEST(concat_gpu_onednn, basic_input_types) {
     network.set_input_data("input4", input4);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "concat");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "concat");
 
     auto output_memory = outputs.at("concat").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -1140,14 +1140,14 @@ TEST(concat_gpu_onednn, basic_input_types) {
     int x_size = output_layout.spatial(0);
     int f_size = output_layout.feature();
     int b_size = output_layout.batch();
-    EXPECT_EQ(output_layout.format, format::bfyx);
-    EXPECT_EQ(y_size, 3);
-    EXPECT_EQ(x_size, 4);
-    EXPECT_EQ(f_size, 5);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(output_layout.format, format::bfyx);
+    ASSERT_EQ(y_size, 3);
+    ASSERT_EQ(x_size, 4);
+    ASSERT_EQ(f_size, 5);
+    ASSERT_EQ(b_size, 1);
 
     for (size_t x = 0; x < output_layout.count(); ++x) {
-        EXPECT_EQ(output_vec[x], output_ptr[x]);
+        ASSERT_EQ(output_vec[x], output_ptr[x]);
     }
 }
 
@@ -1169,7 +1169,7 @@ public:
 
         std::vector<memory::ptr> in_memory;
         std::vector<primitive_id> input_ids;
-        std::vector<primitive_id> pooling_ids;
+        std::vector<input_info> pooling_ids;
 
         for (size_t i = 0; i < in_features.size(); i++) {
             auto size = tensor(static_cast<int32_t>(batch_num),
@@ -1197,10 +1197,10 @@ public:
             in_memory.push_back(in_mem);
 
             topology.add(input_layout("input" + std::to_string(i), in_lay));
-            topology.add(pooling("pool" +  std::to_string(i), "input" + std::to_string(i), pooling_mode::max, {1, 1}, {1, 1}));
+            topology.add(pooling("pool" +  std::to_string(i), input_info("input" + std::to_string(i)), pooling_mode::max, {1, 1}, {1, 1}));
 
             input_ids.push_back("input" + std::to_string(i));
-            pooling_ids.push_back("pool" + std::to_string(i));
+            pooling_ids.push_back(input_info("pool" + std::to_string(i)));
         }
 
         topology.add(concatenation("concat", pooling_ids, 1));
@@ -1217,9 +1217,9 @@ public:
             }
         }
         topology.add(data("weights" , weights_mem));
-        topology.add(convolution("conv", "concat", { "weights" }));
-        topology.add(pooling("pool_final", "conv", pooling_mode::max, {1, 1}, {1, 1}));
-        topology.add(reorder("reorder", "pool_final", layout(data_type, format::bfyx, {(int32_t)batch_num, (int32_t)output_f, (int32_t)input_y, (int32_t)input_x})));
+        topology.add(convolution("conv", input_info("concat"), { "weights" }));
+        topology.add(pooling("pool_final", input_info("conv"), pooling_mode::max, {1, 1}, {1, 1}));
+        topology.add(reorder("reorder", input_info("pool_final"), layout(data_type, format::bfyx, {(int32_t)batch_num, (int32_t)output_f, (int32_t)input_y, (int32_t)input_x})));
 
         network concat_network(engine, topology, options);
         for (size_t i = 0; i < in_features.size(); i++) {
@@ -1229,7 +1229,7 @@ public:
 
         bool concat_opt_enabled = options.get<build_option_type::optimize_data>()->enabled();
         bool concat_opt_result = std::static_pointer_cast<concatenation_inst>(concat_network.get_primitive("concat"))->node->can_be_optimized();
-        EXPECT_TRUE(concat_opt_enabled==concat_opt_result);
+        EXPECT_EQ(concat_opt_enabled, concat_opt_result);
 
         return concat_network.get_output("reorder").get_memory();
     }
@@ -1269,12 +1269,12 @@ public:
         auto out_mem2 = run_concat_network(input, fmt, options2);
         cldnn::mem_lock<Type> out_ptr2(out_mem2, get_test_stream());
 
-        EXPECT_EQ(out_ptr1.size(), out_ptr2.size());
+        ASSERT_EQ(out_ptr1.size(), out_ptr2.size());
         size_t diff_count = 0;
         for (size_t i = 0; i < out_ptr1.size(); ++i) {
             if (out_ptr1[i] != out_ptr2[i]) diff_count++;
         }
-        EXPECT_EQ(diff_count, 0);
+        ASSERT_EQ(diff_count, 0);
     }
 };
 

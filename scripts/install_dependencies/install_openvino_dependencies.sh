@@ -87,7 +87,9 @@ if [ "$os" == "auto" ] ; then
       os="rhel8"
     fi
     case $os in
-        rhel8|rhel9.1|\
+        centos7|centos8|rhel8|rhel9.1|\
+        almalinux8.7|amzn2|\
+        fedora34|fedora35|fedora36|fedora37|fedora38|\
         raspbian9|debian9|ubuntu18.04|\
         raspbian10|debian10|ubuntu20.04|ubuntu20.10|ubuntu21.04|\
         raspbian11|debian11|ubuntu21.10|ubuntu22.04|\
@@ -108,7 +110,7 @@ if [ "$os" == "raspbian9" ] || [ "$os" == "debian9" ] ; then
     # - cmake version is 3.7.2
     # which are not supported by OpenVINO
 
-    pkgs_core=()
+    pkgs_core=(libpugixml1v5)
     pkgs_python=()
     pkgs_dev=(pkg-config g++ gcc libc6-dev libgflags-dev zlib1g-dev nlohmann-json-dev make curl sudo)
     pkgs_myriad=(libusb-1.0-0)
@@ -176,61 +178,110 @@ elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "debian10" ] || [ "$os" == "raspbi
         pkgs_python=(${pkgs_python[@]} libpython3.10)
     fi
 
-elif [ "$os" == "rhel8" ] || [ "$os" == "rhel9.1" ] ; then
+elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
+     [ "$os" == "rhel8" ] || [ "$os" == "rhel9.1" ] ||
+     [ "$os" == "fedora34" ] || [ "$os" == "fedora35" ] || [ "$os" == "fedora36" ] ||
+     [ "$os" == "fedora36" ] || [ "$os" == "fedora38" ] ||
+     [ "$os" == "almalinux8.7" ] || [ "$os" == "amzn2" ] ; then
 
-    if [ "$os" == "rhel9.1" ] ; then
-        pkgs_python=(python39 python3-pip)
-    elif [ "$os" == "rhel8" ] ; then
-        pkgs_python=(python38 python38-pip)
+    arch=$(uname -m)
+
+    if [ "$os" == "amzn2" ] ; then
+        amazon-linux-extras install epel python3.8
     fi
 
-    pkgs_core=(
-        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/tbb-2018.2-9.el8.x86_64.rpm
-	https://download-ib01.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/p/pugixml-1.13-1.el8.x86_64.rpm
-	https://vault.centos.org/centos/8/PowerTools/x86_64/os/Packages/gflags-2.1.2-6.el8.x86_64.rpm
-    )
-    pkgs_opencv_req=(gtk3)
-    pkgs_dev=(
-        gcc gcc-c++ make glibc libstdc++ libgcc cmake pkg-config zlib-devel curl sudo
-    )
-    pkgs_myriad=()
-    pkgs_opencv_opt=(
-        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libcdio-2.0.0-3.el8.x86_64.rpm
-        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libtheora-1.1.1-21.el8.x86_64.rpm
-        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/opus-1.3-0.4.beta.el8.x86_64.rpm
-        http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/orc-0.4.28-3.el8.x86_64.rpm
-        http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/libglvnd-gles-1.3.4-1.el8.x86_64.rpm
-        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libdvdread-5.0.3-9.el8.x86_64.rpm
-        http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/libvisual-0.4.0-25.el8.x86_64.rpm
-        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/liba52-0.7.4-32.el8.x86_64.rpm
-        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libdvdread-5.0.3-9.el8.x86_64.rpm
-        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libXv-1.0.11-7.el8.x86_64.rpm
-        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/taglib-1.11.1-8.el8.x86_64.rpm
-        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/mpg123-libs-1.25.10-2.el8.x86_64.rpm
-        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/lame-libs-3.100-6.el8.x86_64.rpm
-        https://vault.centos.org/centos/8/BaseOS/x86_64/os/Packages/libgudev-232-4.el8.x86_64.rpm
-        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libv4l-1.14.2-3.el8.x86_64.rpm
-        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/speex-1.2.0-1.el8.x86_64.rpm
-        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libraw1394-2.1.2-5.el8.x86_64.rpm
-        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libsrtp-1.5.4-8.el8.x86_64.rpm
-        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libvpx-1.7.0-8.el8.x86_64.rpm
-        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/wavpack-5.1.0-15.el8.x86_64.rpm
-        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libiec61883-1.2.0-18.el8.x86_64.rpm
-        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libshout-2.2.2-19.el8.x86_64.rpm
-        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/twolame-libs-0.3.13-12.el8.x86_64.rpm
-        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libavc1394-0.5.4-7.el8.x86_64.rpm
-        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libdv-1.0.0-27.el8.x86_64.rpm
-        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libdvdnav-5.0.3-8.el8.x86_64.rpm
-        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/webrtc-audio-processing-0.3-9.el8.x86_64.rpm
-        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/gstreamer1-plugins-base-1.16.1-2.el8.x86_64.rpm
-        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/gstreamer1-1.16.1-2.el8.x86_64.rpm
-        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/gstreamer1-plugins-bad-free-1.16.1-1.el8.x86_64.rpm
-        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/gstreamer1-plugins-good-1.16.1-2.el8.x86_64.rpm
-        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/gstreamer1-plugins-ugly-free-1.16.1-1.el8.x86_64.rpm
-        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/soundtouch-2.0.0-3.el8.x86_64.rpm
-    )
-    extra_repos+=(https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm)
+    pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake3 json-devel.$arch zlib-devel.$arch sudo)
+    
+    if [ "$os" == "centos7" ] || [ "$os" == "amzn2" ] ; then
+        pkgs_dev+=(pkgconfig)
+    else
+        pkgs_dev+=(pkgconf-pkg-config)
+    fi
+    
+    if [ "$os" == "rhel9.1" ] ; then
+        pkgs_dev+=(curl-minimal)
+    else
+        pkgs_dev+=(curl)
+    fi
 
+    if [ "$os" == "fedora35" ] || [ "$os" == "fedora35" ] || [ "$os" == "fedora36" ] ||
+       [ "$os" == "fedora36" ] || [ "$os" == "fedora38" ] ; then
+        pkgs_core=(tbb.$arch pugixml.$arch gflags.$arch)
+        pkgs_python=(python3 python3-pip)
+        pkgs_dev+=(gflags-devel.$arch)
+        pkgs_myriad=(libusb1.$arch)
+    else
+        pkgs_myriad=(libusbx.$arch)
+    fi
+
+    if [ "$os" == "centos7" ] || [ "$os" == "amzn2" ] ; then
+        pkgs_core=(tbb.$arch pugixml.$arch gflags.$arch)
+        pkgs_dev+=(gflags-devel.$arch)
+        pkgs_opencv_opt=(
+            gstreamer1.$arch
+            gstreamer1-plugins-ugly-free.$arch
+            gstreamer1-plugins-good.$arch
+            gstreamer1-plugins-bad-free.$arch
+        )
+        extra_repos+=(https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm)
+    elif [ "$os" == "centos8" ] || [ "$os" == "rhel8" ] || [ "$os" == "almalinux8.7" ] ; then
+        pkgs_core+=(
+            https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/tbb-2018.2-9.el8.$arch.rpm
+            https://download-ib01.fedoraproject.org/pub/epel/8/Everything/$arch/Packages/p/pugixml-1.13-1.el8.$arch.rpm
+            https://vault.centos.org/centos/8/PowerTools/$arch/os/Packages/gflags-2.1.2-6.el8.$arch.rpm
+        )
+        pkgs_python+=(python38 python38-pip)
+        pkgs_dev+=(
+            https://vault.centos.org/centos/8/PowerTools/$arch/os/Packages/gflags-devel-2.1.2-6.el8.$arch.rpm
+            https://download-ib01.fedoraproject.org/pub/epel/8/Everything/$arch/Packages/j/json-devel-3.6.1-2.el8.$arch.rpm
+        )
+        pkgs_opencv_req=(gtk3)
+        pkgs_opencv_opt=(
+            https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/libcdio-2.0.0-3.el8.$arch.rpm
+            https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/libtheora-1.1.1-21.el8.$arch.rpm
+            https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/opus-1.3-0.4.beta.el8.$arch.rpm
+            http://mirror.centos.org/centos/8-stream/AppStream/$arch/os/Packages/orc-0.4.28-3.el8.$arch.rpm
+            http://mirror.centos.org/centos/8-stream/AppStream/$arch/os/Packages/libglvnd-gles-1.3.4-1.el8.$arch.rpm
+            https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/libdvdread-5.0.3-9.el8.$arch.rpm
+            http://mirror.centos.org/centos/8-stream/AppStream/$arch/os/Packages/libvisual-0.4.0-25.el8.$arch.rpm
+            https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/liba52-0.7.4-32.el8.$arch.rpm
+            https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/libdvdread-5.0.3-9.el8.$arch.rpm
+            https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/libXv-1.0.11-7.el8.$arch.rpm
+            https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/taglib-1.11.1-8.el8.$arch.rpm
+            https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/mpg123-libs-1.25.10-2.el8.$arch.rpm
+            https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/lame-libs-3.100-6.el8.$arch.rpm
+            https://vault.centos.org/centos/8/BaseOS/$arch/os/Packages/libgudev-232-4.el8.$arch.rpm
+            https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/libv4l-1.14.2-3.el8.$arch.rpm
+            https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/speex-1.2.0-1.el8.$arch.rpm
+            https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/libraw1394-2.1.2-5.el8.$arch.rpm
+            https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/libsrtp-1.5.4-8.el8.$arch.rpm
+            https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/libvpx-1.7.0-8.el8.$arch.rpm
+            https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/wavpack-5.1.0-15.el8.$arch.rpm
+            https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/libiec61883-1.2.0-18.el8.$arch.rpm
+            https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/libshout-2.2.2-19.el8.$arch.rpm
+            https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/twolame-libs-0.3.13-12.el8.$arch.rpm
+            https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/libavc1394-0.5.4-7.el8.$arch.rpm
+            https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/libdv-1.0.0-27.el8.$arch.rpm
+            https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/libdvdnav-5.0.3-8.el8.$arch.rpm
+            https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/webrtc-audio-processing-0.3-9.el8.$arch.rpm
+            https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/gstreamer1-plugins-base-1.16.1-2.el8.$arch.rpm
+            https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/gstreamer1-1.16.1-2.el8.$arch.rpm
+            https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/gstreamer1-plugins-bad-free-1.16.1-1.el8.$arch.rpm
+            https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/gstreamer1-plugins-good-1.16.1-2.el8.$arch.rpm
+            https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/gstreamer1-plugins-ugly-free-1.16.1-1.el8.$arch.rpm
+            https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/soundtouch-2.0.0-3.el8.$arch.rpm
+        )
+        extra_repos+=(https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm)
+    elif [ "$os" == "rhel9.1" ] ; then
+        pkgs_core=(
+            http://mirror.stream.centos.org/9-stream/AppStream/$arch/os/Packages/tbb-2020.3-8.el9.$arch.rpm
+            https://download-ib01.fedoraproject.org/pub/epel/9/Everything/$arch/Packages/p/pugixml-1.13-1.el9.$arch.rpm
+            https://download-ib01.fedoraproject.org/pub/epel/9/Everything/$arch/Packages/g/gflags-2.2.2-9.el9.$arch.rpm
+        )
+        pkgs_python=(python3 python3-pip)
+        pkgs_dev+=(https://download-ib01.fedoraproject.org/pub/epel/9/Everything/$arch/Packages/g/gflags-devel-2.2.2-9.el9.$arch.rpm)
+        extra_repos+=(https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm)
+    fi
 else
     echo "Internal script error: invalid OS (${os}) after check (package selection)" >&2
     exit 3
@@ -282,7 +333,11 @@ if [ "$os" == "debian9" ] || [ "$os" == "raspbian9" ] || [ "$os" == "ubuntu18.04
 
     apt-get update && apt-get install -y --no-install-recommends $iopt ${pkgs[@]}
 
-elif [ "$os" == "rhel8" ] || [ "$os" == "rhel9.1" ] ; then
+elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
+     [ "$os" == "rhel8" ] || [ "$os" == "rhel9.1" ] ||
+     [ "$os" == "fedora34" ] || [ "$os" == "fedora35" ] || [ "$os" == "fedora36" ] ||
+     [ "$os" == "fedora36" ] || [ "$os" == "fedora38" ] ||
+     [ "$os" == "almalinux8.7" ] || [ "$os" == "amzn2" ] ; then
 
     [ -z "$interactive" ] && iopt="--assumeyes"
     [ -n "$dry" ] && iopt="--downloadonly"

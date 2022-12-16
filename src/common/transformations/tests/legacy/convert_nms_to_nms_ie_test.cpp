@@ -4,21 +4,20 @@
 
 #include <gtest/gtest.h>
 
-#include <string>
+#include <legacy/ngraph_ops/nms_ie.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_nms_to_nms_ie.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <memory>
-#include <queue>
-
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_nms_to_nms_ie.hpp>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
-#include <legacy/ngraph_ops/nms_ie.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <queue>
+#include <string>
+#include <transformations/init_node_info.hpp>
+#include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -32,8 +31,13 @@ TEST_F(TransformationTestsF, ConvertNMSToNMSIEStatic) {
         auto max_output_boxes_per_class = opset1::Constant::create(element::i64, Shape{}, {10});
         auto iou_threshold = opset1::Constant::create(element::f32, Shape{}, {0.75});
         auto score_threshold = opset1::Constant::create(element::f32, Shape{}, {0.7});
-        auto nms = std::make_shared<opset3::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,
-                iou_threshold, score_threshold, opset3::NonMaxSuppression::BoxEncodingType::CORNER, true);
+        auto nms = std::make_shared<opset3::NonMaxSuppression>(boxes,
+                                                               scores,
+                                                               max_output_boxes_per_class,
+                                                               iou_threshold,
+                                                               score_threshold,
+                                                               opset3::NonMaxSuppression::BoxEncodingType::CORNER,
+                                                               true);
 
         function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
@@ -50,10 +54,14 @@ TEST_F(TransformationTestsF, ConvertNMSToNMSIEStatic) {
         auto max_output_boxes_per_class = opset1::Constant::create(element::i64, Shape{1}, {10});
         auto iou_threshold = opset1::Constant::create(element::f32, Shape{}, {0.75});
         auto score_threshold = opset1::Constant::create(element::f32, Shape{}, {0.7});
-        auto nms = std::make_shared<op::NonMaxSuppressionIE>(boxes, scores, max_output_boxes_per_class,
-                std::make_shared<opset1::Unsqueeze>(iou_threshold, opset1::Constant::create(element::i64, Shape{1}, {0})),
-                std::make_shared<opset1::Unsqueeze>(score_threshold, opset1::Constant::create(element::i64, Shape{1}, {0})),
-                0, true);
+        auto nms = std::make_shared<op::NonMaxSuppressionIE>(
+            boxes,
+            scores,
+            max_output_boxes_per_class,
+            std::make_shared<opset1::Unsqueeze>(iou_threshold, opset1::Constant::create(element::i64, Shape{1}, {0})),
+            std::make_shared<opset1::Unsqueeze>(score_threshold, opset1::Constant::create(element::i64, Shape{1}, {0})),
+            0,
+            true);
 
         function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
@@ -66,8 +74,13 @@ TEST_F(TransformationTestsF, ConvertNMSToNMSIEDynamic1) {
         auto max_output_boxes_per_class = opset1::Constant::create(element::i64, Shape{}, {10});
         auto iou_threshold = opset1::Constant::create(element::f32, Shape{}, {0.75});
         auto score_threshold = opset1::Constant::create(element::f32, Shape{}, {0.7});
-        auto nms = std::make_shared<opset3::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,
-                iou_threshold, score_threshold, opset3::NonMaxSuppression::BoxEncodingType::CORNER, true);
+        auto nms = std::make_shared<opset3::NonMaxSuppression>(boxes,
+                                                               scores,
+                                                               max_output_boxes_per_class,
+                                                               iou_threshold,
+                                                               score_threshold,
+                                                               opset3::NonMaxSuppression::BoxEncodingType::CORNER,
+                                                               true);
 
         function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
@@ -80,10 +93,14 @@ TEST_F(TransformationTestsF, ConvertNMSToNMSIEDynamic1) {
         auto max_output_boxes_per_class = opset1::Constant::create(element::i64, Shape{1}, {10});
         auto iou_threshold = opset1::Constant::create(element::f32, Shape{}, {0.75});
         auto score_threshold = opset1::Constant::create(element::f32, Shape{}, {0.7});
-        auto nms = std::make_shared<op::NonMaxSuppressionIE>(boxes, scores, max_output_boxes_per_class,
-                std::make_shared<opset1::Unsqueeze>(iou_threshold, opset1::Constant::create(element::i64, Shape{1}, {0})),
-                std::make_shared<opset1::Unsqueeze>(score_threshold, opset1::Constant::create(element::i64, Shape{1}, {0})),
-                0, true);
+        auto nms = std::make_shared<op::NonMaxSuppressionIE>(
+            boxes,
+            scores,
+            max_output_boxes_per_class,
+            std::make_shared<opset1::Unsqueeze>(iou_threshold, opset1::Constant::create(element::i64, Shape{1}, {0})),
+            std::make_shared<opset1::Unsqueeze>(score_threshold, opset1::Constant::create(element::i64, Shape{1}, {0})),
+            0,
+            true);
 
         function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
@@ -96,8 +113,13 @@ TEST_F(TransformationTestsF, ConvertNMSToNMSIEDynamic2) {
         auto max_output_boxes_per_class = opset1::Constant::create(element::i64, Shape{}, {10});
         auto iou_threshold = opset1::Constant::create(element::f32, Shape{}, {0.75});
         auto score_threshold = opset1::Constant::create(element::f32, Shape{}, {0.7});
-        auto nms = std::make_shared<opset3::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,
-                iou_threshold, score_threshold, opset3::NonMaxSuppression::BoxEncodingType::CORNER, true);
+        auto nms = std::make_shared<opset3::NonMaxSuppression>(boxes,
+                                                               scores,
+                                                               max_output_boxes_per_class,
+                                                               iou_threshold,
+                                                               score_threshold,
+                                                               opset3::NonMaxSuppression::BoxEncodingType::CORNER,
+                                                               true);
 
         function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
@@ -110,10 +132,14 @@ TEST_F(TransformationTestsF, ConvertNMSToNMSIEDynamic2) {
         auto max_output_boxes_per_class = opset1::Constant::create(element::i64, Shape{1}, {10});
         auto iou_threshold = opset1::Constant::create(element::f32, Shape{}, {0.75});
         auto score_threshold = opset1::Constant::create(element::f32, Shape{}, {0.7});
-        auto nms = std::make_shared<op::NonMaxSuppressionIE>(boxes, scores, max_output_boxes_per_class,
-                std::make_shared<opset1::Unsqueeze>(iou_threshold, opset1::Constant::create(element::i64, Shape{1}, {0})),
-                std::make_shared<opset1::Unsqueeze>(score_threshold, opset1::Constant::create(element::i64, Shape{1}, {0})),
-                0, true);
+        auto nms = std::make_shared<op::NonMaxSuppressionIE>(
+            boxes,
+            scores,
+            max_output_boxes_per_class,
+            std::make_shared<opset1::Unsqueeze>(iou_threshold, opset1::Constant::create(element::i64, Shape{1}, {0})),
+            std::make_shared<opset1::Unsqueeze>(score_threshold, opset1::Constant::create(element::i64, Shape{1}, {0})),
+            0,
+            true);
 
         function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
@@ -126,8 +152,13 @@ TEST_F(TransformationTestsF, ConvertNMST1oNMSIE) {
         auto max_output_boxes_per_class = opset1::Constant::create(element::i64, Shape{}, {10});
         auto iou_threshold = opset1::Constant::create(element::f32, Shape{}, {0.75});
         auto score_threshold = opset1::Constant::create(element::f32, Shape{}, {0.7});
-        auto nms = std::make_shared<opset1::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,
-                iou_threshold, score_threshold, op::v1::NonMaxSuppression::BoxEncodingType::CORNER, true);
+        auto nms = std::make_shared<opset1::NonMaxSuppression>(boxes,
+                                                               scores,
+                                                               max_output_boxes_per_class,
+                                                               iou_threshold,
+                                                               score_threshold,
+                                                               op::v1::NonMaxSuppression::BoxEncodingType::CORNER,
+                                                               true);
 
         function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
@@ -140,8 +171,14 @@ TEST_F(TransformationTestsF, ConvertNMST1oNMSIE) {
         auto max_output_boxes_per_class = opset1::Constant::create(element::i64, Shape{1}, {10});
         auto iou_threshold = opset1::Constant::create(element::f32, Shape{1}, {0.75});
         auto score_threshold = opset1::Constant::create(element::f32, Shape{1}, {0.7});
-        auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes, scores, max_output_boxes_per_class,
-                iou_threshold, score_threshold, 0, true, element::i32);
+        auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes,
+                                                              scores,
+                                                              max_output_boxes_per_class,
+                                                              iou_threshold,
+                                                              score_threshold,
+                                                              0,
+                                                              true,
+                                                              element::i32);
         auto convert = std::make_shared<opset1::Convert>(nms->output(0), element::i64);
 
         function_ref = std::make_shared<Function>(NodeVector{convert}, ParameterVector{boxes, scores});
@@ -155,8 +192,14 @@ TEST_F(TransformationTestsF, ConvertNMST3oNMSIE) {
         auto max_output_boxes_per_class = opset1::Constant::create(element::i32, Shape{}, {10});
         auto iou_threshold = opset1::Constant::create(element::f32, Shape{}, {0.75});
         auto score_threshold = opset1::Constant::create(element::f32, Shape{}, {0.7});
-        auto nms = std::make_shared<opset3::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,
-                iou_threshold, score_threshold, opset3::NonMaxSuppression::BoxEncodingType::CORNER, true, element::i32);
+        auto nms = std::make_shared<opset3::NonMaxSuppression>(boxes,
+                                                               scores,
+                                                               max_output_boxes_per_class,
+                                                               iou_threshold,
+                                                               score_threshold,
+                                                               opset3::NonMaxSuppression::BoxEncodingType::CORNER,
+                                                               true,
+                                                               element::i32);
 
         function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
@@ -169,8 +212,14 @@ TEST_F(TransformationTestsF, ConvertNMST3oNMSIE) {
         auto max_output_boxes_per_class = opset1::Constant::create(element::i32, Shape{1}, {10});
         auto iou_threshold = opset1::Constant::create(element::f32, Shape{1}, {0.75});
         auto score_threshold = opset1::Constant::create(element::f32, Shape{1}, {0.7});
-        auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes, scores, max_output_boxes_per_class,
-                iou_threshold, score_threshold, 0, true, element::i32);
+        auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes,
+                                                              scores,
+                                                              max_output_boxes_per_class,
+                                                              iou_threshold,
+                                                              score_threshold,
+                                                              0,
+                                                              true,
+                                                              element::i32);
 
         function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
@@ -183,8 +232,14 @@ TEST_F(TransformationTestsF, ConvertNMST4oNMSIE) {
         auto max_output_boxes_per_class = opset1::Constant::create(element::i32, Shape{}, {10});
         auto iou_threshold = opset1::Constant::create(element::f32, Shape{}, {0.75});
         auto score_threshold = opset1::Constant::create(element::f32, Shape{}, {0.7});
-        auto nms = std::make_shared<opset4::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,
-                iou_threshold, score_threshold, opset4::NonMaxSuppression::BoxEncodingType::CORNER, true, element::i32);
+        auto nms = std::make_shared<opset4::NonMaxSuppression>(boxes,
+                                                               scores,
+                                                               max_output_boxes_per_class,
+                                                               iou_threshold,
+                                                               score_threshold,
+                                                               opset4::NonMaxSuppression::BoxEncodingType::CORNER,
+                                                               true,
+                                                               element::i32);
 
         function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
@@ -197,8 +252,14 @@ TEST_F(TransformationTestsF, ConvertNMST4oNMSIE) {
         auto max_output_boxes_per_class = opset1::Constant::create(element::i32, Shape{1}, {10});
         auto iou_threshold = opset1::Constant::create(element::f32, Shape{1}, {0.75});
         auto score_threshold = opset1::Constant::create(element::f32, Shape{1}, {0.7});
-        auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes, scores, max_output_boxes_per_class,
-                iou_threshold, score_threshold, 0, true, element::i32);
+        auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes,
+                                                              scores,
+                                                              max_output_boxes_per_class,
+                                                              iou_threshold,
+                                                              score_threshold,
+                                                              0,
+                                                              true,
+                                                              element::i32);
 
         function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
     }

@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "engines_util/execute_tools.hpp"
 #include "engines_util/test_case.hpp"
 #include "gmock/gmock.h"
@@ -70,6 +71,7 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;
+using namespace testing;
 
 #define ASSERT_FLOAT_VECTORS_EQ(expected, result)                       \
     ASSERT_EQ(expected.size(), result.size()) << "Array sizes differ."; \
@@ -633,6 +635,39 @@ TEST(eval, evaluate_reshape_v1_pattern_int16) {
     ASSERT_EQ(computed_val, expected_val);
 }
 
+TEST(eval, evaluate_reshape_v1_data_dynamic_shape) {
+    constexpr auto exp_dtype = element::i32;
+
+    auto data = make_shared<op::Parameter>(exp_dtype, PartialShape::dynamic());
+    auto pattern = make_shared<op::Parameter>(element::i64, Shape{6});
+    auto dyn_reshape = make_shared<op::v1::Reshape>(data, pattern, true);
+    auto f = make_shared<Function>(OutputVector{dyn_reshape}, ParameterVector{data, pattern});
+    auto result_tensor = make_shared<HostTensor>();
+
+    ASSERT_TRUE(f->evaluate({result_tensor},
+                            {make_host_tensor<element::Type_t::i32>(Shape{2, 2, 2}, {0, 1, 2, 3, 4, 5, 6, 7}),
+                             make_host_tensor<element::Type_t::i64>(pattern->get_shape(), {2, 0, 1, -1, 1, 1})}));
+
+    EXPECT_EQ(result_tensor->get_element_type(), exp_dtype);
+    EXPECT_EQ(result_tensor->get_partial_shape(), PartialShape({2, 2, 1, 2, 1, 1}));
+    EXPECT_THAT(read_vector<int32_t>(result_tensor), ElementsAre(0, 1, 2, 3, 4, 5, 6, 7));
+}
+
+TEST(eval, evaluate_reshape_v1_not_backward_compatible_and_in_out_size_not_eq) {
+    constexpr auto exp_dtype = element::i32;
+    auto data = make_shared<op::Parameter>(exp_dtype, PartialShape::dynamic());
+    auto pattern = make_shared<op::Parameter>(element::i16, Shape{5});
+    auto dyn_reshape = make_shared<op::v1::Reshape>(data, pattern, true);
+    auto f = make_shared<Function>(OutputVector{dyn_reshape}, ParameterVector{data, pattern});
+    auto result_tensor = make_shared<HostTensor>();
+
+    OV_EXPECT_THROW(f->evaluate({result_tensor},
+                                {make_host_tensor<element::Type_t::i32>(Shape{2, 2, 2}, {0, 1, 2, 3, 4, 5, 6, 7}),
+                                 make_host_tensor<element::Type_t::i16>(pattern->get_shape(), {2, 1, 1, 1, 1})}),
+                    NodeValidationFailure,
+                    HasSubstr("Requested output shape [2,1,1,1,1] is incompatible with input shape [2,2,2]"));
+}
+
 TEST(eval, evaluate_convert) {
     auto p = make_shared<op::Parameter>(element::f32, PartialShape{-1, -1});
     auto convert = make_shared<op::v0::Convert>(p, element::i64);
@@ -1053,6 +1088,18 @@ TEST(eval, evaluate_tanh) {
     });
 
     ASSERT_FLOAT_VECTORS_EQ(input, result_val);
+}
+
+TEST(eval, evaluate_logical_not_dynamic_input_shape) {
+    const auto a = make_shared<op::Parameter>(element::boolean, PartialShape::dynamic());
+    const auto op = make_shared<op::v1::LogicalNot>(a);
+    const auto f = make_shared<Function>(OutputVector{op}, ParameterVector{a});
+    const auto result = make_shared<HostTensor>();
+
+    ASSERT_TRUE(f->evaluate({result}, {make_host_tensor<element::Type_t::boolean>(Shape{2, 1, 2}, {0, 0, 1, 1})}));
+    EXPECT_EQ(result->get_element_type(), element::boolean);
+    EXPECT_EQ(result->get_shape(), Shape({2, 1, 2}));
+    EXPECT_THAT(read_vector<char>(result), ElementsAre(1, 1, 0, 0));
 }
 
 TEST(eval, evaluate_logical_not) {

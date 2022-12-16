@@ -41,7 +41,6 @@ protected:
 
 public:
     OPENVINO_OP("UnaryElementwiseArithmetic", "util");
-    BWDCMP_RTTI_DECLARATION;
 
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;

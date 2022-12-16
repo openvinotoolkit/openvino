@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 
 namespace ov {
@@ -21,7 +21,7 @@ class TRANSFORMATIONS_API BroadcastConstRangeReplacement;
  * Range op
  */
 
-class ov::pass::BroadcastConstRangeReplacement : public ngraph::pass::MatcherPass {
+class ov::pass::BroadcastConstRangeReplacement : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("BroadcastConstRangeReplacement", "0");
     BroadcastConstRangeReplacement();

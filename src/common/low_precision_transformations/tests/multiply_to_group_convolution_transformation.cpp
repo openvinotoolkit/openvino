@@ -2,22 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "layer_transformation.hpp"
-
-#include <string>
-#include <sstream>
-#include <memory>
-
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
+#include <memory>
+#include <sstream>
+#include <string>
 #include <transformations/init_node_info.hpp>
-#include "low_precision/multiply_to_group_convolution.hpp"
+#include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "layer_transformation.hpp"
+#include "low_precision/multiply_to_group_convolution.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "simple_low_precision_transformer.hpp"
 #include "lpt_ngraph_functions/multiply_to_group_convolution_function.hpp"
+#include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
 using namespace ngraph;
@@ -48,9 +46,9 @@ public:
     Expected expected;
 };
 
-class MultiplyToGroupConvolutionTransformation :
-    public LayerTransformation,
-    public testing::WithParamInterface<MultiplyToGroupConvolutionTransformationTestValues> {
+class MultiplyToGroupConvolutionTransformation
+    : public LayerTransformation,
+      public testing::WithParamInterface<MultiplyToGroupConvolutionTransformationTestValues> {
 public:
     void SetUp() override {
         const MultiplyToGroupConvolutionTransformationTestValues testValues = GetParam();
@@ -61,15 +59,14 @@ public:
             testValues.actual.dequantization,
             testValues.haveMultiplyWithNoConstBeforeDequantization);
 
-        auto precisionRestrictions = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>({
-            ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::Multiply>({
-                {{0}, {ngraph::element::u8}},
-                {{1}, {ngraph::element::i8}}
-            })
-        });
+        auto precisionRestrictions = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>(
+            {ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::Multiply>(
+                {{{0}, {ngraph::element::u8}}, {{1}, {ngraph::element::i8}}})});
 
         SimpleLowPrecisionTransformer transformer(precisionRestrictions);
-        transformer.add<ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation, ngraph::opset1::Multiply>(testValues.params);
+        transformer
+            .add<ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation, ngraph::opset1::Multiply>(
+                testValues.params);
         transformer.transform(actualFunction);
 
         if (testValues.transformed) {
@@ -92,12 +89,9 @@ public:
         const MultiplyToGroupConvolutionTransformationTestValues testValues = obj.param;
 
         std::ostringstream result;
-        result <<
-            testValues.inputShape << "_" <<
-            testValues.actual.precisionBeforeDequantization << "_" <<
-            testValues.transformed << "_" <<
-            testValues.haveMultiplyWithNoConstBeforeDequantization << "_" <<
-            testValues.actual.dequantization;
+        result << testValues.inputShape << "_" << testValues.actual.precisionBeforeDequantization << "_"
+               << testValues.transformed << "_" << testValues.haveMultiplyWithNoConstBeforeDequantization << "_"
+               << testValues.actual.dequantization;
         return result.str();
     }
 };
@@ -112,313 +106,183 @@ TEST_P(MultiplyToGroupConvolutionTransformation, CompareFunctions) {
 
 const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues = {
     // only multiply
-    {
-        { 1, 4, 1, 1 },
-        LayerTransformation::createParamsU8I8(),
-        true,
-        false,
-        {
-            ngraph::element::u8,
-            {
-                {ngraph::element::f32},
-                {},
-                {{0.45f, 0.82f, 0.71f, 0.37f}}
-            }
-        },
-        {
-            ngraph::element::u8,
-            std::make_shared<ngraph::opset1::Constant>(ngraph::element::i8, Shape{4, 1, 1, 1, 1}, std::vector<float>{1.f, 1.f, 1.f, 1.f}),
-            nullptr,
-            {
-                {},
-                {},
-                {{0.45f, 0.82f, 0.71f, 0.37f}}
-            }
-        }
-    },
+    {{1, 4, 1, 1},
+     LayerTransformation::createParamsU8I8(),
+     true,
+     false,
+     {ngraph::element::u8, {{ngraph::element::f32}, {}, {{0.45f, 0.82f, 0.71f, 0.37f}}}},
+     {ngraph::element::u8,
+      std::make_shared<ngraph::opset1::Constant>(ngraph::element::i8,
+                                                 Shape{4, 1, 1, 1, 1},
+                                                 std::vector<float>{1.f, 1.f, 1.f, 1.f}),
+      nullptr,
+      {{}, {}, {{0.45f, 0.82f, 0.71f, 0.37f}}}}},
     // only multiply with dynamic shape
-    {
-        { Dimension::dynamic(), 4, Dimension::dynamic(), Dimension::dynamic() },
-        LayerTransformation::createParamsU8I8(),
-        true,
-        false,
-        {
-            ngraph::element::u8,
-            {
-                {ngraph::element::f32},
-                {},
-                {{0.45f, 0.82f, 0.71f, 0.37f}}
-            }
-        },
-        {
-            ngraph::element::u8,
-            std::make_shared<ngraph::opset1::Constant>(ngraph::element::i8, Shape{4, 1, 1, 1, 1}, std::vector<float>{1.f, 1.f, 1.f, 1.f}),
-            nullptr,
-            {
-                {},
-                {},
-                {{0.45f, 0.82f, 0.71f, 0.37f}}
-            }
-        }
-    },
+    {{Dimension::dynamic(), 4, Dimension::dynamic(), Dimension::dynamic()},
+     LayerTransformation::createParamsU8I8(),
+     true,
+     false,
+     {ngraph::element::u8, {{ngraph::element::f32}, {}, {{0.45f, 0.82f, 0.71f, 0.37f}}}},
+     {ngraph::element::u8,
+      std::make_shared<ngraph::opset1::Constant>(ngraph::element::i8,
+                                                 Shape{4, 1, 1, 1, 1},
+                                                 std::vector<float>{1.f, 1.f, 1.f, 1.f}),
+      nullptr,
+      {{}, {}, {{0.45f, 0.82f, 0.71f, 0.37f}}}}},
     // only multiply with dynamic shape (dynamic channels)
-    {
-        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
-        LayerTransformation::createParamsU8I8(),
-        false,
-        false,
-        {
-            ngraph::element::u8,
-            {
-                {ngraph::element::f32},
-                {},
-                {{0.45f, 0.82f, 0.71f, 0.37f}}
-            }
-        },
-        {}
-    },
+    {{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
+     LayerTransformation::createParamsU8I8(),
+     false,
+     false,
+     {ngraph::element::u8, {{ngraph::element::f32}, {}, {{0.45f, 0.82f, 0.71f, 0.37f}}}},
+     {}},
     // subtract + multiply
-    {
-        { 1, 4, 1, 1 },
-        LayerTransformation::createParamsU8I8(),
-        true,
-        false,
-        {
-            ngraph::element::u8,
-            {
-                {ngraph::element::f32},
-                {{-0.77f, 0.8f, 0.1f, 1.5f}},
-                {{0.45f, 0.82f, 0.71f, 0.37f}}
-            }
-        },
-        {
-            ngraph::element::u8,
-            std::make_shared<ngraph::opset1::Constant>(ngraph::element::i8, Shape{4, 1, 1, 1, 1}, std::vector<float>{1.f, 1.f, 1.f, 1.f}),
-            std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, Shape{1, 4, 1, 1}, std::vector<float>{0.77f, -0.8f, -0.1f, -1.5f}),
-            {
-                {},
-                {},
-                {{0.45f, 0.82f, 0.71f, 0.37f}}
-            }
-        }
-    },
+    {{1, 4, 1, 1},
+     LayerTransformation::createParamsU8I8(),
+     true,
+     false,
+     {ngraph::element::u8, {{ngraph::element::f32}, {{-0.77f, 0.8f, 0.1f, 1.5f}}, {{0.45f, 0.82f, 0.71f, 0.37f}}}},
+     {ngraph::element::u8,
+      std::make_shared<ngraph::opset1::Constant>(ngraph::element::i8,
+                                                 Shape{4, 1, 1, 1, 1},
+                                                 std::vector<float>{1.f, 1.f, 1.f, 1.f}),
+      std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32,
+                                                 Shape{1, 4, 1, 1},
+                                                 std::vector<float>{0.77f, -0.8f, -0.1f, -1.5f}),
+      {{}, {}, {{0.45f, 0.82f, 0.71f, 0.37f}}}}},
     // subtract + multiply with dynamic channels
-    {
-        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
-        LayerTransformation::createParamsU8I8(),
-        true,
-        false,
-        {
-            ngraph::element::u8,
-            {
-                {ngraph::element::f32},
-                {{-0.77f, 0.8f, 0.1f, 1.5f}},
-                {{0.45f, 0.82f, 0.71f, 0.37f}}
-            }
-        },
-        {
-            ngraph::element::u8,
-            std::make_shared<ngraph::opset1::Constant>(ngraph::element::i8, Shape{4, 1, 1, 1, 1}, std::vector<float>{1.f, 1.f, 1.f, 1.f}),
-            std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, Shape{1, 4, 1, 1}, std::vector<float>{0.77f, -0.8f, -0.1f, -1.5f}),
-            {
-                {},
-                {},
-                {{0.45f, 0.82f, 0.71f, 0.37f}}
-            }
-        }
-    },
+    {{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
+     LayerTransformation::createParamsU8I8(),
+     true,
+     false,
+     {ngraph::element::u8, {{ngraph::element::f32}, {{-0.77f, 0.8f, 0.1f, 1.5f}}, {{0.45f, 0.82f, 0.71f, 0.37f}}}},
+     {ngraph::element::u8,
+      std::make_shared<ngraph::opset1::Constant>(ngraph::element::i8,
+                                                 Shape{4, 1, 1, 1, 1},
+                                                 std::vector<float>{1.f, 1.f, 1.f, 1.f}),
+      std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32,
+                                                 Shape{1, 4, 1, 1},
+                                                 std::vector<float>{0.77f, -0.8f, -0.1f, -1.5f}),
+      {{}, {}, {{0.45f, 0.82f, 0.71f, 0.37f}}}}},
     // subtract + multiply with dynamic rank (not transformed)
-    {
-        PartialShape::dynamic(),
-        LayerTransformation::createParamsU8I8(),
-        false,
-        false,
-        {
-            ngraph::element::u8,
-            {
-                {ngraph::element::f32},
-                {{-0.77f, 0.8f, 0.1f, 1.5f}},
-                {{0.45f, 0.82f, 0.71f, 0.37f}}
-            }
-        },
-        {}
-    },
+    {PartialShape::dynamic(),
+     LayerTransformation::createParamsU8I8(),
+     false,
+     false,
+     {ngraph::element::u8, {{ngraph::element::f32}, {{-0.77f, 0.8f, 0.1f, 1.5f}}, {{0.45f, 0.82f, 0.71f, 0.37f}}}},
+     {}},
     // subtract + multiply
-    {
-        { 1, 4, 1, 1 },
-        LayerTransformation::createParamsU8I8(),
-        true,
-        false,
-        {
-            ngraph::element::u8,
-            {
-                {ngraph::element::f32},
-                {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32, {1, 4, 1, 1}, true, 1, ngraph::element::u8, true},
-                {{0.45f, 0.82f, 0.71f, 0.37f}}
-            }
-        },
-        {
-            ngraph::element::u8,
-            std::make_shared<ngraph::opset1::Constant>(ngraph::element::i8, Shape{4, 1, 1, 1, 1}, std::vector<float>{1.f, 1.f, 1.f, 1.f}),
-            std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, Shape{1, 4, 1, 1}, std::vector<float>{-1.f, -2.f, -3.f, -4.f}),
-            {
-                {},
-                {},
-                {{0.45f, 0.82f, 0.71f, 0.37f}}
-            }
-        }
-    },
+    {{1, 4, 1, 1},
+     LayerTransformation::createParamsU8I8(),
+     true,
+     false,
+     {ngraph::element::u8,
+      {{ngraph::element::f32},
+       {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32, {1, 4, 1, 1}, true, 1, ngraph::element::u8, true},
+       {{0.45f, 0.82f, 0.71f, 0.37f}}}},
+     {ngraph::element::u8,
+      std::make_shared<ngraph::opset1::Constant>(ngraph::element::i8,
+                                                 Shape{4, 1, 1, 1, 1},
+                                                 std::vector<float>{1.f, 1.f, 1.f, 1.f}),
+      std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32,
+                                                 Shape{1, 4, 1, 1},
+                                                 std::vector<float>{-1.f, -2.f, -3.f, -4.f}),
+      {{}, {}, {{0.45f, 0.82f, 0.71f, 0.37f}}}}},
     // without convert
-    {
-        { 1, 4, 1, 1 },
-        LayerTransformation::createParamsU8I8(),
-        true,
-        false,
-        {
-            ngraph::element::u8,
-            {
-                {},
-                DequantizationOperations::Subtract{{1.f, 2.f, 3.f, 4.f}, element::f32}.setConstantPrecision(element::f32),
-                {{0.45f, 0.82f, 0.71f, 0.37f}}
-            }
-        },
-        {
-            ngraph::element::u8,
-            std::make_shared<ngraph::opset1::Constant>(ngraph::element::i8, Shape{4, 1, 1, 1, 1}, std::vector<float>{1.f, 1.f, 1.f, 1.f}),
-            std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, Shape{1, 4, 1, 1}, std::vector<float>{-1.f, -2.f, -3.f, -4.f}),
-            {
-                {},
-                {},
-                {{0.45f, 0.82f, 0.71f, 0.37f}}
-            }
-        }
-    },
+    {{1, 4, 1, 1},
+     LayerTransformation::createParamsU8I8(),
+     true,
+     false,
+     {ngraph::element::u8,
+      {{},
+       DequantizationOperations::Subtract{{1.f, 2.f, 3.f, 4.f}, element::f32}.setConstantPrecision(element::f32),
+       {{0.45f, 0.82f, 0.71f, 0.37f}}}},
+     {ngraph::element::u8,
+      std::make_shared<ngraph::opset1::Constant>(ngraph::element::i8,
+                                                 Shape{4, 1, 1, 1, 1},
+                                                 std::vector<float>{1.f, 1.f, 1.f, 1.f}),
+      std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32,
+                                                 Shape{1, 4, 1, 1},
+                                                 std::vector<float>{-1.f, -2.f, -3.f, -4.f}),
+      {{}, {}, {{0.45f, 0.82f, 0.71f, 0.37f}}}}},
     // 5d
-    {
-        { 1, 4, 1, 1, 1 },
-        LayerTransformation::createParamsU8I8(),
-        true,
-        false,
-        {
-            ngraph::element::u8,
-            {
-                {},
-                DequantizationOperations::Subtract{{1.f, 2.f, 3.f, 4.f}, element::f32}.setConstantPrecision(element::f32),
-                {{0.45f, 0.82f, 0.71f, 0.37f}}
-            }
-        },
-        {
-            ngraph::element::u8,
-            std::make_shared<ngraph::opset1::Constant>(ngraph::element::i8, Shape{4, 1, 1, 1, 1, 1}, std::vector<float>{1.f, 1.f, 1.f, 1.f}),
-            std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, Shape{1, 4, 1, 1, 1}, std::vector<float>{-1.f, -2.f, -3.f, -4.f}),
-            {
-                {},
-                {},
-                {{0.45f, 0.82f, 0.71f, 0.37f}}
-            }
-        }
-    },
+    {{1, 4, 1, 1, 1},
+     LayerTransformation::createParamsU8I8(),
+     true,
+     false,
+     {ngraph::element::u8,
+      {{},
+       DequantizationOperations::Subtract{{1.f, 2.f, 3.f, 4.f}, element::f32}.setConstantPrecision(element::f32),
+       {{0.45f, 0.82f, 0.71f, 0.37f}}}},
+     {ngraph::element::u8,
+      std::make_shared<ngraph::opset1::Constant>(ngraph::element::i8,
+                                                 Shape{4, 1, 1, 1, 1, 1},
+                                                 std::vector<float>{1.f, 1.f, 1.f, 1.f}),
+      std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32,
+                                                 Shape{1, 4, 1, 1, 1},
+                                                 std::vector<float>{-1.f, -2.f, -3.f, -4.f}),
+      {{}, {}, {{0.45f, 0.82f, 0.71f, 0.37f}}}}},
     // TODO: LPT: not implemented
-//    // i8 (not transformed)
-//    {
-//        ngraph::Shape{ 1, 4, 1, 1 },
-//        LayerTransformation::createParamsU8I8(),
-//        false,
-//        false,
-//        {
-//            ngraph::element::i8,
-//            {
-//                {},
-//                {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32},
-//                {{0.45f, 0.82f, 0.71f, 0.37f}}
-//            }
-//        },
-//        {}
-//    },
+    //    // i8 (not transformed)
+    //    {
+    //        ngraph::Shape{ 1, 4, 1, 1 },
+    //        LayerTransformation::createParamsU8I8(),
+    //        false,
+    //        false,
+    //        {
+    //            ngraph::element::i8,
+    //            {
+    //                {},
+    //                {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32},
+    //                {{0.45f, 0.82f, 0.71f, 0.37f}}
+    //            }
+    //        },
+    //        {}
+    //    },
     // by spatial dimensions (not transformed)
-    {
-        { 1, 1, 2, 2 },
-        LayerTransformation::createParamsU8I8(),
-        false,
-        false,
-        {
-            ngraph::element::u8,
-            {
-                {},
-                {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32,  { 1, 1, 2, 2 }},
-                {{0.45f, 0.82f, 0.71f, 0.37f}, ngraph::element::f32,  { 1, 1, 2, 2 }}
-            }
-        },
-        {}
-    },
+    {{1, 1, 2, 2},
+     LayerTransformation::createParamsU8I8(),
+     false,
+     false,
+     {ngraph::element::u8,
+      {{},
+       {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32, {1, 1, 2, 2}},
+       {{0.45f, 0.82f, 0.71f, 0.37f}, ngraph::element::f32, {1, 1, 2, 2}}}},
+     {}},
     // 3d (not transformed)
-    {
-        { 1, 4, 1 },
-        LayerTransformation::createParamsU8I8(),
-        false,
-        false,
-        {
-            ngraph::element::u8,
-            {
-                {},
-                {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32, { 1, 4, 1 }},
-                {{0.45f, 0.82f, 0.71f, 0.37f}, ngraph::element::f32, { 1, 4, 1 }}
-            }
-        },
-        {}
-    },
-    {
-        { 1, 4, 1, 1 },
-        LayerTransformation::createParamsU8I8(),
-        false,
-        true,
-        {
-            ngraph::element::u8,
-            {
-                {},
-                {},
-                {{0.45f, 0.82f, 0.71f, 0.37f}}
-            }
-        },
-        {
-            ngraph::element::u8,
-            std::make_shared<ngraph::opset1::Constant>(ngraph::element::i8, Shape{4, 1, 1, 1, 1}, std::vector<float>{1.f, 1.f, 1.f, 1.f}),
-            nullptr,
-            {
-                {},
-                {},
-                {{0.45f, 0.82f, 0.71f, 0.37f}}
-            }
-        }
-    },
-    {
-        { Dimension::dynamic(), 4, Dimension::dynamic(), Dimension::dynamic() },
-        LayerTransformation::createParamsU8I8(),
-        false,
-        true,
-        {
-            ngraph::element::u8,
-            {
-                {},
-                {},
-                {{0.45f, 0.82f, 0.71f, 0.37f}}
-            }
-        },
-        {
-            ngraph::element::u8,
-            std::make_shared<ngraph::opset1::Constant>(ngraph::element::i8, Shape{4, 1, 1, 1, 1}, std::vector<float>{1.f, 1.f, 1.f, 1.f}),
-            nullptr,
-            {
-                {},
-                {},
-                {{0.45f, 0.82f, 0.71f, 0.37f}}
-            }
-        }
-    }
-};
+    {{1, 4, 1},
+     LayerTransformation::createParamsU8I8(),
+     false,
+     false,
+     {ngraph::element::u8,
+      {{},
+       {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32, {1, 4, 1}},
+       {{0.45f, 0.82f, 0.71f, 0.37f}, ngraph::element::f32, {1, 4, 1}}}},
+     {}},
+    {{1, 4, 1, 1},
+     LayerTransformation::createParamsU8I8(),
+     false,
+     true,
+     {ngraph::element::u8, {{}, {}, {{0.45f, 0.82f, 0.71f, 0.37f}}}},
+     {ngraph::element::u8,
+      std::make_shared<ngraph::opset1::Constant>(ngraph::element::i8,
+                                                 Shape{4, 1, 1, 1, 1},
+                                                 std::vector<float>{1.f, 1.f, 1.f, 1.f}),
+      nullptr,
+      {{}, {}, {{0.45f, 0.82f, 0.71f, 0.37f}}}}},
+    {{Dimension::dynamic(), 4, Dimension::dynamic(), Dimension::dynamic()},
+     LayerTransformation::createParamsU8I8(),
+     false,
+     true,
+     {ngraph::element::u8, {{}, {}, {{0.45f, 0.82f, 0.71f, 0.37f}}}},
+     {ngraph::element::u8,
+      std::make_shared<ngraph::opset1::Constant>(ngraph::element::i8,
+                                                 Shape{4, 1, 1, 1, 1},
+                                                 std::vector<float>{1.f, 1.f, 1.f, 1.f}),
+      nullptr,
+      {{}, {}, {{0.45f, 0.82f, 0.71f, 0.37f}}}}}};
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    MultiplyToGroupConvolutionTransformation,
-    ::testing::ValuesIn(testValues),
-    MultiplyToGroupConvolutionTransformation::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         MultiplyToGroupConvolutionTransformation,
+                         ::testing::ValuesIn(testValues),
+                         MultiplyToGroupConvolutionTransformation::getTestCaseName);

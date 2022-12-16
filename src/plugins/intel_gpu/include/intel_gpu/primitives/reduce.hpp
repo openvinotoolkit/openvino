@@ -54,12 +54,12 @@ struct reduce : public primitive_base<reduce> {
     /// @param input Input primitive id
     /// @param keep_dims The axes which reduced
     reduce(const primitive_id& id,
-           const primitive_id& input,
+           const input_info& input,
            const reduce_mode mode,
            const std::vector<int64_t> axes,
            const bool keep_dims,
            const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding), mode(mode), axes(axes), keep_dims(keep_dims) {}
+        : primitive_base(id, {input}, {output_padding}), mode(mode), axes(axes), keep_dims(keep_dims) {}
 
     /// @brief Reduce operation type
     reduce_mode mode;
