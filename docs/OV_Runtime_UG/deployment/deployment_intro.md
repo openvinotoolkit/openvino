@@ -1,4 +1,4 @@
-# Deploying Your Applications with OpenVINO™ {#openvino_deployment_guide}
+# Deploy via OpenVINO Runtime {#openvino_deployment_guide}
 
 @sphinxdirective
 
@@ -6,14 +6,15 @@
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_install_guides_deployment_manager_tool
-   openvino_docs_deploy_local_distribution
+   Run Inference <openvino_docs_OV_UG_OV_Runtime_User_Guide>
+   Optimize Inference <openvino_docs_deployment_optimization_guide_dldt_optimization_guide>
+   Deploy Application with Deployment Manager <openvino_docs_install_guides_deployment_manager_tool>
+   Local Distribution Libraries <openvino_docs_deploy_local_distribution>
 
 @endsphinxdirective
 
-Once [OpenVINO™ application development](../integrate_with_your_application.md) has been finished, application developers usually need to deploy their applications to end users. There are several ways to achieve that. This section will explain how you can deploy locally, using OpenVINO Runtime.
+> **NOTE**: Note that [running inference in OpenVINO Runtime](../openvino_intro.md) is the most basic form of deployment. Before moving forward, make sure you know how to create a proper Inference configuration and [develop your application properly](../integrate_with_your_application.md)
 
-> **NOTE**: Note that [running inference in OpenVINO Runtime](../openvino_intro.md) is the most basic form of deployment. Before moving forward, make sure you know how to create a proper Inference configuration.
 
 ## Local Deployment Options
 
@@ -47,7 +48,8 @@ The granularity of OpenVINO packages may vary for different distribution types. 
 
 - The main library `openvino` is used by users' C++ applications to link against with. The library provides all OpenVINO Runtime public APIs, including both API 2.0 and the previous Inference Engine and nGraph APIs. For C language applications, `openvino_c` is additionally required for distribution.
 - The "optional" plugin libraries like `openvino_intel_cpu_plugin` (matching the `openvino_.+_plugin` pattern) are used to provide inference capabilities on specific devices or additional capabilities like [Hetero Execution](../hetero_execution.md) and [Multi-Device Execution](../multi_device.md).
-- The "optional" plugin libraries like `openvino_ir_frontend` (matching `openvino_.+_frontend`) are used to provide capabilities to read models of different file formats such as OpenVINO IR, ONNX, and PaddlePaddle.
+- The "optional" plugin libraries like `openvino_ir_frontend` (matching `openvino_.+_frontend`) are used to provide capabilities to read models of different file formats such as OpenVINO IR,
+TensorFlow (check [TensorFlow Frontend Capabilities and Limitations](../../resources/tensorflow_frontend.md)), ONNX, and PaddlePaddle.
 
 Here the term "optional" means that if the application does not use the capability enabled by the plugin, the plugin library or a package with the plugin is not needed in the final distribution.
 
