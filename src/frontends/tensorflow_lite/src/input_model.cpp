@@ -71,7 +71,7 @@ void InputModel::InputModelTFLiteImpl::loadModel() {
     std::unordered_set<size_t> non_constant_tensors;
 
     // inputs
-    const auto& input_tensor_indices = m_graph_iterator->get_input_tensor_indices();
+    const auto& input_tensor_indices = m_graph_iterator->get_model_input_tensor_indices();
     m_inputs.reserve(input_tensor_indices.size());
     for (const auto& i : input_tensor_indices) {
         auto tensor = m_graph_iterator->get_tensor(i);
@@ -83,14 +83,14 @@ void InputModel::InputModelTFLiteImpl::loadModel() {
     }
 
     // outputs
-    const auto& output_tensor_indices = m_graph_iterator->get_output_tensor_indices();
+    const auto& output_tensor_indices = m_graph_iterator->get_model_output_tensor_indices();
     m_outputs.reserve(output_tensor_indices.size());
     for (const auto& i : output_tensor_indices) {
         auto tensor = m_graph_iterator->get_tensor(i);
-        const auto& names = std::vector<std::string>{tensor->name()->str()};
+        const auto& name = tensor->name()->str();
         const auto& ov_shape = get_ov_shape(tensor->shape());
         const auto& ov_type = get_ov_type(tensor->type());
-        m_outputs.push_back(std::make_shared<ov::frontend::tensorflow::TensorPlace>(m_input_model, ov_shape, ov_type, names));
+        m_outputs.push_back(std::make_shared<ov::frontend::tensorflow::TensorPlace>(m_input_model, ov_shape, ov_type, std::vector<std::string>{name}));
         non_constant_tensors.insert(i);
     }
 

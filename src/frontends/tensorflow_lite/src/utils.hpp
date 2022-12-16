@@ -25,8 +25,9 @@ const std::map<tflite::TensorType, ov::element::Type> &TYPE_MAP() {
             {TensorType_UINT32,         element::u32},
             {TensorType_UINT16,         element::u16},
             {TensorType_INT4,           element::i4},
-//          {TensorType_STRING,       element::string},
-//          {TensorType_COMPLEX64,    element::complex64},
+// TODO: support the following types
+//          {TensorType_STRING,         element::string},
+//          {TensorType_COMPLEX64,      element::complex64},
 //          {TensorType_COMPLEX128,     element::complex128},
 //          {TensorType_RESOURCE,       element::resource},
 //          {TensorType_VARIANT,        element::variant},
