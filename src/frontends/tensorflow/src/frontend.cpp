@@ -120,7 +120,13 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
 
         // prepare a list of OV node inputs for each node
         ov::OutputVector ng_inputs;
-        for (size_t input_port_idx = 0; input_port_idx < operation_decoder->get_input_size(); ++input_port_idx) {
+        size_t operation_input_size = operation_decoder->get_input_size();
+
+        if (operation_decoder->get_op_type() == "NextIteration") {
+            // we expect no inputs for NextIteration because we break-up the cycle in InputModel
+            operation_input_size = 0;
+        }
+        for (size_t input_port_idx = 0; input_port_idx < operation_input_size; ++input_port_idx) {
             // TODO: Implement more general approach. Skipping Constants that have input edges
             if (operation_decoder->get_op_type() == "Const") {
                 break;
