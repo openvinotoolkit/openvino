@@ -7,12 +7,137 @@
 #endif
 
 #include <windows.h>
+
+#include <iostream>
 #include <memory>
 #include <vector>
+
 #include "ie_system_conf.h"
 #include "threading/ie_parallel_custom_arena.hpp"
 
 namespace InferenceEngine {
+
+struct CPU {
+    int _node = 0;
+    int _p_cores = 0;
+    int _e_cores = 0;
+    int _phy_cores = 0;
+    int _proc = 0;
+    std::vector<std::vector<int>> _cpu_mapping;
+
+    CPU() {
+        int num_cores = GetActiveProcessorCount(ALL_PROCESSOR_GROUPS);
+
+        _cpu_mapping.resize(num_cores, std::vector<int>(CPU_MAP_USED_PROC + 1, 0));
+
+        auto GenerateCPUMapTable = [&]() {
+            DWORD len = 0;
+            if (GetLogicalProcessorInformationEx(RelationAll, nullptr, &len) ||
+                GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
+                std::cout << "GetLogicalProcessorInformationEx Error 1" << std::endl;
+                return;
+            }
+
+            char* base_ptr = new char[len];
+            if (!GetLogicalProcessorInformationEx(RelationAll,
+                                                  (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)base_ptr,
+                                                  &len)) {
+                std::cout << "GetLogicalProcessorInformationEx Error 2" << std::endl;
+                return;
+            }
+
+            char* info_ptr = base_ptr;
+            int list[64] = {0};
+            int list_len = 0;
+            int ecore_group = 0;
+            int base_proc = 0;
+            int mask_len = 0;
+
+            PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX info = NULL;
+
+            auto MaskToList = [&](const KAFFINITY mask_input) {
+                KAFFINITY mask = mask_input;
+                KAFFINITY i = 1;
+
+                list_len = 0;
+
+                while (mask != 0) {
+                    list[list_len] = int(log2(mask));
+                    mask = mask - (i << list[list_len]);
+                    list_len++;
+                }
+
+                return;
+            };
+
+            for (; info_ptr < base_ptr + len; info_ptr += (DWORD)info->Size) {
+                info = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)info_ptr;
+
+                if (info->Relationship == RelationProcessorPackage) {
+                    base_proc = _proc;
+                    _node++;
+
+                    MaskToList(info->Processor.GroupMask->Mask);
+
+                    mask_len = list_len;
+
+                } else if (info->Relationship == RelationProcessorCore) {
+                    _phy_cores++;
+
+                    MaskToList(info->Processor.GroupMask->Mask);
+
+                    if (2 == list_len) {
+                        _p_cores++;
+
+                        _cpu_mapping[list[0] + base_proc][CPU_MAP_SOCKET] = _node;
+                        _cpu_mapping[list[1] + base_proc][CPU_MAP_SOCKET] = _node;
+
+                        _cpu_mapping[list[0] + base_proc][CPU_MAP_CORE] = _phy_cores;
+                        _cpu_mapping[list[1] + base_proc][CPU_MAP_CORE] = _phy_cores;
+
+                        _cpu_mapping[list[0] + base_proc][CPU_MAP_PHY_CORE] = _p_cores;
+                        _cpu_mapping[list[1] + base_proc][CPU_MAP_LOG_CORE] = _p_cores;
+
+                    } else {
+                        _cpu_mapping[list[0] + base_proc][CPU_MAP_SOCKET] = _node;
+
+                        _cpu_mapping[list[0] + base_proc][CPU_MAP_CORE] = _phy_cores;
+                    }
+
+                    _proc += list_len;
+
+                    if (list[0] + 1 == mask_len) {
+                        base_proc = _proc;
+                    }
+
+                } else if ((info->Relationship == RelationCache) && (info->Cache.Level == 2)) {
+                    MaskToList(info->Cache.GroupMask.Mask);
+
+                    if (4 == list_len) {
+                        ecore_group++;
+                        for (int m = 0; m < list_len; m++) {
+                            _e_cores++;
+                            _cpu_mapping[list[m] + base_proc][CPU_MAP_SMALL_CORE] = ecore_group;
+                        }
+                    } else if (1 == list_len) {
+                        _p_cores++;
+                        _cpu_mapping[list[0] + base_proc][CPU_MAP_PHY_CORE] = _p_cores;
+                    }
+                }
+            }
+
+            delete[] base_ptr;
+        };
+
+        GenerateCPUMapTable();
+
+        if (_proc != num_cores) {
+            std::cout << "core numbers are not aligned" << std::endl;
+        }
+    }
+};
+static CPU cpu;
+
 int getNumberOfCPUCores(bool bigCoresOnly) {
     const int fallback_val = parallel_get_max_threads();
     DWORD sz = 0;
