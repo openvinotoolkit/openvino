@@ -25,17 +25,18 @@ if(NOT MSVC)
 endif()
 
 ov_add_test_target(
-        NAME ${TARGET_NAME}
-        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-        DEPENDENCIES
-        LINK_LIBRARIES
-            gtest
-            gtest_main
-            openvino::runtime::dev
-            commonTestUtils
-            lptNgraphFunctions
-            gmock
-        INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}
-        LABELS
-            LP_TRANSFORMATIONS
+    NAME ${TARGET_NAME}
+    ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+    DEPENDENCIES
+    LINK_LIBRARIES
+        gtest
+        gtest_main
+        openvino::runtime::dev
+        commonTestUtils
+        lptNgraphFunctions
+        gmock
+    ADD_CLANG_FORMAT
+    INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}
+    LABELS
+        LP_TRANSFORMATIONS
 )
