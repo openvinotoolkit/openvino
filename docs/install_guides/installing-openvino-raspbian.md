@@ -41,6 +41,7 @@
 
 3. Go to your `~/Downloads` directory and download OpenVINO Runtime archive file for Debian from [OpenVINO package repository](https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/).
 @sphinxdirective
+
    .. tab:: ARM 32-bit
 
       .. code-block:: sh
@@ -59,6 +60,7 @@
 
 4. Extract the archive file and move it to the installation folder:
 @sphinxdirective
+
    .. tab:: ARM 32-bit
 
       .. code-block:: sh
