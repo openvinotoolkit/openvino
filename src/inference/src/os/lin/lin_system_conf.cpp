@@ -29,6 +29,7 @@ struct CPU {
     int _e_cores = 0;
     int _phy_cores = 0;
     int _proc = 0;
+    std::vector<std::vector<int>> _cpu_mapping;
 
     CPU() {
         std::ifstream cpuinfo("/proc/cpuinfo");
@@ -78,8 +79,7 @@ struct CPU {
          *     7         1            6                0                      0                   1             0
          */
         _proc = sysconf(_SC_NPROCESSORS_ONLN);
-        int _cpu_mapping[_proc][CPU_MAP_USED_PROC + 1];
-        memset(_cpu_mapping, 0, _proc * (CPU_MAP_USED_PROC + 1) * sizeof(int));
+        _cpu_mapping.resize(_proc, std::vector<int>(CPU_MAP_USED_PROC + 1, 0));
 
         auto updateProcMapping = [&](const int nproc) {
             if (0 == _cpu_mapping[nproc][CPU_MAP_CORE]) {
