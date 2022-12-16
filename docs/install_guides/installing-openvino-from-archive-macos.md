@@ -48,24 +48,30 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
 
 ### <a name="install-core"></a>Step 1: Install OpenVINO Core Components
 
+@sphinxdirective
+
 1. Open a command prompt terminal window. 
 2. Create the `/opt/intel` folder for OpenVINO by using the following command. If the folder already exists, skip this command.
-   ```sh
-   sudo mkdir /opt/intel
-   ```
-   > **NOTE**: The `/opt/intel` path is the recommended folder path for installing OpenVINO. You may use a different path if desired.
+
+   .. code-block:: sh
+
+      sudo mkdir /opt/intel
+   
+   .. note:: 
+   
+      The `/opt/intel` path is the recommended folder path for installing OpenVINO. You may use a different path if desired.
 
 3. Browse to the current user's `Downloads` folder:
-   ```sh
-    cd <user_home>/Downloads
-    ```
+
+   .. code-block:: sh
+
+      cd <user_home>/Downloads
     
-4. Download the [OpenVINO Runtime archive file for macOS](https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/macos/), extract the files, rename the extracted folder and move it to the desired path:
-@sphinxdirective
+4. Download the `OpenVINO Runtime archive file for macOS <https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/macos/>`_, extract the files, rename the extracted folder and move it to the desired path:
 
    .. tab:: x86, 64-bit
 
-      .. code-blokc:: sh
+      .. code-block:: sh
 
          curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/macos/m_openvino_toolkit_osx_2022.3.0.<update>.<patch>_x86_64.tgz --output openvino_2022.3.0.tgz
          tar -xf openvino_2022.3.0.tgz
@@ -73,20 +79,23 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
 
    .. tab:: ARM, 64-bit
 
-      .. code-blokc:: sh
+      .. code-block:: sh
 
          curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/macos/m_openvino_toolkit_osx_2022.3.0.<update>.<patch>_arm64.tgz --output openvino_2022.3.0.tgz
          tar -xf openvino_2022.3.0.tgz
          sudo mv m_openvino_toolkit_osx_2022.3.0.<update>.<patch>_arm64 /opt/intel/openvino_2022.3.0
 
-@endsphinxdirective
-
 5. For simplicity, it is useful to create a symbolic link as below:
-   ```
-   sudo ln -s openvino_2022.3.0 openvino_2022
-   ```
-   > **NOTE**: If you have already installed a previous release of OpenVINO 2022, a symbolic link to the `openvino_2022` folder may already exist. Unlink the previous link with `sudo unlink openvino_2022`, and then re-run the command above.
 
+   .. code-block:: sh
+
+      sudo ln -s openvino_2022.3.0 openvino_2022
+   
+   .. note:: 
+   
+      If you have already installed a previous release of OpenVINO 2022, a symbolic link to the `openvino_2022` folder may already exist. Unlink the previous link with `sudo unlink openvino_2022`, and then re-run the command above.
+
+@endsphinxdirective
 
 Congratulations, you finished the installation! The `/opt/intel/openvino_2022` folder now contains the core components for OpenVINO. If you used a different path in Step 2, you will find the `openvino_2022` folder there. The path to the `openvino_2022` directory is also referred as `<INSTALL_DIR>` throughout the OpenVINO documentation.
 
