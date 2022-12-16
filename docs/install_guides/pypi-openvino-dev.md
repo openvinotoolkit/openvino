@@ -69,7 +69,7 @@ There are two options to install OpenVINO Development Tools:
 
 #### Installing Default Components
 
-To install OpenVINO Development Tools (see the [What's in the Package](#whats-in-the-package) section of this article) into the existing environment with the deep learning framework used for the model training, run the following command:
+To install OpenVINO Development Tools (see the [What's in the Package](#whats-in-the-package) section of this article) into an existing environment with the deep learning framework used for the model training, run the following command:
 ```
 pip install openvino-dev
 ```
