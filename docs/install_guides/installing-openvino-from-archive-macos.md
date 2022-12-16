@@ -16,8 +16,8 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
 
 .. tab:: Operating Systems
 
-  macOS 10.15, 11, 12, and 13, x86, 64-bit
-  macOS 10.15, 11, 12, and 13, ARM, 64-bit
+   * macOS 10.15, 11, 12, and 13, x86, 64-bit
+   * macOS 10.15, 11, 12, and 13, ARM, 64-bit
   
   .. note::
    
