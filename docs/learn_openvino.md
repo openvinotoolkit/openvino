@@ -17,9 +17,13 @@ to learn what OpenVINO is and how it works. It includes various types of learnin
 accommodating different learning needs, which means you should find it useful if you are a beginning, 
 as well as an experienced user.
 
-## Tutorials
+@sphinxdirective
 
-The collection of Python tutorials gives an introduction to the OpenVINO™ toolkit and explain how to use the Python API and tools for optimized deep learning inference. The tutorials are available in Jupyter notebooks. 
+| :ref:`Tutorials <tutorials>`
+| A collection of interactive Python tutorials. It introduces you to the OpenVINO™ toolkit explaining how to use the Python API and tools for optimized deep learning inference. The tutorials are available in Jupyter notebooks and can be run in your browser. No installation required.
+
+@endsphinxdirective
+
 
 ## OpenVINO Samples
 
