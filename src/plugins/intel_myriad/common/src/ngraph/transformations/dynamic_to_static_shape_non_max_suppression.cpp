@@ -11,15 +11,16 @@
 #include <vpu/utils/error.hpp>
 #include "ngraph/graph_util.hpp"
 #include "ngraph/opsets/opset5.hpp"
+#include "ngraph/opsets/opset9.hpp"
 
 #include <memory>
 
 namespace vpu {
 
 void dynamicToStaticNonMaxSuppression(std::shared_ptr<ngraph::Node> node) {
-    auto nms = std::dynamic_pointer_cast<ngraph::opset5::NonMaxSuppression>(node);
+    auto nms = std::dynamic_pointer_cast<ngraph::opset9::NonMaxSuppression>(node);
     VPU_THROW_UNLESS(nms, "dynamicToStaticNonMaxSuppression transformation for {} of type {} expects {} as node for replacement",
-                     node->get_friendly_name(), node->get_type_info(), ngraph::opset5::NonMaxSuppression::get_type_info_static());
+                     node->get_friendly_name(), node->get_type_info(), ngraph::opset9::NonMaxSuppression::get_type_info_static());
 
     auto staticShapeNMS = std::make_shared<ngraph::vpu::op::StaticShapeNonMaxSuppression>(*nms);
 
