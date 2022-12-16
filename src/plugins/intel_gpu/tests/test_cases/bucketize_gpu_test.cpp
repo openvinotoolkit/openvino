@@ -87,7 +87,7 @@ struct bucketize_test : testing::TestWithParam<bucketize_test_params<I, B, O>> {
             cldnn::mem_lock<O> output_ptr(output, get_test_stream());
             ASSERT_EQ(output_ptr.size(), p.output_values_right_bound.size());
             for (size_t i = 0; i < output_ptr.size(); ++i) {
-                EXPECT_EQ(p.output_values_right_bound[i], output_ptr[i]);
+                ASSERT_EQ(p.output_values_right_bound[i], output_ptr[i]);
             }
         }
 
@@ -96,7 +96,7 @@ struct bucketize_test : testing::TestWithParam<bucketize_test_params<I, B, O>> {
             cldnn::mem_lock<O> output_ptr(output, get_test_stream());
             ASSERT_EQ(output_ptr.size(), p.output_values_left_bound.size());
             for (size_t i = 0; i < output_ptr.size(); ++i) {
-                EXPECT_EQ(p.output_values_left_bound[i], output_ptr[i]);
+                ASSERT_EQ(p.output_values_left_bound[i], output_ptr[i]);
             }
         }
     }

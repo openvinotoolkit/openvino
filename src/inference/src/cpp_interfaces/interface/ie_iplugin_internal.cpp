@@ -14,6 +14,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <transformations/common_optimizations/fused_names_cleanup.hpp>
 #include <unordered_set>
 
 #include "any_copy.hpp"
@@ -33,6 +34,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/core/runtime_attribute.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/pass/manager.hpp"
 #include "threading/ie_executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -339,6 +341,12 @@ std::unordered_set<std::string> GetSupportedNodes(
     }
 
     auto transformed_model = model->clone();
+
+    // Cleanup fused names if there are present in original model
+    ov::pass::Manager m;
+    m.register_pass<ov::pass::FusedNamesCleanup>();
+    m.run_passes(transformed_model);
+
     transform(transformed_model);
     auto ops = transformed_model->get_ordered_ops();
 
@@ -346,68 +354,80 @@ std::unordered_set<std::string> GetSupportedNodes(
     std::unordered_set<std::string> supported = GetRemovedNodes(model, transformed_model);
     std::unordered_set<std::string> unsupported;
 
+    auto get_names_set = [](const std::shared_ptr<ov::Node>& op) -> std::unordered_set<std::string> {
+        auto fused_names = ngraph::getFusedNamesVector(op);
+        std::unordered_set<std::string> names(fused_names.begin(), fused_names.end());
+        names.insert(op->get_friendly_name());
+        return names;
+    };
+
+    // Collect all operation names even there are no such names in original model
     for (auto&& op : ops) {
-        bool is_supported = false;
-        bool is_checked = false;
-        if (InferenceEngine::details::contains(original_ops, op->get_friendly_name())) {
-            is_supported = is_node_supported(op);
-            is_checked = true;
-            if (is_supported) {
-                supported.emplace(op->get_friendly_name());
-            } else {
-                unsupported.emplace(op->get_friendly_name());
-            }
+        auto names = get_names_set(op);
+        if (is_node_supported(op)) {
+            supported.insert(names.begin(), names.end());
+        } else {
+            unsupported.insert(names.begin(), names.end());
         }
+    }
 
-        for (auto&& fusedLayerName : ngraph::getFusedNamesVector(op)) {
-            if (InferenceEngine::details::contains(original_ops, fusedLayerName)) {
-                if (!is_checked) {
-                    is_supported = is_node_supported(op);
-                    is_checked = true;
-                }
-                if (is_supported) {
-                    supported.emplace(fusedLayerName);
-                } else {
-                    unsupported.emplace(fusedLayerName);
-                }
-            }
-        }
+    // If operation was fused into several operations where one is supported
+    // but another one is not supported remove it from supported
+    for (auto&& name : unsupported) {
+        supported.erase(name);
     }
-    for (auto&& unsupportedNode : unsupported) {
-        supported.erase(unsupportedNode);
-    }
-    for (auto&& node : model->get_ops()) {
-        if (InferenceEngine::details::contains(supported, node->get_friendly_name())) {
-            for (auto&& inputNodeOutput : node->input_values()) {
-                if (ov::op::util::is_constant(inputNodeOutput.get_node()) ||
-                    ov::op::util::is_parameter(inputNodeOutput.get_node())) {
-                    supported.emplace(inputNodeOutput.get_node()->get_friendly_name());
-                }
-            }
-            for (auto&& outputs : node->outputs()) {
-                for (auto&& outputNodeInput : outputs.get_target_inputs()) {
-                    if (ov::op::util::is_output(outputNodeInput.get_node())) {
-                        supported.emplace(outputNodeInput.get_node()->get_friendly_name());
-                    }
-                }
-            }
-        }
 
-        if (ov::op::util::is_constant(node) || ov::op::util::is_parameter(node)) {
-            if (node->output(0).get_target_inputs().size() &&
-                !InferenceEngine::details::contains(
-                    supported,
-                    node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name())) {
-                supported.erase(node->get_friendly_name());
+    auto has_all_consumers_unsupported = [&supported](const std::shared_ptr<ov::Node>& node) {
+        for (auto&& input : node->output(0).get_target_inputs()) {
+            if (details::contains(supported, input.get_node()->get_friendly_name())) {
+                return false;
             }
-        } else if (ov::op::util::is_output(node)) {
-            if (!InferenceEngine::details::contains(supported,
-                                                    node->input_values().begin()->get_node()->get_friendly_name())) {
-                supported.erase(node->get_friendly_name());
+        }
+        return (node->output(0).get_target_inputs().size() != 0);
+    };
+
+    auto has_unsupported_source = [&supported](const std::shared_ptr<ov::Node>& node) {
+        return !details::contains(supported, node->input_values().begin()->get_node()->get_friendly_name());
+    };
+
+    // Walk over transformed model for special handing of Parameters/Constants/Results
+    for (auto&& op : ops) {
+        // Mark Constants and all fused names as unsupported if they are have no
+        // supported consumers/sources
+        if (ov::op::util::is_constant(op)) {
+            if (has_all_consumers_unsupported(op)) {
+                auto names = get_names_set(op);
+                for (auto& name : get_names_set(op)) {
+                    supported.erase(name);
+                }
             }
         }
     }
-    return supported;
+
+    // Finally get intersection of all supported operation names
+    // and operation names from original model
+    std::unordered_set<std::string> res;
+    for (auto&& name : supported) {
+        if (details::contains(original_ops, name)) {
+            res.insert(name);
+        }
+    }
+
+    // Remove parameters which has no supported consumers
+    for (auto& param : model->get_parameters()) {
+        if (has_all_consumers_unsupported(param)) {
+            res.erase(param->get_friendly_name());
+        }
+    }
+
+    // Remove results which has no supported source node
+    for (auto& result : model->get_results()) {
+        if (has_unsupported_source(result)) {
+            res.erase(result->get_friendly_name());
+        }
+    }
+
+    return res;
 }
 
 void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
