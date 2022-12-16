@@ -230,7 +230,7 @@ public:
             if (compare_implementation.not_equal) {
                 EXPECT_NE(exec_impl, compare_implementation.value);
             } else {
-                EXPECT_EQ(exec_impl, compare_implementation.value);
+                ASSERT_EQ(exec_impl, compare_implementation.value);
             }
         }
 
@@ -240,7 +240,7 @@ public:
             auto eus = _engine.get_device_info().execution_units_count;
             replace(expected_cache, eus_marker, eus);
 
-            EXPECT_EQ(cache, expected_cache);
+            ASSERT_EQ(cache, expected_cache);
         }
     }
 
