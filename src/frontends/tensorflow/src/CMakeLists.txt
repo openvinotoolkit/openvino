@@ -29,6 +29,8 @@ add_library(openvino_tensorflow_frontend_common_logic STATIC EXCLUDE_FROM_ALL
         exception.cpp
         input_model.hpp
         input_model.cpp
+        pass/transpose_sinking.hpp
+        pass/transpose_sinking.cpp
         place.hpp
         place.cpp
         op_table.hpp

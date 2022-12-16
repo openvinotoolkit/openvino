@@ -15,7 +15,7 @@ namespace tensorflow {
 
 /// Keep necessary data for a single node in the original FW graph to facilitate
 /// conversion process in the rules code.
-class NodeContext : public ov::frontend::NodeContext {
+class TENSORFLOW_API NodeContext : public ov::frontend::NodeContext {
 public:
     using Ptr = std::shared_ptr<NodeContext>;
     NodeContext(const std::shared_ptr<DecoderBase>& decoder, const OutputVector& inputs)
@@ -51,7 +51,7 @@ public:
         return res;
     }
 
-private:
+protected:
     ov::Any apply_additional_conversion_rules(const ov::Any& data, const std::type_info& type_info) const override;
 
     std::shared_ptr<DecoderBase> m_decoder;

@@ -3,13 +3,13 @@
 //
 
 #include "openvino/frontend/tensorflow_lite/frontend.hpp"
-
-#include "graph_iterator_flatbuffer.hpp"
 #include "input_model.hpp"
 #include "op_table.hpp"
+#include "tf_framework_node.hpp"
+#include "graph_iterator_flatbuffer.hpp"
 #include "openvino/util/common_util.hpp"
-#include "openvino/op/util/framework_node.hpp"
-#include "openvino/pass/visualize_tree.hpp"
+#include "pass/transpose_sinking.hpp"
+#include "transformations/common_optimizations/transpose_sinking.hpp"
 
 using namespace ov;
 using namespace ov::frontend::tensorflow_lite;
@@ -18,7 +18,7 @@ FrontEnd::FrontEnd() {
     m_op_translators = tensorflow::op::get_supported_lite_ops();
 }
 
-/// \brief Check if FrontEndTensorflow can recognize model from given parts
+/// \brief Check if FrontEndTensorflowLite can recognize model from given parts
 bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     if (variants.size() != 1)
         return false;
@@ -67,18 +67,41 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
     return nullptr;
 }
 
-std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr &model) const {
-    auto model_tf = std::dynamic_pointer_cast<InputModel>(model);
-    FRONT_END_GENERAL_CHECK(model_tf != nullptr, "Invalid input model");
+std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr& model) const {
     std::shared_ptr<ov::Model> ov_model;
-    translate_graph(model, "TF Lite Frontend IR", true, false, ov_model);
+    if (!m_transformation_extensions.empty()) {
+        auto ov_model = decode(model);
+
+        ov::pass::Manager manager;
+        for (const auto& transformation : m_transformation_extensions) {
+            transformation->register_pass(manager);
+        }
+        manager.run_passes(ov_model);
+// FIXME       convert(ov_model);
+        return ov_model;
+    }
+
+    translate_graph(model, "TensorFlow_Lite_Frontend_IR", true, false, ov_model);
+    normalize(ov_model);
+
+    for (const auto& node : ov_model->get_ordered_ops()) {
+        if (const auto& fw_node = ov::as_type_ptr<ov::frontend::tensorflow::FrameworkNode>(node)) {
+            auto op_type = fw_node->get_decoder()->get_op_type();
+            auto op_name = fw_node->get_decoder()->get_op_name();
+            FRONT_END_OP_CONVERSION_CHECK(
+                    false,
+                    "The translation is incomplete due to operation ", op_name, " of type ", op_type);
+        }
+    }
     return ov_model;
 }
 
 void FrontEnd::translate_graph(const InputModel::Ptr &model, const std::string &model_name, bool fail_fast,
-                               bool no_conversion, std::shared_ptr<ov::Model> &ng_function) const {
+                               bool no_conversion, std::shared_ptr<ov::Model>& ov_function) const {
     const auto& model_lite = std::dynamic_pointer_cast<ov::frontend::tensorflow_lite::InputModel>(model);
     FRONT_END_GENERAL_CHECK(model_lite, "nullptr for InputModel is given for translation into OV Model");
+
+    const auto& translate_map = no_conversion ? ov::frontend::tensorflow::TranslatorDictionaryType{} : m_op_translators;
 
     auto all_tensor_values = model_lite->get_tensor_values();
 
@@ -122,20 +145,53 @@ void FrontEnd::translate_graph(const InputModel::Ptr &model, const std::string &
             FRONT_END_GENERAL_CHECK(all_tensor_values.find(tensor_name) != all_tensor_values.end(), "Unknown tensor name: ", tensor_name, ".");
             inputs[i] = all_tensor_values[tensor_name];
         }
+
         const auto& out_size = decoder->get_output_size();
-        const auto& operation = std::make_shared<op::util::FrameworkNode>(inputs, out_size);
-        operation->set_friendly_name(decoder->get_op_name());
+
+        ov::OutputVector ov_outputs(out_size);
+        try {
+            FRONT_END_OP_CONVERSION_CHECK(translate_map.count(decoder->get_op_type()),
+                                          "No translator found for " + decoder->get_op_type() + " node.");
+            auto op_fun = &(translate_map.at(decoder->get_op_type()));
+            ov::frontend::tensorflow::NodeContext node_context(decoder, inputs);
+            ov_outputs = (*op_fun)(node_context);
+        } catch (...) {
+            if (fail_fast) {
+                // re-throw any exception
+                throw;
+            } else {
+                auto operation = std::make_shared<ov::frontend::tensorflow::FrameworkNode>(decoder, inputs, out_size);
+                operation->set_friendly_name(decoder->get_op_name());
+                ov_outputs = operation->outputs();
+            }
+        }
+
         for (size_t i = 0; i < out_size; ++i) {
             const auto& name = decoder->get_output_tensor_name(i);
-            all_tensor_values[name] = operation->output(i);
-            operation->get_output_tensor(i).set_names({name});
+            all_tensor_values[name] = ov_outputs[i];
+            ov_outputs[i].get_tensor().set_names({name});
             if (output_names.find(name) != output_names.end()) {
-                const auto& result = std::make_shared<ov::opset1::Result>(operation->output(i));
+                const auto& result = std::make_shared<ov::opset1::Result>(ov_outputs[i]); // order may be different!
                 result->set_friendly_name(name);
                 result->get_output_tensor(i).set_names({name});
                 results.push_back(result);
             }
         }
     }
-    ng_function = std::make_shared<ov::Model>(results, parameters, model_name);
+    ov_function = std::make_shared<ov::Model>(results, parameters, model_name);
+}
+
+std::shared_ptr<ov::Model> FrontEnd::decode(const InputModel::Ptr &model) const {
+    std::shared_ptr<ov::Model> ov_model;
+    translate_graph(model, "TensorFlow_Lite_Frontend_IR", false, true, ov_model);
+    return ov_model;
+}
+
+void FrontEnd::normalize(const std::shared_ptr<ov::Model> &function) const {
+    ov::pass::Manager manager;
+    // TODO: register i8 weights normalization after implemented
+    // TODO: remove custom transpose sinking after common TS ready
+    manager.register_pass<ov::frontend::tensorflow::pass::TransposeSinking>();
+    manager.register_pass<ov::pass::TransposeSinking>();
+    manager.run_passes(function);
 }
