@@ -16,10 +16,19 @@ img {
 }
 /* === OPENVINO DIAGRAM ================================================= */
 
-.openvino-diagram {
-	width: 100%;
-	margin: 0px auto;
-}
+@media only screen and (min-width: 1100px) {
+	.openvino-diagram {
+		width: 70%;
+	}
+	}
+
+@media only screen and (max-width: 1099px) {
+	.openvino-diagram {
+		width: 100%;
+	}
+	}
+
+
 
 /* === PANELS ================================================= */
 
