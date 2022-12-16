@@ -74,6 +74,7 @@ set(MULTI_TEST_SRC
     onnx_import_dyn_shapes.in.cpp
     onnx_import_external_data.in.cpp
     onnx_import_org_openvino.in.cpp
+    onnx_import_org_pytorch.in.cpp
     onnx_import_reshape.in.cpp
     onnx_import_rnn.in.cpp
     onnx_import_quant.in.cpp
