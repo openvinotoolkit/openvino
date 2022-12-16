@@ -299,7 +299,9 @@ public:
         return result.str();
     }
 };
-using OVClassExecutableNetworkGetMetricTestThrow_DEVICE_PROPERTIES =
+using OVClassExecutableNetworkGetMetricTestUnsupportConfigThrow_DEVICE_PROPERTIES =
+    OVClassExecutableNetworkGetMetricTest_DEVICE_PROPERTIES;
+using OVClassExecutableNetworkGetMetricTestInvalidDeviceThrow_DEVICE_PROPERTIES =
     OVClassExecutableNetworkGetMetricTest_DEVICE_PROPERTIES;
 #define SKIP_IF_NOT_IMPLEMENTED(...)                   \
 {                                                      \

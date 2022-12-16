@@ -149,9 +149,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Multi_OVClassAutoExcutableNetowrkGetDevicePropert
                          OVClassExecutableNetworkGetMetricTest_DEVICE_PROPERTIES::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_OVClassAutoExcutableNetowrkGetDevicePropertiesTestThrow,
-                         OVClassExecutableNetworkGetMetricTestThrow_DEVICE_PROPERTIES,
+                         OVClassExecutableNetworkGetMetricTestInvalidDeviceThrow_DEVICE_PROPERTIES,
                          ::testing::ValuesIn(multiDevicePropertiesConfigsThrow),
-                         OVClassExecutableNetworkGetMetricTestThrow_DEVICE_PROPERTIES::getTestCaseName);
+                         OVClassExecutableNetworkGetMetricTestInvalidDeviceThrow_DEVICE_PROPERTIES::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_OVClassAutoExcutableNetowrkGetDevicePropertiesTestNoThrow,
                          OVClassExecutableNetworkGetMetricTest_DEVICE_PROPERTIES,
@@ -159,7 +159,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_OVClassAutoExcutableNetowrkGetDeviceProperti
                          OVClassExecutableNetworkGetMetricTest_DEVICE_PROPERTIES::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_OVClassAutoExcutableNetowrkGetDevicePropertiesTestThrow,
-                         OVClassExecutableNetworkGetMetricTestThrow_DEVICE_PROPERTIES,
+                         OVClassExecutableNetworkGetMetricTestInvalidDeviceThrow_DEVICE_PROPERTIES,
                          ::testing::ValuesIn(autoDevicePropertiesConfigsThrow),
-                         OVClassExecutableNetworkGetMetricTestThrow_DEVICE_PROPERTIES::getTestCaseName);
+                         OVClassExecutableNetworkGetMetricTestInvalidDeviceThrow_DEVICE_PROPERTIES::getTestCaseName);
 }  // namespace

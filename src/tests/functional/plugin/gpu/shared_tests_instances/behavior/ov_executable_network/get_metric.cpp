@@ -101,8 +101,12 @@ const std::vector<DevicePropertiesNumStreamsParams> autoDevicePropertiesConfigsN
     DevicePropertiesNumStreamsParams{"AUTO:GPU,CPU", {ov::device::properties("CPU", ov::num_streams(2))}, "CPU"},
     DevicePropertiesNumStreamsParams{"AUTO:GPU,CPU", {ov::device::properties("GPU", ov::num_streams(2))}, "GPU"}};
 
-const std::vector<DevicePropertiesNumStreamsParams> autoDevicePropertiesConfigsThrow = {
+const std::vector<DevicePropertiesNumStreamsParams> autoDevicePropertiesInvalidDeviceThrow = {
     DevicePropertiesNumStreamsParams{"AUTO:GPU", {ov::device::properties("CPU", ov::num_streams(2))}, "CPU"}};
+
+const std::vector<DevicePropertiesNumStreamsParams> autoDevicePropertiesUnsupportConfigsThrow = {
+    DevicePropertiesNumStreamsParams{"AUTO:GPU", {ov::device::properties("GPU", ov::num_streams(2))}, "GPU"},
+    DevicePropertiesNumStreamsParams{"AUTO:GPU,CPU", {ov::device::properties("CPU", ov::num_streams(2))}, "CPU"}};
 
 const std::vector<DevicePropertiesNumStreamsParams> multiDevicePropertiesConfigsNoThrow = {
     DevicePropertiesNumStreamsParams{"MULTI:GPU", {ov::device::properties("GPU", ov::num_streams(5))}, "GPU"},
@@ -115,7 +119,7 @@ const std::vector<DevicePropertiesNumStreamsParams> multiDevicePropertiesConfigs
         {ov::device::properties("CPU", ov::num_streams(5)), ov::device::properties("GPU", ov::num_streams(3))},
         "CPU"}};
 
-const std::vector<DevicePropertiesNumStreamsParams> multiDevicePropertiesConfigsThrow = {
+const std::vector<DevicePropertiesNumStreamsParams> multiDevicePropertiesInvalidDeviceThrow = {
     DevicePropertiesNumStreamsParams{"MULTI:GPU", {ov::device::properties("CPU", ov::num_streams(5))}, "CPU"},
     DevicePropertiesNumStreamsParams{"MULTI:CPU", {ov::device::properties("GPU", ov::num_streams(5))}, "GPU"}};
 
@@ -125,9 +129,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_OVClassAutoExcutableNetowrkGetDeviceProperti
                          OVClassExecutableNetworkGetMetricTest_DEVICE_PROPERTIES::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_OVClassAutoExcutableNetowrkGetDevicePropertiesTestThrow,
-                         OVClassExecutableNetworkGetMetricTestThrow_DEVICE_PROPERTIES,
-                         ::testing::ValuesIn(autoDevicePropertiesConfigsThrow),
-                         OVClassExecutableNetworkGetMetricTestThrow_DEVICE_PROPERTIES::getTestCaseName);
+                         OVClassExecutableNetworkGetMetricTestInvalidDeviceThrow_DEVICE_PROPERTIES,
+                         ::testing::ValuesIn(autoDevicePropertiesInvalidDeviceThrow),
+                         OVClassExecutableNetworkGetMetricTestInvalidDeviceThrow_DEVICE_PROPERTIES::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_OVClassAutoExcutableNetowrkGetDevicePropertiesTestNoThrow,
                          OVClassExecutableNetworkGetMetricTest_DEVICE_PROPERTIES,
@@ -135,8 +139,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_Multi_OVClassAutoExcutableNetowrkGetDevicePropert
                          OVClassExecutableNetworkGetMetricTest_DEVICE_PROPERTIES::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_OVClassAutoExcutableNetowrkGetDevicePropertiesTestThrow,
-                         OVClassExecutableNetworkGetMetricTestThrow_DEVICE_PROPERTIES,
-                         ::testing::ValuesIn(multiDevicePropertiesConfigsThrow),
-                         OVClassExecutableNetworkGetMetricTestThrow_DEVICE_PROPERTIES::getTestCaseName);
+                         OVClassExecutableNetworkGetMetricTestInvalidDeviceThrow_DEVICE_PROPERTIES,
+                         ::testing::ValuesIn(multiDevicePropertiesInvalidDeviceThrow),
+                         OVClassExecutableNetworkGetMetricTestInvalidDeviceThrow_DEVICE_PROPERTIES::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_OVClassAutoExcutableNetowrkGetDevicePropertiesUnsupportedConfigsTestThrow,
+                         OVClassExecutableNetworkGetMetricTestUnsupportConfigThrow_DEVICE_PROPERTIES,
+                         ::testing::ValuesIn(autoDevicePropertiesUnsupportConfigsThrow),
+                         OVClassExecutableNetworkGetMetricTestUnsupportConfigThrow_DEVICE_PROPERTIES::getTestCaseName);
 } // namespace
 
