@@ -18,22 +18,28 @@ class GatherFunction {
 public:
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::PartialShape& inputShape,
+        const std::vector<size_t>& gatherIndicesShape,
         const std::vector<int>& gatherIndicesValues,
         const std::vector<int>& axis,
+        const int64_t batch_dims,
         const ngraph::element::Type precisionBeforeDequantization,
         const ngraph::builder::subgraph::DequantizationOperations& dequantization);
 
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::PartialShape& inputShape,
+        const std::vector<size_t>& gatherIndicesShape,
         const std::vector<int>& gatherIndicesValues,
         const std::vector<int>& axis,
+        const int64_t batch_dims,
         const ngraph::element::Type precisionBeforeFq,
         const FakeQuantizeOnData& fqOnData);
 
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::PartialShape& inputShape,
+        const std::vector<size_t>& gatherIndicesShape,
         const std::vector<int>& gatherIndicesValues,
         const std::vector<int>& axis,
+        const int64_t batch_dims,
         const ngraph::element::Type precisionBeforeDequantization,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
         const ngraph::element::Type precisionAfterOperation,

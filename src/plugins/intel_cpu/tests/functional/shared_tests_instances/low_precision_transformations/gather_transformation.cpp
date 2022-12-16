@@ -18,33 +18,39 @@ const std::vector<GatherTransformationTestValues> testValues = {
     // U8: per-tensor quantization
     {
         {3, 3, 4},
+        {1},
         {0},
         {0},
+        std::int64_t{0},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         ngraph::element::f32,
         {256, {}, {0.f}, {25.5f}, {12.5f}, {25.5f + 12.5f}}
     },
     // U8: per-channel quantization
     {
-        {3, 5, 4},
-        {0},
+        {1, 3, 5},
         {1},
+        {0},
+        {0},
+        std::int64_t{0},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         ngraph::element::f32,
         {
             256,
-            {3, 1, 1},
+            {1, 3, 1},
             {0.f, 0.f, 0.f},
             {25.5f, 25.5f, 25.5f},
             {0.f, 12.5f, 25.5f},
             {25.5f, 25.5f + 12.5f * 2, 25.5f + 12.5f * 4}
         }
     },
-    // 6D
+    // 4D
     {
-        { 3, 4, 100, 2},
-        { 1, 2},
+        {3, 4, 100, 2},
+        {2},
+        {1, 2},
         {0},
+        std::int64_t{0},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         ngraph::element::f32,
         {256, {}, {0.f}, {25.5f}, {12.5f}, {25.5f + 12.5f}}

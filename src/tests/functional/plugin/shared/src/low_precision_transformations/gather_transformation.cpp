@@ -37,8 +37,10 @@ void GatherTransformation::SetUp() {
 
     function = ngraph::builder::subgraph::GatherFunction::getOriginal(
         testValues.inputShape,
+        testValues.gatherIndicesShape,
         testValues.gatherIndicesValues,
         testValues.axis,
+        testValues.batch_dims,
         testValues.precisionBeforeFq,
         testValues.fqOnData);
 }

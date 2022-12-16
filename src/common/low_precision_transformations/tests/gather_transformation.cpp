@@ -40,8 +40,10 @@ public:
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
+    std::vector<size_t> gatherIndicesShape;
     std::vector<int> gatherIndicesValues;
     std::vector<int> axis;
+    int64_t batch_dims;
     TestTransformationParams params;
     Actual actual;
     Expected expected;
@@ -60,8 +62,10 @@ public:
 
         actualFunction = ngraph::builder::subgraph::GatherFunction::getOriginal(
             inputShape,
+            testValues.gatherIndicesShape,
             testValues.gatherIndicesValues,
             testValues.axis,
+            testValues.batch_dims,
             testValues.actual.precisionBeforeDequantization,
             testValues.actual.dequantization);
 
@@ -71,8 +75,10 @@ public:
 
         referenceFunction = ngraph::builder::subgraph::GatherFunction::getReference(
             inputShape,
+            testValues.gatherIndicesShape,
             testValues.gatherIndicesValues,
             testValues.axis,
+            testValues.batch_dims,
             testValues.expected.precisionBeforeDequantization,
             testValues.expected.dequantizationBefore,
             testValues.expected.precisionAfterOperation,
@@ -86,7 +92,10 @@ public:
         std::ostringstream result;
         result << "_" << 
             inputShape << "_" <<
+            testValues.gatherIndicesShape << "_" <<
             testValues.gatherIndicesValues << "_" <<
+            testValues.axis << "_" <<
+            testValues.batch_dims << "_" <<
             testValues.actual.precisionBeforeDequantization << "_" <<
             testValues.actual.dequantization << "_" <<
             testValues.expected.dequantizationBefore;
@@ -105,14 +114,17 @@ TEST_P(GatherTransformation, CompareFunctions) {
 
 namespace testValues1 {
 const std::vector<ngraph::PartialShape> inputShapes3D = {
-    { 3, 3, 4 }
+    { 3, 3, 4 },
+    { -1, -1, -1 }
 };
 
 const std::vector<GatherTransformationTestValues> testValues = {
     // U8: per-tensor quantization
     {
+        {1},
         {0},
         {0},
+        std::int64_t{0},
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::u8,
@@ -135,8 +147,10 @@ const std::vector<GatherTransformationTestValues> testValues = {
     },
     // U8: per-tensor quantization
     {
-        {0},
         {2},
+        {0, 1},
+        {0},
+        std::int64_t{0},
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::u8,
@@ -149,11 +163,30 @@ const std::vector<GatherTransformationTestValues> testValues = {
             {{ngraph::element::f32}, {128}, {0.1f}}
         }
     },
-
+    // U8: per-tensor quantization
+    {
+        {3, 2},
+        {1, 2, 1, 2, 1, 2},
+        {1},
+        std::int64_t{1},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128}, {0.1f}}
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128}, {0.1f}}
+        }
+    },
     // U8: per-channel quantization with the same values
     {
         {1},
-        {2},
+        {0},
+        {0},
+        std::int64_t{0},
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::u8,
@@ -169,31 +202,69 @@ const std::vector<GatherTransformationTestValues> testValues = {
             ngraph::element::u8,
             {
                 { ngraph::element::f32 },
-                {{128.f}, element::undefined, {}, false, 1ul, element::u8, true},
-                {{0.1}, ngraph::element::f32, {}}
+                {{128.f}, element::undefined, {1, 3, 1}, false, 1ul, element::u8, true},
+                {{0.1}, ngraph::element::f32, {1, 3, 1}}
             }
         }
     },
-    // U8: per-tensor quantization, gather channel dimension
+    // U8: per-channel quantization, gather axis match with channel
     {
         {1},
-        {2},
+        {0},
+        {1}, // axis
+        std::int64_t{0},
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::u8,
-            {{ngraph::element::f32}, {128}, {0.1f}}
+            {
+                { ngraph::element::f32 },
+                {{ 128, 64, 32 }, ngraph::element::f32, { 1, 3, 1 }},
+                {{ 0.3f, 0.2f, 0.1f }, ngraph::element::f32, { 1, 3, 1 }}
+            }
         },
         {
             ngraph::element::u8,
             {{}, {}, {}},
             ngraph::element::u8,
-            {{ngraph::element::f32}, {128}, {0.1f}}
+            {
+                { ngraph::element::f32 },
+                {{ 128 }, ngraph::element::f32, {}},
+                {{ 0.3f }, ngraph::element::f32, {}}
+            }
+        }
+    },
+    // U8: per-channel quantization, gather axis and channel doesn't match
+    {
+        {1},
+        {0},
+        {0},
+        std::int64_t{0},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {
+                { ngraph::element::f32 },
+                {{ 128, 64, 32 }, ngraph::element::f32, { 1, 3, 1 }},
+                {{ 0.3f, 0.2f, 0.1f }, ngraph::element::f32, { 1, 3, 1 }}
+            }
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {
+                { ngraph::element::f32 },
+                {{ 128, 64, 32 }, ngraph::element::f32, {1, 3, 1 }},
+                {{ 0.3f, 0.2f, 0.1f }, ngraph::element::f32, {1, 3, 1 }}
+            }
         }
     },
     // empty
     {
+        {1},
         {0},
         {0},
+        std::int64_t{0},
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::u8,

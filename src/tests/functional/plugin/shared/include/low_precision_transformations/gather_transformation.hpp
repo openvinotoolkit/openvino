@@ -15,8 +15,10 @@ namespace LayerTestsDefinitions {
 class GatherTransformationTestValues {
 public:
     ngraph::PartialShape inputShape;
+    std::vector<size_t> gatherIndicesShape;
     std::vector<int> gatherIndicesValues;
     std::vector<int> axis;
+    int64_t batch_dims;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ngraph::element::Type precisionBeforeFq;
     ngraph::builder::subgraph::FakeQuantizeOnData fqOnData;
