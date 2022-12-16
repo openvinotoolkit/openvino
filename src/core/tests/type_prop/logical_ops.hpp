@@ -4,7 +4,8 @@
 
 #pragma once
 
-#include "gtest/gtest.h"
+#include "common_test_utils/test_assertions.hpp"
+#include "dimension_tracker.hpp"
 #include "ngraph/ngraph.hpp"
 #include "util/type_prop.hpp"
 
@@ -16,7 +17,10 @@ public:
 };
 
 template <typename T>
-class LogicalOperatorTypeProp : public testing::Test {};
+class LogicalOperatorTypeProp : public TypePropOpTest<typename T::op_type> {
+protected:
+    size_t exp_logical_op_output_size{1};
+};
 
 class LogicalOperatorTypeName {
 public:
@@ -90,24 +94,111 @@ TYPED_TEST_P(LogicalOperatorTypeProp, incorrect_shape) {
                             ngraph::Shape{1, 2, 3});
 }
 
-TYPED_TEST_P(LogicalOperatorTypeProp, broadcast) {
+TYPED_TEST_P(LogicalOperatorTypeProp, inputs_have_different_types) {
+    using namespace ngraph;
+    const auto a = std::make_shared<op::Parameter>(element::boolean, PartialShape{1, 1, 6});
+    const auto b = std::make_shared<op::Parameter>(element::f16, PartialShape{1, 3, 1});
+
+    OV_EXPECT_THROW(const auto logical_op = this->make_op(a, b),
+                    NodeValidationFailure,
+                    testing::HasSubstr("Arguments do not have the same element type"));
+}
+
+TYPED_TEST_P(LogicalOperatorTypeProp, inputs_have_inconsistent_shapes) {
+    using namespace ngraph;
+    const auto a = std::make_shared<op::Parameter>(element::boolean, PartialShape{1, 1, 6});
+    const auto b = std::make_shared<op::Parameter>(element::boolean, PartialShape{1, 3, 3});
+
+    OV_EXPECT_THROW(const auto logical_op = this->make_op(a, b),
+                    NodeValidationFailure,
+                    testing::HasSubstr("Argument shapes are inconsistent"));
+}
+
+TYPED_TEST_P(LogicalOperatorTypeProp, shape_broadcast) {
+    using namespace ngraph;
+    using OP_Type = typename TypeParam::op_type;
+    const auto exp_dtype = TypeParam::element_type;
+
+    const auto a = std::make_shared<op::Parameter>(element::boolean, Shape{1, 1, 6});
+    const auto b = std::make_shared<op::Parameter>(element::boolean, Shape{1, 3, 1});
+
+    const auto logical_op = this->make_op(a, b);
+
+    EXPECT_EQ(logical_op->get_element_type(), exp_dtype);
+    EXPECT_EQ(logical_op->get_output_size(), this->exp_logical_op_output_size);
+    EXPECT_EQ(logical_op->get_shape(), Shape({1, 3, 6}));
+}
+
+TYPED_TEST_P(LogicalOperatorTypeProp, partial_shape_no_broadcast) {
+    using namespace ngraph;
+    using namespace testing;
     using OP_Type = typename TypeParam::op_type;
 
-    auto input1 = std::make_shared<ngraph::op::Parameter>(ngraph::element::boolean, ngraph::Shape{1, 1, 6});
-    auto input2 = std::make_shared<ngraph::op::Parameter>(ngraph::element::boolean, ngraph::Shape{1, 3, 1});
+    auto shape_a = PartialShape{1, {2, 4}, {2, 5}, 4, -1};
+    auto shape_b = PartialShape{1, 3, {1, 6}, 4, {-1, 5}};
+    set_shape_labels(shape_a, std::vector<size_t>{ov::no_label, 11, 12, ov::no_label, 14});
+    set_shape_labels(shape_b, std::vector<size_t>{20, 21, ov::no_label, ov::no_label, ov::no_label});
+    const auto exp_shape = PartialShape{1, 3, {2, 5}, 4, {-1, 5}};
 
-    auto logical_and = std::make_shared<OP_Type>(input1, input2);
+    const auto a = std::make_shared<op::Parameter>(element::boolean, shape_a);
+    const auto b = std::make_shared<op::Parameter>(element::boolean, shape_b);
 
-    ASSERT_EQ(logical_and->get_element_type(), ngraph::element::boolean);
-    ASSERT_EQ(logical_and->get_shape(), (ngraph::Shape{1, 3, 6}));
+    EXPECT_THAT(this->make_op(a, b, "NONE")->get_output_partial_shape(0),
+                AllOf(Eq(exp_shape), ResultOf(get_shape_labels, ElementsAre(20, 21, 12, ov::no_label, 14))));
+
+    EXPECT_THAT(this->make_op(b, a, "NONE")->get_output_partial_shape(0),
+                AllOf(Eq(exp_shape), ResultOf(get_shape_labels, ElementsAre(20, 11, 12, ov::no_label, 14))));
+}
+
+TYPED_TEST_P(LogicalOperatorTypeProp, partial_shape_numpy_broadcast) {
+    using namespace ngraph;
+    using namespace testing;
+    using OP_Type = typename TypeParam::op_type;
+
+    auto shape_a = PartialShape{1, {2, 4}, {2, 5}, 4, -1};
+    auto shape_b = PartialShape{1, 3, {1, 6}, 4};
+    set_shape_labels(shape_a, std::vector<size_t>{ov::no_label, 11, 12, 13, 14});
+    set_shape_labels(shape_b, std::vector<size_t>{20, 21, ov::no_label, 23});
+    const auto exp_shape = PartialShape{1, {2, 4}, 3, 4, 4};
+
+    const auto a = std::make_shared<op::Parameter>(element::boolean, shape_a);
+    const auto b = std::make_shared<op::Parameter>(element::boolean, shape_b);
+
+    EXPECT_THAT(this->make_op(a, b, "NUMPY")->get_output_partial_shape(0),
+                AllOf(Eq(exp_shape), ResultOf(get_shape_labels, ElementsAre(ov::no_label, 11, 21, 13, 23))));
+
+    EXPECT_THAT(this->make_op(b, a, "NUMPY")->get_output_partial_shape(0),
+                AllOf(Eq(exp_shape), ResultOf(get_shape_labels, ElementsAre(ov::no_label, 11, 12, 13, 23))));
+}
+
+TYPED_TEST_P(LogicalOperatorTypeProp, default_ctor) {
+    using namespace ngraph;
+
+    const auto op = this->make_op();
+    const auto a = std::make_shared<op::Parameter>(element::boolean, PartialShape{1, {2, 4}, {2, 5}, 4, -1});
+    const auto b = std::make_shared<op::Parameter>(element::boolean, PartialShape{1, 3, {1, 6}, 4});
+
+    op->set_arguments(NodeVector{a, b});
+    op->set_autob("NUMPY");
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_autob(), op::AutoBroadcastSpec("NUMPY"));
+    EXPECT_EQ(op->get_element_type(), element::boolean);
+    EXPECT_EQ(op->get_output_size(), this->exp_logical_op_output_size);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({1, {2, 4}, 3, 4, 4}));
 }
 
 REGISTER_TYPED_TEST_SUITE_P(LogicalOperatorTypeProp,
-                            broadcast,
+                            shape_broadcast,
+                            partial_shape_no_broadcast,
+                            partial_shape_numpy_broadcast,
                             incorrect_type_f32,
                             incorrect_type_f64,
                             incorrect_type_i32,
                             incorrect_type_i64,
                             incorrect_type_u32,
                             incorrect_type_u64,
-                            incorrect_shape);
+                            incorrect_shape,
+                            inputs_have_different_types,
+                            inputs_have_inconsistent_shapes,
+                            default_ctor);
