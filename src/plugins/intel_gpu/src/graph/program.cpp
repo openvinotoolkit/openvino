@@ -149,65 +149,9 @@ program::program(engine& engine_ref,
     build_program(is_internal);
 }
 
-program::program(engine& engine_ref,
-                 topology const& topology,
-                 build_options const& options,
-                 const ExecutionConfig& config,
-                 bool is_internal,
-                 bool no_optimizations,
-                 bool is_body_program)
-    : _engine(engine_ref),
-      _stream(_engine.create_stream(config)),
-      options(options),
-      _config(config),
-      processing_order(),
-      tuning_cache(nullptr),
-      is_body_program(is_body_program),
-      is_subgroup_local_block_io_supported(-1) {
-    init_primitives();
-    set_options();
-    query_local_block_io_supported();
-
-    pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
-    prepare_nodes(topology);
-    _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id,
-                                                                      kernel_selector::KernelBase::get_db().get_batch_header_str()));
-    program_node::reset_unique_id();
-
-    if (no_optimizations) {
-        init_graph();
-    } else {
-        build_program(is_internal);
-    }
-}
-
-program::program(engine& engine_ref,
-                 std::set<std::shared_ptr<program_node>> const& nodes,
-                 build_options const& options,
-                 const ExecutionConfig& config,
-                 bool is_internal)
-    : _engine(engine_ref),
-      _stream(_engine.create_stream(config)),
-      options(options),
-      _config(config),
-      processing_order(),
-      tuning_cache(nullptr),
-      is_subgroup_local_block_io_supported(-1) {
-    init_primitives();
-    set_options();
-    query_local_block_io_supported();
-
-    _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id,
-                                                                      kernel_selector::KernelBase::get_db().get_batch_header_str()));
-    pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
-    prepare_nodes(nodes);
-    build_program(is_internal);
-}
-
 program::program(engine& engine)
     : _engine(engine),
       _stream(_engine.create_stream({})),
-      options(build_options()),
       _config(),
       processing_order(),
       tuning_cache(nullptr),
@@ -264,22 +208,6 @@ kernel::ptr program::get_kernel(kernel_id id) {
 
 kernels_cache& program::get_kernels_cache() const {
     return *_kernels_cache;
-}
-
-program::ptr program::build_program(engine& engine,
-                                    const topology& topology,
-                                    const build_options& options,
-                                    bool is_internal,
-                                    bool no_optimizations,
-                                    bool is_body_program) {
-    return std::make_shared<program>(engine, topology, options, ExecutionConfig{}, is_internal, no_optimizations, is_body_program);
-}
-
-program::ptr program::build_program(engine& engine,
-                                    const std::set<std::shared_ptr<program_node>>& nodes,
-                                    const build_options& options,
-                                    bool is_internal) {
-    return std::make_shared<program>(engine, nodes, options, ExecutionConfig{}, is_internal);
 }
 
 program::ptr program::build_program(engine& engine,

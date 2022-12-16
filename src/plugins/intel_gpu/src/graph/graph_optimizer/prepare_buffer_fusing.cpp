@@ -306,7 +306,7 @@ static bool can_reshape_be_optimized(const reshape_node& node) {
 
 // ToDo remove friendship relation from  program_node
 void prepare_buffer_fusing::run(program& p) {
-    bool is_debug = p.get_options().get<build_option_type::debug>()->enabled();
+    bool is_debug = p.is_debug_build();
     /*
     We need to take care of proper ordering by types.
     1. Concats

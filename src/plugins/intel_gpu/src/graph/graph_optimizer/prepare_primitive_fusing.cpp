@@ -227,7 +227,7 @@ void prepare_primitive_fusing::fuse_reorders(program &p) {
 }
 
 void prepare_primitive_fusing::fuse_activations(program &p) {
-    bool is_debug = p.get_options().get<build_option_type::debug>()->enabled();
+    bool is_debug = p.is_debug_build();
     std::map<primitive_id, std::vector<std::pair<primitive_id, size_t>>> fusing_history;
     bool use_onednn_impls = false;
 

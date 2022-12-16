@@ -8,7 +8,6 @@
 #include "intel_gpu/runtime/stream.hpp"
 #include "intel_gpu/runtime/lru_cache.hpp"
 #include "intel_gpu/runtime/execution_config.hpp"
-#include "build_options.hpp"
 
 #include <list>
 #include <string>
@@ -137,24 +136,9 @@ public:
             const ExecutionConfig& config,
             bool is_internal);
 
-    program(engine& engine_ref,
-            topology const& topology,
-            build_options const& options,
-            const ExecutionConfig& config,
-            bool is_internal = false,
-            bool no_optimizations = false,
-            bool is_body_program = false);
-    /* constructor used to build a program from subset of nodes of other program (used in propagate_constants) */
-    program(engine& engine_ref,
-            std::set<std::shared_ptr<program_node>> const& nodes,
-            build_options const& options,
-            const ExecutionConfig& config,
-            bool is_internal);
-
     explicit program(engine& engine);
     ~program();
     engine& get_engine() const { return _engine; }
-    const build_options& get_options() const { return options; }
     const ExecutionConfig& get_config() const { return _config; }
     std::list<program_node*>& get_inputs() {
         return inputs;
@@ -163,7 +147,7 @@ public:
         return outputs;
     }  // ToDo: redesign reorder-inputs pass to make it const as_well as get_engine and get options
     bool is_loop_body() const { return is_body_program; }
-    bool is_debug_build() const { return options.get<build_option_type::debug>()->enabled(); }
+    bool is_debug_build() const { return false; }
     const nodes_ordering& get_processing_order() const;
     nodes_ordering& get_processing_order();
     uint32_t get_prog_id() { return prog_id; }
@@ -247,17 +231,6 @@ public:
 
     static ptr build_program(engine& engine,
                              const topology& topology,
-                             const build_options& options,
-                             bool is_internal = false,
-                             bool no_optimizations = false,
-                             bool is_body_program = false);
-    static ptr build_program(engine& engine,
-                             const std::set<std::shared_ptr<program_node>>& nodes,
-                             const build_options& options,
-                             bool is_internal);
-
-    static ptr build_program(engine& engine,
-                             const topology& topology,
                              const ExecutionConfig& config,
                              bool is_internal = false,
                              bool no_optimizations = false,
@@ -289,7 +262,6 @@ private:
     stream::ptr _stream;
     // TODO: Consider moving it to engine
     std::unique_ptr<kernels_cache> _kernels_cache;
-    build_options options;
     ExecutionConfig _config;
     std::list<program_node*> inputs;
     std::vector<program_node*> outputs;

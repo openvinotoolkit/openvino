@@ -315,12 +315,6 @@ network::network(program::ptr program, const ExecutionConfig& config, stream::pt
 
 network::network(engine& engine,
                  const topology& topo,
-                 const build_options& options,
-                 bool is_internal)
-    : network(program::build_program(engine, topo, options, {}, is_internal), engine.create_stream({}), is_internal) {}
-
-network::network(engine& engine,
-                 const topology& topo,
                  const ExecutionConfig& config,
                  bool is_internal)
     : network(program::build_program(engine, topo, config, is_internal), engine.create_stream(config), is_internal) {}
@@ -526,9 +520,9 @@ network::ptr network::allocate_network(engine& engine, program::ptr program, boo
 
 network::ptr network::build_network(engine& engine,
                                     const topology& topology,
-                                    const build_options& options,
+                                    const ExecutionConfig& config,
                                     bool is_internal) {
-    return std::make_shared<network>(engine, topology, options, is_internal);
+    return std::make_shared<network>(engine, topology, config, is_internal);
 }
 
 network::ptr network::build_network(engine& engine,

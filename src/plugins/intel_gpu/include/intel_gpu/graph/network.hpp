@@ -70,11 +70,7 @@ public:
     explicit network(program::ptr program, const ExecutionConfig& config, stream::ptr stream, bool is_internal = false, bool is_primary_stream = true);
     network(engine& engine,
             const topology& topo,
-            const build_options& options = build_options(),
-            bool is_internal = false);
-    network(engine& engine,
-            const topology& topo,
-            const ExecutionConfig& config,
+            const ExecutionConfig& config = {},
             bool is_internal = false);
     network(engine& engine,
             const std::set<std::shared_ptr<program_node>>& nodes,
@@ -94,7 +90,7 @@ public:
 
     static ptr build_network(engine& engine,
                              const topology& topology,
-                             const build_options& options = build_options(),
+                             const ExecutionConfig& config = {},
                              bool is_internal = false);
     static ptr build_network(engine& engine,
                              const std::set<std::shared_ptr<program_node>>& nodes,
