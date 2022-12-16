@@ -49,6 +49,7 @@ protected:
                          bool no_conversion,
                          std::shared_ptr<ov::Model>& ng_function) const override;
 };
+using CreatorFunction = std::function<ov::OutputVector(const ov::frontend::tensorflow::NodeContext&)>;
 }  // namespace tensorflow_lite
 }  // namespace frontend
 }  // namespace ov

@@ -4,7 +4,7 @@
 
 #include "openvino/frontend/tensorflow_lite/frontend.hpp"
 #include "input_model.hpp"
-#include "op_table.hpp"
+#include "lite_op_table.hpp"
 #include "tf_framework_node.hpp"
 #include "graph_iterator_flatbuffer.hpp"
 #include "openvino/util/common_util.hpp"
@@ -15,7 +15,7 @@ using namespace ov;
 using namespace ov::frontend::tensorflow_lite;
 
 FrontEnd::FrontEnd() {
-    m_op_translators = tensorflow::op::get_supported_lite_ops();
+    m_op_translators = ov::frontend::tensorflow_lite::op::get_supported_ops();
 }
 
 /// \brief Check if FrontEndTensorflowLite can recognize model from given parts
@@ -155,6 +155,7 @@ void FrontEnd::translate_graph(const InputModel::Ptr &model, const std::string &
             auto op_fun = &(translate_map.at(decoder->get_op_type()));
             ov::frontend::tensorflow::NodeContext node_context(decoder, inputs);
             ov_outputs = (*op_fun)(node_context);
+            std::cout << ov_outputs[0].get_node_shared_ptr() << std::endl;
         } catch (...) {
             if (fail_fast) {
                 // re-throw any exception
