@@ -34,11 +34,11 @@ std::string IsEqualToLimit::GetErrorOrEmpty(const uint32_t val) const {
     return out.str();
 }
 
-bool LessLimit::isValid(const uint32_t val) const {
+bool IsLessThanLimit ::isValid(const uint32_t val) const {
     return val < compared_value;
 }
 
-std::string LessLimit::GetErrorOrEmpty(const uint32_t val) const {
+std::string IsLessThanLimit ::GetErrorOrEmpty(const uint32_t val) const {
     std::ostringstream out;
     if (!isValid(val)) {
         out << "Unsupported " << what << ", actual value: " << val << ", but should be less than " << compared_value << "\n";
@@ -310,8 +310,8 @@ bool Validator_35::ValidateInputPadding(const std::string& name,
     const IsEqualToLimit padding_h_symetric{pad_h_end, "convolution input padding along height axis (must be symmetric)"};
     const IsEqualToLimit padding_w_symetric{pad_w_end, "convolution input padding along width axis (must be symmetric)"};
 
-    const LessLimit padding_h_limit{kernel_h, "convolution input padding height (must be less than kernel height)"};
-    const LessLimit padding_w_limit{kernel_w, "convolution input padding width (must be less than kernel width)"};
+    const IsLessThanLimit padding_h_limit{kernel_h, "convolution input padding height (must be less than kernel height)"};
+    const IsLessThanLimit padding_w_limit{kernel_w, "convolution input padding width (must be less than kernel width)"};
 
     auto error = padding_h_symetric.GetErrorOrEmpty(pad_h_begin);
     error += padding_w_symetric.GetErrorOrEmpty(pad_w_begin);

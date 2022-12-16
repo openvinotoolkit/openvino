@@ -56,7 +56,7 @@ protected:
         EXPECT_EQ(test_parameter.load_succesfull, load_succesfull);
     }
 
-    void SetUp() {
+    void SetUp() override {
         const std::vector<size_t> c_strides{1, 1};
         const std::vector<size_t> c_dilations{1, 1};
         constexpr size_t c_num_out_channels = 8;

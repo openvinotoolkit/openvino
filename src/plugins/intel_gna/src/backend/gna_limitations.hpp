@@ -73,7 +73,7 @@ struct IsEqualToLimit {
     std::string GetErrorOrEmpty(const uint32_t val) const;
 };
 
-struct LessLimit {
+struct IsLessThanLimit {
     uint32_t compared_value;
     std::string what;
     bool isValid(const uint32_t val) const;
