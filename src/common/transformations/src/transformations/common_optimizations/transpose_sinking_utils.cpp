@@ -71,9 +71,38 @@ void SwapNames(NodePtr node1, NodePtr node2) {
     SwapOutputNames(node1->output(0), node2->output(0));
 }
 
+namespace {
+
+std::set<size_t> GetNodeIds(NodeVector nodes) {
+    std::set<size_t> node_ids;
+
+    std::transform(nodes.begin(), nodes.end(), std::inserter(node_ids, node_ids.begin()), [](NodePtr node) -> size_t {
+        return node->get_instance_id();
+    });
+
+    return node_ids;
+}
+
+}  // namespace
+
+NodePtr CloneNodeWithoutConsumers(NodePtr node, NodeVector consumers) {
+    const auto consumer_ids = GetNodeIds(consumers);
+
+    auto new_node = node->clone_with_new_inputs(node->input_values());
+    for (size_t i = 0; i < node->get_output_size(); ++i) {
+        for (auto& orig_node_consumer : node->output(i).get_target_inputs()) {
+            if (consumer_ids.find(orig_node_consumer.get_node()->get_instance_id()) != consumer_ids.end())
+                continue;
+            orig_node_consumer.replace_source_output(new_node->output(i));
+        }
+    }
+    copy_runtime_info(node, new_node);
+
+    return new_node;
+}
+
 namespace sink_forward {
 
-// insert input reversed transposes, remove first input tranpose
 void UpdateInputTransposes(NodePtr main_node, TransposeInputsInfo& transpose_input_info) {
     if (transpose_input_info.isEmpty())
         return;
@@ -100,12 +129,12 @@ void UpdateInputTransposes(NodePtr main_node, TransposeInputsInfo& transpose_inp
     }
 }
 
-void RemoveZeroInputNode(NodePtr main_node) {
-    auto input_node = main_node->input_value(0);
-    if (input_node.get_node()->get_input_size() < 1)
+void RemoveInputNode(NodePtr main_node, size_t input_idx) {
+    auto input_node = main_node->input_value(input_idx);
+    if (input_node.get_node()->get_input_size() < (input_idx + 1))
         return;
-    auto parent_node = input_node.get_node()->input_value(0);
-    main_node->input(0).replace_source_output(parent_node);
+    auto parent_node = input_node.get_node()->input_value(input_idx);
+    main_node->input(input_idx).replace_source_output(parent_node);
 }
 
 NodeVector InsertOutputTransposes(NodePtr main_node, TransposeInputsInfo& transpose_input_info) {
@@ -232,6 +261,7 @@ bool CanPropagateForwardThrough(Node* node) {
     CHECK_TRANSPOSE_SINKING_SUPPORTED(Concat, node);
     CHECK_TRANSPOSE_SINKING_SUPPORTED(Split, node);
     CHECK_TRANSPOSE_SINKING_SUPPORTED(Transpose, node);
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(PRelu, node);
 
     return false;
 }
