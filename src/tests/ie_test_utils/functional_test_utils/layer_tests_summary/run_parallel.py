@@ -31,6 +31,8 @@ DEFAUALT_PROCESS_TIMEOUT = 3600
 TEST_STATUS = {'passed': "[       OK ]", 'failed': "[  FAILED  ]", 'hanged': "Test finished by timeout", 'crashed': "Crash happens", 'skipped': "[  SKIPPED ]"}
 RUN = "[ RUN      ]"
 
+GTEST_RESTRICTED_SYMBOLS = [':', '']
+
 logger = utils.get_logger('test_parallel_runner')
 
 def parse_arguments():
@@ -76,7 +78,7 @@ class TaskManager:
         return thread
     
     def init_worker(self):
-        logger.info(f"Initialize worker {self._idx}")
+        # logger.info(f"Initialize worker {self._idx}")
         if len(self._command_list) <= self._idx:
             logger.warning(f"Skip worker initialiazation. Command list lenght <= worker index")
             return
@@ -108,7 +110,7 @@ class TaskManager:
         if self._idx >= len(self._command_list):
             return False
         pid = self.__find_free_process()
-        logger.info(f"Update worker {pid}")
+        # logger.info(f"Update worker {pid}")
         log_file_name = self._log_filename.replace(LOG_NAME_REPLACE_STR, str(self._idx))
         with open(log_file_name, "w") as log_file:
             self._workers[pid] = self.__create_and_start_thread(self.__update_process(pid, log_file))
@@ -129,7 +131,6 @@ class TaskManager:
                     break
                 except TimeoutExpired:
                     continue
-    
 
 class TestParallelRunner:
     def __init__(self, exec_file_path: os.path, test_command_line: list, worker_num: int, working_dir: os.path, test_batch:int):
@@ -162,6 +163,14 @@ class TestParallelRunner:
             command += f" {argument}"
         return command
 
+    @staticmethod
+    def __replace_restricted_symbols(input_string:str):
+        restricted_symbols = "!@$%^&-+`~:;\",<>?"
+        for symbol in restricted_symbols:
+            input_string = input_string.replace(symbol, '*')
+        return input_string
+
+
     def __parse_test_list_file(self):
         if not os.path.isfile(self._exec_file_path):
             logger.error(f"{self._exec_file_path} is not exist!")
@@ -172,24 +181,35 @@ class TestParallelRunner:
 
         test_list = list()
         with open(test_list_file_name) as test_list_file:
+            test_suite = ""
             for test_name in test_list_file.read().split('\n'):
                 pos = test_name.find('#')
                 if pos > 0:
-                    test_list.append(f"*{test_name[0:pos].replace(' ', '')}*:")
+                    real_test_name = test_suite + test_name[2:pos-2]
+                    test_list.append(f'"{self.__replace_restricted_symbols(real_test_name)}":')
+                else:
+                    test_suite = test_name
             test_list_file.close()
         os.remove(test_list_file_name)
         logger.info(f"Total command list lenght is {len(test_list)}")
+        return test_list
+        
+    
+    def __prepare_filters(self):
+        test_list = self.__parse_test_list_file()
         filters = [test_list[i::self._worker_num] for i in range(self._worker_num)]
         self._run_num_per_executor = int(len(filters[0]) / self._test_batch) + 1
-        return [["".join(filter[self._test_batch * i:self._test_batch * (i + 1):]).replace(' ', '') for i in range(self._run_num_per_executor)] for filter in filters]
+        test_filters = [[filter[self._test_batch * i:self._test_batch * (i + 1):] for i in range(self._run_num_per_executor)] for filter in filters]
+        return [["".join(filter) for filter in worker_filters] for worker_filters in test_filters]
 
-    def __generate_command_list(self, test_filters:list):
+    def __generate_command_list(self):
+        test_filters = self.__prepare_filters()
         cmd_list = list()
-        for it in range(self._run_num_per_executor):
-            for idx in range(self._worker_num):
-                if test_filters[idx][it] == "":
+        for worker_filter in test_filters:
+            for filter in worker_filter:
+                if filter == "":
                     continue
-                cmd_list.append(f'{self._command} --gtest_filter="{test_filters[idx][it]}"')
+                cmd_list.append(f'{self._command} --gtest_filter={filter}')
         return cmd_list
 
 
@@ -198,7 +218,7 @@ class TestParallelRunner:
             TaskManager.process_timeout = DEFAUALT_PROCESS_TIMEOUT
         logger.info(f"Run test parallel is started")
         t_start = datetime.datetime.now()
-        task_manger = TaskManager(self.__generate_command_list(self.__parse_test_list_file()), self._working_dir)
+        task_manger = TaskManager(self.__generate_command_list(), self._working_dir)
         for index in range(self._worker_num):
             task_manger.init_worker()
         while task_manger.update_worker():
@@ -209,17 +229,24 @@ class TestParallelRunner:
 
 
     def postprocess_logs(self):
+        test_results = dict()
         logger.info(f"Log analize is started")
-        test_cnt = 0
         def __save_log(logs_dir, dir, test_name):
             test_log_filename = os.path.join(logs_dir, dir, f"{test_name}.txt".replace('/', '_'))
+            if os.path.isfile(test_log_filename):
+                log.warning(f"Log file {test_log_filename} is exist!")
+                return False
             if len(test_log_filename) > FILENAME_LENGTH:
                 hash_str = str(sha256(test_name.encode('utf-8')).hexdigest())
                 test_log_filename = os.path.join(logs_dir, dir, f'{hash_str}.txt')
+                if os.path.isfile(test_log_filename):
+                    log.warning(f"Log file {test_log_filename} is exist!")
+                    return False
                 hash_map.append([dir, hash_str, test_name])
             with open(test_log_filename, "w") as log:
                 log.writelines(test_log)
                 log.close()
+            return True
 
         logs_dir = os.path.join(self._working_dir, "logs")
         if os.path.exists(logs_dir):
@@ -239,11 +266,14 @@ class TestParallelRunner:
                 dir = None
                 for line in log_file.readlines():
                     if RUN in line:
-                        test_cnt += 1
-                        test_cnt_log += 1
-                    if RUN in line:
                         if test_name is not None:
-                            __save_log(logs_dir, "interapted", test_name)
+                            dir = "interapted"
+                            if __save_log(logs_dir, dir, test_name):
+                                test_cnt_log += 1
+                                if dir in test_results.keys():
+                                    test_results[dir] += 1
+                                else:
+                                    test_results[dir] = 1
                             test_name = None
                             test_log = list()
                             dir = None
@@ -257,7 +287,12 @@ class TestParallelRunner:
                     if test_name is not None:
                         test_log.append(line)
                         if test_name in line:
-                            __save_log(logs_dir, dir, test_name)
+                            if __save_log(logs_dir, dir, test_name):
+                                test_cnt_log += 1
+                                if dir in test_results.keys():
+                                    test_results[dir] += 1
+                                else:
+                                    test_results[dir] = 1
                             test_name = None
                             test_log = list()
                             dir = None
@@ -268,7 +303,15 @@ class TestParallelRunner:
             for row in hash_map:
                 csv_writer.writerow(row)
         logger.info(f"Log analize is succesfully finished")
+        is_successfull_run = True
+        test_cnt = 0
+        for test_st, test_res in test_results.items():
+            logger.info(f"{test_st} test counter is: {test_res}")
+            test_cnt += test_res
+            if (test_st != "passed" or test_st != "skipped") and test_res > 0:
+                is_successfull_run = False
         logger.info(f"Total test count is {test_cnt}. All logs is saved to {logs_dir}")
+        return is_successfull_run
 
 if __name__ == "__main__":
     exec_file_args = get_test_command_line_args()
@@ -282,5 +325,5 @@ if __name__ == "__main__":
     TaskManager.process_timeout = args.process_timeout
     conformance = TestParallelRunner(args.exec_file, exec_file_args, args.worker_num, args.working_dir, args.test_batch)
     conformance.run()
-    conformance.postprocess_logs()
-
+    if not conformance.postprocess_logs():
+        logger.error("Run is not successful")
