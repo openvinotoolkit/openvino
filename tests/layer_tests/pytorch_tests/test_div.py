@@ -44,8 +44,7 @@ class Testdiv(PytorchLayerTest):
 
     @pytest.mark.nightly
     def test_div(self, input_tensor, other_tensor, rounding_mode, ie_device, precision, ir_version):
-        if ie_device == "CPU":
-            self.input_tensor = input_tensor 
-            self.other_tensor = other_tensor 
-            self._test(*self.create_model(rounding_mode), ie_device, precision, ir_version)
+        self.input_tensor = input_tensor 
+        self.other_tensor = other_tensor 
+        self._test(*self.create_model(rounding_mode), ie_device, precision, ir_version)
 
