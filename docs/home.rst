@@ -99,15 +99,16 @@ Boost your model’s speed even further with quantization and other state-of-the
 Supported Devices
 ~~~~~~~~~~~~~~~~~
 
-OpenVINO is supported on a wide range of hardware platforms. Visit the `Supported Devices <openvino_docs_OV_UG_supported_plugins_Supported_Devices.html>`__ page for a full list of OpenVINO-compatible platforms.
+OpenVINO is supported on a wide range of hardware platforms.
 
-* All Intel Xeon, Core, and Atom CPUs, with boosted performance on 11th generation Core CPUs and 3rd generation Xeon CPUs or newer
-* Intel integrated GPUs including Intel UHD Graphics and Intel Iris Xe
-* Intel discrete GPUs including Iris Xe MAX and Arc
-* Intel accelerators such as VPUs and GNAs
-* Arm CPU, including Apple ARM based SoCs
+`Visit the Supported Devices page for a full list of OpenVINO-compatible platforms. <openvino_docs_OV_UG_supported_plugins_Supported_Devices.html>`__
 
 Check the `Performance Benchmarks <openvino_docs_performance_benchmarks.html>`__ page to see how fast OpenVINO runs popular models on a variety of processors. OpenVINO supports deployment on Windows, Linux, and macOS.
+
+.. image:: _static/images/supported_devices.png
+   :width: 70%
+   :align: center
+
 
 Get Started
 ~~~~~~~~~~~
