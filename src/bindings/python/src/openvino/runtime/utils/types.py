@@ -90,7 +90,7 @@ def get_element_type_str(data_type: NumericType) -> str:
 def get_dtype(openvino_type: Type) -> np.dtype:
     """Return a numpy.dtype for an openvino element type."""
     try:
-        return np.dtype(numpy_to_openvino_types_str_map[openvino_type])
+        return np.dtype(openvino_to_numpy_types_map[openvino_type])
     except KeyError:
         raise OVTypeError("Unidentified data type %s", openvino_type)
 
