@@ -35,7 +35,7 @@ def generate_relu_model(input_shape: List[int]) -> openvino.inference_engine.IEN
     return cnnNetwork
 
 
-def generate_relu_compiled_model(input_shape: List[int]) -> openvino.inference_engine.ExecutableNetwork:
+def generate_relu_compiled_model(input_shape: List[int], device = "CPU") -> openvino.inference_engine.ExecutableNetwork:
     core = IECore()
     cnnNetwork = generate_relu_model(input_shape)
-    return core.load_network(cnnNetwork, "CPU", {})
+    return core.load_network(cnnNetwork, device, {})
