@@ -47,6 +47,10 @@ public:
         uint32_t requestId,
         uint32_t timeoutMilliseconds));
 
+    MOCK_METHOD2(Gna2RequestEnqueue, Gna2Status(
+        uint32_t requestConfigId,
+        uint32_t* requestId));
+
     MOCK_METHOD2(Gna2DeviceGetVersion, Gna2Status(
         uint32_t deviceIndex,
         enum Gna2DeviceVersion * deviceVersion));
