@@ -65,7 +65,7 @@
 #include <transformations/common_optimizations/split_squeeze_concat_fusion.hpp>
 #include <transformations/common_optimizations/subtract_fusion.hpp>
 #include <transformations/common_optimizations/swish_fusion.hpp>
-#include <transformations/common_optimizations/transpose_sinking.hpp>
+//#include <transformations/common_optimizations/transpose_sinking.hpp>
 #include <transformations/common_optimizations/transpose_sinking_general.hpp>
 #include <transformations/common_optimizations/transpose_to_reshape.hpp>
 #include <transformations/init_node_info.hpp>
@@ -77,6 +77,7 @@
 #include <transformations/op_conversions/convert_ti_to_sequences.hpp>
 #include <transformations/smart_reshape/lstm_states_broadcast.hpp>
 #include <transformations/smart_reshape/reshape_sinking.hpp>
+#include <transformations/common_optimizations/transpose_sinking_general.hpp>
 
 #include "itt.hpp"
 
@@ -153,8 +154,10 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     REGISTER_PASS(manager, GRUCellFusion)
     REGISTER_PASS(manager, SequenceFusion)
 
+    REGISTER_PASS(manager, ov::pass::TransposeSinkingGeneral)
+
     auto transpose_sinking = manager.register_pass<ov::pass::GraphRewrite>();
-    ADD_MATCHER(transpose_sinking, TransposeSinking)
+    //ADD_MATCHER(transpose_sinking, TransposeSinking)
 
     // SplitSqueezeConcatFusion should work in same GraphRewrite as TransposesSinking,
     // because it replaces pattern that may contain Transposes which must be optimized before
