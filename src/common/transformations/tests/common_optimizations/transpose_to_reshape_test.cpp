@@ -176,7 +176,10 @@ TEST(TransformationTests, replace_transpose_with_reshape) {
 
         shared_ptr<Node> perm;
         if (i32) {
-            std::vector<int32_t> perm_val_i32(perm_val.begin(), perm_val.end());
+            std::vector<int32_t> perm_val_i32(perm_val.size());
+            std::transform(perm_val.begin(), perm_val.end(), perm_val_i32.begin(), [](int64_t x) {
+                return (int32_t)x;
+            });
             perm = op::Constant::create<int32_t>(element::i32, Shape{perm_val.size()}, perm_val_i32);
         } else {
             perm = op::Constant::create<int64_t>(element::i64, Shape{perm_val.size()}, perm_val);

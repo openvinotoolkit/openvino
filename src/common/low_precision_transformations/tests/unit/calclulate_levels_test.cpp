@@ -81,6 +81,6 @@ TEST(LPT_CalculateLevelsTestTransformation, calculateLevels_0) {
 
 TEST(LPT_CalculateLevelsTestTransformation, calculateLevels_3) {
     const auto levels =
-        calculateLevels(0.f, ngraph::pass::low_precision::DataPrecision::getMaxValue(256ul), 0.f, 2.55, 0.f, 0.0255f);
+        calculateLevels(0.f, ngraph::pass::low_precision::DataPrecision::getMaxValue(256ul), 0.f, 2.55f, 0.f, 0.0255f);
     ASSERT_EQ(4ul, levels);
 }

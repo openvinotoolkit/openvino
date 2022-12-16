@@ -292,8 +292,15 @@ TEST(nop_elimination, squeeze_unsqueeze_overlap_elimination) {
         shared_ptr<Node> sq_axes;
         shared_ptr<Node> unsq_axes;
         if (i32) {
-            std::vector<int32_t> sq_axes_val_i32(sq_axes_val.begin(), sq_axes_val.end());
-            std::vector<int32_t> unsq_axes_val_i32(unsq_axes_val.begin(), unsq_axes_val.end());
+            std::vector<int32_t> sq_axes_val_i32(sq_axes_val.size());
+            std::vector<int32_t> unsq_axes_val_i32(unsq_axes_val.size());
+            std::transform(sq_axes_val.begin(), sq_axes_val.end(), sq_axes_val_i32.begin(), [](int64_t x) {
+                return (int32_t)x;
+            });
+            std::transform(unsq_axes_val.begin(), unsq_axes_val.end(), unsq_axes_val_i32.begin(), [](int64_t x) {
+                return (int32_t)x;
+            });
+
             sq_axes = op::Constant::create<int32_t>(element::i32, Shape{sq_axes_val.size()}, sq_axes_val_i32);
             unsq_axes = op::Constant::create<int32_t>(element::i32, Shape{unsq_axes_val.size()}, unsq_axes_val_i32);
         } else {
@@ -795,7 +802,10 @@ TEST(nop_elimination, gather_3d_indices_constant_axis_1) {
         shared_ptr<Node> indices;
         shared_ptr<Node> axis;
         if (i32) {
-            std::vector<int32_t> indices_val_i32(indices_val.begin(), indices_val.end());
+            std::vector<int32_t> indices_val_i32(indices_val.size());
+            std::transform(indices_val.begin(), indices_val.end(), indices_val_i32.begin(), [](int64_t x) {
+                return (int32_t)x;
+            });
             indices = op::Constant::create<int32_t>(element::i32, Shape{indices_val.size()}, indices_val_i32);
             axis = op::Constant::create<int32_t>(element::i32, Shape{}, {(int32_t)axis_val});
         } else {

@@ -187,9 +187,9 @@ const std::vector<ClampTransformationTestValues> testValues = {
       {{}, {}, {}}}},
     // per channel quantization with small values
     {LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8, {{ngraph::element::f32}, {{1e-14, 1e-12, 1e-15}}, {{1e-14, 1e-12, 1e-15}}}},
+     {ngraph::element::u8, {{ngraph::element::f32}, {{1e-14f, 1e-12f, 1e-15f}}, {{1e-14f, 1e-12f, 1e-15f}}}},
      {ngraph::element::u8,
-      {{ngraph::element::f32}, {{1e-14, 1e-12, 1e-15}}, {{1e-14, 1e-12, 1e-15}}},
+      {{ngraph::element::f32}, {{1e-14f, 1e-12f, 1e-15f}}, {{1e-14f, 1e-12f, 1e-15f}}},
       ngraph::element::f32,
       {{}, {}, {}}}},
     // without dequantization

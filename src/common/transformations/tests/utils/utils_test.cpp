@@ -12,6 +12,37 @@
 
 #include "ngraph/opsets/opset4.hpp"
 
+namespace ov {
+namespace op {
+namespace util {
+
+template <>
+bool has_constant_value<bool>(const std::shared_ptr<Node>& node, const bool value, bool epsilon) {
+    if (!node) {
+        return false;
+    }
+
+    auto constant = std::dynamic_pointer_cast<opset4::Constant>(node);
+    if (!constant) {
+        return false;
+    }
+
+    const bool is_scalar_or_single_elem = is_scalar(constant->get_shape()) || shape_size(constant->get_shape()) == 1;
+    if (!is_scalar_or_single_elem) {
+        return false;
+    }
+
+    const auto data = constant->cast_vector<bool>();
+    if (data[0] != value) {
+        return false;
+    }
+
+    return true;
+}
+}  // namespace util
+}  // namespace op
+}  // namespace ov
+
 TEST(TransformationTests, HasConstantValueHelper) {
     auto float32_scalar = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{}, {1.234f});
     ASSERT_TRUE(ngraph::op::util::has_constant_value<float>(float32_scalar, 1.234f));
@@ -25,7 +56,7 @@ TEST(TransformationTests, HasConstantValueHelper) {
     ASSERT_TRUE(ngraph::op::util::has_constant_value<int64_t>(int64_scalar, 12));
 
     auto bool_scalar = ngraph::opset4::Constant::create(ngraph::element::boolean, ngraph::Shape{}, {true});
-    ASSERT_TRUE(ngraph::op::util::has_constant_value<bool>(int64_scalar, true));
+    ASSERT_TRUE(ngraph::op::util::has_constant_value<bool>(bool_scalar, true));
 
     ASSERT_FALSE(ngraph::op::util::has_constant_value<int8_t>(nullptr, 0));
 

@@ -34,7 +34,7 @@ int numberOfInputsForLayerInCNNNetwork(const InferenceEngine::CNNNetwork& networ
     for (auto it = details::CNNNetworkIterator(network); it != details::CNNNetworkIterator(); it++) {
         InferenceEngine::CNNLayerPtr layer = *it;
         if (layer->type == layerType) {
-            numberOfInputs = layer->insData.size();
+            numberOfInputs = (int)layer->insData.size();
             break;
         }
     }

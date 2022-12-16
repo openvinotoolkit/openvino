@@ -393,7 +393,7 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationNormalizeL2Transformation) {
     auto mul = std::make_shared<opset1::Multiply>(convert, opset1::Constant::create(element::f32, {}, {2.f}));
 
     auto axes = opset1::Constant::create(element::i32, {2}, {2, 3});
-    auto normalize = std::make_shared<opset1::NormalizeL2>(mul, axes, 0.01, ov::op::EpsMode::ADD);
+    auto normalize = std::make_shared<opset1::NormalizeL2>(mul, axes, 0.01f, ov::op::EpsMode::ADD);
     auto shapeOf = std::make_shared<opset1::ShapeOf>(normalize);
 
     auto result1 = std::make_shared<opset1::Result>(normalize);
