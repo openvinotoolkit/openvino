@@ -46,7 +46,8 @@ TEST_F(TransformationTestsF, MVNFusionTestOutside) {
     {
         auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
         auto axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{3}, {1, 2, 3});
-        auto mvn = std::make_shared<ngraph::opset6::MVN>(input, axes, true, 1e-9f, ngraph::op::MVNEpsMode::OUTSIDE_SQRT);
+        auto mvn =
+            std::make_shared<ngraph::opset6::MVN>(input, axes, true, 1e-9f, ngraph::op::MVNEpsMode::OUTSIDE_SQRT);
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mvn}, ngraph::ParameterVector{input});
     }
@@ -78,7 +79,8 @@ TEST_F(TransformationTestsF, MVNFusionTestReuseSub) {
     {
         auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
         auto axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{3}, {1, 2, 3});
-        auto mvn = std::make_shared<ngraph::opset6::MVN>(input, axes, true, 1e-9f, ngraph::op::MVNEpsMode::OUTSIDE_SQRT);
+        auto mvn =
+            std::make_shared<ngraph::opset6::MVN>(input, axes, true, 1e-9f, ngraph::op::MVNEpsMode::OUTSIDE_SQRT);
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mvn}, ngraph::ParameterVector{input});
     }
@@ -111,7 +113,8 @@ TEST_F(TransformationTestsF, MVNFusionTestWithConvert) {
     {
         auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
         auto axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{3}, {1, 2, 3});
-        auto mvn = std::make_shared<ngraph::opset6::MVN>(input, axes, true, 1e-9f, ngraph::op::MVNEpsMode::OUTSIDE_SQRT);
+        auto mvn =
+            std::make_shared<ngraph::opset6::MVN>(input, axes, true, 1e-9f, ngraph::op::MVNEpsMode::OUTSIDE_SQRT);
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mvn}, ngraph::ParameterVector{input});
     }
@@ -142,7 +145,8 @@ TEST_F(TransformationTestsF, MVNFusionTestSqrt) {
     {
         auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
         auto axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{3}, {1, 2, 3});
-        auto mvn = std::make_shared<ngraph::opset6::MVN>(input, axes, true, 1e-9f, ngraph::op::MVNEpsMode::OUTSIDE_SQRT);
+        auto mvn =
+            std::make_shared<ngraph::opset6::MVN>(input, axes, true, 1e-9f, ngraph::op::MVNEpsMode::OUTSIDE_SQRT);
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mvn}, ngraph::ParameterVector{input});
     }
@@ -172,7 +176,8 @@ TEST_F(TransformationTestsF, MVNFusionTestAltDiv) {
     {
         auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
         auto axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{3}, {1, 2, 3});
-        auto mvn = std::make_shared<ngraph::opset6::MVN>(input, axes, true, 1e-9f, ngraph::op::MVNEpsMode::OUTSIDE_SQRT);
+        auto mvn =
+            std::make_shared<ngraph::opset6::MVN>(input, axes, true, 1e-9f, ngraph::op::MVNEpsMode::OUTSIDE_SQRT);
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mvn}, ngraph::ParameterVector{input});
     }
