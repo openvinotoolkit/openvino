@@ -23,7 +23,7 @@ using namespace transpose_sinking;
 ov::pass::TransposeSinkingBinaryForward::TransposeSinkingBinaryForward() {
     MATCHER_SCOPE(TransposeSinkingBinaryForward);
 
-    auto main_node_label = wrap_type<op::util::BinaryElementwiseArithmetic>(IfNodeHasTransposeInputs);
+    auto main_node_label = wrap_type<op::util::BinaryElementwiseArithmetic, PRelu>(IfNodeHasTransposeInputs);
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -46,10 +46,10 @@ ov::pass::TransposeSinkingBinaryForward::TransposeSinkingBinaryForward() {
     register_matcher(m, matcher_pass_callback);
 }
 
-pass::TransposeSinkingBinaryBackward::TransposeSinkingBinaryBackward() {
+ov::pass::TransposeSinkingBinaryBackward::TransposeSinkingBinaryBackward() {
     MATCHER_SCOPE(TransposeSinkingBinaryBackward);
 
-    auto main_node_label = wrap_type<op::util::BinaryElementwiseArithmetic>(has_static_rank());
+    auto main_node_label = wrap_type<op::util::BinaryElementwiseArithmetic, PRelu>(has_static_rank());
 
     auto transpose_const_label = wrap_type<Constant>();
 

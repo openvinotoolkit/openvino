@@ -98,15 +98,18 @@ public:
 
 #undef CREATE_BINARY_FACTORY
 #define CREATE_BINARY_FACTORY(type_name) CreateBinaryFactory<ov::opset9::type_name>(#type_name)
-std::vector<BinaryFactoryPtr> binary_factories = {CREATE_BINARY_FACTORY(Add),
-                                                  CREATE_BINARY_FACTORY(Divide),
-                                                  CREATE_BINARY_FACTORY(Maximum),
-                                                  CREATE_BINARY_FACTORY(Minimum),
-                                                  CREATE_BINARY_FACTORY(Mod),
-                                                  CREATE_BINARY_FACTORY(Multiply),
-                                                  CREATE_BINARY_FACTORY(Power),
-                                                  CREATE_BINARY_FACTORY(SquaredDifference),
-                                                  CREATE_BINARY_FACTORY(Subtract)};
+std::vector<BinaryFactoryPtr> binary_factories = {
+    CREATE_BINARY_FACTORY(Add),
+    CREATE_BINARY_FACTORY(Divide),
+    CREATE_BINARY_FACTORY(Maximum),
+    CREATE_BINARY_FACTORY(Minimum),
+    CREATE_BINARY_FACTORY(Mod),
+    CREATE_BINARY_FACTORY(Multiply),
+    CREATE_BINARY_FACTORY(Power),
+    CREATE_BINARY_FACTORY(SquaredDifference),
+    CREATE_BINARY_FACTORY(Subtract),
+    CREATE_BINARY_FACTORY(PRelu)
+};
 #undef CREATE_BINARY_FACTORY
 
 std::vector<size_t> binary_operations_numbers = {1, 10};
