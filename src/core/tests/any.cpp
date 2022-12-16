@@ -540,3 +540,13 @@ TEST_F(AnyTests, AddressofNoThrow) {
     p = 42;
     ASSERT_NE(nullptr, p.addressof());
 }
+
+TEST_F(AnyTests, EmptyStringAsAny) {
+    Any p = "";
+    std::vector<float> ref_f;
+    std::vector<int> ref_i;
+    ASSERT_TRUE(p.is<std::string>());
+    ASSERT_EQ(p.as<int>(), 0);
+    ASSERT_EQ(p.as<std::vector<float>>(), ref_f);
+    ASSERT_EQ(p.as<std::vector<int>>(), ref_i);
+}

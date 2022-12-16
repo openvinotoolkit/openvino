@@ -83,12 +83,12 @@ void generic_test::run_single_test() {
 
     if (generic_params->network_build_options.get<cldnn::build_option_type::optimize_data>()->enabled()) {
         // Add reorder after the first input in case of optimize data flag since it might change the input layout.
-        topology.add(reorder("input0", "input0_init", input_mems[0]->get_layout()));
+        topology.add(reorder("input0", input_info("input0_init"), input_mems[0]->get_layout()));
     }
 
-    if (layer_params->input[0] == "reorder0") {
+    if (layer_params->input[0].pid == "reorder0") {
         // Add reorder layer with output padding as input to the tested layer.
-        topology.add(reorder("reorder0", "input0", input_mems[0]->get_layout().with_padding(padding{ { 0, 0, 1, 3 },{ 0, 0, 5, 2 } })));
+        topology.add(reorder("reorder0", input_info("input0"), input_mems[0]->get_layout().with_padding(padding{ { 0, 0, 1, 3 },{ 0, 0, 5, 2 } })));
     }
 
     prepare_input_for_test(input_mems);
@@ -288,7 +288,7 @@ std::vector<std::shared_ptr<test_params>> generic_test::generate_generic_test_pa
     return all_generic_params;
 }
 
-cldnn::engine_configuration get_test_engine_config(cldnn::queue_types queue_type) {
+static cldnn::engine_configuration get_test_engine_config(cldnn::queue_types queue_type) {
     const bool enable_profiling = false;
     std::string sources_dumps_dir = "";
     priority_mode_types priority_mode = priority_mode_types::disabled;
@@ -328,11 +328,15 @@ cldnn::engine& get_onednn_test_engine() {
 }
 #endif
 
-cldnn::stream& get_test_stream() {
+cldnn::stream_ptr get_test_stream_ptr() {
     static std::shared_ptr<cldnn::stream> test_stream = nullptr;
     if (!test_stream)
         test_stream = get_test_engine().create_stream();
-    return *test_stream;
+    return test_stream;
+}
+
+cldnn::stream& get_test_stream() {
+    return *get_test_stream_ptr();
 }
 
 const std::string test_dump::name() const {

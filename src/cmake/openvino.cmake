@@ -8,6 +8,16 @@ set(TARGET_NAME openvino)
 # Add openvino library
 #
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /ignore:4098")
+    set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} /ignore:4098")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ignore:4098")
+
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /ignore:4286")
+    set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} /ignore:4286")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ignore:4286")
+endif()
+
 add_library(${TARGET_NAME}
     $<TARGET_OBJECTS:ngraph_obj>
     $<TARGET_OBJECTS:frontend_common_obj>
@@ -185,13 +195,16 @@ install(FILES "${CMAKE_BINARY_DIR}/share/OpenVINOConfig.cmake"
 # Generate and install openvino.pc pkg-config file
 
 if(ENABLE_PKGCONFIG_GEN)
+    # fill in PKGCONFIG_OpenVINO_DEFINITIONS
+    get_target_property(openvino_defs openvino INTERFACE_COMPILE_DEFINITIONS)
+    foreach(openvino_def IN LISTS openvino_defs)
+        set(PKGCONFIG_OpenVINO_DEFINITIONS "${PKGCONFIG_OpenVINO_DEFINITIONS} -D${openvino_def}")
+    endforeach()
+
     # fill in PKGCONFIG_OpenVINO_FRONTENDS
     get_target_property(PKGCONFIG_OpenVINO_FRONTENDS_LIST ov_frontends MANUALLY_ADDED_DEPENDENCIES)
     if(ENABLE_OV_IR_FRONTEND)
         list(REMOVE_ITEM PKGCONFIG_OpenVINO_FRONTENDS_LIST openvino_ir_frontend)
-    endif()
-    if(ENABLE_OV_TF_FRONTEND)
-        list(REMOVE_ITEM PKGCONFIG_OpenVINO_FRONTENDS_LIST openvino_tensorflow_frontend)
     endif()
 
     foreach(frontend IN LISTS PKGCONFIG_OpenVINO_FRONTENDS_LIST)
@@ -202,10 +215,10 @@ if(ENABLE_PKGCONFIG_GEN)
         endif()
     endforeach()
 
-    # fill in PKGCONFIG_OpenVINO_REQUIRES_PRIVATE and PKGCONFIG_OpenVINO_PRIVATE_DEPS
+    # fill in PKGCONFIG_OpenVINO_PRIVATE_DEPS
 
     if(ENABLE_SYSTEM_TBB)
-        set(PKGCONFIG_OpenVINO_REQUIRES_PRIVATE "tbb")
+        set(PKGCONFIG_OpenVINO_PRIVATE_DEPS "-ltbb")
     elseif(TBB_FOUND)
         if(NOT pkg_config_tbb_lib_dir)
             message(FATAL_ERROR "Internal error: variable 'pkg_config_tbb_lib_dir' is not defined")
@@ -215,24 +228,10 @@ if(ENABLE_PKGCONFIG_GEN)
     endif()
 
     if(ENABLE_SYSTEM_PUGIXML)
-        pkg_check_modules(PKGCONFIG_pugixml QUIET
-                          NO_CMAKE_PATH
-                          NO_CMAKE_ENVIRONMENT_PATH
-                          pugixml)
-        set(pugixml_dep "pugixml = ${PKGCONFIG_pugixml_VERSION}")
-
-        if(pugixml_buggy_pkgconfig)
-            if(PKGCONFIG_OpenVINO_PRIVATE_DEPS)
-                set(PKGCONFIG_OpenVINO_PRIVATE_DEPS "${PKGCONFIG_OpenVINO_PRIVATE_DEPS} -lpugixml")
-            else()
-                set(PKGCONFIG_OpenVINO_PRIVATE_DEPS "-lpugixml")
-            endif()
+        if(PKGCONFIG_OpenVINO_PRIVATE_DEPS)
+            set(PKGCONFIG_OpenVINO_PRIVATE_DEPS "${PKGCONFIG_OpenVINO_PRIVATE_DEPS} -lpugixml")
         else()
-            if(PKGCONFIG_OpenVINO_REQUIRES_PRIVATE)
-                set(PKGCONFIG_OpenVINO_REQUIRES_PRIVATE "${PKGCONFIG_OpenVINO_REQUIRES_PRIVATE}, ${pugixml_dep}")
-            else()
-                set(PKGCONFIG_OpenVINO_REQUIRES_PRIVATE "${pugixml_dep}")
-            endif()
+            set(PKGCONFIG_OpenVINO_PRIVATE_DEPS "-lpugixml")
         endif()
     endif()
 

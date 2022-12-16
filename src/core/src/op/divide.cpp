@@ -222,8 +222,6 @@ bool evaluate_bound(const Node* node, const HostTensorVector& output_values, boo
 
 // ------------------------------ v1 -------------------------------------------
 
-BWDCMP_RTTI_DEFINITION(op::v1::Divide);
-
 op::v1::Divide::Divide(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast) {
     constructor_validate_and_infer_types();

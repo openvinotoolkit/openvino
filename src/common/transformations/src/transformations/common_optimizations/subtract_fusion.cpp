@@ -5,15 +5,15 @@
 #include "transformations/common_optimizations/subtract_fusion.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-ngraph::pass::SubtractFusion::SubtractFusion() {
+ov::pass::SubtractFusion::SubtractFusion() {
     MATCHER_SCOPE(SubtractFusion);
     auto p_input = pattern::any_input();
 

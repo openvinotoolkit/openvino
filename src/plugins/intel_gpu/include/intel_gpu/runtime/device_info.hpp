@@ -58,7 +58,7 @@ struct device_info {
     bool supports_subgroups;                    ///< Does engine support cl_intel_subgroups extension.
     bool supports_subgroups_short;              ///< Does engine support cl_intel_subgroups_short extension.
     bool supports_subgroups_char;               ///< Does engine support cl_intel_subgroups_char extension.
-    bool supports_local_block_io;               ///< Does engine support cl_intel_subgroup_local_block_io extension.
+    bool supports_local_block_io;               ///< Does engine support cl_intel_subgroup_local_block_io extension. Check program build with this option.
     bool supports_queue_families;               ///< Does engine support cl_intel_command_queue_families extension.
     bool supports_image;                        ///< Does engine support images (CL_DEVICE_IMAGE_SUPPORT cap).
 
@@ -81,6 +81,7 @@ struct device_info {
     uint32_t num_sub_slices_per_slice;          ///< Number of subslices in a slice
     uint32_t num_eus_per_sub_slice;             ///< Number of execution units per subslice
     uint32_t num_threads_per_eu;                ///< Number of hardware threads per execution unit
+    uint32_t num_ccs;                           ///< Number of compute command streamers
 
     device_uuid uuid;                           ///< UUID of the gpu device
 };

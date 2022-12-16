@@ -43,20 +43,18 @@ The table below lists the supported operating systems and Python versions.
 |                                     | (64-bit                        |
 |                                     | ) <https://www.python.org/>`__ |
 +=====================================+================================+
-| Ubuntu 18.04 LTS                    | 3.6, 3.7, 3.8, 3.9, 3.10       |
+| Ubuntu 18.04 LTS                    | 3.7, 3.8, 3.9, 3.10            |
 +-------------------------------------+--------------------------------+
-| Ubuntu 20.04 LTS                    | 3.6, 3.7, 3.8, 3.9, 3.10       |
+| Ubuntu 20.04 LTS                    | 3.7, 3.8, 3.9, 3.10            |
 +-------------------------------------+--------------------------------+
-| Red Hat Enterprise Linux 8          | 3.6, 3.8, 3.9, 3.10            |
+| Red Hat Enterprise Linux 8          | 3.8, 3.9, 3.10                 |
 +-------------------------------------+--------------------------------+
-| CentOS 7                            | 3.6, 3.7, 3.8, 3.9, 3.10       |
+| macOS 10.15.x versions              | 3.7, 3.8, 3.9, 3.10            |
 +-------------------------------------+--------------------------------+
-| macOS 10.15.x versions              | 3.6, 3.7, 3.8, 3.9, 3.10       |
-+-------------------------------------+--------------------------------+
-| Windows 10 Pro, Enterprise          | 3.6, 3.7, 3.8, 3.9, 3.10       |
+| Windows 10 Pro, Enterprise          | 3.7, 3.8, 3.9, 3.10            |
 | or Education editions               |                                |
 +-------------------------------------+--------------------------------+
-| Windows Server 2016 or higher       | 3.6, 3.7, 3.8, 3.9, 3.10       |
+| Windows Server 2016 or higher       | 3.7, 3.8, 3.9, 3.10            |
 +-------------------------------------+--------------------------------+
 
 OpenVINO Notebooks also require Git. Follow the guide below for your 
@@ -69,7 +67,7 @@ operating system or environment.
 
    1. **Install Python**
 
-      Download 64 bit version of Python software (3.6, 3.7, 3.8, 3.9, 3.10) from  `python.org`_. 
+      Download 64 bit version of Python software (3.7, 3.8, 3.9, 3.10) from  `python.org`_. 
 
       .. _python.org: https://www.python.org/downloads/windows/
 

@@ -62,7 +62,7 @@ bool LayerTransformation::canBeTransformedStatic(const std::shared_ptr<Node>& la
 
     const auto dequantization = NetworkHelper::getDequantization(layer, defaultPrecisions);
     if (!dequantization.empty()) {
-        auto perChannelQuantization = [](const PartialShape dataPShape, Shape constShape) {
+        auto perChannelQuantization = [](const PartialShape dataPShape, Shape constShape, size_t idxChannelDim) {
             if (ngraph::shape_size(constShape) == 1ul) {
                 return true;
             }
@@ -77,12 +77,16 @@ bool LayerTransformation::canBeTransformedStatic(const std::shared_ptr<Node>& la
                 constShape.insert(constShape.begin(), 1ul);
             }
 
+            // special case: 1D const is assumed to imply per-channel
+            if (constShape.size() == 1)
+                return true;
+
             if ((constShape.size() >= 2ul) && (constShape[0] != 1ul)) {
                 return false;
             }
 
-            for (size_t i = 2; i < constShape.size(); ++i) {
-                if (constShape[i] != 1ul) {
+            for (size_t i = 0; i < constShape.size(); ++i) {
+                if ((constShape[i] != 1ul) && (i != idxChannelDim)) {
                     return false;
                 }
             }
@@ -91,13 +95,15 @@ bool LayerTransformation::canBeTransformedStatic(const std::shared_ptr<Node>& la
 
         if ((dequantization.subtract != nullptr) && (!perChannelQuantization(
             dequantization.subtract->get_output_partial_shape(0),
-            dequantization.subtractConstant->get_shape()))) {
+            dequantization.subtractConstant->get_shape(),
+            dequantization.channelDimIndex))) {
             return false;
         }
 
         if ((dequantization.multiply != nullptr) && (!perChannelQuantization(
             dequantization.multiply->get_output_partial_shape(0),
-            dequantization.multiplyConstant->get_shape()))) {
+            dequantization.multiplyConstant->get_shape(),
+            dequantization.channelDimIndex))) {
             return false;
         }
     }

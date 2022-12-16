@@ -85,13 +85,13 @@ TEST(scatter_update_gpu_fp16, d2411_axisB) {
         topology.add(input_layout("InputDictionary", input1->get_layout()));
         topology.add(input_layout("InputText", input2->get_layout()));
         topology.add(input_layout("InputUpdates", input3->get_layout()));
-        topology.add(reorder("DictionaryReordered", "InputDictionary", target_format, data_types::f16));
-        topology.add(reorder("TextReordered", "InputText", target_format, data_types::f32));
-        topology.add(reorder("UpdatesReordered", "InputUpdates", target_format, data_types::f16));
+        topology.add(reorder("DictionaryReordered", input_info("InputDictionary"), target_format, data_types::f16));
+        topology.add(reorder("TextReordered", input_info("InputText"), target_format, data_types::f32));
+        topology.add(reorder("UpdatesReordered", input_info("InputUpdates"), target_format, data_types::f16));
         topology.add(
-                scatter_update("scatter_update", "DictionaryReordered", "TextReordered", "UpdatesReordered", axis)
+                scatter_update("scatter_update", input_info("DictionaryReordered"), input_info("TextReordered"), input_info("UpdatesReordered"), axis)
         );
-        topology.add(reorder("out", "scatter_update", plain_2d_format, data_types::f16));
+        topology.add(reorder("out", input_info("scatter_update"), plain_2d_format, data_types::f16));
 
         network network(engine, topology);
 
@@ -112,7 +112,7 @@ TEST(scatter_update_gpu_fp16, d2411_axisB) {
         };
 
         for (size_t i = 0; i < expected_results.size(); ++i) {
-            EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]))
+            EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]))
                 << "i=" << i << ", target_format=" << target_format;
         }
     }
@@ -163,13 +163,13 @@ TEST(scatter_update_gpu_fp32, d8111_axisB) {
         topology.add(input_layout("InputDictionary", input1->get_layout()));
         topology.add(input_layout("InputText", input2->get_layout()));
         topology.add(input_layout("InputUpdates", input3->get_layout()));
-        topology.add(reorder("DictionaryReordered", "InputDictionary", target_format, data_types::f32));
-        topology.add(reorder("TextReordered", "InputText", target_format, data_types::f32));
-        topology.add(reorder("UpdatesReordered", "InputUpdates", target_format, data_types::f32));
+        topology.add(reorder("DictionaryReordered", input_info("InputDictionary"), target_format, data_types::f32));
+        topology.add(reorder("TextReordered", input_info("InputText"), target_format, data_types::f32));
+        topology.add(reorder("UpdatesReordered", input_info("InputUpdates"), target_format, data_types::f32));
         topology.add(
-                scatter_update("scatter_update", "DictionaryReordered", "TextReordered", "UpdatesReordered", axis)
+                scatter_update("scatter_update", input_info("DictionaryReordered"), input_info("TextReordered"), input_info("UpdatesReordered"), axis)
         );
-        topology.add(reorder("out", "scatter_update", plain_2d_format, data_types::f32));
+        topology.add(reorder("out", input_info("scatter_update"), plain_2d_format, data_types::f32));
 
         network network(engine, topology);
 
@@ -257,13 +257,13 @@ TEST(scatter_update_gpu_fp16, d4311_axisB) {
         topology.add(input_layout("InputDictionary", input1->get_layout()));
         topology.add(input_layout("InputText", input2->get_layout()));
         topology.add(input_layout("InputUpdates", input3->get_layout()));
-        topology.add(reorder("DictionaryReordered", "InputDictionary", target_format, data_types::f16));
-        topology.add(reorder("TextReordered", "InputText", target_format, data_types::f32));
-        topology.add(reorder("UpdatesReordered", "InputUpdates", target_format, data_types::f16));
+        topology.add(reorder("DictionaryReordered", input_info("InputDictionary"), target_format, data_types::f16));
+        topology.add(reorder("TextReordered", input_info("InputText"), target_format, data_types::f32));
+        topology.add(reorder("UpdatesReordered", input_info("InputUpdates"), target_format, data_types::f16));
         topology.add(
-                scatter_update("scatter_update", "DictionaryReordered", "TextReordered", "UpdatesReordered", axis)
+                scatter_update("scatter_update", input_info("DictionaryReordered"), input_info("TextReordered"), input_info("UpdatesReordered"), axis)
         );
-        topology.add(reorder("out", "scatter_update", plain_2d_format, data_types::f16));
+        topology.add(reorder("out", input_info("scatter_update"), plain_2d_format, data_types::f16));
 
         network network(engine, topology);
 
@@ -284,7 +284,7 @@ TEST(scatter_update_gpu_fp16, d4311_axisB) {
         };
 
         for (size_t i = 0; i < expected_results.size(); ++i) {
-            EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]))
+            EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]))
                 << "i=" << i << ", target_format=" << target_format;
         }
     }
@@ -384,13 +384,13 @@ TEST(scatter_update_gpu_fp16, d2521_axisF) {
         topology.add(input_layout("InputDictionary", input1->get_layout()));
         topology.add(input_layout("InputText", input2->get_layout()));
         topology.add(input_layout("InputUpdates", input3->get_layout()));
-        topology.add(reorder("DictionaryReordered", "InputDictionary", target_format, data_types::f16));
-        topology.add(reorder("TextReordered", "InputText", target_format, data_types::f32));
-        topology.add(reorder("UpdatesReordered", "InputUpdates", target_format, data_types::f16));
+        topology.add(reorder("DictionaryReordered", input_info("InputDictionary"), target_format, data_types::f16));
+        topology.add(reorder("TextReordered", input_info("InputText"), target_format, data_types::f32));
+        topology.add(reorder("UpdatesReordered", input_info("InputUpdates"), target_format, data_types::f16));
         topology.add(
-                scatter_update("scatter_update", "DictionaryReordered", "TextReordered", "UpdatesReordered", axis)
+                scatter_update("scatter_update", input_info("DictionaryReordered"), input_info("TextReordered"), input_info("UpdatesReordered"), axis)
         );
-        topology.add(reorder("out", "scatter_update", plain_2d_format, data_types::f16));
+        topology.add(reorder("out", input_info("scatter_update"), plain_2d_format, data_types::f16));
 
         network network(engine, topology);
 
@@ -418,7 +418,7 @@ TEST(scatter_update_gpu_fp16, d2521_axisF) {
         };
 
         for (size_t i = 0; i < expected_results.size(); ++i) {
-            EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]))
+            EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]))
                                 << "i=" << i << ", target_format=" << target_format;
         }
     }
@@ -497,13 +497,13 @@ TEST(scatter_update_gpu_fp16, d2241_axisY) {
         topology.add(input_layout("InputDictionary", input1->get_layout()));
         topology.add(input_layout("InputText", input2->get_layout()));
         topology.add(input_layout("InputUpdates", input3->get_layout()));
-        topology.add(reorder("DictionaryReordered", "InputDictionary", target_format, data_types::f16));
-        topology.add(reorder("TextReordered", "InputText", target_format, data_types::f32));
-        topology.add(reorder("UpdatesReordered", "InputUpdates", target_format, data_types::f16));
+        topology.add(reorder("DictionaryReordered", input_info("InputDictionary"), target_format, data_types::f16));
+        topology.add(reorder("TextReordered", input_info("InputText"), target_format, data_types::f32));
+        topology.add(reorder("UpdatesReordered", input_info("InputUpdates"), target_format, data_types::f16));
         topology.add(
-                scatter_update("scatter_update", "DictionaryReordered", "TextReordered", "UpdatesReordered", axis)
+                scatter_update("scatter_update", input_info("DictionaryReordered"), input_info("TextReordered"), input_info("UpdatesReordered"), axis)
         );
-        topology.add(reorder("out", "scatter_update", plain_2d_format, data_types::f16));
+        topology.add(reorder("out", input_info("scatter_update"), plain_2d_format, data_types::f16));
 
         network network(engine, topology);
 
@@ -525,7 +525,7 @@ TEST(scatter_update_gpu_fp16, d2241_axisY) {
 
 
         for (size_t i = 0; i < expected_results.size(); ++i) {
-            EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]))
+            EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]))
                                 << "i=" << i << ", target_format=" << target_format;
         }
     }
@@ -658,13 +658,13 @@ TEST(scatter_update_gpu_fp16, d8x2x20x1_axisB) {
         topology.add(input_layout("InputDictionary", input1->get_layout()));
         topology.add(input_layout("InputText", input2->get_layout()));
         topology.add(input_layout("InputUpdates", input3->get_layout()));
-        topology.add(reorder("DictionaryReordered", "InputDictionary", target_format, data_types::f16));
-        topology.add(reorder("TextReordered", "InputText", target_format, data_types::f32));
-        topology.add(reorder("UpdatesReordered", "InputUpdates", target_format, data_types::f16));
+        topology.add(reorder("DictionaryReordered", input_info("InputDictionary"), target_format, data_types::f16));
+        topology.add(reorder("TextReordered", input_info("InputText"), target_format, data_types::f32));
+        topology.add(reorder("UpdatesReordered", input_info("InputUpdates"), target_format, data_types::f16));
         topology.add(
-                scatter_update("scatter_update", "DictionaryReordered", "TextReordered", "UpdatesReordered", axis)
+                scatter_update("scatter_update", input_info("DictionaryReordered"), input_info("TextReordered"), input_info("UpdatesReordered"), axis)
         );
-        topology.add(reorder("out", "scatter_update", plain_2d_format, data_types::f16));
+        topology.add(reorder("out", input_info("scatter_update"), plain_2d_format, data_types::f16));
 
         network network(engine, topology);
 
@@ -716,7 +716,7 @@ TEST(scatter_update_gpu_fp16, d8x2x20x1_axisB) {
         };
 
         for (size_t i = 0; i < expected_results.size(); ++i) {
-            EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]))
+            EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]))
                                 << "i=" << i << ", target_format=" << target_format;
         }
     }
@@ -784,13 +784,13 @@ TEST(scatter_update_gpu_fp32, d2214_axisX) {
         topology.add(input_layout("InputDictionary", input1->get_layout()));
         topology.add(input_layout("InputText", input2->get_layout()));
         topology.add(input_layout("InputUpdates", input3->get_layout()));
-        topology.add(reorder("DictionaryReordered", "InputDictionary", target_format, data_types::f32));
-        topology.add(reorder("TextReordered", "InputText", target_format, data_types::f32));
-        topology.add(reorder("UpdatesReordered", "InputUpdates", target_format, data_types::f32));
+        topology.add(reorder("DictionaryReordered", input_info("InputDictionary"), target_format, data_types::f32));
+        topology.add(reorder("TextReordered", input_info("InputText"), target_format, data_types::f32));
+        topology.add(reorder("UpdatesReordered", input_info("InputUpdates"), target_format, data_types::f32));
         topology.add(
-                scatter_update("scatter_update", "DictionaryReordered", "TextReordered", "UpdatesReordered", axis)
+                scatter_update("scatter_update", input_info("DictionaryReordered"), input_info("TextReordered"), input_info("UpdatesReordered"), axis)
         );
-        topology.add(reorder("out", "scatter_update", plain_2d_format, data_types::f32));
+        topology.add(reorder("out", input_info("scatter_update"), plain_2d_format, data_types::f32));
 
         network network(engine, topology);
 
@@ -886,13 +886,13 @@ TEST(scatter_update_gpu_int32, d6211_axisB) {
         topology.add(input_layout("InputDictionary", input1->get_layout()));
         topology.add(input_layout("InputText", input2->get_layout()));
         topology.add(input_layout("InputUpdates", input3->get_layout()));
-        topology.add(reorder("DictionaryReordered", "InputDictionary", target_format, data_types::i32));
-        topology.add(reorder("TextReordered", "InputText", target_format, data_types::i32));
-        topology.add(reorder("UpdatesReordered", "InputUpdates", target_format, data_types::i32));
+        topology.add(reorder("DictionaryReordered", input_info("InputDictionary"), target_format, data_types::i32));
+        topology.add(reorder("TextReordered", input_info("InputText"), target_format, data_types::i32));
+        topology.add(reorder("UpdatesReordered", input_info("InputUpdates"), target_format, data_types::i32));
         topology.add(
-                scatter_update("scatter_update", "DictionaryReordered", "TextReordered", "UpdatesReordered", axis)
+                scatter_update("scatter_update", input_info("DictionaryReordered"), input_info("TextReordered"), input_info("UpdatesReordered"), axis)
         );
-        topology.add(reorder("out", "scatter_update", plain_2d_format, data_types::i32));
+        topology.add(reorder("out", input_info("scatter_update"), plain_2d_format, data_types::i32));
 
         network network(engine, topology);
 
@@ -985,13 +985,13 @@ TEST(scatter_update_gpu_int32, d3151_axisY) {
         topology.add(input_layout("InputDictionary", input1->get_layout()));
         topology.add(input_layout("InputText", input2->get_layout()));
         topology.add(input_layout("InputUpdates", input3->get_layout()));
-        topology.add(reorder("DictionaryReordered", "InputDictionary", target_format, data_types::i32));
-        topology.add(reorder("TextReordered", "InputText", target_format, data_types::i32));
-        topology.add(reorder("UpdatesReordered", "InputUpdates", target_format, data_types::i32));
+        topology.add(reorder("DictionaryReordered", input_info("InputDictionary"), target_format, data_types::i32));
+        topology.add(reorder("TextReordered", input_info("InputText"), target_format, data_types::i32));
+        topology.add(reorder("UpdatesReordered", input_info("InputUpdates"), target_format, data_types::i32));
         topology.add(
-                scatter_update("scatter_update", "DictionaryReordered", "TextReordered", "UpdatesReordered", axis)
+                scatter_update("scatter_update", input_info("DictionaryReordered"), input_info("TextReordered"), input_info("UpdatesReordered"), axis)
         );
-        topology.add(reorder("out", "scatter_update", plain_2d_format, data_types::i32));
+        topology.add(reorder("out", input_info("scatter_update"), plain_2d_format, data_types::i32));
 
         network network(engine, topology);
 
@@ -1069,13 +1069,13 @@ TEST(scatter_update_gpu_fp32, d24111_axisF_bfzyx) {
             topology.add(input_layout("InputDictionary", input1->get_layout()));
             topology.add(input_layout("InputText", input2->get_layout()));
             topology.add(input_layout("InputUpdates", input3->get_layout()));
-            topology.add(reorder("DictionaryReordered", "InputDictionary", target_format, data_types::f32));
-            topology.add(reorder("TextReordered", "InputText", target_format, data_types::f32));
-            topology.add(reorder("UpdatesReordered", "InputUpdates", target_format_3d, data_types::f32));
+            topology.add(reorder("DictionaryReordered", input_info("InputDictionary"), target_format, data_types::f32));
+            topology.add(reorder("TextReordered", input_info("InputText"), target_format, data_types::f32));
+            topology.add(reorder("UpdatesReordered", input_info("InputUpdates"), target_format_3d, data_types::f32));
             topology.add(
-                    scatter_update("scatter_update", "DictionaryReordered", "TextReordered", "UpdatesReordered", axis)
+                    scatter_update("scatter_update", input_info("DictionaryReordered"), input_info("TextReordered"), input_info("UpdatesReordered"), axis)
             );
-            topology.add(reorder("out", "scatter_update", plain_2d_format, data_types::f32));
+            topology.add(reorder("out", input_info("scatter_update"), plain_2d_format, data_types::f32));
 
             network network(engine, topology);
 
@@ -1178,9 +1178,9 @@ TEST(scatter_update_gpu_int32, d121251_bfwzyx_axisB) {
         topology.add(input_layout("InputDictionary", input1->get_layout()));
         topology.add(input_layout("InputText", input2->get_layout()));
         topology.add(input_layout("InputUpdates", input3->get_layout()));
-        topology.add(reorder("TextReordered", "InputText", target_format, data_types::i32));
+        topology.add(reorder("TextReordered", input_info("InputText"), target_format, data_types::i32));
         topology.add(
-                scatter_update("scatter_update", "InputDictionary", "TextReordered", "InputUpdates", axis)
+                scatter_update("scatter_update", input_info("InputDictionary"), input_info("TextReordered"), input_info("InputUpdates"), axis)
         );
 
         network network(engine, topology);
@@ -1266,13 +1266,13 @@ TEST(scatter_update_gpu_fp32, d21511_bfzyx_axisX) {
             topology.add(input_layout("InputDictionary", input1->get_layout()));
             topology.add(input_layout("InputText", input2->get_layout()));
             topology.add(input_layout("InputUpdates", input3->get_layout()));
-            topology.add(reorder("DictionaryReordered", "InputDictionary", target_format_3d, data_types::f32));
-            topology.add(reorder("TextReordered", "InputText", target_format, data_types::f32));
-            topology.add(reorder("UpdatesReordered", "InputUpdates", target_format_3d, data_types::f32));
+            topology.add(reorder("DictionaryReordered", input_info("InputDictionary"), target_format_3d, data_types::f32));
+            topology.add(reorder("TextReordered", input_info("InputText"), target_format, data_types::f32));
+            topology.add(reorder("UpdatesReordered", input_info("InputUpdates"), target_format_3d, data_types::f32));
             topology.add(
-                    scatter_update("scatter_update", "DictionaryReordered", "TextReordered", "UpdatesReordered", axis)
+                    scatter_update("scatter_update", input_info("DictionaryReordered"), input_info("TextReordered"), input_info("UpdatesReordered"), axis)
             );
-            topology.add(reorder("out", "scatter_update", plain_3d_format, data_types::f32));
+            topology.add(reorder("out", input_info("scatter_update"), plain_3d_format, data_types::f32));
 
             network network(engine, topology);
 
@@ -1373,12 +1373,12 @@ TEST(scatter_update_gpu_fp32, d1252_axisY_bfwzyx) {
         topology.add(input_layout("InputDictionary", input1->get_layout()));
         topology.add(input_layout("InputText", input2->get_layout()));
         topology.add(input_layout("InputUpdates", input3->get_layout()));
-        topology.add(reorder("DictionaryReordered", "InputDictionary", target_format, data_types::f32));
-        topology.add(reorder("TextReordered", "InputText", target_format, data_types::f32));
+        topology.add(reorder("DictionaryReordered", input_info("InputDictionary"), target_format, data_types::f32));
+        topology.add(reorder("TextReordered", input_info("InputText"), target_format, data_types::f32));
         topology.add(
-                scatter_update("scatter_update", "DictionaryReordered", "TextReordered", "InputUpdates", axis)
+                scatter_update("scatter_update", input_info("DictionaryReordered"), input_info("TextReordered"), input_info("InputUpdates"), axis)
         );
-        topology.add(reorder("out", "scatter_update", plain_2d_format, data_types::f32));
+        topology.add(reorder("out", input_info("scatter_update"), plain_2d_format, data_types::f32));
 
         network network(engine, topology);
 
@@ -1463,12 +1463,12 @@ TEST(scatter_update_gpu_int32, d2115_axisX_bfwzyx) {
         topology.add(input_layout("InputText", input2->get_layout()));
         topology.add(input_layout("InputUpdates", input3->get_layout()));
 
-        topology.add(reorder("DictionaryReordered", "InputDictionary", target_format, data_types::i32));
-        topology.add(reorder("TextReordered", "InputText", target_format, data_types::i32));
+        topology.add(reorder("DictionaryReordered", input_info("InputDictionary"), target_format, data_types::i32));
+        topology.add(reorder("TextReordered", input_info("InputText"), target_format, data_types::i32));
         topology.add(
-                scatter_update("scatter_update", "DictionaryReordered", "TextReordered", "InputUpdates", axis)
+                scatter_update("scatter_update", input_info("DictionaryReordered"), input_info("TextReordered"), input_info("InputUpdates"), axis)
         );
-        topology.add(reorder("out", "scatter_update", plain_2d_format, data_types::i32));
+        topology.add(reorder("out", input_info("scatter_update"), plain_2d_format, data_types::i32));
 
         network network(engine, topology);
 
@@ -1556,12 +1556,12 @@ TEST(scatter_update_gpu_fp16, d21214_bfzyx_axisX_bfwzyx) {
             topology.add(input_layout("InputDictionary", input1->get_layout()));
             topology.add(input_layout("InputText", input2->get_layout()));
             topology.add(input_layout("InputUpdates", input3->get_layout()));
-            topology.add(reorder("DictionaryReordered", "InputDictionary", target_format_3d, data_types::f16));
-            topology.add(reorder("TextReordered", "InputText", target_format, data_types::f32));
+            topology.add(reorder("DictionaryReordered", input_info("InputDictionary"), target_format_3d, data_types::f16));
+            topology.add(reorder("TextReordered", input_info("InputText"), target_format, data_types::f32));
             topology.add(
-                    scatter_update("scatter_update", "InputDictionary", "InputText", "InputUpdates", axis)
+                    scatter_update("scatter_update", input_info("InputDictionary"), input_info("InputText"), input_info("InputUpdates"), axis)
             );
-            topology.add(reorder("out", "scatter_update", plain_3d_format, data_types::f16));
+            topology.add(reorder("out", input_info("scatter_update"), plain_3d_format, data_types::f16));
 
             network network(engine, topology);
 
@@ -1582,7 +1582,7 @@ TEST(scatter_update_gpu_fp16, d21214_bfzyx_axisX_bfwzyx) {
             };
 
             for (size_t i = 0; i < expected_results.size(); ++i) {
-                EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]))
+                EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]))
                                     << "i=" << i
                                     << ", target_format_2d=" << target_format
                                     << ", target_format_3d=" << target_format_3d;

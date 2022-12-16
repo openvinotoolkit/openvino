@@ -64,7 +64,8 @@ def get_element_type(data_type: NumericType) -> Type:
         return Type.f32
 
     ov_type = next(
-        (ov_type for (ov_type, np_type) in openvino_to_numpy_types_map if np_type == data_type), None,
+        (ov_type for (ov_type, np_type) in openvino_to_numpy_types_map if np_type == data_type),
+        None,
     )
     if ov_type:
         return ov_type
@@ -101,6 +102,19 @@ def get_dtype(openvino_type: Type) -> np.dtype:
 
     if np_type:
         return np.dtype(np_type)
+
+    raise OVTypeError("Unidentified data type %s", openvino_type)
+
+
+def get_numpy_ctype(openvino_type: Type) -> type:
+    """Return numpy ctype for an openvino element type."""
+    np_type = next(
+        (np_type for (ov_type, np_type) in openvino_to_numpy_types_map if ov_type == openvino_type),
+        None,
+    )
+
+    if np_type:
+        return np_type
 
     raise OVTypeError("Unidentified data type %s", openvino_type)
 

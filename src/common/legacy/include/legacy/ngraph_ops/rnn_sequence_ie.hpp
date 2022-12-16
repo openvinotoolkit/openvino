@@ -18,7 +18,6 @@ namespace op {
 class RNNSequenceIE : public ngraph::op::util::RNNCellBase {
 public:
     OPENVINO_OP("RNNSequenceIE", "legacy");
-    BWDCMP_RTTI_DECLARATION;
 
     RNNSequenceIE(const Output <Node> &X,
                   const Output <Node> &H_t,

@@ -12,8 +12,6 @@ namespace ov {
 
 using namespace std;
 
-BWDCMP_RTTI_DEFINITION(op::util::LogicalReduction);
-
 op::util::LogicalReduction::LogicalReduction() = default;
 
 op::util::LogicalReduction::LogicalReduction(const Output<Node>& arg, const AxisSet& reduction_axes)
@@ -24,24 +22,6 @@ op::util::LogicalReduction::LogicalReduction(const Output<Node>& arg, const Axis
 
 op::util::LogicalReduction::LogicalReduction(const Output<Node>& arg, const Output<Node>& reduction_axes)
     : ReductionBase(arg, reduction_axes) {}
-
-bool op::util::LogicalReduction::reduction_axes_constant() const {
-    return ngraph::has_and_set_equal_bounds(input_value(1));
-}
-
-const AxisSet op::util::LogicalReduction::get_reduction_axes() const {
-    AxisSet axes;
-    if (auto const_op = get_constant_from_source(input_value(1))) {
-        axes = const_op->get_axis_set_val();
-    }
-    return axes;
-}
-
-void op::util::LogicalReduction::set_reduction_axes(const AxisSet& reduction_axes) {
-    this->input(1).replace_source_output(
-        ngraph::op::Constant::create(element::i64, ov::Shape{reduction_axes.size()}, reduction_axes.to_vector())
-            ->output(0));
-}
 
 void op::util::LogicalReduction::validate_and_infer_types() {
     OV_OP_SCOPE(util_LogicalReduction_validate_and_infer_types);

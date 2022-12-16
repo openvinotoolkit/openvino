@@ -39,6 +39,7 @@ using lstm_dynamic_input_node = typed_program_node<lstm_dynamic_input>;
 template <>
 class typed_primitive_inst<lstm_dynamic_input> : public typed_primitive_inst_base<lstm_dynamic_input> {
     using parent = typed_primitive_inst_base<lstm_dynamic_input>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(lstm_dynamic_input_node const& node, kernel_impl_params const& impl_param);

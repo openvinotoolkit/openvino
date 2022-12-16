@@ -77,7 +77,6 @@ protected:
 };
 
 TEST_P(ShapeOfLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     CheckPluginRelatedResults(compiledModel, "ShapeOf");
 }
