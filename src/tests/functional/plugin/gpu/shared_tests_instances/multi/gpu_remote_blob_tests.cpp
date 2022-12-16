@@ -8,6 +8,9 @@
 #include "multi/multi_remote_blob_tests.hpp"
 #include "multi/multi_remote_blob_multidevice_test.hpp"
 #include "common_test_utils/test_constants.hpp"
+#include <openvino/runtime/auto/properties.hpp>
+
+using MultiDevice_RemoteBlobAndBindTest = MultiDevice_Test;
 
 const std::vector<DevicesNamesAndSupportPair> device_names_and_support_for_remote_blobs {
         {{GPU}, true}, // GPU via MULTI,
@@ -18,7 +21,7 @@ const std::vector<DevicesNamesAndSupportPair> device_names_and_support_for_remot
 #endif
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_MULTI_RemoteBlobGPU, MultiDevice_SupportTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_RemoteBlobGPU, MultiDevice_SupportTest,
                         ::testing::ValuesIn(device_names_and_support_for_remote_blobs), MultiDevice_SupportTest::getTestCaseName);
 
 TEST_P(MultiDevice_Test, cannotInferRemoteBlobIfNotInitializedForDevice) {
@@ -48,6 +51,31 @@ TEST_P(MultiDevice_Test, cannotInferRemoteBlobIfNotInitializedForDevice) {
     ASSERT_THROW(req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY), InferenceEngine::Exception);
 }
 
+TEST_P(MultiDevice_RemoteBlobAndBindTest, testRemoteBlobAndDeviceBind) {
+    InferenceEngine::CNNNetwork net(fn_ptr);
+    net.getInputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NCHW);
+    net.getInputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::U8);
+    auto ie = PluginCache::get().ie();
+
+    const std::map<std::string, std::string> multi_prop_config = {
+        {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_GPU},
+        {ov::intel_auto::device_bind_buffer.name(), InferenceEngine::PluginConfigParams::YES}};
+
+    auto exec_net = ie->LoadNetwork(net, device_names, multi_prop_config);
+    std::shared_ptr<InferenceEngine::RemoteContext> ctx;
+    ASSERT_NE(ctx = exec_net.GetContext(), nullptr);
+    InferenceEngine::InferRequest req = exec_net.CreateInferRequest();
+    ASSERT_TRUE(req);
+    const InferenceEngine::ConstInputsDataMap inputInfo = exec_net.GetInputsInfo();
+    for (auto i : inputInfo) {
+        auto rblob = InferenceEngine::make_shared_blob(i.second->getTensorDesc(), ctx);
+        rblob->allocate();
+        req.SetBlob(i.first, rblob);
+    }
+    ASSERT_NO_THROW(req.StartAsync());
+    ASSERT_EQ(req.Wait(InferenceEngine::InferRequest::RESULT_READY), InferenceEngine::StatusCode::OK);
+}
+
 const std::vector<DevicesNames> device_names_and_support_for_remote_blobs2 {
 #ifdef ENABLE_INTEL_CPU
         {CPU},  // stand-alone CPU via MULTI (no GPU), no OCL context
@@ -55,7 +83,7 @@ const std::vector<DevicesNames> device_names_and_support_for_remote_blobs2 {
         {"GPU.1"},  // another GPU (the test will test its presence), different OCL contexts
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_MULTI_RemoteBlobInitializedWithoutGPU, MultiDevice_Test,
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_RemoteBlobInitializedWithoutGPU, MultiDevice_Test,
                         ::testing::ValuesIn(device_names_and_support_for_remote_blobs2), MultiDevice_Test::getTestCaseName);
 
 const std::vector<DevicesNames> multi_device_names_and_support_for_remote_blobs {
@@ -65,6 +93,12 @@ const std::vector<DevicesNames> multi_device_names_and_support_for_remote_blobs 
 #endif
         {"GPU.0", "GPU.1"}
 };
-INSTANTIATE_TEST_SUITE_P(smoke_MULTI_RemoteBlobInitializedWithoutGPU, MultiDeviceMultipleGPU_Test,
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_RemoteBlobInitializedWithoutGPU, MultiDeviceMultipleGPU_Test,
                         ::testing::ValuesIn(multi_device_names_and_support_for_remote_blobs), MultiDeviceMultipleGPU_Test::getTestCaseName);
+
+const std::vector<DevicesNames> multi_device_names_and_support_for_remote_blobs2 {
+        {"GPU"}  // another GPU (the test will test its presence), different OCL contexts
+};
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_RemoteBlobAndDeviceBindBuffer, MultiDevice_RemoteBlobAndBindTest,
+                        ::testing::ValuesIn(multi_device_names_and_support_for_remote_blobs2), MultiDevice_RemoteBlobAndBindTest::getTestCaseName);
 
