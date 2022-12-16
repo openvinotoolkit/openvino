@@ -3,13 +3,11 @@
 
 import ngraph as ng
 import numpy as np
-import pytest
 from ngraph.utils.tensor_iterator_types import (
     GraphBody,
     TensorIteratorInvariantInputDesc,
     TensorIteratorBodyOutputDesc,
 )
-from tests_compatibility.runtime import get_runtime
 
 
 def create_simple_if_with_two_outputs(condition_val):
@@ -144,31 +142,30 @@ def check_results(results, expected_results):
 
 def check_if(if_model, cond_val, exp_results):
     last_node = if_model(cond_val)
-    runtime = get_runtime()
-    computation = runtime.computation(last_node)
-    results = computation()
-    check_results(results, exp_results)
+    assert last_node.get_type_name() == exp_results[0]
+    assert last_node.get_output_size() == exp_results[1]
+    assert list(last_node.get_output_shape(0)) == exp_results[2]
 
 
 def test_if_with_two_outputs():
     check_if(create_simple_if_with_two_outputs, True,
-             [np.array([10], dtype=np.float32), np.array([-20], dtype=np.float32)])
+             ["If", 2, []])
     check_if(create_simple_if_with_two_outputs, False,
-             [np.array([17], dtype=np.float32), np.array([16], dtype=np.float32)])
+             ["If", 2, []])
 
 
 def test_diff_if_with_two_outputs():
     check_if(create_diff_if_with_two_outputs, True,
-             [np.array([10], dtype=np.float32), np.array([6, 4], dtype=np.float32)])
+             ["If", 2, []])
     check_if(create_diff_if_with_two_outputs, False,
-             [np.array([4], dtype=np.float32), np.array([12, 16], dtype=np.float32)])
+             ["If", 2, []])
 
 
 def test_simple_if():
-    check_if(simple_if, True, [np.array([6, 4], dtype=np.float32)])
-    check_if(simple_if, False, [np.array([5, 5], dtype=np.float32)])
+    check_if(simple_if, True, ["Relu", 1, [2]])
+    check_if(simple_if, False, ["Relu", 1, [2]])
 
 
 def test_simple_if_without_body_parameters():
-    check_if(simple_if_without_parameters, True, [np.array([0.7], dtype=np.float32)])
-    check_if(simple_if_without_parameters, False, [np.array([9.0], dtype=np.float32)])
+    check_if(simple_if_without_parameters, True, ["Relu", 1, []])
+    check_if(simple_if_without_parameters, False, ["Relu", 1, []])
