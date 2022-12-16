@@ -108,4 +108,3 @@ class MetaDataTest(UnitTestWithMockedTelemetry):
 
             mo_ir_reader_test_model = core.read_model(os.path.join(tmpdir, "mo_ir_reader_test_model.xml"))
             check_meta_data(mo_ir_reader_test_model)
-

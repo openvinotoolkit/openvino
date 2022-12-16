@@ -3,6 +3,7 @@
 
 import os
 import tempfile
+import unittest
 from pathlib import Path
 
 from generator import generator
@@ -10,14 +11,12 @@ from openvino.runtime import get_version as get_rt_version
 from openvino.runtime import serialize
 
 from openvino.tools.mo import convert_model
-from openvino.tools.mo.utils.version import get_version
-from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
-
 from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_ir, save_restored_graph
+from openvino.tools.mo.utils.version import get_version
 
 
 @generator
-class MetaDataTestTF(UnitTestWithMockedTelemetry):
+class MetaDataTestTF(unittest.TestCase):
     test_directory = os.path.dirname(os.path.realpath(__file__))
 
     @staticmethod
