@@ -34,7 +34,7 @@ std::shared_ptr<ngraph::Function> get_initial_function(const ngraph::PartialShap
     auto axis_const = ngraph::opset3::Constant::create(ngraph::element::i64, {1}, {axis});
 
     auto broadcast_len = broadcast_shape.rank().get_length();
-    if (std::numeric_limits<size_t>::max() < broadcast_len) {
+    if (std::numeric_limits<size_t>::max() < (size_t)broadcast_len) {
         throw ngraph::ngraph_error("broadcast_len cannot be represented in size_t");
     }
 
