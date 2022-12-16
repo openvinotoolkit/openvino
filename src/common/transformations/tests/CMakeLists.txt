@@ -34,6 +34,7 @@ ov_add_test_target(
         offline_transformations
         sharedTestClasses
         lptNgraphFunctions
+    ADD_CLANG_FORMAT
     INCLUDES
         $<TARGET_PROPERTY:inference_engine_obj,SOURCE_DIR>/src
     LABELS
