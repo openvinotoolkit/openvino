@@ -50,11 +50,7 @@ TEST(test_can_fuse_reorder, reorder_for_mixed_type_convolution_fsv32_onednn)
 {
     build_options build_opt;
     topology topology;
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    auto& engine = get_onednn_test_engine();
-#else
     auto& engine = get_test_engine();
-#endif
 
     layout reorder_layout(data_types::u8, format::b_fs_yx_fsv32, {1, 32, 2, 2}, padding({0, }, 0));
     auto input = engine.allocate_memory({ data_types::u8, format::bfyx, {1, 3, 2, 2} });
@@ -68,7 +64,8 @@ TEST(test_can_fuse_reorder, reorder_for_mixed_type_convolution_fsv32_onednn)
     topology.add(cldnn::convolution("conv", { input_info("reorder_input") }, { "weights" }, { "bias"}, 1, {1, 1}, {0, 0}, {1, 1}, {1, 32, 2, 2}, data_types::f32, false));
     topology.add(reorder("reorder_conv", input_info("conv"), reorder_layout));
 
-    program::ptr prog = program::build_program(engine, topology, build_opt, false, true);
+    ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::in_order));
+    program::ptr prog = program::build_program(engine, topology, build_opt, cfg, false, true);
     layout_optimizer lo = layout_optimizer();
     lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, true);
 
@@ -91,11 +88,7 @@ TEST(test_can_fuse_reorder, reorder_for_mixed_type_convolution_fsv32_cldnn)
 {
     build_options build_opt;
     topology topology;
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    auto& engine = get_onednn_test_engine();
-#else
     auto& engine = get_test_engine();
-#endif
 
     layout reorder_layout(data_types::u8, format::b_fs_yx_fsv32, {1, 32, 2, 2}, padding({0, }, 0));
     auto input = engine.allocate_memory({ data_types::u8, format::bfyx, {1, 3, 2, 2} });
@@ -109,6 +102,7 @@ TEST(test_can_fuse_reorder, reorder_for_mixed_type_convolution_fsv32_cldnn)
     topology.add(cldnn::convolution("conv", { input_info("reorder_input") }, { "weights" }, { "bias"}, 1, {1, 1}, {0, 0}, {1, 1}, {1, 32, 2, 2}, data_types::f32, false));
     topology.add(reorder("reorder_conv", input_info("conv"), reorder_layout));
 
+    ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::in_order));
     program::ptr prog = program::build_program(engine, topology, build_opt, false, true);
     layout_optimizer lo = layout_optimizer();
     lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, false);
@@ -148,11 +142,7 @@ struct reorder_test_param {
 template<typename T>
 class ReorderTest : public ::testing::TestWithParam<T> {
 public:
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    cldnn::engine& engine = get_onednn_test_engine();
-#else
     cldnn::engine& engine = get_test_engine();
-#endif
 
     layout get_input_layout(T& p) {
         auto pad = p.pad;
@@ -185,7 +175,8 @@ TEST_P(test_fused_reorder_deep_depth, no_removal_for_deep_depth_conv)
     topology.add(cldnn::convolution("conv", { input_info("reorder_input") }, { "weights" }));
     topology.add(reorder("reorder_conv", input_info("conv"), reorder_layout));
 
-    program::ptr prog = program::build_program(engine, topology, build_opt, false, true);
+    ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::in_order));
+    program::ptr prog = program::build_program(engine, topology, build_opt, cfg, false, true);
     layout_optimizer lo = layout_optimizer();
     lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, true);
     setting_node(prog, "conv", conv_layout);

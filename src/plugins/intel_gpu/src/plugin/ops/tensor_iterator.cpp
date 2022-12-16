@@ -29,7 +29,7 @@ namespace intel_gpu {
 template<class DATA_TYPE>
 static DATA_TYPE CreateScalarData(Program &p, const cldnn::primitive_id& id, int64_t num) {
     auto mem = p.GetEngine().allocate_memory({ cldnn::data_types::i64, cldnn::format::bfyx, { 1, 1, 1, 1 } });
-    cldnn::mem_lock<int64_t> ptr{mem, p.GetEngine().get_program_stream()};
+    cldnn::mem_lock<int64_t> ptr{mem, p.GetEngine().get_service_stream()};
     *ptr.begin() = num;
     return {id, mem};
 }
@@ -51,7 +51,7 @@ static void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorItera
 
     // get body topology from ngraph function
     InferenceEngine::CNNNetwork body_network(op->get_body());
-    Program body_program(body_network, p.GetEnginePtr(), p.GetConfig(), true);
+    Program body_program(body_network, p.GetEnginePtr(), p.GetConfig(), p.GetExecutionConfig(), true);
     auto body_topology = *body_program.GetTopology();
 
     // setup input_primitive_maps/ output_primitive_maps and back_edges

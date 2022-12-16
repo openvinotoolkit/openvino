@@ -7,6 +7,7 @@
 #include "event.hpp"
 #include "kernel.hpp"
 #include "kernel_args.hpp"
+#include "execution_config.hpp"
 
 #include <memory>
 #include <vector>
@@ -20,7 +21,7 @@ namespace cldnn {
 class stream {
 public:
     using ptr = std::shared_ptr<stream>;
-    explicit stream(queue_types queue_type) : queue_type(queue_type) {}
+    explicit stream(QueueTypes queue_type) : queue_type(queue_type) {}
     virtual ~stream() = default;
 
     virtual void flush() const = 0;
@@ -39,16 +40,16 @@ public:
     virtual event::ptr create_user_event(bool set) = 0;
     virtual event::ptr create_base_event() = 0;
 
-    queue_types get_queue_type() const { return queue_type; }
+    QueueTypes get_queue_type() const { return queue_type; }
 
-    static queue_types detect_queue_type(engine_types engine_type, void* queue_handle);
+    static QueueTypes detect_queue_type(engine_types engine_type, void* queue_handle);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     virtual dnnl::stream& get_onednn_stream() const = 0;
 #endif
 
 protected:
-    queue_types queue_type;
+    QueueTypes queue_type;
 };
 
 }  // namespace cldnn

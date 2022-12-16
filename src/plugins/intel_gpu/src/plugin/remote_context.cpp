@@ -342,12 +342,10 @@ ExecutionContextImpl::ExecutionContextImpl(const std::shared_ptr<IInferencePlugi
         iter = device_map.begin();
     auto& dev = iter->second;
 
-    auto engine_params = Plugin::GetParams(m_config, dev, m_external_queue);
-    m_engine = cldnn::engine::create(engine_params.engine_type,
-                                     engine_params.runtime_type,
+    m_engine = cldnn::engine::create(engine_type,
+                                     runtime_type,
                                      dev,
-                                     engine_params.engine_config,
-                                     engine_params.task_executor);
+                                     std::make_shared<InferenceEngine::CPUStreamsExecutor>(config.task_exec_config));
 }
 
 AnyMap ExecutionContextImpl::getParams() const {
@@ -367,12 +365,6 @@ AnyMap ExecutionContextImpl::getParams() const {
     }
 
     return ret;
-}
-
-void ExecutionContextImpl::update_params(const Config& config) {
-    OPENVINO_ASSERT(m_engine, "[GPU] Can't update params as engine object hasn't been created");
-    auto engine_params = Plugin::GetParams(config, m_engine->get_device(), m_external_queue);
-    m_engine->set_config(engine_params.engine_config);
 }
 
 ExecutionContextImpl::~ExecutionContextImpl() {

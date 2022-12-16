@@ -1661,7 +1661,7 @@ TEST(fully_connected_onednn_gpu, no_biases_int8) {
     const int32_t input_f = 3, input_b = 1,     // size of the whole input buffer
                   weight_b = 4, weight_f = 3;   // size of the whole weights buffer
 
-    auto& engine = get_onednn_test_engine();
+    auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
         return;
 
@@ -1688,7 +1688,8 @@ TEST(fully_connected_onednn_gpu, no_biases_int8) {
     implementation_desc fc_impl = { format::bfyx, "", impl_types::onednn };
     force_options.set_option(build_option::force_implementations({ {"fc_prim", fc_impl} }));
 
-    network network(engine, topology, force_options);
+    ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::in_order));
+    network network(engine, topology, force_options, cfg);
     network.set_input_data("input", input_prim);
 
     auto outputs = network.execute();
@@ -1714,7 +1715,7 @@ TEST(fully_connected_3d_onednn_gpu, no_biases_int8) {
                   weight_o = 4, weight_i = 3,             // size of the whole weights buffer
                   output_b = 2, output_f = 4;
 
-    auto& engine = get_onednn_test_engine();
+    auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
         return;
 
@@ -1739,8 +1740,9 @@ TEST(fully_connected_3d_onednn_gpu, no_biases_int8) {
     cldnn::build_options force_options;
     implementation_desc fc_impl = { format::bfyx, "", impl_types::onednn };
     force_options.set_option(build_option::force_implementations({ { "fc_prim", fc_impl } }));
+    ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::in_order));
 
-    network network(engine, topology, force_options);
+    network network(engine, topology, force_options, cfg);
     network.set_input_data("input", input_prim);
 
     auto outputs = network.execute();

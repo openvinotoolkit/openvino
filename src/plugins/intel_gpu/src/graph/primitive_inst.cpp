@@ -186,7 +186,7 @@ void primitive_inst::update_shape() {
         auto& dep = _node->get_dependency(i);
         auto dep_id = dep.id();
         // Events may be not created for in-order queue, so take them for OOO queue only
-        if (_network.has_event(dep.id()) && queue_type == queue_types::out_of_order) {
+        if (_network.has_event(dep.id()) && queue_type == QueueTypes::out_of_order) {
             dependencies_events.push_back(_network.get_primitive_event(dep_id));
             GPU_DEBUG_TRACE_DETAIL << id() << ": shape infer waits for " << i << " dependency\n";
         }
@@ -196,9 +196,9 @@ void primitive_inst::update_shape() {
     }
 
     if (has_runtime_deps) {
-        if (!dependencies_events.empty() && queue_type == queue_types::out_of_order) {
+        if (!dependencies_events.empty() && queue_type == QueueTypes::out_of_order) {
             _network.get_stream().wait_for_events(dependencies_events);
-        } else if (queue_type == queue_types::in_order) {
+        } else if (queue_type == QueueTypes::in_order) {
             _network.get_stream().finish();
         }
     }
@@ -450,7 +450,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         dependencies = events;
     } else {
         auto queue_type = get_network().get_stream().get_queue_type();
-        if (queue_type == queue_types::out_of_order) {
+        if (queue_type == QueueTypes::out_of_order) {
             dependencies.reserve(dependencies.size() + _exec_deps.size());
             for (auto& input : _exec_deps) {
                 auto id = input->id();
@@ -759,8 +759,8 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
                                             uint32_t net_id, bool is_internal, size_t idx) {
     auto get_memory_from_pool = [&](engine& _engine, const layout& layout, const primitive_id id, std::set<primitive_id> dependencies,
             allocation_type type, bool reusable) {
-        if (_engine.configuration().use_memory_pool)
-                return pool.get_memory(layout, id, net_id, dependencies, type, reusable);
+        if (_node.get_program().get_config().get_property(ov::intel_gpu::enable_memory_pool))
+            return pool.get_memory(layout, id, net_id, dependencies, type, reusable);
         return pool.get_memory(layout, type);
     };
 
@@ -940,7 +940,7 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
         build_options bo;
         bo.set_option(build_option::allow_static_input_reorder(true));
         bo.set_option(build_option::allow_new_shape_infer(true));
-        auto prog = program::build_program(get_network().get_engine(), t, bo, true, false);
+        auto prog = program::build_program(get_network().get_engine(), t, bo, {}, true, false);
 
         _unfused_subgraph = network::allocate_network(get_network().get_stream_ptr(), prog, true, get_network().is_primary_stream());
     }

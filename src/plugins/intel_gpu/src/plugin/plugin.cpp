@@ -21,7 +21,7 @@
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
 #include "intel_gpu/plugin/custom_layer.hpp"
-#include "intel_gpu/plugin/internal_properties.hpp"
+#include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "gpu/gpu_config.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
@@ -268,12 +268,28 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
     auto config = ConvertPerfHintsToConfig(orig_config, conf);
     UpdateConfig(conf, network, config);
 
+    ExecutionConfig new_conf;
+    // Copy plugin config
+    new_conf.set_property(ov::AnyMap(conf.key_config_map.begin(), conf.key_config_map.end()));
+    // Set internal properties
+    static constexpr Property<QueueTypes, PropertyMutability::RW> queue_type{"GPU_QUEUE_TYPE"};
+
+    new_conf.set_property(ov::intel_gpu::enable_fusing(true));
+    new_conf.set_property(ov::intel_gpu::optimize_data(true));
+    new_conf.set_property(ov::intel_gpu::allow_static_input_reorder(true));
+    new_conf.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{}));
+    // new_conf.set_property(ov::intel_gpu::tuning_config({}));
+    new_conf.set_property(ov::intel_gpu::force_implementations(std::vector<std::string>{})); // TODO fix type
+    new_conf.set_property(ov::intel_gpu::partial_build_program(false));
+    new_conf.set_property(ov::intel_gpu::allow_new_shape_infer(false));
+
+
     RemoteCLContext::Ptr context = GetDefaultContext(conf);
 
     auto transformedNetwork = CloneAndTransformNetwork(network, conf);
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::LoadExeNetworkImpl::CreateExeNetwork");
-        CompiledModel::Ptr exeNetwork = std::make_shared<CompiledModel>(transformedNetwork, context, conf);
+        CompiledModel::Ptr exeNetwork = std::make_shared<CompiledModel>(transformedNetwork, context, conf, new_conf);
         UpdateStatistics(context);
         return exeNetwork;
     }
@@ -294,8 +310,13 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
     auto config = ConvertPerfHintsToConfig(orig_config, conf);
     UpdateConfig(conf, network, config);
 
+    ExecutionConfig new_conf;
+    // Copy plugin config
+    new_conf.set_property(ov::AnyMap(conf.key_config_map.begin(), conf.key_config_map.end()));
+
+
     auto transformedNetwork = CloneAndTransformNetwork(network, conf);
-    return std::make_shared<CompiledModel>(transformedNetwork, casted, conf);
+    return std::make_shared<CompiledModel>(transformedNetwork, casted, conf, new_conf);
 }
 
 InferenceEngine::RemoteContext::Ptr Plugin::CreateContext(const AnyMap& params) {
@@ -321,10 +342,7 @@ RemoteCLContext::Ptr Plugin::GetDefaultContext(const Config& config) const {
             std::const_pointer_cast<InferenceEngine::IInferencePlugin>(shared_from_this()), AnyMap(), config);
     }
 
-    RemoteCLContext::Ptr ctx = m_defaultContexts.at(config.device_id);
-    ctx->update_params(config);
-
-    return ctx;
+    return m_defaultContexts.at(config.device_id);;
 }
 
 InferenceEngine::RemoteContext::Ptr Plugin::GetDefaultContext(const AnyMap& params) {
@@ -445,9 +463,13 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(std::istr
     auto config = ConvertPerfHintsToConfig(orig_config, conf);
 
     auto context = GetDefaultContext(conf);
+
+    ExecutionConfig new_conf;
+    // Copy plugin config
+    new_conf.set_property(ov::AnyMap(conf.key_config_map.begin(), conf.key_config_map.end()));
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork::CreateExeNetwork");
-        CompiledModel::Ptr exeNetwork = std::make_shared<CompiledModel>(networkModel, context, conf);
+        CompiledModel::Ptr exeNetwork = std::make_shared<CompiledModel>(networkModel, context, conf, new_conf);
         exeNetwork->SetPointerToPlugin(shared_from_this());
         UpdateStatistics(context);
         return exeNetwork;
@@ -822,12 +844,10 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
 
         InferenceEngine::CNNNetwork network(model);
         size_t base_batch_size = 16; // empirically decided for DG1
-        auto engine_params = Plugin::GetParams(config, device, nullptr);
-        auto engine = cldnn::engine::create(engine_params.engine_type,
-                                            engine_params.runtime_type,
-                                            device,
-                                            engine_params.engine_config,
-                                            engine_params.task_executor);
+        ExecutionConfig new_conf;
+        // Copy plugin config
+        new_conf.set_property(ov::AnyMap(config.key_config_map.begin(), config.key_config_map.end()));
+        auto engine = GetDefaultContext(config)->getImpl()->GetEngine();
 
         std::shared_ptr<Program> program;
 
@@ -889,7 +909,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             auto nGraphFunc = cloned_network.getFunction();
             TransformationsPipeline transformations(config, device_info);
             transformations.apply(nGraphFunc);
-            program = std::make_shared<Program>(cloned_network, engine, config, false, true);
+            program = std::make_shared<Program>(cloned_network, engine, config, new_conf, false, true);
             std::pair<int64_t, int64_t> device_memory_usage = program->GetCompiledProgram(0)->get_estimated_device_mem_usage();
             if (device_memory_usage.first == static_cast<int64_t>(-1L) && device_memory_usage.second == static_cast<int64_t>(-1L)) {
                 return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(max_batch_size)};

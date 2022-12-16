@@ -5,11 +5,12 @@
 #pragma once
 
 #include "device.hpp"
-#include "engine_configuration.hpp"
 #include "event.hpp"
 #include "memory_caps.hpp"
 #include "memory_pool.hpp"
 #include "layout.hpp"
+#include "execution_config.hpp"
+#include "engine_configuration.hpp"
 #include <threading/ie_cpu_streams_executor.hpp>
 
 #include <memory>
@@ -91,10 +92,6 @@ public:
     /// Checks if the current engine supports speicied allocation @p type
     bool supports_allocation(allocation_type type) const;
 
-    /// Returns configuration of current engine
-    const engine_configuration& configuration() const { return _configuration; }
-    engine_configuration& configuration() { return _configuration; }
-
     /// Returns device structure which represents stores device capabilities
     device_info get_device_info() const;
 
@@ -130,13 +127,13 @@ public:
     uint64_t get_max_memory_size() const;
 
     /// Create stream object for current engine
-    virtual stream_ptr create_stream() const = 0;
+    virtual stream_ptr create_stream(const ExecutionConfig& config) const = 0;
 
     /// Creates stream object from user handle
-    virtual stream_ptr create_stream(void *handle) const = 0;
+    virtual stream_ptr create_stream(const ExecutionConfig& config, void *handle) const = 0;
 
     /// Returns service stream which can be used during program build and optimizations
-    virtual stream& get_program_stream() const = 0;
+    virtual stream& get_service_stream(ExecutionConfig cfg = ExecutionConfig()) = 0;
 
     virtual allocation_type detect_usm_allocation_type(const void* memory) const = 0;
 
@@ -147,9 +144,6 @@ public:
     /// Return GPU plugin internal task executor
     const InferenceEngine::ITaskExecutor::Ptr get_task_executor();
 
-    /// Set new engine configuration for already created device/context
-    void set_config(const engine_configuration& config);
-
     /// Factory method which creates engine object with impl configured by @p engine_type
     /// @param engine_type requested engine type
     /// @param task_executor GPU plugin internal task executor
@@ -159,7 +153,6 @@ public:
     static std::shared_ptr<cldnn::engine> create(engine_types engine_type,
                                                  runtime_types runtime_type,
                                                  const device::ptr device,
-                                                 const engine_configuration& configuration = engine_configuration(),
                                                  const InferenceEngine::ITaskExecutor::Ptr task_executor =
                                                         std::make_shared<InferenceEngine::CPUStreamsExecutor>(
                                                                     InferenceEngine::CPUStreamsExecutor::Config()));
@@ -172,17 +165,15 @@ public:
     /// @note engine is created for the first device returned by devices query
     static std::shared_ptr<cldnn::engine> create(engine_types engine_type,
                                                  runtime_types runtime_type,
-                                                 const engine_configuration& configuration = engine_configuration(),
                                                  const InferenceEngine::ITaskExecutor::Ptr task_executor =
                                                         std::make_shared<InferenceEngine::CPUStreamsExecutor>(
                                                                     InferenceEngine::CPUStreamsExecutor::Config()));
 
 protected:
     /// Create engine for given @p device and @p configuration
-    engine(const device::ptr device, const engine_configuration& configuration, const InferenceEngine::ITaskExecutor::Ptr task_executor);
+    engine(const device::ptr device, const InferenceEngine::ITaskExecutor::Ptr task_executor);
     const InferenceEngine::ITaskExecutor::Ptr _task_executor;
     const device::ptr _device;
-    engine_configuration _configuration;
     mutable std::mutex _mutex;
 
     std::map<allocation_type, std::atomic<uint64_t>> _memory_usage_map;

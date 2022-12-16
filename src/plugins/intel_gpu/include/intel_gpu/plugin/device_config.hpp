@@ -27,8 +27,8 @@ struct Config {
                                           enableDynamicBatch(false),
                                           enableInt8(true),
                                           nv12_two_inputs(false),
-                                          queuePriority(cldnn::priority_mode_types::med),
-                                          queueThrottle(cldnn::throttle_mode_types::med),
+                                          queuePriority(ov::hint::Priority::MEDIUM),
+                                          queueThrottle(ov::intel_gpu::hint::ThrottleLevel::MEDIUM),
                                           max_dynamic_batch(1),
                                           customLayers({}),
                                           kernels_cache_dir(""),
@@ -66,8 +66,8 @@ struct Config {
     bool enableDynamicBatch;
     bool enableInt8;
     bool nv12_two_inputs;
-    cldnn::priority_mode_types queuePriority;
-    cldnn::throttle_mode_types queueThrottle;
+    ov::hint::Priority queuePriority;
+    ov::intel_gpu::hint::ThrottleLevel queueThrottle;
     int max_dynamic_batch;
     CustomLayerMap customLayers;
     std::string kernels_cache_dir;

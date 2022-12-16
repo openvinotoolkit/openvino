@@ -999,8 +999,8 @@ TEST(crop_gpu, basic_in1x4x1x1_split_w_relu) {
     //  Out2:
     //  f0: 4.0
     // disable memory pool when we want to check optimized out internal results
-    engine_configuration cfg{ false, queue_types::out_of_order, std::string(), priority_mode_types::disabled,  throttle_mode_types::disabled, false /*mem_pool*/ };
-    auto engine = engine::create(engine_types::ocl, runtime_types::ocl, cfg);
+    ExecutionConfig cfg{ov::intel_gpu::enable_memory_pool(false), ov::intel_gpu::optimize_data(true)};
+    auto engine = engine::create(engine_types::ocl, runtime_types::ocl);
     auto batch_num = 1;
     auto feature_num = 4;
     auto x_size = 1;
@@ -1030,7 +1030,7 @@ TEST(crop_gpu, basic_in1x4x1x1_split_w_relu) {
     bo.set_option(build_option::optimize_data(true));
     bo.set_option(build_option::debug(true)); //required to have optimized crop despite the fact that it's specified as an output
 
-    network network(*engine, topology, bo);
+    network network(*engine, topology, bo, cfg);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 

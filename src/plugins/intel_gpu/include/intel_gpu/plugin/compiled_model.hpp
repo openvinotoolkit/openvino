@@ -16,6 +16,7 @@
 #include "intel_gpu/plugin/graph.hpp"
 #include "intel_gpu/plugin/device_config.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
+#include "intel_gpu/runtime/execution_config.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -24,8 +25,8 @@ class CompiledModel : public InferenceEngine::ExecutableNetworkThreadSafeDefault
 public:
     typedef std::shared_ptr<CompiledModel> Ptr;
 
-    CompiledModel(InferenceEngine::CNNNetwork &network, std::shared_ptr<InferenceEngine::RemoteContext> context, Config config);
-    CompiledModel(std::istream& networkModel, std::shared_ptr<InferenceEngine::RemoteContext> context, Config config);
+    CompiledModel(InferenceEngine::CNNNetwork &network, std::shared_ptr<InferenceEngine::RemoteContext> context, Config config, ExecutionConfig new_conf);
+    CompiledModel(std::istream& networkModel, std::shared_ptr<InferenceEngine::RemoteContext> context, Config config, ExecutionConfig new_conf);
 
     void Export(std::ostream& networkModel) override;
     std::shared_ptr<ngraph::Function> GetExecGraphInfo() override;

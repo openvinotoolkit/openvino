@@ -314,7 +314,7 @@ public:
         auto opts = get_program().get_options();
         std::vector<primitive_id> output_names_vec(output_names.begin(), output_names.end());
         opts.set_option(build_option::outputs(output_names_vec));
-        body_program = program::build_program(get_program().get_engine(), body, opts, false, false, true);
+        body_program = program::build_program(get_program().get_engine(), body, opts, get_program().get_config(), false, false, true);
     }
 
     const primitive_id& get_trip_count_id() const { return get_primitive()->trip_count_id; }

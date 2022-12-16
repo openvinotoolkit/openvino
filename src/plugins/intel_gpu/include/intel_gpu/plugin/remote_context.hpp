@@ -319,7 +319,6 @@ public:
     ContextType GetType() const { return m_type; }
     InferenceEngine::gpu_handle_param GetExternalQueue() const { return m_external_queue; }
     const std::weak_ptr<InferenceEngine::IInferencePlugin> GetPlugin() const { return m_plugin; }
-    void update_params(const Config& config);
     void lock() {
         while (m_lock.test_and_set(std::memory_order_acquire)) {}
     }
@@ -365,7 +364,7 @@ class TypedExecutionContext : public TpublicContextAPI {
     InferenceEngine::RemoteBlob::Ptr reuse_surf(const InferenceEngine::TensorDesc& tensorDesc, const InferenceEngine::ParamMap& params) {
         using namespace InferenceEngine;
         using InferenceEngine::gpu::details::param_map_obj_getter;
-        auto& stream = _impl.GetEngine()->get_program_stream();
+        auto& stream = _impl.GetEngine()->get_service_stream();
         uint32_t plane = param_map_obj_getter::_ObjFromParamSimple<uint32_t>(params, GPU_PARAM_KEY(VA_PLANE));
 #ifdef _WIN32
         cldnn::shared_handle mem = param_map_obj_getter::_ObjFromParamSimple<cldnn::shared_handle>(params, GPU_PARAM_KEY(DEV_OBJECT_HANDLE));
@@ -406,7 +405,7 @@ class TypedExecutionContext : public TpublicContextAPI {
                                                cldnn::shared_handle mem,
                                                RemoteBlobImpl::BlobType blob_type) {
         std::lock_guard<ExecutionContextImpl> locker(_impl);
-        auto& stream = _impl.GetEngine()->get_program_stream();
+        auto& stream = _impl.GetEngine()->get_service_stream();
 
         cldnn::layout layout(DataTypeFromPrecision(tensorDesc.getPrecision()),
                                 FormatFromLayout(tensorDesc.getLayout()),
@@ -456,7 +455,7 @@ class TypedExecutionContext : public TpublicContextAPI {
                              FormatFromLayout(tensorDesc.getLayout()),
                              tensor_from_dims(tensorDesc.getDims()));
         auto smart_this = std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>(this->shared_from_this());
-        auto& stream = _impl.GetEngine()->get_program_stream();
+        auto& stream = _impl.GetEngine()->get_service_stream();
         return std::make_shared<RemoteCLbuffer>(smart_this,
                                                 stream,
                                                 tensorDesc,
@@ -470,7 +469,7 @@ class TypedExecutionContext : public TpublicContextAPI {
                              FormatFromLayout(tensorDesc.getLayout()),
                              tensor_from_dims(tensorDesc.getDims()));
         auto smart_this = std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>(this->shared_from_this());
-        auto& stream = _impl.GetEngine()->get_program_stream();
+        auto& stream = _impl.GetEngine()->get_service_stream();
 
         return std::make_shared<RemoteUSMbuffer>(smart_this,
                                                  stream,
@@ -564,7 +563,6 @@ public:
 
     Config& GetConfig() { return _impl.GetConfig(); }
     ExecutionContextImpl::ContextType GetType() const { return _impl.GetType(); }
-    void update_params(const Config& config){ _impl.update_params(config); }
 
     ExecutionContextImpl* getImpl() { return &_impl; }
 

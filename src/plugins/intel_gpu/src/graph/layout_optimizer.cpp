@@ -1416,7 +1416,7 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
                 const size_t kBatchNum = scores_layout.batch();
                 const size_t kClassNum = scores_layout.feature();
                 const size_t kNStreams =
-                    static_cast<size_t>(node.get_program().get_engine().configuration().throughput_streams);
+                    static_cast<size_t>(node.get_program().get_config().get_property(ov::streams::num));
                 const size_t kKeyValue = kBatchNum * std::min(kClassNum, static_cast<size_t>(8)) * kNStreams;
                 preferred_impl = (kKeyValue > 64) ? impl_types::ocl : impl_types::cpu;
             }

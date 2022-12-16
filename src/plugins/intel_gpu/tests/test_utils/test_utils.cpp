@@ -286,50 +286,25 @@ std::vector<std::shared_ptr<test_params>> generic_test::generate_generic_test_pa
     return all_generic_params;
 }
 
-static cldnn::engine_configuration get_test_engine_config(cldnn::queue_types queue_type) {
-    const bool enable_profiling = false;
-    std::string sources_dumps_dir = "";
-    priority_mode_types priority_mode = priority_mode_types::disabled;
-    throttle_mode_types throttle_mode = throttle_mode_types::disabled;
-    bool use_memory_pool = true;
-    bool use_unified_shared_memory = true;
-    return engine_configuration(enable_profiling, queue_type, sources_dumps_dir, priority_mode, throttle_mode, use_memory_pool, use_unified_shared_memory);
-}
-
-std::shared_ptr<cldnn::engine> create_test_engine(cldnn::queue_types queue_type) {
-    return cldnn::engine::create(engine_types::ocl, runtime_types::ocl, get_test_engine_config(queue_type));
+std::shared_ptr<cldnn::engine> create_test_engine() {
+    return cldnn::engine::create(engine_types::ocl, runtime_types::ocl);
 }
 
 cldnn::engine& get_test_engine() {
     static std::shared_ptr<cldnn::engine> test_engine = nullptr;
     if (!test_engine) {
-        test_engine = create_test_engine(cldnn::queue_types::out_of_order);
+        test_engine = create_test_engine();
     }
     return *test_engine;
 }
-
-cldnn::engine& get_test_engine(const cldnn::engine_configuration& configuration) {
-   static std::shared_ptr<cldnn::engine> test_engine = nullptr;
-   if (!test_engine) {
-       test_engine = cldnn::engine::create(engine_types::ocl, runtime_types::ocl, configuration);
-   }
-   return *test_engine;
-}
-
-#ifdef ENABLE_ONEDNN_FOR_GPU
-cldnn::engine& get_onednn_test_engine() {
-    static std::shared_ptr<cldnn::engine> test_engine = nullptr;
-    if (!test_engine) {
-        test_engine = create_test_engine(cldnn::queue_types::in_order);
-    }
-    return *test_engine;
-}
-#endif
 
 cldnn::stream_ptr get_test_stream_ptr() {
     static std::shared_ptr<cldnn::stream> test_stream = nullptr;
-    if (!test_stream)
-        test_stream = get_test_engine().create_stream();
+    if (!test_stream) {
+        // Create OOO queue for test purposes. If in-order queue is needed in a test, then it should be created there explicitly
+        ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::out_of_order));
+        test_stream = get_test_engine().create_stream(cfg);
+    }
     return test_stream;
 }
 

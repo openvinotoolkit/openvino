@@ -2569,11 +2569,7 @@ struct reorder_test_param {
 template<typename T>
 class ReorderTest : public ::testing::TestWithParam<T> {
 public:
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    cldnn::engine& engine = get_onednn_test_engine();
-#else
     cldnn::engine& engine = get_test_engine();
-#endif
     cldnn::topology topology_test;
     cldnn::build_options bo_test;
     static const int min_random = -200;
@@ -2582,7 +2578,8 @@ public:
 
     void execute(T& p) {
         auto input_prim = this->get_mem(get_input_layout(p));
-        network network_test(this->engine, this->topology_test, this->bo_test);
+        ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::in_order));
+        network network_test(this->engine, this->topology_test, this->bo_test, cfg);
         network_test.set_input_data("input", input_prim);
 
         executed_prims = network_test.get_executed_primitive_ids();
@@ -2761,7 +2758,7 @@ INSTANTIATE_TEST_SUITE_P(reorder_gpu_testing, testing_removal_reorder,
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 TEST(reorder_onednn_gpu, basic_convert_int8) {
-    auto& engine = get_onednn_test_engine();
+    auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
         return;
     layout in_layout = { type_to_data_type<float>::value, format::byxf, { 1, 1, 3, 3 } };
@@ -2793,11 +2790,13 @@ TEST(reorder_onednn_gpu, basic_convert_int8) {
     options_target.set_option(build_option::outputs({ "reorder_input", "reorder2"}));
     implementation_desc impl = { format::bfyx, std::string(""), impl_types::onednn };
     options_target.set_option(build_option::force_implementations({{ "reorder_input", impl }}));
+    ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::in_order));
 
     network network(
         engine,
         topology,
-        options_target);
+        options_target,
+        cfg);
 
     network.set_input_data("input", input_memory);
 

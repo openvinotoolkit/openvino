@@ -12,8 +12,8 @@ class CompilationContext : public ICompilationContext {
 public:
     using compilation_queue_t = InferenceEngine::ThreadSafeQueue<ICompilationContext::Task>;
 
-    CompilationContext(cldnn::engine& engine, size_t program_id) {
-        _kernels_cache = cldnn::make_unique<kernels_cache>(engine, program_id, kernel_selector::KernelBase::get_db().get_batch_header_str());
+    CompilationContext(cldnn::engine& engine, const ExecutionConfig& config, size_t program_id) {
+        _kernels_cache = cldnn::make_unique<kernels_cache>(engine, config, program_id, kernel_selector::KernelBase::get_db().get_batch_header_str());
         _worker = std::thread([this](){
             while (!_stop_compilation) {
                 CompilationContext::Task task;
@@ -47,8 +47,8 @@ private:
     std::atomic_bool _stop_compilation{false};
 };
 
-std::unique_ptr<ICompilationContext> ICompilationContext::create(cldnn::engine& engine, size_t program_id) {
-    return cldnn::make_unique<CompilationContext>(engine, program_id);
+std::unique_ptr<ICompilationContext> ICompilationContext::create(cldnn::engine& engine, const ExecutionConfig& config, size_t program_id) {
+    return cldnn::make_unique<CompilationContext>(engine, config, program_id);
 }
 
 }  // namespace cldnn

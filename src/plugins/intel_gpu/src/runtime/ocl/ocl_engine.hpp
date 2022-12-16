@@ -20,7 +20,8 @@ namespace ocl {
 
 class ocl_engine : public engine {
 public:
-    ocl_engine(const device::ptr dev, runtime_types runtime_type, const engine_configuration& conf, const InferenceEngine::ITaskExecutor::Ptr task_executor);
+    ocl_engine(const device::ptr dev, runtime_types runtime_type,
+               const InferenceEngine::ITaskExecutor::Ptr task_executor);
     engine_types type() const override { return engine_types::ocl; };
     runtime_types runtime_type() const override { return runtime_types::ocl; };
 
@@ -40,9 +41,9 @@ public:
 
     bool extension_supported(std::string extension) const;
 
-    stream_ptr create_stream() const override;
-    stream_ptr create_stream(void *handle) const override;
-    stream& get_program_stream() const override;
+    stream_ptr create_stream(const ExecutionConfig& config) const override;
+    stream_ptr create_stream(const ExecutionConfig& config, void *handle) const override;
+    stream& get_service_stream(ExecutionConfig cfg = ExecutionConfig()) override;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     // Returns onednn engine object which shares device and context with current engine
@@ -51,11 +52,11 @@ public:
 #endif
 
     static std::shared_ptr<cldnn::engine> create(const device::ptr device, runtime_types runtime_type,
-                const engine_configuration& configuration, const InferenceEngine::ITaskExecutor::Ptr task_executor);
+                                                 const InferenceEngine::ITaskExecutor::Ptr task_executor);
 
 private:
     std::string _extensions;
-    std::unique_ptr<stream> _program_stream;
+    std::unique_ptr<stream> _service_stream;
     std::unique_ptr<cl::UsmHelper> _usm_helper;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU

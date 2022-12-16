@@ -90,9 +90,9 @@ public:
 
         implementation_desc conv_impl = { forcing_format, "", impl_types::onednn };
         bo_fused.set_option(build_option::force_implementations({ { "fc_prim", conv_impl } }));
-
-        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-        network network_fused(this->engine, this->topology_fused, bo_fused);
+        ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::in_order));
+        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused, cfg);
+        network network_fused(this->engine, this->topology_fused, bo_fused, cfg);
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
 

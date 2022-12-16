@@ -547,10 +547,11 @@ public:
         implementation_desc cldnn_impl = { p.input_format, "", impl_types::ocl };
         onednn_options.set_option(build_option::force_implementations({ { "pooling", onednn_impl } }));
         cldnn_options.set_option(build_option::force_implementations({ { "pooling", cldnn_impl } }));
+        ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::in_order));
 
         // for onednn fusing test, topology_non_fused means cldnn, topology_fused is onednn
-        network network_fused_cldnn(this->engine, this->topology_non_fused, cldnn_options);
-        network network_fused_onednn(this->engine, this->topology_fused, onednn_options);
+        network network_fused_cldnn(this->engine, this->topology_non_fused, cldnn_options, cfg);
+        network network_fused_onednn(this->engine, this->topology_fused, onednn_options, cfg);
 
         network_fused_cldnn.set_input_data("input", input_prim);
         network_fused_onednn.set_input_data("input", input_prim);

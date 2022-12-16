@@ -18,6 +18,7 @@
 #include "intel_gpu/plugin/device_config.hpp"
 
 #include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/graph/topology.hpp"
 
 // Forward declarations for cldnn part
@@ -78,7 +79,7 @@ public:
 
 class Program {
 public:
-    Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::engine> engine, const Config& config,
+    Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::engine> engine, const Config& config, const ExecutionConfig& new_conf,
             bool createTopologyOnly = false, bool partialBuild = false);
     Program(std::shared_ptr<cldnn::engine> engine, const Config& config)
         : m_max_batch(1)
@@ -122,6 +123,7 @@ public:
     cldnn::engine& GetEngine() const { return *m_engine; }
     std::shared_ptr<cldnn::engine> GetEnginePtr() const { return m_engine; }
     const Config& GetConfig() const { return m_config; }
+    const ExecutionConfig& GetExecutionConfig() const { return m_new_config; }
     int GetMaxBatchSizeForSingleProgram();
 
     bool IsOpSupported(const InferenceEngine::CNNNetwork& network, const std::shared_ptr<ngraph::Node>& op);
@@ -167,6 +169,7 @@ private:
     static factories_map_t factories_map;
     std::vector<std::shared_ptr<cldnn::program>> m_programs;
     Config m_config;
+    ExecutionConfig m_new_config;
     std::shared_ptr<cldnn::engine> m_engine;
 
     std::shared_ptr<cldnn::topology> m_topology;

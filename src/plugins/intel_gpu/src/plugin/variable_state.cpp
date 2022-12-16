@@ -31,11 +31,11 @@ void VariableState::SetState(const InferenceEngine::Blob::Ptr &newState) {
     auto lock = std::dynamic_pointer_cast<InferenceEngine::MemoryBlob>(newState)->rmap();
     auto data = lock.as<char*>();
     IterateOverStates([&data, this](cldnn::network::VariableState &state) {
-        state.memory->copy_from(engine_->get_program_stream(), data);
+        state.memory->copy_from(engine_->get_service_stream(), data);
         data += state.memory->get_layout().bytes_count();
         state.is_set = true;
     });
-    engine_->get_program_stream().enqueue_barrier();
+    engine_->get_service_stream().enqueue_barrier();
 }
 
 InferenceEngine::Blob::CPtr VariableState::GetState() const {
@@ -44,7 +44,7 @@ InferenceEngine::Blob::CPtr VariableState::GetState() const {
     auto blobLock = std::dynamic_pointer_cast<InferenceEngine::MemoryBlob>(blob)->wmap();
     auto data = blobLock.as<char*>();
     IterateOverStates([&data, this](cldnn::network::VariableState &state) {
-        cldnn::mem_lock<char, cldnn::mem_lock_type::read> lock { state.memory, engine_->get_program_stream() };
+        cldnn::mem_lock<char, cldnn::mem_lock_type::read> lock { state.memory, engine_->get_service_stream() };
         std::copy(lock.begin(), lock.end(), data);
         data += state.memory->get_layout().bytes_count();
     });

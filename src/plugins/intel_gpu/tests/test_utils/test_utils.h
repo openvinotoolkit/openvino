@@ -52,12 +52,8 @@ struct type_to_data_type<FLOAT16> {
 
 namespace tests {
 
-std::shared_ptr<cldnn::engine> create_test_engine(cldnn::queue_types queue_type = cldnn::queue_types::out_of_order);
+std::shared_ptr<cldnn::engine> create_test_engine();
 cldnn::engine& get_test_engine();
-cldnn::engine& get_test_engine(const cldnn::engine_configuration& configuration);
-#ifdef ENABLE_ONEDNN_FOR_GPU
-cldnn::engine& get_onednn_test_engine();
-#endif
 cldnn::stream_ptr get_test_stream_ptr();
 cldnn::stream& get_test_stream();
 

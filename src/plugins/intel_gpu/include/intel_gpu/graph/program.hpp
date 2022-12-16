@@ -7,6 +7,7 @@
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/stream.hpp"
 #include "intel_gpu/runtime/lru_cache.hpp"
+#include "intel_gpu/runtime/execution_config.hpp"
 #include "build_options.hpp"
 
 #include <list>
@@ -127,6 +128,7 @@ public:
     program(engine& engine_ref,
             topology const& topology,
             build_options const& options,
+            const ExecutionConfig& config,
             bool is_internal = false,
             bool no_optimizations = false,
             bool is_body_program = false);
@@ -134,11 +136,13 @@ public:
     program(engine& engine_ref,
             std::set<std::shared_ptr<program_node>> const& nodes,
             build_options const& options,
+            const ExecutionConfig& config,
             bool is_internal);
     explicit program(engine& engine);
     ~program();
     engine& get_engine() const { return _engine; }
     const build_options& get_options() const { return options; }
+    const ExecutionConfig& get_config() const { return _config; }
     std::list<program_node*>& get_inputs() {
         return inputs;
     }  // ToDo: redesign trim to ouptut pass to make it const as_well as get_engine and get options
@@ -238,6 +242,19 @@ public:
                              const std::set<std::shared_ptr<program_node>>& nodes,
                              const build_options& options,
                              bool is_internal);
+
+    static ptr build_program(engine& engine,
+                             const topology& topology,
+                             const build_options& options,
+                             const ExecutionConfig& config,
+                             bool is_internal = false,
+                             bool no_optimizations = false,
+                             bool is_body_program = false);
+    static ptr build_program(engine& engine,
+                             const std::set<std::shared_ptr<program_node>>& nodes,
+                             const build_options& options,
+                             const ExecutionConfig& config,
+                             bool is_internal);
     static void init_primitives();
     void compile();
     void init_kernels();
@@ -262,6 +279,7 @@ private:
     // TODO: Consider moving it to engine
     std::unique_ptr<kernels_cache> _kernels_cache;
     build_options options;
+    ExecutionConfig _config;
     std::list<program_node*> inputs;
     std::vector<program_node*> outputs;
     nodes_ordering processing_order;

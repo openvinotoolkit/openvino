@@ -24,7 +24,7 @@ void propagate_constants::run(program& p) {
             handle_constant(p, *node);
     }
 
-    auto&& to_replace = calculate(p.get_engine(), p.get_options());
+    auto&& to_replace = calculate(p.get_engine(), p.get_options(), p.get_config());
 
     // remove all nodes which are no longer relevant, i.e. nodes which:
     // 1. are constants, and
@@ -108,13 +108,17 @@ bool propagate_constants::has_non_const_user(program_node& node) const {
     return false;
 }
 
-std::list<std::pair<primitive_id, memory::ptr>> propagate_constants::calculate(engine& engine, build_options bo) {
+std::list<std::pair<primitive_id, memory::ptr>> propagate_constants::calculate(engine& engine, build_options bo, const ExecutionConfig& config) {
     if (!has_non_trivial_constants)
         return {};
 
+    ExecutionConfig cf_config = config;
+    cf_config.set_property(ov::intel_gpu::optimize_data(false));
+    cf_config.set_property(ov::intel_gpu::custom_outputs(const_outputs));
     bo.set_option(build_option::optimize_data(false));
     bo.set_option(build_option::outputs(const_outputs));
-    network::ptr net = network::build_network(engine, nodes, bo, true);
+    std::cerr << "CF << " << cf_config.to_string() << std::endl;
+    network::ptr net = network::build_network(engine, nodes, bo, cf_config, true);
     for (auto& cin : const_inputs)
         net->set_input_data(cin->id(), cin->get_attached_memory_ptr());
 

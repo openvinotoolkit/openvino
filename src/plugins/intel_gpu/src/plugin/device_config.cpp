@@ -101,39 +101,32 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap, 
             switch (uVal) {
             case 0:
             case 2:
-                queuePriority = cldnn::priority_mode_types::med;
+                queuePriority = ov::hint::Priority::MEDIUM;
                 break;
             case 1:
-                queuePriority = cldnn::priority_mode_types::low;
+                queuePriority = ov::hint::Priority::LOW;
                 break;
             case 3:
-                queuePriority = cldnn::priority_mode_types::high;
+                queuePriority = ov::hint::Priority::HIGH;
                 break;
             default:
                 IE_THROW(ParameterMismatch) << "Unsupported queue priority value: " << uVal;
             }
         } else if (key == ov::intel_gpu::hint::queue_priority) {
             std::stringstream ss(val);
-            ov::hint::Priority priority;
-            ss >> priority;
-            if (priority == ov::hint::Priority::HIGH)
-                queuePriority = cldnn::priority_mode_types::high;
-            else if (priority == ov::hint::Priority::MEDIUM)
-                queuePriority = cldnn::priority_mode_types::med;
-            else
-                queuePriority = cldnn::priority_mode_types::low;
+            ss >> queuePriority;
         } else if (key.compare(PluginConfigParams::KEY_MODEL_PRIORITY) == 0 || key == ov::hint::model_priority) {
             if (val.compare(PluginConfigParams::MODEL_PRIORITY_HIGH) == 0 ||
                 val.compare(ov::util::to_string(ov::hint::Priority::HIGH)) == 0) {
-                queuePriority = cldnn::priority_mode_types::high;
+                queuePriority = ov::hint::Priority::HIGH;
                 task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::BIG;
             } else if (val.compare(PluginConfigParams::MODEL_PRIORITY_MED) == 0 ||
                        val.compare(ov::util::to_string(ov::hint::Priority::MEDIUM)) == 0) {
-                queuePriority = cldnn::priority_mode_types::med;
+                queuePriority = ov::hint::Priority::MEDIUM;
                 task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::ANY;
             } else if (val.compare(PluginConfigParams::MODEL_PRIORITY_LOW) == 0 ||
                        val.compare(ov::util::to_string(ov::hint::Priority::LOW)) == 0) {
-                queuePriority = cldnn::priority_mode_types::low;
+                queuePriority = ov::hint::Priority::LOW;
                 task_exec_config._threadPreferredCoreType = IStreamsExecutor::Config::LITTLE;
             } else {
                 IE_THROW() << "Not found appropriate value for config key " << PluginConfigParams::KEY_MODEL_PRIORITY
@@ -160,27 +153,20 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap, 
             switch (uVal) {
             case 0:
             case 2:
-                queueThrottle = cldnn::throttle_mode_types::med;
+                queueThrottle = ov::intel_gpu::hint::ThrottleLevel::MEDIUM;
                 break;
             case 1:
-                queueThrottle = cldnn::throttle_mode_types::low;
+                queueThrottle = ov::intel_gpu::hint::ThrottleLevel::LOW;
                 break;
             case 3:
-                queueThrottle = cldnn::throttle_mode_types::high;
+                queueThrottle = ov::intel_gpu::hint::ThrottleLevel::HIGH;
                 break;
             default:
                 IE_THROW(ParameterMismatch) << "Unsupported queue throttle value: " << uVal;
             }
         } else if (key == ov::intel_gpu::hint::queue_throttle) {
             std::stringstream ss(val);
-            ov::intel_gpu::hint::ThrottleLevel throttle;
-            ss >> throttle;
-            if (throttle == ov::intel_gpu::hint::ThrottleLevel::HIGH)
-                queueThrottle = cldnn::throttle_mode_types::high;
-            else if (throttle == ov::intel_gpu::hint::ThrottleLevel::MEDIUM)
-                queueThrottle = cldnn::throttle_mode_types::med;
-            else
-                queueThrottle = cldnn::throttle_mode_types::low;
+            ss >> queueThrottle;
         } else if (key.compare(PluginConfigParams::KEY_CONFIG_FILE) == 0) {
             std::stringstream ss(val);
             std::istream_iterator<std::string> begin(ss);
@@ -318,17 +304,17 @@ void Config::adjustKeyMapValues() {
     key_config_map[ov::hint::inference_precision.name()] = inference_precision.get_type_name();
 
     {
-        if (queuePriority == cldnn::priority_mode_types::high &&
+        if (queuePriority == ov::hint::Priority::HIGH &&
             (task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::BIG ||
              getAvailableCoresTypes().size() == 1)) {
             key_config_map[ov::hint::model_priority.name()] =
                 ov::util::to_string(ov::hint::Priority::HIGH);
-        } else if (queuePriority == cldnn::priority_mode_types::low &&
+        } else if (queuePriority == ov::hint::Priority::LOW &&
                    (task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::LITTLE ||
                     getAvailableCoresTypes().size() == 1)) {
             key_config_map[ov::hint::model_priority.name()] =
                 ov::util::to_string(ov::hint::Priority::LOW);
-        } else if (queuePriority == cldnn::priority_mode_types::med &&
+        } else if (queuePriority == ov::hint::Priority::MEDIUM &&
                    task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::ANY) {
             key_config_map[ov::hint::model_priority.name()] =
                 ov::util::to_string(ov::hint::Priority::MEDIUM);
@@ -337,13 +323,13 @@ void Config::adjustKeyMapValues() {
     {
         std::string qp = "0";
         switch (queuePriority) {
-        case cldnn::priority_mode_types::low:
+        case ov::hint::Priority::LOW:
             qp = "1";
             break;
-        case cldnn::priority_mode_types::med:
+        case ov::hint::Priority::MEDIUM:
             qp = "2";
             break;
-        case cldnn::priority_mode_types::high:
+        case ov::hint::Priority::HIGH:
             qp = "3";
             break;
         default:
@@ -352,25 +338,18 @@ void Config::adjustKeyMapValues() {
         key_config_map[GPUConfigParams::KEY_GPU_PLUGIN_PRIORITY] = qp;
     }
     {
-        std::string priority;
-        if (queuePriority == cldnn::priority_mode_types::high)
-            priority = ov::util::to_string(ov::hint::Priority::HIGH);
-        else if (queuePriority == cldnn::priority_mode_types::low)
-            priority = ov::util::to_string(ov::hint::Priority::LOW);
-        else
-            priority = ov::util::to_string(ov::hint::Priority::MEDIUM);
-        key_config_map[ov::intel_gpu::hint::queue_priority.name()] = priority;
+        key_config_map[ov::intel_gpu::hint::queue_priority.name()] = ov::util::to_string(queuePriority);
     }
     {
         std::string qt = "0";
         switch (queueThrottle) {
-        case cldnn::throttle_mode_types::low:
+        case ov::intel_gpu::hint::ThrottleLevel::LOW:
             qt = "1";
             break;
-        case cldnn::throttle_mode_types::med:
+        case ov::intel_gpu::hint::ThrottleLevel::MEDIUM:
             qt = "2";
             break;
-        case cldnn::throttle_mode_types::high:
+        case ov::intel_gpu::hint::ThrottleLevel::HIGH:
             qt = "3";
             break;
         default:
@@ -379,14 +358,7 @@ void Config::adjustKeyMapValues() {
         key_config_map[GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE] = qt;
     }
     {
-        std::string throttleLevel;
-        if (queueThrottle == cldnn::throttle_mode_types::high)
-            throttleLevel = ov::util::to_string(ov::intel_gpu::hint::ThrottleLevel::HIGH);
-        else if (queueThrottle == cldnn::throttle_mode_types::low)
-            throttleLevel = ov::util::to_string(ov::intel_gpu::hint::ThrottleLevel::LOW);
-        else
-            throttleLevel = ov::util::to_string(ov::intel_gpu::hint::ThrottleLevel::MEDIUM);
-        key_config_map[ov::intel_gpu::hint::queue_throttle.name()] = throttleLevel;
+        key_config_map[ov::intel_gpu::hint::queue_throttle.name()] = ov::util::to_string(queueThrottle);
     }
     {
         std::string hostTaskPriority;

@@ -99,12 +99,14 @@ using namespace ov::intel_gpu;
 program::program(engine& engine_ref,
                  topology const& topology,
                  build_options const& options,
+                 const ExecutionConfig& config,
                  bool is_internal,
                  bool no_optimizations,
                  bool is_body_program)
     : _engine(engine_ref),
-      _stream(_engine.create_stream()),
+      _stream(_engine.create_stream(config)),
       options(options),
+      _config(config),
       processing_order(),
       tuning_cache(nullptr),
       is_body_program(is_body_program),
@@ -115,7 +117,7 @@ program::program(engine& engine_ref,
 
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(topology);
-    _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, prog_id,
+    _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id,
                                                                       kernel_selector::KernelBase::get_db().get_batch_header_str()));
     program_node::reset_unique_id();
 
@@ -129,10 +131,12 @@ program::program(engine& engine_ref,
 program::program(engine& engine_ref,
                  std::set<std::shared_ptr<program_node>> const& nodes,
                  build_options const& options,
+                 const ExecutionConfig& config,
                  bool is_internal)
     : _engine(engine_ref),
-      _stream(_engine.create_stream()),
+      _stream(_engine.create_stream(config)),
       options(options),
+      _config(config),
       processing_order(),
       tuning_cache(nullptr),
       is_subgroup_local_block_io_supported(-1) {
@@ -140,7 +144,7 @@ program::program(engine& engine_ref,
     set_options();
     query_local_block_io_supported();
 
-    _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, prog_id,
+    _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id,
                                                                       kernel_selector::KernelBase::get_db().get_batch_header_str()));
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(nodes);
@@ -149,8 +153,9 @@ program::program(engine& engine_ref,
 
 program::program(engine& engine)
     : _engine(engine),
-      _stream(_engine.create_stream()),
+      _stream(_engine.create_stream({})),
       options(build_options()),
+      _config(),
       processing_order(),
       tuning_cache(nullptr),
       is_subgroup_local_block_io_supported(-1) { }
@@ -190,7 +195,7 @@ void program::load_tuning_cache() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "ProgramImpl::LoadTuningCache");
     GPU_DEBUG_DEFINE_MEM_LOGGER("ProgramImpl::LoadTuningCache");
     try {
-        tuning_cache = kernel_selector::CreateTuningCacheFromFile(get_engine().configuration().tuning_cache_path);
+        tuning_cache = kernel_selector::CreateTuningCacheFromFile("cache.json");
     } catch (...) {
         tuning_cache = std::make_shared<kernel_selector::TuningCache>();
     }
@@ -214,14 +219,32 @@ program::ptr program::build_program(engine& engine,
                                     bool is_internal,
                                     bool no_optimizations,
                                     bool is_body_program) {
-    return std::make_shared<program>(engine, topology, options, is_internal, no_optimizations, is_body_program);
+    return std::make_shared<program>(engine, topology, options, ExecutionConfig{}, is_internal, no_optimizations, is_body_program);
 }
 
 program::ptr program::build_program(engine& engine,
                                     const std::set<std::shared_ptr<program_node>>& nodes,
                                     const build_options& options,
                                     bool is_internal) {
-    return std::make_shared<program>(engine, nodes, options, is_internal);
+    return std::make_shared<program>(engine, nodes, options, ExecutionConfig{}, is_internal);
+}
+
+program::ptr program::build_program(engine& engine,
+                                    const topology& topology,
+                                    const build_options& options,
+                                    const ExecutionConfig& config,
+                                    bool is_internal,
+                                    bool no_optimizations,
+                                    bool is_body_program) {
+    return std::make_shared<program>(engine, topology, options, config, is_internal, no_optimizations, is_body_program);
+}
+
+program::ptr program::build_program(engine& engine,
+                                    const std::set<std::shared_ptr<program_node>>& nodes,
+                                    const build_options& options,
+                                    const ExecutionConfig& config,
+                                    bool is_internal) {
+    return std::make_shared<program>(engine, nodes, options, config, is_internal);
 }
 
 program_node& program::get_node(primitive_id const& id) {
@@ -450,12 +473,6 @@ void program::set_options() {
     prog_id = ++id_gen;
     assert(prog_id != 0);
 
-    if ((options.get<build_option_type::tuning_config>()->config.mode == tuning_mode::tuning_tune_and_cache ||
-         options.get<build_option_type::tuning_config>()->config.mode == tuning_mode::tuning_retune_and_cache) &&
-        !_engine.configuration().enable_profiling) {
-        throw std::invalid_argument("Engine must be created with profiling enabled in tune_and_cache mode!");
-    }
-
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
         options.set_option(cldnn::build_option::graph_dumps_dir(debug_config->dump_graphs));
@@ -502,7 +519,7 @@ void program::query_local_block_io_supported() {
     kernel_string->batch_compilation = true;
 
     try {
-        auto _kernels_cache_device_query = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, prog_id,
+        auto _kernels_cache_device_query = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id,
                                                                     kernel_selector::KernelBase::get_db().get_batch_header_str()));
         auto id = _kernels_cache_device_query->set_kernel_source(kernel_string, false);
         _kernels_cache_device_query->build_all();
@@ -581,6 +598,10 @@ void program::pre_optimize_graph(bool is_internal) {
         if (!node->is_type<data>())
             node->get_output_layouts();
     }
+
+    std::cerr << "PROGRAM:  << " << _config.to_string() << std::endl;
+    auto enabled = _config.get_property(ov::intel_gpu::optimize_data);
+    std::cerr << "optimize_data: " << options.get<build_option_type::optimize_data>()->enabled() << " " << enabled << std::endl;
 
     if (options.get<build_option_type::optimize_data>()->enabled()) {
         apply_opt_pass<prepare_quantization>();
@@ -786,7 +807,7 @@ program::nodes_ordering& program::get_processing_order() { return processing_ord
 const program::nodes_ordering& program::get_processing_order() const { return processing_order; }
 
 void program::prepare_memory_dependencies() {
-    if (!get_engine().configuration().use_memory_pool)
+    if (!_config.get_property(ov::intel_gpu::enable_memory_pool))
         return;
 
     apply_opt_pass<basic_memory_dependencies>();
@@ -1625,7 +1646,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     auto& engine = get_engine();
     if (engine.get_device_info().supports_immad &&
         engine.get_device_info().vendor_id == INTEL_VENDOR_ID &&
-        engine.configuration().queue_type == queue_types::in_order)
+        get_config().get_property(ov::intel_gpu::queue_type) == QueueTypes::in_order)
         lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, 1);
 #endif
 }

@@ -7,6 +7,7 @@
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/kernel.hpp"
+#include "intel_gpu/runtime/execution_config.hpp"
 
 #include <map>
 #include <mutex>
@@ -76,6 +77,7 @@ public:
 private:
     static std::mutex _mutex;
     engine& _engine;
+    ExecutionConfig _config;
     uint32_t _prog_id = 0;
     kernels_code _kernels_code;
     size_t _kernel_idx = 0;
@@ -91,7 +93,7 @@ private:
     size_t get_max_kernels_per_batch() const;
 
 public:
-    explicit kernels_cache(engine& engine, uint32_t prog_id, const std::vector<std::string>& batch_header_str = {});
+    explicit kernels_cache(engine& engine, const ExecutionConfig& config, uint32_t prog_id, const std::vector<std::string>& batch_header_str = {});
     kernel_id set_kernel_source(const std::shared_ptr<kernel_string>& kernel_string,
                                 bool dump_custom_program);
     kernel::ptr get_kernel(kernel_id id) const;

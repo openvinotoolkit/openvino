@@ -2115,19 +2115,9 @@ struct resample_opt_random_test_ext : resample_opt_random_test
         std::cout << std::endl;
     }
 
-    cldnn::engine_configuration get_profiling_config() {
-        //const bool enable_profiling = true;
-        std::string sources_dumps_dir = "";
-        cldnn::queue_types queue_type = cldnn::queue_types::out_of_order;
-        priority_mode_types priority_mode = priority_mode_types::disabled;
-        throttle_mode_types throttle_mode = throttle_mode_types::disabled;
-        bool use_memory_pool = true;
-        bool use_unified_shared_memory = true;
-        return engine_configuration(true, queue_type, sources_dumps_dir, priority_mode, throttle_mode, use_memory_pool, use_unified_shared_memory);
-    }
-
     void execute_perf_test(const resample_opt_random_test_params& params, const std::string& kernel, const bool do_planar = false) {
-        auto& engine = get_test_engine(get_profiling_config());
+        auto& engine = get_test_engine();
+        ExecutionConfig cfg(ov::enable_profiling(true));
 
         const format origin_format = format::dimension(params.in_format) == 4 ? format::bfyx : format::bfzyx;
         auto in_layout = layout(params.input_type, origin_format, params.input_size);
@@ -2151,7 +2141,7 @@ struct resample_opt_random_test_ext : resample_opt_random_test
         build_opts_opt.set_option(build_option::debug(true));
         // optimize_data is turned on to test cross-layout
 
-        network net_opt(engine, topo_opt, build_opts_opt);
+        network net_opt(engine, topo_opt, build_opts_opt, cfg);
 
         // Use in_mem from ref network
         net_opt.set_input_data("in", in_mem);

@@ -802,7 +802,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
                     memory::ptr cur_bin_mem_ptr = cur_node.as<data>().get_attached_memory_ptr();
                     if (cur_bin_mem_ptr == nullptr)
                         throw std::runtime_error("OneDNN post-ops optimization error: nonexistent node for bin + eltw");
-                    auto& stream = cur_bin_mem_ptr->get_engine()->get_program_stream();
+                    auto& stream = cur_bin_mem_ptr->get_engine()->get_service_stream();
                     mem_lock<float, mem_lock_type::read_write> bin_and_eltw_lock(cur_bin_mem_ptr, stream);
 
                     size_t cur_bin_mem_size = cur_node.get_output_layout().count();
@@ -844,7 +844,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
                     memory::ptr prev_bin_mem_ptr = prev_node.as<data>().get_attached_memory_ptr();
                     if (prev_bin_mem_ptr == nullptr)
                         throw std::runtime_error("OneDNN post-ops optimization error: nonexistent node for eltw + bin");
-                    auto& stream = prev_bin_mem_ptr->get_engine()->get_program_stream();
+                    auto& stream = prev_bin_mem_ptr->get_engine()->get_service_stream();
                     mem_lock<float, mem_lock_type::read_write> eltw_and_bin_lock(prev_bin_mem_ptr, stream);
 
                     size_t prev_bin_mem_size = prev_node.get_output_layout().count();
@@ -932,7 +932,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
                     memory::ptr prev_scale_mem_ptr = prev_node.as<data>().get_attached_memory_ptr();
                     if (prev_scale_mem_ptr == nullptr)
                         throw std::runtime_error("OneDNN post-ops optimization error: nonexistent node for eltw + scale");
-                    auto& stream = prev_scale_mem_ptr->get_engine()->get_program_stream();
+                    auto& stream = prev_scale_mem_ptr->get_engine()->get_service_stream();
                     mem_lock<float, mem_lock_type::read_write> eltw_and_scale_lock(prev_scale_mem_ptr, stream);
 
                     size_t prev_scale_mem_size = prev_node.get_output_layout().count();

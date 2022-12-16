@@ -233,7 +233,7 @@ void prepare_primitive_fusing::fuse_activations(program &p) {
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     auto& engine = p.get_engine();
-    if (engine.get_device_info().supports_immad && engine.configuration().queue_type == queue_types::in_order)
+    if (engine.get_device_info().supports_immad && p.get_config().get_property(ov::intel_gpu::queue_type) == QueueTypes::in_order)
         use_onednn_impls = true;
 #endif
 

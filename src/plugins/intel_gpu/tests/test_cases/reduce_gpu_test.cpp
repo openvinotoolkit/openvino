@@ -1816,7 +1816,7 @@ INSTANTIATE_TEST_SUITE_P(reduce_gpu_b_fs_yx_fsv16_xy_i8,
 template <data_types InputT, data_types OutputT>
 class ReduceOnednnTestBase : public ::testing::TestWithParam<TestParamType_general_reduce_gpu> {
 protected:
-    cldnn::engine& engine = get_onednn_test_engine();
+    cldnn::engine& engine = get_test_engine();
     int batch_num, input_f, input_w, input_z, input_y, input_x;
     cldnn::format input_format = format::any;
     cldnn::reduce_mode reduce_mode;
@@ -1897,7 +1897,8 @@ public:
         options.set_option(build_option::optimize_data(true));
         implementation_desc reduce_impl = {input_format, kernel_name, impl_types::onednn};
         options.set_option(build_option::force_implementations({{"reduce", reduce_impl}}));
-        network network(engine, topology, options);
+        ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::in_order));
+        network network(engine, topology, options, cfg);
         network.set_input_data("input", input_mem);
 
         network.execute();

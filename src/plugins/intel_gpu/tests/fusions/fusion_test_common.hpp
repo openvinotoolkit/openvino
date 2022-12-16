@@ -18,11 +18,7 @@ using namespace ::tests;
 template<typename T>
 class BaseFusingTest : public ::testing::TestWithParam<T> {
 public:
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    cldnn::engine& engine = get_onednn_test_engine();
-#else
     cldnn::engine& engine = get_test_engine();
-#endif
     cldnn::topology topology_fused;
     cldnn::topology topology_non_fused;
     cldnn::build_options bo_fused;

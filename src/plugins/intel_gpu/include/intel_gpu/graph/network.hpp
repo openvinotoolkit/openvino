@@ -33,7 +33,7 @@ struct network_output {
     memory::ptr get_memory() const {
         // TODO: in_order queue doesn't create proper output event in some cases which leads to syncronization issues with user app
         // So call finish for associated stream to enusre that the output data is ready.
-        if (_stream->get_queue_type() == queue_types::in_order) {
+        if (_stream->get_queue_type() == QueueTypes::in_order) {
             _stream->finish();
         } else {
             _event->wait();
@@ -67,14 +67,20 @@ public:
     };
     using variables_states_map = std::map<std::string, VariableState::Ptr>;
 
-    explicit network(program::ptr program, stream::ptr stream, bool is_internal = false, bool is_primary_stream = true);
+    explicit network(program::ptr program, const ExecutionConfig& config, stream::ptr stream, bool is_internal = false, bool is_primary_stream = true);
     network(engine& engine,
             const topology& topo,
             const build_options& options = build_options(),
             bool is_internal = false);
     network(engine& engine,
+            const topology& topo,
+            const build_options& options,
+            const ExecutionConfig& config,
+            bool is_internal = false);
+    network(engine& engine,
             const std::set<std::shared_ptr<program_node>>& nodes,
             const build_options& options,
+            const ExecutionConfig& config,
             bool is_internal);
 
     network(program::ptr program, uint16_t stream_id = 0);
@@ -82,6 +88,7 @@ public:
     network(program::ptr program, stream::ptr stream, uint16_t stream_id);
 
     network(cldnn::BinaryInputBuffer& ifs, stream::ptr stream, engine& engine, uint16_t stream_id = 0);
+    network(cldnn::BinaryInputBuffer& ifs, const ExecutionConfig& config, stream::ptr stream, engine& engine, uint16_t stream_id = 0);
 
     ~network();
 
@@ -94,6 +101,11 @@ public:
     static ptr build_network(engine& engine,
                              const std::set<std::shared_ptr<program_node>>& nodes,
                              const build_options& options,
+                             bool is_internal);
+    static ptr build_network(engine& engine,
+                             const std::set<std::shared_ptr<program_node>>& nodes,
+                             const build_options& options,
+                             const ExecutionConfig& config,
                              bool is_internal);
 
     static ptr allocate_network(stream::ptr stream,
@@ -121,7 +133,7 @@ public:
 
     network_output get_output(const primitive_id& output_id) {
         event::ptr evt;
-        if (get_stream().get_queue_type() == queue_types::out_of_order)
+        if (get_stream().get_queue_type() == QueueTypes::out_of_order)
             evt = get_primitive_event(output_id);
         return network_output(evt, get_output_memory(output_id), get_stream_ptr());
     }
@@ -236,10 +248,13 @@ public:
     ICompilationContext& get_compilation_context() const { return *_compilation_context; }
     std::mutex& get_impl_cache_mutex() const { return _in_mem_cache_mutex; }
 
+    const ExecutionConfig& get_config() const { return _config; }
+
 private:
     using output_chains_map = std::map<primitive_id, std::vector<std::shared_ptr<primitive_inst>>>;
     uint32_t net_id = 0;
     program::ptr _program;
+    ExecutionConfig _config;
     engine& _engine;
     stream::ptr _stream;
     std::unique_ptr<memory_pool> _memory_pool;

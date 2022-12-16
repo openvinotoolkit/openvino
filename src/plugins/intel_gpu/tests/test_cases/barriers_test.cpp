@@ -11,10 +11,9 @@
 using namespace cldnn;
 using namespace ::tests;
 
-TEST(DISABLED_oooq_test, simple)
-{
-    engine_configuration cfg{ false, queue_types::out_of_order };
-    auto eng = engine::create(engine_types::ocl, runtime_types::ocl, cfg);
+TEST(DISABLED_oooq_test, simple) {
+    auto eng = engine::create(engine_types::ocl, runtime_types::ocl);
+    ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::out_of_order));
 
     auto in_layout = layout{ data_types::f32, format::bfyx, { 1, 1, 1, 1 } };
     auto concat_layout = layout{ data_types::f32, format::bfyx, { 1, 1, 1, 2 } };
@@ -44,7 +43,7 @@ TEST(DISABLED_oooq_test, simple)
     tpl.add(concatenation("c9", { input_info("r7"), input_info("r8") }, 2));
 
     build_options options;
-    network net{ *eng, tpl, options };
+    network net{ *eng, tpl, options, cfg };
 
     net.set_input_data("in", input_mem);
     auto output = net.execute().at("c9").get_memory();

@@ -27,6 +27,7 @@ private:
             _program = program::build_program(node.get_program().get_engine(),
                                               _topology,
                                               node.get_program().get_options(),
+                                              node.get_program().get_config(),
                                               true);  // rebuild program
         }
         program::ptr get() const { return _program; }

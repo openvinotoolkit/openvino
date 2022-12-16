@@ -1078,7 +1078,7 @@ TEST_P(concat_implicit_gpu_4d_i8, input_order_opt_b_fs_yx_fsv32) {
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 TEST(concat_gpu_onednn, basic_input_types) {
-    auto& engine = get_onednn_test_engine();
+    auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
         return;
 
@@ -1119,7 +1119,8 @@ TEST(concat_gpu_onednn, basic_input_types) {
     implementation_desc impl = { format::bfyx, std::string(""), impl_types::onednn };
     options_target.set_option(build_option::force_implementations({ {"concat", impl} }));
 
-    network network(engine, topology, options_target);
+    ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::in_order));
+    network network(engine, topology, options_target, cfg);
     network.set_input_data("input0", input0);
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
@@ -1154,7 +1155,7 @@ struct concat_gpu_4d_implicit_onednn : public concat_gpu {
 public:
     cldnn::memory::ptr run_concat_network(std::vector<std::vector<std::vector<std::vector<std::vector<Type>>>>> input, format::type fmt, build_options options) {
         auto data_type = type_to_data_type<Type>::value;
-        auto& engine = get_onednn_test_engine();
+        auto& engine = get_test_engine();
         const size_t batch_num = testing::get<0>(GetParam());
         const std::vector<size_t> in_features = testing::get<1>(GetParam());
         const size_t input_y = testing::get<2>(GetParam());
@@ -1204,10 +1205,11 @@ public:
         topology.add(concatenation("concat", pooling_ids, 1));
         auto weights_lay = cldnn::layout(data_type, cldnn::format::bfyx, tensor(batch(output_f), feature(output_f)));
         auto weights_mem = engine.allocate_memory(weights_lay);
-        weights_mem->fill(get_test_stream());
-        get_test_stream().finish();
+        auto& stream = get_test_stream();
+        weights_mem->fill(stream);
+        stream.finish();
         {
-            cldnn::mem_lock<Type> weights_ptr(weights_mem, get_test_stream());
+            cldnn::mem_lock<Type> weights_ptr(weights_mem, stream);
             for (size_t fi = 0; fi < output_f; ++fi) {
                 auto coords = tensor(batch(fi), feature(fi), spatial(0, 0, 0, 0));
                 auto offset = weights_lay.get_linear_offset(coords);
@@ -1219,7 +1221,8 @@ public:
         topology.add(pooling("pool_final", input_info("conv"), pooling_mode::max, {1, 1}, {1, 1}));
         topology.add(reorder("reorder", input_info("pool_final"), layout(data_type, format::bfyx, {(int32_t)batch_num, (int32_t)output_f, (int32_t)input_y, (int32_t)input_x})));
 
-        network concat_network(engine, topology, options);
+        ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::in_order));
+        network concat_network(engine, topology, options, cfg);
         for (size_t i = 0; i < in_features.size(); i++) {
             concat_network.set_input_data(input_ids[i], in_memory[i]);
         }
@@ -1246,7 +1249,8 @@ public:
     }
 
     void test(format::type fmt) {
-        auto& engine = get_onednn_test_engine();
+        auto& engine = get_test_engine();
+        auto& stream = get_test_stream();
         if (!engine.get_device_info().supports_immad) {
             // This case is only for device that uses onednn.
             return;
@@ -1259,13 +1263,13 @@ public:
         implementation_desc impl = { fmt, std::string(""), impl_types::onednn };
         options1.set_option(build_option::force_implementations({ {"conv", impl} }));
         auto out_mem1 = run_concat_network(input, fmt, options1);
-        cldnn::mem_lock<Type> out_ptr1(out_mem1, get_test_stream());
+        cldnn::mem_lock<Type> out_ptr1(out_mem1, stream);
 
         // explicit concat
         build_options options2;
         options2.set_option(build_option::optimize_data(false));
         auto out_mem2 = run_concat_network(input, fmt, options2);
-        cldnn::mem_lock<Type> out_ptr2(out_mem2, get_test_stream());
+        cldnn::mem_lock<Type> out_ptr2(out_mem2, stream);
 
         ASSERT_EQ(out_ptr1.size(), out_ptr2.size());
         size_t diff_count = 0;

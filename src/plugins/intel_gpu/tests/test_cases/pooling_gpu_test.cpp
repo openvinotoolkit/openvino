@@ -3202,7 +3202,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_POOLING,
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 TEST(pooling_forward_gpu_onednn, basic_max_pooling_int8) {
-    auto& engine = get_onednn_test_engine();
+    auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
         return;
     layout in_layout = { type_to_data_type<float>::value, format::byxf, { 1, 1, 3, 3 } };
@@ -3232,11 +3232,12 @@ TEST(pooling_forward_gpu_onednn, basic_max_pooling_int8) {
     options_target.set_option(build_option::outputs({ "reorder2"}));
     implementation_desc impl = {format::bfyx, std::string(""), impl_types::onednn};
     options_target.set_option(build_option::force_implementations({{"pool1", impl}}));
+    ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::in_order));
 
     network network(
         engine,
         topology,
-        options_target);
+        options_target, cfg);
 
     network.set_input_data("input", input_memory);
 

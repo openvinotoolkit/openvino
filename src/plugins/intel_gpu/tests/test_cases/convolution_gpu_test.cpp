@@ -8970,7 +8970,7 @@ INSTANTIATE_TEST_SUITE_P(conv_onednn_cases,
 
 
 TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
-    auto& engine = get_onednn_test_engine();
+    auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
         return;
 
@@ -9075,7 +9075,8 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
     options.set_option(build_option::optimize_data(true));
     implementation_desc conv_impl = { format::byxf, impl_name, prim_impl_types };
     options.set_option(build_option::force_implementations({ { "conv_fsv", conv_impl } }));
-    network network(engine, topology, options);
+    ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::in_order));
+    network network(engine, topology, options, cfg);
 
     network.set_input_data("input", input_mem);
     network.execute();
@@ -9113,7 +9114,7 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
 }
 
 TEST(convolution_gpu_onednn, padding_for_cldnn_kernel_after_onednn) {
-    auto& engine = get_onednn_test_engine();
+    auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
         return;
 
@@ -9154,8 +9155,9 @@ TEST(convolution_gpu_onednn, padding_for_cldnn_kernel_after_onednn) {
     options_ref.set_option(build_option::force_implementations({ { "conv1", conv1_impl_ref }, { "conv2", conv2_impl_ref } }));
     options_ref.set_option(build_option::optimize_data(true));
 
-    network network_test(engine, topology_test, options_test);
-    network network_ref(engine, topology_ref, options_ref);
+    ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::in_order));
+    network network_test(engine, topology_test, options_test, cfg);
+    network network_ref(engine, topology_ref, options_ref, cfg);
 
     network_test.set_input_data("input", input_mem);
     network_ref.set_input_data("input", input_mem);
