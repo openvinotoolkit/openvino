@@ -155,6 +155,10 @@ ov::pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
                                                                Shape{},
                                                                reversed_transposed_split_axis);
         split->input(1).replace_source_output(new_split_axis_const);
+        copy_runtime_info({split_axis_constant,
+                           output_transpose.transpose->shared_from_this(),
+                           output_transpose.transpose_const->shared_from_this()},
+                          new_split_axis_const);
 
         // remove split output transposes
         for (size_t output_idx = 0; output_idx < split->get_output_size(); ++output_idx) {
@@ -196,6 +200,8 @@ ov::pass::TransposeSinkingSplitForward::TransposeSinkingSplitForward() {
         auto new_split_axis_const =
             std::make_shared<Constant>(split_axis_constant->get_element_type(), Shape{}, transposed_split_axis);
         split_node->input(1).replace_source_output(new_split_axis_const);
+        copy_runtime_info({split_axis_constant, transpose_input_info.transpose, transpose_input_info.transpose_const},
+                          new_split_axis_const);
 
         return true;
     };

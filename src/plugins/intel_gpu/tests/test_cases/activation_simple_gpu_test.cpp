@@ -48,8 +48,8 @@ TEST(activation_f32_fw_gpu, not_basic_yxfb) {
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "not");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "not");
 
     auto output_memory = outputs.at("not").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -59,14 +59,14 @@ TEST(activation_f32_fw_gpu, not_basic_yxfb) {
     int x_size = output_layout.spatial(0);
     int f_size = output_layout.feature();
     int b_size = output_layout.batch();
-    EXPECT_EQ(output_layout.format, format::yxfb);
-    EXPECT_EQ(y_size, 4);
-    EXPECT_EQ(x_size, 5);
-    EXPECT_EQ(f_size, 1);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(output_layout.format, format::yxfb);
+    ASSERT_EQ(y_size, 4);
+    ASSERT_EQ(x_size, 5);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 1);
 
     for (size_t i = 0; i < output_vec.size(); ++i) {
-        EXPECT_FLOAT_EQ(output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(output_vec[i], output_ptr[i]);
     }
 }
 
@@ -92,8 +92,8 @@ TEST(activation_f32_fw_gpu, erf_basic_yxfb) {
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "not");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "not");
 
     auto output_memory = outputs.at("not").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -104,14 +104,14 @@ TEST(activation_f32_fw_gpu, erf_basic_yxfb) {
     int x_size = output_layout.spatial(0);
     int f_size = output_layout.feature();
     int b_size = output_layout.batch();
-    EXPECT_EQ(output_layout.format, format::yxfb);
-    EXPECT_EQ(y_size, 4);
-    EXPECT_EQ(x_size, 5);
-    EXPECT_EQ(f_size, 1);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(output_layout.format, format::yxfb);
+    ASSERT_EQ(y_size, 4);
+    ASSERT_EQ(x_size, 5);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 1);
 
     for (int i = 0; i < b_size * f_size * y_size * x_size; ++i) {
-        EXPECT_FLOAT_EQ(std::erf(input_ptr[i]), output_ptr[i]);
+        ASSERT_FLOAT_EQ(std::erf(input_ptr[i]), output_ptr[i]);
     }
 }
 
@@ -138,8 +138,8 @@ TEST(activation_f32_fw_gpu, hard_sigmoid_basic_yxfb) {
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "not");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "not");
 
     auto output_memory = outputs.at("not").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -150,15 +150,15 @@ TEST(activation_f32_fw_gpu, hard_sigmoid_basic_yxfb) {
     int x_size = output_layout.spatial(0);
     int f_size = output_layout.feature();
     int b_size = output_layout.batch();
-    EXPECT_EQ(output_layout.format, format::yxfb);
-    EXPECT_EQ(y_size, 4);
-    EXPECT_EQ(x_size, 5);
-    EXPECT_EQ(f_size, 1);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(output_layout.format, format::yxfb);
+    ASSERT_EQ(y_size, 4);
+    ASSERT_EQ(x_size, 5);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 1);
 
     for (int i = 0; i < b_size * f_size * y_size * x_size; ++i) {
         float res = std::fmax(0.0f, std::fmin(1.0f, params.a * input_ptr[i] + params.b));
-        EXPECT_FLOAT_EQ(res, output_ptr[i]);
+        ASSERT_FLOAT_EQ(res, output_ptr[i]);
     }
 }
 
@@ -184,8 +184,8 @@ TEST(activation_f32_fw_gpu, reciprocal_basic_yxfb) {
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "not");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "not");
 
     auto output_memory = outputs.at("not").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -196,15 +196,15 @@ TEST(activation_f32_fw_gpu, reciprocal_basic_yxfb) {
     int x_size = output_layout.spatial(0);
     int f_size = output_layout.feature();
     int b_size = output_layout.batch();
-    EXPECT_EQ(output_layout.format, format::yxfb);
-    EXPECT_EQ(y_size, 4);
-    EXPECT_EQ(x_size, 5);
-    EXPECT_EQ(f_size, 1);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(output_layout.format, format::yxfb);
+    ASSERT_EQ(y_size, 4);
+    ASSERT_EQ(x_size, 5);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 1);
 
     for (int i = 0; i < b_size * f_size * y_size * x_size; ++i) {
         float res = 1 / input_ptr[i];
-        EXPECT_FLOAT_EQ(res, output_ptr[i]);
+        ASSERT_FLOAT_EQ(res, output_ptr[i]);
     }
 }
 
@@ -231,8 +231,8 @@ TEST(activation_f32_fw_gpu, selu_basic_yxfb) {
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "not");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "not");
 
     auto output_memory = outputs.at("not").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -243,16 +243,16 @@ TEST(activation_f32_fw_gpu, selu_basic_yxfb) {
     int x_size = output_layout.spatial(0);
     int f_size = output_layout.feature();
     int b_size = output_layout.batch();
-    EXPECT_EQ(output_layout.format, format::yxfb);
-    EXPECT_EQ(y_size, 4);
-    EXPECT_EQ(x_size, 5);
-    EXPECT_EQ(f_size, 1);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(output_layout.format, format::yxfb);
+    ASSERT_EQ(y_size, 4);
+    ASSERT_EQ(x_size, 5);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 1);
 
     for (int i = 0; i < b_size * f_size * y_size * x_size; ++i) {
         float res = input_ptr[i] <= 0 ? params.b * (params.a * std::exp(input_ptr[i]) - params.a) :
                                         params.b * input_ptr[i];
-        EXPECT_FLOAT_EQ(res, output_ptr[i]);
+        ASSERT_FLOAT_EQ(res, output_ptr[i]);
     }
 }
 
@@ -278,8 +278,8 @@ TEST(activation_f32_fw_gpu, softplus_basic_yxfb) {
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "not");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "not");
 
     auto output_memory = outputs.at("not").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -290,15 +290,15 @@ TEST(activation_f32_fw_gpu, softplus_basic_yxfb) {
     int x_size = output_layout.spatial(0);
     int f_size = output_layout.feature();
     int b_size = output_layout.batch();
-    EXPECT_EQ(output_layout.format, format::yxfb);
-    EXPECT_EQ(y_size, 4);
-    EXPECT_EQ(x_size, 5);
-    EXPECT_EQ(f_size, 1);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(output_layout.format, format::yxfb);
+    ASSERT_EQ(y_size, 4);
+    ASSERT_EQ(x_size, 5);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 1);
 
     for (int i = 0; i < b_size * f_size * y_size * x_size; ++i) {
         float res = std::log(std::exp(input_ptr[i]) + 1);
-        EXPECT_FLOAT_EQ(res, output_ptr[i]);
+        ASSERT_FLOAT_EQ(res, output_ptr[i]);
     }
 }
 
@@ -324,8 +324,8 @@ TEST(activation_f32_fw_gpu, softsign_basic_yxfb) {
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "not");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "not");
 
     auto output_memory = outputs.at("not").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -336,15 +336,15 @@ TEST(activation_f32_fw_gpu, softsign_basic_yxfb) {
     int x_size = output_layout.spatial(0);
     int f_size = output_layout.feature();
     int b_size = output_layout.batch();
-    EXPECT_EQ(output_layout.format, format::yxfb);
-    EXPECT_EQ(y_size, 4);
-    EXPECT_EQ(x_size, 5);
-    EXPECT_EQ(f_size, 1);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(output_layout.format, format::yxfb);
+    ASSERT_EQ(y_size, 4);
+    ASSERT_EQ(x_size, 5);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 1);
 
     for (int i = 0; i < b_size * f_size * y_size * x_size; ++i) {
         float res = input_ptr[i] / (1 + std::abs(input_ptr[i]));
-        EXPECT_FLOAT_EQ(res, output_ptr[i]);
+        ASSERT_FLOAT_EQ(res, output_ptr[i]);
     }
 }
 
@@ -360,8 +360,8 @@ TEST(activation_f16_fw_gpu, softsign_basic_yxfb) {
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "not");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "not");
 
     auto output_memory = outputs.at("not").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -372,14 +372,14 @@ TEST(activation_f16_fw_gpu, softsign_basic_yxfb) {
     int x_size = output_layout.spatial(0);
     int f_size = output_layout.feature();
     int b_size = output_layout.batch();
-    EXPECT_EQ(output_layout.format, format::yxfb);
-    EXPECT_EQ(y_size, 2);
-    EXPECT_EQ(x_size, 2);
-    EXPECT_EQ(f_size, 1);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(output_layout.format, format::yxfb);
+    ASSERT_EQ(y_size, 2);
+    ASSERT_EQ(x_size, 2);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 1);
 
     for (int i = 0; i < b_size * f_size * y_size * x_size; ++i) {
-        EXPECT_FLOAT_EQ(output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(output_vec[i], output_ptr[i]);
     }
 }
 
@@ -405,8 +405,8 @@ TEST(activation_f32_fw_gpu, sign_basic_yxfb) {
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "not");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "not");
 
     auto output_memory = outputs.at("not").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -417,15 +417,15 @@ TEST(activation_f32_fw_gpu, sign_basic_yxfb) {
     int x_size = output_layout.spatial(0);
     int f_size = output_layout.feature();
     int b_size = output_layout.batch();
-    EXPECT_EQ(output_layout.format, format::yxfb);
-    EXPECT_EQ(y_size, 4);
-    EXPECT_EQ(x_size, 5);
-    EXPECT_EQ(f_size, 1);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(output_layout.format, format::yxfb);
+    ASSERT_EQ(y_size, 4);
+    ASSERT_EQ(x_size, 5);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 1);
 
     for (int i = 0; i < b_size * f_size * y_size * x_size; ++i) {
         float res = input_ptr[i] > 0 ? 1.0f : input_ptr[i] < 0 ? -1.0f : 0.0f;
-        EXPECT_FLOAT_EQ(res, output_ptr[i]);
+        ASSERT_FLOAT_EQ(res, output_ptr[i]);
     }
 }
 
@@ -443,8 +443,8 @@ TEST(activation_f32_fw_gpu, pow_basic_yxfb) {
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "pow");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "pow");
 
     auto output_memory = outputs.at("pow").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -454,14 +454,14 @@ TEST(activation_f32_fw_gpu, pow_basic_yxfb) {
     int x_size = output_layout.spatial(0);
     int f_size = output_layout.feature();
     int b_size = output_layout.batch();
-    EXPECT_EQ(output_layout.format, format::yxfb);
-    EXPECT_EQ(y_size, 2);
-    EXPECT_EQ(x_size, 2);
-    EXPECT_EQ(f_size, 1);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(output_layout.format, format::yxfb);
+    ASSERT_EQ(y_size, 2);
+    ASSERT_EQ(x_size, 2);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 1);
 
     for (size_t i = 0; i < output_vec.size(); ++i) {
-        EXPECT_FLOAT_EQ(output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(output_vec[i], output_ptr[i]);
     }
 }
 
@@ -479,8 +479,8 @@ TEST(activation_f16_fw_gpu, pow_basic_yxfb) {
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "pow");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "pow");
 
     auto output_memory = outputs.at("pow").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -490,14 +490,14 @@ TEST(activation_f16_fw_gpu, pow_basic_yxfb) {
     int x_size = output_layout.spatial(0);
     int f_size = output_layout.feature();
     int b_size = output_layout.batch();
-    EXPECT_EQ(output_layout.format, format::yxfb);
-    EXPECT_EQ(y_size, 2);
-    EXPECT_EQ(x_size, 2);
-    EXPECT_EQ(f_size, 1);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(output_layout.format, format::yxfb);
+    ASSERT_EQ(y_size, 2);
+    ASSERT_EQ(x_size, 2);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 1);
 
     for (size_t i = 0; i < output_vec.size(); ++i) {
-        EXPECT_FLOAT_EQ(output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(output_vec[i], output_ptr[i]);
     }
 }
 
@@ -536,8 +536,8 @@ TEST(activation_f32_fw_gpu, relu_basic_yxfb) {
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "relu");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "relu");
 
     auto output_memory = outputs.at("relu").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -547,14 +547,14 @@ TEST(activation_f32_fw_gpu, relu_basic_yxfb) {
     int x_size = output_layout.spatial(0);
     int f_size = output_layout.feature();
     int b_size = output_layout.batch();
-    EXPECT_EQ(output_layout.format, format::yxfb);
-    EXPECT_EQ(y_size, 4);
-    EXPECT_EQ(x_size, 5);
-    EXPECT_EQ(f_size, 1);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(output_layout.format, format::yxfb);
+    ASSERT_EQ(y_size, 4);
+    ASSERT_EQ(x_size, 5);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 1);
 
     for (size_t i = 0; i < output_vec.size(); ++i) {
-        EXPECT_FLOAT_EQ(output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(output_vec[i], output_ptr[i]);
     }
 }
 
@@ -612,8 +612,8 @@ TEST(activation_f32_fw_gpu, relu_basic_bfzyx) {
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "relu");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "relu");
 
     auto output_memory = outputs.at("relu").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -624,15 +624,15 @@ TEST(activation_f32_fw_gpu, relu_basic_bfzyx) {
     int x_size = output_layout.spatial(0);
     int f_size = output_layout.feature();
     int b_size = output_layout.batch();
-    EXPECT_EQ(output_layout.format, format::bfzyx);
-    EXPECT_EQ(z_size, 2);
-    EXPECT_EQ(y_size, 4);
-    EXPECT_EQ(x_size, 5);
-    EXPECT_EQ(f_size, 1);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(output_layout.format, format::bfzyx);
+    ASSERT_EQ(z_size, 2);
+    ASSERT_EQ(y_size, 4);
+    ASSERT_EQ(x_size, 5);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 1);
 
     for (size_t i = 0; i < output_vec.size(); ++i) {
-        EXPECT_FLOAT_EQ(output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(output_vec[i], output_ptr[i]);
     }
 }
 
@@ -709,8 +709,8 @@ TEST(activation_f32_fw_gpu, basic_yxfb_all_functions)
             network network(engine, topology);
             network.set_input_data("input", input);
             auto outputs = network.execute();
-            EXPECT_EQ(outputs.size(), size_t(1));
-            EXPECT_EQ(outputs.begin()->first, "activation");
+            ASSERT_EQ(outputs.size(), size_t(1));
+            ASSERT_EQ(outputs.begin()->first, "activation");
 
             auto output_memory = outputs.at("activation").get_memory();
             auto output_layout = output_memory->get_layout();
@@ -721,99 +721,99 @@ TEST(activation_f32_fw_gpu, basic_yxfb_all_functions)
             int x_size = output_layout.spatial(0);
             int f_size = output_layout.feature();
             int b_size = output_layout.batch();
-            EXPECT_EQ(output_layout.format, format::yxfb);
-            EXPECT_EQ(y_size, 4);
-            EXPECT_EQ(x_size, 5);
-            EXPECT_EQ(f_size, 1);
-            EXPECT_EQ(b_size, 1);
+            ASSERT_EQ(output_layout.format, format::yxfb);
+            ASSERT_EQ(y_size, 4);
+            ASSERT_EQ(x_size, 5);
+            ASSERT_EQ(f_size, 1);
+            ASSERT_EQ(b_size, 1);
 
             for (size_t i = 0; i < output_layout.get_linear_size(); ++i)
             {
                 switch (func)
                 {
                 case activation_func::none:
-                    EXPECT_FLOAT_EQ(input_ptr[i], output_ptr[i]);
+                    ASSERT_FLOAT_EQ(input_ptr[i], output_ptr[i]);
                     break;
                 case activation_func::logistic:
-                    EXPECT_FLOAT_EQ(1.f / (1.f + std::exp((float)-input_ptr[i])), output_ptr[i]);
+                    ASSERT_FLOAT_EQ(1.f / (1.f + std::exp((float)-input_ptr[i])), output_ptr[i]);
                     break;
                 case activation_func::hyperbolic_tan:
-                    EXPECT_FLOAT_EQ(std::tanh((float)input_ptr[i]), output_ptr[i]);
+                    ASSERT_FLOAT_EQ(std::tanh((float)input_ptr[i]), output_ptr[i]);
                     break;
                 case activation_func::relu:
-                    EXPECT_FLOAT_EQ(std::fmax((float)input_ptr[i], 0.f), output_ptr[i]);
+                    ASSERT_FLOAT_EQ(std::fmax((float)input_ptr[i], 0.f), output_ptr[i]);
                     break;
                 case activation_func::clamp:
-                    EXPECT_FLOAT_EQ(std::fmin((float)std::fmax((float)input_ptr[i], params.a), params.b), output_ptr[i]);
+                    ASSERT_FLOAT_EQ(std::fmin((float)std::fmax((float)input_ptr[i], params.a), params.b), output_ptr[i]);
                     break;
                 case activation_func::softrelu:
-                    EXPECT_FLOAT_EQ(std::log(1.f + std::exp((float)input_ptr[i])), output_ptr[i]);
+                    ASSERT_FLOAT_EQ(std::log(1.f + std::exp((float)input_ptr[i])), output_ptr[i]);
                     break;
                 case activation_func::abs:
-                    EXPECT_FLOAT_EQ(std::fabs(input_ptr[i]), output_ptr[i]);
+                    ASSERT_FLOAT_EQ(std::fabs(input_ptr[i]), output_ptr[i]);
                     break;
                 case activation_func::linear:
-                    EXPECT_FLOAT_EQ((params.a*input_ptr[i] + params.b), output_ptr[i]);
+                    ASSERT_FLOAT_EQ((params.a*input_ptr[i] + params.b), output_ptr[i]);
                     break;
                 case activation_func::square:
-                    EXPECT_FLOAT_EQ((input_ptr[i] * input_ptr[i]), output_ptr[i]);
+                    ASSERT_FLOAT_EQ((input_ptr[i] * input_ptr[i]), output_ptr[i]);
                     break;
                 case activation_func::sqrt:
                     if (input_ptr[i] >= 0)
                     {
-                        EXPECT_FLOAT_EQ(std::sqrt((float)input_ptr[i]), output_ptr[i]);
+                        ASSERT_FLOAT_EQ(std::sqrt((float)input_ptr[i]), output_ptr[i]);
                     }
                     break;
                 case activation_func::elu:
-                    EXPECT_FLOAT_EQ(std::fmax((float)input_ptr[i], 0.0f) +
+                    ASSERT_FLOAT_EQ(std::fmax((float)input_ptr[i], 0.0f) +
                                     params.a*(std::exp(std::fmin((float)input_ptr[i], 0.0f)) - 1), output_ptr[i]);
                     break;
                 case activation_func::sin:
-                    EXPECT_FLOAT_EQ(std::sin((float)input_ptr[i]), output_ptr[i]);
+                    ASSERT_FLOAT_EQ(std::sin((float)input_ptr[i]), output_ptr[i]);
                     break;
                 case activation_func::sinh:
-                    EXPECT_FLOAT_EQ(std::sinh((float)input_ptr[i]), output_ptr[i]);
+                    ASSERT_FLOAT_EQ(std::sinh((float)input_ptr[i]), output_ptr[i]);
                     break;
                 case activation_func::cos:
-                    EXPECT_FLOAT_EQ(std::cos((float)input_ptr[i]), output_ptr[i]);
+                    ASSERT_FLOAT_EQ(std::cos((float)input_ptr[i]), output_ptr[i]);
                     break;
                 case activation_func::cosh:
-                    EXPECT_FLOAT_EQ(std::cosh((float)input_ptr[i]), output_ptr[i]);
+                    ASSERT_FLOAT_EQ(std::cosh((float)input_ptr[i]), output_ptr[i]);
                     break;
                 case activation_func::exp:
-                    EXPECT_FLOAT_EQ(std::exp((float)input_ptr[i]), output_ptr[i]);
+                    ASSERT_FLOAT_EQ(std::exp((float)input_ptr[i]), output_ptr[i]);
                     break;
                 case activation_func::negation:
-                    EXPECT_FLOAT_EQ((float)(!input_ptr[i]), output_ptr[i]);
+                    ASSERT_FLOAT_EQ((float)(!input_ptr[i]), output_ptr[i]);
                     break;
                 case activation_func::log2:
                     if (input_ptr[i] > 0) //logarithm exist only for positive real values
                     {
-                        EXPECT_FLOAT_EQ(std::log2((float)input_ptr[i]), output_ptr[i]);
+                        ASSERT_FLOAT_EQ(std::log2((float)input_ptr[i]), output_ptr[i]);
                     }
                     break;
                 case activation_func::tan:
-                    EXPECT_FLOAT_EQ(std::tan((float)input_ptr[i]), output_ptr[i]);
+                    ASSERT_FLOAT_EQ(std::tan((float)input_ptr[i]), output_ptr[i]);
                     break;
                 case activation_func::negative:
-                    EXPECT_FLOAT_EQ(-((float)input_ptr[i]), output_ptr[i]);
+                    ASSERT_FLOAT_EQ(-((float)input_ptr[i]), output_ptr[i]);
                     break;
                 case activation_func::swish:
-                    EXPECT_FLOAT_EQ((float)input_ptr[i] / (1.f + std::exp((float)(-params.a * input_ptr[i]))), output_ptr[i]);
+                    ASSERT_FLOAT_EQ((float)input_ptr[i] / (1.f + std::exp((float)(-params.a * input_ptr[i]))), output_ptr[i]);
                     break;
                 case activation_func::hswish:
-                    EXPECT_FLOAT_EQ((float)input_ptr[i] * std::fmin(std::fmax(0.f, (float)input_ptr[i] + 3.f), 6.f) / 6.f, output_ptr[i]);
+                    ASSERT_FLOAT_EQ((float)input_ptr[i] * std::fmin(std::fmax(0.f, (float)input_ptr[i] + 3.f), 6.f) / 6.f, output_ptr[i]);
                     break;
                 case activation_func::mish:
-                    EXPECT_NEAR((float)input_ptr[i] * std::tanh(std::log(1.f + std::exp((float)input_ptr[i]))),
+                    ASSERT_NEAR((float)input_ptr[i] * std::tanh(std::log(1.f + std::exp((float)input_ptr[i]))),
                                 output_ptr[i], 1e-5f);
                     break;
                 case activation_func::gelu:
-                    EXPECT_NEAR(0.5f * (float)input_ptr[i] * (1.f + std::erf((float)(input_ptr[i]) / std::sqrt(2.0f))),
+                    ASSERT_NEAR(0.5f * (float)input_ptr[i] * (1.f + std::erf((float)(input_ptr[i]) / std::sqrt(2.0f))),
                                 output_ptr[i], 1e-5f);
                     break;
                 case activation_func::hsigmoid:
-                    EXPECT_FLOAT_EQ(std::fmin(std::fmax(0.f, (float)input_ptr[i] + 3.f), 6.f) / 6.f, output_ptr[i]);
+                    ASSERT_FLOAT_EQ(std::fmin(std::fmax(0.f, (float)input_ptr[i] + 3.f), 6.f) / 6.f, output_ptr[i]);
                     break;
                 default:
                     break;
@@ -859,8 +859,8 @@ TEST(activation_f16_fw_gpu, basic_bfyx_all_functions)
             network network(engine, topology);
             network.set_input_data("input", input);
             auto outputs = network.execute();
-            EXPECT_EQ(outputs.size(), size_t(1));
-            EXPECT_EQ(outputs.begin()->first, "activation");
+            ASSERT_EQ(outputs.size(), size_t(1));
+            ASSERT_EQ(outputs.begin()->first, "activation");
 
             auto output_memory = outputs.at("activation").get_memory();
             auto output_layout = output_memory->get_layout();
@@ -871,37 +871,37 @@ TEST(activation_f16_fw_gpu, basic_bfyx_all_functions)
             int x_size = output_layout.spatial(0);
             int f_size = output_layout.feature();
             int b_size = output_layout.batch();
-            EXPECT_EQ(output_layout.format, format::bfyx);
-            EXPECT_EQ(y_size, 4);
-            EXPECT_EQ(x_size, 2);
-            EXPECT_EQ(f_size, 1);
-            EXPECT_EQ(b_size, 1);
+            ASSERT_EQ(output_layout.format, format::bfyx);
+            ASSERT_EQ(y_size, 4);
+            ASSERT_EQ(x_size, 2);
+            ASSERT_EQ(f_size, 1);
+            ASSERT_EQ(b_size, 1);
 
             for (size_t i = 0; i < output_layout.get_linear_size(); ++i) {
                 switch (func) {
                 case activation_func::linear: {
                     VF<FLOAT16> output_vec = {FLOAT16(-11.5f), FLOAT16(-5.5f), FLOAT16(-2.5f), FLOAT16(3.5f),
                                               FLOAT16(4.7f), FLOAT16(6.5f), FLOAT16(8.0f), FLOAT16(9.5f)};
-                    EXPECT_FLOAT_EQ(output_vec[i], output_ptr[i]);
+                    ASSERT_FLOAT_EQ(output_vec[i], output_ptr[i]);
                     break;
                 }
                 case activation_func::mish:
-                    EXPECT_NEAR((FLOAT16)((float)input_ptr[i] * std::tanh(std::log(1.f + std::exp((float)input_ptr[i])))),
+                    ASSERT_NEAR((FLOAT16)((float)input_ptr[i] * std::tanh(std::log(1.f + std::exp((float)input_ptr[i])))),
                         output_ptr[i], 1e-2f);
                     break;
                 case activation_func::hswish:
-                    EXPECT_NEAR((FLOAT16)((float)input_ptr[i] * std::fmin(std::fmax(0.f, (float)input_ptr[i] + 3.f), 6.f) / 6.f),
+                    ASSERT_NEAR((FLOAT16)((float)input_ptr[i] * std::fmin(std::fmax(0.f, (float)input_ptr[i] + 3.f), 6.f) / 6.f),
                         output_ptr[i], 1e-3f);
                     break;
                 case activation_func::hard_sigmoid:
-                    EXPECT_NEAR((FLOAT16)(std::fmin(std::fmax(0.f, (float)input_ptr[i] + 3.f), 6.f) / 6.f),
+                    ASSERT_NEAR((FLOAT16)(std::fmin(std::fmax(0.f, (float)input_ptr[i] + 3.f), 6.f) / 6.f),
                         output_ptr[i], 1e-3f);
                     break;
                 case activation_func::round_half_to_even:
-                    EXPECT_FLOAT_EQ((FLOAT16)std::rint((float)input_ptr[i]), output_ptr[i]);
+                    ASSERT_FLOAT_EQ((FLOAT16)std::rint((float)input_ptr[i]), output_ptr[i]);
                     break;
                 case activation_func::round_half_away_from_zero:
-                    EXPECT_FLOAT_EQ((FLOAT16)std::round((float)input_ptr[i]), output_ptr[i]);
+                    ASSERT_FLOAT_EQ((FLOAT16)std::round((float)input_ptr[i]), output_ptr[i]);
                     break;
                 default:
                     break;
@@ -937,8 +937,8 @@ TEST(activation_f32_fw_gpu, basic_yxfb_asin_acos_log_atan)
         network network(engine, topology);
         network.set_input_data("input", input);
         auto outputs = network.execute();
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "activation");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "activation");
 
         auto output_memory = outputs.at("activation").get_memory();
         auto output_layout = output_memory->get_layout();
@@ -949,39 +949,39 @@ TEST(activation_f32_fw_gpu, basic_yxfb_asin_acos_log_atan)
         int x_size = output_layout.spatial(0);
         int f_size = output_layout.feature();
         int b_size = output_layout.batch();
-        EXPECT_EQ(output_layout.format, format::yxfb);
-        EXPECT_EQ(y_size, 4);
-        EXPECT_EQ(x_size, 2);
-        EXPECT_EQ(f_size, 1);
-        EXPECT_EQ(b_size, 1);
+        ASSERT_EQ(output_layout.format, format::yxfb);
+        ASSERT_EQ(y_size, 4);
+        ASSERT_EQ(x_size, 2);
+        ASSERT_EQ(f_size, 1);
+        ASSERT_EQ(b_size, 1);
 
         for (size_t i = 0; i < output_layout.get_linear_size(); ++i)
         {
             switch (func)
             {
             case activation_func::asin:
-                EXPECT_FLOAT_EQ(std::asin((float)input_ptr[i]), output_ptr[i]);
+                ASSERT_FLOAT_EQ(std::asin((float)input_ptr[i]), output_ptr[i]);
                 break;
             case activation_func::acos:
-                EXPECT_FLOAT_EQ(std::acos((float)input_ptr[i]), output_ptr[i]);
+                ASSERT_FLOAT_EQ(std::acos((float)input_ptr[i]), output_ptr[i]);
                 break;
             case activation_func::log:
-                EXPECT_FLOAT_EQ(std::log((float)input_ptr[i]), output_ptr[i]);
+                ASSERT_FLOAT_EQ(std::log((float)input_ptr[i]), output_ptr[i]);
                 break;
             case activation_func::log2:
-                EXPECT_FLOAT_EQ(std::log2((float)input_ptr[i]), output_ptr[i]);
+                ASSERT_FLOAT_EQ(std::log2((float)input_ptr[i]), output_ptr[i]);
                 break;
             case activation_func::atan:
-                EXPECT_FLOAT_EQ(std::atan((float)input_ptr[i]), output_ptr[i]);
+                ASSERT_FLOAT_EQ(std::atan((float)input_ptr[i]), output_ptr[i]);
                 break;
             case activation_func::asinh:
-                EXPECT_FLOAT_EQ(std::asinh((float)input_ptr[i]), output_ptr[i]);
+                ASSERT_FLOAT_EQ(std::asinh((float)input_ptr[i]), output_ptr[i]);
                 break;
             case activation_func::acosh:
-                EXPECT_FLOAT_EQ(std::acosh((float)input_ptr[i]), output_ptr[i]);
+                ASSERT_FLOAT_EQ(std::acosh((float)input_ptr[i]), output_ptr[i]);
                 break;
             case activation_func::atanh:
-                EXPECT_FLOAT_EQ(std::atanh((float)input_ptr[i]), output_ptr[i]);
+                ASSERT_FLOAT_EQ(std::atanh((float)input_ptr[i]), output_ptr[i]);
                 break;
             default:
                 break;
@@ -1023,7 +1023,7 @@ TEST(activation_f32_fw_gpu, relu_basic_acosh_yxfb) {
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.begin()->first, "relu");
+    ASSERT_EQ(outputs.begin()->first, "relu");
 
     auto output_memory = outputs.at("relu").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -1034,14 +1034,14 @@ TEST(activation_f32_fw_gpu, relu_basic_acosh_yxfb) {
     int x_size = output_layout.spatial(0);
     int f_size = output_layout.feature();
     int b_size = output_layout.batch();
-    EXPECT_EQ(output_layout.format, format::yxfb);
-    EXPECT_EQ(y_size, 4);
-    EXPECT_EQ(x_size, 5);
-    EXPECT_EQ(f_size, 1);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(output_layout.format, format::yxfb);
+    ASSERT_EQ(y_size, 4);
+    ASSERT_EQ(x_size, 5);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 1);
 
     for (int i = 0; i < x_size * y_size * f_size * b_size; ++i) {
-        EXPECT_FLOAT_EQ(std::acosh(input_ptr[i]), output_ptr[i]);
+        ASSERT_FLOAT_EQ(std::acosh(input_ptr[i]), output_ptr[i]);
     }
 }
 
@@ -1089,7 +1089,7 @@ TEST(activation_f32_fw_gpu, relu_basic_input_padding_yxfb) {
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.begin()->first, "relu");
+    ASSERT_EQ(outputs.begin()->first, "relu");
 
     auto output_memory = outputs.at("relu").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -1099,14 +1099,14 @@ TEST(activation_f32_fw_gpu, relu_basic_input_padding_yxfb) {
     int x_size = output_layout.spatial(0);
     int f_size = output_layout.feature();
     int b_size = output_layout.batch();
-    EXPECT_EQ(output_layout.format, format::yxfb);
-    EXPECT_EQ(y_size, 4);
-    EXPECT_EQ(x_size, 5);
-    EXPECT_EQ(f_size, 1);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(output_layout.format, format::yxfb);
+    ASSERT_EQ(y_size, 4);
+    ASSERT_EQ(x_size, 5);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 1);
 
     for (size_t i = 0; i < output_vec.size(); ++i) {
-        EXPECT_FLOAT_EQ(output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(output_vec[i], output_ptr[i]);
     }
 }
 
@@ -1176,7 +1176,7 @@ TEST(activation_f32_fw_gpu, relu_basic_input_padding_bfzyx) {
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.begin()->first, "relu");
+    ASSERT_EQ(outputs.begin()->first, "relu");
 
     auto output_memory = outputs.at("relu").get_memory();
 
@@ -1188,15 +1188,15 @@ TEST(activation_f32_fw_gpu, relu_basic_input_padding_bfzyx) {
     int x_size = output_layout.spatial(0);
     int f_size = output_layout.feature();
     int b_size = output_layout.batch();
-    EXPECT_EQ(output_layout.format, format::bfzyx);
-    EXPECT_EQ(z_size, 2);
-    EXPECT_EQ(y_size, 4);
-    EXPECT_EQ(x_size, 5);
-    EXPECT_EQ(f_size, 1);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(output_layout.format, format::bfzyx);
+    ASSERT_EQ(z_size, 2);
+    ASSERT_EQ(y_size, 4);
+    ASSERT_EQ(x_size, 5);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 1);
 
     for (size_t i = 0; i < output_vec.size(); ++i) {
-        EXPECT_FLOAT_EQ(output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(output_vec[i], output_ptr[i]);
     }
 }
 
@@ -1249,8 +1249,8 @@ TEST(activation_f32_fw_gpu, relu_basic_output_padding_yxfb) {
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "relu");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "relu");
 
     auto output_memory = outputs.at("relu").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -1261,14 +1261,14 @@ TEST(activation_f32_fw_gpu, relu_basic_output_padding_yxfb) {
     int x_size = output_size.spatial[0];
     int f_size = output_size.feature[0];
     int b_size = output_size.batch[0];
-    EXPECT_EQ(output_layout.format, format::yxfb);
-    EXPECT_EQ(y_size, 10);
-    EXPECT_EQ(x_size, 11);
-    EXPECT_EQ(f_size, 1);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(output_layout.format, format::yxfb);
+    ASSERT_EQ(y_size, 10);
+    ASSERT_EQ(x_size, 11);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 1);
 
     for (size_t i = 0; i < output_vec.size(); ++i) {
-        EXPECT_FLOAT_EQ(output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(output_vec[i], output_ptr[i]);
     }
 }
 
@@ -1292,8 +1292,8 @@ TEST(activation_f32_fw_gpu, basic_yxfb_floor_ceil)
         network network(engine, topology);
         network.set_input_data("input", input);
         auto outputs = network.execute();
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "activation");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "activation");
 
         auto output_memory = outputs.at("activation").get_memory();
         auto output_layout = output_memory->get_layout();
@@ -1304,21 +1304,21 @@ TEST(activation_f32_fw_gpu, basic_yxfb_floor_ceil)
         int x_size = output_layout.spatial(0);
         int f_size = output_layout.feature();
         int b_size = output_layout.batch();
-        EXPECT_EQ(output_layout.format, format::yxfb);
-        EXPECT_EQ(y_size, 4);
-        EXPECT_EQ(x_size, 2);
-        EXPECT_EQ(f_size, 1);
-        EXPECT_EQ(b_size, 1);
+        ASSERT_EQ(output_layout.format, format::yxfb);
+        ASSERT_EQ(y_size, 4);
+        ASSERT_EQ(x_size, 2);
+        ASSERT_EQ(f_size, 1);
+        ASSERT_EQ(b_size, 1);
 
         for (size_t i = 0; i < output_layout.get_linear_size(); ++i)
         {
             switch (func)
             {
             case activation_func::floor:
-                EXPECT_FLOAT_EQ(std::floor((float)input_ptr[i]), output_ptr[i]);
+                ASSERT_FLOAT_EQ(std::floor((float)input_ptr[i]), output_ptr[i]);
                 break;
             case activation_func::ceil:
-                EXPECT_FLOAT_EQ(std::ceil((float)input_ptr[i]), output_ptr[i]);
+                ASSERT_FLOAT_EQ(std::ceil((float)input_ptr[i]), output_ptr[i]);
                 break;
             default:
                 break;
@@ -1358,7 +1358,7 @@ TEST(activation_i8_fw_gpu, basic_yxfb_all_funcs)
         auto outputs = network.execute();
 
         ASSERT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "activation");
+        ASSERT_EQ(outputs.begin()->first, "activation");
 
         auto output_memory = outputs.at("activation").get_memory();
         auto output_layout = output_memory->get_layout();
@@ -1368,13 +1368,13 @@ TEST(activation_i8_fw_gpu, basic_yxfb_all_funcs)
         for (size_t i = 0; i < output_layout.get_linear_size(); ++i) {
             switch (func) {
             case activation_func::none:
-                EXPECT_EQ((int8_t)input_ptr[i], output_ptr[i]);
+                ASSERT_EQ((int8_t)input_ptr[i], output_ptr[i]);
                 break;
             case activation_func::negative:
-                EXPECT_EQ(-((int8_t)input_ptr[i]), output_ptr[i]);
+                ASSERT_EQ(-((int8_t)input_ptr[i]), output_ptr[i]);
                 break;
             case activation_func::negation:
-                EXPECT_EQ(!((int8_t)input_ptr[i]), output_ptr[i]);
+                ASSERT_EQ(!((int8_t)input_ptr[i]), output_ptr[i]);
                 break;
             default:
                 break;
@@ -1416,7 +1416,7 @@ TEST(activation_i32_fw_gpu, basic_yxfb_i32_funcs) {
         auto outputs = network.execute();
 
         ASSERT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "activation");
+        ASSERT_EQ(outputs.begin()->first, "activation");
 
         auto output_memory = outputs.at("activation").get_memory();
         auto output_layout = output_memory->get_layout();
@@ -1426,22 +1426,22 @@ TEST(activation_i32_fw_gpu, basic_yxfb_i32_funcs) {
         for (size_t i = 0; i < output_layout.get_linear_size(); ++i) {
             switch (func) {
             case activation_func::none:
-                EXPECT_EQ((int32_t)input_ptr[i], output_ptr[i]);
+                ASSERT_EQ((int32_t)input_ptr[i], output_ptr[i]);
                 break;
             case activation_func::negative:
-                EXPECT_EQ(-((int32_t)input_ptr[i]), output_ptr[i]);
+                ASSERT_EQ(-((int32_t)input_ptr[i]), output_ptr[i]);
                 break;
             case activation_func::negation:
-                EXPECT_EQ(!((int32_t)input_ptr[i]), output_ptr[i]);
+                ASSERT_EQ(!((int32_t)input_ptr[i]), output_ptr[i]);
                 break;
             case activation_func::relu:
-                EXPECT_EQ(std::max(static_cast<int32_t>(input_ptr[i]), 0), output_ptr[i]);
+                ASSERT_EQ(std::max(static_cast<int32_t>(input_ptr[i]), 0), output_ptr[i]);
                 break;
             case activation_func::clamp:
-                EXPECT_EQ(std::min(std::max(input_ptr[i], static_cast<int32_t>(params.a)), static_cast<int32_t>(params.b)), output_ptr[i]);
+                ASSERT_EQ(std::min(std::max(input_ptr[i], static_cast<int32_t>(params.a)), static_cast<int32_t>(params.b)), output_ptr[i]);
                 break;
             case activation_func::floor:
-                EXPECT_EQ((int32_t)std::floor(input_ptr[i]), output_ptr[i]);
+                ASSERT_EQ((int32_t)std::floor(input_ptr[i]), output_ptr[i]);
                 break;
             default:
                 break;
@@ -1495,7 +1495,7 @@ TEST(activation_f32_fw_gpu, b_fs_yx_fsv16_prelu) {
     ASSERT_EQ(expected.size(), out_ptr.size());
 
     for (size_t i = 0; i < expected.size(); ++i) {
-        EXPECT_EQ(expected[i], out_ptr[i]) << "at i=" << i;
+        ASSERT_EQ(expected[i], out_ptr[i]) << "at i=" << i;
     }
 }
 
@@ -1563,7 +1563,7 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
     }
 
     template <typename T>
-    bool compare_outputs(const memory::ptr out_ref, const memory::ptr out_opt) {
+    void compare_outputs(const memory::ptr out_ref, const memory::ptr out_opt) {
         auto output_lay = out_ref->get_layout();
         auto opt_output_lay = out_opt->get_layout();
         size_t b = output_lay.batch();
@@ -1586,14 +1586,12 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
                         auto ref_out_val = ref_ptr[ref_out_offset + xi * ref_x_pitch];
                         auto opt_out_val = opt_ptr[opt_out_offset + xi * opt_x_pitch];
                         if (ref_out_val != opt_out_val) {
-                            EXPECT_NEAR(ref_out_val, opt_out_val, 1e-4);
+                            ASSERT_NEAR(ref_out_val, opt_out_val, 1e-4);
                         }
                     }
                 }
             }
         }
-
-        return true;
     }
 
     void execute_compare(const activation_random_test_params& params, bool check_result) {

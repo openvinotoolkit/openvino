@@ -58,7 +58,7 @@ TEST(FrontEndConvertModelTest, test_unsupported_tf1_while) {
                   "OpConversionFailure is expected.";
     } catch (const OpConversionFailure& error) {
         string error_message = error.what();
-        string ref_message = "No translator found for Enter node.";
+        string ref_message = "No translator found for NextIteration node.";
         ASSERT_TRUE(error_message.find(ref_message) != string::npos);
         ASSERT_EQ(function, nullptr);
     } catch (...) {

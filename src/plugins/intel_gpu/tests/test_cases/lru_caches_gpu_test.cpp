@@ -23,7 +23,7 @@ TEST(lru_cache, basic_data_type)
         input_values.push_back(std::make_pair(i, i + 10));
     }
 
-    EXPECT_EQ(ca.get_lru_element(), int());
+    ASSERT_EQ(ca.get_lru_element(), int());
 
     std::vector<bool> expected_hitted = {false, false, false, false, true, true, false};
     for (size_t i = 0; i < input_values.size(); i++) {
@@ -36,8 +36,8 @@ TEST(lru_cache, basic_data_type)
             ca.add(in.first, in.second);
             data = ca.get(in.first);
         }
-        EXPECT_EQ(data, in.second);
-        EXPECT_EQ(hitted, (bool)expected_hitted[i]);
+        ASSERT_EQ(data, in.second);
+        ASSERT_EQ(hitted, (bool)expected_hitted[i]);
     }
 
     std::vector<std::pair<int, int>> expected_value;
@@ -48,7 +48,7 @@ TEST(lru_cache, basic_data_type)
 
     int idx = expected_value.size() - 1;
     for (auto key : ca.get_all_keys()) {
-        EXPECT_EQ(key, expected_value[idx--].first);
+        ASSERT_EQ(key, expected_value[idx--].first);
     }
 }
 
@@ -95,7 +95,7 @@ TEST(lru_cache, custom_data_type) {
 
     std::vector<bool> expected_hitted = {false, false, false, false, true, true, true, false};
 
-    EXPECT_EQ(ca.get_lru_element(), std::shared_ptr<lru_cache_test_data>());
+    ASSERT_EQ(ca.get_lru_element(), std::shared_ptr<lru_cache_test_data>());
     for (size_t i = 0; i < inputs.size(); i++) {
         auto& in = inputs[i];
         std::shared_ptr<lru_cache_test_data> p_data;
@@ -106,11 +106,11 @@ TEST(lru_cache, custom_data_type) {
             ca.add(in->key, in);
             p_data = ca.get(in->key);
         }
-        EXPECT_EQ(p_data->key, in->key);
-        EXPECT_EQ(hitted, (bool)expected_hitted[i]);
+        ASSERT_EQ(p_data->key, in->key);
+        ASSERT_EQ(hitted, (bool)expected_hitted[i]);
     }
 
-    EXPECT_EQ(cap, ca.size());
+    ASSERT_EQ(cap, ca.size());
 
     std::vector<std::string> expected_keys;
     for (size_t i = cap; i > 0; i--) {
@@ -119,6 +119,6 @@ TEST(lru_cache, custom_data_type) {
 
     int idx = expected_keys.size() - 1;
     for (auto key : ca.get_all_keys()) {
-        EXPECT_EQ(key, expected_keys[idx--]);
+        ASSERT_EQ(key, expected_keys[idx--]);
     }
 }
