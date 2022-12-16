@@ -148,7 +148,7 @@ size_t get_x_pitch(const layout& layout) {
 }
 
 template <class T>
-void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream) {
+void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream, bool dump_raw) {
     auto&& size = mem->get_layout().get_tensor();
 
     GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -157,11 +157,11 @@ void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream) {
     tmp_size.batch[0] = batch_size;
     if (tmp_size == size) {
         file_stream << "shape: " << size.to_string() << " ";
-        file_stream << "(count: " << size.count() << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format) << ")" << std::endl;
+        file_stream << "(count: " << size.count() << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format) << ")" << (dump_raw ? " raw data": "") << std::endl;
     } else {
         file_stream << "shape: " << tmp_size.to_string() << " ";
         file_stream << "(count: " << tmp_size.count() << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format)
-            << ", original shape: " << size.to_string() << ")" << std::endl;
+            << ", original shape: " << size.to_string() << ")" << (dump_raw ? " raw data": "")  << std::endl;
     }
 
     mem_lock<T, mem_lock_type::read> lock(mem, stream);
@@ -169,29 +169,35 @@ void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream) {
     auto x_pitch = get_x_pitch(mem->get_layout());
     std::stringstream buffer;
 
-    for (cldnn::tensor::value_type g = 0; g < size.group[0]; ++g) {
-        for (cldnn::tensor::value_type b = 0; b < batch_size; ++b) {
-            for (cldnn::tensor::value_type f = 0; f < size.feature[0]; ++f) {
-                for (cldnn::tensor::value_type w = 0; w < size.spatial[3]; ++w) {
-                    for (cldnn::tensor::value_type z = 0; z < size.spatial[2]; ++z) {
-                        for (cldnn::tensor::value_type y = 0; y < size.spatial[1]; ++y) {
-                            cldnn::tensor t(cldnn::group(g), cldnn::batch(b), cldnn::feature(f), cldnn::spatial(0, y, z, w));
-                            size_t input_it = mem->get_layout().get_linear_offset(t);
+    if (!dump_raw) {
+        for (cldnn::tensor::value_type g = 0; g < size.group[0]; ++g) {
+            for (cldnn::tensor::value_type b = 0; b < batch_size; ++b) {
+                for (cldnn::tensor::value_type f = 0; f < size.feature[0]; ++f) {
+                    for (cldnn::tensor::value_type w = 0; w < size.spatial[3]; ++w) {
+                        for (cldnn::tensor::value_type z = 0; z < size.spatial[2]; ++z) {
+                            for (cldnn::tensor::value_type y = 0; y < size.spatial[1]; ++y) {
+                                cldnn::tensor t(cldnn::group(g), cldnn::batch(b), cldnn::feature(f), cldnn::spatial(0, y, z, w));
+                                size_t input_it = mem->get_layout().get_linear_offset(t);
 
-                            for (cldnn::tensor::value_type x = 0; x < size.spatial[0]; ++x, input_it += x_pitch) {
-                                buffer << std::fixed << std::setprecision(6) << convert_element(mem_ptr[input_it]) << std::endl;
+                                for (cldnn::tensor::value_type x = 0; x < size.spatial[0]; ++x, input_it += x_pitch) {
+                                    buffer << std::fixed << std::setprecision(6) << convert_element(mem_ptr[input_it]) << std::endl;
+                                }
                             }
                         }
                     }
                 }
             }
         }
+    } else {
+        for (size_t i = 0; i < mem->count(); ++i) {
+            buffer << std::fixed << std::setprecision(6) << convert_element(mem_ptr[i]) << std::endl;
+        }
     }
     file_stream << buffer.str();
 }
 
 template <>
-void dump<uint32_t>(memory::ptr mem, stream& stream, std::ofstream& file_stream) {
+void dump<uint32_t>(memory::ptr mem, stream& stream, std::ofstream& file_stream, bool dump_raw) {
     auto&& l = mem->get_layout();
 
     file_stream << "shape: ";
@@ -204,23 +210,29 @@ void dump<uint32_t>(memory::ptr mem, stream& stream, std::ofstream& file_stream)
     mem_lock<uint32_t, mem_lock_type::read> lock(mem, stream);
     auto mem_ptr = lock.data();
 
-    for (cldnn::tensor::value_type b = 0; b < l.batch(); ++b) {
-        for (cldnn::tensor::value_type f = 0; f < (cldnn::tensor::value_type)ceil_div(l.feature(), 32); ++f) {
-            for (cldnn::tensor::value_type z = 0; z < l.spatial(2); ++z) {
-                for (cldnn::tensor::value_type y = 0; y < l.spatial(1); ++y) {
-                    for (cldnn::tensor::value_type x = 0; x < l.spatial(0); ++x) {
-                        cldnn::tensor t(cldnn::batch(b), cldnn::feature(f), cldnn::spatial(x, y, z, 0));
-                        size_t input_it = mem->get_layout().get_linear_offset(t);
-                        file_stream << mem_ptr[input_it] << std::endl;
+    if (!dump_raw) {
+        for (cldnn::tensor::value_type b = 0; b < l.batch(); ++b) {
+            for (cldnn::tensor::value_type f = 0; f < (cldnn::tensor::value_type)ceil_div(l.feature(), 32); ++f) {
+                for (cldnn::tensor::value_type z = 0; z < l.spatial(2); ++z) {
+                    for (cldnn::tensor::value_type y = 0; y < l.spatial(1); ++y) {
+                        for (cldnn::tensor::value_type x = 0; x < l.spatial(0); ++x) {
+                            cldnn::tensor t(cldnn::batch(b), cldnn::feature(f), cldnn::spatial(x, y, z, 0));
+                            size_t input_it = mem->get_layout().get_linear_offset(t);
+                            file_stream << mem_ptr[input_it] << std::endl;
+                        }
                     }
                 }
             }
         }
+    } else {
+        for (size_t i = 0; i < mem->count(); ++i) {
+            file_stream << std::fixed << std::setprecision(6) << mem_ptr[i] << std::endl;
+        }
     }
 }
 
-void log_memory_to_file(memory::ptr mem, stream& stream, std::string layerName) {
-    std::cout << "Dump " << layerName << std::endl;
+void log_memory_to_file(memory::ptr mem, stream& stream, std::string layerName, bool dump_raw) {
+    std::cout << "Dump " << (dump_raw ? "raw " : "") << layerName << std::endl;
     GPU_DEBUG_GET_INSTANCE(debug_config);
     std::string filename = layerName;
     std::replace(filename.begin(), filename.end(), '\\', '_');
@@ -232,17 +244,17 @@ void log_memory_to_file(memory::ptr mem, stream& stream, std::string layerName) 
     std::ofstream file_stream(filename);
     auto mem_dt = mem->get_layout().data_type;
     if (mem_dt == cldnn::data_types::f32)
-        dump<float>(mem, stream, file_stream);
+        dump<float>(mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::f16)
-        dump<half_t>(mem, stream, file_stream);
+        dump<half_t>(mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::bin)
-        dump<uint32_t>(mem, stream, file_stream);
+        dump<uint32_t>(mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::i32)
-        dump<int32_t>(mem, stream, file_stream);
+        dump<int32_t>(mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::i8)
-        dump<int8_t>(mem, stream, file_stream);
+        dump<int8_t>(mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::u8)
-        dump<uint8_t>(mem, stream, file_stream);
+        dump<uint8_t>(mem, stream, file_stream, dump_raw);
 }
 
 void wait_for_the_turn() {
@@ -265,7 +277,7 @@ void wait_for_the_turn() {
 
 #else
 void dump_perf_data_raw(std::string, const std::list<std::shared_ptr<primitive_inst>>&) {}
-void log_memory_to_file(memory::ptr, stream&, std::string) {}
+void log_memory_to_file(memory::ptr, stream&, std::string, bool dump_raw) {}
 void wait_for_the_turn() {}
 #endif
 }  // namespace
@@ -939,7 +951,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                             debug_config->is_dumped_layer(layer_name)) {
                 for (size_t i = 0; i < get_primitive(inst->id())->dependencies().size(); i++) {
                     log_memory_to_file(get_primitive(inst->id())->dep_memory_ptr(i), get_stream(),
-                                       layer_name + "_src_" + std::to_string(i));
+                                       layer_name + "_src_" + std::to_string(i), debug_config->dump_layers_raw);
                 }
             }
         }
@@ -952,7 +964,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
             GPU_DEBUG_IF(debug_config->is_dumped_layer(layer_name, inst->is_output())) {
                 for (size_t i = 0; i < get_primitive(inst->id())->outputs_memory_count(); i++) {
                     log_memory_to_file(get_primitive(inst->id())->output_memory_ptr(i), get_stream(),
-                                       layer_name + "_dst_" + std::to_string(i));
+                                       layer_name + "_dst_" + std::to_string(i), debug_config->dump_layers_raw);
                 }
             }
         }

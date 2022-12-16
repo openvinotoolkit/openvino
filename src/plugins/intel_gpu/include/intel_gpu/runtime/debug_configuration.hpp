@@ -47,6 +47,7 @@ public:
     int dump_layers_dst_only;               // Dump only output of layers
     int dump_layers_result;                 // Dump result layers
     int dump_layers_limit_batch;            // Limit the size of batch to dump
+    int dump_layers_raw;                    // Dump raw data.
     int base_batch_for_memory_estimation;   // Base batch size to be used in memory estimation
     std::vector<std::string> after_proc;    // Start inference after the listed processes
     int serialize_compile;                  // Serialize creating primitives and compiling kernels

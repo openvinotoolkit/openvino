@@ -115,6 +115,7 @@ static void print_help_messages() {
     message_list.emplace_back("OV_GPU_DumpLayersResult", "Dump output buffers of result layers only");
     message_list.emplace_back("OV_GPU_DumpLayersDstOnly", "Dump only output of layers");
     message_list.emplace_back("OV_GPU_DumpLayersLimitBatch", "Limit the size of batch to dump");
+    message_list.emplace_back("OV_GPU_DumpLayersRaw", "Dump memory of layers. If true, dump data is not formated.");
     message_list.emplace_back("OV_GPU_DryRunPath", "Dry run and serialize execution graph into the specified path");
     message_list.emplace_back("OV_GPU_BaseBatchForMemEstimation", "Base batch size to be used in memory estimation");
     message_list.emplace_back("OV_GPU_AfterProc", "Run inference after the specified process PIDs are finished, separated by space."
@@ -154,6 +155,7 @@ debug_configuration::debug_configuration()
         , dump_layers_dst_only(0)
         , dump_layers_result(0)
         , dump_layers_limit_batch(std::numeric_limits<int>::max())
+        , dump_layers_raw(0)
         , base_batch_for_memory_estimation(-1)
         , serialize_compile(0)
         , forced_impl_type(std::string())
@@ -167,6 +169,7 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("DumpSources", dump_sources);
     get_gpu_debug_env_var("DumpLayersPath", dump_layers_path);
     get_gpu_debug_env_var("DumpLayersLimitBatch", dump_layers_limit_batch);
+    get_gpu_debug_env_var("DumpLayersRaw", dump_layers_raw);
     get_gpu_debug_env_var("DumpLayersDstOnly", dump_layers_dst_only);
     get_gpu_debug_env_var("DumpLayersResult", dump_layers_result);
     get_gpu_debug_env_var("DisableOnednn", disable_onednn);
