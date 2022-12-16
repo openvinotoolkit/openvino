@@ -77,7 +77,7 @@ pip install openvino-dev
 #### Installing Components for Specific Frameworks
 
 In case that you do not have the deep learning framework in your environment used for the model training or encounter any compatibility issues between OpenVINO and your deep learning framework,
-you may install OpenVINO Development Tools with validated versions of the framework into a separate environment. Use the following command:
+install OpenVINO Development Tools with validated versions of the framework into a separate environment. Use the following command:
 ```sh
 pip install openvino-dev[extras]
 ```
