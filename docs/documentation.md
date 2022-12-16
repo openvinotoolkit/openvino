@@ -21,7 +21,7 @@ This section provides reference documents that guide you through the OpenVINO to
 ## API Reference 
 _api_reference
 
-The OpenVINO toolkit provides APIs available for Python, C, and C++ . 
+The OpenVINO toolkit provides APIs available for Python, C, and C++. 
 
 ## OpenVINO Ecosystem
 openvino_ecosystem
