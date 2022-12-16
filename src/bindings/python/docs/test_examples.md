@@ -1,11 +1,7 @@
 # How to test OpenVINO™ Python API?
 
-##### Enviroment
-<!-- TODO: Link to enviroment setup -->
-*To be added...*
-
-##### Building
-Building instructions can be found in [BUILDING.md](../BUILDING.md)
+#### Building and environment
+Instructions can be found in ["Building the OpenVINO™ Python API"](./build.md).
 
 ### Running OpenVINO™ Python API tests
 *For simplicity, all of these commands require to navigate to the main Python API folder first:*

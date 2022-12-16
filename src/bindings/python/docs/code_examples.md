@@ -1,11 +1,7 @@
 # Examples of OpenVINO™ Python API code
 
-##### Enviroment
-<!-- TODO: Link to enviroment setup -->
-*To be added...*
-
-##### Building
-Building instructions can be found in [BUILDING.md](../BUILDING.md)
+#### Building and environment
+Instructions can be found in ["Building the OpenVINO™ Python API"](./build.md).
 
 ### Different ways of extending OpenVINO™ Python API
 
