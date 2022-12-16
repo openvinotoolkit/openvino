@@ -1011,7 +1011,7 @@ INSTANTIATE_TEST_SUITE_P(
                        TransposeConcatMultiSinkingFixture::get_test_name);
 
 INSTANTIATE_TEST_SUITE_P(
-    TransposeSinkingBinaryBackwardMultiConsumersTestSuite,
+    TransposeSinkingConcatBackwardMultiConsumersTestSuite,
     TransposeConcatMultiSinkingFixture,
     ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingConcatBackward)),
                        ::testing::ValuesIn(concat_operations_numbers),

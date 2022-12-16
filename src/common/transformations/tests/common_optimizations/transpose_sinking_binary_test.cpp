@@ -87,7 +87,8 @@ std::vector<BinaryFactoryPtr> binary_factories = {
     CREATE_BINARY_FACTORY(Multiply),
     CREATE_BINARY_FACTORY(Power),
     CREATE_BINARY_FACTORY(SquaredDifference),
-    CREATE_BINARY_FACTORY(Subtract)
+    CREATE_BINARY_FACTORY(Subtract),
+    CREATE_BINARY_FACTORY(PRelu)
 };
 #undef CREATE_BINARY_FACTORY
 
