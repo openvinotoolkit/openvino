@@ -31,7 +31,8 @@ struct CPU {
          *  1. Four processors of two Pcore
          *  2. Four processors of four Ecores shared L2 cache
          *
-         *  Proc ID | Socket ID | HW Core ID | Phy Core of Pcores | Logic Core of Pcores | ID of Ecore Group | Used
+         *  Proc ID : Socket ID | HW Core ID | Phy Core of Pcores | Logic Core of Pcores | ID of Ecore Group | Used
+         *  (index)
          *     0         1            1                0                      1                   0             0
          *     1         1            1                1                      0                   0             0
          *     2         1            2                0                      2                   0             0
