@@ -450,7 +450,7 @@ bool transform_to_pwl(
         m_constant, b_constant, alpha_constant);
     pwl->set_base_node(node);
     pwl->set_friendly_name(node->get_friendly_name());
-    ngraph::copy_runtime_info(node, pwl);
+    ngraph::copy_runtime_info(node, {pwl, m_constant, b_constant, alpha_constant});
     replace_node(node, pwl);
     return true;
 }

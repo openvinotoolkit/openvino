@@ -14,12 +14,21 @@ img {
 
 	font-size: 1.3em;
 }
-/* === OPENVINO CHART ================================================= */
+/* === OPENVINO DIAGRAM ================================================= */
 
-.openvino-chart {
-	width: 100%;
-	margin: 0px auto;
-}
+@media only screen and (min-width: 1100px) {
+	.openvino-diagram {
+		width: 70%;
+	}
+	}
+
+@media only screen and (max-width: 1099px) {
+	.openvino-diagram {
+		width: 100%;
+	}
+	}
+
+
 
 /* === PANELS ================================================= */
 
@@ -35,179 +44,58 @@ img {
 	border-bottom: 1px solid white;
 }
 
-/* === SEPARATOR HEADERS ================================================= */
-.HP_separator-header { 
-	font-weight: bold;
-	text-align: center;
-	width: 100%;
-	height: 2em;
-	line-height: 2em;
-	margin: 40px auto;
-}
-
-.HP_separator-header p { 
-	display: inline-block;
-	line-height: 1em;
-	margin: 0 auto;
-	color: #0068B5;
-	background-color: #fff;
-	padding: 0 15px;
-}
-
-.HP_separator-header::before { 
-    display: block;
-	content: "";
-	position: relative;
-	top: 1em;
-	margin: 0;
-    border-top: 1px solid #0068B5;
-    width: 100%;
-	z-index: -1;
-}
-
-img.HP_img_chart {
-	width: 90%;
-    display: block;
-    margin: 0 auto;
-}
-
-/* === OV workflow chart ===================================================== */	
-#HP_flow-container {
+/* === OV workflow chart ===================================================== */
+#hp-flow-container {
 	margin: 0 auto;
 	width: 90%;
 }
 
-#HP_flow-container div {
+#hp-flow-container div {
 	margin: 0;
 	float: left;
 }
 
-div.HP_flow-arrow {
+div.hp-flow-arrow {
 	width: 5%;
 	padding: 40px 5px;
 }
 
-div.HP_flow-btn {
+div.hp-flow-btn {
 	width: 30%;
 	background-repeat: no-repeat;
 }
 
-#HP_flow-container div.HP_flow-btn:nth-of-type(1) {
+#hp-flow-container div.hp-flow-btn:nth-of-type(1) {
 	background-image: url("../images/OV_flow_model.svg");
 }
-#HP_flow-container div.HP_flow-btn:nth-of-type(3) {
+#hp-flow-container div.hp-flow-btn:nth-of-type(3) {
 	background-image: url("../images/OV_flow_optimization.svg");
 }
-#HP_flow-container div.HP_flow-btn:nth-of-type(5) {
+#hp-flow-container div.hp-flow-btn:nth-of-type(5) {
 	background-image: url("../images/OV_flow_deployment.svg");
 }
 
-div.HP_flow-btn a img {
+div.hp-flow-btn a img {
 	width: 100%;
 	visibility: hidden;
 }
 
-div.HP_flow-btn:hover a img {
+div.hp-flow-btn:hover a img {
 	visibility: visible;
 }
 
-
-/* === INFORMATION BOXES ================================================= */
-.HP_infoboxes {
-	width: 100%;
-	height: auto;
-	margin: 0; 
-	margin-bottom: 10px;
-}
-.HP_infoboxes a {
-	background-color: #0068B5;
-	height: 150px;
-	padding: 5px 2%;
-	float: left;
-	margin: 0 1% 10px 1%;
-	width: 32%;
-}
-
-.HP_infoboxes a p,
-.HP_infoboxes a h3 {
-	color: #fff;
-	margin: 0;
-	text-align: left;
-	
-	transition: all 0.5s;
-	-webkit-transition: all 0.5s;
-	-moz-transition: all 0.5s;
-	-o-transition: all 0.5s;
-	-ms-transition: all 0.5s;
-}
-.HP_infoboxes a h3 {
-	display: table-cell;
-	width: 300px;
-	vertical-align: middle;
-	height: 35px;
-	border-bottom: solid 1px #fff;
-	font-weight: bold;
-	font-size: 1em;
-	margin-bottom: 5px;
-}
-.HP_infoboxes a p {
-	font-size: 0.9em;
-	line-height: 1.5em;
-	    margin-top: 5px;
-}
-
-.HP_infoboxes a:hover h3 {
-	font-size: 1.1em;
-	text-decoration:none !important;
-}
-/*.HP_infoboxes a:hover p {
-	margin-top: 10px;
-	text-decoration:none !important;
-}*/
-
-/* === screen wide =================================================== */
-/* =================================================================== */
-@media only screen and (min-width: 901px) {
-	.HP_infoboxes a {
-		width: 32%;
-	}	
-	.HP_infoboxes a:nth-of-type(1), 
-	.HP_infoboxes a:nth-of-type(4), 
-	.HP_infoboxes a:nth-of-type(7) {
-		margin-left: 0;
-	}
-	.HP_infoboxes a:nth-of-type(3), 
-	.HP_infoboxes a:nth-of-type(6), 
-	.HP_infoboxes a:nth-of-type(9) {
-		margin-right: 0;
-	}	
-}
-/* === screen narrow ================================================== */
-/* =================================================================== */
-@media only screen and (max-width: 900px) {
-	.HP_infoboxes a {
-		width: 48%;
-		margin-left: 0;
-		margin-right: 2%;
-	}	
-	.HP_infoboxes a:nth-of-type(2n) {
-		margin-left: 2%;
-		margin-right: 0;
-	}	
-}
 /* =================================================================== */
 @media only screen and (max-width: 500px) {
-	#HP_flow-container div {
+	#hp-flow-container div {
 		float: none;
 		margin: 0 auto;
 	}
 
-	div.HP_flow-arrow {
+	div.hp-flow-arrow {
 		display: none;
 	}
 
-	div.HP_flow-btn {
+	div.hp-flow-btn {
 		width: 50%;
 	}
 }
-

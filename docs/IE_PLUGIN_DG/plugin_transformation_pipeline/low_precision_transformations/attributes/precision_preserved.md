@@ -1,4 +1,4 @@
-# PrecisionPreserved attribute {#openvino_docs_OV_UG_lpt_PrecisionPreserved}
+# PrecisionPreserved Attribute {#openvino_docs_OV_UG_lpt_PrecisionPreserved}
 
 ngraph::PrecisionPreservedAttribute class represents the `PrecisionPreserved` attribute.
 
