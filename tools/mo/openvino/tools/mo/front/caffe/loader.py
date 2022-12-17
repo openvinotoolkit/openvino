@@ -26,59 +26,6 @@ def import_caffe_pb2(caffe_parser_path: str):
 
     return caffe_pb2
 
-
-def parse_mean(file_path: str, in_shape: np.ndarray, mean_file_offsets: [tuple, None], caffe_pb2):
-    blob = caffe_pb2.BlobProto()
-    with open(file_path, 'rb') as file:
-        data = file.read()
-
-    if not data:
-        raise Error('Mean file "{}" is empty.' + refer_to_faq_msg(5),
-                    file_path)
-
-    try:
-        blob.ParseFromString(data)
-        data = mo_array(blob.data)  # pylint: disable=no-member
-
-        if blob.HasField('channels') or blob.HasField('height') or blob.HasField('width'):
-            data = data.reshape(blob.channels, blob.height, blob.width)  # pylint: disable=no-member
-        else:
-            data = data.reshape(blob.shape.dim)  # pylint: disable=no-member
-        # crop mean image according to input size
-        if in_shape[2] > data.shape[1] or in_shape[3] > data.shape[2]:
-            raise Error(
-                'Input image of shape {} is larger than mean image {} from file "{}". ' +
-                refer_to_faq_msg(4),
-                in_shape,
-                data.shape,
-                file_path
-            )
-
-        if mean_file_offsets is not None and len(mean_file_offsets) == 2:
-            offset_x = mean_file_offsets[0]
-            offset_y = mean_file_offsets[1]
-        else:
-            offset_x = int((data.shape[1] - in_shape[2]) / 2)
-            offset_y = int((data.shape[2] - in_shape[3]) / 2)
-
-        mean = []
-        for i in range(in_shape[1]):
-            data_channel = np.zeros(in_shape[2] * in_shape[3], dtype=np.float32)
-            for x in range(in_shape[2]):
-                for y in range(in_shape[3]):
-                    data_channel[x * in_shape[3] + y] = data[i, x + offset_x, y + offset_y]
-            mean.append(data_channel)
-
-        return mean
-
-    except Exception as err:
-        raise Error(
-            'While processing mean file "{}": {}. Probably mean file has incorrect format. ' +
-            refer_to_faq_msg(6),
-            file_path,
-            str(err)) from err
-
-
 def load_caffe_proto_model(caffe_pb2, proto_path: str, model_path: [str, None] = None):
     # 1. python protobuf is used
     if api_implementation._implementation_type == 'python':
