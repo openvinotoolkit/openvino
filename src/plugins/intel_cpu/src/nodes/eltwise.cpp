@@ -2068,6 +2068,31 @@ void Eltwise::selectOptimalPrimitiveDescriptor() {
 }
 
 void Eltwise::execute(dnnl::stream strm) {
+// DEBUG
+if (algorithm == Algorithm::EltwiseIsInf) {
+    auto inLen = getParentEdgeAt(0)->getMemoryPtr()->GetSize();
+    std::cout << "\nINPUT DATA (" << inLen << "):" << std::endl;
+    float *srcDataF = reinterpret_cast<float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    for (int i = 0; i < inLen / sizeof(float); i++) {
+        if (i > 0 && i % 4 == 0)
+            std::cout << "| ";
+        if (i > 0 && i % 16 == 0)
+            std::cout << std::endl;
+        std::cout << srcDataF[i] << "; ";
+    }
+// BYTES
+    std::cout << std::endl << "IN BYTES: " << std::endl;
+    uint8_t *srcDataB = reinterpret_cast<uint8_t *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    for (int i = 0; i < inLen; i++) {
+        if (i > 0 && i % 4 == 0)
+            std::cout << "| ";
+        if (i > 0 && i % 32 == 0)
+            std::cout << std::endl;
+        std::cout << int(srcDataB[i]) << "; ";
+    }
+    std::cout << std::endl;
+}
+// DEBUG
     if (execPtr) {
         jit_eltwise_call_args_ptrs args_ptrs = {};
         auto batchDimIdx = execPtr->getBatchDimIdx();
@@ -2089,6 +2114,35 @@ void Eltwise::execute(dnnl::stream strm) {
     } else {
         IE_THROW() << "Can't execute eltwise node with name: " << getName() << ". Primitive isn't created";
     }
+// DEBUG
+if (algorithm == Algorithm::EltwiseIsInf) {
+    auto outLen = getChildEdgeAt(0)->getMemoryPtr()->GetSize();
+    auto outPrc = getChildEdgeAt(0)->getMemoryPtr()->getDesc().getPrecision();
+    std::cout << "OUTPUT_0 (" << outLen << "):" << std::endl;
+    if (outPrc == Precision::FP32) {
+        std::cout << "FP32" << std::endl;
+        float *dstDataF = reinterpret_cast<float *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+        for (int i = 0; i < outLen / sizeof(float); i++) {
+            if (i > 0 && i % 4 == 0)
+                std::cout << "| ";
+            if (i > 0 && i % 16 == 0)
+                std::cout << std::endl;
+            std::cout << dstDataF[i] << "; ";
+        }
+    } else if (outPrc == Precision::U8) {
+        std::cout << "U8" << std::endl;
+        uint8_t *dstDataF = reinterpret_cast<uint8_t *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+        for (int i = 0; i < outLen / sizeof(uint8_t); i++) {
+            if (i > 0 && i % 4 == 0)
+                std::cout << "| ";
+            if (i > 0 && i % 16 == 0)
+                std::cout << std::endl;
+            std::cout << int(dstDataF[i]) << "; ";
+        }
+    }
+    std::cout << std::endl << std::endl;
+}
+// DEBUG
 }
 
 void Eltwise::executeDynamicImpl(dnnl::stream strm) {
