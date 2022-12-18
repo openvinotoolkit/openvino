@@ -40,7 +40,7 @@ pip install openvino-dev
 
 > **NOTE**: This installation is also suitable if the model is already in the IR format.
 
-### Installation without Having Environment with the Source Deep Learning Framework
+### Installation in a New Environment
 
 If you do not have an environment with the source deep learning framework for the input model or you encounter any compatibility issues between OpenVINO and your deep learning framework,
 you may install OpenVINO Development Tools with validated versions of frameworks into a new environment. 
