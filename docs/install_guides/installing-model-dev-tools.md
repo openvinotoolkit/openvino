@@ -37,8 +37,6 @@ with the deep learning framework used for the model training or creation, run th
 pip install openvino-dev
 ```
 
-> **NOTE**: This installation is also suitable if the model is already in the IR format.
-
 ### Installation in a New Environment
 
 If you do not have an environment with a deep learning framework for the input model or you encounter any compatibility issues between OpenVINO

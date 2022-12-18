@@ -38,8 +38,6 @@ with the source deep learning framework used for model training or creation, run
 pip install openvino-dev
 ```
 
-> **NOTE**: This installation is also suitable if the model is already in the IR format.
-
 ### Installation in a New Environment
 
 If you do not have an environment with the source deep learning framework for the input model or you encounter any compatibility issues between OpenVINO and your deep learning framework,
@@ -93,15 +91,15 @@ pip install openvino-dev[extras]
 | :-------------------------------| :------------------------------------------------------------------------------- |
 | caffe                           |   [Caffe*](https://caffe.berkeleyvision.org/)                                    |
 | kaldi                           |   [Kaldi*](https://github.com/kaldi-asr/kaldi)                                   |
-| mxnet                           |   [Apache MXNet*](https://mxnet.apache.org/)                                            |
+| mxnet                           |   [Apache MXNet*](https://mxnet.apache.org/)                                     |
 | onnx                            |   [ONNX*](https://github.com/microsoft/onnxruntime/)                             |
 | pytorch                         |   [PyTorch*](https://pytorch.org/)                                               |
 | tensorflow                      |   [TensorFlow* 1.x](https://www.tensorflow.org/versions#tensorflow_1)            |
 | tensorflow2                     |   [TensorFlow* 2.x](https://www.tensorflow.org/versions#tensorflow_2)            |
 
-For example, to install and configure the components for working with TensorFlow 2.x, Apache MXNet and Caffe, use the following command:
+For example, to install and configure the components for working with TensorFlow 2.x and ONNX models, use the following command:
    ```sh
-   pip install openvino-dev[tensorflow2,mxnet,caffe]
+   pip install openvino-dev[tensorflow2,onnx]
    ```
 > **NOTE**: Model Optimizer support for TensorFlow 1.x environment has been deprecated. Use TensorFlow 2.x environment to convert both TensorFlow 1.x and 2.x models.
 
