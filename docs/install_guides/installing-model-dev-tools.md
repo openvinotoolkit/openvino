@@ -30,7 +30,7 @@ for model training or creation; or installation into a new environment.
 
 ### Installation into an Existing Environment with the Source Deep Learning Framework
 
-To install OpenVINO Development Tools (see the [What's in the Package](#whats-in-the-package) section of this article) into the existing environment
+To install OpenVINO Development Tools (see the [What's in the Package](#whats-in-the-package) section of this article) into an existing environment
 with the deep learning framework used for the model training or creation, run the following command:
 
 ```sh
