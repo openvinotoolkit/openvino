@@ -30,7 +30,7 @@ Before you start the installation, check the supported operating systems and req
 There are two options to install OpenVINO Development Tools: installation into an existing environment with a deep learning framework used for model training or creation;
 or installation in a new environment.
 
-### Installation into the Existing Environment with the Source Deep Learning Framework
+### Installation into an Existing Environment with the Source Deep Learning Framework
 
 To install OpenVINO Development Tools (see the [What's in the Package](#whats-in-the-package) section of this article) into the existing environment
 with the source deep learning framework used for the model training or creation, run the following command:
