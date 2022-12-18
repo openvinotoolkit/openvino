@@ -26,7 +26,7 @@ Once OpenVINO Runtime is installed, you may install OpenVINO Development Tools f
 ## <a name="install-dev-tools"></a>Installing OpenVINO™ Development Tools
 Follow these step-by-step instructions to install OpenVINO Development Tools on your computer.
 There are two options to install OpenVINO Development Tools: installation into an existing environment with a deep learning framework that was used
-for the model training or creation; installation without having the environment.
+for model training or creation; or installation into a new environment.
 
 ### Installation into the Existing Environment with the Source Deep Learning Framework
 
