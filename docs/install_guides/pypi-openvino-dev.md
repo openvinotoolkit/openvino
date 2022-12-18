@@ -27,7 +27,25 @@ Before you start the installation, check the supported operating systems and req
 
 ## Install the OpenVINO™ Development Tools Package
 
-### Step 1. Set Up Python Virtual Environment
+There are two options to install OpenVINO Development Tools: installation into the existing environment with the source deep learning framework used for the model training or creation;
+installation without having the environment.
+
+### Installation into the Existing Environment with the Source Deep Learning Framework
+
+To install OpenVINO Development Tools (see the [What's in the Package](#whats-in-the-package) section of this article) into the existing environment
+with the source deep learning framework used for the model training or creation, run the following command:
+```
+pip install openvino-dev
+```
+
+> **NOTE**: This installation is also suitable if the model is already in the IR format.
+
+### Installation without Having Environment with the Source Deep Learning Framework
+
+In case that you do not have the environment with the source deep learning framework for the input model or you encounter any compatibility issues between OpenVINO and your deep learning framework,
+you may install OpenVINO Development Tools with validated versions of the framework into a new environment. 
+
+#### Step 1. Set Up Python Virtual Environment
 
 Use a virtual environment to avoid dependency conflicts. 
 
@@ -45,7 +63,7 @@ python3 -m venv openvino_env
 
 > **NOTE**: On Linux and macOS, you may need to [install pip](https://pip.pypa.io/en/stable/installation/). For example, on Ubuntu execute the following command to get pip installed: `sudo apt install python3-venv python3-pip`.
 
-### Step 2. Activate Virtual Environment
+#### Step 2. Activate Virtual Environment
 
 On Linux and macOS:
 ```sh
@@ -56,32 +74,20 @@ On Windows:
 openvino_env\Scripts\activate
 ```
 
-### Step 3. Set Up and Update PIP to the Highest Version
+#### Step 3. Set Up and Update PIP to the Highest Version
 
 Run the command below:
 ```sh
 python -m pip install --upgrade pip
 ```
 
-### Step 4. Install the Package
+#### Step 4. Install the Package
 
-There are two options to install OpenVINO Development Tools:
-
-#### Installing Default Components
-
-To install OpenVINO Development Tools (see the [What's in the Package](#whats-in-the-package) section of this article) into the existing environment with the deep learning framework used for the model training, run the following command:
-```
-pip install openvino-dev
-```
-
-#### Installing Components for Specific Frameworks
-
-In case that you do not have the deep learning framework in your environment used for the model training or encounter any compatibility issues between OpenVINO and your deep learning framework,
-you may install OpenVINO Development Tools with validated versions of the framework into a separate environment. Use the following command:
+Use the following command:
 ```sh
 pip install openvino-dev[extras]
 ```
- where `extras` has the following values: 
+ where `extras` is the source deep learning framework for the input model and has the following values: 
 
 | Extras Value                    | DL Framework                                                                     |
 | :-------------------------------| :------------------------------------------------------------------------------- |
@@ -93,13 +99,13 @@ pip install openvino-dev[extras]
 | tensorflow                      |   [TensorFlow* 1.x](https://www.tensorflow.org/versions#tensorflow_1)            |
 | tensorflow2                     |   [TensorFlow* 2.x](https://www.tensorflow.org/versions#tensorflow_2)            |
 
-For example, to install and configure the components for working with TensorFlow 2.x, Apache MXNet and Caffe, use the following command:  
+For example, to install and configure the components for working with TensorFlow 2.x, Apache MXNet and Caffe, use the following command:
    ```sh
    pip install openvino-dev[tensorflow2,mxnet,caffe]
    ```
 > **NOTE**: Model Optimizer support for TensorFlow 1.x environment has been deprecated. Use TensorFlow 2.x environment to convert both TensorFlow 1.x and 2.x models.
 
-### Step 5. Verify that the Package Is Installed
+## How to Verify that the Package Is Installed
 
 - To verify that the **developer package** is properly installed, run the command below (this may take a few seconds):
    ```sh
