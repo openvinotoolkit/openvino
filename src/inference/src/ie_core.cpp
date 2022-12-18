@@ -415,7 +415,6 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         }
 
         ov::Any get_device_cache_dir(const std::string& device_name) const {
-            std::lock_guard<std::mutex> lock(_cacheConfigMutex);
             auto cache_config = getCacheConfigForDevice(device_name);
             return cache_config._cacheDir;
         }
