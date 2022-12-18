@@ -110,7 +110,7 @@ where the `extras` parameter specifies the source deep learning framework for th
 and has the following values:  `caffe`, `kaldi`, `mxnet`, `onnx`, `pytorch`, `tensorflow`, `tensorflow2`. 
 Make sure that you install the corresponding frameworks for your models.
 
-For example, to install and configure the components for working with TensorFlow 2.x and ONNX, use the following command:
+For example, to install and configure dependencies required for working with TensorFlow 2.x and ONNX models, use the following command:
 
 ```sh
 pip install openvino-dev[tensorflow2,onnx]
