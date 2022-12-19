@@ -49,8 +49,8 @@ TEST(DISABLED_oooq_test, simple)
     net.set_input_data("in", input_mem);
     auto output = net.execute().at("c9").get_memory();
 
-    EXPECT_TRUE(output->get_layout().spatial(0) == 2);
-    EXPECT_TRUE(output->get_layout().spatial(1) == 2);
-    EXPECT_TRUE(output->get_layout().feature() == 1);
-    EXPECT_TRUE(output->get_layout().batch() == 1);
+    ASSERT_TRUE(output->get_layout().spatial(0) == 2);
+    ASSERT_TRUE(output->get_layout().spatial(1) == 2);
+    ASSERT_TRUE(output->get_layout().feature() == 1);
+    ASSERT_TRUE(output->get_layout().batch() == 1);
 }

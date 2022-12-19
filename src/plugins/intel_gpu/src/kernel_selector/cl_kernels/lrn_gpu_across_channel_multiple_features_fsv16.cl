@@ -29,7 +29,7 @@ KERNEL (lrn_gpu_across_channel_multiple_features_fsv16)(
     INPUT0_TYPE res = 0;
     for (uint i = 0; i < LOCAL_SIZE; ++i, ++input_offset_f) {
         bool non_zero = input_offset_f >= 0 && input_offset_f < INPUT0_FEATURE_NUM;
-        uint input_idx = INPUT0_GET_INDEX(batch_id, input_offset_f, y, x);
+        uint input_idx = INPUT0_GET_INDEX(batch_id, max(input_offset_f, (int)0), y, x);
         val[i] = (int)non_zero * TO_INPUT0_TYPE(ALPHA_VAL_FACTOR_DIV_BY_SIZE) * TO_INPUT0_TYPE(input[input_idx]);
         res = mad(val[i], val[i], res);
     }

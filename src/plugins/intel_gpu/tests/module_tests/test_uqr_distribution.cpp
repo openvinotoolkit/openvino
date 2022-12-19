@@ -49,10 +49,10 @@ TYPED_TEST(uniform_quantized_real_distribution_test, param_construct_default)
     uqr_dist_param dist_param_instance1;
     using actual_uqr_dist_rt = typename decltype(dist_param_instance1)::distribution_type::result_type;
 
-    EXPECT_TRUE((std::is_same<actual_uqr_dist_rt, expected_uqr_dist_rt>::value));
-    EXPECT_EQ(dist_param_instance1.a(),                     expected_a);
-    EXPECT_EQ(dist_param_instance1.b(),                     expected_b);
-    EXPECT_EQ(dist_param_instance1.significand_rand_bits(), expected_srb);
+    ASSERT_TRUE((std::is_same<actual_uqr_dist_rt, expected_uqr_dist_rt>::value));
+    ASSERT_EQ(dist_param_instance1.a(),                     expected_a);
+    ASSERT_EQ(dist_param_instance1.b(),                     expected_b);
+    ASSERT_EQ(dist_param_instance1.significand_rand_bits(), expected_srb);
 }
 
 TYPED_TEST(uniform_quantized_real_distribution_test, param_construct_a_b_srb)
@@ -67,9 +67,9 @@ TYPED_TEST(uniform_quantized_real_distribution_test, param_construct_a_b_srb)
 
     uqr_dist_param dist_param_instance1(expected_a, expected_b, expected_srb);
 
-    EXPECT_EQ(dist_param_instance1.a(),                     expected_a);
-    EXPECT_EQ(dist_param_instance1.b(),                     expected_b);
-    EXPECT_EQ(dist_param_instance1.significand_rand_bits(), expected_srb);
+    ASSERT_EQ(dist_param_instance1.a(),                     expected_a);
+    ASSERT_EQ(dist_param_instance1.b(),                     expected_b);
+    ASSERT_EQ(dist_param_instance1.significand_rand_bits(), expected_srb);
 
     // Zero
     expected_a   = static_cast<expected_uqr_dist_rt>(57);
@@ -78,9 +78,9 @@ TYPED_TEST(uniform_quantized_real_distribution_test, param_construct_a_b_srb)
 
     uqr_dist_param dist_param_instance2(expected_a, expected_b, expected_srb);
 
-    EXPECT_EQ(dist_param_instance2.a(),                     expected_a);
-    EXPECT_EQ(dist_param_instance2.b(),                     expected_b);
-    EXPECT_EQ(dist_param_instance2.significand_rand_bits(), expected_srb);
+    ASSERT_EQ(dist_param_instance2.a(),                     expected_a);
+    ASSERT_EQ(dist_param_instance2.b(),                     expected_b);
+    ASSERT_EQ(dist_param_instance2.significand_rand_bits(), expected_srb);
 
     // Almost Maximum
     expected_a   = static_cast<expected_uqr_dist_rt>(-65);
@@ -89,9 +89,9 @@ TYPED_TEST(uniform_quantized_real_distribution_test, param_construct_a_b_srb)
 
     uqr_dist_param dist_param_instance3(expected_a, expected_b, expected_srb);
 
-    EXPECT_EQ(dist_param_instance3.a(),                     expected_a);
-    EXPECT_EQ(dist_param_instance3.b(),                     expected_b);
-    EXPECT_EQ(dist_param_instance3.significand_rand_bits(), expected_srb);
+    ASSERT_EQ(dist_param_instance3.a(),                     expected_a);
+    ASSERT_EQ(dist_param_instance3.b(),                     expected_b);
+    ASSERT_EQ(dist_param_instance3.significand_rand_bits(), expected_srb);
 
     // Maximum
     expected_a   = static_cast<expected_uqr_dist_rt>(0);
@@ -100,9 +100,9 @@ TYPED_TEST(uniform_quantized_real_distribution_test, param_construct_a_b_srb)
 
     uqr_dist_param dist_param_instance4(expected_a, expected_b, expected_srb);
 
-    EXPECT_EQ(dist_param_instance4.a(),                     expected_a);
-    EXPECT_EQ(dist_param_instance4.b(),                     expected_b);
-    EXPECT_EQ(dist_param_instance4.significand_rand_bits(), expected_srb);
+    ASSERT_EQ(dist_param_instance4.a(),                     expected_a);
+    ASSERT_EQ(dist_param_instance4.b(),                     expected_b);
+    ASSERT_EQ(dist_param_instance4.significand_rand_bits(), expected_srb);
 
     // Over Maximum
     expected_a   = static_cast<expected_uqr_dist_rt>(-4);
@@ -113,16 +113,16 @@ TYPED_TEST(uniform_quantized_real_distribution_test, param_construct_a_b_srb)
 
     uqr_dist_param dist_param_instance5(expected_a, expected_b, test_srb);
 
-    EXPECT_EQ(dist_param_instance5.a(),                     expected_a);
-    EXPECT_EQ(dist_param_instance5.b(),                     expected_b);
-    EXPECT_EQ(dist_param_instance5.significand_rand_bits(), expected_srb);
+    ASSERT_EQ(dist_param_instance5.a(),                     expected_a);
+    ASSERT_EQ(dist_param_instance5.b(),                     expected_b);
+    ASSERT_EQ(dist_param_instance5.significand_rand_bits(), expected_srb);
 
     // Throw std::invalid_argument (a > b)
     expected_a   = static_cast<expected_uqr_dist_rt>(40);
     expected_b   = static_cast<expected_uqr_dist_rt>(39);
     expected_srb = 1U;
 
-    EXPECT_THROW({
+    ASSERT_THROW({
         uqr_dist_param dist_param_instance6(expected_a, expected_b, test_srb);
     }, std::invalid_argument);
 
@@ -131,7 +131,7 @@ TYPED_TEST(uniform_quantized_real_distribution_test, param_construct_a_b_srb)
     expected_b   = static_cast<expected_uqr_dist_rt>(39);
     expected_srb = 1U;
 
-    EXPECT_THROW({
+    ASSERT_THROW({
         uqr_dist_param dist_param_instance7(expected_a, expected_b, test_srb);
     }, std::invalid_argument);
 
@@ -140,7 +140,7 @@ TYPED_TEST(uniform_quantized_real_distribution_test, param_construct_a_b_srb)
     expected_b   = std::numeric_limits<expected_uqr_dist_rt>::infinity();
     expected_srb = 1U;
 
-    EXPECT_THROW({
+    ASSERT_THROW({
         uqr_dist_param dist_param_instance8(expected_a, expected_b, test_srb);
     }, std::invalid_argument);
 }
@@ -158,36 +158,36 @@ TYPED_TEST(uniform_quantized_real_distribution_test, param_construct_srb)
 
     uqr_dist_param dist_param_instance1(expected_srb);
 
-    EXPECT_EQ(dist_param_instance1.a(),                     expected_a);
-    EXPECT_EQ(dist_param_instance1.b(),                     expected_b);
-    EXPECT_EQ(dist_param_instance1.significand_rand_bits(), expected_srb);
+    ASSERT_EQ(dist_param_instance1.a(),                     expected_a);
+    ASSERT_EQ(dist_param_instance1.b(),                     expected_b);
+    ASSERT_EQ(dist_param_instance1.significand_rand_bits(), expected_srb);
 
     // Zero
     expected_srb = 0U;
 
     uqr_dist_param dist_param_instance2(expected_srb);
 
-    EXPECT_EQ(dist_param_instance2.a(),                     expected_a);
-    EXPECT_EQ(dist_param_instance2.b(),                     expected_b);
-    EXPECT_EQ(dist_param_instance2.significand_rand_bits(), expected_srb);
+    ASSERT_EQ(dist_param_instance2.a(),                     expected_a);
+    ASSERT_EQ(dist_param_instance2.b(),                     expected_b);
+    ASSERT_EQ(dist_param_instance2.significand_rand_bits(), expected_srb);
 
     // Almost Maximum
     expected_srb = std::numeric_limits<expected_uqr_dist_rt>::digits - 4U;
 
     uqr_dist_param dist_param_instance3(expected_srb);
 
-    EXPECT_EQ(dist_param_instance3.a(),                     expected_a);
-    EXPECT_EQ(dist_param_instance3.b(),                     expected_b);
-    EXPECT_EQ(dist_param_instance3.significand_rand_bits(), expected_srb);
+    ASSERT_EQ(dist_param_instance3.a(),                     expected_a);
+    ASSERT_EQ(dist_param_instance3.b(),                     expected_b);
+    ASSERT_EQ(dist_param_instance3.significand_rand_bits(), expected_srb);
 
     // Maximum
     expected_srb = std::numeric_limits<expected_uqr_dist_rt>::digits - 1U;
 
     uqr_dist_param dist_param_instance4(expected_srb);
 
-    EXPECT_EQ(dist_param_instance4.a(),                     expected_a);
-    EXPECT_EQ(dist_param_instance4.b(),                     expected_b);
-    EXPECT_EQ(dist_param_instance4.significand_rand_bits(), expected_srb);
+    ASSERT_EQ(dist_param_instance4.a(),                     expected_a);
+    ASSERT_EQ(dist_param_instance4.b(),                     expected_b);
+    ASSERT_EQ(dist_param_instance4.significand_rand_bits(), expected_srb);
 
     // Over Maximum
     expected_srb = std::numeric_limits<expected_uqr_dist_rt>::digits - 1U;
@@ -196,9 +196,9 @@ TYPED_TEST(uniform_quantized_real_distribution_test, param_construct_srb)
 
     uqr_dist_param dist_param_instance5(test_srb);
 
-    EXPECT_EQ(dist_param_instance5.a(),                     expected_a);
-    EXPECT_EQ(dist_param_instance5.b(),                     expected_b);
-    EXPECT_EQ(dist_param_instance5.significand_rand_bits(), expected_srb);
+    ASSERT_EQ(dist_param_instance5.a(),                     expected_a);
+    ASSERT_EQ(dist_param_instance5.b(),                     expected_b);
+    ASSERT_EQ(dist_param_instance5.significand_rand_bits(), expected_srb);
 }
 
 TYPED_TEST(uniform_quantized_real_distribution_test, param_construct_copy)
@@ -213,9 +213,9 @@ TYPED_TEST(uniform_quantized_real_distribution_test, param_construct_copy)
     uqr_dist_param dist_param_instance1(expected_a, expected_b, expected_srb);
     uqr_dist_param dist_param_instance2(dist_param_instance1);
 
-    EXPECT_EQ(dist_param_instance2.a(),                     expected_a);
-    EXPECT_EQ(dist_param_instance2.b(),                     expected_b);
-    EXPECT_EQ(dist_param_instance2.significand_rand_bits(), expected_srb);
+    ASSERT_EQ(dist_param_instance2.a(),                     expected_a);
+    ASSERT_EQ(dist_param_instance2.b(),                     expected_b);
+    ASSERT_EQ(dist_param_instance2.significand_rand_bits(), expected_srb);
 }
 
 TYPED_TEST(uniform_quantized_real_distribution_test, param_construct_move)
@@ -230,9 +230,9 @@ TYPED_TEST(uniform_quantized_real_distribution_test, param_construct_move)
     uqr_dist_param dist_param_instance1(expected_a, expected_b, expected_srb);
     uqr_dist_param dist_param_instance2(std::move(dist_param_instance1));
 
-    EXPECT_EQ(dist_param_instance2.a(),                     expected_a);
-    EXPECT_EQ(dist_param_instance2.b(),                     expected_b);
-    EXPECT_EQ(dist_param_instance2.significand_rand_bits(), expected_srb);
+    ASSERT_EQ(dist_param_instance2.a(),                     expected_a);
+    ASSERT_EQ(dist_param_instance2.b(),                     expected_b);
+    ASSERT_EQ(dist_param_instance2.significand_rand_bits(), expected_srb);
 }
 
 TYPED_TEST(uniform_quantized_real_distribution_test, param_assign_copy)
@@ -248,9 +248,9 @@ TYPED_TEST(uniform_quantized_real_distribution_test, param_assign_copy)
     uqr_dist_param dist_param_instance2(2U);
     dist_param_instance2 = dist_param_instance1;
 
-    EXPECT_EQ(dist_param_instance2.a(),                     expected_a);
-    EXPECT_EQ(dist_param_instance2.b(),                     expected_b);
-    EXPECT_EQ(dist_param_instance2.significand_rand_bits(), expected_srb);
+    ASSERT_EQ(dist_param_instance2.a(),                     expected_a);
+    ASSERT_EQ(dist_param_instance2.b(),                     expected_b);
+    ASSERT_EQ(dist_param_instance2.significand_rand_bits(), expected_srb);
 }
 
 TYPED_TEST(uniform_quantized_real_distribution_test, param_assign_move)
@@ -266,9 +266,9 @@ TYPED_TEST(uniform_quantized_real_distribution_test, param_assign_move)
     uqr_dist_param dist_param_instance2(2U);
     dist_param_instance2 = std::move(dist_param_instance1);
 
-    EXPECT_EQ(dist_param_instance2.a(),                     expected_a);
-    EXPECT_EQ(dist_param_instance2.b(),                     expected_b);
-    EXPECT_EQ(dist_param_instance2.significand_rand_bits(), expected_srb);
+    ASSERT_EQ(dist_param_instance2.a(),                     expected_a);
+    ASSERT_EQ(dist_param_instance2.b(),                     expected_b);
+    ASSERT_EQ(dist_param_instance2.significand_rand_bits(), expected_srb);
 }
 
 TYPED_TEST(uniform_quantized_real_distribution_test, param_equality_compare)
@@ -284,25 +284,25 @@ TYPED_TEST(uniform_quantized_real_distribution_test, param_equality_compare)
     uqr_dist_param dist_param_instance2(2U);
     uqr_dist_param dist_param_instance3 = dist_param_instance1;
 
-    EXPECT_TRUE (dist_param_instance1 == dist_param_instance1);
-    EXPECT_FALSE(dist_param_instance1 == dist_param_instance2);
-    EXPECT_TRUE (dist_param_instance1 == dist_param_instance3);
-    EXPECT_FALSE(dist_param_instance2 == dist_param_instance1);
-    EXPECT_TRUE (dist_param_instance2 == dist_param_instance2);
-    EXPECT_FALSE(dist_param_instance2 == dist_param_instance3);
-    EXPECT_TRUE (dist_param_instance3 == dist_param_instance1);
-    EXPECT_FALSE(dist_param_instance3 == dist_param_instance2);
-    EXPECT_TRUE (dist_param_instance3 == dist_param_instance3);
+    ASSERT_TRUE (dist_param_instance1 == dist_param_instance1);
+    ASSERT_FALSE(dist_param_instance1 == dist_param_instance2);
+    ASSERT_TRUE (dist_param_instance1 == dist_param_instance3);
+    ASSERT_FALSE(dist_param_instance2 == dist_param_instance1);
+    ASSERT_TRUE (dist_param_instance2 == dist_param_instance2);
+    ASSERT_FALSE(dist_param_instance2 == dist_param_instance3);
+    ASSERT_TRUE (dist_param_instance3 == dist_param_instance1);
+    ASSERT_FALSE(dist_param_instance3 == dist_param_instance2);
+    ASSERT_TRUE (dist_param_instance3 == dist_param_instance3);
 
-    EXPECT_FALSE(dist_param_instance1 != dist_param_instance1);
-    EXPECT_TRUE (dist_param_instance1 != dist_param_instance2);
-    EXPECT_FALSE(dist_param_instance1 != dist_param_instance3);
-    EXPECT_TRUE (dist_param_instance2 != dist_param_instance1);
-    EXPECT_FALSE(dist_param_instance2 != dist_param_instance2);
-    EXPECT_TRUE (dist_param_instance2 != dist_param_instance3);
-    EXPECT_FALSE(dist_param_instance3 != dist_param_instance1);
-    EXPECT_TRUE (dist_param_instance3 != dist_param_instance2);
-    EXPECT_FALSE(dist_param_instance3 != dist_param_instance3);
+    ASSERT_FALSE(dist_param_instance1 != dist_param_instance1);
+    ASSERT_TRUE (dist_param_instance1 != dist_param_instance2);
+    ASSERT_FALSE(dist_param_instance1 != dist_param_instance3);
+    ASSERT_TRUE (dist_param_instance2 != dist_param_instance1);
+    ASSERT_FALSE(dist_param_instance2 != dist_param_instance2);
+    ASSERT_TRUE (dist_param_instance2 != dist_param_instance3);
+    ASSERT_FALSE(dist_param_instance3 != dist_param_instance1);
+    ASSERT_TRUE (dist_param_instance3 != dist_param_instance2);
+    ASSERT_FALSE(dist_param_instance3 != dist_param_instance3);
 }
 
 TYPED_TEST(uniform_quantized_real_distribution_test, construct_default)
@@ -317,10 +317,10 @@ TYPED_TEST(uniform_quantized_real_distribution_test, construct_default)
     uqr_dist dist_instance1;
     using actual_uqr_dist_rt = typename decltype(dist_instance1)::result_type;
 
-    EXPECT_TRUE((std::is_same<actual_uqr_dist_rt, expected_uqr_dist_rt>::value));
-    EXPECT_EQ(dist_instance1.a(),                     expected_a);
-    EXPECT_EQ(dist_instance1.b(),                     expected_b);
-    EXPECT_EQ(dist_instance1.significand_rand_bits(), expected_srb);
+    ASSERT_TRUE((std::is_same<actual_uqr_dist_rt, expected_uqr_dist_rt>::value));
+    ASSERT_EQ(dist_instance1.a(),                     expected_a);
+    ASSERT_EQ(dist_instance1.b(),                     expected_b);
+    ASSERT_EQ(dist_instance1.significand_rand_bits(), expected_srb);
 }
 
 TYPED_TEST(uniform_quantized_real_distribution_test, construct_a_b_srb)
@@ -335,9 +335,9 @@ TYPED_TEST(uniform_quantized_real_distribution_test, construct_a_b_srb)
 
     uqr_dist dist_instance1(expected_a, expected_b, expected_srb);
 
-    EXPECT_EQ(dist_instance1.a(),                     expected_a);
-    EXPECT_EQ(dist_instance1.b(),                     expected_b);
-    EXPECT_EQ(dist_instance1.significand_rand_bits(), expected_srb);
+    ASSERT_EQ(dist_instance1.a(),                     expected_a);
+    ASSERT_EQ(dist_instance1.b(),                     expected_b);
+    ASSERT_EQ(dist_instance1.significand_rand_bits(), expected_srb);
 
     // Zero
     expected_a   = static_cast<expected_uqr_dist_rt>(47);
@@ -346,9 +346,9 @@ TYPED_TEST(uniform_quantized_real_distribution_test, construct_a_b_srb)
 
     uqr_dist dist_instance2(expected_a, expected_b, expected_srb);
 
-    EXPECT_EQ(dist_instance2.a(),                     expected_a);
-    EXPECT_EQ(dist_instance2.b(),                     expected_b);
-    EXPECT_EQ(dist_instance2.significand_rand_bits(), expected_srb);
+    ASSERT_EQ(dist_instance2.a(),                     expected_a);
+    ASSERT_EQ(dist_instance2.b(),                     expected_b);
+    ASSERT_EQ(dist_instance2.significand_rand_bits(), expected_srb);
 
     // Almost Maximum
     expected_a   = static_cast<expected_uqr_dist_rt>(-55);
@@ -357,9 +357,9 @@ TYPED_TEST(uniform_quantized_real_distribution_test, construct_a_b_srb)
 
     uqr_dist dist_instance3(expected_a, expected_b, expected_srb);
 
-    EXPECT_EQ(dist_instance3.a(),                     expected_a);
-    EXPECT_EQ(dist_instance3.b(),                     expected_b);
-    EXPECT_EQ(dist_instance3.significand_rand_bits(), expected_srb);
+    ASSERT_EQ(dist_instance3.a(),                     expected_a);
+    ASSERT_EQ(dist_instance3.b(),                     expected_b);
+    ASSERT_EQ(dist_instance3.significand_rand_bits(), expected_srb);
 
     // Maximum
     expected_a   = static_cast<expected_uqr_dist_rt>(2);
@@ -368,9 +368,9 @@ TYPED_TEST(uniform_quantized_real_distribution_test, construct_a_b_srb)
 
     uqr_dist dist_instance4(expected_a, expected_b, expected_srb);
 
-    EXPECT_EQ(dist_instance4.a(),                     expected_a);
-    EXPECT_EQ(dist_instance4.b(),                     expected_b);
-    EXPECT_EQ(dist_instance4.significand_rand_bits(), expected_srb);
+    ASSERT_EQ(dist_instance4.a(),                     expected_a);
+    ASSERT_EQ(dist_instance4.b(),                     expected_b);
+    ASSERT_EQ(dist_instance4.significand_rand_bits(), expected_srb);
 
     // Over Maximum
     expected_a   = static_cast<expected_uqr_dist_rt>(-3);
@@ -381,16 +381,16 @@ TYPED_TEST(uniform_quantized_real_distribution_test, construct_a_b_srb)
 
     uqr_dist dist_instance5(expected_a, expected_b, test_srb);
 
-    EXPECT_EQ(dist_instance5.a(),                     expected_a);
-    EXPECT_EQ(dist_instance5.b(),                     expected_b);
-    EXPECT_EQ(dist_instance5.significand_rand_bits(), expected_srb);
+    ASSERT_EQ(dist_instance5.a(),                     expected_a);
+    ASSERT_EQ(dist_instance5.b(),                     expected_b);
+    ASSERT_EQ(dist_instance5.significand_rand_bits(), expected_srb);
 
     // Throw std::invalid_argument (a > b)
     expected_a   = static_cast<expected_uqr_dist_rt>(-40);
     expected_b   = static_cast<expected_uqr_dist_rt>(-80);
     expected_srb = 1U;
 
-    EXPECT_THROW({
+    ASSERT_THROW({
         uqr_dist dist_instance6(expected_a, expected_b, test_srb);
     }, std::invalid_argument);
 
@@ -399,7 +399,7 @@ TYPED_TEST(uniform_quantized_real_distribution_test, construct_a_b_srb)
     expected_b   = static_cast<expected_uqr_dist_rt>(-80);
     expected_srb = 1U;
 
-    EXPECT_THROW({
+    ASSERT_THROW({
         uqr_dist dist_instance7(expected_a, expected_b, test_srb);
     }, std::invalid_argument);
 
@@ -408,7 +408,7 @@ TYPED_TEST(uniform_quantized_real_distribution_test, construct_a_b_srb)
     expected_b   = std::numeric_limits<expected_uqr_dist_rt>::infinity();
     expected_srb = 1U;
 
-    EXPECT_THROW({
+    ASSERT_THROW({
         uqr_dist dist_instance8(expected_a, expected_b, test_srb);
     }, std::invalid_argument);
 }
@@ -426,13 +426,13 @@ TYPED_TEST(uniform_quantized_real_distribution_test, construct_param)
     uqr_dist_param dist_param_instance1(expected_a, expected_b, expected_srb);
     uqr_dist dist_instance1(dist_param_instance1);
 
-    EXPECT_EQ(dist_param_instance1.a(),                     expected_a);
-    EXPECT_EQ(dist_param_instance1.b(),                     expected_b);
-    EXPECT_EQ(dist_param_instance1.significand_rand_bits(), expected_srb);
+    ASSERT_EQ(dist_param_instance1.a(),                     expected_a);
+    ASSERT_EQ(dist_param_instance1.b(),                     expected_b);
+    ASSERT_EQ(dist_param_instance1.significand_rand_bits(), expected_srb);
 
-    EXPECT_EQ(dist_instance1.a(),                     expected_a);
-    EXPECT_EQ(dist_instance1.b(),                     expected_b);
-    EXPECT_EQ(dist_instance1.significand_rand_bits(), expected_srb);
+    ASSERT_EQ(dist_instance1.a(),                     expected_a);
+    ASSERT_EQ(dist_instance1.b(),                     expected_b);
+    ASSERT_EQ(dist_instance1.significand_rand_bits(), expected_srb);
 }
 
 TYPED_TEST(uniform_quantized_real_distribution_test, construct_srb)
@@ -448,36 +448,36 @@ TYPED_TEST(uniform_quantized_real_distribution_test, construct_srb)
 
     uqr_dist dist_instance1(expected_srb);
 
-    EXPECT_EQ(dist_instance1.a(),                     expected_a);
-    EXPECT_EQ(dist_instance1.b(),                     expected_b);
-    EXPECT_EQ(dist_instance1.significand_rand_bits(), expected_srb);
+    ASSERT_EQ(dist_instance1.a(),                     expected_a);
+    ASSERT_EQ(dist_instance1.b(),                     expected_b);
+    ASSERT_EQ(dist_instance1.significand_rand_bits(), expected_srb);
 
     // Zero
     expected_srb = 0U;
 
     uqr_dist dist_instance2(expected_srb);
 
-    EXPECT_EQ(dist_instance2.a(),                     expected_a);
-    EXPECT_EQ(dist_instance2.b(),                     expected_b);
-    EXPECT_EQ(dist_instance2.significand_rand_bits(), expected_srb);
+    ASSERT_EQ(dist_instance2.a(),                     expected_a);
+    ASSERT_EQ(dist_instance2.b(),                     expected_b);
+    ASSERT_EQ(dist_instance2.significand_rand_bits(), expected_srb);
 
     // Almost Maximum
     expected_srb = std::numeric_limits<expected_uqr_dist_rt>::digits - 2U;
 
     uqr_dist dist_instance3(expected_srb);
 
-    EXPECT_EQ(dist_instance3.a(),                     expected_a);
-    EXPECT_EQ(dist_instance3.b(),                     expected_b);
-    EXPECT_EQ(dist_instance3.significand_rand_bits(), expected_srb);
+    ASSERT_EQ(dist_instance3.a(),                     expected_a);
+    ASSERT_EQ(dist_instance3.b(),                     expected_b);
+    ASSERT_EQ(dist_instance3.significand_rand_bits(), expected_srb);
 
     // Maximum
     expected_srb = std::numeric_limits<expected_uqr_dist_rt>::digits - 1U;
 
     uqr_dist dist_instance4(expected_srb);
 
-    EXPECT_EQ(dist_instance4.a(),                     expected_a);
-    EXPECT_EQ(dist_instance4.b(),                     expected_b);
-    EXPECT_EQ(dist_instance4.significand_rand_bits(), expected_srb);
+    ASSERT_EQ(dist_instance4.a(),                     expected_a);
+    ASSERT_EQ(dist_instance4.b(),                     expected_b);
+    ASSERT_EQ(dist_instance4.significand_rand_bits(), expected_srb);
 
     // Over Maximum
     expected_srb = std::numeric_limits<expected_uqr_dist_rt>::digits - 1U;
@@ -486,9 +486,9 @@ TYPED_TEST(uniform_quantized_real_distribution_test, construct_srb)
 
     uqr_dist dist_instance5(test_srb);
 
-    EXPECT_EQ(dist_instance5.a(),                     expected_a);
-    EXPECT_EQ(dist_instance5.b(),                     expected_b);
-    EXPECT_EQ(dist_instance5.significand_rand_bits(), expected_srb);
+    ASSERT_EQ(dist_instance5.a(),                     expected_a);
+    ASSERT_EQ(dist_instance5.b(),                     expected_b);
+    ASSERT_EQ(dist_instance5.significand_rand_bits(), expected_srb);
 }
 
 TYPED_TEST(uniform_quantized_real_distribution_test, construct_copy)
@@ -503,9 +503,9 @@ TYPED_TEST(uniform_quantized_real_distribution_test, construct_copy)
     uqr_dist dist_instance1(expected_a, expected_b, expected_srb);
     uqr_dist dist_instance2(dist_instance1);
 
-    EXPECT_EQ(dist_instance2.a(),                     expected_a);
-    EXPECT_EQ(dist_instance2.b(),                     expected_b);
-    EXPECT_EQ(dist_instance2.significand_rand_bits(), expected_srb);
+    ASSERT_EQ(dist_instance2.a(),                     expected_a);
+    ASSERT_EQ(dist_instance2.b(),                     expected_b);
+    ASSERT_EQ(dist_instance2.significand_rand_bits(), expected_srb);
 }
 
 TYPED_TEST(uniform_quantized_real_distribution_test, construct_move)
@@ -520,9 +520,9 @@ TYPED_TEST(uniform_quantized_real_distribution_test, construct_move)
     uqr_dist dist_instance1(expected_a, expected_b, expected_srb);
     uqr_dist dist_instance2(std::move(dist_instance1));
 
-    EXPECT_EQ(dist_instance2.a(),                     expected_a);
-    EXPECT_EQ(dist_instance2.b(),                     expected_b);
-    EXPECT_EQ(dist_instance2.significand_rand_bits(), expected_srb);
+    ASSERT_EQ(dist_instance2.a(),                     expected_a);
+    ASSERT_EQ(dist_instance2.b(),                     expected_b);
+    ASSERT_EQ(dist_instance2.significand_rand_bits(), expected_srb);
 }
 
 TYPED_TEST(uniform_quantized_real_distribution_test, assign_copy)
@@ -538,9 +538,9 @@ TYPED_TEST(uniform_quantized_real_distribution_test, assign_copy)
     uqr_dist dist_instance2(2U);
     dist_instance2 = dist_instance1;
 
-    EXPECT_EQ(dist_instance2.a(),                     expected_a);
-    EXPECT_EQ(dist_instance2.b(),                     expected_b);
-    EXPECT_EQ(dist_instance2.significand_rand_bits(), expected_srb);
+    ASSERT_EQ(dist_instance2.a(),                     expected_a);
+    ASSERT_EQ(dist_instance2.b(),                     expected_b);
+    ASSERT_EQ(dist_instance2.significand_rand_bits(), expected_srb);
 }
 
 TYPED_TEST(uniform_quantized_real_distribution_test, assign_move)
@@ -556,9 +556,9 @@ TYPED_TEST(uniform_quantized_real_distribution_test, assign_move)
     uqr_dist dist_instance2(3U);
     dist_instance2 = std::move(dist_instance1);
 
-    EXPECT_EQ(dist_instance2.a(),                     expected_a);
-    EXPECT_EQ(dist_instance2.b(),                     expected_b);
-    EXPECT_EQ(dist_instance2.significand_rand_bits(), expected_srb);
+    ASSERT_EQ(dist_instance2.a(),                     expected_a);
+    ASSERT_EQ(dist_instance2.b(),                     expected_b);
+    ASSERT_EQ(dist_instance2.significand_rand_bits(), expected_srb);
 }
 
 TYPED_TEST(uniform_quantized_real_distribution_test, get_param)
@@ -572,9 +572,9 @@ TYPED_TEST(uniform_quantized_real_distribution_test, get_param)
 
     uqr_dist dist_instance1(expected_a, expected_b, expected_srb);
 
-    EXPECT_EQ(dist_instance1.param().a(),                     expected_a);
-    EXPECT_EQ(dist_instance1.param().b(),                     expected_b);
-    EXPECT_EQ(dist_instance1.param().significand_rand_bits(), expected_srb);
+    ASSERT_EQ(dist_instance1.param().a(),                     expected_a);
+    ASSERT_EQ(dist_instance1.param().b(),                     expected_b);
+    ASSERT_EQ(dist_instance1.param().significand_rand_bits(), expected_srb);
 }
 
 TYPED_TEST(uniform_quantized_real_distribution_test, set_param)
@@ -593,21 +593,21 @@ TYPED_TEST(uniform_quantized_real_distribution_test, set_param)
     uqr_dist dist_instance1(1U);
     dist_instance1.param(uqr_dist_param(expected_a, expected_b, expected_srb));
 
-    EXPECT_EQ(dist_instance1.param().a(),                     expected_a);
-    EXPECT_EQ(dist_instance1.param().b(),                     expected_b);
-    EXPECT_EQ(dist_instance1.param().significand_rand_bits(), expected_srb);
+    ASSERT_EQ(dist_instance1.param().a(),                     expected_a);
+    ASSERT_EQ(dist_instance1.param().b(),                     expected_b);
+    ASSERT_EQ(dist_instance1.param().significand_rand_bits(), expected_srb);
 
-    EXPECT_TRUE(dist_instance1 == dist_instance_ref);
+    ASSERT_TRUE(dist_instance1 == dist_instance_ref);
 
     // From Other Distribution
     uqr_dist dist_instance2(2U);
     dist_instance2.param(dist_instance1.param());
 
-    EXPECT_EQ(dist_instance1.param().a(),                     expected_a);
-    EXPECT_EQ(dist_instance1.param().b(),                     expected_b);
-    EXPECT_EQ(dist_instance1.param().significand_rand_bits(), expected_srb);
+    ASSERT_EQ(dist_instance1.param().a(),                     expected_a);
+    ASSERT_EQ(dist_instance1.param().b(),                     expected_b);
+    ASSERT_EQ(dist_instance1.param().significand_rand_bits(), expected_srb);
 
-    EXPECT_TRUE(dist_instance2 == dist_instance_ref);
+    ASSERT_TRUE(dist_instance2 == dist_instance_ref);
 }
 
 TYPED_TEST(uniform_quantized_real_distribution_test, get_member_param_equivalence)
@@ -624,37 +624,37 @@ TYPED_TEST(uniform_quantized_real_distribution_test, get_member_param_equivalenc
     uqr_dist_param dist_param_instance1;
     uqr_dist dist_instance1;
 
-    EXPECT_EQ(dist_instance1.a(),                     dist_instance1.param().a());
-    EXPECT_EQ(dist_instance1.b(),                     dist_instance1.param().b());
-    EXPECT_EQ(dist_instance1.significand_rand_bits(), dist_instance1.param().significand_rand_bits());
+    ASSERT_EQ(dist_instance1.a(),                     dist_instance1.param().a());
+    ASSERT_EQ(dist_instance1.b(),                     dist_instance1.param().b());
+    ASSERT_EQ(dist_instance1.significand_rand_bits(), dist_instance1.param().significand_rand_bits());
 
-    EXPECT_EQ(dist_instance1.a(),                     dist_param_instance1.a());
-    EXPECT_EQ(dist_instance1.b(),                     dist_param_instance1.b());
-    EXPECT_EQ(dist_instance1.significand_rand_bits(), dist_param_instance1.significand_rand_bits());
+    ASSERT_EQ(dist_instance1.a(),                     dist_param_instance1.a());
+    ASSERT_EQ(dist_instance1.b(),                     dist_param_instance1.b());
+    ASSERT_EQ(dist_instance1.significand_rand_bits(), dist_param_instance1.significand_rand_bits());
 
     // Constructor (a, b, srb)
     uqr_dist_param dist_param_instance2(expected_a, expected_b, expected_srb);
     uqr_dist dist_instance2(expected_a, expected_b, expected_srb);
 
-    EXPECT_EQ(dist_instance2.a(),                     dist_instance2.param().a());
-    EXPECT_EQ(dist_instance2.b(),                     dist_instance2.param().b());
-    EXPECT_EQ(dist_instance2.significand_rand_bits(), dist_instance2.param().significand_rand_bits());
+    ASSERT_EQ(dist_instance2.a(),                     dist_instance2.param().a());
+    ASSERT_EQ(dist_instance2.b(),                     dist_instance2.param().b());
+    ASSERT_EQ(dist_instance2.significand_rand_bits(), dist_instance2.param().significand_rand_bits());
 
-    EXPECT_EQ(dist_instance2.a(),                     dist_param_instance2.a());
-    EXPECT_EQ(dist_instance2.b(),                     dist_param_instance2.b());
-    EXPECT_EQ(dist_instance2.significand_rand_bits(), dist_param_instance2.significand_rand_bits());
+    ASSERT_EQ(dist_instance2.a(),                     dist_param_instance2.a());
+    ASSERT_EQ(dist_instance2.b(),                     dist_param_instance2.b());
+    ASSERT_EQ(dist_instance2.significand_rand_bits(), dist_param_instance2.significand_rand_bits());
 
     // Constructor (srb)
     uqr_dist_param dist_param_instance3(expected_srb);
     uqr_dist dist_instance3(expected_srb);
 
-    EXPECT_EQ(dist_instance3.a(),                     dist_instance3.param().a());
-    EXPECT_EQ(dist_instance3.b(),                     dist_instance3.param().b());
-    EXPECT_EQ(dist_instance3.significand_rand_bits(), dist_instance3.param().significand_rand_bits());
+    ASSERT_EQ(dist_instance3.a(),                     dist_instance3.param().a());
+    ASSERT_EQ(dist_instance3.b(),                     dist_instance3.param().b());
+    ASSERT_EQ(dist_instance3.significand_rand_bits(), dist_instance3.param().significand_rand_bits());
 
-    EXPECT_EQ(dist_instance3.a(),                     dist_param_instance3.a());
-    EXPECT_EQ(dist_instance3.b(),                     dist_param_instance3.b());
-    EXPECT_EQ(dist_instance3.significand_rand_bits(), dist_param_instance3.significand_rand_bits());
+    ASSERT_EQ(dist_instance3.a(),                     dist_param_instance3.a());
+    ASSERT_EQ(dist_instance3.b(),                     dist_param_instance3.b());
+    ASSERT_EQ(dist_instance3.significand_rand_bits(), dist_param_instance3.significand_rand_bits());
 }
 
 TYPED_TEST(uniform_quantized_real_distribution_test, get_min)
@@ -668,7 +668,7 @@ TYPED_TEST(uniform_quantized_real_distribution_test, get_min)
 
     uqr_dist dist_instance1(expected_a, expected_b, expected_srb);
 
-    EXPECT_EQ(dist_instance1.min(), expected_a);
+    ASSERT_EQ(dist_instance1.min(), expected_a);
 }
 
 TYPED_TEST(uniform_quantized_real_distribution_test, get_max)
@@ -682,7 +682,7 @@ TYPED_TEST(uniform_quantized_real_distribution_test, get_max)
 
     uqr_dist dist_instance1(expected_a, expected_b, expected_srb);
 
-    EXPECT_EQ(dist_instance1.max(), expected_b);
+    ASSERT_EQ(dist_instance1.max(), expected_b);
 }
 
 TYPED_TEST(uniform_quantized_real_distribution_test, equality_compare)
@@ -698,25 +698,25 @@ TYPED_TEST(uniform_quantized_real_distribution_test, equality_compare)
     uqr_dist dist_instance2(2U);
     uqr_dist dist_instance3(dist_instance1);
 
-    EXPECT_TRUE (dist_instance1 == dist_instance1);
-    EXPECT_FALSE(dist_instance1 == dist_instance2);
-    EXPECT_TRUE (dist_instance1 == dist_instance3);
-    EXPECT_FALSE(dist_instance2 == dist_instance1);
-    EXPECT_TRUE (dist_instance2 == dist_instance2);
-    EXPECT_FALSE(dist_instance2 == dist_instance3);
-    EXPECT_TRUE (dist_instance3 == dist_instance1);
-    EXPECT_FALSE(dist_instance3 == dist_instance2);
-    EXPECT_TRUE (dist_instance3 == dist_instance3);
+    ASSERT_TRUE (dist_instance1 == dist_instance1);
+    ASSERT_FALSE(dist_instance1 == dist_instance2);
+    ASSERT_TRUE (dist_instance1 == dist_instance3);
+    ASSERT_FALSE(dist_instance2 == dist_instance1);
+    ASSERT_TRUE (dist_instance2 == dist_instance2);
+    ASSERT_FALSE(dist_instance2 == dist_instance3);
+    ASSERT_TRUE (dist_instance3 == dist_instance1);
+    ASSERT_FALSE(dist_instance3 == dist_instance2);
+    ASSERT_TRUE (dist_instance3 == dist_instance3);
 
-    EXPECT_FALSE(dist_instance1 != dist_instance1);
-    EXPECT_TRUE (dist_instance1 != dist_instance2);
-    EXPECT_FALSE(dist_instance1 != dist_instance3);
-    EXPECT_TRUE (dist_instance2 != dist_instance1);
-    EXPECT_FALSE(dist_instance2 != dist_instance2);
-    EXPECT_TRUE (dist_instance2 != dist_instance3);
-    EXPECT_FALSE(dist_instance3 != dist_instance1);
-    EXPECT_TRUE (dist_instance3 != dist_instance2);
-    EXPECT_FALSE(dist_instance3 != dist_instance3);
+    ASSERT_FALSE(dist_instance1 != dist_instance1);
+    ASSERT_TRUE (dist_instance1 != dist_instance2);
+    ASSERT_FALSE(dist_instance1 != dist_instance3);
+    ASSERT_TRUE (dist_instance2 != dist_instance1);
+    ASSERT_FALSE(dist_instance2 != dist_instance2);
+    ASSERT_TRUE (dist_instance2 != dist_instance3);
+    ASSERT_FALSE(dist_instance3 != dist_instance1);
+    ASSERT_TRUE (dist_instance3 != dist_instance2);
+    ASSERT_FALSE(dist_instance3 != dist_instance3);
 }
 
 TYPED_TEST(uniform_quantized_real_distribution_test, serialize)
@@ -739,10 +739,10 @@ TYPED_TEST(uniform_quantized_real_distribution_test, serialize)
     const auto after_fill1  = std::cout.fill();
     const auto after_prec1  = std::cout.precision();
 
-    EXPECT_FALSE(!std::cout);
-    EXPECT_EQ(before_flags1, after_flags1);
-    EXPECT_EQ(before_fill1,  after_fill1);
-    EXPECT_EQ(before_prec1,  after_prec1);
+    ASSERT_FALSE(!std::cout);
+    ASSERT_EQ(before_flags1, after_flags1);
+    ASSERT_EQ(before_fill1,  after_fill1);
+    ASSERT_EQ(before_prec1,  after_prec1);
 
     // Preserve Stream Formatting #2
     std::wstringstream ss2;
@@ -756,10 +756,10 @@ TYPED_TEST(uniform_quantized_real_distribution_test, serialize)
     const auto after_fill2  = ss2.fill();
     const auto after_prec2  = ss2.precision();
 
-    EXPECT_FALSE(!ss2);
-    EXPECT_EQ(before_flags2, after_flags2);
-    EXPECT_EQ(before_fill2,  after_fill2);
-    EXPECT_EQ(before_prec2,  after_prec2);
+    ASSERT_FALSE(!ss2);
+    ASSERT_EQ(before_flags2, after_flags2);
+    ASSERT_EQ(before_fill2,  after_fill2);
+    ASSERT_EQ(before_prec2,  after_prec2);
 
     // Preserve Stream Formatting #3
     std::wstringstream ss3;
@@ -774,10 +774,10 @@ TYPED_TEST(uniform_quantized_real_distribution_test, serialize)
     const auto after_fill3  = ss3.fill();
     const auto after_prec3  = ss3.precision();
 
-    EXPECT_FALSE(!ss3);
-    EXPECT_EQ(before_flags3, after_flags3);
-    EXPECT_EQ(before_fill3,  after_fill3);
-    EXPECT_EQ(before_prec3,  after_prec3);
+    ASSERT_FALSE(!ss3);
+    ASSERT_EQ(before_flags3, after_flags3);
+    ASSERT_EQ(before_fill3,  after_fill3);
+    ASSERT_EQ(before_prec3,  after_prec3);
 
     // Serialize Do Not Change Internal State.
     std::wstringstream ss4;
@@ -785,8 +785,8 @@ TYPED_TEST(uniform_quantized_real_distribution_test, serialize)
 
     ss4 << dist_instance1;
 
-    EXPECT_FALSE(!ss4);
-    EXPECT_EQ(ss2.str(), ss4.str());
+    ASSERT_FALSE(!ss4);
+    ASSERT_EQ(ss2.str(), ss4.str());
 }
 
 TYPED_TEST(uniform_quantized_real_distribution_test, deserialize)
@@ -812,19 +812,19 @@ TYPED_TEST(uniform_quantized_real_distribution_test, deserialize)
     ss1 >> dist_instance1 >> dist_instance2;
     const auto after_flags1  = ss1.flags();
 
-    EXPECT_FALSE(!ss1);
-    EXPECT_EQ(before_flags1, after_flags1);
+    ASSERT_FALSE(!ss1);
+    ASSERT_EQ(before_flags1, after_flags1);
 
-    EXPECT_TRUE(dist_instance1 == dist_instance_ref);
-    EXPECT_TRUE(dist_instance2 == dist_instance_ref);
+    ASSERT_TRUE(dist_instance1 == dist_instance_ref);
+    ASSERT_TRUE(dist_instance2 == dist_instance_ref);
 
     ss1_1 << dist_instance1;
     ss1_2 << dist_instance2;
 
-    EXPECT_TRUE(dist_instance1 == dist_instance_ref);
-    EXPECT_TRUE(dist_instance2 == dist_instance_ref);
+    ASSERT_TRUE(dist_instance1 == dist_instance_ref);
+    ASSERT_TRUE(dist_instance2 == dist_instance_ref);
 
-    EXPECT_EQ(ss1_1.str(), ss1_2.str());
+    ASSERT_EQ(ss1_1.str(), ss1_2.str());
 
     // Valid Deserialization (Wide String)
     std::wstringstream ss2, ss2_1, ss2_2;
@@ -836,19 +836,19 @@ TYPED_TEST(uniform_quantized_real_distribution_test, deserialize)
     ss2 >> dist_instance3 >> dist_instance4;
     const auto after_flags2  = ss2.flags();
 
-    EXPECT_FALSE(!ss2);
-    EXPECT_EQ(before_flags2, after_flags2);
+    ASSERT_FALSE(!ss2);
+    ASSERT_EQ(before_flags2, after_flags2);
 
-    EXPECT_TRUE(dist_instance3 == dist_instance_ref);
-    EXPECT_TRUE(dist_instance4 == dist_instance_ref);
+    ASSERT_TRUE(dist_instance3 == dist_instance_ref);
+    ASSERT_TRUE(dist_instance4 == dist_instance_ref);
 
     ss2_1 << dist_instance3;
     ss2_2 << dist_instance4;
 
-    EXPECT_TRUE(dist_instance1 == dist_instance_ref);
-    EXPECT_TRUE(dist_instance2 == dist_instance_ref);
+    ASSERT_TRUE(dist_instance1 == dist_instance_ref);
+    ASSERT_TRUE(dist_instance2 == dist_instance_ref);
 
-    EXPECT_EQ(ss2_1.str(), ss2_2.str());
+    ASSERT_EQ(ss2_1.str(), ss2_2.str());
 
     // Invalid Deserialization
     std::wstringstream ss3;
@@ -860,11 +860,11 @@ TYPED_TEST(uniform_quantized_real_distribution_test, deserialize)
     ss3 >> dist_instance5;
     const auto after_flags3  = ss3.flags();
 
-    EXPECT_TRUE(ss3.fail());
-    EXPECT_FALSE(ss3.bad());
-    EXPECT_EQ(before_flags3, after_flags3);
+    ASSERT_TRUE(ss3.fail());
+    ASSERT_FALSE(ss3.bad());
+    ASSERT_EQ(before_flags3, after_flags3);
 
-    EXPECT_TRUE(dist_instance5 == dist_instance_ref);
+    ASSERT_TRUE(dist_instance5 == dist_instance_ref);
 }
 
 TYPED_TEST(uniform_quantized_real_distribution_test, DISABLED_generate_random)
@@ -886,11 +886,11 @@ TYPED_TEST(uniform_quantized_real_distribution_test, DISABLED_generate_random)
     {
         expected_uqr_dist_rt rnd_val = dist1(g1);
 
-        EXPECT_GE(rnd_val, expected_a);
-        EXPECT_LE(rnd_val, expected_b);
+        ASSERT_GE(rnd_val, expected_a);
+        ASSERT_LE(rnd_val, expected_b);
 
         expected_uqr_dist_rt actual_ipart;
-        EXPECT_EQ(std::modf(rnd_val / expected_fract, &actual_ipart), val_zero);
+        ASSERT_EQ(std::modf(rnd_val / expected_fract, &actual_ipart), val_zero);
     }
 }
 
@@ -910,7 +910,7 @@ TYPED_TEST(uniform_quantized_real_distribution_test, generate_random_degen_a_b)
     {
         expected_uqr_dist_rt rnd_val = dist1(g1);
 
-        EXPECT_EQ(rnd_val, expected_a);
+        ASSERT_EQ(rnd_val, expected_a);
     }
 }
 
@@ -934,7 +934,7 @@ TYPED_TEST(uniform_quantized_real_distribution_test, DISABLED_generate_random_de
         if (rnd_val == expected_a) { ++count_a; }
         if (rnd_val == expected_b) { ++count_b; }
 
-        EXPECT_TRUE((rnd_val == expected_a) || (rnd_val == expected_b));
+        ASSERT_TRUE((rnd_val == expected_a) || (rnd_val == expected_b));
     }
     std::cout << "a: " << count_a << ", b: " << count_b << std::endl;
 }
@@ -959,10 +959,10 @@ TYPED_TEST(uniform_quantized_real_distribution_test, DISABLED_generate_random_c9
 
         ++counts[rnd_val];
 
-        EXPECT_GE(rnd_val, expected_a);
-        EXPECT_LE(rnd_val, expected_b);
+        ASSERT_GE(rnd_val, expected_a);
+        ASSERT_LE(rnd_val, expected_b);
     }
-    EXPECT_LE(counts.size(), 9U); // 2 ^ expected_srb + 1
+    ASSERT_LE(counts.size(), 9U); // 2 ^ expected_srb + 1
 
     std::cout << "elems: " << counts.size();
     for (const auto& count : counts)
@@ -992,10 +992,10 @@ TYPED_TEST(uniform_quantized_real_distribution_test, DISABLED_generate_random_c1
 
         ++counts[rnd_val];
 
-        EXPECT_GE(rnd_val, expected_a);
-        EXPECT_LE(rnd_val, expected_b);
+        ASSERT_GE(rnd_val, expected_a);
+        ASSERT_LE(rnd_val, expected_b);
     }
-    EXPECT_LE(counts.size(), 17U); // 2 ^ expected_srb + 1
+    ASSERT_LE(counts.size(), 17U); // 2 ^ expected_srb + 1
 
     std::cout << "elems: " << counts.size();
     for (const auto& count : counts)
@@ -1032,11 +1032,11 @@ TYPED_TEST(uniform_quantized_real_distribution_test, DISABLED_generate_random_pa
     {
         expected_uqr_dist_rt rnd_val = dist1(g1, dist_param1);
 
-        EXPECT_GE(rnd_val, expected_a);
-        EXPECT_LE(rnd_val, expected_b);
+        ASSERT_GE(rnd_val, expected_a);
+        ASSERT_LE(rnd_val, expected_b);
 
         expected_uqr_dist_rt actual_ipart;
-        EXPECT_EQ(std::modf(rnd_val / expected_fract, &actual_ipart), val_zero);
+        ASSERT_EQ(std::modf(rnd_val / expected_fract, &actual_ipart), val_zero);
     }
 
     // Original Param
@@ -1045,19 +1045,19 @@ TYPED_TEST(uniform_quantized_real_distribution_test, DISABLED_generate_random_pa
     expected_b     = test_b;
     expected_srb   = test_srb;
 
-    EXPECT_EQ(dist1.a(),                     expected_a);
-    EXPECT_EQ(dist1.b(),                     expected_b);
-    EXPECT_EQ(dist1.significand_rand_bits(), expected_srb);
+    ASSERT_EQ(dist1.a(),                     expected_a);
+    ASSERT_EQ(dist1.b(),                     expected_b);
+    ASSERT_EQ(dist1.significand_rand_bits(), expected_srb);
 
     for (std::size_t ii = 0; ii < TestFixture::rnd_iter_num; ++ii)
     {
         expected_uqr_dist_rt rnd_val = dist1(g1);
 
-        EXPECT_GE(rnd_val, expected_a);
-        EXPECT_LE(rnd_val, expected_b);
+        ASSERT_GE(rnd_val, expected_a);
+        ASSERT_LE(rnd_val, expected_b);
 
         expected_uqr_dist_rt actual_ipart;
-        EXPECT_EQ(std::modf(rnd_val / expected_fract, &actual_ipart), val_zero);
+        ASSERT_EQ(std::modf(rnd_val / expected_fract, &actual_ipart), val_zero);
     }
 }
 
@@ -1094,10 +1094,10 @@ TYPED_TEST(uniform_quantized_real_distribution_test, DISABLED_generate_random_eq
         dist8(g8);
         dist9(g9);
 
-        EXPECT_EQ(rnd_val1, rnd_val2);
-        EXPECT_EQ(rnd_val1, rnd_val3);
-        EXPECT_EQ(rnd_val1, rnd_val4);
-        EXPECT_EQ(rnd_val1, rnd_val5);
+        ASSERT_EQ(rnd_val1, rnd_val2);
+        ASSERT_EQ(rnd_val1, rnd_val3);
+        ASSERT_EQ(rnd_val1, rnd_val4);
+        ASSERT_EQ(rnd_val1, rnd_val5);
     }
 
     // Equivalent Assignment And Serialization.
@@ -1124,10 +1124,10 @@ TYPED_TEST(uniform_quantized_real_distribution_test, DISABLED_generate_random_eq
         expected_uqr_dist_rt rnd_val8 = dist8(g8);
         expected_uqr_dist_rt rnd_val9 = dist9(g9);
 
-        EXPECT_EQ(rnd_val1, rnd_val6);
-        EXPECT_EQ(rnd_val1, rnd_val7);
-        EXPECT_EQ(rnd_val1, rnd_val8);
-        EXPECT_EQ(rnd_val1, rnd_val9);
+        ASSERT_EQ(rnd_val1, rnd_val6);
+        ASSERT_EQ(rnd_val1, rnd_val7);
+        ASSERT_EQ(rnd_val1, rnd_val8);
+        ASSERT_EQ(rnd_val1, rnd_val9);
     }
 }
 
