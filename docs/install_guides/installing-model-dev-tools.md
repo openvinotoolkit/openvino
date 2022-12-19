@@ -40,7 +40,7 @@ pip install openvino-dev
 ### Installation in a New Environment
 
 If you do not have an environment with a deep learning framework for the input model or you encounter any compatibility issues between OpenVINO
-and your deep learning framework, you may install OpenVINO Development Tools with validated versions of frameworks into a new environment. 
+and your version of deep learning framework, you may install OpenVINO Development Tools with validated versions of frameworks into a new environment. 
 
 #### Step 1. Set Up Python Virtual Environment
 
@@ -98,7 +98,7 @@ python -m pip install --upgrade pip
 
 #### Step 4. Install the Package
 
-To install and configure the components of the development package for working with specific frameworks, use the commands below.
+To install and configure the components of the development package together with validated versions of specific frameworks, use the commands below.
 
 ```sh
 pip install openvino-dev[extras]
@@ -106,7 +106,6 @@ pip install openvino-dev[extras]
 
 where the `extras` parameter specifies the source deep learning framework for the input model
 and has the following values:  `caffe`, `kaldi`, `mxnet`, `onnx`, `pytorch`, `tensorflow`, `tensorflow2`. 
-Make sure that you install the corresponding frameworks for your models.
 
 For example, to install and configure dependencies required for working with TensorFlow 2.x and ONNX models, use the following command:
 

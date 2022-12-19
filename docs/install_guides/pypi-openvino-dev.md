@@ -40,7 +40,7 @@ pip install openvino-dev
 
 ### Installation in a New Environment
 
-If you do not have an environment with the source deep learning framework for the input model or you encounter any compatibility issues between OpenVINO and your deep learning framework,
+If you do not have an environment with the source deep learning framework for the input model or you encounter any compatibility issues between OpenVINO and your version of deep learning framework,
 you may install OpenVINO Development Tools with validated versions of frameworks into a new environment. 
 
 #### Step 1. Set Up Python Virtual Environment
