@@ -90,15 +90,14 @@ class TestConvertImplTmpIrsCleanup(unittest.TestCase):
             self.assertRaises(Error, convert_model, **vars(args))
             self.assertFalse(self.are_tmp_files_left(self.test_model_file))
 
-
     def test_tmp_irs_cleanup_convert_impl_3(self):
         with patch("openvino.tools.mo.convert_impl.read_model") as emit_ir_func:
-            emit_ir_func.side_effect = Error("Error during FEM read_model")
+            emit_ir_func.side_effect = Exception("Error during FEM read_model")
 
             args = base_args_config()
             args.input_model = self.test_model_file
             args.input = "x[3],y[1 3]"
             args.input_model_is_text = True
 
-            self.assertRaises(Error, convert_model, **vars(args))
+            self.assertRaises(Exception, convert_model, **vars(args))
             self.assertFalse(self.are_tmp_files_left(self.test_model_file))

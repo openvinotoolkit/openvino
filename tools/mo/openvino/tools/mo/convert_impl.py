@@ -402,16 +402,15 @@ def prepare_ir(argv: argparse.Namespace):
 
 
 def read_model(fem: FrontEndManager, path_to_xml: str):
+    # We have to separate fe object lifetime from fem to
+    # avoid segfault during object destruction. So fe must
+    # be destructed before fem object explicitly.
     fe = fem.load_by_framework(framework="ir")
     function = fe.convert(fe.load(path_to_xml))
     return function
 
 
 def emit_ir(graph: Graph, argv: argparse.Namespace, non_default_params: dict):
-    # We have to separate fe object lifetime from fem to
-    # avoid segfault during object destruction. So fe must
-    # be destructed before fem object explicitly.
-
     NormalizeTI().find_and_replace_pattern(graph)
     for_graph_and_each_sub_graph_recursively(graph, RemoveConstOps().find_and_replace_pattern)
     for_graph_and_each_sub_graph_recursively(graph, CreateConstNodesReplacement().find_and_replace_pattern)
@@ -425,6 +424,13 @@ def emit_ir(graph: Graph, argv: argparse.Namespace, non_default_params: dict):
     output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
     orig_model_name = os.path.normpath(os.path.join(output_dir, argv.model_name))
 
+    def clear_tmp_ir_files():
+        for suf in [".xml", ".bin", ".mapping"]:
+            # remove existing files
+            path_to_file = orig_model_name + "_tmp" + suf
+            if os.path.exists(path_to_file):
+                os.remove(path_to_file)
+
     try:
         prepare_emit_ir(graph=graph,
                         data_type=graph.graph['cmd_params'].data_type,
@@ -434,14 +440,13 @@ def emit_ir(graph: Graph, argv: argparse.Namespace, non_default_params: dict):
                         input_names=input_names,
                         meta_info=non_default_params,
                         use_temporary_path=True)
-
-        fem = FrontEndManager()
-        func = read_model(fem, orig_model_name + "_tmp.xml")
     except Error as err:
+        clear_tmp_ir_files()
         raise Error('Error occurred during serialization of temporary IR: {}'.format(
             str(err),
         )) from err
     except Exception as err:
+        clear_tmp_ir_files()
         raise Exception('Exception occurred during serialization of temporary IR: {}'.format(
             str(err),
         )) from err
@@ -449,11 +454,15 @@ def emit_ir(graph: Graph, argv: argparse.Namespace, non_default_params: dict):
         # This graph cleanup is required to avoid double memory consumption
         graph.clear()
 
-        for suf in [".xml", ".bin", ".mapping"]:
-            # remove existing files
-            path_to_file = orig_model_name + "_tmp" + suf
-            if os.path.exists(path_to_file):
-                os.remove(path_to_file)
+    try:
+        fem = FrontEndManager()
+        func = read_model(fem, orig_model_name + "_tmp.xml")
+    except Exception as err:
+        raise Exception('Exception occurred while reading of temporary IR: {}'.format(
+            str(err),
+        )) from err
+    finally:
+        clear_tmp_ir_files()
 
     return_code = "not executed"
     if not (argv.framework == 'tf' and argv.tensorflow_custom_operations_config_update):
@@ -904,9 +913,9 @@ def _convert(**args):
                 if argv.framework != model_framework:
                     raise Error("Provided model does not correspond to provided framework. The provided "
                                 "framework is {}, the model type is {} which is expected to be {} framework.".format(
-                        argv.framework,
-                        type(argv.input_model),
-                        model_framework))
+                                    argv.framework,
+                                    type(argv.input_model),
+                                    model_framework))
             else:
                 argv.framework = model_framework
 
