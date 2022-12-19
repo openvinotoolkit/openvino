@@ -37,6 +37,10 @@ If not specified, throughput is used as the default. To set the hint explicitly,
 ./benchmark_app -m model.xml -hint throughput
 ```
 
+> **NOTE**
+It is up to the user to ensure the environment on which the benchmark is running is optimized for maximum performance.
+Otherwise, different results may occur when using the application in different environment settings (such as power optimization settings, processor overclocking, thermal throttling).
+
 #### Latency
 Latency is the amount of time it takes to process a single inference request. In applications where data needs to be inferenced and acted on as quickly as possible (such as autonomous driving), low latency is desirable. For conventional devices, lower latency is achieved by reducing the amount of parallel processing streams so the system can utilize as many resources as possible to quickly calculate each inference request. However, advanced devices like multi-socket CPUs and modern GPUs are capable of running multiple inference requests while delivering the same latency.
 
