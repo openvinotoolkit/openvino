@@ -43,10 +43,6 @@ class MetaDataTestTF(unittest.TestCase):
 
     def test_meta_data_tf(self):
         def create_tf_model():
-            #
-            #   Create TF model
-            #
-
             import tensorflow as tf
 
             tf.compat.v1.reset_default_graph()

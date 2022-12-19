@@ -82,10 +82,6 @@ def test_rt_info():
             os.path.join(os.path.dirname(__file__), 'convert/meta_data_test_actual.py'), '-s']
 
     status = subprocess.run(args, env=os.environ, capture_output=True)
-    print("status.stderr")
-    print(status.stderr.decode("utf-8"))
-    print("status.stdout")
-    print(status.stdout.decode("utf-8"))
     assert not status.returncode
 
 
