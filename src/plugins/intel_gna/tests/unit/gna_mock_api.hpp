@@ -3,7 +3,9 @@
 //
 
 #pragma once
+#include <gna2-api.h>
 #include <gmock/gmock.h>
+#include <cstdint>
 
 class GNACppApi {
 public:
