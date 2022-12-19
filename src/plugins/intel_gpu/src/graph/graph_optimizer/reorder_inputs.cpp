@@ -452,7 +452,6 @@ void minimize_local_reorders(program& p, std::map<program_node*, format::type>& 
     for (auto node : p.get_processing_order()) {
         if (!node->is_in_data_flow())
             continue;
-
         auto preferred_format = lo.get_preferred_format(*node);
 
         if (preferred_format != format::any) {

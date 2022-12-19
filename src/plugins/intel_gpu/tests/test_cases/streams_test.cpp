@@ -33,8 +33,8 @@ TEST(gpu_streams, can_create_networks_for_stream) {
 
     network.set_input_data("input", input);
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "relu");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "relu");
 
     auto output_memory = outputs.at("relu").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -44,14 +44,14 @@ TEST(gpu_streams, can_create_networks_for_stream) {
     int x_size = output_layout.spatial(0);
     int f_size = output_layout.feature();
     int b_size = output_layout.batch();
-    EXPECT_EQ(output_layout.format, format::yxfb);
-    EXPECT_EQ(y_size, 4);
-    EXPECT_EQ(x_size, 5);
-    EXPECT_EQ(f_size, 1);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(output_layout.format, format::yxfb);
+    ASSERT_EQ(y_size, 4);
+    ASSERT_EQ(x_size, 5);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 1);
 
     for (size_t i = 0; i < output_vec.size(); ++i) {
-        EXPECT_FLOAT_EQ(output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(output_vec[i], output_ptr[i]);
     }
 }
 
@@ -86,10 +86,10 @@ TEST(gpu_streams, check_networks_can_use_the_same_weights) {
 
     auto outputs0 = network0.execute();
     auto outputs1 = network1.execute();
-    EXPECT_EQ(outputs0.size(), size_t(1));
-    EXPECT_EQ(outputs1.size(), size_t(1));
-    EXPECT_EQ(outputs0.begin()->first, "conv");
-    EXPECT_EQ(outputs1.begin()->first, "conv");
+    ASSERT_EQ(outputs0.size(), size_t(1));
+    ASSERT_EQ(outputs1.size(), size_t(1));
+    ASSERT_EQ(outputs0.begin()->first, "conv");
+    ASSERT_EQ(outputs1.begin()->first, "conv");
 
     auto output_memory0 = outputs0.at("conv").get_memory();
     auto output_memory1 = outputs1.at("conv").get_memory();
@@ -106,15 +106,15 @@ TEST(gpu_streams, check_networks_can_use_the_same_weights) {
     int x_size = output_layout.spatial(0);
     int f_size = output_layout.feature();
     int b_size = output_layout.batch();
-    EXPECT_EQ(output_layout.format, format::yxfb);
-    EXPECT_EQ(y_size, 2);
-    EXPECT_EQ(x_size, 3);
-    EXPECT_EQ(f_size, 1);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(output_layout.format, format::yxfb);
+    ASSERT_EQ(y_size, 2);
+    ASSERT_EQ(x_size, 3);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 1);
     for (int y = 0; y < y_size; ++y) {
         for (int x = 0; x < x_size; ++x) {
-            EXPECT_EQ(output_vec[y][x], output_ptr0[y * x_size + x]);
-            EXPECT_EQ(output_vec[y][x], output_ptr1[y * x_size + x]);
+            ASSERT_EQ(output_vec[y][x], output_ptr0[y * x_size + x]);
+            ASSERT_EQ(output_vec[y][x], output_ptr1[y * x_size + x]);
         }
     }
 }
@@ -150,10 +150,10 @@ TEST(gpu_streams, check_networks_use_unique_mutable_data_per_stream) {
 
     auto outputs0 = network0.execute();
     auto outputs1 = network1.execute();
-    EXPECT_EQ(outputs0.size(), size_t(1));
-    EXPECT_EQ(outputs1.size(), size_t(1));
-    EXPECT_EQ(outputs0.begin()->first, "conv");
-    EXPECT_EQ(outputs1.begin()->first, "conv");
+    ASSERT_EQ(outputs0.size(), size_t(1));
+    ASSERT_EQ(outputs1.size(), size_t(1));
+    ASSERT_EQ(outputs0.begin()->first, "conv");
+    ASSERT_EQ(outputs1.begin()->first, "conv");
 
     auto output_memory0 = outputs0.at("conv").get_memory();
     auto output_memory1 = outputs1.at("conv").get_memory();
@@ -174,15 +174,15 @@ TEST(gpu_streams, check_networks_use_unique_mutable_data_per_stream) {
     int x_size = output_layout.spatial(0);
     int f_size = output_layout.feature();
     int b_size = output_layout.batch();
-    EXPECT_EQ(output_layout.format, format::bfyx);
-    EXPECT_EQ(y_size, 2);
-    EXPECT_EQ(x_size, 3);
-    EXPECT_EQ(f_size, 1);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(output_layout.format, format::bfyx);
+    ASSERT_EQ(y_size, 2);
+    ASSERT_EQ(x_size, 3);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 1);
     for (int y = 0; y < y_size; ++y) {
         for (int x = 0; x < x_size; ++x) {
-            EXPECT_EQ(output_vec[y][x], output_ptr0[y * x_size + x]);
-            EXPECT_EQ(output_vec[y][x], output_ptr1[y * x_size + x]);
+            ASSERT_EQ(output_vec[y][x], output_ptr0[y * x_size + x]);
+            ASSERT_EQ(output_vec[y][x], output_ptr1[y * x_size + x]);
         }
     }
 }

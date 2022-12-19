@@ -83,8 +83,6 @@ protected:
 };
 
 TEST_F(InPlaceReshapeFromConstantCheck, smoke_CPU_InPlaceReshapeFromConstantCheck) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
 }
 }  // namespace SubgraphTestsDefinitions

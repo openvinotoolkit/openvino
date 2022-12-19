@@ -4,19 +4,18 @@
 
 #include <gtest/gtest.h>
 
-#include "common_test_utils/test_common.hpp"
-#include <string>
 #include <memory>
-
-#include <ngraph/pass/manager.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset7.hpp>
+#include <ngraph/pass/manager.hpp>
+#include <string>
+#include <transformations/init_node_info.hpp>
 #include <transformations/op_conversions/convert_ti_to_sequences.hpp>
 #include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/test_common.hpp"
 
 using namespace testing;
 using namespace ngraph;
@@ -25,19 +24,19 @@ namespace {
 
 std::shared_ptr<ov::Node> create_seq_len(const std::shared_ptr<ov::Node>& X) {
     auto shape_of = std::make_shared<opset5::ShapeOf>(X);
-    auto batch_dimension = std::make_shared<ngraph::opset5::Gather>(
-            shape_of,
-            ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {0}),
-            ngraph::opset5::Constant::create(ngraph::element::i64, {}, {0}));
-    auto seq_len_dim = std::make_shared<ngraph::opset5::Gather>(
-            shape_of,
-            ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {1}),
-            ngraph::opset5::Constant::create(ngraph::element::i64, {}, {0}));
+    auto batch_dimension =
+        std::make_shared<ngraph::opset5::Gather>(shape_of,
+                                                 ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {0}),
+                                                 ngraph::opset5::Constant::create(ngraph::element::i64, {}, {0}));
+    auto seq_len_dim =
+        std::make_shared<ngraph::opset5::Gather>(shape_of,
+                                                 ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {1}),
+                                                 ngraph::opset5::Constant::create(ngraph::element::i64, {}, {0}));
     auto seq_lengths = std::make_shared<opset5::Broadcast>(seq_len_dim, batch_dimension);
     return seq_lengths;
 }
 
-} // namespace
+}  // namespace
 
 TEST(TransformationTests, ConvertTensorIteratorToLSTMSequence) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
@@ -67,7 +66,8 @@ TEST(TransformationTests, ConvertTensorIteratorToLSTMSequence) {
         auto reshape_pattern_2 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1, 1, 128});
         auto unsqueeze = std::make_shared<opset5::Reshape>(lstm_cell->output(0), reshape_pattern_2, false);
         auto lstm_res1_unsqueeze = std::make_shared<opset5::Result>(unsqueeze);
-        auto body = std::make_shared<Function>(OutputVector{lstm_res_1, lstm_res1_unsqueeze, lstm_res_2}, ParameterVector{Xi, Yi, Zi});
+        auto body = std::make_shared<Function>(OutputVector{lstm_res_1, lstm_res1_unsqueeze, lstm_res_2},
+                                               ParameterVector{Xi, Yi, Zi});
 
         auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
         tensor_iterator->set_body(body);
@@ -114,7 +114,15 @@ TEST(TransformationTests, ConvertTensorIteratorToLSTMSequence) {
         auto in_2 = std::make_shared<ngraph::opset5::Unsqueeze>(Z, axis_1);
 
         auto seq_lengths = create_seq_len(X);
-        auto lstm_seq = std::make_shared<opset5::LSTMSequence>(X, in_1, in_2, seq_lengths, W, R, B, 128, op::RecurrentSequenceDirection::FORWARD);
+        auto lstm_seq = std::make_shared<opset5::LSTMSequence>(X,
+                                                               in_1,
+                                                               in_2,
+                                                               seq_lengths,
+                                                               W,
+                                                               R,
+                                                               B,
+                                                               128,
+                                                               op::RecurrentSequenceDirection::FORWARD);
         auto axis_out = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
         auto out_0 = std::make_shared<ngraph::opset5::Squeeze>(lstm_seq->output(0), axis_out);
         auto out_1 = std::make_shared<ngraph::opset5::Squeeze>(lstm_seq->output(1), axis_out);
@@ -138,32 +146,32 @@ TEST(TransformationTests, ConvertTensorIteratorToLSTMSequence) {
 TEST(TransformationTests, ConvertTensorIteratorToLSTMSequenceDynamicReshapeCase) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{ -1, 2, -1 });
-        auto Y = std::make_shared<opset5::Parameter>(element::f32, PartialShape{ -1, -1 });
-        auto Z = std::make_shared<opset5::Parameter>(element::f32, PartialShape{ -1, -1 });
+        auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{-1, 2, -1});
+        auto Y = std::make_shared<opset5::Parameter>(element::f32, PartialShape{-1, -1});
+        auto Z = std::make_shared<opset5::Parameter>(element::f32, PartialShape{-1, -1});
 
-        auto Xi = std::make_shared<opset5::Parameter>(element::f32, PartialShape{ -1, 1, -1 });
-        auto Yi = std::make_shared<opset5::Parameter>(element::f32, PartialShape{ -1, -1 });
-        auto Zi = std::make_shared<opset5::Parameter>(element::f32, PartialShape{ -1, -1 });
+        auto Xi = std::make_shared<opset5::Parameter>(element::f32, PartialShape{-1, 1, -1});
+        auto Yi = std::make_shared<opset5::Parameter>(element::f32, PartialShape{-1, -1});
+        auto Zi = std::make_shared<opset5::Parameter>(element::f32, PartialShape{-1, -1});
 
         // Body
-        auto reshape_pattern = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{ 2 }, { 1, -1 });
+        auto reshape_pattern = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, -1});
         auto squeeze = std::make_shared<opset5::Reshape>(Xi, reshape_pattern, false);
 
         auto w_val = std::vector<float>(512 * 16, 0);
         auto r_val = std::vector<float>(512 * 128, 0);
         auto b_val = std::vector<float>(512, 0);
-        auto W = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{ 512, 16 }, w_val);
-        auto R = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{ 512, 128 }, r_val);
-        auto B = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{ 512 }, b_val);
+        auto W = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{512, 16}, w_val);
+        auto R = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{512, 128}, r_val);
+        auto B = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{512}, b_val);
 
         auto lstm_cell = std::make_shared<opset5::LSTMCell>(squeeze, Yi, Zi, W, R, B, 128);
 
         auto res_1 = std::make_shared<opset5::Result>(lstm_cell);
-        auto reshape_pattern_2 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{ 3 }, { 1, 1, 128 });
+        auto reshape_pattern_2 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1, 1, 128});
         auto unsqueeze = std::make_shared<opset5::Reshape>(lstm_cell, reshape_pattern_2, false);
         auto res_2 = std::make_shared<opset5::Result>(unsqueeze);
-        auto body = std::make_shared<Function>(OutputVector{ res_1, res_2 }, ParameterVector{ Xi, Yi, Zi });
+        auto body = std::make_shared<Function>(OutputVector{res_1, res_2}, ParameterVector{Xi, Yi, Zi});
 
         auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
         tensor_iterator->set_body(body);
@@ -176,7 +184,7 @@ TEST(TransformationTests, ConvertTensorIteratorToLSTMSequenceDynamicReshapeCase)
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 1);
 
         auto res_ti_1 = std::make_shared<opset5::Result>(tensor_iterator->output(1));
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_ti_1 }, ngraph::ParameterVector{ X, Y, Z });
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1}, ngraph::ParameterVector{X, Y, Z});
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
@@ -186,32 +194,39 @@ TEST(TransformationTests, ConvertTensorIteratorToLSTMSequenceDynamicReshapeCase)
     }
 
     {
-        auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{ -1, 2, -1 });
-        auto Y = std::make_shared<opset5::Parameter>(element::f32, PartialShape{ -1, -1 });
-        auto Z = std::make_shared<opset5::Parameter>(element::f32, PartialShape{ -1, -1 });
+        auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{-1, 2, -1});
+        auto Y = std::make_shared<opset5::Parameter>(element::f32, PartialShape{-1, -1});
+        auto Z = std::make_shared<opset5::Parameter>(element::f32, PartialShape{-1, -1});
 
-        auto axis_1 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 1 });
+        auto axis_1 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
         auto in_1 = std::make_shared<ngraph::opset5::Unsqueeze>(Y, axis_1);
         auto in_2 = std::make_shared<ngraph::opset5::Unsqueeze>(Z, axis_1);
-
 
         auto seq_lengths = create_seq_len(X);
 
         auto w_val = std::vector<float>(512 * 16, 0);
         auto r_val = std::vector<float>(512 * 128, 0);
         auto b_val = std::vector<float>(512, 0);
-        auto W = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{ 1, 512, 16 }, w_val);
-        auto R = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{ 1, 512, 128 }, r_val);
-        auto B = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{ 1, 512 }, b_val);
+        auto W = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{1, 512, 16}, w_val);
+        auto R = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{1, 512, 128}, r_val);
+        auto B = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{1, 512}, b_val);
 
-        auto lstm_seq = std::make_shared<opset5::LSTMSequence>(X, in_1, in_2, seq_lengths, W, R, B, 128, op::RecurrentSequenceDirection::FORWARD);
+        auto lstm_seq = std::make_shared<opset5::LSTMSequence>(X,
+                                                               in_1,
+                                                               in_2,
+                                                               seq_lengths,
+                                                               W,
+                                                               R,
+                                                               B,
+                                                               128,
+                                                               op::RecurrentSequenceDirection::FORWARD);
 
-        auto axis_out = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 1 });
+        auto axis_out = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
         auto out_0 = std::make_shared<ngraph::opset5::Squeeze>(lstm_seq->output(0), axis_out);
         auto out_1 = std::make_shared<ngraph::opset5::Squeeze>(lstm_seq->output(1), axis_out);
         auto out_2 = std::make_shared<ngraph::opset5::Squeeze>(lstm_seq->output(2), axis_out);
         auto res_ti_1 = std::make_shared<opset5::Result>(out_0);
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_ti_1 }, ngraph::ParameterVector{ X, Y, Z });
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1}, ngraph::ParameterVector{X, Y, Z});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -369,7 +384,14 @@ TEST(TransformationTests, ConvertTensorIteratorToRNNSequence) {
         auto in_1 = std::make_shared<ngraph::opset5::Unsqueeze>(Y, axis_1);
 
         auto seq_lengths = create_seq_len(X);
-        auto rnn_sequence = std::make_shared<opset5::RNNSequence>(X, in_1, seq_lengths, W, R, B, 128, op::RecurrentSequenceDirection::FORWARD);
+        auto rnn_sequence = std::make_shared<opset5::RNNSequence>(X,
+                                                                  in_1,
+                                                                  seq_lengths,
+                                                                  W,
+                                                                  R,
+                                                                  B,
+                                                                  128,
+                                                                  op::RecurrentSequenceDirection::FORWARD);
         auto axis_out = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
         auto out_0 = std::make_shared<ngraph::opset5::Squeeze>(rnn_sequence->output(0), axis_out);
         auto out_1 = std::make_shared<ngraph::opset5::Squeeze>(rnn_sequence->output(1), axis_out);
@@ -384,29 +406,29 @@ TEST(TransformationTests, ConvertTensorIteratorToRNNSequence) {
 TEST(TransformationTests, ConvertTensorIteratorToRNNSequenceDynamicReshapeCase) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{ -1, 2, -1 });
-        auto Y = std::make_shared<opset5::Parameter>(element::f32, PartialShape{ -1, -1 });
+        auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{-1, 2, -1});
+        auto Y = std::make_shared<opset5::Parameter>(element::f32, PartialShape{-1, -1});
 
-        auto Xi = std::make_shared<opset5::Parameter>(element::f32, PartialShape{ -1, 1, -1 });
-        auto Yi = std::make_shared<opset5::Parameter>(element::f32, PartialShape{ -1, -1 });
+        auto Xi = std::make_shared<opset5::Parameter>(element::f32, PartialShape{-1, 1, -1});
+        auto Yi = std::make_shared<opset5::Parameter>(element::f32, PartialShape{-1, -1});
 
         // Body
-        auto reshape_pattern = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{ 2 }, { 1, -1 });
+        auto reshape_pattern = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, -1});
         auto squeeze = std::make_shared<opset5::Reshape>(Xi, reshape_pattern, false);
 
         auto w_val = std::vector<float>(128 * 16, 0);
         auto r_val = std::vector<float>(128 * 128, 0);
         auto b_val = std::vector<float>(128, 0);
-        auto W = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{ 128, 16 }, w_val);
-        auto R = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{ 128, 128 }, r_val);
-        auto B = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{ 128 }, b_val);
+        auto W = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{128, 16}, w_val);
+        auto R = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{128, 128}, r_val);
+        auto B = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{128}, b_val);
 
         auto rnn_cell = std::make_shared<opset5::RNNCell>(squeeze, Yi, W, R, B, 128);
         auto res_1 = std::make_shared<opset5::Result>(rnn_cell);
-        auto reshape_pattern_2 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{ 3 }, { 1, 1, -1 });
+        auto reshape_pattern_2 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1, 1, -1});
         auto unsqueeze = std::make_shared<opset5::Reshape>(rnn_cell, reshape_pattern_2, false);
         auto res_2 = std::make_shared<opset5::Result>(unsqueeze);
-        auto body = std::make_shared<Function>(OutputVector{ res_1, res_2 }, ParameterVector{ Xi, Yi });
+        auto body = std::make_shared<Function>(OutputVector{res_1, res_2}, ParameterVector{Xi, Yi});
 
         auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
         tensor_iterator->set_body(body);
@@ -418,7 +440,7 @@ TEST(TransformationTests, ConvertTensorIteratorToRNNSequenceDynamicReshapeCase) 
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 1);
 
         auto res_ti_1 = std::make_shared<opset5::Result>(tensor_iterator->output(1));
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_ti_1 }, ngraph::ParameterVector{ X, Y });
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1}, ngraph::ParameterVector{X, Y});
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
@@ -428,27 +450,34 @@ TEST(TransformationTests, ConvertTensorIteratorToRNNSequenceDynamicReshapeCase) 
     }
 
     {
-        auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{ -1, 2, -1 });
-        auto Y = std::make_shared<opset5::Parameter>(element::f32, PartialShape{ -1, -1 });
+        auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{-1, 2, -1});
+        auto Y = std::make_shared<opset5::Parameter>(element::f32, PartialShape{-1, -1});
 
         auto w_val = std::vector<float>(128 * 16, 0);
         auto r_val = std::vector<float>(128 * 128, 0);
         auto b_val = std::vector<float>(128, 0);
-        auto W = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{ 1, 128, 16 }, w_val);
-        auto R = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{ 1, 128, 128 }, r_val);
-        auto B = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{ 1, 128 }, b_val);
+        auto W = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{1, 128, 16}, w_val);
+        auto R = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{1, 128, 128}, r_val);
+        auto B = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{1, 128}, b_val);
 
-        auto axis_1 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 1 });
+        auto axis_1 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
         auto in_1 = std::make_shared<ngraph::opset5::Unsqueeze>(Y, axis_1);
 
         auto seq_lengths = create_seq_len(X);
 
-        auto rnn_sequence = std::make_shared<opset5::RNNSequence>(X, in_1, seq_lengths, W, R, B, 128, op::RecurrentSequenceDirection::FORWARD);
-        auto axis_out = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 1 });
+        auto rnn_sequence = std::make_shared<opset5::RNNSequence>(X,
+                                                                  in_1,
+                                                                  seq_lengths,
+                                                                  W,
+                                                                  R,
+                                                                  B,
+                                                                  128,
+                                                                  op::RecurrentSequenceDirection::FORWARD);
+        auto axis_out = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
         auto out_0 = std::make_shared<ngraph::opset5::Squeeze>(rnn_sequence->output(0), axis_out);
         auto out_1 = std::make_shared<ngraph::opset5::Squeeze>(rnn_sequence->output(1), axis_out);
         auto res_ti_1 = std::make_shared<opset5::Result>(out_0);
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_ti_1 }, ngraph::ParameterVector{ X, Y });
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1}, ngraph::ParameterVector{X, Y});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -591,12 +620,19 @@ TEST(TransformationTests, ConvertTensorIteratorToGRUSequence) {
         auto w_val = std::vector<float>(384 * 16, 0);
         auto r_val = std::vector<float>(384 * 128, 0);
         auto b_val = std::vector<float>(384, 0);
-        auto W = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{ 1, 384, 16 }, w_val);
-        auto R = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{ 1, 384, 128 }, r_val);
-        auto B = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{ 1, 384 }, b_val);
+        auto W = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{1, 384, 16}, w_val);
+        auto R = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{1, 384, 128}, r_val);
+        auto B = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{1, 384}, b_val);
 
         auto seq_lengths = create_seq_len(X);
-        auto gru_sequence = std::make_shared<opset5::GRUSequence>(X, in_1, seq_lengths, W, R, B, 128, op::RecurrentSequenceDirection::FORWARD);
+        auto gru_sequence = std::make_shared<opset5::GRUSequence>(X,
+                                                                  in_1,
+                                                                  seq_lengths,
+                                                                  W,
+                                                                  R,
+                                                                  B,
+                                                                  128,
+                                                                  op::RecurrentSequenceDirection::FORWARD);
         auto axis_out = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
         auto out_0 = std::make_shared<ngraph::opset5::Squeeze>(gru_sequence->output(0), axis_out);
         auto out_1 = std::make_shared<ngraph::opset5::Squeeze>(gru_sequence->output(1), axis_out);
@@ -611,29 +647,29 @@ TEST(TransformationTests, ConvertTensorIteratorToGRUSequence) {
 TEST(TransformationTests, ConvertTensorIteratorToGRUSequenceDynamicReshapeCase) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{ -1, 2, -1 });
-        auto Y = std::make_shared<opset5::Parameter>(element::f32, PartialShape{ -1, -1 });
+        auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{-1, 2, -1});
+        auto Y = std::make_shared<opset5::Parameter>(element::f32, PartialShape{-1, -1});
 
-        auto Xi = std::make_shared<opset5::Parameter>(element::f32, PartialShape{ -1, 1, -1 });
-        auto Yi = std::make_shared<opset5::Parameter>(element::f32, PartialShape{ -1, -1 });
+        auto Xi = std::make_shared<opset5::Parameter>(element::f32, PartialShape{-1, 1, -1});
+        auto Yi = std::make_shared<opset5::Parameter>(element::f32, PartialShape{-1, -1});
 
         // Body
-        auto reshape_pattern = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{ 2 }, { 1, -1 });
+        auto reshape_pattern = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, -1});
         auto squeeze = std::make_shared<opset5::Reshape>(Xi, reshape_pattern, false);
 
         auto w_val = std::vector<float>(384 * 16, 0);
         auto r_val = std::vector<float>(384 * 128, 0);
         auto b_val = std::vector<float>(384, 0);
-        auto W = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{ 384, 16 }, w_val);
-        auto R = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{ 384, 128 }, r_val);
-        auto B = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{ 384 }, b_val);
+        auto W = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{384, 16}, w_val);
+        auto R = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{384, 128}, r_val);
+        auto B = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{384}, b_val);
 
         auto gru_cell = std::make_shared<opset5::GRUCell>(squeeze, Yi, W, R, B, 128);
         auto res_1 = std::make_shared<opset5::Result>(gru_cell);
-        auto reshape_pattern_2 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{ 3 }, { 1, 1, 128 });
+        auto reshape_pattern_2 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1, 1, 128});
         auto unsqueeze = std::make_shared<opset5::Reshape>(gru_cell, reshape_pattern_2, false);
         auto res_2 = std::make_shared<opset5::Result>(unsqueeze);
-        auto body = std::make_shared<Function>(OutputVector{ res_1, res_2 }, ParameterVector{ Xi, Yi });
+        auto body = std::make_shared<Function>(OutputVector{res_1, res_2}, ParameterVector{Xi, Yi});
 
         auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
         tensor_iterator->set_body(body);
@@ -645,7 +681,7 @@ TEST(TransformationTests, ConvertTensorIteratorToGRUSequenceDynamicReshapeCase) 
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 1);
 
         auto res_ti_1 = std::make_shared<opset5::Result>(tensor_iterator->output(1));
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_ti_1 }, ngraph::ParameterVector{ X, Y });
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1}, ngraph::ParameterVector{X, Y});
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
@@ -655,27 +691,34 @@ TEST(TransformationTests, ConvertTensorIteratorToGRUSequenceDynamicReshapeCase) 
     }
 
     {
-        auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{ -1, 2, -1 });
-        auto Y = std::make_shared<opset5::Parameter>(element::f32, PartialShape{ -1, -1 });
+        auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{-1, 2, -1});
+        auto Y = std::make_shared<opset5::Parameter>(element::f32, PartialShape{-1, -1});
 
-        auto axis_1 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 1 });
+        auto axis_1 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
         auto in_1 = std::make_shared<ngraph::opset5::Unsqueeze>(Y, axis_1);
 
         auto w_val = std::vector<float>(384 * 16, 0);
         auto r_val = std::vector<float>(384 * 128, 0);
         auto b_val = std::vector<float>(384, 0);
-        auto W = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{ 1, 384, 16 }, w_val);
-        auto R = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{ 1, 384, 128 }, r_val);
-        auto B = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{ 1, 384 }, b_val);
+        auto W = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{1, 384, 16}, w_val);
+        auto R = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{1, 384, 128}, r_val);
+        auto B = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{1, 384}, b_val);
 
         auto seq_lengths = create_seq_len(X);
 
-        auto gru_sequence = std::make_shared<opset5::GRUSequence>(X, in_1, seq_lengths, W, R, B, 128, op::RecurrentSequenceDirection::FORWARD);
-        auto axis_out = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 1 });
+        auto gru_sequence = std::make_shared<opset5::GRUSequence>(X,
+                                                                  in_1,
+                                                                  seq_lengths,
+                                                                  W,
+                                                                  R,
+                                                                  B,
+                                                                  128,
+                                                                  op::RecurrentSequenceDirection::FORWARD);
+        auto axis_out = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
         auto out_0 = std::make_shared<ngraph::opset5::Squeeze>(gru_sequence->output(0), axis_out);
         auto out_1 = std::make_shared<ngraph::opset5::Squeeze>(gru_sequence->output(1), axis_out);
         auto res_ti_1 = std::make_shared<opset5::Result>(out_0);
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_ti_1 }, ngraph::ParameterVector{ X, Y });
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1}, ngraph::ParameterVector{X, Y});
     }
 
     auto res = compare_functions(f, f_ref);
