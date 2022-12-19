@@ -1,2 +1,2 @@
-numpy>=1.16.6
+numpy>=1.16.6,<=1.23.4
 opencv-python==4.5.*
