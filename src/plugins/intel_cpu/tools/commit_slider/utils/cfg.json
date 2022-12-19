@@ -1,7 +1,8 @@
 {
     "modeMap" : {
         "checkOutput" : "CheckOutputMode",
-        "bmPerf" : "BenchmarkAppPerformanceMode"
+        "bmPerf" : "BenchmarkAppPerformanceMode",
+        "compareBlobs" : "CompareBlobsMode"
     },
     "traversalMap" : {
         "firstFailedVersion" : "FirstFailedVersion",
@@ -15,32 +16,19 @@
         {"cmd" : "git submodule init", "path" : "{gitPath}"},
         {"cmd" : "git submodule update --recursive", "path" : "{buildPath}"},
         {"cmd" : "{makeCmd}", "catchMsg" : "CMake Error", "path" : "{buildPath}"},
-        {"tag" : "preprocess"},
         {"cmd" : "make --jobs=4", "path" : "{buildPath}"},
         {"cmd" : "git checkout -- .", "path" : "{gitPath}"}
     ],
-    "makeCmd" : "cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_PYTHON=OFF -DTHREADING=TBB -DENABLE_MKL_DNN=ON -DENABLE_CLDNN=OFF -DENABLE_INTEL_GNA=OFF -DENABLE_INTEL_VPU=OFF -DENABLE_INTEL_MYRIAD=OFF -DENABLE_INTEL_MYRIAD_COMMON=OFF -DENABLE_HDDL=OFF -DENABLE_MODELS=OFF -DENABLE_SAMPLES=OFF -DENABLE_TESTS=ON -DENABLE_HETERO=OFF -DENABLE_TEMPLATE=OFF -DENABLE_CPU_DEBUG_CAPS=OFF -DENABLE_DEBUG_CAPS=OFF -DENABLE_OV_CORE_BACKEND_UNIT_TESTS=OFF -DENABLE_OPENVINO_DEBUG=OFF ..",
+    "makeCmd" : "cmake ..",
     "returnCmd" : "git checkout master",
-    "gitPath" : "../../",
-    "buildPath" : "../../build/",
+    "gitPath" : "../../../../../",
+    "buildPath" : "../../../../../build/",
     "cachePath" : "{workPath}/slider_cache/",
     "logPath" : "{workPath}/log/",
-    "appCmd" : "./cpuFuncTests --gtest_filter=*SetScalePreProcessGetBlob*netPRC=FP32_targetDevice=AUTO*",
-    "appPath" : "../../bin/intel64/Release/",
     "workPath" : "/tmp/commit_slider_tool",
     "clearCache" : false,
-    "checkBorders" : false,
     "noCleanInterval" : 10,
     "serviceConfig" : {
         "comment" : "For inner purpose. Data will be overwritten during script running."
-    },
-    "runConfig" : {
-        "commitList" : {
-            "getCommitListCmd" : "git log dfc738b49..0dfdadb --boundary --pretty=\"%h\""
-        },
-        "mode" : "checkOutput",
-        "traversal" : "firstFailedVersion",
-        "stopPattern" : "(.)*FAILED(.)*",
-        "todo" : "add-preprocess"
     }
 }

@@ -4,9 +4,10 @@ Tool for automatic iteration over commit set with provided operation. For exampl
 
 ## Prerequisites
 
-git >= \*version\*
-cmake >= \*version\*
-python >= \*version\*
+git >= *2.0*
+cmake >= OpenVino minimum required version ([CMakeLists.txt](../../../../CMakeLists.txt))
+python >= *3.6*
+ccache >= *3.0*
 
 ## Preparing
 
@@ -25,13 +26,15 @@ python >= \*version\*
 1. Define `makeCmd` - build command, which you need for your application.
 2. Define `commandList`. Adjust *commandList* if you need more specific way to build target app. More details in [Custom command list](#ccl).
 3. Replace `gitPath, buildPath` if your target is out of current **Openvino** repo. 
-4. Set `appCmd, appPath` regarding target application
-5. Set up `runConfig`:
+4. Set `appCmd, appPath` (mandatory) regarding target application
+5. Set up `runConfig` (mandatory):
 5.1. `getCommitListCmd` - *git* command, returning commit list *if you don't want to set commit intervals with command args*
-5.2. `mode` = `{checkOutput|bmPerfMode|<to_extend>}` - cryterion of commit comparation
+5.2. `mode` = `{checkOutput|bmPerfMode|compareBlobs|<to_extend>}` - cryterion of commit comparation
 5.3. `traversal` `{firstFailedVersion|firstFixedVersion|<to_extend>}` - traversal rule
 5.4. `preprocess` if you need preparation before commit building `<add_details>`
 5.5. Other fields depend on mode, for example, `stopPattern` for  `checkOutput` is *RegEx* pattern for application failed output.
+6. Setup environment variables via *envVars* field in a format:
+`[{"name" : "key1", "val" : "val1"}, {"name" : "key2", "val" : "val2"}]`
 
 ## Run commit slider
 
