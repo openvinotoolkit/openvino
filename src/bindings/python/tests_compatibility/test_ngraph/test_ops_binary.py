@@ -90,14 +90,14 @@ def test_binary_logical_op(ng_api_helper, numpy_function):
     runtime = get_runtime()
 
     shape = [2, 2]
-    parameter_a = ng.parameter(shape, name="A", dtype=np.bool)
-    parameter_b = ng.parameter(shape, name="B", dtype=np.bool)
+    parameter_a = ng.parameter(shape, name="A", dtype=bool)
+    parameter_b = ng.parameter(shape, name="B", dtype=bool)
 
     model = ng_api_helper(parameter_a, parameter_b)
     computation = runtime.computation(model, parameter_a, parameter_b)
 
-    value_a = np.array([[True, False], [False, True]], dtype=np.bool)
-    value_b = np.array([[False, True], [False, True]], dtype=np.bool)
+    value_a = np.array([[True, False], [False, True]], dtype=bool)
+    value_b = np.array([[False, True], [False, True]], dtype=bool)
 
     result = computation(value_a, value_b)
     expected = numpy_function(value_a, value_b)
@@ -111,11 +111,11 @@ def test_binary_logical_op(ng_api_helper, numpy_function):
 def test_binary_logical_op_with_scalar(ng_api_helper, numpy_function):
     runtime = get_runtime()
 
-    value_a = np.array([[True, False], [False, True]], dtype=np.bool)
-    value_b = np.array([[False, True], [False, True]], dtype=np.bool)
+    value_a = np.array([[True, False], [False, True]], dtype=bool)
+    value_b = np.array([[False, True], [False, True]], dtype=bool)
 
     shape = [2, 2]
-    parameter_a = ng.parameter(shape, name="A", dtype=np.bool)
+    parameter_a = ng.parameter(shape, name="A", dtype=bool)
 
     model = ng_api_helper(parameter_a, value_b)
     computation = runtime.computation(model, parameter_a)
