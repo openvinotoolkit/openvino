@@ -88,7 +88,7 @@ void StatisticsReport::dump_performance_counters_request(CsvDumper& dumper, cons
                        ? status_names[(int)layer.status]
                        : "INVALID_STATUS");
         dumper << layer.node_type << layer.exec_type;
-        dumper << std::to_string(layer.real_time.count() / 1000.0) << std::to_string(layer.cpu_time.count() / 1000.0);
+        dumper << layer.real_time.count() / 1000.0 << layer.cpu_time.count() / 1000.0;
         total += layer.real_time;
         total_cpu += layer.cpu_time;
         dumper.endLine();
@@ -135,8 +135,7 @@ void StatisticsReport::dump_sort_performance_counters_request(CsvDumper& dumper,
                            ? status_names[(int)layer.status]
                            : "INVALID_STATUS");
             dumper << layer.node_type << layer.exec_type;
-            dumper << std::to_string(layer.real_time.count() / 1000.0)
-                   << std::to_string(layer.cpu_time.count() / 1000.0);
+            dumper << layer.real_time.count() / 1000.0 << layer.cpu_time.count() / 1000.0;
             dumper << (layer.real_time * 1.0 / total) * 100;
             dumper.endLine();
             layersize += 1;

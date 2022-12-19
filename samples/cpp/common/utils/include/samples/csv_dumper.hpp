@@ -6,7 +6,7 @@
 
 #include <ctime>
 #include <fstream>
-#include <iomanip>
+#include <iosfwd>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -22,6 +22,8 @@ class CsvDumper {
     std::string filename;
     bool canDump = true;
     char delimiter = ';';
+    std::ios::fmtflags fmt;
+    std::streamsize prec;
 
     std::string generateFilename() {
         std::stringstream filename;
@@ -48,6 +50,8 @@ public:
             slog::warn << "Cannot create dump file! Disabling dump." << slog::endl;
             canDump = false;
         } else {
+            fmt = std::ios::fmtflags(std::cout.flags());
+            prec = file.precision();
             setPrecision(precision);
         }
     }
@@ -67,7 +71,17 @@ public:
      * @return
      */
     void setPrecision(int precision) {
-        file << std::fixed << std::setprecision(precision);
+        if (canDump) {
+            file.precision(precision);
+            file.setf(std::ios::fixed);
+        }
+    }
+
+    void resetPrecision() {
+        if (canDump) {
+            file.setf(fmt);
+            file.precision(prec);
+        }
     }
 
     /**
