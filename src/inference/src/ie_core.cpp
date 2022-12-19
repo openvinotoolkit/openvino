@@ -282,6 +282,13 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
             }
         }
 
+        // Return whether this config belongs to core config
+        bool is_core_config(const std::string& config_name) const {
+            auto ret = _core_plugins_properties.find(config_name) != _core_plugins_properties.end() ||
+                       _core_global_properties.find(config_name) != _core_global_properties.end();
+            return ret;
+        }
+
         // Check whether this global config is supported by plugin, and the coresponding propertie will be removed
         // from plugin in the furture. It is a whitelist to check.
         bool is_plugin_config_supported(ov::InferencePlugin& plugin, const std::string& config_name) const {
@@ -1189,10 +1196,8 @@ public:
                         "You can only get_property of the BATCH itself (without devices). "
                         "get_property is also possible for the individual devices before creating the BATCH on top.");
 
-        if (device_name.empty()) {
+        if (device_name.empty() || coreConfig.is_core_config(name)) {
             return coreConfig.get_core_config(name);
-        } else if (name == ov::cache_dir.name()) {
-            return coreConfig.get_device_cache_dir(device_name);
         }
 
         auto parsed = parseDeviceNameIntoConfig(device_name, arguments);
@@ -1456,14 +1461,11 @@ public:
             std::lock_guard<std::mutex> lock(get_mutex());
             created_plugins.reserve(plugins.size());
 
-            if (deviceName.empty()) {
-                coreConfig.set_core_config(config);
-            } else {
-                auto cache_it = config.find(CONFIG_KEY(CACHE_DIR));
-                if (cache_it != config.end()) {
-                    coreConfig.setCacheForDevice(cache_it->second, clearDeviceName);
-                }
+            auto cache_it = config.find(CONFIG_KEY(CACHE_DIR));
+            if (cache_it != config.end()) {
+                coreConfig.setCacheForDevice(cache_it->second, clearDeviceName);
             }
+            coreConfig.set_core_config(config);
 
             auto base_desc = pluginRegistry.find(clearDeviceName);
             if (pluginRegistry.find(deviceName) == pluginRegistry.end() && base_desc != pluginRegistry.end()) {
@@ -2011,10 +2013,8 @@ Parameter Core::GetConfig(const std::string& deviceName, const std::string& name
         }
     }
 
-    if (deviceName.empty()) {
+    if (deviceName.empty() || _impl->getCoreConfig().is_core_config(name)) {
         return _impl->getCoreConfig().get_core_config(name);
-    } else if (name == CONFIG_KEY(CACHE_DIR)) {
-        return _impl->getCoreConfig().get_device_cache_dir(deviceName);
     }
 
     auto parsed = ov::parseDeviceNameIntoConfig(deviceName);
