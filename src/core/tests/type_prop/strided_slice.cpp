@@ -97,38 +97,28 @@ TEST(type_prop, strided_slice_begin_incorrect_shape) {
     auto data = make_shared<op::Parameter>(element::f32, Shape{2, 4, 6, 8});
     auto begin = make_shared<op::Parameter>(element::i64, Shape{4, 5});
     auto end = make_shared<op::Parameter>(element::i64, Shape{4});
-    try {
-        auto strided_slice = make_shared<op::v1::StridedSlice>(data,
-                                                               begin,
-                                                               end,
-                                                               vector<int64_t>{1, 0, 1, 0},
-                                                               vector<int64_t>{1, 0, 1, 0});
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Incorrect shape of begin exception not thrown.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Begin input must be 1D (begin rank:"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+
+    OV_EXPECT_THROW(auto strided_slice = make_shared<op::v1::StridedSlice>(data,
+                                                                           begin,
+                                                                           end,
+                                                                           vector<int64_t>{1, 0, 1, 0},
+                                                                           vector<int64_t>{1, 0, 1, 0}),
+                    NodeValidationFailure,
+                    HasSubstr("Begin input must be 1D (has rank:"));
 }
 
 TEST(type_prop, strided_slice_end_incorrect_shape) {
     auto data = make_shared<op::Parameter>(element::f32, Shape{2, 4, 6, 8});
     auto begin = make_shared<op::Parameter>(element::i64, Shape{4});
     auto end = make_shared<op::Parameter>(element::i64, Shape{4, 5});
-    try {
-        auto strided_slice = make_shared<op::v1::StridedSlice>(data,
-                                                               begin,
-                                                               end,
-                                                               vector<int64_t>{1, 0, 1, 0},
-                                                               vector<int64_t>{1, 0, 1, 0});
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Incorrect shape of end exception not thrown.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("End input must be 1D (end rank:"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+
+    OV_EXPECT_THROW(auto strided_slice = make_shared<op::v1::StridedSlice>(data,
+                                                                           begin,
+                                                                           end,
+                                                                           vector<int64_t>{1, 0, 1, 0},
+                                                                           vector<int64_t>{1, 0, 1, 0}),
+                    NodeValidationFailure,
+                    HasSubstr("End input must be 1D (has rank:"));
 }
 
 TEST(type_prop, strided_slice_default_stride_dynamic_shape_input_begin_not_1d) {

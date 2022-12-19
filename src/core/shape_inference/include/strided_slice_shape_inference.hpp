@@ -14,7 +14,7 @@ namespace ov {
 namespace op {
 namespace v1 {
 
-const std::array<std::string, 3> shape_names{"begin", "end", "strides"};
+const std::array<char const*, 3> shape_names{"Begin", "End", "Strides"};
 
 template <class T>
 void shape_infer(const StridedSlice* op,
@@ -27,22 +27,14 @@ void shape_infer(const StridedSlice* op,
 
     const auto& input_shape = input_shapes[0];
 
-    const auto capitalize = [](std::string s) -> std::string {
-        if (!s.empty()) {
-            s.front() = std::toupper(s.front());
-        }
-        return std::move(s);
-    };
-
     for (size_t i = 1; i < input_shapes.size(); ++i) {
         const auto& shape_rank = input_shapes[i].rank();
         NODE_VALIDATION_CHECK(op,
                               shape_rank.compatible(1),
-                              capitalize(shape_names[i - 1]),
-                              " input must be 1D (",
                               shape_names[i - 1],
-                              " rank: ",
-                              shape_rank);
+                              " input must be 1D (has rank: ",
+                              shape_rank,
+                              ")");
     }
 
     const auto& begin_shape = input_shapes[1];

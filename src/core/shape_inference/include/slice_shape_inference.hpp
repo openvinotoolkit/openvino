@@ -13,7 +13,7 @@ namespace ov {
 namespace op {
 namespace v8 {
 
-const std::array<std::string, 4> shape_names{"start", "stop", "step", "axes"};
+const std::array<char const*, 4> shape_names{"start", "stop", "step", "axes"};
 
 template <class T>
 void shape_infer(const Slice* op,
