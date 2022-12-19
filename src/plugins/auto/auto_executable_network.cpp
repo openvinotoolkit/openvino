@@ -41,10 +41,12 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name, const st
         if (_autoSchedule->_loadContext[ACTUALDEVICE].future.valid()) {
             _autoSchedule->_loadContext[ACTUALDEVICE].future.wait();
         }
-        try {
-            return _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetMetric(name);
-        } catch (...) {
-            return _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetConfig(name);
+        if (_autoSchedule->_loadContext[ACTUALDEVICE].isAlready) {
+            try {
+                return _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetMetric(name);
+            } catch (...) {
+                return _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetConfig(name);
+            }
         }
     }
     if (target_device == "CPU" && _autoSchedule->_loadContext[CPU].isAlready) {
@@ -54,9 +56,7 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name, const st
             return _autoSchedule->_loadContext[CPU].executableNetwork->GetConfig(name);
         }
     }
-    auto actualDevice = _autoSchedule->_loadContext[ACTUALDEVICE].deviceInfo.deviceName;
-    IE_THROW(NotFound) << target_device << "is not the device selected by " << GetLogTag()
-                       << ". Actual selected device is " << actualDevice;
+    IE_THROW() << "Failed to get property from device " << target_device;
 }
 
 IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {

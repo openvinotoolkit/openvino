@@ -186,7 +186,7 @@ public:
      * particular device.
      *
      * @param name Property key, can be found in openvino/runtime/properties.hpp.
-     * @param target_device A hardwre device name, if not empty, will retrieve the target_device property via the meta
+     * @param target_device A hardware device name, if not empty, will retrieve the target_device property via the meta
      * plugin.
      * @return Property value.
      */

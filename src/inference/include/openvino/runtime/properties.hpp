@@ -591,7 +591,7 @@ struct Properties {
      * @brief Constructs a pair consisted of device name and property object
      * @param device_name device plugin alias
      * @param device_property requested property object
-     * @return Pair of device name and type erased property object.
+     * @return Pair of device name and property object.
      */
     template <typename T, PropertyMutability M>
     const std::pair<std::string, ov::Property<T, M>> operator()(const std::string& device_name,
