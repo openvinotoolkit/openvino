@@ -241,9 +241,26 @@ void GNAGraphCompiler::ValidateCnn2D(const std::string& name,
                                      const uint32_t strideW,
                                      const uint32_t dilH,
                                      const uint32_t dilW,
-                                     OvGnaType inPrecision) const {
+                                     OvGnaType inPrecision,
+                                     bool is_dwsc) const {
     if (cnn2dValidator) {
-        if (cnn2dValidator->ValidateCnn1D(name,
+        if (!is_dwsc) {
+            if (cnn2dValidator->ValidateCnn1D(name,
+                                              inHeight,
+                                              inWidth,
+                                              inChannels,
+                                              kH,
+                                              kW,
+                                              kN,
+                                              strideH,
+                                              strideW,
+                                              dilH,
+                                              dilW,
+                                              inPrecision,
+                                              false)) {
+                return;
+            }
+            cnn2dValidator->ValidateCnn2D(name,
                                           inHeight,
                                           inWidth,
                                           inChannels,
@@ -254,12 +271,21 @@ void GNAGraphCompiler::ValidateCnn2D(const std::string& name,
                                           strideW,
                                           dilH,
                                           dilW,
-                                          inPrecision,
-                                          false)) {
-            return;
+                                          inPrecision);
+        } else {
+            cnn2dValidator->ValidateDwsc(name,
+                                         inHeight,
+                                         inWidth,
+                                         inChannels,
+                                         kH,
+                                         kW,
+                                         kN,
+                                         strideH,
+                                         strideW,
+                                         dilH,
+                                         dilW,
+                                         inPrecision);
         }
-        cnn2dValidator
-            ->ValidateCnn2D(name, inHeight, inWidth, inChannels, kH, kW, kN, strideH, strideW, dilH, dilW, inPrecision);
     } else {
         THROW_GNA_EXCEPTION << "No Cnn2D validator found for layer " << name;
     }
@@ -342,6 +368,8 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     auto out_height = InferenceEngine::GetDataDimByName(outputs, InferenceEngine::DataDimName::H);
     auto out_width = InferenceEngine::GetDataDimByName(outputs, InferenceEngine::DataDimName::W);
 
+    const auto is_dwsc = (convolution._group > 1);
+
     if (in_height > 1 && in_width == 1) {
         std::swap(in_height, in_width);
         std::swap(out_height, out_width);
@@ -356,14 +384,15 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     auto in_kernel_h = convolution._kernel_y;
     bool transpose_h_w = false;
 
-    // Map 2d convolution to 1d if it's possible.
-    if (!ShouldUseOnlyConv2DGnaIface() && gna_convolution_layer::isMappableFrom2DTo1D(in_height,
-                                                                                      in_width,
-                                                                                      in_channels,
-                                                                                      convolution._kernel_y,
-                                                                                      convolution._kernel_x,
-                                                                                      convolution._stride_y,
-                                                                                      convolution._stride_x)) {
+    // Map 2d convolution to 1d if it's possible
+    if (!is_dwsc && !ShouldUseOnlyConv2DGnaIface() &&
+        gna_convolution_layer::isMappableFrom2DTo1D(in_height,
+                                                    in_width,
+                                                    in_channels,
+                                                    convolution._kernel_y,
+                                                    convolution._kernel_x,
+                                                    convolution._stride_y,
+                                                    convolution._stride_x)) {
         transpose_h_w = gna_convolution_layer::should_transpose_h_w(in_height,
                                                                     convolution._kernel_y,
                                                                     in_channels,
@@ -400,7 +429,7 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
         dnn->new_num_conv_columns = 0;
     }
 
-    if (ShouldUseOnlyConv2DGnaIface() ||
+    if (is_dwsc || ShouldUseOnlyConv2DGnaIface() ||
         gna_convolution_layer::is3DInputOr2DKernel(in_height,
                                                    in_width,
                                                    in_channels,
@@ -727,6 +756,8 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     const auto weightPrec = OvGnaTypeIntFromBytes(convolution._weights->getTensorDesc().getPrecision().size());
     const auto biasPrec = OvGnaTypeIntFromBytes(biasPrecision.size());
 
+    const auto is_dwsc = (convolution._group > 1);
+
     ValidateCnn2D(layer->name,
                   in_height,
                   in_width,
@@ -738,17 +769,21 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
                   convolution._stride_x,
                   convolution._dilation_y,
                   convolution._dilation_x,
-                  inputPrec);
+                  inputPrec,
+                  is_dwsc);
 
     float weight_scale_factor = GetScaleFactor(layer, QuantizedDataType::weights);
     float output_scale_factor = GetScaleFactor(layer, QuantizedDataType::output);
 
-    auto& currentComponent = dnnComponents.addComponent(convolution.name, "convolution");
+    auto& currentComponent = dnnComponents.addComponent(convolution.name, is_dwsc ? "dwsc" : "convolution");
+
     dnn->InitConvolutional2DComponent(
         currentComponent,
         {{in_batch, in_height, in_width, in_channels}, inputPrec, {}},  // NHWC for GNA
         {{out_batch, out_height, out_width, out_channels}, outputPrec, {}},
-        {{filter_n, convolution._kernel_y, convolution._kernel_x, in_channels}, weightPrec, {}},
+        {{is_dwsc ? limitations::dwscFilterDepth : filter_n, convolution._kernel_y, convolution._kernel_x, in_channels},
+         weightPrec,
+         {}},
         {{filter_n}, biasPrec, {}},
         {convolution._stride_y, convolution._stride_x},
         {convolution._padding_y, convolution._padding_x},
@@ -757,7 +792,8 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
         ptr_inputs,
         ptr_outputs,
         ptr_weights,
-        ptr_biases);
+        ptr_biases,
+        is_dwsc);
     currentComponent.num_bytes_per_input = inputs->getPrecision().size();
     currentComponent.num_bytes_per_output = outputs->getPrecision().size();
 
@@ -794,7 +830,7 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     const auto kernelHW = convolution._kernel_y * convolution._kernel_x;
 
     std::vector<uint8_t> transposedWeights;
-    const auto singleKernelSize = in_channels * kernelHW * convolution.precision.size();
+    const auto singleKernelSize = in_channels / convolution._group * kernelHW * convolution.precision.size();
     const auto kernelPad = Gna2RoundUp(singleKernelSize, 16) - singleKernelSize;
     for (uint32_t k = 0; k < convolution._out_depth; k++) {
         uint8_t* ptr_filt_current = convolution._weights->cbuffer().as<uint8_t*>() + k * singleKernelSize;

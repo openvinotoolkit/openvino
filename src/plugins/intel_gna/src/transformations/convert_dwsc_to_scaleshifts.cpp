@@ -15,8 +15,10 @@
 
 #include "utils/transformation_helper.hpp"
 
-using namespace ov::intel_gna::pass;
-using namespace ov::intel_gna::pass::helper;
+namespace ov {
+namespace intel_gna {
+namespace pass {
+using namespace helper;
 
 static std::shared_ptr<ngraph::Node> DecomposeDWSC(std::shared_ptr<ngraph::opset7::GroupConvolution> dwsc,
                                                    std::shared_ptr<ngraph::opset7::Constant> bias_const,
@@ -236,3 +238,7 @@ ConvertDWSCToScaleShifts::ConvertDWSCToScaleShifts() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(trailing_transpose, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace pass
+}  // namespace intel_gna
+}  // namespace ov

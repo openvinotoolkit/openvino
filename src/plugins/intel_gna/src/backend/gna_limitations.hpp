@@ -42,6 +42,8 @@ constexpr uint32_t maxPoolMaxWindowSize = 6;
 constexpr uint32_t copyMaxGrouping = 8;
 constexpr uint32_t transposeMaxSize = 65528;
 
+constexpr uint32_t dwscFilterDepth = 1;
+
 // TODO In the future there should be created class/struct representing all limitations for specific device versions.
 constexpr uint32_t kMaxLayersCountGNA1_0 = 1023;
 constexpr uint32_t kMaxLayersCountGNA2_0 = 4096;
@@ -247,6 +249,19 @@ public:
                                OvGnaType inPrecision,
                                bool exception = true) const = 0;
 
+    virtual bool ValidateDwsc(const std::string& name,
+                              const uint32_t inHeight,
+                              const uint32_t inWidth,
+                              const uint32_t inChannels,
+                              const uint32_t kH,
+                              const uint32_t kW,
+                              const uint32_t kN,
+                              const uint32_t strideH,
+                              const uint32_t strideW,
+                              const uint32_t dilationH,
+                              const uint32_t dilationW,
+                              bool exception = true) const = 0;
+
     virtual bool ValidatePooling2D(const std::string& name,
                                    const uint32_t windowH,
                                    const uint32_t windowW,
@@ -308,6 +323,19 @@ public:
                        const uint32_t dilationW,
                        OvGnaType inPrecision,
                        bool exception = true) const override;
+
+    bool ValidateDwsc(const std::string& name,
+                      const uint32_t inHeight,
+                      const uint32_t inWidth,
+                      const uint32_t inChannels,
+                      const uint32_t kH,
+                      const uint32_t kW,
+                      const uint32_t kN,
+                      const uint32_t strideH,
+                      const uint32_t strideW,
+                      const uint32_t dilationH,
+                      const uint32_t dilationW,
+                      bool exception = true) const override;
 
     bool ValidatePooling2D(const std::string& name,
                            const uint32_t windowH,
@@ -374,6 +402,19 @@ class Validator_35 : public AbstractValidator {
                             const uint32_t dilationW,
                             OvGnaType inPrecision) const;
 
+    bool ValidateDwsc(const std::string& name,
+                      const uint32_t inHeight,
+                      const uint32_t inWidth,
+                      const uint32_t inChannels,
+                      const uint32_t kH,
+                      const uint32_t kW,
+                      const uint32_t kN,
+                      const uint32_t strideH,
+                      const uint32_t strideW,
+                      const uint32_t dilationH,
+                      const uint32_t dilationW,
+                      bool exception = true) const override;
+
     std::string ValidatePooling(const CnnLimits& limits,
                                 const std::string& name,
                                 const uint32_t windowH,
@@ -429,6 +470,36 @@ public:
                        const uint32_t dilationW,
                        OvGnaType inPrecision,
                        bool exception = true) const override;
+};
+
+class Validator_36 : public Validator_35 {
+    struct CnnLimits {
+        const RangeLimit2D kInputHWLimit;
+        const RangeMultipleLimit kInputChannelsNumberLimit;
+        const RangeLimit2D kKerneHWlLimit;
+        const RangeLimit2D kStrideHWLimit;
+        const RangeLimit2D kDilationLimit;
+        const RangeLimit2D kPoolingWindowHWLimit;
+        const RangeLimit2D kPoolingStrideHWLimit;
+    };
+
+    static const CnnLimits kDwscLimits;
+
+public:
+    Validator_36() = default;
+
+    bool ValidateDwsc(const std::string& name,
+                      const uint32_t inHeight,
+                      const uint32_t inWidth,
+                      const uint32_t inChannels,
+                      const uint32_t kH,
+                      const uint32_t kW,
+                      const uint32_t kN,
+                      const uint32_t strideH,
+                      const uint32_t strideW,
+                      const uint32_t dilationH,
+                      const uint32_t dilationW,
+                      bool exception = true) const override;
 };
 
 bool UseOnly16BitConvolutionWeights(const target::DeviceVersion& compile_target);

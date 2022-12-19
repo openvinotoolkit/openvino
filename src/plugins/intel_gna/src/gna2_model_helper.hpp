@@ -27,6 +27,8 @@ constexpr uint32_t PoolStrideParamIdx = 4;
 constexpr uint32_t ZeroPaddingParamIdx = 5;
 constexpr uint32_t MaximumScoreParamIdx = 0;
 
+static constexpr uint32_t dwsc_op_code = 9;
+
 #define GNA_MAX_OP_PARAM 10
 typedef void (*GnaUserFree)(void*);
 
@@ -117,6 +119,18 @@ void HelperGna2OperationInitConvolution(Gna2Operation* operation,
                                         Gna2Shape* convolutionStride,
                                         enum Gna2BiasMode* biasMode,
                                         Gna2Shape* zeroPadding);
+
+void HelperGna2OperationInitDWSC(Gna2Operation* operation,
+                                 Gna2UserAllocator userAllocator,
+                                 GnaUserFree userFree,
+                                 Gna2Tensor* inputs,
+                                 Gna2Tensor* outputs,
+                                 Gna2Tensor* filters,
+                                 Gna2Tensor* biases,
+                                 Gna2Tensor* activation,
+                                 Gna2Shape* convolutionStride,
+                                 enum Gna2BiasMode* biasMode,
+                                 Gna2Shape* zeroPadding);
 
 void HelperGna2OperationInitCopy(Gna2Operation* operation,
                                  Gna2UserAllocator userAllocator,
