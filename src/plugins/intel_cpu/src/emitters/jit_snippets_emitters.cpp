@@ -295,7 +295,7 @@ void KernelEmitter::init_data_pointers(size_t num_inputs, size_t num_params, boo
             h->mov(data_ptr_regs[i], h->ptr[reg_const_params + GET_OFF(dst_ptrs) + (i - num_inputs) * sizeof(void*)]);
         init_ptr_with_offset(data_ptr_regs[i], data_offsets[i], reg_tmp);
     }
-    // a rare case when num_io is maximal, so we have no spare gprs
+    // a rare case when num_params is maximal, so we have no spare gprs
     // * Static case: we can use reg_const_params as the last reg_tmp for the last iteration (and corrupt it), since
     //     it won't be used anymore
     // * Dynamic case: we will need reg_const_params to pass runtime args to LoopScheduler, so we have to
@@ -936,13 +936,12 @@ void BrgemmEmitter::emit_brgemm_kernel_call(const brgemm_kernel_t *brgKernel, in
     h->mov(abi_param1, reinterpret_cast<uintptr_t>(brgKernel));
     h->mov(abi_param2, bs);
 
-    const auto data_ptr = [&](Xmm xmm, Xbyak::Reg64 reg, size_t memory_bytes_offset, size_t kernel_bytes_offset) {
+    const auto data_ptr = [&](Xmm xmm, Xbyak::Reg64 reg, size_t bytes_offset) {
         h->uni_vmovq(reg, xmm);
-        if (memory_bytes_offset) h->add(reg, memory_bytes_offset);
-        if (kernel_bytes_offset) h->add(reg, kernel_bytes_offset);
+        if (bytes_offset) h->add(reg, bytes_offset);
     };
-    data_ptr(Xmm(0), abi_param3, load_offset_a, in0_kernel_offset);
-    data_ptr(Xmm(1), abi_param4, load_offset_b, in1_kernel_offset);
+    data_ptr(Xmm(0), abi_param3, in0_kernel_offset);
+    data_ptr(Xmm(1), abi_param4, in1_kernel_offset);
 
     size_t num_args_passed_on_stack = 1;
 #ifdef _WIN32
@@ -952,11 +951,10 @@ void BrgemmEmitter::emit_brgemm_kernel_call(const brgemm_kernel_t *brgKernel, in
     h->mov(h->qword[h->rsp], reinterpret_cast<uint64_t>(scratch));
     h->mov(h->qword[h->rsp + gpr_size], reinterpret_cast<uintptr_t>(batch));
     h->mov(h->qword[h->rsp + 2 * gpr_size], Xmm(2));
-    if (store_offset_c) h->add(h->qword[h->rsp + 2 * gpr_size], store_offset_c);
     if (out0_kernel_offset) h->add(h->qword[h->rsp + 2 * gpr_size], out0_kernel_offset);
 #else
     h->mov(abi_param5, reinterpret_cast<uintptr_t>(batch));
-    data_ptr(Xmm(2), abi_param6, store_offset_c, out0_kernel_offset);
+    data_ptr(Xmm(2), abi_param6, out0_kernel_offset);
     h->sub(h->rsp, gpr_size);
     h->mov(h->qword[h->rsp], reinterpret_cast<uint64_t>(scratch));
 #endif
@@ -1014,9 +1012,9 @@ void BrgemmEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<si
                 auto& brgemmCtx = brgCtxs0[getBrgIdx(mIdx, k, n)];
 
                 if (brgemmCtx.K != 0 && brgemmCtx.N != 0) {
-                    const size_t in0_offset = (k * K0_step0 + mb * M_blk * brgemmCtx.LDA) * io_data_size[0];
-                    const size_t in1_offset = (k * K0_step1 + n * N0_step0) * io_data_size[1];
-                    const size_t out0_offset = (n * N0_step1 + mb * M_blk * brgemmCtx.LDC) * io_data_size[2];
+                    const size_t in0_offset = load_offset_a + (k * K0_step0 + mb * M_blk * brgemmCtx.LDA) * io_data_size[0];
+                    const size_t in1_offset = load_offset_b + (k * K0_step1 + n * N0_step0) * io_data_size[1];
+                    const size_t out0_offset = store_offset_c + (n * N0_step1 + mb * M_blk * brgemmCtx.LDC) * io_data_size[2];
 
                     emit_brgemm_kernel_call<isa>(brgKernels0[getBrgIdx(mIdx, k, n)].get(),
                                                  1,

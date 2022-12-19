@@ -86,7 +86,7 @@ ngraph::snippets::pass::ResetBufferState::ResetBufferState() {
                 // To calculate finalization offset we should know index of nesting Loop
                 auto loop_index = 0lu;
                 auto loop = loop_end->input_value(i).get_node_shared_ptr();
-                auto port_idx = loop_begin->input_value(i).get_index();
+                auto port_idx = loop_end->input_value(i).get_index();
                 while (std::dynamic_pointer_cast<op::LoopEnd>(loop)) {
                     const auto source_output = loop->input_value(port_idx);
                     loop = source_output.get_node_shared_ptr();

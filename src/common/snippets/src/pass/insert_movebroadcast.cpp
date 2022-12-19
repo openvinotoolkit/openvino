@@ -70,14 +70,11 @@ ngraph::snippets::pass::InsertMoveBroadcast::InsertMoveBroadcast() {
         }
 
         auto is_ignored_node = [](const ov::Output<ov::Node>& v){
-            if (utils::is_scalar_constant(v.get_node_shared_ptr())) {
-                return true;
-            } else if (ov::is_type<ngraph::snippets::op::VectorBuffer>(v.get_node_shared_ptr())) {
-                // VectorBuffer has scalar output shape to avoid broadcast conflicts and manually shape insertion.
-                // So we shouldn't insert BroadcastMove
-                return true;
-            }
-            return false;
+            // We don't need to insert BroadcastMove after the following operations:
+            // - Scalar has emitter with explicit broadcasting
+            // - VectorBuffer has scalar output shape to avoid broadcast conflicts and manually shape insertion.
+            return utils::is_scalar_constant(v.get_node_shared_ptr()) ||
+                   ov::is_type<ngraph::snippets::op::VectorBuffer>(v.get_node_shared_ptr());
         };
         std::vector<ov::PartialShape> input_shapes;
         std::vector<bool> is_ignored;
