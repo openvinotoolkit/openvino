@@ -353,7 +353,6 @@ void Plugin::SetConfig(const std::map<std::string, std::string> &config) {
     streamsSet = config.find(PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS) != config.end() ||
                  config.find(ov::num_streams.name()) != config.end();
     throttlingSet = config.find(GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE) != config.end() ||
-                    config.find(CLDNNConfigParams::KEY_CLDNN_PLUGIN_THROTTLE) != config.end() ||
                     config.find(ov::intel_gpu::hint::queue_throttle.name()) != config.end();
     std::string device_id;
     cldnn::device_info device_info = device_map.begin()->second->get_info();
@@ -882,7 +881,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         auto engine_params = Plugin::GetParams(config, device, nullptr);
         auto engine = cldnn::engine::create(engine_params.engine_type, engine_params.runtime_type, device,
                                 cldnn::engine_configuration(false, engine_params.queue_type, std::string(),
-                                config.queuePriority, config.queueThrottle, config.memory_pool_on,
+                                config.queuePriority, config.queueThrottle, true,
                                 engine_params.use_unified_shared_memory, std::string(), config.throughput_streams),
                                 engine_params.task_executor);
 

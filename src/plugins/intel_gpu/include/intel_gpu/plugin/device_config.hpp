@@ -24,18 +24,13 @@ struct Config {
                                           useProfiling(false),
                                           dumpCustomKernels(false),
                                           exclusiveAsyncRequests(false),
-                                          memory_pool_on(true),
                                           enableDynamicBatch(false),
                                           enableInt8(true),
                                           nv12_two_inputs(false),
-                                          enable_fp16_for_quantized_models(true),
                                           queuePriority(cldnn::priority_mode_types::med),
                                           queueThrottle(cldnn::throttle_mode_types::med),
                                           max_dynamic_batch(1),
                                           customLayers({}),
-                                          tuningConfig(),
-                                          graph_dumps_dir(""),
-                                          sources_dumps_dir(""),
                                           kernels_cache_dir(""),
                                           inference_precision(ov::element::undefined),
                                           task_exec_config({"GPU plugin internal task executor",                        // name
@@ -70,18 +65,13 @@ struct Config {
     bool useProfiling;
     bool dumpCustomKernels;
     bool exclusiveAsyncRequests;
-    bool memory_pool_on;
     bool enableDynamicBatch;
     bool enableInt8;
     bool nv12_two_inputs;
-    bool enable_fp16_for_quantized_models;
     cldnn::priority_mode_types queuePriority;
     cldnn::throttle_mode_types queueThrottle;
     int max_dynamic_batch;
     CustomLayerMap customLayers;
-    cldnn::tuning_config_options tuningConfig;
-    std::string graph_dumps_dir;
-    std::string sources_dumps_dir;
     std::string kernels_cache_dir;
     ov::element::Type inference_precision;
     InferenceEngine::IStreamsExecutor::Config task_exec_config;
