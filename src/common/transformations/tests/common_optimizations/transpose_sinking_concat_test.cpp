@@ -22,10 +22,13 @@ using ModelPtr = std::shared_ptr<Model>;
 
 class IPassFactory {
 public:
-    IPassFactory(const std::string & type_name) : type_name_(type_name) {}
+    IPassFactory(const std::string& type_name) : type_name_(type_name) {}
     virtual ~IPassFactory() = default;
     virtual void registerPass(ov::pass::Manager& pass_manager) const = 0;
-    const std::string & getTypeName() const { return type_name_; }
+    const std::string& getTypeName() const {
+        return type_name_;
+    }
+
 private:
     const std::string type_name_;
 };
@@ -35,7 +38,7 @@ using PassFactoryPtr = std::shared_ptr<IPassFactory>;
 template <typename PassT>
 class PassFactory : public IPassFactory {
 public:
-    PassFactory(const std::string & type_name) : IPassFactory(type_name) {}
+    PassFactory(const std::string& type_name) : IPassFactory(type_name) {}
     void registerPass(ov::pass::Manager& pass_manager) const override {
         pass_manager.register_pass<PassT>();
     }
@@ -43,7 +46,7 @@ public:
 
 #define CREATE_PASS_FACTORY(pass_name) std::make_shared<PassFactory<ov::pass::pass_name>>(#pass_name)
 
-} // namespace
+}  // namespace
 
 namespace {
 
@@ -92,8 +95,7 @@ NodePtr CreateConcatTransposedChain(NodePtr input_node,
 
                 auto transpose_const =
                     std::make_shared<Constant>(element::u64, Shape{transpose_order.size()}, transpose_order);
-                auto transpose =
-                    std::make_shared<Transpose>(in_constant, transpose_const);
+                auto transpose = std::make_shared<Transpose>(in_constant, transpose_const);
 
                 concat_inputs.push_back(transpose);
             }
@@ -139,7 +141,7 @@ NodePtr CreateConcatDoubleTransposedChain(NodePtr input_node,
     return in_op;
 }
 
-} // namespace
+}  // namespace
 
 namespace single_consumer {
 namespace forward {
@@ -169,9 +171,9 @@ std::shared_ptr<Model> CreateFunction(size_t num_concat_ops,
 }
 
 std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
-                                                   element::Type input_type,
-                                                   size_t concat_transpose_input_idx,
-                                                   size_t num_concat_inputs) {
+                                               element::Type input_type,
+                                               size_t concat_transpose_input_idx,
+                                               size_t num_concat_inputs) {
     const Shape input_shape{1, 96, 55, 55};
     const Shape const_shape{1, 55, 55, 96};
 
@@ -196,9 +198,7 @@ std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
 
 namespace double_transpose {
 
-std::shared_ptr<Model> CreateFunction(size_t num_concat_ops,
-                                          element::Type input_type,
-                                          size_t num_concat_inputs) {
+std::shared_ptr<Model> CreateFunction(size_t num_concat_ops, element::Type input_type, size_t num_concat_inputs) {
     const Shape input_shape{1, 96, 55, 55};
 
     auto X = std::make_shared<Parameter>(input_type, input_shape);
@@ -219,8 +219,8 @@ std::shared_ptr<Model> CreateFunction(size_t num_concat_ops,
 }
 
 std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
-                                                   element::Type input_type,
-                                                   size_t num_concat_inputs) {
+                                               element::Type input_type,
+                                               size_t num_concat_inputs) {
     const Shape input_shape{1, 96, 55, 55};
 
     auto X = std::make_shared<Parameter>(input_type, input_shape);
@@ -248,9 +248,9 @@ std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
 namespace backward {
 
 std::shared_ptr<Model> CreateFunction(size_t num_concat_ops,
-                                          element::Type input_type,
-                                          size_t concat_transpose_input_idx,
-                                          size_t num_concat_inputs) {
+                                      element::Type input_type,
+                                      size_t concat_transpose_input_idx,
+                                      size_t num_concat_inputs) {
     const Shape input_shape{1, 96, 55, 55};
 
     auto X = std::make_shared<Parameter>(input_type, input_shape);
@@ -270,9 +270,9 @@ std::shared_ptr<Model> CreateFunction(size_t num_concat_ops,
 }
 
 std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
-                                                   element::Type input_type,
-                                                   size_t concat_transpose_input_idx,
-                                                   size_t num_concat_inputs) {
+                                               element::Type input_type,
+                                               size_t concat_transpose_input_idx,
+                                               size_t num_concat_inputs) {
     const Shape input_shape{1, 96, 55, 55};
 
     auto X = std::make_shared<Parameter>(input_type, input_shape);
@@ -304,7 +304,7 @@ using TestConcatParams = std::tuple<PassFactoryPtr,
                                     size_t,             /* num_concat_ops */
                                     CreateGraphConcatF, /* model_factory */
                                     CreateGraphConcatF, /* reference_model_factory */
-                                    element::Type,  /* input type */
+                                    element::Type,      /* input type */
                                     size_t,             /* concat_transpose_input_idx */
                                     size_t>;            /* num_concat_inputs */
 
@@ -319,14 +319,14 @@ public:
         element::Type input_type;
         size_t concat_transpose_input_idx;
         size_t num_concat_inputs;
-    
+
         std::tie(pass_factory,
-             num_concat_ops,
-             model_factory,
-             reference_model_factory,
-             input_type,
-             concat_transpose_input_idx,
-             num_concat_inputs) = obj.param;
+                 num_concat_ops,
+                 model_factory,
+                 reference_model_factory,
+                 input_type,
+                 concat_transpose_input_idx,
+                 num_concat_inputs) = obj.param;
 
         std::ostringstream test_name;
         test_name << "pass_factory=" << pass_factory->getTypeName() << "_";
@@ -370,31 +370,30 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(element::f32),
                        ::testing::ValuesIn(concat_transpose_input_indexes),
                        ::testing::Values(5)),
-                       TransposeSinkingConcatTestFixture::get_test_name);
+    TransposeSinkingConcatTestFixture::get_test_name);
 
-INSTANTIATE_TEST_SUITE_P(
-    TransposeSinkingConcatBackwardTestSuite,
-    TransposeSinkingConcatTestFixture,
-    ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingConcatBackward)),
-                       ::testing::ValuesIn(concat_operations_numbers),
-                       ::testing::Values(single_consumer::backward::CreateFunction),
-                       ::testing::Values(single_consumer::backward::CreateReferenceFunction),
-                       ::testing::Values(element::f32),
-                       ::testing::ValuesIn(concat_transpose_input_indexes),
-                       ::testing::Values(5)),
-                       TransposeSinkingConcatTestFixture::get_test_name);
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingConcatBackwardTestSuite,
+                         TransposeSinkingConcatTestFixture,
+                         ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingConcatBackward)),
+                                            ::testing::ValuesIn(concat_operations_numbers),
+                                            ::testing::Values(single_consumer::backward::CreateFunction),
+                                            ::testing::Values(single_consumer::backward::CreateReferenceFunction),
+                                            ::testing::Values(element::f32),
+                                            ::testing::ValuesIn(concat_transpose_input_indexes),
+                                            ::testing::Values(5)),
+                         TransposeSinkingConcatTestFixture::get_test_name);
 
 // --------------------------------------------------------------------------------------
 
-using CreateGraphConcatAllTransposesInputF = std::function<
-    std::shared_ptr<Model>(size_t num_concat_ops, element::Type input_type, size_t num_concat_inputs)>;
+using CreateGraphConcatAllTransposesInputF =
+    std::function<std::shared_ptr<Model>(size_t num_concat_ops, element::Type input_type, size_t num_concat_inputs)>;
 
 using TestConcatAllTransposesInputParams =
     std::tuple<PassFactoryPtr,
                size_t,                               /* num_concat_ops */
                CreateGraphConcatAllTransposesInputF, /* model_factory */
                CreateGraphConcatAllTransposesInputF, /* reference_model_factory */
-               element::Type,                    /* input type */
+               element::Type,                        /* input type */
                size_t>;                              /* num_concat_inputs */
 
 class TransposeSinkingConcatAllTransposesInputTestFixture
@@ -408,13 +407,9 @@ public:
         CreateGraphConcatAllTransposesInputF reference_model_factory;
         element::Type input_type;
         size_t num_concat_inputs;
-    
-        std::tie(pass_factory,
-             num_concat_ops,
-             model_factory,
-             reference_model_factory,
-             input_type,
-             num_concat_inputs) = obj.param;
+
+        std::tie(pass_factory, num_concat_ops, model_factory, reference_model_factory, input_type, num_concat_inputs) =
+            obj.param;
 
         std::ostringstream test_name;
         test_name << "pass_factory=" << pass_factory->getTypeName() << "_";
@@ -434,12 +429,8 @@ TEST_P(TransposeSinkingConcatAllTransposesInputTestFixture, CompareFunctions) {
     element::Type input_type;
     size_t num_concat_inputs;
 
-    std::tie(pass_factory,
-             num_concat_ops,
-             model_factory,
-             reference_model_factory,
-             input_type,
-             num_concat_inputs) = this->GetParam();
+    std::tie(pass_factory, num_concat_ops, model_factory, reference_model_factory, input_type, num_concat_inputs) =
+        this->GetParam();
 
     model = model_factory(num_concat_ops, input_type, num_concat_inputs);
     model_ref = reference_model_factory(num_concat_ops, input_type, num_concat_inputs);
@@ -455,7 +446,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(single_consumer::forward::double_transpose::CreateReferenceFunction),
                        ::testing::Values(element::f32),
                        ::testing::Values(5)),
-                       TransposeSinkingConcatAllTransposesInputTestFixture::get_test_name);
+    TransposeSinkingConcatAllTransposesInputTestFixture::get_test_name);
 
 // --------------------------------------------------------------------------------------
 
@@ -505,8 +496,7 @@ std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
     NodePtr binary;
     auto in_constant = std::make_shared<Constant>(input_type, const_shape, Shape{1});
 
-    auto transpose_reversed_const =
-        std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 3, 1, 2});
+    auto transpose_reversed_const = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 3, 1, 2});
     auto transpose_reversed = std::make_shared<Transpose>(in_constant, transpose_reversed_const);
 
     auto concat = CreateConcatTransposedChain(X,
@@ -524,7 +514,7 @@ std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
     return std::make_shared<Model>(ov::OutputVector{transpose1, tanh}, ov::ParameterVector{X});
 }
 
-} // namespace input_transpose_consumers
+}  // namespace input_transpose_consumers
 
 namespace output_consumers {
 
@@ -566,8 +556,7 @@ std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
     NodePtr binary;
     auto in_constant = std::make_shared<Constant>(input_type, const_shape, Shape{1});
 
-    auto transpose_reversed_const =
-        std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 3, 1, 2});
+    auto transpose_reversed_const = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 3, 1, 2});
     auto transpose_reversed = std::make_shared<Transpose>(in_constant, transpose_reversed_const);
 
     auto concat = CreateConcatTransposedChain(X,
@@ -588,7 +577,7 @@ std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
     return std::make_shared<Model>(ov::OutputVector{tanh1, tanh2}, ov::ParameterVector{X});
 }
 
-} // namespace output_consumers
+}  // namespace output_consumers
 
 namespace input_node_consumers {
 
@@ -625,9 +614,9 @@ std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
     const Shape const_shape{1, 55, 55, 96};
 
     auto X = std::make_shared<Parameter>(input_type, input_shape);
-    
+
     auto tanh = std::make_shared<Tanh>(X);
-    
+
     auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
     auto transpose0 = std::make_shared<Transpose>(X, ng_order0);
 
@@ -649,10 +638,9 @@ std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
     return std::make_shared<Model>(ov::OutputVector{transpose1, tanh}, ov::ParameterVector{X});
 }
 
-} // namespace input_node_consumers
+}  // namespace input_node_consumers
 
-} // namespace forward
-
+}  // namespace forward
 
 namespace backward {
 
@@ -720,7 +708,7 @@ std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
     return std::make_shared<Model>(ov::OutputVector{concat1, tanh1}, ov::ParameterVector{X});
 }
 
-} // namespace one_binary
+}  // namespace one_binary
 
 namespace multiple_binaries {
 
@@ -772,7 +760,7 @@ std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
 
     // right branch
     auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
-    auto transpose0 = std::make_shared<Transpose>(tanh0, ng_order0);    
+    auto transpose0 = std::make_shared<Transpose>(tanh0, ng_order0);
 
     concat = CreateConcatTransposedChain(transpose0,
                                          num_concat_ops,
@@ -786,9 +774,9 @@ std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
     return std::make_shared<Model>(ov::OutputVector{concat, tanh1}, ov::ParameterVector{X});
 }
 
-} // namespace multiple_binaries
+}  // namespace multiple_binaries
 
-} // namespace output_consumers
+}  // namespace output_consumers
 
 namespace input_node_consumers {
 
@@ -845,7 +833,7 @@ std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
     return std::make_shared<Model>(ov::OutputVector{concat, tanh1}, ov::ParameterVector{X});
 }
 
-} // input_node_consumers
+}  // namespace input_node_consumers
 
 namespace output_transpose_mult_consumers {
 
@@ -900,40 +888,37 @@ std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
     return std::make_shared<Model>(ov::OutputVector{tanh0, tanh1}, ov::ParameterVector{X});
 }
 
-} // namespace output_transpose_mult_consumers
+}  // namespace output_transpose_mult_consumers
 
-} // namespace backward
+}  // namespace backward
 
-
-using CreateGraphF = std::function<
-    std::shared_ptr<Model>(size_t num_concat_ops,
-                           element::Type input_type,
-                           size_t concat_transpose_input_idx,
-                           size_t num_concat_inputs)>;
+using CreateGraphF = std::function<std::shared_ptr<Model>(size_t num_concat_ops,
+                                                          element::Type input_type,
+                                                          size_t concat_transpose_input_idx,
+                                                          size_t num_concat_inputs)>;
 
 struct CreateGraphFunctionDesc {
     CreateGraphFunctionDesc() = default;
     CreateGraphFunctionDesc(CreateGraphF a_model_factory,
                             CreateGraphF a_reference_model_factory,
-                            std::string a_subtest_name) :
-                            model_factory(a_model_factory),
-                            reference_model_factory(a_reference_model_factory),
-                            subtest_name(a_subtest_name) {}
+                            std::string a_subtest_name)
+        : model_factory(a_model_factory),
+          reference_model_factory(a_reference_model_factory),
+          subtest_name(a_subtest_name) {}
     CreateGraphF model_factory;
     CreateGraphF reference_model_factory;
     std::string subtest_name;
 };
 
 using TestConcatParams = std::tuple<PassFactoryPtr,
-                                    size_t,             /* num_concat_ops */
+                                    size_t, /* num_concat_ops */
                                     CreateGraphFunctionDesc,
-                                    element::Type,  /* input type */
-                                    size_t,             /* concat_transpose_input_idx */
-                                    size_t>;            /* num_concat_inputs */
+                                    element::Type, /* input type */
+                                    size_t,        /* concat_transpose_input_idx */
+                                    size_t>;       /* num_concat_inputs */
 
-class TransposeConcatMultiSinkingFixture
-    : public ::testing::WithParamInterface<TestConcatParams>,
-                                          public TransformationTestsF {
+class TransposeConcatMultiSinkingFixture : public ::testing::WithParamInterface<TestConcatParams>,
+                                           public TransformationTestsF {
 public:
     static std::string get_test_name(const testing::TestParamInfo<TestConcatParams>& obj) {
         PassFactoryPtr pass_factory;
@@ -942,13 +927,13 @@ public:
         element::Type input_type;
         size_t concat_transpose_input_idx;
         size_t num_concat_inputs;
-    
+
         std::tie(pass_factory,
-             num_concat_ops,
-             function_desc,
-             input_type,
-             concat_transpose_input_idx,
-             num_concat_inputs) = obj.param;
+                 num_concat_ops,
+                 function_desc,
+                 input_type,
+                 concat_transpose_input_idx,
+                 num_concat_inputs) = obj.param;
 
         std::ostringstream test_name;
         test_name << "pass_factory=" << pass_factory->getTypeName() << "_";
@@ -964,61 +949,57 @@ public:
 
 TEST_P(TransposeConcatMultiSinkingFixture, CompareFunctions) {
     PassFactoryPtr pass_factory;
-        size_t num_concat_ops;
-        CreateGraphFunctionDesc function_desc;
-        element::Type input_type;
-        size_t concat_transpose_input_idx;
-        size_t num_concat_inputs;
+    size_t num_concat_ops;
+    CreateGraphFunctionDesc function_desc;
+    element::Type input_type;
+    size_t concat_transpose_input_idx;
+    size_t num_concat_inputs;
 
-    std::tie(pass_factory,
-             num_concat_ops,
-             function_desc,
-             input_type,
-             concat_transpose_input_idx,
-             num_concat_inputs) = this->GetParam();
+    std::tie(pass_factory, num_concat_ops, function_desc, input_type, concat_transpose_input_idx, num_concat_inputs) =
+        this->GetParam();
 
     model = function_desc.model_factory(num_concat_ops, input_type, concat_transpose_input_idx, num_concat_inputs);
-    model_ref = function_desc.reference_model_factory(num_concat_ops, input_type, concat_transpose_input_idx, num_concat_inputs);
+    model_ref = function_desc.reference_model_factory(num_concat_ops,
+                                                      input_type,
+                                                      concat_transpose_input_idx,
+                                                      num_concat_inputs);
     pass_factory->registerPass(manager);
 }
 
-#define SUBTEST(nmspace, subtest_name) CreateGraphFunctionDesc(nmspace::CreateFunction, nmspace::CreateReferenceFunction, subtest_name)
+#define SUBTEST(nmspace, subtest_name) \
+    CreateGraphFunctionDesc(nmspace::CreateFunction, nmspace::CreateReferenceFunction, subtest_name)
 
 std::vector<CreateGraphFunctionDesc> forward_subtests = {
     SUBTEST(forward::input_transpose_consumers, "forward_input_transpose_consumers"),
     SUBTEST(forward::output_consumers, "forward_output_consumers"),
-    SUBTEST(forward::input_node_consumers, "forward_input_node_consumers")
-};
+    SUBTEST(forward::input_node_consumers, "forward_input_node_consumers")};
 
 std::vector<CreateGraphFunctionDesc> backward_subtests = {
     SUBTEST(backward::output_consumers::one_binary, "backward_output_consumers_one_binary"),
     SUBTEST(backward::output_consumers::multiple_binaries, "backward_output_consumers_multiple_binaries"),
     SUBTEST(backward::input_node_consumers, "backward_input_node_consumers"),
-    SUBTEST(backward::output_transpose_mult_consumers, "backward_output_transpose_mult_consumers")
-};
+    SUBTEST(backward::output_transpose_mult_consumers, "backward_output_transpose_mult_consumers")};
 
 #undef SUBTEST
 
-INSTANTIATE_TEST_SUITE_P(
-    TransposeSinkingConcatForwardMultiConsumersTestSuite,
-    TransposeConcatMultiSinkingFixture,
-    ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingConcatForward)),
-                       ::testing::ValuesIn(concat_operations_numbers),
-                       ::testing::ValuesIn(forward_subtests),
-                       ::testing::Values(element::f32),
-                       ::testing::ValuesIn(concat_transpose_input_indexes),
-                       ::testing::Values(5)),
-                       TransposeConcatMultiSinkingFixture::get_test_name);
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingConcatForwardMultiConsumersTestSuite,
+                         TransposeConcatMultiSinkingFixture,
+                         ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingConcatForward)),
+                                            ::testing::ValuesIn(concat_operations_numbers),
+                                            ::testing::ValuesIn(forward_subtests),
+                                            ::testing::Values(element::f32),
+                                            ::testing::ValuesIn(concat_transpose_input_indexes),
+                                            ::testing::Values(5)),
+                         TransposeConcatMultiSinkingFixture::get_test_name);
 
-INSTANTIATE_TEST_SUITE_P(
-    TransposeSinkingConcatBackwardMultiConsumersTestSuite,
-    TransposeConcatMultiSinkingFixture,
-    ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingConcatBackward)),
-                       ::testing::ValuesIn(concat_operations_numbers),
-                       ::testing::ValuesIn(backward_subtests),
-                       ::testing::Values(element::f32),
-                       ::testing::ValuesIn(concat_transpose_input_indexes),
-                       ::testing::Values(5)),
-                       TransposeConcatMultiSinkingFixture::get_test_name);
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingConcatBackwardMultiConsumersTestSuite,
+                         TransposeConcatMultiSinkingFixture,
+                         ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingConcatBackward)),
+                                            ::testing::ValuesIn(concat_operations_numbers),
+                                            ::testing::ValuesIn(backward_subtests),
+                                            ::testing::Values(element::f32),
+                                            ::testing::ValuesIn(concat_transpose_input_indexes),
+                                            ::testing::Values(5)),
+                         TransposeConcatMultiSinkingFixture::get_test_name);
 
-} // namespace mult_consumers
+}  // namespace mult_consumers
