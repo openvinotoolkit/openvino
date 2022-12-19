@@ -244,10 +244,18 @@ static constexpr char input_image_scale_message[] =
     "Values to be provided in the [R, G, B] format. Can be defined for desired input of the model.\n"
     "Example: -iscale data[255,255,255],info[255,255,255]\n";
 
-static constexpr char input_image_mean_message[] =
-    "Optional. Mean values to be used for the input image per channel.\n"
-    "Values to be provided in the [R, G, B] format. Can be defined for desired input of the model,\n"
-    "Example: -imean data[255,255,255],info[255,255,255]\n";
+static constexpr char mean_values_message[] =
+    "Optional. Mean values to be used for the input image per channel. Values to be provided in the [R,G,B] format. "
+    "Can be defined for desired input of the model, for example: \"--mean_values "
+    "data[255,255,255],info[255,255,255]\". The exact meaning and order of channels depend on how the original model "
+    "was trained. Applying the values affects performance and may cause type conversion";
+
+static constexpr char scale_values_message[] =
+    "Optional. Scale values to be used for the input image per channel. Values are provided in the [R,G,B] format. Can "
+    "be defined for desired input of the model, for example: \"--scale_values data[255,255,255],info[255,255,255]\". "
+    "The exact meaning and order of channels depend on how the original model was trained. If both --mean_values and "
+    "--scale_values are specified, the mean is subtracted first and then scale is applied regardless of the order of "
+    "options in command line. Applying the values affects performance and may cause type conversion";
 
 static constexpr char inference_only_message[] =
     "Optional. Measure only inference stage. Default option for static models. Dynamic models"
@@ -377,11 +385,11 @@ DEFINE_string(cache_dir, "", cache_dir_message);
 /// @brief Define flag for load network from model file by name without ReadNetwork <br>
 DEFINE_bool(load_from_file, false, load_from_file_message);
 
-/// @brief Define flag for using input image scale <br>
-DEFINE_string(iscale, "", input_image_scale_message);
-
 /// @brief Define flag for using input image mean <br>
-DEFINE_string(imean, "", input_image_mean_message);
+DEFINE_string(mean_values, "", mean_values_message);
+
+/// @brief Define flag for using input image scale <br>
+DEFINE_string(scale_values, "", scale_values_message);
 
 /// @brief Define flag for inference only mode <br>
 DEFINE_bool(inference_only, true, inference_only_message);
@@ -435,7 +443,7 @@ static void show_usage() {
     std::cout << "    -ip                       <value>     " << inputs_precision_message << std::endl;
     std::cout << "    -op                       <value>     " << outputs_precision_message << std::endl;
     std::cout << "    -iop                      \"<value>\"    " << iop_message << std::endl;
-    std::cout << "    -iscale                   " << input_image_scale_message << std::endl;
-    std::cout << "    -imean                    " << input_image_mean_message << std::endl;
+    std::cout << "    -mean_values [R,G,B]      " << mean_values_message << std::endl;
+    std::cout << "    -scale_values [R,G,B]     " << scale_values_message << std::endl;
     std::cout << "    -inference_only           " << inference_only_message << std::endl;
 }

@@ -172,12 +172,15 @@ def parse_args():
                       help="Optional. Enable model caching to specified directory")
     args.add_argument('-lfile', '--load_from_file', required=False, nargs='?', default=argparse.SUPPRESS,
                       help="Optional. Loads model from file directly without read_model.")
-    args.add_argument('-iscale', '--input_scale', type=str, required=False, default='',
-                      help="Optional. Scale values to be used for the input image per channel.\n Values to be provided in the [R, G, B] format. Can be defined for desired input of the model.\n"
-                           "Example: -iscale data[255,255,255],info[255,255,255]\n")
-    args.add_argument('-imean', '--input_mean', type=str, required=False, default='',
-                      help="Optional. Mean values to be used for the input image per channel.\n Values to be provided in the [R, G, B] format. Can be defined for desired input of the model.\n"
-                           "Example: -imean data[255,255,255],info[255,255,255]\n")
+    args.add_argument('--mean_values', type=str, required=False, default='', metavar='[R,G,B]',
+                      help='Optional. Mean values to be used for the input image per channel. Values to be provided in the [R,G,B] format. Can be defined for '
+                           'desired input of the model, for example: "--mean_values data[255,255,255],info[255,255,255]". The exact meaning and order of '
+                           'channels depend on how the original model was trained')
+    args.add_argument('--scale_values', type=str, required=False, default='', metavar='[R,G,B]',
+                      help='Optional. Scale values to be used for the input image per channel. Values are provided in the [R,G,B] format. Can be defined for '
+                           'desired input of the model, for example: "--scale_values data[255,255,255],info[255,255,255]". The exact meaning and order of '
+                           'channels depend on how the original model was trained. If both --mean_values and --scale_values are specified, the mean is '
+                           'subtracted first and then scale is applied regardless of the order of options in command line')
     parsed_args = parser.parse_args()
 
     return parsed_args, parser

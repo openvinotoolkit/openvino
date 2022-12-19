@@ -464,7 +464,7 @@ mo_convert_params = {
         'value. When a list of inputs is overridden by the --input ' +
         'parameter, this scale ' +
         'is not applied for any input that does not match with ' +
-        'the original input of the model.' +
+        'the original input of the model. ' +
         'If both --mean_values and --scale  are specified, ' +
         'the mean is subtracted first and then scale is applied ' +
         'regardless of the order of options in command line.', '', '', None),
@@ -526,7 +526,7 @@ mo_convert_params = {
         'Can be defined for desired input of the model, for example: ' +
         '"--scale_values data[255,255,255],info[255,255,255]". ' +
         'The exact meaning and order ' +
-        'of channels depend on how the original model was trained.' +
+        'of channels depend on how the original model was trained. ' +
         'If both --mean_values and --scale_values are specified, ' +
         'the mean is subtracted first and then scale is applied ' +
         'regardless of the order of options in command line.', '',
