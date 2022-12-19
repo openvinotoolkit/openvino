@@ -28,17 +28,4 @@ class CaffeMeanFileProcessing(MiddleReplacementPattern):
         caffe_pb2 = graph.graph['caffe_pb2']
         del graph.graph['caffe_pb2']
         input_names = find_inputs(graph)
-        mf = []
-        try:
-            if argv.mean_file and len(original_shapes) == 1:
-                mf = loader.parse_mean(argv.mean_file, original_shapes[input_names[0]],
-                                       argv.mean_file_offsets, caffe_pb2)
-            elif argv.mean_file:
-                raise Error('Mean file for topologies with multiple inputs is not supported. ' +
-                            refer_to_faq_msg(9))
-        except ValueError as e:
-            raise Error('Cannot load or process mean file: value error {}. ' +
-                        refer_to_faq_msg(10), str(e)) from e
-
-        graph.graph['mf'] = mf
         graph.graph['input_names'] = input_names
