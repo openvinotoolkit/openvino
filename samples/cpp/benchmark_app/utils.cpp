@@ -29,13 +29,6 @@
 #    include <opencv2/core.hpp>
 #endif
 
-#ifdef _WIN32
-#    define NOMINMAX
-#    include <windows.h>
-#    include <powrprof.h>
-#    pragma comment(lib, "powrprof.lib")
-#endif
-
 namespace benchmark_app {
 bool InputInfo::is_image() const {
     if ((layout != "NCHW") && (layout != "NHWC") && (layout != "CHW") && (layout != "HWC"))
@@ -115,17 +108,6 @@ std::vector<float> split_float(const std::string& s, char delim) {
         result.push_back(std::stof(item));
     }
     return result;
-}
-
-void check_system_configuration() {
-#ifdef _WIN32
-    GUID* activeGuidPtr;
-    PowerGetActiveScheme(NULL, &activeGuidPtr);
-    if (*activeGuidPtr != GUID_MAX_POWER_SAVINGS) {
-        slog::warn << "Battery power mode is not set to 'Max Performance'. This might affect benchmarking results."
-                   << slog::endl;
-    }
-#endif
 }
 
 std::vector<std::string> parse_devices(const std::string& device_string) {
