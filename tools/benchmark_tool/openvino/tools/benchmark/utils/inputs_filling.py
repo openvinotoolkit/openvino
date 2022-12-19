@@ -169,18 +169,6 @@ def get_image_tensors(image_paths, info, batch_sizes):
                     logger.warning(f"Image is resized from ({image.shape[:-1]}) to ({new_im_size})")
                     image = cv2.resize(image, new_im_size)
 
-            if info.scale.size or info.mean.size:
-                blue, green, red = cv2.split(image)
-                if info.mean.size:
-                    blue = np.subtract(blue, info.mean[0])
-                    green = np.subtract(green, info.mean[1])
-                    red = np.subtract(red, info.mean[2])
-                if info.scale.size:
-                    blue = np.divide(blue, info.scale[0])
-                    green = np.divide(green, info.scale[1])
-                    red = np.divide(red, info.scale[2])
-                image = cv2.merge([blue, green, red])
-
             model_channel = int(str(info.channels))
             image_channel = image.shape[-1]
             if model_channel == 1 and image_channel == 3:
@@ -314,7 +302,7 @@ def parse_path(path, app_input_info):
     """
     input_names = list(info.name for info in app_input_info)
     input_node_names = list(info.node_name for info in app_input_info)
-    parsed_names = re.findall(r"([^,]\w+):", path)
+    parsed_names = re.findall(r"((?=[^,])(?![a-zA-Z]:\\)[\w\.]+):", path)
     wrong_names = list(name for name in parsed_names if name not in input_names + input_node_names)
     if wrong_names:
         raise Exception(
@@ -323,7 +311,7 @@ def parse_path(path, app_input_info):
             "Please check `-i` input data"
         )
     tensor_names = [parsed_name if parsed_name in input_names else input_names[input_node_names.index(parsed_name)] for parsed_name in parsed_names]
-    input_pathes = [path for path in re.split(r"[^,]\w+:", path) if path]
+    input_pathes = [path for path in re.split(r"(?=[^,])(?![a-zA-Z]:\\)[\w\.]+:", path) if path]
     input_path_mapping = defaultdict(list)
     # input mapping is used
     if tensor_names:
