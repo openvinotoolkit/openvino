@@ -126,6 +126,7 @@ JitConstants StridedSliceKernelRef::GetJitConstants(const strided_slice_params& 
         jit.AddConstant(MakeJitConstant("BEGIN_TYPE", GetInputTypeStr(params.GetIndexBegin())));
         jit.AddConstant(MakeJitConstant("TO_BEGIN_TYPE", GetToInputTypeStr(params.GetIndexBegin())));
         jit.AddConstant(MakeJitConstant("BEGIN_GET_INDEX", GetInputIndexStr(params.GetIndexBegin())));
+        jit.AddConstant(MakeJitConstant("BEGIN_DIMS", params.begin_dims));
         makeJitConstForParam(jit, "BEGIN", params.begin_mask);
     } else {
         makeJitConstForParam(jit, "SLICE_BEGIN", params.striding_params[0]);
@@ -134,6 +135,7 @@ JitConstants StridedSliceKernelRef::GetJitConstants(const strided_slice_params& 
         jit.AddConstant(MakeJitConstant("END_TYPE", GetInputTypeStr(params.GetIndexEnd())));
         jit.AddConstant(MakeJitConstant("TO_END_TYPE", GetToInputTypeStr(params.GetIndexEnd())));
         jit.AddConstant(MakeJitConstant("END_GET_INDEX", GetInputIndexStr(params.GetIndexEnd())));
+        jit.AddConstant(MakeJitConstant("END_DIMS", params.end_dims));
         makeJitConstForParam(jit, "END", params.end_mask);
     } else {
         makeJitConstForParam(jit, "SLICE_END", params.striding_params[1]);
@@ -141,6 +143,7 @@ JitConstants StridedSliceKernelRef::GetJitConstants(const strided_slice_params& 
     if (params.stride_type == StridedSliceArgType::Input) {
         jit.AddConstant(MakeJitConstant("STRIDE_TYPE", GetInputTypeStr(params.GetIndexStride())));
         jit.AddConstant(MakeJitConstant("STRIDE_GET_INDEX", GetInputIndexStr(params.GetIndexStride())));
+        jit.AddConstant(MakeJitConstant("STRIDE_DIMS", params.stride_dims));
     } else {
         makeJitConstForParam(jit, "SLICE_STEPS", params.striding_params[2]);
     }

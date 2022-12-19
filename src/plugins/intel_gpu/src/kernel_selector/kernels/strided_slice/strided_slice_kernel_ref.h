@@ -29,6 +29,9 @@ struct strided_slice_params : public base_params {
     StridedSliceArgType begin_type;
     StridedSliceArgType end_type;
     StridedSliceArgType stride_type;
+    size_t begin_dims;
+    size_t end_dims;
+    size_t stride_dims;
 
     uint32_t GetIndexBegin() const {
         uint32_t input_idx = 0;

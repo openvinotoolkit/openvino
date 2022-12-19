@@ -74,7 +74,9 @@ public:
             params.striding_params.push_back(begin);
         } else {
             params.begin_type = kernel_selector::StridedSliceArgType::Input;
-            params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
+            auto begin_layout = impl_param.get_input_layout(1);
+            params.inputs.push_back(convert_data_tensor(begin_layout));
+            params.begin_dims = begin_layout.count();
         }
 
         auto get_index_end = [&]() {
@@ -89,7 +91,9 @@ public:
             params.striding_params.push_back(end);
         } else {
             params.end_type = kernel_selector::StridedSliceArgType::Input;
-            params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(get_index_end())));
+            auto end_layout = impl_param.get_input_layout(get_index_end());
+            params.inputs.push_back(convert_data_tensor(end_layout));
+            params.end_dims = end_layout.count();
         }
 
         auto get_index_stride = [&]() {
@@ -104,7 +108,9 @@ public:
             params.striding_params.push_back(strides);
         } else {
             params.stride_type = kernel_selector::StridedSliceArgType::Input;
-            params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(get_index_stride())));
+            auto stride_layout = impl_param.get_input_layout(get_index_stride());
+            params.inputs.push_back(convert_data_tensor(stride_layout));
+            params.stride_dims = stride_layout.count();
         }
 
         auto begin_mask_ = prim->begin_mask;
