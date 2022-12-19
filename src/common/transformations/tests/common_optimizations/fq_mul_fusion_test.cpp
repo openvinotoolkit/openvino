@@ -40,7 +40,7 @@ public:
         const auto fq = std::make_shared<ngraph::opset4::FakeQuantize>(data, in_low, in_high, out_low, out_high, 255);
 
         std::vector<float> mul_const(shape_size(mul_const_shape));
-        std::iota(mul_const.begin(), mul_const.end(), 0);
+        std::iota(mul_const.begin(), mul_const.end(), 0.0f);
         const auto mul_value =
             ngraph::opset4::Constant::create(ngraph::element::Type_t::f32, mul_const_shape, mul_const);
         const auto mul = std::make_shared<ngraph::opset4::Multiply>(fq, mul_value);

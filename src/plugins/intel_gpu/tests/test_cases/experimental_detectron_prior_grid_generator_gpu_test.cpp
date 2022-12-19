@@ -90,7 +90,7 @@ public:
 
         ASSERT_EQ(params.outputTensor.count(), out_ptr.size());
         for (size_t i = 0; i < params.expectedOutput.size(); ++i) {
-            EXPECT_NEAR(params.expectedOutput[i], out_ptr[i], 0.0001) << "at i = " << i;
+            ASSERT_NEAR(params.expectedOutput[i], out_ptr[i], 0.0001) << "at i = " << i;
         }
     }
 };
