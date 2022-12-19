@@ -29,7 +29,7 @@ public:
         auto function = GetFunction();
         CNNNetwork cnn_network = CNNNetwork{function};
 
-        SetExpectsForLoadNetworhAndShutDown(_data);
+        SetExpectsForLoadNetworkAndShutDown(_data);
         const ov::AnyMap gna_config = {ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_EXACT)};
         auto plugin = std::make_shared<GNAPlugin>(any_copy(gna_config));
         plugin->LoadNetwork(cnn_network);
@@ -55,7 +55,7 @@ protected:
         return function;
     }
 
-    void SetExpectsForLoadNetworhAndShutDown(std::vector<std::vector<uint8_t>>& data) {
+    void SetExpectsForLoadNetworkAndShutDown(std::vector<std::vector<uint8_t>>& data) {
         EXPECT_CALL(*_mock_api, Gna2MemoryAlloc(_, _, _))
             .Times(AtLeast(1))
             .WillRepeatedly(Invoke([&data](uint32_t size_requested, uint32_t* size_granted, void** memory_address) {
