@@ -32,6 +32,15 @@ void strided_slice_optimize::run(program& p) {
                 continue;
 
             auto& deps = node->get_dependencies();
+            auto is_other_deps_constant = [deps]() {
+                for (size_t i = 1; i < deps.size(); i++) {
+                    if (!deps[i].first->is_type<data>()) return false;
+                }
+                return true;
+            };
+            if (!is_other_deps_constant())
+                continue;
+
             for (size_t i = deps.size(); i--;)
                 if (deps[i].first->is_type<data>())
                     node->remove_dependency(i);

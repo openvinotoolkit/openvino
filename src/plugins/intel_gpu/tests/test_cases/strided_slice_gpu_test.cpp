@@ -692,6 +692,65 @@ TEST(strided_slice_gpu_constants, test_2x2x4x1_new_axis_mask) {
     }
 }
 
+TEST(strided_slice_gpu_four_inputs, test_2x2x4x1_new_axis_mask) {
+    // Input (BFYX): 2x2x4x1
+    // New_axis_mask: 1
+    // Output (BFYX): 1x2x2x4
+
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 4 } });
+    auto begin = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+    auto end = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+    auto strides = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+
+    set_values(input, {
+            0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f,
+            10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
+    });
+    set_values<int64_t>(begin, {
+            1, 0, 1, 0
+    });
+    set_values<int64_t>(end, {
+            2, 2, 4, 4
+    });
+    set_values<int64_t>(strides, {
+            1, 1, 1, 2
+    });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("input2", begin->get_layout()));
+    topology.add(input_layout("input3", end->get_layout()));
+    topology.add(input_layout("input4", strides->get_layout()));
+    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, { 1 }, {}, {}, {2, 2, 4, 1}));
+
+    network network(engine, topology);
+
+    network.set_input_data("input", input);
+    network.set_input_data("input2", begin);
+    network.set_input_data("input3", end);
+    network.set_input_data("input4", strides);
+
+    auto outputs = network.execute();
+
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
+
+    auto output = outputs.at("strided_slice").get_memory();
+
+    std::vector<float> answers = {
+            0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f,
+            10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
+    };
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    for (size_t i = 0; i < answers.size(); ++i)
+    {
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
+    }
+}
+
 TEST(strided_slice_gpu, test_2x2x1x1_new_axis_mask_2) {
     // Input (BFYX): 2x2x1x1
     // New_axis_mask: 101
@@ -768,6 +827,63 @@ TEST(strided_slice_gpu_constants, test_2x2x1x1_new_axis_mask_2) {
     network network(engine, topology);
 
     network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
+
+    auto output = outputs.at("strided_slice").get_memory();
+
+    std::vector<float> answers = {
+            0.0f, 1.0f, 2.0f, 3.0f
+    };
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    for (size_t i = 0; i < answers.size(); ++i)
+    {
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
+    }
+}
+
+TEST(strided_slice_gpu_four_inputs, test_2x2x1x1_new_axis_mask_2) {
+    // Input (BFYX): 2x2x1x1
+    // New_axis_mask: 101
+    // Output (BFYX): 1x2x1x2
+
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 1 } });
+    auto begin = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+    auto end = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+    auto strides = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+
+    set_values(input, {
+            0.0f, 1.0f, 2.0f, 3.0f
+    });
+    set_values<int64_t>(begin, {
+            1, 0, 1, 0
+    });
+    set_values<int64_t>(end, {
+            2, 2, 4, 4
+    });
+    set_values<int64_t>(strides, {
+            1, 1, 1, 2
+    });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("input2", begin->get_layout()));
+    topology.add(input_layout("input3", end->get_layout()));
+    topology.add(input_layout("input4", strides->get_layout()));
+    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, { 1, 0, 1 }, {}, {}, {2, 2, 1, 1}));
+
+    network network(engine, topology);
+
+    network.set_input_data("input", input);
+    network.set_input_data("input2", begin);
+    network.set_input_data("input3", end);
+    network.set_input_data("input4", strides);
 
     auto outputs = network.execute();
 
