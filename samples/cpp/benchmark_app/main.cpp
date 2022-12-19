@@ -350,7 +350,7 @@ int main(int argc, char* argv[]) {
             auto ov_perf_hint = get_performance_hint(device, core);
             device_config.emplace(ov::hint::performance_mode(ov_perf_hint));
             if (FLAGS_nireq != 0)
-                device_config.emplace(ov::hint::num_requests(FLAGS_nireq));
+                device_config.emplace(ov::hint::num_requests(unsigned(FLAGS_nireq)));
 
             // Set performance counter
             if (isFlagSetInCommandLine("pc")) {
@@ -524,7 +524,7 @@ int main(int argc, char* argv[]) {
 
             auto set_nthreads_pin = [&](const std::string& str) {
                 auto property_name = str == "nthreads" ? ov::inference_num_threads.name() : ov::affinity.name();
-                auto property = str == "nthreads" ? ov::inference_num_threads(FLAGS_nthreads)
+                auto property = str == "nthreads" ? ov::inference_num_threads(int(FLAGS_nthreads))
                                                   : ov::affinity(fix_pin_option(FLAGS_pin));
                 if (supported(property_name) || device_name == "AUTO") {
                     // create nthreads/pin primary property for HW device or AUTO if -d is AUTO directly.
@@ -881,7 +881,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Number of requests
-        uint32_t nireq = FLAGS_nireq;
+        uint64_t nireq = FLAGS_nireq;
         if (nireq == 0) {
             if (FLAGS_api == "sync") {
                 nireq = 1;
@@ -898,7 +898,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Iteration limit
-        uint32_t niter = FLAGS_niter;
+        uint64_t niter = FLAGS_niter;
         size_t shape_groups_num = app_inputs_info.size();
         if ((niter > 0) && (FLAGS_api == "async")) {
             if (shape_groups_num > nireq) {
@@ -918,7 +918,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Time limit
-        uint32_t duration_seconds = 0;
+        uint64_t duration_seconds = 0;
         if (FLAGS_t != 0) {
             // time limit
             duration_seconds = FLAGS_t;
