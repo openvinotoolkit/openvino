@@ -139,7 +139,7 @@ TEST_P(gemm_3in_quantize_i8, basic) {
         reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
     );
 
-    tolerance = 1.0f;
+    tolerance = default_tolerance(data_types::i8);
     execute(p);
 }
 
@@ -173,7 +173,7 @@ TEST_P(gemm_2in_quantize_u8, basic) {
         reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
     );
 
-    tolerance = 1.0f;
+    tolerance = default_tolerance(data_types::u8);
     execute(p);
 }
 
@@ -210,7 +210,7 @@ TEST_P(gemm_2in_quantize_float_in, basic) {
     implementation_desc gemm_impl = { format::bfyx, "gemm_tiled_opt" };
     bo_fused.set_option(build_option::force_implementations({ { "gemm_prim", gemm_impl } }));
 
-    tolerance = 1.0f;
+    tolerance = default_tolerance(data_types::u8);
     execute(p);
 }
 
@@ -239,7 +239,7 @@ TEST_P(gemm_2in_scale, basic) {
         reorder("reorder_bfyx", input_info("scale"), p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-5f;
+    tolerance = default_tolerance(p.default_type);
     execute(p);
 }
 
@@ -254,7 +254,7 @@ TEST_P(gemm_2in_scale, fp16_scale_out) {
         reorder("reorder_bfyx", input_info("scale"), p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-5f;
+    tolerance = default_tolerance(p.default_type);
     execute(p);
 }
 
@@ -291,7 +291,7 @@ TEST_P(gemm_2in_act_scale_quantize_i8, basic) {
         reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
     );
 
-    tolerance = 1.0f;
+    tolerance = default_tolerance(data_types::i8);
     execute(p);
 }
 
@@ -303,7 +303,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_act_scale_quantize_i8, ::testing:
     gemm_test_params{ CASE_GEMM_2IN_FP16_1, 3, 6 },
     gemm_test_params{ CASE_GEMM_2IN_FP16_2, 3, 6 },
     gemm_test_params{ CASE_GEMM_2IN_FP16_3, 3, 6 },
-    gemm_test_params{ CASE_GEMM_2IN_FP16_4, 3, 6 },
+    gemm_test_params{ CASE_GEMM_2IN_FP16_4, 3, 6 },//
     gemm_test_params{ CASE_GEMM_2IN_U8S8_1, 3, 6 },
     gemm_test_params{ CASE_GEMM_2IN_S8U8_1, 3, 6 },
 }));
@@ -329,7 +329,7 @@ TEST_P(gemm_2in_act_scale_quantize_eltwise_i8, basic) {
         reorder("reorder_bfyx", input_info("sum"), p.default_format, data_types::f32)
     );
 
-    tolerance = 1.0f;
+    tolerance = default_tolerance(data_types::i8);
     execute(p);
 }
 
@@ -355,10 +355,13 @@ TEST_P(gemm_2in_act_scale_eltwise, basic) {
         reorder("reorder_bfyx", input_info("sum"), p.default_format, data_types::f32)
     );
     // Activation won't be fused because onednn doesn't support negative activation
-    if (engine.get_device_info().supports_immad && !p.kernel_name.empty())
+    if (engine.get_device_info().supports_immad) {
         p.expected_fused_primitives += 2;
+        if (!p.kernel_name.empty())
+            p.expected_not_fused_primitives += 2;
+    }
 
-    tolerance = 1e-4f;
+    tolerance = default_tolerance(p.default_type);
     execute(p);
 }
 
@@ -376,10 +379,13 @@ TEST_P(gemm_2in_act_scale_eltwise, broadcast_eltwise) {
         reorder("reorder_bfyx", input_info("sum"), p.default_format, data_types::f32)
     );
     // Activation won't be fused because onednn doesn't support negative activation
-    if (engine.get_device_info().supports_immad && !p.kernel_name.empty())
+    if (engine.get_device_info().supports_immad) {
         p.expected_fused_primitives += 2;
+        if (!p.kernel_name.empty())
+            p.expected_not_fused_primitives += 2;
+    }
 
-    tolerance = 1e-4f;
+    tolerance = default_tolerance(p.default_type);
     execute(p);
 }
 
@@ -388,7 +394,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_act_scale_eltwise, ::testing::Val
     gemm_test_params{ CASE_GEMM_ELTWISE_2IN_FP16_1, 3, 6 },
     gemm_test_params{ CASE_GEMM_ELTWISE_2IN_U8S8_1, 3, 6 },
     gemm_test_params{ CASE_GEMM_ELTWISE_2IN_S8U8_1, 3, 6 },
-    gemm_test_params{ CASE_GEMM_ELTWISE_2IN_U8S8_2, 3, 3 , "gemm_mmad_int8" },
+    gemm_test_params{ CASE_GEMM_ELTWISE_2IN_U8S8_2, 3, 3, "gemm_mmad_int8" },
     // gemm_test_params{ CASE_GEMM_ELTWISE_2IN_U8S8_2, 3, 3 , "gemm_mmad_int8_slm" },   // tolerance issue
-    gemm_test_params{ CASE_GEMM_ELTWISE_2IN_FP16_2, 3, 3 , "gemm_tiled_opt" },
+    gemm_test_params{ CASE_GEMM_ELTWISE_2IN_FP16_2, 3, 3, "gemm_tiled_opt" },
 }));
