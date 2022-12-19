@@ -105,61 +105,42 @@ ov::Tensor create_tensor_from_numpy(const std::vector<std::string>& files,
         std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
     auto allocator = std::make_shared<SharedTensorAllocator>(tensor_size * sizeof(T));
     auto data = reinterpret_cast<T*>(allocator->get_buffer());
+    size_t numpyBatchSize = 1;
 
-    /** Collect images data ptrs **/
-    std::vector<std::shared_ptr<uint8_t>> vreader;
-    vreader.reserve(batchSize);
-
-    size_t imgBatchSize = 1;
     if (!inputInfo.layout.empty() && ov::layout::has_batch(inputInfo.layout)) {
-        imgBatchSize = batchSize;
+        numpyBatchSize = batchSize;
     } else {
-        slog::warn << inputName << ": layout does not contain batch dimension. Assuming bath 1 for this input"
+        slog::warn << inputName
+                   << ": layout is not set or does not contain batch dimension. Assuming that numpy array "
+                      "contains data for all batches."
                    << slog::endl;
     }
 
-    for (size_t b = 0; b < imgBatchSize; ++b) {
+    for (size_t b = 0; b < numpyBatchSize; ++b) {
         auto inputIndex = (inputId + b) % files.size();
+
+        std::ifstream numpyFile(files[inputIndex], std::ios_base::binary | std::ios_base::ate);
+        OPENVINO_ASSERT(numpyFile, "Cannot open ", files[inputIndex]);
+
+        auto inputSize = tensor_size * sizeof(T) / numpyBatchSize;
+
+        std::string extension = get_extension(files[inputIndex]);
+        if (extension == "npy") {
+            verifyNumpyFile<T>(numpyFile, files[inputIndex], inputSize);
+        } else {
+            throw ov::Exception("Unsupported numpy file type: " + extension);
+        }
+
+        if (inputInfo.layout != "CN") {
+            numpyFile.read(&data[b * inputSize], inputSize);
+        } else {
+            for (int i = 0; i < inputInfo.channels(); i++) {
+                numpyFile.read(&data[(i * numpyBatchSize + b) * sizeof(T)], sizeof(T));
+            }
+        }
+
         if (filenames_used) {
             *filenames_used += (filenames_used->empty() ? "" : ", ") + files[inputIndex];
-        }
-        FormatReader::ReaderPtr reader(files[inputIndex].c_str());
-        if (reader.get() == nullptr) {
-            slog::warn << "Image " << files[inputIndex] << " cannot be read!" << slog::endl << slog::endl;
-            continue;
-        }
-
-        /** Getting image data **/
-        std::shared_ptr<uint8_t> imageData(reader->getData(inputInfo.width(), inputInfo.height()));
-        if (imageData) {
-            vreader.push_back(imageData);
-        }
-    }
-
-    /** Fill input tensor with image. First b channel, then g and r channels **/
-    const size_t numChannels = inputInfo.channels();
-    const size_t width = inputInfo.width();
-    const size_t height = inputInfo.height();
-    /** Iterate over all input images **/
-    for (size_t b = 0; b < imgBatchSize; ++b) {
-        /** Iterate over all width **/
-        for (size_t w = 0; w < width; ++w) {
-            /** Iterate over all height **/
-            for (size_t h = 0; h < height; ++h) {
-                /** Iterate over all channels **/
-                for (size_t ch = 0; ch < numChannels; ++ch) {
-                    /**          [images stride + channels stride + pixel id ] all in
-                     * bytes            **/
-                    size_t offset = b * numChannels * width * height +
-                                    (((inputInfo.layout == "NCHW") || (inputInfo.layout == "CHW"))
-                                         ? (ch * width * height + h * width + w)
-                                         : (h * width * numChannels + w * numChannels + ch));
-                    data[offset] =
-                        (static_cast<T>(vreader.at(b).get()[h * width * numChannels + w * numChannels + ch]) -
-                         static_cast<T>(inputInfo.mean[ch])) /
-                        static_cast<T>(inputInfo.scale[ch]);
-                }
-            }
         }
     }
 
@@ -619,11 +600,11 @@ std::map<std::string, ov::TensorVector> get_tensors(std::map<std::string, std::v
                 tensor_src_info =
                     "Image size tensor " + std::to_string(image_size.first) + " x " + std::to_string(image_size.second);
                 tensors[input_name].push_back(get_im_info_tensor(image_size, batchSize, {input_name, input_info}));
-            } /* TODO else if (is_numpy){
+            } else if (std::find(supported_numpy_extensions.begin(), supported_numpy_extensions.end(), get_extension(files.second[0])) !=  supported_numpy_extensions.end()){
                 // Fill with Numpy arrays
                 tensors[input_name].push_back(
                     get_numpy_tensor(files.second, inputId, batchSize, {input_name, input_info}, &tensor_src_info));
-            } */
+            }
             else if (input_info.is_image()) {
                 // Fill with Images
                 tensors[input_name].push_back(

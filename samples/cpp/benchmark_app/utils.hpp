@@ -16,6 +16,15 @@
 #include <type_traits>
 #include <vector>
 
+#ifdef USE_OPENCV
+const std::vector<std::string> supported_image_extensions =
+    {"bmp", "dib", "jpeg", "jpg", "jpe", "jp2", "png", "pbm", "pgm", "ppm", "sr", "ras", "tiff", "tif"};
+#else
+const std::vector<std::string> supported_image_extensions = {"bmp"};
+#endif
+const std::vector<std::string> supported_numpy_extensions = {"npy"};
+const std::vector<std::string> supported_binary_extensions = {"bin"};
+
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::nanoseconds ns;
 

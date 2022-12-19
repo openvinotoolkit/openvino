@@ -799,15 +799,6 @@ void load_config(const std::string& filename, std::map<std::string, ov::AnyMap>&
 }
 #endif
 
-#ifdef USE_OPENCV
-const std::vector<std::string> supported_image_extensions =
-    {"bmp", "dib", "jpeg", "jpg", "jpe", "jp2", "png", "pbm", "pgm", "ppm", "sr", "ras", "tiff", "tif"};
-#else
-const std::vector<std::string> supported_image_extensions = {"bmp"};
-#endif
-const std::vector<std::string> supported_numpy_extensions = {"npy"};
-const std::vector<std::string> supported_binary_extensions = {"bin"};
-
 std::string get_extension(const std::string& name) {
     auto extensionPosition = name.rfind('.', name.size());
     return extensionPosition == std::string::npos ? "" : name.substr(extensionPosition + 1, name.size() - 1);
