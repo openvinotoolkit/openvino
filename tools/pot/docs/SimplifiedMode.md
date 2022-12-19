@@ -15,7 +15,7 @@ To apply optimization when there is only a model and no data is available. It is
 Install Datumaro:
 
 ``` bash
-pip install datumaro>=0.4.0.1
+pip install datumaro
 ```
 Create a synthetic dataset with elements of the specified type and shape, and save it to the provided directory.
 
