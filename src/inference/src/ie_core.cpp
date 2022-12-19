@@ -291,7 +291,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
 
         // Check whether this global config is supported by plugin, and the coresponding propertie will be removed
         // from plugin in the furture. It is a whitelist to check.
-        bool is_plugin_config_supported(ov::InferencePlugin& plugin, const std::string& config_name) const {
+        bool plugin_config_is_supported(ov::InferencePlugin& plugin, const std::string& config_name) const {
             std::string device_name = plugin.get_name();
             auto supported = false;
 
@@ -325,7 +325,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
             for (auto& it : _core_plugins_properties) {
                 auto item = config.find(it.first);
                 if (item != config.end()) {
-                    if (!is_plugin_config_supported(plugin, it.first)) {
+                    if (!plugin_config_is_supported(plugin, it.first)) {
                         config.erase(item);
                     } else {
                         _core_plugins_properties[it.first] = item->second;
@@ -359,7 +359,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         }
 
         void process_cache_dir(ov::InferencePlugin& plugin, ov::AnyMap& config) const {
-            if (is_plugin_config_supported(plugin, ov::cache_dir.name())) {
+            if (plugin_config_is_supported(plugin, ov::cache_dir.name())) {
                 std::string device_name = plugin.get_name();
                 auto cacheConfig = getCacheConfigForDevice(device_name);
                 if (cacheConfig._cacheManager) {
@@ -387,14 +387,14 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
                 auto item = config.find(it.first);
                 if (item != config.end()) {
                     // Erase if it is not supported by this device.
-                    if (!is_plugin_config_supported(plugin, it.first)) {
+                    if (!plugin_config_is_supported(plugin, it.first)) {
                         config.erase(item);
                     }
                     continue;
                 }
 
                 // Add whitelist global properties into config if it doesn't have.
-                if (is_plugin_config_supported(plugin, it.first)) {
+                if (plugin_config_is_supported(plugin, it.first)) {
                     config[it.first] = it.second.as<std::string>();
                     if (it.first == ov::cache_dir.name()) {
                         auto cacheConfig = getCacheConfigForDevice(device_name);
@@ -486,14 +486,14 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         mutable std::mutex _core_property_mutex;
         // Core global properties, which will not set to any plugins.
         // It will be updated if core.set_property() without device name.
-        ov::AnyMap _core_global_properties = {ov::force_tbb_terminate(false)};
+        ov::AnyMap _core_global_properties = {{ov::force_tbb_terminate.name(), ov::Any(false)}};
 
         // Core plugins properties, which will set to specified or all plugins.
         // Except ov::cache_dir, other all properties will ALWAYS be set to plugins.
         // It will be updated if core.set_property() without device name.
-        ov::AnyMap _core_plugins_properties = {ov::cache_dir(""),
-                                               ov::hint::allow_auto_batching(true),
-                                               ov::auto_batch_timeout(1000)};
+        ov::AnyMap _core_plugins_properties = {{ov::cache_dir.name(), ov::Any()},
+                                               {ov::hint::allow_auto_batching.name(), ov::Any(true)},
+                                               {ov::auto_batch_timeout.name(), ov::Any(1000)}};
     };
 
     struct CacheContent {
@@ -573,14 +573,15 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
 
     ov::SoPtr<ie::IExecutableNetworkInternal> compile_model_impl(const InferenceEngine::CNNNetwork& network,
                                                                  ov::InferencePlugin& plugin,
-                                                                 std::map<std::string, std::string>& parsedConfig,
+                                                                 const std::map<std::string, std::string>& parsedConfig,
                                                                  const ie::RemoteContext::Ptr& context,
                                                                  const CacheContent& cacheContent,
                                                                  bool forceDisableCache = false) {
         OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CoreImpl::compile_model_impl");
         ov::SoPtr<ie::IExecutableNetworkInternal> execNetwork;
-        coreConfig.update_config(plugin, parsedConfig);
-        execNetwork = context ? plugin.compile_model(network, context, parsedConfig)
+        auto _parsedConfig = parsedConfig;
+        coreConfig.update_config(plugin, _parsedConfig);
+        execNetwork = context ? plugin.compile_model(network, context, _parsedConfig)
                               : plugin.compile_model(network, parsedConfig);
         if (!forceDisableCache && cacheContent.cacheManager && DeviceSupportsImportExport(plugin)) {
             try {
@@ -878,7 +879,7 @@ public:
         auto cacheManager =
             coreConfig
                 .getCacheConfigForDevice(parsed._deviceName,
-                                         coreConfig.is_plugin_config_supported(plugin, ov::cache_dir.name()),
+                                         coreConfig.plugin_config_is_supported(plugin, ov::cache_dir.name()),
                                          parsed._config)
                 ._cacheManager;
         auto cacheContent = CacheContent{cacheManager};
@@ -988,7 +989,7 @@ public:
         auto cacheManager =
             coreConfig
                 .getCacheConfigForDevice(parsed._deviceName,
-                                         coreConfig.is_plugin_config_supported(plugin, ov::cache_dir.name()),
+                                         coreConfig.plugin_config_is_supported(plugin, ov::cache_dir.name()),
                                          parsed._config)
                 ._cacheManager;
         auto cacheContent = CacheContent{cacheManager};
@@ -1020,7 +1021,7 @@ public:
         auto cacheManager =
             coreConfig
                 .getCacheConfigForDevice(parsed._deviceName,
-                                         coreConfig.is_plugin_config_supported(plugin, ov::cache_dir.name()),
+                                         coreConfig.plugin_config_is_supported(plugin, ov::cache_dir.name()),
                                          parsed._config)
                 ._cacheManager;
         auto cacheContent = CacheContent{cacheManager, modelPath};
