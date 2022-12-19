@@ -1,880 +1,391 @@
 Network model,Release,IE-Type,Platform name,Throughput-INT8,Throughput-FP32,Throughput-FP16,Value,Efficiency,Price,TDP,Sockets,Price/socket,TDP/socket,Latency
 begin_rec,,,,,,,,,,,,,,
-bert-base-cased[124],OV-2022.1.,atom,Intel® Atom™ x5-E3940,0.90,0.44,0.44,0.026,0.095,$34 ,9.5,1,$34 ,9.5,1183.77
-bert-base-cased[124],OV-2022.1.,atom,Intel® Atom™ x6425E CPU-only,1.59,0.64,0.64,0.026,0.132,$59 ,12,1,$59 ,12,631.26
-bert-base-cased[124],OV-2022.1.,atom,Intel® Atom™ x6425E iGPU-only,4.62,3.00,4.74,0.078,0.385,$59 ,12,1,$59 ,12,222.43
-bert-base-cased[124],OV-2022.1.,atom,Intel® Atom™ x6425E CPU+iGPU,5.76,2.99,4.61,0.097,0.479,$59 ,12,1,$59 ,12,
-bert-base-cased[124],OV-2022.1.,atom,Intel® Celeron 6305E CPU-only,3.75,1.14,1.14,0.035,0.250,$107 ,15,1,$107 ,15,266.21
-bert-base-cased[124],OV-2022.1.,atom,Intel® Celeron 6305E iGPU-only,18.00,6.81,10.60,0.168,1.199,$107 ,15,1,$107 ,15,59.82
-bert-base-cased[124],OV-2022.1.,atom,Intel® Celeron 6305E CPU+iGPU,19.93,7.70,11.21,0.186,1.328,$107 ,15,1,$107 ,15,
-bert-base-cased[124],OV-2022.1.,core,Intel® Core™ i3-8100,6.80,4.19,4.22,0.058,0.104,$117 ,65,1,$117 ,65,152.39
-bert-base-cased[124],OV-2022.1.,core,Intel® Core™ i5-8500,10.26,6.44,6.42,0.053,0.157,$192 ,65,1,$192 ,65,104.63
-bert-base-cased[124],OV-2022.1.,core,Intel® Core™ i7-8700T,11.06,7.19,7.10,0.036,0.316,$303 ,35,1,$303 ,35,98.85
-bert-base-cased[124],OV-2022.1.,core,Intel® Core™ i9-10920X,48.23,19.67,19.63,0.068,0.292,$700 ,165,1,$700 ,165,21.80
-bert-base-cased[124],OV-2022.1.,core,Intel® Core™ i9-10900TE,10.62,6.20,6.11,0.023,0.303,$444 ,35,1,$444 ,35,106.09
-bert-base-cased[124],OV-2022.1.,core,Intel® Core™ i9-12900 CPU-only,17.87,10.43,10.36,0.034,0.274,$519 ,65,1,$519 ,65,56.79
-bert-base-cased[124],OV-2022.1.,core-iGPU,Intel® Core™ i9-12900 iGPU-only,17.60,6.53,10.45,0.033,0.270,$519 ,65,1,$519 ,65,59.90
-bert-base-cased[124],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i9-12900 CPU+iGPU,25.42,11.09,15.09,0.048,0.391,$519 ,65,1,$519 ,65,
-bert-base-cased[124],OV-2022.1.,core,Intel® Core™ i7-1185G7 CPU-only,14.79,4.91,4.90,0.034,0.528,$426 ,28,1,$426,28,71.17
-bert-base-cased[124],OV-2022.1.,core-iGPU,Intel® Core™ i7-1185G7 iGPU-only,26.62,10.85,16.56,0.062,0.950,$426 ,28,1,$426,28,39.69
-bert-base-cased[124],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i7-1185G7 CPU+iGPU,24.98,9.61,13.03,0.058,0.892,$426 ,28,1,$426,28,
-bert-base-cased[124],OV-2022.1.,core,Intel® Core™  i7-11800H CPU-only,24.92,8.83,8.65,0.063,0.553,$395 ,45,1,$395,45,40.66
-bert-base-cased[124],OV-2022.1.,core-iGPU,Intel® Core™  i7-11800H iGPU-only,7.25,3.85,5.32,0.018,0.161,$395 ,45,1,$395,45,398.35
-bert-base-cased[124],OV-2022.1.,core-CPU+iGPU,Intel® Core™  i7-11800H CPU+iGPU,20.02,8.35,9.82,0.05,0.444,$395 ,45,1,$395,45,
-bert-base-cased[124],OV-2022.1.,core,Intel® Core™ i5-10500TE ,9.19,6.07,5.96,0.047,0.262,$195 ,35,1,$195,35,115.68
-bert-base-cased[124],OV-2022.1.,xeon,Intel® Xeon® W1290P,13.97,9.74,9.71,0.025,0.111,$539 ,125,1,$539,125,61.73
-bert-base-cased[124],OV-2022.1.,xeon,Intel® Xeon® E-2124G,8.06,5.05,5.07,0.037,0.113,$213 ,71,1,$213 ,71,129.15
-bert-base-cased[124],OV-2022.1.,xeon,Intel® Xeon® Silver 4216R,63.54,19.47,19.37,0.063,0.254,"$2,004 ",250,2,"$1,002 ",125,34.48
-bert-base-cased[124],OV-2022.1.,xeon,Intel® Xeon® Silver 4316,111.56,41.91,42.78,0.103,0.371,"$2,166 ",300,2,"$1,083 ",150,20.67
-bert-base-cased[124],OV-2022.1.,xeon,Intel® Xeon® Gold 5218T,66.55,18.69,18.75,0.049,0.316,"$2,698 ",210,2,"$1,349 ",105,32.99
-bert-base-cased[124],OV-2022.1.,xeon,Intel® Xeon® Platinum 8270,145.71,59.57,59.99,0.019,0.355,"$14,810 ",410,2,"$7,405 ",205,17.66
-bert-base-cased[124],OV-2022.1.,xeon,Intel® Xeon® Platinum 8380,216.98,85.64,87.03,0.026,0.401,"$16,198 ",540,2,"$8,099 ",270,12.32
+bert-base-cased ,OV-2022.3-8991,core,Intel® Core™  i9-12900K CPU-only,96.06,35.627,,0.146,0.582,$658 ,165,1,$658 ,165,17.1432
+bert-base-cased ,OV-2022.3-8991,core-iGPU,Intel® Core™  i9-12900K iGPU-only,53.093,22.253,,0.081,0.322,$658 ,165,1,$658 ,165,22.0002
+bert-base-cased ,OV-2022.3-8991,core-CPU+iGPU,Intel® Core™  i9-12900K CPU+iGPU,108.306,44.797,,0.165,0.656,$658 ,165,1,$658 ,165,
+bert-base-cased ,OV-2022.3-8991,atom,Intel®  Atom™  x5-E3940 CPU-only,2.763,1.332,,0.081,0.291,$34 ,9.5,1,$34 ,9.5,350.2746
+bert-base-cased ,OV-2022.3-8991,atom,Intel®  Atom™  x6425E CPU-only,5.694,2.002,,0.085,0.475,$67 ,12,1,$67 ,12,183.1711
+bert-base-cased ,OV-2022.3-8991,core-iGPU,Intel®  Atom™  x6425E iGPU-only,16.11,10.009,,0.24,1.343,$67 ,12,1,$67 ,12,79.7607
+bert-base-cased ,OV-2022.3-8991,core-CPU+iGPU,Intel®  Atom™  x6425E CPU+iGPU,21.128,11.81,,0.315,1.761,$67 ,12,1,$67 ,12,
+bert-base-cased ,OV-2022.3-8991,atom,Intel®  Celeron™  6305E CPU-only,14.212,4.255,,0.12,0.947,$118 ,15,1,$118 ,15,72.6516
+bert-base-cased ,OV-2022.3-8991,core-iGPU,Intel®  Celeron™  6305E iGPU-only,18.983,8.696,,0.161,1.266,$118 ,15,1,$118 ,15,62.9729
+bert-base-cased ,OV-2022.3-8991,core-CPU+iGPU,Intel®  Celeron™  6305E CPU+iGPU,30.866,12.087,,0.262,2.058,$118 ,15,1,$118 ,15,
+bert-base-cased ,OV-2022.3-8991,xeon,Intel®  Xeon® Gold 6336Y CPU-only,645.77,213.877,,0.138,1.745,"$4,678 ",370,2,"$2,339 ",185,6.7612
+bert-base-cased ,OV-2022.3-8991,core ,Intel® Core™  i3-8100 CPU-only,23.721,14.457,,0.203,0.365,$117 ,65,1,$117 ,65,44.0371
+bert-base-cased ,OV-2022.3-8991,core,Intel® Core™  i5-10500TE CPU-only,30.141,16.38,,0.141,0.861,$214 ,35,1,$214 ,35,46.6064
+bert-base-cased ,OV-2022.3-8991,core,Intel® Core™  i5-8500 CPU-only,30.541,19.319,,0.159,0.47,$192 ,65,1,$192 ,65,27.8871
+bert-base-cased ,OV-2022.3-8991,core,Intel® Core™  i7-8700T CPU-only,41.504,22.75,,0.137,1.186,$303 ,35,1,$303 ,35,27.974
+bert-base-cased ,OV-2022.3-8991,core,Intel® Core™  i9-10900TE CPU-only,32.073,16.558,,0.066,0.916,$488 ,35,1,$488 ,35,39.7617
+bert-base-cased ,OV-2022.3-8991,xeon,Intel®  Xeon® W1290P CPU-only,69.053,40.243,,0.116,0.552,$594 ,125,1,$594 ,125,18.309
+bert-base-cased ,OV-2022.3-8991,xeon,Intel®  Xeon®  E-2124G CPU-only,23.402,14.614,,0.094,0.33,$249 ,71,1,$249 ,71,44.8984
+bert-base-cased ,OV-2022.3-8991,xeon,Intel®  Xeon®  Gold 5218T CPU-only,266.949,79.033,,0.085,1.271,"$3,144 ",210,2,"$1,572 ",105,12.4065
+bert-base-cased ,OV-2022.3-8991,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,682.593,225.713,,0.04,1.665,"$16,954 ",410,2,"$8,477 ",205,6.9035
+bert-base-cased ,OV-2022.3-8991,xeon,Intel®  Xeon®  Silver 4216R CPU-only,256.994,75.502,,0.128,1.028,"$2,004 ",250,2,"$1,002 ",125,13.0382
+bert-base-cased ,OV-2022.3-8991,core,Intel® Core™  i7-1165G7 CPU-only,64.632,18.394,,0.138,2.308,$469 ,28,1,$469 ,28,17.638
+bert-base-cased ,OV-2022.3-8991,core-iGPU,Intel® Core™  i7-1165G7 iGPU-only,95.656,44.056,,0.204,3.416,$469 ,28,1,$469 ,28,14.1005
+bert-base-cased ,OV-2022.3-8991,core-CPU+iGPU,Intel® Core™  i7-1165G7 CPU+iGPU,128.005,50.592,,0.273,4.572,$469 ,28,1,$469 ,28,
 end_rec,,,,,,,,,,,,,,
 begin_rec,,,,,,,,,,,,,,
-bert-large-uncased-whole-word-masking-squad-int8-0001 [384],OV-2022.1.,atom,Intel® Atom™ x5-E3940,0.26,0.13,0.13,0.007,0.027,$34 ,9.5,1,$34 ,9.5,4070.94
-bert-large-uncased-whole-word-masking-squad-int8-0001 [384],OV-2022.1.,atom,Intel® Atom™ x6425E CPU-only,0.46,0.19,0.19,0.007,0.038,$59 ,12,1,$59 ,12,2236.06
-bert-large-uncased-whole-word-masking-squad-int8-0001 [384],OV-2022.1.,atom,Intel® Atom™ x6425E iGPU-only,1.34,0.78,1.45,0.022,0.111,$59 ,12,1,$59 ,12,756.92
-bert-large-uncased-whole-word-masking-squad-int8-0001 [384],OV-2022.1.,atom,Intel® Atom™ x6425E CPU+iGPU,1.70,0.91,0.97,0.028,0.141,$59 ,12,1,$59 ,12,
-bert-large-uncased-whole-word-masking-squad-int8-0001 [384],OV-2022.1.,atom,Intel® Celeron 6305E CPU-only,1.08,0.30,0.30,0.01,0.072,$107 ,15,1,$107 ,15,922.37
-bert-large-uncased-whole-word-masking-squad-int8-0001 [384],OV-2022.1.,atom,Intel® Celeron 6305E iGPU-only,5.12,2.13,3.47,0.047,0.341,$107 ,15,1,$107 ,15,202.96
-bert-large-uncased-whole-word-masking-squad-int8-0001 [384],OV-2022.1.,atom,Intel® Celeron 6305E CPU+iGPU,5.56,2.30,3.71,0.052,0.370,$107 ,15,1,$107 ,15,
-bert-large-uncased-whole-word-masking-squad-int8-0001 [384],OV-2022.1.,core,Intel® Core™ i3-8100,2.00,1.29,1.28,0.017,0.030,$117 ,65,1,$117 ,65,497.65
-bert-large-uncased-whole-word-masking-squad-int8-0001 [384],OV-2022.1.,core,Intel® Core™ i5-8500,3.08,1.92,1.92,0.016,0.047,$192 ,65,1,$192 ,65,334.91
-bert-large-uncased-whole-word-masking-squad-int8-0001 [384],OV-2022.1.,core,Intel® Core™ i7-8700T,3.41,2.04,2.06,0.011,0.097,$303 ,35,1,$303 ,35,310.37
-bert-large-uncased-whole-word-masking-squad-int8-0001 [384],OV-2022.1.,core,Intel® Core™ i9-10920X,14.68,5.14,5.14,0.02,0.088,$700 ,165,1,$700 ,165,69.64
-bert-large-uncased-whole-word-masking-squad-int8-0001 [384],OV-2022.1.,core,Intel® Core™ i9-10900TE,3.12,1.92,1.85,0.007,0.089,$444 ,35,1,$444 ,35,341.28
-bert-large-uncased-whole-word-masking-squad-int8-0001 [384],OV-2022.1.,core,Intel® Core™ i9-12900 CPU-only,6.17,3.03,3.01,0.011,0.094,$519 ,65,1,$519 ,65,182.41
-bert-large-uncased-whole-word-masking-squad-int8-0001 [384],OV-2022.1.,core-iGPU,Intel® Core™ i9-12900 iGPU-only,5.16,2.00,3.42,0.009,0.079,$519 ,65,1,$519 ,65,199.39
-bert-large-uncased-whole-word-masking-squad-int8-0001 [384],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i9-12900 CPU+iGPU,7.65,3.17,4.78,0.014,0.117,$519 ,65,1,$519 ,65,
-bert-large-uncased-whole-word-masking-squad-int8-0001 [384],OV-2022.1.,core,Intel® Core™ i7-1185G7 CPU-only,4.45,1.39,1.38,0.01,0.158,$426 ,28,1,$426,28,235.85
-bert-large-uncased-whole-word-masking-squad-int8-0001 [384],OV-2022.1.,core-iGPU,Intel® Core™ i7-1185G7 iGPU-only,7.73,3.33,5.68,0.018,0.275,$426 ,28,1,$426,28,133.97
-bert-large-uncased-whole-word-masking-squad-int8-0001 [384],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i7-1185G7 CPU+iGPU,7.44,2.92,4.02,0.017,0.265,$426 ,28,1,$426,28,
-bert-large-uncased-whole-word-masking-squad-int8-0001 [384],OV-2022.1.,core,Intel® Core™  i7-11800H CPU-only,8.06,2.45,2.46,0.02,0.179,$395 ,45,1,$395,45,113.05
-bert-large-uncased-whole-word-masking-squad-int8-0001 [384],OV-2022.1.,core-iGPU,Intel® Core™  i7-11800H iGPU-only,0.96,1.28,1.44,0.002,0.021,$395 ,45,1,$395,45,2746.94
-bert-large-uncased-whole-word-masking-squad-int8-0001 [384],OV-2022.1.,core-CPU+iGPU,Intel® Core™  i7-11800H CPU+iGPU,4.32,2.34,2.59,0.01,0.096,$395 ,45,1,$395,45,
-bert-large-uncased-whole-word-masking-squad-int8-0001 [384],OV-2022.1.,core,Intel® Core™ i5-10500TE ,2.86,1.75,1.74,0.014,0.081,$195 ,35,1,$195,35,360.53
-bert-large-uncased-whole-word-masking-squad-int8-0001 [384],OV-2022.1.,xeon,Intel® Xeon® W1290P,4.79,2.74,2.68,0.008,0.038,$539 ,125,1,$539,125,182.12
-bert-large-uncased-whole-word-masking-squad-int8-0001 [384],OV-2022.1.,xeon,Intel® Xeon® E-2124G,2.39,1.54,1.53,0.011,0.033,$213 ,71,1,$213 ,71,417.45
-bert-large-uncased-whole-word-masking-squad-int8-0001 [384],OV-2022.1.,xeon,Intel® Xeon® Silver 4216R,18.73,4.59,4.57,0.018,0.074,"$2,004 ",250,2,"$1,002 ",125,111.08
-bert-large-uncased-whole-word-masking-squad-int8-0001 [384],OV-2022.1.,xeon,Intel® Xeon® Silver 4316,34.63,11.53,11.75,0.031,0.115,"$2,166 ",300,2,"$1,083 ",150,65.78
-bert-large-uncased-whole-word-masking-squad-int8-0001 [384],OV-2022.1.,xeon,Intel® Xeon® Gold 5218T,19.80,4.55,4.54,0.014,0.094,"$2,698 ",210,2,"$1,349 ",105,106.50
-bert-large-uncased-whole-word-masking-squad-int8-0001 [384],OV-2022.1.,xeon,Intel® Xeon® Platinum 8270,45.74,13.70,13.70,0.006,0.111,"$14,810 ",410,2,"$7,405 ",205,51.51
-bert-large-uncased-whole-word-masking-squad-int8-0001 [384],OV-2022.1.,xeon,Intel® Xeon® Platinum 8380,74.13,22.95,23.70,0.009,0.137,"$16,198 ",540,2,"$8,099 ",270,36.94
+bert-large-uncased-whole-word-masking-squad-0001 ,OV-2022.3-8991,core,Intel® Core™  i9-12900K CPU-only,7.714,3.093,,0.012,0.047,$658 ,165,1,$658 ,165,155.3633
+bert-large-uncased-whole-word-masking-squad-0001 ,OV-2022.3-8991,core-iGPU,Intel® Core™  i9-12900K iGPU-only,5.617,1.978,,0.009,0.034,$658 ,165,1,$658 ,165,181.8303
+bert-large-uncased-whole-word-masking-squad-0001 ,OV-2022.3-8991,core-CPU+iGPU,Intel® Core™  i9-12900K CPU+iGPU,10.602,3.753,,0.016,0.064,$658 ,165,1,$658 ,165,
+bert-large-uncased-whole-word-masking-squad-0001 ,OV-2022.3-8991,atom,Intel®  Atom™  x5-E3940 CPU-only,0.272,0.125,,0.008,0.029,$34 ,9.5,1,$34 ,9.5,3861.0657
+bert-large-uncased-whole-word-masking-squad-0001 ,OV-2022.3-8991,atom,Intel®  Atom™  x6425E CPU-only,0.488,0.188,,0.007,0.041,$67 ,12,1,$67 ,12,2090.8266
+bert-large-uncased-whole-word-masking-squad-0001 ,OV-2022.3-8991,core-iGPU,Intel®  Atom™  x6425E iGPU-only,1.395,0.774,,0.021,0.116,$67 ,12,1,$67 ,12,727.6781
+bert-large-uncased-whole-word-masking-squad-0001 ,OV-2022.3-8991,core-CPU+iGPU,Intel®  Atom™  x6425E CPU+iGPU,1.827,0.845,,0.027,0.152,$67 ,12,1,$67 ,12,
+bert-large-uncased-whole-word-masking-squad-0001 ,OV-2022.3-8991,atom,Intel®  Celeron™  6305E CPU-only,1.199,0.377,,0.01,0.08,$118 ,15,1,$118 ,15,831.301
+bert-large-uncased-whole-word-masking-squad-0001 ,OV-2022.3-8991,core-iGPU,Intel®  Celeron™  6305E iGPU-only,2.051,0.766,,0.017,0.137,$118 ,15,1,$118 ,15,494.5363
+bert-large-uncased-whole-word-masking-squad-0001 ,OV-2022.3-8991,core-CPU+iGPU,Intel®  Celeron™  6305E CPU+iGPU,3.118,1.127,,0.026,0.208,$118 ,15,1,$118 ,15,
+bert-large-uncased-whole-word-masking-squad-0001 ,OV-2022.3-8991,xeon,Intel®  Xeon® Gold 6336Y CPU-only,43.436,17.379,,0.009,0.117,"$4,678 ",370,2,"$2,339 ",185,52.2862
+bert-large-uncased-whole-word-masking-squad-0001 ,OV-2022.3-8991,core ,Intel® Core™  i3-8100 CPU-only,2.067,1.278,,0.018,0.032,$117 ,65,1,$117 ,65,495.0786
+bert-large-uncased-whole-word-masking-squad-0001 ,OV-2022.3-8991,core,Intel® Core™  i5-10500TE CPU-only,2.619,1.536,,0.012,0.075,$214 ,35,1,$214 ,35,502.3687
+bert-large-uncased-whole-word-masking-squad-0001 ,OV-2022.3-8991,core,Intel® Core™  i5-8500 CPU-only,2.72,1.679,,0.014,0.042,$192 ,65,1,$192 ,65,320.168
+bert-large-uncased-whole-word-masking-squad-0001 ,OV-2022.3-8991,core,Intel® Core™  i7-8700T CPU-only,3.625,2.11,,0.012,0.104,$303 ,35,1,$303 ,35,309.2848
+bert-large-uncased-whole-word-masking-squad-0001 ,OV-2022.3-8991,core,Intel® Core™  i9-10900TE CPU-only,2.906,1.693,,0.006,0.083,$488 ,35,1,$488 ,35,386.4947
+bert-large-uncased-whole-word-masking-squad-0001 ,OV-2022.3-8991,xeon,Intel®  Xeon® W1290P CPU-only,4.801,2.729,,0.008,0.038,$594 ,125,1,$594 ,125,200.0794
+bert-large-uncased-whole-word-masking-squad-0001 ,OV-2022.3-8991,xeon,Intel®  Xeon®  E-2124G CPU-only,2.098,1.32,,0.008,0.03,$249 ,71,1,$249 ,71,492.0938
+bert-large-uncased-whole-word-masking-squad-0001 ,OV-2022.3-8991,xeon,Intel®  Xeon®  Gold 5218T CPU-only,21.062,7.021,,0.007,0.1,"$3,144 ",210,2,"$1,572 ",105,101.4694
+bert-large-uncased-whole-word-masking-squad-0001 ,OV-2022.3-8991,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,46.064,19.051,,0.003,0.112,"$16,954 ",410,2,"$8,477 ",205,49.4869
+bert-large-uncased-whole-word-masking-squad-0001 ,OV-2022.3-8991,xeon,Intel®  Xeon®  Silver 4216R CPU-only,20.014,6.726,,0.01,0.08,"$2,004 ",250,2,"$1,002 ",125,105.9423
+bert-large-uncased-whole-word-masking-squad-0001 ,OV-2022.3-8991,core,Intel® Core™  i7-1165G7 CPU-only,5.192,1.626,,0.011,0.185,$469 ,28,1,$469 ,28,203.6311
+bert-large-uncased-whole-word-masking-squad-0001 ,OV-2022.3-8991,core-iGPU,Intel® Core™  i7-1165G7 iGPU-only,10.476,3.914,,0.022,0.374,$469 ,28,1,$469 ,28,95.6598
+bert-large-uncased-whole-word-masking-squad-0001 ,OV-2022.3-8991,core-CPU+iGPU,Intel® Core™  i7-1165G7 CPU+iGPU,11.75,4.168,,0.025,0.42,$469 ,28,1,$469 ,28,
 end_rec,,,,,,,,,,,,,,
 begin_rec,,,,,,,,,,,,,,
-brain-tumor-segmentation-0001-MXNET [128x128x128],OV-2022.1.,atom,Intel® Atom™ x5-E3940,0.11,0.03,0.03,0.003,0.011,$34 ,9.5,1,$34 ,9.5,9780.07
-brain-tumor-segmentation-0001-MXNET [128x128x128],OV-2022.1.,atom,Intel® Atom™ x6425E CPU-only,0.21,0.05,0.05,0.003,0.017,$59 ,12,1,$59 ,12,5145.02
-brain-tumor-segmentation-0001-MXNET [128x128x128],OV-2022.1.,atom,Intel® Atom™ x6425E iGPU-only,0.31,,0.32,0.005,0.025,$59 ,12,1,$59 ,12,3223.64
-brain-tumor-segmentation-0001-MXNET [128x128x128],OV-2022.1.,atom,Intel® Atom™ x6425E CPU+iGPU,0.38,,,0.006,0.031,$59 ,12,1,$59 ,12,
-brain-tumor-segmentation-0001-MXNET [128x128x128],OV-2022.1.,atom,Intel® Celeron 6305E CPU-only,0.30,0.16,0.16,0.002,0.020,$107 ,15,1,$107 ,15,3289.56
-brain-tumor-segmentation-0001-MXNET [128x128x128],OV-2022.1.,atom,Intel® Celeron 6305E iGPU-only,1.19,0.38,0.62,0.011,0.079,$107 ,15,1,$107 ,15,883.97
-brain-tumor-segmentation-0001-MXNET [128x128x128],OV-2022.1.,atom,Intel® Celeron 6305E CPU+iGPU,1.38,1.38,0.49,0.012,0.092,$107 ,15,1,$107 ,15,
-brain-tumor-segmentation-0001-MXNET [128x128x128],OV-2022.1.,core,Intel® Core™ i3-8100,0.73,0.49,0.48,0.006,0.011,$117 ,65,1,$117 ,65,1483.05
-brain-tumor-segmentation-0001-MXNET [128x128x128],OV-2022.1.,core,Intel® Core™ i5-8500,1.16,0.74,0.73,0.006,0.017,$192 ,65,1,$192 ,65,978.07
-brain-tumor-segmentation-0001-MXNET [128x128x128],OV-2022.1.,core,Intel® Core™ i7-8700T,1.21,0.75,0.76,0.003,0.034,$303 ,35,1,$303 ,35,1033.17
-brain-tumor-segmentation-0001-MXNET [128x128x128],OV-2022.1.,core,Intel® Core™ i9-10920X,3.72,1.73,1.72,0.005,0.022,$700 ,165,1,$700 ,165,365.31
-brain-tumor-segmentation-0001-MXNET [128x128x128],OV-2022.1.,core,Intel® Core™ i9-10900TE,1.19,0.72,0.72,0.002,0.033,$444 ,35,1,$444 ,35,1009.75
-brain-tumor-segmentation-0001-MXNET [128x128x128],OV-2022.1.,core,Intel® Core™ i9-12900 CPU-only,2.00,0.96,0.96,0.003,0.030,$519 ,65,1,$519 ,65,905.57
-brain-tumor-segmentation-0001-MXNET [128x128x128],OV-2022.1.,core-iGPU,Intel® Core™ i9-12900 iGPU-only,0.96,0.33,0.56,0.001,0.014,$519 ,65,1,$519 ,65,1046.95
-brain-tumor-segmentation-0001-MXNET [128x128x128],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i9-12900 CPU+iGPU,1.65,0.68,0.91,0.003,0.025,$519 ,65,1,$519 ,65,
-brain-tumor-segmentation-0001-MXNET [128x128x128],OV-2022.1.,core,Intel® Core™ i7-1185G7 CPU-only,1.30,0.63,0.63,0.003,0.046,$426 ,28,1,$426 ,28,883.95
-brain-tumor-segmentation-0001-MXNET [128x128x128],OV-2022.1.,core-iGPU,Intel® Core™ i7-1185G7 iGPU-only,1.53,0.51,0.86,0.003,0.054,$426 ,28,1,$426 ,28,681.36
-brain-tumor-segmentation-0001-MXNET [128x128x128],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i7-1185G7 CPU+iGPU,2.16,0.84,1.19,0.005,0.077,$426 ,28,1,$426 ,28,
-brain-tumor-segmentation-0001-MXNET [128x128x128],OV-2022.1.,core,Intel® Core™  i7-11800H CPU-only,2.13,0.96,0.94,0.005,0.047,$395 ,45,1,$395 ,45,547.35
-brain-tumor-segmentation-0001-MXNET [128x128x128],OV-2022.1.,core-iGPU,Intel® Core™  i7-11800H iGPU-only,0.31,0.29,0.37,0,0.006,$395 ,45,1,$395 ,45,7239.30
-brain-tumor-segmentation-0001-MXNET [128x128x128],OV-2022.1.,core-CPU+iGPU,Intel® Core™  i7-11800H CPU+iGPU,1.16,0.67,0.93,0.002,0.025,$395 ,45,1,$395 ,45,
-brain-tumor-segmentation-0001-MXNET [128x128x128],OV-2022.1.,core,Intel® Core™ i5-10500TE ,1.00,0.62,0.62,0.005,0.028,$195 ,35,1,$195,35,1212.18
-brain-tumor-segmentation-0001-MXNET [128x128x128],OV-2022.1.,xeon,Intel® Xeon® W1290P,1.81,0.96,0.95,0.003,0.014,$539 ,125,1,$539 ,125,709.32
-brain-tumor-segmentation-0001-MXNET [128x128x128],OV-2022.1.,xeon,Intel® Xeon® E-2124G,0.86,0.57,0.57,0.004,0.012,$213 ,71,1,$213 ,71,1270.30
-brain-tumor-segmentation-0001-MXNET [128x128x128],OV-2022.1.,xeon,Intel® Xeon® Silver 4216R,5.04,2.38,2.37,0.005,0.020,"$2,004 ",250,2,"$1,002 ",125,488.42
-brain-tumor-segmentation-0001-MXNET [128x128x128],OV-2022.1.,xeon,Intel® Xeon® Silver 4316,8.74,3.81,3.81,0.008,0.029,"$2,166 ",300,2,"$1,083 ",150,260.71
-brain-tumor-segmentation-0001-MXNET [128x128x128],OV-2022.1.,xeon,Intel® Xeon® Gold 5218T,4.79,2.38,2.37,0.003,0.022,"$2,698 ",210,2,"$1,349 ",105,475.83
-brain-tumor-segmentation-0001-MXNET [128x128x128],OV-2022.1.,xeon,Intel® Xeon® Platinum 8270,9.25,4.43,4.51,0.001,0.022,"$14,810 ",410,2,"$7,405 ",205,269.46
-brain-tumor-segmentation-0001-MXNET [128x128x128],OV-2022.1.,xeon,Intel® Xeon® Platinum 8380,17.20,6.69,6.85,0.002,0.031,"$16,198 ",540,2,"$8,099 ",270,157.07
+deeplabv3,OV-2022.3-8991,core,Intel® Core™  i9-12900K CPU-only,99.078,36.552,,0.151,0.6,$658 ,165,1,$658 ,165,11.269
+deeplabv3,OV-2022.3-8991,core-iGPU,Intel® Core™  i9-12900K iGPU-only,57.707,13.789,,0.088,0.35,$658 ,165,1,$658 ,165,16.263
+deeplabv3,OV-2022.3-8991,core-CPU+iGPU,Intel® Core™  i9-12900K CPU+iGPU,115.59,39.82,,0.176,0.701,$658 ,165,1,$658 ,165,
+deeplabv3,OV-2022.3-8991,atom,Intel®  Atom™  x5-E3940 CPU-only,3.327,1.496,,0.098,0.35,$34 ,9.5,1,$34 ,9.5,308.0916
+deeplabv3,OV-2022.3-8991,atom,Intel®  Atom™  x6425E CPU-only,6.07,3.041,,0.091,0.506,$67 ,12,1,$67 ,12,166.5404
+deeplabv3,OV-2022.3-8991,core-iGPU,Intel®  Atom™  x6425E iGPU-only,4.661,5.196,,0.07,0.388,$67 ,12,1,$67 ,12,217.0439
+deeplabv3,OV-2022.3-8991,core-CPU+iGPU,Intel®  Atom™  x6425E CPU+iGPU,9.877,7.145,,0.147,0.823,$67 ,12,1,$67 ,12,
+deeplabv3,OV-2022.3-8991,atom,Intel®  Celeron™  6305E CPU-only,13.516,4.681,,0.115,0.901,$118 ,15,1,$118 ,15,74.1061
+deeplabv3,OV-2022.3-8991,core-iGPU,Intel®  Celeron™  6305E iGPU-only,22.35,4.635,,0.189,1.49,$118 ,15,1,$118 ,15,42.9657
+deeplabv3,OV-2022.3-8991,core-CPU+iGPU,Intel®  Celeron™  6305E CPU+iGPU,34.576,8.955,,0.293,2.305,$118 ,15,1,$118 ,15,
+deeplabv3,OV-2022.3-8991,xeon,Intel®  Xeon® Gold 6336Y CPU-only,559.145,134.159,,0.12,1.511,"$4,678 ",370,2,"$2,339 ",185,5.356
+deeplabv3,OV-2022.3-8991,core ,Intel® Core™  i3-8100 CPU-only,27.171,15.947,,0.232,0.418,$117 ,65,1,$117 ,65,36.6584
+deeplabv3,OV-2022.3-8991,core,Intel® Core™  i5-10500TE CPU-only,34.907,16.72,,0.163,0.997,$214 ,35,1,$214 ,35,38.8986
+deeplabv3,OV-2022.3-8991,core,Intel® Core™  i5-8500 CPU-only,35.07,20.497,,0.183,0.54,$192 ,65,1,$192 ,65,22.1865
+deeplabv3,OV-2022.3-8991,core,Intel® Core™  i7-8700T CPU-only,47.647,23.747,,0.157,1.361,$303 ,35,1,$303 ,35,22.628
+deeplabv3,OV-2022.3-8991,core,Intel® Core™  i9-10900TE CPU-only,36.559,18.235,,0.075,1.045,$488 ,35,1,$488 ,35,27.138
+deeplabv3,OV-2022.3-8991,xeon,Intel®  Xeon® W1290P CPU-only,79.42,21.03,,0.134,0.635,$594 ,125,1,$594 ,125,12.8397
+deeplabv3,OV-2022.3-8991,xeon,Intel®  Xeon®  E-2124G CPU-only,26.173,16.906,,0.105,0.369,$249 ,71,1,$249 ,71,37.9245
+deeplabv3,OV-2022.3-8991,xeon,Intel®  Xeon®  Gold 5218T CPU-only,248.049,81.667,,0.079,1.181,"$3,144 ",210,2,"$1,572 ",105,8.9485
+deeplabv3,OV-2022.3-8991,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,632.113,168.65,,0.037,1.542,"$16,954 ",410,2,"$8,477 ",205,4.0073
+deeplabv3,OV-2022.3-8991,xeon,Intel®  Xeon®  Silver 4216R CPU-only,241.703,78.963,,0.121,0.967,"$2,004 ",250,2,"$1,002 ",125,9.356
+deeplabv3,OV-2022.3-8991,core,Intel® Core™  i7-1165G7 CPU-only,64.13,18.519,,0.137,2.29,$469 ,28,1,$469 ,28,16.6586
+deeplabv3,OV-2022.3-8991,core-iGPU,Intel® Core™  i7-1165G7 iGPU-only,104.926,24.592,,0.224,3.747,$469 ,28,1,$469 ,28,9.1435
+deeplabv3,OV-2022.3-8991,core-CPU+iGPU,Intel® Core™  i7-1165G7 CPU+iGPU,121.441,30.498,,0.259,4.337,$469 ,28,1,$469 ,28,
 end_rec,,,,,,,,,,,,,,
 begin_rec,,,,,,,,,,,,,,
-brain-tumor-segmentation-0002-CF2 [128x128x128],OV-2022.1.,atom,Intel® Atom™ x5-E3940,0.18,0.04,0.04,0.005,0.018,$34 ,9.5,1,$34 ,9.5,6061.65
-brain-tumor-segmentation-0002-CF2 [128x128x128],OV-2022.1.,atom,Intel® Atom™ x6425E CPU-only,0.33,0.07,0.07,0.005,0.027,$59 ,12,1,$59 ,12,3342.69
-brain-tumor-segmentation-0002-CF2 [128x128x128],OV-2022.1.,atom,Intel® Atom™ x6425E iGPU-only,0.60,0.53,0.76,0.01,0.050,$59 ,12,1,$59 ,12,1656.37
-brain-tumor-segmentation-0002-CF2 [128x128x128],OV-2022.1.,atom,Intel® Atom™ x6425E CPU+iGPU,0.76,0.32,0.36,0.012,0.063,$59 ,12,1,$59 ,12,
-brain-tumor-segmentation-0002-CF2 [128x128x128],OV-2022.1.,atom,Intel® Celeron 6305E CPU-only,0.73,0.25,0.25,0.006,0.048,$107 ,15,1,$107 ,15,1451.45
-brain-tumor-segmentation-0002-CF2 [128x128x128],OV-2022.1.,atom,Intel® Celeron 6305E iGPU-only,1.67,0.98,1.51,0.015,0.111,$107 ,15,1,$107 ,15,585.63
-brain-tumor-segmentation-0002-CF2 [128x128x128],OV-2022.1.,atom,Intel® Celeron 6305E CPU+iGPU,2.12,1.10,1.65,0.019,0.141,$107 ,15,1,$107 ,15,
-brain-tumor-segmentation-0002-CF2 [128x128x128],OV-2022.1.,core,Intel® Core™ i3-8100,1.53,0.66,0.67,0.013,0.023,$117 ,65,1,$117 ,65,713.94
-brain-tumor-segmentation-0002-CF2 [128x128x128],OV-2022.1.,core,Intel® Core™ i5-8500,2.29,0.94,0.97,0.011,0.035,$192 ,65,1,$192 ,65,508.94
-brain-tumor-segmentation-0002-CF2 [128x128x128],OV-2022.1.,core,Intel® Core™ i7-8700T,2.59,0.99,0.97,0.008,0.073,$303 ,35,1,$303 ,35,520.43
-brain-tumor-segmentation-0002-CF2 [128x128x128],OV-2022.1.,core,Intel® Core™ i9-10920X,8.04,2.51,2.51,0.011,0.048,$700 ,165,1,$700 ,165,172.07
-brain-tumor-segmentation-0002-CF2 [128x128x128],OV-2022.1.,core,Intel® Core™ i9-10900TE,2.27,0.87,0.88,0.005,0.064,$444 ,35,1,$444 ,35,517.61
-brain-tumor-segmentation-0002-CF2 [128x128x128],OV-2022.1.,core,Intel® Core™ i9-12900 CPU-only,3.07,1.11,1.11,0.005,0.047,$519 ,65,1,$519 ,65,396.58
-brain-tumor-segmentation-0002-CF2 [128x128x128],OV-2022.1.,core-iGPU,Intel® Core™ i9-12900 iGPU-only,1.88,0.86,1.31,0.003,0.028,$519 ,65,1,$519 ,65,532.46
-brain-tumor-segmentation-0002-CF2 [128x128x128],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i9-12900 CPU+iGPU,2.91,1.14,1.54,0.005,0.044,$519 ,65,1,$519 ,65,
-brain-tumor-segmentation-0002-CF2 [128x128x128],OV-2022.1.,core,Intel® Core™ i7-1185G7 CPU-only,2.84,0.90,0.92,0.006,0.101,$426 ,28,1,$426 ,28,400.75
-brain-tumor-segmentation-0002-CF2 [128x128x128],OV-2022.1.,core-iGPU,Intel® Core™ i7-1185G7 iGPU-only,2.16,1.40,2.25,0.005,0.077,$426 ,28,1,$426 ,28,462.68
-brain-tumor-segmentation-0002-CF2 [128x128x128],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i7-1185G7 CPU+iGPU,3.37,1.61,2.37,0.007,0.120,$426 ,28,1,$426 ,28,
-brain-tumor-segmentation-0002-CF2 [128x128x128],OV-2022.1.,core,Intel® Core™  i7-11800H CPU-only,4.74,1.23,1.29,0.012,0.105,$395 ,45,1,$395 ,45,249.71
-brain-tumor-segmentation-0002-CF2 [128x128x128],OV-2022.1.,core-iGPU,Intel® Core™  i7-11800H iGPU-only,0.59,0.39,0.40,0.001,0.013,$395 ,45,1,$395 ,45,1718.04
-brain-tumor-segmentation-0002-CF2 [128x128x128],OV-2022.1.,core-CPU+iGPU,Intel® Core™  i7-11800H CPU+iGPU,3.18,0.86,0.89,0.008,0.070,$395 ,45,1,$395 ,45,
-brain-tumor-segmentation-0002-CF2 [128x128x128],OV-2022.1.,core,Intel® Core™ i5-10500TE ,2.21,0.77,0.77,0.011,0.063,$195 ,35,1,$195,35,595.87
-brain-tumor-segmentation-0002-CF2 [128x128x128],OV-2022.1.,xeon,Intel® Xeon® W1290P,3.40,1.02,1.02,0.006,0.027,$539 ,125,1,$539 ,125,341.75
-brain-tumor-segmentation-0002-CF2 [128x128x128],OV-2022.1.,xeon,Intel® Xeon® E-2124G,1.77,0.82,0.82,0.008,0.024,$213 ,71,1,$213 ,71,618.94
-brain-tumor-segmentation-0002-CF2 [128x128x128],OV-2022.1.,xeon,Intel® Xeon® Silver 4216R,12.17,3.75,3.79,0.012,0.048,"$2,004 ",250,2,"$1,002 ",125,267.16
-brain-tumor-segmentation-0002-CF2 [128x128x128],OV-2022.1.,xeon,Intel® Xeon® Silver 4316,18.72,5.67,5.75,0.017,0.062,"$2,166 ",300,2,"$1,083 ",150,153.53
-brain-tumor-segmentation-0002-CF2 [128x128x128],OV-2022.1.,xeon,Intel® Xeon® Gold 5218T,12.50,3.94,3.95,0.009,0.059,"$2,698 ",210,2,"$1,349 ",105,259.23
-brain-tumor-segmentation-0002-CF2 [128x128x128],OV-2022.1.,xeon,Intel® Xeon® Platinum 8270,21.63,7.23,7.27,0.0029,0.052,"$14,810 ",410,2,"$7,405 ",205,163.54
-brain-tumor-segmentation-0002-CF2 [128x128x128],OV-2022.1.,xeon,Intel® Xeon® Platinum 8380,32.94,10.04,10.08,0.004,0.061,"$16,198 ",540,2,"$8,099 ",270,120.04
+densenet-121,OV-2022.3-8991,core,Intel® Core™  i9-12900K CPU-only,457.193,165.166,,0.695,2.771,$658 ,165,1,$658 ,165,3.141
+densenet-121,OV-2022.3-8991,core-iGPU,Intel® Core™  i9-12900K iGPU-only,203.417,68.438,,0.309,1.233,$658 ,165,1,$658 ,165,6.6728
+densenet-121,OV-2022.3-8991,core-CPU+iGPU,Intel® Core™  i9-12900K CPU+iGPU,575.442,179.858,,0.875,3.488,$658 ,165,1,$658 ,165,
+densenet-121,OV-2022.3-8991,atom,Intel®  Atom™  x5-E3940 CPU-only,13.344,5.882,,0.392,1.405,$34 ,9.5,1,$34 ,9.5,80.7014
+densenet-121,OV-2022.3-8991,atom,Intel®  Atom™  x6425E CPU-only,24.172,10.554,,0.361,2.014,$67 ,12,1,$67 ,12,43.668
+densenet-121,OV-2022.3-8991,core-iGPU,Intel®  Atom™  x6425E iGPU-only,22.771,30.615,,0.34,1.898,$67 ,12,1,$67 ,12,30.0241
+densenet-121,OV-2022.3-8991,core-CPU+iGPU,Intel®  Atom™  x6425E CPU+iGPU,39.365,38.926,,0.588,3.28,$67 ,12,1,$67 ,12,
+densenet-121,OV-2022.3-8991,atom,Intel®  Celeron™  6305E CPU-only,58.965,15.713,,0.5,3.931,$118 ,15,1,$118 ,15,18.3425
+densenet-121,OV-2022.3-8991,core-iGPU,Intel®  Celeron™  6305E iGPU-only,86.162,25.34,,0.73,5.744,$118 ,15,1,$118 ,15,20.7907
+densenet-121,OV-2022.3-8991,core-CPU+iGPU,Intel®  Celeron™  6305E CPU+iGPU,140.891,39.929,,1.194,9.393,$118 ,15,1,$118 ,15,
+densenet-121,OV-2022.3-8991,xeon,Intel®  Xeon® Gold 6336Y CPU-only,3094.742,701.32,,0.662,8.364,"$4,678 ",370,2,"$2,339 ",185,2.131
+densenet-121,OV-2022.3-8991,core ,Intel® Core™  i3-8100 CPU-only,120.121,66.624,,1.027,1.848,$117 ,65,1,$117 ,65,9.3755
+densenet-121,OV-2022.3-8991,core,Intel® Core™  i5-10500TE CPU-only,142.623,80.872,,0.666,4.075,$214 ,35,1,$214 ,35,10.2536
+densenet-121,OV-2022.3-8991,core,Intel® Core™  i5-8500 CPU-only,149.112,85.051,,0.777,2.294,$192 ,65,1,$192 ,65,6.0817
+densenet-121,OV-2022.3-8991,core,Intel® Core™  i7-8700T CPU-only,194.559,111.988,,0.642,5.559,$303 ,35,1,$303 ,35,6.1906
+densenet-121,OV-2022.3-8991,core,Intel® Core™  i9-10900TE CPU-only,146.463,69.186,,0.3,4.185,$488 ,35,1,$488 ,35,8.6496
+densenet-121,OV-2022.3-8991,xeon,Intel®  Xeon® W1290P CPU-only,360.501,182.543,,0.607,2.884,$594 ,125,1,$594 ,125,3.6046
+densenet-121,OV-2022.3-8991,xeon,Intel®  Xeon®  E-2124G CPU-only,114.844,67.188,,0.461,1.618,$249 ,71,1,$249 ,71,9.7609
+densenet-121,OV-2022.3-8991,xeon,Intel®  Xeon®  Gold 5218T CPU-only,1116.372,295.952,,0.355,5.316,"$3,144 ",210,2,"$1,572 ",105,3.9606
+densenet-121,OV-2022.3-8991,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,3155.106,815.725,,0.186,7.695,"$16,954 ",410,2,"$8,477 ",205,2.8831
+densenet-121,OV-2022.3-8991,xeon,Intel®  Xeon®  Silver 4216R CPU-only,1064.824,283.423,,0.531,4.259,"$2,004 ",250,2,"$1,002 ",125,4.0689
+densenet-121,OV-2022.3-8991,core,Intel® Core™  i7-1165G7 CPU-only,265.167,74.501,,0.565,9.47,$469 ,28,1,$469 ,28,4.7413
+densenet-121,OV-2022.3-8991,core-iGPU,Intel® Core™  i7-1165G7 iGPU-only,391.185,123.519,,0.834,13.971,$469 ,28,1,$469 ,28,6.5259
+densenet-121,OV-2022.3-8991,core-CPU+iGPU,Intel® Core™  i7-1165G7 CPU+iGPU,526.12,150.35,,1.122,18.79,$469 ,28,1,$469 ,28,
 end_rec,,,,,,,,,,,,,,
 begin_rec,,,,,,,,,,,,,,
-deeplabv3-TF [513x513],OV-2022.1.,atom,Intel® Atom™ x5-E3940,2.58,1.52,1.52,0.075,0.271,$34 ,9.5,1,$34 ,9.5,399.88
-deeplabv3-TF [513x513],OV-2022.1.,atom,Intel® Atom™ x6425E CPU-only,5.68,3.03,3.02,0.096,0.473,$59 ,12,1,$59 ,12,178.37
-deeplabv3-TF [513x513],OV-2022.1.,atom,Intel® Atom™ x6425E iGPU-only,13.11,7.36,13.54,0.222,1.092,$59 ,12,1,$59 ,12,77.91
-deeplabv3-TF [513x513],OV-2022.1.,atom,Intel® Atom™ x6425E CPU+iGPU,16.02,7.91,13.77,0.271,1.335,$59 ,12,1,$59 ,12,
-deeplabv3-TF [513x513],OV-2022.1.,atom,Intel® Celeron 6305E CPU-only,12.00,4.72,4.74,0.112,0.800,$107 ,15,1,$107 ,15,83.18
-deeplabv3-TF [513x513],OV-2022.1.,atom,Intel® Celeron 6305E iGPU-only,66.19,17.54,30.25,0.618,4.412,$107 ,15,1,$107 ,15,15.62
-deeplabv3-TF [513x513],OV-2022.1.,atom,Intel® Celeron 6305E CPU+iGPU,74.66,18.14,31.04,0.697,4.977,$107 ,15,1,$107 ,15,
-deeplabv3-TF [513x513],OV-2022.1.,core,Intel® Core™ i3-8100,24.83,15.21,15.44,0.212,0.381,$117 ,65,1,$117 ,65,40.27
-deeplabv3-TF [513x513],OV-2022.1.,core,Intel® Core™ i5-8500,39.99,22.08,22.40,0.208,0.615,$192 ,65,1,$192 ,65,24.32
-deeplabv3-TF [513x513],OV-2022.1.,core,Intel® Core™ i7-8700T,43.23,22.74,22.77,0.142,1.235,$303 ,35,1,$303 ,35,25.22
-deeplabv3-TF [513x513],OV-2022.1.,core,Intel® Core™ i9-10920X,180.64,42.62,42.63,0.258,1.094,$700 ,165,1,$700 ,165,6.11
-deeplabv3-TF [513x513],OV-2022.1.,core,Intel® Core™ i9-10900TE,41.42,19.63,19.78,0.093,1.183,$444 ,35,1,$444 ,35,25.86
-deeplabv3-TF [513x513],OV-2022.1.,core,Intel® Core™ i9-12900 CPU-only,92.81,25.35,25.18,0.178,1.427,$519 ,65,1,$519 ,65,23.21
-deeplabv3-TF [513x513],OV-2022.1.,core-iGPU,Intel® Core™ i9-12900 iGPU-only,57.19,20.56,29.02,0.11,0.879,$519 ,65,1,$519 ,65,16.23
-deeplabv3-TF [513x513],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i9-12900 CPU+iGPU,79.38,31.02,33.57,0.152,1.221,$519 ,65,1,$519 ,65,
-deeplabv3-TF [513x513],OV-2022.1.,core,Intel® Core™ i7-1185G7 CPU-only,51.89,16.47,16.60,0.121,1.853,$426 ,28,1,$426 ,28,20.64
-deeplabv3-TF [513x513],OV-2022.1.,core-iGPU,Intel® Core™ i7-1185G7 iGPU-only,92.79,24.91,42.14,0.217,3.314,$426 ,28,1,$426 ,28,10.88
-deeplabv3-TF [513x513],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i7-1185G7 CPU+iGPU,16.02,7.91,13.77,0.037,0.572,$426 ,28,1,$426 ,28,
-deeplabv3-TF [513x513],OV-2022.1.,core,Intel® Core™  i7-11800H CPU-only,93.40,26.39,26.46,0.236,2.075,$395 ,45,1,$395 ,45,10.31
-deeplabv3-TF [513x513],OV-2022.1.,core-iGPU,Intel® Core™  i7-11800H iGPU-only,8.92,6.73,7.88,0.022,0.198,$395 ,45,1,$395 ,45,188.65
-deeplabv3-TF [513x513],OV-2022.1.,core-CPU+iGPU,Intel® Core™  i7-11800H CPU+iGPU,54.10,23.03,24.02,0.136,1.202,$395 ,45,1,$395 ,45,
-deeplabv3-TF [513x513],OV-2022.1.,core,Intel® Core™ i5-10500TE ,38.31,17.94,17.18,0.196,1.094,$195 ,35,1,$195,35,28.92
-deeplabv3-TF [513x513],OV-2022.1.,xeon,Intel® Xeon® W1290P,74.23,21.16,21.15,0.137,0.593,$539 ,125,1,$539 ,125,13.60
-deeplabv3-TF [513x513],OV-2022.1.,xeon,Intel® Xeon® E-2124G,28.59,18.33,18.60,0.134,0.402,$213 ,71,1,$213 ,71,34.54
-deeplabv3-TF [513x513],OV-2022.1.,xeon,Intel® Xeon® Silver 4216R,217.76,77.28,77.86,0.217,0.871,"$2,004 ",250,2,"$1,002 ",125,10.17
-deeplabv3-TF [513x513],OV-2022.1.,xeon,Intel® Xeon® Silver 4316,436.37,142.79,144.49,0.402,1.454,"$2,166 ",300,2,"$1,083 ",150,5.34
-deeplabv3-TF [513x513],OV-2022.1.,xeon,Intel® Xeon® Gold 5218T,222.56,81.00,81.22,0.164,1.059,"$2,698 ",210,2,"$1,349 ",105,9.91
-deeplabv3-TF [513x513],OV-2022.1.,xeon,Intel® Xeon® Platinum 8270,579.44,151.44,150.93,0.078,1.413,"$14,810 ",410,2,"$7,405 ",205,4.34
-deeplabv3-TF [513x513],OV-2022.1.,xeon,Intel® Xeon® Platinum 8380,859.31,255.38,256.67,0.106,1.591,"$16,198 ",540,2,"$8,099 ",270,3.09
-deeplabv3-TF [513x513],OV-2022.1.,accel,Intel® Neural Compute Stick 2,,,3.50,0.05,1.401,$69 ,2.5,1,$69 ,2.5,
-deeplabv3-TF [513x513],OV-2022.1.,accel,Intel® Movidius™ VPUs (Uzel* UI-AR8),,,28.21,0.057,0.940,$492 ,30,1,$492 ,30,
+efficientdet-d0,OV-2022.3-8991,core,Intel® Core™  i9-12900K CPU-only,112.297,64.06,,0.171,0.681,$658 ,165,1,$658 ,165,11.8265
+efficientdet-d0,OV-2022.3-8991,core-iGPU,Intel® Core™  i9-12900K iGPU-only,73.766,38.742,,0.112,0.447,$658 ,165,1,$658 ,165,21.403
+efficientdet-d0,OV-2022.3-8991,core-CPU+iGPU,Intel® Core™  i9-12900K CPU+iGPU,128.735,76.62,,0.196,0.78,$658 ,165,1,$658 ,165,
+efficientdet-d0,OV-2022.3-8991,atom,Intel®  Atom™  x5-E3940 CPU-only,3.812,2.565,,0.112,0.401,$34 ,9.5,1,$34 ,9.5,274.5947
+efficientdet-d0,OV-2022.3-8991,atom,Intel®  Atom™  x6425E CPU-only,7.248,5.17,,0.108,0.604,$67 ,12,1,$67 ,12,143.7999
+efficientdet-d0,OV-2022.3-8991,core-iGPU,Intel®  Atom™  x6425E iGPU-only,22.697,15.635,,0.339,1.891,$67 ,12,1,$67 ,12,59.0651
+efficientdet-d0,OV-2022.3-8991,core-CPU+iGPU,Intel®  Atom™  x6425E CPU+iGPU,26.855,17.296,,0.401,2.238,$67 ,12,1,$67 ,12,
+efficientdet-d0,OV-2022.3-8991,atom,Intel®  Celeron™  6305E CPU-only,15.949,10.417,,0.135,1.063,$118 ,15,1,$118 ,15,62.2765
+efficientdet-d0,OV-2022.3-8991,core-iGPU,Intel®  Celeron™  6305E iGPU-only,25.936,14.073,,0.22,1.729,$118 ,15,1,$118 ,15,54.0166
+efficientdet-d0,OV-2022.3-8991,core-CPU+iGPU,Intel®  Celeron™  6305E CPU+iGPU,32.767,20.733,,0.278,2.184,$118 ,15,1,$118 ,15,
+efficientdet-d0,OV-2022.3-8991,xeon,Intel®  Xeon® Gold 6336Y CPU-only,424.388,256.503,,0.091,1.147,"$4,678 ",370,2,"$2,339 ",185,9.6395
+efficientdet-d0,OV-2022.3-8991,core ,Intel® Core™  i3-8100 CPU-only,36.666,24.041,,0.313,0.564,$117 ,65,1,$117 ,65,30.2521
+efficientdet-d0,OV-2022.3-8991,core,Intel® Core™  i5-10500TE CPU-only,45.331,26.92,,0.212,1.295,$214 ,35,1,$214 ,35,32.8946
+efficientdet-d0,OV-2022.3-8991,core,Intel® Core™  i5-8500 CPU-only,44.921,32.357,,0.234,0.691,$192 ,65,1,$192 ,65,19.7048
+efficientdet-d0,OV-2022.3-8991,core,Intel® Core™  i7-8700T CPU-only,62.749,37.807,,0.207,1.793,$303 ,35,1,$303 ,35,19.901
+efficientdet-d0,OV-2022.3-8991,core,Intel® Core™  i9-10900TE CPU-only,50.35,29.935,,0.103,1.439,$488 ,35,1,$488 ,35,24.2916
+efficientdet-d0,OV-2022.3-8991,xeon,Intel®  Xeon® W1290P CPU-only,94.981,36.434,,0.16,0.76,$594 ,125,1,$594 ,125,12.658
+efficientdet-d0,OV-2022.3-8991,xeon,Intel®  Xeon®  E-2124G CPU-only,35.831,27.306,,0.144,0.505,$249 ,71,1,$249 ,71,30.9469
+efficientdet-d0,OV-2022.3-8991,xeon,Intel®  Xeon®  Gold 5218T CPU-only,239.06,161.224,,0.076,1.138,"$3,144 ",210,2,"$1,572 ",105,13.9735
+efficientdet-d0,OV-2022.3-8991,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,471.02,300.291,,0.028,1.149,"$16,954 ",410,2,"$8,477 ",205,9.3866
+efficientdet-d0,OV-2022.3-8991,xeon,Intel®  Xeon®  Silver 4216R CPU-only,231.873,156.285,,0.116,0.927,"$2,004 ",250,2,"$1,002 ",125,14.1605
+efficientdet-d0,OV-2022.3-8991,core,Intel® Core™  i7-1165G7 CPU-only,71.482,41.123,,0.152,2.553,$469 ,28,1,$469 ,28,16.6952
+efficientdet-d0,OV-2022.3-8991,core-iGPU,Intel® Core™  i7-1165G7 iGPU-only,92.52,50.538,,0.197,3.304,$469 ,28,1,$469 ,28,17.295
+efficientdet-d0,OV-2022.3-8991,core-CPU+iGPU,Intel® Core™  i7-1165G7 CPU+iGPU,107.688,56.901,,0.23,3.846,$469 ,28,1,$469 ,28,
 end_rec,,,,,,,,,,,,,,
 begin_rec,,,,,,,,,,,,,,
-densenet-121-tf2 [224x224],OV-2022.1.,atom,Intel® Atom™ x5-E3940,12.44,5.34,5.34,0.365,1.309,$34 ,9.5,1,$34 ,9.5,81.58
-densenet-121-tf2 [224x224],OV-2022.1.,atom,Intel® Atom™ x6425E CPU-only,21.77,9.50,9.50,0.369,1.814,$59 ,12,1,$59 ,12,45.12
-densenet-121-tf2 [224x224],OV-2022.1.,atom,Intel® Atom™ x6425E iGPU-only,39.91,24.41,40.70,0.676,3.325,$59 ,12,1,$59 ,12,30.57
-densenet-121-tf2 [224x224],OV-2022.1.,atom,Intel® Atom™ x6425E CPU+iGPU,59.04,32.42,49.01,1,4.919,$59 ,12,1,$59 ,12,
-densenet-121-tf2 [224x224],OV-2022.1.,atom,Intel® Celeron 6305E CPU-only,51.05,15.05,15.08,0.477,3.403,$107 ,15,1,$107 ,15,19.91
-densenet-121-tf2 [224x224],OV-2022.1.,atom,Intel® Celeron 6305E iGPU-only,155.86,60.11,100.73,1.456,10.390,$107 ,15,1,$107 ,15,11.01
-densenet-121-tf2 [224x224],OV-2022.1.,atom,Intel® Celeron 6305E CPU+iGPU,142.18,62.96,92.63,1.328,9.478,$107 ,15,1,$107 ,15,
-densenet-121-tf2 [224x224],OV-2022.1.,core,Intel® Core™ i3-8100,105.09,60.65,60.51,0.898,1.616,$117 ,65,1,$117 ,65,9.91
-densenet-121-tf2 [224x224],OV-2022.1.,core,Intel® Core™ i5-8500,156.53,89.42,91.51,0.815,2.408,$192 ,65,1,$192 ,65,6.80
-densenet-121-tf2 [224x224],OV-2022.1.,core,Intel® Core™ i7-8700T,168.57,100.42,99.98,0.556,4.816,$303 ,35,1,$303 ,35,6.79
-densenet-121-tf2 [224x224],OV-2022.1.,core,Intel® Core™ i9-10920X,834.58,246.06,253.76,1.192,5.058,$700 ,165,1,$700 ,165,2.96
-densenet-121-tf2 [224x224],OV-2022.1.,core,Intel® Core™ i9-10900TE,152.95,84.74,86.45,0.344,4.370,$444 ,35,1,$444 ,35,7.63
-densenet-121-tf2 [224x224],OV-2022.1.,core,Intel® Core™ i9-12900 CPU-only,375.45,143.36,144.57,0.723,5.776,$519 ,65,1,$519 ,65,3.87
-densenet-121-tf2 [224x224],OV-2022.1.,core-iGPU,Intel® Core™ i9-12900 iGPU-only,180.15,59.71,96.90,0.347,2.771,$519 ,65,1,$519 ,65,7.34
-densenet-121-tf2 [224x224],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i9-12900 CPU+iGPU,471.82,141.57,180.65,0.909,7.258,$519 ,65,1,$519 ,65,
-densenet-121-tf2 [224x224],OV-2022.1.,core,Intel® Core™ i7-1185G7 CPU-only,212.29,64.92,65.87,0.498,7.581,$426 ,28,1,$426 ,28,5.42
-densenet-121-tf2 [224x224],OV-2022.1.,core-iGPU,Intel® Core™ i7-1185G7 iGPU-only,190.40,87.13,131.90,0.446,6.799,$426 ,28,1,$426 ,28,7.11
-densenet-121-tf2 [224x224],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i7-1185G7 CPU+iGPU,322.64,110.49,144.78,0.757,11.522,$426 ,28,1,$426 ,28,
-densenet-121-tf2 [224x224],OV-2022.1.,core,Intel® Core™  i7-11800H CPU-only,369.03,114.19,115.47,0.934,8.200,$395 ,45,1,$395 ,45,3.65
-densenet-121-tf2 [224x224],OV-2022.1.,core-iGPU,Intel® Core™  i7-11800H iGPU-only,44.59,31.43,41.58,0.112,0.990,$395 ,45,1,$395 ,45,53.84
-densenet-121-tf2 [224x224],OV-2022.1.,core-CPU+iGPU,Intel® Core™  i7-11800H CPU+iGPU,422.84,138.57,156.94,1.07,9.396,$395 ,45,1,$395 ,45,
-densenet-121-tf2 [224x224],OV-2022.1.,core,Intel® Core™ i5-10500TE ,150.87,86.29,86.19,0.773,4.310,$195 ,35,1,$195,35,7.56
-densenet-121-tf2 [224x224],OV-2022.1.,xeon,Intel® Xeon® W1290P,316.70,168.59,168.72,0.587,2.533,$539 ,125,1,$539 ,125,4.06
-densenet-121-tf2 [224x224],OV-2022.1.,xeon,Intel® Xeon® E-2124G,120.86,70.52,71.67,0.567,1.702,$213 ,71,1,$213 ,71,8.60
-densenet-121-tf2 [224x224],OV-2022.1.,xeon,Intel® Xeon® Silver 4216R,929.91,274.70,274.87,0.928,3.719,"$2,004 ",250,2,"$1,002 ",125,4.58
-densenet-121-tf2 [224x224],OV-2022.1.,xeon,Intel® Xeon® Silver 4316,2147.23,542.17,549.85,1.982,7.157,"$2,166 ",300,2,"$1,083 ",150,2.63
-densenet-121-tf2 [224x224],OV-2022.1.,xeon,Intel® Xeon® Gold 5218T,975.28,288.38,288.59,0.722,4.644,"$2,698 ",210,2,"$1,349 ",105,4.45
-densenet-121-tf2 [224x224],OV-2022.1.,xeon,Intel® Xeon® Platinum 8270,2788.90,743.84,737.20,0.376,6.802,"$14,810 ",410,2,"$7,405 ",205,3.24
-densenet-121-tf2 [224x224],OV-2022.1.,xeon,Intel® Xeon® Platinum 8380,4465.49,1129.94,1145.20,0.551,8.269,"$16,198 ",540,2,"$8,099 ",270,2.38
-densenet-121-tf2 [224x224],OV-2022.1.,accel,Intel® Neural Compute Stick 2,,,37.61,0.545,15.042,$69 ,2.5,1,$69 ,2.5,
-densenet-121-tf2 [224x224],OV-2022.1.,accel,Intel® Movidius™ VPUs (Uzel* UI-AR8),,,301.04,0.611,10.034,$492 ,30,1,$492 ,30,
+faster_rcnn_resnet50_coco,OV-2022.3-8991,core,Intel® Core™  i9-12900K CPU-only,12.921,4.016,,0.02,0.078,$658 ,165,1,$658 ,165,89.8929
+faster_rcnn_resnet50_coco,OV-2022.3-8991,core-iGPU,Intel® Core™  i9-12900K iGPU-only,6.802,1.82,,0.01,0.041,$658 ,165,1,$658 ,165,149.7396
+faster_rcnn_resnet50_coco,OV-2022.3-8991,core-CPU+iGPU,Intel® Core™  i9-12900K CPU+iGPU,15.679,4.499,,0.024,0.095,$658 ,165,1,$658 ,165,
+faster_rcnn_resnet50_coco,OV-2022.3-8991,atom,Intel®  Atom™  x5-E3940 CPU-only,0.32,0.131,,0.009,0.034,$34 ,9.5,1,$34 ,9.5,3206.1652
+faster_rcnn_resnet50_coco,OV-2022.3-8991,atom,Intel®  Atom™  x6425E CPU-only,0.592,0.242,,0.009,0.049,$67 ,12,1,$67 ,12,1727.27
+faster_rcnn_resnet50_coco,OV-2022.3-8991,core-iGPU,Intel®  Atom™  x6425E iGPU-only,1.301,0.728,,0.019,0.108,$67 ,12,1,$67 ,12,776.0692
+faster_rcnn_resnet50_coco,OV-2022.3-8991,core-CPU+iGPU,Intel®  Atom™  x6425E CPU+iGPU,1.683,0.865,,0.025,0.14,$67 ,12,1,$67 ,12,
+faster_rcnn_resnet50_coco,OV-2022.3-8991,atom,Intel®  Celeron™  6305E CPU-only,1.563,0.417,,0.013,0.104,$118 ,15,1,$118 ,15,640.0005
+faster_rcnn_resnet50_coco,OV-2022.3-8991,core-iGPU,Intel®  Celeron™  6305E iGPU-only,2.616,0.725,,0.022,0.174,$118 ,15,1,$118 ,15,389.3563
+faster_rcnn_resnet50_coco,OV-2022.3-8991,core-CPU+iGPU,Intel®  Celeron™  6305E CPU+iGPU,4.056,1.107,,0.034,0.27,$118 ,15,1,$118 ,15,
+faster_rcnn_resnet50_coco,OV-2022.3-8991,xeon,Intel®  Xeon® Gold 6336Y CPU-only,74.93,19.965,,0.016,0.203,"$4,678 ",370,2,"$2,339 ",185,65.5753
+faster_rcnn_resnet50_coco,OV-2022.3-8991,core ,Intel® Core™  i3-8100 CPU-only,2.988,1.473,,0.026,0.046,$117 ,65,1,$117 ,65,340.7313
+faster_rcnn_resnet50_coco,OV-2022.3-8991,core,Intel® Core™  i5-10500TE CPU-only,3.633,1.926,,0.017,0.104,$214 ,35,1,$214 ,35,430.1967
+faster_rcnn_resnet50_coco,OV-2022.3-8991,core,Intel® Core™  i5-8500 CPU-only,3.852,1.982,,0.02,0.059,$192 ,65,1,$192 ,65,241.5513
+faster_rcnn_resnet50_coco,OV-2022.3-8991,core,Intel® Core™  i7-8700T CPU-only,4.999,2.648,,0.016,0.143,$303 ,35,1,$303 ,35,260.2284
+faster_rcnn_resnet50_coco,OV-2022.3-8991,core,Intel® Core™  i9-10900TE CPU-only,3.71,2.005,,0.008,0.106,$488 ,35,1,$488 ,35,280.1493
+faster_rcnn_resnet50_coco,OV-2022.3-8991,xeon,Intel®  Xeon® W1290P CPU-only,8.977,4.542,,0.015,0.072,$594 ,125,1,$594 ,125,137.1747
+faster_rcnn_resnet50_coco,OV-2022.3-8991,xeon,Intel®  Xeon®  E-2124G CPU-only,2.867,1.464,,0.012,0.04,$249 ,71,1,$249 ,71,353.2042
+faster_rcnn_resnet50_coco,OV-2022.3-8991,xeon,Intel®  Xeon®  Gold 5218T CPU-only,29.332,8.19,,0.009,0.14,"$3,144 ",210,2,"$1,572 ",105,78.1722
+faster_rcnn_resnet50_coco,OV-2022.3-8991,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,85.213,22.066,,0.005,0.208,"$16,954 ",410,2,"$8,477 ",205,30.4317
+faster_rcnn_resnet50_coco,OV-2022.3-8991,xeon,Intel®  Xeon®  Silver 4216R CPU-only,27.847,7.786,,0.014,0.111,"$2,004 ",250,2,"$1,002 ",125,78.6604
+faster_rcnn_resnet50_coco,OV-2022.3-8991,core,Intel® Core™  i7-1165G7 CPU-only,7.027,1.855,,0.015,0.251,$469 ,28,1,$469 ,28,151.8783
+faster_rcnn_resnet50_coco,OV-2022.3-8991,core-iGPU,Intel® Core™  i7-1165G7 iGPU-only,13.823,3.545,,0.029,0.494,$469 ,28,1,$469 ,28,70.7933
+faster_rcnn_resnet50_coco,OV-2022.3-8991,core-CPU+iGPU,Intel® Core™  i7-1165G7 CPU+iGPU,16.898,4.191,,0.036,0.604,$469 ,28,1,$469 ,28,
 end_rec,,,,,,,,,,,,,,
 begin_rec,,,,,,,,,,,,,,
-efficientdet-d0 [512x512],OV-2022.1.,atom,Intel® Atom™ x5-E3940,3.78,2.58,2.59,0.111,0.397,$34 ,9.5,1,$34 ,9.5,0.00
-efficientdet-d0 [512x512],OV-2022.1.,atom,Intel® Atom™ x6425E CPU-only,7.07,5.19,5.20,0.119,0.588,$59 ,12,1,$59 ,12,0.00
-efficientdet-d0 [512x512],OV-2022.1.,atom,Intel® Atom™ x6425E iGPU-only,22.34,15.37,25.28,0.378,1.861,$59 ,12,1,$59 ,12,0.00
-efficientdet-d0 [512x512],OV-2022.1.,atom,Intel® Atom™ x6425E CPU+iGPU,25.98,16.88,26.11,0.44,2.164,$59 ,12,1,$59 ,12,
-efficientdet-d0 [512x512],OV-2022.1.,atom,Intel® Celeron 6305E CPU-only,15.20,7.74,7.81,0.142,1.013,$107 ,15,1,$107 ,15,0.00
-efficientdet-d0 [512x512],OV-2022.1.,atom,Intel® Celeron 6305E iGPU-only,60.90,34.00,58.96,0.569,4.060,$107 ,15,1,$107 ,15,0.00
-efficientdet-d0 [512x512],OV-2022.1.,atom,Intel® Celeron 6305E CPU+iGPU,50.96,31.56,46.11,0.476,3.397,$107 ,15,1,$107 ,15,
-efficientdet-d0 [512x512],OV-2022.1.,core,Intel® Core™ i3-8100,34.59,23.42,23.40,0.295,0.532,$117 ,65,1,$117 ,65,0.00
-efficientdet-d0 [512x512],OV-2022.1.,core,Intel® Core™ i5-8500,53.14,35.16,34.91,0.276,0.817,$192 ,65,1,$192 ,65,0.00
-efficientdet-d0 [512x512],OV-2022.1.,core,Intel® Core™ i7-8700T,58.75,36.07,36.06,0.193,1.678,$303 ,35,1,$303 ,35,0.00
-efficientdet-d0 [512x512],OV-2022.1.,core,Intel® Core™ i9-10920X,175.21,75.59,75.43,0.25,1.061,$700 ,165,1,$700 ,165,0.00
-efficientdet-d0 [512x512],OV-2022.1.,core,Intel® Core™ i9-10900TE,57.39,32.77,32.76,0.129,1.639,$444 ,35,1,$444 ,35,0.00
-efficientdet-d0 [512x512],OV-2022.1.,core,Intel® Core™ i9-12900 CPU-only,101.85,41.93,41.73,0.196,1.566,$519 ,65,1,$519 ,65,0.00
-efficientdet-d0 [512x512],OV-2022.1.,core-iGPU,Intel® Core™ i9-12900 iGPU-only,70.18,38.19,64.84,0.135,1.079,$519 ,65,1,$519 ,65,0.00
-efficientdet-d0 [512x512],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i9-12900 CPU+iGPU,110.62,45.60,62.77,0.213,1.701,$519 ,65,1,$519 ,65,
-efficientdet-d0 [512x512],OV-2022.1.,core,Intel® Core™ i7-1185G7 CPU-only,61.90,32.07,32.58,0.145,2.210,$426 ,28,1,$426 ,28,0.00
-efficientdet-d0 [512x512],OV-2022.1.,core-iGPU,Intel® Core™ i7-1185G7 iGPU-only,84.46,43.62,71.28,0.198,3.016,$426 ,28,1,$426 ,28,0.00
-efficientdet-d0 [512x512],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i7-1185G7 CPU+iGPU,97.56,47.65,65.81,0.229,3.484,$426 ,28,1,$426 ,28,
-efficientdet-d0 [512x512],OV-2022.1.,core,Intel® Core™  i7-11800H CPU-only,103.81,50.76,51.09,0.262,2.306,$395 ,45,1,$395 ,45,0.00
-efficientdet-d0 [512x512],OV-2022.1.,core-iGPU,Intel® Core™  i7-11800H iGPU-only,8.89,12.89,4.32,0.022,0.197,$395 ,45,1,$395 ,45,0.00
-efficientdet-d0 [512x512],OV-2022.1.,core-CPU+iGPU,Intel® Core™  i7-11800H CPU+iGPU,80.70,42.60,44.29,0.204,1.793,$395 ,45,1,$395 ,45,
-efficientdet-d0 [512x512],OV-2022.1.,core,Intel® Core™ i5-10500TE ,48.90,27.59,27.42,0.25,1.397,$195 ,35,1,$195,35,0.00
-efficientdet-d0 [512x512],OV-2022.1.,xeon,Intel® Xeon® W1290P,89.94,35.45,35.55,0.166,0.719,$539 ,125,1,$539 ,125,0.00
-efficientdet-d0 [512x512],OV-2022.1.,xeon,Intel® Xeon® E-2124G,40.03,29.32,29.22,0.187,0.563,$213 ,71,1,$213 ,71,0.00
-efficientdet-d0 [512x512],OV-2022.1.,xeon,Intel® Xeon® Silver 4216R,215.40,105.39,105.62,0.214,0.861,"$2,004 ",250,2,"$1,002 ",125,0.00
-efficientdet-d0 [512x512],OV-2022.1.,xeon,Intel® Xeon® Silver 4316,379.97,203.36,204.69,0.35,1.266,"$2,166 ",300,2,"$1,083 ",150,0.00
-efficientdet-d0 [512x512],OV-2022.1.,xeon,Intel® Xeon® Gold 5218T,223.43,107.06,106.63,0.165,1.063,"$2,698 ",210,2,"$1,349 ",105,0.00
-efficientdet-d0 [512x512],OV-2022.1.,xeon,Intel® Xeon® Platinum 8270,427.06,183.40,182.13,0.057,1.041,"$14,810 ",410,2,"$7,405 ",205,0.00
-efficientdet-d0 [512x512],OV-2022.1.,xeon,Intel® Xeon® Platinum 8380,752.87,370.27,370.17,0.092,1.394,"$16,198 ",540,2,"$8,099 ",270,0.00
-efficientdet-d0 [512x512],OV-2022.1.,accel,Intel® Neural Compute Stick 2,,,3.48,0,1.393,$69 ,2.5,1,$69 ,2.5,
-efficientdet-d0 [512x512],OV-2022.1.,accel,Intel® Movidius™ VPUs (Uzel* UI-AR8),,,27.54,0,0.918,$492 ,30,1,$492 ,30,
+Inception-V4,OV-2022.3-8991,core,Intel® Core™  i9-12900K CPU-only,121.813,39.391,,0.185,0.738,$658 ,165,1,$658 ,165,11.0425
+Inception-V4,OV-2022.3-8991,core-iGPU,Intel® Core™  i9-12900K iGPU-only,71.229,17.755,,0.108,0.432,$658 ,165,1,$658 ,165,19.7132
+Inception-V4,OV-2022.3-8991,core-CPU+iGPU,Intel® Core™  i9-12900K CPU+iGPU,175.049,44.894,,0.266,1.061,$658 ,165,1,$658 ,165,
+Inception-V4,OV-2022.3-8991,atom,Intel®  Atom™  x5-E3940 CPU-only,3.12,1.344,,0.092,0.328,$34 ,9.5,1,$34 ,9.5,335.3712
+Inception-V4,OV-2022.3-8991,atom,Intel®  Atom™  x6425E CPU-only,5.677,2.364,,0.085,0.473,$67 ,12,1,$67 ,12,181.8897
+Inception-V4,OV-2022.3-8991,core-iGPU,Intel®  Atom™  x6425E iGPU-only,17.009,8.302,,0.254,1.417,$67 ,12,1,$67 ,12,78.0548
+Inception-V4,OV-2022.3-8991,core-CPU+iGPU,Intel®  Atom™  x6425E CPU+iGPU,21.713,10.37,,0.324,1.809,$67 ,12,1,$67 ,12,
+Inception-V4,OV-2022.3-8991,atom,Intel®  Celeron™  6305E CPU-only,15.576,4.073,,0.132,1.038,$118 ,15,1,$118 ,15,65.7272
+Inception-V4,OV-2022.3-8991,core-iGPU,Intel®  Celeron™  6305E iGPU-only,28.105,6.681,,0.238,1.874,$118 ,15,1,$118 ,15,46.2616
+Inception-V4,OV-2022.3-8991,core-CPU+iGPU,Intel®  Celeron™  6305E CPU+iGPU,41.918,10.163,,0.355,2.795,$118 ,15,1,$118 ,15,
+Inception-V4,OV-2022.3-8991,xeon,Intel®  Xeon® Gold 6336Y CPU-only,881.403,205.296,,0.188,2.382,"$4,678 ",370,2,"$2,339 ",185,4.7029
+Inception-V4,OV-2022.3-8991,core ,Intel® Core™  i3-8100 CPU-only,30.004,15.51,,0.256,0.462,$117 ,65,1,$117 ,65,35.0513
+Inception-V4,OV-2022.3-8991,core,Intel® Core™  i5-10500TE CPU-only,35.882,19.222,,0.168,1.025,$214 ,35,1,$214 ,35,37.6472
+Inception-V4,OV-2022.3-8991,core,Intel® Core™  i5-8500 CPU-only,37.987,19.998,,0.198,0.584,$192 ,65,1,$192 ,65,21.5144
+Inception-V4,OV-2022.3-8991,core,Intel® Core™  i7-8700T CPU-only,48.903,26.356,,0.161,1.397,$303 ,35,1,$303 ,35,22.2402
+Inception-V4,OV-2022.3-8991,core,Intel® Core™  i9-10900TE CPU-only,37.301,19.475,,0.076,1.066,$488 ,35,1,$488 ,35,28.572
+Inception-V4,OV-2022.3-8991,xeon,Intel®  Xeon® W1290P CPU-only,92.646,44.966,,0.156,0.741,$594 ,125,1,$594 ,125,12.3153
+Inception-V4,OV-2022.3-8991,xeon,Intel®  Xeon®  E-2124G CPU-only,28.537,15.13,,0.115,0.402,$249 ,71,1,$249 ,71,36.8888
+Inception-V4,OV-2022.3-8991,xeon,Intel®  Xeon®  Gold 5218T CPU-only,301.215,77.005,,0.096,1.434,"$3,144 ",210,2,"$1,572 ",105,10.5711
+Inception-V4,OV-2022.3-8991,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,937.139,225.776,,0.055,2.286,"$16,954 ",410,2,"$8,477 ",205,5.6984
+Inception-V4,OV-2022.3-8991,xeon,Intel®  Xeon®  Silver 4216R CPU-only,287.767,73.617,,0.144,1.151,"$2,004 ",250,2,"$1,002 ",125,11.1114
+Inception-V4,OV-2022.3-8991,core,Intel® Core™  i7-1165G7 CPU-only,71.295,18.482,,0.152,2.546,$469 ,28,1,$469 ,28,15.8294
+Inception-V4,OV-2022.3-8991,core-iGPU,Intel® Core™  i7-1165G7 iGPU-only,158.282,36.884,,0.337,5.653,$469 ,28,1,$469 ,28,10.6245
+Inception-V4,OV-2022.3-8991,core-CPU+iGPU,Intel® Core™  i7-1165G7 CPU+iGPU,182.132,44.198,,0.388,6.505,$469 ,28,1,$469 ,28,
 end_rec,,,,,,,,,,,,,,
 begin_rec,,,,,,,,,,,,,,
-facenet-20180408-102900-TF [160x160],OV-2022.1.,atom,Intel® Atom™ x5-E3940,26.70,11.08,10.93,0.785,2.810,$34 ,9.5,1,$34 ,9.5,42.14
-facenet-20180408-102900-TF [160x160],OV-2022.1.,atom,Intel® Atom™ x6425E CPU-only,47.27,19.21,19.07,0.801,3.939,$59 ,12,1,$59 ,12,23.75
-facenet-20180408-102900-TF [160x160],OV-2022.1.,atom,Intel® Atom™ x6425E iGPU-only,61.05,61.28,133.10,1.034,5.087,$59 ,12,1,$59 ,12,28.19
-facenet-20180408-102900-TF [160x160],OV-2022.1.,atom,Intel® Atom™ x6425E CPU+iGPU,100.98,77.38,150.03,1.711,8.414,$59 ,12,1,$59 ,12,
-facenet-20180408-102900-TF [160x160],OV-2022.1.,atom,Intel® Celeron 6305E CPU-only,120.35,34.31,34.26,1.124,8.023,$107 ,15,1,$107 ,15,9.25
-facenet-20180408-102900-TF [160x160],OV-2022.1.,atom,Intel® Celeron 6305E iGPU-only,696.70,151.93,303.49,6.511,46.446,$107 ,15,1,$107 ,15,6.85
-facenet-20180408-102900-TF [160x160],OV-2022.1.,atom,Intel® Celeron 6305E CPU+iGPU,788.03,179.75,330.33,7.364,52.535,$107 ,15,1,$107 ,15,
-facenet-20180408-102900-TF [160x160],OV-2022.1.,core,Intel® Core™ i3-8100,236.72,121.61,122.37,2.023,3.641,$117 ,65,1,$117 ,65,5.35
-facenet-20180408-102900-TF [160x160],OV-2022.1.,core,Intel® Core™ i5-8500,357.39,168.70,168.92,1.861,5.498,$192 ,65,1,$192 ,65,3.94
-facenet-20180408-102900-TF [160x160],OV-2022.1.,core,Intel® Core™ i7-8700T,379.98,177.07,181.52,1.254,10.856,$303 ,35,1,$303 ,35,3.95
-facenet-20180408-102900-TF [160x160],OV-2022.1.,core,Intel® Core™ i9-10920X,1833.22,527.48,538.40,2.618,11.110,$700 ,165,1,$700 ,165,2.13
-facenet-20180408-102900-TF [160x160],OV-2022.1.,core,Intel® Core™ i9-10900TE,352.02,145.02,146.28,0.792,10.057,$444 ,35,1,$444 ,35,4.63
-facenet-20180408-102900-TF [160x160],OV-2022.1.,core,Intel® Core™ i9-12900 CPU-only,856.59,234.39,237.41,1.65,13.178,$519 ,65,1,$519 ,65,2.12
-facenet-20180408-102900-TF [160x160],OV-2022.1.,core-iGPU,Intel® Core™ i9-12900 iGPU-only,579.94,135.51,304.30,1.117,8.922,$519 ,65,1,$519 ,65,4.80
-facenet-20180408-102900-TF [160x160],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i9-12900 CPU+iGPU,1236.73,327.02,460.76,2.382,19.026,$519 ,65,1,$519 ,65,
-facenet-20180408-102900-TF [160x160],OV-2022.1.,core,Intel® Core™ i7-1185G7 CPU-only,474.89,137.03,138.29,1.114,16.960,$426 ,28,1,$426 ,28,2.79
-facenet-20180408-102900-TF [160x160],OV-2022.1.,core-iGPU,Intel® Core™ i7-1185G7 iGPU-only,1062.43,235.52,482.81,2.493,37.943,$426 ,28,1,$426 ,28,4.41
-facenet-20180408-102900-TF [160x160],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i7-1185G7 CPU+iGPU,1063.21,250.66,404.41,2.495,37.971,$426 ,28,1,$426 ,28,
-facenet-20180408-102900-TF [160x160],OV-2022.1.,core,Intel® Core™  i7-11800H CPU-only,832.67,241.21,243.17,2.108,18.503,$395 ,45,1,$395 ,45,1.98
-facenet-20180408-102900-TF [160x160],OV-2022.1.,core-iGPU,Intel® Core™  i7-11800H iGPU-only,206.00,32.44,78.52,0.521,4.577,$395 ,45,1,$395 ,45,15.90
-facenet-20180408-102900-TF [160x160],OV-2022.1.,core-CPU+iGPU,Intel® Core™  i7-11800H CPU+iGPU,860.16,251.55,325.60,2.177,19.114,$395 ,45,1,$395 ,45,
-facenet-20180408-102900-TF [160x160],OV-2022.1.,core,Intel® Core™ i5-10500TE ,341.81,158.45,158.08,1.752,9.765,$195 ,35,1,$195,35,4.38
-facenet-20180408-102900-TF [160x160],OV-2022.1.,xeon,Intel® Xeon® W1290P,730.25,307.80,297.72,1.354,5.841,$539 ,125,1,$539 ,125,2.47
-facenet-20180408-102900-TF [160x160],OV-2022.1.,xeon,Intel® Xeon® E-2124G,270.00,140.03,142.41,1.267,3.802,$213 ,71,1,$213 ,71,4.64
-facenet-20180408-102900-TF [160x160],OV-2022.1.,xeon,Intel® Xeon® Silver 4216R,2025.25,576.10,577.27,2.021,8.100,"$2,004 ",250,2,"$1,002 ",125,3.02
-facenet-20180408-102900-TF [160x160],OV-2022.1.,xeon,Intel® Xeon® Silver 4316,4682.75,1043.83,1055.37,4.323,15.609,"$2,166 ",300,2,"$1,083 ",150,1.58
-facenet-20180408-102900-TF [160x160],OV-2022.1.,xeon,Intel® Xeon® Gold 5218T,2026.19,602.36,602.83,1.501,9.648,"$2,698 ",210,2,"$1,349 ",105,3.02
-facenet-20180408-102900-TF [160x160],OV-2022.1.,xeon,Intel® Xeon® Platinum 8270,5230.04,1540.53,1542.79,0.706,12.756,"$14,810 ",410,2,"$7,405 ",205,2.46
-facenet-20180408-102900-TF [160x160],OV-2022.1.,xeon,Intel® Xeon® Platinum 8380,11009.84,2112.70,2198.93,1.359,20.388,"$16,198 ",540,2,"$8,099 ",270,1.46
-facenet-20180408-102900-TF [160x160],OV-2022.1.,accel,Intel® Neural Compute Stick 2,,,84.36,1.222,33.743,$69 ,2.5,1,$69 ,2.5,
-facenet-20180408-102900-TF [160x160],OV-2022.1.,accel,Intel® Movidius™ VPUs (Uzel* UI-AR8),,,674.90,1.371,22.496,$492 ,30,1,$492 ,30,
+mobilenet-ssd ,OV-2022.3-8991,core,Intel® Core™  i9-12900K CPU-only,1054.462,346.546,,1.603,6.391,$658 ,165,1,$658 ,165,1.4898
+mobilenet-ssd ,OV-2022.3-8991,core-iGPU,Intel® Core™  i9-12900K iGPU-only,493.088,145.503,,0.749,2.988,$658 ,165,1,$658 ,165,2.472
+mobilenet-ssd ,OV-2022.3-8991,core-CPU+iGPU,Intel® Core™  i9-12900K CPU+iGPU,1056.241,361.472,,1.605,6.401,$658 ,165,1,$658 ,165,
+mobilenet-ssd ,OV-2022.3-8991,atom,Intel®  Atom™  x5-E3940 CPU-only,28.032,12.691,,0.824,2.951,$34 ,9.5,1,$34 ,9.5,38.1991
+mobilenet-ssd ,OV-2022.3-8991,atom,Intel®  Atom™  x6425E CPU-only,50.352,23.675,,0.752,4.196,$67 ,12,1,$67 ,12,20.8993
+mobilenet-ssd ,OV-2022.3-8991,core-iGPU,Intel®  Atom™  x6425E iGPU-only,100.377,60.647,,1.498,8.365,$67 ,12,1,$67 ,12,11.6812
+mobilenet-ssd ,OV-2022.3-8991,core-CPU+iGPU,Intel®  Atom™  x6425E CPU+iGPU,148.458,79.575,,2.216,12.372,$67 ,12,1,$67 ,12,
+mobilenet-ssd ,OV-2022.3-8991,atom,Intel®  Celeron™  6305E CPU-only,123.806,38.981,,1.049,8.254,$118 ,15,1,$118 ,15,8.4121
+mobilenet-ssd ,OV-2022.3-8991,core-iGPU,Intel®  Celeron™  6305E iGPU-only,168.473,53.272,,1.428,11.232,$118 ,15,1,$118 ,15,7.8961
+mobilenet-ssd ,OV-2022.3-8991,core-CPU+iGPU,Intel®  Celeron™  6305E CPU+iGPU,238.511,83.721,,2.021,15.901,$118 ,15,1,$118 ,15,
+mobilenet-ssd ,OV-2022.3-8991,xeon,Intel®  Xeon® Gold 6336Y CPU-only,6730.68,1634.937,,1.439,18.191,"$4,678 ",370,2,"$2,339 ",185,0.7265
+mobilenet-ssd ,OV-2022.3-8991,core ,Intel® Core™  i3-8100 CPU-only,244.598,140.009,,2.091,3.763,$117 ,65,1,$117 ,65,4.4481
+mobilenet-ssd ,OV-2022.3-8991,core,Intel® Core™  i5-10500TE CPU-only,303.938,173.562,,1.42,8.684,$214 ,35,1,$214 ,35,4.7946
+mobilenet-ssd ,OV-2022.3-8991,core,Intel® Core™  i5-8500 CPU-only,304.802,185.045,,1.588,4.689,$192 ,65,1,$192 ,65,2.8007
+mobilenet-ssd ,OV-2022.3-8991,core,Intel® Core™  i7-8700T CPU-only,412.261,241.37,,1.361,11.779,$303 ,35,1,$303 ,35,2.8749
+mobilenet-ssd ,OV-2022.3-8991,core,Intel® Core™  i9-10900TE CPU-only,315.107,152.342,,0.646,9.003,$488 ,35,1,$488 ,35,3.5896
+mobilenet-ssd ,OV-2022.3-8991,xeon,Intel®  Xeon® W1290P CPU-only,774.346,345.309,,1.304,6.195,$594 ,125,1,$594 ,125,1.5452
+mobilenet-ssd ,OV-2022.3-8991,xeon,Intel®  Xeon®  E-2124G CPU-only,233.43,147.098,,0.937,3.288,$249 ,71,1,$249 ,71,4.5879
+mobilenet-ssd ,OV-2022.3-8991,xeon,Intel®  Xeon®  Gold 5218T CPU-only,2331.207,691.743,,0.741,11.101,"$3,144 ",210,2,"$1,572 ",105,1.4852
+mobilenet-ssd ,OV-2022.3-8991,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,6691.915,1796.357,,0.395,16.322,"$16,954 ",410,2,"$8,477 ",205,1.0518
+mobilenet-ssd ,OV-2022.3-8991,xeon,Intel®  Xeon®  Silver 4216R CPU-only,2225.935,667.692,,1.111,8.904,"$2,004 ",250,2,"$1,002 ",125,1.5444
+mobilenet-ssd ,OV-2022.3-8991,core,Intel® Core™  i7-1165G7 CPU-only,579.307,166.959,,1.235,20.69,$469 ,28,1,$469 ,28,2.0215
+mobilenet-ssd ,OV-2022.3-8991,core-iGPU,Intel® Core™  i7-1165G7 iGPU-only,582.636,243.945,,1.242,20.808,$469 ,28,1,$469 ,28,2.548
+mobilenet-ssd ,OV-2022.3-8991,core-CPU+iGPU,Intel® Core™  i7-1165G7 CPU+iGPU,744.231,292.071,,1.587,26.58,$469 ,28,1,$469 ,28,
 end_rec,,,,,,,,,,,,,,
 begin_rec,,,,,,,,,,,,,,
-faster_rcnn_resnet50_coco-TF [600x1024],OV-2022.1.,atom,Intel® Atom™ x5-E3940,0.32,0.13,0.13,0.009,0.033,$34 ,9.5,1,$34 ,9.5,3159.99
-faster_rcnn_resnet50_coco-TF [600x1024],OV-2022.1.,atom,Intel® Atom™ x6425E CPU-only,0.58,0.24,0.24,0.009,0.048,$59 ,12,1,$59 ,12,1750.25
-faster_rcnn_resnet50_coco-TF [600x1024],OV-2022.1.,atom,Intel® Atom™ x6425E iGPU-only,1.32,0.72,1.64,0.022,0.109,$59 ,12,1,$59 ,12,760.63
-faster_rcnn_resnet50_coco-TF [600x1024],OV-2022.1.,atom,Intel® Atom™ x6425E CPU+iGPU,1.58,0.65,1.29,0.026,0.131,$59 ,12,1,$59 ,12,
-faster_rcnn_resnet50_coco-TF [600x1024],OV-2022.1.,atom,Intel® Celeron 6305E CPU-only,1.54,0.43,0.43,0.014,0.102,$107 ,15,1,$107 ,15,650.15
-faster_rcnn_resnet50_coco-TF [600x1024],OV-2022.1.,atom,Intel® Celeron 6305E iGPU-only,8.05,1.83,4.15,0.075,0.536,$107 ,15,1,$107 ,15,131.51
-faster_rcnn_resnet50_coco-TF [600x1024],OV-2022.1.,atom,Intel® Celeron 6305E CPU+iGPU,9.12,2.14,4.20,0.085,0.607,$107 ,15,1,$107 ,15,
-faster_rcnn_resnet50_coco-TF [600x1024],OV-2022.1.,core,Intel® Core™ i3-8100,2.95,1.53,1.52,0.025,0.045,$117 ,65,1,$117 ,65,346.62
-faster_rcnn_resnet50_coco-TF [600x1024],OV-2022.1.,core,Intel® Core™ i5-8500,4.65,2.41,2.49,0.024,0.071,$192 ,65,1,$192 ,65,244.83
-faster_rcnn_resnet50_coco-TF [600x1024],OV-2022.1.,core,Intel® Core™ i7-8700T,4.76,2.56,2.55,0.015,0.136,$303 ,35,1,$303 ,35,271.46
-faster_rcnn_resnet50_coco-TF [600x1024],OV-2022.1.,core,Intel® Core™ i9-10920X,25.89,7.01,7.20,0.036,0.156,$700 ,165,1,$700 ,165,45.44
-faster_rcnn_resnet50_coco-TF [600x1024],OV-2022.1.,core,Intel® Core™ i9-10900TE,4.58,2.33,2.37,0.01,0.130,$444 ,35,1,$444 ,35,247.22
-faster_rcnn_resnet50_coco-TF [600x1024],OV-2022.1.,core,Intel® Core™ i9-12900 CPU-only,12.34,3.78,3.80,0.023,0.189,$519 ,65,1,$519 ,65,164.28
-faster_rcnn_resnet50_coco-TF [600x1024],OV-2022.1.,core-iGPU,Intel® Core™ i9-12900 iGPU-only,6.83,1.84,4.06,0.013,0.105,$519 ,65,1,$519 ,65,149.32
-faster_rcnn_resnet50_coco-TF [600x1024],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i9-12900 CPU+iGPU,14.13,2.97,5.69,0.027,0.217,$519 ,65,1,$519 ,65,
-faster_rcnn_resnet50_coco-TF [600x1024],OV-2022.1.,core,Intel® Core™ i7-1185G7 CPU-only,6.53,1.78,1.79,0.015,0.233,$426 ,28,1,$426 ,28,162.99
-faster_rcnn_resnet50_coco-TF [600x1024],OV-2022.1.,core-iGPU,Intel® Core™ i7-1185G7 iGPU-only,12.04,3.02,6.61,0.028,0.430,$426 ,28,1,$426 ,28,86.31
-faster_rcnn_resnet50_coco-TF [600x1024],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i7-1185G7 CPU+iGPU,13.81,3.66,6.08,0.032,0.493,$426 ,28,1,$426 ,28,
-faster_rcnn_resnet50_coco-TF [600x1024],OV-2022.1.,core,Intel® Core™  i7-11800H CPU-only,11.81,3.29,3.32,0.029,0.262,$395 ,45,1,$395 ,45,86.37
-faster_rcnn_resnet50_coco-TF [600x1024],OV-2022.1.,core-iGPU,Intel® Core™  i7-11800H iGPU-only,1.58,1.09,0.39,0.003,0.035,$395 ,45,1,$395 ,45,1877.08
-faster_rcnn_resnet50_coco-TF [600x1024],OV-2022.1.,core-CPU+iGPU,Intel® Core™  i7-11800H CPU+iGPU,7.46,2.68,2.75,0.018,0.165,$395 ,45,1,$395 ,45,
-faster_rcnn_resnet50_coco-TF [600x1024],OV-2022.1.,core,Intel® Core™ i5-10500TE ,4.22,2.25,2.25,0.021,0.120,$195 ,35,1,$195,35,306.79
-faster_rcnn_resnet50_coco-TF [600x1024],OV-2022.1.,xeon,Intel® Xeon® W1290P,8.80,4.51,4.52,0.016,0.070,$539 ,125,1,$539 ,125,139.67
-faster_rcnn_resnet50_coco-TF [600x1024],OV-2022.1.,xeon,Intel® Xeon® E-2124G,3.41,1.77,1.80,0.015,0.047,$213 ,71,1,$213 ,71,300.61
-faster_rcnn_resnet50_coco-TF [600x1024],OV-2022.1.,xeon,Intel® Xeon® Silver 4216R,27.53,7.84,7.87,0.027,0.110,"$2,004 ",250,2,"$1,002 ",125,80.68
-faster_rcnn_resnet50_coco-TF [600x1024],OV-2022.1.,xeon,Intel® Xeon® Silver 4316,,,,0,0.000,"$2,166 ",300,2,"$1,083 ",150,
-faster_rcnn_resnet50_coco-TF [600x1024],OV-2022.1.,xeon,Intel® Xeon® Gold 5218T,28.76,8.25,8.27,0.021,0.136,"$2,698 ",210,2,"$1,349 ",105,79.03
-faster_rcnn_resnet50_coco-TF [600x1024],OV-2022.1.,xeon,Intel® Xeon® Platinum 8270,79.68,23.79,23.78,0.01,0.194,"$14,810 ",410,2,"$7,405 ",205,34.45
-faster_rcnn_resnet50_coco-TF [600x1024],OV-2022.1.,xeon,Intel® Xeon® Platinum 8380,127.60,33.90,34.31,0.015,0.236,"$16,198 ",540,2,"$8,099 ",270,21.94
-faster_rcnn_resnet50_coco-TF [600x1024],OV-2022.1.,accel,Intel® Neural Compute Stick 2,,,0.44,0.006,0.176,$69 ,2.5,1,$69 ,2.5,
-faster_rcnn_resnet50_coco-TF [600x1024],OV-2022.1.,accel,Intel® Movidius™ VPUs (Uzel* UI-AR8),,,4.84,0.009,0.161,$492 ,30,1,$492 ,30,
+mobilenet-v2 ,OV-2022.3-8991,core,Intel® Core™  i9-12900K CPU-only,2446.221,1003.129,,3.718,14.826,$658 ,165,1,$658 ,165,0.7182
+mobilenet-v2 ,OV-2022.3-8991,core-iGPU,Intel® Core™  i9-12900K iGPU-only,1265.969,389.894,,1.924,7.673,$658 ,165,1,$658 ,165,1.3894
+mobilenet-v2 ,OV-2022.3-8991,core-CPU+iGPU,Intel® Core™  i9-12900K CPU+iGPU,2680.458,1013.049,,4.074,16.245,$658 ,165,1,$658 ,165,
+mobilenet-v2 ,OV-2022.3-8991,atom,Intel®  Atom™  x5-E3940 CPU-only,81.572,45.013,,2.399,8.587,$34 ,9.5,1,$34 ,9.5,13.4692
+mobilenet-v2 ,OV-2022.3-8991,atom,Intel®  Atom™  x6425E CPU-only,143.134,81.991,,2.136,11.928,$67 ,12,1,$67 ,12,7.609
+mobilenet-v2 ,OV-2022.3-8991,core-iGPU,Intel®  Atom™  x6425E iGPU-only,133.229,164.945,,1.988,11.102,$67 ,12,1,$67 ,12,7.0306
+mobilenet-v2 ,OV-2022.3-8991,core-CPU+iGPU,Intel®  Atom™  x6425E CPU+iGPU,227.898,202.181,,3.401,18.992,$67 ,12,1,$67 ,12,
+mobilenet-v2 ,OV-2022.3-8991,atom,Intel®  Celeron™  6305E CPU-only,316.763,124.654,,2.684,21.118,$118 ,15,1,$118 ,15,3.391
+mobilenet-v2 ,OV-2022.3-8991,core-iGPU,Intel®  Celeron™  6305E iGPU-only,525.084,141.61,,4.45,35.006,$118 ,15,1,$118 ,15,4.9197
+mobilenet-v2 ,OV-2022.3-8991,core-CPU+iGPU,Intel®  Celeron™  6305E CPU+iGPU,807.397,255.964,,6.842,53.826,$118 ,15,1,$118 ,15,
+mobilenet-v2 ,OV-2022.3-8991,xeon,Intel®  Xeon® Gold 6336Y CPU-only,14679.84,4065.139,,3.138,39.675,"$4,678 ",370,2,"$2,339 ",185,0.4828
+mobilenet-v2 ,OV-2022.3-8991,core ,Intel® Core™  i3-8100 CPU-only,619.507,452.366,,5.295,9.531,$117 ,65,1,$117 ,65,1.8067
+mobilenet-v2 ,OV-2022.3-8991,core,Intel® Core™  i5-10500TE CPU-only,806.314,441.904,,3.768,23.038,$214 ,35,1,$214 ,35,2.1078
+mobilenet-v2 ,OV-2022.3-8991,core,Intel® Core™  i5-8500 CPU-only,766.072,558.975,,3.99,11.786,$192 ,65,1,$192 ,65,1.2307
+mobilenet-v2 ,OV-2022.3-8991,core,Intel® Core™  i7-8700T CPU-only,1081.253,664.108,,3.568,30.893,$303 ,35,1,$303 ,35,1.2788
+mobilenet-v2 ,OV-2022.3-8991,core,Intel® Core™  i9-10900TE CPU-only,825.071,413.091,,1.691,23.573,$488 ,35,1,$488 ,35,1.6818
+mobilenet-v2 ,OV-2022.3-8991,xeon,Intel®  Xeon® W1290P CPU-only,2067.162,868.25,,3.48,16.537,$594 ,125,1,$594 ,125,0.7363
+mobilenet-v2 ,OV-2022.3-8991,xeon,Intel®  Xeon®  E-2124G CPU-only,594.283,479.567,,2.387,8.37,$249 ,71,1,$249 ,71,1.8531
+mobilenet-v2 ,OV-2022.3-8991,xeon,Intel®  Xeon®  Gold 5218T CPU-only,5882.455,1895.498,,1.871,28.012,"$3,144 ",210,2,"$1,572 ",105,1.3871
+mobilenet-v2 ,OV-2022.3-8991,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,15616.083,4308.927,,0.921,38.088,"$16,954 ",410,2,"$8,477 ",205,0.8685
+mobilenet-v2 ,OV-2022.3-8991,xeon,Intel®  Xeon®  Silver 4216R CPU-only,5616.283,1835.686,,2.803,22.465,"$2,004 ",250,2,"$1,002 ",125,1.404
+mobilenet-v2 ,OV-2022.3-8991,core,Intel® Core™  i7-1165G7 CPU-only,1463.21,538.597,,3.12,52.258,$469 ,28,1,$469 ,28,0.8864
+mobilenet-v2 ,OV-2022.3-8991,core-iGPU,Intel® Core™  i7-1165G7 iGPU-only,2076.015,544.641,,4.426,74.143,$469 ,28,1,$469 ,28,1.7212
+mobilenet-v2 ,OV-2022.3-8991,core-CPU+iGPU,Intel® Core™  i7-1165G7 CPU+iGPU,2677.374,698.942,,5.709,95.621,$469 ,28,1,$469 ,28,
 end_rec,,,,,,,,,,,,,,
 begin_rec,,,,,,,,,,,,,,
-forward-tacotron-duration-prediction [241],OV-2022.1.,atom,Intel® Atom™ x5-E3940,,4.00,4.01,0.118,0.422,$34 ,9.5,1,$34 ,9.5,
-forward-tacotron-duration-prediction [241],OV-2022.1.,atom,Intel® Atom™ x6425E CPU-only,,6.59,6.58,0.111,0.548,$59 ,12,1,$59 ,12,
-forward-tacotron-duration-prediction [241],OV-2022.1.,atom,Intel® Atom™ x6425E iGPU-only,,1.70,1.77,0.03,0.147,$59 ,12,1,$59 ,12,
-forward-tacotron-duration-prediction [241],OV-2022.1.,atom,Intel® Atom™ x6425E CPU+iGPU,,6.58,6.77,0.114,0.564,$59 ,12,1,$59 ,12,
-forward-tacotron-duration-prediction [241],OV-2022.1.,atom,Intel® Celeron 6305E CPU-only,,11.91,11.91,0.111,0.793,$107 ,15,1,$107 ,15,
-forward-tacotron-duration-prediction [241],OV-2022.1.,atom,Intel® Celeron 6305E iGPU-only,,3.45,3.60,0.033,0.240,$107 ,15,1,$107 ,15,
-forward-tacotron-duration-prediction [241],OV-2022.1.,atom,Intel® Celeron 6305E CPU+iGPU,,8.85,8.94,0.083,0.595,$107 ,15,1,$107 ,15,
-forward-tacotron-duration-prediction [241],OV-2022.1.,core,Intel® Core™ i3-8100,,41.17,40.81,0.348,0.627,$117 ,65,1,$117 ,65,
-forward-tacotron-duration-prediction [241],OV-2022.1.,core,Intel® Core™ i5-8500,,55.61,55.30,0.287,0.850,$192 ,65,1,$192 ,65,
-forward-tacotron-duration-prediction [241],OV-2022.1.,core,Intel® Core™ i7-8700T,,62.56,62.57,0.206,1.787,$303 ,35,1,$303 ,35,
-forward-tacotron-duration-prediction [241],OV-2022.1.,core,Intel® Core™ i9-10920X,,192.14,197.82,0.282,1.198,$700 ,165,1,$700 ,165,
-forward-tacotron-duration-prediction [241],OV-2022.1.,core,Intel® Core™ i9-10900TE,,47.27,47.96,0.108,1.370,$444 ,35,1,$444 ,35,
-forward-tacotron-duration-prediction [241],OV-2022.1.,core,Intel® Core™ i9-12900 CPU-only,,90.31,90.68,0.174,1.395,$519 ,65,1,$519 ,65,
-forward-tacotron-duration-prediction [241],OV-2022.1.,core-iGPU,Intel® Core™ i9-12900 iGPU-only,,5.49,6.26,0.012,0.096,$519 ,65,1,$519 ,65,
-forward-tacotron-duration-prediction [241],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i9-12900 CPU+iGPU,,74.09,82.33,0.158,1.266,$519 ,65,1,$519 ,65,
-forward-tacotron-duration-prediction [241],OV-2022.1.,core,Intel® Core™ i7-1185G7 CPU-only,,50.90,51.65,0.121,1.844,$426 ,28,1,$426 ,28,
-forward-tacotron-duration-prediction [241],OV-2022.1.,core-iGPU,Intel® Core™ i7-1185G7 iGPU-only,,7.69,7.82,0.018,0.279,$426 ,28,1,$426 ,28,
-forward-tacotron-duration-prediction [241],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i7-1185G7 CPU+iGPU,,49.31,48.85,0.114,1.744,$426 ,28,1,$426 ,28,
-forward-tacotron-duration-prediction [241],OV-2022.1.,core,Intel® Core™  i7-11800H CPU-only,,86.41,87.06,0.22,1.934,$395 ,45,1,$395 ,45,
-forward-tacotron-duration-prediction [241],OV-2022.1.,core-iGPU,Intel® Core™  i7-11800H iGPU-only,,3.81,3.10,0.007,0.068,$395 ,45,1,$395 ,45,
-forward-tacotron-duration-prediction [241],OV-2022.1.,core-CPU+iGPU,Intel® Core™  i7-11800H CPU+iGPU,,53.43,55.24,0.139,1.227,$395 ,45,1,$395 ,45,
-forward-tacotron-duration-prediction [241],OV-2022.1.,core,Intel® Core™ i5-10500TE ,,55.56,54.20,0.277,1.548,$195 ,35,1,$195,35,
-forward-tacotron-duration-prediction [241],OV-2022.1.,xeon,Intel® Xeon® W1290P,,104.19,104.07,0.193,0.832,$539 ,125,1,$539 ,125,
-forward-tacotron-duration-prediction [241],OV-2022.1.,xeon,Intel® Xeon® E-2124G,,46.50,46.60,0.218,0.656,$213 ,71,1,$213 ,71,
-forward-tacotron-duration-prediction [241],OV-2022.1.,xeon,Intel® Xeon® Silver 4216R,,207.24,207.80,0.207,0.831,"$2,004 ",250,2,"$1,002 ",125,
-forward-tacotron-duration-prediction [241],OV-2022.1.,xeon,Intel® Xeon® Silver 4316,,357.79,367.46,0.339,1.224,"$2,166 ",300,2,"$1,083 ",150,
-forward-tacotron-duration-prediction [241],OV-2022.1.,xeon,Intel® Xeon® Gold 5218T,,216.07,216.82,0.16,1.032,"$2,698 ",210,2,"$1,349 ",105,
-forward-tacotron-duration-prediction [241],OV-2022.1.,xeon,Intel® Xeon® Platinum 8270,,555.93,562.78,0.075,1.372,"$14,810 ",410,2,"$7,405 ",205,
-forward-tacotron-duration-prediction [241],OV-2022.1.,xeon,Intel® Xeon® Platinum 8380,,732.33,737.48,0.091,1.365,"$16,198 ",540,2,"$8,099 ",270,
-forward-tacotron-duration-prediction [241],OV-2022.1.,accel,Intel® Neural Compute Stick 2,,,#NUM!,#NUM!,#NUM!,$69 ,2.5,1,$69 ,2.5,
-forward-tacotron-duration-prediction [241],OV-2022.1.,accel,Intel® Movidius™ VPUs (Uzel* UI-AR8),,,#NUM!,#NUM!,#NUM!,$492 ,30,1,$492 ,30,
+resnet-18 ,OV-2022.3-8991,core,Intel® Core™  i9-12900K CPU-only,804.771,212.574,,1.223,4.877,$658 ,165,1,$658 ,165,1.3886
+resnet-18 ,OV-2022.3-8991,core-iGPU,Intel® Core™  i9-12900K iGPU-only,491.337,146.839,,0.747,2.978,$658 ,165,1,$658 ,165,2.2655
+resnet-18 ,OV-2022.3-8991,core-CPU+iGPU,Intel® Core™  i9-12900K CPU+iGPU,1180.984,365.777,,1.795,7.157,$658 ,165,1,$658 ,165,
+resnet-18 ,OV-2022.3-8991,atom,Intel®  Atom™  x5-E3940 CPU-only,22.96,9.564,,0.675,2.417,$34 ,9.5,1,$34 ,9.5,44.5491
+resnet-18 ,OV-2022.3-8991,atom,Intel®  Atom™  x6425E CPU-only,40.944,16.158,,0.611,3.412,$67 ,12,1,$67 ,12,25.1377
+resnet-18 ,OV-2022.3-8991,core-iGPU,Intel®  Atom™  x6425E iGPU-only,161.381,60.863,,2.409,13.448,$67 ,12,1,$67 ,12,10.983
+resnet-18 ,OV-2022.3-8991,core-CPU+iGPU,Intel®  Atom™  x6425E CPU+iGPU,197.477,73.927,,2.947,16.456,$67 ,12,1,$67 ,12,
+resnet-18 ,OV-2022.3-8991,atom,Intel®  Celeron™  6305E CPU-only,105.574,28.914,,0.895,7.038,$118 ,15,1,$118 ,15,9.6165
+resnet-18 ,OV-2022.3-8991,core-iGPU,Intel®  Celeron™  6305E iGPU-only,194.694,55.341,,1.65,12.98,$118 ,15,1,$118 ,15,6.643
+resnet-18 ,OV-2022.3-8991,core-CPU+iGPU,Intel®  Celeron™  6305E CPU+iGPU,291.441,82.105,,2.47,19.429,$118 ,15,1,$118 ,15,
+resnet-18 ,OV-2022.3-8991,xeon,Intel®  Xeon® Gold 6336Y CPU-only,5761.961,1431.864,,1.232,15.573,"$4,678 ",370,2,"$2,339 ",185,0.6512
+resnet-18 ,OV-2022.3-8991,core ,Intel® Core™  i3-8100 CPU-only,208.65,103.699,,1.783,3.21,$117 ,65,1,$117 ,65,5.0231
+resnet-18 ,OV-2022.3-8991,core,Intel® Core™  i5-10500TE CPU-only,252.987,127.448,,1.182,7.228,$214 ,35,1,$214 ,35,5.2921
+resnet-18 ,OV-2022.3-8991,core,Intel® Core™  i5-8500 CPU-only,262.785,134.002,,1.369,4.043,$192 ,65,1,$192 ,65,3.0597
+resnet-18 ,OV-2022.3-8991,core,Intel® Core™  i7-8700T CPU-only,344.219,175.433,,1.136,9.835,$303 ,35,1,$303 ,35,3.1665
+resnet-18 ,OV-2022.3-8991,core,Intel® Core™  i9-10900TE CPU-only,265.351,130.166,,0.544,7.581,$488 ,35,1,$488 ,35,4.0471
+resnet-18 ,OV-2022.3-8991,xeon,Intel®  Xeon® W1290P CPU-only,654.533,307.741,,1.102,5.236,$594 ,125,1,$594 ,125,1.6723
+resnet-18 ,OV-2022.3-8991,xeon,Intel®  Xeon®  E-2124G CPU-only,198.189,101.399,,0.796,2.791,$249 ,71,1,$249 ,71,5.2039
+resnet-18 ,OV-2022.3-8991,xeon,Intel®  Xeon®  Gold 5218T CPU-only,2017.368,547.47,,0.642,9.607,"$3,144 ",210,2,"$1,572 ",105,1.2913
+resnet-18 ,OV-2022.3-8991,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,6320.391,1582.817,,0.373,15.416,"$16,954 ",410,2,"$8,477 ",205,0.667
+resnet-18 ,OV-2022.3-8991,xeon,Intel®  Xeon®  Silver 4216R CPU-only,1940.935,522.654,,0.969,7.764,"$2,004 ",250,2,"$1,002 ",125,1.3451
+resnet-18 ,OV-2022.3-8991,core,Intel® Core™  i7-1165G7 CPU-only,480.992,126.244,,1.026,17.178,$469 ,28,1,$469 ,28,2.242
+resnet-18 ,OV-2022.3-8991,core-iGPU,Intel® Core™  i7-1165G7 iGPU-only,1061.591,297.705,,2.264,37.914,$469 ,28,1,$469 ,28,1.793
+resnet-18 ,OV-2022.3-8991,core-CPU+iGPU,Intel® Core™  i7-1165G7 CPU+iGPU,1237.94,342.513,,2.64,44.212,$469 ,28,1,$469 ,28,
 end_rec,,,,,,,,,,,,,,
 begin_rec,,,,,,,,,,,,,,
-inception-v3-TF [299x299],OV-2022.1.,atom,Intel® Atom™ x5-E3940,7.06,2.91,2.89,0.207,0.742,$34 ,9.5,1,$34 ,9.5,148.91
-inception-v3-TF [299x299],OV-2022.1.,atom,Intel® Atom™ x6425E CPU-only,12.39,5.02,5.03,0.209,1.032,$59 ,12,1,$59 ,12,83.87
-inception-v3-TF [299x299],OV-2022.1.,atom,Intel® Atom™ x6425E iGPU-only,36.21,18.57,36.13,0.613,3.017,$59 ,12,1,$59 ,12,38.70
-inception-v3-TF [299x299],OV-2022.1.,atom,Intel® Atom™ x6425E CPU+iGPU,46.21,22.89,40.15,0.783,3.850,$59 ,12,1,$59 ,12,
-inception-v3-TF [299x299],OV-2022.1.,atom,Intel® Celeron 6305E CPU-only,32.56,8.66,8.66,0.304,2.170,$107 ,15,1,$107 ,15,32.84
-inception-v3-TF [299x299],OV-2022.1.,atom,Intel® Celeron 6305E iGPU-only,173.05,43.64,84.94,1.617,11.536,$107 ,15,1,$107 ,15,9.75
-inception-v3-TF [299x299],OV-2022.1.,atom,Intel® Celeron 6305E CPU+iGPU,198.75,51.71,91.38,1.857,13.249,$107 ,15,1,$107 ,15,
-inception-v3-TF [299x299],OV-2022.1.,core,Intel® Core™ i3-8100,64.14,33.14,33.20,0.548,0.986,$117 ,65,1,$117 ,65,16.76
-inception-v3-TF [299x299],OV-2022.1.,core,Intel® Core™ i5-8500,95.62,48.78,50.00,0.498,1.471,$192 ,65,1,$192 ,65,11.29
-inception-v3-TF [299x299],OV-2022.1.,core,Intel® Core™ i7-8700T,101.56,54.39,54.04,0.335,2.901,$303 ,35,1,$303 ,35,11.05
-inception-v3-TF [299x299],OV-2022.1.,core,Intel® Core™ i9-10920X,546.00,144.23,146.83,0.78,3.309,$700 ,165,1,$700 ,165,3.24
-inception-v3-TF [299x299],OV-2022.1.,core,Intel® Core™ i9-10900TE,93.09,46.86,47.24,0.209,2.659,$444 ,35,1,$444 ,35,12.53
-inception-v3-TF [299x299],OV-2022.1.,core,Intel® Core™ i9-12900 CPU-only,223.05,75.40,77.44,0.429,3.431,$519 ,65,1,$519 ,65,8.00
-inception-v3-TF [299x299],OV-2022.1.,core-iGPU,Intel® Core™ i9-12900 iGPU-only,144.20,39.64,77.77,0.277,2.218,$519 ,65,1,$519 ,65,9.02
-inception-v3-TF [299x299],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i9-12900 CPU+iGPU,299.87,71.80,106.36,0.577,4.613,$519 ,65,1,$519 ,65,
-inception-v3-TF [299x299],OV-2022.1.,core,Intel® Core™ i7-1185G7 CPU-only,130.71,35.69,35.95,0.306,4.668,$426 ,28,1,$426 ,28,8.47
-inception-v3-TF [299x299],OV-2022.1.,core-iGPU,Intel® Core™ i7-1185G7 iGPU-only,257.81,67.65,133.95,0.605,9.207,$426 ,28,1,$426 ,28,6.36
-inception-v3-TF [299x299],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i7-1185G7 CPU+iGPU,283.46,71.44,106.64,0.665,10.123,$426 ,28,1,$426 ,28,
-inception-v3-TF [299x299],OV-2022.1.,core,Intel® Core™  i7-11800H CPU-only,233.02,62.85,62.77,0.589,5.178,$395 ,45,1,$395 ,45,5.33
-inception-v3-TF [299x299],OV-2022.1.,core-iGPU,Intel® Core™  i7-11800H iGPU-only,33.43,11.99,24.94,0.084,0.742,$395 ,45,1,$395 ,45,43.57
-inception-v3-TF [299x299],OV-2022.1.,core-CPU+iGPU,Intel® Core™  i7-11800H CPU+iGPU,272.67,71.43,86.81,0.69,6.059,$395 ,45,1,$395 ,45,
-inception-v3-TF [299x299],OV-2022.1.,core,Intel® Core™ i5-10500TE ,90.95,48.20,47.58,0.466,2.598,$195 ,35,1,$195,35,12.32
-inception-v3-TF [299x299],OV-2022.1.,xeon,Intel® Xeon® W1290P,192.39,95.02,94.82,0.356,1.539,$539 ,125,1,$539 ,125,6.11
-inception-v3-TF [299x299],OV-2022.1.,xeon,Intel® Xeon® E-2124G,72.88,37.70,38.01,0.342,1.026,$213 ,71,1,$213 ,71,14.62
-inception-v3-TF [299x299],OV-2022.1.,xeon,Intel® Xeon® Silver 4216R,590.75,158.32,158.12,0.589,2.363,"$2,004 ",250,2,"$1,002 ",125,5.48
-inception-v3-TF [299x299],OV-2022.1.,xeon,Intel® Xeon® Silver 4316,1418.63,288.35,292.31,1.309,4.728,"$2,166 ",300,2,"$1,083 ",150,2.68
-inception-v3-TF [299x299],OV-2022.1.,xeon,Intel® Xeon® Gold 5218T,619.94,165.66,165.88,0.459,2.952,"$2,698 ",210,2,"$1,349 ",105,5.23
-inception-v3-TF [299x299],OV-2022.1.,xeon,Intel® Xeon® Platinum 8270,1889.52,477.61,478.61,0.255,4.608,"$14,810 ",410,2,"$7,405 ",205,2.84
-inception-v3-TF [299x299],OV-2022.1.,xeon,Intel® Xeon® Platinum 8380,2956.14,598.71,603.56,0.365,5.474,"$16,198 ",540,2,"$8,099 ",270,1.89
-inception-v3-TF [299x299],OV-2022.1.,accel,Intel® Neural Compute Stick 2,,,19.84,0.287,7.937,$69 ,2.5,1,$69 ,2.5,
-inception-v3-TF [299x299],OV-2022.1.,accel,Intel® Movidius™ VPUs (Uzel* UI-AR8),,,159.42,0.324,5.314,$492 ,30,1,$492 ,30,
+resnet-50,OV-2022.3-8991,core,Intel® Core™  i9-12900K CPU-only,400.118,133.834,,0.608,2.425,$658 ,165,1,$658 ,165,3.0384
+resnet-50,OV-2022.3-8991,core-iGPU,Intel® Core™  i9-12900K iGPU-only,229.863,66.122,,0.349,1.393,$658 ,165,1,$658 ,165,5.2538
+resnet-50,OV-2022.3-8991,core-CPU+iGPU,Intel® Core™  i9-12900K CPU+iGPU,574.341,155.749,,0.873,3.481,$658 ,165,1,$658 ,165,
+resnet-50,OV-2022.3-8991,atom,Intel®  Atom™  x5-E3940 CPU-only,11.094,4.516,,0.326,1.168,$34 ,9.5,1,$34 ,9.5,92.6182
+resnet-50,OV-2022.3-8991,atom,Intel®  Atom™  x6425E CPU-only,20.114,8.254,,0.3,1.676,$67 ,12,1,$67 ,12,51.0598
+resnet-50,OV-2022.3-8991,core-iGPU,Intel®  Atom™  x6425E iGPU-only,66.119,29.408,,0.987,5.51,$67 ,12,1,$67 ,12,21.6857
+resnet-50,OV-2022.3-8991,core-CPU+iGPU,Intel®  Atom™  x6425E CPU+iGPU,82.95,35.81,,1.238,6.913,$67 ,12,1,$67 ,12,
+resnet-50,OV-2022.3-8991,atom,Intel®  Celeron™  6305E CPU-only,52.004,14.152,,0.441,3.467,$118 ,15,1,$118 ,15,19.6053
+resnet-50,OV-2022.3-8991,core-iGPU,Intel®  Celeron™  6305E iGPU-only,90.685,24.633,,0.769,6.046,$118 ,15,1,$118 ,15,14.6415
+resnet-50,OV-2022.3-8991,core-CPU+iGPU,Intel®  Celeron™  6305E CPU+iGPU,140.062,37.864,,1.187,9.337,$118 ,15,1,$118 ,15,
+resnet-50,OV-2022.3-8991,xeon,Intel®  Xeon® Gold 6336Y CPU-only,2793.997,691.079,,0.597,7.551,"$4,678 ",370,2,"$2,339 ",185,1.3288
+resnet-50,OV-2022.3-8991,core ,Intel® Core™  i3-8100 CPU-only,102.328,52.896,,0.875,1.574,$117 ,65,1,$117 ,65,10.4475
+resnet-50,OV-2022.3-8991,core,Intel® Core™  i5-10500TE CPU-only,123.574,63.836,,0.577,3.531,$214 ,35,1,$214 ,35,11.6252
+resnet-50,OV-2022.3-8991,core,Intel® Core™  i5-8500 CPU-only,129.174,68.242,,0.673,1.987,$192 ,65,1,$192 ,65,6.8498
+resnet-50,OV-2022.3-8991,core,Intel® Core™  i7-8700T CPU-only,168.016,88.675,,0.555,4.8,$303 ,35,1,$303 ,35,6.9723
+resnet-50,OV-2022.3-8991,core,Intel® Core™  i9-10900TE CPU-only,129.371,56.366,,0.265,3.696,$488 ,35,1,$488 ,35,8.7659
+resnet-50,OV-2022.3-8991,xeon,Intel®  Xeon® W1290P CPU-only,317.744,149.441,,0.535,2.542,$594 ,125,1,$594 ,125,3.6469
+resnet-50,OV-2022.3-8991,xeon,Intel®  Xeon®  E-2124G CPU-only,97.606,52.17,,0.392,1.375,$249 ,71,1,$249 ,71,10.851
+resnet-50,OV-2022.3-8991,xeon,Intel®  Xeon®  Gold 5218T CPU-only,980.813,268.009,,0.312,4.671,"$3,144 ",210,2,"$1,572 ",105,2.9838
+resnet-50,OV-2022.3-8991,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,2905.803,748.583,,0.171,7.087,"$16,954 ",410,2,"$8,477 ",205,1.475
+resnet-50,OV-2022.3-8991,xeon,Intel®  Xeon®  Silver 4216R CPU-only,937.572,255.866,,0.468,3.75,"$2,004 ",250,2,"$1,002 ",125,3.0985
+resnet-50,OV-2022.3-8991,core,Intel® Core™  i7-1165G7 CPU-only,235.061,63.241,,0.501,8.395,$469 ,28,1,$469 ,28,4.7975
+resnet-50,OV-2022.3-8991,core-iGPU,Intel® Core™  i7-1165G7 iGPU-only,235.061,63.241,,0.501,8.395,$469 ,28,1,$469 ,28,4.7975
+resnet-50,OV-2022.3-8991,core-CPU+iGPU,Intel® Core™  i7-1165G7 CPU+iGPU,235.061,63.241,,0.501,8.395,$469 ,28,1,$469 ,28,4.7975
 end_rec,,,,,,,,,,,,,,
 begin_rec,,,,,,,,,,,,,,
-inception-v4-TF [299x299],OV-2022.1.,atom,Intel® Atom™ x5-E3940,3.15,1.37,1.37,0.092,0.332,$34 ,9.5,1,$34 ,9.5,328.44
-inception-v4-TF [299x299],OV-2022.1.,atom,Intel® Atom™ x6425E CPU-only,5.62,2.35,2.36,0.095,0.468,$59 ,12,1,$59 ,12,182.64
-inception-v4-TF [299x299],OV-2022.1.,atom,Intel® Atom™ x6425E iGPU-only,16.98,8.28,16.84,0.287,1.415,$59 ,12,1,$59 ,12,78.54
-inception-v4-TF [299x299],OV-2022.1.,atom,Intel® Atom™ x6425E CPU+iGPU,21.32,10.31,18.66,0.361,1.776,$59 ,12,1,$59 ,12,
-inception-v4-TF [299x299],OV-2022.1.,atom,Intel® Celeron 6305E CPU-only,15.58,4.04,4.07,0.145,1.038,$107 ,15,1,$107 ,15,66.37
-inception-v4-TF [299x299],OV-2022.1.,atom,Intel® Celeron 6305E iGPU-only,85.93,20.06,40.14,0.803,5.728,$107 ,15,1,$107 ,15,18.49
-inception-v4-TF [299x299],OV-2022.1.,atom,Intel® Celeron 6305E CPU+iGPU,100.57,23.62,43.69,0.939,6.704,$107 ,15,1,$107 ,15,
-inception-v4-TF [299x299],OV-2022.1.,core,Intel® Core™ i3-8100,29.89,15.56,15.54,0.255,0.459,$117 ,65,1,$117 ,65,35.12
-inception-v4-TF [299x299],OV-2022.1.,core,Intel® Core™ i5-8500,45.23,23.02,23.26,0.235,0.695,$192 ,65,1,$192 ,65,23.81
-inception-v4-TF [299x299],OV-2022.1.,core,Intel® Core™ i7-8700T,47.68,25.74,25.78,0.157,1.362,$303 ,35,1,$303 ,35,23.00
-inception-v4-TF [299x299],OV-2022.1.,core,Intel® Core™ i9-10920X,263.56,66.59,67.39,0.376,1.597,$700 ,165,1,$700 ,165,6.91
-inception-v4-TF [299x299],OV-2022.1.,core,Intel® Core™ i9-10900TE,43.70,22.37,22.17,0.084,0.672,$519 ,65,1,$519 ,65,25.13
-inception-v4-TF [299x299],OV-2022.1.,core,Intel® Core™ i9-12900 CPU-only,116.52,36.37,36.95,0.224,1.792,$519 ,65,1,$519 ,65,17.16
-inception-v4-TF [299x299],OV-2022.1.,core-iGPU,Intel® Core™ i9-12900 iGPU-only,71.41,18.02,36.69,0.137,1.098,$519 ,65,1,$519 ,65,18.83
-inception-v4-TF [299x299],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i9-12900 CPU+iGPU,148.94,33.44,52.59,0.212,0.902,$700 ,165,1,$700 ,165,
-inception-v4-TF [299x299],OV-2022.1.,core,Intel® Core™ i7-1185G7 CPU-only,62.83,16.98,17.03,0.147,2.243,$426 ,28,1,$426 ,28,17.14
-inception-v4-TF [299x299],OV-2022.1.,core-iGPU,Intel® Core™ i7-1185G7 iGPU-only,131.01,31.10,62.99,0.307,4.678,$426 ,28,1,$426 ,28,12.31
-inception-v4-TF [299x299],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i7-1185G7 CPU+iGPU,133.75,32.86,51.15,0.313,4.776,$426 ,28,1,$426 ,28,
-inception-v4-TF [299x299],OV-2022.1.,core,Intel® Core™  i7-11800H CPU-only,111.19,30.25,29.88,0.281,2.470,$395 ,45,1,$395 ,45,11.28
-inception-v4-TF [299x299],OV-2022.1.,core-iGPU,Intel® Core™  i7-11800H iGPU-only,22.81,5.01,15.18,0.057,0.506,$395 ,45,1,$395 ,45,86.96
-inception-v4-TF [299x299],OV-2022.1.,core-CPU+iGPU,Intel® Core™  i7-11800H CPU+iGPU,123.44,33.12,43.22,0.312,2.743,$395 ,45,1,$395 ,45,
-inception-v4-TF [299x299],OV-2022.1.,core,Intel® Core™ i5-10500TE ,42.82,22.77,22.50,0.219,1.223,$195 ,35,1,$195,35,25.55
-inception-v4-TF [299x299],OV-2022.1.,xeon,Intel® Xeon® W1290P,91.76,45.03,45.35,0.17,0.734,$539 ,125,1,$539 ,125,12.29
-inception-v4-TF [299x299],OV-2022.1.,xeon,Intel® Xeon® E-2124G,34.21,17.72,17.83,0.16,0.481,$213 ,71,1,$213 ,71,30.78
-inception-v4-TF [299x299],OV-2022.1.,xeon,Intel® Xeon® Silver 4216R,286.57,73.14,72.69,0.285,1.146,"$2,004 ",250,2,"$1,002 ",125,11.53
-inception-v4-TF [299x299],OV-2022.1.,xeon,Intel® Xeon® Silver 4316,679.85,135.42,137.40,0.627,2.266,"$2,166 ",300,2,"$1,083 ",150,5.68
-inception-v4-TF [299x299],OV-2022.1.,xeon,Intel® Xeon® Gold 5218T,298.41,76.40,76.48,0.221,1.421,"$2,698 ",210,2,"$1,349 ",105,10.92
-inception-v4-TF [299x299],OV-2022.1.,xeon,Intel® Xeon® Platinum 8270,916.61,216.56,216.91,0.123,2.235,"$14,810 ",410,2,"$7,405 ",205,6.49
-inception-v4-TF [299x299],OV-2022.1.,xeon,Intel® Xeon® Platinum 8380,1411.06,280.48,282.92,0.174,2.613,"$16,198 ",540,2,"$8,099 ",270,3.45
-inception-v4-TF [299x299],OV-2022.1.,accel,Intel® Neural Compute Stick 2,,,10.64,0.154,4.256,$69 ,2.5,1,$69 ,2.5,
-inception-v4-TF [299x299],OV-2022.1.,accel,Intel® Movidius™ VPUs (Uzel* UI-AR8),,,82.06,0.166,2.735,$492 ,30,1,$492 ,30,
+ssd-resnet34-1200 ,OV-2022.3-8991,core,Intel® Core™  i9-12900K CPU-only,6.712,2.394,,0.01,0.041,$658 ,165,1,$658 ,165,175.7493
+ssd-resnet34-1200 ,OV-2022.3-8991,core-iGPU,Intel® Core™  i9-12900K iGPU-only,4.228,1.262,,0.006,0.026,$658 ,165,1,$658 ,165,241.7838
+ssd-resnet34-1200 ,OV-2022.3-8991,core-CPU+iGPU,Intel® Core™  i9-12900K CPU+iGPU,6.666,2.393,,0.01,0.04,$658 ,165,1,$658 ,165,
+ssd-resnet34-1200 ,OV-2022.3-8991,atom,Intel®  Atom™  x5-E3940 CPU-only,0.171,0.081,,0.005,0.018,$34 ,9.5,1,$34 ,9.5,5985.7525
+ssd-resnet34-1200 ,OV-2022.3-8991,atom,Intel®  Atom™  x6425E CPU-only,0.31,0.133,,0.005,0.026,$67 ,12,1,$67 ,12,3246.0878
+ssd-resnet34-1200 ,OV-2022.3-8991,core-iGPU,Intel®  Atom™  x6425E iGPU-only,0.965,0.615,,0.014,0.08,$67 ,12,1,$67 ,12,1053.0078
+ssd-resnet34-1200 ,OV-2022.3-8991,core-CPU+iGPU,Intel®  Atom™  x6425E CPU+iGPU,0.31,0.133,,0.005,0.026,$67 ,12,1,$67 ,12,
+ssd-resnet34-1200 ,OV-2022.3-8991,atom,Intel®  Celeron™  6305E CPU-only,0.806,0.23,,0.007,0.054,$118 ,15,1,$118 ,15,1240.6212
+ssd-resnet34-1200 ,OV-2022.3-8991,core-iGPU,Intel®  Celeron™  6305E iGPU-only,1.582,0.486,,0.013,0.105,$118 ,15,1,$118 ,15,649.3806
+ssd-resnet34-1200 ,OV-2022.3-8991,core-CPU+iGPU,Intel®  Celeron™  6305E CPU+iGPU,0.806,0.231,,0.007,0.054,$118 ,15,1,$118 ,15,
+ssd-resnet34-1200 ,OV-2022.3-8991,xeon,Intel®  Xeon® Gold 6336Y CPU-only,41.52,12.672,,0.009,0.112,"$4,678 ",370,2,"$2,339 ",185,79.0111
+ssd-resnet34-1200 ,OV-2022.3-8991,core ,Intel® Core™  i3-8100 CPU-only,1.606,0.959,,0.014,0.025,$117 ,65,1,$117 ,65,644.0626
+ssd-resnet34-1200 ,OV-2022.3-8991,core,Intel® Core™  i5-10500TE CPU-only,1.932,1.177,,0.009,0.055,$214 ,35,1,$214 ,35,712.3677
+ssd-resnet34-1200 ,OV-2022.3-8991,core,Intel® Core™  i5-8500 CPU-only,2.067,1.248,,0.011,0.032,$192 ,65,1,$192 ,65,401.8765
+ssd-resnet34-1200 ,OV-2022.3-8991,core,Intel® Core™  i7-8700T CPU-only,2.66,1.606,,0.009,0.076,$303 ,35,1,$303 ,35,434.9877
+ssd-resnet34-1200 ,OV-2022.3-8991,core,Intel® Core™  i9-10900TE CPU-only,2.046,1.242,,0.004,0.058,$488 ,35,1,$488 ,35,485.4343
+ssd-resnet34-1200 ,OV-2022.3-8991,xeon,Intel®  Xeon® W1290P CPU-only,4.871,2.935,,0.008,0.039,$594 ,125,1,$594 ,125,239.8346
+ssd-resnet34-1200 ,OV-2022.3-8991,xeon,Intel®  Xeon®  E-2124G CPU-only,1.55,0.919,,0.006,0.022,$249 ,71,1,$249 ,71,665.2714
+ssd-resnet34-1200 ,OV-2022.3-8991,xeon,Intel®  Xeon®  Gold 5218T CPU-only,15.706,4.572,,0.005,0.075,"$3,144 ",210,2,"$1,572 ",105,132.0319
+ssd-resnet34-1200 ,OV-2022.3-8991,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,47.365,14.722,,0.003,0.116,"$16,954 ",410,2,"$8,477 ",205,44.387
+ssd-resnet34-1200 ,OV-2022.3-8991,xeon,Intel®  Xeon®  Silver 4216R CPU-only,14.966,4.35,,0.007,0.06,"$2,004 ",250,2,"$1,002 ",125,138.9625
+ssd-resnet34-1200 ,OV-2022.3-8991,core,Intel® Core™  i7-1165G7 CPU-only,3.556,1.015,,0.008,0.127,$469 ,28,1,$469 ,28,284.2379
+ssd-resnet34-1200 ,OV-2022.3-8991,core-iGPU,Intel® Core™  i7-1165G7 iGPU-only,8.239,2.545,,0.018,0.294,$469 ,28,1,$469 ,28,122.4561
+ssd-resnet34-1200 ,OV-2022.3-8991,core-CPU+iGPU,Intel® Core™  i7-1165G7 CPU+iGPU,3.565,1.01,,0.008,0.127,$469 ,28,1,$469 ,28,
 end_rec,,,,,,,,,,,,,,
 begin_rec,,,,,,,,,,,,,,
-mask_rcnn_resnet50_atrous_coco [800x1365],OV-2022.1.,atom,Intel® Atom™ x5-E3940,0.03,0.02,0.02,0,0.002,$34 ,9.5,1,$34 ,9.5,0.00
-mask_rcnn_resnet50_atrous_coco [800x1365],OV-2022.1.,atom,Intel® Atom™ x6425E CPU-only,0.05,0.03,0.03,0,0.004,$59 ,12,1,$59 ,12,0.00
-mask_rcnn_resnet50_atrous_coco [800x1365],OV-2022.1.,atom,Intel® Atom™ x6425E iGPU-only,0.15,0.12,0.17,0.002,0.012,$59 ,12,1,$59 ,12,0.00
-mask_rcnn_resnet50_atrous_coco [800x1365],OV-2022.1.,atom,Intel® Atom™ x6425E CPU+iGPU,0.16,,0.10,0.002,0.013,$59 ,12,1,$59 ,12,
-mask_rcnn_resnet50_atrous_coco [800x1365],OV-2022.1.,atom,Intel® Celeron 6305E CPU-only,0.17,0.05,0.05,0.001,0.011,$107 ,15,1,$107 ,15,0.00
-mask_rcnn_resnet50_atrous_coco [800x1365],OV-2022.1.,atom,Intel® Celeron 6305E iGPU-only,0.55,0.28,0.55,0.005,0.036,$107 ,15,1,$107 ,15,0.00
-mask_rcnn_resnet50_atrous_coco [800x1365],OV-2022.1.,atom,Intel® Celeron 6305E CPU+iGPU,0.68,0.33,0.46,0.006,0.045,$107 ,15,1,$107 ,15,
-mask_rcnn_resnet50_atrous_coco [800x1365],OV-2022.1.,core,Intel® Core™ i3-8100,0.31,0.19,0.19,0.002,0.004,$117 ,65,1,$117 ,65,0.00
-mask_rcnn_resnet50_atrous_coco [800x1365],OV-2022.1.,core,Intel® Core™ i5-8500,0.51,0.29,0.30,0.002,0.007,$192 ,65,1,$192 ,65,0.00
-mask_rcnn_resnet50_atrous_coco [800x1365],OV-2022.1.,core,Intel® Core™ i7-8700T,0.49,0.31,0.31,0.001,0.014,$303 ,35,1,$303 ,35,0.00
-mask_rcnn_resnet50_atrous_coco [800x1365],OV-2022.1.,core,Intel® Core™ i9-10920X,2.37,0.86,0.87,0.003,0.014,$700 ,165,1,$700 ,165,0.00
-mask_rcnn_resnet50_atrous_coco [800x1365],OV-2022.1.,core,Intel® Core™ i9-10900TE,0.48,0.26,0.27,0.001,0.013,$444 ,35,1,$444 ,35,0.00
-mask_rcnn_resnet50_atrous_coco [800x1365],OV-2022.1.,core,Intel® Core™ i9-12900 CPU-only,1.26,0.41,0.42,0.002,0.019,$519 ,65,1,$519 ,65,0.00
-mask_rcnn_resnet50_atrous_coco [800x1365],OV-2022.1.,core-iGPU,Intel® Core™ i9-12900 iGPU-only,0.46,0.24,0.48,0,0.007,$519 ,65,1,$519 ,65,0.00
-mask_rcnn_resnet50_atrous_coco [800x1365],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i9-12900 CPU+iGPU,1.15,0.38,0.68,0.002,0.017,$519 ,65,1,$519 ,65,
-mask_rcnn_resnet50_atrous_coco [800x1365],OV-2022.1.,core,Intel® Core™ i7-1185G7 CPU-only,0.71,0.20,0.20,0.001,0.025,$426 ,28,1,$426 ,28,0.00
-mask_rcnn_resnet50_atrous_coco [800x1365],OV-2022.1.,core-iGPU,Intel® Core™ i7-1185G7 iGPU-only,0.85,0.44,0.88,0.001,0.030,$426 ,28,1,$426 ,28,0.00
-mask_rcnn_resnet50_atrous_coco [800x1365],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i7-1185G7 CPU+iGPU,1.22,0.45,0.62,0.002,0.043,$426 ,28,1,$426 ,28,
-mask_rcnn_resnet50_atrous_coco [800x1365],OV-2022.1.,core,Intel® Core™  i7-11800H CPU-only,1.35,0.38,0.38,0.003,0.029,$395 ,45,1,$395 ,45,0.00
-mask_rcnn_resnet50_atrous_coco [800x1365],OV-2022.1.,core-iGPU,Intel® Core™  i7-11800H iGPU-only,0.18,0.19,0.18,0,0.003,$395 ,45,1,$395 ,45,0.00
-mask_rcnn_resnet50_atrous_coco [800x1365],OV-2022.1.,core-CPU+iGPU,Intel® Core™  i7-11800H CPU+iGPU,,0.38,0.43,#VALUE!,#VALUE!,$395 ,45,1,$395 ,45,
-mask_rcnn_resnet50_atrous_coco [800x1365],OV-2022.1.,core,Intel® Core™ i5-10500TE ,0.44,0.27,0.27,0.002,0.012,$195 ,35,1,$195,35,0.00
-mask_rcnn_resnet50_atrous_coco [800x1365],OV-2022.1.,xeon,Intel® Xeon® W1290P,0.92,0.56,0.56,0.001,0.007,$539 ,125,1,$539 ,125,0.00
-mask_rcnn_resnet50_atrous_coco [800x1365],OV-2022.1.,xeon,Intel® Xeon® E-2124G,0.36,0.22,0.22,0.001,0.005,$213 ,71,1,$213 ,71,0.00
-mask_rcnn_resnet50_atrous_coco [800x1365],OV-2022.1.,xeon,Intel® Xeon® Silver 4216R,2.92,0.89,0.89,0.002,0.011,"$2,004 ",250,2,"$1,002 ",125,0.00
-mask_rcnn_resnet50_atrous_coco [800x1365],OV-2022.1.,xeon,Intel® Xeon® Silver 4316,6.36,2.16,2.20,0.005,0.021,"$2,166 ",300,2,"$1,083 ",150,0.00
-mask_rcnn_resnet50_atrous_coco [800x1365],OV-2022.1.,xeon,Intel® Xeon® Gold 5218T,3.05,0.94,0.94,0.002,0.014,"$2,698 ",210,2,"$1,349 ",105,0.00
-mask_rcnn_resnet50_atrous_coco [800x1365],OV-2022.1.,xeon,Intel® Xeon® Platinum 8270,6.54,2.80,2.85,0,0.015,"$14,810 ",410,2,"$7,405 ",205,0.00
-mask_rcnn_resnet50_atrous_coco [800x1365],OV-2022.1.,xeon,Intel® Xeon® Platinum 8380,12.51,4.43,4.53,0.001,0.023,"$16,198 ",540,2,"$8,099 ",270,0.00
-mask_rcnn_resnet50_atrous_coco [800x1365],OV-2022.1.,accel,Intel® Neural Compute Stick 2,,,,0,0.000,$69 ,2.5,1,$69 ,2.5,
-mask_rcnn_resnet50_atrous_coco [800x1365],OV-2022.1.,accel,Intel® Movidius™ VPUs (Uzel* UI-AR8),,,,0,0.000,$492 ,30,1,$492 ,30,
+unet-camvid--0001 ,OV-2022.3-8991,core,Intel® Core™  i9-12900K CPU-only,10.652,3.873,,0.016,0.065,$658 ,165,1,$658 ,165,111.0757
+unet-camvid--0001 ,OV-2022.3-8991,core-iGPU,Intel® Core™  i9-12900K iGPU-only,7.059,2.154,,0.011,0.043,$658 ,165,1,$658 ,165,142.0745
+unet-camvid--0001 ,OV-2022.3-8991,core-CPU+iGPU,Intel® Core™  i9-12900K CPU+iGPU,14.933,4.935,,0.023,0.091,$658 ,165,1,$658 ,165,
+unet-camvid--0001 ,OV-2022.3-8991,atom,Intel®  Atom™  x5-E3940 CPU-only,0.258,0.039,,0.008,0.027,$34 ,9.5,1,$34 ,9.5,3959.594
+unet-camvid--0001 ,OV-2022.3-8991,atom,Intel®  Atom™  x6425E CPU-only,0.482,0.061,,0.007,0.04,$67 ,12,1,$67 ,12,2094.2569
+unet-camvid--0001 ,OV-2022.3-8991,core-iGPU,Intel®  Atom™  x6425E iGPU-only,1.994,0.989,,0.03,0.166,$67 ,12,1,$67 ,12,502.6095
+unet-camvid--0001 ,OV-2022.3-8991,core-CPU+iGPU,Intel®  Atom™  x6425E CPU+iGPU,2.242,0.597,,0.033,0.187,$67 ,12,1,$67 ,12,
+unet-camvid--0001 ,OV-2022.3-8991,atom,Intel®  Celeron™  6305E CPU-only,1.471,0.374,,0.012,0.098,$118 ,15,1,$118 ,15,678.4977
+unet-camvid--0001 ,OV-2022.3-8991,core-iGPU,Intel®  Celeron™  6305E iGPU-only,2.715,0.802,,0.023,0.181,$118 ,15,1,$118 ,15,368.8973
+unet-camvid--0001 ,OV-2022.3-8991,core-CPU+iGPU,Intel®  Celeron™  6305E CPU+iGPU,4.12,1.142,,0.035,0.275,$118 ,15,1,$118 ,15,
+unet-camvid--0001 ,OV-2022.3-8991,xeon,Intel®  Xeon® Gold 6336Y CPU-only,81.838,19.314,,0.017,0.221,"$4,678 ",370,2,"$2,339 ",185,41.506
+unet-camvid--0001 ,OV-2022.3-8991,core ,Intel® Core™  i3-8100 CPU-only,2.482,1.54,,0.021,0.038,$117 ,65,1,$117 ,65,412.1291
+unet-camvid--0001 ,OV-2022.3-8991,core,Intel® Core™  i5-10500TE CPU-only,3.031,1.9,,0.014,0.087,$214 ,35,1,$214 ,35,457.5992
+unet-camvid--0001 ,OV-2022.3-8991,core,Intel® Core™  i5-8500 CPU-only,3.227,2.018,,0.017,0.05,$192 ,65,1,$192 ,65,256.5479
+unet-camvid--0001 ,OV-2022.3-8991,core,Intel® Core™  i7-8700T CPU-only,4.155,2.6,,0.014,0.119,$303 ,35,1,$303 ,35,277.7416
+unet-camvid--0001 ,OV-2022.3-8991,core,Intel® Core™  i9-10900TE CPU-only,2.907,2.004,,0.006,0.083,$488 ,35,1,$488 ,35,319.7667
+unet-camvid--0001 ,OV-2022.3-8991,xeon,Intel®  Xeon® W1290P CPU-only,7.413,4.615,,0.012,0.059,$594 ,125,1,$594 ,125,157.3622
+unet-camvid--0001 ,OV-2022.3-8991,xeon,Intel®  Xeon®  E-2124G CPU-only,2.386,1.481,,0.01,0.034,$249 ,71,1,$249 ,71,422.1157
+unet-camvid--0001 ,OV-2022.3-8991,xeon,Intel®  Xeon®  Gold 5218T CPU-only,29.251,7.301,,0.009,0.139,"$3,144 ",210,2,"$1,572 ",105,69.3596
+unet-camvid--0001 ,OV-2022.3-8991,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,93.081,21.382,,0.005,0.227,"$16,954 ",410,2,"$8,477 ",205,22.9476
+unet-camvid--0001 ,OV-2022.3-8991,xeon,Intel®  Xeon®  Silver 4216R CPU-only,27.814,6.966,,0.014,0.111,"$2,004 ",250,2,"$1,002 ",125,72.9773
+unet-camvid--0001 ,OV-2022.3-8991,core,Intel® Core™  i7-1165G7 CPU-only,6.54,1.677,,0.014,0.234,$469 ,28,1,$469 ,28,152.602
+unet-camvid--0001 ,OV-2022.3-8991,core-iGPU,Intel® Core™  i7-1165G7 iGPU-only,15.391,4.571,,0.033,0.55,$469 ,28,1,$469 ,28,61.6002
+unet-camvid--0001 ,OV-2022.3-8991,core-CPU+iGPU,Intel® Core™  i7-1165G7 CPU+iGPU,17.962,4.848,,0.038,0.642,$469 ,28,1,$469 ,28,
 end_rec,,,,,,,,,,,,,,
 begin_rec,,,,,,,,,,,,,,
-mobilenet-ssd-CF [300x300],OV-2022.1.,atom,Intel® Atom™ x5-E3940,27.58,12.82,12.83,0.811,2.902,$34 ,9.5,1,$34 ,9.5,39.87
-mobilenet-ssd-CF [300x300],OV-2022.1.,atom,Intel® Atom™ x6425E CPU-only,48.77,23.91,23.96,0.826,4.063,$59 ,12,1,$59 ,12,21.48
-mobilenet-ssd-CF [300x300],OV-2022.1.,atom,Intel® Atom™ x6425E iGPU-only,105.57,59.09,106.13,1.789,8.797,$59 ,12,1,$59 ,12,11.85
-mobilenet-ssd-CF [300x300],OV-2022.1.,atom,Intel® Atom™ x6425E CPU+iGPU,145.35,78.16,126.64,2.463,12.112,$59 ,12,1,$59 ,12,
-mobilenet-ssd-CF [300x300],OV-2022.1.,atom,Intel® Celeron 6305E CPU-only,117.75,39.40,39.56,1.1,7.850,$107 ,15,1,$107 ,15,9.10
-mobilenet-ssd-CF [300x300],OV-2022.1.,atom,Intel® Celeron 6305E iGPU-only,465.64,152.63,239.48,4.351,31.042,$107 ,15,1,$107 ,15,4.63
-mobilenet-ssd-CF [300x300],OV-2022.1.,atom,Intel® Celeron 6305E CPU+iGPU,393.16,163.32,229.86,3.674,26.210,$107 ,15,1,$107 ,15,
-mobilenet-ssd-CF [300x300],OV-2022.1.,core,Intel® Core™ i3-8100,238.99,0.19,0.19,2.042,3.676,$117 ,65,1,$117 ,65,4.56
-mobilenet-ssd-CF [300x300],OV-2022.1.,core,Intel® Core™ i5-8500,358.58,212.08,213.79,1.867,5.516,$192 ,65,1,$192 ,65,3.10
-mobilenet-ssd-CF [300x300],OV-2022.1.,core,Intel® Core™ i7-8700T,395.94,241.12,239.91,1.306,11.312,$303 ,35,1,$303 ,35,3.02
-mobilenet-ssd-CF [300x300],OV-2022.1.,core,Intel® Core™ i9-10920X,1993.26,539.91,552.70,2.847,12.080,$700 ,165,1,$700 ,165,0.98
-mobilenet-ssd-CF [300x300],OV-2022.1.,core,Intel® Core™ i9-10900TE,360.45,199.83,202.25,0.811,10.298,$444 ,35,1,$444 ,35,3.17
-mobilenet-ssd-CF [300x300],OV-2022.1.,core,Intel® Core™ i9-12900 CPU-only,902.94,339.07,339.70,1.739,13.891,$519 ,65,1,$519 ,65,1.70
-mobilenet-ssd-CF [300x300],OV-2022.1.,core-iGPU,Intel® Core™ i9-12900 iGPU-only,508.22,152.05,256.51,0.979,7.818,$519 ,65,1,$519 ,65,3.00
-mobilenet-ssd-CF [300x300],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i9-12900 CPU+iGPU,1022.87,335.28,411.42,1.97,15.736,$519 ,65,1,$519 ,65,
-mobilenet-ssd-CF [300x300],OV-2022.1.,core,Intel® Core™ i7-1185G7 CPU-only,483.77,155.72,157.47,1.135,17.277,$426 ,28,1,$426 ,28,2.28
-mobilenet-ssd-CF [300x300],OV-2022.1.,core-iGPU,Intel® Core™ i7-1185G7 iGPU-only,573.63,220.01,318.81,1.346,20.486,$426 ,28,1,$426 ,28,2.48
-mobilenet-ssd-CF [300x300],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i7-1185G7 CPU+iGPU,775.53,236.31,323.15,1.82,27.697,$426 ,28,1,$426 ,28,
-mobilenet-ssd-CF [300x300],OV-2022.1.,core,Intel® Core™  i7-11800H CPU-only,837.20,272.86,302.72,2.119,18.604,$395 ,45,1,$395 ,45,1.53
-mobilenet-ssd-CF [300x300],OV-2022.1.,core-iGPU,Intel® Core™  i7-11800H iGPU-only,57.80,36.65,53.92,0.146,1.284,$395 ,45,1,$395 ,45,17.98
-mobilenet-ssd-CF [300x300],OV-2022.1.,core-CPU+iGPU,Intel® Core™  i7-11800H CPU+iGPU,1047.84,204.82,212.93,2.652,23.285,$395 ,45,1,$395 ,45,
-mobilenet-ssd-CF [300x300],OV-2022.1.,core,Intel® Core™ i5-10500TE ,355.70,206.93,204.97,1.824,10.162,$195 ,35,1,$195,35,3.35
-mobilenet-ssd-CF [300x300],OV-2022.1.,xeon,Intel® Xeon® W1290P,755.73,349.16,350.75,1.402,6.045,$539 ,125,1,$539 ,125,1.60
-mobilenet-ssd-CF [300x300],OV-2022.1.,xeon,Intel® Xeon® E-2124G,272.57,169.74,172.71,1.279,3.839,$213 ,71,1,$213 ,71,3.93
-mobilenet-ssd-CF [300x300],OV-2022.1.,xeon,Intel® Xeon® Silver 4216R,2130.70,673.20,672.84,2.126,8.522,"$2,004 ",250,2,"$1,002 ",125,1.63
-mobilenet-ssd-CF [300x300],OV-2022.1.,xeon,Intel® Xeon® Silver 4316,4980.98,1320.18,1353.73,4.599,16.603,"$2,166 ",300,2,"$1,083 ",150,0.94
-mobilenet-ssd-CF [300x300],OV-2022.1.,xeon,Intel® Xeon® Gold 5218T,2231.51,700.86,699.63,1.654,10.626,"$2,698 ",210,2,"$1,349 ",105,1.57
-mobilenet-ssd-CF [300x300],OV-2022.1.,xeon,Intel® Xeon® Platinum 8270,6457.04,1678.26,1663.33,0.871,15.748,"$14,810 ",410,2,"$7,405 ",205,1.00
-mobilenet-ssd-CF [300x300],OV-2022.1.,xeon,Intel® Xeon® Platinum 8380,10735.51,2726.20,2783.68,1.325,19.880,"$16,198 ",540,2,"$8,099 ",270,0.77
-mobilenet-ssd-CF [300x300],OV-2022.1.,accel,Intel® Neural Compute Stick 2,,,56.69,0.821,22.675,$69 ,2.5,1,$69 ,2.5,
-mobilenet-ssd-CF [300x300],OV-2022.1.,accel,Intel® Movidius™ VPUs (Uzel* UI-AR8),,,450.44,0.915,15.014,$492 ,30,1,$492 ,30,
+yolo_v3_tiny,OV-2022.3-8991,core,Intel® Core™  i9-12900K CPU-only,428.506,162.077,,0.651,2.597,$658 ,165,1,$658 ,165,2.4778
+yolo_v3_tiny,OV-2022.3-8991,core-iGPU,Intel® Core™  i9-12900K iGPU-only,245.738,84.457,,0.373,1.489,$658 ,165,1,$658 ,165,3.8792
+yolo_v3_tiny,OV-2022.3-8991,core-CPU+iGPU,Intel® Core™  i9-12900K CPU+iGPU,598.947,195.608,,0.91,3.63,$658 ,165,1,$658 ,165,
+yolo_v3_tiny,OV-2022.3-8991,atom,Intel®  Atom™  x5-E3940 CPU-only,12.406,6.124,,0.365,1.306,$34 ,9.5,1,$34 ,9.5,83.8614
+yolo_v3_tiny,OV-2022.3-8991,atom,Intel®  Atom™  x6425E CPU-only,22.94,10.395,,0.342,1.912,$67 ,12,1,$67 ,12,44.6243
+yolo_v3_tiny,OV-2022.3-8991,core-iGPU,Intel®  Atom™  x6425E iGPU-only,66.641,38.178,,0.995,5.553,$67 ,12,1,$67 ,12,15.7687
+yolo_v3_tiny,OV-2022.3-8991,core-CPU+iGPU,Intel®  Atom™  x6425E CPU+iGPU,86.38,45.819,,1.289,7.198,$67 ,12,1,$67 ,12,
+yolo_v3_tiny,OV-2022.3-8991,atom,Intel®  Celeron™  6305E CPU-only,55.629,18.246,,0.471,3.709,$118 ,15,1,$118 ,15,18.2291
+yolo_v3_tiny,OV-2022.3-8991,core-iGPU,Intel®  Celeron™  6305E iGPU-only,106.588,31.376,,0.903,7.106,$118 ,15,1,$118 ,15,10.8727
+yolo_v3_tiny,OV-2022.3-8991,core-CPU+iGPU,Intel®  Celeron™  6305E CPU+iGPU,153.471,46.125,,1.301,10.231,$118 ,15,1,$118 ,15,
+yolo_v3_tiny,OV-2022.3-8991,xeon,Intel®  Xeon® Gold 6336Y CPU-only,2733.627,761.534,,0.584,7.388,"$4,678 ",370,2,"$2,339 ",185,1.1267
+yolo_v3_tiny,OV-2022.3-8991,core ,Intel® Core™  i3-8100 CPU-only,114.701,66.266,,0.98,1.765,$117 ,65,1,$117 ,65,8.9295
+yolo_v3_tiny,OV-2022.3-8991,core,Intel® Core™  i5-10500TE CPU-only,141.001,79.694,,0.659,4.029,$214 ,35,1,$214 ,35,9.9196
+yolo_v3_tiny,OV-2022.3-8991,core,Intel® Core™  i5-8500 CPU-only,145.659,85.158,,0.759,2.241,$192 ,65,1,$192 ,65,5.465
+yolo_v3_tiny,OV-2022.3-8991,core,Intel® Core™  i7-8700T CPU-only,191.931,109.625,,0.633,5.484,$303 ,35,1,$303 ,35,5.5981
+yolo_v3_tiny,OV-2022.3-8991,core,Intel® Core™  i9-10900TE CPU-only,147.041,84.448,,0.301,4.201,$488 ,35,1,$488 ,35,7.0171
+yolo_v3_tiny,OV-2022.3-8991,xeon,Intel®  Xeon® W1290P CPU-only,359.61,173.635,,0.605,2.877,$594 ,125,1,$594 ,125,2.9037
+yolo_v3_tiny,OV-2022.3-8991,xeon,Intel®  Xeon®  E-2124G CPU-only,109.066,64.87,,0.438,1.536,$249 ,71,1,$249 ,71,9.3792
+yolo_v3_tiny,OV-2022.3-8991,xeon,Intel®  Xeon®  Gold 5218T CPU-only,1058.322,337.035,,0.337,5.04,"$3,144 ",210,2,"$1,572 ",105,2.4971
+yolo_v3_tiny,OV-2022.3-8991,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,2931.242,901.832,,0.173,7.149,"$16,954 ",410,2,"$8,477 ",205,1.215
+yolo_v3_tiny,OV-2022.3-8991,xeon,Intel®  Xeon®  Silver 4216R CPU-only,1015.77,321.263,,0.507,4.063,"$2,004 ",250,2,"$1,002 ",125,2.6076
+yolo_v3_tiny,OV-2022.3-8991,core,Intel® Core™  i7-1165G7 CPU-only,258.05,79.963,,0.55,9.216,$469 ,28,1,$469 ,28,4.1833
+yolo_v3_tiny,OV-2022.3-8991,core-iGPU,Intel® Core™  i7-1165G7 iGPU-only,492.645,157.98,,1.05,17.594,$469 ,28,1,$469 ,28,2.5788
+yolo_v3_tiny,OV-2022.3-8991,core-CPU+iGPU,Intel® Core™  i7-1165G7 CPU+iGPU,606.117,186.339,,1.292,21.647,$469 ,28,1,$469 ,28,
 end_rec,,,,,,,,,,,,,,
 begin_rec,,,,,,,,,,,,,,
-mobilenet-v2-1.0-224-TF [224x224],OV-2022.1.,atom,Intel® Atom™ x5-E3940,77.18,45.34,45.47,2.269,8.124,$34 ,9.5,1,$34 ,9.5,14.31
-mobilenet-v2-1.0-224-TF [224x224],OV-2022.1.,atom,Intel® Atom™ x6425E CPU-only,133.01,80.66,80.30,2.254,11.084,$59 ,12,1,$59 ,12,8.01
-mobilenet-v2-1.0-224-TF [224x224],OV-2022.1.,atom,Intel® Atom™ x6425E iGPU-only,132.32,164.08,364.67,2.242,11.027,$59 ,12,1,$59 ,12,7.40
-mobilenet-v2-1.0-224-TF [224x224],OV-2022.1.,atom,Intel® Atom™ x6425E CPU+iGPU,213.56,187.69,341.49,3.619,17.796,$59 ,12,1,$59 ,12,
-mobilenet-v2-1.0-224-TF [224x224],OV-2022.1.,atom,Intel® Celeron 6305E CPU-only,274.13,124.00,124.60,2.561,18.275,$107 ,15,1,$107 ,15,3.98
-mobilenet-v2-1.0-224-TF [224x224],OV-2022.1.,atom,Intel® Celeron 6305E iGPU-only,1456.31,352.77,740.11,13.61,97.087,$107 ,15,1,$107 ,15,3.05
-mobilenet-v2-1.0-224-TF [224x224],OV-2022.1.,atom,Intel® Celeron 6305E CPU+iGPU,1611.84,386.01,694.07,15.063,107.455,$107 ,15,1,$107 ,15,
-mobilenet-v2-1.0-224-TF [224x224],OV-2022.1.,core,Intel® Core™ i3-8100,567.17,140.67,138.25,4.847,8.725,$117 ,65,1,$117 ,65,1.94
-mobilenet-v2-1.0-224-TF [224x224],OV-2022.1.,core,Intel® Core™ i5-8500,872.29,583.35,591.11,4.543,13.419,$192 ,65,1,$192 ,65,1.37
-mobilenet-v2-1.0-224-TF [224x224],OV-2022.1.,core,Intel® Core™ i7-8700T,1007.29,665.58,674.81,3.324,28.779,$303 ,35,1,$303 ,35,1.40
-mobilenet-v2-1.0-224-TF [224x224],OV-2022.1.,core,Intel® Core™ i9-10920X,4150.82,1471.14,1482.67,5.929,25.156,$700 ,165,1,$700 ,165,0.68
-mobilenet-v2-1.0-224-TF [224x224],OV-2022.1.,core,Intel® Core™ i9-10900TE,911.51,591.32,585.38,2.052,26.043,$444 ,35,1,$444 ,35,1.53
-mobilenet-v2-1.0-224-TF [224x224],OV-2022.1.,core,Intel® Core™ i9-12900 CPU-only,1915.54,962.10,971.90,3.69,29.469,$519 ,65,1,$519 ,65,0.97
-mobilenet-v2-1.0-224-TF [224x224],OV-2022.1.,core-iGPU,Intel® Core™ i9-12900 iGPU-only,1294.42,358.44,733.66,2.494,19.914,$519 ,65,1,$519 ,65,1.92
-mobilenet-v2-1.0-224-TF [224x224],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i9-12900 CPU+iGPU,2060.02,655.55,830.35,3.969,31.692,$519 ,65,1,$519 ,65,
-mobilenet-v2-1.0-224-TF [224x224],OV-2022.1.,core,Intel® Core™ i7-1185G7 CPU-only,1149.20,481.66,483.89,2.697,41.042,$426 ,28,1,$426 ,28,1.05
-mobilenet-v2-1.0-224-TF [224x224],OV-2022.1.,core-iGPU,Intel® Core™ i7-1185G7 iGPU-only,1916.89,455.95,868.83,4.499,68.460,$426 ,28,1,$426 ,28,1.75
-mobilenet-v2-1.0-224-TF [224x224],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i7-1185G7 CPU+iGPU,2241.37,605.32,881.76,5.261,80.048,$426 ,28,1,$426 ,28,
-mobilenet-v2-1.0-224-TF [224x224],OV-2022.1.,core,Intel® Core™  i7-11800H CPU-only,2024.85,822.69,835.78,5.126,44.996,$395 ,45,1,$395 ,45,0.77
-mobilenet-v2-1.0-224-TF [224x224],OV-2022.1.,core-iGPU,Intel® Core™  i7-11800H iGPU-only,349.64,111.81,201.45,0.885,7.769,$395 ,45,1,$395 ,45,4.66
-mobilenet-v2-1.0-224-TF [224x224],OV-2022.1.,core-CPU+iGPU,Intel® Core™  i7-11800H CPU+iGPU,2147.46,605.81,667.71,5.436,47.721,$395 ,45,1,$395 ,45,
-mobilenet-v2-1.0-224-TF [224x224],OV-2022.1.,core,Intel® Core™ i5-10500TE ,908.85,543.99,544.85,4.66,25.967,$195 ,35,1,$195,35,1.54
-mobilenet-v2-1.0-224-TF [224x224],OV-2022.1.,xeon,Intel® Xeon® W1290P,1942.56,923.09,928.32,3.604,15.540,$539 ,125,1,$539 ,125,0.82
-mobilenet-v2-1.0-224-TF [224x224],OV-2022.1.,xeon,Intel® Xeon® E-2124G,661.04,481.08,489.05,3.103,9.310,$213 ,71,1,$213 ,71,1.66
-mobilenet-v2-1.0-224-TF [224x224],OV-2022.1.,xeon,Intel® Xeon® Silver 4216R,4897.96,1836.81,1838.75,4.888,19.591,"$2,004 ",250,2,"$1,002 ",125,1.04
-mobilenet-v2-1.0-224-TF [224x224],OV-2022.1.,xeon,Intel® Xeon® Silver 4316,10890.22,3353.72,3390.72,10.055,36.300,"$2,166 ",300,2,"$1,083 ",150,0.61
-mobilenet-v2-1.0-224-TF [224x224],OV-2022.1.,xeon,Intel® Xeon® Gold 5218T,5126.92,1912.51,1914.00,3.8,24.413,"$2,698 ",210,2,"$1,349 ",105,1.02
-mobilenet-v2-1.0-224-TF [224x224],OV-2022.1.,xeon,Intel® Xeon® Platinum 8270,13863.76,4183.21,4182.88,1.872,33.814,"$14,810 ",410,2,"$7,405 ",205,0.86
-mobilenet-v2-1.0-224-TF [224x224],OV-2022.1.,xeon,Intel® Xeon® Platinum 8380,23365.55,7221.22,7348.65,2.884,43.269,"$16,198 ",540,2,"$8,099 ",270,0.56
-mobilenet-v2-1.0-224-TF [224x224],OV-2022.1.,accel,Intel® Neural Compute Stick 2,,,77.25,1.119,30.899,$69 ,2.5,1,$69 ,2.5,
-mobilenet-v2-1.0-224-TF [224x224],OV-2022.1.,accel,Intel® Movidius™ VPUs (Uzel* UI-AR8),,,630.38,1.281,21.012,$492 ,30,1,$492 ,30,
-end_rec,,,,,,,,,,,,,,
-begin_rec,,,,,,,,,,,,,,
-mobilenet-v2-pytorch [224x224],OV-2022.1.,atom,Intel® Atom™ x5-E3940,77.82,45.84,45.83,2.288,8.191,$34 ,9.5,1,$34 ,9.5,14.09
-mobilenet-v2-pytorch [224x224],OV-2022.1.,atom,Intel® Atom™ x6425E CPU-only,134.47,83.53,81.50,2.279,11.205,$59 ,12,1,$59 ,12,7.93
-mobilenet-v2-pytorch [224x224],OV-2022.1.,atom,Intel® Atom™ x6425E iGPU-only,131.83,166.32,367.84,2.234,10.985,$59 ,12,1,$59 ,12,7.36
-mobilenet-v2-pytorch [224x224],OV-2022.1.,atom,Intel® Atom™ x6425E CPU+iGPU,214.24,199.59,346.55,3.631,17.853,$59 ,12,1,$59 ,12,
-mobilenet-v2-pytorch [224x224],OV-2022.1.,atom,Intel® Celeron 6305E CPU-only,279.68,126.05,126.67,2.613,18.645,$107 ,15,1,$107 ,15,3.86
-mobilenet-v2-pytorch [224x224],OV-2022.1.,atom,Intel® Celeron 6305E iGPU-only,1497.98,372.60,750.00,13.999,99.865,$107 ,15,1,$107 ,15,3.01
-mobilenet-v2-pytorch [224x224],OV-2022.1.,atom,Intel® Celeron 6305E CPU+iGPU,1584.52,402.81,702.15,14.808,105.634,$107 ,15,1,$107 ,15,
-mobilenet-v2-pytorch [224x224],OV-2022.1.,core,Intel® Core™ i3-8100,579.50,460.62,460.80,4.953,8.915,$117 ,65,1,$117 ,65,1.93
-mobilenet-v2-pytorch [224x224],OV-2022.1.,core,Intel® Core™ i5-8500,871.61,657.32,657.29,4.539,13.409,$192 ,65,1,$192 ,65,1.36
-mobilenet-v2-pytorch [224x224],OV-2022.1.,core,Intel® Core™ i7-8700T,1013.45,657.28,661.13,3.344,28.955,$303 ,35,1,$303 ,35,1.38
-mobilenet-v2-pytorch [224x224],OV-2022.1.,core,Intel® Core™ i9-10920X,4375.89,1505.77,1506.35,6.251,26.520,$700 ,165,1,$700 ,165,0.65
-mobilenet-v2-pytorch [224x224],OV-2022.1.,core,Intel® Core™ i9-10900TE,915.39,565.56,576.50,2.061,26.154,$444 ,35,1,$444 ,35,1.50
-mobilenet-v2-pytorch [224x224],OV-2022.1.,core,Intel® Core™ i9-12900 CPU-only,1966.51,980.74,988.52,3.789,30.254,$519 ,65,1,$519 ,65,0.95
-mobilenet-v2-pytorch [224x224],OV-2022.1.,core-iGPU,Intel® Core™ i9-12900 iGPU-only,1326.07,380.12,756.64,2.555,20.401,$519 ,65,1,$519 ,65,1.92
-mobilenet-v2-pytorch [224x224],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i9-12900 CPU+iGPU,2106.00,662.82,837.30,4.057,32.399,$519 ,65,1,$519 ,65,
-mobilenet-v2-pytorch [224x224],OV-2022.1.,core,Intel® Core™ i7-1185G7 CPU-only,1167.40,484.55,478.82,2.74,41.692,$426 ,28,1,$426 ,28,1.03
-mobilenet-v2-pytorch [224x224],OV-2022.1.,core-iGPU,Intel® Core™ i7-1185G7 iGPU-only,1969.21,477.82,873.39,4.622,70.328,$426 ,28,1,$426 ,28,1.72
-mobilenet-v2-pytorch [224x224],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i7-1185G7 CPU+iGPU,2277.49,655.58,884.36,5.346,81.339,$426 ,28,1,$426 ,28,
-mobilenet-v2-pytorch [224x224],OV-2022.1.,core,Intel® Core™  i7-11800H CPU-only,2020.15,826.33,842.50,5.114,44.892,$395 ,45,1,$395 ,45,0.75
-mobilenet-v2-pytorch [224x224],OV-2022.1.,core-iGPU,Intel® Core™  i7-11800H iGPU-only,262.96,113.19,202.75,0.665,5.843,$395 ,45,1,$395 ,45,14.97
-mobilenet-v2-pytorch [224x224],OV-2022.1.,core-CPU+iGPU,Intel® Core™  i7-11800H CPU+iGPU,2293.72,617.91,705.51,5.806,50.971,$395 ,45,1,$395 ,45,
-mobilenet-v2-pytorch [224x224],OV-2022.1.,core,Intel® Core™ i5-10500TE ,914.50,525.81,537.98,4.689,26.128,$195 ,35,1,$195,35,1.53
-mobilenet-v2-pytorch [224x224],OV-2022.1.,xeon,Intel® Xeon® W1290P,1939.96,907.13,948.29,3.599,15.519,$539 ,125,1,$539 ,125,0.79
-mobilenet-v2-pytorch [224x224],OV-2022.1.,xeon,Intel® Xeon® E-2124G,666.24,558.32,557.55,3.127,9.383,$213 ,71,1,$213 ,71,1.65
-mobilenet-v2-pytorch [224x224],OV-2022.1.,xeon,Intel® Xeon® Silver 4216R,5003.27,1868.82,1861.44,4.993,20.013,"$2,004 ",250,2,"$1,002 ",125,1.01
-mobilenet-v2-pytorch [224x224],OV-2022.1.,xeon,Intel® Xeon® Silver 4316,11256.18,3411.93,3450.36,10.393,37.520,"$2,166 ",300,2,"$1,083 ",150,0.57
-mobilenet-v2-pytorch [224x224],OV-2022.1.,xeon,Intel® Xeon® Gold 5218T,5266.66,1955.69,1951.97,3.904,25.079,"$2,698 ",210,2,"$1,349 ",105,0.98
-mobilenet-v2-pytorch [224x224],OV-2022.1.,xeon,Intel® Xeon® Platinum 8270,14583.86,4291.83,4291.03,1.969,35.570,"$14,810 ",410,2,"$7,405 ",205,0.81
-mobilenet-v2-pytorch [224x224],OV-2022.1.,xeon,Intel® Xeon® Platinum 8380,23891.04,7445.78,7568.25,2.949,44.242,"$16,198 ",540,2,"$8,099 ",270,0.53
-mobilenet-v2-pytorch [224x224],OV-2022.1.,accel,Intel® Neural Compute Stick 2,,,86.32,1.251,34.528,$69 ,2.5,1,$69 ,2.5,
-mobilenet-v2-pytorch [224x224],OV-2022.1.,accel,Intel® Movidius™ VPUs (Uzel* UI-AR8),,,691.90,1.406,23.063,$492 ,30,1,$492 ,30,
-end_rec,,,,,,,,,,,,,,
-begin_rec,,,,,,,,,,,,,,
-pp-ocr-rec [32x640],OV-2022.1.,atom,Intel® Atom™ x5-E3940,47.80,41.23,40.76,1.405,5.031,$34 ,9.5,1,$34 ,9.5,28.95
-pp-ocr-rec [32x640],OV-2022.1.,atom,Intel® Atom™ x6425E CPU-only,91.60,76.70,75.42,1.552,7.633,$59 ,12,1,$59 ,12,14.67
-pp-ocr-rec [32x640],OV-2022.1.,atom,Intel® Atom™ x6425E iGPU-only,4.12,4.19,4.21,0.069,0.343,$59 ,12,1,$59 ,12,268.76
-pp-ocr-rec [32x640],OV-2022.1.,atom,Intel® Atom™ x6425E CPU+iGPU,67.44,57.54,58.51,1.143,5.620,$59 ,12,1,$59 ,12,
-pp-ocr-rec [32x640],OV-2022.1.,atom,Intel® Celeron 6305E CPU-only,169.76,105.20,105.42,1.586,11.317,$107 ,15,1,$107 ,15,7.09
-pp-ocr-rec [32x640],OV-2022.1.,atom,Intel® Celeron 6305E iGPU-only,7.42,7.37,7.46,0.069,0.494,$107 ,15,1,$107 ,15,130.46
-pp-ocr-rec [32x640],OV-2022.1.,atom,Intel® Celeron 6305E CPU+iGPU,81.94,46.20,46.72,0.765,5.462,$107 ,15,1,$107 ,15,
-pp-ocr-rec [32x640],OV-2022.1.,core,Intel® Core™ i3-8100,355.78,347.13,343.30,3.04,5.473,$117 ,65,1,$117 ,65,3.59
-pp-ocr-rec [32x640],OV-2022.1.,core,Intel® Core™ i5-8500,472.25,475.83,476.48,2.459,7.265,$192 ,65,1,$192 ,65,2.61
-pp-ocr-rec [32x640],OV-2022.1.,core,Intel® Core™ i7-8700T,497.35,487.17,487.43,1.641,14.209,$303 ,35,1,$303 ,35,2.58
-pp-ocr-rec [32x640],OV-2022.1.,core,Intel® Core™ i9-10920X,1552.25,1134.95,1135.64,2.217,9.407,$700 ,165,1,$700 ,165,1.97
-pp-ocr-rec [32x640],OV-2022.1.,core,Intel® Core™ i9-10900TE,449.83,466.79,463.91,1.013,12.852,$444 ,35,1,$444 ,35,2.92
-pp-ocr-rec [32x640],OV-2022.1.,core,Intel® Core™ i9-12900 CPU-only,789.11,810.23,854.02,1.52,12.140,$519 ,65,1,$519 ,65,2.31
-pp-ocr-rec [32x640],OV-2022.1.,core-iGPU,Intel® Core™ i9-12900 iGPU-only,18.33,17.15,17.92,0.035,0.281,$519 ,65,1,$519 ,65,84.39
-pp-ocr-rec [32x640],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i9-12900 CPU+iGPU,776.22,689.21,730.20,1.495,11.941,$519 ,65,1,$519 ,65,
-pp-ocr-rec [32x640],OV-2022.1.,core,Intel® Core™ i7-1185G7 CPU-only,614.11,432.73,436.38,1.441,21.932,$426 ,28,1,$426 ,28,2.06
-pp-ocr-rec [32x640],OV-2022.1.,core-iGPU,Intel® Core™ i7-1185G7 iGPU-only,18.19,18.00,18.23,0.042,0.649,$426 ,28,1,$426 ,28,76.17
-pp-ocr-rec [32x640],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i7-1185G7 CPU+iGPU,563.81,423.99,426.09,1.323,20.135,$426 ,28,1,$426 ,28,
-pp-ocr-rec [32x640],OV-2022.1.,core,Intel® Core™  i7-11800H CPU-only,1002.47,786.63,787.70,2.537,22.277,$395 ,45,1,$395 ,45,1.68
-pp-ocr-rec [32x640],OV-2022.1.,core-iGPU,Intel® Core™  i7-11800H iGPU-only,14.08,11.83,11.49,0.035,0.312,$395 ,45,1,$395 ,45,93.61
-pp-ocr-rec [32x640],OV-2022.1.,core-CPU+iGPU,Intel® Core™  i7-11800H CPU+iGPU,1051.37,752.90,807.00,2.661,23.363,$395 ,45,1,$395 ,45,
-pp-ocr-rec [32x640],OV-2022.1.,core,Intel® Core™ i5-10500TE ,404.97,393.29,392.74,2.076,11.570,$195 ,35,1,$195,35,2.90
-pp-ocr-rec [32x640],OV-2022.1.,xeon,Intel® Xeon® W1290P,570.47,607.30,612.78,1.058,4.563,$539 ,125,1,$539 ,125,1.68
-pp-ocr-rec [32x640],OV-2022.1.,xeon,Intel® Xeon® E-2124G,425.92,424.49,424.68,1.999,5.998,$213 ,71,1,$213 ,71,3.02
-pp-ocr-rec [32x640],OV-2022.1.,xeon,Intel® Xeon® Silver 4216R,2411.83,1369.68,1373.11,2.407,9.647,"$2,004 ",250,2,"$1,002 ",125,3.08
-pp-ocr-rec [32x640],OV-2022.1.,xeon,Intel® Xeon® Silver 4316,3728.17,3252.54,3257.56,3.442,12.427,"$2,166 ",300,2,"$1,083 ",150,2.01
-pp-ocr-rec [32x640],OV-2022.1.,xeon,Intel® Xeon® Gold 5218T,2495.77,1416.33,1418.77,1.85,11.884,"$2,698 ",210,2,"$1,349 ",105,2.95
-pp-ocr-rec [32x640],OV-2022.1.,xeon,Intel® Xeon® Platinum 8270,3655.27,2655.01,2601.29,0.493,8.915,"$14,810 ",410,2,"$7,405 ",205,2.76
-pp-ocr-rec [32x640],OV-2022.1.,xeon,Intel® Xeon® Platinum 8380,4026.54,4047.01,4017.52,0.497,7.456,"$16,198 ",540,2,"$8,099 ",270,2.05
-end_rec,,,,,,,,,,,,,,
-begin_rec,,,,,,,,,,,,,,
-pp-yolo [640x640],OV-2022.1.,atom,Intel® Atom™ x5-E3940,0.51,0.27,0.27,0.015,0.053,$34 ,9.5,1,$34 ,9.5,1991.03
-pp-yolo [640x640],OV-2022.1.,atom,Intel® Atom™ x6425E CPU-only,0.90,0.46,0.46,0.015,0.075,$59 ,12,1,$59 ,12,1186.45
-pp-yolo [640x640],OV-2022.1.,atom,Intel® Atom™ x6425E iGPU-only,,,,#VALUE!,#VALUE!,$59 ,12,1,$59 ,12,
-pp-yolo [640x640],OV-2022.1.,atom,Intel® Atom™ x6425E CPU+iGPU,,,,#VALUE!,#VALUE!,$59 ,12,1,$59 ,12,
-pp-yolo [640x640],OV-2022.1.,atom,Intel® Celeron 6305E CPU-only,1.86,0.90,0.90,0.017,0.124,$107 ,15,1,$107 ,15,536.37
-pp-yolo [640x640],OV-2022.1.,atom,Intel® Celeron 6305E iGPU-only,,,,#VALUE!,#VALUE!,$107 ,15,1,$107 ,15,
-pp-yolo [640x640],OV-2022.1.,atom,Intel® Celeron 6305E CPU+iGPU,,,,#VALUE!,#VALUE!,$107 ,15,1,$107 ,15,
-pp-yolo [640x640],OV-2022.1.,core,Intel® Core™ i3-8100,4.08,2.27,2.31,0.034,0.062,$117 ,65,1,$117 ,65,234.64
-pp-yolo [640x640],OV-2022.1.,core,Intel® Core™ i5-8500,6.77,3.67,3.62,0.035,0.104,$192 ,65,1,$192 ,65,142.54
-pp-yolo [640x640],OV-2022.1.,core,Intel® Core™ i7-8700T,7.61,4.00,3.99,0.025,0.217,$303 ,35,1,$303 ,35,145.72
-pp-yolo [640x640],OV-2022.1.,core,Intel® Core™ i9-10920X,25.36,13.15,13.39,0.036,0.153,$700 ,165,1,$700 ,165,48.74
-pp-yolo [640x640],OV-2022.1.,core,Intel® Core™ i9-10900TE,7.17,3.88,3.90,0.016,0.204,$444 ,35,1,$444 ,35,149.73
-pp-yolo [640x640],OV-2022.1.,core,Intel® Core™ i9-12900 CPU-only,14.47,6.72,6.75,0.027,0.222,$519 ,65,1,$519 ,65,136.66
-pp-yolo [640x640],OV-2022.1.,core-iGPU,Intel® Core™ i9-12900 iGPU-only,,,,#VALUE!,#VALUE!,$519 ,65,1,$519 ,65,
-pp-yolo [640x640],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i9-12900 CPU+iGPU,,,,#VALUE!,#VALUE!,$519 ,65,1,$519 ,65,
-pp-yolo [640x640],OV-2022.1.,core,Intel® Core™ i7-1185G7 CPU-only,7.57,3.60,3.62,0.017,0.270,$426 ,28,1,$426 ,28,136.35
-pp-yolo [640x640],OV-2022.1.,core-iGPU,Intel® Core™ i7-1185G7 iGPU-only,,,,#VALUE!,#VALUE!,$426 ,28,1,$426 ,28,
-pp-yolo [640x640],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i7-1185G7 CPU+iGPU,,,,#VALUE!,#VALUE!,$426 ,28,1,$426 ,28,
-pp-yolo [640x640],OV-2022.1.,core,Intel® Core™  i7-11800H CPU-only,13.79,6.65,6.56,0.034,0.306,$395 ,45,1,$395 ,45,69.09
-pp-yolo [640x640],OV-2022.1.,core-iGPU,Intel® Core™  i7-11800H iGPU-only,,,,#VALUE!,#VALUE!,$395 ,45,1,$395 ,45,
-pp-yolo [640x640],OV-2022.1.,core-CPU+iGPU,Intel® Core™  i7-11800H CPU+iGPU,,,,#VALUE!,#VALUE!,$395 ,45,1,$395 ,45,
-pp-yolo [640x640],OV-2022.1.,core,Intel® Core™ i5-10500TE ,6.60,3.57,3.54,0.033,0.188,$195 ,35,1,$195,35,165.58
-pp-yolo [640x640],OV-2022.1.,xeon,Intel® Xeon® W1290P,12.94,6.72,6.65,0.024,0.103,$539 ,125,1,$539 ,125,82.04
-pp-yolo [640x640],OV-2022.1.,xeon,Intel® Xeon® E-2124G,5.16,2.75,2.68,0.024,0.072,$213 ,71,1,$213 ,71,192.03
-pp-yolo [640x640],OV-2022.1.,xeon,Intel® Xeon® Silver 4216R,32.94,16.31,16.39,0.032,0.131,"$2,004 ",250,2,"$1,002 ",125,79.30
-pp-yolo [640x640],OV-2022.1.,xeon,Intel® Xeon® Silver 4316,61.48,32.67,33.03,0.056,0.204,"$2,166 ",300,2,"$1,083 ",150,45.23
-pp-yolo [640x640],OV-2022.1.,xeon,Intel® Xeon® Gold 5218T,34.42,17.20,17.23,0.025,0.163,"$2,698 ",210,2,"$1,349 ",105,77.29
-pp-yolo [640x640],OV-2022.1.,xeon,Intel® Xeon® Platinum 8270,81.47,44.73,45.17,0.011,0.198,"$14,810 ",410,2,"$7,405 ",205,48.80
-pp-yolo [640x640],OV-2022.1.,xeon,Intel® Xeon® Platinum 8380,119.89,65.33,66.35,0.014,0.222,"$16,198 ",540,2,"$8,099 ",270,35.87
-end_rec,,,,,,,,,,,,,,
-begin_rec,,,,,,,,,,,,,,
-resnet-18-pytorch [224x224],OV-2022.1.,atom,Intel® Atom™ x5-E3940,22.88,9.70,9.69,0.672,2.408,$34 ,9.5,1,$34 ,9.5,45.68
-resnet-18-pytorch [224x224],OV-2022.1.,atom,Intel® Atom™ x6425E CPU-only,40.49,16.13,16.22,0.686,3.374,$59 ,12,1,$59 ,12,25.34
-resnet-18-pytorch [224x224],OV-2022.1.,atom,Intel® Atom™ x6425E iGPU-only,160.99,60.70,163.95,2.728,13.415,$59 ,12,1,$59 ,12,11.03
-resnet-18-pytorch [224x224],OV-2022.1.,atom,Intel® Atom™ x6425E CPU+iGPU,194.31,72.77,173.30,3.293,16.192,$59 ,12,1,$59 ,12,
-resnet-18-pytorch [224x224],OV-2022.1.,atom,Intel® Celeron 6305E CPU-only,104.58,28.56,28.61,0.977,6.972,$107 ,15,1,$107 ,15,9.76
-resnet-18-pytorch [224x224],OV-2022.1.,atom,Intel® Celeron 6305E iGPU-only,606.35,162.38,366.06,5.666,40.423,$107 ,15,1,$107 ,15,2.86
-resnet-18-pytorch [224x224],OV-2022.1.,atom,Intel® Celeron 6305E CPU+iGPU,691.60,187.14,383.72,6.463,46.106,$107 ,15,1,$107 ,15,
-resnet-18-pytorch [224x224],OV-2022.1.,core,Intel® Core™ i3-8100,207.01,104.96,104.77,1.769,3.184,$117 ,65,1,$117 ,65,5.09
-resnet-18-pytorch [224x224],OV-2022.1.,core,Intel® Core™ i5-8500,305.39,153.66,156.23,1.59,4.698,$192 ,65,1,$192 ,65,3.44
-resnet-18-pytorch [224x224],OV-2022.1.,core,Intel® Core™ i7-8700T,334.50,169.86,170.81,1.103,9.557,$303 ,35,1,$303 ,35,3.28
-resnet-18-pytorch [224x224],OV-2022.1.,core,Intel® Core™ i9-10920X,1764.62,485.44,494.86,2.52,10.694,$700 ,165,1,$700 ,165,0.83
-resnet-18-pytorch [224x224],OV-2022.1.,core,Intel® Core™ i9-10900TE,294.68,140.07,141.06,0.663,8.419,$444 ,35,1,$444 ,35,3.69
-resnet-18-pytorch [224x224],OV-2022.1.,core,Intel® Core™ i9-12900 CPU-only,726.28,248.43,250.31,1.399,11.173,$519 ,65,1,$519 ,65,2.62
-resnet-18-pytorch [224x224],OV-2022.1.,core-iGPU,Intel® Core™ i9-12900 iGPU-only,496.37,147.00,310.36,0.956,7.636,$519 ,65,1,$519 ,65,2.97
-resnet-18-pytorch [224x224],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i9-12900 CPU+iGPU,923.95,258.88,419.23,1.78,14.214,$519 ,65,1,$519 ,65,
-resnet-18-pytorch [224x224],OV-2022.1.,core,Intel® Core™ i7-1185G7 CPU-only,483.17,117.35,118.51,1.134,17.256,$426 ,28,1,$426 ,28,2.40
-resnet-18-pytorch [224x224],OV-2022.1.,core-iGPU,Intel® Core™ i7-1185G7 iGPU-only,923.49,255.46,568.24,2.167,32.981,$426 ,28,1,$426 ,28,1.85
-resnet-18-pytorch [224x224],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i7-1185G7 CPU+iGPU,945.16,250.57,469.99,2.218,33.755,$426 ,28,1,$426 ,28,
-resnet-18-pytorch [224x224],OV-2022.1.,core,Intel® Core™  i7-11800H CPU-only,861.51,202.47,203.57,2.181,19.144,$395 ,45,1,$395 ,45,1.45
-resnet-18-pytorch [224x224],OV-2022.1.,core-iGPU,Intel® Core™  i7-11800H iGPU-only,96.33,63.17,61.43,0.243,2.140,$395 ,45,1,$395 ,45,4.63
-resnet-18-pytorch [224x224],OV-2022.1.,core-CPU+iGPU,Intel® Core™  i7-11800H CPU+iGPU,1051.87,242.38,360.68,2.662,23.374,$395 ,45,1,$395 ,45,
-resnet-18-pytorch [224x224],OV-2022.1.,core,Intel® Core™ i5-10500TE ,299.19,150.37,150.75,1.534,8.548,$195 ,35,1,$195,35,3.65
-resnet-18-pytorch [224x224],OV-2022.1.,xeon,Intel® Xeon® W1290P,644.01,299.03,299.52,1.194,5.152,$539 ,125,1,$539 ,125,1.69
-resnet-18-pytorch [224x224],OV-2022.1.,xeon,Intel® Xeon® E-2124G,232.46,118.28,119.15,1.091,3.274,$213 ,71,1,$213 ,71,4.39
-resnet-18-pytorch [224x224],OV-2022.1.,xeon,Intel® Xeon® Silver 4216R,1928.73,512.60,512.39,1.924,7.714,"$2,004 ",250,2,"$1,002 ",125,1.33
-resnet-18-pytorch [224x224],OV-2022.1.,xeon,Intel® Xeon® Silver 4316,4564.63,876.49,883.68,4.214,15.215,"$2,166 ",300,2,"$1,083 ",150,0.72
-resnet-18-pytorch [224x224],OV-2022.1.,xeon,Intel® Xeon® Gold 5218T,1968.41,535.52,535.39,1.459,9.373,"$2,698 ",210,2,"$1,349 ",105,1.28
-resnet-18-pytorch [224x224],OV-2022.1.,xeon,Intel® Xeon® Platinum 8270,6327.41,1525.04,1527.13,0.854,15.432,"$14,810 ",410,2,"$7,405 ",205,0.75
-resnet-18-pytorch [224x224],OV-2022.1.,xeon,Intel® Xeon® Platinum 8380,9604.61,1761.35,1764.81,1.185,17.786,"$16,198 ",540,2,"$8,099 ",270,0.46
-resnet-18-pytorch [224x224],OV-2022.1.,accel,Intel® Neural Compute Stick 2,,,97.80,1.417,39.118,$69 ,2.5,1,$69 ,2.5,
-resnet-18-pytorch [224x224],OV-2022.1.,accel,Intel® Movidius™ VPUs (Uzel* UI-AR8),,,786.89,1.599,26.229,$492 ,30,1,$492 ,30,
-end_rec,,,,,,,,,,,,,,
-begin_rec,,,,,,,,,,,,,,
-resnet-50-PYTORCH [224x224],OV-2022.1.,atom,Intel® Atom™ x5-E3940,9.37,3.81,3.82,0.275,0.985,$34 ,9.5,1,$34 ,9.5,109.86
-resnet-50-PYTORCH [224x224],OV-2022.1.,atom,Intel® Atom™ x6425E CPU-only,16.75,6.86,6.83,0.283,1.396,$59 ,12,1,$59 ,12,60.83
-resnet-50-PYTORCH [224x224],OV-2022.1.,atom,Intel® Atom™ x6425E iGPU-only,55.63,24.11,56.09,0.942,4.635,$59 ,12,1,$59 ,12,25.48
-resnet-50-PYTORCH [224x224],OV-2022.1.,atom,Intel® Atom™ x6425E CPU+iGPU,67.67,29.85,60.46,1.146,5.639,$59 ,12,1,$59 ,12,
-resnet-50-PYTORCH [224x224],OV-2022.1.,atom,Intel® Celeron 6305E CPU-only,42.77,12.10,12.10,0.399,2.851,$107 ,15,1,$107 ,15,23.85
-resnet-50-PYTORCH [224x224],OV-2022.1.,atom,Intel® Celeron 6305E iGPU-only,248.99,60.65,140.50,2.326,16.599,$107 ,15,1,$107 ,15,6.66
-resnet-50-PYTORCH [224x224],OV-2022.1.,atom,Intel® Celeron 6305E CPU+iGPU,281.09,69.75,144.24,2.627,18.739,$107 ,15,1,$107 ,15,
-resnet-50-PYTORCH [224x224],OV-2022.1.,core,Intel® Core™ i3-8100,85.87,46.73,46.30,0.733,1.321,$117 ,65,1,$117 ,65,12.43
-resnet-50-PYTORCH [224x224],OV-2022.1.,core,Intel® Core™ i5-8500,128.09,67.98,68.69,0.667,1.970,$192 ,65,1,$192 ,65,8.81
-resnet-50-PYTORCH [224x224],OV-2022.1.,core,Intel® Core™ i7-8700T,138.34,74.24,73.78,0.456,3.952,$303 ,35,1,$303 ,35,8.41
-resnet-50-PYTORCH [224x224],OV-2022.1.,core,Intel® Core™ i9-10920X,743.13,192.92,196.93,1.061,4.503,$700 ,165,1,$700 ,165,2.16
-resnet-50-PYTORCH [224x224],OV-2022.1.,core,Intel® Core™ i9-10900TE,124.19,61.16,62.35,0.279,3.548,$444 ,35,1,$444 ,35,8.90
-resnet-50-PYTORCH [224x224],OV-2022.1.,core,Intel® Core™ i9-12900 CPU-only,310.11,109.07,108.49,0.597,4.770,$519 ,65,1,$519 ,65,6.46
-resnet-50-PYTORCH [224x224],OV-2022.1.,core-iGPU,Intel® Core™ i9-12900 iGPU-only,210.65,56.88,122.14,0.405,3.240,$519 ,65,1,$519 ,65,6.02
-resnet-50-PYTORCH [224x224],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i9-12900 CPU+iGPU,425.72,96.26,153.34,0.82,6.549,$519 ,65,1,$519 ,65,
-resnet-50-PYTORCH [224x224],OV-2022.1.,core,Intel® Core™ i7-1185G7 CPU-only,174.85,49.67,49.95,0.41,6.244,$426 ,28,1,$426 ,28,6.12
-resnet-50-PYTORCH [224x224],OV-2022.1.,core-iGPU,Intel® Core™ i7-1185G7 iGPU-only,397.21,91.61,168.21,0.932,14.186,$426 ,28,1,$426 ,28,4.51
-resnet-50-PYTORCH [224x224],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i7-1185G7 CPU+iGPU,380.85,88.67,152.23,0.894,13.601,$426 ,28,1,$426 ,28,
-resnet-50-PYTORCH [224x224],OV-2022.1.,core,Intel® Core™  i7-11800H CPU-only,305.96,89.22,99.50,0.774,6.799,$395 ,45,1,$395 ,45,3.77
-resnet-50-PYTORCH [224x224],OV-2022.1.,core-iGPU,Intel® Core™  i7-11800H iGPU-only,125.37,23.97,62.60,0.317,2.786,$395 ,45,1,$395 ,45,31.46
-resnet-50-PYTORCH [224x224],OV-2022.1.,core-CPU+iGPU,Intel® Core™  i7-11800H CPU+iGPU,382.59,99.94,135.62,0.968,8.501,$395 ,45,1,$395 ,45,
-resnet-50-PYTORCH [224x224],OV-2022.1.,core,Intel® Core™ i5-10500TE ,123.75,65.10,64.76,0.634,3.535,$195 ,35,1,$195,35,9.39
-resnet-50-PYTORCH [224x224],OV-2022.1.,xeon,Intel® Xeon® W1290P,264.79,127.53,127.18,0.491,2.118,$539 ,125,1,$539 ,125,4.29
-resnet-50-PYTORCH [224x224],OV-2022.1.,xeon,Intel® Xeon® E-2124G,97.30,52.76,53.87,0.456,1.370,$213 ,71,1,$213 ,71,10.79
-resnet-50-PYTORCH [224x224],OV-2022.1.,xeon,Intel® Xeon® Silver 4216R,783.43,216.24,216.17,0.781,3.133,"$2,004 ",250,2,"$1,002 ",125,3.51
-resnet-50-PYTORCH [224x224],OV-2022.1.,xeon,Intel® Xeon® Silver 4316,1847.53,417.03,423.60,1.705,6.158,"$2,166 ",300,2,"$1,083 ",150,1.94
-resnet-50-PYTORCH [224x224],OV-2022.1.,xeon,Intel® Xeon® Gold 5218T,823.83,225.96,226.26,0.61,3.923,"$2,698 ",210,2,"$1,349 ",105,3.37
-resnet-50-PYTORCH [224x224],OV-2022.1.,xeon,Intel® Xeon® Platinum 8270,2495.75,620.29,620.78,0.337,6.087,"$14,810 ",410,2,"$7,405 ",205,1.72
-resnet-50-PYTORCH [224x224],OV-2022.1.,xeon,Intel® Xeon® Platinum 8380,3897.47,878.21,890.20,0.481,7.217,"$16,198 ",540,2,"$8,099 ",270,1.15
-resnet-50-PYTORCH [224x224],OV-2022.1.,accel,Intel® Neural Compute Stick 2,,,28.97,0.419,11.587,$69 ,2.5,1,$69 ,2.5,
-resnet-50-PYTORCH [224x224],OV-2022.1.,accel,Intel® Movidius™ VPUs (Uzel* UI-AR8),,,231.07,0.469,7.702,$492 ,30,1,$492 ,30,
-end_rec,,,,,,,,,,,,,,
-begin_rec,,,,,,,,,,,,,,
-resnet-50-TF [224x224],OV-2022.1.,atom,Intel® Atom™ x5-E3940,9.38,3.82,3.82,0.275,0.987,$34 ,9.5,1,$34 ,9.5,110.31
-resnet-50-TF [224x224],OV-2022.1.,atom,Intel® Atom™ x6425E CPU-only,16.71,6.86,6.81,0.283,1.392,$59 ,12,1,$59 ,12,60.77
-resnet-50-TF [224x224],OV-2022.1.,atom,Intel® Atom™ x6425E iGPU-only,55.81,24.23,56.38,0.945,4.650,$59 ,12,1,$59 ,12,25.41
-resnet-50-TF [224x224],OV-2022.1.,atom,Intel® Atom™ x6425E CPU+iGPU,67.71,29.87,59.06,1.147,5.642,$59 ,12,1,$59 ,12,
-resnet-50-TF [224x224],OV-2022.1.,atom,Intel® Celeron 6305E CPU-only,42.54,12.08,12.09,0.397,2.836,$107 ,15,1,$107 ,15,23.97
-resnet-50-TF [224x224],OV-2022.1.,atom,Intel® Celeron 6305E iGPU-only,247.15,60.60,140.68,2.309,16.476,$107 ,15,1,$107 ,15,6.73
-resnet-50-TF [224x224],OV-2022.1.,atom,Intel® Celeron 6305E CPU+iGPU,278.70,69.61,144.60,2.604,18.579,$107 ,15,1,$107 ,15,
-resnet-50-TF [224x224],OV-2022.1.,core,Intel® Core™ i3-8100,85.30,46.29,46.16,0.729,1.312,$117 ,65,1,$117 ,65,12.49
-resnet-50-TF [224x224],OV-2022.1.,core,Intel® Core™ i5-8500,138.92,68.24,69.39,0.723,2.137,$192 ,65,1,$192 ,65,8.78
-resnet-50-TF [224x224],OV-2022.1.,core,Intel® Core™ i7-8700T,137.68,74.20,74.13,0.454,3.933,$303 ,35,1,$303 ,35,8.46
-resnet-50-TF [224x224],OV-2022.1.,core,Intel® Core™ i9-10920X,749.03,194.07,197.53,1.07,4.539,$700 ,165,1,$700 ,165,2.21
-resnet-50-TF [224x224],OV-2022.1.,core,Intel® Core™ i9-10900TE,125.00,61.65,74.04,0.281,3.571,$444 ,35,1,$444 ,35,8.64
-resnet-50-TF [224x224],OV-2022.1.,core,Intel® Core™ i9-12900 CPU-only,303.66,108.48,109.06,0.585,4.671,$519 ,65,1,$519 ,65,6.45
-resnet-50-TF [224x224],OV-2022.1.,core-iGPU,Intel® Core™ i9-12900 iGPU-only,209.93,56.95,122.40,0.404,3.229,$519 ,65,1,$519 ,65,6.03
-resnet-50-TF [224x224],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i9-12900 CPU+iGPU,399.96,91.63,155.32,0.77,6.153,$519 ,65,1,$519 ,65,
-resnet-50-TF [224x224],OV-2022.1.,core,Intel® Core™ i7-1185G7 CPU-only,174.10,49.53,49.83,0.408,6.218,$426 ,28,1,$426 ,28,6.17
-resnet-50-TF [224x224],OV-2022.1.,core-iGPU,Intel® Core™ i7-1185G7 iGPU-only,395.65,91.38,169.01,0.928,14.130,$426 ,28,1,$426 ,28,4.60
-resnet-50-TF [224x224],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i7-1185G7 CPU+iGPU,380.93,92.22,148.75,0.894,13.604,$426 ,28,1,$426 ,28,
-resnet-50-TF [224x224],OV-2022.1.,core,Intel® Core™  i7-11800H CPU-only,303.86,86.43,86.83,0.769,6.752,$395 ,45,1,$395 ,45,3.79
-resnet-50-TF [224x224],OV-2022.1.,core-iGPU,Intel® Core™  i7-11800H iGPU-only,107.26,26.81,65.88,0.271,2.383,$395 ,45,1,$395 ,45,31.75
-resnet-50-TF [224x224],OV-2022.1.,core-CPU+iGPU,Intel® Core™  i7-11800H CPU+iGPU,405.96,100.31,133.72,1.027,9.021,$395 ,45,1,$395 ,45,
-resnet-50-TF [224x224],OV-2022.1.,core,Intel® Core™ i5-10500TE ,123.17,64.82,64.71,0.631,3.519,$195 ,35,1,$195,35,9.42
-resnet-50-TF [224x224],OV-2022.1.,xeon,Intel® Xeon® W1290P,261.12,128.00,128.78,0.484,2.088,$539 ,125,1,$539 ,125,4.32
-resnet-50-TF [224x224],OV-2022.1.,xeon,Intel® Xeon® E-2124G,96.70,52.52,53.07,0.453,1.361,$213 ,71,1,$213 ,71,10.85
-resnet-50-TF [224x224],OV-2022.1.,xeon,Intel® Xeon® Silver 4216R,778.61,216.07,215.54,0.777,3.114,"$2,004 ",250,2,"$1,002 ",125,3.57
-resnet-50-TF [224x224],OV-2022.1.,xeon,Intel® Xeon® Silver 4316,1828.11,417.12,424.47,1.688,6.093,"$2,166 ",300,2,"$1,083 ",150,1.94
-resnet-50-TF [224x224],OV-2022.1.,xeon,Intel® Xeon® Gold 5218T,817.61,226.06,226.21,0.606,3.893,"$2,698 ",210,2,"$1,349 ",105,3.42
-resnet-50-TF [224x224],OV-2022.1.,xeon,Intel® Xeon® Platinum 8270,2487.31,618.30,616.65,0.335,6.066,"$14,810 ",410,2,"$7,405 ",205,1.75
-resnet-50-TF [224x224],OV-2022.1.,xeon,Intel® Xeon® Platinum 8380,3873.21,876.34,887.82,0.478,7.172,"$16,198 ",540,2,"$8,099 ",270,1.18
-resnet-50-TF [224x224],OV-2022.1.,accel,Intel® Neural Compute Stick 2,,,28.52,0.413,11.409,$69 ,2.5,1,$69 ,2.5,
-resnet-50-TF [224x224],OV-2022.1.,accel,Intel® Movidius™ VPUs (Uzel* UI-AR8),,,231.00,0.469,7.700,$492 ,30,1,$492 ,30,
-end_rec,,,,,,,,,,,,,,
-begin_rec,,,,,,,,,,,,,,
-ssd_mobilenet_v1_coco-TF [300x300],OV-2022.1.,atom,Intel® Atom™ x5-E3940,25.31,11.73,11.75,0.744,2.663,$34 ,9.5,1,$34 ,9.5,43.65
-ssd_mobilenet_v1_coco-TF [300x300],OV-2022.1.,atom,Intel® Atom™ x6425E CPU-only,44.85,21.65,21.83,0.76,3.737,$59 ,12,1,$59 ,12,23.67
-ssd_mobilenet_v1_coco-TF [300x300],OV-2022.1.,atom,Intel® Atom™ x6425E iGPU-only,89.67,52.84,92.45,1.519,7.472,$59 ,12,1,$59 ,12,13.83
-ssd_mobilenet_v1_coco-TF [300x300],OV-2022.1.,atom,Intel® Atom™ x6425E CPU+iGPU,126.24,69.84,110.06,2.139,10.519,$59 ,12,1,$59 ,12,
-ssd_mobilenet_v1_coco-TF [300x300],OV-2022.1.,atom,Intel® Celeron 6305E CPU-only,107.30,35.29,35.50,1.002,7.153,$107 ,15,1,$107 ,15,10.20
-ssd_mobilenet_v1_coco-TF [300x300],OV-2022.1.,atom,Intel® Celeron 6305E iGPU-only,335.21,126.87,199.13,3.132,22.347,$107 ,15,1,$107 ,15,5.84
-ssd_mobilenet_v1_coco-TF [300x300],OV-2022.1.,atom,Intel® Celeron 6305E CPU+iGPU,300.53,126.12,180.33,2.808,20.035,$107 ,15,1,$107 ,15,
-ssd_mobilenet_v1_coco-TF [300x300],OV-2022.1.,core,Intel® Core™ i3-8100,214.55,120.51,123.11,1.833,3.300,$117 ,65,1,$117 ,65,5.04
-ssd_mobilenet_v1_coco-TF [300x300],OV-2022.1.,core,Intel® Core™ i5-8500,327.42,186.36,196.35,1.705,5.037,$192 ,65,1,$192 ,65,3.42
-ssd_mobilenet_v1_coco-TF [300x300],OV-2022.1.,core,Intel® Core™ i7-8700T,359.53,208.95,206.67,1.186,10.272,$303 ,35,1,$303 ,35,3.35
-ssd_mobilenet_v1_coco-TF [300x300],OV-2022.1.,core,Intel® Core™ i9-10920X,1664.78,488.82,499.14,2.378,10.089,$700 ,165,1,$700 ,165,1.15
-ssd_mobilenet_v1_coco-TF [300x300],OV-2022.1.,core,Intel® Core™ i9-10900TE,328.48,178.40,180.26,0.739,9.385,$444 ,35,1,$444 ,35,3.51
-ssd_mobilenet_v1_coco-TF [300x300],OV-2022.1.,core,Intel® Core™ i9-12900 CPU-only,807.32,303.30,306.78,1.555,12.420,$519 ,65,1,$519 ,65,2.91
-ssd_mobilenet_v1_coco-TF [300x300],OV-2022.1.,core-iGPU,Intel® Core™ i9-12900 iGPU-only,352.49,126.65,201.38,0.679,5.422,$519 ,65,1,$519 ,65,4.02
-ssd_mobilenet_v1_coco-TF [300x300],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i9-12900 CPU+iGPU,793.25,301.08,367.33,1.528,12.203,$519 ,65,1,$519 ,65,
-ssd_mobilenet_v1_coco-TF [300x300],OV-2022.1.,core,Intel® Core™ i7-1185G7 CPU-only,427.98,140.11,143.59,1.004,15.284,$426 ,28,1,$426 ,28,2.58
-ssd_mobilenet_v1_coco-TF [300x300],OV-2022.1.,core-iGPU,Intel® Core™ i7-1185G7 iGPU-only,423.06,188.33,268.30,0.993,15.109,$426 ,28,1,$426 ,28,3.25
-ssd_mobilenet_v1_coco-TF [300x300],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i7-1185G7 CPU+iGPU,657.85,212.59,282.24,1.544,23.494,$426 ,28,1,$426 ,28,
-ssd_mobilenet_v1_coco-TF [300x300],OV-2022.1.,core,Intel® Core™  i7-11800H CPU-only,747.93,249.84,254.47,1.893,16.620,$395 ,45,1,$395 ,45,1.73
-ssd_mobilenet_v1_coco-TF [300x300],OV-2022.1.,core-iGPU,Intel® Core™  i7-11800H iGPU-only,41.60,16.78,18.47,0.105,0.924,$395 ,45,1,$395 ,45,24.77
-ssd_mobilenet_v1_coco-TF [300x300],OV-2022.1.,core-CPU+iGPU,Intel® Core™  i7-11800H CPU+iGPU,834.51,184.51,192.69,2.112,18.544,$395 ,45,1,$395 ,45,
-ssd_mobilenet_v1_coco-TF [300x300],OV-2022.1.,core,Intel® Core™ i5-10500TE ,324.09,172.93,171.99,1.662,9.259,$195 ,35,1,$195,35,3.72
-ssd_mobilenet_v1_coco-TF [300x300],OV-2022.1.,xeon,Intel® Xeon® W1290P,682.20,315.53,316.75,1.265,5.457,$539 ,125,1,$539 ,125,1.79
-ssd_mobilenet_v1_coco-TF [300x300],OV-2022.1.,xeon,Intel® Xeon® E-2124G,248.55,150.37,152.46,1.166,3.500,$213 ,71,1,$213 ,71,4.34
-ssd_mobilenet_v1_coco-TF [300x300],OV-2022.1.,xeon,Intel® Xeon® Silver 4216R,1884.20,602.02,600.37,1.88,7.536,"$2,004 ",250,2,"$1,002 ",125,1.87
-ssd_mobilenet_v1_coco-TF [300x300],OV-2022.1.,xeon,Intel® Xeon® Silver 4316,4185.70,1146.19,1171.79,3.864,13.952,"$2,166 ",300,2,"$1,083 ",150,1.08
-ssd_mobilenet_v1_coco-TF [300x300],OV-2022.1.,xeon,Intel® Xeon® Gold 5218T,1976.75,627.11,623.43,1.465,9.413,"$2,698 ",210,2,"$1,349 ",105,1.79
-ssd_mobilenet_v1_coco-TF [300x300],OV-2022.1.,xeon,Intel® Xeon® Platinum 8270,5455.71,1508.52,1501.49,0.736,13.306,"$14,810 ",410,2,"$7,405 ",205,1.17
-ssd_mobilenet_v1_coco-TF [300x300],OV-2022.1.,xeon,Intel® Xeon® Platinum 8380,8670.98,2442.79,2486.37,1.07,16.057,"$16,198 ",540,2,"$8,099 ",270,0.88
-ssd_mobilenet_v1_coco-TF [300x300],OV-2022.1.,accel,Intel® Neural Compute Stick 2,,,43.52,0.63,17.409,$69 ,2.5,1,$69 ,2.5,
-ssd_mobilenet_v1_coco-TF [300x300],OV-2022.1.,accel,Intel® Movidius™ VPUs (Uzel* UI-AR8),,,349.25,0.709,11.641,$492 ,30,1,$492 ,30,
-end_rec,,,,,,,,,,,,,,
-begin_rec,,,,,,,,,,,,,,
-ssdlite_mobilenet_v2-TF [300x300],OV-2022.1.,atom,Intel® Atom™ x5-E3940,32.92,18.42,18.51,0.968,3.465,$34 ,9.5,1,$34 ,9.5,35.14
-ssdlite_mobilenet_v2-TF [300x300],OV-2022.1.,atom,Intel® Atom™ x6425E CPU-only,57.54,33.27,32.88,0.975,4.794,$59 ,12,1,$59 ,12,18.94
-ssdlite_mobilenet_v2-TF [300x300],OV-2022.1.,atom,Intel® Atom™ x6425E iGPU-only,86.07,54.21,91.66,1.458,7.172,$59 ,12,1,$59 ,12,15.06
-ssdlite_mobilenet_v2-TF [300x300],OV-2022.1.,atom,Intel® Atom™ x6425E CPU+iGPU,129.36,76.83,115.28,2.192,10.780,$59 ,12,1,$59 ,12,
-ssdlite_mobilenet_v2-TF [300x300],OV-2022.1.,atom,Intel® Celeron 6305E CPU-only,121.43,50.32,50.61,1.134,8.095,$107 ,15,1,$107 ,15,9.21
-ssdlite_mobilenet_v2-TF [300x300],OV-2022.1.,atom,Intel® Celeron 6305E iGPU-only,311.48,137.64,212.28,2.911,20.765,$107 ,15,1,$107 ,15,7.13
-ssdlite_mobilenet_v2-TF [300x300],OV-2022.1.,atom,Intel® Celeron 6305E CPU+iGPU,292.38,140.92,187.94,2.732,19.491,$107 ,15,1,$107 ,15,
-ssdlite_mobilenet_v2-TF [300x300],OV-2022.1.,core,Intel® Core™ i3-8100,251.49,163.28,162.71,2.149,3.869,$117 ,65,1,$117 ,65,4.43
-ssdlite_mobilenet_v2-TF [300x300],OV-2022.1.,core,Intel® Core™ i5-8500,379.04,249.36,247.89,1.974,5.831,$192 ,65,1,$192 ,65,2.87
-ssdlite_mobilenet_v2-TF [300x300],OV-2022.1.,core,Intel® Core™ i7-8700T,427.17,265.66,266.49,1.409,12.204,$303 ,35,1,$303 ,35,3.02
-ssdlite_mobilenet_v2-TF [300x300],OV-2022.1.,core,Intel® Core™ i9-10920X,1738.83,630.41,630.33,2.484,10.538,$700 ,165,1,$700 ,165,1.36
-ssdlite_mobilenet_v2-TF [300x300],OV-2022.1.,core,Intel® Core™ i9-10900TE,391.56,216.60,222.53,0.881,11.187,$444 ,35,1,$444 ,35,3.21
-ssdlite_mobilenet_v2-TF [300x300],OV-2022.1.,core,Intel® Core™ i9-12900 CPU-only,838.25,387.86,392.39,1.615,12.896,$519 ,65,1,$519 ,65,2.15
-ssdlite_mobilenet_v2-TF [300x300],OV-2022.1.,core-iGPU,Intel® Core™ i9-12900 iGPU-only,345.51,141.69,225.93,0.665,5.315,$519 ,65,1,$519 ,65,4.96
-ssdlite_mobilenet_v2-TF [300x300],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i9-12900 CPU+iGPU,880.61,334.00,413.22,1.696,13.547,$519 ,65,1,$519 ,65,
-ssdlite_mobilenet_v2-TF [300x300],OV-2022.1.,core,Intel® Core™ i7-1185G7 CPU-only,483.16,199.51,199.04,1.134,17.255,$426 ,28,1,$426 ,28,2.41
-ssdlite_mobilenet_v2-TF [300x300],OV-2022.1.,core-iGPU,Intel® Core™ i7-1185G7 iGPU-only,375.57,192.53,268.52,0.881,13.413,$426 ,28,1,$426 ,28,3.96
-ssdlite_mobilenet_v2-TF [300x300],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i7-1185G7 CPU+iGPU,677.79,276.32,343.20,1.591,24.206,$426 ,28,1,$426 ,28,
-ssdlite_mobilenet_v2-TF [300x300],OV-2022.1.,core,Intel® Core™  i7-11800H CPU-only,845.36,354.96,358.94,2.14,18.785,$395 ,45,1,$395 ,45,1.70
-ssdlite_mobilenet_v2-TF [300x300],OV-2022.1.,core-iGPU,Intel® Core™  i7-11800H iGPU-only,102.78,16.11,16.30,0.26,2.284,$395 ,45,1,$395 ,45,29.20
-ssdlite_mobilenet_v2-TF [300x300],OV-2022.1.,core-CPU+iGPU,Intel® Core™  i7-11800H CPU+iGPU,999.39,236.09,245.36,2.53,22.208,$395 ,45,1,$395 ,45,
-ssdlite_mobilenet_v2-TF [300x300],OV-2022.1.,core,Intel® Core™ i5-10500TE ,388.18,215.41,215.32,1.99,11.090,$195 ,35,1,$195,35,3.34
-ssdlite_mobilenet_v2-TF [300x300],OV-2022.1.,xeon,Intel® Xeon® W1290P,782.33,286.02,288.82,1.451,6.258,$539 ,125,1,$539 ,125,1.69
-ssdlite_mobilenet_v2-TF [300x300],OV-2022.1.,xeon,Intel® Xeon® E-2124G,290.61,205.39,205.77,1.364,4.093,$213 ,71,1,$213 ,71,3.79
-ssdlite_mobilenet_v2-TF [300x300],OV-2022.1.,xeon,Intel® Xeon® Silver 4216R,2087.42,771.08,770.62,2.083,8.349,"$2,004 ",250,2,"$1,002 ",125,2.10
-ssdlite_mobilenet_v2-TF [300x300],OV-2022.1.,xeon,Intel® Xeon® Silver 4316,4397.13,1405.18,1428.03,4.06,14.657,"$2,166 ",300,2,"$1,083 ",150,1.21
-ssdlite_mobilenet_v2-TF [300x300],OV-2022.1.,xeon,Intel® Xeon® Gold 5218T,2189.97,803.63,802.98,1.623,10.428,"$2,698 ",210,2,"$1,349 ",105,2.02
-ssdlite_mobilenet_v2-TF [300x300],OV-2022.1.,xeon,Intel® Xeon® Platinum 8270,5511.60,1722.81,1723.51,0.744,13.442,"$14,810 ",410,2,"$7,405 ",205,1.52
-ssdlite_mobilenet_v2-TF [300x300],OV-2022.1.,xeon,Intel® Xeon® Platinum 8380,8991.54,2843.41,2883.84,1.11,16.650,"$16,198 ",540,2,"$8,099 ",270,1.08
-ssdlite_mobilenet_v2-TF [300x300],OV-2022.1.,accel,Intel® Neural Compute Stick 2,,,27.87,0.403,11.147,$69 ,2.5,1,$69 ,2.5,
-ssdlite_mobilenet_v2-TF [300x300],OV-2022.1.,accel,Intel® Movidius™ VPUs (Uzel* UI-AR8),,,232.00,0.471,7.733,$492 ,30,1,$492 ,30,
-end_rec,,,,,,,,,,,,,,
-begin_rec,,,,,,,,,,,,,,
-ssd-resnet34-1200-onnx [1200x1200],OV-2022.1.,atom,Intel® Atom™ x5-E3940,0.18,0.08,0.08,0.005,0.018,$34 ,9.5,1,$34 ,9.5,5642.27
-ssd-resnet34-1200-onnx [1200x1200],OV-2022.1.,atom,Intel® Atom™ x6425E CPU-only,0.32,0.13,0.13,0.005,0.026,$59 ,12,1,$59 ,12,3111.43
-ssd-resnet34-1200-onnx [1200x1200],OV-2022.1.,atom,Intel® Atom™ x6425E iGPU-only,0.95,0.61,1.03,0.016,0.079,$59 ,12,1,$59 ,12,1060.33
-ssd-resnet34-1200-onnx [1200x1200],OV-2022.1.,atom,Intel® Atom™ x6425E CPU+iGPU,,,,#VALUE!,#VALUE!,$59 ,12,1,$59 ,12,
-ssd-resnet34-1200-onnx [1200x1200],OV-2022.1.,atom,Intel® Celeron 6305E CPU-only,0.83,0.23,0.23,0.007,0.055,$107 ,15,1,$107 ,15,1198.33
-ssd-resnet34-1200-onnx [1200x1200],OV-2022.1.,atom,Intel® Celeron 6305E iGPU-only,5.11,1.44,2.53,0.047,0.340,$107 ,15,1,$107 ,15,212.58
-ssd-resnet34-1200-onnx [1200x1200],OV-2022.1.,atom,Intel® Celeron 6305E CPU+iGPU,,,,#VALUE!,#VALUE!,$107 ,15,1,$107 ,15,
-ssd-resnet34-1200-onnx [1200x1200],OV-2022.1.,core,Intel® Core™ i3-8100,1.62,0.97,0.97,0.013,0.024,$117 ,65,1,$117 ,65,625.10
-ssd-resnet34-1200-onnx [1200x1200],OV-2022.1.,core,Intel® Core™ i5-8500,2.55,1.49,1.51,0.013,0.039,$192 ,65,1,$192 ,65,381.96
-ssd-resnet34-1200-onnx [1200x1200],OV-2022.1.,core,Intel® Core™ i7-8700T,2.64,1.57,1.57,0.008,0.075,$303 ,35,1,$303 ,35,436.74
-ssd-resnet34-1200-onnx [1200x1200],OV-2022.1.,core,Intel® Core™ i9-10920X,14.60,4.02,4.07,0.02,0.088,$700 ,165,1,$700 ,165,73.92
-ssd-resnet34-1200-onnx [1200x1200],OV-2022.1.,core,Intel® Core™ i9-10900TE,2.58,1.47,1.49,0.005,0.073,$444 ,35,1,$444 ,35,429.92
-ssd-resnet34-1200-onnx [1200x1200],OV-2022.1.,core,Intel® Core™ i9-12900 CPU-only,7.04,2.26,2.30,0.013,0.108,$519 ,65,1,$519 ,65,254.34
-ssd-resnet34-1200-onnx [1200x1200],OV-2022.1.,core-iGPU,Intel® Core™ i9-12900 iGPU-only,4.37,1.27,2.30,0.008,0.067,$519 ,65,1,$519 ,65,233.36
-ssd-resnet34-1200-onnx [1200x1200],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i9-12900 CPU+iGPU,,,,#VALUE!,#VALUE!,$519 ,65,1,$519 ,65,
-ssd-resnet34-1200-onnx [1200x1200],OV-2022.1.,core,Intel® Core™ i7-1185G7 CPU-only,3.76,0.94,0.95,0.008,0.134,$426 ,28,1,$426 ,28,287.51
-ssd-resnet34-1200-onnx [1200x1200],OV-2022.1.,core-iGPU,Intel® Core™ i7-1185G7 iGPU-only,7.32,2.19,3.90,0.017,0.261,$426 ,28,1,$426 ,28,143.54
-ssd-resnet34-1200-onnx [1200x1200],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i7-1185G7 CPU+iGPU,,,,#VALUE!,#VALUE!,$426 ,28,1,$426 ,28,
-ssd-resnet34-1200-onnx [1200x1200],OV-2022.1.,core,Intel® Core™  i7-11800H CPU-only,6.83,1.75,1.77,0.017,0.151,$395 ,45,1,$395 ,45,143.44
-ssd-resnet34-1200-onnx [1200x1200],OV-2022.1.,core-iGPU,Intel® Core™  i7-11800H iGPU-only,0.92,0.30,0.33,0.002,0.020,$395 ,45,1,$395 ,45,1159.28
-ssd-resnet34-1200-onnx [1200x1200],OV-2022.1.,core-CPU+iGPU,Intel® Core™  i7-11800H CPU+iGPU,,,,#VALUE!,#VALUE!,$395 ,45,1,$395 ,45,
-ssd-resnet34-1200-onnx [1200x1200],OV-2022.1.,core,Intel® Core™ i5-10500TE ,2.31,1.40,1.40,0.011,0.066,$195 ,35,1,$195,35,491.71
-ssd-resnet34-1200-onnx [1200x1200],OV-2022.1.,xeon,Intel® Xeon® W1290P,5.02,2.99,2.99,0.009,0.040,$539 ,125,1,$539 ,125,226.74
-ssd-resnet34-1200-onnx [1200x1200],OV-2022.1.,xeon,Intel® Xeon® E-2124G,1.86,1.10,1.11,0.008,0.026,$213 ,71,1,$213 ,71,539.22
-ssd-resnet34-1200-onnx [1200x1200],OV-2022.1.,xeon,Intel® Xeon® Silver 4216R,15.52,4.30,4.30,0.015,0.062,"$2,004 ",250,2,"$1,002 ",125,130.59
-ssd-resnet34-1200-onnx [1200x1200],OV-2022.1.,xeon,Intel® Xeon® Silver 4316,34.19,10.12,10.20,0.031,0.113,"$2,166 ",300,2,"$1,083 ",150,62.19
-ssd-resnet34-1200-onnx [1200x1200],OV-2022.1.,xeon,Intel® Xeon® Gold 5218T,16.23,4.53,4.53,0.012,0.077,"$2,698 ",210,2,"$1,349 ",105,124.63
-ssd-resnet34-1200-onnx [1200x1200],OV-2022.1.,xeon,Intel® Xeon® Platinum 8270,43.79,13.58,13.77,0.005,0.106,"$14,810 ",410,2,"$7,405 ",205,47.45
-ssd-resnet34-1200-onnx [1200x1200],OV-2022.1.,xeon,Intel® Xeon® Platinum 8380,71.32,21.08,21.32,0.008,0.132,"$16,198 ",540,2,"$8,099 ",270,32.75
-ssd-resnet34-1200-onnx [1200x1200],OV-2022.1.,accel,Intel® Neural Compute Stick 2,,,0.69,0.01,0.277,$69 ,2.5,1,$69 ,2.5,
-ssd-resnet34-1200-onnx [1200x1200],OV-2022.1.,accel,Intel® Movidius™ VPUs (Uzel* UI-AR8),,,4.68,0.009,0.156,$492 ,30,1,$492 ,30,
-end_rec,,,,,,,,,,,,,,
-begin_rec,,,,,,,,,,,,,,
-unet-camvid-onnx-0001 [368x480],OV-2022.1.,atom,Intel® Atom™ x5-E3940,0.26,0.04,0.13,0.007,0.027,$34 ,9.5,1,$34 ,9.5,3872.45
-unet-camvid-onnx-0001 [368x480],OV-2022.1.,atom,Intel® Atom™ x6425E CPU-only,0.48,0.06,0.22,0.008,0.039,$59 ,12,1,$59 ,12,2101.40
-unet-camvid-onnx-0001 [368x480],OV-2022.1.,atom,Intel® Atom™ x6425E iGPU-only,0.89,0.99,0.91,0.015,0.073,$59 ,12,1,$59 ,12,1128.12
-unet-camvid-onnx-0001 [368x480],OV-2022.1.,atom,Intel® Atom™ x6425E CPU+iGPU,1.26,0.48,0.82,0.021,0.104,$59 ,12,1,$59 ,12,
-unet-camvid-onnx-0001 [368x480],OV-2022.1.,atom,Intel® Celeron 6305E CPU-only,1.44,0.29,0.38,0.013,0.095,$107 ,15,1,$107 ,15,693.82
-unet-camvid-onnx-0001 [368x480],OV-2022.1.,atom,Intel® Celeron 6305E iGPU-only,8.42,2.49,2.01,0.078,0.561,$107 ,15,1,$107 ,15,119.63
-unet-camvid-onnx-0001 [368x480],OV-2022.1.,atom,Intel® Celeron 6305E CPU+iGPU,9.60,2.75,2.34,0.089,0.640,$107 ,15,1,$107 ,15,
-unet-camvid-onnx-0001 [368x480],OV-2022.1.,core,Intel® Core™ i3-8100,2.51,1.57,1.57,0.021,0.038,$117 ,65,1,$117 ,65,405.13
-unet-camvid-onnx-0001 [368x480],OV-2022.1.,core,Intel® Core™ i5-8500,3.81,2.35,2.37,0.019,0.058,$192 ,65,1,$192 ,65,274.87
-unet-camvid-onnx-0001 [368x480],OV-2022.1.,core,Intel® Core™ i7-8700T,4.04,2.53,2.53,0.013,0.115,$303 ,35,1,$303 ,35,282.82
-unet-camvid-onnx-0001 [368x480],OV-2022.1.,core,Intel® Core™ i9-10920X,25.90,5.19,6.43,0.036,0.156,$700 ,165,1,$700 ,165,41.59
-unet-camvid-onnx-0001 [368x480],OV-2022.1.,core,Intel® Core™ i9-10900TE,3.44,2.25,2.27,0.007,0.098,$444 ,35,1,$444 ,35,289.29
-unet-camvid-onnx-0001 [368x480],OV-2022.1.,core,Intel® Core™ i9-12900 CPU-only,10.30,3.61,3.72,0.019,0.158,$519 ,65,1,$519 ,65,173.60
-unet-camvid-onnx-0001 [368x480],OV-2022.1.,core-iGPU,Intel® Core™ i9-12900 iGPU-only,6.71,2.16,1.93,0.012,0.103,$519 ,65,1,$519 ,65,141.75
-unet-camvid-onnx-0001 [368x480],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i9-12900 CPU+iGPU,11.12,3.59,3.00,0.021,0.171,$519 ,65,1,$519 ,65,
-unet-camvid-onnx-0001 [368x480],OV-2022.1.,core,Intel® Core™ i7-1185G7 CPU-only,6.33,1.38,1.53,0.014,0.226,$426 ,28,1,$426 ,28,163.50
-unet-camvid-onnx-0001 [368x480],OV-2022.1.,core-iGPU,Intel® Core™ i7-1185G7 iGPU-only,13.22,3.88,2.46,0.031,0.472,$426 ,28,1,$426 ,28,75.98
-unet-camvid-onnx-0001 [368x480],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i7-1185G7 CPU+iGPU,15.55,3.77,3.58,0.036,0.555,$426 ,28,1,$426 ,28,
-unet-camvid-onnx-0001 [368x480],OV-2022.1.,core,Intel® Core™  i7-11800H CPU-only,10.88,2.41,2.66,0.027,0.241,$395 ,45,1,$395 ,45,95.93
-unet-camvid-onnx-0001 [368x480],OV-2022.1.,core-iGPU,Intel® Core™  i7-11800H iGPU-only,5.98,0.97,0.34,0.015,0.132,$395 ,45,1,$395 ,45,503.29
-unet-camvid-onnx-0001 [368x480],OV-2022.1.,core-CPU+iGPU,Intel® Core™  i7-11800H CPU+iGPU,12.22,2.36,1.38,0.03,0.271,$395 ,45,1,$395 ,45,
-unet-camvid-onnx-0001 [368x480],OV-2022.1.,core,Intel® Core™ i5-10500TE ,3.60,2.25,2.27,0.018,0.102,$195 ,35,1,$195,35,319.79
-unet-camvid-onnx-0001 [368x480],OV-2022.1.,xeon,Intel® Xeon® W1290P,7.31,4.63,4.65,0.013,0.058,$539 ,125,1,$539 ,125,157.20
-unet-camvid-onnx-0001 [368x480],OV-2022.1.,xeon,Intel® Xeon® E-2124G,2.87,1.77,1.78,0.013,0.040,$213 ,71,1,$213 ,71,348.86
-unet-camvid-onnx-0001 [368x480],OV-2022.1.,xeon,Intel® Xeon® Silver 4216R,27.25,4.79,6.96,0.027,0.109,"$2,004 ",250,2,"$1,002 ",125,74.37
-unet-camvid-onnx-0001 [368x480],OV-2022.1.,xeon,Intel® Xeon® Silver 4316,61.65,11.32,16.24,0.056,0.205,"$2,166 ",300,2,"$1,083 ",150,34.96
-unet-camvid-onnx-0001 [368x480],OV-2022.1.,xeon,Intel® Xeon® Gold 5218T,28.56,5.07,7.31,0.021,0.136,"$2,698 ",210,2,"$1,349 ",105,70.88
-unet-camvid-onnx-0001 [368x480],OV-2022.1.,xeon,Intel® Xeon® Platinum 8270,79.57,12.78,21.85,0.01,0.194,"$14,810 ",410,2,"$7,405 ",205,26.77
-unet-camvid-onnx-0001 [368x480],OV-2022.1.,xeon,Intel® Xeon® Platinum 8380,129.09,21.72,33.82,0.015,0.239,"$16,198 ",540,2,"$8,099 ",270,18.97
-unet-camvid-onnx-0001 [368x480],OV-2022.1.,accel,Intel® Neural Compute Stick 2,,,0.79,0.011,0.314,$69 ,2.5,1,$69 ,2.5,
-unet-camvid-onnx-0001 [368x480],OV-2022.1.,accel,Intel® Movidius™ VPUs (Uzel* UI-AR8),,,6.31,0.012,0.210,$492 ,30,1,$492 ,30,
-end_rec,,,,,,,,,,,,,,
-begin_rec,,,,,,,,,,,,,,
-yolo-v3-tiny-tf [416x416],OV-2022.1.,atom,Intel® Atom™ x5-E3940,12.43,6.23,6.23,0.365,1.308,$34 ,9.5,1,$34 ,9.5,82.47
-yolo-v3-tiny-tf [416x416],OV-2022.1.,atom,Intel® Atom™ x6425E CPU-only,22.84,10.36,10.40,0.387,1.903,$59 ,12,1,$59 ,12,44.91
-yolo-v3-tiny-tf [416x416],OV-2022.1.,atom,Intel® Atom™ x6425E iGPU-only,65.35,38.16,66.37,1.107,5.446,$59 ,12,1,$59 ,12,16.50
-yolo-v3-tiny-tf [416x416],OV-2022.1.,atom,Intel® Atom™ x6425E CPU+iGPU,84.46,45.27,72.43,1.431,7.038,$59 ,12,1,$59 ,12,
-yolo-v3-tiny-tf [416x416],OV-2022.1.,atom,Intel® Celeron 6305E CPU-only,58.10,18.09,18.10,0.542,3.873,$107 ,15,1,$107 ,15,17.34
-yolo-v3-tiny-tf [416x416],OV-2022.1.,atom,Intel® Celeron 6305E iGPU-only,313.43,94.92,157.65,2.929,20.895,$107 ,15,1,$107 ,15,4.17
-yolo-v3-tiny-tf [416x416],OV-2022.1.,atom,Intel® Celeron 6305E CPU+iGPU,353.80,108.49,162.09,3.306,23.586,$107 ,15,1,$107 ,15,
-yolo-v3-tiny-tf [416x416],OV-2022.1.,core,Intel® Core™ i3-8100,114.51,63.35,63.17,0.978,1.761,$117 ,65,1,$117 ,65,8.99
-yolo-v3-tiny-tf [416x416],OV-2022.1.,core,Intel® Core™ i5-8500,172.80,93.38,94.56,0.899,2.658,$192 ,65,1,$192 ,65,6.03
-yolo-v3-tiny-tf [416x416],OV-2022.1.,core,Intel® Core™ i7-8700T,186.33,104.69,105.27,0.614,5.323,$303 ,35,1,$303 ,35,5.75
-yolo-v3-tiny-tf [416x416],OV-2022.1.,core,Intel® Core™ i9-10920X,964.24,287.79,288.38,1.377,5.843,$700 ,165,1,$700 ,165,1.44
-yolo-v3-tiny-tf [416x416],OV-2022.1.,core,Intel® Core™ i9-10900TE,170.35,90.17,91.49,0.383,4.867,$444 ,35,1,$444 ,35,6.39
-yolo-v3-tiny-tf [416x416],OV-2022.1.,core,Intel® Core™ i9-12900 CPU-only,363.81,150.91,151.97,0.7,5.597,$519 ,65,1,$519 ,65,4.58
-yolo-v3-tiny-tf [416x416],OV-2022.1.,core-iGPU,Intel® Core™ i9-12900 iGPU-only,258.73,81.00,129.01,0.498,3.980,$519 ,65,1,$519 ,65,4.96
-yolo-v3-tiny-tf [416x416],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i9-12900 CPU+iGPU,556.55,138.56,174.75,1.072,8.562,$519 ,65,1,$519 ,65,
-yolo-v3-tiny-tf [416x416],OV-2022.1.,core,Intel® Core™ i7-1185G7 CPU-only,244.96,72.29,72.81,0.575,8.748,$426 ,28,1,$426 ,28,4.24
-yolo-v3-tiny-tf [416x416],OV-2022.1.,core-iGPU,Intel® Core™ i7-1185G7 iGPU-only,451.59,134.96,223.79,1.06,16.128,$426 ,28,1,$426 ,28,2.72
-yolo-v3-tiny-tf [416x416],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i7-1185G7 CPU+iGPU,529.28,137.91,223.97,1.242,18.902,$426 ,28,1,$426 ,28,
-yolo-v3-tiny-tf [416x416],OV-2022.1.,core,Intel® Core™  i7-11800H CPU-only,431.57,125.60,124.53,1.092,9.590,$395 ,45,1,$395 ,45,2.58
-yolo-v3-tiny-tf [416x416],OV-2022.1.,core-iGPU,Intel® Core™  i7-11800H iGPU-only,148.77,35.96,70.93,0.376,3.306,$395 ,45,1,$395 ,45,9.55
-yolo-v3-tiny-tf [416x416],OV-2022.1.,core-CPU+iGPU,Intel® Core™  i7-11800H CPU+iGPU,511.40,142.17,175.71,1.294,11.364,$395 ,45,1,$395 ,45,
-yolo-v3-tiny-tf [416x416],OV-2022.1.,core,Intel® Core™ i5-10500TE ,167.33,92.51,91.98,0.858,4.780,$195 ,35,1,$195,35,6.42
-yolo-v3-tiny-tf [416x416],OV-2022.1.,xeon,Intel® Xeon® W1290P,340.95,172.90,171.18,0.632,2.727,$539 ,125,1,$539 ,125,3.01
-yolo-v3-tiny-tf [416x416],OV-2022.1.,xeon,Intel® Xeon® E-2124G,129.79,72.42,73.28,0.609,1.828,$213 ,71,1,$213 ,71,7.83
-yolo-v3-tiny-tf [416x416],OV-2022.1.,xeon,Intel® Xeon® Silver 4216R,1065.19,315.47,315.25,1.063,4.260,"$2,004 ",250,2,"$1,002 ",125,2.33
-yolo-v3-tiny-tf [416x416],OV-2022.1.,xeon,Intel® Xeon® Silver 4316,2251.43,541.09,546.18,2.078,7.504,"$2,166 ",300,2,"$1,083 ",150,1.21
-yolo-v3-tiny-tf [416x416],OV-2022.1.,xeon,Intel® Xeon® Gold 5218T,1112.31,332.17,331.70,0.824,5.296,"$2,698 ",210,2,"$1,349 ",105,2.24
-yolo-v3-tiny-tf [416x416],OV-2022.1.,xeon,Intel® Xeon® Platinum 8270,3059.17,862.84,866.38,0.413,7.461,"$14,810 ",410,2,"$7,405 ",205,1.23
-yolo-v3-tiny-tf [416x416],OV-2022.1.,xeon,Intel® Xeon® Platinum 8380,4670.53,1081.70,1076.76,0.576,8.649,"$16,198 ",540,2,"$8,099 ",270,0.80
-yolo-v3-tiny-tf [416x416],OV-2022.1.,accel,Intel® Neural Compute Stick 2,,,34.02,0.493,13.609,$69 ,2.5,1,$69 ,2.5,
-yolo-v3-tiny-tf [416x416],OV-2022.1.,accel,Intel® Movidius™ VPUs (Uzel* UI-AR8),,,284.94,0.579,9.498,$492 ,30,1,$492 ,30,
-end_rec,,,,,,,,,,,,,,
-begin_rec,,,,,,,,,,,,,,
-yolo_v4-tf [608x608],OV-2022.1.,atom,Intel® Atom™ x5-E3940,0.54,0.23,0.23,0.015,0.056,$34 ,9.5,1,$34 ,9.5,1873.72
-yolo_v4-tf [608x608],OV-2022.1.,atom,Intel® Atom™ x6425E CPU-only,0.98,0.39,0.39,0.016,0.081,$59 ,12,1,$59 ,12,1029.24
-yolo_v4-tf [608x608],OV-2022.1.,atom,Intel® Atom™ x6425E iGPU-only,3.38,1.75,3.43,0.057,0.282,$59 ,12,1,$59 ,12,298.92
-yolo_v4-tf [608x608],OV-2022.1.,atom,Intel® Atom™ x6425E CPU+iGPU,4.24,2.00,3.76,0.071,0.353,$59 ,12,1,$59 ,12,
-yolo_v4-tf [608x608],OV-2022.1.,atom,Intel® Celeron 6305E CPU-only,2.44,0.75,0.75,0.022,0.162,$107 ,15,1,$107 ,15,408.55
-yolo_v4-tf [608x608],OV-2022.1.,atom,Intel® Celeron 6305E iGPU-only,14.53,4.25,7.89,0.135,0.968,$107 ,15,1,$107 ,15,72.14
-yolo_v4-tf [608x608],OV-2022.1.,atom,Intel® Celeron 6305E CPU+iGPU,16.00,4.84,8.16,0.149,1.066,$107 ,15,1,$107 ,15,
-yolo_v4-tf [608x608],OV-2022.1.,core,Intel® Core™ i3-8100,4.97,2.16,2.16,0.042,0.076,$117 ,65,1,$117 ,65,204.17
-yolo_v4-tf [608x608],OV-2022.1.,core,Intel® Core™ i5-8500,7.49,3.32,3.37,0.038,0.115,$192 ,65,1,$192 ,65,139.07
-yolo_v4-tf [608x608],OV-2022.1.,core,Intel® Core™ i7-8700T,8.22,3.63,3.63,0.027,0.234,$303 ,35,1,$303 ,35,140.19
-yolo_v4-tf [608x608],OV-2022.1.,core,Intel® Core™ i9-10920X,42.27,12.20,12.35,0.06,0.256,$700 ,165,1,$700 ,165,27.01
-yolo_v4-tf [608x608],OV-2022.1.,core,Intel® Core™ i9-10900TE,7.66,3.46,3.48,0.017,0.218,$444 ,35,1,$444 ,35,142.65
-yolo_v4-tf [608x608],OV-2022.1.,core,Intel® Core™ i9-12900 CPU-only,20.45,5.93,6.00,0.039,0.314,$519 ,65,1,$519 ,65,88.25
-yolo_v4-tf [608x608],OV-2022.1.,core-iGPU,Intel® Core™ i9-12900 iGPU-only,12.41,3.86,7.31,0.023,0.190,$519 ,65,1,$519 ,65,82.63
-yolo_v4-tf [608x608],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i9-12900 CPU+iGPU,24.16,6.28,10.34,0.046,0.371,$519 ,65,1,$519 ,65,
-yolo_v4-tf [608x608],OV-2022.1.,core,Intel® Core™ i7-1185G7 CPU-only,10.37,3.01,3.51,0.024,0.370,$426 ,28,1,$426 ,28,99.58
-yolo_v4-tf [608x608],OV-2022.1.,core-iGPU,Intel® Core™ i7-1185G7 iGPU-only,21.23,6.41,11.70,0.049,0.758,$426 ,28,1,$426 ,28,48.69
-yolo_v4-tf [608x608],OV-2022.1.,core-CPU+iGPU,Intel® Core™ i7-1185G7 CPU+iGPU,25.55,5.95,8.70,0.059,0.912,$426 ,28,1,$426 ,28,
-yolo_v4-tf [608x608],OV-2022.1.,core,Intel® Core™  i7-11800H CPU-only,18.79,5.61,5.55,0.047,0.417,$395 ,45,1,$395 ,45,50.40
-yolo_v4-tf [608x608],OV-2022.1.,core-iGPU,Intel® Core™  i7-11800H iGPU-only,6.38,1.75,3.07,0.016,0.141,$395 ,45,1,$395 ,45,445.85
-yolo_v4-tf [608x608],OV-2022.1.,core-CPU+iGPU,Intel® Core™  i7-11800H CPU+iGPU,16.54,4.72,5.92,0.041,0.367,$395 ,45,1,$395 ,45,
-yolo_v4-tf [608x608],OV-2022.1.,core,Intel® Core™ i5-10500TE ,7.34,3.29,3.25,0.037,0.209,$195 ,35,1,$195,35,156.55
-yolo_v4-tf [608x608],OV-2022.1.,xeon,Intel® Xeon® W1290P,15.63,6.61,6.59,0.029,0.125,$539 ,125,1,$539 ,125,71.39
-yolo_v4-tf [608x608],OV-2022.1.,xeon,Intel® Xeon® E-2124G,5.61,2.47,2.48,0.026,0.079,$213 ,71,1,$213 ,71,179.13
-yolo_v4-tf [608x608],OV-2022.1.,xeon,Intel® Xeon® Silver 4216R,44.69,13.78,13.79,0.044,0.178,"$2,004 ",250,2,"$1,002 ",125,46.64
-yolo_v4-tf [608x608],OV-2022.1.,xeon,Intel® Xeon® Silver 4316,100.77,28.50,28.86,0.093,0.335,"$2,166 ",300,2,"$1,083 ",150,23.74
-yolo_v4-tf [608x608],OV-2022.1.,xeon,Intel® Xeon® Gold 5218T,47.00,14.50,14.48,0.034,0.223,"$2,698 ",210,2,"$1,349 ",105,44.42
-yolo_v4-tf [608x608],OV-2022.1.,xeon,Intel® Xeon® Platinum 8270,128.40,40.81,41.19,0.017,0.313,"$14,810 ",410,2,"$7,405 ",205,19.22
-yolo_v4-tf [608x608],OV-2022.1.,xeon,Intel® Xeon® Platinum 8380,209.59,58.74,59.44,0.025,0.388,"$16,198 ",540,2,"$8,099 ",270,12.74
-yolo_v4-tf [608x608],OV-2022.1.,accel,Intel® Neural Compute Stick 2,,,1.39,0.02,0.554,$69 ,2.5,1,$69 ,2.5,
-yolo_v4-tf [608x608],OV-2022.1.,accel,Intel® Movidius™ VPUs (Uzel* UI-AR8),,,11.09,0.022,0.369,$492 ,30,1,$492 ,30,
+yolo_v4,OV-2022.3-8991,core,Intel® Core™  i9-12900K CPU-only,21.833,7.096,,0.033,0.132,$658 ,165,1,$658 ,165,58.4745
+yolo_v4,OV-2022.3-8991,core-iGPU,Intel® Core™  i9-12900K iGPU-only,11.956,3.869,,0.018,0.072,$658 ,165,1,$658 ,165,85.1633
+yolo_v4,OV-2022.3-8991,core-CPU+iGPU,Intel® Core™  i9-12900K CPU+iGPU,26.693,8.644,,0.041,0.162,$658 ,165,1,$658 ,165,
+yolo_v4,OV-2022.3-8991,atom,Intel®  Atom™  x5-E3940 CPU-only,0.522,0.248,,0.015,0.055,$34 ,9.5,1,$34 ,9.5,1900.0218
+yolo_v4,OV-2022.3-8991,atom,Intel®  Atom™  x6425E CPU-only,0.99,0.43,,0.015,0.083,$67 ,12,1,$67 ,12,1019.82
+yolo_v4,OV-2022.3-8991,core-iGPU,Intel®  Atom™  x6425E iGPU-only,3.413,1.752,,0.051,0.284,$67 ,12,1,$67 ,12,295.7702
+yolo_v4,OV-2022.3-8991,core-CPU+iGPU,Intel®  Atom™  x6425E CPU+iGPU,3.999,2.087,,0.06,0.333,$67 ,12,1,$67 ,12,
+yolo_v4,OV-2022.3-8991,atom,Intel®  Celeron™  6305E CPU-only,2.453,0.748,,0.021,0.164,$118 ,15,1,$118 ,15,407.2474
+yolo_v4,OV-2022.3-8991,core-iGPU,Intel®  Celeron™  6305E iGPU-only,4.758,1.434,,0.04,0.317,$118 ,15,1,$118 ,15,212.7987
+yolo_v4,OV-2022.3-8991,core-CPU+iGPU,Intel®  Celeron™  6305E CPU+iGPU,7.048,2.122,,0.06,0.47,$118 ,15,1,$118 ,15,
+yolo_v4,OV-2022.3-8991,xeon,Intel®  Xeon® Gold 6336Y CPU-only,126.954,35.481,,0.027,0.343,"$4,678 ",370,2,"$2,339 ",185,37.8189
+yolo_v4,OV-2022.3-8991,core ,Intel® Core™  i3-8100 CPU-only,4.971,2.885,,0.042,0.076,$117 ,65,1,$117 ,65,203.4163
+yolo_v4,OV-2022.3-8991,core,Intel® Core™  i5-10500TE CPU-only,6.182,3.532,,0.029,0.177,$214 ,35,1,$214 ,35,227.5786
+yolo_v4,OV-2022.3-8991,core,Intel® Core™  i5-8500 CPU-only,6.356,3.757,,0.033,0.098,$192 ,65,1,$192 ,65,123.3181
+yolo_v4,OV-2022.3-8991,core,Intel® Core™  i7-8700T CPU-only,8.44,4.868,,0.028,0.241,$303 ,35,1,$303 ,35,135.9719
+yolo_v4,OV-2022.3-8991,core,Intel® Core™  i9-10900TE CPU-only,6.399,3.765,,0.013,0.183,$488 ,35,1,$488 ,35,155.642
+yolo_v4,OV-2022.3-8991,xeon,Intel®  Xeon® W1290P CPU-only,15.614,7.925,,0.026,0.125,$594 ,125,1,$594 ,125,71.631
+yolo_v4,OV-2022.3-8991,xeon,Intel®  Xeon®  E-2124G CPU-only,4.674,2.804,,0.019,0.066,$249 ,71,1,$249 ,71,214.0957
+yolo_v4,OV-2022.3-8991,xeon,Intel®  Xeon®  Gold 5218T CPU-only,47.338,14.464,,0.015,0.225,"$3,144 ",210,2,"$1,572 ",105,45.7699
+yolo_v4,OV-2022.3-8991,xeon,Intel®  Xeon®  Platinum 8270 CPU-only,131.466,41.001,,0.008,0.321,"$16,954 ",410,2,"$8,477 ",205,19.2807
+yolo_v4,OV-2022.3-8991,xeon,Intel®  Xeon®  Silver 4216R CPU-only,45.047,13.741,,0.022,0.18,"$2,004 ",250,2,"$1,002 ",125,48.0344
+yolo_v4,OV-2022.3-8991,core,Intel® Core™  i7-1165G7 CPU-only,11.067,3.259,,0.024,0.395,$469 ,28,1,$469 ,28,92.2912
+yolo_v4,OV-2022.3-8991,core-iGPU,Intel® Core™  i7-1165G7 iGPU-only,25.048,7.384,,0.053,0.895,$469 ,28,1,$469 ,28,39.1492
+yolo_v4,OV-2022.3-8991,core-CPU+iGPU,Intel® Core™  i7-1165G7 CPU+iGPU,29.658,8.32,,0.063,1.059,$469 ,28,1,$469 ,28,
 end_rec,,,,,,,,,,,,,,
