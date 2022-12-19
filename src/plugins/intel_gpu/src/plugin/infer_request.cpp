@@ -902,6 +902,19 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
     const bool is_dev_input = remote_ptr != nullptr;
     const bool can_use_usm = m_graph->GetEngine()->use_unified_shared_memory();
 
+    auto conv_to_supported_prec = [](Precision::ePrecision prec) {
+        switch (prec) {
+            case Precision::I16:
+            case Precision::U16:
+            case Precision::FP64:
+                return Precision::FP32;
+            case Precision::U64:
+            case Precision::U32:
+                return Precision::I32;
+            default: return prec;
+        }
+    };
+
     if (input_layout.is_dynamic()) {
         bool has_device_blob = _deviceInputs.find(inputName) != _deviceInputs.end();
         bool should_allocate_device_blob = !has_device_blob;
@@ -918,7 +931,7 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
             _deviceInputs[inputName] = reinterpret_device_blob(_deviceInputs[inputName], inputBlob->getTensorDesc());
         }
     } else if (input_layout.is_static() && !is_dev_input && can_use_usm) {
-        allocate_dev_mem_if_needed(_deviceInputs, inputBlob, inputName, input_layout);
+        allocate_dev_mem_if_needed(_deviceInputs, inputBlob, inputName, input_layout, (conv_to_supported_prec(prec) != prec));
     }
     OPENVINO_ASSERT(_deviceInputs.find(inputName) != _deviceInputs.end(), "[GPU] Couldn't find device blob allocated for ", inputName, " input");
     auto reqBlob = _deviceInputs.at(inputName)->as<gpu::ClBlob>();
@@ -954,8 +967,9 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
             }
 
             if (!is_dev_input) {
+                Precision conv_prec = conv_to_supported_prec(prec);
                 // TODO: Remove this checks once 95363 issue is solved
-                if (prec == Precision::I16 || prec == Precision::U16 || prec == Precision::FP64) {
+                if (conv_prec != prec && conv_prec == Precision::FP32) {
                     // GPU plugin doesn't support I16 input precision,
                     // so have to convert input data to fp32 precision
                     cldnn::mem_lock<float> ptr{ inputMem, stream };
@@ -966,7 +980,7 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
                     } else {
                         convertAndCopy<double, float>(inputBlob.get(), ptr.data());
                     }
-                } else if (prec == Precision::U64 || prec == Precision::U32) {
+                } else if (conv_prec != prec && conv_prec == Precision::I32) {
                     cldnn::mem_lock<int32_t> ptr{ inputMem, stream };
                     if (prec == Precision::U64) {
                         convertAndCopy<uint64_t, int32_t>(inputBlob.get(), ptr.data());
