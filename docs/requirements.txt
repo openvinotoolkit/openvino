@@ -12,7 +12,7 @@ imagesize==1.2.0
 importlib-metadata==4.4.0
 iniconfig==1.1.1
 ipython==8.5.0
-Jinja2==2.11.3
+Jinja2==3.1.2
 lxml>=4.6.5
 MarkupSafe==2.1.1
 mistune==2.0.3
