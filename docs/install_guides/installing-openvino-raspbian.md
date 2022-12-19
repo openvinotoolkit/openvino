@@ -52,7 +52,7 @@
       .. code-block:: sh
 
          cd ~/Downloads/
-         sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/l_openvino_toolkit_debian9_arm_2022.3.0.<update>.<patch>_armhf.tgz -O openvino_2022.3.0.tgz
+         sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/l_openvino_toolkit_debian9_2022.3.0.<update>.<patch>_armhf.tgz -O openvino_2022.3.0.tgz
 
    .. tab:: ARM 64-bit
 
@@ -68,7 +68,7 @@
       .. code-block:: sh
 
          sudo tar -xf openvino_2022.3.0.tgz
-         sudo mv l_openvino_toolkit_debian9_arm_2022.3.0.<update>.<patch>_armhf /opt/intel/openvino_2022.3.0
+         sudo mv l_openvino_toolkit_debian9_2022.3.0.<update>.<patch>_armhf /opt/intel/openvino_2022.3.0
 
    .. tab:: ARM 64-bit
 
