@@ -1182,7 +1182,7 @@ TEST(convolution_f32_fw_gpu, three_convolutions_same_weights) {
         convolution("conv3", input_info("conv2"), { "weights" })
     );
 
-    cldnn::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
     network.set_input_data("input", input);
@@ -1311,7 +1311,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution_bfyx_weights_as_input_layout) {
         input_layout("weights", weights->get_layout()),
         input_layout("biases", biases->get_layout()),
         convolution("conv", input_info("input"), { "weights" }, { "biases" }, { 2, 1 }, { 0, 0 }));
-    cldnn::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
     network.set_input_data("input", input);
@@ -1372,7 +1372,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution_bfyx_weights_as_input_layout_non_
         input_layout("weights", weights->get_layout()),
         data("biases", biases),
         convolution("conv", input_info("input"), { "weights" }, { "biases" }, { 2, 1 }, { 0, 0 }));
-    cldnn::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(false));
     network network(engine, topology, config, true);
     network.set_input_data("input", input);
@@ -5035,7 +5035,7 @@ TEST_P(convolution_gpu_fs_byx_fsv32, fs_byx_fsv32)
 
 
     ExecutionConfig config;
-    implementation_desc conv_impl = { format::fs_b_yx_fsv32, "" };
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::fs_b_yx_fsv32, "" };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_fsv", conv_impl } }));
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
@@ -5136,7 +5136,7 @@ TEST(convolution_f16_fsv_gpu, convolution_f16_fsv_gpu_padding) {
     topology.add(conv_fsv);
 
     ExecutionConfig config;
-    implementation_desc conv_impl = { format::fs_b_yx_fsv32, "convolution_gpu_bfyx_to_fs_byx_fsv32" };
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::fs_b_yx_fsv32, "convolution_gpu_bfyx_to_fs_byx_fsv32" };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_fsv", conv_impl } }));
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
@@ -5343,7 +5343,7 @@ TEST_P(convolution_gpu_fs_byx_fsv32_crop, fs_byx_fsv32_crop)
     }
 
     ExecutionConfig config;
-    implementation_desc conv_impl = { format::fs_b_yx_fsv32, "convolution_gpu_bfyx_to_fs_byx_fsv32" };
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::fs_b_yx_fsv32, "convolution_gpu_bfyx_to_fs_byx_fsv32" };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_fsv", conv_impl } }));
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
@@ -5579,7 +5579,7 @@ TEST(convolution_gpu, bfyx_iyxo_5x5_fp16)
 
 
     ExecutionConfig config;
-    implementation_desc conv_impl = { format::bfyx, "" };
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::bfyx, "" };
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
 
@@ -6242,7 +6242,7 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp32)
     ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "conv_bsv16_fsv16", "reorder_bfyx" }));
-    implementation_desc conv_impl = { format::bs_fs_yx_bsv16_fsv16, "" };
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::bs_fs_yx_bsv16_fsv16, "" };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_bsv16_fsv16", conv_impl } }));
     network network(engine, topology, config);
 
@@ -6382,7 +6382,7 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp16)
     ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "conv_bsv16_fsv16", "reorder_bfyx" }));
-    implementation_desc conv_impl = { format::bs_fs_yx_bsv16_fsv16, "" };
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::bs_fs_yx_bsv16_fsv16, "" };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_bsv16_fsv16", conv_impl } }));
     network network(engine, topology, config);
 
@@ -6520,7 +6520,7 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp32_fused_ops)
     ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "conv_bsv16_fsv16", "reorder_bfyx" }));
-    implementation_desc conv_impl = { format::bs_fs_yx_bsv16_fsv16, "" };
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::bs_fs_yx_bsv16_fsv16, "" };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_bsv16_fsv16", conv_impl } }));
     network network(engine, topology, config);
 
@@ -6657,7 +6657,7 @@ TEST_P(convolution_depthwise_gpu, depthwise_conv_fs_b_yx_fsv32)
 
     ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
-    implementation_desc conv_impl = { format::fs_b_yx_fsv32, "" };
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::fs_b_yx_fsv32, "" };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_fsv", conv_impl } }));
     network network(engine, topology, config);
 
@@ -6800,7 +6800,7 @@ TEST_P(convolution_depthwise_gpu_fsv16, depthwise_conv_b_fs_yx_fsv16)
 
     ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
-    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_fsv", conv_impl } }));
     network network(engine, topology, config);
 
@@ -6931,7 +6931,7 @@ TEST_P(convolution_depthwise_gpu_fsv16_xy, depthwise_conv_b_fs_yx_fsv16)
 
     ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
-    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16_depthwise" };
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16_depthwise" };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_fsv", conv_impl } }));
     network network(engine, topology, config);
 
@@ -7021,7 +7021,7 @@ TEST(convolution_depthwise_gpu_fsv16, depthwise_conv_b_fs_yx_fsv16_in_feature_pa
 
     ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
-    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl } }));
 
     network network(engine, topology, config);
@@ -7134,7 +7134,7 @@ TEST_P(convolution_depthwise_gpu_bfyx, depthwise_conv_bfyx)
 
     ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
-    implementation_desc conv_impl = { format::bfyx, "" };
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::bfyx, "" };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl } }));
     network network(engine, topology, config);
 
@@ -7456,7 +7456,7 @@ TEST_P(convolution_grouped_gpu, base) {
     ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "conv", "out" }));
-    implementation_desc conv_impl = { input_data_format, impl_name };
+    ov::intel_gpu::ImplementationDesc conv_impl = { input_data_format, impl_name };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl } }));
 
     cldnn::network network(engine, topology, config);
@@ -7616,7 +7616,7 @@ TEST_P(convolution_general_gpu, conv_fp16_cases) {
     }
     ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
-    implementation_desc conv_impl = { input_data_format, impl_name };
+    ov::intel_gpu::ImplementationDesc conv_impl = { input_data_format, impl_name };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_fsv", conv_impl } }));
     network network(engine, topology, config);
 
@@ -7735,7 +7735,7 @@ TEST_P(convolution_gpu_fsv16_to_bfyx, conv_b_fs_yx_fsv16_to_bfyx_padding)
 
     // Exec target network (fusing: conv+reorder)
     ExecutionConfig config_target;
-    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16" };
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16" };
     config_target.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_fsv", conv_impl } }));
     config_target.set_property(ov::intel_gpu::optimize_data(true));
 
@@ -7831,7 +7831,7 @@ TEST_P(convolution_gpu_fsv16_to_bfyx, conv_b_fs_yx_fsv16_to_bfyx_different_type)
 
     // Exec target network (fusing: conv+reorder)
     ExecutionConfig config_target;
-    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16" };
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16" };
     config_target.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_fsv", conv_impl } }));
     config_target.set_property(ov::intel_gpu::optimize_data(true));
 
@@ -9073,7 +9073,7 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
     }
     ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
-    implementation_desc conv_impl = { format::byxf, impl_name, prim_impl_types };
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::byxf, impl_name, prim_impl_types };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_fsv", conv_impl } }));
     config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
     network network(engine, topology, config);
@@ -9144,15 +9144,15 @@ TEST(convolution_gpu_onednn, padding_for_cldnn_kernel_after_onednn) {
     topology topology_ref(input, weights, input_reorder, conv1, conv2, output_reorder);
 
     ExecutionConfig config_test;
-    implementation_desc conv1_impl_test = { format::byxf, "", impl_types::onednn };
-    implementation_desc conv2_impl_test = { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16", impl_types::ocl };
+    ov::intel_gpu::ImplementationDesc conv1_impl_test = { format::byxf, "", impl_types::onednn };
+    ov::intel_gpu::ImplementationDesc conv2_impl_test = { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16", impl_types::ocl };
     config_test.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv1", conv1_impl_test }, { "conv2", conv2_impl_test } }));
     config_test.set_property(ov::intel_gpu::optimize_data(true));
     config_test.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
 
     ExecutionConfig config_ref;
-    implementation_desc conv1_impl_ref = { format::bfyx, "", impl_types::ocl };
-    implementation_desc conv2_impl_ref = { format::bfyx, "", impl_types::ocl };
+    ov::intel_gpu::ImplementationDesc conv1_impl_ref = { format::bfyx, "", impl_types::ocl };
+    ov::intel_gpu::ImplementationDesc conv2_impl_ref = { format::bfyx, "", impl_types::ocl };
     config_ref.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv1", conv1_impl_ref }, { "conv2", conv2_impl_ref } }));
     config_ref.set_property(ov::intel_gpu::optimize_data(true));
     config_ref.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
@@ -9264,7 +9264,7 @@ void test_convolution_f32_gpu_convolution_gpu_bfyx_f16_depthwise_x_bloxk_size_1(
 
     ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
-    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16_depthwise" };
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16_depthwise" };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_fsv", conv_impl } }));
     cldnn::network::ptr network;
 

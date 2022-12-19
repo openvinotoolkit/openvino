@@ -222,7 +222,7 @@ TEST_P(eltwise_fp32_fsv16, add) {
     if (engine.get_device_info().supports_immad)
         p.expected_fused_primitives++;
 
-    implementation_desc eltw_impl = { format::b_fs_yx_fsv16, "eltwise_b_fs_yx_fsv16" };
+    ov::intel_gpu::ImplementationDesc eltw_impl = { format::b_fs_yx_fsv16, "eltwise_b_fs_yx_fsv16" };
     cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "eltwise", eltw_impl } }));
 
     tolerance = 1e-5f;
@@ -244,7 +244,7 @@ TEST_P(eltwise_fp32_fsv16, add_per_element) {
     if (engine.get_device_info().supports_immad)
         p.expected_fused_primitives++;
 
-    implementation_desc eltw_impl = { format::b_fs_yx_fsv16, "eltwise_b_fs_yx_fsv16" };
+    ov::intel_gpu::ImplementationDesc eltw_impl = { format::b_fs_yx_fsv16, "eltwise_b_fs_yx_fsv16" };
     cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "eltwise", eltw_impl } }));
 
     tolerance = 1e-5f;
@@ -296,7 +296,7 @@ TEST_P(eltwise_fp32_fsv32, add) {
     if (engine.get_device_info().supports_immad)
         p.expected_fused_primitives++;
 
-    implementation_desc eltw_impl = { format::fs_b_yx_fsv32, "eltwise_fs_b_yx_fsv32" };
+    ov::intel_gpu::ImplementationDesc eltw_impl = { format::fs_b_yx_fsv32, "eltwise_fs_b_yx_fsv32" };
     cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "eltwise", eltw_impl } }));
 
     tolerance = 1e-5f;
@@ -318,7 +318,7 @@ TEST_P(eltwise_fp32_fsv32, add_per_element) {
     if (engine.get_device_info().supports_immad)
         p.expected_fused_primitives++;
 
-    implementation_desc eltw_impl = { format::fs_b_yx_fsv32, "eltwise_fs_b_yx_fsv32" };
+    ov::intel_gpu::ImplementationDesc eltw_impl = { format::fs_b_yx_fsv32, "eltwise_fs_b_yx_fsv32" };
     cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "eltwise", eltw_impl } }));
 
     tolerance = 1e-5f;
@@ -347,7 +347,7 @@ TEST_P(eltwise_fp32_fsv4, add) {
     if (engine.get_device_info().supports_immad)
         p.expected_fused_primitives++;
 
-    implementation_desc eltw_impl = { format::b_fs_yx_fsv4, "eltwise_b_fs_yx_fsv4" };
+    ov::intel_gpu::ImplementationDesc eltw_impl = { format::b_fs_yx_fsv4, "eltwise_b_fs_yx_fsv4" };
     cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "eltwise", eltw_impl } }));
 
     tolerance = 1e-5f;
@@ -369,7 +369,7 @@ TEST_P(eltwise_fp32_fsv4, add_per_element) {
     if (engine.get_device_info().supports_immad)
         p.expected_fused_primitives++;
 
-    implementation_desc eltw_impl = { format::b_fs_yx_fsv4, "eltwise_b_fs_yx_fsv4" };
+    ov::intel_gpu::ImplementationDesc eltw_impl = { format::b_fs_yx_fsv4, "eltwise_b_fs_yx_fsv4" };
     cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "eltwise", eltw_impl } }));
 
     tolerance = 1e-5f;
@@ -500,7 +500,7 @@ TEST_P(eltwise_fp16_byxf, add) {
     if (engine.get_device_info().supports_immad)
         p.expected_fused_primitives++;
 
-    implementation_desc eltw_impl = { format::byxf, "generic_eltwise_ref" };
+    ov::intel_gpu::ImplementationDesc eltw_impl = { format::byxf, "generic_eltwise_ref" };
     cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "eltwise", eltw_impl } }));
 
     tolerance = 1e-5f;

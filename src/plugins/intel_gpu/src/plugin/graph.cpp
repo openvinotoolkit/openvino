@@ -45,23 +45,23 @@ using namespace InferenceEngine::details;
 namespace ov {
 namespace intel_gpu {
 
-Graph::Graph(InferenceEngine::CNNNetwork& network, gpu::ClContext::Ptr context, Config config, ExecutionConfig new_conf, uint16_t stream_id)
+Graph::Graph(InferenceEngine::CNNNetwork& network, gpu::ClContext::Ptr context, Config config, ExecutionConfig exec_config, uint16_t stream_id)
     : m_context(context)
     , m_networkName(network.getName())
     , m_config(config)
-    , m_new_config(new_conf)
+    , m_exec_config(exec_config)
     , m_stream_id(stream_id)
     , m_state(0) {
-    m_program = std::make_shared<Program>(network, GetEngine(), m_config, new_conf);
+    m_program = std::make_shared<Program>(network, GetEngine(), m_config, exec_config);
     if (m_program->m_max_batch > 1)
         m_config.max_dynamic_batch = m_program->m_max_batch;
     Build();
 }
 
-Graph::Graph(cldnn::BinaryInputBuffer &ib, gpu::ClContext::Ptr context, Config config, ExecutionConfig new_conf, uint16_t stream_id)
+Graph::Graph(cldnn::BinaryInputBuffer &ib, gpu::ClContext::Ptr context, Config config, ExecutionConfig exec_config, uint16_t stream_id)
     : m_context(context)
     , m_config(config)
-    , m_new_config(new_conf)
+    , m_exec_config(exec_config)
     , m_stream_id(stream_id)
     , m_state(0) {
     m_program = std::make_shared<Program>(GetEngine(), m_config);
@@ -72,7 +72,7 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, gpu::ClContext::Ptr context, Config c
     ib >> primitiveIDs;
     ib >> outputDims;
 
-    m_networks.emplace_back(std::make_shared<cldnn::network>(ib, GetEngine()->create_stream(new_conf), *GetEngine(), m_stream_id));
+    m_networks.emplace_back(std::make_shared<cldnn::network>(ib, GetEngine()->create_stream(exec_config), *GetEngine(), m_stream_id));
 }
 
 Graph::Graph(std::shared_ptr<Graph> graph, uint16_t stream_id)
@@ -146,7 +146,7 @@ std::shared_ptr<cldnn::network> Graph::BuildNetwork(std::shared_ptr<cldnn::progr
         if (m_config.throughput_streams != 1)
             IE_THROW(ParameterMismatch) << "Throughput streams can't be used with shared queue!\n";
         auto &engine = m_program->GetEngine();
-        network = std::make_shared<cldnn::network>(program, engine.create_stream(m_new_config, externalQueue), m_stream_id);
+        network = std::make_shared<cldnn::network>(program, engine.create_stream(m_exec_config, externalQueue), m_stream_id);
     } else {
         network = std::make_shared<cldnn::network>(program, m_stream_id);
     }

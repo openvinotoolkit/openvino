@@ -40,8 +40,8 @@ public:
     typedef std::shared_ptr<Graph> Ptr;
     using variable_states_map = std::map<std::string, std::vector<cldnn::network::VariableState::Ptr>>;
 
-    Graph(InferenceEngine::CNNNetwork& network, InferenceEngine::gpu::ClContext::Ptr context, Config config, ExecutionConfig new_conf, uint16_t stream_id = 0);
-    Graph(cldnn::BinaryInputBuffer& ib, InferenceEngine::gpu::ClContext::Ptr context, Config config, ExecutionConfig new_conf, uint16_t stream_id = 0);
+    Graph(InferenceEngine::CNNNetwork& network, InferenceEngine::gpu::ClContext::Ptr context, Config config, ExecutionConfig exec_config, uint16_t stream_id = 0);
+    Graph(cldnn::BinaryInputBuffer& ib, InferenceEngine::gpu::ClContext::Ptr context, Config config, ExecutionConfig exec_config, uint16_t stream_id = 0);
     explicit Graph(std::shared_ptr<Graph> graph, uint16_t stream_id = 0);
     void Export(cldnn::BinaryOutputBuffer &ob);
     std::shared_ptr<ngraph::Function> GetExecGraphInfo();
@@ -89,12 +89,11 @@ protected:
     std::shared_ptr<Program> m_program;
     std::string m_networkName;
     Config m_config;
-    ExecutionConfig m_new_config;
+    ExecutionConfig m_exec_config;
     uint16_t m_stream_id;
     uint32_t m_state;
     std::condition_variable m_cv;
     std::mutex m_infer_mutex;
-
 
     std::vector<std::shared_ptr<cldnn::network>> m_networks;
     std::map<std::string, cldnn::primitive_id> primitiveIDs;
@@ -104,7 +103,6 @@ protected:
     std::vector<cldnn::primitive_id> profilingIDs;
 
     std::map<std::string, InferenceEngine::SizeVector> outputDims;
-
 
     std::shared_ptr<cldnn::network> BuildNetwork(std::shared_ptr<cldnn::program> program);
     void Build();

@@ -253,7 +253,7 @@ TEST(concatenate_f32_gpu, test_concatenation_of_pool_and_unpool) {
     topology.add(data("weights", weights));
     topology.add(convolution("conv", input_info("concat1"), {"weights"}));
 
-    cldnn::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
     network.set_input_data("input1", input1);
@@ -288,7 +288,7 @@ TEST(depth_concatenate_f32_gpu, test03_cascade_concat_opt) {
     topology.add(concatenation("depth3", { input_info("relu4"), input_info("depth2") }, 1));
     topology.add(activation("relu5", input_info("depth3"), activation_func::relu));
 
-    cldnn::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
 
@@ -340,7 +340,7 @@ TEST(depth_concatenate_f32_gpu, test04_fused_relu) {
     topology.add(concatenation("depth1", { input_info("input1"), input_info("input2") }, 1));
     topology.add(activation("relu1", input_info("depth1"), activation_func::relu));
 
-    cldnn::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
 
@@ -394,7 +394,7 @@ TEST(depth_concatenate_f32_gpu, test05_different_formats) {
     topology.add(concatenation("depth1", { input_info("reshape1"), input_info("reshape2") }, 1));
     topology.add(reorder("output", input_info("depth1"), format::bfyx, data_types::f32));
 
-    cldnn::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
 
@@ -453,9 +453,9 @@ TEST(depth_concatenate_f32_gpu, test06_padded_input) {
     topology.add(concatenation("depth2", { input_info("depth1"), input_info("conv") }, 1));
     topology.add(reorder("output", input_info("depth2"), format::bfyx, data_types::f32));
 
-    cldnn::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv", implementation_desc{format::fs_b_yx_fsv32, ""} } }));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv", ov::intel_gpu::ImplementationDesc{format::fs_b_yx_fsv32, ""} } }));
     network network(engine, topology, config);
 
     network.set_input_data("input1", input1);
@@ -529,9 +529,9 @@ TEST(depth_concatenate_f32_gpu, test07_padded_output) {
     topology.add(convolution("conv", input_info("depth1"), { "weights" }, {1, 1}, {1, 1}));
     topology.add(reorder("output", input_info("conv"), format::bfyx, data_types::f32));
 
-    cldnn::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv", implementation_desc{format::fs_b_yx_fsv32, ""} } }));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv", ov::intel_gpu::ImplementationDesc{format::fs_b_yx_fsv32, ""} } }));
     network network(engine, topology, config);
 
     network.set_input_data("input1", input1);
@@ -589,7 +589,7 @@ TEST(depth_concatenate_f32_gpu, test07_concat_is_output) {
     topology.add(activation("actv2", input_info("input2"), activation_func::linear, { 0.5f, 0.0f }));
     topology.add(concatenation("depth1", { input_info("actv1"), input_info("actv2") }, 1));
 
-    cldnn::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
 

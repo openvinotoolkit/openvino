@@ -78,11 +78,11 @@ TEST_P(format_mismatch_fusing, single_fused_node) {
         reorder("reorder_bfyx", input_info("eltwise"), p.output_format, data_types::f32)
     );
 
-    implementation_desc resample_impl = { p.input_format, "resample_opt" };
+    ov::intel_gpu::ImplementationDesc resample_impl = { p.input_format, "resample_opt" };
     cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "resample_opt", resample_impl } }));
-    implementation_desc ref_resample_impl = { p.input_format, "resample_ref" };
+    ov::intel_gpu::ImplementationDesc ref_resample_impl = { p.input_format, "resample_ref" };
     cfg_not_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "resample_opt", ref_resample_impl } }));
-    implementation_desc ref_eltwise = { p.input_format, "" };
+    ov::intel_gpu::ImplementationDesc ref_eltwise = { p.input_format, "" };
     cfg_not_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "eltwise_data", ref_eltwise } }));
 
     tolerance = 1e-5f;
@@ -112,11 +112,11 @@ TEST_P(format_mismatch_multiple_fusing, multiple_fused_node) {
         reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
-    implementation_desc resample_impl = { p.input_format, "resample_opt" };
+    ov::intel_gpu::ImplementationDesc resample_impl = { p.input_format, "resample_opt" };
     cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "resample_prim", resample_impl } }));
-    implementation_desc ref_resample_impl = { p.input_format, "resample_ref" };
+    ov::intel_gpu::ImplementationDesc ref_resample_impl = { p.input_format, "resample_ref" };
     cfg_not_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "resample_prim", ref_resample_impl } }));
-    implementation_desc ref_eltwise = { p.input_format, "" };
+    ov::intel_gpu::ImplementationDesc ref_eltwise = { p.input_format, "" };
     cfg_not_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "eltwise_data", ref_eltwise } }));
 
     tolerance = 1e-5f;

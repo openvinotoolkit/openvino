@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,18 +10,17 @@ namespace intel_gpu {
 
 ExecutionConfig::ExecutionConfig() {
     set_property(ov::enable_profiling(false));
+    set_property(ov::cache_dir(""));
+    set_property(ov::num_streams(1));
     set_property(ov::intel_gpu::hint::queue_throttle(ov::intel_gpu::hint::ThrottleLevel::MEDIUM));
     set_property(ov::intel_gpu::hint::queue_priority(ov::hint::Priority::MEDIUM));
     set_property(ov::intel_gpu::queue_type(QueueTypes::out_of_order));
-    set_property(ov::intel_gpu::enable_fusing(true));
-    set_property(ov::intel_gpu::optimize_data(true));
+    set_property(ov::intel_gpu::optimize_data(false));
     set_property(ov::intel_gpu::enable_memory_pool(true));
-    set_property(ov::intel_gpu::allow_static_input_reorder(true));
+    set_property(ov::intel_gpu::allow_static_input_reorder(false));
     set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{}));
     set_property(ov::intel_gpu::tuning_config(ov::intel_gpu::TuningConfig{}));
     set_property(ov::intel_gpu::dump_graphs(""));
-    set_property(ov::intel_gpu::dump_sources(""));
-    set_property(ov::intel_gpu::dump_blobs(""));
     set_property(ov::intel_gpu::force_implementations(ImplForcingMap{}));
     set_property(ov::intel_gpu::partial_build_program(false));
     set_property(ov::intel_gpu::allow_new_shape_infer(false));

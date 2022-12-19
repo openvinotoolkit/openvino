@@ -27,22 +27,16 @@ enum class QueueTypes : int16_t {
 };
 
 /**
- * @brief Defines supported queue types
+ * @brief Defines queue type that must be used for model execution
  */
 static constexpr Property<QueueTypes, PropertyMutability::RW> queue_type{"GPU_QUEUE_TYPE"};
 
-
-static constexpr Property<bool, PropertyMutability::RW> enable_fusing{"GPU_ENABLE_FUSING"};
 static constexpr Property<bool, PropertyMutability::RW> enable_memory_pool{"GPU_ENABLE_MEMORY_POOL"};
 static constexpr Property<bool, PropertyMutability::RW> optimize_data{"GPU_OPTIMIZE_DATA"};
 static constexpr Property<bool, PropertyMutability::RW> allow_static_input_reorder{"GPU_ALLOW_STATIC_INPUT_REORDER"};
 static constexpr Property<bool, PropertyMutability::RW> partial_build_program{"GPU_PARTIAL_BUILD"};
 static constexpr Property<bool, PropertyMutability::RW> allow_new_shape_infer{"GPU_ALLOW_NEW_SHAPE_INFER"};
-
-static constexpr Property<std::string, PropertyMutability::RW> dump_sources{"GPU_DUMP_SOURCES"};
 static constexpr Property<std::string, PropertyMutability::RW> dump_graphs{"GPU_DUMP_GRAPHS"};
-static constexpr Property<std::string, PropertyMutability::RW> dump_blobs{"GPU_DUMP_BLOBS"};
-
 static constexpr Property<std::vector<std::string>, PropertyMutability::RW> custom_outputs{"GPU_CUSTOM_OUTPUTS"};
 
 /// @brief Tuning mode.

@@ -38,8 +38,8 @@ public:
         auto input0_prim = get_mem(get_input_layout(p));
         auto input1_prim = get_mem(get_input_layout(p));
 
-        implementation_desc onednn_impl = { p.input_format, "", impl_types::onednn };
-        implementation_desc cldnn_impl = { p.input_format, "", impl_types::ocl };
+        ov::intel_gpu::ImplementationDesc onednn_impl = { p.input_format, "", impl_types::onednn };
+        ov::intel_gpu::ImplementationDesc cldnn_impl = { p.input_format, "", impl_types::ocl };
 
         // for onednn fusing test, topology_non_fused means cldnn, topology_fused is onednn
         ExecutionConfig cldnn_cfg{ov::intel_gpu::queue_type(QueueTypes::in_order),

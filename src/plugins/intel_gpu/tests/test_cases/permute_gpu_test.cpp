@@ -1683,8 +1683,8 @@ void TiledPermuteTest::run_test(const std::vector<cldnn::tensor::value_type>& si
     );
 
     // run with permute_ref
-    cldnn::ExecutionConfig config_ref;
-    cldnn::implementation_desc permute_ref = { format_fsv, "permute_ref" };
+    ov::intel_gpu::ExecutionConfig config_ref;
+    ov::intel_gpu::ImplementationDesc permute_ref = { format_fsv, "permute_ref" };
     config_ref.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"output", permute_ref} }));
 
     cldnn::network network_ref(engine, topology_ref, config_ref);
@@ -1695,7 +1695,7 @@ void TiledPermuteTest::run_test(const std::vector<cldnn::tensor::value_type>& si
 
     // run with permute_tile_8x8_4x4_fsv16
     ExecutionConfig config_tile;
-    cldnn::implementation_desc permute_tile_8x8_4x4_fsv = { format_fsv, "permute_tile_8x8_4x4_fsv" };
+    ov::intel_gpu::ImplementationDesc permute_tile_8x8_4x4_fsv = { format_fsv, "permute_tile_8x8_4x4_fsv" };
     config_tile.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"output", permute_tile_8x8_4x4_fsv} }));
 
     cldnn::network network_tile(engine, topology_ref, config_tile);

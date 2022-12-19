@@ -113,8 +113,6 @@ program::program(engine& engine_ref,
     set_options();
     query_local_block_io_supported();
 
-    std::cerr << "config: " << config.to_string() << std::endl;
-
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(topology);
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id,
@@ -451,6 +449,9 @@ void program::set_options() {
     static std::atomic<uint32_t> id_gen{0};
     prog_id = ++id_gen;
     assert(prog_id != 0);
+    if (!_config.get_property(ov::intel_gpu::force_implementations).empty()) {
+        _config.set_property(ov::intel_gpu::optimize_data(true));
+    }
 }
 
 bool program::is_local_block_io_supported() const {
@@ -731,17 +732,6 @@ void program::cleanup() {
     GPU_DEBUG_DEFINE_MEM_LOGGER("cleanup");
     for (auto& node : processing_order)
         node->get_output_layout();
-
-    // in debug build, at the end, mark all nodes as outputs so user can query for buffers of all not-optimized nodes,
-    // including internal ones etc.
-    if (is_debug_build()) {
-        for (auto& node : processing_order) {
-            if (!node->is_output()) {
-                node->set_output(true);
-                outputs.push_back(node);
-            }
-        }
-    }
 
     _kernels_cache->reset();
 }
@@ -1035,7 +1025,7 @@ bool program::remove_if_dangling(program_node& node) {
     if (!node.dependencies.empty())
         return false;
 
-    if (!node.is_output() || is_debug_build()) {
+    if (!node.is_output()) {
         if (node.is_input())
             inputs.remove(&node);
 
@@ -1051,7 +1041,7 @@ bool program::extract(program_node& node) {
     if (node.get_dependencies().size() != 1)
         return false;
 
-    if (node.is_output() && !is_debug_build()) {
+    if (node.is_output()) {
         auto& prev = node.get_dependency(0);
         auto node_id = node.id();
 
@@ -1389,9 +1379,7 @@ const program::primitives_info& program::get_primitives_info() const { return pr
 void program::apply_opt_pass(base_pass& pass) { pm->run(*this, pass); }
 
 void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
-    // lo.set_implementation_forcing(options.get<build_option_type::force_implementations>()->forcing);
-    // FIXME: replace with new DT
-    // lo.set_implementation_forcing(_config.get_property(ov::intel_gpu::force_implementations));
+    lo.set_implementation_forcing(_config.get_property(ov::intel_gpu::force_implementations));
 
 
     // first pass to set layout optimization_attributes for topology

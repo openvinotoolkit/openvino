@@ -39,7 +39,7 @@ public:
         ExecutionConfig config;
         config.set_property(ov::intel_gpu::optimize_data(true));
         if (!p.kernel_name.empty()) {
-            implementation_desc impl = { p.input_format, p.kernel_name };
+            ov::intel_gpu::ImplementationDesc impl = { p.input_format, p.kernel_name };
             config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "pooling", impl } }));
         }
         network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
@@ -537,8 +537,8 @@ public:
 
         auto input_prim = get_mem(get_input_layout(p));
 
-        implementation_desc onednn_impl = { p.input_format, "", impl_types::onednn };
-        implementation_desc cldnn_impl = { p.input_format, "", impl_types::ocl };
+        ov::intel_gpu::ImplementationDesc onednn_impl = { p.input_format, "", impl_types::onednn };
+        ov::intel_gpu::ImplementationDesc cldnn_impl = { p.input_format, "", impl_types::ocl };
 
         ExecutionConfig cldnn_cfg{ov::intel_gpu::queue_type(QueueTypes::in_order),
                                   ov::intel_gpu::optimize_data(true),

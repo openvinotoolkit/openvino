@@ -87,7 +87,7 @@ public:
             if (forcing.first == "fc_prim")
                 forcing_format = forcing.second.output_format;
 
-        implementation_desc conv_impl = { forcing_format, "", impl_types::onednn };
+        ov::intel_gpu::ImplementationDesc conv_impl = { forcing_format, "", impl_types::onednn };
         cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "fc_prim", conv_impl } }));
         network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
         network network_fused(this->engine, this->topology_fused, cfg_fused);

@@ -387,38 +387,6 @@ struct format {
     std::string to_string() const;
 };
 
-// inline std::ostream& operator<<(std::ostream& out, const format& impl_type) {
-//     switch (impl_type) {
-//         case impl_types::cpu: out << "cpu"; break;
-//         case impl_types::common: out << "common"; break;
-//         case impl_types::ocl: out << "ocl"; break;
-//         case impl_types::onednn: out << "onednn"; break;
-//         case impl_types::any: out << "any"; break;
-//         default: out << "unknown"; break;
-//     }
-
-//     return out;
-// }
-
-// inline std::istream& operator>>(std::istream& is, impl_types& impl_type) {
-//     std::string str;
-//     is >> str;
-//     if (str == "cpu") {
-//         impl_type = impl_types::cpu;
-//     } else if (str == "common") {
-//         impl_type = impl_types::common;
-//     } else if (str == "ocl") {
-//         impl_type = impl_types::ocl;
-//     } else if (str == "onednn") {
-//         impl_type = impl_types::onednn;
-//     } else if (str == "any") {
-//         impl_type = impl_types::any;
-//     } else {
-//         throw ov::Exception{"Unsupported impl type: " + str};
-//     }
-//     return is;
-// }
-
 /// @}
 /// @}
 }  // namespace cldnn

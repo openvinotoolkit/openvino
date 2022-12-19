@@ -341,26 +341,6 @@ protected:
 
 template<typename TpublicContextAPI>
 class TypedExecutionContext : public TpublicContextAPI {
-    template<typename T1, typename T2>
-    struct _Key {
-        T1 _surf;
-        T2 _plane;
-
-        _Key(T1 surf, T2 plane) : _surf(surf), _plane(plane) {}
-
-        bool operator<(const _Key &that) const {
-            return _surf < that._surf || (_surf == that._surf && _plane < that._plane);
-        }
-    };
-
-#ifdef _WIN32
-    using surf_key = _Key<cldnn::shared_handle, uint32_t>;
-#else
-    using surf_key = _Key<cldnn::shared_surface, uint32_t>;
-#endif
-    std::map<surf_key, cldnn::memory::ptr> shared_surf_reg;
-    std::map<cldnn::shared_handle, cldnn::memory::ptr> shared_obj_reg;
-
     InferenceEngine::RemoteBlob::Ptr reuse_surf(const InferenceEngine::TensorDesc& tensorDesc, const InferenceEngine::ParamMap& params) {
         using namespace InferenceEngine;
         using InferenceEngine::gpu::details::param_map_obj_getter;
@@ -368,11 +348,11 @@ class TypedExecutionContext : public TpublicContextAPI {
         uint32_t plane = param_map_obj_getter::_ObjFromParamSimple<uint32_t>(params, GPU_PARAM_KEY(VA_PLANE));
 #ifdef _WIN32
         cldnn::shared_handle mem = param_map_obj_getter::_ObjFromParamSimple<cldnn::shared_handle>(params, GPU_PARAM_KEY(DEV_OBJECT_HANDLE));
-        surf_key skey(mem, plane);
 #else
         cldnn::shared_surface surf = param_map_obj_getter::_ObjFromParamSimple<cldnn::shared_surface>(params, GPU_PARAM_KEY(DEV_OBJECT_HANDLE));
-        surf_key skey(surf, plane);
 #endif
+        auto key = cldnn::hash_combine(0, surf);
+        key = cldnn::hash_combine(key, plane);
         std::lock_guard<ExecutionContextImpl> locker(_impl);
 
         cldnn::layout layout(DataTypeFromPrecision(tensorDesc.getPrecision()),
@@ -382,9 +362,8 @@ class TypedExecutionContext : public TpublicContextAPI {
 
         cldnn::memory::ptr reused_mem = nullptr;
         // try to locate previously shared surface
-        auto itr = shared_surf_reg.find(skey);
-        if (itr != shared_surf_reg.end()) {
-            reused_mem = itr->second;
+        if (memory_cache.has(key)) {
+            reused_mem = memory_cache.get(key);
         }
 
 #ifdef _WIN32
@@ -396,7 +375,7 @@ class TypedExecutionContext : public TpublicContextAPI {
             tensorDesc, layout, nullptr, surf, plane,
             RemoteBlobImpl::BlobType::BT_SURF_SHARED, reused_mem);
 #endif
-        shared_surf_reg[skey] = blob->getImpl()->getMemory();
+        memory_cache.add(key, blob->getImpl()->getMemory());
 
         return blob;
     }
@@ -412,34 +391,34 @@ class TypedExecutionContext : public TpublicContextAPI {
                                 tensor_from_dims(tensorDesc.getDims()));
         auto smart_this = std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>(this->shared_from_this());
 
+        auto key = cldnn::hash_combine(0, mem);
+
         cldnn::memory::ptr reused_mem = nullptr;
-        // try to locate previously shared object
-        auto itr = shared_obj_reg.find(mem);
-        if (itr != shared_obj_reg.end()) {
-            reused_mem = itr->second;
+        if (memory_cache.has(key)) {
+            reused_mem = memory_cache.get(key);
         }
 
         switch (blob_type) {
         case RemoteBlobImpl::BlobType::BT_BUF_SHARED: {
             auto blob = std::make_shared<RemoteCLbuffer>(smart_this, stream, tensorDesc, layout, mem, 0, 0, blob_type, reused_mem);
-            shared_obj_reg[mem] = blob->getImpl()->getMemory();
+            memory_cache.add(key, blob->getImpl()->getMemory());
             return blob;
         }
         case RemoteBlobImpl::BlobType::BT_USM_SHARED: {
             auto blob = std::make_shared<RemoteUSMbuffer>(smart_this, stream, tensorDesc, layout, mem, 0, 0, blob_type, reused_mem);
-            shared_obj_reg[mem] = blob->getImpl()->getMemory();
+            memory_cache.add(key, blob->getImpl()->getMemory());
             return blob;
         }
         case RemoteBlobImpl::BlobType::BT_IMG_SHARED: {
             layout.format = ImageFormatFromLayout(tensorDesc.getLayout());
             auto blob = std::make_shared<RemoteCLImage2D>(smart_this, stream, tensorDesc, layout, mem, 0, 0, blob_type, reused_mem);
-            shared_obj_reg[mem] = blob->getImpl()->getMemory();
+            memory_cache.add(key, blob->getImpl()->getMemory());
             return blob;
         }
 #ifdef _WIN32
         case RemoteBlobImpl::BlobType::BT_DX_BUF_SHARED: {
             ret = std::make_shared<RemoteD3DBuffer>(smart_this, stream, tensorDesc, layout, mem, 0, 0, blob_type, reused_mem);
-            shared_obj_reg[mem] = blob->getImpl()->getMemory();
+            memory_cache.add(key, blob->getImpl()->getMemory());
             return blob;
         }
 #endif
@@ -488,14 +467,16 @@ public:
     using Ptr = std::shared_ptr<TypedExecutionContext>;
     using CPtr = std::shared_ptr<const TypedExecutionContext>;
 
+    static const size_t cache_capacity = 100;
+
     explicit TypedExecutionContext(std::shared_ptr<InferenceEngine::IInferencePlugin> plugin,
                                    const InferenceEngine::ParamMap& params,
                                    const Config& config = {})
-        : _impl(plugin, params, config) {}
+        : _impl(plugin, params, config),
+        memory_cache(cache_capacity) {}
 
     ~TypedExecutionContext() {
-        shared_surf_reg.clear();
-        shared_obj_reg.clear();
+        memory_cache.clear();
     }
 
     InferenceEngine::ParamMap getParams() const override { return _impl.getParams(); }
@@ -568,6 +549,7 @@ public:
 
 protected:
     ExecutionContextImpl _impl;
+    cldnn::LruCache<size_t, cldnn::memory::ptr> memory_cache;
 };
 
 using RemoteCLContext = TypedExecutionContext<InferenceEngine::gpu::ClContext>;

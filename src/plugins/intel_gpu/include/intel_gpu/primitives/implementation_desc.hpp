@@ -132,8 +132,3 @@ using ImplForcingMap = std::map<cldnn::primitive_id, ImplementationDesc>;
 
 }  // namespace intel_gpu
 }  // namespace ov
-
-namespace cldnn {
-using implementation_forcing_map = ov::intel_gpu::ImplForcingMap;
-using implementation_desc = ov::intel_gpu::ImplementationDesc;
-}  // namespace cldnn

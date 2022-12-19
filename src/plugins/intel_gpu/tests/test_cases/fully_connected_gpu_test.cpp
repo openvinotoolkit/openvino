@@ -1004,7 +1004,7 @@ struct fully_connected_random_test : ::testing::TestWithParam<fully_connected_te
         auto input = net.add_input_layout<InputT, 4>("input", input_format, std::move(input_data));
         auto weights = net.add_data<WeightsT, 4>("weights", format::oiyx, std::move(weights_data));
         auto bias = net.add_data<BiasT, 2>("bias", format::bfyx, std::move(bias_data));
-        auto fc = net.add_fully_connected<OutputT>("fc_prim", input, weights, bias, implementation_desc{ output_format, kernel });
+        auto fc = net.add_fully_connected<OutputT>("fc_prim", input, weights, bias, ov::intel_gpu::ImplementationDesc{ output_format, kernel });
 
         net.run(ExecutionConfig(ov::intel_gpu::optimize_data(true)), is_caching_test);
     }
@@ -1127,7 +1127,7 @@ struct fully_connected_random_test_3d : ::testing::TestWithParam<fully_connected
         auto input = net.add_input_layout<InputT, 4>("input", input_format, std::move(input_data));
         auto weights = net.add_data<WeightsT, 4>("weights", format::oiyx, std::move(weights_data));
         auto bias = net.add_data<BiasT, 2>("bias", format::bfyx, std::move(bias_data));
-        auto fc = net.add_fully_connected_3d<OutputT>("fc_prim", input, weights, bias, implementation_desc{ output_format, kernel }, 3);
+        auto fc = net.add_fully_connected_3d<OutputT>("fc_prim", input, weights, bias, ov::intel_gpu::ImplementationDesc{ output_format, kernel }, 3);
 
         net.run(ExecutionConfig(ov::intel_gpu::optimize_data(true)), is_caching_test);
     }
@@ -1684,7 +1684,7 @@ TEST(fully_connected_onednn_gpu, no_biases_int8) {
     topology.add(ri);
     topology.add(rf);
 
-    implementation_desc fc_impl = { format::bfyx, "", impl_types::onednn };
+    ov::intel_gpu::ImplementationDesc fc_impl = { format::bfyx, "", impl_types::onednn };
 
     ExecutionConfig cfg{ov::intel_gpu::queue_type(QueueTypes::in_order),
                         ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc_prim", fc_impl} })
@@ -1737,7 +1737,7 @@ TEST(fully_connected_3d_onednn_gpu, no_biases_int8) {
     topology.add(ri);
     topology.add(rf);
 
-    implementation_desc fc_impl = { format::bfyx, "", impl_types::onednn };
+    ov::intel_gpu::ImplementationDesc fc_impl = { format::bfyx, "", impl_types::onednn };
     ExecutionConfig cfg{ov::intel_gpu::queue_type(QueueTypes::in_order), ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "fc_prim", fc_impl } })};
 
     network network(engine, topology, cfg);

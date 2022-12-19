@@ -77,7 +77,7 @@ TEST(reorder_inputs, impl_forcing_basic_format) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(pooling("pool", input_info("input"), pooling_mode::max, { 1, 2 }, { 1, 2 }));
 
-    implementation_desc pool_impl = { format::yxfb, "" };
+    ov::intel_gpu::ImplementationDesc pool_impl = { format::yxfb, "" };
 
     ExecutionConfig config;
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"pool", pool_impl} }));
@@ -115,7 +115,7 @@ TEST(reorder_inputs, impl_forcing_not_existing) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(pooling("pool", input_info("input"), pooling_mode::max, { 1, 2 }, { 1, 2 }));
 
-    implementation_desc pool_impl = { format::any, "NOT_EXISTING" };
+    ov::intel_gpu::ImplementationDesc pool_impl = { format::any, "NOT_EXISTING" };
 
     ExecutionConfig config;
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"pool", pool_impl} }));
@@ -131,7 +131,7 @@ TEST(reorder_inputs, impl_forcing_basic_format_kernel) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(activation("actv", input_info("input"), activation_func::relu));
 
-    implementation_desc actv_impl = { format::yxfb, "activation_ref" };
+    ov::intel_gpu::ImplementationDesc actv_impl = { format::yxfb, "activation_ref" };
 
     ExecutionConfig config;
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"actv", actv_impl} }));

@@ -312,7 +312,7 @@ public:
                                                            std::shared_ptr<reference_node<InputT, InputN>> input,
                                                            std::shared_ptr<reference_node<WeightsT, InputN>> weights,
                                                            std::shared_ptr<reference_node<BiasT, 2>> bias,
-                                                           cldnn::implementation_desc force = cldnn::implementation_desc{ cldnn::format::any, "" }) {
+                                                           ov::intel_gpu::ImplementationDesc force = ov::intel_gpu::ImplementationDesc{ cldnn::format::any, "" }) {
         topo.add(cldnn::fully_connected(id, input_info(input->id), weights->id, bias->id, cldnn::type_to_data_type<T>::value));
         if (force.output_format != cldnn::format::any || force.kernel_name != "")
             forced_impls[id] = force;
@@ -327,7 +327,7 @@ public:
                                                            std::shared_ptr<reference_node<InputT, InputN>> input,
                                                            std::shared_ptr<reference_node<WeightsT, InputN>> weights,
                                                            std::shared_ptr<reference_node<BiasT, 2>> bias,
-                                                           cldnn::implementation_desc force = cldnn::implementation_desc{cldnn::format::any, ""},
+                                                           ov::intel_gpu::ImplementationDesc force = ov::intel_gpu::ImplementationDesc{cldnn::format::any, ""},
                                                            size_t input_dim_size = 3) {
         topo.add(cldnn::fully_connected(id, input_info(input->id), weights->id, bias->id, cldnn::type_to_data_type<T>::value, cldnn::padding(), input_dim_size));
         if (force.output_format != cldnn::format::any || force.kernel_name != "")
@@ -409,7 +409,7 @@ protected:
 
     cldnn::engine& eng;
     cldnn::topology topo;
-    std::map<cldnn::primitive_id, cldnn::implementation_desc> forced_impls;
+    std::map<cldnn::primitive_id, ov::intel_gpu::ImplementationDesc> forced_impls;
     std::map<cldnn::primitive_id, cldnn::memory::ptr> inputs;
     std::set<reference_node_interface::ptr> outputs;
 };

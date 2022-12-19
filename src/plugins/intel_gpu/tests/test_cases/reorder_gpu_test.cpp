@@ -83,8 +83,8 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
         reorder("reorder", input_info("input"), output_layout));
 
     // run on reference(reorder_data) kernel
-    cldnn::ExecutionConfig config_ref;
-    cldnn::implementation_desc reorder_ref = { output_format, "reorder_data" };
+    ov::intel_gpu::ExecutionConfig config_ref;
+    ov::intel_gpu::ImplementationDesc reorder_ref = { output_format, "reorder_data" };
     config_ref.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"reorder", reorder_ref} }));
 
     network network_ref(engine, topology, config_ref);
@@ -95,8 +95,8 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
     e1->wait();
 
     // run on optimized kernel
-    cldnn::ExecutionConfig config;
-    cldnn::implementation_desc reorder_optimized = { output_format, kernel_name };
+    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ImplementationDesc reorder_optimized = { output_format, kernel_name };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"reorder", reorder_optimized} }));
 
     network network(engine, topology, config);
@@ -1834,7 +1834,7 @@ TEST(reorder_gpu_binary, binary_output)
 {
     auto& engine = get_test_engine();
 
-    cldnn::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 2 } });
@@ -1882,7 +1882,7 @@ TEST(reorder_gpu_binary, binary_input)
 {
     auto& engine = get_test_engine();
 
-    cldnn::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     auto input = engine.allocate_memory({ data_types::bin, format::b_fs_yx_32fp,{ 2, 2, 2, 2 } });
@@ -2706,7 +2706,7 @@ TEST_P(testing_removal_reorder, removal_no_padded_reorder) {
         reorder("reorder_output", input_info("conv_output"), p.default_format, data_types::f32)
     );
 
-    implementation_desc impl = { format::b_fs_yx_fsv16, std::string(""), impl_types::ocl };
+    ov::intel_gpu::ImplementationDesc impl = { format::b_fs_yx_fsv16, std::string(""), impl_types::ocl };
     ExecutionConfig config{ov::intel_gpu::queue_type(QueueTypes::in_order),
                             ov::intel_gpu::optimize_data(true),
                             ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv_output", impl} })
@@ -2736,7 +2736,7 @@ TEST_P(testing_removal_reorder, removal_padded_reorder) {
         reorder("reorder_output", input_info("conv_output"), p.default_format, data_types::f32)
     );
 
-    implementation_desc impl = { format::b_fs_yx_fsv16, std::string(""), impl_types::ocl };
+    ov::intel_gpu::ImplementationDesc impl = { format::b_fs_yx_fsv16, std::string(""), impl_types::ocl };
     ExecutionConfig config{ov::intel_gpu::queue_type(QueueTypes::in_order),
                             ov::intel_gpu::optimize_data(true),
                             ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv_output", impl} })
@@ -2787,7 +2787,7 @@ TEST(reorder_onednn_gpu, basic_convert_int8) {
         reorder("reorder2", input_info("reorder_input"), in_layout)
     );
 
-    implementation_desc impl = { format::bfyx, std::string(""), impl_types::onednn };
+    ov::intel_gpu::ImplementationDesc impl = { format::bfyx, std::string(""), impl_types::onednn };
     ExecutionConfig cfg{ov::intel_gpu::queue_type(QueueTypes::in_order),
                         ov::intel_gpu::custom_outputs(std::vector<std::string>{ "reorder_input", "reorder2"}),
                         ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{ "reorder_input", impl }}),

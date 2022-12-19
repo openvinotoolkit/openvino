@@ -719,7 +719,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest1) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    cldnn::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config;
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 2;
@@ -809,7 +809,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest2) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    cldnn::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config;
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 2;
@@ -899,7 +899,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest3) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    cldnn::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config;
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 2;
@@ -989,7 +989,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest4) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    cldnn::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config;
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 2;
@@ -1079,7 +1079,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest5) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    cldnn::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config;
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 2;
@@ -1169,7 +1169,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode1) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    cldnn::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config;
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 2;
@@ -1239,7 +1239,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode2) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    cldnn::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config;
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 2;
@@ -1303,7 +1303,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode3) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    cldnn::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config;
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 2;
@@ -1373,7 +1373,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode4) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    cldnn::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config;
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 2;
@@ -1443,7 +1443,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode5) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    cldnn::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config;
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 2;
@@ -1513,7 +1513,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_cubic) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    cldnn::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config;
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 2;
@@ -1581,7 +1581,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_cubic2) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    cldnn::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config;
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 1;
@@ -1634,7 +1634,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_linear) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
-    cldnn::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config;
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 2;
@@ -1861,7 +1861,7 @@ TEST(resample_gpu, interpolate_in1x1x2x4_linear_scale) {
     //  Sample Type: Linear
 
     auto& engine = get_test_engine();
-    cldnn::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config;
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     int b = 1;

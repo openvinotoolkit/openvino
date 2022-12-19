@@ -2013,7 +2013,7 @@ bool layout_optimizer::is_format_optimized(const deconvolution_node& node, const
     }
 }
 
-void layout_optimizer::set_implementation_forcing(const implementation_forcing_map& map) {
+void layout_optimizer::set_implementation_forcing(const ov::intel_gpu::ImplForcingMap& map) {
     for (const auto& kv : map) {
         _forcing_map.emplace(kv.first, std::make_pair(kv.second.output_format, kv.second.impl_type));
     }

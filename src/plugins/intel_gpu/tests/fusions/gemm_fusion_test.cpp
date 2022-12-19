@@ -41,8 +41,8 @@ public:
         auto input1_prim = get_mem(get_input_layout(p, 1));
 
         if (!p.kernel_name.empty()) {
-            implementation_desc gemm_ref_impl = { format::bfyx, "gemm_ref" };
-            implementation_desc gemm_target_impl = { format::bfyx, p.kernel_name };
+            ov::intel_gpu::ImplementationDesc gemm_ref_impl = { format::bfyx, "gemm_ref" };
+            ov::intel_gpu::ImplementationDesc gemm_target_impl = { format::bfyx, p.kernel_name };
             cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm_prim", gemm_target_impl} }));
             cfg_not_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm_prim", gemm_ref_impl} }));
         }
@@ -207,7 +207,7 @@ TEST_P(gemm_2in_quantize_float_in, basic) {
         reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
     );
 
-    implementation_desc gemm_impl = { format::bfyx, "gemm_tiled_opt" };
+    ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, "gemm_tiled_opt" };
     cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "gemm_prim", gemm_impl } }));
 
     tolerance = default_tolerance(data_types::u8);

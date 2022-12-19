@@ -1105,10 +1105,10 @@ public:
         topology.add(reorder("reorder_bfyx", input_info("gemm_bfyx"), format::bfyx, data_types::f32));
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        implementation_desc gemm_impl = { format::bfyx, "", impl_types::onednn };
+        ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, "", impl_types::onednn };
         ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::in_order));
 #else
-        implementation_desc gemm_impl = { format::bfyx, p.kernel_name };
+        ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, p.kernel_name };
         ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::out_of_order));
 #endif
         cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm_bfyx", gemm_impl} }));

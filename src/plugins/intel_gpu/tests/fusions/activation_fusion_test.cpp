@@ -33,7 +33,7 @@ public:
         auto input_prim = get_mem(get_input_layout(p));
 
         ExecutionConfig cfg;
-        implementation_desc activation_impl = { p.input_format, p.kernel_name };
+        ov::intel_gpu::ImplementationDesc activation_impl = { p.input_format, p.kernel_name };
         cfg.set_property(ov::intel_gpu::optimize_data(true));
         cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "act", activation_impl } }));
         network network_fused(this->engine, this->topology_fused, cfg);

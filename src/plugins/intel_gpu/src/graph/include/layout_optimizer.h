@@ -199,7 +199,7 @@ public:
     void set_optimization_attribute(optimization_attributes_type attribute, int32_t val);
     optimization_attributes get_optimization_attributes() { return _optimization_attributes; }
 
-    void set_implementation_forcing(const implementation_forcing_map& map);
+    void set_implementation_forcing(const ov::intel_gpu::ImplForcingMap& map);
 
     void update_formats_map(const convolution_node& node);
     bool is_format_optimized(const convolution_node& node, const format& format, bool use_weak_restrictions = false);

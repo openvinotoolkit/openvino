@@ -36,7 +36,7 @@ public:
         auto input_prim = get_mem(get_input_layout(p));
 
         ExecutionConfig config;
-        implementation_desc lrn_impl = { p.input_format, p.kernel_name };
+        ov::intel_gpu::ImplementationDesc lrn_impl = { p.input_format, p.kernel_name };
         config.set_property(ov::intel_gpu::optimize_data(true));
         config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "lrn_norm", lrn_impl } }));
         network network_fused(this->engine, this->topology_fused, config);

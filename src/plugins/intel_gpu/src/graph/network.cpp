@@ -1118,7 +1118,7 @@ void network::execute_primitive(const std::shared_ptr<primitive_inst>& primitive
 
     // Collect events only for OOO queue and Profiling mode
     if (get_stream().get_queue_type() == QueueTypes::out_of_order ||
-        _config.get_property(ov::enable_profiling)) {
+        get_config().get_property(ov::enable_profiling)) {
         auto id = primitive->id();
         _events.insert({id, ev});
     }

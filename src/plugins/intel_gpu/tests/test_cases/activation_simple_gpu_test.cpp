@@ -1653,7 +1653,7 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
         // force output format to input format.
         topo_opt.add(reorder("res_to_input_format", input_info("activation_blocked"), input_format, input_type));
 
-        auto activation_impl_desc = implementation_desc();
+        auto activation_impl_desc = ov::intel_gpu::ImplementationDesc();
         activation_impl_desc.output_format = input_format;
         ExecutionConfig config_opt{
             ov::intel_gpu::custom_outputs(std::vector<std::string>{"activation_blocked", "res_to_input_format"}),
