@@ -100,7 +100,7 @@ public:
 
         ASSERT_EQ(output_ptr.size(), expected_values.size());
         for (size_t i = 0; i < output_ptr.size(); ++i) {
-            EXPECT_NEAR(output_ptr[i], expected_values[i], 2e-3)
+            ASSERT_NEAR(output_ptr[i], expected_values[i], 2e-3)
                 << "target_format=" << fmt_to_str(target_format) << ", i=" << i;
         }
     }
