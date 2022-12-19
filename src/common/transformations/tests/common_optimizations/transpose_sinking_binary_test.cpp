@@ -790,9 +790,9 @@ std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
     const Shape const_shape{1, 55, 55, 96};
 
     auto X = std::make_shared<Parameter>(input_type, input_shape);
-    
+
     auto tanh = std::make_shared<Tanh>(X);
-    
+
     auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
     auto transpose0 = std::make_shared<Transpose>(X, ng_order0);
 

@@ -194,7 +194,9 @@ std::shared_ptr<Model> CreateFunction(size_t num_split_ops, size_t num_split_out
         for (size_t num_output = 0; num_output < num_split_outputs - 1; ++num_output) {
             outputs.push_back(split->output(num_output));
         }
-        outputs.push_back(in_op);
+        in_op = split->output(num_split_outputs - 1);
+    }
+    outputs.push_back(in_op);
 
     auto tanh = std::make_shared<Tanh>(transpose0);
     outputs.push_back(tanh);
@@ -219,6 +221,8 @@ std::shared_ptr<Model> CreateReferenceFunction(size_t num_split_ops,
             auto transpose0 = std::make_shared<Transpose>(split->output(num_output), ng_order0);
             outputs.push_back(transpose0);
         }
+        in_op = split->output(num_split_outputs - 1);
+    }
 
     auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 3, 1, 2});
     auto transpose0 = std::make_shared<Transpose>(in_op, ng_order0);
