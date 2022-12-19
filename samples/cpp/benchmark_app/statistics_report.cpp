@@ -22,7 +22,7 @@ void StatisticsReport::add_parameters(const Category& category, const Parameters
 }
 
 void StatisticsReport::dump() {
-    CsvDumper dumper(true, _config.report_folder + _separator + "benchmark_report.csv");
+    CsvDumper dumper(true, _config.report_folder + _separator + "benchmark_report.csv", 3);
 
     auto dump_parameters = [&dumper](const Parameters& parameters) {
         for (auto& parameter : parameters) {
@@ -191,7 +191,7 @@ void StatisticsReport::dump_performance_counters(const std::vector<PerformanceCo
         slog::info << "Performance counters are empty. No reports are dumped." << slog::endl;
         return;
     }
-    CsvDumper dumper(true, _config.report_folder + _separator + "benchmark_" + _config.report_type + "_report.csv");
+    CsvDumper dumper(true, _config.report_folder + _separator + "benchmark_" + _config.report_type + "_report.csv", 3);
     if (_config.report_type == detailedCntReport) {
         for (auto& pc : perfCounts) {
             dump_performance_counters_request(dumper, pc);

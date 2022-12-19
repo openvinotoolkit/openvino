@@ -74,11 +74,9 @@ def get_element_type(precision):
 
 def fuse_mean_scale(preproc: PrePostProcessor, app_inputs_info):
     # TODO: remove warning after 23.3 release
-    warned = False;
+    warned = False
     warn_msg = 'Mean/scale values are fused into the model. This slows down performance compared to --imean and --iscale which existed before'
     for input_info in app_inputs_info:
-        print(input_info)
-        print(input_info.mean)
         if input_info.mean.size:
             if not warned:
                 logger.warning(warn_msg)
@@ -399,8 +397,8 @@ def print_perf_counters_sort(perf_counts_list,sort_flag="sort"):
             total_detail_data = sorted(total_detail_data,key=lambda tmp_data:tmp_data[-4],reverse=True)
             total_detail_data = [tmp_data for tmp_data in total_detail_data if str(tmp_data[1])!="Status.NOT_RUN"]
         print_detail_result(total_detail_data)        
-        print(f'Total time:       {total_time} microseconds')
-        print(f'Total CPU time:   {total_time_cpu} microseconds')
+        print(f'Total time:       {total_time / 1000:.3f} milliseconds')
+        print(f'Total CPU time:   {total_time_cpu / 1000:.3f} milliseconds')
         print(f'Total proportion: {"%.2f"%(round(total_real_time_proportion)*100)} % \n')
     return total_detail_data
 
@@ -414,17 +412,17 @@ def print_detail_result(result_list):
         layerType = tmp_result[2]
         real_time = tmp_result[3]
         cpu_time = tmp_result[4]
-        real_proportion = "%.2f"%(tmp_result[5]*100)
+        real_proportion = "%.2f" % (tmp_result[5] * 100)
         if real_proportion == "0.00":
             real_proportion = "N/A"
         execType = tmp_result[6]
         print(f"{node_name[:max_layer_name - 4] + '...' if (len(node_name) >= max_layer_name) else node_name:<30}"
-            f"{str(layerStatus):<20}"
-            f"{'layerType: ' + layerType:<30}"
-            f"{'realTime: ' + str(real_time):<20}"
-            f"{'cpu: ' +  str(cpu_time):<15}"
-            f"{'proportion: '+ str(real_proportion)+'%':<20}"
-            f"{'execType: ' + execType:<20}")
+            f"{str(layerStatus):<15} "
+            f"layerType: {layerType:<15} "
+            f"execType: {execType:<15} "
+            f"realTime (ms): {real_time / 1000:.3} "
+            f"cpuTime (ms): {cpu_time / 1000:.3f} "
+            f"proportion: {str(real_proportion +'%'):<8}")
 
 def print_perf_counters(perf_counts_list):
     max_layer_name = 30
@@ -436,14 +434,14 @@ def print_perf_counters(perf_counts_list):
         for pi in perf_counts:
             print(f"{pi.node_name[:max_layer_name - 4] + '...' if (len(pi.node_name) >= max_layer_name) else pi.node_name:<30} "
                                                                 f"{str(pi.status):<15} "
-                                                                f"layerType: {str(pi.node_type):<15} "
+                                                                f"layerType: {pi.node_type:<15} "
                                                                 f"execType: {pi.exec_type:<15} "
-                                                                f"realTime (ms): {float(int(pi.real_time // timedelta(microseconds=1)) / 1000.0):.6f} "
-                                                                f"cpuTime (ms): {float(int(pi.cpu_time // timedelta(microseconds=1)) / 1000.0):.6f}")
+                                                                f"realTime (ms): {pi.real_time / timedelta(milliseconds=1):.3f} "
+                                                                f"cpuTime (ms): {pi.cpu_time / timedelta(milliseconds=1):.3f}")
             total_time += pi.real_time
             total_time_cpu += pi.cpu_time
-        print(f'Total time:     {int(total_time // timedelta(microseconds=1)) / 1000.0} seconds')
-        print(f'Total CPU time: {int(total_time_cpu // timedelta(microseconds=1)) / 1000.0} seconds\n')
+        print(f'Total time:     {total_time / timedelta(milliseconds=1)} milliseconds')
+        print(f'Total CPU time: {total_time_cpu / timedelta(milliseconds=1)} seconds\n')
 
 
 def get_command_line_arguments(argv):
