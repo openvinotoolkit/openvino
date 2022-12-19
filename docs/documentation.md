@@ -19,15 +19,8 @@ This section provides reference documents that guide you through the OpenVINO to
 
 @sphinxdirective
 
-| :doc:`API Reference doc without path <api_reference>`
-| The OpenVINO toolkit provides APIs available for Python, C, and C++. 
-
-| :ref:`API Reference ref <api/api_reference>`
-
 | :doc:`API Reference doc path <api/api_reference>`
-
-| :ref:`API Reference ref without path <api_reference>`
-
+| The OpenVINO toolkit provides APIs available for Python, C, and C++. 
 
 | :doc:`OpenVINO Ecosystem <openvino_ecosystem>`
 | Apart from the core components, OpenVINO offers tools, plugins, and expansions revolving around it, even if not constituting necessary parts of its workflow. This section will give you an overview of what makes up OpenVINO Toolkit.
