@@ -286,7 +286,7 @@ PostgreSQLConnection::~PostgreSQLConnection() {
 ///          Returns true in case of connection has been succesfully established.
 bool PostgreSQLConnection::Initialize() {
     if (this->activeConnection != nullptr) {
-        std::cerr << PG_WRN << "PostgreSQL connection already established.\n";
+        std::cerr << PG_WRN << "PostgreSQL connection is already established.\n";
         return true;
     }
 
@@ -306,12 +306,20 @@ bool PostgreSQLConnection::Initialize() {
             dlclose(*ptr);
         }
     });
+    if (*modLibPQ == (HMODULE)0) {
+        modLibPQ = std::shared_ptr<HMODULE>(new HMODULE(dlopen("libpq.so.5", RTLD_LAZY)), [](HMODULE* ptr) {
+            if (*ptr != (HMODULE)0) {
+                std::cerr << PG_INF << "Freeing libPQ.so.5 handle\n";
+                dlclose(*ptr);
+            }
+        });
+    }
 #    endif
     if (*modLibPQ == (HMODULE)0) {
         std::cerr << PG_WRN << "Cannot load PostgreSQL client module libPQ, reporting is unavailable\n";
         return false;
     } else {
-        std::cerr << PG_INF << "PostgreSQL cliend module libPQ has been loaded\n";
+        std::cerr << PG_INF << "PostgreSQL client module libPQ has been loaded\n";
     }
 
 #    ifdef _WIN32
