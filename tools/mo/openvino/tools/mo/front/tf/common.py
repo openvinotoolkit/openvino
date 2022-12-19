@@ -7,7 +7,7 @@ from tensorflow.core.framework import types_pb2 as tf_types  # pylint: disable=n
 # Suppress false positive pylint warning about function with too many arguments
 # pylint: disable=E1121
 # mapping between TF data type and numpy data type and function to extract data from TF tensor
-_tf_np_mapping = [('DT_BOOL', bool, lambda pb: pb.bool_val, lambda x: bool_cast(x)),
+_tf_np_mapping = [('DT_BOOL', np.bool, lambda pb: pb.bool_val, lambda x: bool_cast(x)),
                   ('DT_INT8', np.int8, lambda pb: pb.int_val, lambda x: np.int8(x)),
                   ('DT_INT16', np.int16, lambda pb: pb.int_val, lambda x: np.int16(x)),
                   ('DT_INT32', np.int32, lambda pb: pb.int_val, lambda x: np.int32(x)),
@@ -32,4 +32,4 @@ def bool_cast(x):
     if isinstance(x, str):
         return False if x.lower() in ['false', '0'] else True if x.lower() in ['true', '1'] else 'unknown_boolean_cast'
     else:
-        return bool(x)
+        return np.bool(x)

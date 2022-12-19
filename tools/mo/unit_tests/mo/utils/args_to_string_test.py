@@ -36,7 +36,7 @@ class TestConvertingConvertArgumentsToString(UnitTestWithMockedTelemetry):
         inp8 = InputCutInfo("data2", [4, 5, 6], np.int64, [5, 4, 3, 2, 1])
         self.assertTrue(input_to_str(inp8) == "data2[4 5 6]{i64}->[5 4 3 2 1]")
 
-        inp9 = InputCutInfo("data", [1], bool, True)
+        inp9 = InputCutInfo("data", [1], np.bool, True)
         self.assertTrue(input_to_str(inp9) == "data[1]{boolean}->True")
 
         inp = [inp6, inp7, inp8]
@@ -114,7 +114,7 @@ class TestConvertingConvertArgumentsToString(UnitTestWithMockedTelemetry):
         self.assertRaises(Exception, input_to_str, **{"input": ("name", [np.int, 2, 3])})
         self.assertRaises(Exception, input_to_str, **{"input": ("name", "name1", [2, 3])})
         self.assertRaises(Exception, input_to_str, **{"input": ("name", [2, 3], Shape([1, 2]))})
-        self.assertRaises(Exception, input_to_str, **{"input": ("name", np.int, Type(np.float32))})
+        self.assertRaises(Exception, input_to_str, **{"input": ("name", np.int, Type(np.float))})
         self.assertRaises(Exception, input_to_str, **{"input": Exception})
         self.assertRaises(Exception, input_to_str, **{"input": ("name", Exception)})
         self.assertRaises(Exception, input_to_str, **{"input": ("name", Dimension(1))})
