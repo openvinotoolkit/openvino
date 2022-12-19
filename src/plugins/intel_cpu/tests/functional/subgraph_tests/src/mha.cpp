@@ -219,8 +219,6 @@ protected:
 };
 
 TEST_P(MHATest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     std::vector<InputShape> inputShapes;
     std::vector<ElementType> inputPrecisions;
     std::vector<ElementType> matMulIn0Precisions;
@@ -491,8 +489,6 @@ protected:
 };
 
 TEST_P(MHAQuantTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     std::vector<InputShape> inputShapes;
     std::vector<ElementType> inputPrecisions;
     std::vector<ElementType> matMulIn0Precisions;

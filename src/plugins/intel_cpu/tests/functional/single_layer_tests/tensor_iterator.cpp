@@ -87,8 +87,6 @@ protected:
 };
 
 TEST_P(TensorIteratorCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
 }
 

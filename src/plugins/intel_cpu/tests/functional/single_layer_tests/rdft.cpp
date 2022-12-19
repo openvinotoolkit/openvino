@@ -137,8 +137,6 @@ protected:
 };
 
 TEST_P(RDFTTestCPU, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
     CheckPluginRelatedResults(compiledModel, "RDFT");
 }
@@ -485,6 +483,8 @@ std::vector<RDFTTestCPUParams> getParams4D() {
     params.push_back({static_shapes_to_test_representation({{1, 192, 36, 64}}), {3, 2}, {}, false, true, true, cpuParams});
     params.push_back({static_shapes_to_test_representation({{1, 192, 36, 64}}), {-2, -1}, {36, 64}, false, true, true, cpuParams});
     params.push_back({static_shapes_to_test_representation({{1, 192, 36, 64}}), {0, 1, 2, 3}, {}, false, true, true, cpuParams});
+    params.push_back({static_shapes_to_test_representation({{1, 120, 64, 64}}), {-2, -1}, {64, 33}, false, true, true, cpuParams});
+    params.push_back({static_shapes_to_test_representation({{1, 120, 96, 96}}), {-2, -1}, {96, 49}, false, true, true, cpuParams});
 
     params.push_back({static_shapes_to_test_representation({{2, 192, 36, 33, 2}}), {0}, {}, true, true, true, cpuParams});
     params.push_back({static_shapes_to_test_representation({{1, 192, 36, 33, 2}}), {1}, {}, true, true, true, cpuParams});
@@ -494,6 +494,8 @@ std::vector<RDFTTestCPUParams> getParams4D() {
     params.push_back({static_shapes_to_test_representation({{1, 192, 36, 33, 2}}), {3, 2}, {}, true, true, true, cpuParams});
     params.push_back({static_shapes_to_test_representation({{1, 192, 36, 33, 2}}), {-2, -1}, {36, 64}, true, true, true, cpuParams});
     params.push_back({static_shapes_to_test_representation({{1, 192, 36, 33, 2}}), {0, 1, 2, 3}, {}, true, true, true, cpuParams});
+    params.push_back({static_shapes_to_test_representation({{1, 120, 64, 33, 2}}), {-2, -1}, {64, 64}, true, true, true, cpuParams});
+    params.push_back({static_shapes_to_test_representation({{1, 120, 96, 49, 2}}), {-2, -1}, {96, 96}, true, true, true, cpuParams});
 
     params.push_back({{InputShape{{-1, 192, 36, 64}, {{1, 192, 36, 64}}}}, {0}, {}, false, true, true, cpuParams});
     params.push_back({{InputShape{{-1, 192, 36, 64}, {{1, 192, 36, 64}}}, InputShape{{-1}, {{1}}}}, {0}, {}, false, false, true, cpuParams});

@@ -50,7 +50,7 @@ TEST(add_reorders_gpu, two_convolutions_and_concatenation) {
     network.set_input_data("input", input);
 
     //concatenation accepts inputs in different formats, so no reorders should be added here
-    EXPECT_EQ(network.get_all_primitive_org_ids().size(), size_t(7));
+    ASSERT_EQ(network.get_all_primitive_org_ids().size(), size_t(7));
     auto outputs = network.execute();
 
     float expected_out[] = { 6.34f, 1.34f, 6.86f, 1.46f };
@@ -59,7 +59,7 @@ TEST(add_reorders_gpu, two_convolutions_and_concatenation) {
     for (auto& it : outputs) {
         cldnn::mem_lock<float> output(it.second.get_memory(), get_test_stream());
         for (size_t cntr = 0; cntr < 2 * 2; cntr++) {
-            EXPECT_NEAR(expected_out[cntr], output[cntr], epsilon);
+            ASSERT_NEAR(expected_out[cntr], output[cntr], epsilon);
         }
     }
 }
@@ -145,7 +145,7 @@ void test_add_reorders_gpu_basic_reshape_and_tile(bool is_caching_test) {
     network->set_input_data("input", input);
 
     //reorder is required as tile accepts only bfyx format
-    EXPECT_EQ(network->get_all_primitive_org_ids().size(), size_t(4));
+    ASSERT_EQ(network->get_all_primitive_org_ids().size(), size_t(4));
     auto outputs = network->execute();
 
     auto output = outputs.at("tile").get_memory();
@@ -153,7 +153,7 @@ void test_add_reorders_gpu_basic_reshape_and_tile(bool is_caching_test) {
     cldnn::mem_lock<T> output_ref_ptr(output_ref, get_test_stream());
 
     for (unsigned int i = 0; i < output_ref->count(); ++i) {
-        EXPECT_EQ(output_ptr[i], output_ref_ptr[i]);
+        ASSERT_EQ(output_ptr[i], output_ref_ptr[i]);
     }
 }
 
