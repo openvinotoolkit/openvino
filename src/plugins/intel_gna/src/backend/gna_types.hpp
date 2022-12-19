@@ -57,6 +57,7 @@ typedef enum _layer_operation {
                              // intel_convolutional_layer_t.
     INTEL_CONVOLUTIONAL_2D,  // Convolutional transform with activation function and pooling. Cast pLayerStruct to
                              // nn_layer_cnn2d.
+    INTEL_DWSC,              // Depthwise separable convolutional transform with activation function and pooling.
     INTEL_COPY,              // Auxiliary data copy operation. Cast pLayerStruct to intel_copy_layer_t.
     INTEL_DEINTERLEAVE,      // Auxiliary 2D tensor transpose operation (interleave to flat). No casting, always set
                              // pLayerStruct to null.

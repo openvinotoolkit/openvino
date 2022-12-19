@@ -204,13 +204,14 @@ void AMIntelDNN::InitConvolutional2DComponentPrivate(intel_dnn_component_t& comp
                                                      void*& ptr_inputs,
                                                      void*& ptr_outputs,
                                                      void*& ptr_filters,
-                                                     void*& ptr_biases) {
+                                                     void*& ptr_biases,
+                                                     bool is_dwsc) {
     comp.tensors.clear();
     comp.tensors.push_back(inputTensor);
     comp.tensors.push_back(outputTensor);
     comp.tensors.push_back(filterTensor);
     comp.tensors.push_back(biasTensor);
-    comp.operation = kDnnConvolutional2dOp;
+    comp.operation = is_dwsc ? kDnnDWSCOp : kDnnConvolutional2dOp;
     comp.orientation_in = kDnnNonInterleavedOrientation;
     comp.orientation_out = kDnnNonInterleavedOrientation;
     comp.ptr_inputs = ptr_inputs;
@@ -1361,8 +1362,9 @@ uint32_t AMIntelDNN::CountLayers() {
     uint32_t n = 0;
     for (auto&& c : component) {
         if (c.operation == kDnnAffineOp || (c.operation == kDnnDiagonalOp) || (c.operation == kDnnConvolutional1dOp) ||
-            (c.operation == kDnnConvolutional2dOp) || (c.operation == kDnnDeinterleaveOp) ||
-            (c.operation == kDnnInterleaveOp) || (c.operation == kDnnRecurrentOp) || (c.operation == kDnnCopyOp)) {
+            (c.operation == kDnnConvolutional2dOp) || (c.operation == kDnnDWSCOp) ||
+            (c.operation == kDnnDeinterleaveOp) || (c.operation == kDnnInterleaveOp) ||
+            (c.operation == kDnnRecurrentOp) || (c.operation == kDnnCopyOp)) {
             n++;
         }
     }
@@ -1484,10 +1486,27 @@ void AMIntelDNN::InitGNAStruct(Gna2Model* gnaModel) {
 
             AdvanceCnnOperationIfAllApplied(component, i, gnaOperation);
             break;
+        case kDnnDWSCOp:
+            HelperGna2OperationInitDWSC(
+                gnaOperation,
+                gnaUserAllocator,
+                gnaUserFree,
+                createGna2Tensor(comp.tensors[0], comp.ptr_inputs),
+                createGna2Tensor(comp.tensors[1], comp.ptr_outputs),
+                createGna2Tensor(comp.tensors[2], comp.op.conv2D.ptr_filters),
+                createGna2Tensor(comp.tensors[3], comp.op.conv2D.ptr_biases),
+                nullptr,
+                create_shape2D_parameter(comp.op.conv2D.convStride[0], comp.op.conv2D.convStride[1]),
+                nullptr,
+                create_shape2D_parameter(comp.op.conv2D.zeroPadding[0], comp.op.conv2D.zeroPadding[1]));
+
+            AdvanceCnnOperationIfAllApplied(component, i, gnaOperation);
+            break;
         case kDnnMaxPoolOp:
             if (i == 0) {
                 THROW_GNA_EXCEPTION << "Pooling component with no preceeding component";
-            } else if (gnaOperation->Type == Gna2OperationTypeConvolution) {
+            } else if (gnaOperation->Type == Gna2OperationTypeConvolution ||
+                       gnaOperation->Type == Gna2OperationTypeConvolutionDWSC) {
                 if (gnaOperation->Operands == nullptr || gnaOperation->NumberOfOperands <= PwlOpIdx) {
                     THROW_GNA_EXCEPTION << "Number and details of operands are wrong";
                 }
@@ -1588,7 +1607,7 @@ void AMIntelDNN::InitGNAStruct(Gna2Model* gnaModel) {
             if ((component[i - 1].operation == kDnnAffineOp) || (component[i - 1].operation == kDnnDiagonalOp) ||
                 (component[i - 1].operation == kDnnRecurrentOp) ||
                 (component[i - 1].operation == kDnnConvolutional1dOp) ||
-                (component[i - 1].operation == kDnnConvolutional2dOp) ||
+                (component[i - 1].operation == kDnnConvolutional2dOp) || (component[i - 1].operation == kDnnDWSCOp) ||
                 ((component[i - 1].operation == kDnnMaxPoolOp) &&
                  (component[i - 2].operation == kDnnConvolutional1dOp ||
                   component[i - 2].operation == kDnnConvolutional2dOp))) {

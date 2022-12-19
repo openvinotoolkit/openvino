@@ -21,33 +21,43 @@ struct GNACnn2DValidatorTestParam {
 
 const std::vector<uint32_t> kInvalidH_30 = {0, 400};
 const std::vector<uint32_t> kInvalidH_35 = {0, 65536};
+const std::vector<uint32_t> kInvalidH_36 = {0, 65536};
 
 const std::vector<uint32_t> kInvalidW_30 = {0, 400};
 const std::vector<uint32_t> kInvalidW_35 = {0, 65536};
+const std::vector<uint32_t> kInvalidW_36 = {0, 65536};
 
 const std::vector<uint32_t> kInvalidC_30 = {0, 1, 400};
 const std::vector<uint32_t> kInvalidC_35 = {0, 2049};
+const std::vector<uint32_t> kInvalidC_36 = {7, 1023};
 
 const std::vector<uint32_t> kInvalidkH_30 = {0, 8, 400};
 const std::vector<uint32_t> kInvalidkH_35 = {0, 257, 2049};
+const std::vector<uint32_t> kInvalidkH_36 = {0, 256};
 
 const std::vector<uint32_t> kInvalidkW_30 = {0, 8, 400};
 const std::vector<uint32_t> kInvalidkW_35 = {0, 257, 2049};
+const std::vector<uint32_t> kInvalidkW_36 = {0, 256};
 
 const std::vector<uint32_t> kInvalidkN_30 = {0, 1, 400};
 const std::vector<uint32_t> kInvalidkN_35 = {0, 2049};
+const std::vector<uint32_t> kInvalidkN_36 = {0, 2};
 
 const std::vector<uint32_t> kInvalidsH_30 = {0, 400};
 const std::vector<uint32_t> kInvalidsH_35 = {0, 2049};
+const std::vector<uint32_t> kInvalidsH_36 = {0, 256};
 
 const std::vector<uint32_t> kInvalidsW_30 = {0, 400};
 const std::vector<uint32_t> kInvalidsW_35 = {0, 2049};
+const std::vector<uint32_t> kInvalidsW_36 = {0, 256};
 
 const std::vector<uint32_t> kInvaliddH_30 = {0, 2, 400};
 const std::vector<uint32_t> kInvaliddH_35 = {0, 2, 2049};
+const std::vector<uint32_t> kInvaliddH_36 = {0, 2};
 
 const std::vector<uint32_t> kInvaliddW_30 = {0, 2, 400};
 const std::vector<uint32_t> kInvaliddW_35 = {0, 2, 2049};
+const std::vector<uint32_t> kInvaliddW_36 = {0, 2};
 
 const GNACnn2DValidatorTestParam target_30{
     DeviceVersion::GNA3_0,
@@ -59,6 +69,12 @@ const GNACnn2DValidatorTestParam target_35{
     DeviceVersion::GNA3_5,
     "inH",
     kInvalidH_35,
+};
+
+const GNACnn2DValidatorTestParam target_36{
+    DeviceVersion::GNA3_6,
+    "inH",
+    kInvalidH_36,
 };
 
 const GNACnn2DValidatorTestParam target_30_inW{
@@ -73,6 +89,12 @@ const GNACnn2DValidatorTestParam target_35_inW{
     kInvalidW_35,
 };
 
+const GNACnn2DValidatorTestParam target_36_inW{
+    DeviceVersion::GNA3_6,
+    "inW",
+    kInvalidW_36,
+};
+
 const GNACnn2DValidatorTestParam target_30_inC{
     DeviceVersion::GNA3_0,
     "inC",
@@ -83,6 +105,12 @@ const GNACnn2DValidatorTestParam target_35_inC{
     DeviceVersion::GNA3_5,
     "inC",
     kInvalidC_35,
+};
+
+const GNACnn2DValidatorTestParam target_36_inC{
+    DeviceVersion::GNA3_6,
+    "inC",
+    kInvalidC_36,
 };
 
 const GNACnn2DValidatorTestParam target_30_kH{
@@ -97,6 +125,12 @@ const GNACnn2DValidatorTestParam target_35_kH{
     kInvalidkH_35,
 };
 
+const GNACnn2DValidatorTestParam target_36_kH{
+    DeviceVersion::GNA3_6,
+    "kH",
+    kInvalidkH_36,
+};
+
 const GNACnn2DValidatorTestParam target_30_kW{
     DeviceVersion::GNA3_0,
     "kW",
@@ -107,6 +141,12 @@ const GNACnn2DValidatorTestParam target_35_kW{
     DeviceVersion::GNA3_5,
     "kW",
     kInvalidkW_35,
+};
+
+const GNACnn2DValidatorTestParam target_36_kW{
+    DeviceVersion::GNA3_6,
+    "kW",
+    kInvalidkW_36,
 };
 
 const GNACnn2DValidatorTestParam target_30_kN{
@@ -121,6 +161,12 @@ const GNACnn2DValidatorTestParam target_35_kN{
     kInvalidkN_35,
 };
 
+const GNACnn2DValidatorTestParam target_36_kN{
+    DeviceVersion::GNA3_6,
+    "inC",
+    kInvalidkN_36,
+};
+
 const GNACnn2DValidatorTestParam target_30_sH{
     DeviceVersion::GNA3_0,
     "sH",
@@ -131,6 +177,12 @@ const GNACnn2DValidatorTestParam target_35_sH{
     DeviceVersion::GNA3_5,
     "sH",
     kInvalidsH_35,
+};
+
+const GNACnn2DValidatorTestParam target_36_sH{
+    DeviceVersion::GNA3_6,
+    "sH",
+    kInvalidsH_36,
 };
 
 const GNACnn2DValidatorTestParam target_30_sW{
@@ -145,6 +197,8 @@ const GNACnn2DValidatorTestParam target_35_sW{
     kInvalidsW_35,
 };
 
+const GNACnn2DValidatorTestParam target_36_sW{DeviceVersion::GNA3_6, "sW", kInvalidsW_36};
+
 const GNACnn2DValidatorTestParam target_30_dH{
     DeviceVersion::GNA3_0,
     "dH",
@@ -157,6 +211,12 @@ const GNACnn2DValidatorTestParam target_35_dH{
     kInvaliddH_35,
 };
 
+const GNACnn2DValidatorTestParam target_36_dH{
+    DeviceVersion::GNA3_6,
+    "dH",
+    kInvaliddH_36,
+};
+
 const GNACnn2DValidatorTestParam target_30_dW{
     DeviceVersion::GNA3_0,
     "dW",
@@ -167,6 +227,12 @@ const GNACnn2DValidatorTestParam target_35_dW{
     DeviceVersion::GNA3_5,
     "dW",
     kInvaliddW_35,
+};
+
+const GNACnn2DValidatorTestParam target_36_dW{
+    DeviceVersion::GNA3_6,
+    "dW",
+    kInvaliddW_36,
 };
 
 const std::vector<uint32_t> kInvalidpw_30 = {0, 2, 10};
@@ -215,13 +281,35 @@ const GNACnn2DValidatorTestParam target_35_psW{
     kInvalidPoolingRange35,
 };
 
-struct Validatecnn2dParams {
+const std::vector<uint32_t> kInvalidPoolingRange36 = {0, 256};
+const GNACnn2DValidatorTestParam target_36_pwH{
+    DeviceVersion::GNA3_6,
+    "windowH",
+    kInvalidPoolingRange36,
+};
+const GNACnn2DValidatorTestParam target_36_pwW{
+    DeviceVersion::GNA3_6,
+    "windowW",
+    kInvalidPoolingRange36,
+};
+const GNACnn2DValidatorTestParam target_36_psH{
+    DeviceVersion::GNA3_6,
+    "strideH",
+    kInvalidPoolingRange36,
+};
+const GNACnn2DValidatorTestParam target_36_psW{
+    DeviceVersion::GNA3_6,
+    "strideW",
+    kInvalidPoolingRange36,
+};
+
+struct ValidateCnn2DParams {
     std::map<std::string, uint32_t> parameters;
-    OvGnaType precission;
+    OvGnaType precision;
     static const bool exceptionMode = false;
 
-    static Validatecnn2dParams GetValid() {
-        Validatecnn2dParams v;
+    static ValidateCnn2DParams GetValid() {
+        ValidateCnn2DParams v;
         v.parameters["inH"] = 16;
         v.parameters["inW"] = 16;
         v.parameters["inC"] = 16;
@@ -232,12 +320,12 @@ struct Validatecnn2dParams {
         v.parameters["sW"] = 1;
         v.parameters["dH"] = 1;
         v.parameters["dW"] = 1;
-        v.precission = OvGnaTypeInt16;
+        v.precision = OvGnaTypeInt16;
         return v;
     }
 
-    static Validatecnn2dParams GetValidPooling() {
-        Validatecnn2dParams v;
+    static ValidateCnn2DParams GetValidPooling() {
+        ValidateCnn2DParams v;
         v.parameters["windowH"] = 3;
         v.parameters["windowW"] = 3;
         v.parameters["strideH"] = 3;
@@ -245,7 +333,22 @@ struct Validatecnn2dParams {
         return v;
     }
 
-    bool Validatecnn2d(const cnn2d::AbstractValidator& validator) {
+    static ValidateCnn2DParams GetValidDwsc() {
+        ValidateCnn2DParams v;
+        v.parameters["inH"] = 16;
+        v.parameters["inW"] = 16;
+        v.parameters["inC"] = 16;
+        v.parameters["kH"] = 2;
+        v.parameters["kW"] = 2;
+        v.parameters["kN"] = 8;
+        v.parameters["sH"] = 1;
+        v.parameters["sW"] = 1;
+        v.parameters["dH"] = 1;
+        v.parameters["dW"] = 1;
+        return v;
+    }
+
+    bool ValidateCnn2D(const cnn2d::AbstractValidator& validator) {
         return validator.ValidateCnn2D({},
                                        parameters["inH"],
                                        parameters["inW"],
@@ -257,7 +360,7 @@ struct Validatecnn2dParams {
                                        parameters["sW"],
                                        parameters["dH"],
                                        parameters["dW"],
-                                       precission,
+                                       precision,
                                        exceptionMode);
     }
 
@@ -270,16 +373,31 @@ struct Validatecnn2dParams {
                                            exceptionMode);
     }
 
+    bool ValidateDwsc(const cnn2d::AbstractValidator& validator) {
+        return validator.ValidateDwsc({},
+                                      parameters["inH"],
+                                      parameters["inW"],
+                                      parameters["inC"],
+                                      parameters["kH"],
+                                      parameters["kW"],
+                                      parameters["kN"],
+                                      parameters["sH"],
+                                      parameters["sW"],
+                                      parameters["dH"],
+                                      parameters["dW"],
+                                      exceptionMode);
+    }
+
     void set(const std::string& what, const uint32_t value) {
-        if (what == "precission") {
-            precission = static_cast<OvGnaType>(value);
+        if (what == "precision") {
+            precision = static_cast<OvGnaType>(value);
         } else {
             parameters[what] = value;
         }
     }
 };
 
-class GNAcnn2dValidatorTest : public ::testing::TestWithParam<GNACnn2DValidatorTestParam> {
+class GNACnn2DValidatorTest : public ::testing::TestWithParam<GNACnn2DValidatorTestParam> {
 protected:
     void SetUp() override {
         Limitations::init(GetParam().target);
@@ -290,43 +408,53 @@ protected:
     std::shared_ptr<cnn2d::AbstractValidator> validator;
 };
 
-class GNAcnn2dValidatorTestPadding : public GNAcnn2dValidatorTest {
+class GNACnn2DValidatorTestPadding : public GNACnn2DValidatorTest {
 protected:
     bool isPaddingSupported() {
-        static const std::set<DeviceVersion> supported{DeviceVersion::GNA3_5};
+        static const std::set<DeviceVersion> supported{DeviceVersion::GNA3_5, DeviceVersion::GNA3_6};
         return supported.count(GetParam().target);
     }
 };
 
-class GNAcnn2dValidatorTestPooling2D : public GNAcnn2dValidatorTest {};
+class GNACnn2DValidatorTestPooling2D : public GNACnn2DValidatorTest {};
+
+class GNADwscValidatorTest : public GNACnn2DValidatorTest {};
 
 namespace {
-TEST_P(GNAcnn2dValidatorTestPadding, testPaddingSupported) {
+TEST_P(GNACnn2DValidatorTestPadding, testPaddingSupported) {
     ASSERT_TRUE(validator->ValidateInputPadding("", 1, 1, 1, 1, 2, 2, false) == isPaddingSupported());
 }
 
-TEST_P(GNAcnn2dValidatorTest, testValidatecnn2dInvalid) {
-    auto valid = Validatecnn2dParams::GetValid();
+TEST_P(GNACnn2DValidatorTest, testValidateCnn2DInvalid) {
+    auto valid = ValidateCnn2DParams::GetValid();
     for (const auto invalid : GetParam().invalid) {
         valid.set(GetParam().whatInvalid, invalid);
-        ASSERT_FALSE(valid.Validatecnn2d(*validator));
+        ASSERT_FALSE(valid.ValidateCnn2D(*validator));
     }
 }
 
-TEST_P(GNAcnn2dValidatorTestPooling2D, testValidatecnn2dInvalid) {
-    auto valid = Validatecnn2dParams::GetValidPooling();
+TEST_P(GNACnn2DValidatorTestPooling2D, testValidateCnn2DInvalid) {
+    auto valid = ValidateCnn2DParams::GetValidPooling();
     for (const auto invalid : GetParam().invalid) {
         valid.set(GetParam().whatInvalid, invalid);
         ASSERT_FALSE(valid.ValidatePooling2D(*validator));
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_GNAcnn2dValidatorTestPadding,
-                         GNAcnn2dValidatorTestPadding,
-                         testing::Values(target_30, target_35));
+TEST_P(GNADwscValidatorTest, testValidateDwscInvalid) {
+    auto valid = ValidateCnn2DParams::GetValidDwsc();
+    for (const auto invalid : GetParam().invalid) {
+        valid.set(GetParam().whatInvalid, invalid);
+        ASSERT_FALSE(valid.ValidateDwsc(*validator));
+    }
+}
 
-INSTANTIATE_TEST_SUITE_P(smoke_GNAcnn2dValidatorTest,
-                         GNAcnn2dValidatorTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GNACnn2DValidatorTestPadding,
+                         GNACnn2DValidatorTestPadding,
+                         testing::Values(target_30, target_35, target_36));
+
+INSTANTIATE_TEST_SUITE_P(smoke_GNACnn2DValidatorTest,
+                         GNACnn2DValidatorTest,
                          testing::Values(target_30,
                                          target_35,
                                          target_30_inW,
@@ -348,8 +476,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_GNAcnn2dValidatorTest,
                                          target_35_dH,
                                          target_35_dW));
 
-INSTANTIATE_TEST_SUITE_P(smoke_GNAcnn2dValidatorTestPooling2D,
-                         GNAcnn2dValidatorTestPooling2D,
+INSTANTIATE_TEST_SUITE_P(smoke_GNACnn2DValidatorTestPooling2D,
+                         GNACnn2DValidatorTestPooling2D,
                          testing::Values(target_30_pwH,
                                          target_30_pwW,
                                          target_30_psH,
@@ -357,6 +485,23 @@ INSTANTIATE_TEST_SUITE_P(smoke_GNAcnn2dValidatorTestPooling2D,
                                          target_35_pwH,
                                          target_35_pwW,
                                          target_35_psH,
-                                         target_35_psW));
+                                         target_35_psW,
+                                         target_36_pwH,
+                                         target_36_pwW,
+                                         target_36_psH,
+                                         target_36_psW));
+
+INSTANTIATE_TEST_SUITE_P(smoke_GNADwscValidatorTest,
+                         GNADwscValidatorTest,
+                         testing::Values(target_36,
+                                         target_36_inW,
+                                         target_36_inC,
+                                         target_36_kH,
+                                         target_36_kW,
+                                         target_36_kN,
+                                         target_36_sH,
+                                         target_36_sW,
+                                         target_36_dH,
+                                         target_36_dW));
 
 }  // namespace

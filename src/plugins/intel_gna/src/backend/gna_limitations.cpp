@@ -248,6 +248,19 @@ public:
                        const uint32_t dilationW,
                        OvGnaType inPrecision,
                        bool exception = true) const override;
+
+    bool ValidateDwsc(const std::string& name,
+                      const uint32_t inHeight,
+                      const uint32_t inWidth,
+                      const uint32_t inChannels,
+                      const uint32_t kH,
+                      const uint32_t kW,
+                      const uint32_t kN,
+                      const uint32_t strideH,
+                      const uint32_t strideW,
+                      const uint32_t dilationH,
+                      const uint32_t dilationW,
+                      bool exception) const override;
 };
 
 const RangeLimit2D Validator_30::kInputHWLimit{{16, 384, "input height"}, {16, 240, "input width"}};
@@ -312,6 +325,21 @@ bool Validator_30::ValidateCnn1D(const std::string& name,
 }
 
 const VectorOrSquareLimit Validator_30::kPoolingWindowLimit{3, 1, 1};
+
+bool Validator_30::ValidateDwsc(const std::string& name,
+                                const uint32_t inHeight,
+                                const uint32_t inWidth,
+                                const uint32_t inChannels,
+                                const uint32_t kH,
+                                const uint32_t kW,
+                                const uint32_t kN,
+                                const uint32_t strideH,
+                                const uint32_t strideW,
+                                const uint32_t dilationH,
+                                const uint32_t dilationW,
+                                bool exception) const {
+    return false;
+}
 
 bool Validator_30::ValidatePooling2D(const std::string& name,
                                      const uint32_t windowH,
@@ -436,6 +464,19 @@ public:
                        const uint32_t dilationW,
                        OvGnaType inPrecision,
                        bool exception = true) const override;
+
+    bool ValidateDwsc(const std::string& name,
+                      const uint32_t inHeight,
+                      const uint32_t inWidth,
+                      const uint32_t inChannels,
+                      const uint32_t kH,
+                      const uint32_t kW,
+                      const uint32_t kN,
+                      const uint32_t strideH,
+                      const uint32_t strideW,
+                      const uint32_t dilationH,
+                      const uint32_t dilationW,
+                      bool exception) const override;
 };
 
 const Validator_35::CnnLimits Validator_35::kCnn2DLimits{
@@ -559,6 +600,21 @@ bool Validator_35::ValidateCnn1D(const std::string& name,
     return ValidationSuccesful(throwOnError, error, name, "Convolution1D");
 }
 
+bool Validator_35::ValidateDwsc(const std::string& name,
+                                const uint32_t inHeight,
+                                const uint32_t inWidth,
+                                const uint32_t inChannels,
+                                const uint32_t kH,
+                                const uint32_t kW,
+                                const uint32_t kN,
+                                const uint32_t strideH,
+                                const uint32_t strideW,
+                                const uint32_t dilationH,
+                                const uint32_t dilationW,
+                                bool exception) const {
+    return false;
+}
+
 std::string Validator_35::ValidatePooling(const CnnLimits& limits,
                                           const std::string& name,
                                           const uint32_t windowH,
@@ -617,6 +673,72 @@ bool Validator_35::ShouldUseOnlyConv2DGnaIface() const {
     return true;
 }
 
+class Validator_36 : public Validator_35 {
+    struct CnnLimits {
+        const RangeLimit2D kInputHWLimit;
+        const RangeMultipleLimit kInputChannelsNumberLimit;
+        const RangeLimit2D kKerneHWlLimit;
+        const RangeLimit2D kStrideHWLimit;
+        const RangeLimit2D kDilationLimit;
+        const RangeLimit2D kPoolingWindowHWLimit;
+        const RangeLimit2D kPoolingStrideHWLimit;
+    };
+
+    static const CnnLimits kDwscLimits;
+
+public:
+    Validator_36() = default;
+
+    bool ValidateDwsc(const std::string& name,
+                      const uint32_t inHeight,
+                      const uint32_t inWidth,
+                      const uint32_t inChannels,
+                      const uint32_t kH,
+                      const uint32_t kW,
+                      const uint32_t kN,
+                      const uint32_t strideH,
+                      const uint32_t strideW,
+                      const uint32_t dilationH,
+                      const uint32_t dilationW,
+                      bool exception = true) const override;
+};
+
+const Validator_36::CnnLimits Validator_36::kDwscLimits{
+    {{1, 65535, "input height"}, {1, 65535, "input width"}},                        // kInputHWLimit
+    {{8, 1024, "number of input channels"}, 8},                                     // kInputChannelsNumberLimit
+    {{1, 255, "kernel height"}, {1, 255, "kernel width"}},                          // kKerneHWlLimit
+    {{1, 255, "convolution stride height"}, {1, 255, "convolution stride width"}},  // kStrideHWLimit
+    {{Limitations::kConvDilationHeight, Limitations::kConvDilationHeight, "dilation height"},  // kDilationLimit
+     {Limitations::kConvDilationWidth, Limitations::kConvDilationWidth, "dilation width"}},
+    {{1, 255, "pooling window height"}, {1, 255, "pooling window width"}},  // kPoolingWindowHWLimit
+    {{1, 255, "pooling stride height"}, {1, 255, "pooling stride width"}}   // kPoolingStrideHWLimit
+};
+
+bool Validator_36::ValidateDwsc(const std::string& name,
+                                const uint32_t inHeight,
+                                const uint32_t inWidth,
+                                const uint32_t inChannels,
+                                const uint32_t kernelH,
+                                const uint32_t kernelW,
+                                const uint32_t kernelN,
+                                const uint32_t strideH,
+                                const uint32_t strideW,
+                                const uint32_t dilationH,
+                                const uint32_t dilationW,
+                                const bool throwOnError) const {
+    auto error = kDwscLimits.kInputHWLimit.GetErrorOrEmpty(inHeight, inWidth);
+    const IsEqualToLimit kernels_count{inChannels, "number of kernels (must be equal to input channels count)"};
+    error += kernels_count.GetErrorOrEmpty(kernelN);
+    auto& inputChannelsNumberLimit = kDwscLimits.kInputChannelsNumberLimit;
+    error += inputChannelsNumberLimit.GetErrorOrEmpty(inChannels);
+    auto& kerneHWlLimit = kDwscLimits.kKerneHWlLimit;
+    error += kerneHWlLimit.GetErrorOrEmpty(kernelH, kernelW);
+    auto& strideHWLimit = kDwscLimits.kStrideHWLimit;
+    error += strideHWLimit.GetErrorOrEmpty(strideH, strideW);
+    error += kDwscLimits.kDilationLimit.GetErrorOrEmpty(dilationH, dilationW);
+    return ValidationSuccesful(throwOnError, error, name, "DWSC");
+}
+
 std::shared_ptr<AbstractValidator> AbstractValidator::Create(const DeviceVersion& target) {
     switch (target) {
     case DeviceVersion::GNA3_0:
@@ -624,9 +746,10 @@ std::shared_ptr<AbstractValidator> AbstractValidator::Create(const DeviceVersion
         return std::make_shared<Validator_30>();
     case DeviceVersion::GNA3_5:
     case DeviceVersion::GNAEmbedded3_5:
+        return tools::make_unique<Validator_35>();
     case DeviceVersion::GNA3_6:
     case DeviceVersion::GNA4_0:
-        return std::make_shared<Validator_35>();
+        return tools::make_unique<Validator_36>();
     default:
         return nullptr;
     }
