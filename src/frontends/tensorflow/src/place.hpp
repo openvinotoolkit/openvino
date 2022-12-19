@@ -165,7 +165,7 @@ public:
     Ptr get_producing_port() const override;
     bool is_equal_data(const Ptr& another) const override;
 
-private:
+protected:
     PartialShape m_pshape;
     element::Type m_type;
 

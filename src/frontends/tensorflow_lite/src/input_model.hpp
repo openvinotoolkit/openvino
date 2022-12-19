@@ -8,8 +8,8 @@
 #include "openvino/frontend/tensorflow/graph_iterator.hpp"
 #include "openvino/frontend/tensorflow_lite/frontend.hpp"
 #include "input_model.hpp"
-#include "place.hpp"
 #include "graph_iterator_flatbuffer.hpp"
+#include "tensor_lite_place.hpp"
 
 namespace ov {
 namespace frontend {
@@ -21,7 +21,7 @@ class InputModel : public ov::frontend::InputModel {
     std::shared_ptr<InputModelTFLiteImpl> _impl;
 
     std::vector<std::shared_ptr<ov::frontend::tensorflow::OpPlace>> get_op_places() const;
-    std::map<std::string, std::shared_ptr<ov::frontend::tensorflow::TensorPlace>> get_tensor_places() const;
+    std::map<std::string, std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace>> get_tensor_places() const;
     std::map<std::string, Output<Node>> get_tensor_values() const;
 
 public:

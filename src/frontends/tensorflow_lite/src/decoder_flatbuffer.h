@@ -40,7 +40,6 @@ public:
     std::string get_output_tensor_name(size_t idx) const;
 
     const std::string& get_op_type() const override;
-
     const std::string& get_op_name() const override;
 
 private:

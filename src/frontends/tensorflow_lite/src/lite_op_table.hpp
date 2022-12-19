@@ -12,15 +12,16 @@
 #include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino_conversions.hpp"
 #include "utils.hpp"
+#include "op_table.hpp"
 
 namespace ov {
 namespace frontend {
 namespace tensorflow_lite {
 namespace op {
+using CreatorFunction = std::function<OutputVector(const ov::frontend::tensorflow::NodeContext&)>;
 std::map<std::string, CreatorFunction> get_supported_ops();
 
-#define OP_CONVERTER(op) OutputVector op(const NodeContext& node)
-
+OutputVector conv2d(const ov::frontend::tensorflow::NodeContext& node);
 
 }  // namespace op
 }  // namespace tensorflow_lite

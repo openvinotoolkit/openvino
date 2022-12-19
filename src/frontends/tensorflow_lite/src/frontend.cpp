@@ -10,6 +10,7 @@
 #include "openvino/util/common_util.hpp"
 #include "pass/transpose_sinking.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
+#include "tensor_lite_place.hpp"
 
 using namespace ov;
 using namespace ov::frontend::tensorflow_lite;
@@ -104,20 +105,36 @@ void FrontEnd::translate_graph(const InputModel::Ptr &model, const std::string &
     const auto& translate_map = no_conversion ? ov::frontend::tensorflow::TranslatorDictionaryType{} : m_op_translators;
 
     auto all_tensor_values = model_lite->get_tensor_values();
+    auto all_tensor_places = model_lite->get_tensor_places();
+
+    for (auto& value : all_tensor_values) {
+        FRONT_END_GENERAL_CHECK(ov::is_type<ov::opset1::Constant>(value.second.get_node_shared_ptr()),
+                "Unexpected constant data configuration at the begining of graph translation");
+        const auto& input_tensor = std::dynamic_pointer_cast<ov::frontend::tensorflow_lite::TensorLitePlace>(
+                all_tensor_places.at(value.first));
+        FRONT_END_GENERAL_CHECK(input_tensor != nullptr, "Inputs must be TensorPlaces");
+        value.second = apply_quantization(value.second, input_tensor);
+    }
+
+
 
     // inputs
     ParameterVector parameters;
     parameters.reserve(model_lite->get_inputs().size());
     for (const auto& input : model_lite->get_inputs()) {
-        const auto& input_tensor = std::dynamic_pointer_cast<tensorflow::TensorPlace>(input);
+        const auto& input_tensor = std::dynamic_pointer_cast<ov::frontend::tensorflow_lite::TensorLitePlace>(input);
         FRONT_END_GENERAL_CHECK(input_tensor != nullptr, "Inputs must be TensorPlaces");
         const auto name = input_tensor->get_names()[0];
-        const auto& parameter = std::make_shared<ov::opset1::Parameter>(
+        auto parameter = std::make_shared<ov::opset1::Parameter>(
                 input_tensor->get_element_type(), input_tensor->get_partial_shape());
         parameter->set_friendly_name(name);
         parameters.push_back(parameter);
-        all_tensor_values[name] = parameter->output(0);
         parameter->get_output_tensor(0).set_names({name});
+        Output<Node> output = parameter->output(0);
+        if (!no_conversion) {
+            output = apply_quantization(output, input_tensor, true);
+        }
+        all_tensor_values[name] = output;
     }
 
     // outputs
@@ -135,6 +152,7 @@ void FrontEnd::translate_graph(const InputModel::Ptr &model, const std::string &
     for (const auto& op_place : model_lite->get_op_places()) {
         const auto& decoder = std::dynamic_pointer_cast<tensorflow_lite::DecoderFlatBuffer>(op_place->get_decoder());
         FRONT_END_GENERAL_CHECK(decoder != nullptr, "Decoder must be DecoderFlatBuffer or its child");
+        std::cout << op_place->get_decoder()->get_op_type() << std::endl;
 
         ov::OutputVector inputs(decoder->get_input_size());
         for (size_t i = 0; i < decoder->get_input_size(); ++i) {
@@ -156,6 +174,7 @@ void FrontEnd::translate_graph(const InputModel::Ptr &model, const std::string &
             ov::frontend::tensorflow::NodeContext node_context(decoder, inputs);
             ov_outputs = (*op_fun)(node_context);
             std::cout << ov_outputs[0].get_node_shared_ptr() << std::endl;
+            // TODO: translate output tensors
         } catch (...) {
             if (fail_fast) {
                 // re-throw any exception
@@ -166,7 +185,6 @@ void FrontEnd::translate_graph(const InputModel::Ptr &model, const std::string &
                 ov_outputs = operation->outputs();
             }
         }
-
         for (size_t i = 0; i < out_size; ++i) {
             const auto& name = decoder->get_output_tensor_name(i);
             all_tensor_values[name] = ov_outputs[i];

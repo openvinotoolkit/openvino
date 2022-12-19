@@ -12,7 +12,7 @@
 #include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/opsets/opset7.hpp"
 #include "openvino/util/log.hpp"
-#include "place.hpp"
+#include "tensor_lite_place.hpp"
 #include "utils.hpp"
 
 using namespace ov::frontend::tensorflow;
@@ -43,7 +43,7 @@ public:
     std::vector<std::shared_ptr<OpPlace>> get_op_places() const {
         return m_op_places;
     }
-    std::map<std::string, std::shared_ptr<TensorPlace>> get_tensor_places() const {
+    std::map<std::string, std::shared_ptr<TensorLitePlace>> get_tensor_places() const {
         return m_tensor_places;
     }
     std::map<std::string, Output<Node>> get_tensor_values() const {
@@ -55,7 +55,7 @@ private:
 
     std::vector<std::shared_ptr<OpPlace>> m_op_places;
     std::map<std::string, std::shared_ptr<OpPlace>> m_op_places_map;
-    std::map<std::string, std::shared_ptr<TensorPlace>> m_tensor_places;
+    std::map<std::string, std::shared_ptr<TensorLitePlace>> m_tensor_places;
     std::vector<ov::frontend::Place::Ptr> m_inputs;
     std::vector<ov::frontend::Place::Ptr> m_outputs;
     std::map<std::string, Output<Node>> m_tensor_values;
@@ -78,7 +78,9 @@ void InputModel::InputModelTFLiteImpl::loadModel() {
         const auto& names = std::vector<std::string>{tensor->name()->str()};
         const auto& ov_shape = get_ov_shape(tensor->shape());
         const auto& ov_type = get_ov_type(tensor->type());
-        m_inputs.push_back(std::make_shared<ov::frontend::tensorflow::TensorPlace>(m_input_model, ov_shape, ov_type, names));
+        auto quantization = get_quantization(tensor->quantization());
+        m_inputs.push_back(std::make_shared<ov::frontend::tensorflow_lite::TensorLitePlace>(
+                m_input_model, ov_shape, ov_type, names, quantization));
         non_constant_tensors.insert(i);
     }
 
@@ -90,7 +92,8 @@ void InputModel::InputModelTFLiteImpl::loadModel() {
         const auto& name = tensor->name()->str();
         const auto& ov_shape = get_ov_shape(tensor->shape());
         const auto& ov_type = get_ov_type(tensor->type());
-        m_outputs.push_back(std::make_shared<ov::frontend::tensorflow::TensorPlace>(m_input_model, ov_shape, ov_type, std::vector<std::string>{name}));
+        auto quantization = get_quantization(tensor->quantization());
+        m_outputs.push_back(std::make_shared<ov::frontend::tensorflow_lite::TensorLitePlace>(m_input_model, ov_shape, ov_type, std::vector<std::string>{name}, quantization));
         non_constant_tensors.insert(i);
     }
 
@@ -115,8 +118,10 @@ void InputModel::InputModelTFLiteImpl::loadModel() {
             auto buffer = buffers[tensor->buffer()]->data()->data();
             auto constant = ov::op::v0::Constant::create(type, shape, buffer);
             m_tensor_values[name] = constant;
+            // TODO: we must work with quantization parameter in that tensor
         }
-        m_tensor_places[name] = std::make_shared<TensorPlace>(m_input_model, shape, type, std::vector<std::string>{name});
+        auto quantization = get_quantization(tensor->quantization());
+        m_tensor_places[name] = std::make_shared<ov::frontend::tensorflow_lite::TensorLitePlace>(m_input_model, shape, type, std::vector<std::string>{name}, quantization);
     }
 }
 
@@ -153,7 +158,7 @@ std::vector<std::shared_ptr<ov::frontend::tensorflow::OpPlace>> InputModel::get_
     return _impl->get_op_places();
 }
 
-std::map<std::string, std::shared_ptr<ov::frontend::tensorflow::TensorPlace>>
+std::map<std::string, std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace>>
 InputModel::get_tensor_places() const {
     return _impl->get_tensor_places();
 }

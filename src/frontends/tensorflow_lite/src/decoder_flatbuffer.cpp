@@ -12,6 +12,16 @@ namespace frontend {
 namespace tensorflow_lite {
 
 ov::Any DecoderFlatBuffer::get_attribute(const std::string& name) const {
+    auto bopts = m_node_def->builtin_options();
+    auto copts = m_node_def->custom_options();
+    if (bopts == NULL) {
+        // TODO: try custom
+        return {};
+    }
+
+    if (name == "Conv2DOptions")
+        return m_node_def->builtin_options_as_Conv2DOptions();
+
     std::cout << "Attribute " << name << " was requested!" << std::endl;
 
     if (auto conv_opts = m_node_def->builtin_options_as_Conv2DOptions()) {
