@@ -34,7 +34,7 @@ ov::pass::ConvertMVN1ToMVN6::ConvertMVN1ToMVN6() {
 
         const auto eps = mvn_node->get_eps();
         const auto eps_abs = std::abs(eps);
-        if (mvn_node->get_normalize_variance() &&
+        if (mvn_node->get_input_element_type(0) == ov::element::f64 && mvn_node->get_normalize_variance() &&
             (eps > std::numeric_limits<float>::max() || eps < std::numeric_limits<float>::lowest() ||
              eps_abs != 0 && eps_abs < std::numeric_limits<float>::min()))
             return false;

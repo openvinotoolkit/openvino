@@ -86,12 +86,12 @@ TEST_P(ConvertMVN1ToMVN6_OutOfFloat32Eps, NoDowncast) {
 
     const auto eps = GetParam();
     {
-        auto data = std::make_shared<ngraph::opset2::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 3, 4});
+        auto data = std::make_shared<ngraph::opset2::Parameter>(ngraph::element::f64, ngraph::Shape{1, 2, 3, 4});
         auto mvn = std::make_shared<ngraph::op::v0::MVN>(data, true, true, eps);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mvn}, ngraph::ParameterVector{data});
     }
     {
-        auto data = std::make_shared<ngraph::opset2::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 3, 4});
+        auto data = std::make_shared<ngraph::opset2::Parameter>(ngraph::element::f64, ngraph::Shape{1, 2, 3, 4});
         auto mvn = std::make_shared<ngraph::op::v0::MVN>(data, true, true, eps);
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mvn}, ngraph::ParameterVector{data});
     }
