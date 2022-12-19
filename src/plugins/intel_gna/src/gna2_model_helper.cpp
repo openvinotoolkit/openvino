@@ -319,6 +319,31 @@ void HelperGna2OperationInitConvolution(Gna2Operation* operation,
     HelperGna2OperationSetParameter(operation, userAllocator, userFree, ZeroPaddingParamIdx, zeroPadding);
 }
 
+void HelperGna2OperationInitDWSC(Gna2Operation* operation,
+                                 Gna2UserAllocator userAllocator,
+                                 GnaUserFree userFree,
+                                 Gna2Tensor* inputs,
+                                 Gna2Tensor* outputs,
+                                 Gna2Tensor* filters,
+                                 Gna2Tensor* biases,
+                                 Gna2Tensor* activation,
+                                 Gna2Shape* convolutionStride,
+                                 Gna2BiasMode* biasMode,
+                                 Gna2Shape* zeroPadding) {
+    HelperGna2OperationInitConvolution(operation,
+                                       userAllocator,
+                                       userFree,
+                                       inputs,
+                                       outputs,
+                                       filters,
+                                       biases,
+                                       activation,
+                                       convolutionStride,
+                                       biasMode,
+                                       zeroPadding);
+    operation->Type = Gna2OperationTypeConvolutionDWSC;
+}
+
 void HelperGna2OperationInitCopy(Gna2Operation* operation,
                                  Gna2UserAllocator userAllocator,
                                  GnaUserFree userFree,

@@ -87,7 +87,8 @@ public:
                        const uint32_t strideW,
                        const uint32_t dilH,
                        const uint32_t dilW,
-                       OvGnaType inPrecision) const;
+                       OvGnaType inPrecision,
+                       bool dwsc) const;
 
     void ValidatePooling2D(const std::string& name,
                            const uint32_t windowH,

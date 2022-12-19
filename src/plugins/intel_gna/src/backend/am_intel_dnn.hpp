@@ -123,7 +123,8 @@ public:
                                              A*& ptr_inputs,
                                              B*& ptr_outputs,
                                              C*& ptr_filters,
-                                             D*& ptr_biases) {
+                                             D*& ptr_biases,
+                                             bool is_dwsc = false) {
         InitConvolutional2DComponentPrivate(comp,
                                             inputTensor,
                                             outputTensor,
@@ -136,7 +137,8 @@ public:
                                             (void*&)ptr_inputs,
                                             (void*&)ptr_outputs,
                                             (void*&)ptr_filters,
-                                            (void*&)ptr_biases);
+                                            (void*&)ptr_biases,
+                                            is_dwsc);
     }
 
     // Checks whether operation is Convolution and its parameters makes it specific to GNA1/GNA2 targets
@@ -444,21 +446,8 @@ private:
                                                     void*& ptr_inputs,
                                                     void*& ptr_outputs,
                                                     void*& ptr_filters,
-                                                    void*& ptr_biases);
-
-    static void InitDWSCComponentPrivate(intel_dnn_component_t& comp,
-                                         OvGnaTensor inputTensor,
-                                         OvGnaTensor outputTensor,
-                                         OvGnaTensor filterTensor,
-                                         OvGnaTensor biasTensor,
-                                         std::array<uint32_t, 2> convStride,
-                                         std::array<uint32_t, 2> zeroPadding,
-                                         float weight_scale_factor,
-                                         float output_scale_factor,
-                                         void*& ptr_inputs,
-                                         void*& ptr_outputs,
-                                         void*& ptr_filters,
-                                         void*& ptr_biases);
+                                                    void*& ptr_biases,
+                                                    bool is_dwsc);
 
     static void InitAffineComponentPrivate(intel_dnn_component_t& comp,
                                            uint32_t num_rows_in,
