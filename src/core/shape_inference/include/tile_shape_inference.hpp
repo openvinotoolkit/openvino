@@ -35,10 +35,8 @@ void shape_infer(const Tile* op,
             return {static_cast<typename TDim::value_type>(std::max(static_cast<int64_t>(0), r))};
         });
         has_repeats = true;
-    } else if (get_data_as_shape(1, op, repeats)) {
-        has_repeats = true;
     } else {
-        has_repeats = false;
+        has_repeats = get_data_as_shape(1, op, repeats);
     }
 
     const auto& arg_rank = arg_shape.rank();
