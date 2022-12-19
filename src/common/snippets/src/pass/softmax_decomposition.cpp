@@ -57,7 +57,7 @@ ngraph::snippets::pass::SoftmaxDecomposition::SoftmaxDecomposition(const size_t 
 
         /* ====== ReduceMax decomposition ====== */
 
-        // We have to have faking edge Data -> Loop[ReduceMax] -> Loop[Sub + Exp + ReduceSum] because ReduceMax is
+        // We have to have fake edge Data -> Loop[ReduceMax] -> Loop[Sub + Exp + ReduceSum] because ReduceMax is
         // accumulator which finds maximum of elements and save it to vector register. Loop works only with GPR (data) but ReduceMax Loop
         // doesn't save maximum to data. Seems like, LoopEnd shouldn't have outputs:
         //                     Data
@@ -68,7 +68,7 @@ ngraph::snippets::pass::SoftmaxDecomposition::SoftmaxDecomposition(const size_t 
         //       HorizonMax            /
         //             \   LoopBegin[Sub + Exp + ReduceSum]
         // But nGraph doesn't allow to have 0 outputs for Node (at least 1 output).
-        // Thus, we propagate data through Loop[ReduceMax] using faking edge because of that Loop[ReduceMax] has two inputs "Data"
+        // Thus, we propagate data through Loop[ReduceMax] using fake edge because of that Loop[ReduceMax] has two inputs "Data"
         //                    Data
         //  VectorBuffer    LoopBegin
         //         \          Load |  \

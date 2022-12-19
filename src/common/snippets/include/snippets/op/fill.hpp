@@ -16,7 +16,7 @@ namespace op {
  *        refill registers by special values.
  *        For example, for cases with ReduceMax or ReduceSum in Softmax
  *        Where:
- *          - offset - starting element index there filling is performed while begging of input data is untouched
+ *          - offset - starting element index where filling is performed while beginning of input data is untouched
  *          - fill_value - hexadecimal filling value
  * @ingroup snippets
  */

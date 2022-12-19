@@ -430,8 +430,6 @@ private:
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
-
-    void register_table_entries() override;
 };
 
 class HorizonSumEmitter : public jit_emitter {
@@ -455,9 +453,9 @@ private:
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
 };
 
-class ZeroEmitter : public jit_emitter {
+class VectorBufferEmitter : public jit_emitter {
 public:
-    ZeroEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
+    VectorBufferEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override {return 0;}
 

@@ -1035,9 +1035,7 @@ void BrgemmEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<si
 }
 
 HorizonMaxEmitter::HorizonMaxEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n) :
-    jit_emitter(h, isa, n, Precision::FP32, emitter_in_out_map::vec_to_vec) {
-    prepare_table();
-}
+    jit_emitter(h, isa, n, Precision::FP32, emitter_in_out_map::vec_to_vec) {}
 
 void HorizonMaxEmitter::emit_impl(const std::vector<size_t>& in,
                                     const std::vector<size_t>& out,
@@ -1071,8 +1069,10 @@ void HorizonMaxEmitter::emit_isa(const std::vector<size_t> &in, const std::vecto
     const size_t vec_size = vlen / sizeof(float);
     h->sub(h->rsp, vlen);
     h->uni_vmovups(h->ptr[h->rsp], src_vmm);
-    h->uni_vmovups(dst_xmm, table_val("float_min"));
-    for (size_t i = 0; i < vec_size; i++) {
+    // Let the first value be the max
+    h->mov(aux_reg, h->ptr[h->rsp]);
+    h->vmovq(dst_xmm, aux_reg);
+    for (size_t i = 1; i < vec_size; i++) {
         h->mov(aux_reg, h->ptr[h->rsp + i * sizeof(float)]);
         h->vmovq(aux_xmm, aux_reg);
         h->uni_vmaxps(dst_xmm, dst_xmm, aux_xmm);
@@ -1080,14 +1080,8 @@ void HorizonMaxEmitter::emit_isa(const std::vector<size_t> &in, const std::vecto
     h->add(h->rsp, vlen);
 }
 
-void HorizonMaxEmitter::register_table_entries() {
-    push_arg_entry_of("float_min", 0xff7fffff, true);
-}
-
 HorizonSumEmitter::HorizonSumEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n) :
-    jit_emitter(h, isa, n, Precision::FP32, emitter_in_out_map::vec_to_vec) {
-}
-
+    jit_emitter(h, isa, n, Precision::FP32, emitter_in_out_map::vec_to_vec) {}
 
 void HorizonSumEmitter::emit_impl(const std::vector<size_t>& in,
                                     const std::vector<size_t>& out,
@@ -1130,10 +1124,10 @@ void HorizonSumEmitter::emit_isa(const std::vector<size_t> &in, const std::vecto
     h->add(h->rsp, vlen);
 }
 
-ZeroEmitter::ZeroEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n) :
+VectorBufferEmitter::VectorBufferEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n) :
     jit_emitter(h, isa, n, Precision::FP32, emitter_in_out_map::vec_to_vec) {}
 
-void ZeroEmitter::emit_impl(const std::vector<size_t>& in,
+void VectorBufferEmitter::emit_impl(const std::vector<size_t>& in,
                                     const std::vector<size_t>& out,
                                     const std::vector<size_t>& pool,
                                     const std::vector<size_t>& gpr,
@@ -1150,7 +1144,7 @@ void ZeroEmitter::emit_impl(const std::vector<size_t>& in,
 }
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-void ZeroEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
+void VectorBufferEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
     using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41,
             Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
 
@@ -1171,7 +1165,7 @@ FillEmitter::FillEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu
 }
 
 size_t FillEmitter::aux_gprs_count() const {
-    // + 1 reg for mask on avx512
+    // + 1 reg for temp reg for mask in avx512
     return one_of(host_isa_, dnnl::impl::cpu::x64::avx512_core) ? 2 : 1;
 }
 
@@ -1213,8 +1207,6 @@ void FillEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size
             src_vmm = Vmm(dst_vmm.getIdx());
         }
         h->uni_vblendps(dst_vmm, src_vmm, table_val("value"), imm);
-    } else {
-        IE_THROW() << "Fill emitter doesn't support " << host_isa_;
     }
 }
 

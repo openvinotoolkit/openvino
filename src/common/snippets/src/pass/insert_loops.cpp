@@ -14,8 +14,8 @@ namespace ngraph {
 namespace snippets {
 namespace pass {
 
-InsertLoops::InsertLoops(ov::PartialShape master_shape, size_t loop_depth, size_t vector_size, bool is_optimized)
-    : m_master_shape(std::move(master_shape)), m_loop_depth(loop_depth), m_vector_size(vector_size), m_is_optimized(is_optimized) {
+InsertLoops::InsertLoops(ov::PartialShape master_shape, size_t loop_depth, size_t vector_size, bool single_loop_body)
+    : m_master_shape(std::move(master_shape)), m_loop_depth(loop_depth), m_vector_size(vector_size), m_single_loop_body(single_loop_body) {
     if (m_master_shape.size() < m_loop_depth)
         throw ngraph_error("InsertLoops can't insert loops: master shape rank is too small");
 }
@@ -48,7 +48,7 @@ std::vector<int64_t> InsertLoops::calculate_finalization_offsets(const ov::Parti
     return inner_finalization_offsets;
 }
 
-void insert_explicitly_loops(const ov::NodeVector& ops, const ov::PartialShape& master_shape, const size_t vector_size) {
+void insert_loops_explicitly(const ov::NodeVector& ops, const ov::PartialShape& master_shape, const size_t vector_size) {
     ov::NodeVector body;
     ov::NodeVector body_remainder;
     ov::OutputVector body_parameters;
@@ -56,7 +56,7 @@ void insert_explicitly_loops(const ov::NodeVector& ops, const ov::PartialShape& 
 
     // check for potential parameters for new Loop
     auto add_body_parameters = [](const std::shared_ptr<ov::Node>& op, ov::OutputVector& body_parameters) {
-        for (auto input : op->inputs()) {
+        for (const auto& input : op->inputs()) {
             auto parent = input.get_source_output().get_node_shared_ptr();
             if (ov::is_type<op::LoopEnd>(parent) ||
                 ov::is_type<op::Buffer>(parent) ||
@@ -69,8 +69,8 @@ void insert_explicitly_loops(const ov::NodeVector& ops, const ov::PartialShape& 
 
     // check for potential results for new Loop
     auto add_body_results = [](const std::shared_ptr<ov::Node>& op, std::vector<ov::Input<ov::Node>>& body_results) {
-        for (auto output : op->outputs()) {
-            for (auto target_input : output.get_target_inputs()) {
+        for (const auto& output : op->outputs()) {
+            for (const auto& target_input : output.get_target_inputs()) {
                 auto child = target_input.get_node();
                 if (ov::is_type<op::LoopBegin>(child) ||
                     ov::is_type<op::Buffer>(child) ||
@@ -86,7 +86,7 @@ void insert_explicitly_loops(const ov::NodeVector& ops, const ov::PartialShape& 
     std::function<void(const std::shared_ptr<ov::Node>& op, ov::NodeVector& body)> add_missing_body_ops;
     add_missing_body_ops = [&](const std::shared_ptr<ov::Node>& op, ov::NodeVector& body) {
         if (body_remainder.size()) {
-            for (auto input : op->inputs()) {
+            for (const auto& input : op->inputs()) {
                 auto parent = input.get_source_output().get_node_shared_ptr();
                 auto iter = std::find(body_remainder.begin(), body_remainder.end(), parent);
                 if (iter != body_remainder.end()) {
@@ -99,9 +99,9 @@ void insert_explicitly_loops(const ov::NodeVector& ops, const ov::PartialShape& 
         }
     };
 
-    auto wrapBodyByLoop = [&](const ov::NodeVector& body, const ov::OutputVector& body_parameters, const std::vector<ov::Input<ov::Node>>& body_results) {
-        NGRAPH_CHECK(body_parameters.size() > 0, "The count of parameters for loop should be more than zero to create loop");
-        NGRAPH_CHECK(body_results.size() > 0, "The count of results for loop should be more than zero to create loop");
+    auto wrap_body_by_loop = [&](const ov::NodeVector& body, const ov::OutputVector& body_parameters, const std::vector<ov::Input<ov::Node>>& body_results) {
+        NGRAPH_CHECK(!body_parameters.empty(), "The count of parameters for loop should be more than zero to create loop");
+        NGRAPH_CHECK(!body_results.empty(), "The count of results for loop should be more than zero to create loop");
         std::vector<ov::PartialShape> body_shapes;
         const auto count_io = body_parameters.size() + body_results.size();
         body_shapes.reserve(count_io);
@@ -177,9 +177,9 @@ void insert_explicitly_loops(const ov::NodeVector& ops, const ov::PartialShape& 
         const auto& loop_begin = ov::as_type_ptr<op::LoopBegin>(op);
         const auto& brgemm = ov::as_type_ptr<op::Brgemm>(op);
         if (loop_begin || brgemm) {
-            if (body.size() > 0) {
-                if (body_results.size() > 0) {
-                    wrapBodyByLoop(body, body_parameters, body_results);
+            if (!body.empty()) {
+                if (!body_results.empty()) {
+                    wrap_body_by_loop(body, body_parameters, body_results);
                 } else {
                     // If there aren't body results, it means that the current body ops are inputs of the next some operations in ordered_ops
                     // So this set of the current body ops is part of the future body loop.
@@ -207,8 +207,8 @@ void insert_explicitly_loops(const ov::NodeVector& ops, const ov::PartialShape& 
         }
     }
 
-    if (body.size() > 0) {
-        wrapBodyByLoop(body, body_parameters, body_results);
+    if (!body.empty()) {
+        wrap_body_by_loop(body, body_parameters, body_results);
     }
 }
 
@@ -244,7 +244,7 @@ bool InsertLoops::run_on_model(const std::shared_ptr<ov::Model> &model) {
     }
 
     if (inner_work_amount > 0) {
-        if (m_is_optimized) {
+        if (m_single_loop_body) {
             const auto apply_increments = InsertLoops::calculate_inner_apply_increments(m_master_shape, ioShapes);
             std::vector<int64_t> inner_finalization_offsets(ioShapes.size(), 0);
             if (outer_work_amount > 1) {
@@ -273,7 +273,7 @@ bool InsertLoops::run_on_model(const std::shared_ptr<ov::Model> &model) {
                 op::insertLoopEnd(commonResults, outer_loop_begin, outer_work_amount, 1lu, apply_increments);
             }
         } else {
-            insert_explicitly_loops(ops, m_master_shape, m_vector_size);
+            insert_loops_explicitly(ops, m_master_shape, m_vector_size);
         }
     }
 
