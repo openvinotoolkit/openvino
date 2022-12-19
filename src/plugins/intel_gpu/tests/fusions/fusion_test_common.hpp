@@ -233,7 +233,11 @@ public:
     }
 
     layout get_activations_zp_layout(T& p) {
-        return layout{ p.data_type, p.default_format, tensor{1, p.in_shape.feature[0], 1, 1} };
+        auto shape = tensor{1, p.in_shape.feature[0], 1, 1};
+        //onednn doesn't support per-channel azp in convolution
+        if(engine.get_device_info().supports_immad)
+            shape.feature[0]=1;
+        return layout{ p.data_type, p.default_format, shape };
     }
 
     layout get_single_element_layout(T& p) {
