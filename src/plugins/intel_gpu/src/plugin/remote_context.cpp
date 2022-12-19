@@ -336,19 +336,15 @@ ExecutionContextImpl::ExecutionContextImpl(const std::shared_ptr<IInferencePlugi
         iter = device_map.begin();
     auto& dev = iter->second;
 
-    bool enable_profiling = (m_config.useProfiling ||
-                            (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_tune_and_cache) ||
-                            (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_retune_and_cache));
-
     auto engine_params = Plugin::GetParams(m_config, dev, m_external_queue);
     m_engine = cldnn::engine::create(engine_params.engine_type,
                                      engine_params.runtime_type, dev,
-                                     cldnn::engine_configuration(enable_profiling,
+                                     cldnn::engine_configuration(m_config.useProfiling,
                                          engine_params.queue_type,
-                                         m_config.sources_dumps_dir,
+                                         std::string(),
                                          m_config.queuePriority,
                                          m_config.queueThrottle,
-                                         m_config.memory_pool_on,
+                                         true,
                                          engine_params.use_unified_shared_memory,
                                          m_config.kernels_cache_dir,
                                          m_config.throughput_streams),

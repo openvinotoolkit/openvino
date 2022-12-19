@@ -67,7 +67,7 @@ TEST(TransformationTests, ConvToBinaryConvOutputLowZeroOutputHighOne) {
                                                         CoordinateDiff{0, 0},
                                                         Strides{1, 1},
                                                         opset5::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT,
-                                                        -1,
+                                                        -1.0f,
                                                         op::PadType::EXPLICIT);
         auto add = std::make_shared<opset5::Add>(conv, opset5::Constant::create(element::f32, Shape{1, 1, 1}, {0.7f}));
         auto mul = std::make_shared<opset5::Multiply>(add, opset5::Constant::create(element::f32, Shape{}, {0.2f}));
@@ -126,7 +126,7 @@ TEST(TransformationTests, ConvToBinaryConvOutputLowMinusOneOutputHighOne) {
                                                         CoordinateDiff{0, 0},
                                                         Strides{1, 1},
                                                         opset5::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT,
-                                                        0,
+                                                        0.0f,
                                                         op::PadType::EXPLICIT);
 
         f_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
