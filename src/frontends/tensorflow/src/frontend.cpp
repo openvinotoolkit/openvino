@@ -18,8 +18,8 @@
 #include "pass/transpose_sinking.hpp"
 #include "so_extension.hpp"
 #include "tf_framework_node.hpp"
-#include "utils.hpp"
 #include "transformations/common_optimizations/transpose_sinking_general.hpp"
+#include "utils.hpp"
 
 using namespace ov;
 using namespace ov::frontend::tensorflow;

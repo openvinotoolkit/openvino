@@ -73,6 +73,39 @@ void SwapNames(NodePtr node1, NodePtr node2) {
 
 namespace {
 
+bool HasDynamicRankInput(NodePtr node) {
+    for (size_t i = 0; i < node->get_input_size(); ++i) {
+        const auto input_node = node->input_value(i);
+        const ov::Rank output_rank = input_node.get_partial_shape().rank();
+        if (output_rank.is_dynamic())
+            return true;
+    }
+    return false;
+}
+
+ov::Rank::value_type GetMaxInputRank(NodePtr node) {
+    ov::Rank::value_type max_input_rank = 0;
+    for (size_t i = 0; i < node->get_input_size(); ++i) {
+        const auto input_node = node->input_value(i);
+        const ov::Rank output_rank = input_node.get_partial_shape().rank();
+        if (output_rank.is_dynamic())
+            return 0;
+        const ov::Rank::value_type output_rank_len = output_rank.get_length();
+        if (output_rank_len > max_input_rank)
+            max_input_rank = output_rank_len;
+    }
+    return max_input_rank;
+}
+
+NodePtr InsertUnsqueeze(Output<Node> node, size_t n_dims) {
+    std::vector<size_t> dims(n_dims);
+    std::iota(dims.begin(), dims.end(), 0);
+    auto unsqueeze_const = std::make_shared<Constant>(ov::element::u64, Shape{dims.size()}, dims);
+    auto unsqueeze = std::make_shared<Unsqueeze>(node, unsqueeze_const);
+    copy_runtime_info(node.get_node_shared_ptr(), {unsqueeze, unsqueeze_const});
+    return unsqueeze;
+}
+
 std::set<size_t> GetNodeIds(NodeVector nodes) {
     std::set<size_t> node_ids;
 
@@ -104,12 +137,15 @@ NodePtr CloneNodeWithoutConsumers(NodePtr node, NodeVector consumers) {
 namespace sink_forward {
 
 void UpdateInputTransposes(NodePtr main_node, TransposeInputsInfo& transpose_input_info) {
-    if (transpose_input_info.isEmpty())
+    if (transpose_input_info.isEmpty() || HasDynamicRankInput(main_node))
         return;
+
     const auto transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();
     const auto reversed_traspose_axis_order = ReverseTransposeOrder(transpose_axis_order);
     const size_t tranpose_input_index = transpose_input_info.input_idx;
     const auto transpose_element_type = transpose_input_info.transpose_const->get_element_type();
+
+    const auto max_input_rank = GetMaxInputRank(main_node);
 
     for (size_t i = 0; i < main_node->get_input_size(); ++i) {
         auto input_node = main_node->input_value(i);
@@ -117,6 +153,11 @@ void UpdateInputTransposes(NodePtr main_node, TransposeInputsInfo& transpose_inp
             auto transpose_parent = input_node.get_node()->input_value(0);
             main_node->input(i).replace_source_output(transpose_parent);
         } else {
+            {
+                const ov::Rank::value_type output_rank = input_node.get_partial_shape().rank().get_length();
+                if (output_rank < max_input_rank)
+                    input_node = InsertUnsqueeze(input_node, max_input_rank - output_rank);
+            }
             auto new_transpose_const = std::make_shared<Constant>(transpose_element_type,
                                                                   Shape{reversed_traspose_axis_order.size()},
                                                                   reversed_traspose_axis_order);
@@ -176,44 +217,11 @@ NodeVector InsertOutputTransposes(NodePtr main_node, TransposeInputsInfo& transp
 
 namespace sink_backward {
 
-bool HasDynamicInput(NodePtr node) {
-    for (size_t i = 0; i < node->get_input_size(); ++i) {
-        const auto input_node = node->input_value(i);
-        const ov::Rank output_rank = input_node.get_partial_shape().rank();
-        if (output_rank.is_dynamic())
-            return true;
-    }
-    return false;
-}
-
-ov::Rank::value_type GetMaxInputRank(NodePtr node) {
-    ov::Rank::value_type max_input_rank = 0;
-    for (size_t i = 0; i < node->get_input_size(); ++i) {
-        const auto input_node = node->input_value(i);
-        const ov::Rank output_rank = input_node.get_partial_shape().rank();
-        if (output_rank.is_dynamic())
-            return 0;
-        const ov::Rank::value_type output_rank_len = output_rank.get_length();
-        if (output_rank_len > max_input_rank)
-            max_input_rank = output_rank_len;
-    }
-    return max_input_rank;
-}
-
-NodePtr InsertUnsqueeze(Output<Node> node, size_t n_dims) {
-    std::vector<size_t> dims(n_dims);
-    std::iota(dims.begin(), dims.end(), 0);
-    auto unsqueeze_const = std::make_shared<Constant>(ov::element::u64, Shape{dims.size()}, dims);
-    auto unsqueeze = std::make_shared<Unsqueeze>(node, unsqueeze_const);
-    copy_runtime_info(node.get_node_shared_ptr(), {unsqueeze, unsqueeze_const});
-    return unsqueeze;
-}
-
 NodeVector InsertTransposeBeforeNode(NodePtr main_node, std::shared_ptr<Constant> transpose_const) {
     const auto transpose_axis_order = transpose_const->get_axis_vector_val();
     const auto transpose_element_type = transpose_const->get_element_type();
 
-    if (HasDynamicInput(main_node))
+    if (HasDynamicRankInput(main_node))
         return {};
 
     NodeVector new_nodes;
