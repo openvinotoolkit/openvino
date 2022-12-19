@@ -303,7 +303,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_act_scale_quantize_i8, ::testing:
     gemm_test_params{ CASE_GEMM_2IN_FP16_1, 3, 6 },
     gemm_test_params{ CASE_GEMM_2IN_FP16_2, 3, 6 },
     gemm_test_params{ CASE_GEMM_2IN_FP16_3, 3, 6 },
-    gemm_test_params{ CASE_GEMM_2IN_FP16_4, 3, 6 },//
+    gemm_test_params{ CASE_GEMM_2IN_FP16_4, 3, 6 },
     gemm_test_params{ CASE_GEMM_2IN_U8S8_1, 3, 6 },
     gemm_test_params{ CASE_GEMM_2IN_S8U8_1, 3, 6 },
 }));
