@@ -98,7 +98,8 @@ bool evaluate_cum_sum(TensorVector& outputs, const TensorVector& inputs, const b
         NGRAPH_TYPE_CASE(evaluate_cum_sum, i32, outputs, inputs, exclusive, reverse);
         NGRAPH_TYPE_CASE(evaluate_cum_sum, i64, outputs, inputs, exclusive, reverse);
     default:
-        return false;
+        rc = false;
+        break;
     }
     return rc;
 }
@@ -106,8 +107,14 @@ bool evaluate_cum_sum(TensorVector& outputs, const TensorVector& inputs, const b
 
 bool op::v0::CumSum::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v0_CumSum_evaluate);
-    OPENVINO_ASSERT(inputs.size() == 2, "Invalid CumSum inputs TensorVector.");
-    OPENVINO_ASSERT(outputs.size() == 1, "Invalid CumSum output TensorVector.");
+    OPENVINO_ASSERT(inputs.size() == 2,
+                    "Invalid size of inputs argument of evaluate method of CumSum operation. Provided: ",
+                    inputs.size(),
+                    ". Expected: 2");
+    OPENVINO_ASSERT(outputs.size() == 1,
+                    "Invalid size of outputs argument of evaluate method of CumSum operation. Provided: ",
+                    outputs.size(),
+                    ". Expected: 1");
 
     return evaluate_cum_sum(outputs, inputs, is_exclusive(), is_reverse());
 }
