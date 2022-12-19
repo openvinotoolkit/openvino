@@ -1026,7 +1026,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                   mo_convert_params_common['transform'].possible_types_command_line),
                               default="")
     common_group.add_argument('--disable_fusing',
-                              help='[DEPRECATED] Turn off fusing of linear operations to Convolution.',
+                              help='[DEPRECATEDDDD] Turn off fusing of linear operations to Convolution.',
                               action=DeprecatedStoreTrue)
     common_group.add_argument('--disable_resnet_optimization',
                               help='[DEPRECATED] Turn off ResNet optimization.',
