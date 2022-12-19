@@ -77,7 +77,7 @@ struct reference_tensor_typed<T, 1> : reference_tensor {
             size_t offset = actual->get_layout().get_linear_offset(coords);
             auto& ref = reference[bi];
             auto& val = ptr[offset];
-            TYPED_EXPECT_EQ(ref, val) << " at bi=" << bi;
+            TYPED_ASSERT_EQ(ref, val) << " at bi=" << bi;
         }
     }
 
@@ -110,7 +110,7 @@ struct reference_tensor_typed<T, 2> : reference_tensor {
                 size_t offset = actual->get_layout().get_linear_offset(coords);
                 auto& ref = reference[bi][fi];
                 auto& val = ptr[offset];
-                TYPED_EXPECT_EQ(ref, val) << "at bi=" << bi << " fi=" << fi;
+                TYPED_ASSERT_EQ(ref, val) << "at bi=" << bi << " fi=" << fi;
             }
         }
     }
@@ -147,7 +147,7 @@ struct reference_tensor_typed<T, 4> : reference_tensor {
                         size_t offset = actual->get_layout().get_linear_offset(coords);
                         auto& ref = reference[bi][fi][yi][xi];
                         auto& val = ptr[offset];
-                        TYPED_EXPECT_EQ(ref, val) << "at bi=" << bi << " fi=" << fi << " yi=" << yi << " xi=" << xi;
+                        TYPED_ASSERT_EQ(ref, val) << "at bi=" << bi << " fi=" << fi << " yi=" << yi << " xi=" << xi;
                     }
                 }
             }

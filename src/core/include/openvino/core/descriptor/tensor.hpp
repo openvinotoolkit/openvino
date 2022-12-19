@@ -27,6 +27,9 @@ using HostTensorPtr = std::shared_ptr<runtime::HostTensor>;
 namespace ov {
 class Node;
 using TensorLabel = std::vector<size_t>;
+namespace pass {
+class ReverseShapeAndTypeInfer;
+}
 namespace descriptor {
 
 class Tensor;
@@ -137,6 +140,7 @@ protected:
 
     friend OPENVINO_API std::string get_ov_tensor_legacy_name(const Tensor& tensor);
     friend OPENVINO_API void set_ov_tensor_legacy_name(Tensor& tensor, const std::string& tensor_name);
+    friend class pass::ReverseShapeAndTypeInfer;
 };
 
 OPENVINO_API

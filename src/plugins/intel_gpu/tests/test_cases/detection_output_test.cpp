@@ -89,7 +89,7 @@ public:
     void init_buffer_sort(cldnn::memory::ptr input_buff) {
         cldnn::mem_lock<T> input_data_ptr(input_buff, get_test_stream());
 
-        EXPECT_EQ((int)input_buff->count(), 128);
+        ASSERT_EQ((int)input_buff->count(), 128);
 
         T* input_data = input_data_ptr.data();
         input_data[0] = 8;
@@ -119,16 +119,16 @@ public:
         std::vector<std::string> items;
         std::istringstream iss(values);
         std::copy(std::istream_iterator<std::string>(iss), std::istream_iterator<std::string>(), back_inserter(items));
-        EXPECT_EQ((int)items.size(), 7);
+        ASSERT_EQ((int)items.size(), 7);
 
         // Check data.
         cldnn::mem_lock<T> out_ptr(output, get_test_stream());
         const T* data = out_ptr.data();
         for (int i = 0; i < 2; ++i) {
-            EXPECT_EQ(static_cast<int>((float)data[num * output->get_layout().spatial(0) + i]), atoi(items[i].c_str()));
+            ASSERT_EQ(static_cast<int>((float)data[num * output->get_layout().spatial(0) + i]), atoi(items[i].c_str()));
         }
         for (int i = 2; i < 7; ++i) {
-            EXPECT_TRUE(floating_point_equal(data[num * output->get_layout().spatial(0) + i], (T)(float)atof(items[i].c_str())));
+            ASSERT_TRUE(floating_point_equal(data[num * output->get_layout().spatial(0) + i], (T)(float)atof(items[i].c_str())));
         }
     }
 
@@ -157,13 +157,13 @@ public:
 
         auto outputs = network.execute();
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "detection_output");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "detection_output");
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
     }
 
     void setup_two_layers() {
@@ -192,16 +192,16 @@ public:
 
         auto outputs = network.execute();
 
-        EXPECT_EQ(outputs.size(), size_t(2));
+        ASSERT_EQ(outputs.size(), size_t(2));
         unsigned i = 1;
         for (auto it = outputs.begin(); it != outputs.begin(); it++) {
 
-            EXPECT_EQ(it->first, "detection_output_" + std::to_string(i));
+            ASSERT_EQ(it->first, "detection_output_" + std::to_string(i));
 
-            EXPECT_EQ(it->second.get_memory()->get_layout().batch(), 1);
-            EXPECT_EQ(it->second.get_memory()->get_layout().feature(), 1);
-            EXPECT_EQ(it->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-            EXPECT_EQ(it->second.get_memory()->get_layout().spatial(0), 7);
+            ASSERT_EQ(it->second.get_memory()->get_layout().batch(), 1);
+            ASSERT_EQ(it->second.get_memory()->get_layout().feature(), 1);
+            ASSERT_EQ(it->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+            ASSERT_EQ(it->second.get_memory()->get_layout().spatial(0), 7);
             i++;
         }
     }
@@ -234,13 +234,13 @@ public:
 
         auto outputs = network.execute();
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "detection_output");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "detection_output");
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -282,13 +282,13 @@ public:
 
         auto outputs = network.execute();
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "detection_output");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "detection_output");
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -324,13 +324,13 @@ public:
 
         auto outputs = network.execute();
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "detection_output");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "detection_output");
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -377,13 +377,13 @@ public:
 
         auto outputs = network.execute();
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "detection_output");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "detection_output");
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -440,13 +440,13 @@ public:
 
         auto outputs = network.execute();
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "detection_output");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "detection_output");
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -490,13 +490,13 @@ public:
 
         auto outputs = network.execute();
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "detection_output");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "detection_output");
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -551,13 +551,13 @@ public:
 
         auto outputs = network.execute();
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "detection_output");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "detection_output");
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -599,13 +599,13 @@ public:
 
         auto outputs = network.execute();
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "detection_output");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "detection_output");
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -650,13 +650,13 @@ public:
 
         auto outputs = network.execute();
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "detection_output");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "detection_output");
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -696,13 +696,13 @@ public:
 
         auto outputs = network.execute();
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "detection_output");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "detection_output");
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -777,13 +777,13 @@ public:
 
         auto outputs = network->execute();
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "detection_output");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "detection_output");
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        ASSERT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 

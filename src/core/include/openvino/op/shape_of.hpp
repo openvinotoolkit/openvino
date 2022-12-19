@@ -4,16 +4,16 @@
 
 #pragma once
 
-#include "openvino/op/op.hpp"
+#include "openvino/op/util/shape_of_base.hpp"
 
 namespace ov {
 namespace op {
 namespace v3 {
 /// \brief Operation that returns the shape of its input argument as a tensor.
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API ShapeOf : public Op {
+class OPENVINO_API ShapeOf : public util::ShapeOfBase {
 public:
-    OPENVINO_OP("ShapeOf", "opset3", op::Op, 3);
+    OPENVINO_OP("ShapeOf", "opset3", util::ShapeOfBase, 3);
     ShapeOf() = default;
     /// \brief Constructs a shape-of operation.
     ShapeOf(const Output<Node>& arg, const element::Type output_type = element::i64);
@@ -51,9 +51,9 @@ private:
 namespace v0 {
 /// \brief Operation that returns the shape of its input argument as a tensor.
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API ShapeOf : public Op {
+class OPENVINO_API ShapeOf : public util::ShapeOfBase {
 public:
-    OPENVINO_OP("ShapeOf", "opset1");
+    OPENVINO_OP("ShapeOf", "opset1", util::ShapeOfBase);
     ShapeOf() = default;
     /// \brief Constructs a shape-of operation.
     ShapeOf(const Output<Node>& arg);
