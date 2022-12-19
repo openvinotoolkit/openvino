@@ -32,12 +32,14 @@ ov::pass::ConvertMVN1ToMVN6::ConvertMVN1ToMVN6() {
             return false;
         }
 
-        const auto eps = mvn_node->get_eps();
-        const auto eps_abs = std::abs(eps);
-        if (mvn_node->get_input_element_type(0) == ov::element::f64 && mvn_node->get_normalize_variance() &&
-            (eps > std::numeric_limits<float>::max() || eps < std::numeric_limits<float>::lowest() ||
-             eps_abs != 0 && eps_abs < std::numeric_limits<float>::min()))
-            return false;
+        const auto eps_d = mvn_node->get_eps();
+        float eps_f = static_cast<float>(eps_d);
+        if (eps_d > 0) {  // zero is fine; negative values has no sense
+            if (eps_d < std::nextafter(static_cast<double>(std::numeric_limits<float>::min()), 1.))
+                eps_f = std::numeric_limits<float>::min();
+            else if (eps_d > std::nextafter(static_cast<double>(std::numeric_limits<float>::max()), 0.))
+                eps_f = std::numeric_limits<float>::max();
+        }
 
         std::vector<int64_t> axes_v(input_rank.get_length() - start_axis);
         std::iota(axes_v.begin(), axes_v.end(), start_axis);
@@ -45,7 +47,7 @@ ov::pass::ConvertMVN1ToMVN6::ConvertMVN1ToMVN6() {
         auto mvn6_node = std::make_shared<ov::opset6::MVN>(input,
                                                            axes,
                                                            mvn_node->get_normalize_variance(),
-                                                           static_cast<float>(eps),
+                                                           eps_f,
                                                            op::MVNEpsMode::OUTSIDE_SQRT);
 
         mvn6_node->set_friendly_name(mvn_node->get_friendly_name());
