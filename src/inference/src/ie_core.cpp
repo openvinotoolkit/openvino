@@ -1461,9 +1461,11 @@ public:
             std::lock_guard<std::mutex> lock(get_mutex());
             created_plugins.reserve(plugins.size());
 
-            auto cache_it = config.find(CONFIG_KEY(CACHE_DIR));
-            if (cache_it != config.end()) {
-                coreConfig.setCacheForDevice(cache_it->second, clearDeviceName);
+            if (!deviceName.empty()) {
+                auto cache_it = config.find(CONFIG_KEY(CACHE_DIR));
+                if (cache_it != config.end()) {
+                    coreConfig.setCacheForDevice(cache_it->second, clearDeviceName);
+                }
             }
             coreConfig.set_core_config(config);
 
