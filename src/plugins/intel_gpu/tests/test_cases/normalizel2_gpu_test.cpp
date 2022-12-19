@@ -46,7 +46,7 @@ struct normalize_basic : public testing::Test {
     const std::vector<output_type> get_expected_result() {
         return get_expected_result(std::integral_constant<bool, across_spatial>());
     }
-    
+
     const std::vector<input_type> get_input_values(unsigned b, unsigned f, unsigned y, unsigned x) {
         std::vector<input_type> inputVals(b * f * y * x);
         float n = 0;
@@ -185,13 +185,13 @@ TYPED_TEST(normalize_basic, basic) {
         cldnn::mem_lock<half_t> output_ptr(output, get_test_stream());
         auto expected_results = this->get_expected_result();
         for (size_t i = 0; i < expected_results.size(); ++i) {
-            EXPECT_NEAR(expected_results[i], output_ptr[i], 0.001);
+            ASSERT_NEAR(expected_results[i], output_ptr[i], 0.001);
         }
     } else {
         cldnn::mem_lock<float> output_ptr(output, get_test_stream());
         auto expected_results = this->get_expected_result();
         for (size_t i = 0; i < expected_results.size(); ++i) {
-            EXPECT_TRUE(are_equal(expected_results[i], output_ptr[i]));
+            ASSERT_TRUE(are_equal(expected_results[i], output_ptr[i]));
         }
     }
 }
