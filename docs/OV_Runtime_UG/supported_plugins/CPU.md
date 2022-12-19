@@ -136,27 +136,6 @@ CPU provides full functional support for models with dynamic shapes in terms of 
 
 > **NOTE**: The CPU plugin does not support tensors with dynamically changing rank. In case of an attempt to infer a model with such tensors, an exception will be thrown.
 
-Dynamic shapes support introduces additional overhead on memory management and may limit internal runtime optimizations.
-The more degrees of freedom are used, the more difficult it is to achieve the best performance.
-The most flexible configuration, and the most convenient approach, is the fully undefined shape, which means that no constraints to the shape dimensions are applied.
-However, reducing the level of uncertainty results in performance gains.
-You can reduce memory consumption through memory reuse, achieving better cache locality and increasing inference performance. To do so, set dynamic shapes explicitly, with defined upper bounds.
-
-@sphinxtabset
-
-@sphinxtab{C++}
-@snippet docs/snippets/cpu/dynamic_shape.cpp defined_upper_bound
-@endsphinxtab
-
-@sphinxtab{Python}
-@snippet docs/snippets/cpu/dynamic_shape.py defined_upper_bound
-@endsphinxtab
-
-@endsphinxtabset
-
-> **NOTE**: Using fully undefined shapes may result in significantly higher memory consumption compared to inferring the same model with static shapes.
-> If memory consumption is unacceptable but dynamic shapes are still required, the model can be reshaped using shapes with defined upper bounds to reduce memory footprint.
-
 Some runtime optimizations work better if the model shapes are known in advance.
 Therefore, if the input data shape is not changed between inference calls, it is recommended to use a model with static shapes or reshape the existing model with the static input shape to get the best performance.
 
