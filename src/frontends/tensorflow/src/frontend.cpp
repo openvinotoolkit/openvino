@@ -51,8 +51,8 @@ void translate_framework_node(const std::shared_ptr<FrameworkNode>& node,
 void StructuralTypeAttribute::copy (const Node::RTMap& src, Node::RTMap& dst) {
     auto pstructural_type = src.find("structural_type");
     if(pstructural_type != src.end()) {
-        std::cerr << "[ INFO TF FE ] Copying `structural_type` from src to dst RTMap node to output tensor\n";
-        std::cerr << "Is required type: " << pstructural_type->second.is<StructuralTypeAttribute>() << '\n';
+        //std::cerr << "[ INFO TF FE ] Copying `structural_type` from src to dst RTMap node to output tensor\n";
+        //std::cerr << "Is required type: " << pstructural_type->second.is<StructuralTypeAttribute>() << '\n';
         dst["structural_type"] = StructuralTypeAttribute(pstructural_type->second.as<StructuralTypeAttribute>().value);
     };
 }
@@ -67,9 +67,9 @@ bool StructuralTypeAttribute::has_type (const Node::RTMap& rt_info, const ov::An
         //    return true;
 
         // FIXME: Leads to crash
-        std::cerr << "Found structural_type\n";
-        std::cerr << "Is required type: " << pstructural_type->second.is<StructuralTypeAttribute>() << '\n';
-        std::cerr.flush();
+        //std::cerr << "Found structural_type\n";
+        //std::cerr << "Is required type: " << pstructural_type->second.is<StructuralTypeAttribute>() << '\n';
+        //std::cerr.flush();
         //return false;
         return type == pstructural_type->second.as<StructuralTypeAttribute>().value;
     }
@@ -500,6 +500,10 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
     manager.set_per_pass_validation(true);
     manager.register_pass<ov::pass::GraphRewrite>(std::make_shared<pass::StructuralTypeProp>());
     manager.register_pass<ov::pass::GraphRewrite>(std::make_shared<pass::ReplaceStrByU81D>());
+    manager.register_pass<pass::DecomposeStrParameters>();
+    manager.register_pass<ov::pass::GraphRewrite>(std::make_shared<pass::ThroughStrOpsProp>());
+    manager.register_pass<pass::DecomposeStructResults>();
+
     manager.set_per_pass_validation(false);
 
     // TODO: reimplement TransposeSinking that does not corrupt filters for Convolution

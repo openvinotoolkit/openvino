@@ -93,11 +93,19 @@ def normalize_inputs(request: InferRequestBase, inputs: dict) -> dict:
     # Embeds these types according to StructuralType schema into regular tensors
     # Currently it is supported for str type only
 
+    '''
     for key, value in inputs.items():
         if isinstance(value, str):
+            print('normalize_inputs preprocessed str')
             # TODO: Check if input with this key is really expects str type
             inputs[key] = np.array(list(value.encode()), dtype=np.uint8)
 
+    # TODO: How to differentiate single input of type list[str] from multiple inputs each of type str?
+    if isinstance(inputs, list):
+        if len(inputs) > 0 and all([isinstance(x, str) for x in inputs]):
+            print('normalize_inputs preprocessed list[str]')
+            inputs = [np.array(list(x.encode()), dtype=np.uint8) for x in inputs]
+    '''
     # End of structural types preprecessing
 
     # Create new temporary dictionary.
@@ -125,11 +133,22 @@ def normalize_inputs(request: InferRequestBase, inputs: dict) -> dict:
 def postprocess_results (outputs: dict, model_outputs) -> dict:
     #print('1:', model_outputs)
     #print('2:', outputs)
-    for output in model_outputs:
+    if len(model_outputs) == 1:
         # TODO: find out how to access RT info in Python or implement it
         #print([key for key in output.get_rt_info()])
         if True: #'structural_type' in output.get_rt_info(): # FIXME: Doesn't work
-            outputs[output] = bytes(outputs[output]).decode()
+            outputs[model_outputs[0]] = bytes(outputs[model_outputs[0]]).decode()
+    elif len(model_outputs) == 3:
+        if True: # detect correct outputs
+            begins = outputs[model_outputs[0]]
+            ends = outputs[model_outputs[1]]
+            chars = outputs[model_outputs[2]]
+            result = []
+            for beg, end in zip(begins, ends):
+                line = bytes(chars[beg:end]).decode()
+                #print(f'Decoded line {line}')
+                result.append(line)
+            outputs = {model_outputs[0]: result}
     return outputs
 
 
@@ -169,7 +188,22 @@ class InferRequest(InferRequestBase):
 
         if isinstance(inputs, str):
             # TODO: Check if there is really a single input with this type
+            print('InferRequest.infer preprocessed str')
             inputs = np.array(list(inputs.encode()), dtype=np.uint8)
+
+        # TODO: How to differentiate single input of type list[str] from multiple inputs each of type str?
+        if isinstance(inputs, list):
+            if len(inputs) > 0 and all([isinstance(x, str) for x in inputs]):
+                #print('InferRequest.infer preprocessed list[str]')
+                begins = []
+                ends = []
+                chars = np.array([], dtype=np.uint8)
+                for item in inputs:
+                    begins.append(chars.shape[0])
+                    chars = np.concatenate((chars, np.array(list(item.encode()), dtype=np.uint8)))
+                    ends.append(chars.shape[0])
+                inputs = (np.array(begins, dtype=np.uint32), np.array(ends, dtype=np.uint32), chars)
+                #print(inputs)
 
         # If inputs are empty, pass empty dictionary.
         if inputs is None:
