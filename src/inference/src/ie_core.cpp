@@ -485,15 +485,14 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
 
         mutable std::mutex _core_property_mutex;
         // Core global properties, which will not set to any plugins.
-        // It will be updated if core.set_property() without device name.
+        // It will be updated if core.set_property() without device name is called.
         ov::AnyMap _core_global_properties = {{ov::force_tbb_terminate.name(), ov::Any(false)}};
 
         // Core plugins properties, which will set to specified or all plugins.
-        // Except ov::cache_dir, other all properties will ALWAYS be set to plugins.
-        // It will be updated if core.set_property() without device name.
-        ov::AnyMap _core_plugins_properties = {{ov::cache_dir.name(), ov::Any()},
+        // It will be updated if core.set_property() without device name is called.
+        ov::AnyMap _core_plugins_properties = {{ov::cache_dir.name(), ""},
                                                {ov::hint::allow_auto_batching.name(), ov::Any(true)},
-                                               {ov::auto_batch_timeout.name(), ov::Any(1000)}};
+                                               {ov::auto_batch_timeout.name(), "1000"}};
     };
 
     struct CacheContent {
@@ -582,7 +581,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         auto _parsedConfig = parsedConfig;
         coreConfig.update_config(plugin, _parsedConfig);
         execNetwork = context ? plugin.compile_model(network, context, _parsedConfig)
-                              : plugin.compile_model(network, parsedConfig);
+                              : plugin.compile_model(network, _parsedConfig);
         if (!forceDisableCache && cacheContent.cacheManager && DeviceSupportsImportExport(plugin)) {
             try {
                 // need to export network for further import from "cache"
