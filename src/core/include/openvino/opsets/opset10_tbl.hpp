@@ -109,6 +109,7 @@ _OPENVINO_OP_REG(Tile, ov::op::v0)
 _OPENVINO_OP_REG(Transpose, ov::op::v1)
 _OPENVINO_OP_REG(Unsqueeze, ov::op::v0)
 _OPENVINO_OP_REG(VariadicSplit, ov::op::v1)
+_OPENVINO_OP_REG(ConvertFP8, ov::op::v1)
 
 // New operations added in opset2
 _OPENVINO_OP_REG(BatchToSpace, ov::op::v1)
