@@ -232,11 +232,11 @@ struct Function<ngraph::opset8::Power> {
     }
 
     static double lower_bound(double exponent) {
-        return common::fp32eq(fmod(exponent, 1.0), 0.0f) ? -16 : 0;
+        return common::AreFpEq(fmod(exponent, 1.0), 0.0) ? -16.0 : 0.0;
     }
 
     static double upper_bound() {
-        return 16;
+        return 16.0;
     }
 
     const double m_exponent;
