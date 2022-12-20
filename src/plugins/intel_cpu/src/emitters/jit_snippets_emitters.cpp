@@ -285,7 +285,7 @@ void KernelEmitter::init_data_pointers(size_t num_inputs, size_t num_params, boo
     // It means that the vector contains the physical registers in order [src, .., src, dst, .., dst, buffer]
     // So we can initialize buffer register firstly as last value of vector "data_ptr_regs"
     if (is_buffer_needed) {
-        h->mov(data_ptr_regs[num_params], h->ptr[reg_const_params + GET_OFF(buffer_scratchpad)]);
+        h->mov(data_ptr_regs[num_params], h->ptr[reg_const_params + GET_OFF(buffer_scratchpad_ptr)]);
     }
     size_t i = 0;
     for (; i < num_params - last_iter_explicitly; i++) {

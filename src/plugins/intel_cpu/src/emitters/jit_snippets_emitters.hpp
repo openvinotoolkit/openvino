@@ -33,7 +33,7 @@ namespace intel_cpu {
 struct jit_snippets_call_args {
     const void *src_ptrs[SNIPPETS_MAX_SNIPPETS_DIMS] = {};
     void *dst_ptrs[SNIPPETS_MAX_SNIPPETS_DIMS] = {};
-    void *buffer_scratchpad = nullptr;
+    void *buffer_scratchpad_ptr = nullptr;
 };
 
 struct jit_snippets_compile_args {

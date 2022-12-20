@@ -63,13 +63,10 @@ private:
     bool optimizeExecDomain(std::vector<VectorDims>&, std::vector<VectorDims>&, VectorDims&, size_t&) const;
 
     void generate(const jit_snippets_compile_args*);
-    void updateSrcDstPtrs(jit_snippets_call_args&) const;
+    inline void update_ptrs(jit_snippets_call_args&);
     // Evaluates generated snippet using parallel backend
-    void schedule_6d(const jit_snippets_call_args& const_args) const;
-    void schedule_6d_per_thread(const std::vector<jit_snippets_call_args>& const_args) const;
-    void schedule_nt(const jit_snippets_call_args& const_args) const;
-    void schedule_nt_per_thread(const std::vector<jit_snippets_call_args>& const_args) const;
-    void schedule_with_buffer_scratchpad(const jit_snippets_call_args& const_args);
+    void schedule_6d(const jit_snippets_call_args& const_args);
+    void schedule_nt(const jit_snippets_call_args& const_args);
 
     // Original subgraph node
     std::shared_ptr<ngraph::snippets::op::Subgraph> original_snippet;

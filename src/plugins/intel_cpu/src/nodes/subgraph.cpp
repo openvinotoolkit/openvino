@@ -523,12 +523,17 @@ void Snippet::generate(const jit_snippets_compile_args* jcp) {
     schedule = snippet->generate(optManager, reinterpret_cast<const void*>(jcp));
 }
 
-void Snippet::updateSrcDstPtrs(jit_snippets_call_args& call_args) const {
+void Snippet::update_ptrs(jit_snippets_call_args& call_args) {
     for (size_t i = 0; i < srcMemPtrs.size(); i++)
         call_args.src_ptrs[i] = reinterpret_cast<const uint8_t*>(srcMemPtrs[i]->GetData()) + start_offset_in[i];
 
     for (size_t i = 0; i < dstMemPtrs.size(); i++)
         call_args.dst_ptrs[i] = reinterpret_cast<uint8_t*>(dstMemPtrs[i]->GetData()) + start_offset_out[i];
+
+    if (buffer_scratchpad_size > 0) {
+        call_args.buffer_scratchpad_ptr =
+                reinterpret_cast<uint8_t*>(buffer_scratchpad.data()) + parallel_get_thread_num() * buffer_scratchpad_size;
+    }
 }
 
 void Snippet::execute(dnnl::stream strm) {
@@ -536,12 +541,7 @@ void Snippet::execute(dnnl::stream strm) {
         IE_THROW() << "Snippet can't use Optimized implementation and can't fallback to reference";
     }
     jit_snippets_call_args call_args;
-    updateSrcDstPtrs(call_args);
-
-    if (buffer_scratchpad_size > 0) {
-        schedule_with_buffer_scratchpad(call_args);
-        return;
-    }
+    update_ptrs(call_args);
 
     if (tensorRank == rank6D) {
         schedule_6d(call_args);
@@ -550,43 +550,25 @@ void Snippet::execute(dnnl::stream strm) {
     }
 }
 
-void Snippet::schedule_with_buffer_scratchpad(const jit_snippets_call_args& call_args) {
-    std::vector<jit_snippets_call_args> per_thread_call_args(parallel_get_max_threads(), call_args);
-    if (buffer_scratchpad_size > 0) {
-        for (size_t i = 0; i < per_thread_call_args.size(); ++i)
-            per_thread_call_args[i].buffer_scratchpad = reinterpret_cast<uint8_t*>(buffer_scratchpad.data()) + i * buffer_scratchpad_size;
-    }
-
-    if (tensorRank == rank6D) {
-        schedule_6d_per_thread(per_thread_call_args);
-    } else {
-        schedule_nt_per_thread(per_thread_call_args);
-    }
-}
-
-void Snippet::schedule_6d(const jit_snippets_call_args& call_args) const {
+void Snippet::schedule_6d(const jit_snippets_call_args& call_args) {
     const auto& dom = exec_domain;
     // < N, C, H, W > < 1, 1, N, C*H*W>
     parallel_for5d(dom[0], dom[1], dom[2], dom[3], dom[4],
         [&](int64_t d0, int64_t d1, int64_t d2, int64_t d3, int64_t d4) {
             int64_t indexes[] = {d0, d1, d2, d3, d4};
+            jit_snippets_call_args call_args;
+            update_ptrs(call_args);
+
             schedule.get_callable<kernel>()(indexes, &call_args);
         });
 }
 
-void Snippet::schedule_6d_per_thread(const std::vector<jit_snippets_call_args>& call_args) const {
-    const auto& dom = exec_domain;
-    // < N, C, H, W > < 1, 1, N, C*H*W>
-    parallel_for5d(dom[0], dom[1], dom[2], dom[3], dom[4],
-        [&](int64_t d0, int64_t d1, int64_t d2, int64_t d3, int64_t d4) {
-            int64_t indexes[] = {d0, d1, d2, d3, d4};
-            schedule.get_callable<kernel>()(indexes, &call_args[parallel_get_thread_num()]);
-    });
-}
-
-void Snippet::schedule_nt(const jit_snippets_call_args& call_args) const {
+void Snippet::schedule_nt(const jit_snippets_call_args& call_args) {
     const auto& work_size = exec_domain;
     parallel_nt(0, [&](const int ithr, const int nthr) {
+        jit_snippets_call_args call_args;
+        update_ptrs(call_args);
+
         size_t start = 0, end = 0;
         splitter(harnessWorkAmount, nthr, ithr, start, end);
 
@@ -599,25 +581,6 @@ void Snippet::schedule_nt(const jit_snippets_call_args& call_args) const {
             }
 
             schedule.get_callable<kernel>()(indexes.data(), &call_args);
-        }
-    });
-}
-
-void Snippet::schedule_nt_per_thread(const std::vector<jit_snippets_call_args>& call_args) const {
-    const auto& work_size = exec_domain;
-    parallel_nt(0, [&](const int ithr, const int nthr) {
-        size_t start = 0, end = 0;
-        splitter(harnessWorkAmount, nthr, ithr, start, end);
-
-        std::vector<int64_t> indexes(work_size.size() - 1, 0);
-        for (size_t iwork = start; iwork < end; ++iwork) {
-            size_t tmp = iwork;
-            for (ptrdiff_t j = work_size.size() - 2; j >= 0; j--) {
-                indexes[j] = tmp % work_size[j];
-                tmp /= work_size[j];
-            }
-
-            schedule.get_callable<kernel>()(indexes.data(), &call_args[ithr]);
         }
     });
 }
