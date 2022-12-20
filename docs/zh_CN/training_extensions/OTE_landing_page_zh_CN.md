@@ -1,4 +1,4 @@
-# OpenVINO™ 训练扩展{#ote_documentation_zh_CN}
+# OpenVINO™ 训练扩展 {#ote_documentation_zh_CN}
 
 ![Python](https://img.shields.io/badge/python-3.8%2B-green)
 ![黑色](https://img.shields.io/badge/code%20style-black-000000.svg)
@@ -9,7 +9,7 @@ OpenVINO™ 训练扩展 (OTE) 提供了一套高级算法来训练深度学习�
 
 ## 详细工作流程
 
-![](training_extensions_framework.png)
+![](../img/training_extensions_framework.png)
 
 1. 要开始使用 OTE，请准备并注释数据集。例如，在 CVAT 上。
 
@@ -17,7 +17,7 @@ OpenVINO™ 训练扩展 (OTE) 提供了一套高级算法来训练深度学习�
 
 注意：准备一个单独的数据集或拆分您拥有的数据集，以便更准确地进行质量评估。
 
-3. 成功收到评估结果后，您就有机会使用 NNCF 和 POT 部署模型或继续优化模型。有关这些框架的更多信息，请转到[优化指南](https://docs.openvino.ai/nightly/openvino_docs_model_optimization_guide.html)。
+3. 成功收到评估结果后，您就有机会使用 NNCF 和 POT 部署模型或继续优化模型。有关这些框架的更多信息，请转到[优化指南](@ref openvino_docs_model_optimization_guide_zh_CN)。
 
 如果结果不令人满意，请添加数据集，并从数据集注释开始执行相同的步骤。
 

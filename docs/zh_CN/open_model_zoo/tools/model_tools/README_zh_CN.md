@@ -14,7 +14,7 @@ Open Model Zoo 自动化工具包含脚本，可根据模型目录中的配置�
 
 请使用这些工具而不是尝试直接解析配置文件。它们的格式没有记录，并且可能会在未来版本中以不兼容的方式更改。
 
-> **TIP**：您还可以使用 OpenVINO™ [深度学习工作台](@ref workbench_docs_Workbench_DG_Introduction_zh_CN)中的模型下载程序。
+> **TIP**: 您还可以使用 OpenVINO™ [深度学习工作台](@ref workbench_docs_Workbench_DG_Introduction_zh_CN)中的模型下载程序。
 > [深度学习工作台](@ref workbench_docs_Workbench_DG_Introduction_zh_CN)是一个基于 OpenVINO™ 构建的平台，它提供基于 Web 的图形环境，可帮助您对深度学习模型在各种英特尔® 架构配置上的性能进行优化、调优、分析、可视化和比较。在深度学习工作台中，您可以使用大多数 OpenVINO™ 工具套件组件。
 > <br>
 > 继续[从 Docker 轻松安装](@ref workbench_docs_Workbench_DG_Run_Locally)以开始。
@@ -22,18 +22,18 @@ Open Model Zoo 自动化工具包含脚本，可根据模型目录中的配置�
 ## 安装
 
 模型下载程序和其他自动化工具可以作为 OpenVINO™ 开发工具 Python 程序包的一部分进行安装，或在需要最新更改时从相关来源进行安装。
-如需安装程序包中的工具，请访问 [OpenVINO™ 开发工具 PyPI 页面] (https://pypi.org/project/openvino-dev/) 并按照说明操作。
+如需安装程序包中的工具，请访问 [OpenVINO™ 开发工具 PyPI 页面](https://pypi.org/project/openvino-dev/) 并按照说明操作。
 
 如需从相关来源安装工具：
 
 1. 安装 Python（版本 3.6 或更高版本），[安装工具](https://pypi.org/project/setuptools/)：
 
-2. 安装 [openvino-dev](https://pypi.org/project/openvino-dev/) Python\* 程序包以获取模型优化器和训练后优化工具套件：
+2. 安装 [openvino-dev](https://pypi.org/project/openvino-dev/) Python 程序包以获取模型优化器和训练后优化工具套件：
 
 ```sh
 pip install openvino-dev
 ```
-> **NOTE**：openvino-dev 的版本应与 OMZ 工具相同。例如，如果正使用 2021.4.2 版本的 OMZ 工具，则安装 openvino-dev==2021.4.2。
+> **NOTE**: openvino-dev 的版本应与 OMZ 工具相同。例如，如果正使用 2021.4.2 版本的 OMZ 工具，则安装 openvino-dev==2021.4.2。
 
 2. 使用以下命令安装工具：
 
@@ -42,7 +42,7 @@ pip install --upgrade pip
 pip install .
 ```
 
-> **NOTE**：在 Linux 和 macOS 上，您可能需要键入 `python3` 而不是 `python`。可能还需要[安装 pip](https://pip.pypa.io/en/stable/installation/)。
+> **NOTE**: 在 Linux 和 macOS 上，您可能需要键入 `python3` 而不是 `python`。可能还需要[安装 pip](https://pip.pypa.io/en/stable/installation/)。
 > 例如，在 Ubuntu 上，请执行以下命令以安装 pip：`sudo apt install python3-pip`。
 > 如果使用的 pip 版本低于 21.3，还需要设置 OMZ_ROOT 变量：`export OMZ_ROOT=<omz_dir>`
 
