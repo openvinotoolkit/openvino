@@ -332,11 +332,11 @@ Information about the layers in which the `sparse weights decompression feature`
 
 #### Limitations
 Currently, the `sparse weights decompression feature` is supported with the following limitations:
-1.  Model should be quantized to int8 precision.
-2.  Feature is only supported for Matrix Multiplication operations.
-3.  HW target must have Intel AMX extension support (e.g., Intel® 4th Generation Xeon® processors (code name Sapphire Rapids)).
-4.  The number of input and output channels of the weights must be a multiple of 64.
-5.  Current feature implementation supports only sparse rate higher than 0.5.
+1. Model should be quantized to int8 precision.
+2. Feature is only supported for Matrix Multiplication operations.
+3. HW target must have Intel AMX extension support (e.g., Intel® 4th Generation Xeon® processors (code name Sapphire Rapids)).
+4. The number of input and output channels of the weights must be a multiple of 64.
+5. Current feature implementation supports only sparse rate higher than 0.5.
 
 ## Additional Resources
 * [Supported Devices](Supported_Devices.md)
