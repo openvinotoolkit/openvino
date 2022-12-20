@@ -1,7 +1,3 @@
-@sphinxdirective
-:orphan:
-@endsphinxdirective
-
 # OpenVINO TensorFlow Frontend Capabilities and Limitations {#openvino_docs_MO_DG_TensorFlow_Frontend}
 
 TensorFlow Frontend is C++ based Frontend for conversion of TensorFlow models and is available as a preview feature starting from 2022.3.
