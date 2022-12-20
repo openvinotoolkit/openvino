@@ -3408,6 +3408,9 @@ class conv_int8_eltwise_scale_onednn : public WeightsPrimitiveFusingTestOneDNN {
 TEST_P(conv_int8_eltwise_scale_onednn, u8_eltwise_prod_out_reuse) {
     auto p = GetParam();
 
+    if (!engine.get_device_info().supports_immad)
+        return;
+
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p), -2, 2)),

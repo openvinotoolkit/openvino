@@ -1668,7 +1668,7 @@ format layout_optimizer::get_preferred_format(program_node& node) {
     auto output_layout = node.get_output_layout();
     bool use_onednn_impls = _optimization_attributes.use_onednn_impls;
 
-    bool allow_new_shape_infer = node.get_program().get_options().get<build_option_type::allow_new_shape_infer>()->enabled();
+    bool allow_new_shape_infer = node.get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
 
     if (allow_new_shape_infer) {
         if (node.is_type<shape_of>())
