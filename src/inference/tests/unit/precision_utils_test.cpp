@@ -12,10 +12,10 @@ using namespace InferenceEngine;
 
 using PrecisionUtilsTests = ::testing::Test;
 
-static constexpr ie_fp16 positiveInf = (ie_fp16)0x7C00;
-static constexpr ie_fp16 negativeInf = (ie_fp16)0xFC00;
-static constexpr ie_fp16 largestNumber = (ie_fp16)0x7BFF;
-static constexpr ie_fp16 lowestNumber = (ie_fp16)0xFBFF;
+static constexpr ie_fp16 positiveInf = static_cast<ie_fp16>(0x7C00);
+static constexpr ie_fp16 negativeInf = static_cast<ie_fp16>(0xFC00);
+static constexpr ie_fp16 largestNumber = static_cast<ie_fp16>(0x7BFF);
+static constexpr ie_fp16 lowestNumber = static_cast<ie_fp16>(0xFBFF);
 
 TEST_F(PrecisionUtilsTests, FP32ToFP16PositiveInfinity) {
     const auto fp16ConvertedInf = InferenceEngine::PrecisionUtils::f32tof16(std::numeric_limits<float>::infinity());

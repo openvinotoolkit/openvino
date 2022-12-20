@@ -80,7 +80,7 @@ InferenceEngine::Blob::Ptr createBlob(InferenceEngine::Precision precision,
 size_t GenerateRandom(size_t elem) {
     size_t result;
     do {
-        result = (size_t)std::floor(std::rand() / static_cast<float>(RAND_MAX * elem));
+        result = static_cast<size_t>(std::floor(std::rand() / static_cast<float>(RAND_MAX * elem)));
     } while (result >= elem);
     return result;
 }
@@ -189,7 +189,7 @@ int SetExperimentsNum(int blobSize) {
 template <typename T>
 bool IsCorrectBlobCopy_Impl(Blob::Ptr& srcBlob, Blob::Ptr& dstBlob) {
     EXPECT_TRUE(srcBlob->size() == dstBlob->size());
-    int experimentsNum = SetExperimentsNum((int)srcBlob->size());
+    int experimentsNum = SetExperimentsNum(static_cast<int>(srcBlob->size()));
     int errorsCount = 0;
     for (; experimentsNum > 0; --experimentsNum) {
         SizeVector randomElemIdx = GenerateRandomVector(srcBlob->getTensorDesc().getDims());
@@ -258,8 +258,8 @@ TEST_P(BlobCopyTest, BlobCopy) {
     SizeVector srcDims = SetDimVector(batchNum, channelNum, dims);
     SizeVector dstDims = SetDimVector(batchNum, channelNum, dims);
 
-    InferenceEngine::Layout srcLayout = setLayout(srcIsInterleaved, (int)dims.size());
-    InferenceEngine::Layout dstLayout = setLayout(dstIsInterleaved, (int)dims.size());
+    InferenceEngine::Layout srcLayout = setLayout(srcIsInterleaved, static_cast<int>(dims.size()));
+    InferenceEngine::Layout dstLayout = setLayout(dstIsInterleaved, static_cast<int>(dims.size()));
 
     PrintParams(srcLayout, srcDims, "src", precisionType);
     PrintParams(dstLayout, dstDims, "dst", precisionType);

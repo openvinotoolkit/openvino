@@ -297,8 +297,8 @@ TEST(MemSolverTest, NoOverlapping) {
     // EXPECT_EQ(ms.solve(), 5);
 
     auto no_overlap = [&](Box box1, Box box2) -> bool {
-        int64_t off1 = ms.getOffset((int)box1.id);
-        int64_t off2 = ms.getOffset((int)box2.id);
+        int64_t off1 = ms.getOffset(static_cast<int>(box1.id));
+        int64_t off2 = ms.getOffset(static_cast<int>(box2.id));
         return box1.finish < box2.start || box1.start > box2.finish || off1 + box1.size <= off2 ||
                off1 >= off2 + box2.size;
     };
@@ -327,8 +327,8 @@ TEST(MemSolverTest, BestSolution1) {
     EXPECT_EQ(ms.solve(), 5);
 
     auto no_overlap = [&](Box box1, Box box2) -> bool {
-        int64_t off1 = ms.getOffset((int)box1.id);
-        int64_t off2 = ms.getOffset((int)box2.id);
+        int64_t off1 = ms.getOffset(static_cast<int>(box1.id));
+        int64_t off2 = ms.getOffset(static_cast<int>(box2.id));
         return box1.finish < box2.start || box1.start > box2.finish || off1 + box1.size <= off2 ||
                off1 >= off2 + box2.size;
     };
