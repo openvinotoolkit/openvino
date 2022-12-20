@@ -406,3 +406,12 @@ def create_equal_logicalnot_pattern():
     pattern.append_single_op('Equal', 'equal')
     pattern.append_single_op('LogicalNot', 'logicalnot')
     return pattern.set_name('equal_logicalnot').pattern
+
+@registry_ignore_patterns('blocks')
+def create_hswish_pattern_3():
+    pattern = PatternBuilder()
+    pattern.insert_conv_fc(name='input')
+    hswish_input = pattern.insert_bias().get_last_node()
+    clamp_out = pattern.append_single_op('HardSigmoid', 'hardsigmoid').get_last_node()
+    pattern.insert_single_op([hswish_input, clamp_out], None, 'Multiply', 'mul')
+    return pattern.set_name('hswish_activation_v3').pattern
