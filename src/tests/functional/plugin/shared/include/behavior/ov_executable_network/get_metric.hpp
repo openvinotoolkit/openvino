@@ -179,8 +179,8 @@ TEST_P(OVClassExecutableNetworkGetMetricTest_DEVICE_PRIORITY, GetMetricNoThrow) 
 }
 
 TEST_P(OVClassExecutableNetworkGetMetricTest_DEVICE_PROPERTIES, GetMetricWithDevicePropertiesNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
-    auto compiled_model = ie.compile_model(simpleNetwork, target_device, configuration);
+    ov::Core core = createCoreWithTemplate();
+    auto compiled_model = core.compile_model(simpleNetwork, target_device, configuration);
     int32_t expected_value = configuration[device_name].as<ov::AnyMap>()[ov::num_streams.name()].as<int32_t>();
     int32_t actual_value = -1;
     ASSERT_NO_THROW(actual_value = compiled_model.get_property(ov::device::properties(device_name, ov::num_streams)));
@@ -197,8 +197,8 @@ TEST_P(OVClassExecutableNetworkGetMetricTestUnsupportConfigThrow_DEVICE_PROPERTI
 }
 
 TEST_P(OVClassExecutableNetworkGetMetricTestInvalidDeviceThrow_DEVICE_PROPERTIES, GetMetricWithDevicePropertiesThrow) {
-    ov::Core ie = createCoreWithTemplate();
-    auto compiled_model = ie.compile_model(simpleNetwork, target_device, configuration);
+    ov::Core core = createCoreWithTemplate();
+    auto compiled_model = core.compile_model(simpleNetwork, target_device, configuration);
     // executable network is not found in meta plugin
     ASSERT_THROW(compiled_model.get_property(ov::device::properties(device_name, ov::num_streams)), ov::Exception);
 }
