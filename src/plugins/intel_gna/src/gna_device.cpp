@@ -475,13 +475,16 @@ GNAPluginNS::RequestStatus GNADeviceHelper::waitForRequest(uint32_t requestID, i
     if (status == Gna2StatusDriverQoSTimeoutExceeded) {
         return GNAPluginNS::RequestStatus::kAborted;
     }
-    checkGna2Status(status, "Gna2RequestWait");
 
     if (per_request_diagnostics) {
         dumpAllAllocations(debugLogIndexRequestWait, "AfterGna2RequestWait");
         debugLogIndexRequestWait++;
     }
     updateGnaPerfCounters();
+
+    // handle error case after updating statistics data.
+    checkGna2Status(status, "Gna2RequestWait");
+
     return GNAPluginNS::RequestStatus::kCompleted;
 }
 
