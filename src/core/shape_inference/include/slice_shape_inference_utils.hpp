@@ -244,8 +244,9 @@ std::unique_ptr<TResult> get_input_bounds(const ov::Node* op,
  */
 template <class TDim>
 TDim make_dim(const TDim& dim, const Bounds& start, const Bounds& stop, int64_t step) {
-    auto lb = get_sliced_value(dim.get_min_length(), start.second, stop.first, step);
-    auto ub = get_sliced_value(dim.get_max_length(), start.first, stop.second, step);
+    using TDimVal = typename TDim::value_type;
+    auto lb = static_cast<TDimVal>(get_sliced_value(dim.get_min_length(), start.second, stop.first, step));
+    auto ub = static_cast<TDimVal>(get_sliced_value(dim.get_max_length(), start.first, stop.second, step));
 
     return {lb, ub};
 }
