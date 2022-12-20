@@ -13,7 +13,7 @@ namespace op {
 /**
  * @interface Buffer
  * @brief The operation is for intermediate data storage
- *        - m_allocation_rank - rank of shape for memory allocation: shape[shape_rank - m_allocation_rank : shape_rank].
+ *        - m_allocation_rank - rank of shape for memory allocation: shape[shape_rank - normalize(m_allocation_rank) : shape_rank].
  *                 It's needed to allocate needed memory size that depends on Tile rank, for example.
  *                 Default value is -1 (full shape)
  *        Notes:
