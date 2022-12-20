@@ -56,7 +56,7 @@ def base_args_config():
 
 
 class TestConvertImplTmpIrsCleanup(unittest.TestCase):
-    test_model_file = "../../moc_tf_fe/test_models/mul_with_unknown_rank_y.pbtxt"
+    test_model_file = os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, "moc_tf_fe/test_models/mul_with_unknown_rank_y.pbtxt") 
 
     @staticmethod
     def are_tmp_files_left(orig_model_name):
