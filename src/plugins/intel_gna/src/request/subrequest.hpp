@@ -28,6 +28,7 @@ public:
      * @param requestID id of request to be used for wait
      * @param timeoutMilliseconds timeout of wait in milliseconds
      * @return Status of subrequest @see GNAPluginNS::RequestStatus
+     *
      */
     using WaitHandler = std::function<RequestStatus(uint32_t requestID, int64_t timeoutMilliseconds)>;
 
@@ -42,8 +43,14 @@ public:
 
     /**
      * @brief Add subrequest to execution queue.
+     * @return true in case subrequest was properly enqueued, otherwise return false
      */
-    virtual void enqueue() = 0;
+    virtual bool enqueue() = 0;
+
+    /**
+     * @brief Finalize subrequest and set it status to RequestStatus::kNone
+     */
+    virtual void cleanup() = 0;
 
     /**
      * @brief Return true if subrequest is pending, otherwise return false

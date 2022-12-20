@@ -20,41 +20,31 @@ const std::vector<ov::element::Type> inTypes = {
     ov::element::f32
 };
 
-const auto testCase_values = ::testing::Combine(
-    ::testing::ValuesIn(inShapes_nhwc),
-    ::testing::ValuesIn(inTypes),
-    ::testing::Bool(),
-    ::testing::Bool(),
-    ::testing::Values(CommonTestUtils::DEVICE_GPU)
-);
-
-
-INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColorNV12, ConvertColorNV12LayerTest, testCase_values, ConvertColorNV12LayerTest::getTestCaseName);
-
-const auto testCase_accuracy_values = ::testing::Combine(
-        ::testing::Values(ov::Shape{1, 16*6, 16, 1}),
-        ::testing::Values(ov::element::u8),
-        ::testing::Bool(),
-        ::testing::Bool(),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)
-);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColorNV12,
+                         ConvertColorNV12LayerTest,
+                         ::testing::Combine(::testing::ValuesIn(inShapes_nhwc),
+                                            ::testing::ValuesIn(inTypes),
+                                            ::testing::Bool(),
+                                            ::testing::Bool(),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                         ConvertColorNV12LayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColorNV12_acc,
                          ConvertColorNV12AccuracyTest,
-                         testCase_accuracy_values,
+                         ::testing::Combine(::testing::Values(ov::Shape{1, 16 * 6, 16, 1}),
+                                            ::testing::Values(ov::element::u8),
+                                            ::testing::Bool(),
+                                            ::testing::Bool(),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                          ConvertColorNV12LayerTest::getTestCaseName);
-
-const auto testCase_accuracy_values_nightly = ::testing::Combine(
-        ::testing::Values(ov::Shape{1, 256*256, 256, 1}),
-        ::testing::Values(ov::element::u8),
-        ::testing::Values(false),
-        ::testing::Values(true),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)
-);
 
 INSTANTIATE_TEST_SUITE_P(nightly_TestsConvertColorNV12_acc,
                          ConvertColorNV12AccuracyTest,
-                         testCase_accuracy_values_nightly,
+                         ::testing::Combine(::testing::Values(ov::Shape{1, 256 * 256, 256, 1}),
+                                            ::testing::Values(ov::element::u8),
+                                            ::testing::Values(false),
+                                            ::testing::Values(true),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                          ConvertColorNV12LayerTest::getTestCaseName);
 
 }  // namespace
