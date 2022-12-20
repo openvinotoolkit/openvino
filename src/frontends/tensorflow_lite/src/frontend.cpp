@@ -11,6 +11,7 @@
 #include "pass/transpose_sinking.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "tensor_lite_place.hpp"
+#include "openvino/pass/visualize_tree.hpp"
 
 using namespace ov;
 using namespace ov::frontend::tensorflow_lite;
@@ -84,6 +85,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
 
     translate_graph(model, "TensorFlow_Lite_Frontend_IR", true, false, ov_model);
     normalize(ov_model);
+    ov::pass::VisualizeTree("frontend_ov_model_normalized.svg").run_on_model(ov_model);
 
     for (const auto& node : ov_model->get_ordered_ops()) {
         if (const auto& fw_node = ov::as_type_ptr<ov::frontend::tensorflow::FrameworkNode>(node)) {
@@ -115,8 +117,6 @@ void FrontEnd::translate_graph(const InputModel::Ptr &model, const std::string &
         FRONT_END_GENERAL_CHECK(input_tensor != nullptr, "Inputs must be TensorPlaces");
         value.second = apply_quantization(value.second, input_tensor);
     }
-
-
 
     // inputs
     ParameterVector parameters;
@@ -152,8 +152,6 @@ void FrontEnd::translate_graph(const InputModel::Ptr &model, const std::string &
     for (const auto& op_place : model_lite->get_op_places()) {
         const auto& decoder = std::dynamic_pointer_cast<tensorflow_lite::DecoderFlatBuffer>(op_place->get_decoder());
         FRONT_END_GENERAL_CHECK(decoder != nullptr, "Decoder must be DecoderFlatBuffer or its child");
-        std::cout << op_place->get_decoder()->get_op_type() << std::endl;
-
         ov::OutputVector inputs(decoder->get_input_size());
         for (size_t i = 0; i < decoder->get_input_size(); ++i) {
             size_t tensor_idx;
@@ -173,8 +171,6 @@ void FrontEnd::translate_graph(const InputModel::Ptr &model, const std::string &
             auto op_fun = &(translate_map.at(decoder->get_op_type()));
             ov::frontend::tensorflow::NodeContext node_context(decoder, inputs);
             ov_outputs = (*op_fun)(node_context);
-            std::cout << ov_outputs[0].get_node_shared_ptr() << std::endl;
-            // TODO: translate output tensors
         } catch (...) {
             if (fail_fast) {
                 // re-throw any exception
@@ -189,6 +185,9 @@ void FrontEnd::translate_graph(const InputModel::Ptr &model, const std::string &
             const auto& name = decoder->get_output_tensor_name(i);
             all_tensor_values[name] = ov_outputs[i];
             ov_outputs[i].get_tensor().set_names({name});
+            if (!no_conversion) {
+                ov_outputs[i] = apply_quantization(ov_outputs[i], all_tensor_places[name]);
+            }
             if (output_names.find(name) != output_names.end()) {
                 const auto& result = std::make_shared<ov::opset1::Result>(ov_outputs[i]); // order may be different!
                 result->set_friendly_name(name);
@@ -210,7 +209,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model> &function) const {
     ov::pass::Manager manager;
     // TODO: register i8 weights normalization after implemented
     // TODO: remove custom transpose sinking after common TS ready
-    manager.register_pass<ov::frontend::tensorflow::pass::TransposeSinking>();
     manager.register_pass<ov::pass::TransposeSinking>();
+    manager.register_pass<ov::frontend::tensorflow::pass::TransposeSinking>();
     manager.run_passes(function);
 }

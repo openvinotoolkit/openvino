@@ -68,8 +68,7 @@ ov::PartialShape ov::frontend::tensorflow_lite::get_ov_shape(const flatbuffers::
 
 ov::Output<ov::Node> ov::frontend::tensorflow_lite::apply_quantization(
         ov::Output<ov::Node> output, const std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace>& tensor, bool is_input) {
-    Quantization quantization;
-    quantization = tensor->get_quantization();
+    auto quantization = tensor->get_quantization();
     if (quantization.no_quantization)
         return output;
 
@@ -86,10 +85,12 @@ ov::Output<ov::Node> ov::frontend::tensorflow_lite::apply_quantization(
         if (std::any_of(zp.begin(), zp.end(), [](const int64_t& i){ return i != 0; }))
             output = std::make_shared<ov::opset10::Subtract>(output, zp_node);
         output = std::make_shared<ov::opset10::Multiply>(output, scale_node);
+        return output;
     }
 
     auto levels = 256;
-    if (is_input && input_type == element::u8) {
+    if (is_input) {
+        FRONT_END_GENERAL_CHECK(input_type == element::u8, "Inputs of type other than u8 is not yet supported");
         output = std::make_shared<ov::opset10::Convert>(output, element::f32);
         input_low = ov::opset10::Constant::create(element::f32, {}, {0});
         input_high = ov::opset10::Constant::create(element::f32, {}, {levels - 1});
@@ -99,11 +100,12 @@ ov::Output<ov::Node> ov::frontend::tensorflow_lite::apply_quantization(
     } else {
         output_low = std::make_shared<opset10::Multiply>(std::make_shared<opset10::Negative>(scale_node), zp_node);
     }
-    output_high = std::make_shared<opset10::Multiply>(scale_node, std::make_shared<opset10::Subtract>(ov::opset10::Constant::create(element::f32, {}, {levels - 1}),zp_node));
+    output_high = std::make_shared<opset10::Multiply>(scale_node, std::make_shared<opset10::Subtract>(ov::opset10::Constant::create(element::f32, {}, {levels - 1}), zp_node));
     if (!is_input) {
         input_low = output_low;
         input_high = output_high;
     }
     auto fq = std::make_shared<opset10::FakeQuantize>(output, input_low, input_high, output_low, output_high, levels);
+    tensor->disable_quantization(); // we applied parameters -- disable them so that they won't apply twice
     return fq;
 }

@@ -19,7 +19,7 @@ OutputVector translate_concat_op(const NodeContext& node) {
     // The difference between Concat and ConcatV2 is that
     // axis is the first input for Concat
     // and is the last input to ConcatV2
-    default_op_checks(node, 2, {"Concat", "ConcatV2"});
+    default_op_checks(node, 2, {"Concat", "ConcatV2", "tflite::CONCATENATION"});
     auto input_size = node.get_input_size();
 
     int64_t axis;
@@ -45,6 +45,11 @@ OutputVector translate_concat_op(const NodeContext& node) {
             "Input model is incorrect: axis input for Concat operation must have exactly one element.");
         axis = axis_vector[0];
         for (size_t input_idx = 0; input_idx < input_size - 1; ++input_idx) {
+            inputs.push_back(node.get_input(input_idx));
+        }
+    } else if (node.get_op_type() == "tflite::CONCATENATION") {
+        axis = node.get_decoder()->get_attribute("axis").as<int64_t>();
+        for (size_t input_idx = 0; input_idx < input_size; ++input_idx) {
             inputs.push_back(node.get_input(input_idx));
         }
     } else {

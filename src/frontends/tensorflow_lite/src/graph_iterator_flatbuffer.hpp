@@ -105,7 +105,14 @@ public:
 
     /// Return NodeContext for the current node that iterator points to
     std::shared_ptr<DecoderFlatBuffer> get_decoder() const {
-        std::string type = tflite::EnumNamesBuiltinOperator()[(*m_model->operator_codes())[m_nodes[node_index]->opcode_index()]->builtin_code()];
+        auto op_codes = m_model->operator_codes();
+        auto operator_code = (*op_codes)[m_nodes[node_index]->opcode_index()];
+        std::string type;
+        if (operator_code->deprecated_builtin_code() < tflite::BuiltinOperator::BuiltinOperator_PLACEHOLDER_FOR_GREATER_OP_CODES) {
+            type = tflite::EnumNamesBuiltinOperator()[operator_code->deprecated_builtin_code()];
+        } else {
+            type = tflite::EnumNamesBuiltinOperator()[operator_code->builtin_code()];
+        }
         return std::make_shared<DecoderFlatBuffer>(m_nodes[node_index], type, std::to_string(node_index), m_tensors);
     }
 };

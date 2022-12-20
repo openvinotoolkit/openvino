@@ -8,3 +8,6 @@ const ov::frontend::tensorflow_lite::Quantization& ov::frontend::tensorflow_lite
     return m_quantization;
 }
 
+void ov::frontend::tensorflow_lite::TensorLitePlace::disable_quantization() {
+    m_quantization.no_quantization = true;
+}

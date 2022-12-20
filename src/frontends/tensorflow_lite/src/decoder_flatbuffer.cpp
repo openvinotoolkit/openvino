@@ -18,39 +18,14 @@ ov::Any DecoderFlatBuffer::get_attribute(const std::string& name) const {
         // TODO: try custom
         return {};
     }
-
     if (name == "Conv2DOptions")
         return m_node_def->builtin_options_as_Conv2DOptions();
-
-    std::cout << "Attribute " << name << " was requested!" << std::endl;
-
-    if (auto conv_opts = m_node_def->builtin_options_as_Conv2DOptions()) {
-        if (name == "strides") {
-            std::vector<int64_t> strides = {0, conv_opts->stride_h(), conv_opts->stride_w(), 0};
-            return {strides};
-        } else if (name == "padding") {
-            std::string padding = EnumNamePadding(conv_opts->padding());
-            return {padding};
-        } else if (name == "data_format") {
-            return {"NHWC"};
-        } else if (name == "dilations") {
-            std::vector<int64_t> dilations = {0, conv_opts->dilation_h_factor(), conv_opts->dilation_w_factor(), 0};
-            return {dilations};
-        }
-    } else if (auto depth_conv_opts = m_node_def->builtin_options_as_DepthwiseConv2DOptions()) {
-        if (name == "strides") {
-            std::vector<int64_t> strides = {0, depth_conv_opts->stride_h(), depth_conv_opts->stride_w(), 0};
-            return {strides};
-        } else if (name == "padding") {
-            std::string padding = EnumNamePadding(depth_conv_opts->padding());
-            return {padding};
-        } else if (name == "data_format") {
-            return {"NHWC"};
-        } else if (name == "dilations") {
-            std::vector<int64_t> dilations = {0, depth_conv_opts->dilation_h_factor(), depth_conv_opts->dilation_w_factor(), 0};
-            return {dilations};
-        }
-    }
+    if (name == "DepthwiseConv2DOptions")
+        return m_node_def->builtin_options_as_DepthwiseConv2DOptions();
+    if (name == "ConcatenationOptions")
+        return m_node_def->builtin_options_as_ConcatenationOptions();
+    if (name == "ReshapeOptions")
+        return m_node_def->builtin_options_as_ReshapeOptions();
     return {};
 }
 

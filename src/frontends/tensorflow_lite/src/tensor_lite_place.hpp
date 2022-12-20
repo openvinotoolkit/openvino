@@ -27,10 +27,11 @@ public:
                     const ov::PartialShape& pshape,
                     ov::element::Type type,
                     const std::vector<std::string>& names,
-                    ov::frontend::tensorflow_lite::Quantization quantization) : ov::frontend::tensorflow::TensorPlace(input_model, pshape, type, names),
+                    const ov::frontend::tensorflow_lite::Quantization& quantization) : ov::frontend::tensorflow::TensorPlace(input_model, pshape, type, names),
                                              m_quantization(quantization) {};
 
-    const struct ov::frontend::tensorflow_lite::Quantization& get_quantization() const;
+    const ov::frontend::tensorflow_lite::Quantization& get_quantization() const;
+    void disable_quantization();
 protected:
     ov::frontend::tensorflow_lite::Quantization m_quantization;
 };
