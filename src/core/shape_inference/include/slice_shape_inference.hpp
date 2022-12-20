@@ -11,9 +11,35 @@
 
 namespace ov {
 namespace op {
-namespace v8 {
 
-const std::array<char const*, 4> shape_names{"start", "stop", "step", "axes"};
+namespace slice {
+
+constexpr std::array<char const*, 4> shape_names{"start", "stop", "step", "axes"};
+
+struct AxesMap {
+    bool is_valid{};               //!< Flag indicates current axes map has valid data (unique).
+    std::map<size_t, size_t> m{};  //!< Map axis value to index of start, stop order.
+
+    void add(const std::vector<int64_t>& axes) {
+        const auto exp_size = std::accumulate(axes.cbegin(), axes.cend(), m.size(), [this](size_t i, int64_t axis) {
+            m.emplace(static_cast<size_t>(axis), i);
+            return ++i;
+        });
+
+        is_valid = exp_size == m.size();
+    }
+
+    void generate_n(size_t n) {
+        n += m.size();
+        for (size_t i = m.size(); i < n; ++i) {
+            m.emplace(i, i);
+        }
+        is_valid = m.size() == n;
+    }
+};
+}  // namespace slice
+
+namespace v8 {
 
 template <class T>
 void shape_infer(const Slice* op,
@@ -39,7 +65,7 @@ void shape_infer(const Slice* op,
         NODE_VALIDATION_CHECK(op,
                               shape_rank.compatible(1),
                               "Slice `",
-                              shape_names[i - 1],
+                              slice::shape_names[i - 1],
                               "` input must be a 1D tensor. Got rank: ",
                               shape_rank);
 
@@ -47,7 +73,7 @@ void shape_infer(const Slice* op,
             NODE_VALIDATION_CHECK(op,
                                   shape_rank.is_dynamic() || shape[0].get_min_length() <= input_rank.get_length(),
                                   "Slice `",
-                                  shape_names[i - 1],
+                                  slice::shape_names[i - 1],
                                   "` input dim size can't be bigger than `data` rank.");
         }
     }
@@ -68,63 +94,40 @@ void shape_infer(const Slice* op,
         return;
     }
 
-    std::vector<int64_t> steps, axes;
-
     // compute constant values of begin, end, and strides if possible
-    auto start = slice::get_input_bounds<T>(op, 1, constant_data);
-    auto stop = slice::get_input_bounds<T>(op, 2, constant_data);
-    auto got_start = !start.first.empty();
-    auto got_stop = !stop.first.empty();
-    const auto got_steps = get_data_as_int64<T>(3, op, steps, constant_data);
+    const auto start = slice::get_input_bounds<T>(op, 1, constant_data);
+    const auto stop = slice::get_input_bounds<T>(op, 2, constant_data);
+    const auto steps = get_input_const_data_as<T, int64_t>(op, 3, constant_data);
 
-    bool got_axes;
+    slice::AxesMap axes_map;
     if (input_shapes.size() > 4) {
         NODE_VALIDATION_CHECK(op,
                               input_shapes[4].compatible(start_shape),
                               "Slice `axes` input must have compatible shape with `start`, `stop`, `step` inputs.");
-        got_axes = get_data_as_int64<T>(4, op, axes, constant_data);
-        if (got_axes) {
-            NODE_VALIDATION_CHECK(op, ov::are_unique(axes), "Slice values in `axes` input must be unique.");
-            ov::normalize_axes(op, input_shape.rank().get_length(), axes);
+
+        if (auto axes = get_input_const_data_as<T, int64_t>(op, 4, constant_data)) {
+            ov::normalize_axes(op, input_shape.rank().get_length(), *axes);
+            axes_map.add(*axes);
+            NODE_VALIDATION_CHECK(op, axes_map.is_valid, "Slice values in `axes` input must be unique.");
         }
-    } else if (got_start) {
-        axes.reserve(start.first.size());
-        std::generate_n(std::back_inserter(axes), start.first.size(), SeqGen<int64_t>(0));
-        got_axes = true;
-    } else {
-        got_axes = false;
+    } else if (start) {
+        axes_map.generate_n(start->size());
     }
 
+    auto axis_it = axes_map.m.cbegin();
+
     std::vector<DimType> dims;
-    dims.reserve(input_shape.rank().get_length());
-    for (size_t dim_idx = 0; dim_idx < static_cast<size_t>(input_shape.rank().get_length()); ++dim_idx) {
+    dims.reserve(input_shape.size());
+    for (size_t dim_idx = 0; dim_idx < input_shape.size(); ++dim_idx) {
         const DimType& input_dim = input_shape[dim_idx];
 
-        const auto axis_it = std::find(axes.begin(), axes.end(), dim_idx);
-        if (axis_it != axes.end()) {
-            const auto i = std::distance(axes.begin(), axis_it);
+        if (axes_map.is_valid && (axis_it != axes_map.m.cend()) && (axis_it->first == dim_idx)) {
+            const auto& i = axis_it->second;
 
-            if (got_start && got_stop && got_steps) {
-                const auto& step = steps[i];
+            if (start && stop && steps) {
+                const auto& step = (*steps)[i];
                 NODE_VALIDATION_CHECK(op, step != 0, "Step must be non-zero");
-
-                const auto& start_lb =
-                    element::get_value_or_limit_of<int64_t>(op->get_input_element_type(1), start.first[i]);
-                const auto& start_ub =
-                    start.second.empty()
-                        ? start_lb
-                        : element::get_value_or_limit_of<int64_t>(op->get_input_element_type(1), start.second[i]);
-
-                const auto& stop_lb =
-                    element::get_value_or_limit_of<int64_t>(op->get_input_element_type(1), stop.first[i]);
-                const auto& stop_ub =
-                    stop.second.empty()
-                        ? stop_lb
-                        : element::get_value_or_limit_of<int64_t>(op->get_input_element_type(1), stop.second[i]);
-
-                auto lb = slice::get_step_elements(input_dim.get_min_length(), start_ub, stop_lb, step);
-                auto ub = slice::get_step_elements(input_dim.get_max_length(), start_lb, stop_ub, step);
-                dims.emplace_back(lb, ub);
+                dims.push_back(slice::make_dim(input_dim, (*start)[i], (*stop)[i], step));
             } else {
                 dims.emplace_back(0, input_dim.get_max_length());
             }
@@ -133,7 +136,8 @@ void shape_infer(const Slice* op,
                 // for equal ov::Dimension do merge to get input label (always success)
                 DimType::merge(dims.back(), dims.back(), input_dim);
             }
-        } else if (got_axes) {
+            ++axis_it;
+        } else if (axes_map.is_valid) {
             // dimension not on axes list, no change
             dims.push_back(input_dim);
         } else {

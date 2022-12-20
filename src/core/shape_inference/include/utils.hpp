@@ -98,9 +98,9 @@ template <class TShape,
           class TData,
           class TRes = std::vector<TData>,
           typename std::enable_if<std::is_same<TShape, ov::PartialShape>::value>::type* = nullptr>
-std::unique_ptr<std::vector<TData>> get_input_const_data_as(const ov::Node* op,
-                                                            size_t idx,
-                                                            const std::map<size_t, HostTensorPtr>& constant_data = {}) {
+std::unique_ptr<TRes> get_input_const_data_as(const ov::Node* op,
+                                              size_t idx,
+                                              const std::map<size_t, HostTensorPtr>& constant_data = {}) {
     if (constant_data.count(idx)) {
         return std::unique_ptr<TRes>(new TRes(ov::opset1::Constant(constant_data.at(idx)).cast_vector<TData>()));
     } else if (const auto& constant = ov::get_constant_from_source(op->input_value(idx))) {

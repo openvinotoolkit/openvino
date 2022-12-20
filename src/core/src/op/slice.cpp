@@ -79,7 +79,7 @@ void op::v8::Slice::validate_and_infer_types() {
             NODE_VALIDATION_CHECK(this,
                                   get_input_element_type(i).is_integral_number(),
                                   "Slice `",
-                                  shape_names[i - 1],
+                                  slice::shape_names[i - 1],
                                   "` input type must be integer.");
         }
 

@@ -14,14 +14,13 @@ namespace ov {
 namespace op {
 namespace v1 {
 
-const std::array<char const*, 3> shape_names{"Begin", "End", "Strides"};
-
 template <class T>
 void shape_infer(const StridedSlice* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes,
                  const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
     using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
+    static constexpr std::array<char const*, 3> shape_names{"Begin", "End", "Strides"};
 
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 3 || input_shapes.size() == 4) && output_shapes.size() == 1);
 
@@ -60,20 +59,15 @@ void shape_infer(const StridedSlice* op,
     };
 
     // compute constant values of begin, end, and strides if possible
-    auto begin = slice::get_input_bounds<T>(op, 1, constant_data);
-    auto end = slice::get_input_bounds<T>(op, 2, constant_data);
-    auto got_begin = !begin.first.empty();
-    auto got_end = !end.first.empty();
+    const auto begin = slice::get_input_bounds<T>(op, 1, constant_data);
+    const auto end = slice::get_input_bounds<T>(op, 2, constant_data);
 
-    std::vector<int64_t> strides;
-    bool got_strides = false;
-
+    std::unique_ptr<std::vector<int64_t>> strides;
     if (input_shapes.size() > 3) {
-        got_strides = get_data_as_int64<T>(3, op, strides, constant_data);
-    } else if (got_begin) {
+        strides = get_input_const_data_as<T, int64_t>(op, 3, constant_data);
+    } else if (begin) {
         // generate default strides
-        strides.resize(begin.first.size(), 1);
-        got_strides = true;
+        strides.reset(new std::vector<int64_t>(begin->size(), 1));
     }
 
     // compute and check a number of axes for which begin, end, and strides are defined
@@ -84,7 +78,7 @@ void shape_infer(const StridedSlice* op,
     } else if (end_number_axes != -1) {
         number_axes = end_number_axes;
     }
-    auto strides_number_axes = got_strides ? static_cast<int64_t>(strides.size()) : static_cast<int64_t>(-1);
+    auto strides_number_axes = strides ? static_cast<int64_t>(strides->size()) : static_cast<int64_t>(-1);
     if (number_axes != -1 && strides_number_axes != -1) {
         NODE_VALIDATION_CHECK(op,
                               number_axes == strides_number_axes,
@@ -133,7 +127,7 @@ void shape_infer(const StridedSlice* op,
                     num_input_axis_before_ellipses++;
                 }
             }
-            for (size_t i = axis + 1; i < begin.first.size(); ++i) {
+            for (size_t i = axis + 1; i < begin->size(); ++i) {
                 if (new_axis_mask.count(i)) {
                     num_new_axis_after_ellipses++;
                 }
@@ -155,37 +149,27 @@ void shape_infer(const StridedSlice* op,
                 input_shape_idx++;
             }
             // calculating dimension (begin, end, begin_mask, end_mask, stride)
-            else if (got_begin && got_end && got_strides) {
+            else if (begin && end && strides) {
                 // set default value for stride or use given value
                 const auto& input_dim = input_shape[input_shape_idx];
-                auto stride = (strides.size() > static_cast<size_t>(axis)) ? strides[axis] : static_cast<int64_t>(1);
+                auto stride =
+                    (strides->size() > static_cast<size_t>(axis)) ? (*strides)[axis] : static_cast<int64_t>(1);
                 NODE_VALIDATION_CHECK(op, stride != 0, "Stride must be non-zero");
 
-                // get stride output dimension for dimension and bounds
-                // may not be called for stride 0 (div by 0!!!) assert check done above
-                const auto get_stride_elements = [&](const int64_t& dim, const int64_t& lower, const int64_t& upper) {
-                    constexpr int64_t inf_bound = -1;
-                    const auto is_reverse_stride = stride < 0;
+                constexpr int64_t inf_bound = -1;
+                const auto is_reverse_stride = stride < 0;
+                const int64_t norm_dim = (input_dim.get_max_length() == inf_bound) ? std::numeric_limits<int64_t>::max()
+                                                                                   : input_dim.get_max_length();
+                constexpr slice::Bounds default_fstart = std::make_pair<int64_t, int64_t>(0, 0);
+                const slice::Bounds default_rstop = std::make_pair(inf_bound - norm_dim, inf_bound - norm_dim);
+                const slice::Bounds norm_dim_bounds = std::make_pair(norm_dim, norm_dim);
 
-                    const auto& norm_dim = dim == inf_bound ? std::numeric_limits<int64_t>::max() : dim;
-                    const int64_t default_start = is_reverse_stride ? norm_dim : 0;
-                    const int64_t default_stop = is_reverse_stride ? inf_bound - norm_dim : norm_dim;
+                const auto& default_start = is_reverse_stride ? norm_dim_bounds : default_fstart;
+                const auto& default_stop = is_reverse_stride ? default_rstop : norm_dim_bounds;
 
-                    const auto start = begin_mask.count(axis) ? default_start : lower;
-                    const auto stop = end_mask.count(axis) ? default_stop : upper;
-
-                    return slice::get_step_elements(norm_dim, start, stop, stride);
-                };
-
-                const auto& begin_lb = begin.first[axis];
-                const auto& begin_ub = begin.second.empty() ? begin_lb : begin.second[axis];
-
-                const auto& end_lb = end.first[axis];
-                const auto& end_ub = end.second.empty() ? end_lb : end.second[axis];
-
-                auto lb = get_stride_elements(input_dim.get_min_length(), begin_ub, end_lb);
-                auto ub = get_stride_elements(input_dim.get_max_length(), begin_lb, end_ub);
-                dims.emplace_back(lb, ub);
+                const auto& start = begin_mask.count(axis) ? default_start : (*begin)[axis];
+                const auto& stop = end_mask.count(axis) ? default_stop : (*end)[axis];
+                dims.push_back(slice::make_dim(input_dim, start, stop, stride));
 
                 if (std::is_same<DimType, ov::Dimension>::value && dims.back() == input_dim) {
                     // for equal ov::Dimension do merge to get input label (always success)
