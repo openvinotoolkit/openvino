@@ -253,17 +253,10 @@ ov::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
         }
 
         if (shape_end != input.get_shape()) {
-            if (shape_end == ov::Shape{}) {
-                input = std::make_shared<ov::opset1::Reshape>(
-                    input,
-                    ov::opset1::Constant::create(ov::element::i64, ov::Shape{1}, {0}),
-                    true);
-            } else {
-                input = std::make_shared<ov::opset1::Reshape>(
-                    input,
-                    ov::opset1::Constant::create(ov::element::i64, ov::Shape{shape_end.size()}, shape_end),
-                    true);
-            }
+            input = std::make_shared<ov::opset1::Reshape>(
+                input,
+                ov::opset1::Constant::create(ov::element::i64, ov::Shape{shape_end.size()}, shape_end),
+                true);
             new_ops.push_back(input.get_node_shared_ptr());
         }
         input.get_node_shared_ptr()->set_friendly_name(reduce->get_friendly_name());
