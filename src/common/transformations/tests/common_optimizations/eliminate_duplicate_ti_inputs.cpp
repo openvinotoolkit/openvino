@@ -69,7 +69,7 @@ TEST(TransformationTests, EliminateDuplicateTIInputs) {
 
     shared_ptr<TensorIterator> ti_after_transformation;
     for (const auto& op : model->get_ordered_ops()) {
-        if (ti_after_transformation = dynamic_pointer_cast<TensorIterator>(op)) {
+        if ((ti_after_transformation = dynamic_pointer_cast<TensorIterator>(op))) {
             break;
         }
     }
