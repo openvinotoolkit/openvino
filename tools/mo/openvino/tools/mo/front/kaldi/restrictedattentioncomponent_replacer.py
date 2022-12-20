@@ -177,7 +177,7 @@ class RestrictedAttentionComponentReplacer(FrontReplacementPattern):
 
         split_2_node.out_port(0).connect(einsum_1_node.in_port(1))
 
-        mul_node = create_op_with_const_inputs(graph, Mul, {1: mo_array(key_scale, dtype=np.float)},
+        mul_node = create_op_with_const_inputs(graph, Mul, {1: mo_array(key_scale, dtype=float)},
                                                {'name': self.in_name + '/Mul'})
         reshape_helper_1_node.out_port(0).connect(mul_node.in_port(0))
 
