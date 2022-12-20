@@ -94,7 +94,7 @@ class TestElu(OnnxRuntimeLayerTest):
         output = helper.make_tensor_value_info('output', TensorProto.FLOAT, output_shape)
 
         const_number = np.prod(shape)
-        constant = np.random.randint(-127, 127, const_number).astype(np.float)
+        constant = np.random.randint(-127, 127, const_number).astype(float)
         constant = np.reshape(constant, shape)
 
         node_const_def = onnx.helper.make_node(

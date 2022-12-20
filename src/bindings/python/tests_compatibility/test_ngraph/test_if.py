@@ -11,7 +11,7 @@ from ngraph.utils.tensor_iterator_types import (
 
 
 def create_simple_if_with_two_outputs(condition_val):
-    condition = ng.constant(condition_val, dtype=np.bool)
+    condition = ng.constant(condition_val, dtype=bool)
 
     # then_body
     X_t = ng.parameter([], np.float32, "X")
@@ -51,7 +51,7 @@ def create_simple_if_with_two_outputs(condition_val):
 
 
 def create_diff_if_with_two_outputs(condition_val):
-    condition = ng.constant(condition_val, dtype=np.bool)
+    condition = ng.constant(condition_val, dtype=bool)
 
     # then_body
     X_t = ng.parameter([2], np.float32, "X")
@@ -83,7 +83,7 @@ def create_diff_if_with_two_outputs(condition_val):
 
 
 def simple_if(condition_val):
-    condition = ng.constant(condition_val, dtype=np.bool)
+    condition = ng.constant(condition_val, dtype=bool)
     # then_body
     X_t = ng.parameter([2], np.float32, "X")
     Y_t = ng.parameter([2], np.float32, "Y")
@@ -112,17 +112,17 @@ def simple_if(condition_val):
 
 
 def simple_if_without_parameters(condition_val):
-    condition = ng.constant(condition_val, dtype=np.bool)
+    condition = ng.constant(condition_val, dtype=bool)
 
     # then_body
-    then_constant = ng.constant(0.7, dtype=np.float32)
+    then_constant = ng.constant(0.7, dtype=float)
     then_body_res_1 = ng.result(then_constant)
     then_body = GraphBody([], [then_body_res_1])
     then_body_inputs = []
     then_body_outputs = [TensorIteratorBodyOutputDesc(0, 0)]
 
     # else_body
-    else_const = ng.constant(9.0, dtype=np.float32)
+    else_const = ng.constant(9.0, dtype=float)
     else_body_res_1 = ng.result(else_const)
     else_body = GraphBody([], [else_body_res_1])
     else_body_inputs = []

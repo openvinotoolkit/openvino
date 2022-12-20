@@ -76,8 +76,8 @@ def test_binary_op(ng_api_helper, expected_type):
 )
 def test_binary_logical_op_parameter_inputs(ng_api_helper):
     shape = [2, 2]
-    parameter_a = ng.parameter(shape, name="A", dtype=np.bool)
-    parameter_b = ng.parameter(shape, name="B", dtype=np.bool)
+    parameter_a = ng.parameter(shape, name="A", dtype=bool)
+    parameter_b = ng.parameter(shape, name="B", dtype=bool)
 
     model = ng_api_helper(parameter_a, parameter_b)
     assert model.get_output_size() == 1
@@ -89,11 +89,11 @@ def test_binary_logical_op_parameter_inputs(ng_api_helper):
     "ng_api_helper",
     [ng.logical_and, ng.logical_or, ng.logical_xor],
 )
-def test_binary_logical_numpy_input(ng_api_helper):
-    value_b = np.array([[False, True], [False, True]], dtype=np.bool)
+def test_binary_logical_op_with_scalar(ng_api_helper):
+    value_b = np.array([[False, True], [False, True]], dtype=bool)
 
     shape = [2, 2]
-    parameter_a = ng.parameter(shape, name="A", dtype=np.bool)
+    parameter_a = ng.parameter(shape, name="A", dtype=bool)
 
     model = ng_api_helper(parameter_a, value_b)
     assert model.get_output_size() == 1

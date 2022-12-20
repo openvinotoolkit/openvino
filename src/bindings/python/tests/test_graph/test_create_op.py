@@ -2156,7 +2156,7 @@ def test_interpolate_opset10(dtype, expected_shape, shape_calculation_mode):
 
 def test_is_finite_opset10():
     input_shape = [1, 2, 3, 4]
-    input_node = ov.parameter(input_shape, np.float32, name="InputData")
+    input_node = ov.parameter(input_shape, float, name="InputData")
     node = ov_opset10.is_finite(input_node)
 
     assert node.get_type_name() == "IsFinite"
@@ -2167,7 +2167,7 @@ def test_is_finite_opset10():
 
 def test_is_inf_opset10_default():
     input_shape = [2, 2, 2, 2]
-    input_node = ov.parameter(input_shape, dtype=np.float32, name="InputData")
+    input_node = ov.parameter(input_shape, dtype=float, name="InputData")
     node = ov_opset10.is_inf(input_node)
 
     assert node.get_type_name() == "IsInf"
@@ -2181,7 +2181,7 @@ def test_is_inf_opset10_default():
 
 def test_is_inf_opset10_custom_attribute():
     input_shape = [2, 2, 2]
-    input_node = ov.parameter(input_shape, dtype=np.float32, name="InputData")
+    input_node = ov.parameter(input_shape, dtype=float, name="InputData")
     attributes = {
         "detect_positive": False,
     }
@@ -2198,7 +2198,7 @@ def test_is_inf_opset10_custom_attribute():
 
 def test_is_inf_opset10_custom_all_attributes():
     input_shape = [2, 2, 2]
-    input_node = ov.parameter(input_shape, dtype=np.float32, name="InputData")
+    input_node = ov.parameter(input_shape, dtype=float, name="InputData")
     attributes = {
         "detect_negative": False,
         "detect_positive": True,
@@ -2216,7 +2216,7 @@ def test_is_inf_opset10_custom_all_attributes():
 
 def test_is_nan_opset10():
     input_shape = [1, 2, 3, 4]
-    input_node = ov.parameter(input_shape, np.float32, name="InputData")
+    input_node = ov.parameter(input_shape, float, name="InputData")
     node = ov_opset10.is_nan(input_node)
 
     assert node.get_type_name() == "IsNaN"
@@ -2227,7 +2227,7 @@ def test_is_nan_opset10():
 
 def test_unique_opset10():
     input_shape = [1, 2, 3, 4]
-    input_node = ov.parameter(input_shape, np.float32, name="input_data")
+    input_node = ov.parameter(input_shape, float, name="input_data")
     axis = ov.constant([1], np.int32, [1])
 
     node = ov_opset10.unique(input_node, axis, False, "i32")

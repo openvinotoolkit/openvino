@@ -40,9 +40,9 @@ edges2 = [('input_data', 'sparse_segment_sqrtn_node', {'in': 0}),
           ('input_segment_ids', 'sparse_segment_sqrtn_node', {'in': 2}),
           ('sparse_segment_sqrtn_node', 'output_segments', {'out': 0})]
 
-inputs2 = {'input_data': {'shape': int64_array([3, 4]), 'value': np.array([[1, 2, 3, 4], [-1, -2, -3, -4], [5, 6, 7, 8]], dtype=np.float)},
-           'input_indices': {'shape': int64_array([3]), 'value': np.array([0, 2, 1, 1, 2], dtype=np.float)},
-           'input_segment_ids': {'shape': int64_array([3]), 'value': np.array([0, 0, 0, 0, 2], dtype=np.float)}}
+inputs2 = {'input_data': {'shape': int64_array([3, 4]), 'value': np.array([[1, 2, 3, 4], [-1, -2, -3, -4], [5, 6, 7, 8]], dtype=float)},
+           'input_indices': {'shape': int64_array([3]), 'value': np.array([0, 2, 1, 1, 2], dtype=float)},
+           'input_segment_ids': {'shape': int64_array([3]), 'value': np.array([0, 0, 0, 0, 2], dtype=float)}}
 
 class TestSparseSegmentSqrtN(unittest.TestCase):
     def test_partial_infer(self):
@@ -76,7 +76,7 @@ class TestSparseSegmentSqrtN(unittest.TestCase):
 
         # prepare reference results
         ref_output_segments_shape = int64_array([3, 4])
-        ref_output_segments_value = np.array([[2, 2, 2, 2], [0, 0, 0, 0], [5, 6, 7, 8]], dtype=np.float)
+        ref_output_segments_value = np.array([[2, 2, 2, 2], [0, 0, 0, 0], [5, 6, 7, 8]], dtype=float)
 
         # get resulted shapes
         res_output_segments_shape = graph.node['output_segments']['shape']
