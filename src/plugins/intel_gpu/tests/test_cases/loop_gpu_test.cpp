@@ -99,7 +99,7 @@ void test_loop_gpu_basic_no_concat(bool is_caching_test)
     network->set_input_data("initial_condition", initial_condition_mem);
 
     auto outputs = network->execute();
-    EXPECT_EQ(outputs.size(), 1);
+    ASSERT_EQ(outputs.size(), 1);
     auto output = outputs.begin()->second.get_memory();
     auto output_layout = output->get_layout();
 
@@ -111,7 +111,7 @@ void test_loop_gpu_basic_no_concat(bool is_caching_test)
     // value check
     {
         mem_lock<T> output_ptr{ output, get_test_stream() };
-        EXPECT_EQ(output_ptr.size(), input_data.size());
+        ASSERT_EQ(output_ptr.size(), input_data.size());
         for (size_t i = 0, iend = input_data.size(); i < iend; ++i) {
             ASSERT_FLOAT_EQ(output_ptr[i], input_data[i] + eltwise_operand[i] * trip_count);
         }
@@ -134,7 +134,7 @@ void test_loop_gpu_basic_no_concat(bool is_caching_test)
     auto output2 = outputs.begin()->second.get_memory();
     {
         mem_lock<T> output_ptr2{ output2, get_test_stream() };
-        EXPECT_EQ(output_ptr2.size(), input_data.size());
+        ASSERT_EQ(output_ptr2.size(), input_data.size());
         for (size_t i = 0, iend = input_data.size(); i < iend; ++i) {
             ASSERT_FLOAT_EQ(output_ptr2[i], input_data[i] + eltwise_operand[i] * trip_count);
         }
@@ -221,7 +221,7 @@ void test_loop_gpu_basic_concat(bool is_caching_test)
     network->set_input_data("initial_condition", initial_condition_mem);
 
     auto outputs = network->execute();
-    EXPECT_EQ(outputs.size(), 1);
+    ASSERT_EQ(outputs.size(), 1);
     auto output = outputs.begin()->second.get_memory();
     auto output_layout = output->get_layout();
 
@@ -385,7 +385,7 @@ void test_loop_gpu_basic_concat_nested(bool is_caching_test)
     network->set_input_data("inner_initial_condition", inner_initial_condition_mem);
 
     auto outputs = network->execute();
-    EXPECT_EQ(outputs.size(), 1);
+    ASSERT_EQ(outputs.size(), 1);
     auto output = outputs.begin()->second.get_memory();
     auto output_layout = output->get_layout();
 
