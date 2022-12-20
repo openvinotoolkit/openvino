@@ -17,17 +17,18 @@ Once you have a model that meets both OpenVINO™ and your requirements, you can
 @sphinxdirective
 .. panels::
 
-    `Deploy Locally <openvino_deployment_guide>`_ 
+    :doc:`Deploy via OpenVINO Runtime <openvino_deployment_guide>` 
     ^^^^^^^^^^^^^^
 
-    Local deployment uses OpenVINO Runtime installed on the device. It utilizes resources available to the system and provides the quickest way of launching inference.
-
+    Local deployment uses OpenVINO Runtime that is called from, and linked to, the application directly. 
+    It utilizes resources available to the system and provides the quickest way of launching inference.
     ---
 
-    `Deploy by Model Serving <ovms_what_is_openvino_model_server>`_
+    :doc:`Deploy via Model Server <ovms_what_is_openvino_model_server>`
     ^^^^^^^^^^^^^^
 
-    Deployment via OpenVINO Model Server allows the device to connect to the server set up remotely. This way inference uses external resources instead of the ones provided by the device itself. 
+    Deployment via OpenVINO Model Server allows the application to connect to the inference server set up remotely. 
+    This way inference can use external resources instead of those available to the application itself. 
 
 @endsphinxdirective
 
