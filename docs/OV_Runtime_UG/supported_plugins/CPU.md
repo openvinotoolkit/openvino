@@ -233,6 +233,7 @@ All parameters must be set before calling `ov::Core::compile_model()` in order t
 - `ov::inference_num_threads`
 - `ov::cache_dir`
 - `ov::intel_cpu::denormals_optimization`
+- `ov::intel_cpu::sparse_weights_decompression_rate`
 
 
 ### Read-only properties
