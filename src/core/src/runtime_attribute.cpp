@@ -32,6 +32,10 @@ bool RuntimeAttribute::is_copyable() const {
     return true;
 }
 
+bool RuntimeAttribute::is_copyable(const std::shared_ptr<Node>& to) const {
+    return is_copyable();
+}
+
 std::ostream& operator<<(std::ostream& os, const RuntimeAttribute& attrubute) {
     return os << attrubute.to_string();
 }

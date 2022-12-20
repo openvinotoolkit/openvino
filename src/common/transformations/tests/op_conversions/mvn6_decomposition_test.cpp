@@ -22,7 +22,7 @@ TEST_F(TransformationTestsF, MVN6Decomposition_No_Variance) {
         auto data = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 3, 4});
         auto axes_const = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {2, 3});
         auto mvn =
-            std::make_shared<ngraph::opset6::MVN>(data, axes_const, false, 1e-5, ngraph::op::MVNEpsMode::INSIDE_SQRT);
+            std::make_shared<ngraph::opset6::MVN>(data, axes_const, false, 1e-5f, ngraph::op::MVNEpsMode::INSIDE_SQRT);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mvn}, ngraph::ParameterVector{data});
 
@@ -45,7 +45,7 @@ TEST_F(TransformationTestsF, MVN6Decomposition_Inside_Sqrt) {
         auto data = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 3, 4});
         auto axes_const = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {2, 3});
         auto mvn =
-            std::make_shared<ngraph::opset6::MVN>(data, axes_const, true, 1e-5, ngraph::op::MVNEpsMode::INSIDE_SQRT);
+            std::make_shared<ngraph::opset6::MVN>(data, axes_const, true, 1e-5f, ngraph::op::MVNEpsMode::INSIDE_SQRT);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mvn}, ngraph::ParameterVector{data});
 
@@ -77,7 +77,7 @@ TEST_F(TransformationTestsF, MVN6Decomposition_Outside_Sqrt) {
         auto data = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 3, 4});
         auto axes_const = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {2, 3});
         auto mvn =
-            std::make_shared<ngraph::opset6::MVN>(data, axes_const, true, 1e-5, ngraph::op::MVNEpsMode::OUTSIDE_SQRT);
+            std::make_shared<ngraph::opset6::MVN>(data, axes_const, true, 1e-5f, ngraph::op::MVNEpsMode::OUTSIDE_SQRT);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mvn}, ngraph::ParameterVector{data});
 

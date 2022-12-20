@@ -19,7 +19,7 @@ using namespace ov;
 constexpr float normalized_fp16_min = 6.103515625e-05f;  // fp16 minimal normalized value
 
 TEST_F(TransformationTestsF, DivisionByZeroMinimalPattern) {
-    const float eps_value = 1.e-12;
+    const float eps_value = 1.e-12f;
     {
         auto input_1 = std::make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(3));
         auto input_2 = std::make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(3));
@@ -46,7 +46,7 @@ TEST_F(TransformationTestsF, DivisionByZeroMinimalPattern) {
 }
 
 TEST_F(TransformationTestsF, PowWithNegativeExponent) {
-    const float eps_value = 1.e-12;
+    const float eps_value = 1.e-12f;
     {
         auto input_1 = std::make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(3));
         auto input_2 = std::make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(3));
@@ -78,7 +78,7 @@ TEST_F(TransformationTestsF, PowWithNegativeExponent) {
 
 TEST_F(TransformationTestsF, PowWithPositiveExponent) {
     // graph should be left unchanged
-    const float eps_value = 1.e-12;
+    const float eps_value = 1.e-12f;
     {
         auto input_1 = std::make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(3));
         auto input_2 = std::make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(3));
@@ -137,7 +137,7 @@ TEST_F(TransformationTestsF, DivisionByZeroMinimalPatternUnchanged) {
 }
 
 TEST_F(TransformationTestsF, DivisionByZeroInL2NormWithSqrtAndWithMax) {
-    const float eps_value = 1.e-12;
+    const float eps_value = 1.e-12f;
     {
         auto input = std::make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(3));
         auto exp = opset4::Constant::create(element::f32, Shape{}, {2.f});
@@ -172,7 +172,7 @@ TEST_F(TransformationTestsF, DivisionByZeroInL2NormWithSqrtAndWithMax) {
 }
 
 TEST_F(TransformationTestsF, DivisionByZeroInL2NormWithSqrtAndWithAdd) {
-    const float eps_value = 1.e-12;
+    const float eps_value = 1.e-12f;
     {
         auto input = std::make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(3));
         auto exp = opset4::Constant::create(element::f32, Shape{}, {2.f});

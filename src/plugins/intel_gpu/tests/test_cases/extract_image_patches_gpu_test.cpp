@@ -47,8 +47,8 @@ TEST(extract_image_patches_gpu, basic) {
     network.set_input_data("Input0", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "extract_image_patches");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "extract_image_patches");
 
     auto output = outputs.at("extract_image_patches").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -84,7 +84,7 @@ TEST(extract_image_patches_gpu, basic) {
 
     ASSERT_EQ(answers.size(), output_ptr.size());
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
     }
 }
 
@@ -121,8 +121,8 @@ TEST(extract_image_patches_gpu, basic2) {
     network.set_input_data("Input0", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "extract_image_patches");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "extract_image_patches");
 
     auto output = outputs.at("extract_image_patches").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -148,7 +148,7 @@ TEST(extract_image_patches_gpu, basic2) {
 
     ASSERT_EQ(answers.size(), output_ptr.size());
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
     }
 }
 
@@ -185,8 +185,8 @@ TEST(extract_image_patches_gpu, basic3) {
     network.set_input_data("Input0", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "extract_image_patches");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "extract_image_patches");
 
     auto output = outputs.at("extract_image_patches").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -243,7 +243,7 @@ TEST(extract_image_patches_gpu, basic3) {
 
     ASSERT_EQ(answers.size(), output_ptr.size());
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
     }
 }
 
@@ -280,8 +280,8 @@ TEST(extract_image_patches_gpu, basic3_same_lower) {
     network.set_input_data("Input0", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "extract_image_patches");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "extract_image_patches");
 
     auto output = outputs.at("extract_image_patches").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -338,7 +338,7 @@ TEST(extract_image_patches_gpu, basic3_same_lower) {
 
     ASSERT_EQ(answers.size(), output_ptr.size());
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
     }
 }
 
@@ -375,8 +375,8 @@ TEST(extract_image_patches_gpu, basic3_enough_space) {
     network.set_input_data("Input0", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "extract_image_patches");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "extract_image_patches");
 
     auto output = outputs.at("extract_image_patches").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -412,7 +412,7 @@ TEST(extract_image_patches_gpu, basic3_enough_space) {
 
     ASSERT_EQ(answers.size(), output_ptr.size());
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
     }
 }
 
@@ -449,8 +449,8 @@ TEST(extract_image_patches_gpu, basic4) {
     network.set_input_data("Input0", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "extract_image_patches");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "extract_image_patches");
 
     auto output = outputs.at("extract_image_patches").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -486,7 +486,7 @@ TEST(extract_image_patches_gpu, basic4) {
 
     ASSERT_EQ(answers.size(), output_ptr.size());
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
     }
 }
 
@@ -542,8 +542,8 @@ void test_extract_image_patches_gpu_basic5(bool is_caching_test) {
     network->set_input_data("Input0", input);
     auto outputs = network->execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "extract_image_patches");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "extract_image_patches");
 
     auto output = outputs.at("extract_image_patches").get_memory();
     cldnn::mem_lock<T> output_ptr(output, get_test_stream());
@@ -576,7 +576,7 @@ void test_extract_image_patches_gpu_basic5(bool is_caching_test) {
 
     ASSERT_EQ(answers.size(), output_ptr.size());
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
     }
 }
 
