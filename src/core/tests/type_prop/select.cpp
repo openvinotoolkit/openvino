@@ -169,50 +169,6 @@ TEST(type_prop, select_labels_all_params_pdpd) {
     EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
 }
 
-TEST(type_prop, select_value_propagation) {
-    auto shape_cond = PartialShape{7};
-    auto shape_then = PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}};
-    auto shape_else = PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}};
-
-    auto cond_param = make_shared<op::Parameter>(element::boolean, shape_cond);
-    auto then_param = make_shared<op::Parameter>(element::f32, shape_then);
-    auto else_param = make_shared<op::Parameter>(element::f32, shape_else);
-
-    auto shape_of_then = make_shared<op::v3::ShapeOf>(then_param);  // Shape{7}
-    auto shape_of_else = make_shared<op::v3::ShapeOf>(else_param);  // Shape{7}
-    auto select = make_shared<op::v1::Select>(cond_param, shape_of_then, shape_of_else);
-
-    auto broadcast = make_shared<op::v3::Broadcast>(op::Constant::create(element::i64, Shape{1}, {4}), select);
-
-    EXPECT_EQ(select->get_element_type(), element::i64);
-    EXPECT_EQ(select->get_output_partial_shape(0), (PartialShape{7}));
-
-    EXPECT_EQ(broadcast->get_element_type(), element::i64);
-    EXPECT_EQ(broadcast->get_output_partial_shape(0), (PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}}));
-}
-
-TEST(type_prop, select_value_label_propagation) {
-    auto shape_cond = PartialShape{7};
-    auto shape_then = PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}};
-    auto shape_else = PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}};
-
-    auto cond_param = make_shared<op::Parameter>(element::boolean, shape_cond);
-    auto then_param = make_shared<op::Parameter>(element::f32, shape_then);
-    auto else_param = make_shared<op::Parameter>(element::f32, shape_else);
-
-    auto shape_of_then = make_shared<op::v3::ShapeOf>(then_param);  // Shape{7}
-    auto shape_of_else = make_shared<op::v3::ShapeOf>(else_param);  // Shape{7}
-    auto select = make_shared<op::v1::Select>(cond_param, shape_of_then, shape_of_else);
-
-    auto broadcast = make_shared<op::v3::Broadcast>(op::Constant::create(element::i64, Shape{1}, {4}), select);
-
-    EXPECT_EQ(select->get_element_type(), element::i64);
-    EXPECT_EQ(select->get_output_partial_shape(0), (PartialShape{7}));
-
-    EXPECT_EQ(broadcast->get_element_type(), element::i64);
-    EXPECT_EQ(broadcast->get_output_partial_shape(0), (PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}}));
-}
-
 TEST(type_prop, select_dynamic) {
     auto param_0 =
         make_shared<op::Parameter>(element::boolean, PartialShape({{2, 8}, {3, 7}, {1, 10}, {1, 6}, {1, 10}}));

@@ -148,31 +148,3 @@ bool op::v1::Select::has_evaluate() const {
     }
     return false;
 }
-
-bool op::v1::Select::evaluate_lower(const HostTensorVector& outputs) const {
-    OV_OP_SCOPE(v1_Select_evaluate_lower);
-    std::shared_ptr<HostTensor> low_1 = input_value(1).get_tensor().get_lower_value();
-    if (!low_1) {
-        return false;
-    }
-    std::shared_ptr<HostTensor> low_2 = input_value(2).get_tensor().get_lower_value();
-    if (!low_2) {
-        return false;
-    }
-    HostTensorVector inputs_low{low_1, low_2};
-    return op::v1::Minimum().evaluate(outputs, inputs_low);
-}
-bool op::v1::Select::evaluate_upper(const HostTensorVector& outputs) const {
-    OV_OP_SCOPE(v1_Select_evaluate_upper);
-    std::shared_ptr<HostTensor> up_1 = input_value(1).get_tensor().get_upper_value();
-    if (!up_1) {
-        return false;
-    }
-    std::shared_ptr<HostTensor> up_2 = input_value(2).get_tensor().get_upper_value();
-    if (!up_2) {
-        return false;
-    }
-    HostTensorVector inputs_up{up_1, up_2};
-    return op::v1::Maximum().evaluate(outputs, inputs_up);
-    ;
-}
