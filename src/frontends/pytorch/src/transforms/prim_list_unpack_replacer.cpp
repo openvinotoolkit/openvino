@@ -102,7 +102,25 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
             return true;
         }
         if (auto where = cast_fw_node(input_node, "aten::where")) {
-            const auto input = where > get_input_source_output(0);
+            const auto input = where->get_input_source_output(0);
+            auto non_zero = std::make_shared<opset8::NonZero>(input);
+            auto axis = opset8::Constant::create(element::i64, Shape{}, {0});
+            const auto num_splits = list_unpack->get_output_size();
+            auto split = std::make_shared<opset8::Split>(non_zero, axis, num_splits);
+            NodeVector to_copy_rt{split};
+            OutputVector outputs;
+            for (auto output : split->outputs()) {
+                const auto squeeze = std::make_shared<opset8::Squeeze>(output, axis);
+                outputs.push_back(squeeze);
+                to_copy_rt.push_back(squeeze);
+            }
+            copy_runtime_info({list_unpack, input_node}, to_copy_rt);
+            replace_node(list_unpack, outputs);
+
+            return true;
+        }
+        if (auto where = cast_fw_node(input_node, "aten::nonzero_numpy")) {
+            const auto input = where->get_input_source_output(0);
             auto non_zero = std::make_shared<opset8::NonZero>(input);
             auto axis = opset8::Constant::create(element::i64, Shape{}, {0});
             const auto num_splits = list_unpack->get_output_size();
