@@ -3,7 +3,7 @@
 //
 #pragma once
 
-#include <openvino/core/validation_util.hpp>
+#include <ngraph/validation_util.hpp>
 #include <openvino/opsets/opset1.hpp>
 
 template <class OpType, class T>
@@ -42,6 +42,76 @@ void eltwise_shape_infer(const OpType* op, const std::vector<T>& input_shapes, s
     }
     output_shapes[0] = output_shape;
 }
+
+namespace ov {
+namespace op {
+
+/**
+ * \brief Get the operator's input const as pointer to vector of specified type.
+ *
+ * The behaviour depends on shape type. The default output type is std::vector<TData> can be replace by other type
+ * which if is possible to construct it from constant data vector.
+ *
+ * \tparam TShape  Shape type which enabled this version (not ov::PartialShape)
+ * \tparam TData   Type use to cast input's data.
+ * \tparam TRes    Result type which has got default type as std::vector<TData>.
+ *
+ * \param op             Pointer to operator.
+ * \param idx            Operator's input number.
+ * \param constant_data  Map with constant. Default empty.
+ *
+ * \return Pointer to constant data or nullptr if input has no constant data.
+ */
+template <class TShape,
+          class TData,
+          class TRes = std::vector<TData>,
+          typename std::enable_if<!std::is_same<TShape, ov::PartialShape>::value>::type* = nullptr>
+std::unique_ptr<TRes> get_input_const_data_as(const ov::Node* op,
+                                              size_t idx,
+                                              const std::map<size_t, HostTensorPtr>& constant_data = {}) {
+    if (constant_data.count(idx)) {
+        return std::unique_ptr<TRes>(new TRes(ov::opset1::Constant(constant_data.at(idx)).cast_vector<TData>()));
+    } else {
+        const auto& constant = ov::as_type_ptr<ov::opset1::Constant>(op->get_input_node_shared_ptr(idx));
+        NODE_VALIDATION_CHECK(op, constant != nullptr, "Static shape inference lacks constant data on port ", idx);
+        return std::unique_ptr<TRes>(new TRes(constant->cast_vector<TData>()));
+    }
+}
+
+/**
+ * \brief Get the operator's input const as pointer to vector of specified type.
+ *
+ * The behaviour depends on shape type. The default output type is std::vector<TData> can be replace by other type
+ * which if is possible to construct it from constant data vector.
+ *
+ * \tparam TShape  Shape type which enabled this version (ov::PartialShape)
+ * \tparam TData   Type use to cast input's data.
+ * \tparam TRes    Result type which has got default type as std::vector<TData>.
+ *
+ * \param op             Pointer to operator.
+ * \param idx            Operator's input number.
+ * \param constant_data  Map with constant. Default empty.
+ *
+ * \return Pointer to constant data or nullptr if input has no constant data.
+ */
+template <class TShape,
+          class TData,
+          class TRes = std::vector<TData>,
+          typename std::enable_if<std::is_same<TShape, ov::PartialShape>::value>::type* = nullptr>
+std::unique_ptr<std::vector<TData>> get_input_const_data_as(const ov::Node* op,
+                                                            size_t idx,
+                                                            const std::map<size_t, HostTensorPtr>& constant_data = {}) {
+    if (constant_data.count(idx)) {
+        return std::unique_ptr<TRes>(new TRes(ov::opset1::Constant(constant_data.at(idx)).cast_vector<TData>()));
+    } else if (const auto& constant = ov::get_constant_from_source(op->input_value(idx))) {
+        return std::unique_ptr<TRes>(new TRes(constant->cast_vector<TData>()));
+    } else {
+        return {};
+    }
+}
+
+}  // namespace op
+}  // namespace ov
 
 template <class T>
 inline bool get_data_as_int64(
