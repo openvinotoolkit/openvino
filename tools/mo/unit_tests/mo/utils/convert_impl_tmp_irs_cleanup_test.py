@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 from openvino.tools.mo.convert import convert_model
 from openvino.tools.mo.utils.error import Error
-from unit_tests.utils.args_utils import base_args_config
+from unit_tests.utils.utils import base_args_config
 
 
 class TestConvertImplTmpIrsCleanup(unittest.TestCase):
