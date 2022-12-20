@@ -56,10 +56,11 @@ public:
     // Wrapper of most part of available builder functions
     static ovModelGenerator inputShapeWrapper(ovModelIS fun, std::vector<size_t> inputShape);
     // Default functions and precisions that can be used as test parameters
+    static std::vector<ovModelWithName> getAnyTypeOnlyFunctions();
+    static std::vector<ovModelWithName> getNumericTypeOnlyFunctions();
+    static std::vector<ovModelWithName> getNumericAnyTypeFunctions();
+    static std::vector<ovModelWithName> getFloatingPointOnlyFunctions();
     static std::vector<ovModelWithName> getStandardFunctions();
-    static std::vector<ovModelWithName> getAnyTypeFunctions();
-    static std::vector<ovModelWithName> getNumericTypeFunctions();
-    static std::vector<ovModelWithName> getFloatingPointFunctions();
 };
 
 using compileModelLoadFromFileParams = std::tuple<

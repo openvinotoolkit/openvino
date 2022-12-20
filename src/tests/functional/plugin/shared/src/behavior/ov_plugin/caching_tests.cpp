@@ -68,7 +68,7 @@ ovModelGenerator CompileModelCacheTestBase::inputShapeWrapper(ovModelIS fun, std
     };
 }
 
-std::vector<ovModelWithName> CompileModelCacheTestBase::getNumericTypeFunctions() {
+std::vector<ovModelWithName> CompileModelCacheTestBase::getNumericTypeOnlyFunctions() {
     std::vector<ovModelWithName> res;
     res.push_back(ovModelWithName { simple_function_multiply, "SimpleFunctionMultiply"});
     res.push_back(ovModelWithName { simple_function_relu, "SimpleFunctionRelu"});
@@ -108,7 +108,7 @@ std::vector<ovModelWithName> CompileModelCacheTestBase::getNumericTypeFunctions(
     return res;
 }
 
-std::vector<ovModelWithName> CompileModelCacheTestBase::getAnyTypeFunctions() {
+std::vector<ovModelWithName> CompileModelCacheTestBase::getAnyTypeOnlyFunctions() {
     std::vector<ovModelWithName> res;
     res.push_back(ovModelWithName {
         inputShapeWrapper(ngraph::builder::subgraph::makeReadConcatSplitAssign, {1, 1, 2, 4}),
@@ -116,12 +116,30 @@ std::vector<ovModelWithName> CompileModelCacheTestBase::getAnyTypeFunctions() {
     return res;
 }
 
-std::vector<ovModelWithName> CompileModelCacheTestBase::getFloatingPointFunctions() {
+std::vector<ovModelWithName> CompileModelCacheTestBase::getFloatingPointOnlyFunctions() {
     std::vector<ovModelWithName> res;
     res.push_back(ovModelWithName { [](ngraph::element::Type type, size_t batchSize) {
         return ngraph::builder::subgraph::makeTIwithLSTMcell(type, batchSize);
     }, "TIwithLSTMcell1"});
     return res;
+}
+
+std::vector<ovModelWithName> CompileModelCacheTestBase::getNumericAnyTypeFunctions() {
+    std::vector<ovModelWithName> funcs = CompileModelCacheTestBase::getAnyTypeOnlyFunctions();
+    std::vector<ovModelWithName> numericType = CompileModelCacheTestBase::getNumericTypeOnlyFunctions();
+    funcs.insert(funcs.end(), numericType.begin(), numericType.end());
+
+    return funcs;
+}
+
+std::vector<ovModelWithName> CompileModelCacheTestBase::getStandardFunctions() {
+    std::vector<ovModelWithName> funcs = CompileModelCacheTestBase::getAnyTypeOnlyFunctions();
+    std::vector<ovModelWithName> numericType = CompileModelCacheTestBase::getNumericTypeOnlyFunctions();
+    funcs.insert(funcs.end(), numericType.begin(), numericType.end());
+    std::vector<ovModelWithName> floatType = CompileModelCacheTestBase::getFloatingPointOnlyFunctions();
+    funcs.insert(funcs.end(), floatType.begin(), floatType.end());
+
+    return funcs;
 }
 
 bool CompileModelCacheTestBase::importExportSupported(ov::Core& core) const {

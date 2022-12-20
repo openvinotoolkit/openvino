@@ -39,7 +39,7 @@ static const std::vector<ov::element::Type> ovElemAnyFloatingPointTypesTemplate(
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin, CompileModelCacheTestBase,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(CompileModelCacheTestBase::getAnyTypeFunctions()),
+                                 ::testing::ValuesIn(CompileModelCacheTestBase::getAnyTypeOnlyFunctions()),
                                  ::testing::ValuesIn(ovElemTypesTemplate),
                                  ::testing::ValuesIn(ovBatchSizesTemplate),
                                  ::testing::ValuesIn(return_all_possible_device_combination()),
@@ -49,7 +49,7 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin, CompileModelCacheTestBase,
 // Convolution/UnaryElementwiseArithmetic/BinaryElementwiseArithmetic is not supported boolean elemnt type
 INSTANTIATE_TEST_SUITE_P(ov_plugin_numeric, CompileModelCacheTestBase,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(CompileModelCacheTestBase::getNumericTypeFunctions()),
+                                 ::testing::ValuesIn(CompileModelCacheTestBase::getNumericTypeOnlyFunctions()),
                                  ::testing::ValuesIn(ovElemAnyNumericTypesTemplate),
                                  ::testing::ValuesIn(ovBatchSizesTemplate),
                                  ::testing::ValuesIn(return_all_possible_device_combination()),
@@ -59,7 +59,7 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin_numeric, CompileModelCacheTestBase,
 // LSTMcell supported floating-point element type
 INSTANTIATE_TEST_SUITE_P(ov_plugin_floating_point, CompileModelCacheTestBase,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(CompileModelCacheTestBase::getFloatingPointFunctions()),
+                                 ::testing::ValuesIn(CompileModelCacheTestBase::getFloatingPointOnlyFunctions()),
                                  ::testing::ValuesIn(ovElemAnyFloatingPointTypesTemplate),
                                  ::testing::ValuesIn(ovBatchSizesTemplate),
                                  ::testing::ValuesIn(return_all_possible_device_combination()),
