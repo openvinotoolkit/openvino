@@ -124,6 +124,7 @@ using OVClassSetLogLevelConfigTest = OVClassBaseTestP;
 using OVClassSpecificDeviceTestSetConfig = OVClassBaseTestP;
 using OVClassSpecificDeviceTestGetConfig = OVClassBaseTestP;
 using OVClassLoadNetworkWithCorrectPropertiesTest = OVClassSetDevicePriorityConfigTest;
+using OVClassLoadNetworkWithCondidateDeviceListContainedMetaPluginTest = OVClassSetDevicePriorityConfigTest;
 using OVClassLoadNetWorkReturnDefaultHintTest = OVClassSetDevicePriorityConfigTest;
 using OVClassLoadNetWorkDoNotReturnDefaultHintTest = OVClassSetDevicePriorityConfigTest;
 using OVClassLoadNetworkAndCheckSecondaryPropertiesTest = OVClassSetDevicePriorityConfigTest;
@@ -1093,6 +1094,11 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkWithBigDeviceIDThrows) {
     } else {
         GTEST_FAIL() << "Device does not support DeviceID property" << std::endl;
     }
+}
+
+TEST_P(OVClassLoadNetworkWithCondidateDeviceListContainedMetaPluginTest, LoadNetworkRepeatedlyWithMetaPluginTestThrow) {
+    ov::Core ie = createCoreWithTemplate();
+    ASSERT_THROW(ie.compile_model(actualNetwork, target_device, configuration), ov::Exception);
 }
 
 TEST_P(OVClassLoadNetworkWithCorrectPropertiesTest, LoadNetworkWithCorrectPropertiesTest) {
