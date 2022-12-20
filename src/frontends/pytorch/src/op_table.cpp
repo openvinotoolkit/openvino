@@ -14,15 +14,19 @@ namespace op {
 
 #define OP_CONVERTER(op) OutputVector op(NodeContext& node)
 
+OP_CONVERTER(translate_adaptive_avg_pool3d);
 OP_CONVERTER(translate_adaptive_max_pool2d);
 OP_CONVERTER(translate_add);
 OP_CONVERTER(translate_addcmul);
+OP_CONVERTER(translate_addmm);
 OP_CONVERTER(translate_as_tensor);
 OP_CONVERTER(translate_avg_pool2d);
 OP_CONVERTER(translate_batch_norm);
+OP_CONVERTER(translate_clamp);
 OP_CONVERTER(translate_constant);
 OP_CONVERTER(translate_conv2d);
 OP_CONVERTER(translate_convolution);
+OP_CONVERTER(translate_convolution_mode);
 OP_CONVERTER(translate_dim);
 OP_CONVERTER(translate_div);
 OP_CONVERTER(translate_elu);
@@ -31,6 +35,8 @@ OP_CONVERTER(translate_expand_as);
 OP_CONVERTER(translate_embedding);
 OP_CONVERTER(translate_flatten);
 OP_CONVERTER(translate_floordiv);
+OP_CONVERTER(translate_full);
+OP_CONVERTER(translate_full_like);
 OP_CONVERTER(translate_gelu);
 OP_CONVERTER(translate_get_attr);
 OP_CONVERTER(translate_group_norm);
@@ -42,15 +48,26 @@ OP_CONVERTER(translate_linear);
 OP_CONVERTER(translate_list_construct);
 OP_CONVERTER(translate_loop);
 OP_CONVERTER(translate_max_pool2d);
+OP_CONVERTER(translate_max);
 OP_CONVERTER(translate_masked_fill);
 OP_CONVERTER(translate_mean);
+OP_CONVERTER(translate_min);
 OP_CONVERTER(translate_neg);
+OP_CONVERTER(translate_norm);
+OP_CONVERTER(translate_new_full);
+OP_CONVERTER(translate_new_ones);
+OP_CONVERTER(translate_new_zeros);
+OP_CONVERTER(translate_numel);
+OP_CONVERTER(translate_ones);
+OP_CONVERTER(translate_ones_like);
 OP_CONVERTER(translate_pad);
 OP_CONVERTER(translate_reciprocal);
 OP_CONVERTER(translate_relu6);
 OP_CONVERTER(translate_reshape);
 OP_CONVERTER(translate_reshape_as);
 OP_CONVERTER(translate_rsub);
+OP_CONVERTER(translate_roll);
+OP_CONVERTER(translate_rsqrt);
 OP_CONVERTER(translate_select);
 OP_CONVERTER(translate_size);
 OP_CONVERTER(translate_slice);
@@ -64,7 +81,10 @@ OP_CONVERTER(translate_transpose);
 OP_CONVERTER(translate_tuple_construct);
 OP_CONVERTER(translate_upsample_bilinear2d);
 OP_CONVERTER(translate_upsample_nearest2d);
+OP_CONVERTER(translate_var);
 OP_CONVERTER(translate_view);
+OP_CONVERTER(translate_zeros);
+OP_CONVERTER(translate_zeros_like);
 
 }  // namespace op
 
@@ -72,16 +92,23 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
         {"aten::__not__", op::translate_1to1_match_1_inputs<opset8::LogicalNot>},
         {"aten::_convolution", op::translate_convolution},
+        {"aten::_convolution_mode", op::translate_convolution_mode},
         {"aten::abs", op::translate_1to1_match_1_inputs<opset8::Abs>},
         {"aten::adaptive_avg_pool2d", op::translate_1to1_match_2_inputs<opset8::AdaptiveAvgPool>},
+        {"aten::adaptive_avg_pool3d", op::translate_adaptive_avg_pool3d},
         {"aten::adaptive_max_pool2d", op::translate_adaptive_max_pool2d},
         {"aten::add", op::translate_add},
         {"aten::add_", op::inplace_op<op::translate_add>},
         {"aten::addcmul", op::translate_addcmul},
+        {"aten::addmm", op::translate_addmm},
         {"aten::as_tensor", op::translate_as_tensor},
         {"aten::avg_pool2d", op::translate_avg_pool2d},
         {"aten::batch_norm", op::translate_batch_norm},
         // {"aten::cat", done as transformation},
+        {"aten::clamp", op::translate_clamp},
+        {"aten::clamp_min", op::translate_1to1_match_2_inputs<opset8::Maximum>},
+        {"aten::clamp_max", op::translate_1to1_match_2_inputs<opset8::Minimum>},
+        {"aten::clone", op::skip_node},       // ignore clone operators that are inserted by PyTorch autograd
         {"aten::contiguous", op::skip_node},  // In openvino how tensors are stored in memory is internal plugin detail,
                                               // we assume all tensors are contiguous
         {"aten::conv2d", op::translate_conv2d},
@@ -100,6 +127,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::expand_as", op::translate_expand_as},
         {"aten::flatten", op::translate_flatten},
         {"aten::floordiv", op::translate_floordiv},
+        {"aten::full", op::translate_full},
+        {"aten::full_like", op::translate_full_like},
         {"aten::gelu", op::translate_gelu},
         {"aten::group_norm", op::translate_group_norm},
         {"aten::gt", op::translate_1to1_match_2_inputs<opset8::Greater>},
@@ -116,15 +145,26 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::linear", op::translate_linear},
         {"aten::lt", op::translate_1to1_match_2_inputs<opset8::Less>},
         {"aten::matmul", op::translate_1to1_match_2_inputs<opset8::MatMul>},
-        {"aten::max_pool2d", op::translate_max_pool2d},
         {"aten::masked_fill", op::translate_masked_fill},
         {"aten::masked_fill_", op::inplace_op<op::translate_masked_fill>},
+        {"aten::max_pool2d", op::translate_max_pool2d},
+        {"aten::max", op::translate_max},
         {"aten::mean", op::translate_mean},
+        {"aten::min", op::translate_min},
         {"aten::mm", op::translate_1to1_match_2_inputs<opset8::MatMul>},
+        {"aten::bmm", op::translate_1to1_match_2_inputs<opset8::MatMul>},
+        {"aten::matmul", op::translate_1to1_match_2_inputs<opset8::MatMul>},
         {"aten::mul", op::translate_1to1_match_2_inputs<opset8::Multiply>},
         {"aten::mul_", op::inplace_op<op::translate_1to1_match_2_inputs<opset8::Multiply>>},
         {"aten::ne", op::translate_1to1_match_2_inputs<opset8::NotEqual>},
         {"aten::neg", op::translate_neg},
+        {"aten::norm", op::translate_norm},
+        {"aten::numel", op::translate_numel},
+        {"aten::new_full", op::translate_new_full},
+        {"aten::new_ones", op::translate_new_ones},
+        {"aten::new_zeros", op::translate_new_zeros},
+        {"aten::ones", op::translate_ones},
+        {"aten::ones_like", op::translate_ones_like},
         {"aten::pad", op::translate_pad},
         {"aten::permute", op::translate_1to1_match_2_inputs<opset8::Transpose>},
         {"aten::pow", op::translate_1to1_match_2_inputs<opset8::Power>},
@@ -135,6 +175,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::reshape", op::translate_reshape},
         {"aten::reshape_as", op::translate_reshape_as},
         {"aten::rsub", op::translate_rsub},
+        {"aten::roll", op::translate_roll},
+        {"aten::rsqrt", op::translate_rsqrt},
         {"aten::select", op::translate_select},
         {"aten::sigmoid", op::translate_1to1_match_1_inputs<opset8::Sigmoid>},
         {"aten::silu", op::translate_1to1_match_1_inputs<opset8::Swish>},
@@ -148,13 +190,17 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::sub", op::translate_sub},
         {"aten::sum", op::translate_sum},
         {"aten::tanh", op::translate_1to1_match_1_inputs<opset8::Tanh>},
-        {"aten::type_as", op::translate_1to1_match_2_inputs<opset8::ConvertLike>}, // TODO: overflow semantics is different
+        {"aten::type_as",
+         op::translate_1to1_match_2_inputs<opset8::ConvertLike>},  // TODO: overflow semantics is different
         {"aten::to", op::translate_to},
         {"aten::transpose", op::translate_transpose},
         {"aten::unsqueeze", op::translate_1to1_match_2_inputs<opset8::Unsqueeze>},
         {"aten::upsample_bilinear2d", op::translate_upsample_bilinear2d},
         {"aten::upsample_nearest2d", op::translate_upsample_nearest2d},
+        {"aten::var", op::translate_var},
         {"aten::view", op::translate_view},
+        {"aten::zeros", op::translate_zeros},
+        {"aten::zeros_like", op::translate_zeros_like},
         {"prim::Constant", op::translate_constant},
         {"prim::GetAttr", op::translate_get_attr},
         {"prim::If", op::translate_if},

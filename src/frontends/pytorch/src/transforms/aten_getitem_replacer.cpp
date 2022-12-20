@@ -26,9 +26,6 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
         auto getitem = cast_fw_node(m.get_match_root(), "aten::__getitem__");
         if (!getitem)
             return false;
-        auto getitem_index_ptr = getitem->input_value(1).get_node_shared_ptr();
-        auto getitem_index_const = std::dynamic_pointer_cast<opset8::Constant>(getitem_index_ptr);
-        auto index_val = getitem_index_const->cast_vector<int64_t>();
 
         auto input_node = getitem->input_value(0).get_node_shared_ptr();
         if (auto torch_split = cast_fw_node(input_node, "aten::split")) {
@@ -78,6 +75,9 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
                 copy_runtime_info({getitem, input_node}, split);
                 replace_node(getitem, split);
             } else {
+                auto getitem_index_ptr = getitem->input_value(1).get_node_shared_ptr();
+                auto getitem_index_const = std::dynamic_pointer_cast<opset8::Constant>(getitem_index_ptr);
+                auto index_val = getitem_index_const->cast_vector<int64_t>();
                 auto split = std::make_shared<opset8::VariadicSplit>(torch_split->get_input_source_output(0),
                                                                      torch_split->get_input_source_output(2),
                                                                      torch_split->get_input_source_output(1));

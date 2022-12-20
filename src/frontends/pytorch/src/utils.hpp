@@ -29,10 +29,15 @@ const std::map<int, element::Type> TORCH_TO_OV_TYPE{{0, element::u8},
                                                     {7, element::f64},
                                                     {11, element::boolean}};
 
+const std::unordered_multimap<std::string, ov::op::PadType> TORCH_AUTO_PAD_TO_OV{{"valid", ov::op::PadType::VALID},
+                                                                                 {"same", ov::op::PadType::SAME_UPPER}};
+
 Output<Node> make_optional_bias(const Output<Node>& base_op,
                                 const NodeContext& context,
                                 size_t bias_input_idx,
                                 const std::vector<int>& unsqueeze_dims = {});
+
+Output<ov::Node> reshape_conv_bias(NodeContext& context, Output<ov::Node> bias, Output<ngraph::Node> conv);
 
 std::shared_ptr<ov::Node> get_rank_node(const Output<Node>& node);
 
@@ -40,6 +45,10 @@ Output<Node> reshape_kernel_for_group(const NodeContext& context,
                                       const Output<Node>& input,
                                       const Output<Node>& kernel,
                                       int64_t groups);
+
+std::shared_ptr<Node> get_axes_range(NodeContext& context, size_t input_id);
+
+std::shared_ptr<Node> numel(NodeContext& context, size_t input_id);
 
 std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorch_model,
                                                  const TensorMap& external_tensor_map = {});

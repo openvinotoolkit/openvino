@@ -66,8 +66,6 @@ class PytorchLayerTest:
             im = fe.load(decoder)
             om = fe.convert(im)
 
-  
-
         params = om.get_parameters()
         # todo: support lists and dicts
         for i in range(len(inputs)):
@@ -94,8 +92,17 @@ class PytorchLayerTest:
         if not isinstance(fw_res, tuple):
             fw_res = (fw_res,)
 
+        output_list = list(infer_res.values())
+        assert len(fw_res) == len(
+            output_list), f'number of outputs not equal, {len(fw_res)} != {len(output_list)}'
         # check if results dtypes match
-        for fw_tensor, ov_tensor in zip(fw_res, list(infer_res.values())):
+        for fw_tensor, ov_tensor in zip(fw_res, output_list):
+            if not isinstance(fw_tensor, torch.Tensor):
+                if np.isscalar(fw_tensor):
+                    assert fw_tensor == np.array(ov_tensor).item()
+                else:
+                    assert type(fw_tensor) == type(ov_tensor)
+                continue
             assert torch.tensor(np.array(ov_tensor)).dtype == fw_tensor.dtype
 
         if 'custom_eps' in kwargs and kwargs['custom_eps'] is not None:
@@ -107,12 +114,13 @@ class PytorchLayerTest:
         fw_eps = custom_eps if precision == 'FP32' else 5e-2
         is_ok = True
         for i in range(len(infer_res)):
-            cur_fw_res = fw_res[i].to(memory_format = torch.contiguous_format).numpy()
+            cur_fw_res = fw_res[i].to(memory_format=torch.contiguous_format).numpy(
+            ) if isinstance(fw_res[i], torch.Tensor) else fw_res[i]
             cur_ov_res = infer_res[compiled.output(i)]
             print(f"fw_re: {cur_fw_res};\n ov_res: {cur_ov_res}")
             if not np.allclose(cur_ov_res, cur_fw_res,
                                atol=fw_eps,
-                               rtol=fw_eps):
+                               rtol=fw_eps, equal_nan=True):
                 is_ok = False
                 print("Max diff is {}".format(
                     np.array(

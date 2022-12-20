@@ -41,9 +41,8 @@ class TestConv2D(PytorchLayerTest):
                               {'weights_shape': [1, 3, 3, 3], 'strides': 1, 'pads': 0, 'dilations': 2, 'groups': 1},
                               {'weights_shape': [1, 3, 3, 3], 'strides': 1, 'pads': [0, 1], 'dilations': 1, 'groups': 1},
                               {'weights_shape': [1, 3, 3, 3], 'strides': 1, 'pads': [1, 0], 'dilations': 1, 'groups': 1},
-                              # pads as string aren't supported yet
-                              # {'weights_shape': [1, 3, 3, 3], 'strides': 1, 'pads': 'same', 'dilations': 1, 'groups': 1},
-                              # {'weights_shape': [1, 3, 3, 3], 'strides': 1, 'pads': 'valid', 'dilations': 1, 'groups': 1},
+                              {'weights_shape': [1, 3, 3, 3], 'strides': 1, 'pads': 'same', 'dilations': 1, 'groups': 1},
+                              {'weights_shape': [1, 3, 3, 3], 'strides': 1, 'pads': 'valid', 'dilations': 1, 'groups': 1},
                               # doesn't work because input shape is dynamic which makes kernel shape dynamic
                               # {'weights_shape': [2, 3, 3, 3], 'strides': 1, 'pads': 0, 'dilations': 1, 'groups': 2},
                              ])
