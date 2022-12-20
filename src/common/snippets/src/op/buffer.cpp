@@ -24,7 +24,6 @@ snippets::op::Buffer::Buffer(const Output<Node>& x, const int32_t allocation_ran
 
 bool snippets::op::Buffer::visit_attributes(AttributeVisitor& visitor) {
     INTERNAL_OP_SCOPE(Buffer_visit_attributes);
-    visitor.on_attribute("offset", m_offset);
     visitor.on_attribute("allocation_rank", m_allocation_rank);
     return true;
 }
@@ -33,7 +32,6 @@ std::shared_ptr<Node> snippets::op::Buffer::clone_with_new_inputs(const OutputVe
     INTERNAL_OP_SCOPE(Buffer_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     auto new_buffer = std::make_shared<Buffer>(new_args.at(0), m_allocation_rank);
-    new_buffer->set_offset(m_offset);
     return new_buffer;
 }
 
@@ -46,10 +44,6 @@ void snippets::op::Buffer::validate_and_infer_types() {
                      "Buffer has incorrect allocation rank: " + std::to_string(m_allocation_rank));
     }
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
-}
-
-void snippets::op::Buffer::set_offset(const size_t offset) {
-    m_offset = offset;
 }
 
 size_t ngraph::snippets::op::Buffer::get_byte_size() const {

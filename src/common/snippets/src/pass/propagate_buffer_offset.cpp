@@ -7,20 +7,19 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 #include "snippets/snippets_isa.hpp"
-#include "snippets/pass/set_buffer_offset.hpp"
+#include "snippets/pass/propagate_buffer_offset.hpp"
 #include "snippets/op/subgraph.hpp"
 
 
-ngraph::snippets::pass::SetBufferOffset::SetBufferOffset() {
-    MATCHER_SCOPE(SetBufferOffset);
+ngraph::snippets::pass::PropagateBufferOffset::PropagateBufferOffset() {
+    MATCHER_SCOPE(PropagateBufferOffset);
 
     auto m_buffer = ngraph::pattern::wrap_type<op::Buffer>();
 
     auto callback = [&](ngraph::pattern::Matcher &m) {
-        OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::SetBufferOffset")
+        OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::PropagateBufferOffset")
         auto root = m.get_match_root();
         const auto buffer = ov::as_type_ptr<op::Buffer>(root);
-        buffer->set_offset(current_offset);
 
         // If Buffer has offset We set this offset in the next Load and Store ops
         // to correctly read and write data because all buffers have the one register

@@ -12,16 +12,14 @@ namespace snippets {
 namespace pass {
 
 /**
- * @interface SetBufferOffset
+ * @interface PropagateBufferOffset
  * @brief All buffers in body have one common memory pointer. To correct work with them each buffer has own offset for common memory ptr
- *        The pass consistently set offset in buffers.
- *        NOTE: Should be called after Load/Store insertion and before LoadMoveBroadcastToBroadcastLoad because
- *              we cannot fuse Load with non-zero offset and MoveBroadcast
+ *        The pass consistently set offset in the corresponding for Buffer MemoryAccess nodes: Load, Store, MatMul.
  * @ingroup snippets
  */
-class SetBufferOffset: public ngraph::pass::MatcherPass {
+class PropagateBufferOffset: public ngraph::pass::MatcherPass {
 public:
-    SetBufferOffset();
+    PropagateBufferOffset();
 
 private:
     size_t current_offset = 0lu;

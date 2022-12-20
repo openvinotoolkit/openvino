@@ -21,7 +21,7 @@
 #include "snippets/pass/matmul_to_brgemm.hpp"
 #include "snippets/pass/fuse_transpose_brgemm.hpp"
 #include "snippets/pass/softmax_decomposition.hpp"
-#include "snippets/pass/set_buffer_offset.hpp"
+#include "snippets/pass/propagate_buffer_offset.hpp"
 #include "snippets/pass/reset_buffer.hpp"
 #include "snippets/pass/insert_buffer.hpp"
 #include "snippets/utils.hpp"
@@ -419,7 +419,7 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
     manager.register_pass<snippets::pass::ConvertPowerToPowerStatic>();
     manager.register_pass<snippets::pass::InsertLoad>(count);
     manager.register_pass<snippets::pass::InsertStore>(count);
-    manager.register_pass<snippets::pass::SetBufferOffset>();
+    manager.register_pass<snippets::pass::PropagateBufferOffset>();
     // todo: presently dynamic pipeline is activated even if the last two dimension are static
     //  In general, we can use static kernels in this case, but several parameters (src and dst memory pointers for example)
     //  should be passed as run-time args, so it's a mixed mode: kernel is shape-aware, but some additional runtime args are required
