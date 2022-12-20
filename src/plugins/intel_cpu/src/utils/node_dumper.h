@@ -1,25 +1,26 @@
 // Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#ifdef CPU_DEBUG_CAPS
 #pragma once
 
+#ifdef CPU_DEBUG_CAPS
+#include "utils/debug_caps_config.h"
 #include <node.h>
-#include "config.h"
 
 namespace ov {
 namespace intel_cpu {
 
-void dumpInputBlobs(const NodePtr &node, const Config& config, int count = -1);
-void dumpOutputBlobs(const NodePtr &node, const Config& config, int count = -1);
+void dumpInputBlobs(const NodePtr &node, const DebugCapsConfig& config, int count = -1);
+void dumpOutputBlobs(const NodePtr &node, const DebugCapsConfig& config, int count = -1);
 
 class DumpHelper {
     const NodePtr& node;
     const int count;
-    const Config& config;
+    const DebugCapsConfig& config;
 
 public:
-    explicit DumpHelper(const NodePtr& _node, const Config& _config, int _count = -1): node(_node), config(_config), count(_count) {
+    explicit DumpHelper(const NodePtr& _node, const DebugCapsConfig& _config, int _count = -1):
+        node(_node), config(_config), count(_count) {
         dumpInputBlobs(node, config, count);
     }
 

@@ -7,6 +7,7 @@
 #include <gna2-inference-api.h>
 
 #include "log/debug.hpp"
+#include "log/log.hpp"
 #include "model_wrapper.hpp"
 #include "subrequest.hpp"
 
@@ -39,12 +40,19 @@ Gna2Model* WorkerImpl::model() {
     return &fullModel_->object();
 }
 
-void WorkerImpl::enqueueRequest() {
-    check_if_free();
+bool WorkerImpl::enqueueRequest() {
+    if (!isFree()) {
+        ov::intel_gna::log::warning() << "Trying to propagate on busy request with id: " << representingIndex_;
+        return false;
+    }
 
     for (auto& subrequest : modelSubrequests_) {
-        subrequest->enqueue();
+        if (!subrequest->enqueue()) {
+            cleanup_subrequests();
+            return false;
+        }
     }
+    return true;
 }
 
 RequestStatus WorkerImpl::wait(int64_t timeoutMilliseconds) {
@@ -56,8 +64,13 @@ RequestStatus WorkerImpl::wait(int64_t timeoutMilliseconds) {
             continue;
         }
 
-        if (subrequest->wait(timeoutMilliseconds) == RequestStatus::kPending) {
+        auto result = subrequest->wait(timeoutMilliseconds);
+
+        if (result == RequestStatus::kPending) {
             pending = true;
+        } else if (result == RequestStatus::kCompletedWithError) {
+            cleanup_subrequests();
+            return result;
         }
     }
 
@@ -107,9 +120,11 @@ InferenceEngine::BlobMap& WorkerImpl::result() {
     return requestResult_;
 }
 
-void WorkerImpl::check_if_free() {
-    if (!isFree()) {
-        THROW_GNA_EXCEPTION << "Trying to propagte on busy request with id: " << representingIndex_;
+void WorkerImpl::cleanup_subrequests() {
+    for (auto& subrequest : modelSubrequests_) {
+        if (subrequest->isPending()) {
+            subrequest->cleanup();
+        }
     }
 }
 
