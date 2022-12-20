@@ -299,12 +299,9 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
             dump_file << "*/\n";
     }
     if (!err_log.empty()) {
-        GPU_DEBUG_GET_INSTANCE(debug_config);
-        GPU_DEBUG_IF(debug_config->verbose) {
-            std::cout << "-------- OpenCL build error" << std::endl;
-            std::cout << err_log << std::endl;
-            std::cout << "-------- End of OpenCL build error" << std::endl;
-        }
+        GPU_DEBUG_INFO << "-------- OpenCL build error" << std::endl;
+        GPU_DEBUG_INFO << err_log << std::endl;
+        GPU_DEBUG_INFO << "-------- End of OpenCL build error" << std::endl;
         std::stringstream err_ss(err_log);
         std::string line;
         int cnt = 0;

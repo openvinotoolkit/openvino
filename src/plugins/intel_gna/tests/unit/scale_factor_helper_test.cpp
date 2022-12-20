@@ -36,7 +36,6 @@ public:
         if (!legacy_str.empty()) {
             name += "," + legacy_str;
         }
-        std::cout << "name: " << name << std::endl;
         return name;
     }
     void SetUp() override {

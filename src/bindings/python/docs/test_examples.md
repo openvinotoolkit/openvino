@@ -1,17 +1,9 @@
-# How to test OpenVINO:tm: Python API?
+# How to test OpenVINO™ Python API?
 
-#### Prerequisites
-*To be added...*
+#### Building and environment
+Instructions can be found in ["Building the OpenVINO™ Python API"](./build.md).
 
-##### Enviroment
-<!-- TODO: Link to enviroment setup -->
-*To be added...*
-
-##### Building
-<!-- TODO: Link to building instructions -->
-*To be added...*
-
-### Running OpenVINO:tm: Python API tests
+### Running OpenVINO™ Python API tests
 *For simplicity, all of these commands require to navigate to the main Python API folder first:*
 ```shell
 cd .../openvino/src/bindings/python/
@@ -43,12 +35,12 @@ To run full test suite one can utilize `tox` command:
 tox
 ```
 
-### Writing OpenVINO:tm: Python API tests
+### Writing OpenVINO™ Python API tests
 ###### Before start
 Follow and complete `openvino/src/bindings/python/docs/code_examples.md`.
 
 ##### Adding new test-case in the correct place
-Let's add a new test for OpenVINO:tm: Python API.
+Let's add a new test for OpenVINO™ Python API.
 
 First, the test should confirm that the new pybind11-based class of `MyTensor` is behaving correctly. Navigate to tests folder and create a new file that describes tests within it. It should be along the lines of:
 
@@ -112,4 +104,4 @@ Notice that the test name is shared between cases. In a real-life pull request, 
 
 ###### Difference between *tests* and *tests_compatibility* directories
 <!-- TO-DELETE when compatibility layer is no longer supported in the project -->
-Someone could notice two similar folders `tests` and `tests_compatibility`. First one is the desired place for all upcoming features and tests. Compatibility layer is only supported in specific cases and any updates to it should be explicitly approved by OpenVINO:tm: reviewers. Please do not duplicate tests in both directories if not necessary.
+Someone could notice two similar folders `tests` and `tests_compatibility`. First one is the desired place for all upcoming features and tests. Compatibility layer is only supported in specific cases and any updates to it should be explicitly approved by OpenVINO™ reviewers. Please do not duplicate tests in both directories if not necessary.
