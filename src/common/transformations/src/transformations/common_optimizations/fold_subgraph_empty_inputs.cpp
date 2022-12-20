@@ -55,13 +55,14 @@ ov::pass::FoldSubgraphEmptyInputs::FoldSubgraphEmptyInputs() {
                              std::end(multi_subgraph_op_inputs),
                              input,
                              const_empty_replacement);
+                copy_runtime_info(input.get_node_shared_ptr(), const_empty_replacement.get_node_shared_ptr());
             }
             multi_subgraph_op->set_arguments(multi_subgraph_op_inputs);
             return true;
         }
         return false;
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(multi_subgraph_op_pattern, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(multi_subgraph_op_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
 

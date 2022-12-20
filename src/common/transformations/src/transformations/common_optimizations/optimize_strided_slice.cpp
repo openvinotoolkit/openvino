@@ -5,6 +5,7 @@
 #include <memory>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/slice_plan.hpp>
 #include <openvino/opsets/opset1.hpp>
 #include <transformations/common_optimizations/optimize_strided_slice.hpp>
 #include <vector>
@@ -257,8 +258,10 @@ ov::pass::StridedSliceOptimization::StridedSliceOptimization(bool use_shapes) {
 
 bool ov::pass::StridedSliceOptimization::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(StridedSliceOptimization);
+
     ov::pass::Manager manager(get_pass_config());
-    manager.register_pass<ngraph::pass::SliceToStridedSlice>(m_use_shapes);
+    using namespace ngraph::pass;
+    REGISTER_PASS(manager, SliceToStridedSlice, m_use_shapes)
     manager.run_passes(f);
 
     bool rewritten = false;

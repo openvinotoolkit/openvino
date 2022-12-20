@@ -92,13 +92,6 @@ protected:
         if (inputDynamicShapes.size() == 2 && inputDynamicShapes[0][0].is_dynamic() && inputDynamicShapes[1][0].is_dynamic())
             throw std::runtime_error("Invalid test case. If 3rd input is constant, batch dimension must be static.");
 
-        // Method MemoryDesc::isSame can't correct compute layout for tensor with strides = 1
-        // returned output format always tnc
-        if (inFmts.size() == 2 && (inputDynamicShapes[0][0].is_static() && inputDynamicShapes[0][0].get_length() == 1 ||
-                inputDynamicShapes[1].is_static() && ov::shape_size(inputDynamicShapes[1].to_shape()) == 1)) {
-            inFmts[1] = tnc;
-        }
-
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
         const size_t hiddenSize = targetStaticShapes.front()[1][2];
@@ -144,15 +137,6 @@ protected:
                                                      direction,
                                                      seqMode);
 
-        // method MemoryDesc::isSame can't correct compute layout for tensor with strides = 1
-        // returned output format always tnc
-        if (augruSequenceOp->get_output_partial_shape(0).is_static() && ov::shape_size(augruSequenceOp->get_output_shape(0)) == 1) {
-            outFmts[0] = tnc;
-        } else if (augruSequenceOp->get_output_partial_shape(1).is_static() && ov::shape_size(augruSequenceOp->get_output_shape(1)) == 1 ||
-                augruSequenceOp->get_output_partial_shape(0)[0].is_static() && augruSequenceOp->get_output_partial_shape(0)[0].get_length() == 1) {
-            outFmts[1] = tnc;
-        }
-
         function = makeNgraphFunction(netPrecision, params, augruSequenceOp, "augruSequenceOp");
 
         if (seqMode != ngraph::helpers::SequenceTestsMode::PURE_SEQ) {
@@ -182,8 +166,6 @@ protected:
 };
 
 TEST_P(AUGRUSequenceCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
     CheckPluginRelatedResults(compiledModel, "RNNSeq");
 }
@@ -195,7 +177,7 @@ std::vector<std::map<std::string, std::string>> additionalConfig
        {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES}}};
 
 CPUSpecificParams cpuParams{{ntc, tnc}, {ntc, tnc}, {"ref_any"}, "ref_any"};
-CPUSpecificParams cpuParamsBatchSizeOne{{tnc, ntc}, {tnc, ntc}, {"ref_any"}, "ref_any"};;
+CPUSpecificParams cpuParamsBatchSizeOne{{tnc, tnc}, {tnc, tnc}, {"ref_any"}, "ref_any"};;
 
 std::vector<ngraph::helpers::SequenceTestsMode> mode{ngraph::helpers::SequenceTestsMode::PURE_SEQ};
 // output values increase rapidly without clip, so use only seq_lengths = 2
@@ -283,53 +265,57 @@ const std::vector<std::vector<InputShape>> dynamicShapes = {
       { {-1, 1, 10},                                // Dynamic shape 1
         { {10, 1, 10}, {3, 1, 10}, {5, 1, 10} } },  // Target shapes
       { {{0, 11}, -1, 1},                           // Dynamic shape 3
-        { {10, 2, 1}, {3, 4, 1}, {5, 5, 1} } },   // Target shapes
+        { {10, 2, 1}, {3, 4, 1}, {5, 5, 1} } },     // Target shapes
       { {-1},                                       // Dynamic shape 2
-        { {10}, {3}, {5} } } },                       // Target shapes
+        { {10}, {3}, {5} } } },                     // Target shapes
     { { {{0, 11}, -1, {7, 11}},                     // #2. Dynamic shape 0
         { {10, 2, 10}, {3, 4, 10}, {5, 5, 10} } },  // Target shapes
       { {-1, 1, {8, 12}},                           // Dynamic shape 1
         { {10, 1, 10}, {3, 1, 10}, {5, 1, 10} } },  // Target shapes
       { {{0, 11}, -1, 1},                           // Dynamic shape 3
-        { {10, 2, 1}, {3, 4, 1}, {5, 5, 1} } } ,   // Target shapes
+        { {10, 2, 1}, {3, 4, 1}, {5, 5, 1} } } ,    // Target shapes
       { {-1},                                       // Dynamic shape 2
-        { {10}, {3}, {5} } } },                       // Target shapes
+        { {10}, {3}, {5} } } },                     // Target shapes
     { { {-1, {0, 7}, 10},                           // #3. Dynamic shape 0
         { {1, 2, 10}, {1, 3, 10}, {1, 6, 10} } },   // Target shapes
       { {-1, 1, 1},                                 // Dynamic shape 1
         { {1, 1, 1}, {1, 1, 1}, {1, 1, 1} } },      // Target shapes
       { {-1, {0, 7}, 1},                            // Dynamic shape 3
-        { {1, 2, 1}, {1, 3, 1}, {1, 6, 1} } },    // Target shapes
+        { {1, 2, 1}, {1, 3, 1}, {1, 6, 1} } },      // Target shapes
       { {-1},                                       // Dynamic shape 2
-        { {1}, {1}, {1} } } },                       // Target shapes
+        { {1}, {1}, {1} } } },                      // Target shapes
     { { {1, -1, 10},                                // #4. Dynamic shape 0
         { {1, 2, 10}, {1, 4, 10}, {1, 8, 10} } },   // Target shapes
       { {1, 1, 10},                                 // Dynamic shape 1
         { {1, 1, 10}, {1, 1, 10}, {1, 1, 10} } },   // Target shapes
       { {1, -1, 1},                                 // Dynamic shape 0
-        { {1, 2, 1}, {1, 4, 1}, {1, 8, 1} } },    // Target shapes
+        { {1, 2, 1}, {1, 4, 1}, {1, 8, 1} } },      // Target shapes
       { {-1},                                       // Dynamic shape 2
-        { {1}, {1}, {1} } } },                        // Target shapes
+        { {1}, {1}, {1} } } },                      // Target shapes
     { { {-1, -1, -1},                               // #5. Dynamic shape 0
         { {1, 2, 10}, {1, 4, 10}, {1, 8, 10} } },   // Target shapes
       { {-1, -1, -1},                               // Dynamic shape 1
         { {1, 1, 10}, {1, 1, 10}, {1, 1, 10} } },   // Target shapes
       { {-1, -1, -1},                               // Dynamic shape 0
-        { {1, 2, 1}, {1, 4, 1}, {1, 8, 1} } },    // Target shapes
+        { {1, 2, 1}, {1, 4, 1}, {1, 8, 1} } },      // Target shapes
       { {-1},                                       // Dynamic shape 2
-        { {1}, {1}, {1} } } },                        // Target shapes
+        { {1}, {1}, {1} } } },                      // Target shapes
     { { {2, {1, 5}, 10},                            // #6. Dynamic shape 0
         { {2, 2, 10}, {2, 3, 10}, {2, 4, 10} } },   // Target shapes
       { {2, 1, 1},                                  // Dynamic shape 1
         { {2, 1, 1}, {2, 1, 1}, {2, 1, 1} } },      // Target shapes
       { {2, {1, 5}, 1},                             // Dynamic shape 2
-        { {2, 2, 1}, {2, 3, 1}, {2, 4, 1} } } },    // Target shapes
+        { {2, 2, 1}, {2, 3, 1}, {2, 4, 1} } },      // Target shapes
+      { {-1},                                       // Dynamic shape 2
+        { {2}, {2}, {2} } } },                      // Target shapes
     { { {5, -1, 10},                                // #7. Dynamic shape 0
         { {5, 2, 10}, {5, 4, 10}, {5, 5, 10} } },   // Target shapes
       { {5, 1, 10},                                 // Dynamic shape 1
         { {5, 1, 10}, {5, 1, 10}, {5, 1, 10} } },   // Target shapes
       { {5, -1, 1},                                 // Dynamic shape 0
-        { {5, 2, 1}, {5, 4, 1}, {5, 5, 1} } } },    // Target shapes
+        { {5, 2, 1}, {5, 4, 1}, {5, 5, 1} } },      // Target shapes
+      { {-1},                                       // Dynamic shape 2
+        { {5}, {5}, {5} } } },                      // Target shapes
     { { {{0, 11}, -1, {7, 11}},                     // #8. Dynamic shape 0
         { {10, 2, 10}, {3, 4, 10}, {5, 5, 10}, {10, 2, 10}, {5, 5, 10} } },  // Target shapes
       { {-1, 1, {8, 12}},                           // Dynamic shape 1

@@ -43,7 +43,7 @@ ov::Tensor create_tensor_from_image(const std::vector<std::string>& files,
     if (!inputInfo.layout.empty() && ov::layout::has_batch(inputInfo.layout)) {
         imgBatchSize = batchSize;
     } else {
-        slog::warn << inputName << ": layout does not contain batch dimension. Assuming bath 1 for this input"
+        slog::warn << inputName << ": layout does not contain batch dimension. Assuming batch 1 for this input"
                    << slog::endl;
     }
 
@@ -83,10 +83,7 @@ ov::Tensor create_tensor_from_image(const std::vector<std::string>& files,
                                     (((inputInfo.layout == "NCHW") || (inputInfo.layout == "CHW"))
                                          ? (ch * width * height + h * width + w)
                                          : (h * width * numChannels + w * numChannels + ch));
-                    data[offset] =
-                        (static_cast<T>(vreader.at(b).get()[h * width * numChannels + w * numChannels + ch]) -
-                         static_cast<T>(inputInfo.mean[ch])) /
-                        static_cast<T>(inputInfo.scale[ch]);
+                    data[offset] = static_cast<T>(vreader.at(b).get()[h * width * numChannels + w * numChannels + ch]);
                 }
             }
         }
@@ -366,7 +363,7 @@ ov::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputIn
 std::string get_test_info_stream_header(benchmark_app::InputInfo& inputInfo) {
     std::stringstream strOut;
     strOut << "(" << inputInfo.layout.to_string() << ", " << inputInfo.type.get_type_name() << ", "
-           << get_shape_string(inputInfo.dataShape) << ", ";
+           << inputInfo.dataShape << ", ";
     if (inputInfo.partialShape.is_dynamic()) {
         strOut << std::string("dyn:") << inputInfo.partialShape << "):\t";
     } else {

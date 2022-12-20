@@ -9,10 +9,11 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/mvn.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
+#include <intel_gpu/runtime/debug_configuration.hpp>
 
 #include <iostream>
 
-#include <intel_gpu/runtime/debug_configuration.hpp>
+#include "mvn_inst.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -52,12 +53,12 @@ void mvn_compute_mean_across_channels(cldnn::memory::ptr output, bool normalize_
         }
         sum /= feature_size * y_size * x_size * z_size;
         T result_sum = static_cast<T>(sum);
-        EXPECT_NEAR(result_sum, 0.f, err_margin) << "at b=" << b;
+        ASSERT_NEAR(result_sum, 0.f, err_margin) << "at b=" << b;
 
         if (normalize_variance) {
             variance /= feature_size * y_size * x_size * z_size;
             T result_variance = static_cast<T>(variance);
-            EXPECT_NEAR(result_variance, 1.f, err_margin) << " at b=" << b;
+            ASSERT_NEAR(result_variance, 1.f, err_margin) << " at b=" << b;
         }
     }
 }
@@ -94,12 +95,12 @@ void mvn_compute_mean_within_channels(cldnn::memory::ptr output, bool normalize_
             }
             sum /= y_size * x_size * z_size;
             T result_sum = static_cast<T>(sum);
-            EXPECT_NEAR(result_sum, 0.f, err_margin) << "at b=" << b << ", f=" << f;
+            ASSERT_NEAR(result_sum, 0.f, err_margin) << "at b=" << b << ", f=" << f;
 
             if (normalize_variance) {
                 variance /= y_size * x_size * z_size;
                 T result_variance = static_cast<T>(variance);
-                EXPECT_NEAR(result_variance, 1.f, err_margin) << " at b=" << b << ", f=" << f;
+                ASSERT_NEAR(result_variance, 1.f, err_margin) << " at b=" << b << ", f=" << f;
             }
         }
     }
@@ -118,15 +119,15 @@ TEST(mvn_gpu_test, mvn_test_across_channels_outside_sqrt_bfyx) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(mvn("mvn", "input", false, 1e-10f, false, true));
+    topology.add(mvn("mvn", input_info("input"), false, 1e-10f, false, true));
 
     network network(engine, topology);
 
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "mvn");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "mvn");
 
     auto output = outputs.begin()->second.get_memory();
     mvn_compute_mean_across_channels<float>(output, false);
@@ -145,15 +146,15 @@ TEST(mvn_gpu_test, mvn_test_across_channels_inside_sqrt_bfyx) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(mvn("mvn", "input", false, 1e-10f, true, true));
+    topology.add(mvn("mvn", input_info("input"), false, 1e-10f, true, true));
 
     network network(engine, topology);
 
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "mvn");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "mvn");
 
     auto output = outputs.begin()->second.get_memory();
     mvn_compute_mean_across_channels<float>(output, false);
@@ -172,15 +173,15 @@ TEST(mvn_gpu_test, mvn_test_across_channels_bfyx_outside_sqrt_fp16) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(mvn("mvn", "input", false, 1e-10f, false, true));
+    topology.add(mvn("mvn", input_info("input"), false, 1e-10f, false, true));
 
     network network(engine, topology);
 
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "mvn");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "mvn");
 
     auto output = outputs.begin()->second.get_memory();
     mvn_compute_mean_across_channels<FLOAT16>(output, false);
@@ -199,15 +200,15 @@ TEST(mvn_gpu_test, mvn_test_across_channels_inside_sqrt_bfyx_fp16) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(mvn("mvn", "input", false, 1e-10f, true, true));
+    topology.add(mvn("mvn", input_info("input"), false, 1e-10f, true, true));
 
     network network(engine, topology);
 
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "mvn");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "mvn");
 
     auto output = outputs.begin()->second.get_memory();
     mvn_compute_mean_across_channels<FLOAT16>(output, false);
@@ -226,15 +227,15 @@ TEST(mvn_gpu_test, mvn_test_across_channels_outside_sqrt_bfyx_normalize_variance
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(mvn("mvn", "input", true, 1e-10f, false, true));
+    topology.add(mvn("mvn", input_info("input"), true, 1e-10f, false, true));
 
     network network(engine, topology);
 
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "mvn");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "mvn");
 
     auto output = outputs.begin()->second.get_memory();
     mvn_compute_mean_across_channels<float>(output, true);
@@ -253,15 +254,15 @@ TEST(mvn_gpu_test, mvn_test_across_channels_inside_sqrt_bfyx_normalize_variance)
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(mvn("mvn", "input", true, 1e-10f, true, true));
+    topology.add(mvn("mvn", input_info("input"), true, 1e-10f, true, true));
 
     network network(engine, topology);
 
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "mvn");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "mvn");
 
     auto output = outputs.begin()->second.get_memory();
     mvn_compute_mean_across_channels<float>(output, true);
@@ -280,15 +281,15 @@ TEST(mvn_gpu_test, mvn_test_across_channels_outside_sqrt_bfyx_normalize_variance
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(mvn("mvn", "input", true, 1e-10f, false, true));
+    topology.add(mvn("mvn", input_info("input"), true, 1e-10f, false, true));
 
     network network(engine, topology);
 
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "mvn");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "mvn");
 
     auto output = outputs.begin()->second.get_memory();
     mvn_compute_mean_across_channels<FLOAT16>(output, true);
@@ -307,15 +308,50 @@ TEST(mvn_gpu_test, mvn_test_across_channels_inside_sqrt_bfyx_normalize_variance_
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(mvn("mvn", "input", true, 1e-10f, true, true));
+    topology.add(mvn("mvn", input_info("input"), true, 1e-10f, true, true));
 
     network network(engine, topology);
 
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "mvn");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "mvn");
+
+    auto output = outputs.begin()->second.get_memory();
+    mvn_compute_mean_across_channels<FLOAT16>(output, true);
+}
+
+TEST(mvn_gpu_test, dynamic_across_channels_inside_sqrt_bfyx_normalize_variance_fp16) {
+    // mvn across channels fp16 test with normalize_variance set to true
+    using namespace cldnn;
+    using namespace ::tests;
+
+    auto& engine = get_test_engine();
+
+    ov::Shape in_shape = {7, 10, 17, 13};
+    auto in_layout = layout{ov::PartialShape::dynamic(in_shape.size()), data_types::f16, format::bfyx};
+    auto input = engine.allocate_memory(layout{ov::PartialShape(in_shape), data_types::f16, format::bfyx});
+
+    tests::set_random_values<FLOAT16>(input, true, 8, 100);
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(mvn("mvn", input_info("input"), true, 1e-10f, true, true));
+
+    build_options bo;
+    bo.set_option(build_option::allow_new_shape_infer(true));
+    network network(engine, topology, bo);
+    network.set_input_data("input", input);
+
+    auto inst = network.get_primitive("mvn");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "mvn");
 
     auto output = outputs.begin()->second.get_memory();
     mvn_compute_mean_across_channels<FLOAT16>(output, true);
@@ -334,15 +370,15 @@ TEST(mvn_gpu_test, mvn_test_within_channels_outside_sqrt_bfyx) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(mvn("mvn", "input", false, 1e-10f, false, false));
+    topology.add(mvn("mvn", input_info("input"), false, 1e-10f, false, false));
 
     network network(engine, topology);
 
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "mvn");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "mvn");
 
     auto output = outputs.begin()->second.get_memory();
     mvn_compute_mean_within_channels<float>(output, false);
@@ -361,15 +397,15 @@ TEST(mvn_gpu_test, mvn_test_within_channels_inside_sqrt__bfyx) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(mvn("mvn", "input", false, 1e-10f, true, false));
+    topology.add(mvn("mvn", input_info("input"), false, 1e-10f, true, false));
 
     network network(engine, topology);
 
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "mvn");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "mvn");
 
     auto output = outputs.begin()->second.get_memory();
     mvn_compute_mean_within_channels<float>(output, false);
@@ -388,15 +424,15 @@ TEST(mvn_gpu_test, mvn_test_within_channels_outside_sqrt_bfyx_fp16) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(mvn("mvn", "input", false, 1e-10f, false, false));
+    topology.add(mvn("mvn", input_info("input"), false, 1e-10f, false, false));
 
     network network(engine, topology);
 
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "mvn");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "mvn");
 
     auto output = outputs.begin()->second.get_memory();
     mvn_compute_mean_within_channels<FLOAT16>(output, false);
@@ -415,15 +451,15 @@ TEST(mvn_gpu_test, mvn_test_within_channels_inside_sqrt_bfyx_fp16) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(mvn("mvn", "input", false, 1e-10f, true, false));
+    topology.add(mvn("mvn", input_info("input"), false, 1e-10f, true, false));
 
     network network(engine, topology);
 
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "mvn");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "mvn");
 
     auto output = outputs.begin()->second.get_memory();
     mvn_compute_mean_within_channels<FLOAT16>(output, false);
@@ -442,15 +478,15 @@ TEST(mvn_gpu_test, mvn_test_within_channels_outside_sqrt_bfyx_normalize_variance
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(mvn("mvn", "input", true, 1e-10f, false, false));
+    topology.add(mvn("mvn", input_info("input"), true, 1e-10f, false, false));
 
     network network(engine, topology);
 
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "mvn");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "mvn");
 
     auto output = outputs.begin()->second.get_memory();
     mvn_compute_mean_within_channels<float>(output, true);
@@ -469,15 +505,15 @@ TEST(mvn_gpu_test, mvn_test_within_channels_inside_sqrt_bfyx_normalize_variance)
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(mvn("mvn", "input", true, 1e-10f, true, false));
+    topology.add(mvn("mvn", input_info("input"), true, 1e-10f, true, false));
 
     network network(engine, topology);
 
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "mvn");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "mvn");
 
     auto output = outputs.begin()->second.get_memory();
     mvn_compute_mean_within_channels<float>(output, true);
@@ -496,15 +532,15 @@ TEST(mvn_gpu_test, mvn_test_within_channels_outside_sqrt_bfyx_normalize_variance
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(mvn("mvn", "input", true, 1e-10f, false, false));
+    topology.add(mvn("mvn", input_info("input"), true, 1e-10f, false, false));
 
     network network(engine, topology);
 
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "mvn");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "mvn");
 
     auto output = outputs.begin()->second.get_memory();
     mvn_compute_mean_within_channels<FLOAT16>(output, true);
@@ -523,15 +559,15 @@ TEST(mvn_gpu_test, mvn_test_within_channels_inside_sqrt_bfyx_normalize_variance_
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(mvn("mvn", "input", true, 1e-10f, true, false));
+    topology.add(mvn("mvn", input_info("input"), true, 1e-10f, true, false));
 
     network network(engine, topology);
 
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "mvn");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "mvn");
 
     auto output = outputs.begin()->second.get_memory();
     mvn_compute_mean_within_channels<FLOAT16>(output, true);
@@ -622,8 +658,8 @@ struct mvn_random_test : ::testing::TestWithParam<mvn_basic_test_params> {
 
         topology topo;
         topo.add(input_layout("input", input->get_layout()));
-        auto prim = mvn("mvn", "input", params.normalize_variance, 1e-10f, false, params.across_channels);
-        prim.output_padding = output_pad;
+        auto prim = mvn("mvn", input_info("input"), params.normalize_variance, 1e-10f, false, params.across_channels);
+        prim.output_paddings = {output_pad};
         topo.add(prim);
 
         network net(eng, topo);
@@ -631,8 +667,8 @@ struct mvn_random_test : ::testing::TestWithParam<mvn_basic_test_params> {
         net.set_input_data("input", input);
 
         auto outputs = net.execute();
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "mvn");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "mvn");
 
         auto output = outputs.begin()->second.get_memory();
         check_result(output, params.across_channels, params.normalize_variance);
@@ -758,7 +794,7 @@ struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
     }
 
     template <typename T>
-    bool compare_outputs(const cldnn::memory::ptr out_ref, const cldnn::memory::ptr out_opt) {
+    void compare_outputs(const cldnn::memory::ptr out_ref, const cldnn::memory::ptr out_opt) {
         auto output_lay = out_ref->get_layout();
         auto opt_output_lay = out_opt->get_layout();
 
@@ -781,13 +817,11 @@ struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
                     for (size_t xi = 0; xi < x; ++xi) {
                         auto ref_out_val = ref_ptr[ref_out_offset + xi * ref_x_pitch];
                         auto opt_out_val = opt_ptr[opt_out_offset + xi * opt_x_pitch];
-                        EXPECT_NEAR(static_cast<float>(opt_out_val), static_cast<float>(ref_out_val), 1.e-1f);
+                        ASSERT_NEAR(static_cast<float>(opt_out_val), static_cast<float>(ref_out_val), 1.e-1f);
                     }
                 }
             }
         }
-
-        return true;
     }
 
     void execute(const mvn_basic_test_params& params) {
@@ -814,8 +848,8 @@ struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
 
         topology topo;
         topo.add(input_layout("input", input->get_layout()));
-        auto prim = mvn("mvn", "input", params.normalize_variance, 1e-10f, false, params.across_channels);
-        prim.output_padding = output_pad;
+        auto prim = mvn("mvn", input_info("input"), params.normalize_variance, 1e-10f, false, params.across_channels);
+        prim.output_paddings = {output_pad};
         topo.add(prim);
         auto build_opts = build_options();
         build_opts.set_option(build_option::outputs({"mvn"}));
@@ -829,9 +863,9 @@ struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
 
         topology topo_opt;
         topo_opt.add(input_layout("input", input->get_layout()));
-        topo_opt.add(reorder("input_to_target_layout", "input", {params.input_type, params.input_format, size}));
-        auto prim_opt = mvn("mvn_opt", "input_to_target_layout", params.normalize_variance, 1e-10f, false, params.across_channels);
-        prim_opt.output_padding = output_pad;
+        topo_opt.add(reorder("input_to_target_layout", input_info("input"), {params.input_type, params.input_format, size}));
+        auto prim_opt = mvn("mvn_opt", input_info("input_to_target_layout"), params.normalize_variance, 1e-10f, false, params.across_channels);
+        prim_opt.output_paddings = {output_pad};
         topo_opt.add(prim_opt);
         auto build_opts_opt = build_options();
         build_opts_opt.set_option(build_option::outputs({"mvn_opt", "input_to_target_layout"}));

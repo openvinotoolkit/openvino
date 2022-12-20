@@ -16,7 +16,7 @@ namespace intel_gpu {
 
 static void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::op::v0::Proposal>& op) {
     validate_inputs_count(op, {3});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
 
     auto attrs = op->get_attrs();
     float nms_thresh = attrs.nms_thresh;
@@ -64,25 +64,22 @@ static void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::op::v0::P
                                                     cldnn::format::get_default_format(op->get_output_shape(1).size()),
                                                     tensor_from_dims(op->get_output_shape(1)));
 
-        GPU_DEBUG_GET_INSTANCE(debug_config);
-        GPU_DEBUG_IF(debug_config->verbose >= 2) {
-            GPU_DEBUG_COUT << "[" << layer_type_name_ID(op) << ": mutable data]" << std::endl;
-        }
+        GPU_DEBUG_LOG << "[" << layer_type_name_ID(op) << ": mutable data]" << std::endl;
         auto shared_memory = p.GetEngine().allocate_memory(mutableLayout);
 
         cldnn::primitive_id proposal_mutable_id_w = layer_type_name_ID(op) + "_md_write";
         auto argmax_mutable_prim = cldnn::mutable_data(proposal_mutable_id_w,
                                                        shared_memory);
         p.add_primitive(*op, argmax_mutable_prim);
-        inputPrimitives.push_back(proposal_mutable_id_w);
+        inputs.push_back(cldnn::input_info(proposal_mutable_id_w));
 
         std::string proposalLayerName = layer_type_name_ID(op) + ".out0";
         auto proposalPrim = cldnn::proposal(proposalLayerName,
-                                            inputPrimitives[0],  // cls_score
-                                            inputPrimitives[1],  // bbox_pred
-                                            inputPrimitives[2],  // im_info
-                                            inputPrimitives[3],  // second_output
-                                            0,                   // max_num_proposals is unused
+                                            inputs[0],  // cls_score
+                                            inputs[1],  // bbox_pred
+                                            inputs[2],  // im_info
+                                            inputs[3],  // second_output
+                                            0,          // max_num_proposals is unused
                                             nms_thresh,
                                             base_size,
                                             min_size,
@@ -107,7 +104,7 @@ static void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::op::v0::P
 
         cldnn::primitive_id proposal_mutable_id_r = layer_type_name_ID(op) + ".out1";
         auto argmax_mutable_prim_r = cldnn::mutable_data(proposal_mutable_id_r,
-                                                         { proposalLayerName },
+                                                         { cldnn::input_info(proposalLayerName) },
                                                          shared_memory);
         p.add_primitive(*op, argmax_mutable_prim_r);
         return;
@@ -115,10 +112,10 @@ static void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::op::v0::P
 
     std::string proposalLayerName = layer_type_name_ID(op);
     auto proposalPrim = cldnn::proposal(proposalLayerName,
-                                        inputPrimitives[0],  // cls_score
-                                        inputPrimitives[1],  // bbox_pred
-                                        inputPrimitives[2],  // im_info
-                                        0,                   // max_num_proposals is unused
+                                        inputs[0],  // cls_score
+                                        inputs[1],  // bbox_pred
+                                        inputs[2],  // im_info
+                                        0,          // max_num_proposals is unused
                                         nms_thresh,
                                         base_size,
                                         min_size,

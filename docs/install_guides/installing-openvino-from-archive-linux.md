@@ -44,7 +44,7 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
 
   * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
   * GCC 7.5.0 (for Ubuntu 18.04) or GCC 9.3.0 (for Ubuntu 20.04)
-  * `Python 3.7 - 3.9, 64-bit <https://www.python.org/downloads/windows/>`_
+  * `Python 3.7 - 3.10, 64-bit <https://www.python.org/downloads/windows/>`_
 
 @endsphinxdirective
 
@@ -96,8 +96,14 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
          curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.2/linux/l_openvino_toolkit_rhel8_2022.2.0.7713.af16ea1d79a_x86_64.tgz --output openvino_2022.2.0.7713.tgz
          tar -xf openvino_2022.2.0.7713.tgz
          sudo mv l_openvino_toolkit_rhel8_2022.2.0.7713.af16ea1d79a_x86_64 /opt/intel/openvino_2022.2.0.7713
-        
-5. For simplicity, it is useful to create a symbolic link as below:
+
+5. Install required system dependencies on Linux. To do this, OpenVINO provides a script in the extracted installation directory. Run the following command:
+   
+   .. code-block:: sh
+   
+      sudo -E ./install_dependencies/install_openvino_dependencies.sh 
+
+6. For simplicity, it is useful to create a symbolic link as below:
    
    .. code-block:: sh
    

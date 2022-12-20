@@ -44,7 +44,7 @@ TEST(set_output_memory_gpu, basic) {
     topology topology;
     topology.add(input_layout("Input", input_data->get_layout()));
     topology.add(
-        reorder("reorder", "Input", input_data->get_layout())
+        reorder("reorder", input_info("Input"), input_data->get_layout())
     );
 
     network network(engine, topology);
@@ -55,12 +55,12 @@ TEST(set_output_memory_gpu, basic) {
     auto outputs = network.execute();
 
     auto output = outputs.at("reorder").get_memory();
-    EXPECT_TRUE(engine.is_the_same_buffer(*output_mem, *output));
+    ASSERT_TRUE(engine.is_the_same_buffer(*output_mem, *output));
 
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < inputVals.size(); ++i) {
-        EXPECT_TRUE(are_equal(inputVals[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(inputVals[i], output_ptr[i])) << i;
     }
 }
 
@@ -87,8 +87,8 @@ TEST(set_output_memory_gpu, basic_const) {
     topology.add(input_layout("Input", input_data->get_layout()));
     topology.add(data("Const", const_data));
     topology.add(
-            reorder("reorder_dyn", "Input", input_data->get_layout()),
-            reorder("reorder_const", "Const", input_data->get_layout())
+            reorder("reorder_dyn", input_info("Input"), input_data->get_layout()),
+            reorder("reorder_const", input_info("Const"), input_data->get_layout())
     );
 
     network network(engine, topology);
@@ -101,17 +101,17 @@ TEST(set_output_memory_gpu, basic_const) {
 
     auto output_dyn = outputs.at("reorder_dyn").get_memory();
     auto output_const = outputs.at("reorder_const").get_memory();
-    EXPECT_TRUE(engine.is_the_same_buffer(*output_mem, *output_dyn));
+    ASSERT_TRUE(engine.is_the_same_buffer(*output_mem, *output_dyn));
 
     cldnn::mem_lock<float> output_dyn_ptr(output_dyn, get_test_stream());
     cldnn::mem_lock<float> output_const_ptr(output_const, get_test_stream());
 
     for (size_t i = 0; i < inputVals.size(); ++i) {
-        EXPECT_TRUE(are_equal(inputVals[i], output_dyn_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(inputVals[i], output_dyn_ptr[i])) << i;
     }
 
     for (size_t i = 0; i < inputVals.size(); ++i) {
-        EXPECT_TRUE(are_equal(inputVals[i], output_const_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(inputVals[i], output_const_ptr[i])) << i;
     }
 }
 
@@ -136,8 +136,8 @@ TEST(set_output_memory_gpu, basic_mutable) {
     topology.add(input_layout("Input", input_data->get_layout()));
     topology.add(mutable_data("Mutable", md));
     topology.add(
-            reorder("reorder_dyn", "Input", input_data->get_layout()),
-            reorder("reorder_mutable", "Mutable", input_data->get_layout())
+            reorder("reorder_dyn", input_info("Input"), input_data->get_layout()),
+            reorder("reorder_mutable", input_info("Mutable"), input_data->get_layout())
     );
 
     network network(engine, topology);
@@ -150,18 +150,18 @@ TEST(set_output_memory_gpu, basic_mutable) {
 
     auto output_dyn = outputs.at("reorder_dyn").get_memory();
     auto output_mutable = outputs.at("reorder_mutable").get_memory();
-    EXPECT_TRUE(engine.is_the_same_buffer(*output_mem, *output_dyn));
-    EXPECT_TRUE(engine.is_the_same_buffer(*output_mutable_mem, *output_mutable));
+    ASSERT_TRUE(engine.is_the_same_buffer(*output_mem, *output_dyn));
+    ASSERT_TRUE(engine.is_the_same_buffer(*output_mutable_mem, *output_mutable));
 
     cldnn::mem_lock<float> output_dyn_ptr(output_dyn, get_test_stream());
     cldnn::mem_lock<float> output_mutable_mem_ptr(output_mutable_mem, get_test_stream());
 
     for (size_t i = 0; i < inputVals.size(); ++i) {
-        EXPECT_TRUE(are_equal(inputVals[i], output_dyn_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(inputVals[i], output_dyn_ptr[i])) << i;
     }
 
     for (size_t i = 0; i < inputVals.size(); ++i) {
-        EXPECT_TRUE(are_equal(inputVals[i], output_mutable_mem_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(inputVals[i], output_mutable_mem_ptr[i])) << i;
     }
 }
 
@@ -176,8 +176,8 @@ TEST(set_output_memory_gpu, top_k1) {
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(cldnn::data("const", top_k_input));
-    topology.add(arg_max_min("arg_max", { "input", "const" }, ov::op::TopKMode::MIN, top_k, 0));
-    topology.add(reorder("reorder", "arg_max", output_mem->get_layout()));
+    topology.add(arg_max_min("arg_max", { input_info("input"), input_info("const") }, ov::op::TopKMode::MIN, top_k, 0));
+    topology.add(reorder("reorder", input_info("arg_max"), output_mem->get_layout()));
 
     std::vector<float> input_vec = {
             //y0x0 y0x1 y1x0 y1x1
@@ -200,13 +200,13 @@ TEST(set_output_memory_gpu, top_k1) {
     auto outputs = network.execute();
 
     auto output = outputs.at("reorder").get_memory();
-    EXPECT_TRUE(engine.is_the_same_buffer(*output_mem, *output));
+    ASSERT_TRUE(engine.is_the_same_buffer(*output_mem, *output));
 
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     cldnn::mem_lock<float> output_mem_ptr(output_mem, get_test_stream());
 
     for (size_t i = 0; i < output_ptr.size(); ++i) {
-        EXPECT_TRUE(are_equal(output_mem_ptr[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(output_mem_ptr[i], output_ptr[i])) << i;
     }
 }
 
@@ -222,8 +222,8 @@ TEST(set_output_memory_gpu, top_k2) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(cldnn::data("const", top_k_input));
     topology.add(mutable_data("second_output", second_output));
-    topology.add(arg_max_min("arg_max", { "input", "const", "second_output" }, ov::op::TopKMode::MIN, top_k, 0));
-    topology.add(reorder("reorder", "arg_max", second_output->get_layout()));
+    topology.add(arg_max_min("arg_max", { input_info("input"), input_info("const"), input_info("second_output") }, ov::op::TopKMode::MIN, top_k, 0));
+    topology.add(reorder("reorder", input_info("arg_max"), second_output->get_layout()));
 
     std::vector<float> input_vec = {
             //y0x0 y0x1 y1x0 y1x1
@@ -246,13 +246,13 @@ TEST(set_output_memory_gpu, top_k2) {
     auto outputs = network.execute();
 
     auto output = outputs.at("reorder").get_memory();
-    EXPECT_TRUE(engine.is_the_same_buffer(*second_output_mem, *output));
+    ASSERT_TRUE(engine.is_the_same_buffer(*second_output_mem, *output));
 
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     cldnn::mem_lock<float> output_mem_ptr(second_output_mem, get_test_stream());
 
     for (size_t i = 0; i < output_ptr.size(); ++i) {
-        EXPECT_TRUE(are_equal(output_mem_ptr[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(output_mem_ptr[i], output_ptr[i])) << i;
     }
 }
 
@@ -306,18 +306,18 @@ TEST(set_output_memory_gpu, basic_opt) {
 
     topology topology;
     topology.add(input_layout("input1", il));
-    topology.add(activation("clamp1", "input1", activation_func::clamp, params1));
+    topology.add(activation("clamp1", input_info("input1"), activation_func::clamp, params1));
     topology.add(input_layout("input2", il));
-    topology.add(activation("clamp2", "input2", activation_func::clamp, params2));
-    topology.add(reshape("reshape1", "clamp1", ishape));
-    topology.add(reshape("reshape2", "clamp2", ishape));
-    topology.add(concatenation("concat", { "reshape1", "reshape2" }, 0, data_types::f32));
-    topology.add(reshape("reshape3", "concat", oshape));
-    topology.add(reorder("reorder", "reshape3", ol));
-    topology.add(reorder("reorder2", "reorder", ol));
+    topology.add(activation("clamp2", input_info("input2"), activation_func::clamp, params2));
+    topology.add(reshape("reshape1", input_info("clamp1"), ishape));
+    topology.add(reshape("reshape2", input_info("clamp2"), ishape));
+    topology.add(concatenation("concat", { input_info("reshape1"), input_info("reshape2") }, 0, data_types::f32));
+    topology.add(reshape("reshape3", input_info("concat"), oshape));
+    topology.add(reorder("reorder", input_info("reshape3"), ol));
+    topology.add(reorder("reorder2", input_info("reorder"), ol));
 
     primitive_id outputID = "reorder3";
-    topology.add(reorder(outputID, "concat", ol));
+    topology.add(reorder(outputID, input_info("concat"), ol));
 
     build_options bo;
     bo.set_option(build_option::optimize_data(true));
@@ -330,16 +330,16 @@ TEST(set_output_memory_gpu, basic_opt) {
     auto outputs = network.execute();
     auto output = outputs.at(outputID).get_memory();
     //  check for correct output memory setting
-    EXPECT_TRUE(engine.is_the_same_buffer(*output_mem, *output));
+    ASSERT_TRUE(engine.is_the_same_buffer(*output_mem, *output));
     //  check for memory set propagation
-    EXPECT_TRUE(engine.is_the_same_buffer(*output_mem, *network.get_output_memory("concat")));
-    EXPECT_TRUE(engine.is_the_same_buffer(*output_mem, *network.get_output_memory("clamp1")));
-    EXPECT_TRUE(engine.is_the_same_buffer(*output_mem, *network.get_output_memory("clamp2")));
+    ASSERT_TRUE(engine.is_the_same_buffer(*output_mem, *network.get_output_memory("concat")));
+    ASSERT_TRUE(engine.is_the_same_buffer(*output_mem, *network.get_output_memory("clamp1")));
+    ASSERT_TRUE(engine.is_the_same_buffer(*output_mem, *network.get_output_memory("clamp2")));
 
     //  check for correct result
     cldnn::mem_lock<float> output_ptr(output_mem, get_test_stream());
     for (size_t i = 0; i < output_ptr.size(); ++i) {
-        EXPECT_TRUE(are_equal(output_ptr[i], output_vec[i])) << i;
+        ASSERT_TRUE(are_equal(output_ptr[i], output_vec[i])) << i;
     }
 }
 
@@ -355,8 +355,8 @@ TEST(set_output_memory_gpu, mutable_output_data) {
     topology.add(input_layout("Add_1396", input->get_layout()));
     topology.add(cldnn::mutable_data("second_input", second_input));
     topology.add(cldnn::mutable_data("12220_md_write", final_output));
-    topology.add(arg_max_min("arg_max", { "Add_1396", "second_input", "12220_md_write" }, ov::op::TopKMode::MIN, top_k, 0));
-    topology.add(cldnn::mutable_data("pred/sink_port_0", {"arg_max"},final_output) );
+    topology.add(arg_max_min("arg_max", { input_info("Add_1396"), input_info("second_input"), input_info("12220_md_write") }, ov::op::TopKMode::MIN, top_k, 0));
+    topology.add(cldnn::mutable_data("pred/sink_port_0", { input_info("arg_max")}, final_output) );
 
     std::vector<float> input_vec = {
             //y0x0 y0x1 y1x0 y1x1

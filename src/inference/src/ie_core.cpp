@@ -472,6 +472,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
                 execNetwork = context ? plugin.import_model(networkStream, context, config)
                                       : plugin.import_model(networkStream, config);
                 networkIsImported = true;
+                execNetwork->loadedFromCache();
             });
         } catch (const HeaderException&) {
             // For these exceptions just remove old cache and set that import didn't work
@@ -549,14 +550,9 @@ public:
     CoreImpl(bool _newAPI) : newAPI(_newAPI) {
         add_mutex("");  // Register global mutex
         executorManagerPtr = executorManager();
-        opsetNames.insert("opset1");
-        opsetNames.insert("opset2");
-        opsetNames.insert("opset3");
-        opsetNames.insert("opset4");
-        opsetNames.insert("opset5");
-        opsetNames.insert("opset6");
-        opsetNames.insert("opset7");
-        opsetNames.insert("opset8");
+        for (const auto& it : ov::get_available_opsets()) {
+            opsetNames.insert(it.first);
+        }
     }
 
     ~CoreImpl() override = default;
@@ -706,7 +702,7 @@ public:
         std::map<std::string, std::string>& config_with_batch = parsed._config;
         // if auto-batching is applicable, the below function will patch the device name and config accordingly:
         ApplyAutoBatching(network, deviceName, config_with_batch);
-        CleanUpProperties(deviceName, config_with_batch);
+        CleanUpProperties(deviceName, config_with_batch, ov::auto_batch_timeout);
         parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch);
 
         auto plugin = GetCPPPluginByName(parsed._deviceName);
@@ -801,10 +797,10 @@ public:
         }
     }
 
-    void CleanUpProperties(std::string& deviceName, std::map<std::string, std::string>& config) {
+    void CleanUpProperties(std::string& deviceName, std::map<std::string, std::string>& config, ov::Any property) {
         // auto-batching is not applicable, if there is auto_batch_timeout, delete it
         if (deviceName.find("BATCH") == std::string::npos) {
-            const auto& batch_timeout_mode = config.find(ov::auto_batch_timeout.name());
+            const auto& batch_timeout_mode = config.find(property.as<std::string>());
             if (batch_timeout_mode != config.end()) {
                 if (deviceName.find("AUTO") == std::string::npos && deviceName.find("MULTI") == std::string::npos)
                     config.erase(batch_timeout_mode);
@@ -820,7 +816,7 @@ public:
         std::map<std::string, std::string> config_with_batch = config;
         // if auto-batching is applicable, the below function will patch the device name and config accordingly:
         ApplyAutoBatching(network, deviceName, config_with_batch);
-        CleanUpProperties(deviceName, config_with_batch);
+        CleanUpProperties(deviceName, config_with_batch, ov::auto_batch_timeout);
 
         bool forceDisableCache = config_with_batch.count(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE)) > 0;
         auto parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch);
@@ -999,7 +995,24 @@ public:
                         "set_property is supported only for BATCH itself (without devices). "
                         "You can configure the devices with set_property before creating the BATCH on top.");
 
-        ExtractAndSetDeviceConfig(properties);
+        bool isMetaDevice = device_name.find("AUTO") != std::string::npos ||
+                            device_name.find("MULTI") != std::string::npos ||
+                            device_name.find("HETERO") != std::string::npos;
+        if (!isMetaDevice) {
+            // unsupport to set ov::device::properties to HW device through this function
+            auto devices = GetListOfDevicesInRegistry();
+            for (auto&& config : properties) {
+                auto parsed = parseDeviceNameIntoConfig(config.first);
+                auto is_secondary_config_for_hw_device =
+                    std::any_of(devices.begin(), devices.end(), [&](const std::string& device) {
+                        return device == parsed._deviceName;
+                    });
+                OPENVINO_ASSERT(
+                    !is_secondary_config_for_hw_device,
+                    "set_property only supported ov::device::propreties for Meta device (AUTO/MULTI/HETERO). "
+                    "You can configure the devices through the compile_model()/loadNetwork() API.");
+            }
+        }
         SetConfigForPlugins(properties, device_name);
     }
 

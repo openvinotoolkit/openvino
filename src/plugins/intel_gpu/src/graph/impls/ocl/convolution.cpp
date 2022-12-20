@@ -166,7 +166,7 @@ public:
             conv_params.quantization = kernel_selector::QuantizationType::NONE;
         }
 
-        auto format = impl_param.output_layout.format;
+        auto format = impl_param.get_output_layout().format;
         if (format == format::b_fs_zyx_fsv16 ||
             format == format::bs_fs_zyx_bsv16_fsv16 ||
             format == format::bs_fs_yx_bsv16_fsv16 ||
@@ -281,4 +281,4 @@ attach_convolution_impl::attach_convolution_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::convolution_impl, cldnn::object_type::CONVOLUTION_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::convolution_impl)

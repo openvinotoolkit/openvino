@@ -26,7 +26,8 @@ struct AdaptiveMaxPoolingParams {
 using AdaptiveMaxPoolingParamsWithLayout = std::tuple<
     AdaptiveMaxPoolingParams,
     format::type,   // source (plain) layout - bfyx or bfzyx
-    format::type    // target (blocked) layout
+    format::type,   // target (blocked) layout
+    bool            // is_caching_test
 >;
 
 const std::vector<format::type> layouts_2d = {
@@ -100,11 +101,13 @@ struct PrintToStringParamName {
         AdaptiveMaxPoolingParams p;
         format::type plain_layout;
         format::type target_layout;
-        std::tie(p, plain_layout, target_layout) = param.param;
+        bool is_caching_test;
+        std::tie(p, plain_layout, target_layout, is_caching_test) = param.param;
         buf << " input tensor " << p.inputTensor.to_string()
             << " output tensor " << p.outputTensor.to_string()
             << " plain layout " << plain_layout
-            << " target layout " << target_layout;
+            << " target layout " << target_layout
+            << " is_caching_test " << is_caching_test;
         return buf.str();
     }
 };
@@ -119,7 +122,8 @@ public:
         AdaptiveMaxPoolingParams params;
         format::type plain_layout;
         format::type target_layout;
-        std::tie(params, plain_layout, target_layout) = this->GetParam();
+        bool is_caching_test;
+        std::tie(params, plain_layout, target_layout, is_caching_test) = this->GetParam();
         const bool need_reorder = target_layout != plain_layout;
 
         std::vector<T> input_data;
@@ -144,11 +148,11 @@ public:
         std::string input_id = input_data_id;
         if (need_reorder) {
             const std::string reorder_input_id = input_data_id + "_reordered";
-            topology.add(reorder(reorder_input_id, input_data_id, target_layout, data_type));
+            topology.add(reorder(reorder_input_id, input_info(input_data_id), target_layout, data_type));
             input_id = reorder_input_id;
         }
 
-        topology.add(adaptive_pooling(adaptive_max_pooling_id, input_id, params.outputTensor, indices_id,
+        topology.add(adaptive_pooling(adaptive_max_pooling_id, input_info(input_id), params.outputTensor, indices_id,
                                       data_types::i32));
 
         std::string result_id = adaptive_max_pooling_id;
@@ -158,11 +162,29 @@ public:
             result_id = reorder_result_id;
         }
 
-        network network(engine, topology);
+        cldnn::network::ptr network;
 
-        network.set_input_data(input_data_id, input_mem);
+        if (is_caching_test) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, topology);
 
-        auto result = network.execute();
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+            }
+        } else {
+            network = std::make_shared<cldnn::network>(engine, topology);
+        }
+
+        network->set_input_data(input_data_id, input_mem);
+
+        auto result = network->execute();
 
         auto out_mem = result.at(result_id).get_memory();
         cldnn::mem_lock<T> out_ptr(out_mem, get_test_stream());
@@ -170,9 +192,12 @@ public:
         ASSERT_EQ(params.outputTensor.count(), out_ptr.size());
         ASSERT_EQ(params.outputTensor.count(), expected.size());
         for (size_t i = 0; i < expected.size(); ++i) {
-            EXPECT_NEAR(expected[i], out_ptr[i], getError<T>())
+            ASSERT_NEAR(expected[i], out_ptr[i], getError<T>())
                 << "i = " << i << ", format=" << fmt_to_str(target_layout);
         }
+
+        if (is_caching_test)
+            return;
 
         const auto block_sizes = format::traits(target_layout).block_sizes;
         const auto index_offset = std::accumulate(block_sizes.begin(), block_sizes.end(), 1u,
@@ -184,7 +209,7 @@ public:
         const auto get_reordered_indices_mem = [&]() {
             cldnn::topology reorder_topology;
             reorder_topology.add(input_layout("indices", indices_layout));
-            reorder_topology.add(reorder("plane_indices", "indices", plain_layout, data_types::i32));
+            reorder_topology.add(reorder("plane_indices", input_info("indices"), plain_layout, data_types::i32));
             cldnn::network reorder_net{engine, reorder_topology};
             reorder_net.set_input_data("indices", indices_mem);
             const auto second_output_result = reorder_net.execute();
@@ -196,7 +221,7 @@ public:
         ASSERT_EQ(params.outputTensor.count(), indices_ptr.size());
         ASSERT_EQ(params.outputTensor.count(), expected_indices.size());
         for (size_t i = 0; i < expected_indices.size(); ++i) {
-            EXPECT_EQ(index_offset * expected_indices[i], indices_ptr[i]) 
+            ASSERT_EQ(index_offset * expected_indices[i], indices_ptr[i])
                 << "i = " << i << ", format=" << fmt_to_str(target_layout);
         }
     }
@@ -222,7 +247,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_adaptive_max_pooling_test_f32_2d,
                                         { tensor(2, 3, 7, 3), tensor(2, 3, 3, 3) },
                                     }),
                                  ::testing::Values(format::bfyx),
-                                 ::testing::Values(format::bfyx)),
+                                 ::testing::Values(format::bfyx),
+                                 ::testing::Values(false)),
                          PrintToStringParamName());
 
 INSTANTIATE_TEST_SUITE_P(smoke_adaptive_max_pooling_test_f32_3d,
@@ -233,7 +259,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_adaptive_max_pooling_test_f32_3d,
                                         { tensor(2, 2, 8, 5, 4), tensor(2, 2, 3, 3, 3) },
                                     }),
                                  ::testing::Values(format::bfzyx),
-                                 ::testing::Values(format::bfzyx)),
+                                 ::testing::Values(format::bfzyx),
+                                 ::testing::Values(false)),
                          PrintToStringParamName());
 
 INSTANTIATE_TEST_SUITE_P(smoke_adaptive_max_pooling_test_f16_2d,
@@ -244,7 +271,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_adaptive_max_pooling_test_f16_2d,
                                         { tensor(2, 3, 7, 3), tensor(2, 3, 3, 3) },
                                     }),
                                  ::testing::Values(format::bfyx),
-                                 ::testing::Values(format::bfyx)),
+                                 ::testing::Values(format::bfyx),
+                                 ::testing::Values(false)),
                          PrintToStringParamName());
 
 INSTANTIATE_TEST_SUITE_P(smoke_adaptive_max_pooling_test_f16_3d,
@@ -255,7 +283,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_adaptive_max_pooling_test_f16_3d,
                                         { tensor(2, 2, 8, 5, 4), tensor(2, 2, 3, 3, 3) },
                                     }),
                                  ::testing::Values(format::bfzyx),
-                                 ::testing::Values(format::bfzyx)),
+                                 ::testing::Values(format::bfzyx),
+                                 ::testing::Values(false)),
                          PrintToStringParamName());
 
 INSTANTIATE_TEST_SUITE_P(smoke_adaptive_max_pooling_test_2d_all_formats,
@@ -266,7 +295,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_adaptive_max_pooling_test_2d_all_formats,
                                         { tensor(32, 32, 7, 3), tensor(32, 32, 3, 3) },
                                     }),
                                  ::testing::Values(format::bfyx),
-                                 ::testing::ValuesIn(layouts_2d)),
+                                 ::testing::ValuesIn(layouts_2d),
+                                 ::testing::Values(false)),
                          PrintToStringParamName());
 
 INSTANTIATE_TEST_SUITE_P(smoke_adaptive_max_pooling_test_3d_all_formats,
@@ -277,5 +307,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_adaptive_max_pooling_test_3d_all_formats,
                                         { tensor(32, 32, 7, 3, 3), tensor(32, 32, 3, 3, 2) },
                                     }),
                                  ::testing::Values(format::bfzyx),
-                                 ::testing::ValuesIn(layouts_3d)),
+                                 ::testing::ValuesIn(layouts_3d),
+                                 ::testing::Values(false)),
+                         PrintToStringParamName());
+
+INSTANTIATE_TEST_SUITE_P(export_import,
+                         adaptive_max_pooling_test_f16,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(std::vector<AdaptiveMaxPoolingParams>{
+                                        { tensor(1, 2, 7, 3), tensor(1, 2, 3, 3) },
+                                    }),
+                                 ::testing::Values(format::bfyx),
+                                 ::testing::Values(format::bfyx),
+                                 ::testing::Values(true)),
                          PrintToStringParamName());

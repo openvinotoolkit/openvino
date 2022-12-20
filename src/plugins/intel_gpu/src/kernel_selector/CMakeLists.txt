@@ -4,12 +4,7 @@
 
 set(TARGET_NAME "openvino_intel_gpu_kernels")
 
-find_host_package(PythonInterp 3 QUIET)
-if(NOT PYTHONINTERP_FOUND)
-  message(WARNING "[clDNN] Project requires Python 3.x interpreter to build (with python loader). CMake could not detect it correctly.
-      If you have installed this interpreter, please disregard this warning or specify PYTHON_EXECUTABLE in CMake command-line."
-    )
-endif()
+find_host_package(PythonInterp 3 REQUIRED)
 
 file(GLOB_RECURSE LIBRARY_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/*.h"
@@ -81,13 +76,13 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 
 if(WIN32)
   target_link_libraries(${TARGET_NAME} PRIVATE setupapi)
-elseif((NOT ANDROID) AND (UNIX))
+elseif((NOT ANDROID) AND UNIX)
   target_link_libraries(${TARGET_NAME} PRIVATE pthread)
 endif()
 
 if(WIN32)
   set(TUNING_CACHE_PATH "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIGURATION>")
-else((NOT ANDROID) AND (UNIX))
+else()
   set(TUNING_CACHE_PATH "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/")
 endif()
 

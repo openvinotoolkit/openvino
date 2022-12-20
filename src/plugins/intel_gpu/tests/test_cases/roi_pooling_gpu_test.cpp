@@ -154,18 +154,18 @@ public:
             inputs.emplace_back("offsets", offsets);
         }
 
-        std::vector<primitive_id> inputs_ids;
+        std::vector<input_info> inputs_ids;
         std::transform(inputs.begin(),
                        inputs.end(),
                        std::back_inserter(inputs_ids),
                        [](const decltype(inputs)::value_type& pair) {
-                           return "reordered_" + pair.first;
+                           return input_info("reordered_" + pair.first);
                        });
 
         topology topology;
         for (auto& input : inputs) {
             topology.add(input_layout(input.first, input.second->get_layout()));
-            topology.add(reorder("reordered_" + input.first, input.first, fmt, type_to_data_type<T>::value));
+            topology.add(reorder("reordered_" + input.first, input_info(input.first), fmt, type_to_data_type<T>::value));
         }
 
         topology.add(roi_pooling("roi_pooling",
@@ -183,7 +183,7 @@ public:
                                  p.spatial_bins_x,
                                  p.spatial_bins_y));
 
-        topology.add(reorder("reordered_roi_pooling", "roi_pooling", plane_format, type_to_data_type<T>::value));
+        topology.add(reorder("reordered_roi_pooling", input_info("roi_pooling"), plane_format, type_to_data_type<T>::value));
 
         network network(engine, topology);
         for (auto& input : inputs) {
@@ -191,15 +191,15 @@ public:
         }
         const auto outputs = network.execute();
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "reordered_roi_pooling");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "reordered_roi_pooling");
 
         auto output = outputs.at("reordered_roi_pooling").get_memory();
         cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), p.output_values.size());
         for (size_t i = 0; i < output_ptr.size(); ++i) {
-            EXPECT_NEAR(p.output_values[i], output_ptr[i], threshold);
+            ASSERT_NEAR(p.output_values[i], output_ptr[i], threshold);
         }
     }
 

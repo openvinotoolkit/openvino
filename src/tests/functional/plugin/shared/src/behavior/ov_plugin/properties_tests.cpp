@@ -154,6 +154,16 @@ TEST_P(OVSetPropComplieModleWihtIncorrectPropTests, CanNotCompileModelWithIncorr
     ASSERT_THROW(core->compile_model(model, target_device, properties), ov::Exception);
 }
 
+TEST_P(OVSetSupportPropComplieModleWithoutConfigTests, SetPropertyComplieModelWithCorrectProperty) {
+    OV_ASSERT_NO_THROW(core->set_property(target_device, properties));
+    ASSERT_NO_THROW(core->compile_model(model, target_device, {}));
+}
+
+TEST_P(OVSetUnsupportPropComplieModleWithoutConfigTests, SetPropertyComplieModelWithIncorrectProperty) {
+    OV_ASSERT_NO_THROW(core->set_property(target_device, properties));
+    ASSERT_THROW(core->compile_model(model, target_device, {}), ov::Exception);
+}
+
 std::string OVCompileModelGetExecutionDeviceTests::getTestCaseName(testing::TestParamInfo<OvPropertiesParams> obj) {
     std::string target_device;
     std::pair<ov::AnyMap, std::string> userConfig;
@@ -165,7 +175,7 @@ std::string OVCompileModelGetExecutionDeviceTests::getTestCaseName(testing::Test
     if (!compileModelProperties.empty()) {
         result << "_compileModelProp=" << util::join(util::split(util::to_string(compileModelProperties), ' '), "_");
     }
-     result << "_expectedDevice=" << userConfig.second;
+    result << "_expectedDevice=" << userConfig.second;
     return result.str();
 }
 
@@ -200,7 +210,7 @@ TEST_P(OVCompileModelGetExecutionDeviceTests, CanGetExecutionDeviceInfo) {
     ov::Any property;
     OV_ASSERT_NO_THROW(property = exeNetWork.get_property(ov::execution_devices));
     if (expectedDeviceName.find("undefined") == std::string::npos)
-        ASSERT_EQ(property, updatedExpectDevices);
+        ASSERT_EQ(util::join(property.as<std::vector<std::string>>(), ","), updatedExpectDevices);
     else
         ASSERT_FALSE(property.empty());
 }

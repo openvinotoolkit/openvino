@@ -3,19 +3,18 @@
 //
 
 #include "intel_gpu/graph/network.hpp"
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
+#include "intel_gpu/graph/serialization/map_serializer.hpp"
+#include "intel_gpu/graph/serialization/layout_serializer.hpp"
+#include "intel_gpu/graph/serialization/string_serializer.hpp"
+#include "intel_gpu/graph/serialization/vector_serializer.hpp"
 #include "intel_gpu/runtime/profiling.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include "intel_gpu/plugin/graph.hpp"
 #include "intel_gpu/plugin/simple_math.hpp"
-#include <cldnn/cldnn_config.hpp>
 #include "intel_gpu/plugin/infer_request.hpp"
 #include "intel_gpu/plugin/itt.hpp"
-#include "serialization/binary_buffer.hpp"
-#include "serialization/map_serializer.hpp"
-#include "serialization/layout_serializer.hpp"
-#include "serialization/string_serializer.hpp"
-#include "serialization/vector_serializer.hpp"
 
 #include <description_buffer.hpp>
 #include <threading/ie_executor_manager.hpp>
@@ -136,14 +135,14 @@ std::shared_ptr<cldnn::network> Graph::BuildNetwork(std::shared_ptr<cldnn::progr
         network = std::make_shared<cldnn::network>(program, m_stream_id);
     }
 
-
-    if (!m_config.graph_dumps_dir.empty() && m_stream_id == 0) {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(!debug_config->dump_graphs.empty() && m_stream_id == 0) {
         static int net_id = 0;
         auto steps_info = network->get_optimizer_passes_info();
         size_t step_idx = 0;
         for (auto& step : steps_info) {
             CNNNetwork net(GetExecGraphInfoByPrimitivesInfo(step.second, true));
-            net.serialize(m_config.graph_dumps_dir + std::to_string(net_id) + "_" +
+            net.serialize(debug_config->dump_graphs + std::to_string(net_id) + "_" +
                           std::to_string(step_idx) + "_" + step.first + "_graph.xml");
             step_idx++;
         }
@@ -468,6 +467,11 @@ std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::v
     return std::make_shared<ngraph::Function>(results, params, "runtime_gpu_graph");
 }
 
+// Cache blob format:
+//     [ ov::intel_gpu::Program::inputLayouts ]
+//     [ ov::intel_gpu::Graph::primitiveIDs ]
+//     [ ov::intel_gpu::Graph::outputDims ]
+//     [ cldnn::network ]
 void Graph::Export(cldnn::BinaryOutputBuffer &ob) {
     ob << m_program->inputLayouts;
     ob << primitiveIDs;

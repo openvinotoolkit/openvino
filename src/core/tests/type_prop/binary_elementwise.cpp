@@ -3,6 +3,7 @@
 //
 
 #include "common_test_utils/test_assertions.hpp"
+#include "dimension_tracker.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "util/type_prop.hpp"
@@ -62,78 +63,7 @@ TEST(type_prop, add_bad_arguments) {
     });
 }
 
-//
-// Tests for binary elementwise logical ops.
-//
-void test_binary_logical(std::string /* node_type */,
-                         shared_ptr<Node>(f)(const shared_ptr<Node>& x, const shared_ptr<Node>& y)) {
-    // Check for bad arguments
-    auto tv0_2_4_param_0 = make_shared<op::Parameter>(element::boolean, Shape{2, 4});
-    auto tv0_2_4_param_1 = make_shared<op::Parameter>(element::boolean, Shape{2, 4});
-    auto tv0_2_4_param_2 = make_shared<op::Parameter>(element::i32, Shape{2, 4});
-    auto tv0_2_4_param_3 = make_shared<op::Parameter>(element::i32, Shape{2, 4});
-    auto tv0_4_2_param = make_shared<op::Parameter>(element::boolean, Shape{4, 2});
-
-    auto test_binary_bad_arguments_view_shapes = [&](const shared_ptr<Node>& x, const shared_ptr<Node>& y) {
-        try {
-            auto node = f(x, y);
-            // Should have thrown, so fail if it didn't
-            FAIL() << "Incompatible view arguments not detected.";
-        } catch (const NodeValidationFailure& error) {
-            EXPECT_HAS_SUBSTRING(error.what(), std::string("Argument shapes are inconsistent"));
-        } catch (...) {
-            FAIL() << "Deduced type check failed for unexpected reason";
-        }
-    };
-    test_binary_bad_arguments_view_shapes(tv0_2_4_param_0, tv0_4_2_param);
-
-    auto test_binary_differ_arguments_view_element_types = [&](const shared_ptr<Node>& x, const shared_ptr<Node>& y) {
-        try {
-            auto node = f(x, y);
-            // Should have thrown, so fail if it didn't
-            FAIL() << "Incompatible view arguments not detected.";
-        } catch (const NodeValidationFailure& error) {
-            EXPECT_HAS_SUBSTRING(error.what(), std::string("Arguments do not have the same element type"));
-        } catch (...) {
-            FAIL() << "Deduced type check failed for unexpected reason";
-        }
-    };
-
-    auto test_binary_non_bool_arguments_view_element_types = [&](const shared_ptr<Node>& x, const shared_ptr<Node>& y) {
-        try {
-            auto node = f(x, y);
-            // Should have thrown, so fail if it didn't
-            FAIL() << "Incompatible view arguments not detected.";
-        } catch (const ngraph_error& error) {
-            EXPECT_HAS_SUBSTRING(error.what(), "must have boolean element type");
-        } catch (...) {
-            FAIL() << "Deduced type check failed for unexpected reason";
-        }
-    };
-
-    test_binary_differ_arguments_view_element_types(tv0_2_4_param_0, tv0_2_4_param_2);
-    test_binary_differ_arguments_view_element_types(tv0_2_4_param_2, tv0_2_4_param_0);
-    test_binary_non_bool_arguments_view_element_types(tv0_2_4_param_2, tv0_2_4_param_3);
-
-    auto test_binary_good_arguments = [&](const shared_ptr<Node>& x, const shared_ptr<Node>& y) {
-        auto node = f(x, y);
-        EXPECT_TRUE(node->has_same_type(node->input_values()[0].get_node_shared_ptr()));
-    };
-    test_binary_good_arguments(tv0_2_4_param_0, tv0_2_4_param_1);
-}
-
-TEST(type_prop, or_bad_arguments) {
-    test_binary_logical("Or", [](const shared_ptr<Node>& x, const shared_ptr<Node>& y) -> shared_ptr<Node> {
-        return make_shared<op::v1::LogicalOr>(x, y);
-    });
-}
-
-TEST(type_prop, xor_bad_arguments) {
-    test_binary_logical("Xor", [](const shared_ptr<Node>& x, const shared_ptr<Node>& y) -> shared_ptr<Node> {
-        return make_shared<op::Xor>(x, y);
-    });
-}
-
+namespace {
 template <typename T>
 void test_binary_eltwise_numpy(const element::Type& et, const op::AutoBroadcastSpec& autob) {
     auto param1 = make_shared<op::Parameter>(et, Shape{1, 3, 6});
@@ -153,69 +83,276 @@ void test_binary_eltwise_numpy(const element::Type& et, const op::AutoBroadcastS
     EXPECT_EQ(make_shared<T>(pp1, pp2, autob)->get_shape(), (Shape{1, 3, 6}));
 }
 
-TEST(type_prop, eltwise_auto_bcast) {
-    test_binary_eltwise_numpy<op::v1::Add>(element::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::v1::Equal>(element::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::v1::Greater>(element::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::v1::GreaterEqual>(element::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::v1::Less>(element::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::v1::LessEqual>(element::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::v1::Maximum>(element::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::v1::NotEqual>(element::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::v1::LogicalOr>(element::boolean, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::Xor>(element::boolean, op::AutoBroadcastType::NUMPY);
-}
-
-TEST(type_prop, comparison_good) {
-    auto tv0_2_4_param_0 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
-    auto tv0_2_4_param_1 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
-    auto eq = make_shared<op::v1::Equal>(tv0_2_4_param_0, tv0_2_4_param_1);
-    EXPECT_EQ(eq->get_element_type(), element::boolean);
-    EXPECT_EQ(eq->get_shape(), (Shape{2, 4}));
-}
-
-TEST(type_prop, binary_arithmetic_bad_argument_element_types) {
-    auto tv0_2_4_param_0 = make_shared<op::Parameter>(element::boolean, Shape{2, 4});
-    auto tv0_2_4_param_1 = make_shared<op::Parameter>(element::boolean, Shape{2, 4});
-    try {
-        auto bc = make_shared<op::v1::Add>(tv0_2_4_param_0, tv0_2_4_param_1);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Did not detect incorrect element types for arithmetic operator";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Arguments cannot have boolean element type"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
-}
-
-namespace {
 template <typename T>
 void test_binary_eltwise_bad_argument_shape(const element::Type& et) {
     auto input1 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
     auto input2 = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
-    try {
-        auto bc = make_shared<T>(input1, input2, op::AutoBroadcastType::NONE);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Did not detect incorrect element types for arithmetic operator";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Argument shapes are inconsistent"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+
+    OV_EXPECT_THROW(auto bc = make_shared<T>(input1, input2, op::AutoBroadcastType::NONE),
+                    NodeValidationFailure,
+                    HasSubstr("Argument shapes are inconsistent"));
 }
+
+template <class T>
+shared_ptr<op::v1::Reshape> createReshapeSubgraph(PartialShape param_shape,
+                                                  shared_ptr<op::Constant> constant_op,
+                                                  bool const_rhs = true) {
+    auto param = make_shared<op::Parameter>(element::f32, param_shape);
+    auto shape_of = make_shared<op::v3::ShapeOf>(param);
+    auto cast_fp = make_shared<op::Convert>(shape_of, element::f32);
+
+    Output<Node> op;
+    if (const_rhs)
+        op = make_shared<T>(cast_fp, constant_op);
+    else
+        op = make_shared<T>(constant_op, cast_fp);
+
+    auto cast_int = make_shared<op::Convert>(op, element::i32);
+    return make_shared<op::v1::Reshape>(param, cast_int, false);
+}
+
 }  // namespace
+
+TEST(type_prop, eltwise_auto_bcast) {
+    test_binary_eltwise_numpy<op::v1::Add>(element::f32, op::AutoBroadcastType::NUMPY);
+    test_binary_eltwise_numpy<op::v1::Maximum>(element::f32, op::AutoBroadcastType::NUMPY);
+}
+
+// --- Binary elementwise comparision ops tests - start
+/** \brief namespace to group binary elementwise comparision (BEC) tests */
+namespace BEC {
+template <class TOp>
+class BinaryElementwiseCmpTest : public Test {
+protected:
+    template <class... Args>
+    std::shared_ptr<TOp> make_op(Args&&... args) {
+        return std::make_shared<TOp>(std::forward<Args>(args)...);
+    }
+
+    std::shared_ptr<TOp> make_op_with_types(element::Type et0, element::Type et1) {
+        const auto a = std::make_shared<op::Parameter>(et0, Shape{1, 2, 3});
+        const auto b = std::make_shared<op::Parameter>(et1, Shape{1, 2, 3});
+        return make_op(a, b);
+    }
+};
+
+TYPED_TEST_SUITE_P(BinaryElementwiseCmpTest);
+
+TYPED_TEST_P(BinaryElementwiseCmpTest, argument_shapes_are_inconsistent) {
+    test_binary_eltwise_bad_argument_shape<TypeParam>(element::f64);
+}
+
+TYPED_TEST_P(BinaryElementwiseCmpTest, propagate_static_partial_shape_no_broadcast) {
+    auto shape = PartialShape{2, 4, 5};
+    set_shape_labels(shape, 3);
+    const auto a = make_shared<op::Parameter>(element::f32, shape);
+    const auto b = make_shared<op::Parameter>(element::f32, PartialShape({2, 4, 5}));
+
+    const auto op = this->make_op(a, b, op::AutoBroadcastType::NONE);
+
+    EXPECT_EQ(op->get_output_size(), 1);
+    EXPECT_EQ(op->get_element_type(), element::boolean);
+    EXPECT_EQ(op->get_output_partial_shape(0), shape);
+    EXPECT_EQ(op->get_shape(), shape.get_shape());
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(3, 4, 5));
+    EXPECT_THAT(get_shape_labels(a->get_output_partial_shape(0)), ElementsAre(3, 4, 5));
+    EXPECT_THAT(get_shape_labels(b->get_output_partial_shape(0)), Each(0));
+}
+
+TYPED_TEST_P(BinaryElementwiseCmpTest, propagate_static_partial_shape_numpy_broadcast) {
+    test_binary_eltwise_numpy<TypeParam>(element::f64, op::AutoBroadcastType::NUMPY);
+}
+
+TYPED_TEST_P(BinaryElementwiseCmpTest, propagate_static_partial_shape_pdpd_broadcast) {
+    auto a = make_shared<op::Parameter>(element::f64, PartialShape{1, 3, 6});
+    auto b = make_shared<op::Parameter>(element::f64, PartialShape{1, 1, 1});
+
+    const auto op = this->make_op(a, b, op::AutoBroadcastType::PDPD);
+
+    EXPECT_EQ(op->get_output_size(), 1);
+    EXPECT_EQ(op->get_element_type(), element::boolean);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({1, 3, 6}));
+    EXPECT_EQ(op->get_shape(), Shape({1, 3, 6}));
+}
+
+TYPED_TEST_P(BinaryElementwiseCmpTest, propagate_dynamic_partial_shape_no_broadcast) {
+    const auto shape = PartialShape{2, {3, 4}, 8, {2, 5}, 10};
+    auto a = make_shared<op::Parameter>(element::i64, PartialShape{2, {3, 5}, -1, {-1, 5}, {6, -1}});
+    auto b = make_shared<op::Parameter>(element::i64, shape);
+
+    auto op = this->make_op(a, b, op::AutoBroadcastType::NONE);
+
+    EXPECT_EQ(op->get_output_size(), 1);
+    EXPECT_EQ(op->get_element_type(), element::boolean);
+    EXPECT_EQ(op->get_output_partial_shape(0), shape);
+}
+
+TYPED_TEST_P(BinaryElementwiseCmpTest, propagate_dynamic_partial_shape_numpy_broadcast) {
+    auto a = make_shared<op::Parameter>(element::i64, PartialShape{2, {3, 5}, -1, {-1, 5}, {6, -1}});
+    auto b = make_shared<op::Parameter>(element::i64, PartialShape{2, {3, 4}, 8});
+
+    auto op = this->make_op(a, b, op::AutoBroadcastType::NUMPY);
+
+    EXPECT_EQ(op->get_output_size(), 1);
+    EXPECT_EQ(op->get_element_type(), element::boolean);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({2, {3, 5}, 2, {3, 4}, 8}));
+}
+
+TYPED_TEST_P(BinaryElementwiseCmpTest, propagate_dynamic_rank_shape_no_broadcast) {
+    const auto a = make_shared<op::Parameter>(element::i32, PartialShape::dynamic());
+    const auto b = make_shared<op::Parameter>(element::i32, PartialShape::dynamic());
+
+    const auto op = this->make_op(a, b, op::AutoBroadcastType::NONE);
+
+    EXPECT_EQ(op->get_output_size(), 1);
+    EXPECT_EQ(op->get_element_type(), element::boolean);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape::dynamic());
+}
+
+TYPED_TEST_P(BinaryElementwiseCmpTest, propagate_dynamic_rank_shape) {
+    const auto a = make_shared<op::Parameter>(element::i16, PartialShape::dynamic());
+    const auto b = make_shared<op::Parameter>(element::i16, PartialShape::dynamic());
+
+    const auto op = this->make_op(a, b);
+
+    EXPECT_EQ(op->get_output_size(), 1);
+    EXPECT_EQ(op->get_element_type(), element::boolean);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape::dynamic());
+}
+
+TYPED_TEST_P(BinaryElementwiseCmpTest, propagate_one_input_is_dynamic_rank_shape) {
+    const auto a = make_shared<op::Parameter>(element::i8, PartialShape{3, 4, {1, 5}, -1});
+    const auto b = make_shared<op::Parameter>(element::i8, PartialShape::dynamic());
+
+    EXPECT_EQ(this->make_op(a, b)->get_output_partial_shape(0), PartialShape::dynamic());
+    EXPECT_EQ(this->make_op(b, a)->get_output_partial_shape(0), PartialShape::dynamic());
+}
+
+TYPED_TEST_P(BinaryElementwiseCmpTest, allowed_mixed_input_types) {
+    // Done as multiple assertion test because gtest not allow combine type param and data param combined fixture.
+    ASSERT_EQ(this->make_op_with_types(element::boolean, element::boolean)->get_element_type(), element::boolean);
+    ASSERT_EQ(this->make_op_with_types(element::boolean, element::dynamic)->get_element_type(), element::boolean);
+    ASSERT_EQ(this->make_op_with_types(element::dynamic, element::i32)->get_element_type(), element::boolean);
+    ASSERT_EQ(this->make_op_with_types(element::dynamic, element::boolean)->get_element_type(), element::boolean);
+    ASSERT_EQ(this->make_op_with_types(element::dynamic, element::dynamic)->get_element_type(), element::boolean);
+}
+
+TYPED_TEST_P(BinaryElementwiseCmpTest, not_allowed_mixed_input_types) {
+    ASSERT_ANY_THROW({ this->make_op_with_types(element::i32, element::boolean); });
+    ASSERT_ANY_THROW({ this->make_op_with_types(element::boolean, element::i32); });
+}
+
+TYPED_TEST_P(BinaryElementwiseCmpTest, propagate_labels_from_one_input_only_no_broadcast) {
+    constexpr auto et = element::f64;
+
+    auto labeled_shape = PartialShape{2, 4, 5};
+    set_shape_labels(labeled_shape, 3);
+    const auto exp_labels = get_shape_labels(labeled_shape);
+
+    const auto a = make_shared<op::Parameter>(et, labeled_shape);
+    const auto b = make_shared<op::Parameter>(et, PartialShape({2, 4, 5}));
+
+    EXPECT_EQ(get_shape_labels(this->make_op(a, b, op::AutoBroadcastType::NONE)->get_output_partial_shape(0)),
+              exp_labels);
+    EXPECT_EQ(get_shape_labels(this->make_op(b, a, op::AutoBroadcastType::NONE)->get_output_partial_shape(0)),
+              exp_labels);
+}
+
+TYPED_TEST_P(BinaryElementwiseCmpTest, propagate_labels_from_both_inputs_no_broadcast) {
+    constexpr auto et = element::f64;
+
+    const auto labels_a = std::vector<size_t>{10, ov::no_label, 12, 13, 14, 15};
+    auto shape_a = PartialShape{2, 4, 5, -1, {4, 5}, {-1, 6}};
+    set_shape_labels(shape_a, labels_a);
+    const auto a = make_shared<op::Parameter>(et, shape_a);
+
+    const auto labels_b = std::vector<size_t>{20, 21, ov::no_label, 23, 24, 25};
+    auto shape_b = PartialShape{2, 4, 5, 5, -1, {4, -1}};
+    set_shape_labels(shape_b, labels_b);
+    const auto b = make_shared<op::Parameter>(et, shape_b);
+
+    EXPECT_THAT(this->make_op(a, b, op::AutoBroadcastType::NONE)->get_output_partial_shape(0),
+                AllOf(Eq(PartialShape({2, 4, 5, 5, {4, 5}, {4, 6}})),
+                      ResultOf(get_shape_labels, ElementsAre(20, 21, 12, 23, 24, 25))));
+
+    EXPECT_THAT(this->make_op(b, a, op::AutoBroadcastType::NONE)->get_output_partial_shape(0),
+                AllOf(Eq(PartialShape({2, 4, 5, 5, {4, 5}, {4, 6}})),
+                      ResultOf(get_shape_labels, ElementsAre(10, 21, 12, 13, 14, 15))));
+}
+
+TYPED_TEST_P(BinaryElementwiseCmpTest, propagate_labels_from_both_inputs_numpy_broadcast) {
+    constexpr auto et = element::f64;
+
+    const auto labels_a = std::vector<size_t>{10, ov::no_label, 12, 13, ov::no_label, 15};
+    auto shape_a = PartialShape{2, {2, 4}, -1, {4, 5}, {-1, 6}, 1};
+    set_shape_labels(shape_a, labels_a);
+    const auto a = make_shared<op::Parameter>(et, shape_a);
+
+    const auto labels_b = std::vector<size_t>{20, 21, ov::no_label, 23};
+    auto shape_b = PartialShape{2, {4, -1}, 5, {4, -1}};
+    set_shape_labels(shape_b, labels_b);
+    const auto b = make_shared<op::Parameter>(et, shape_b);
+
+    EXPECT_THAT(this->make_op(a, b, op::AutoBroadcastType::NUMPY)->get_output_partial_shape(0),
+                AllOf(Eq(PartialShape({2, {2, 4}, 2, {4, 5}, 5, {4, -1}})),
+                      ResultOf(get_shape_labels, ElementsAre(10, ov::no_label, 20, 21, ov::no_label, 23))));
+
+    EXPECT_THAT(this->make_op(b, a, op::AutoBroadcastType::NUMPY)->get_output_partial_shape(0),
+                AllOf(Eq(PartialShape({2, {2, 4}, 2, {4, 5}, 5, {4, -1}})),
+                      ResultOf(get_shape_labels, ElementsAre(10, ov::no_label, 20, 13, ov::no_label, 23))));
+}
+
+TYPED_TEST_P(BinaryElementwiseCmpTest, use_default_ctor) {
+    constexpr auto dtype = element::f32;
+
+    const auto a = make_shared<op::Parameter>(dtype, PartialShape{2, 5, -1, {-1, 5}, {6, -1}});
+    const auto b = make_shared<op::Parameter>(dtype, PartialShape{2, 4, 8});
+
+    const auto op = this->make_op();
+    op->set_arguments(NodeVector{a, b});
+    op->set_autob(op::AutoBroadcastType::NUMPY);
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_autob(), op::AutoBroadcastType::NUMPY);
+    EXPECT_EQ(op->get_element_type(), element::boolean);
+    EXPECT_EQ(op->get_output_size(), 1);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({2, 5, 2, 4, 8}));
+}
+
+REGISTER_TYPED_TEST_SUITE_P(BinaryElementwiseCmpTest,
+                            argument_shapes_are_inconsistent,
+                            propagate_static_partial_shape_no_broadcast,
+                            propagate_static_partial_shape_numpy_broadcast,
+                            propagate_static_partial_shape_pdpd_broadcast,
+                            propagate_dynamic_partial_shape_no_broadcast,
+                            propagate_dynamic_partial_shape_numpy_broadcast,
+                            propagate_dynamic_rank_shape_no_broadcast,
+                            propagate_dynamic_rank_shape,
+                            propagate_one_input_is_dynamic_rank_shape,
+                            allowed_mixed_input_types,
+                            not_allowed_mixed_input_types,
+                            propagate_labels_from_one_input_only_no_broadcast,
+                            propagate_labels_from_both_inputs_no_broadcast,
+                            propagate_labels_from_both_inputs_numpy_broadcast,
+                            use_default_ctor);
+
+using BinaryOpTypes =
+    Types<op::v1::Equal, op::v1::NotEqual, op::v1::Greater, op::v1::GreaterEqual, op::v1::Less, op::v1::LessEqual>;
+INSTANTIATE_TYPED_TEST_SUITE_P(type_prop, BinaryElementwiseCmpTest, BinaryOpTypes);
+}  // namespace BEC
+
+TEST(type_prop, binary_arithmetic_bad_argument_element_types) {
+    auto tv0_2_4_param_0 = make_shared<op::Parameter>(element::boolean, Shape{2, 4});
+    auto tv0_2_4_param_1 = make_shared<op::Parameter>(element::boolean, Shape{2, 4});
+
+    OV_EXPECT_THROW(auto bc = make_shared<op::v1::Add>(tv0_2_4_param_0, tv0_2_4_param_1),
+                    NodeValidationFailure,
+                    HasSubstr("Arguments cannot have boolean element type"));
+}
 
 TEST(type_prop, binary_arithmetic_bad_argument_shape_with_none_autobroadcast_attribute) {
     test_binary_eltwise_bad_argument_shape<op::v1::Add>(element::f32);
-    test_binary_eltwise_bad_argument_shape<op::v1::Equal>(element::f32);
-    test_binary_eltwise_bad_argument_shape<op::v1::Greater>(element::f32);
-    test_binary_eltwise_bad_argument_shape<op::v1::GreaterEqual>(element::f32);
-    test_binary_eltwise_bad_argument_shape<op::v1::Less>(element::f32);
-    test_binary_eltwise_bad_argument_shape<op::v1::LessEqual>(element::f32);
     test_binary_eltwise_bad_argument_shape<op::v1::Maximum>(element::f32);
-    test_binary_eltwise_bad_argument_shape<op::v1::NotEqual>(element::f32);
-    test_binary_eltwise_bad_argument_shape<op::v1::LogicalOr>(element::boolean);
-    test_binary_eltwise_bad_argument_shape<op::Xor>(element::boolean);
 }
 
 TEST(type_prop, binary_elementwise_arithmetic_both_dynamic) {
@@ -379,17 +516,6 @@ TEST(type_prop, logic_arith_compare_partial_et) {
         return std::make_shared<op::v1::Add>(param0, param1);
     };
 
-    auto test_compare = [](element::Type et0, element::Type et1) -> std::shared_ptr<Node> {
-        auto param0 = std::make_shared<op::Parameter>(et0, Shape{1, 2, 3});
-        auto param1 = std::make_shared<op::Parameter>(et1, Shape{1, 2, 3});
-        return std::make_shared<op::v1::Greater>(param0, param1);
-    };
-
-    auto test_logical_not = [](element::Type et) -> std::shared_ptr<Node> {
-        auto param = std::make_shared<op::Parameter>(et, Shape{1, 2, 3});
-        return std::make_shared<op::v1::LogicalNot>(param);
-    };
-
     // Arith ops:
     //
     // int int -> int
@@ -410,65 +536,7 @@ TEST(type_prop, logic_arith_compare_partial_et) {
     ASSERT_EQ(test_arith(element::dynamic, element::i32)->get_element_type(), element::i32);
     ASSERT_ANY_THROW({ test_arith(element::dynamic, element::boolean); });
     ASSERT_EQ(test_arith(element::dynamic, element::dynamic)->get_element_type(), element::dynamic);
-
-    // Comparison ops:
-    //
-    // int int -> boo
-    // int boo -> !
-    // int dyn -> boo
-    // boo int -> !
-    // boo boo -> boo
-    // boo dyn -> boo
-    // dyn int -> boo
-    // dyn boo -> boo
-    // dyn dyn -> boo
-    ASSERT_EQ(test_compare(element::i32, element::i32)->get_element_type(), element::boolean);
-    ASSERT_ANY_THROW({ test_compare(element::i32, element::boolean); });
-    ASSERT_EQ(test_compare(element::i32, element::dynamic)->get_element_type(), element::boolean);
-    ASSERT_ANY_THROW({ test_compare(element::boolean, element::i32); });
-    ASSERT_EQ(test_compare(element::boolean, element::boolean)->get_element_type(), element::boolean);
-    ASSERT_EQ(test_compare(element::boolean, element::dynamic)->get_element_type(), element::boolean);
-    ASSERT_EQ(test_compare(element::dynamic, element::i32)->get_element_type(), element::boolean);
-    ASSERT_EQ(test_compare(element::dynamic, element::boolean)->get_element_type(), element::boolean);
-    ASSERT_EQ(test_compare(element::dynamic, element::dynamic)->get_element_type(), element::boolean);
-
-    // Logical negation op:
-    //
-    // Current behavior:
-    // int -> int
-    // boo -> boo
-    // dyn -> dyn
-    //
-    // TODO(amprocte): I believe the behavior should actually be:
-    // int -> !
-    // boo -> boo
-    // dyn -> boo
-    ASSERT_EQ(test_logical_not(element::i32)->get_element_type(), element::i32);
-    ASSERT_EQ(test_logical_not(element::boolean)->get_element_type(), element::boolean);
-    ASSERT_EQ(test_logical_not(element::dynamic)->get_element_type(), element::dynamic);
 }
-
-namespace {
-template <class T>
-shared_ptr<op::v1::Reshape> createReshapeSubgraph(PartialShape param_shape,
-                                                  shared_ptr<op::Constant> constant_op,
-                                                  bool const_rhs = true) {
-    auto param = make_shared<op::Parameter>(element::f32, param_shape);
-    auto shape_of = make_shared<op::v3::ShapeOf>(param);
-    auto cast_fp = make_shared<op::Convert>(shape_of, element::f32);
-
-    Output<Node> op;
-    if (const_rhs)
-        op = make_shared<T>(cast_fp, constant_op);
-    else
-        op = make_shared<T>(constant_op, cast_fp);
-
-    auto cast_int = make_shared<op::Convert>(op, element::i32);
-    auto r = make_shared<op::v1::Reshape>(param, cast_int, false);
-
-    return r;
-}
-}  // namespace
 
 TEST(type_prop, interval_value_propagation_add_rhs) {
     PartialShape op_shape{Dimension(-1), Dimension(2, -1), Dimension(-1, 6), Dimension(7, 10), Dimension(7, 10), 5};

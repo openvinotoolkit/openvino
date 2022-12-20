@@ -278,7 +278,7 @@ OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     if (inputScaleFactorsPerInput.empty() && inputScaleFactors.empty()) {
-        inputScaleFactors.push_back(1.0f);
+        inputScaleFactors.push_back(kScaleFactorDefault);
     }
 
     AdjustKeyMapValues();
@@ -293,7 +293,7 @@ void Config::AdjustKeyMapValues() {
             ov::util::to_string(inputScaleFactorsPerInput);
     } else {
         if (inputScaleFactors.empty()) {
-            inputScaleFactors.push_back(1.0);
+            inputScaleFactors.push_back(kScaleFactorDefault);
         }
         keyConfigMap[GNA_CONFIG_KEY(SCALE_FACTOR)] = std::to_string(inputScaleFactors[0]);
         for (int n = 0; n < inputScaleFactors.size(); n++) {

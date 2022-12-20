@@ -17,7 +17,7 @@ namespace intel_gpu {
 
 static void CreateCommonReshapeOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::reshape::reshape_mode mode, bool special_zero = false) {
     validate_inputs_count(op, {1, 2});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     auto input_pshape = op->get_input_partial_shape(0);
@@ -34,15 +34,15 @@ static void CreateCommonReshapeOp(Program& p, const std::shared_ptr<ngraph::Node
         // If second input is absent (it's optional in Squeeze op) or it's constant, create reshape with single input and compile time out pattern
         if (op->get_input_size() == 1 || second_const_input != nullptr) {
             reshape_prim = std::make_shared<cldnn::reshape>(layerName,
-                                                            inputPrimitives[0],
+                                                            inputs[0],
                                                             special_zero,
                                                             output_pattern,
                                                             output_pshape,
                                                             mode);
         } else {
             reshape_prim = std::make_shared<cldnn::reshape>(layerName,
-                                                            inputPrimitives[0],
-                                                            inputPrimitives[1],
+                                                            inputs[0],
+                                                            inputs[1],
                                                             special_zero,
                                                             output_pshape,
                                                             mode);
@@ -55,7 +55,7 @@ static void CreateCommonReshapeOp(Program& p, const std::shared_ptr<ngraph::Node
         auto outTensor = tensor_from_dims(output_pshape.to_shape());
 
         // if we convert from or to 5D/6D, additional reorder also required to change format
-        cldnn::primitive_id reshapeInputId = inputPrimitives[0];
+        cldnn::input_info reshape_input = inputs[0];
         if (input_pshape.size() != output_pshape.size()) {
             cldnn::primitive_id reorderId = "reorder:" + op->get_friendly_name() + "_reorder";
             cldnn::format outputFormat = cldnn::format::bfyx;
@@ -68,15 +68,15 @@ static void CreateCommonReshapeOp(Program& p, const std::shared_ptr<ngraph::Node
 
             cldnn::layout outputLayout(cldnn::element_type_to_data_type(op->get_output_element_type(0)), outputFormat, outTensor);
             p.add_primitive(*op, cldnn::reorder(reorderId,
-                                                reshapeInputId,
+                                                reshape_input,
                                                 outputLayout,
                                                 std::vector<float>(),
                                                 cldnn::reorder_mean_mode::subtract));
-            reshapeInputId = reorderId;
+            reshape_input = cldnn::input_info(reorderId);
         }
 
         auto reshapePrim = cldnn::reshape(layerName,
-                                        reshapeInputId,
+                                        reshape_input,
                                         outTensor,
                                         mode);
 

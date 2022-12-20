@@ -87,7 +87,7 @@
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 
-#include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
+#include <transformations/low_precision/mark_dequantization_subgraph.hpp>
 #include <low_precision/pull_reshape_through_dequantization.hpp>
 #include <low_precision/pull_transpose_through_dequantization.hpp>
 #include <low_precision/convolution.hpp>
@@ -131,7 +131,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         enableInt8 = config.enableInt8 && ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(func);
         if (enableInt8) {
-            manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
+            manager.register_pass<ov::pass::MarkDequantizationSubgraph>(
                 std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
         }
 
@@ -152,7 +152,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
 
-        manager.register_pass<ngraph::pass::ConvertTensorIteratorToSequence>();
         manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
         manager.register_pass<ngraph::pass::GRUCellDecomposition>();
         manager.register_pass<ngraph::pass::RNNCellDecomposition>();
@@ -324,25 +323,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return isCellPrimitiveSupported(node);
             });
 
-        pass_config->set_callback<ngraph::pass::ConvertRNNSequenceToTensorIterator,
-                                  ngraph::pass::ConvertGRUSequenceToTensorIterator,
-                                  ngraph::pass::ConvertLSTMSequenceToTensorIterator>(
-                [isSequencePrimitiveSupported](const_node_ptr &node) -> bool {
-                    return isSequencePrimitiveSupported(node);
-                });
-
-        pass_config->set_callback<ngraph::pass::ConvertTensorIteratorToRNNSequence,
-                                  ngraph::pass::ConvertTensorIteratorToLSTMSequence,
-                                  ngraph::pass::ConvertTensorIteratorToGRUSequence>(
-            [isCellPrimitiveSupported](const_node_ptr &node) -> bool {
-                if (const auto& ti_op = std::dynamic_pointer_cast<const ngraph::op::TensorIterator>(node)) {
-                    size_t count_rnn = 0;
-                    for (const auto &op : ti_op->get_body()->get_ops())
-                        count_rnn += isCellPrimitiveSupported(op);
-                    return count_rnn != 1;
-                }
-                return true;
-            });
+        if (config.enable_loop_unrolling) {
+            pass_config->set_callback<ngraph::pass::ConvertRNNSequenceToTensorIterator,
+                    ngraph::pass::ConvertGRUSequenceToTensorIterator,
+                    ngraph::pass::ConvertLSTMSequenceToTensorIterator>(
+                    [isSequencePrimitiveSupported](const_node_ptr &node) -> bool {
+                        return isSequencePrimitiveSupported(node);
+                    });
+        }
 
         pass_config->set_callback<ngraph::pass::MVN6Decomposition>(
             [](const_node_ptr &node) -> bool {
@@ -421,19 +409,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ngraph::pass::ConvertSoftMax8ToSoftMax1>();
         pass_config->enable<ngraph::pass::ConvertGather8ToGather7>();
 
-        if (!config.enable_loop_unrolling) {
-            pass_config->disable<ngraph::pass::ConvertTensorIteratorToSequence>();
-        }
-
         pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
 
         if (enableInt8) {
             pass_config->set_callback<ngraph::pass::ConvertQuantizeDequantize>([&defaultPrecisions](const_node_ptr &node) -> bool {
                 return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForMultiply(node, defaultPrecisions);
-            });
-
-            pass_config->set_callback<ngraph::pass::ConvertSubtract>([&defaultPrecisions](const_node_ptr &node) -> bool {
-                return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForSubtract(node, defaultPrecisions);
             });
         }
 
@@ -443,14 +423,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     if (enableInt8) {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply::lpt");
         using namespace ngraph::pass::low_precision;
-
-        // Conversion to FP32 might be needed for quantized models that face any fp16 related issues (e.g. overflow) for non-quantized layers
-        // With this key users can work-around such issues
-        if (!config.enable_fp16_for_quantized_models) {
-            ngraph::pass::Manager manager;
-            manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::f16, ngraph::element::f32 }});
-            manager.run_passes(func);
-        }
 
         auto supportedPrecisions = std::vector<PrecisionsRestriction>({
             PrecisionsRestriction::create<ngraph::opset1::Convolution>({

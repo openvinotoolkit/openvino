@@ -68,18 +68,15 @@ protected:
             dnnl::memory::desc desc = onednn::layout_to_memory_desc(a_zp->get_layout(), dnnl::memory::format_tag::a, true);
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC, a_zp->get_onednn_memory(desc)});
 
-            GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(debug_config->verbose >= 3) {
-                auto dnnl_mem = a_zp->get_onednn_memory(desc);
-                void *mapped_ptr = dnnl_mem.map_data();
-                if (mapped_ptr) {
-                    GPU_DEBUG_COUT << instance.id() << " activations_zero_points: ";
-                    for (size_t i = 0; i < desc.get_size(); ++i) {
-                        std::cout << static_cast<int32_t*>(mapped_ptr)[i] << " ";
-                    }
-                    std::cout << std::endl;
-                    dnnl_mem.unmap_data(mapped_ptr);
+            auto dnnl_mem = a_zp->get_onednn_memory(desc);
+            void *mapped_ptr = dnnl_mem.map_data();
+            if (mapped_ptr) {
+                GPU_DEBUG_TRACE_DETAIL << instance.id() << " activations_zero_points: ";
+                for (size_t i = 0; i < desc.get_size(); ++i) {
+                    GPU_DEBUG_TRACE_DETAIL << static_cast<int32_t*>(mapped_ptr)[i] << " ";
                 }
+                GPU_DEBUG_TRACE_DETAIL << std::endl;
+                dnnl_mem.unmap_data(mapped_ptr);
             }
         }
 
@@ -88,18 +85,15 @@ protected:
             dnnl::memory::desc desc = onednn::layout_to_memory_desc(w_zp->get_layout(), dnnl::memory::format_tag::a, true);
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, w_zp->get_onednn_memory(desc)});
 
-            GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(debug_config->verbose >= 3) {
-                auto dnnl_mem = w_zp->get_onednn_memory(desc);
-                void *mapped_ptr = dnnl_mem.map_data();
-                if (mapped_ptr) {
-                    GPU_DEBUG_COUT << instance.id() << " weights_zero_points: ";
-                    for (size_t i = 0; i < desc.get_size(); ++i) {
-                        std::cout << static_cast<int32_t*>(mapped_ptr)[i] << " ";
-                    }
-                    std::cout << std::endl;
-                    dnnl_mem.unmap_data(mapped_ptr);
+            auto dnnl_mem = w_zp->get_onednn_memory(desc);
+            void *mapped_ptr = dnnl_mem.map_data();
+            if (mapped_ptr) {
+                GPU_DEBUG_TRACE_DETAIL << instance.id() << " weights_zero_points: ";
+                for (size_t i = 0; i < desc.get_size(); ++i) {
+                    GPU_DEBUG_TRACE_DETAIL << static_cast<int32_t*>(mapped_ptr)[i] << " ";
                 }
+                GPU_DEBUG_TRACE_DETAIL << std::endl;
+                dnnl_mem.unmap_data(mapped_ptr);
             }
         }
 
@@ -198,7 +192,10 @@ public:
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
 
-        _desc = std::make_shared<dnnl::convolution_forward::desc>();
+        const char dummy_mem[sizeof(dnnl::convolution_forward::desc)] = {};
+        const dnnl::convolution_forward::desc *dummy_opdesc
+            = reinterpret_cast<const dnnl::convolution_forward::desc *>(&dummy_mem[0]);
+        _desc = std::make_shared<dnnl::convolution_forward::desc>(std::move(*dummy_opdesc));
         ib >> make_data(&_desc->data, sizeof(dnnl_convolution_desc_t));
 
         std::vector<uint8_t> prim_cache;
@@ -266,4 +263,4 @@ attach_convolution_onednn::attach_convolution_onednn() {
 }  // namespace onednn
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::convolution_onednn, cldnn::object_type::CONVOLUTION_ONEDNN)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::convolution_onednn)

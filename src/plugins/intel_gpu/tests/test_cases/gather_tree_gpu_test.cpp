@@ -37,7 +37,8 @@ template<typename T>
 using ParamsWithLayout = std::tuple<
     Params<T>,
     format::type,   // source (plain) layout - bfyx
-    format::type    // target (blocked) layout
+    format::type,   // target (blocked) layout
+    bool            // is_caching_test
 >;
 
 const std::vector<format::type> layouts = {
@@ -153,10 +154,12 @@ struct PrintToStringParamName {
         Params<T> p;
         format::type plain_layout;
         format::type target_layout;
-        std::tie(p, plain_layout, target_layout) = param.param;
+        bool is_caching_test;
+        std::tie(p, plain_layout, target_layout, is_caching_test) = param.param;
         buf << " test case " << p.testcase_name
             << " plain layout " << plain_layout
-            << " target layout " << target_layout;
+            << " target layout " << target_layout
+            << " is_caching_test " << is_caching_test;
         return buf.str();
     }
 };
@@ -171,8 +174,9 @@ public:
         Params<T> params;
         format::type plain_layout;
         format::type target_layout;
+        bool is_caching_test;
 
-        std::tie(params, plain_layout, target_layout) = this->GetParam();
+        std::tie(params, plain_layout, target_layout, is_caching_test) = this->GetParam();
 
         auto &engine = get_test_engine();
         topology topology;
@@ -182,43 +186,60 @@ public:
         const std::string step_id = "step_id";
         topology.add(input_layout(step_id, step_input->get_layout()));
         const std::string reorder_step_id = step_id + "_reordered";
-        topology.add(reorder(reorder_step_id, step_id, target_layout, data_type));
+        topology.add(reorder(reorder_step_id, input_info(step_id), target_layout, data_type));
 
         auto parent_input = engine.allocate_memory({data_type, plain_layout, params.parent_id_tensor});
         set_values(parent_input, params.parent_id);
         const std::string parent_id = "parent_id";
         topology.add(input_layout(parent_id, parent_input->get_layout()));
         const std::string reorder_parent_id = parent_id + "_reordered";
-        topology.add(reorder(reorder_parent_id, parent_id, target_layout, data_type));
+        topology.add(reorder(reorder_parent_id, input_info(parent_id), target_layout, data_type));
 
         auto max_seq_len_input = engine.allocate_memory({data_type, plain_layout, params.max_seq_len_tensor});
         set_values(max_seq_len_input, params.max_seq_len);
         const std::string max_seq_len_id = "max_seq_len_id";
         topology.add(input_layout(max_seq_len_id, max_seq_len_input->get_layout()));
         const std::string reorder_max_seq_len_id = max_seq_len_id + "_reordered";
-        topology.add(reorder(reorder_max_seq_len_id, max_seq_len_id, target_layout, data_type));
+        topology.add(reorder(reorder_max_seq_len_id, input_info(max_seq_len_id), target_layout, data_type));
 
         auto end_token_input = engine.allocate_memory({data_type, plain_layout, params.end_token_tensor});
         set_values(end_token_input, params.end_token);
         const std::string end_token_id = "end_token_id";
         topology.add(input_layout(end_token_id, end_token_input->get_layout()));
         const std::string reorder_end_token_id = end_token_id + "_reordered";
-        topology.add(reorder(reorder_end_token_id, end_token_id, target_layout, data_type));
+        topology.add(reorder(reorder_end_token_id, input_info(end_token_id), target_layout, data_type));
 
         const std::string result_id = "result_id";
-        topology.add(gather_tree(result_id, reorder_step_id, reorder_parent_id, reorder_max_seq_len_id, reorder_end_token_id));
+        topology.add(gather_tree(result_id, input_info(reorder_step_id), input_info(reorder_parent_id), input_info(reorder_max_seq_len_id), input_info(reorder_end_token_id)));
 
         const primitive_id reorder_result_id = result_id + "_reordered";
-        topology.add(reorder(reorder_result_id, result_id, plain_layout, data_type));
+        topology.add(reorder(reorder_result_id, input_info(result_id), plain_layout, data_type));
 
-        network network(engine, topology);
+        cldnn::network::ptr network;
 
-        network.set_input_data(step_id, step_input);
-        network.set_input_data(parent_id, parent_input);
-        network.set_input_data(max_seq_len_id, max_seq_len_input);
-        network.set_input_data(end_token_id, end_token_input);
+        if (is_caching_test) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, topology);
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+            }
+        } else {
+            network = std::make_shared<cldnn::network>(engine, topology);
+        }
 
-        auto result = network.execute();
+        network->set_input_data(step_id, step_input);
+        network->set_input_data(parent_id, parent_input);
+        network->set_input_data(max_seq_len_id, max_seq_len_input);
+        network->set_input_data(end_token_id, end_token_input);
+
+        auto result = network->execute();
 
         auto out_mem = result.at(reorder_result_id).get_memory();
         cldnn::mem_lock<T> out_ptr(out_mem, get_test_stream());
@@ -226,7 +247,7 @@ public:
         ASSERT_EQ(params.final_id_tensor.count(), out_ptr.size());
 
         for (size_t i = 0; i < params.final_id.size(); ++i) {
-            EXPECT_NEAR(params.final_id[i], out_ptr[i], 0.005) << "at i = " << i;
+            ASSERT_NEAR(params.final_id[i], out_ptr[i], 0.005) << "at i = " << i;
         }
     }
 };
@@ -247,7 +268,8 @@ INSTANTIATE_TEST_SUITE_P(gather_tree,
                          ::testing::Combine(
                              ::testing::ValuesIn(generateParams<float>()),
                              ::testing::Values(format::bfyx),
-                             ::testing::ValuesIn(layouts)),
+                             ::testing::ValuesIn(layouts),
+                             ::testing::Values(false)),
                          PrintToStringParamName());
 
 INSTANTIATE_TEST_SUITE_P(gather_tree,
@@ -255,5 +277,15 @@ INSTANTIATE_TEST_SUITE_P(gather_tree,
                          ::testing::Combine(
                              ::testing::ValuesIn(generateParams<int32_t>()),
                              ::testing::Values(format::bfyx),
-                             ::testing::ValuesIn(layouts)),
+                             ::testing::ValuesIn(layouts),
+                             ::testing::Values(false)),
+                         PrintToStringParamName());
+
+INSTANTIATE_TEST_SUITE_P(export_import,
+                         gather_tree_test_int32,
+                         ::testing::Combine(
+                             ::testing::Values(generateParams<int32_t>()[0]),
+                             ::testing::Values(format::bfyx),
+                             ::testing::Values(layouts[0]),
+                             ::testing::Values(true)),
                          PrintToStringParamName());
