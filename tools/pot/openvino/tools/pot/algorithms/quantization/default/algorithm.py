@@ -13,7 +13,6 @@ from ...algorithm_selector import COMPRESSION_ALGORITHMS
 from ....samplers.creator import create_sampler
 from ....statistics.collector import StatisticsCollector
 from ....utils.logger import get_logger
-from ....configs.config import GNA_DEVICES
 
 # pylint: disable=W0611
 try:
@@ -41,7 +40,7 @@ class DefaultQuantization(Algorithm):
         use_fast_bias = self._config.get('use_fast_bias', True)
         self._enable_tuning = self._config.get('use_layerwise_tuning', False)
         bias_algo = FastBiasCorrection(config, engine) if use_fast_bias else BiasCorrection(config, engine)
-        is_overflow_correction_need = self._config.get('target_device') in GNA_DEVICES
+        is_overflow_correction_need = self._config.get('target_device') == 'GNA'
         self.algorithms = [ActivationChannelAlignment(config, engine),
                            MinMaxQuantization(config, engine),
                            bias_algo]
@@ -63,7 +62,7 @@ class DefaultQuantization(Algorithm):
     def run(self, model):
         """ This function applies quantization algorithm
          :param model: model to apply algo
-         :return model with inserted and filled FakeQuantize nodes
+         :return model with inserted and filled ConvertFP8 nodes
          """
         if self._enable_tuning:
             if not TORCH_AVAILABLE:
