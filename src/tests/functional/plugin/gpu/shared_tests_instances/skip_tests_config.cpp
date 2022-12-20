@@ -125,6 +125,5 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_GroupConvolution1D_ExplicitPadding_Disabled.*)",
             R"(.*smoke_GroupConvolutionLayerGPUTest_dynamic1DSymPad_Disabled.*)",
             R"(.*smoke_ConvolutionLayerGPUTest_dynamic1DSymPad.*)",
-            R"(.*TestsConvertColorI420.*)",
     };
 }
