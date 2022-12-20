@@ -594,4 +594,3 @@ def test_serialize_complex_rt_info(request):
 
     os.remove(xml_path)
     os.remove(bin_path)
-    serialize(res_model, xml_path, bin_path)

@@ -104,9 +104,19 @@ def test_low_latency2():
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-def test_serialize_pass(request):
+@pytest.mark.parametrize("is_path_xml, is_path_bin",
+    [
+     (True, True),
+     (True, False),
+     (False, True),
+     (False, False),
+    ],
+)
+def test_serialize_pass(request, is_path_xml, is_path_bin):
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name)
+    xml_path, bin_path = create_filename_for_test(request.node.name,
+                                                  is_path_xml,
+                                                  is_path_bin)
 
     func = get_test_model()
 
