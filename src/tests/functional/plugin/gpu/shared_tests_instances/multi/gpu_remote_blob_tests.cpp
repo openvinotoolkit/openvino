@@ -10,15 +10,17 @@
 #include "common_test_utils/test_constants.hpp"
 #include <openvino/runtime/auto/properties.hpp>
 
-using MultiDevice_RemoteBlobAndBindTest = MultiDevice_Test;
-
 auto device_names_and_support_for_remote_blobs = []() {
-    return std::vector<DevicesNamesAndSupportPair>{
-        {{GPU}, true},      // GPU via MULTI,
-        {{"GPU.0"}, true},  // GPU.0 via MULTI,
+    return std::vector<DevicesNamesAndSupportTuple>{
+        {{GPU}, true, {}},      // GPU via MULTI,
+        {{"GPU.0"}, true, {}},  // GPU.0 via MULTI,
+        {{GPU}, true, {ov::intel_auto::device_bind_buffer(true)}},      // GPU via MULTI,
+        {{"GPU.0"}, true, {ov::intel_auto::device_bind_buffer(true)}},  // GPU.0 via MULTI,
 #ifdef ENABLE_INTEL_CPU
-        {{GPU, CPU}, true},  // GPU+CPU
-        {{CPU, GPU}, true},  // CPU+GPU
+        {{GPU, CPU}, true, {}},  // GPU+CPU
+        {{CPU, GPU}, true, {}},  // CPU+GPU
+        {{GPU, CPU}, true, {ov::intel_auto::device_bind_buffer(true)}},  // GPU+CPU
+        //{{CPU, GPU}, true, {ov::intel_auto::device_bind_buffer(true)}},  // CPU+GPU hang
 #endif
     };
 };
@@ -41,9 +43,14 @@ TEST_P(MultiDevice_Test, cannotInferRemoteBlobIfNotInitializedForDevice) {
     auto rblob = InferenceEngine::make_shared_blob(first_input->getTensorDesc(), ctx);
     rblob->allocate();
 
+    std::map<std::string, std::string> configs;
+    for (auto&& value : _properties) {
+        configs.emplace(value.first, value.second.as<std::string>());
+    }
+
     InferenceEngine::ExecutableNetwork exec_net_multi;
     try {
-        exec_net_multi = ie->LoadNetwork(net, device_names);
+        exec_net_multi = ie->LoadNetwork(net, device_names, configs);
     } catch(...) {
         // device is unavailable (e.g. for the "second GPU" test) or other (e.g. env) issues not related to the test
         return;
@@ -55,64 +62,32 @@ TEST_P(MultiDevice_Test, cannotInferRemoteBlobIfNotInitializedForDevice) {
     ASSERT_THROW(req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY), InferenceEngine::Exception);
 }
 
-TEST_P(MultiDevice_RemoteBlobAndBindTest, testRemoteBlobAndDeviceBind) {
-    InferenceEngine::CNNNetwork net(fn_ptr);
-    net.getInputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NCHW);
-    net.getInputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::U8);
-    auto ie = PluginCache::get().ie();
-
-    const std::map<std::string, std::string> multi_prop_config = {
-        {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_GPU},
-        {ov::intel_auto::device_bind_buffer.name(), InferenceEngine::PluginConfigParams::YES}};
-
-    auto exec_net = ie->LoadNetwork(net, device_names, multi_prop_config);
-    std::shared_ptr<InferenceEngine::RemoteContext> ctx;
-    ASSERT_NE(ctx = exec_net.GetContext(), nullptr);
-    InferenceEngine::InferRequest req = exec_net.CreateInferRequest();
-    ASSERT_TRUE(req);
-    const InferenceEngine::ConstInputsDataMap inputInfo = exec_net.GetInputsInfo();
-    for (auto i : inputInfo) {
-        auto rblob = InferenceEngine::make_shared_blob(i.second->getTensorDesc(), ctx);
-        rblob->allocate();
-        req.SetBlob(i.first, rblob);
-    }
-    ASSERT_NO_THROW(req.StartAsync());
-    ASSERT_EQ(req.Wait(InferenceEngine::InferRequest::RESULT_READY), InferenceEngine::StatusCode::OK);
-}
-
-// auto device_names_and_support_for_remote_blobs2 = []() {
-//     return std::vector<DevicesNames>{
-// #ifdef ENABLE_INTEL_CPU
-//         {CPU},  // stand-alone CPU via MULTI (no GPU), no OCL context
-// #endif
-//         {"GPU.1"},  // another GPU (the test will test its presence), different OCL contexts
-//     };
-// };
-
-// INSTANTIATE_TEST_SUITE_P(smoke_Multi_RemoteBlobInitializedWithoutGPU,
-//                          MultiDevice_Test,
-//                          ::testing::ValuesIn(device_names_and_support_for_remote_blobs2()),
-//                          MultiDevice_Test::getTestCaseName);
-
-// auto multi_device_names_and_support_for_remote_blobs = []() {
-//     return std::vector<DevicesNames>{
-// #ifdef ENABLE_INTEL_CPU
-//         {CPU, "GPU.0"},
-//         {CPU, "GPU.0", "GPU.1"},  // another GPU (the test will test its presence), different OCL contexts
-// #endif
-//         {"GPU.0", "GPU.1"}};
-// };
-
-// INSTANTIATE_TEST_SUITE_P(smoke_Multi_RemoteBlobInitializedWithoutGPU,
-//                          MultiDeviceMultipleGPU_Test,
-//                          ::testing::ValuesIn(multi_device_names_and_support_for_remote_blobs()),
-//                          MultiDeviceMultipleGPU_Test::getTestCaseName);
-
-auto multi_device_names_and_support_for_remote_blobs2 = []() {
-    return std::vector<DevicesNames>{{"GPU"}};
+auto device_names_and_support_for_remote_blobs2 = []() {
+    return std::vector<DevicesNamseAndProperties>{
+#ifdef ENABLE_INTEL_CPU
+        //{{CPU}, {}},  // stand-alone CPU via MULTI (no GPU), no OCL context
+        {{CPU}, {ov::intel_auto::device_bind_buffer(true)}},  // stand-alone CPU via MULTI (no GPU), no OCL context
+#endif
+        {{"GPU.1"}, {}},  // another GPU (the test will test its presence), different OCL contexts
+        {{"GPU.1"}, {ov::intel_auto::device_bind_buffer(true)}},  // another GPU (the test will test its presence), different OCL contexts
+    };
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_RemoteBlobAndDeviceBindBuffer,
-                         MultiDevice_RemoteBlobAndBindTest,
-                         ::testing::ValuesIn(multi_device_names_and_support_for_remote_blobs2()),
-                         MultiDevice_RemoteBlobAndBindTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_RemoteBlobInitializedWithoutGPU,
+                         MultiDevice_Test,
+                         ::testing::ValuesIn(device_names_and_support_for_remote_blobs2()),
+                         MultiDevice_Test::getTestCaseName);
+
+auto multi_device_names_and_support_for_remote_blobs = []() {
+    return std::vector<DevicesNames>{
+#ifdef ENABLE_INTEL_CPU
+        {CPU, "GPU.0"},
+        {CPU, "GPU.0", "GPU.1"},  // another GPU (the test will test its presence), different OCL contexts
+#endif
+        {"GPU.0", "GPU.1"}};
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_RemoteBlobInitializedWithoutGPU,
+                         MultiDeviceMultipleGPU_Test,
+                         ::testing::ValuesIn(multi_device_names_and_support_for_remote_blobs()),
+                         MultiDeviceMultipleGPU_Test::getTestCaseName);

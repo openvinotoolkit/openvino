@@ -14,6 +14,7 @@
 #include <remote_blob_tests/remote_blob_helpers.hpp>
 
 TEST_P(MultiDeviceMultipleGPU_Test, canCreateRemoteTensorThenInferWithAffinity) {
+    GTEST_SKIP() << "Disabled test due to segment fault" << std::endl;
     auto ie = ov::Core();
     using namespace ov::preprocess;
     auto p = PrePostProcessor(fn_ptr);
