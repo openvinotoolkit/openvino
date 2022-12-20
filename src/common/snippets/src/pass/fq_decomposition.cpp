@@ -19,7 +19,7 @@ namespace {
 bool isValidRangesInputs(const std::shared_ptr<ngraph::opset1::FakeQuantize>& fq) {
     auto il = fq->input_value(1);
     auto ih = fq->input_value(2);
-    auto greater_equal = std::make_shared<ngraph::opset1::GreaterEqual>(il, ih);
+    auto greater_equal = std::make_shared<ngraph::opset1::Greater>(il, ih);
 
     ngraph::OutputVector result(1);
     if (!greater_equal->constant_fold(result, greater_equal->input_values()))
