@@ -48,20 +48,6 @@ void shape_infer(const OneHot* op,
         const auto indices_rank = indices_shape.rank().get_length();
         const auto axis = ov::normalize_axis(op, op->get_axis(), indices_rank + 1, -indices_rank - 1, indices_rank);
 
-        std::vector<int64_t> depth_vals;
-        bool depth_is_set = get_data_as_int64<T>(1, op, depth_vals, constant_data);
-        if (depth_is_set) {
-            int64_t depth_val = depth_vals[0];
-            NODE_VALIDATION_CHECK(op,
-                                  depth_val > 0,
-                                  "The value of 'depth' must be a positive number.",
-                                  " (got ",
-                                  depth_val,
-                                  ").");
-            result_shape.insert(result_shape.begin() + axis, DimType(depth_val));
-            return;
-        }
-
         T depth_dim_as_shape;
         if (get_data_as_shape<T>(1, op, depth_dim_as_shape, constant_data) && depth_dim_as_shape.size() == 1) {
             result_shape.insert(result_shape.begin() + axis, depth_dim_as_shape[0]);

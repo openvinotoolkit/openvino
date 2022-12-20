@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/test_assertions.hpp"
 #include "dimension_tracker.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
@@ -9,6 +10,7 @@
 
 using namespace std;
 using namespace ngraph;
+using namespace testing;
 
 TEST(type_prop, one_hot_v1_output_shape) {
     auto indices = make_shared<op::Parameter>(element::i64, Shape{3});
@@ -193,6 +195,18 @@ TEST(type_prop, one_hot_v1_depth_elem_not_integral) {
     } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
+}
+
+TEST(type_prop, one_hot_v1_negative_depth) {
+    auto indices = make_shared<op::Parameter>(element::i32, Shape{2, 2});
+    auto depth = op::Constant::create(element::i64, Shape{}, {-4});
+    auto on_value = op::Constant::create(element::f32, Shape{}, {1.0f});
+    auto off_value = op::Constant::create(element::f32, Shape{}, {0.0f});
+    int64_t axis = -1;
+
+    OV_EXPECT_THROW(auto ont_hot = make_shared<op::v1::OneHot>(indices, depth, on_value, off_value, axis),
+                    ov::Exception,
+                    HasSubstr("can't be lower than zero"));
 }
 
 TEST(type_prop, one_hot_v1_on_off_values_not_compatible) {

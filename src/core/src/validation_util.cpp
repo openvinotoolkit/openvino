@@ -1326,7 +1326,7 @@ bool ov::evaluate_as_partial_shape(const Output<Node>& output, PartialShape& psh
         vector<Dimension> resulting_pshape(lower_bound.size());
         for (size_t i = 0; i < lower_bound.size(); ++i) {
             auto low = lower_bound[i], up = upper_bound[i];
-            NGRAPH_CHECK(low >= 0 && up >= 0);
+            NGRAPH_CHECK(low >= 0 && up >= 0, "Value for partial shape evaluation can't be lower than zero.");
             if (output.get_element_type() == element::i32 && low != up) {
                 if (up == std::numeric_limits<std::int32_t>::max())
                     up = std::numeric_limits<std::int64_t>::max();
