@@ -212,6 +212,7 @@ All parameters must be set before calling `ov::Core::compile_model()` in order t
 - `ov::inference_num_threads`
 - `ov::cache_dir`
 - `ov::intel_cpu::denormals_optimization`
+- `ov::intel_cpu::sparse_weights_decompression_rate`
 
 
 ### Read-only properties
@@ -274,6 +275,47 @@ To enable denormals optimization in the application, the `denormals_optimization
          :fragment: [ov:intel_cpu:denormals_optimization:part0]
 
 @endsphinxdirective
+
+### Sparse weights decompression
+`Sparse weights` are weights where most of the elements are zero. The ratio of the number of zero elements to the number of all elements is called `sparse rate`. Thus, we assume that `sparse weights` are weights with a high sparse rate. In case of `sparse weights`, we can store only non-zero values in memory using special storage structures, which allows us to use memory more efficiently. In turn, this can give us better performance in the high memory bound workloads (e.g., throughput scenario).
+
+`Sparse weights decompression feature` allows to pack weights for Matrix Multiplication operations directly in the CPU plugin at the model compilation stage and store non-zero values in a special packed format. Then, during the execution of the model, the weights are unpacked and used in the computational kernel. Since the weights are loaded from DDR/L3 cache in the packed format this significantly decreases memory consumption and as a consequence improve inference performance.
+
+To use this feature, the user is provided with property `sparse_weights_decompression_rate`, which can take values from the interval \[0.5, 1\] (values from \[0, 0.5\] are not supported in current implementation, see limitations below). `sparse_weights_decompression_rate` defines sparse rate threashold: only operations with higher sparse rate will be executed using `sparse weights decompression feature`. The default value is `1`, which means the option is disabled.
+
+> **NOTE**: `Sparse weights decompression feature` is disabled by default since overall speed-up highly depends on particular workload and for some cases the feature may introduce performance degradations.
+
+Code examples how to use `sparse_weights_decompression_rate`:
+
+@sphinxdirective
+
+.. tab:: C++
+
+      .. doxygensnippet:: docs/snippets/cpu/ov_sparse_weights_decompression.cpp
+         :language: cpp
+         :fragment: [ov:intel_cpu:sparse_weights_decompression:part0]
+
+.. tab:: Python
+
+      .. doxygensnippet:: docs/snippets/cpu/ov_sparse_weights_decompression.py
+         :language: python
+         :fragment: [ov:intel_cpu:sparse_weights_decompression:part0]
+
+@endsphinxdirective
+
+> **NOTE**: The `sparse_weights_decompression_rate` property must be set before calling `compile_model()`.
+
+Information about the layers in which the `sparse weights decompression feature` was applied can be obtained from perf counters log. The "exec type" field will contain the implementation type with the "sparse" particle ("brgemm_avx512_amx_sparse_I8" in the example below):
+
+    MatMul_1800                    EXECUTED       layerType: FullyConnected     execType: brgemm_avx512_amx_sparse_I8 realTime (ms): 0.050000  cpuTime (ms): 0.050000
+
+#### Limitations
+Currently, the `sparse weights decompression feature` is supported with the following limitations:
+1. Model should be quantized to int8 precision.
+2. Feature is only supported for Matrix Multiplication operations.
+3. HW target must have Intel AMX extension support (e.g., Intel® 4th Generation Xeon® processors (code name Sapphire Rapids)).
+4. The number of input and output channels of the weights must be a multiple of 64.
+5. Current feature implementation supports only sparse rate higher than 0.5.
 
 ## Additional Resources
 * [Supported Devices](Supported_Devices.md)
