@@ -20,6 +20,7 @@
 #include "pt_framework_node.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
 #include "transforms.hpp"
+#include "transforms/append_list_unpack_replacer.hpp"
 #include "transforms/aten_cat_replacer.hpp"
 #include "transforms/aten_getitem_replacer.hpp"
 #include "transforms/prim_list_unpack_replacer.hpp"
@@ -103,6 +104,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     ov::pass::Manager manager;
 
     manager.register_pass<ov::frontend::pytorch::pass::AtenCatToConcat>();
+    manager.register_pass<ov::frontend::pytorch::pass::AppendListUnpackReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::PrimListUnpackReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenGetItemReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::DecomposeTupleResults>();
