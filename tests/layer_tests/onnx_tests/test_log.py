@@ -94,7 +94,7 @@ class TestLog(OnnxRuntimeLayerTest):
         input = helper.make_tensor_value_info('input', TensorProto.FLOAT, shape)
         output = helper.make_tensor_value_info('output', TensorProto.FLOAT, output_shape)
 
-        constant = np.random.rand(*shape).astype(np.float) * 255 + 0.5
+        constant = np.random.rand(*shape).astype(float) * 255 + 0.5
 
         node_const_def = onnx.helper.make_node(
             'Constant',
