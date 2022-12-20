@@ -167,13 +167,12 @@ def test_fused_names_cleanup():
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-@pytest.mark.parametrize("is_path_xml, is_path_bin",
-    [
-     (True, True),
-     (True, False),
-     (False, True),
-     (False, False),
-    ],
+@pytest.mark.parametrize("is_path_xml, is_path_bin", [  # noqa: PT006
+    (True, True),
+    (True, False),
+    (False, True),
+    (False, False),
+],
 )
 def test_serialize_pass_v2(request, is_path_xml, is_path_bin):
     core = Core()
@@ -213,13 +212,12 @@ def test_compress_model_transformation():
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-@pytest.mark.parametrize("is_path_xml, is_path_bin",
-    [
-     (True, True),
-     (True, False),
-     (False, True),
-     (False, False),
-    ],
+@pytest.mark.parametrize("is_path_xml, is_path_bin", [  # noqa: PT006
+    (True, True),
+    (True, False),
+    (False, True),
+    (False, False),
+],
 )
 def test_version_default(request, is_path_xml, is_path_bin):
     core = Core()
@@ -243,13 +241,12 @@ def test_version_default(request, is_path_xml, is_path_bin):
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-@pytest.mark.parametrize("is_path_xml, is_path_bin",
-    [
-     (True, True),
-     (True, False),
-     (False, True),
-     (False, False),
-    ],
+@pytest.mark.parametrize("is_path_xml, is_path_bin", [  # noqa: PT006
+    (True, True),
+    (True, False),
+    (False, True),
+    (False, False),
+],
 )
 def test_serialize_default_bin(request, is_path_xml, is_path_bin):
     xml_path, bin_path = create_filename_for_test(request.node.name,

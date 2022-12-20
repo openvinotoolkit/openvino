@@ -104,13 +104,12 @@ def test_low_latency2():
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-@pytest.mark.parametrize("is_path_xml, is_path_bin",
-    [
-     (True, True),
-     (True, False),
-     (False, True),
-     (False, False),
-    ],
+@pytest.mark.parametrize("is_path_xml, is_path_bin", [  # noqa: PT006
+    (True, True),
+    (True, False),
+    (False, True),
+    (False, False),
+],
 )
 def test_serialize_pass(request, is_path_xml, is_path_bin):
     core = Core()
