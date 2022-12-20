@@ -31,4 +31,4 @@ Developers can use OpenVINO Model debug capabilities that are described in the [
 ## See also
  * [OpenVINO™ README](../../README.md)
  * [OpenVINO Core Components](../README.md)
- * [Developer documentation](../../../docs/dev/index.md)
+ * [Developer Documentation](../../../docs/dev/index.md)
