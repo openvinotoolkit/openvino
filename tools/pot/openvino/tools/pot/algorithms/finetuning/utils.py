@@ -24,7 +24,7 @@ def get_optimization_params(loss_name, optimizer_name):
 
 def get_weight_node(node, port_id=1):
     node_weight = nu.get_node_input(node, port_id)
-    if node_weight.type == 'FakeQuantize':
+    if node_weight.type == 'ConvertFP8':
         node_weight = nu.get_node_input(node_weight, 0)
     if node_weight.type != 'Const':
         raise ValueError('Provided weight node is not Const!')
