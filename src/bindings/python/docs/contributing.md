@@ -1,4 +1,4 @@
-# Contributing to OpenVINO:tm: Python API
+# Contributing to OpenVINO™ Python API
 
 #### Prerequisites
 *To be added...*
@@ -9,13 +9,12 @@ In case the Python version you have is not supported by OpenVINO, you can refer 
 *To be added...*
 
 ##### Building
-<!-- TODO: Link to building instructions -->
-*To be added...*
+Building instructions can be found in [BUILDING.md](../BUILDING.md)
 
 ## Contribution guidelines and best practices
 
 #### How to contribute to Python API?
-It is nothing special... :) First, make sure that all prerequisites are met and focus on writing the code itself. A good starting point is to have some knowledge of the Python language. C++ is also a vital language for OpenVINO:tm:, so it is not a surprise that it is used in this part of the project as well.
+It is nothing special... :) First, make sure that all prerequisites are met and focus on writing the code itself. A good starting point is to have some knowledge of the Python language. C++ is also a vital language for OpenVINO™, so it is not a surprise that it is used in this part of the project as well.
 
 Code snippets and detailed explanations can be found here:
 <!-- Link to EXAMPLES -->
@@ -27,7 +26,7 @@ Please refer to Test Guide available here:
 
     openvino/src/bindings/python/docs/test_examples.md
 
-Moreover, the project utilizes *flake8* and *mypy* packages to run codestyle checks. Additionally OpenVINO:tm: uses the custom configuration file to exclude some strict rules. To run codestyle checks, navigate to the main Python API folder first and use following commands:
+Moreover, the project utilizes *flake8* and *mypy* packages to run codestyle checks. Additionally OpenVINO™ uses the custom configuration file to exclude some strict rules. To run codestyle checks, navigate to the main Python API folder first and use following commands:
 ```shell
 cd .../openvino/src/bindings/python/
 

@@ -137,8 +137,8 @@ The sample application logs each step in a standard output stream and outputs to
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 
-<!-- [openvino.runtime.AsyncInferQueue]:
-[openvino.runtime.AsyncInferQueue.set_callback]:
-[openvino.runtime.AsyncInferQueue.start_async]:
-[openvino.runtime.AsyncInferQueue.wait_all]:
-[openvino.runtime.InferRequest.results]: -->
+[openvino.runtime.AsyncInferQueue]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.AsyncInferQueue.html
+[openvino.runtime.AsyncInferQueue.set_callback]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.AsyncInferQueue.html#openvino.runtime.AsyncInferQueue.set_callback
+[openvino.runtime.AsyncInferQueue.start_async]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.AsyncInferQueue.html#openvino.runtime.AsyncInferQueue.start_async
+[openvino.runtime.AsyncInferQueue.wait_all]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.AsyncInferQueue.html#openvino.runtime.AsyncInferQueue.wait_all
+[openvino.runtime.InferRequest.results]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.InferRequest.html#openvino.runtime.InferRequest.results
