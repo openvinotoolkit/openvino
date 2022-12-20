@@ -32,7 +32,7 @@ void shape_infer(const Select* op, const std::vector<T>& input_shapes, std::vect
                 NODE_VALIDATION_CHECK(op,
                                       T::merge_into(result_shape, input_shapes[input_port]),
                                       "Argument shapes are inconsistent.");
-            } else if (broadcast_spec.m_type == op::AutoBroadcastType::NUMPY) {
+        } else if (broadcast_spec.m_type == op::AutoBroadcastType::NUMPY) {
                 NODE_VALIDATION_CHECK(op,
                                       T::broadcast_merge_into(result_shape, input_shapes[input_port], broadcast_spec),
                                       "Argument shapes are inconsistent.");

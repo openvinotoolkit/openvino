@@ -5,16 +5,12 @@
 #include "ngraph/op/select.hpp"
 
 #include <memory>
-#include <ngraph/validation_util.hpp>
-#include <select_shape_inference.hpp>
 
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
-#include "ngraph/op/convert.hpp"
-#include "ngraph/op/maximum.hpp"
-#include "ngraph/op/minimum.hpp"
-#include "ngraph/op/not.hpp"
 #include "ngraph/runtime/reference/select.hpp"
+#include "ngraph/validation_util.hpp"
+#include "select_shape_inference.hpp"
 
 using namespace std;
 using namespace ngraph;
