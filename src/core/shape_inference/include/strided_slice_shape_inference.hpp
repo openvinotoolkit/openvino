@@ -127,9 +127,12 @@ void shape_infer(const StridedSlice* op,
                     num_input_axis_before_ellipses++;
                 }
             }
-            for (size_t i = axis + 1; i < begin->size(); ++i) {
-                if (new_axis_mask.count(i)) {
-                    num_new_axis_after_ellipses++;
+
+            if (begin) {
+                for (size_t i = axis + 1; i < begin->size(); ++i) {
+                    if (new_axis_mask.count(i)) {
+                        num_new_axis_after_ellipses++;
+                    }
                 }
             }
 

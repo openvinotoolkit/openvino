@@ -607,6 +607,20 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                  element::f32               // reference type
                              },
                              StridedSliceTestParams{
+                                 "begin_strides_are_dynamic_rank_and_ellipsis_mask_present",
+                                 {3, 5, 4},                // input_shape
+                                 PartialShape::dynamic(),  // begin shape
+                                 {3},                      // end shape
+                                 {3},                      // strides shape
+                                 {0, 0, 1, 0},             // begin mask
+                                 {0, 0, 0, 0},             // end mask
+                                 {0, 0, 0, 0},             // new axis mask
+                                 {0, 0, 0, 0},             // shrink axis mask
+                                 {0, 1, 0, 0},             // ellipsis mask
+                                 {{0, 3}, 5, {0, 4}},      // reference shape
+                                 element::f32              // reference type
+                             },
+                             StridedSliceTestParams{
                                  "begin_end_strides_are_dynamic_rank",
                                  {3, 5, 4},                // input_shape
                                  PartialShape::dynamic(),  // begin shape
