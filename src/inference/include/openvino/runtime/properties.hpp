@@ -202,8 +202,8 @@ struct Property<T, PropertyMutability::RO> : public util::BaseProperty<T, Proper
 };
 
 /**
- * @brief Read-only property to get a std::vector<PropertyName> of supported read-only properties.
- * This can be used as a compiled model property as well.
+ * @brief Read-only property to get a std::vector<PropertyName> of supported properties for the specified device.
+ * This can be used on compiled model properties as well.
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<std::vector<PropertyName>, PropertyMutability::RO> supported_properties{
@@ -216,13 +216,15 @@ static constexpr Property<std::vector<PropertyName>, PropertyMutability::RO> sup
 static constexpr Property<std::vector<std::string>, PropertyMutability::RO> available_devices{"AVAILABLE_DEVICES"};
 
 /**
- * @brief Read-only property to get a name of name of a model
+ * @brief Read-only property to get the name of a compiled model.
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<std::string, PropertyMutability::RO> model_name{"NETWORK_NAME"};
 
 /**
- * @brief Read-only property to get an unsigned integer value of optimal number of compiled model infer requests.
+ * @brief Read-only property to get an unsigned integer value of optimal number of inference requests for a compiled model.
+ * This value is determined based on model size, device capabilities, and specified performance hints.
+ * It is automatically used by the AsyncInferQueue API to set up an optimal number of InferRequests in an asynchronous pipeline.
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<uint32_t, PropertyMutability::RO> optimal_number_of_infer_requests{
@@ -333,9 +335,9 @@ inline std::istream& operator>>(std::istream& is, PerformanceMode& performance_m
 /** @endcond */
 
 /**
- * @brief High-level OpenVINO Performance Hints
- * unlike low-level properties that are individual (per-device), the hints are something that every device accepts
- * and turns into device-specific settings
+ * @brief High-level OpenVINO Performance Hint that configures the runtime for latency-focused or throughput-focused inferencing.
+ * The hint automatically adjusts device and model properties (such as OPTIMAL_NUMBER_OF_INFERENCE_REQUESTS or BATCH_SIZE) 
+ * to prioritize for reduced latency or high throughput.
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<PerformanceMode> performance_mode{"PERFORMANCE_HINT"};
@@ -529,8 +531,8 @@ static constexpr Property<bool, PropertyMutability::RW> force_tbb_terminate{"FOR
 namespace device {
 
 /**
- * @brief the property for setting of required device to execute on
- * values: device id starts from "0" - first device, "1" - second device, etc
+ * @brief Read-only property that gives a unique identifier for a specific device when there are multiple 
+ * devices of the same type in a system. The device identifier is “0” for the first device, “1” for the second device, etc.
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<std::string> id{"DEVICE_ID"};
@@ -715,13 +717,13 @@ static constexpr Property<Type, PropertyMutability::RO> type{"DEVICE_TYPE"};
 static constexpr Property<std::map<element::Type, float>, PropertyMutability::RO> gops{"DEVICE_GOPS"};
 
 /**
- * @brief Read-only property to get a float of device thermal
+ * @brief Read-only property to read the current device temperature (MYRIAD devices only).
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<float, PropertyMutability::RO> thermal{"DEVICE_THERMAL"};
 
 /**
- * @brief Read-only property to get a std::vector<std::string> of capabilities options per device.
+ * @brief Read-only property that shows the inference data types which are supported by a device (e.g. FP32, FP16, INT8).
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<std::vector<std::string>, PropertyMutability::RO> capabilities{"OPTIMIZATION_CAPABILITIES"};
@@ -770,7 +772,7 @@ struct Num {
 };
 
 /**
- * @brief The number of executor logical partitions
+ * @brief The number of processing streams that will be used to execute inferencing with the compiled model.
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<Num, PropertyMutability::RW> num{"NUM_STREAMS"};
@@ -819,13 +821,13 @@ inline std::istream& operator>>(std::istream& is, Num& num_val) {
 }  // namespace streams
 
 /**
- * @brief The number of executor logical partitions
+ * @brief The number of processing streams that will be used to execute inferencing with the compiled model.
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<streams::Num, PropertyMutability::RW> num_streams{"NUM_STREAMS"};
 
 /**
- * @brief Maximum number of threads that can be used for inference tasks
+ * @brief (Deprecated) Maximum number of threads that can be used for inference tasks.
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<int32_t, PropertyMutability::RW> inference_num_threads{"INFERENCE_NUM_THREADS"};
