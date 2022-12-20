@@ -540,17 +540,14 @@ void Snippet::execute(dnnl::stream strm) {
     if (schedule.ptr == nullptr) {
         IE_THROW() << "Snippet can't use Optimized implementation and can't fallback to reference";
     }
-    jit_snippets_call_args call_args;
-    update_ptrs(call_args);
-
     if (tensorRank == rank6D) {
-        schedule_6d(call_args);
+        schedule_6d();
     } else {
-        schedule_nt(call_args);
+        schedule_nt();
     }
 }
 
-void Snippet::schedule_6d(const jit_snippets_call_args& call_args) {
+void Snippet::schedule_6d() {
     const auto& dom = exec_domain;
     // < N, C, H, W > < 1, 1, N, C*H*W>
     parallel_for5d(dom[0], dom[1], dom[2], dom[3], dom[4],
@@ -563,7 +560,7 @@ void Snippet::schedule_6d(const jit_snippets_call_args& call_args) {
         });
 }
 
-void Snippet::schedule_nt(const jit_snippets_call_args& call_args) {
+void Snippet::schedule_nt() {
     const auto& work_size = exec_domain;
     parallel_nt(0, [&](const int ithr, const int nthr) {
         jit_snippets_call_args call_args;
