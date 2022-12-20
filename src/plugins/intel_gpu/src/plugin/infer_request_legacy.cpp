@@ -769,7 +769,7 @@ void InferRequestLegacy::enqueue() {
     // If dump layers path is set, only runs first inference.
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0) {
-        GPU_DEBUG_COUT << "Only run first inference to dump layers." << std::endl;
+        GPU_DEBUG_INFO << "Only run first inference to dump layers." << std::endl;
         exit(0);
     }
 }
@@ -1031,10 +1031,7 @@ void InferRequestLegacy::allocate_inputs() {
                 IE_THROW() << "Input layout for " << name << " is not found";
             }
 
-            GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(debug_config->verbose >= 2) {
-                GPU_DEBUG_COUT << "[" << name << ": input blob]" << std::endl;
-            }
+            GPU_DEBUG_LOG << "[" << name << ": input blob]" << std::endl;
             if (desc.getPrecision() == Precision::I16 || desc.getPrecision() == Precision::U16) {
                 TensorDesc desc_fp32 = desc;
                 desc_fp32.setPrecision(Precision::FP32);
@@ -1088,10 +1085,7 @@ void InferRequestLegacy::allocate_outputs() {
         // Can be removed once 76176 is resolved.
         desc.setDims(m_graph->GetOutputSize(no.first));
 
-        GPU_DEBUG_GET_INSTANCE(debug_config);
-        GPU_DEBUG_IF(debug_config->verbose >= 2) {
-            GPU_DEBUG_COUT << "[" << no.first << ": output blob]" << std::endl;
-        }
+        GPU_DEBUG_LOG << "[" << no.first << ": output blob]" << std::endl;
 
         outputsMap[no.first] = outputID;
         if (desc.getPrecision() == Precision::I16 || desc.getPrecision() == Precision::U16 ||

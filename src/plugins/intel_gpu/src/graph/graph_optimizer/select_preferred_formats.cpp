@@ -32,7 +32,6 @@ void select_preferred_formats::run(program& p) {
         return;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     for (auto n : p.get_processing_order()) {
         // Onednn primitive descriptor creation may fail, for example, due to asymmetric weight.
         try {
@@ -47,9 +46,7 @@ void select_preferred_formats::run(program& p) {
 
             _lo.select_preferred_formats_for_onednn(*n, prim_desc);
         } catch(std::exception &exception) {
-            GPU_DEBUG_IF(debug_config->verbose >= 1) {
-                std::cout << "WARNING(select_preferred_formats): " << exception.what() << std::endl;
-            }
+            GPU_DEBUG_INFO << "WARNING(select_preferred_formats): " << exception.what() << std::endl;
         }
     }
 #endif  // ENABLE_ONEDNN_FOR_GPU

@@ -107,12 +107,8 @@ KernelsData kernel_selector_base::GetNaiveBestKernel(const Params& params,
             }
         } catch (std::runtime_error& ex) {
             // we have to handle it in order to avoid exception in KernelSelector as much we can
-            GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(debug_config->verbose >= 3) {
-                kernelName = (implementation != nullptr)? implementation->GetName() : "[impl is null]";
-                GPU_DEBUG_COUT << "layerID: " << params.layerID << " kenrel: "
-                    << kernelName << " - " << ex.what() << std::endl;
-            }
+            kernelName = (implementation != nullptr)? implementation->GetName() : "[impl is null]";
+            GPU_DEBUG_TRACE << "layerID: " << params.layerID << " kenrel: " << kernelName << " - " << ex.what() << std::endl;
         }
     }
 
@@ -202,12 +198,8 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params,
                 }
             } catch (std::runtime_error& ex) {
                 // we have to handle it in order to avoid exception in KernelSelector as much we can
-                GPU_DEBUG_GET_INSTANCE(debug_config);
-                GPU_DEBUG_IF(debug_config->verbose >= 3) {
-                    kernelName = (implementation != nullptr)? implementation->GetName() : "[impl is null]";
-                    GPU_DEBUG_COUT << "layerID: " << params.layerID << " kenrel: "
-                        << kernelName << " - " << ex.what() << std::endl;
-                }
+                kernelName = (implementation != nullptr)? implementation->GetName() : "[impl is null]";
+                GPU_DEBUG_TRACE << "layerID: " << params.layerID << " kenrel: " << kernelName << " - " << ex.what() << std::endl;
             }
         }
     }
@@ -231,12 +223,8 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params,
                     }
                 } catch (std::runtime_error& ex) {
                     // we have to handle it in order to avoid exception in KernelSelector as much we can
-                    GPU_DEBUG_GET_INSTANCE(debug_config);
-                    GPU_DEBUG_IF(debug_config->verbose >= 3) {
-                        kernelName = (implementation != nullptr)? implementation->GetName() : "[impl is null]";
-                        GPU_DEBUG_COUT << "layerID: " << params.layerID << " kenrel: "
-                            << kernelName << " - " << ex.what() << std::endl;
-                    }
+                    kernelName = (implementation != nullptr)? implementation->GetName() : "[impl is null]";
+                    GPU_DEBUG_TRACE << "layerID: " << params.layerID << " kenrel: " << kernelName << " - " << ex.what() << std::endl;
                 }
             }
         }

@@ -17,6 +17,8 @@ const char *debug_configuration::prefix = "GPU_Debug: ";
 
 #ifdef GPU_DEBUG_CONFIG
 
+#define GPU_DEBUG_COUT std::cout << cldnn::debug_configuration::prefix
+
 template<typename T>
 void print_option(std::string option_name, T option_value) {
     GPU_DEBUG_COUT << "Config " << option_name << " = " << option_value << std::endl;

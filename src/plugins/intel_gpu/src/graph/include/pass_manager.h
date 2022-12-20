@@ -23,6 +23,8 @@
 
 #include <fstream>
 
+#define GPU_DEBUG_LOG_PASS    GPU_DEBUG_LOG << "[" << get_name() << "] "
+
 namespace cldnn {
 class base_pass {
     friend class pass_manager;
