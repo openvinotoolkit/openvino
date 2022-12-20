@@ -192,7 +192,7 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
                 // in case of decode, unsupported operation will be converted to FrameworkNode
                 if (m_telemetry && translate_map.count(operation_decoder->get_op_type()) == 0) {
                     // send event about which operation is not supported for conversion
-                    m_telemetry->send_event("error cause", "tf_" + operation_decoder->get_op_type());
+                    m_telemetry->send_event("error_cause", "tf_" + operation_decoder->get_op_type());
                 }
                 // re-throw any exception
                 throw;

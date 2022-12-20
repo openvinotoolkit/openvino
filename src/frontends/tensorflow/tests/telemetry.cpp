@@ -45,22 +45,17 @@ INSTANTIATE_TEST_SUITE_P(TFTelemetryTest,
                          ::testing::Values(getTestData()),
                          FrontEndTelemetryTest::getTestCaseName);
 
-TEST(TFTelemetryTest, test_unsupported_tf1_while) {
+TEST(TFTelemetryTest, test_nonexistent_add) {
     TelemetryFEParam expected_res;
     expected_res.m_expected_events = {{
-        std::make_tuple("mo", "op_count", "tf_Placeholder", 2),
-        std::make_tuple("mo", "op_count", "tf_Enter", 1),
-        std::make_tuple("mo", "op_count", "tf_Merge", 1),
-        std::make_tuple("mo", "op_count", "tf_Const", 2),
-        std::make_tuple("mo", "op_count", "tf_Less", 1),
-        std::make_tuple("mo", "op_count", "tf_LoopCond", 1),
-        std::make_tuple("mo", "op_count", "tf_Switch", 1),
-        std::make_tuple("mo", "op_count", "tf_Identity", 1),
-        std::make_tuple("mo", "op_count", "tf_Add", 2),
-        std::make_tuple("mo", "op_count", "tf_NextIteration", 1),
-        std::make_tuple("mo", "op_count", "tf_Exit", 1),
+        std::make_tuple("mo", "op_count", "tf_Placeholder", 1),
+        std::make_tuple("mo", "op_count", "tf_Const", 1),
+        std::make_tuple("mo", "op_count", "tf_Relu", 1),
+        std::make_tuple("mo", "op_count", "tf_Adddd", 1),
+        std::make_tuple("mo", "op_count", "tf_Mul", 1),
+        std::make_tuple("mo", "op_count", "tf_NoOp", 1),
         // expect error cause event due to operation that fails conversion
-        std::make_tuple("mo", "error cause", "tf_NextIteration", 1),
+        std::make_tuple("mo", "error_cause", "tf_Adddd", 1),
     }};
     FrontEndManager fem;
     FrontEnd::Ptr frontEnd;
@@ -80,24 +75,23 @@ TEST(TFTelemetryTest, test_unsupported_tf1_while) {
     EXPECT_NO_THROW(frontEnd->add_extension(telemetry_extension));
 
     auto model_filename = FrontEndTestUtils::make_model_path(string(TEST_TENSORFLOW_MODELS_DIRNAME) +
-                                                             string("model_tf1_while/model_tf1_while.pb"));
+                                                             string("nonexistent_add/nonexistent_add.pb"));
     ASSERT_NO_THROW(inputModel = frontEnd->load(model_filename));
     ASSERT_NE(inputModel, nullptr);
     shared_ptr<ngraph::Function> function;
 
     try {
         function = frontEnd->convert(inputModel);
-        FAIL() << "TensorFlow 1 While is not supported in TF FE but conversion passed without errors. "
-                  "OpConversionFailure is expected.";
+        FAIL() << "Non-existent operation Adddd must not be supported by TF FE.";
     } catch (const OpConversionFailure& error) {
         string error_message = error.what();
-        string ref_message = "No translator found for NextIteration node.";
+        string ref_message = "No translator found for Adddd node.";
         ASSERT_TRUE(error_message.find(ref_message) != string::npos);
         ASSERT_EQ(function, nullptr);
 
         // check telemetry data
         EXPECT_EQ(m_test_telemetry.m_error_cnt, 0);
-        EXPECT_EQ(m_test_telemetry.m_event_cnt, 12);
+        EXPECT_EQ(m_test_telemetry.m_event_cnt, 7);
         EXPECT_EQ(m_test_telemetry.m_trace_cnt, 0);
         bool is_found = false;
         for (const auto m_expected_events : expected_res.m_expected_events) {
@@ -111,6 +105,6 @@ TEST(TFTelemetryTest, test_unsupported_tf1_while) {
         EXPECT_TRUE(is_found) << "Unexpected set of operations received from telemetry.";
         m_test_telemetry.clear();
     } catch (...) {
-        FAIL() << "Conversion of TensorFlow 1 While failed by wrong reason.";
+        FAIL() << "Conversion of Non-existent operation Adddd failed by wrong reason.";
     }
 }
