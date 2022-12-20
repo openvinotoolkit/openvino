@@ -6,14 +6,13 @@ from copy import deepcopy
 
 from .range_estimator import get_range_estimator_config
 from .utils import load_hardware_config
-from ...graph.special_operations import QUANTIZE_AGNOSTIC_OPERATIONS, CONCAT_UNIFY_OUTPUTS,\
-    CONCAT_UNIFY_INPUTS, TYPES_TO_QUANTIZABLE_PORTS
+from ...graph.special_operations import QUANTIZE_AGNOSTIC_OPERATIONS, CONCAT_UNIFY_OUTPUTS, CONCAT_UNIFY_INPUTS
 from ...graph.utils import find_operation_matches, get_operation_list, is_data_type_quantizable,\
     get_hardware_config_operation_type
 from ...graph.model_utils import get_nodes_by_type, get_node_by_name
 from ...graph.node_utils import get_input_shape, get_all_node_outputs,\
-get_node_input, get_node_inputs, get_node_data_type, check_const_input, reset_node_fullname
-from ...graph.passes import traverse_graph
+get_node_input, get_node_inputs, get_node_data_type, check_const_input
+
 from ...utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -212,9 +211,6 @@ def get_configurations_by_preset(config, model, fq_to_hw_confs, hardware_config)
                     for key in cur_conf[fq]:
                         if key in ACTIVATION_QUANTIZATION_MODES:
                             if with_concat or unclear_layout or broadcasting:
-                                if not isinstance(cur_conf[fq]['activations'], list):
-                                     cur_conf[fq]['activations'] = [cur_conf[fq]['activations']]
-
                                 configuration = [c for c in cur_conf[fq][key] if c['granularity'] == 'pertensor']
                             else:
                                 configuration = cur_conf[fq][key]
@@ -283,51 +279,12 @@ def get_configurations_by_qscheme(fq_to_hw_confs, qscheme):
     return res
 
 
-def unify_recurrent_fqs(model, recurrent_hw_ops):
-    recurrent_fqs_to_unify = []
-
-    def source_fn(op):
-        return [p for p in get_node_inputs(op) if p and p.type != 'Const']
-
-    def criteria_fn(op):
-        return op.type == 'FakeQuantize'
-
-    def get_fqs_fullname(node, port):
-        input_node = get_node_input(node, port)
-        if criteria_fn(input_node):
-            return [input_node.fullname]
-        _, criteria = traverse_graph(input_node,
-                                     move_fn=source_fn,
-                                     stop_criteria_fn=criteria_fn,
-                                     criteria_fns=criteria_fn)
-        if criteria_fn in criteria:
-            input_fqs = [reset_node_fullname(input_node.fullname, node_name) for node_name in criteria[criteria_fn]]
-            return input_fqs
-        return []
-
-    def recurrent_fq_to_unify(cell_fullname, fqs):
-        unique_fqs = set().union(*fqs)
-        is_unified = all([get_node_input(get_node_by_name(model, name), 0).type != 'Const' for name in unique_fqs])
-        if len(unique_fqs) >= 2 and is_unified:
-            recurrent_fqs_to_unify.append([[cell_fullname], list(unique_fqs)])
-
-    nodes = get_nodes_by_type(model, types=recurrent_hw_ops.keys(), recursively=True)
-    for node in nodes:
-        unify_group_indices = recurrent_hw_ops[node.type]
-        for indices in unify_group_indices:
-            fqs = [get_fqs_fullname(node, i) for i in indices]
-            recurrent_fq_to_unify(node.fullname, fqs)
-
-    return recurrent_fqs_to_unify
-
-
 def find_fqs_to_unify(model, config):
     def _get_unified_scales_ops(hw_ops_):
         unified_scales_ops_ = []
         for hw_op in hw_ops_:
-            if 'attributes' in hw_op and 'unified_scales' in hw_op['attributes'] and \
-                hw_op['attributes']['unified_scales'] == 'all':
-                del hw_op['attributes']['unified_scales']
+            if 'attributes' in hw_op and 'scales' in hw_op['attributes']:
+                del hw_op['attributes']['scales']
                 if not hw_op['attributes']:
                     del hw_op['attributes']
                 unified_scales_ops_.append(hw_op)
@@ -352,7 +309,7 @@ def find_fqs_to_unify(model, config):
         return True
 
     def _is_concat_unify_condition(node):
-        def _is_followed_by_concat_unify_outs_op(input_node):
+        def _is_followed_by_conv(input_node):
             if _is_quantize_agnostic_op(input_node):
                 concat_stack.extend(get_all_node_outputs(input_node))
             elif input_node.type in [n['type'] for n in CONCAT_UNIFY_OUTPUTS]:
@@ -374,23 +331,18 @@ def find_fqs_to_unify(model, config):
                     return True
             return False
 
-        def _source_fn(op):
-            return [p for p in get_node_inputs(op) if p and p.type != 'Const']
-
-        def _criteria_fn(op):
-            return op.type in [n['type'] for n in CONCAT_UNIFY_INPUTS]
-
-        _, criteria = traverse_graph(node,
-                                    move_fn=_source_fn,
-                                    stop_criteria_fn=_criteria_fn,
-                                    criteria_fns=_criteria_fn)
-        if not criteria:
-            return False
+        res = False
+        concat_inputs = get_node_inputs(node)
+        for concat_input in concat_inputs:
+            if concat_input.type not in [n['type'] for n in CONCAT_UNIFY_INPUTS]:
+                logger.debug('Concat %s without FQ or Concat as input will not unified',
+                             node.fullname)
+                return res
 
         concat_stack = [node]
         while concat_stack:
             node_to_check = concat_stack.pop()
-            res = _is_followed_by_concat_unify_outs_op(node_to_check)
+            res = _is_followed_by_conv(node_to_check)
         if res:
             concat_stack = [node]
             while concat_stack:
@@ -413,49 +365,41 @@ def find_fqs_to_unify(model, config):
     def _has_const_input(layer):
         return 'Const' in [parent.type for parent in get_node_inputs(layer) if parent]
 
-    def _get_unified_recurrent_scales_ops(hw_ops_):
-        unified_scales_ops_ = {}
-        for hw_op in hw_ops_:
-            if hw_op['type'] in TYPES_TO_QUANTIZABLE_PORTS and 'unified_scales' in hw_op['attributes']:
-                unified_scales_ops_[hw_op['type']] = hw_op['attributes']['unified_scales']
-        return unified_scales_ops_
-
     def _process_node(node_, stack_, visited_, to_unify_):
         visited_[node_.fullname] = True
         if _is_unified_scales_op(node_) or _is_agnostic_branching_op(node_):
             if not _has_const_input(node_):
                 to_unify_[0].append(node_.fullname)
-        elif node_.type == 'FakeQuantize' and get_node_input(node_, 0).type != 'Const':
+        elif node_.type == 'ConvertFP8' and get_node_input(node_, 0).type != 'Const':
             to_unify_[1].append(node_.fullname)
         # traverse down
-        if node_.type == 'FakeQuantize' or _is_quantize_agnostic_op(node_):
+        if node_.type == 'ConvertFP8' or _is_quantize_agnostic_op(node_):
             for child in get_all_node_outputs(node_):
                 node_data_type = get_node_data_type(child)
                 if not visited_[child.fullname] and is_data_type_quantizable(node_data_type) and \
                         (_is_quantize_agnostic_op(child) or _is_unified_scales_op(child)):
                     stack_.append(child)
         # traverse up
-        if node_.type != 'FakeQuantize':
+        if node_.type != 'ConvertFP8':
             for parent in get_node_inputs(node_):
                 node_data_type = get_node_data_type(parent)
                 if parent and not visited_[parent.fullname] and is_data_type_quantizable(node_data_type) and \
-                        (parent.type == 'FakeQuantize' or _is_quantize_agnostic_op(parent)):
+                        (parent.type == 'ConvertFP8' or _is_quantize_agnostic_op(parent)):
                     stack_.append(parent)
 
     hardware_config = load_hardware_config(config)
     per_channel_quantizable = _get_quantizable_per_ch_ops(hardware_config)
     hw_ops = get_operation_list(hardware_config)
     quantize_agnostic_ops = [op[1] for op in find_operation_matches(QUANTIZE_AGNOSTIC_OPERATIONS, hw_ops)]
-    recurrent_hw_ops = _get_unified_recurrent_scales_ops(hw_ops)
     unified_scales_ops = _get_unified_scales_ops(hw_ops)
-    if not (unified_scales_ops or recurrent_hw_ops):
+    if not unified_scales_ops:
         return []
 
     visited = defaultdict(lambda: False)
     fqs_to_unify = []
     if model is None:
         return fqs_to_unify
-    for fq in get_nodes_by_type(model, ['FakeQuantize']):
+    for fq in get_nodes_by_type(model, ['ConvertFP8']):
         if not visited[fq.fullname] and get_node_input(fq, 0).type != 'Const':
             stack = [fq]
             to_unify = [[], []]
@@ -467,9 +411,6 @@ def find_fqs_to_unify(model, config):
                     any([_is_unified_scales_op(get_node_by_name(model, bridge)) for bridge in to_unify[0]]) and \
                     len(to_unify[1]) > 1:
                 fqs_to_unify.append(to_unify)
-
-    recurrent_fqs = unify_recurrent_fqs(model, recurrent_hw_ops)
-    fqs_to_unify.extend(recurrent_fqs)
 
     fqs_to_unify = sorted([[sorted(c[0]), sorted(c[1])] for c in fqs_to_unify])
     logger.debug('Operations and corresponding fake quantize nodes to unify scales:')
@@ -515,7 +456,7 @@ def _fake_quantize_to_types(model, hardware_config):
 
     out = {}
     available_types = [layer['type'] for layer in hardware_config]
-    for fq in get_nodes_by_type(model, ['FakeQuantize']):
+    for fq in get_nodes_by_type(model, ['ConvertFP8']):
         if fq['fq_group'] == 'outputs':
             fq_input = get_node_input(fq, 0)
             hw_node_types = get_hardware_config_operation_type(fq_input, available_types)
@@ -534,8 +475,8 @@ def change_configurations_by_model_type(model, config, fq_configuration, hardwar
 
 def change_configurations_by_model_type_transformer(model, fq_configuration, hardware_config):
     fq_types = _fake_quantize_to_types(model, hardware_config)
-    for fq in get_nodes_by_type(model, ['FakeQuantize']):
-        node_creator_fq, fq_group = fq_types[fq.fullname]
+    for fq in get_nodes_by_type(model, ['ConvertFP8']):
+        node_creator_fq, fq_group = fq_types[fq.name]
         is_weights = fq_group == 'weights'
         node_name = None
         for name, type_node in node_creator_fq:

@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
+import copy
 
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array, float32_array
 from openvino.tools.mo.graph.graph import Node, Graph
@@ -37,7 +38,7 @@ class FakeQuantize(Op):
             'infer': self.infer,
             'in_ports_count': 5,
             'out_ports_count': 1,
-            'auto_broadcast': 'numpy'
+            'auto_broadcast': 'numpy',
         }
         super().__init__(graph, mandatory_props, attrs)
         if self.attrs['levels'] is None:
@@ -46,7 +47,7 @@ class FakeQuantize(Op):
     def supported_attrs(self):
         return [
             'levels',
-            'auto_broadcast'
+            'auto_broadcast',
         ]
 
     @staticmethod
@@ -95,3 +96,40 @@ class FakeQuantize(Op):
 
             if not node.has_and_set('stop_value_propagation'):
                 node.out_node().value = output
+
+
+class ConvertFP8(Op):
+    op = 'ConvertFP8'
+
+    def __init__(self, graph: Graph, attrs: dict):
+        mandatory_props = {
+            'type': self.op,
+            'op': self.op,
+            'version': 'opset1',
+            'is_eltwise': True,
+            'infer': self.infer,
+            'in_ports_count': 2,
+            'out_ports_count': 1,
+            'auto_broadcast': 'numpy',
+            'destination_type': 'hf8_ext',
+            'apply_scale': False,
+        }
+        super().__init__(graph, mandatory_props, attrs)
+
+    def supported_attrs(self):
+        return [
+            'auto_broadcast',
+            'destination_type',
+            'apply_scale'
+        ]
+
+    @staticmethod
+    def infer(node: Node):
+        assert len(node.in_nodes()) == 2
+        assert len(node.out_nodes()) == 1
+        inputs = [node.in_node(i) for i in range(2)]
+        x, input_low = inputs
+
+        assert x.has_valid('shape')
+        # TODO Check all inputs[1..4] shapes are broadcastable to inputs[0] shape
+        node.out_node().shape = x.shape.copy()

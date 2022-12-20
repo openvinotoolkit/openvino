@@ -11,3 +11,11 @@ class FakeQuantize_extender(Extender):
     @staticmethod
     def extend(op: Node):
         op['stop_value_propagation'] = True
+
+class ConvertFP8_extender(Extender):
+    op = 'ConvertFP8'
+
+    @staticmethod
+    def extend(op: Node):
+        op['stop_value_propagation'] = True
+

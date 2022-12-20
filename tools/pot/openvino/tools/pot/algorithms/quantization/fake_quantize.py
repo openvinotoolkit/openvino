@@ -5,6 +5,7 @@ from copy import copy, deepcopy
 
 import numpy as np
 from addict import Dict
+from bisect import bisect_left
 
 from .fake_quantize_configuration import read_all_fake_quantize_configurations, get_configurations_by_preset, \
     get_configurations_by_qscheme, find_fqs_to_unify, add_range_estimator_configs, change_configurations_by_model_type
@@ -84,25 +85,190 @@ def tune_range_unify_zp(a, b, num_bits):
     return ra, rb
 
 
+def find_closest(arr, num):
+    pos = bisect_left(arr, num)
+    if pos == 0:
+        return arr[0]
+    if pos == len(arr):
+        return arr[-1]
+    before = arr[pos - 1]
+    after = arr[pos]
+    if after - num < num - before:
+        return after
+    else:
+        return before
+
+
+def find_closest_quantize(quants, data):
+    res = [0] * len(data)
+    for i, val in enumerate(data):
+        res[i] = find_closest(quants, val)
+    return res
+
+
+def compute_relative_error(target, predict):
+    th = 0.00001
+    max_val = max(np.abs(target))
+    if max_val < th:
+        max_val = th
+    res = 0.0
+    for i in range(len(target)):
+        diff = abs(target[i] - predict[i])
+
+        if abs(target[i]) > th:
+            diff /= abs(target[i])
+        else:
+            diff /= th
+        diff *= abs(target[i]) / max_val
+        res += diff
+    return res / max(1, len(target))
+
+
+def compute_best_scale(data):
+    quants = [-28.0, -26.0, -24.0, -22.0, -20.0, -18.0, -16.0, -15.0, -14.0, -13.0, -12.0, -11.0, -10.0, -9.0, -8.0,
+              -7.5, -7.0, -6.5, -6.0, -5.5, -5.0, -4.5, -4.0, -3.75, -3.5, -3.25, -3.0, -2.75, -2.5, -2.25, -2.0,
+              -1.875, -1.75, -1.625, -1.5, -1.375, -1.25, -1.125, -1.0, -0.9375, -0.875, -0.8125, -0.75, -0.6875,
+              -0.625, -0.5625, -0.5, -0.46875, -0.4375, -0.40625, -0.375, -0.34375, -0.3125, -0.28125, -0.25, -0.234375,
+              -0.21875, -0.203125, -0.1875, -0.171875, -0.15625, -0.140625, -0.125, -0.117188, -0.109375, -0.101562,
+              -0.09375, -0.0859375, -0.078125, -0.0703125, -0.0625, -0.0585938, -0.0546875, -0.0507812, -0.046875,
+              -0.0429688, -0.0390625, -0.0351562, -0.03125, -0.0292969, -0.0273438, -0.0253906, -0.0234375, -0.0214844,
+              -0.0195312, -0.0175781, -0.015625, -0.0146484, -0.0136719, -0.0126953, -0.0117188, -0.0107422,
+              -0.00976562, -0.00878906, -0.0078125, -0.00732422, -0.00683594, -0.00634766, -0.00585938, -0.00537109,
+              -0.00488281, -0.00439453, -0.00390625, -0.00366211, -0.00341797, -0.00317383, -0.00292969, -0.00268555,
+              -0.00244141, -0.00219727, -0.00195312, -0.00183105, -0.00170898, -0.00158691, -0.00146484, -0.00134277,
+              -0.0012207, -0.00109863, -0.000976562, -0.000854492, -0.000732422, -0.000610352, -0.000488281,
+              -0.000366211, -0.000244141, -0.00012207, 0.0, 0.00012207, 0.000244141, 0.000366211, 0.000488281,
+              0.000610352, 0.000732422, 0.000854492, 0.000976562, 0.00109863, 0.0012207, 0.00134277, 0.00146484,
+              0.00158691, 0.00170898, 0.00183105, 0.00195312, 0.00219727, 0.00244141, 0.00268555, 0.00292969,
+              0.00317383, 0.00341797, 0.00366211, 0.00390625, 0.00439453, 0.00488281, 0.00537109, 0.00585938,
+              0.00634766, 0.00683594, 0.00732422, 0.0078125, 0.00878906, 0.00976562, 0.0107422, 0.0117188, 0.0126953,
+              0.0136719, 0.0146484, 0.015625, 0.0175781, 0.0195312, 0.0214844, 0.0234375, 0.0253906, 0.0273438,
+              0.0292969, 0.03125, 0.0351562, 0.0390625, 0.0429688, 0.046875, 0.0507812, 0.0546875, 0.0585938, 0.0625,
+              0.0703125, 0.078125, 0.0859375, 0.09375, 0.101562, 0.109375, 0.117188, 0.125, 0.140625, 0.15625, 0.171875,
+              0.1875, 0.203125, 0.21875, 0.234375, 0.25, 0.28125, 0.3125, 0.34375, 0.375, 0.40625, 0.4375, 0.46875, 0.5,
+              0.5625, 0.625, 0.6875, 0.75, 0.8125, 0.875, 0.9375, 1.0, 1.125, 1.25, 1.375, 1.5, 1.625, 1.75, 1.875, 2.0,
+              2.25, 2.5, 2.75, 3.0, 3.25, 3.5, 3.75, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 9.0, 10.0, 11.0, 12.0,
+              13.0, 14.0, 15.0, 16.0, 18.0, 20.0, 22.0, 24.0, 26.0, 28.0]
+    max_scale = 2 ** 5
+    min_scale = 2 ** (-5)
+
+    scales = []
+    scale = max_scale
+    while scale >= min_scale:
+        scales.append(scale)
+        scale /= 2
+
+    min_diff = 100
+    best_scale = max_scale
+
+    for scale in scales:
+        scaled_data = scale * data[:]
+        quantized_data = find_closest_quantize(quants, scaled_data)
+        diff = compute_relative_error(scaled_data, quantized_data)
+        if diff < min_diff:
+            min_diff = diff
+            best_scale = scale
+
+    return best_scale
+
+
+def compute_best_scales(data):
+    out_channels = data.shape[0]
+    res = []
+    for i in range(out_channels):
+        row = np.copy(data[i]).flatten()
+        if np.max(np.abs(row)) > 8:
+            best_scale = 1.0 / np.max(np.abs(row))  # compute_best_scale(row)
+            res.append(best_scale)
+        else:
+            res.append(1.0)
+    return np.array(res)
+
+
+def compute_scale(node):
+    weights = None
+    if node.in_port(0).get_source() is not None:
+        weights = node.in_port(0).get_source().node
+
+    if weights is None:
+        return None
+    try:
+        data = weights.value
+    except:
+        return None
+
+    return compute_best_scales(data)
+
+
+def round_scale(value):
+    quants = [-28.0, -26.0, -24.0, -22.0, -20.0, -18.0, -16.0, -15.0, -14.0, -13.0, -12.0, -11.0, -10.0, -9.0, -8.0,
+              -7.5, -7.0, -6.5, -6.0, -5.5, -5.0, -4.5, -4.0, -3.75, -3.5, -3.25, -3.0, -2.75, -2.5, -2.25, -2.0,
+              -1.875, -1.75, -1.625, -1.5, -1.375, -1.25, -1.125, -1.0, -0.9375, -0.875, -0.8125, -0.75, -0.6875,
+              -0.625, -0.5625, -0.5, -0.46875, -0.4375, -0.40625, -0.375, -0.34375, -0.3125, -0.28125, -0.25, -0.234375,
+              -0.21875, -0.203125, -0.1875, -0.171875, -0.15625, -0.140625, -0.125, -0.117188, -0.109375, -0.101562,
+              -0.09375, -0.0859375, -0.078125, -0.0703125, -0.0625, -0.0585938, -0.0546875, -0.0507812, -0.046875,
+              -0.0429688, -0.0390625, -0.0351562, -0.03125, -0.0292969, -0.0273438, -0.0253906, -0.0234375, -0.0214844,
+              -0.0195312, -0.0175781, -0.015625, -0.0146484, -0.0136719, -0.0126953, -0.0117188, -0.0107422,
+              -0.00976562, -0.00878906, -0.0078125, -0.00732422, -0.00683594, -0.00634766, -0.00585938, -0.00537109,
+              -0.00488281, -0.00439453, -0.00390625, -0.00366211, -0.00341797, -0.00317383, -0.00292969, -0.00268555,
+              -0.00244141, -0.00219727, -0.00195312, -0.00183105, -0.00170898, -0.00158691, -0.00146484, -0.00134277,
+              -0.0012207, -0.00109863, -0.000976562, -0.000854492, -0.000732422, -0.000610352, -0.000488281,
+              -0.000366211, -0.000244141, -0.00012207, 0.0, 0.00012207, 0.000244141, 0.000366211, 0.000488281,
+              0.000610352, 0.000732422, 0.000854492, 0.000976562, 0.00109863, 0.0012207, 0.00134277, 0.00146484,
+              0.00158691, 0.00170898, 0.00183105, 0.00195312, 0.00219727, 0.00244141, 0.00268555, 0.00292969,
+              0.00317383, 0.00341797, 0.00366211, 0.00390625, 0.00439453, 0.00488281, 0.00537109, 0.00585938,
+              0.00634766, 0.00683594, 0.00732422, 0.0078125, 0.00878906, 0.00976562, 0.0107422, 0.0117188, 0.0126953,
+              0.0136719, 0.0146484, 0.015625, 0.0175781, 0.0195312, 0.0214844, 0.0234375, 0.0253906, 0.0273438,
+              0.0292969, 0.03125, 0.0351562, 0.0390625, 0.0429688, 0.046875, 0.0507812, 0.0546875, 0.0585938, 0.0625,
+              0.0703125, 0.078125, 0.0859375, 0.09375, 0.101562, 0.109375, 0.117188, 0.125, 0.140625, 0.15625, 0.171875,
+              0.1875, 0.203125, 0.21875, 0.234375, 0.25, 0.28125, 0.3125, 0.34375, 0.375, 0.40625, 0.4375, 0.46875, 0.5,
+              0.5625, 0.625, 0.6875, 0.75, 0.8125, 0.875, 0.9375, 1.0, 1.125, 1.25, 1.375, 1.5, 1.625, 1.75, 1.875, 2.0,
+              2.25, 2.5, 2.75, 3.0, 3.25, 3.5, 3.75, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 9.0, 10.0, 11.0, 12.0,
+              13.0, 14.0, 15.0, 16.0, 18.0, 20.0, 22.0, 24.0, 26.0, 28.0]
+
+    quantized_data = find_closest(quants, value)
+
+    return quantized_data
+
+
+def round_scales(scale):
+    rnd_fn = np.vectorize(round_scale)
+    return rnd_fn(scale)
+
+
 def fill_fake_quantize_node(fq, min_level, max_level, output_low=None, output_high=None):
     """ Fills fake quantize input nodes with min/max values
     :param fq: fake quantize node to fill
     :param min_level: low border of quantization range
     :param max_level: high border of quantization range
     """
-    if output_low is None:
-        output_low = min_level
-    if output_high is None:
-        output_high = max_level
+    min_level_mean = np.min(min_level)
+    max_level_mean = np.max(max_level)
+    th = max(abs(min_level_mean), abs(max_level_mean))
+
+    max_vals = {"hf8_ext": 28, "hf8_libxsmm": 448, "bf8": 57344}
+
+    print(fq.name, ' th value: ', th)
+    if th > 15.0:
+        fq.destination_type = 'hf8_libxsmm'  # 'bf8'
+    else:
+        fq.destination_type = 'hf8_ext'  # 'hf8_libxsmm' #'hf8_ext'
+
+    scale = max_vals[fq.destination_type] / np.maximum(max_level, np.abs(min_level) + np.finfo(float).eps)
+    fq.apply_scale = True
+
+    print(fq.name, ' th value: ', th, fq.destination_type, fq.apply_scale, scale.shape)
 
     def _update_node_val(port_idx, value):
         _node = get_node_input(fq, port_idx)
         set_node_value(_node, value)
 
-    _update_node_val(1, min_level)
-    _update_node_val(2, max_level)
-    _update_node_val(3, output_low)
-    _update_node_val(4, output_high)
+    _update_node_val(1, scale)
+
+
+#    _update_node_val(2, max_level)
+#    _update_node_val(3, output_low)
+#    _update_node_val(4, output_high)
 
 
 def compute_stats_layouts(config, model, qscheme=None):
@@ -126,12 +292,12 @@ def compute_stats_layouts(config, model, qscheme=None):
     change_configurations_by_model_type(model, config, fq_configuration, hardware_config)
 
     # get all fake quantize nodes
-    fq_nodes = get_nodes_by_type(model, ['FakeQuantize'])
+    fq_nodes = get_nodes_by_type(model, ['ConvertFP8'])
 
     fake_quantize_config = {}
     for fq in fq_nodes:
         is_weights = fq['fq_group'] == 'weights'
-        fq_config = copy(fq_configuration[fq.fullname][fq['fq_group']])
+        fq_config = copy(fq_configuration[fq.name][fq['fq_group']])
         fake_quantize_config[fq.fullname] = fq_config
         if fq.fullname in config.layerwise_configs[0]:
             fq_config = Dict(merge_nested_dicts(fq_config, config.layerwise_configs[0][fq.fullname]))
@@ -141,7 +307,7 @@ def compute_stats_layouts(config, model, qscheme=None):
             fq_config['signed'] = True
 
         fake_quantize_config[fq.fullname] = fq_config
-        fq.levels = compute_levels(fq_config, is_weights)
+        # fq.levels = compute_levels(fq_config, is_weights)
 
     return fake_quantize_config
 
@@ -243,13 +409,15 @@ def symmetric_range(node, fq, weights_stats,
         max_level = weights_stats[node_output.fullname]['max']
         max_level = fix_zero_filters_symmetric(max_level)
         min_level = -max_level
+        # min_level = weights_stats[node_output.fullname]['min']
+        # min_level = fix_zero_filters_symmetric(min_level)
     elif name in batch_inputs_stats:
         max_level = batch_inputs_stats[name]['max']
         min_level = batch_inputs_stats[name]['min']
         max_level = fix_zero_filters_symmetric(max_level)
         signed = fake_quantize_config[fq.fullname]['signed']
-        min_level = np.zeros(max_level.shape) if np.all(min_level >= 0) and not signed else \
-            -max_level * fq.levels / (fq.levels - 2)
+        min_level = -max_level  # np.zeros(max_level.shape) if np.all(min_level >= 0) and not signed else \
+        # -max_level * fq.levels / (fq.levels - 2)
     else:
         raise Exception(
             'WARNING: Fake quantize node {} is missed'.format(fq.fullname))
@@ -303,7 +471,7 @@ def get_quantized_model(model, create_stats_collector, activations_statistics,
     :param fill_fq_range: functor to generate min and max range for fake quantize node
     :param config: dictionary with params algo section from toolkit config
      """
-    # FakeQuantize nodes insertion
+    # ConvertFP8 nodes insertion
     insert_fake_quantize_nodes(config, model, qscheme=qscheme)
 
     fake_quantize_config = compute_stats_layouts(config, model, qscheme=qscheme)
@@ -331,8 +499,8 @@ def compute_weights_stats(model, stats_layout):
     weights_stats = {}
     for fq_name, stats in stats_layout.items():
         fq_node = get_node_by_name(model, fq_name)
-        if fq_node.type != 'FakeQuantize':
-            raise Exception('FakeQuantize node for weights is missed')
+        if fq_node.type != 'ConvertFP8':
+            raise Exception('ConvertFP8 node for weights is missed')
         node = get_fake_quantize_first_output(fq_node)
         weights_node = get_node_input(fq_node, 0)
         weights_value = get_input_data_value(fq_node, 0)
@@ -393,7 +561,8 @@ def set_rescaling_factors(config, model, scaling_factor=2.0):
     """
 
     fqs_to_rescale = []
-    saturation_fix = config.get('saturation_fix', 'first_layer')
+    #saturation_fix = config.get('saturation_fix', 'no')
+    saturation_fix = 'no'
 
     if config['target_device'] not in ['CPU', 'ANY'] \
             or not get_nodes_by_type(model, ['Convolution'], recursively=False) \
@@ -472,7 +641,7 @@ def get_num_levels(x: np.ndarray) -> int:
     x = x.flatten()
     hist, _ = np.histogram(x, NUM_BINS)
     non_empty_bins = [i for i, v in enumerate(hist) if v > 0]
-    deltas = [non_empty_bins[i]-non_empty_bins[i-1] for i in range(1, len(non_empty_bins))]
+    deltas = [non_empty_bins[i] - non_empty_bins[i - 1] for i in range(1, len(non_empty_bins))]
     if deltas == []:
         return 0
     d = min(deltas)

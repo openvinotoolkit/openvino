@@ -73,7 +73,7 @@ class FastBiasCorrection(Algorithm):
 
             input_node = nu.get_node_input(op_node, 0)
             quantized_node = op_node
-            if input_node.type == 'FakeQuantize':
+            if input_node.type == 'ConvertFP8':
                 input_node = nu.get_node_input(input_node, 0)
                 quantized_node = nu.get_node_input(op_node, 0)
 
@@ -96,7 +96,7 @@ class FastBiasCorrection(Algorithm):
             # Reshaped since bias are broadcasted
             after_biased_conv_node_name = get_quantized_input_key(after_biased_conv)
             add_out_shape = get_input_shape_for_bias(activations_statistics, after_biased_conv_node_name)
-            bias_shape = np.ones(len(add_out_shape), dtype=int)
+            bias_shape = np.ones(len(add_out_shape), dtype=np.int)
             axis_channel = self.get_channel_axis(input_node_name)
             bias_shape[axis_channel] = add_out_shape[axis_channel]
 
@@ -111,7 +111,6 @@ class FastBiasCorrection(Algorithm):
                 continue
 
             if bias_shift_magnitude < self._threshold:
-                logger.debug('Setting bias for %s. Magnitude: %f', op_node.fullname, bias_shift_magnitude)
                 op_node['original_bias'] = current_bias_value
                 nu.set_node_value(bias_node, bias_shift)
             else:
@@ -135,7 +134,7 @@ class FastBiasCorrection(Algorithm):
         for op_node in nodes_with_bias:
             if nu.node_with_quantized_weights(op_node) or self._apply_for_all_nodes:
                 quantized_node = op_node
-                if nu.get_node_input(quantized_node, 0).type == 'FakeQuantize':
+                if nu.get_node_input(quantized_node, 0).type == 'ConvertFP8':
                     quantized_node = nu.get_node_input(op_node, 0)
 
                 op_output_name = op_node.fullname
@@ -149,14 +148,12 @@ class FastBiasCorrection(Algorithm):
                     inputs_outputs_layout[op_output_name] = {
                         "mean_per_channel": TensorStatisticAxis(inplace_statistics=inplace_statistics,
                                                                 granularity='perchannel', type='mean',
-                                                                graph_depth=op_output_name.count('|'),
                                                                 channel=self._channel_axis)}
 
                 input_name = get_quantized_input_key(quantized_node)
                 inputs_outputs_layout[input_name] = {
                     "mean_per_channel": TensorStatisticAxis(inplace_statistics=inplace_statistics,
                                                             granularity='perchannel', type='mean',
-                                                            graph_depth=op_output_name.count('|'),
                                                             channel=self._channel_axis)}
                 inputs_outputs_layout[input_name]["shape"] = TensorStatistic(func=lambda x, **kwargs: x.shape,
                                                                              shape_for_inference=True)
@@ -199,7 +196,7 @@ class FastBiasCorrection(Algorithm):
                 continue
 
             input_node = nu.get_node_input(op_node, 0)
-            if input_node.type == 'FakeQuantize':
+            if input_node.type == 'ConvertFP8':
                 input_node = nu.get_node_input(input_node, 0)
 
             bias = nu.get_bias_for_node(op_node)

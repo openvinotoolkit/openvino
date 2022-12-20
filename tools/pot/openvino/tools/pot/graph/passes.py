@@ -14,7 +14,7 @@ from openvino.tools.mo.back.ForceStrictPrecision import ForceStrictPrecision
 from openvino.tools.mo.back.compress_quantized_weights import CompressQuantizeWeights, ZeroPointOptimizer
 from openvino.tools.mo.ops.elementwise import Add
 from openvino.tools.mo.ops.Cast import Cast
-from openvino.tools.mo.ops.fakequantize import FakeQuantize
+from openvino.tools.mo.ops.fakequantize import FakeQuantize, ConvertFP8
 from openvino.tools.mo.back.replacement import BackReplacementPattern
 from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
 from openvino.tools.mo.graph.graph import Graph, Node, rename_node
@@ -28,7 +28,7 @@ from . import node_utils as nu
 from .editor import get_nodes_by_type
 from .pattern_utils import get_fq_result_pattern
 from .special_operations import OPERATIONS_WITH_WEIGHTS, DETECTION_OUTPUT_FINAL_TYPES, \
-    SPLIT_OPERATIONS, OPERATIONS_WITH_BIAS, TYPES_TO_QUANTIZABLE_PORTS
+    SPLIT_OPERATIONS, OPERATIONS_WITH_BIAS
 from .utils import find_operation_matches, is_ignored, get_hw_aware_ignored_patterns
 from ..graph.node_utils import get_all_node_outputs, get_node_inputs, get_node_input, get_weights_for_node
 from ..graph.special_patterns import get_ignored_patterns
@@ -149,9 +149,8 @@ class InsertFakeQuantize(BackReplacementPattern):
 
         if m_op.type in ['Convolution', 'ConvolutionBackpropData', 'MatMul']:
             insert_fake_quantize(graph, m_op, [0, 1], hw_config=self.hardware_config, input_priority_types=self.input_priority_types)
-        elif m_op.type in TYPES_TO_QUANTIZABLE_PORTS:
-            ports = TYPES_TO_QUANTIZABLE_PORTS[m_op.type]
-            insert_fake_quantize(graph, m_op, ports, hw_config=self.hardware_config, input_priority_types=self.input_priority_types)
+        elif m_op.type == 'LSTMCell':
+            insert_fake_quantize(graph, m_op, [0, 1, 2, 3, 4], hw_config=self.hardware_config, input_priority_types=self.input_priority_types)
         elif self.quantize_only_input(m_op):
             insert_fake_quantize(graph, m_op, [0], hw_config=self.hardware_config, input_priority_types=self.input_priority_types)
         else:
@@ -241,9 +240,8 @@ class FakeQuantizePropagation(BackReplacementPattern):
 
     jump_single_branch_ops = ['ReduceMax', 'MaxPool', 'Reshape', 'Flatten', 'Squeeze', 'Unsqueeze', 'Interpolate',
                               'Split', 'Crop', 'ReduceMean', 'AvgPool', 'Result', 'Tile', 'Transpose', 'StridedSlice',
-                              'VariadicSplit', 'ShuffleChannels', 'Broadcast', 'Minimum', 'Maximum', 'DepthToSpace',
-                              'Gather']
-    remove_duplication_ops = ['FakeQuantize', 'Parameter']
+                              'VariadicSplit', 'ShuffleChannels', 'Broadcast', 'Minimum', 'Maximum', 'DepthToSpace']
+    remove_duplication_ops = ['ConvertFP8', 'Parameter']
     jump_multi_branch_ops = 'Concat'
     jump_multi_branch_ops_except_const = ['Pad', 'ConvertLike']
     jump_split_concat_ops = ('Split', 'VariadicSplit', 'Concat')
@@ -262,7 +260,7 @@ class FakeQuantizePropagation(BackReplacementPattern):
         fq_removal.quantize_agnostic_operations = self.quantize_agnostic_operations
         fq_removal.quantize_operations = self.quantize_operations
         node_int_fq = []
-        fq_queue = deque(sorted(graph.get_op_nodes(type='FakeQuantize'), key=lambda x: x.name))
+        fq_queue = deque(sorted(graph.get_op_nodes(type='ConvertFP8'), key=lambda x: x.name))
         while fq_queue:
             fq = fq_queue.popleft()
             if fq.in_port(0).get_source() is not None and fq.in_port(0).get_source().is_data_type_defined():
@@ -299,14 +297,14 @@ class FakeQuantizePropagation(BackReplacementPattern):
                 raise RuntimeError('FakeQuantizePropagation could not support operation {}'.format(op))
 
     def find_and_replace_pattern(self, graph: Graph):
-        fq_queue = deque(sorted(graph.get_op_nodes(type='FakeQuantize'), key=lambda x: x.name))
+        fq_queue = deque(sorted(graph.get_op_nodes(type='ConvertFP8'), key=lambda x: x.name))
         skip_ascent_map = self._create_skip_ascent_map(graph)
-        # Iterate over FakeQuantize operations and push them on top while it's possible
+        # Iterate over ConvertFP8 operations and push them on top while it's possible
         while fq_queue:
-            # Get FakeQuantize from queue and it's input node
+            # Get ConvertFP8 from queue and it's input node
             fq = fq_queue.popleft()
 
-            # In case if we already touched this FakeQuantize it could be disconnected from the main graph
+            # In case if we already touched this ConvertFP8 it could be disconnected from the main graph
             if fq.in_port(0).disconnected():
                 continue
 
@@ -325,7 +323,7 @@ class FakeQuantizePropagation(BackReplacementPattern):
                     skip_ascent_map[input_node.name]:
                 continue
             if m_op \
-                    or input_type == 'FakeQuantize' \
+                    or input_type == 'ConvertFP8' \
                     or (input_type == 'Parameter'
                             and is_scaleshift
                             and not self.quantize_inputs):
@@ -335,7 +333,7 @@ class FakeQuantizePropagation(BackReplacementPattern):
                     if not skip_ascent_map[input_parent_name]:
                         input_type = ('Split', 'VariadicSplit', 'Concat')
                         input_name = (input_node.name, input_parent_name)
-                if input_type == 'FakeQuantize':
+                if input_type == 'ConvertFP8':
                     if fq['fq_config_priority'] > input_node['fq_config_priority']:
                         input_node['fq_group'] = fq['fq_group']
                         input_node['fq_config_priority'] = fq['fq_config_priority']
@@ -352,7 +350,7 @@ class FakeQuantizePropagation(BackReplacementPattern):
                 if isinstance(new_fq, list):
                     for fq in new_fq:
                         fq_queue.appendleft(fq)
-                elif isinstance(new_fq, Node) and new_fq.type == 'FakeQuantize':
+                elif isinstance(new_fq, Node) and new_fq.type == 'ConvertFP8':
                     fq_queue.appendleft(new_fq)
                 else:
                     raise RuntimeError(
@@ -362,24 +360,24 @@ class FakeQuantizePropagation(BackReplacementPattern):
     def _create_skip_ascent_map(self, graph: Graph) -> {}:
 
         def _is_node_skippable(node, skip_ascent_map):
-            skippable_ops = [*self.jump_single_branch_ops, self.jump_multi_branch_ops, 'FakeQuantize',
+            skippable_ops = [*self.jump_single_branch_ops, self.jump_multi_branch_ops, 'ConvertFP8',
                              *self.jump_multi_branch_ops_except_const]
 
             def sink_fn(op):
                 out = []
-                if op.type != 'FakeQuantize':
+                if op.type != 'ConvertFP8':
                     out = [n for n in get_all_node_outputs(op) if n.type != 'ShapeOf']
                 return out
 
             def source_fn(op):
                 return [p for p in get_node_inputs(op)
-                        if p and p.type not in ['FakeQuantize', 'Const'] and p.name != node.name]
+                        if p and p.type not in ['ConvertFP8', 'Const'] and p.name != node.name]
 
             def is_multibranch_fn(op):
                 return op.type == self.jump_multi_branch_ops
 
             def has_fake_quantize_fn(op):
-                return op.type == 'FakeQuantize'
+                return op.type == 'ConvertFP8'
 
             def not_skippable_op_fn(op):
                 return op.type not in skippable_ops
@@ -444,16 +442,16 @@ class FakeQuantizeOptimization(BackReplacementPattern):
             for _, out_port in op.out_ports().items():
                 if out_port.disconnected():
                     continue
-                # Get all consumers that are FakeQuantize
+                # Get all consumers that are ConvertFP8
                 fq_consumers = [in_port.node for in_port in out_port.get_destinations()
-                                if in_port.node.type == 'FakeQuantize' and in_port.idx == 0]
+                                if in_port.node.type == 'ConvertFP8' and in_port.idx == 0]
                 fq_consumers = sorted(fq_consumers, key=lambda x: x.name)
-                # Keep only first FakeQuantize and disconnect other
+                # Keep only first ConvertFP8 and disconnect other
                 for fq in fq_consumers[1:]:
                     for fq_config in fq['fq_configs']:
                         if fq_config not in fq_consumers[0]['fq_configs']:
                             fq_consumers[0]['fq_configs'].append(fq_config)
-                    logger.debug('Removed useless FakeQuantize {}'.format(fq.name))
+                    logger.debug('Removed useless ConvertFP8 {}'.format(fq.name))
                     fq.in_port(0).disconnect()
                     fq.out_port(0).get_connection().set_source(fq_consumers[0].out_port(0))
 
@@ -493,7 +491,7 @@ class RemoveFakeQuantize:
             relatives_ports = [p for p in relatives_ports if p]
             for relative_port in relatives_ports:
                 relative = relative_port.node
-                if relative.type == 'FakeQuantize':
+                if relative.type == 'ConvertFP8':
                     if is_parents:
                         if relative.name in seen_children:
                             continue
@@ -573,7 +571,7 @@ class RemoveFakeQuantize:
         if target_device not in special_target_device:
             return
 
-        check_is_inputs_fq = lambda node: all([op.type == 'FakeQuantize' for op in node])
+        check_is_inputs_fq = lambda node: all([op.type == 'ConvertFP8' for op in node])
         for op in get_nodes_by_type(graph, ['Add']):
             if not nu.check_const_input(op):
                 inputs_node = get_node_inputs(op)
@@ -592,7 +590,7 @@ class RemoveFakeQuantize:
     @staticmethod
     def undo_weights_rescaling(conv_node):
         weights_node = nu.get_node_input(conv_node, 1)
-        if weights_node.type == 'FakeQuantize':
+        if weights_node.type == 'ConvertFP8':
             weights_node = nu.get_node_input(weights_node, 0)
         if 'scaling_factor' in conv_node:
             nu.set_node_value(weights_node, nu.get_node_value(weights_node) * conv_node['scaling_factor'])
@@ -754,13 +752,13 @@ class FakeQuantizeNameSwapper(BackReplacementPattern):
                 new_fq_name = copy(input_node['orig_node_name'])
 
             input_node_outputs = get_all_node_outputs(input_node)
-            if len(input_node_outputs) > 1 and all([op.type == 'FakeQuantize' for op in input_node_outputs]):
+            if len(input_node_outputs) > 1 and all([op.type == 'ConvertFP8' for op in input_node_outputs]):
                 new_fq_name += '.{}'.format(fq_node.in_port(0).get_source().idx)
 
-            fq_node['orig_fq_name'] = nu.reset_node_fullname(input_node.fullname, copy(fq_node.name))
+            fq_node['orig_fq_name'] = copy(fq_node.name)
 
             if 'orig_node_name' not in input_node:
-                input_node['orig_node_name'] = copy(input_node.fullname)
+                input_node['orig_node_name'] = copy(input_node.name)
                 rename_node(input_node, f'{input_node.name}/pre_fq_input')
             rename_node(fq_node, new_fq_name)
 
@@ -809,7 +807,14 @@ def create_bias_node(graph: Graph, src_node):
 
 
 def create_fake_quantize_node(graph: Graph, name, data_type=np.float32, **kwargs):
-    fq = FakeQuantize(graph, {'name': name, 'levels': 0,
+    fq = ConvertFP8(graph, {'name': name,
+                              'stop_value_propagation': True, **kwargs}).create_node()
+
+    input_low = Const(graph, {'value': np.array(0.0, dtype=data_type)}).create_node()
+    input_low.out_port(0).connect(fq.in_port(1))
+    input_low.infer(input_low)
+
+    '''fq = FakeQuantize(graph, {'name': name, 'levels': 0,
                               'stop_value_propagation': True, **kwargs}).create_node()
 
     input_low = Const(graph, {'value': np.array(0.0, dtype=data_type)}).create_node()
@@ -825,7 +830,7 @@ def create_fake_quantize_node(graph: Graph, name, data_type=np.float32, **kwargs
     input_low.infer(input_low)
     input_height.infer(input_height)
     output_low.infer(output_low)
-    output_height.infer(output_height)
+    output_height.infer(output_height)'''
 
     return fq
 
@@ -852,10 +857,6 @@ def insert_fake_quantize(graph, node, ports=None, names=None, fq_types=None, hw_
             if 'bin' in node.in_edges()[idx]:
                 del node.in_edges()[idx]['bin']
 
-        # Temporary WA until oneDNN supports it (ticket 82164)
-        if node.type in gru_node_types and node.linear_before_reset:
-            continue
-
         if ports is not None and idx not in ports:
             continue
 
@@ -873,7 +874,7 @@ def insert_fake_quantize(graph, node, ports=None, names=None, fq_types=None, hw_
 
         port_data_type = nu.get_node_data_type(node, idx)
         port_data_type = port_data_type if port_data_type else np.float32
-        # Create FakeQuantize operations
+        # Create ConvertFP8 operations
         fq_group = 'weights' if is_weights else 'activations'
         if fq_type is not None and idx in fq_type:
             fq_group = fq_type[idx]
@@ -881,7 +882,7 @@ def insert_fake_quantize(graph, node, ports=None, names=None, fq_types=None, hw_
         fq_configs = []
         if hw_config is not None:
             node_type = get_hardware_config_operation_type(node, list(hw_config.keys()))
-            if hw_config[node_type] and hw_config[node_type][fq_group]:
+            if hw_config[node_type]:
                 fq_configs = hw_config[node_type][fq_group]
         else:
             node_type = None
@@ -899,7 +900,9 @@ def insert_fake_quantize(graph, node, ports=None, names=None, fq_types=None, hw_
 
         fq_name = '{node_name}/{name}_{idx}'.format(node_name=node.name, name=name, idx=idx)
         fq_input = create_fake_quantize_node(graph, fq_name, port_data_type, **fq_options)
-        # Insert FakeQuantize after input
+        if fq_group == 'weights':
+            print(f"Inserted FQ for weights: {fq_name}")
+        # Insert ConvertFP8 after input
         if node.type == 'Result':
             in_port = port.get_source()
             port.get_connection().set_source(fq_input.out_port(0))
@@ -930,7 +933,7 @@ def insert_output_fake_quantize(graph, node, hw_config=None, ignored_params=None
             if next_node.type == 'ShapeOf':
                 continue
 
-            if ignored_params is not None and next_node.type != 'FakeQuantize' \
+            if ignored_params is not None and next_node.type != 'ConvertFP8' \
                     and is_ignored(ignored_params, next_node):
                 continue
 

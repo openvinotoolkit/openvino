@@ -79,7 +79,7 @@ def get_assign_result_pattern():
 
 def get_fq_result_pattern():
     pattern = PatternBuilder()
-    pattern.append_single_op('FakeQuantize', 'fq')
+    pattern.append_single_op('ConvertFP8', 'fq')
     pattern.append_single_op('Result', 'result')
     return pattern.set_name('fq_result').pattern
 
