@@ -182,6 +182,19 @@ inline int64_t get_sliced_value(const int64_t& dim, const int64_t& start, const 
     }
 }
 
+// To get element type from constant or tensor.
+inline element::Type get_input_const_element_type(const ov::Node* op,
+                                                  size_t idx,
+                                                  const std::map<size_t, HostTensorPtr>& constant_data = {}) {
+    if (constant_data.count(idx)) {
+        return constant_data.at(idx)->get_element_type();
+    } else if (const auto& constant = ov::get_constant_from_source(op->input_value(idx))) {
+        return constant->get_element_type();
+    } else {
+        return element::undefined;
+    }
+}
+
 using Bounds = std::pair<int64_t, int64_t>;  //!< Alias to dimension bounds for slice.
 
 /**
@@ -200,31 +213,33 @@ template <class TShape, class TResult = std::vector<Bounds>>
 std::unique_ptr<TResult> get_input_bounds(const ov::Node* op,
                                           size_t idx,
                                           const std::map<size_t, HostTensorPtr>& constant_data) {
-    const auto& input_et = op->get_input_element_type(idx);
     // Helper to create TResult from lowers and uppers.
-    const auto make_bounds_vec = [&input_et](const std::vector<int64_t>& lowers, const std::vector<int64_t>& uppers) {
-        TResult out;
-        out.reserve(lowers.size());
-        std::transform(lowers.begin(),
-                       lowers.end(),
-                       uppers.begin(),
-                       std::back_inserter(out),
-                       [&input_et](int64_t lb, int64_t ub) {
-                           return std::make_pair(element::get_value_or_limit_of(input_et, lb),
-                                                 element::get_value_or_limit_of(input_et, ub));
-                       });
-        return out;
-    };
+    const auto make_bounds_vec =
+        [](const element::Type& et, const std::vector<int64_t>& lowers, const std::vector<int64_t>& uppers) {
+            TResult out;
+            out.reserve(lowers.size());
+            std::transform(lowers.begin(),
+                           lowers.end(),
+                           uppers.begin(),
+                           std::back_inserter(out),
+                           [&et](int64_t lb, int64_t ub) {
+                               return std::make_pair(element::get_value_or_limit_of(et, lb),
+                                                     element::get_value_or_limit_of(et, ub));
+                           });
+            return out;
+        };
 
     std::unique_ptr<TResult> out;
     if (auto lowers = op::get_input_const_data_as<TShape, int64_t>(op, idx, constant_data)) {
-        out.reset(new TResult(make_bounds_vec(*lowers, *lowers)));
+        const auto& et = get_input_const_element_type(op, idx, constant_data);
+        out.reset(new TResult(make_bounds_vec(et, *lowers, *lowers)));
     } else {
         auto bounds = ngraph::evaluate_both_bounds(op->get_input_source_output(idx));
         if (bounds.first && bounds.second) {
+            const auto& et = op->get_input_element_type(idx);
             auto lowers = std::make_shared<op::v0::Constant>(bounds.first)->cast_vector<int64_t>();
             auto uppers = std::make_shared<op::v0::Constant>(bounds.second)->cast_vector<int64_t>();
-            out.reset(new TResult(make_bounds_vec(lowers, uppers)));
+            out.reset(new TResult(make_bounds_vec(et, lowers, uppers)));
         }
     }
     return out;
