@@ -214,7 +214,7 @@ JitConstants ConvolutionKernel_bfyx_os_iyx_osv16::GetJitConstants(const convolut
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetUnitType(params);
-        FusedOpsConfiguration conf_scalar = {"", {"batch_idx", "feature_idx", "(or+r)", "(oc+c)"}, "dst", input_dt, 1 };
+        FusedOpsConfiguration conf_scalar = {"", {"batch_idx", "feature_num", "(or+r)", "(oc+c)"}, "dst", input_dt, 1 };
         jit.Merge(MakeFusedOpsJitConstants(params, {conf_scalar}));
     }
 
