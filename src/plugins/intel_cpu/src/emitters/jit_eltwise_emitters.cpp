@@ -9,6 +9,10 @@ using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu;
 using namespace Xbyak;
 
+#define CONST_1_F 0x3f800000 // 1.f
+#define INF_MASK  0x7F800000
+#define INF_NEG_MASK 0xFF800000
+
 namespace ov {
 namespace intel_cpu {
 
@@ -644,9 +648,9 @@ std::set<Precision> jit_squared_difference_emitter::get_supported_precisions() {
 /// POWER_DYNAMIC ///
 jit_power_dynamic_emitter::jit_power_dynamic_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node,
                                                      Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
+    : jit_emitter(host, host_isa, node, exec_prc) {}
 jit_power_dynamic_emitter::jit_power_dynamic_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, Precision exec_prc)
-: jit_emitter(host, host_isa, exec_prc) {}
+    : jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_power_dynamic_emitter::get_inputs_num() const { return 2; }
 
@@ -805,7 +809,7 @@ void jit_equal_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const s
 
 void jit_equal_emitter::register_table_entries() {
     push_arg_entry_of("zero", 0x00000000, true);
-    push_arg_entry_of("one", const_1F, true);
+    push_arg_entry_of("one", CONST_1_F, true);
 }
 
 size_t jit_equal_emitter::aux_vecs_count() const {
@@ -866,7 +870,7 @@ void jit_not_equal_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, con
 
 void jit_not_equal_emitter::register_table_entries() {
     push_arg_entry_of("zero", 0x00000000, true);
-    push_arg_entry_of("one", const_1F, true);
+    push_arg_entry_of("one", CONST_1_F, true);
 }
 
 size_t jit_not_equal_emitter::aux_vecs_count() const {
@@ -927,7 +931,7 @@ void jit_greater_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const
 
 void jit_greater_emitter::register_table_entries() {
     push_arg_entry_of("zero", 0x00000000, true);
-    push_arg_entry_of("one", const_1F, true);
+    push_arg_entry_of("one", CONST_1_F, true);
 }
 
 size_t jit_greater_emitter::aux_vecs_count() const {
@@ -989,7 +993,7 @@ void jit_greater_equal_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs,
 
 void jit_greater_equal_emitter::register_table_entries() {
     push_arg_entry_of("zero", 0x00000000, true);
-    push_arg_entry_of("one", const_1F, true);
+    push_arg_entry_of("one", CONST_1_F, true);
 }
 
 size_t jit_greater_equal_emitter::aux_vecs_count() const {
@@ -1050,7 +1054,7 @@ void jit_less_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const st
 
 void jit_less_emitter::register_table_entries() {
     push_arg_entry_of("zero", 0x00000000, true);
-    push_arg_entry_of("one", const_1F, true);
+    push_arg_entry_of("one", CONST_1_F, true);
 }
 
 size_t jit_less_emitter::aux_vecs_count() const {
@@ -1112,7 +1116,7 @@ void jit_less_equal_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, co
 
 void jit_less_equal_emitter::register_table_entries() {
     push_arg_entry_of("zero", 0x00000000, true);
-    push_arg_entry_of("one", const_1F, true);
+    push_arg_entry_of("one", CONST_1_F, true);
 }
 
 size_t jit_less_equal_emitter::aux_vecs_count() const {
@@ -1193,7 +1197,7 @@ void jit_logical_and_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, c
 
 void jit_logical_and_emitter::register_table_entries() {
     push_arg_entry_of("zero", 0x00000000, true);
-    push_arg_entry_of("one", const_1F, true);
+    push_arg_entry_of("one", CONST_1_F, true);
 }
 
 size_t jit_logical_and_emitter::aux_vecs_count() const {
@@ -1275,7 +1279,7 @@ void jit_logical_or_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, co
 
 void jit_logical_or_emitter::register_table_entries() {
     push_arg_entry_of("zero", 0x00000000, true);
-    push_arg_entry_of("one", const_1F, true);
+    push_arg_entry_of("one", CONST_1_F, true);
 }
 
 size_t jit_logical_or_emitter::aux_vecs_count() const {
@@ -1356,7 +1360,7 @@ void jit_logical_xor_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, c
 
 void jit_logical_xor_emitter::register_table_entries() {
     push_arg_entry_of("zero", 0x00000000, true);
-    push_arg_entry_of("one", const_1F, true);
+    push_arg_entry_of("one", CONST_1_F, true);
 }
 
 size_t jit_logical_xor_emitter::aux_vecs_count() const {
@@ -1416,7 +1420,7 @@ void jit_logical_not_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, c
 
 void jit_logical_not_emitter::register_table_entries() {
     push_arg_entry_of("zero", 0x00000000, true);
-    push_arg_entry_of("one", const_1F, true);
+    push_arg_entry_of("one", CONST_1_F, true);
 }
 
 size_t jit_logical_not_emitter::aux_vecs_count() const {
@@ -1900,7 +1904,7 @@ void jit_erf_emitter::register_table_entries() {
     push_arg_entry_of("erf_pol4", 0xbfba00e3, true); // p4 = -1.453152027f
     push_arg_entry_of("erf_pol5", 0x3f87dc22, true); // p5 = 1.061405429f
 
-    push_arg_entry_of("one", const_1F, true);
+    push_arg_entry_of("one", CONST_1_F, true);
     push_arg_entry_of("half", 0x3f000000, true);
 
     push_arg_entry_of("exp_log2ef", 0x3fb8aa3b, true);
@@ -1955,55 +1959,50 @@ void jit_soft_sign_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, con
 }
 
 void jit_soft_sign_emitter::register_table_entries() {
-    push_arg_entry_of("one", const_1F, true);
+    push_arg_entry_of("one", CONST_1_F, true);
     push_arg_entry_of("positive_mask", 0x7fffffff, true);
 }
 
 /// IS_FINITE ///
 template <>
 void jit_is_finite_emitter::emit_isa<x64::avx512_core>(const std::vector<size_t> &inVecIdxs, const std::vector<size_t> &outVecIdxs) const {
-    auto vSrc = Zmm(inVecIdxs[0]);
-    auto vDst = Zmm(outVecIdxs[0]);
-    auto &onesMask = h->k1;
-    auto rOne = Reg32(aux_gpr_idxs[0]);
+    auto vmm_src = Zmm(inVecIdxs[0]);
+    auto vmm_dst = Zmm(outVecIdxs[0]);
+    auto &ones_mask = h->k1;
+    auto reg32_one = Reg32(aux_gpr_idxs[0]);
 
-    h->mov(rOne, const_1F);
-    h->vfpclassps(onesMask, vSrc, 0B10111001);
-    h->knotd(onesMask, onesMask);
-    h->vpbroadcastd(vDst | onesMask | h->T_z, rOne);
+    h->mov(reg32_one, CONST_1_F);
+    h->vfpclassps(ones_mask, vmm_src, 0B10111001);
+    h->knotd(ones_mask, ones_mask);
+    h->vpbroadcastd(vmm_dst | ones_mask | h->T_z, reg32_one);
 }
 
 template <x64::cpu_isa_t isa>
 void jit_is_finite_emitter::emit_isa(const std::vector<size_t> &inVecIdxs, const std::vector<size_t> &outVecIdxs) const {
     using Vmm = typename conditional<isa == x64::sse41, Xmm, Ymm>::type;
-    auto vSrc = Vmm(inVecIdxs[0]);
-    auto vDst = Vmm(outVecIdxs[0]);
-    auto vAux = Vmm(aux_vec_idxs[0]);
-    auto xmmAux = Xmm(vAux.getIdx());
-    auto rAux = Reg32(aux_gpr_idxs[0]);
+    bool equalInOut = inVecIdxs[0] == outVecIdxs[0];
 
-    h->mov(rAux, 0x7F800000); // Inf mask
-    h->uni_vpinsrd(xmmAux, xmmAux, rAux, 0x0);
-    h->uni_vpbroadcastd(vAux, xmmAux);
-    if (isa == x64::avx2) {
-        h->uni_vandps(vDst, vSrc, vAux);
+    auto vmm_src = Vmm(inVecIdxs[0]);
+    auto vmm_dst = Vmm(equalInOut ? aux_vec_idxs[0] : outVecIdxs[0]);
+    auto xmm_dst = Xmm(vmm_dst.getIdx());
+    auto reg32_aux = Reg32(aux_gpr_idxs[0]);
+
+    h->mov(reg32_aux, INF_MASK);
+    h->uni_vpinsrd(xmm_dst, xmm_dst, reg32_aux, 0x0);
+    h->uni_vpbroadcastd(vmm_dst, xmm_dst);
+
+    h->uni_vandps(vmm_src, vmm_src, vmm_dst);
+    h->uni_vcmpps(vmm_src, vmm_src, vmm_dst, 0B00000100); // NEq
+
+    h->mov(reg32_aux, CONST_1_F);
+    h->uni_vpinsrd(xmm_dst, xmm_dst, reg32_aux, 0x0);
+    h->uni_vpbroadcastd(vmm_dst, xmm_dst);
+
+    if (equalInOut) {
+        h->uni_vandps(vmm_src, vmm_src, vmm_dst);
     } else {
-        h->uni_vmovups(vDst, vSrc);
-        h->uni_vandps(vDst, vDst, vAux);
+        h->uni_vandps(vmm_dst, vmm_dst, vmm_src);
     }
-    h->uni_vcmpps(vDst, vDst, vAux, 0B00000100); // NEq
-
-    h->mov(rAux, 0x7FC00000); // NaN mask
-    h->uni_vpinsrd(xmmAux, xmmAux, rAux, 0x0);
-    h->uni_vpbroadcastd(vAux, xmmAux);
-    h->uni_vandps(vSrc, vSrc, vAux);
-    h->uni_vcmpps(vSrc, vSrc, vAux, 0B00000100); // NEq
-    h->uni_vandps(vDst, vDst, vSrc);
-
-    h->mov(rAux, const_1F);
-    h->uni_vpinsrd(xmmAux, xmmAux, rAux, 0x0);
-    h->uni_vpbroadcastd(vAux, xmmAux);
-    h->uni_vandps(vDst, vDst, vAux);
 }
 
 void jit_is_finite_emitter::emit_impl(const std::vector<size_t> &inVecIdxs, const std::vector<size_t> &outVecIdxs,
@@ -2016,90 +2015,71 @@ void jit_is_finite_emitter::emit_impl(const std::vector<size_t> &inVecIdxs, cons
     } else if (host_isa_ == x64::sse41) {
         emit_isa<x64::sse41>(inVecIdxs, outVecIdxs);
     } else {
-        assert(!"Unsupported isa");
+        IE_THROW() << "jit_is_finite_emitter doesn't support ISA " << host_isa_;
     }
 }
 
 /// IS_INF ///
 template <>
 void jit_is_inf_emitter::emit_isa<x64::avx512_core>(const std::vector<size_t> &inVecIdxs, const std::vector<size_t> &outVecIdxs) const {
-    Zmm vSrc = Zmm(inVecIdxs[0]);
-    Zmm vDst = Zmm(outVecIdxs[0]);
+    Zmm vmm_src = Zmm(inVecIdxs[0]);
+    Zmm vmm_dst = Zmm(outVecIdxs[0]);
 
-    if (detectNegative || detectPositive) {
-        auto &onesMask = h->k1;
-        auto rOne = Reg32(aux_gpr_idxs[0]);
-        uint8_t imm = detectNegative ? 0B00010000 : 0B00000000;
-        if (detectPositive) {
+    if (detect_negative || detect_positive) {
+        auto &ones_mask = h->k1;
+        auto reg32_one = Reg32(aux_gpr_idxs[0]);
+        uint8_t imm = detect_negative ? 0B00010000 : 0B00000000;
+        if (detect_positive) {
             imm |= 0B00001000;
         }
 
-        h->mov(rOne, const_1F);
-        h->vfpclassps(onesMask, vSrc, imm);
-        h->vpbroadcastd(vDst | onesMask | h->T_z, rOne);
+        h->mov(reg32_one, CONST_1_F);
+        h->vfpclassps(ones_mask, vmm_src, imm);
+        h->vpbroadcastd(vmm_dst | ones_mask | h->T_z, reg32_one);
     } else {
-        h->uni_vxorps(vDst, vDst, vDst);
+        h->uni_vxorps(vmm_dst, vmm_dst, vmm_dst);
     }
 }
 
 template <x64::cpu_isa_t isa>
 void jit_is_inf_emitter::emit_isa(const std::vector<size_t> &inVecIdxs, const std::vector<size_t> &outVecIdxs) const {
     using Vmm = typename conditional<isa == x64::sse41, Xmm, Ymm>::type;
-    Vmm vSrc = Vmm(inVecIdxs[0]);
-    Vmm vDst = Vmm(outVecIdxs[0]);
 
-    if (detectNegative || detectPositive) {
-        auto rAux = Reg32(aux_gpr_idxs[0]);
+    if (detect_negative || detect_positive) {
+        bool equalInOut = inVecIdxs[0] == outVecIdxs[0];
+        auto vmm_src = Vmm(inVecIdxs[0]);
+        auto vmm_dst = Vmm(equalInOut ? aux_vec_idxs[0] : outVecIdxs[0]);
+        auto xmm_dst = Xmm(vmm_dst.getIdx());
+        auto reg32_aux = Reg32(aux_gpr_idxs[0]);
 
-        if (detectPositive) {
-            auto vAux = Vmm(aux_vec_idxs[0]);
-            auto xmmAux = Xmm(vAux.getIdx());
+        if (detect_positive) {
+            h->mov(reg32_aux, INF_MASK);
+            h->uni_vpinsrd(xmm_dst, xmm_dst, reg32_aux, 0x0);
+            h->uni_vpbroadcastd(vmm_dst, xmm_dst);
 
-            h->mov(rAux, 0x7F800000); // +Inf mask
-            h->uni_vpinsrd(xmmAux, xmmAux, rAux, 0x0);
-            h->uni_vpbroadcastd(vAux, xmmAux);
-            if (isa == x64::avx2) {
-                h->uni_vandps(vDst, vSrc, vAux);
-            } else {
-                h->uni_vmovups(vDst, vSrc);
-                h->uni_vandps(vDst, vDst, vAux);
+            if (detect_negative) {
+                h->uni_vpslld(vmm_src, vmm_src, 1);
+                h->uni_vpsrld(vmm_src, vmm_src, 1);
             }
-            h->uni_vpcmpeqd(vDst, vDst, vAux);
+        } else if (detect_negative) {
+            h->mov(reg32_aux, INF_NEG_MASK);
+            h->uni_vpinsrd(xmm_dst, xmm_dst, reg32_aux, 0x0);
+            h->uni_vpbroadcastd(vmm_dst, xmm_dst);
+        }
+        h->vpcmpeqd(vmm_src, vmm_src, vmm_dst);
 
-            if (!detectNegative) {
-                h->mov(rAux, 0xFF800000); // -Inf mask
-                h->uni_vpinsrd(xmmAux, xmmAux, rAux, 0x0);
-                h->uni_vpbroadcastd(vAux, xmmAux);
-                h->uni_vandps(vSrc, vSrc, vAux);
-                h->uni_vpcmpeqd(vSrc, vSrc, vAux);
-                if (isa == x64::avx2) {
-                    h->vandnps(vDst, vSrc, vDst);
-                } else {
-                    h->andnps(vSrc, vDst);
-                    h->uni_vmovups(vDst, vSrc);
-                }
-            }
+        h->mov(reg32_aux, CONST_1_F);
+        h->uni_vpinsrd(xmm_dst, xmm_dst, reg32_aux, 0x0);
+        h->uni_vpbroadcastd(vmm_dst, xmm_dst);
 
-            h->mov(rAux, const_1F);
-            h->uni_vpinsrd(xmmAux, xmmAux, rAux, 0x0);
-            h->uni_vpbroadcastd(vAux, xmmAux);
-            h->uni_vandps(vDst, vDst, vAux);
-        } else if (detectNegative) {
-            auto xmmDst = Xmm(vDst.getIdx());
-
-            h->mov(rAux, 0xFF800000); // NaN mask
-            h->uni_vpinsrd(xmmDst, xmmDst, rAux, 0x0);
-            h->uni_vpbroadcastd(vDst, xmmDst);
-            h->uni_vandps(vSrc, vSrc, vDst);
-            h->uni_vpcmpeqd(vSrc, vSrc, vDst);
-
-            h->mov(rAux, const_1F);
-            h->uni_vpinsrd(xmmDst, xmmDst, rAux, 0x0);
-            h->uni_vpbroadcastd(vDst, xmmDst);
-            h->uni_vandps(vDst, vDst, vSrc);
+        if (equalInOut) {
+            h->uni_vandps(vmm_src, vmm_src, vmm_dst);
+        } else {
+            h->uni_vandps(vmm_dst, vmm_dst, vmm_src);
         }
     } else {
-        h->uni_vxorps(vDst, vDst, vDst);
+        auto vmm_dst = Vmm(outVecIdxs[0]);
+        h->uni_vxorps(vmm_dst, vmm_dst, vmm_dst);
     }
 }
 
@@ -2113,41 +2093,50 @@ void jit_is_inf_emitter::emit_impl(const std::vector<size_t> &inVecIdxs, const s
     } else if (host_isa_ == x64::sse41) {
         emit_isa<x64::sse41>(inVecIdxs, outVecIdxs);
     } else {
-        assert(!"Unsupported isa");
+        IE_THROW() << "jit_is_inf_emitter doesn't support ISA " << host_isa_;
     }
 }
 
 /// IS_NAN ///
 template <>
 void jit_is_nan_emitter::emit_isa<x64::avx512_core>(const std::vector<size_t> &inVecIdxs, const std::vector<size_t> &outVecIdxs) const {
-    auto vSrc = Zmm(inVecIdxs[0]);
-    auto vDst = Zmm(outVecIdxs[0]);
-    auto &onesMask = h->k1;
-    auto rOne = Reg32(aux_gpr_idxs[0]);
+    auto vmm_src = Zmm(inVecIdxs[0]);
+    auto vmm_dst = Zmm(outVecIdxs[0]);
+    auto &ones_mask = h->k1;
+    auto reg32_one = Reg32(aux_gpr_idxs[0]);
 
-    h->mov(rOne, const_1F);
-    h->vfpclassps(onesMask, vSrc, 0B10000001);
-    h->vpbroadcastd(vDst | onesMask | h->T_z, rOne);
+    h->mov(reg32_one, CONST_1_F);
+    h->vfpclassps(ones_mask, vmm_src, 0B10000001);
+    h->vpbroadcastd(vmm_dst | ones_mask | h->T_z, reg32_one);
 }
 
 template <x64::cpu_isa_t isa>
 void jit_is_nan_emitter::emit_isa(const std::vector<size_t> &inVecIdxs, const std::vector<size_t> &outVecIdxs) const {
     using Vmm = typename conditional<isa == x64::sse41, Xmm, Ymm>::type;
-    auto vSrc = Vmm(inVecIdxs[0]);
-    auto vDst = Vmm(outVecIdxs[0]);
-    auto rAux   = Reg32(aux_gpr_idxs[0]);
-    auto xmmDst = Xmm(vDst.getIdx());
+    bool equalInOut = inVecIdxs[0] == outVecIdxs[0];
 
-    h->mov(rAux, 0x7FC00000); // NaN mask
-    h->uni_vpinsrd(xmmDst, xmmDst, rAux, 0x0);
-    h->uni_vpbroadcastd(vDst, xmmDst);
-    h->uni_vandps(vSrc, vSrc, vDst);
-    h->uni_vpcmpeqd(vSrc, vSrc, vDst);
+    auto vmm_src = Vmm(inVecIdxs[0]);
+    auto vmm_dst = Vmm(equalInOut ? aux_vec_idxs[0] : outVecIdxs[0]);
+    auto xmm_dst = Xmm(vmm_dst.getIdx());
+    auto reg32_aux = Reg32(aux_gpr_idxs[0]);
 
-    h->mov(rAux, const_1F);
-    h->uni_vpinsrd(xmmDst, xmmDst, rAux, 0x0);
-    h->uni_vpbroadcastd(vDst, xmmDst);
-    h->uni_vandps(vDst, vDst, vSrc);
+    h->mov(reg32_aux, INF_MASK);
+    h->uni_vpinsrd(xmm_dst, xmm_dst, reg32_aux, 0x0);
+    h->uni_vpbroadcastd(vmm_dst, xmm_dst);
+
+    h->uni_vpslld(vmm_src, vmm_src, 1);
+    h->uni_vpsrld(vmm_src, vmm_src, 1);
+    h->vpcmpgtd(vmm_src, vmm_src, vmm_dst);
+
+    h->mov(reg32_aux, CONST_1_F);
+    h->uni_vpinsrd(xmm_dst, xmm_dst, reg32_aux, 0x0);
+    h->uni_vpbroadcastd(vmm_dst, xmm_dst);
+
+    if (equalInOut) {
+        h->uni_vandps(vmm_src, vmm_src, vmm_dst);
+    } else {
+        h->uni_vandps(vmm_dst, vmm_dst, vmm_src);
+    }
 }
 
 void jit_is_nan_emitter::emit_impl(const std::vector<size_t> &inVecIdxs, const std::vector<size_t> &outVecIdxs,
@@ -2160,7 +2149,7 @@ void jit_is_nan_emitter::emit_impl(const std::vector<size_t> &inVecIdxs, const s
     } else if (host_isa_ == x64::sse41) {
         emit_isa<x64::sse41>(inVecIdxs, outVecIdxs);
     } else {
-        assert(!"Unsupported isa");
+        IE_THROW() << "jit_is_nan_emitter doesn't support ISA " << host_isa_;
     }
 }
 

@@ -618,7 +618,7 @@ public:
                     InferenceEngine::Precision execPrc = InferenceEngine::Precision::FP32) : jit_emitter(host, hostIsa, node, execPrc) {}
 
     size_t get_inputs_num() const override { return 1; };
-    size_t aux_vecs_count() const override { return host_isa_ == dnnl::impl::cpu::x64::avx512_core ? 0 : 1; }
+    size_t aux_vecs_count() const override { return host_isa_ == dnnl::impl::cpu::x64::avx512_core ? 0 : 2; }
 
 protected:
     size_t aux_gprs_count() const override { return (entry_map_.empty() ? 0 : 1) + 1; }
@@ -635,13 +635,13 @@ private:
 class jit_is_inf_emitter : public jit_emitter {
 public:
     jit_is_inf_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t hostIsa,
-                       InferenceEngine::Precision execPrc = InferenceEngine::Precision::FP32, bool detectNegative = true, bool detectPositive = true)
-            : jit_emitter(host, hostIsa, execPrc), detectNegative(detectNegative), detectPositive(detectPositive) {}
+                       InferenceEngine::Precision execPrc = InferenceEngine::Precision::FP32, bool detect_negative = true, bool detect_positive = true)
+            : jit_emitter(host, hostIsa, execPrc), detect_negative(detect_negative), detect_positive(detect_positive) {}
     jit_is_inf_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t hostIsa, const std::shared_ptr<ov::Node>& node,
                        InferenceEngine::Precision execPrc = InferenceEngine::Precision::FP32): jit_emitter(host, hostIsa, node, execPrc) {}
 
     size_t get_inputs_num() const override { return 1; };
-    size_t aux_vecs_count() const override { return host_isa_ == dnnl::impl::cpu::x64::avx512_core || !detectPositive ? 0 : 1; }
+    size_t aux_vecs_count() const override { return host_isa_ == dnnl::impl::cpu::x64::avx512_core ? 0 : detect_positive ? 2 : 1; }
 
 protected:
     size_t aux_gprs_count() const override { return (entry_map_.empty() ? 0 : 1) + 1; }
@@ -654,8 +654,8 @@ private:
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &inVecIdxs, const std::vector<size_t> &outVecIdxs) const;
 
-    bool detectNegative;
-    bool detectPositive;
+    bool detect_negative;
+    bool detect_positive;
 };
 
 class jit_is_nan_emitter : public jit_emitter {
@@ -666,6 +666,7 @@ public:
                        InferenceEngine::Precision execPrc = InferenceEngine::Precision::FP32) : jit_emitter(host, hostIsa, node, execPrc) {}
 
     size_t get_inputs_num() const override { return 1; }
+    size_t aux_vecs_count() const override { return host_isa_ == dnnl::impl::cpu::x64::avx512_core ? 0 : 1; }
 
 protected:
     size_t aux_gprs_count() const override { return (entry_map_.empty() ? 0 : 1) + 1; }
@@ -678,8 +679,6 @@ private:
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &inVecIdxs, const std::vector<size_t> &outVecIdxs) const;
 };
-
-static constexpr uint32_t const_1F = 0x3f800000; // 1.f
 
 }   // namespace intel_cpu
 }   // namespace ov

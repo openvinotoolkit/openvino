@@ -81,32 +81,24 @@ InferenceEngine::Blob::Ptr ComparisonLayerTest::GenerateInput(const InferenceEng
     InferenceEngine::Blob::Ptr blob;
 
     if (comparisonOpType == ComparisonTypes::IS_FINITE || comparisonOpType == ComparisonTypes::IS_NAN) {
+        blob = make_blob_with_precision(inputInfo.getTensorDesc());
+        blob->allocate();
+        auto *dataPtr = blob->buffer().as<float*>();
+        const auto range = blob->size();
+        const float start = -static_cast<float>(range) / 2.f;
         testing::internal::Random random(1);
 
-        if (comparisonOpType == ComparisonTypes::IS_FINITE) {
-            blob = make_blob_with_precision(inputInfo.getTensorDesc());
-            blob->allocate();
-            auto *dataPtr = blob->buffer().as<float*>();
-            const auto range = blob->size();
-            const float start = -static_cast<float>(range) / 2.f;
-
-            for (size_t i = 0; i < range; i++) {
-                if (i % 4 == 0) {
-                    dataPtr[i] = std::numeric_limits<float>::infinity();
-                } else if (i % 4 == 1) {
-                    dataPtr[i] = -std::numeric_limits<float>::infinity();
-                } else if (i % 4 == 2) {
-                    dataPtr[i] = std::numeric_limits<double>::quiet_NaN();
-                } else {
-                    dataPtr[i] = start + static_cast<float>(random.Generate(range));
-                }
-            }
-        } else {
-            blob = LayerTestsUtils::LayerTestsCommon::GenerateInput(inputInfo);
-            const auto range = blob->size();
-            auto *dataPtr = blob->buffer().as<float*>();
-            for (size_t i = 0; i < range / 2; i++) {
-                dataPtr[random.Generate(range)] = std::numeric_limits<double>::quiet_NaN();
+        for (size_t i = 0; i < range; i++) {
+            if (i % 7 == 0) {
+                dataPtr[i] = std::numeric_limits<float>::infinity();
+            } else if (i % 7 == 1) {
+                dataPtr[i] = -std::numeric_limits<float>::infinity();
+            } else if (i % 7 == 3) {
+                dataPtr[i] = std::numeric_limits<double>::quiet_NaN();
+            } else if (i % 7 == 5) {
+                dataPtr[i] = -std::numeric_limits<double>::quiet_NaN();
+            } else {
+                dataPtr[i] = start + static_cast<float>(random.Generate(range));
             }
         }
     } else {
