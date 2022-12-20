@@ -11,10 +11,11 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-OutputVector translate_floordiv(NodeContext& context) {
+OutputVector translate_floor_divide(NodeContext& context) {
     auto x = context.get_input(0);
     auto y = context.get_input(1);
-    return {context.mark_node(std::make_shared<opset8::Divide>(x, y, true))};
+    auto div = context.mark_node(std::make_shared<opset8::Divide>(x, y, true));
+    return {context.mark_node(std::make_shared<opset8::Floor>(div))};
 };
 
 }  // namespace op
