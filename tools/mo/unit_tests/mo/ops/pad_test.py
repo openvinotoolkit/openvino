@@ -107,7 +107,7 @@ class TestPadOps(unittest.TestCase):
             nodes_with_edges_only=True,
         )
         out_shape = (1, 1, 5, 8)
-        mask = np.zeros(out_shape, dtype=np.bool)
+        mask = np.zeros(out_shape, dtype=bool)
         mask[0][0][1][2] = True
         ref_value = np.ma.masked_array(np.zeros(out_shape, dtype=np.int64), mask=mask, dtype=np.int64)
         ref_value[0][0][1][3] = 3

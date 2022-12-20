@@ -59,7 +59,7 @@ if __name__ == "__main__":
         'clip': True,
         'steps': np.array([1.25, 1.25]).astype('float32').tolist(),
         'offset': 0.5,
-        'variance': np.array([0.1, 0.1, 0.2, 0.2], dtype=np.float).flatten(),
+        'variance': np.array([0.1, 0.1, 0.2, 0.2], dtype=float).flatten(),
         'min_max_aspect_ratios_order': False
     }
 
@@ -72,7 +72,7 @@ if __name__ == "__main__":
         'clip': True,
         'steps': np.array([1.25, 1.25]).astype('float32').tolist(),
         'offset': 0.5,
-        'variance': np.array([0.1, 0.1, 0.2, 0.2], dtype=np.float).flatten(),
+        'variance': np.array([0.1, 0.1, 0.2, 0.2], dtype=float).flatten(),
         'min_max_aspect_ratios_order': False
     }
 
@@ -85,7 +85,7 @@ if __name__ == "__main__":
         'clip': False,
         'steps': np.array([1.25, 1.25]).astype('float32').tolist(),
         'offset': 0.5,
-        'variance': np.array([0.1, 0.1, 0.2, 0.2], dtype=np.float).flatten(),
+        'variance': np.array([0.1, 0.1, 0.2, 0.2], dtype=float).flatten(),
         'min_max_aspect_ratios_order': False
     }
 
@@ -98,7 +98,7 @@ if __name__ == "__main__":
         'clip': True,
         'steps': np.array([1.25, 1.25]).astype('float32').tolist(),
         'offset': 0.5,
-        'variance': np.array([0.1, 0.1, 0.2, 0.2], dtype=np.float).flatten(),
+        'variance': np.array([0.1, 0.1, 0.2, 0.2], dtype=float).flatten(),
         'min_max_aspect_ratios_order': True
     }
 

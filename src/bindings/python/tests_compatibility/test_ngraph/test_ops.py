@@ -532,7 +532,7 @@ def test_select():
     runtime = get_runtime()
     computation = runtime.computation(function, *parameter_list)
     result = computation(
-        np.array([[True, False]], dtype=np.bool),
+        np.array([[True, False]], dtype=bool),
         np.array([[5, 6]], dtype=np.float32),
         np.array([[7, 8]], dtype=np.float32),
     )[0]

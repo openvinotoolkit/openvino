@@ -25,7 +25,7 @@ class SliceFrontExtractor(FrontExtractorOp):
             if len(starts) == 0 or len(ends) == 0:
                 raise Error("starts or/and ends are not specified for the node {}".format(node.name))
             if len(axes) == 0:
-                axes = np.arange(len(starts), dtype=np.int)
+                axes = np.arange(len(starts), dtype=int)
 
             attrs = {'axes': axes, 'starts': starts, 'ends': ends}
             AttributedSlice.update_node_stat(node, attrs)

@@ -152,7 +152,7 @@ class TestSlice(OnnxRuntimeLayerTest):
         from onnx import TensorProto
 
         # calculate output shape
-        constant = np.random.randint(-127, 127, shape).astype(np.float)
+        constant = np.random.randint(-127, 127, shape).astype(float)
 
         slice_idx = [None] * len(shape)
         for i, axis in enumerate(axes):

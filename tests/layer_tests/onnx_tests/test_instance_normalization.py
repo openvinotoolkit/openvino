@@ -25,8 +25,8 @@ class TestInstanceNormalization(OnnxRuntimeLayerTest):
         input = helper.make_tensor_value_info('input', TensorProto.FLOAT, shape)
         output = helper.make_tensor_value_info('output', TensorProto.FLOAT, shape)
 
-        scale_const = np.random.randn(shape[1]).astype(np.float)
-        bias_const = np.random.randn(shape[1]).astype(np.float)
+        scale_const = np.random.randn(shape[1]).astype(float)
+        bias_const = np.random.randn(shape[1]).astype(float)
 
         node_scale_def = helper.make_node(
             'Constant',

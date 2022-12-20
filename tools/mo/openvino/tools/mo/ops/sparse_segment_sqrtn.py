@@ -81,7 +81,7 @@ class SparseSegmentSqrtN(Op):
             "Some value in indices tensor is out of range"
 
         # infer
-        num_adds = np.zeros(num_segments, dtype=np.int)
+        num_adds = np.zeros(num_segments, dtype=int)
         output_value = np.zeros([num_segments] + data_shape[1:].tolist(), dtype=np.float32)
         output_shape = output_value.shape
         for i in range(len(segment_ids_value)):

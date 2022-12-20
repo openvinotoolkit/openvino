@@ -36,7 +36,7 @@ class TestConvertingConvertArgumentsToString(UnitTestWithMockedTelemetry):
         inp8 = InputCutInfo("data2", [4, 5, 6], np.int64, [5, 4, 3, 2, 1])
         self.assertTrue(input_to_str(inp8) == "data2[4 5 6]{i64}->[5 4 3 2 1]")
 
-        inp9 = InputCutInfo("data", [1], np.bool, True)
+        inp9 = InputCutInfo("data", [1], bool, True)
         self.assertTrue(input_to_str(inp9) == "data[1]{boolean}->True")
 
         inp = [inp6, inp7, inp8]
@@ -108,13 +108,13 @@ class TestConvertingConvertArgumentsToString(UnitTestWithMockedTelemetry):
         self.assertRaises(Exception, input_to_str, **{"input": InputCutInfo(0.5, [1, 2, 3], None, None)})
         self.assertRaises(Exception, input_to_str, **{"input": InputCutInfo("name", 0.5, None, None)})
         self.assertRaises(Exception, input_to_str, **{"input": InputCutInfo("name", [1, 2, 3], 0.5, None)})
-        self.assertRaises(Exception, input_to_str, **{"input": InputCutInfo("name", [1, 2, 3], None, np.int)})
-        self.assertRaises(Exception, input_to_str, **{"input": InputCutInfo("name", [1, 2, 3], None, np.int)})
+        self.assertRaises(Exception, input_to_str, **{"input": InputCutInfo("name", [1, 2, 3], None, int)})
+        self.assertRaises(Exception, input_to_str, **{"input": InputCutInfo("name", [1, 2, 3], None, int)})
         self.assertRaises(Exception, input_to_str, **{"input": ([2, 3], Shape([1, 2]))})
-        self.assertRaises(Exception, input_to_str, **{"input": ("name", [np.int, 2, 3])})
+        self.assertRaises(Exception, input_to_str, **{"input": ("name", [int, 2, 3])})
         self.assertRaises(Exception, input_to_str, **{"input": ("name", "name1", [2, 3])})
         self.assertRaises(Exception, input_to_str, **{"input": ("name", [2, 3], Shape([1, 2]))})
-        self.assertRaises(Exception, input_to_str, **{"input": ("name", np.int, Type(np.float))})
+        self.assertRaises(Exception, input_to_str, **{"input": ("name", int, Type(float))})
         self.assertRaises(Exception, input_to_str, **{"input": Exception})
         self.assertRaises(Exception, input_to_str, **{"input": ("name", Exception)})
         self.assertRaises(Exception, input_to_str, **{"input": ("name", Dimension(1))})
@@ -187,7 +187,7 @@ class TestConvertingConvertArgumentsToString(UnitTestWithMockedTelemetry):
         self.assertTrue(input_shape_to_str(input_shape) == "[1,3,100,100],[1,3,100,100],[?,2..,..10,100,2..12],"
                                                            "[...],[1,2,3,4],[?,2..,..10,100,2..12]")
 
-        self.assertRaises(Exception, input_shape_to_str, **{"input_shape": [np.int, 1]})
+        self.assertRaises(Exception, input_shape_to_str, **{"input_shape": [int, 1]})
         self.assertRaises(Exception, input_shape_to_str, **{"input_shape": Dimension(1)})
 
     def test_str_list_to_str(self):
@@ -197,7 +197,7 @@ class TestConvertingConvertArgumentsToString(UnitTestWithMockedTelemetry):
         list_str = "data1"
         self.assertTrue(str_list_to_str(list_str) == "data1")
 
-        self.assertRaises(Exception, str_list_to_str, **{"values": [np.int, 1]})
+        self.assertRaises(Exception, str_list_to_str, **{"values": [int, 1]})
         self.assertRaises(Exception, str_list_to_str, **{"values": Dimension(1)})
 
     def test_source_target_layout_to_str(self):
