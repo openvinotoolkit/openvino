@@ -24,7 +24,7 @@ flake8_commas
 flake8_pep3101
 flake8_quotes
 mypy
-onnx==1.12.0
+onnx==1.13.0
 Pep8-naming
 pydocstyle
 pytest-forked; platform_system != "Windows"
