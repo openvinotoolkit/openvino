@@ -7,6 +7,7 @@
 #include <gna2-inference-api.h>
 
 #include "log/debug.hpp"
+#include "log/log.hpp"
 
 namespace GNAPluginNS {
 namespace request {
@@ -24,14 +25,30 @@ RequestStatus SubrequestImpl::wait(int64_t timeoutMilliseconds) {
         return status_;
     }
 
-    status_ = waitHandler_(requestID_, timeoutMilliseconds);
+    try {
+        status_ = waitHandler_(requestID_, timeoutMilliseconds);
+    } catch (const std::exception& e) {
+        ov::intel_gna::log::error() << "Exception when executiong wait: " << e.what() << std::endl;
+        status_ = RequestStatus::kCompletedWithError;
+    }
 
     return status_;
 }
 
-void SubrequestImpl::enqueue() {
-    requestID_ = enqueueHandler_();
-    status_ = RequestStatus::kPending;
+bool SubrequestImpl::enqueue() {
+    try {
+        requestID_ = enqueueHandler_();
+        status_ = RequestStatus::kPending;
+    } catch (const std::exception& e) {
+        ov::intel_gna::log::error() << "Exception when executiong enqueue: " << e.what() << std::endl;
+        status_ = RequestStatus::kCompletedWithError;
+    }
+    return status_ != RequestStatus::kCompletedWithError;
+}
+
+void SubrequestImpl::cleanup() {
+    static_cast<void>(wait(0));
+    status_ = RequestStatus::kNone;
 }
 
 bool SubrequestImpl::isPending() const {

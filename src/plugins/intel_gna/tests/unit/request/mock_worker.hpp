@@ -14,7 +14,7 @@ class MockWorker : public Worker {
 public:
     MOCK_METHOD(Gna2Model*, model, (), (override));
     MOCK_METHOD(const Gna2Model*, model, (), (const, override));
-    MOCK_METHOD(void, enqueueRequest, (), (override));
+    MOCK_METHOD(bool, enqueueRequest, (), (override));
     MOCK_METHOD(RequestStatus, wait, (int64_t), (override));
     MOCK_METHOD(bool, isFree, (), (const, override));
     MOCK_METHOD(uint32_t, representingIndex, (), (const, override));

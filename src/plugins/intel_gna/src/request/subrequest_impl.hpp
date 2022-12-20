@@ -40,8 +40,14 @@ public:
 
     /**
      * @brief Add subrequest to execution queue.
+     * @return true in case subrequest was properly enqueued, otherwise return false
      */
-    void enqueue() override;
+    bool enqueue() override;
+
+    /**
+     * @brief Finalize subrequest and set it status to RequestStatus::kNone
+     */
+    void cleanup() override;
 
     /**
      * @brief Return true if subrequest is pending, otherwise return false

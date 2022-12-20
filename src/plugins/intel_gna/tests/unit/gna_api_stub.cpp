@@ -138,6 +138,9 @@ GNA2_API enum Gna2Status Gna2RequestConfigSetAccelerationMode(
 GNA2_API enum Gna2Status Gna2RequestEnqueue(
     uint32_t requestConfigId,
     uint32_t * requestId) {
+    if (current != nullptr) {
+        return current->Gna2RequestEnqueue(requestConfigId, requestId);
+    }
     return Gna2StatusSuccess;
 }
 
