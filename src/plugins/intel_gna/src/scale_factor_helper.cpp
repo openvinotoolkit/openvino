@@ -20,7 +20,7 @@ static bool IsCustomInputScaleFactorAvailableLegacy(const std::vector<float>& in
 
     bool is_scale_factor_custom = false;
     for (const auto& scale_factor : input_scale_factors) {
-        if (!fp32eq(scale_factor, GNAPluginNS::kScaleFactorDefault)) {
+        if (!AreFpEq(scale_factor, GNAPluginNS::kScaleFactorDefault)) {
             is_scale_factor_custom = true;
             break;
         }
@@ -48,7 +48,7 @@ static bool IsCustomInputScaleFactorPerInputAvailable(const std::map<std::string
 
     bool is_scale_factor_custom = false;
     for (const auto& scale_factor : per_input_scale_factors) {
-        if (!fp32eq(scale_factor.second, GNAPluginNS::kScaleFactorDefault)) {
+        if (!AreFpEq(scale_factor.second, GNAPluginNS::kScaleFactorDefault)) {
             is_scale_factor_custom = true;
             break;
         }
