@@ -300,15 +300,11 @@ To enable denormals optimization in the application, the `denormals_optimization
 ### Sparse weights decompression
 `Sparse weights` are weights where most of the elements are zero. The ratio of the number of zero elements to the number of all elements is called `sparse rate`. Thus, we assume that `sparse weights` are weights with a high sparse rate. In case of `sparse weights`, we can store only non-zero values in memory using special storage structures, which allows us to use memory more efficiently. In turn, this can give us better performance in the high memory bound workloads (e.g., throughput scenario).
 
-`Sparse weights decompression feature` allows to pack weights for Matrix Multiplication operations directly in the CPU plugin at the model compilation stage and store non-zero values in a special packed format. Then, during the execution of the model, the weights are unpacked and used in the computational kernel.
+`Sparse weights decompression feature` allows to pack weights for Matrix Multiplication operations directly in the CPU plugin at the model compilation stage and store non-zero values in a special packed format. Then, during the execution of the model, the weights are unpacked and used in the computational kernel. Since the weights are loaded from DDR/L3 cache in the packed format this significantly decreases memory consumption and as a consequence improve inference performance.
 
-To use this feature, the user is provided with property `sparse_weights_decompression_rate`, which can take values from the interval [0, 1]. `sparse_weights_decompression_rate` is the minimum fraction of nulls above which we use weights compression. The default value is `1`, which means the option is disabled.
+To use this feature, the user is provided with property `sparse_weights_decompression_rate`, which can take values from the interval [0.5, 1] (values from [0, 0.5] are not supported in current implementation, see limitations below). `sparse_weights_decompression_rate` defines sparse rate threashold: only operations with higher sparse rate will be executed using `sparse weights decompression feature`. The default value is `1`, which means the option is disabled.
 
-> **NOTE**: **`Sparse weights decompression feature` is disabled by default** since overall speedup highly depends on particular workload and for some cases the feature may introduce performance degradations.
-
-If the user passes an option with a value other than `1`, then during the compilation of the model for all weights of the Matrix Multiplication operations, the number of zero elements (sparse_rate) will be calculated. If sparse_rate is higher than `sparse_weights_decompression_rate` then the weights will be packed into a special compressed format (packed).
-
-> **Example**: If user set `sparse_weights_decompression_rate` to `0.8`, then for a tensor with a calculated sparse rate of `0.9`, the weights will be packed into a special format and the weights will be decompressed at the kernel execution stage. For a tensor with a sparse rate of `0.7`, the weights will remain in memory in a dense format.
+> **NOTE**: `Sparse weights decompression feature` is disabled by default since overall speed-up highly depends on particular workload and for some cases the feature may introduce performance degradations.
 
 Code examples how to use `sparse_weights_decompression_rate`:
 
@@ -330,18 +326,16 @@ Code examples how to use `sparse_weights_decompression_rate`:
 
 > **NOTE**: The `sparse_weights_decompression_rate` property must be set before calling `compile_model()`.
 
-Information about the layers in which the `sparse weights decompression featur`e was applied can be obtained from perf counters log. The "exec type" field will contain the implementation type with the "**sparse**" particle ("**brgemm_avx512_amx_sparse_I8**" in the example below):
+Information about the layers in which the `sparse weights decompression feature` was applied can be obtained from perf counters log. The "exec type" field will contain the implementation type with the "sparse" particle ("brgemm_avx512_amx_sparse_I8" in the example below):
 
     MatMul_1800                    EXECUTED       layerType: FullyConnected     execType: brgemm_avx512_amx_sparse_I8 realTime (ms): 0.050000  cpuTime (ms): 0.050000
 
-#### Restrictions
-Currently, the sparse weights decompression feature is supported with the following restrictions:
-1.	Feature is only supported for FullyConnected layers.
-2.	HW must support AMX isa.
+#### Limitations
+Currently, the `sparse weights decompression feature` is supported with the following limitations:
+1.	Feature is only supported for Matrix Multiplication operations.
+2.	HW target must have Intel AMX extension support (e.g., Sapphire Rapids).
 3.	The number of input and output channels of the weights must be a multiple of 64.
-4.	The minimum sparse rate transmitted by the user cannot be less than `0.5`. If this number is less, then it will be automatically changed to `0.5`. Thus, sparse decompression will only work if the sparsity is greater than or equal to `0.5`, otherwise, the forced feature is not used.
-
-If at least one of the conditions is not met, the weights will not be compressed, and the computational kernel will be executed with weights in dense format.
+4.	Current feature implementation supports only sparse rate higher than 0.5.
 
 ## Additional Resources
 * [Supported Devices](Supported_Devices.md)
