@@ -325,13 +325,13 @@ Examples how to use `sparse_weights_decompression_rate`:
 
 .. tab:: C++
 
-      .. doxygensnippet:: docs/snippets/ov_sparse_weights_decompression.cpp
+      .. doxygensnippet:: docs/snippets/cpu/ov_sparse_weights_decompression.cpp
          :language: cpp
          :fragment: [ov:intel_cpu:sparse_weights_decompression:part0]
 
 .. tab:: Python
 
-      .. doxygensnippet:: docs/snippets/ov_sparse_weights_decompression.py
+      .. doxygensnippet:: docs/snippets/cpu/ov_sparse_weights_decompression.py
          :language: python
          :fragment: [ov:intel_cpu:sparse_weights_decompression:part0]
 
