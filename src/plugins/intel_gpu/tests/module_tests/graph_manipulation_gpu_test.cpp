@@ -59,7 +59,7 @@ TEST(basic, test1) {
     for (auto& it : outputs)
     {
         cldnn::mem_lock<float> output(it.second.get_memory(), get_test_stream());
-        EXPECT_NEAR(7.8f, output[0], epsilon);
+        ASSERT_NEAR(7.8f, output[0], epsilon);
     }
 }
 
@@ -114,7 +114,7 @@ TEST(add_intermediate_gpu, test1)
         cldnn::mem_lock<float> output(it.second.get_memory(), get_test_stream());
         for (uint32_t x = 0; x < output_size; x++)
         {
-            EXPECT_FLOAT_EQ(expected_output_vec[x+output_size*output_index], output[x]);
+            ASSERT_FLOAT_EQ(expected_output_vec[x+output_size*output_index], output[x]);
         }
         output_index++;
     }
@@ -175,7 +175,7 @@ TEST(add_intermediate_gpu, test2)
         cldnn::mem_lock<float> output(it.second.get_memory(), get_test_stream());
         for (uint32_t x = 0; x < output_size; x++)
         {
-            EXPECT_FLOAT_EQ(expected_output_vec[x], output[x]);
+            ASSERT_FLOAT_EQ(expected_output_vec[x], output[x]);
         }
     }
 }

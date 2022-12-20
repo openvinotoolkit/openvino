@@ -27,6 +27,7 @@ OP_T_CONVERTER(translate_direct_reduce_op);
 OP_CONVERTER(translate_add_n_op);
 OP_CONVERTER(translate_arg_max_op);
 OP_CONVERTER(translate_arg_min_op);
+OP_CONVERTER(translate_assert_op);
 OP_CONVERTER(translate_avg_pool_op);
 OP_CONVERTER(translate_batch_mat_mul_op);
 OP_CONVERTER(translate_batch_to_space_nd_op);
@@ -204,6 +205,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"AddN", translate_add_n_op},
         {"ArgMax", translate_arg_max_op},
         {"ArgMin", translate_arg_min_op},
+        {"Assert", translate_assert_op},
         {"AvgPool", translate_avg_pool_op},
         {"AvgPool3D", translate_avg_pool_op},
         {"BatchMatMul", translate_batch_mat_mul_op},
