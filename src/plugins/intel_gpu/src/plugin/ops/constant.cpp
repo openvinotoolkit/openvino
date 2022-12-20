@@ -201,10 +201,7 @@ void createClDnnConstant(Program& p, const ngraph::Shape& constDims, const std::
         p.primitive_ids[initialconstPrimID] = constPrimID;
         p.profiling_ids.push_back(initialconstPrimID);
     } else {
-        GPU_DEBUG_GET_INSTANCE(debug_config);
-        GPU_DEBUG_IF(debug_config->verbose >= 2) {
-            GPU_DEBUG_COUT << "[" << initialconstPrimID << ": constant]" << std::endl;
-        }
+        GPU_DEBUG_LOG << "[" << initialconstPrimID << ": constant]" << std::endl;
         cldnn::memory::ptr mem = p.GetEngine().allocate_memory(constLayout, false);
         auto& stream = p.GetEngine().get_program_stream();
         cldnn::mem_lock<char> lock{mem, stream};
