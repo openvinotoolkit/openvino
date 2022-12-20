@@ -574,6 +574,44 @@ T div_up(const T a, const U b) {
 
 double default_tolerance(data_types dt);
 
+template <class T>
+std::vector<T> get_prim_output(network& net,
+                               const std::string& prim_id,
+                               size_t max_cnt = std::numeric_limits<size_t>::max()) {
+    std::vector<T> ret;
+    try {
+        mem_lock<T, mem_lock_type::read> ptr(net.get_output_memory(prim_id), net.get_stream());
+        for (size_t i = 0; i < ptr.size(); i++)
+                    ret.push_back(ptr[i]);
+    } catch (...) {
+        std::cout << "An error occured while reading output of " << prim_id << std::endl;
+    }
+    ret.resize(std::min(ret.size(), max_cnt));
+    return ret;
+}
+inline layout get_prim_layout(network& net, const std::string& prim_id) {
+    layout ret;
+    try {
+        ret = net.get_output_memory(prim_id)->get_layout();
+    } catch (...) {
+        std::cout << "An error occured while reading layout of " << prim_id << std::endl;
+    }
+    return ret;
+}
+
+template <class T>
+inline void print_prim(network& net, const std::string& prim_id, size_t max_cnt = 300) {
+    std::cout << std::endl << "==========" << prim_id << "==========" << std::endl;
+    for (T i : get_prim_output<T>(net, prim_id, max_cnt))
+        std::cout << std::setw(6) << std::to_string(i).substr(0, 5) << ' ';
+}
+template <>
+inline void print_prim<FLOAT16>(network& net, const std::string& prim_id, size_t max_cnt) {
+    std::cout << std::endl << "==========" << prim_id << "==========" << std::endl;
+    for (float i : get_prim_output<FLOAT16>(net, prim_id, max_cnt))
+        std::cout << std::setw(6) << std::to_string(i).substr(0, 5) << ' ';
+}
+
 class membuf : public std::streambuf
 {
 public:
