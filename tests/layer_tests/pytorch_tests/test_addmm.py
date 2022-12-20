@@ -39,7 +39,7 @@ class TestAddMM(PytorchLayerTest):
         {"input_shape": (1, 1), 'matrix1_shape': (1, 10), 'matrix2_shape': (10, 1)},
 
     ])
-    @pytest.mark.parametrize("alpha,beta", [(1., 1.), (0., 1.), (1., 0.), (1., 2.), (2., 1.), (-5., -6.), (3., 4.), (0.5, 0.75)])
+    @pytest.mark.parametrize("alpha,beta", [(1., 1.), (0., 1.), (1., 0.), (1., 2.), (2., 1.), (-5., -6.), (3., 4.), (0.5, 0.75), (1, 1)])
     @pytest.mark.nightly
     def test_addmm(self, kwargs_to_prepare_input, alpha, beta, ie_device, precision, ir_version):
         self._test(*self.create_model(alpha, beta), ie_device, precision, ir_version, kwargs_to_prepare_input=kwargs_to_prepare_input)

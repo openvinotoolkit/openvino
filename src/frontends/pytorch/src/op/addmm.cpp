@@ -17,9 +17,11 @@ OutputVector translate_addmm(NodeContext& context) {
     auto m2 = context.get_input(2);
     auto beta = context.get_input(3);
     auto alpha = context.get_input(4);
+    auto beta_converted = context.mark_node(std::make_shared<opset8::ConvertLike>(beta, input));
     auto mm = context.mark_node(std::make_shared<opset8::MatMul>(m1, m2));
-    auto input_beta = context.mark_node(std::make_shared<opset8::Multiply>(input, beta));
-    auto mm_alpha = context.mark_node(std::make_shared<opset8::Multiply>(mm, alpha));
+    auto alpha_converted = context.mark_node(std::make_shared<opset8::ConvertLike>(alpha, mm));
+    auto input_beta = context.mark_node(std::make_shared<opset8::Multiply>(input, beta_converted));
+    auto mm_alpha = context.mark_node(std::make_shared<opset8::Multiply>(mm, alpha_converted));
     return {context.mark_node(std::make_shared<opset8::Add>(input_beta, mm_alpha))};
 };
 
