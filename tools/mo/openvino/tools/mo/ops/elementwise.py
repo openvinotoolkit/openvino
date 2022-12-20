@@ -115,7 +115,7 @@ class LogicalElementwise(Elementwise):
     @staticmethod
     def type_infer(node):
         override_data_type_of_constant(node)
-        node.out_port(0).set_data_type(np.bool)
+        node.out_port(0).set_data_type(bool)
 
 
 class Greater(LogicalElementwise):

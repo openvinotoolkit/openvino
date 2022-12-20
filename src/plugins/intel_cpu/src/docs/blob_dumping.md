@@ -29,8 +29,8 @@ Default is *cpu_dump*
     OV_CPU_BLOB_DUMP_FORMAT=<format> binary ...
 ```
 Options are:
-* BIN (default)
-* TEXT
+* BIN
+* TEXT (default)
 
 ## Filter input / output blobs
 To dump only input / output blobs:

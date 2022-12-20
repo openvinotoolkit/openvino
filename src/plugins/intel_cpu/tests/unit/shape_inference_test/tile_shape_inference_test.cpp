@@ -4,10 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include <openvino/op/ops.hpp>
-#include <openvino/op/parameter.hpp>
-#include <utils/shape_inference/shape_inference.hpp>
-#include <utils/shape_inference/static_shape.hpp>
+#include "utils.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;
@@ -48,4 +45,20 @@ TEST(StaticShapeInferenceTest, TileSmallDataRankTest) {
                              static_output_shapes = {StaticShape{}};
     shape_inference(tile.get(), static_input_shapes, static_output_shapes);
     ASSERT_EQ(static_output_shapes[0], StaticShape({3, 32, 10}));
+}
+
+TEST(StaticShapeInferenceTest, TileSmallDataRankTestRepeatsInConstMap) {
+    auto param0 = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1});
+    auto param1 = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{-1});
+    auto tile = std::make_shared<op::v0::Tile>(param0, param1);
+
+    int32_t repeats[] = {3, 4, 1};
+    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {
+        {1, std::make_shared<HostTensor>(element::i32, Shape{3}, repeats)}};
+
+    // Test Static Shape
+    ShapeVector input_shapes = {StaticShape{8, 10}, StaticShape{3}}, output_shapes = {StaticShape{}};
+    shape_inference(tile.get(), input_shapes, output_shapes, constant_data);
+
+    ASSERT_EQ(output_shapes.front(), StaticShape({3, 32, 10}));
 }

@@ -1335,7 +1335,9 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap& inputs, Infer
         ++inputNum;
     }
 
-    freeWorker->enqueueRequest();
+    if (!freeWorker->enqueueRequest()) {
+        THROW_GNA_EXCEPTION << "Error with enqueueing inference request";
+    }
 
     freeWorker->setResult(result);
 
@@ -1351,7 +1353,13 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap& inputs, Infer
 }
 
 bool GNAPlugin::Wait(uint32_t request_idx) {
-    return RequestStatus::kCompleted == WaitFor(request_idx, MAX_TIMEOUT);
+    auto result = WaitFor(request_idx, MAX_TIMEOUT);
+
+    if (result == RequestStatus::kCompletedWithError) {
+        THROW_GNA_EXCEPTION << "Error when waiting for inference results!";
+    }
+
+    return result == RequestStatus::kCompleted;
 }
 
 RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
@@ -1367,6 +1375,10 @@ RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
     }
 
     const auto waitStatus = worker.wait(millisTimeout);
+
+    if (waitStatus == RequestStatus::kCompletedWithError) {
+        return waitStatus;
+    }
 
     if (waitStatus == RequestStatus::kAborted) {
         return waitStatus;
@@ -1528,7 +1540,7 @@ bool GNAPlugin::Infer(const InferenceEngine::Blob &input, InferenceEngine::Blob 
 }
 
 bool GNAPlugin::Infer(const InferenceEngine::BlobMap &input, InferenceEngine::BlobMap &result) {
-    return  Wait(QueueInference(input, result));
+    return Wait(QueueInference(input, result));
 }
 
 static InferenceEngine::Layout GetLayoutForDims(const InferenceEngine::SizeVector &dims) {
