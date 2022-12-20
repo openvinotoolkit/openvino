@@ -244,20 +244,14 @@ def fill_fake_quantize_node(fq, min_level, max_level, output_low=None, output_hi
     """
     min_level_mean = np.min(min_level)
     max_level_mean = np.max(max_level)
-    th = max(abs(min_level_mean), abs(max_level_mean))
 
     max_vals = {"hf8_ext": 28, "hf8_libxsmm": 448, "bf8": 57344}
-
-    print(fq.name, ' th value: ', th)
-    if th > 15.0:
-        fq.destination_type = 'hf8_libxsmm'  # 'bf8'
-    else:
-        fq.destination_type = 'hf8_ext'  # 'hf8_libxsmm' #'hf8_ext'
+    fq.destination_type = 'hf8_ext'  # 'hf8_libxsmm' #'hf8_ext'
 
     scale = max_vals[fq.destination_type] / np.maximum(max_level, np.abs(min_level) + np.finfo(float).eps)
     fq.apply_scale = True
 
-    print(fq.name, ' th value: ', th, fq.destination_type, fq.apply_scale, scale.shape)
+    print(fq.name, ' th value: ', fq.destination_type, fq.apply_scale, scale.shape)
 
     def _update_node_val(port_idx, value):
         _node = get_node_input(fq, port_idx)
