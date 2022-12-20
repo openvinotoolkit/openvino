@@ -44,7 +44,7 @@ class INT4MixedQuantization(AccuracyAwareCommon):
     def _quantize_model(self, model, quantize_with_low_bitwidth=True):
         convolution_fq_nodes = [
             node.fullname
-            for node in mu.get_nodes_by_type(model, ['FakeQuantize'])
+            for node in mu.get_nodes_by_type(model, ['ConvertFP8'])
             if self._can_set_fq_to_low_bitwidth(node)
         ]
         model = self._get_nonquantized_model(model)
@@ -66,7 +66,7 @@ class INT4MixedQuantization(AccuracyAwareCommon):
     def _get_nonquantized_model(self, model):
         cut_fqs = []
         cut_model = deepcopy(model)
-        for node in mu.get_nodes_by_type(model, ['FakeQuantize']):
+        for node in mu.get_nodes_by_type(model, ['ConvertFP8']):
             if node.fullname not in cut_fqs:
                 cut_model, cut_fq_layers, _ = self._graph_transformer.remove_fq_nodes(
                     cut_model, [node.fullname]
