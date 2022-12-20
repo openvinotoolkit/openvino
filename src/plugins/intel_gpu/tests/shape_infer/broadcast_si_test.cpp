@@ -6,6 +6,7 @@
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/broadcast.hpp>
+#include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/data.hpp>
 
 #include "broadcast_inst.h"
@@ -80,6 +81,87 @@ INSTANTIATE_TEST_SUITE_P(smoke, broadcast_test_two_inputs,
             layout{ov::PartialShape{1, 16, 50, 50}, data_types::f32, format::bfyx}
         }
     }));
+
+class broadcast_test_two_inputs_blocked_format : public testing::TestWithParam<broadcast_test_params> { };
+TEST_P(broadcast_test_two_inputs_blocked_format, shape_infer) {
+    auto p = GetParam();
+
+    auto& engine = get_test_engine();
+
+    auto data_mem = engine.allocate_memory(p.data_layout);
+    auto in1_mem = engine.allocate_memory(p.target_shape_layout);
+    auto in2_mem = engine.allocate_memory(p.target_shape_layout);
+
+    // data ------------|
+    // shape1 (blocked)- eltwise (plain)-- broadcast
+    // shape2 (blocked) /
+    // Expectation: eltwise's result is to be used as shape_mem of broadcast, and it should be plain format
+    topology topology;
+    topology.add(input_layout("data", layout{ov::PartialShape::dynamic(p.data_layout.get_rank()), p.data_layout.data_type, p.data_layout.format}),
+                input_layout("shape_input_1", layout{ov::PartialShape::dynamic(p.target_shape_layout.get_rank()), p.target_shape_layout.data_type, p.target_shape_layout.format}),
+                input_layout("shape_input_2", layout{ov::PartialShape::dynamic(p.target_shape_layout.get_rank()), p.target_shape_layout.data_type, p.target_shape_layout.format}),
+                eltwise("target_shape", input_info("shape_input_1"), input_info("shape_input_2"), eltwise_mode::sum, ov::op::AutoBroadcastType::NUMPY),
+                broadcast("output", input_info("data"), input_info("target_shape"), p.axes_mapping_data, p.mode)
+    );
+
+    build_options options;
+    options.set_option(build_option::optimize_data(true));
+    options.set_option(build_option::allow_new_shape_infer(true));
+
+    std::vector<int32_t> input_data(p.data_layout.get_linear_size(), 1);
+
+    network network(engine, topology, options);
+
+    set_values(data_mem, input_data);
+    set_values(in1_mem, p.target_shape_data);
+    set_values(in2_mem, p.target_shape_data);
+
+    network.set_input_data("data", data_mem);
+    network.set_input_data("shape_input_1", in1_mem);
+    network.set_input_data("shape_input_2", in2_mem);
+
+    auto outputs = network.execute();
+    auto output = outputs.at("output").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    ASSERT_EQ(output->get_layout(), p.expected_layout);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke, broadcast_test_two_inputs_blocked_format,
+    testing::ValuesIn(std::vector<broadcast_test_params>{
+        {
+            layout{ov::PartialShape{8}, data_types::i32, format::b_fs_yx_fsv16}, //data layout
+            layout{ov::PartialShape{4}, data_types::i64, format::b_fs_yx_fsv16},
+            {4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+             32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+             11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+             8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+            {0}, ov::op::BroadcastType::EXPLICIT,
+            layout{ov::PartialShape{8, 64, 22, 16}, data_types::i32, format::b_fs_yx_fsv16}
+        },
+        {
+            layout{ov::PartialShape{16, 1, 1, 1}, data_types::i32, format::b_fs_yx_fsv16}, //data layout
+            layout{ov::PartialShape{4}, data_types::i64, format::b_fs_yx_fsv16},
+            {8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+             25, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+             12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+             10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+            {}, ov::op::BroadcastType::NUMPY,
+            layout{ov::PartialShape{16, 50, 24, 20}, data_types::i32, format::b_fs_yx_fsv16}
+        },
+        {
+            layout{ov::PartialShape{16}, data_types::i32, format::b_fs_zyx_fsv16}, //data layout
+            layout{ov::PartialShape{5}, data_types::i64, format::b_fs_zyx_fsv16},
+            {8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+             1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+             25, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+             12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+             10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+            {0}, ov::op::BroadcastType::EXPLICIT,
+            layout{ov::PartialShape{16, 2, 50, 24, 20}, data_types::i32, format::b_fs_zyx_fsv16}
+        }
+    }));
+
 
 class broadcast_test_single_input : public testing::TestWithParam<broadcast_test_params> { };
 

@@ -6,12 +6,12 @@
    :maxdepth: 1
    :hidden:
 
-   ovms_what_is_openvino_model_server
-   ovsa_get_started
    ovtf_integration
    ote_documentation
+   ovsa_get_started
+   openvino_inference_engine_tools_compile_tool_README
+   openvino_docs_tuning_utilities
    workbench_docs_Workbench_DG_Introduction
-
 
 @endsphinxdirective
 
