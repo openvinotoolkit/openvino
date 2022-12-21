@@ -190,7 +190,7 @@ ngraph::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets() {
             interm_op = reshape1->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
         }
 
-        if (((reshape0 == nullptr) != (reshape0 == nullptr)) || (in_shape != out_shape))
+        if (((reshape0 == nullptr) != (reshape1 == nullptr)) || (in_shape != out_shape))
             return false;
 
         // Collapse operations which are between Softmax and MatMul1
