@@ -183,7 +183,7 @@ OpenVINO™ 安全附加组件包括三个组件，这些组件在基于内核�
 9. 安装软件工具 [tpm2-abmrd](https://github.com/tpm2-software/tpm2-abrmd/releases/download/2.3.3/tpm2-abrmd-2.3.3.tar.gz)。有关安装信息，请参阅[此处](https://github.com/tpm2-software/tpm2-abrmd/blob/master/INSTALL.md)
 10. 安装 [tpm2-tools](https://github.com/tpm2-software/tpm2-tools/releases/download/4.3.0/tpm2-tools-4.3.0.tar.gz)。有关安装信息，请参阅[此处](https://github.com/tpm2-software/tpm2-tools/blob/master/docs/INSTALL.md)
 11. 安装 [Docker 程序包](https://docs.docker.com/engine/install/ubuntu/)。	
-   **NOTE**:  无论您是否使用 `install_host_deps.sh` 脚本，都需要完成步骤 12，才能在主机上完成程序包的设置。
+   > **NOTE**:  无论您是否使用 `install_host_deps.sh` 脚本，都需要完成步骤 12，才能在主机上完成程序包的设置。
 12. 如果您在代理后运行，请[为 Docker 设置代理](https://docs.docker.com/config/daemon/systemd/)。
 
 以下组件已安装并且随时可用：
