@@ -184,13 +184,16 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
             FRONT_END_OP_CONVERSION_CHECK(translate_map.count(operation_decoder->get_op_type()),
                                           "No translator found for " + operation_decoder->get_op_type() + " node.");
             auto op_fun = &(translate_map[operation_decoder->get_op_type()]);
-            // NodeContext node_context(ng_inputs, operation_decoder, model_inputs);
-            // TODO: Check why NodeContextNew doesn't have ngOutputVector ng_inputs input in constructor
             NodeContext node_context(operation_decoder, ng_inputs);
             // generate OV node output vector using translator for given operation type
             ng_outputs = (*op_fun)(node_context);
         } catch (...) {
             if (fail_fast) {
+                // in case of decode, unsupported operation will be converted to FrameworkNode
+                if (m_telemetry && translate_map.count(operation_decoder->get_op_type()) == 0) {
+                    // send event about which operation is not supported for conversion
+                    m_telemetry->send_event("error_cause", "tf_" + operation_decoder->get_op_type());
+                }
                 // re-throw any exception
                 throw;
             } else {
