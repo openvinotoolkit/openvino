@@ -1,6 +1,3 @@
-# Copyright (C) 2018-2022 Intel Corporation
-# SPDX-License-Identifier: Apache-2.0
-
 from asyncio import subprocess
 from cmath import log
 from queue import Empty
@@ -11,7 +8,6 @@ from glob import glob
 from subprocess import Popen
 from shutil import copytree, rmtree
 from summarize import create_summary
-from run_parallel import TestParallelRunner
 from merge_xmls import merge_xml
 from pathlib import Path, PurePath
 from sys import version, platform
@@ -117,8 +113,6 @@ class Conformance:
         self._ov_path = ov_path
         self._ov_bin_path = get_ov_path(self._ov_path, True)
         self._working_dir = working_dir
-        if not os.path.exists(self._working_dir):
-            os.mkdir(self._working_dir)
         if not (type == "OP" or type == "API"):
             logger.error(f"Incorrect conformance type: {type}. Please use 'OP' or 'API'")
             exit(-1)
@@ -179,15 +173,19 @@ class Conformance:
             f'omz_downloader --all --output_dir="{original_model_path}"; '\
             f'omz_converter --all --download_dir="{original_model_path}" --output_dir="{converted_model_path}"; '\
             f'deactivate'
-        process = Popen(command, shell=True, env=convert_model_env)
-        out, err = process.communicate()
-        if err is None:
-            for line in str(out).split('\n'):
-                logger.info(line)
-        else:
-            logger.error(err)
+        try:
+            process = Popen(command, shell=True, env=convert_model_env)
+            out, err = process.communicate()
+            if err is None:
+                for line in str(out).split('\n'):
+                    logger.info(line)
+            else:
+                logger.error(err)
+                exit(-1)
+            logger.info(f"Model conversion is successful. Converted models are saved to {converted_model_path}")
+        except:
+            logger.error(f"Something is wrong with the model conversion! Abort the process")
             exit(-1)
-        logger.info(f"Model conversion is successful. Converted models are saved to {converted_model_path}")
         return converted_model_path
 
     def download_and_convert_models(self):
@@ -198,6 +196,9 @@ class Conformance:
 
     def dump_subgraph(self):
         subgraph_dumper_path = os.path.join(self._ov_bin_path, SUBGRAPH_DUMPER_BIN_NAME)
+        if not os.path.isfile(subgraph_dumper_path):
+            logger.error(f"{subgraph_dumper_path} is not exist!")
+            exit(-1)
         conformance_ir_path = os.path.join(self._working_dir, "conformance_ir")
         if os.path.isdir(conformance_ir_path):
             logger.info(f"Remove directory {conformance_ir_path}")
@@ -217,12 +218,35 @@ class Conformance:
             exit(-1)
         self._model_path = conformance_ir_path
 
+    def _prepare_filelist(self):
+        if os.path.isfile(self._model_path):
+            logger.info(f"{self._model_path} is exists! Skip the step to prepare fileslist")
+            return self._model_path
+        filelist_path = os.path.join(self._model_path, "conformance_ir_files.lst")
+        if os.path.isfile(filelist_path):
+            logger.info(f"{filelist_path} is exists! Skip the step to prepare fileslist")
+            return filelist_path
+        xmls = Path(self._model_path).rglob("*.xml")
+        with open(filelist_path, 'w') as file:
+            for xml in xmls:
+                file.write(str(xml) + '\n')
+            file.close()
+        return filelist_path
+
     def run_conformance(self):
+        gtest_parallel_path = os.path.join(self.__download_repo(GTEST_PARALLEL_URL, GTEST_PARALLEL_BRANCH), "thirdparty", "gtest-parallel", "gtest_parallel.py")
+        worker_num = os.cpu_count()
+        if worker_num > 2:
+            worker_num = worker_num - 1
         conformance_path = None
         if self._type == "OP":
             conformance_path = os.path.join(self._ov_bin_path, OP_CONFORMANCE_BIN_NAME)
         else:
             conformance_path = os.path.join(self._ov_bin_path, API_CONFORMANCE_BIN_NAME)
+
+        if not os.path.isfile(conformance_path):
+            logger.error(f"{conformance_path} is not exist!")
+            exit(-1)
 
         logs_dir = os.path.join(self._working_dir, f'{self._device}_logs')
         report_dir = os.path.join(self._working_dir, 'report')
@@ -230,21 +254,27 @@ class Conformance:
             logger.info(f"Report dir {report_dir} is cleaned up")
             rmtree(report_dir)
         parallel_report_dir = os.path.join(report_dir, 'parallel')
+        conformance_filelist_path = self._prepare_filelist()
         if not os.path.isdir(report_dir):
             os.mkdir(report_dir)
         if not os.path.isdir(logs_dir):
             os.mkdir(logs_dir)
-
-        try:
-            command_line_args = [f"--device={self._device}", f'--input_folders="{self._model_path}"', f"--report_unique_name", f'--output_folder="{parallel_report_dir}"']
-            conformance = TestParallelRunner(f"{conformance_path}{OS_BIN_FILE_EXT}", command_line_args, os.cpu_count() - 1 if os.cpu_count() > 2 else 1, logs_dir, 500)
-            conformance.run()
-            conformance.postprocess_logs()
-        except:
+        
+        cmd = f'{PYTHON_NAME} {gtest_parallel_path}  {conformance_path}{OS_BIN_FILE_EXT} -w {worker_num} -d "{logs_dir}" -- ' \
+            f'--device {self._device} --input_folders "{conformance_filelist_path}" --report_unique_name --output_folder "{parallel_report_dir}" --test_timeout=60'
+        logger.info(f"Stating conformance: {cmd}")
+        process = Popen(cmd, shell=True)
+        out, err = process.communicate()
+        if err is None:
+            pass
+            for line in str(out).split('\n'):
+                logger.info(line)
+        else:
+            logger.error(err)
             logger.error("Process failed on step: 'Run conformance'")
             exit(-1)
         final_report_name = f'report_{self._type}'
-        merge_xml([parallel_report_dir], report_dir, final_report_name, self._type)
+        # merge_xml([parallel_report_dir], report_dir, final_report_name, self._type)
         logger.info(f"Conformance is successful. XML reportwas saved to {report_dir}")
         return (os.path.join(report_dir, final_report_name + ".xml"), report_dir)
 
@@ -280,8 +310,8 @@ class Conformance:
             logger.error(f"Directory {self._model_path} does not exist")
             exit(-1)
         xml_report, report_dir = self.run_conformance()
-        if self._type == "OP":
-            self.summarize(xml_report, report_dir)
+        # if self._type == "OP":
+            # self.summarize(xml_report, report_dir)
         
 if __name__ == "__main__":
     args = parse_arguments()

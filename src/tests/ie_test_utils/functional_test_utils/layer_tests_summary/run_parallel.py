@@ -88,7 +88,7 @@ class TaskManager:
             worker = self.__create_thread(
                 self._process_list.append(Popen(self._command_list[self._idx], shell=True, stdout=log_file, stderr=log_file)))
             self._workers.append(worker)
-            worker.join()
+            # worker.join()
             self._timers.append(datetime.datetime.now())
         self._idx += 1
     
@@ -114,7 +114,7 @@ class TaskManager:
         log_file_name = self._log_filename.replace(LOG_NAME_REPLACE_STR, str(self._idx))
         with open(log_file_name, "w") as log_file:
             self._workers[pid] = self.__create_thread(self.__update_process(pid, log_file))
-            self._workers[pid].join()
+            # self._workers[pid].join()
             self._timers[pid] = datetime.datetime.now()
         self._idx += 1
         return True
@@ -292,7 +292,7 @@ class TestParallelRunner:
                 hash_str = str(sha256(test_name.encode('utf-8')).hexdigest())
                 test_log_filename = os.path.join(logs_dir, dir, f'{hash_str}.txt')
                 if os.path.isfile(test_log_filename):
-                    log.warning(f"Log file {test_log_filename} is exist!")
+                    logger.warning(f"Log file {test_log_filename} is exist!")
                     return False
                 hash_map.append([dir, hash_str, test_name])
             with open(test_log_filename, "w") as log:
@@ -351,7 +351,7 @@ class TestParallelRunner:
                                 test_name = None
                                 test_log = list()
                                 dir = None
-            logger.info(f"Number of tests in {log}: {test_cnt_log}")
+            # logger.info(f"Number of tests in {log}: {test_cnt_log}")
             os.remove(log)
         test_times.sort(reverse=True)
         head, tail = os.path.split(self._cache_path)
@@ -403,14 +403,14 @@ if __name__ == "__main__":
     #     # logger.error("Run is not successful") 
 
     # t2__ = datetime.datetime.now()
-    # t1_ = datetime.datetime.now()
-    # with open("/home/efode/repo/openvino/src/tests/ie_test_utils/functional_test_utils/layer_tests_summary/log__.txt", 'w') as log:
-    #     from run_conformance import Conformance
-    #     conformance_ = Conformance("CPU", "/home/efode/repo/temp", "/home/efode/repo/openvino", "OP", "/home/efode/repo/temp_temp")
-    #     conformance_.start_pipeline(False)
-    # t2_ = datetime.datetime.now()
-    # print((t2 - t1).total_seconds())
+    t1_ = datetime.datetime.now()
+    with open("/home/efode/repo/openvino/src/tests/ie_test_utils/functional_test_utils/layer_tests_summary/log__.txt", 'w') as log:
+        from run_conformance import Conformance
+        conformance_ = Conformance("CPU", "/home/efode/repo/temp", "/home/efode/repo/openvino", "OP", "/home/efode/repo/temp_temp")
+        conformance_.start_pipeline(False)
+    t2_ = datetime.datetime.now()
+    print((t2 - t1).total_seconds())
     # print((t2__ - t1__).total_seconds())
-    # print((t2_ - t1_).total_seconds())
+    print((t2_ - t1_).total_seconds())
 
  
