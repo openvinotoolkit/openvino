@@ -13,7 +13,6 @@
 #include "snippets/pass/insert_load_store.hpp"
 #include "snippets/pass/insert_movebroadcast.hpp"
 #include "snippets/pass/insert_buffer.hpp"
-#include "snippets/pass/propagate_buffer_offset.hpp"
 #include "snippets/pass/convert_power_to_powerstatic.hpp"
 
 
@@ -68,7 +67,6 @@ void AddSoftmaxTests::SetUp() {
     manager.register_pass<ngraph::snippets::pass::InsertLoad>(count);
     manager.register_pass<ngraph::snippets::pass::InsertStore>(count);
     manager.register_pass<ngraph::snippets::pass::InsertMoveBroadcast>();
-    manager.register_pass<ngraph::snippets::pass::PropagateBufferOffset>();
     Shape inputShape0, inputShape1;
     int axis;
     std::tie(inputShape0, inputShape1, axis) = this->GetParam();

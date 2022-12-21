@@ -320,7 +320,7 @@ ngraph::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets() {
         }
         subgraph->get_rt_info()["originalLayersNames"] = fused_names;
         subgraph->set_virtual_port_count(hidden_virtual_ports_count);
-        subgraph->buffer_needed(need_buffer);
+        subgraph->set_buffer_needed(need_buffer);
 
         if (transformation_callback(subgraph)) {
             return false;

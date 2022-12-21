@@ -89,8 +89,7 @@ public:
         return m_generator;
     }
 
-    // Return common memory size for all buffers in body. Should be called only after tileRank setting
-    size_t get_buffer_scratchpad_size() const;
+    size_t get_buffer_scratchpad_size() const { return m_buffer_scratchpad; }
     size_t get_virtual_port_count() const { return m_virtual_port_count; }
     bool is_buffer_needed() const { return m_buffer_needed; }
     bool is_quantized() const { return config.m_is_quantized; }
@@ -126,6 +125,7 @@ private:
     void align_element_types(const BlockedShapeVector& outputShapes, const BlockedShapeVector& inputShapes);
     void convert_to_snippet_dialect();
     void init_config();
+    void initialize_buffer_scratchpad_size();
     // Count of Subgraph virtual ports:
     //  - Potential non-scalar Constants that will be created after some transformations (At the moment it's relevant only for FakeQuantize decomposition)
     // Need Buffer op or not
@@ -134,6 +134,7 @@ private:
     //       we should MANUALLY calculate it where it needed.
     size_t m_virtual_port_count = 0;
     bool m_buffer_needed = false;
+    size_t m_buffer_scratchpad = 0lu;
     Shape exec_domain = {};
     std::shared_ptr<ov::Model> m_body = nullptr;
     std::shared_ptr<ngraph::snippets::Generator> m_generator = nullptr;

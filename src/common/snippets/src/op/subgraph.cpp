@@ -21,7 +21,6 @@
 #include "snippets/pass/matmul_to_brgemm.hpp"
 #include "snippets/pass/fuse_transpose_brgemm.hpp"
 #include "snippets/pass/softmax_decomposition.hpp"
-#include "snippets/pass/propagate_buffer_offset.hpp"
 #include "snippets/pass/reset_buffer.hpp"
 #include "snippets/pass/insert_buffer.hpp"
 #include "snippets/pass/loop_fusion.hpp"
@@ -345,17 +344,6 @@ ov::PartialShape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& 
     return master_shape;
 }
 
-size_t snippets::op::Subgraph::get_buffer_scratchpad_size() const {
-    size_t buffer_size = 0;
-    const auto ops = m_body->get_ops();
-    for (const auto& op : ops) {
-        if (const auto buffer = ov::as_type_ptr<ngraph::snippets::op::Buffer>(op)) {
-            buffer_size += buffer->get_byte_size();
-        }
-    }
-    return buffer_size;
-}
-
 void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outputShapes,
                                                  const BlockedShapeVector& inputShapes) {
     // We should insert Convert before Results to set original output element type if needed
@@ -392,6 +380,119 @@ void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outpu
         manager.register_pass<ngraph::pass::EliminateConvert>();
     }
     manager.run_passes(m_body);
+}
+
+void snippets::op::Subgraph::initialize_buffer_scratchpad_size() {
+    auto is_transpose_loop = [](const ov::Output<ov::Node>& source_output) -> bool {
+        const auto parent = source_output.get_node_shared_ptr();
+        // Transpose op is decomposed into LoopBegin->LoadReshape->Store->LoopEnd subgraph. LoadReshape op can be only
+        // in Transpose decomposition. So it's enough to verify that this Loop is Transpose pattern.
+        // We cannot check for non-equality of input and output shape of Transpose Loop because Transpose may have the same
+        // shapes on input and output.
+        auto loop_end = ov::as_type_ptr<op::LoopEnd>(parent);
+        if (!loop_end)
+            return false;
+        size_t idx = source_output.get_index();
+        while (ov::is_type<op::LoopEnd>(loop_end->get_input_node_shared_ptr(idx))) {
+            auto consumer = loop_end->input_value(idx);
+            idx = consumer.get_index();
+            loop_end = ov::as_type_ptr<op::LoopEnd>(consumer.get_node_shared_ptr());
+        }
+
+        const auto loop_begin = loop_end->get_loop_begin();
+        // At the moment Transpose Loops cannot be fused with other Loops, so check for one input and one output is enough
+        if (loop_begin->get_input_size() != 1 || loop_end->get_output_size() != 1 || loop_begin->get_output_target_inputs(0).size() != 1)
+            return false;
+        const auto consumer = loop_begin->get_output_target_inputs(0).begin()->get_node();
+        return ov::is_type<op::LoadReshape>(consumer);
+    };
+    auto propagate_offset = [](const std::shared_ptr<ngraph::snippets::op::Buffer>& buffer, const size_t offset) {
+        // If Buffer has offset We set this offset in the next Load and Store ops
+        // to correctly read and write data because all buffers have the one register
+        // Also if user sets offset to a Buffer It means that the Buffer has the corresponding Load and Store ops
+
+        // Propagate to up: in Store. Buffer can have only one Store
+        {
+            auto parent = buffer->get_input_node_shared_ptr(0);
+            auto idx = buffer->input(0).get_source_output().get_index();
+            while (std::dynamic_pointer_cast<snippets::op::LoopBase>(parent)) {
+                const auto source_output = parent->input_value(idx);
+                parent = source_output.get_node_shared_ptr();
+                idx = source_output.get_index();
+            }
+            if (auto store = std::dynamic_pointer_cast<snippets::op::Store>(parent)) {
+                store->set_offset(offset);
+            } else if (const auto brgemm = std::dynamic_pointer_cast<snippets::op::Brgemm>(parent)) {
+                // Brgemm encapsulates work with loading and storing of data
+                brgemm->set_offset_c(offset);
+            } else {
+                throw ngraph_error("Buffer::set_offset() was called when Buffer didn't have the corresponding Store op for offset propagation");
+            }
+        }
+
+        // Propagate to down: in Load. Buffer can have several Load and Loops after himself. We should go through all target inputs
+        {
+            std::function<void(const Input<Node>&)> propagate_down;
+            propagate_down = [&](const Input<Node>& target_input) {
+                const auto child = target_input.get_node()->shared_from_this();
+                if (std::dynamic_pointer_cast<snippets::op::LoopBase>(child)) {
+                    const auto index = target_input.get_index();
+                    for (const auto loop_target_output : child->output(index).get_target_inputs()) {
+                        propagate_down(loop_target_output);
+                    }
+                } else if (const auto load = std::dynamic_pointer_cast<snippets::op::Load>(child)) {
+                    load->set_offset(offset);
+                } else if (const auto brgemm = std::dynamic_pointer_cast<snippets::op::Brgemm>(child)) {
+                    // Brgemm encapsulates work with loading and storing of data
+                    if (target_input.get_index() == 0) {
+                        brgemm->set_offset_a(offset);
+                    } else {
+                        brgemm->set_offset_b(offset);
+                    }
+                } else {
+                    throw ngraph_error("Buffer::set_offset() was called when Buffer didn't have the corresponding Load op for offset propagation");
+                }
+            };
+
+            for (const auto target_output : buffer->output(0).get_target_inputs()) {
+                propagate_down(target_output);
+            }
+        }
+    };
+    m_buffer_scratchpad = 0;
+    size_t offset = 0;
+    bool is_first_allocation = true;
+    const auto ops = m_body->get_ordered_ops();
+    for (const auto& op : ops) {
+        if (const auto buffer = ov::as_type_ptr<ngraph::snippets::op::Buffer>(op)) {
+            const auto buffer_size = buffer->get_byte_size();
+            // We need to allocate memory for first buffer at least
+            if (is_first_allocation) {
+                m_buffer_scratchpad += buffer_size;
+                is_first_allocation = false;
+                continue;
+            }
+
+            // Transpose and MatMul ops should have different memories on inputs and outputs to avoid data corruption,
+            // so after them, we should allocate new memory. Other operations (Eltwises, Convert) can be executed inplace.
+            const auto parent = buffer->get_input_node_shared_ptr(0);
+            if (ov::is_type<op::Brgemm>(parent) || is_transpose_loop(parent)) {
+                offset = m_buffer_scratchpad;
+                propagate_offset(buffer, offset);
+                m_buffer_scratchpad += buffer_size;
+                continue;
+            }
+
+            // If Buffer op requires memory size more that has been already allocated,
+            // we increase current memory size to the needed size
+            // For example, it's possible when we have a sequence of Eltwise ops with broadcasting
+            const auto current_allocated_memory_size = m_buffer_scratchpad - offset;
+            if (buffer_size > current_allocated_memory_size) {
+                m_buffer_scratchpad += (buffer_size - current_allocated_memory_size);
+                // Note: we don't update offset because we just add memory to needed size
+            }
+        }
+    }
 }
 
 void snippets::op::Subgraph::convert_to_snippet_dialect() {
@@ -462,13 +563,13 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
             m_generator->get_target_machine()->get_lanes(), !config.m_explicit_loop_insertion);
         if (config.m_has_domain_sensitive_ops) {
             manager.register_pass<snippets::pass::LoopFusion>();
-            // After transformations above MemoryAccess operations won't be changed (not removed or added)
-            // so we can calculate offsets for each Buffer in body and propagate them to the corresponding MemoryAccess nodes
-            manager.register_pass<snippets::pass::PropagateBufferOffset>();
             manager.register_pass<snippets::pass::ResetBufferState>();
         }
         manager.run_passes(m_body);
     }
+
+    if (config.m_has_domain_sensitive_ops)
+        initialize_buffer_scratchpad_size();
 }
 
 snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& output_shapes,
