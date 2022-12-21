@@ -27,6 +27,6 @@ bool ov::is_sinking_node(const Node* node) {
     return is_sinking_node_private(node);
 }
 
-bool is_sinking_node(ov::Output<ov::Node> output) {
+bool ov::is_sinking_node(ov::Output<ov::Node> output) {
     return is_sinking_node(output.get_node());
 }
