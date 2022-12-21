@@ -22,6 +22,11 @@ namespace {
             ngraph::element::u16,
     };
 
+   static const std::vector<ngraph::element::Type> floatPrecisionsCPU = {
+            ngraph::element::f32,
+            ngraph::element::f16
+    };
+
     static const std::vector<std::size_t> batchSizesCPU = {
             1, 2
     };
@@ -81,8 +86,16 @@ namespace {
 
     INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_CPU, LoadNetworkCacheTestBase,
                             ::testing::Combine(
-                                    ::testing::ValuesIn(LoadNetworkCacheTestBase::getStandardFunctions()),
+                                    ::testing::ValuesIn(LoadNetworkCacheTestBase::getNumericAnyTypeFunctions()),
                                     ::testing::ValuesIn(precisionsCPU),
+                                    ::testing::ValuesIn(batchSizesCPU),
+                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            LoadNetworkCacheTestBase::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_CPU_Float, LoadNetworkCacheTestBase,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(LoadNetworkCacheTestBase::getFloatingPointOnlyFunctions()),
+                                    ::testing::ValuesIn(floatPrecisionsCPU),
                                     ::testing::ValuesIn(batchSizesCPU),
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                             LoadNetworkCacheTestBase::getTestCaseName);

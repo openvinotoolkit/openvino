@@ -22,10 +22,24 @@ namespace {
             1, 2
     };
 
-    INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_GPU, CompileModelCacheTestBase,
+    static const std::vector<ov::element::Type> floatingPointPrecisionsGPU = {
+            ngraph::element::f32,
+            ngraph::element::f16,
+    };
+
+    INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCaseAnyType_GPU, CompileModelCacheTestBase,
                             ::testing::Combine(
-                                    ::testing::ValuesIn(CompileModelCacheTestBase::getStandardFunctions()),
+                                    ::testing::ValuesIn(CompileModelCacheTestBase::getNumericAnyTypeFunctions()),
                                     ::testing::ValuesIn(precisionsGPU),
+                                    ::testing::ValuesIn(batchSizesGPU),
+                                    ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                    ::testing::Values(ov::AnyMap{})),
+                            CompileModelCacheTestBase::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCaseFloat_GPU, CompileModelCacheTestBase,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(CompileModelCacheTestBase::getFloatingPointOnlyFunctions()),
+                                    ::testing::ValuesIn(floatingPointPrecisionsGPU),
                                     ::testing::ValuesIn(batchSizesGPU),
                                     ::testing::Values(CommonTestUtils::DEVICE_GPU),
                                     ::testing::Values(ov::AnyMap{})),
