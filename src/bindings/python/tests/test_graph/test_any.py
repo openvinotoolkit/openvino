@@ -38,19 +38,6 @@ def test_any_list(values, data_type):
     assert len(values) == 2
     assert ovany.get() == values
 
-def test_any():
-    any_int = OVAny(32)
-    any_str = OVAny("test_text")
-
-    assert any_int.get() == 32
-    assert any_str.get() == "test_text"
-
-    any_int.set(777)
-    any_str.set("another_text")
-
-    assert any_int.get() == 777
-    assert any_str.get() == "another_text"
-
 
 @pytest.mark.parametrize(
     ("value_dict", "data_type"),
