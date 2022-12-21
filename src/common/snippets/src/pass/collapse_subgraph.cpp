@@ -143,15 +143,7 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
     };
 
     auto is_supported_broadcast_op = [](const std::shared_ptr<const Node> &n) -> bool {
-        // TODO: Add check for broadcastable input shapes of Broadcast children in MHA tokenization
-        //       Codogen removes Broadcast op, insert BroadcastMove if needed and save just last dim.
-        //       But if Broadcast child output shape depends on Broadcast we can loss needed output shape
-        //       Example:
-        //        in0 [1, 1, 1]      in0 [1, 1, 1]              in0 [1, 1, 1]   in0 [1, 1, 1]
-        //     Broadcast [1, 10, 1]    /                                 \       /
-        //           \               /                --->>>                Add
-        //                  Add                                              |
-        //             Result [1, 10, 1]                              Result [1, 1, 1]
+        // Broadcast is supported only for MHA tokenization where there are needed and special checks
         auto broadcast = ov::as_type_ptr<const opset1::Broadcast>(n);
         return broadcast && broadcast->get_broadcast_spec().m_type == ov::op::AutoBroadcastType::NUMPY;
     };

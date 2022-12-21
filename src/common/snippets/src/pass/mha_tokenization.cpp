@@ -33,7 +33,7 @@ auto is_supported_op(const std::shared_ptr<ngraph::Node>& node) -> bool {
             ngraph::is_type<ngraph::op::v1::Select>(node));
 }
 
-auto valid_transpose(const std::shared_ptr<ngraph::opset1::Transpose>& node, std::vector<int64_t> expected_order) -> bool {
+auto is_valid_transpose(const std::shared_ptr<ngraph::opset1::Transpose>& node, std::vector<int64_t> expected_order) -> bool {
     auto valid_transpose_order = [expected_order](const std::shared_ptr<ngraph::Node>& node) -> bool {
         const auto transpose_pattern = ngraph::as_type_ptr<ngraph::opset1::Constant>(node);
         if (!transpose_pattern)
@@ -43,6 +43,48 @@ auto valid_transpose(const std::shared_ptr<ngraph::opset1::Transpose>& node, std
 
     return node && node->get_output_target_inputs(0).size() == 1 && node->get_shape().size() == 4 &&
            valid_transpose_order(node->get_input_node_shared_ptr(1)) && is_supported_tensor(node->get_input_tensor(0));
+}
+
+auto tokenize_broadcast(const std::shared_ptr<ov::Node>& interm_op, ov::NodeVector& ordered_ops) -> void {
+    // We can tokenize Broadcast op only when output shape of child doesn't depend on Broadcast shape without last dimension.
+    // Snippets remove Broadcast op and insert BroadcastMove if last dimensions before and after Broadcast are different.
+    // Otherwise, we can lose original shape.
+    // Example:
+    //        in0 [1, 1, 1]      in0 [1, 1, 1]              in0 [1, 1, 1]   in0 [1, 1, 1]
+    //     Broadcast [1, 10, 1]    /                                 \       /
+    //           \               /                --->>>                Add
+    //                  Add                                              |
+    //             Result [1, 10, 1]                              Result [1, 1, 1]
+
+    ov::PartialShape new_output_shape(std::vector<ov::Dimension>{1});
+    ov::NodeVector broadcast_nodes;
+
+    auto skip_last_dim = [](const ov::PartialShape& shape) {
+        return ov::PartialShape(std::vector<ov::Dimension>{shape.begin(), shape.end() - 1});
+    };
+
+    for (auto input : interm_op->inputs()) {
+        auto broadcast = ov::as_type_ptr<ngraph::opset1::Broadcast>(input.get_source_output().get_node_shared_ptr());
+        // TODO: Can we reuse AppropriateForSubgraph here? Seems like it's huge check for Broadcast
+        if (broadcast && broadcast->get_broadcast_spec().m_type == ov::op::AutoBroadcastType::NUMPY &&
+            broadcast->get_output_target_inputs(0).size() == 1) {
+            broadcast_nodes.push_back(broadcast);
+
+            ov::PartialShape::broadcast_merge_into(new_output_shape,
+                                                   skip_last_dim(broadcast->get_input_partial_shape(0)),
+                                                   ::ngraph::op::AutoBroadcastType::NUMPY);
+        } else {
+            ov::PartialShape::broadcast_merge_into(new_output_shape,
+                                                   skip_last_dim(input.get_partial_shape()),
+                                                   ::ngraph::op::AutoBroadcastType::NUMPY);
+        }
+    }
+
+    if (!broadcast_nodes.empty()) {
+        if (new_output_shape == skip_last_dim(interm_op->get_output_partial_shape(0))) {
+            std::copy(broadcast_nodes.begin(), broadcast_nodes.end(), std::back_inserter(ordered_ops));
+        }
+    }
 }
 
 auto collapse_intermediate_supported_ops(std::shared_ptr<ov::Node>& interm_op, ngraph::NodeVector& ordered_ops) -> bool {
@@ -55,14 +97,7 @@ auto collapse_intermediate_supported_ops(std::shared_ptr<ov::Node>& interm_op, n
 
         // Check for supported Broadcast op
         if (interm_op->get_input_size() > 1) {
-            for (auto input : interm_op->inputs()) {
-                auto broadcast = ov::as_type_ptr<ngraph::opset1::Broadcast>(input.get_source_output().get_node_shared_ptr());
-                // TODO: Can we reuse AppropriateForSubgraph here? Seems like it's huge check for Broadcast
-                if (broadcast && broadcast->get_broadcast_spec().m_type == ov::op::AutoBroadcastType::NUMPY &&
-                    broadcast->get_output_target_inputs(0).size() == 1) {
-                    ordered_ops.push_back(broadcast);
-                }
-            }
+            tokenize_broadcast(interm_op, ordered_ops);
         }
 
         ordered_ops.push_back(interm_op);
@@ -178,7 +213,7 @@ ngraph::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets() {
         // TODO: Add Reshape Support for all Transposes
         //       Add 3D support for all Transposes
         const auto transpose0 = ngraph::as_type_ptr<ngraph::opset1::Transpose>(matmul0->get_input_node_shared_ptr(0));
-        if (valid_transpose(transpose0, {0, 2, 1, 3})) {
+        if (is_valid_transpose(transpose0, {0, 2, 1, 3})) {
             ordered_ops.insert(ordered_ops.begin(), transpose0);
         } else if (matmul0->get_transpose_b()) {
             return false;
@@ -200,13 +235,13 @@ ngraph::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets() {
         }
 
         auto transpose1 = ngraph::as_type_ptr<ngraph::opset1::Transpose>(parent);
-        if ((matmul0->get_transpose_b() && valid_transpose(transpose1, {0, 2, 1, 3})) ||
-            (!matmul0->get_transpose_b() && valid_transpose(transpose1, {0, 2, 3, 1}))) {
+        if ((matmul0->get_transpose_b() && is_valid_transpose(transpose1, {0, 2, 1, 3})) ||
+            (!matmul0->get_transpose_b() && is_valid_transpose(transpose1, {0, 2, 3, 1}))) {
             ordered_ops.insert(ordered_ops.begin() + shift, transpose1);
         }
 
         const auto transpose2 = ngraph::as_type_ptr<ngraph::opset1::Transpose>(matmul1->get_input_node_shared_ptr(1));
-        if (valid_transpose(transpose2, {0, 2, 1, 3})) {
+        if (is_valid_transpose(transpose2, {0, 2, 1, 3})) {
             ordered_ops.push_back(transpose2);
         }
         ordered_ops.push_back(matmul1);
@@ -219,7 +254,7 @@ ngraph::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets() {
         // }
 
         auto transpose3 = ngraph::as_type_ptr<ngraph::opset1::Transpose>(child);
-        if (valid_transpose(transpose3, {0, 2, 1, 3})) {
+        if (is_valid_transpose(transpose3, {0, 2, 1, 3})) {
             ordered_ops.push_back(transpose3);
         }
 
