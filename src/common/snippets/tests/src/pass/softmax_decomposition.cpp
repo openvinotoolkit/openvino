@@ -32,8 +32,9 @@ std::string SoftmaxTests::getTestCaseName(testing::TestParamInfo<SoftmaxParams> 
 }
 
 void SoftmaxTests::SetUp() {
+    LoweringTests::SetUp();
+
     const size_t count = 10;
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
     manager.register_pass<ngraph::snippets::pass::SoftmaxDecomposition>(count);
     manager.register_pass<ngraph::snippets::pass::ConvertPowerToPowerStatic>();
     manager.register_pass<ngraph::snippets::pass::InsertLoad>(count);
@@ -58,8 +59,9 @@ std::string AddSoftmaxTests::getTestCaseName(testing::TestParamInfo<AddSoftmaxPa
 }
 
 void AddSoftmaxTests::SetUp() {
+    LoweringTests::SetUp();
+
     const size_t count = 10;
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
     manager.register_pass<ngraph::snippets::pass::InsertBuffer>();
     manager.register_pass<ngraph::snippets::pass::SoftmaxDecomposition>(count);
     manager.register_pass<ngraph::snippets::pass::ConvertPowerToPowerStatic>();
