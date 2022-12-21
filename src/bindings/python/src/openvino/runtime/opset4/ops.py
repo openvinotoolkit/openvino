@@ -173,7 +173,7 @@ def acosh(node: NodeInput, name: Optional[str] = None) -> Node:
     :param name: Optional new name for output node.
     :return: New node with arccosh operation applied on it.
     """
-    return _get_node_factory_opset4().create("Acosh", [node])
+    return _get_node_factory_opset4().create("Acosh", as_nodes(node))
 
 
 @nameable_op
@@ -184,7 +184,7 @@ def asinh(node: NodeInput, name: Optional[str] = None) -> Node:
     :param name: Optional new name for output node.
     :return: New node with arcsinh operation applied on it.
     """
-    return _get_node_factory_opset4().create("Asinh", [node])
+    return _get_node_factory_opset4().create("Asinh", as_nodes(node))
 
 
 @nameable_op
@@ -195,7 +195,7 @@ def atanh(node: NodeInput, name: Optional[str] = None) -> Node:
     :param name: Optional new name for output node.
     :return: New node with arctanh operation applied on it.
     """
-    return _get_node_factory_opset4().create("Atanh", [node])
+    return _get_node_factory_opset4().create("Atanh", as_nodes(node))
 
 
 @nameable_op

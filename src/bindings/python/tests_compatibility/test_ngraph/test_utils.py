@@ -7,7 +7,7 @@ from ngraph.impl import Shape
 
 
 def test_get_constant_from_source_success():
-    dtype = np.int
+    dtype = np.int32
     input1 = ng.parameter(Shape([5, 5]), dtype=dtype, name="input_1")
     input2 = ng.parameter(Shape([25]), dtype=dtype, name="input_2")
     shape_of = ng.shape_of(input2, name="shape_of")
@@ -19,7 +19,7 @@ def test_get_constant_from_source_success():
 
 
 def test_get_constant_from_source_failed():
-    dtype = np.int
+    dtype = np.int32
     input1 = ng.parameter(Shape([5, 5]), dtype=dtype, name="input_1")
     input2 = ng.parameter(Shape([1]), dtype=dtype, name="input_2")
     reshape = ng.reshape(input1, input2, special_zero=True)
