@@ -1182,31 +1182,6 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROAndDeviceIDThrows) {
 }
 
 //
-// LoadNetwork with AUTO on MULTI combinations particular device
-//
-TEST_P(OVClassLoadNetworkTest, LoadNetworkMULTIwithAUTONoThrow) {
-    ov::Core ie = createCoreWithTemplate();
-    if (supportsDeviceID(ie, target_device) && supportsAvaliableDevices(ie, target_device)) {
-        std::string devices;
-        auto availableDevices = ie.get_property(target_device, ov::available_devices);
-        for (auto&& device : availableDevices) {
-            devices += target_device + '.' + device;
-            if (&device != &(availableDevices.back())) {
-                devices += ',';
-            }
-        }
-        OV_ASSERT_NO_THROW(
-            ie.compile_model(actualNetwork,
-                             CommonTestUtils::DEVICE_MULTI,
-                             ov::device::properties(CommonTestUtils::DEVICE_AUTO, ov::device::priorities(devices)),
-                             ov::device::properties(CommonTestUtils::DEVICE_MULTI,
-                                                    ov::device::priorities(CommonTestUtils::DEVICE_AUTO, target_device))));
-    } else {
-        GTEST_FAIL() << "Device does not support DeviceID property" << std::endl;
-    }
-}
-
-//
 // LoadNetwork with HETERO on MULTI combinations particular device
 //
 
