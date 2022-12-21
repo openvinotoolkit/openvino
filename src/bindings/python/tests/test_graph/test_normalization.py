@@ -4,6 +4,7 @@
 
 import numpy as np
 
+from openvino.runtime import Type
 import openvino.runtime.opset8 as ov
 
 
@@ -15,12 +16,14 @@ def test_lrn():
     assert model.get_type_name() == "LRN"
     assert model.get_output_size() == 1
     assert list(model.get_output_shape(0)) == [2, 3, 2, 1]
+    assert model.get_output_element_type(0) == Type.f32
 
     # Test LRN default parameter values
     model = ov.lrn(ov.constant(input_image), ov.constant(axes))
     assert model.get_type_name() == "LRN"
     assert model.get_output_size() == 1
     assert list(model.get_output_shape(0)) == [2, 3, 2, 1]
+    assert model.get_output_element_type(0) == Type.f32
 
 
 def test_lrn_factory():
@@ -36,6 +39,7 @@ def test_lrn_factory():
     assert node.get_type_name() == "LRN"
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == expected_shape
+    assert node.get_output_element_type(0) == Type.f32
 
 
 def test_batch_norm():
@@ -51,6 +55,7 @@ def test_batch_norm():
     assert node.get_type_name() == "BatchNormInference"
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == expected_shape
+    assert node.get_output_element_type(0) == Type.f32
 
 
 def test_mvn_no_variance():
@@ -66,6 +71,7 @@ def test_mvn_no_variance():
     assert node.get_type_name() == "MVN"
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == expected_shape
+    assert node.get_output_element_type(0) == Type.f32
 
 
 def test_mvn():
@@ -81,3 +87,4 @@ def test_mvn():
     assert node.get_type_name() == "MVN"
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == expected_shape
+    assert node.get_output_element_type(0) == Type.f32

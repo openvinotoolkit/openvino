@@ -18,14 +18,27 @@ namespace {
             ngraph::element::u16,
     };
 
+    static const std::vector<ngraph::element::Type> floatPrecisionsGPU = {
+            ngraph::element::f32,
+            ngraph::element::f16
+    };
+
     static const std::vector<std::size_t> batchSizesGPU = {
             1, 2
     };
 
     INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_GPU, LoadNetworkCacheTestBase,
                             ::testing::Combine(
-                                    ::testing::ValuesIn(LoadNetworkCacheTestBase::getStandardFunctions()),
+                                    ::testing::ValuesIn(LoadNetworkCacheTestBase::getNumericAnyTypeFunctions()),
                                     ::testing::ValuesIn(precisionsGPU),
+                                    ::testing::ValuesIn(batchSizesGPU),
+                                    ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                            LoadNetworkCacheTestBase::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_GPU_Float, LoadNetworkCacheTestBase,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(LoadNetworkCacheTestBase::getFloatingPointOnlyFunctions()),
+                                    ::testing::ValuesIn(floatPrecisionsGPU),
                                     ::testing::ValuesIn(batchSizesGPU),
                                     ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                             LoadNetworkCacheTestBase::getTestCaseName);
