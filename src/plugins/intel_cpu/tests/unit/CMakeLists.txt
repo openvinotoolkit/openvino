@@ -5,7 +5,7 @@
 set(TARGET_NAME ov_cpu_unit_tests)
 
 if(BUILD_SHARED_LIBS)
-    set (OBJ_LIB $<TARGET_OBJECTS:openvino_intel_cpu_plugin_obj>)
+    set (OBJ_LIB $<TARGET_OBJECTS:openvino_intel_cpu_plugin>)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
