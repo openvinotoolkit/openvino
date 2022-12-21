@@ -440,23 +440,16 @@ def emit_ir(graph: Graph, argv: argparse.Namespace, non_default_params: dict):
                         input_names=input_names,
                         meta_info=non_default_params,
                         use_temporary_path=True)
+
+        fem = FrontEndManager()
+        func = read_model(fem, orig_model_name + "_tmp.xml")
     except Exception as err:
-        clear_tmp_ir_files()
-        raise Error('Exception occurred during serialization of temporary IR: {}'.format(
+        raise Error('Exception occurred while serialization or reading of the temporary IR: {}'.format(
             str(err),
         )) from err
     finally:
         # This graph cleanup is required to avoid double memory consumption
         graph.clear()
-
-    try:
-        fem = FrontEndManager()
-        func = read_model(fem, orig_model_name + "_tmp.xml")
-    except Exception as err:
-        raise Error('Exception occurred while reading of temporary IR: {}'.format(
-            str(err),
-        )) from err
-    finally:
         clear_tmp_ir_files()
 
     return_code = "not executed"
