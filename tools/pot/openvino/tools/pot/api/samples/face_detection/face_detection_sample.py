@@ -229,7 +229,7 @@ class MTCNNEngine(IEEngine):
 
         def postprocess(output):
             # extract_predictions
-            total_boxes = np.zeros((0, 9), np.float)
+            total_boxes = np.zeros((0, 9), float)
             for idx, outputs in enumerate(output):
                 scales = input_meta['scales'][idx]
                 mapping = outputs[[i for i, _ in outputs.items()
