@@ -268,8 +268,8 @@ TEST_P(eltwise_fp32_fsv16, add_broadcast) {
     if (engine.get_device_info().supports_immad)
         p.expected_fused_primitives++;
 
-    implementation_desc eltw_impl = { format::b_fs_yx_fsv16, "eltwise_b_fs_yx_fsv16" };
-    bo_fused.set_option(build_option::force_implementations({ { "eltwise", eltw_impl } }));
+    ov::intel_gpu::ImplementationDesc eltw_impl = { format::b_fs_yx_fsv16, "eltwise_b_fs_yx_fsv16" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "eltwise", eltw_impl } }));
 
     tolerance = 1e-5f;
     execute(p);
