@@ -118,8 +118,8 @@ void shape_infer(const Slice* op,
 
     auto axis_it = axes_map.m.cbegin();
 
-    std::vector<DimType> dims;
-    dims.reserve(input_shape.size());
+    auto& out = output_shapes.front();
+    out.reserve(input_shape.size());
     for (size_t dim_idx = 0; dim_idx < input_shape.size(); ++dim_idx) {
         const DimType& input_dim = input_shape[dim_idx];
 
@@ -129,25 +129,25 @@ void shape_infer(const Slice* op,
             if (start && stop && steps) {
                 const auto& step = (*steps)[i];
                 NODE_VALIDATION_CHECK(op, step != 0, "Step must be non-zero");
-                dims.push_back(slice::make_dim(input_dim, (*start)[i], (*stop)[i], step));
+                out.push_back(slice::make_dim(input_dim, (*start)[i], (*stop)[i], step));
             } else {
-                dims.emplace_back(0, input_dim.get_max_length());
+                out.emplace_back(0, input_dim.get_max_length());
             }
 
-            if (std::is_same<DimType, ov::Dimension>::value && dims.back() == input_dim) {
+            auto& last_dim = out[out.size() - 1];
+            if (std::is_same<DimType, ov::Dimension>::value && (last_dim == input_dim)) {
                 // for equal ov::Dimension do merge to get input label (always success)
-                DimType::merge(dims.back(), dims.back(), input_dim);
+                DimType::merge(last_dim, last_dim, input_dim);
             }
             ++axis_it;
         } else if (axes_map.is_valid) {
             // dimension not on axes list, no change
-            dims.push_back(input_dim);
+            out.push_back(input_dim);
         } else {
             // axes are unknow so any dimension can be sliced
-            dims.emplace_back(0, input_dim.get_max_length());
+            out.emplace_back(0, input_dim.get_max_length());
         }
     }
-    output_shapes.front() = T(std::move(dims));
 }
 }  // namespace v8
 }  // namespace op

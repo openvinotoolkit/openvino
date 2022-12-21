@@ -114,7 +114,7 @@ void shape_infer(const StridedSlice* op,
                           "Input rank plus number of new axis has to be at least the size of Lower "
                           "and Upper bounds vector.");
 
-    std::vector<DimType> dims;
+    auto& out = output_shapes.front();
     int64_t input_shape_idx = 0;
     for (int64_t axis = 0; axis < number_axes; ++axis) {
         // add all dimensions hidden under the ellipsis mask if ellipsis mask is set
@@ -140,12 +140,12 @@ void shape_infer(const StridedSlice* op,
                 (number_axes - axis - num_new_axis_after_ellipses - 1);  // -1 because it's a position of ellipses
             int64_t num_of_hidden_dims = input_rank - num_input_axis_after_ellipses - num_input_axis_before_ellipses;
             for (int64_t i = 0; i < num_of_hidden_dims; ++i, ++input_shape_idx) {
-                dims.emplace_back(input_shape[input_shape_idx]);
+                out.emplace_back(input_shape[input_shape_idx]);
             }
         } else {
             // add new single dimension if new_axis_mask is set
             if (new_axis_mask.count(axis)) {
-                dims.emplace_back(1);
+                out.emplace_back(1);
             }
             // skip this dimension if shrink_axis_mask is set
             else if (shrink_axis_mask.count(axis)) {
@@ -172,16 +172,17 @@ void shape_infer(const StridedSlice* op,
 
                 const auto& start = begin_mask.count(axis) ? default_start : (*begin)[axis];
                 const auto& stop = end_mask.count(axis) ? default_stop : (*end)[axis];
-                dims.push_back(slice::make_dim(input_dim, start, stop, stride));
+                auto sliced_dim = slice::make_dim(input_dim, start, stop, stride);
 
-                if (std::is_same<DimType, ov::Dimension>::value && dims.back() == input_dim) {
+                if (std::is_same<DimType, ov::Dimension>::value && (sliced_dim == input_dim)) {
                     // for equal ov::Dimension do merge to get input label (always success)
-                    DimType::merge(dims.back(), dims.back(), input_dim);
+                    DimType::merge(sliced_dim, sliced_dim, input_dim);
                 }
+                out.push_back(std::move(sliced_dim));
 
                 input_shape_idx++;
             } else {
-                dims.emplace_back(0, input_shape[input_shape_idx].get_max_length());
+                out.emplace_back(0, input_shape[input_shape_idx].get_max_length());
 
                 input_shape_idx++;
             }
@@ -190,10 +191,8 @@ void shape_infer(const StridedSlice* op,
 
     // get remaining values
     for (; input_shape_idx < input_shape.rank().get_length(); ++input_shape_idx) {
-        dims.push_back(input_shape[input_shape_idx]);
+        out.push_back(input_shape[input_shape_idx]);
     }
-
-    output_shapes[0] = T(std::move(dims));
 }
 }  // namespace v1
 }  // namespace op

@@ -144,7 +144,7 @@ inline int64_t get_sliced_value(const int64_t& dim, const int64_t& start, const 
     const auto is_start_max = ov::internal::is_max(start);
     const auto is_start_limit = is_start_max || ov::internal::is_min(start);
     const auto any_bound_max = is_start_max || ov::internal::is_max(stop);
-    // Prepare bounds for number of elements calculation.
+    // Prepare bounds for sliced value calculation.
     int64_t lb, ub;
     if (is_norm_dim_max && (are_bounds_diff_sign || any_bound_max || is_start_limit)) {
         if (is_reverse_step) {
@@ -158,25 +158,25 @@ inline int64_t get_sliced_value(const int64_t& dim, const int64_t& start, const 
         ub = clip(normalize(stop, norm_dim), upper_min, norm_dim);
     }
 
-    // Calculate elements in step from bounds and step.
+    // Calculate sliced value from bounds and step.
     if (is_norm_dim_max && lb == min_bound && ub == inf_bound) {
         return inf_bound;
     } else {
-        // Limit elements count to not-positive for negative step or not-negative for positive step
+        // Limit sliced value to not-positive for negative step or not-negative for positive step
         auto sliced_value =
             is_reverse_step ? std::min<int64_t>(min_bound, (ub - lb)) : std::max<int64_t>(min_bound, (ub - lb));
 
         if (step == -1) {
-            // Elements count is negative for negative step return opposite
+            // Sliced value is negative for negative step return opposite
             sliced_value = -sliced_value;
         } else if (sliced_value != 0 && step != 1) {
-            // Need to calculate elements in step. Depends on step direction reduce number element
-            // in order to calculate elements in steps in one-step division (no modulo required)
+            // Need to calculate sliced value for step. Depends on step direction reduce sliced value
+            // in order to calculate it in one-step division (no modulo required)
             is_reverse_step ? ++sliced_value : --sliced_value;
             sliced_value /= step;
             ++sliced_value;
         } else {
-            // There is no need for calculations as number of elements is 0 or step is 1.
+            // There is no need for calculations as sliced value is 0 or step is 1.
         }
         return sliced_value;
     }
