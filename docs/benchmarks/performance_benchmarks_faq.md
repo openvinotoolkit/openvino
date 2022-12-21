@@ -42,47 +42,47 @@
         - Public Network
         - Task
         - Input Size
-      * - `bert-base-cased<https://github.com/PaddlePaddle/PaddleNLP/tree/v2.1.1>`_
+      * - `bert-base-cased <https://github.com/PaddlePaddle/PaddleNLP/tree/v2.1.1>`_
         - BERT
         - question / answer
         - 124
-      * - `bert-large-uncased-whole-word-masking-squad-int8-0001<https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/intel/bert-large-uncased-whole-word-masking-squad-int8-0001>`_
+      * - `bert-large-uncased-whole-word-masking-squad-int8-0001 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/intel/bert-large-uncased-whole-word-masking-squad-int8-0001>`_
         - BERT-large
         - question / answer
         - 384
-      * - `deeplabv3-TF<https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/deeplabv3>`_
+      * - `deeplabv3-TF <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/deeplabv3>`_
         -  DeepLab v3 Tf
         - semantic segmentation
         - 513x513
-      * - `densenet-121-TF<https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/densenet-121-tf>`_
+      * - `densenet-121-TF <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/densenet-121-tf>`_
         - Densenet-121 Tf
         - classification
         - 224x224
-      * - `efficientdet-d0<https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/efficientdet-d0-tf>`_
+      * - `efficientdet-d0 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/efficientdet-d0-tf>`_
         - Efficientdet
         - classification
         - 512x512
-      * - `faster_rcnn_resnet50_coco-TF<https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/faster_rcnn_resnet50_coco>`_
+      * - `faster_rcnn_resnet50_coco-TF <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/faster_rcnn_resnet50_coco>`_
         - Faster RCNN Tf
         - object detection
         - 600x1024
-      * - `inception-v4-TF<https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/googlenet-v4-tf>`_
+      * - `inception-v4-TF <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/googlenet-v4-tf>`_
         - Inception v4 Tf (aka GoogleNet-V4)
         - classification
         - 299x299
-      * - `mobilenet-ssd-CF<https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/mobilenet-ssd>`_
+      * - `mobilenet-ssd-CF <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/mobilenet-ssd>`_
         - SSD (MobileNet)_COCO-2017_Caffe
         - object detection
         - 300x300
-      * - `mobilenet-v2-pytorch<https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/mobilenet-v2-pytorch>`_
+      * - `mobilenet-v2-pytorch <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/mobilenet-v2-pytorch>`_
         - Mobilenet V2 PyTorch
         - classification
         - 224x224
-      * - `resnet-18-pytorch<https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-18-pytorch>`_
+      * - `resnet-18-pytorch <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-18-pytorch>`_
         - ResNet-18 PyTorch
         - classification
         - 224x224
-      * - `resnet-50-TF<https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf>`_
+      * - `resnet-50-TF <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf>`_
         - ResNet-50_v1_ILSVRC-2012
         - classification
         - 224x224
@@ -90,15 +90,15 @@
         - ssd-resnet34 onnx model
         - object detection
         - 1200x1200      
-      * - `unet-camvid-onnx-0001<https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/intel/unet-camvid-onnx-0001>`_
+      * - `unet-camvid-onnx-0001 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/intel/unet-camvid-onnx-0001>`_
         - U-Net
         - semantic segmentation
         - 368x480     
-      * - `yolo-v3-tiny-tf<https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/yolo-v3-tiny-tf>`_
+      * - `yolo-v3-tiny-tf <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/yolo-v3-tiny-tf>`_
         - YOLO v3 Tiny
         - object detection
         - 416x416      
-      * - `yolo_v4-TF<https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/yolo-v4-tf>`_
+      * - `yolo_v4-TF <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/yolo-v4-tf>`_
         - Yolo-V4 TF
         -  object detection
         - 608x608
