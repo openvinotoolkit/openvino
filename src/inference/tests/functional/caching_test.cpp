@@ -789,7 +789,7 @@ TEST_P(CachingTest, TestNoCacheSupported) {
     {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 1 : 0);
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(!m_remoteContext ? 1 : 0);
-        EXPECT_CALL(*mockPlugin, OnLoadNetworkFromFile()).Times(m_type == TestLoadType::EModelName ? 1 : 0);
+        // EXPECT_CALL(*mockPlugin, OnLoadNetworkFromFile()).Times(m_type == TestLoadType::EModelName ? 1 : 0);
         EXPECT_CALL(*mockPlugin, ImportNetwork(_, _, _)).Times(0);
         EXPECT_CALL(*mockPlugin, ImportNetwork(_, _)).Times(0);
         m_post_mock_net_callbacks.emplace_back([&](MockExecutableNetwork& net) {
@@ -816,7 +816,7 @@ TEST_P(CachingTest, TestNoCacheMetricSupported) {
     {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 1 : 0);
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(!m_remoteContext ? 1 : 0);
-        EXPECT_CALL(*mockPlugin, OnLoadNetworkFromFile()).Times(m_type == TestLoadType::EModelName ? 1 : 0);
+        // EXPECT_CALL(*mockPlugin, OnLoadNetworkFromFile()).Times(m_type == TestLoadType::EModelName ? 1 : 0);
         EXPECT_CALL(*mockPlugin, ImportNetwork(_, _, _)).Times(0);
         EXPECT_CALL(*mockPlugin, ImportNetwork(_, _)).Times(0);
         m_post_mock_net_callbacks.emplace_back([&](MockExecutableNetwork& net) {
@@ -844,7 +844,7 @@ TEST_P(CachingTest, TestNoCacheMetricSupported_by_device_name) {
     {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 1 : 0);
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(!m_remoteContext ? 1 : 0);
-        EXPECT_CALL(*mockPlugin, OnLoadNetworkFromFile()).Times(m_type == TestLoadType::EModelName ? 1 : 0);
+        // EXPECT_CALL(*mockPlugin, OnLoadNetworkFromFile()).Times(m_type == TestLoadType::EModelName ? 1 : 0);
         EXPECT_CALL(*mockPlugin, ImportNetwork(_, _, _)).Times(0);
         EXPECT_CALL(*mockPlugin, ImportNetwork(_, _)).Times(0);
         m_post_mock_net_callbacks.emplace_back([&](MockExecutableNetwork& net) {
@@ -876,7 +876,7 @@ TEST_P(CachingTest, TestNoCacheMetric_hasCacheDirConfig) {
     {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 1 : 0);
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(!m_remoteContext ? 1 : 0);
-        EXPECT_CALL(*mockPlugin, OnLoadNetworkFromFile()).Times(m_type == TestLoadType::EModelName ? 1 : 0);
+        // EXPECT_CALL(*mockPlugin, OnLoadNetworkFromFile()).Times(m_type == TestLoadType::EModelName ? 1 : 0);
         ASSERT_NO_THROW(testLoad([&](Core& ie) {
             ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
             m_testFunction(ie);
@@ -902,7 +902,7 @@ TEST_P(CachingTest, TestNoCacheMetric_hasCacheDirConfig_inline) {
     {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 1 : 0);
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(!m_remoteContext ? 1 : 0);
-        EXPECT_CALL(*mockPlugin, OnLoadNetworkFromFile()).Times(m_type == TestLoadType::EModelName ? 1 : 0);
+        // EXPECT_CALL(*mockPlugin, OnLoadNetworkFromFile()).Times(m_type == TestLoadType::EModelName ? 1 : 0);
         ASSERT_NO_THROW(testLoad([&](Core& ie) {
             m_testFunctionWithCfg(ie, {{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
         }));
@@ -933,7 +933,7 @@ TEST_P(CachingTest, TestNoCacheMetric_hasCacheDirConfig_by_device_name) {
     {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 1 : 0);
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(!m_remoteContext ? 1 : 0);
-        EXPECT_CALL(*mockPlugin, OnLoadNetworkFromFile()).Times(m_type == TestLoadType::EModelName ? 1 : 0);
+        // EXPECT_CALL(*mockPlugin, OnLoadNetworkFromFile()).Times(m_type == TestLoadType::EModelName ? 1 : 0);
         ASSERT_NO_THROW(testLoad([&](Core& ie) {
             ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}}, "mock");
             m_testFunction(ie);
@@ -960,7 +960,7 @@ TEST_P(CachingTest, TestCacheEnabled_noConfig) {
     {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 1 : 0);
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(!m_remoteContext ? 1 : 0);
-        EXPECT_CALL(*mockPlugin, OnLoadNetworkFromFile()).Times(m_type == TestLoadType::EModelName ? 1 : 0);
+        // EXPECT_CALL(*mockPlugin, OnLoadNetworkFromFile()).Times(m_type == TestLoadType::EModelName ? 1 : 0);
         testLoad([&](Core& ie) {
             ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
             m_testFunction(ie);
@@ -1159,7 +1159,7 @@ TEST_P(CachingTest, TestLoadChangeCacheDirOneCore_SupportsCacheDir_NoImportExpor
     {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 2 : 0);
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(!m_remoteContext ? 2 : 0);
-        EXPECT_CALL(*mockPlugin, OnLoadNetworkFromFile()).Times(m_type == TestLoadType::EModelName ? 2 : 0);
+        // EXPECT_CALL(*mockPlugin, OnLoadNetworkFromFile()).Times(m_type == TestLoadType::EModelName ? 2 : 0);
         EXPECT_CALL(*mockPlugin, ImportNetwork(_, _, _)).Times(0);
         EXPECT_CALL(*mockPlugin, ImportNetwork(_, _)).Times(0);
         m_post_mock_net_callbacks.emplace_back([&](MockExecutableNetwork& net) {
@@ -1239,7 +1239,7 @@ TEST_P(CachingTest, TestLoadChangeCacheDirOneCore_by_device_name_supports_cache_
     {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 2 : 0);
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(!m_remoteContext ? 2 : 0);
-        EXPECT_CALL(*mockPlugin, OnLoadNetworkFromFile()).Times(m_type == TestLoadType::EModelName ? 2 : 0);
+        // EXPECT_CALL(*mockPlugin, OnLoadNetworkFromFile()).Times(m_type == TestLoadType::EModelName ? 2 : 0);
         EXPECT_CALL(*mockPlugin, ImportNetwork(_, _, _)).Times(0);
         EXPECT_CALL(*mockPlugin, ImportNetwork(_, _)).Times(0);
         testLoad([&](Core& ie) {
@@ -2090,7 +2090,7 @@ TEST_P(CachingTest, LoadAUTO_OneDeviceNoImportExport) {
     }
     EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 2 : 0);
     EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(!m_remoteContext ? 2 : 0);
-    EXPECT_CALL(*mockPlugin, OnLoadNetworkFromFile()).Times(m_type == TestLoadType::EModelName ? 2 : 0);
+    // EXPECT_CALL(*mockPlugin, OnLoadNetworkFromFile()).Times(m_type == TestLoadType::EModelName ? 2 : 0);
     EXPECT_CALL(*mockPlugin, ImportNetwork(_, _, _)).Times(0);
     EXPECT_CALL(*mockPlugin, ImportNetwork(_, _)).Times(0);
     testLoad([&](Core& ie) {
@@ -2215,7 +2215,7 @@ TEST_P(CachingTest, LoadMulti_Archs) {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(0);
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(TEST_DEVICE_MAX_COUNT / 2);
         // Load network from file shall not be called for plugins with caching supported
-        EXPECT_CALL(*mockPlugin, OnLoadNetworkFromFile()).Times(0);
+        // EXPECT_CALL(*mockPlugin, OnLoadNetworkFromFile()).Times(0);
 
         EXPECT_CALL(*mockPlugin, ImportNetwork(_, _, _)).Times(0);
         EXPECT_CALL(*mockPlugin, ImportNetwork(_, _))
@@ -2276,7 +2276,7 @@ TEST_P(CachingTest, LoadMulti_NoCachingOnDevice) {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(0);
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(TEST_DEVICE_MAX_COUNT);
         // Load network from file shall not be called by Multi plugin for devices with caching supported
-        EXPECT_CALL(*mockPlugin, OnLoadNetworkFromFile()).Times(0);
+        // EXPECT_CALL(*mockPlugin, OnLoadNetworkFromFile()).Times(0);
 
         EXPECT_CALL(*mockPlugin, ImportNetwork(_, _, _)).Times(0);
         EXPECT_CALL(*mockPlugin, ImportNetwork(_, _)).Times(0);
