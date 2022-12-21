@@ -126,12 +126,11 @@ class CommonTFLayerTest(CommonLayerTest):
         return tf_result
 
     def get_framework_results(self, inputs_dict, model_path):
-        # prepare inputs
-        input = self.prepare_tf_inputs(inputs_dict)
-
         if not getattr(self, 'tflite', False):
+            # prepare inputs
+            inputs_dict = self.prepare_tf_inputs(inputs_dict)
             # get results from tensorflow
-            return self.get_tf_results(input, model_path)
+            return self.get_tf_results(inputs_dict, model_path)
         else:
             # get results from tflite
-            return self.get_tflite_results(input, model_path)
+            return self.get_tflite_results(inputs_dict, model_path)
