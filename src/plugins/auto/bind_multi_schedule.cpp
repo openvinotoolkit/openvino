@@ -30,7 +30,6 @@ Pipeline BinderMultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, Wor
                     auto r = b->as<IE::RemoteBlob>();
                     if (r) {
                         const auto name = r->getDeviceName();
-                        std::cout << "==remote blob is not null, device name:" << name << "==" << std::endl;
                         const auto res = std::find_if(
                             _multiSContext->_devicePrioritiesInitial.cbegin(),
                             _multiSContext->_devicePrioritiesInitial.cend(),
@@ -61,7 +60,6 @@ Pipeline BinderMultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, Wor
                 auto multiSyncInferRequest = std::dynamic_pointer_cast<MultiDeviceInferRequest>(syncInferRequest);
                 multiSyncInferRequest->SetBlobsToAnotherRequest(_thisWorkerInferRequest->_inferRequest);
                 INFO_RUN([workerInferRequest]() {
-                    std::cout << "==remote blob Stage startTime==" << std::endl;
                     (*workerInferRequest)->_startTimes.push_back(std::move(std::chrono::steady_clock::now()));
                 });
             }},
@@ -78,7 +76,6 @@ Pipeline BinderMultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, Wor
                         (*workerInferRequest)->_inferRequest;
                 }
                 INFO_RUN([workerInferRequest]() {
-                    std::cout << "==remote blob Stage endTime==" << std::endl;
                    (*workerInferRequest)->_endTimes.push_back(std::move(std::chrono::steady_clock::now()));
                 });
             }}
@@ -194,7 +191,6 @@ IInferPtr BinderMultiSchedule::CreateInferRequestImpl(IE::InputsDataMap networkI
                     " please use optimal infer request";
     }
     auto syncImpl = std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with);
-    std::cout << "==call BinderMultiSchedule::CreateInferRequestImpl()==" << std::endl;
     return syncImpl;
 }
 
