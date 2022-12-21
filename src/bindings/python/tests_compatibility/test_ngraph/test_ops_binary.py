@@ -80,7 +80,6 @@ def test_binary_logical_op(ng_api_helper):
     parameter_b = ng.parameter(shape, name="B", dtype=np.bool)
 
     model = ng_api_helper(parameter_a, parameter_b)
-
     assert model.get_output_size() == 1
     assert list(model.get_output_shape(0)) == [2, 2]
     assert model.get_output_element_type(0) == Type.boolean
