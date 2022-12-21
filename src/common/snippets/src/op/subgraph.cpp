@@ -419,6 +419,8 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
     manager.register_pass<snippets::pass::ConvertPowerToPowerStatic>();
     manager.register_pass<snippets::pass::InsertLoad>(count);
     manager.register_pass<snippets::pass::InsertStore>(count);
+    // After transformations above MemoryAccess operations won't be changed (not removed or added) except for [Load + MoveBroadcast = LoadBroadcast]
+    // so we can calculate offsets for each Buffer in body and propagate them to the corresponding MemoryAccess nodes
     manager.register_pass<snippets::pass::PropagateBufferOffset>();
     // todo: presently dynamic pipeline is activated even if the last two dimension are static
     //  In general, we can use static kernels in this case, but several parameters (src and dst memory pointers for example)
