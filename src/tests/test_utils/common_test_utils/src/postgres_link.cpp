@@ -21,6 +21,18 @@
 #undef PGQL_DEBUG
 static const char* PGQL_ENV_CONN_NAME = "OV_POSTGRES_CONN";    // Environment variable with connection settings
 static const char* PGQL_ENV_SESS_NAME = "OV_TEST_SESSION_ID";  // Environment variable identifies current session
+static const char* PGQL_ENV_RLVL_NAME = "OV_TEST_REPORT_LVL";  // Environment variable identifies reporting
+                                                               // level: default ("", empty), "fast", "suite"
+
+typedef enum {
+    /// \brief Most careful reporting, but slowest
+    REPORT_LVL_DEFAULT = 0,
+    /// \brief Reports less information about each test case and accumulates it in joined query which will
+    ///        be executed on TestSuiteEnd
+    REPORT_LVL_FAST,
+    /// \brief Reports only suite states, no detailed info about test cases will be available
+    REPORT_LVL_SUITES_ONLY
+} PostgreSQLReportingLevel;
 
 #if !defined(_WIN32) && !defined(__APPLE__)
 #    ifndef __USE_POSIX
@@ -261,8 +273,6 @@ public:
         return this->activeConnection;
     }
     ~PostgreSQLConnection();
-
-    friend std::unique_ptr<PostgreSQLConnection>;
 };
 
 static std::shared_ptr<PostgreSQLConnection> connection(nullptr);
@@ -279,6 +289,7 @@ PostgreSQLConnection::~PostgreSQLConnection() {
         this->activeConnection = nullptr;
         this->isConnected = false;
     }
+    modLibPQ.reset();
 }
 
 /// \brief Initialization of exact object. Uses environment variable PGQL_ENV_CONN_NAME for making a connection.
@@ -565,6 +576,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
 
     const char* session_id = nullptr;
     bool isPostgresEnabled = false;
+    PostgreSQLReportingLevel reportingLevel = REPORT_LVL_DEFAULT;
 
     /* Dynamic information about current session*/
     uint64_t sessionId = 0;
@@ -577,6 +589,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
     uint64_t testId = 0;
     uint64_t testRunId = 0;
     std::map<std::string, std::string> testCustomFields;
+    std::stringstream joinedQuery;
 
     // Unused event handlers, kept here for possible use in the future
     /*
@@ -595,7 +608,8 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
                       appId,
                       app_id)
     GET_PG_IDENTIFIER(RequestRunId(void),
-                      "SELECT GET_RUN(" << this->testRunId << ", " << this->appId << ", " << this->sessionId << ")",
+                      "SELECT GET_RUN(" << this->testRunId << ", " << this->appId << ", " << this->sessionId << ", "
+                                        << static_cast<uint16_t>(this->reportingLevel) << "::smallint)",
                       testRunId,
                       run_id)
     GET_PG_IDENTIFIER(RequestHostId(void),
@@ -619,10 +633,16 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
             return;
 
         std::stringstream sstr;
-        sstr << "INSERT INTO suite_results (sr_id, session_id, suite_id) VALUES (DEFAULT, " << this->sessionId << ", "
-             << this->testSuiteNameId << ") RETURNING sr_id";
+        sstr << "INSERT INTO suite_results (sr_id, session_id, run_id, suite_id) VALUES (DEFAULT, " << this->sessionId
+             << ", " << this->testRunId << ", " << this->testSuiteNameId << ") RETURNING sr_id";
         if (!RequestSuiteId(sstr.str()))
             return;
+
+        // Cleanup accumulator for quieries
+        if (reportingLevel == REPORT_LVL_FAST) {
+            joinedQuery.str("");
+            joinedQuery.clear();
+        }
     }
 
 //  Legacy API is deprecated but still available
@@ -638,8 +658,18 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
             !this->testSuiteId)
             return;
 
+        if (reportingLevel == REPORT_LVL_SUITES_ONLY) {
+            // Do not report per-case results
+            return;
+        }
+
         std::stringstream sstr;
-        sstr << "SELECT GET_TEST_NAME(" << this->testSuiteNameId << ", '" << test_info.name() << "'";
+        if (reportingLevel == REPORT_LVL_DEFAULT) {
+            sstr << "SELECT GET_TEST_NAME(" << this->testSuiteNameId << ", '" << test_info.name() << "'";
+        } else if (reportingLevel == REPORT_LVL_FAST) {
+            sstr << "CALL ADD_TEST_RESULT(" << this->appId << ", " << this->sessionId << ", " << this->testRunId << ", "
+                 << this->testSuiteNameId << ", '" << test_info.name() << "'";
+        }
         /*
             This part might be specific for different tests. In case amount of cases will be greater than, for example,
            2 the code should be refactored to use a map on test-dependent functions/methods.
@@ -696,16 +726,27 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
                               << testDescription;
                 }
             }
+        } else {
+            sstr << ", NULL";
         }
-        sstr << ")";
+        if (reportingLevel == REPORT_LVL_DEFAULT) {
+            sstr << ")";
+        } else if (reportingLevel == REPORT_LVL_FAST) {
+            joinedQuery << sstr.str();
+            // This will allow to pass checks later, but this values isn't expected to see in real
+            this->testNameId = ~0;
+            this->testId = ~0;
+            return;
+        }
 
         if (!RequestTestNameId(sstr.str()))
             return;
 
         sstr.str("");
         sstr.clear();
-        sstr << "INSERT INTO test_results (tr_id, session_id, suite_id, test_id) VALUES (DEFAULT, " << this->sessionId
-             << ", " << this->testSuiteId << ", " << this->testNameId << ") RETURNING tr_id";
+        sstr << "INSERT INTO test_results (tr_id, session_id, suite_id, run_id, test_id) VALUES (DEFAULT, "
+             << this->sessionId << ", " << this->testSuiteId << ", " << this->testRunId << ", " << this->testNameId
+             << ") RETURNING tr_id";
 
         if (!RequestTestId(sstr.str()))
             return;
@@ -724,16 +765,26 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
             !this->testSuiteId || !this->testNameId || !this->testId)
             return;
 
-        std::stringstream sstr;
+        if (reportingLevel == REPORT_LVL_SUITES_ONLY) {
+            return;
+        }
+
         uint32_t testResult = 0;
         if (test_info.result()->Passed())
             testResult = 1;
         else if (test_info.result()->Skipped())
             testResult = 2;
-        sstr << "UPDATE test_results SET finished_at=NOW(), duration=" << test_info.result()->elapsed_time()
-             << ", test_result=" << testResult << " WHERE tr_id=" << this->testId;
-        auto pgresult = connectionKeeper->Query(sstr.str().c_str(), PGRES_COMMAND_OK);
-        CHECK_PGRESULT(pgresult, "Cannot update test results", return );
+
+        if (reportingLevel == REPORT_LVL_DEFAULT) {
+            std::stringstream sstr;
+            sstr << "UPDATE test_results SET finished_at=NOW(), duration=" << test_info.result()->elapsed_time()
+                 << ", test_result=" << testResult << " WHERE tr_id=" << this->testId;
+            auto pgresult = connectionKeeper->Query(sstr.str().c_str(), PGRES_COMMAND_OK);
+            CHECK_PGRESULT(pgresult, "Cannot update test results", return );
+        } else if (reportingLevel == REPORT_LVL_FAST) {
+            joinedQuery << ", " << testResult << "::smallint, " << test_info.result()->elapsed_time() << ");\n";
+        }
+
         this->testId = 0;
     }
 
@@ -744,10 +795,20 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
 
         std::stringstream sstr;
         sstr << "UPDATE suite_results SET finished_at=NOW(), duration=" << test_suite.elapsed_time()
-             << ", suite_result=" << (test_suite.Passed() ? 1 : 0) << " WHERE sr_id=" << this->testSuiteId;
+             << ", suite_result=" << (test_suite.Passed() ? 1 : 0)
+             << ", successful_count=" << test_suite.successful_test_count()
+             << ", skipped_count=" << test_suite.skipped_test_count()
+             << ", failed_count=" << test_suite.failed_test_count()
+             << ", disabled_count=" << test_suite.disabled_test_count()
+             << ", total_count=" << test_suite.total_test_count() << " WHERE sr_id=" << this->testSuiteId;
         auto pgresult = connectionKeeper->Query(sstr.str().c_str(), PGRES_COMMAND_OK);
         CHECK_PGRESULT(pgresult, "Cannot update test suite results", return );
         this->testSuiteId = 0;
+
+        if (reportingLevel == REPORT_LVL_FAST) {
+            pgresult = connectionKeeper->Query(joinedQuery.str().c_str(), PGRES_COMMAND_OK);
+            CHECK_PGRESULT(pgresult, "Cannot update test cases results", return );
+        }
     }
 #ifndef GTEST_REMOVE_LEGACY_TEST_CASEAPI_
     void OnTestCaseEnd(const ::testing::TestCase& test_case) override {
@@ -761,6 +822,21 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
         this->session_id = std::getenv(PGQL_ENV_SESS_NAME);
         if (this->session_id != nullptr) {
             isPostgresEnabled = false;
+
+            char* env_report_lvl = std::getenv(PGQL_ENV_RLVL_NAME);
+            if (env_report_lvl == nullptr) {
+                reportingLevel = REPORT_LVL_DEFAULT;
+                std::cerr << PG_INF << "Default reporting level is using\n";
+            } else if (strcmp(env_report_lvl, "fast") == 0) {
+                reportingLevel = REPORT_LVL_FAST;
+                std::cerr << PG_INF << "Fast reporting level is using\n";
+            } else if (strcmp(env_report_lvl, "suite") == 0) {
+                reportingLevel = REPORT_LVL_SUITES_ONLY;
+                std::cerr << PG_INF << "Suites-only reporting level is using\n";
+            } else {
+                reportingLevel = REPORT_LVL_DEFAULT;
+                std::cerr << PG_WRN << "Wrong reporting level is passed, default reporting level is using\n";
+            }
 
             std::cerr << PG_INF << "Test session ID has been found\n";
             connectionKeeper = PostgreSQLConnection::GetInstance();
