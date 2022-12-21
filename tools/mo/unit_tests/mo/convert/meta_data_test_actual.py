@@ -6,7 +6,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from generator import generator
 from openvino.runtime import get_version as get_rt_version
 from openvino.runtime import serialize
 
@@ -15,7 +14,6 @@ from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_i
 from openvino.tools.mo.utils.version import get_version
 
 
-@generator
 class MetaDataTestTF(unittest.TestCase):
     test_directory = os.path.dirname(os.path.realpath(__file__))
 
@@ -78,8 +76,8 @@ class MetaDataTestTF(unittest.TestCase):
 
             from openvino.runtime import Core
             core = Core()
-            serialized_model = core.read_model(out_xml)
-            self.check_meta_data(serialized_model, ref_meta)
+            deserialized_model = core.read_model(out_xml)
+            self.check_meta_data(deserialized_model, ref_meta)
 
             restored_graph, meta_data = restore_graph_from_ir(out_xml, out_xml.replace('.xml', '.bin'))
             save_restored_graph(restored_graph, tmpdir, meta_data, "mo_ir_reader_test_model")

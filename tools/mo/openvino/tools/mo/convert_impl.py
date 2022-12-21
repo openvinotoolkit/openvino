@@ -754,21 +754,32 @@ def args_dict_to_list(cli_parser, **kwargs):
 
 
 def pack_params_to_args_namespace(**kwargs):
+    # This method converts dictionary of params from convert_model() to argparse.Namespace object,
+    # checks that parameters are known and creates list of non-default params for serialization in IR
+
+    # create MO cli parser
     fe_manager = FrontEndManager()
     cli_parser = get_all_cli_parser(fe_manager)
+
+    # parse params from convert_model(), the result is argparse.Namespace object
     argv = cli_parser.parse_args(args_dict_to_list(cli_parser, **kwargs))
 
+    # get list of all available params for convert_model()
     all_params = {}
     for key, value in mo_convert_params.items():
         all_params.update(value)
 
+    # check that there are no unknown params provided
     for key, value in kwargs.items():
         if key not in argv and key not in all_params.keys():
             raise Error("Unrecognized argument: {}".format(key))
         if value is not None:
             setattr(argv, key, value)
+
+    # send telemetry with params info
     send_params_info(argv, cli_parser)
 
+    # make dictionary with parameters which have non-default values to be serialized in IR in rt_info
     non_default_params = {}
     for arg in vars(argv):
         arg_value = getattr(argv, arg)
