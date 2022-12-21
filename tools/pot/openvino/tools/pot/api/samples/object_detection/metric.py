@@ -59,8 +59,8 @@ class MAP(Metric):
         npig = np.count_nonzero(gt_ignored == 0)
         tps = np.logical_and(dtm, np.logical_not(dt_ignored))
         fps = np.logical_and(np.logical_not(dtm), np.logical_not(dt_ignored))
-        tp_sum = np.cumsum(tps, axis=1).astype(dtype=np.float)
-        fp_sum = np.cumsum(fps, axis=1).astype(dtype=np.float)
+        tp_sum = np.cumsum(tps, axis=1).astype(dtype=float)
+        fp_sum = np.cumsum(fps, axis=1).astype(dtype=float)
         if npig == 0:
             return np.nan, np.nan
         for t, (tp, fp) in enumerate(zip(tp_sum, fp_sum)):

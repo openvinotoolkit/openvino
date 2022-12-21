@@ -89,7 +89,7 @@ class TestIdentity(OnnxRuntimeLayerTest):
         from onnx import helper
         from onnx import TensorProto
 
-        constant = np.random.randint(-127, 127, shape).astype(np.float)
+        constant = np.random.randint(-127, 127, shape).astype(float)
 
         concat_axis = 0
         output_shape = shape.copy()
