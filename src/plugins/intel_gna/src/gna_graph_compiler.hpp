@@ -80,8 +80,6 @@ public:
         const uint32_t windowH, const uint32_t windowW,
         const uint32_t strideH, const uint32_t strideW) const;
 
-    bool IsCnn2DInputPaddingSupported(const std::string& name) const;
-
     void SetValidatorTarget(const std::string& target);
 
     /**
