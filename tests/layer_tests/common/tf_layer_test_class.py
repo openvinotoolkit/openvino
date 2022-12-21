@@ -68,32 +68,60 @@ class CommonTFLayerTest(CommonLayerTest):
         # Evaluate model via Tensorflow and IE
         # Load the Tensorflow model
         import tensorflow as tf
-        from tensorflow.python.platform import gfile
 
-        graph_summary = summarize_graph(model_path=model_path)
-        outputs_list = graph_summary["outputs"]
+        if not getattr(self, 'tflite', False):
+            # get results from tensorflow
+            from tensorflow.python.platform import gfile
 
-        tf.compat.v1.reset_default_graph()
+            graph_summary = summarize_graph(model_path=model_path)
+            outputs_list = graph_summary["outputs"]
 
-        with tf.compat.v1.Session() as sess:
-            with gfile.FastGFile(model_path, 'rb') as f:
-                graph_def = tf.compat.v1.GraphDef()
-                graph_def.ParseFromString(f.read())
-                sess.graph.as_default()
-                tf.compat.v1.import_graph_def(graph_def, name='')
+            tf.compat.v1.reset_default_graph()
 
-                input = dict()
-                for key in inputs_dict.keys():
-                    data = inputs_dict.get(key)
-                    if self.use_old_api or self.use_new_frontend:
-                        key += ':0'
-                    input[key] = transpose_nchw_to_nhwc(data, self.use_new_frontend, self.use_old_api)
+            with tf.compat.v1.Session() as sess:
+                with gfile.FastGFile(model_path, 'rb') as f:
+                    graph_def = tf.compat.v1.GraphDef()
+                    graph_def.ParseFromString(f.read())
+                    sess.graph.as_default()
+                    tf.compat.v1.import_graph_def(graph_def, name='')
 
-                tf_res = sess.run([out + ":0" for out in outputs_list], input)
+                    input = dict()
+                    for key in inputs_dict.keys():
+                        data = inputs_dict.get(key)
+                        if self.use_old_api or self.use_new_frontend:
+                            key += ':0'
+                        input[key] = transpose_nchw_to_nhwc(data, self.use_new_frontend, self.use_old_api)
 
-                result = dict()
-                for i, output in enumerate(outputs_list):
-                    _tf_res = tf_res[i]
-                    result[output] = transpose_nhwc_to_nchw(_tf_res, self.use_new_frontend,
-                                                            self.use_old_api)
-                return result
+                    tf_res = sess.run([out + ":0" for out in outputs_list], input)
+
+                    result = dict()
+                    for i, output in enumerate(outputs_list):
+                        _tf_res = tf_res[i]
+                        result[output] = transpose_nhwc_to_nchw(_tf_res, self.use_new_frontend,
+                                                                self.use_old_api)
+                    return result
+        else:
+            # get results from tflite
+            interpreter = tf.compat.v1.lite.Interpreter(model_path=str(model_path))
+            interpreter.allocate_tensors()
+            input_details = interpreter.get_input_details()
+            output_details = interpreter.get_output_details()
+
+            input_name_to_id_mapping = {input['name']: input['index'] for input in input_details}
+
+            # part to remove
+            for k in inputs_dict.keys():
+                inputs_dict[k] = inputs_dict[k].astype('float32')
+            # end of part to remove
+
+            for layer, data in inputs_dict.items():
+                tensor_index = input_name_to_id_mapping[layer]
+                tensor_id = next(i for i, tensor in enumerate(input_details) if tensor['index'] == tensor_index)
+                interpreter.set_tensor(input_details[tensor_id]['index'], data)
+
+            interpreter.invoke()
+            result = dict()
+            for output in output_details:
+                result[output['name']] = interpreter.get_tensor(output['index'])
+
+            return result
