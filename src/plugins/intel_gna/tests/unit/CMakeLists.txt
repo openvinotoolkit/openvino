@@ -12,11 +12,6 @@ if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 endif()
 
-# TODO: fix CVS-71010 and remove BUILD_SHARED_LIBS
-if(NOT BUILD_SHARED_LIBS)
-    set(exclude_path EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/(gna_api_stub|gna_wait_test|gna_export_import_test|gna_infer_request_test|gna_plugin_load_network_test|gna_mock_api_initializer).cpp")
-endif()
-
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
