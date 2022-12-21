@@ -50,29 +50,27 @@ def test_unary_op_array(graph_api_fn, type_name):
     assert list(node.get_output_shape(0)) == [2, 3, 4]
 
 
-@pytest.mark.parametrize("graph_api_fn",
-    [
-        ov.absolute,
-        ov.abs,
-        ov.acos,
-        ov.asin,
-        ov.atan,
-        ov.ceiling,
-        ov.ceil,
-        ov.cos,
-        ov.cosh,
-        ov.exp,
-        ov.floor,
-        ov.log,
-        ov.relu,
-        ov.sign,
-        ov.sin,
-        ov.sinh,
-        ov.sqrt,
-        ov.tan,
-        ov.tanh,
-    ],
-)
+@pytest.mark.parametrize("graph_api_fn", [
+    ov.absolute,
+    ov.abs,
+    ov.acos,
+    ov.asin,
+    ov.atan,
+    ov.ceiling,
+    ov.ceil,
+    ov.cos,
+    ov.cosh,
+    ov.exp,
+    ov.floor,
+    ov.log,
+    ov.relu,
+    ov.sign,
+    ov.sin,
+    ov.sinh,
+    ov.sqrt,
+    ov.tan,
+    ov.tanh,
+])
 def test_unary_op_scalar(graph_api_fn):
     node = graph_api_fn(np.float32(-0.5))
 

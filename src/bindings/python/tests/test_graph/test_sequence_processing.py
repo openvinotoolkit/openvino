@@ -10,7 +10,7 @@ import openvino.runtime.opset8 as ov
 
 @pytest.mark.parametrize(("depth", "on_value", "off_value", "axis", "expected_shape"), [
     (2, 5, 10, -1, [3, 2]),
-    (3, 1, 0, 0, [3, 3])
+    (3, 1, 0, 0, [3, 3]),
 ])
 def test_one_hot(depth, on_value, off_value, axis, expected_shape):
     param = ov.parameter([3], dtype=np.int32)

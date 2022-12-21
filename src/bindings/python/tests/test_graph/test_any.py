@@ -6,15 +6,12 @@ from openvino.runtime import OVAny
 import pytest
 
 
-@pytest.mark.parametrize(
-    ("value", "data_type"),
-    [
-        ("test_string", str),
-        (2137, int),
-        (21.37, float),
-        (False, bool),
-    ]
-)
+@pytest.mark.parametrize(("value", "data_type"), [
+    ("test_string", str),
+    (2137, int),
+    (21.37, float),
+    (False, bool),
+])
 def test_any(value, data_type):
     ovany = OVAny(value)
     assert isinstance(ovany.value, data_type)
@@ -22,14 +19,11 @@ def test_any(value, data_type):
     assert ovany.get() == value
 
 
-@pytest.mark.parametrize(
-    ("values", "data_type"),
-    [
-        (["test", "string"], str),
-        ([21, 37], int),
-        ([21.0, 37.0], float),
-    ]
-)
+@pytest.mark.parametrize(("values", "data_type"), [
+    (["test", "string"], str),
+    ([21, 37], int),
+    ([21.0, 37.0], float),
+])
 def test_any_list(values, data_type):
     ovany = OVAny(values)
     assert isinstance(ovany.value, list)
@@ -39,14 +33,11 @@ def test_any_list(values, data_type):
     assert ovany.get() == values
 
 
-@pytest.mark.parametrize(
-    ("value_dict", "data_type"),
-    [
-        ({"key": "value"}, str),
-        ({21: 37}, int),
-        ({21.0: 37.0}, float),
-    ]
-)
+@pytest.mark.parametrize(("value_dict", "data_type"), [
+    ({"key": "value"}, str),
+    ({21: 37}, int),
+    ({21.0: 37.0}, float),
+])
 def test_any_dict(value_dict, data_type):
     ovany = OVAny(value_dict)
     key = list(value_dict.keys())[0]

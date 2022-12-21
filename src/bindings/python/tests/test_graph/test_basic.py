@@ -104,7 +104,7 @@ def test_simple_model_on_parameters(dtype):
         ((3,), np.int32, [3, 3], [], []),
         ((4,), np.float32, [3, 4, 2, 4], [], []),
         ((3,), np.int8, [3, 3], [[0]], ["EXPLICIT"]),
-    ]
+    ],
 )
 def test_broadcast(input_shape, dtype, new_shape, axis_mapping, mode):
     input_data = ops.parameter(input_shape, name="input_data", dtype=dtype)

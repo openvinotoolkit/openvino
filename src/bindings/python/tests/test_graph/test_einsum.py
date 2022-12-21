@@ -10,7 +10,7 @@ from openvino.runtime.utils.types import get_element_type
 
 
 def einsum_op_check(input_shapes: list, equation: str, data_type: np.dtype,
-                   seed=202104):
+                    seed=202104):
     """Test Einsum operation for given input shapes, equation, and data type.
 
     It generates input data of given shapes and type, receives reference results using numpy,
