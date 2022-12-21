@@ -116,7 +116,6 @@ OpenVINO™ 运行时有三种主要转换类型：
 > **NOTE**: `copy_runtime_info` 从目标节点中删除 rt_info。如果想要保留，则需要在源节点中指定，如下所示： `copy_runtime_info({a, b, c}, {a, b})`
 
 ### 3.常量折叠
-latest
 如果转换插入了需要折叠的常量子图，不要忘记在转换后使用 `ov::pass::ConstantFolding()` 或者直接调用常量折叠进行操作。
 下例显示了如何构建常量子图。
 

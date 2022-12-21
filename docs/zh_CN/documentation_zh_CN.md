@@ -7,6 +7,8 @@
    :caption: 转换和准备模型
    :hidden:
 
+   openvino_docs_model_processing_introduction_zh_CN
+   Supported_Model_Formats_zh_CN
    openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide_zh_CN
 
 
@@ -17,6 +19,7 @@
 
    openvino_docs_OV_UG_OV_Runtime_User_Guide_zh_CN
    openvino_2_0_transition_guide_zh_CN
+   openvino_docs_deployment_guide_introduction_zh_CN
    openvino_deployment_guide_zh_CN
    openvino_inference_engine_tools_compile_tool_README_zh_CN
 
@@ -55,7 +58,9 @@
    :caption: 插件
    :hidden:
 
+   openvino_ecosystem_zh_CN
    ovms_what_is_openvino_model_server_zh_CN
+   ovtf_integration_zh_CN
    ote_documentation_zh_CN
    ovsa_get_started_zh_CN
 

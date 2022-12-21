@@ -292,8 +292,8 @@ GPU 插件具有以下附加预处理选项：
 ## GPU 性能清单：摘要<a name="gpu-checklist"></a>
 由于 OpenVINO™ 依赖 OpenCL 内核进行 GPU 实现。因此许多通用 OpenCL 提示都适用：
 - `FP16` 推理精度优于 `FP32`，因为模型优化器可以生成两个变体，并且 `FP32` 是默认值。此外，请考虑使用[训练后优化工具](https://docs.openvino.ai/2022.2/pot_introduction.html)。
-- 尝试使用[自动批处理](../../../OV_Runtime_UG/supported_plugins/automatic_batching.md)对各个推理作业进行分组。
-- 考虑[缓存](../../../OV_Runtime_UG/supported_plugins/Model_caching_overview.md)，以尽量减少模型加载时间。
+- 尝试使用[自动批处理](../../../OV_Runtime_UG/automatic_batching.md)对各个推理作业进行分组。
+- 考虑[缓存](../../../OV_Runtime_UG/Model_caching_overview.md)，以尽量减少模型加载时间。
 - 如果您的应用在 CPU 和 GPU 上执行推理，或者以其他方式重载主机，请确保 OpenCL 驱动程序线程不会停顿。[CPU 配置选项](./CPU_zh_CN.md)可以用于限制 CPU 插件的推理线程数量。
 - 即使仅在 GPU 上执行推理，GPU 驱动程序可能会占用 CPU 核心，并通过自旋循环轮询来完成。如果 CPU 负载是一个问题，请考虑前面提到的专用 `queue_throttle` 属性。请注意，此选项可能会增加推理延迟。因此请考虑将其与多个 GPU 流或[吞吐量性能提示](../performance_hints_zh_CN.md)结合使用。
 - 操作媒体输入时，请考虑 [GPU 插件的远程张量 API](../../../OV_Runtime_UG/supported_plugins/GPU_RemoteTensor_API.md)。

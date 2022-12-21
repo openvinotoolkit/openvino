@@ -1,4 +1,4 @@
-# 结合使用加密模型和 OpenVINO {#openvino_docs_OV_UG_protecting_model_guide_zh_CN}
+# 结合使用加密模型和 OpenVINO™ {#openvino_docs_OV_UG_protecting_model_guide_zh_CN}
 
 将深度学习功能部署到边缘设备可能会带来安全挑战，比如确保推理的完整性，或者为深度学习模型提供版权保护。
 
@@ -13,7 +13,7 @@ ONNX 和 PDPD 模型也可以通过 OpenVINO™ 运行时本机读取。
 
 在将模型部署到边缘设备之前可对其进行加密和优化，以用于保护深度学习模型。边缘设备应始终保护存储的模型，并**仅在运行时**解密供 OpenVINO™ 运行时使用的模型。
 
-![deploy_encrypted_model](../../img/deploy_encrypted_model.svg)
+![deploy_encrypted_model](../../../OV_Runtime_UG/img/deploy_encrypted_model.svg)
 
 ## 加载加密模型
 
@@ -36,6 +36,6 @@ OpenVINO™ 运行时在加载之前需要进行模型解密。为模型解密�
 - 英特尔® 发行版 OpenVINO™ 工具套件[主页](https://software.intel.com/en-us/openvino-toolkit)。
 - 模型优化器[开发人员指南](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide_zh_CN.md)。
 - [OpenVINO™ 运行时用户指南](openvino_intro_zh_CN.md)。
-- 有关样本应用的更多信息，请参见 [OpenVINO™ 样本概述](../../Samples_Overview.md)
+- 有关样本应用的更多信息，请参见 [OpenVINO™ 样本概述](../../../Samples_Overview.md)
 - 如需获得有关一系列预训练模型的信息，请参见 [OpenVINO™ 工具套件预训练模型概述](@ref omz_models_group_intel)。
 - 如需了解物联网库和代码样本，请参见[英特尔® 物联网开发套件](https://github.com/intel-iot-devkit)。

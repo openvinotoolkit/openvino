@@ -8,6 +8,7 @@
    :maxdepth: 1
    :hidden:
 
+   openvino_docs_ov_ug_working_with_devices_zh_CN
    openvino_docs_OV_UG_DynamicShapes_zh_CN
    openvino_docs_OV_UG_Performance_Hints_zh_CN
    
@@ -20,6 +21,6 @@ OpenVINO™ 运行时使用插件架构。它的插件是软件组件，可完�
 下面的方案展示了部署经过训练的深度学习模型的典型工作流程：
 
 <!-- TODO: need to update the picture below with PDPD files -->
-![](../../../img/BASIC_FLOW_IE_C.svg)
+![](../../img/BASIC_FLOW_IE_C.svg)
 
 
