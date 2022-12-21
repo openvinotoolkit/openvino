@@ -50,7 +50,7 @@ API 2.0 还支持向后兼容 OpenVINO™ IR v10 模型。如果您拥有 OpenVI
 
 > **NOTE**:  要量化 OpenVINO™ IR v10 模型以在 OpenVINO™ 2022.1 中运行，请下载并使用 OpenVINO™ 2021.4 的训练后优化工具。
 
-@anchor differences_api20_ie
+@anchor differences_api20_ie_zh_CN
 ### API 2.0 与推理引擎 API 的行为差异
 
 推理引擎和 nGraph API 不会因引入了新 API 而被弃用，用户仍可以在应用中使用这些 API。但是，仍强烈建议迁移到 API 2.0，因为它提供了更多功能（在未来版本中会进一步扩展），例如：
