@@ -289,19 +289,7 @@ struct PluginConfig {
     bool _isBatchConfigSet = false;
     std::map<std::string, std::string> _passThroughConfig;
     std::map<std::string, std::string> _keyConfigMap;
-    const std::set<std::string> _availableDevices = {"AUTO",
-                                                     "CPU",
-                                                     "GPU",
-                                                     "GNA",
-                                                     "TEMPLATE",
-                                                     "MYRIAD",
-                                                     "HDDL",
-                                                     "VPUX",
-                                                     "MULTI",
-                                                     "HETERO",
-                                                     "CUDA",
-                                                     "NVIDIA",
-                                                     "HPU_GOYA",
-                                                     "mock"};
+    const std::set<std::string> _availableDevices =
+        {"AUTO", "CPU", "GPU", "TEMPLATE", "MYRIAD", "VPUX", "MULTI", "HETERO", "mock"};
 };
 } // namespace MultiDevicePlugin
