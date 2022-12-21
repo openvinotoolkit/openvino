@@ -34,10 +34,11 @@ ov::pass::ConvertMVN1ToMVN6::ConvertMVN1ToMVN6() {
 
         const auto eps_d = mvn_node->get_eps();
         auto eps_f = static_cast<float>(eps_d);
-        if (eps_d > 0) {  // zero is fine; negative values have no sense
-            if (eps_d < std::nextafter(static_cast<double>(std::numeric_limits<float>::min()), 1.))
+        if (eps_d > 0.) {  // zero is fine; negative values have no sense
+            if (std::nextafter(eps_d, 0) < static_cast<double>(std::numeric_limits<float>::min()))
                 eps_f = std::numeric_limits<float>::min();
-            else if (eps_d > std::nextafter(static_cast<double>(std::numeric_limits<float>::max()), 0.))
+            else if (std::nextafter(eps_d, std::numeric_limits<double>::max()) >
+                     static_cast<double>(std::numeric_limits<float>::max()))
                 eps_f = std::numeric_limits<float>::max();
         }
 
