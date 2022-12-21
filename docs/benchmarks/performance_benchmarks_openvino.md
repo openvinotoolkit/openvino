@@ -7,7 +7,7 @@
 
    openvino_docs_performance_benchmarks_faq
    openvino_docs_performance_int8_vs_fp32
-   Performance Data Spreadsheet (download xlsx) <https://docs.openvino.ai/2022.2/_static/benchmarks_files/OV-2022.3-Performance-Data.xlsx>
+   Performance Data Spreadsheet (download xlsx) <https://docs.openvino.ai/2022.3/_static/benchmarks_files/OV-2022.3-Performance-Data.xlsx>
 
 @endsphinxdirective
 
@@ -68,10 +68,10 @@ Below are four parameters for measurements, which are key elements to consider f
     <p>For a listing of all platforms and configurations used for testing, refer to the following:</p>
     <container class="platform-configurations">
         <div>
-        <a href="https://docs.openvino.ai/nightly/_static/benchmarks_files/platform_list_22.3.pdf" target="_blank" class="pdf"><img src="_static/css/media/pdf-icon.svg"/>Hardware Platforms (PDF)</a>
+        <a href="https://docs.openvino.ai/2022.3/_static/benchmarks_files/platform_list_22.3.pdf" target="_blank" class="pdf"><img src="_static/css/media/pdf-icon.svg"/>Hardware Platforms (PDF)</a>
         </div>
         <div>
-        <a href="https://docs.openvino.ai/nightly/_static/benchmarks_files/OV-2022.3-system-info-detailed.xlsx" class="xls"><img src="_static/css/media/xls-icon.svg"/>Configuration Details (XLSX)</a>
+        <a href="https://docs.openvino.ai/2022.3/_static/benchmarks_files/OV-2022.3-system-info-detailed.xlsx" class="xls"><img src="_static/css/media/xls-icon.svg"/>Configuration Details (XLSX)</a>
         </div>
     </container>
 
