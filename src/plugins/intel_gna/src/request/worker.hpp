@@ -39,15 +39,14 @@ public:
 
     /**
      * @brief Enqueue request to requests queue for contained model.
-     * @throw Exception in case worker is busy or if there was an issue with enqueue.
+     * @return true in case subrequest was properly enqueued, otherwise return false
      */
-    virtual void enqueueRequest() = 0;
+    virtual bool enqueueRequest() = 0;
 
     /**
      * @brief Wait untril request will be not finished for give timeout.
      * @param timeoutMilliseconds timeout in milliseconds
      * @return status of execution of ongoing request. @see GNAPluginNS::RequestStatus
-     * @throw Exception in case worker is busy or if there was an issue with enqueue.
      */
     virtual RequestStatus wait(int64_t timeoutMilliseconds) = 0;
 

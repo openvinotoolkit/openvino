@@ -54,7 +54,7 @@ The table below lists the supported operating systems and Python versions.
 | Windows 10 Pro, Enterprise          | 3.7, 3.8, 3.9, 3.10            |
 | or Education editions               |                                |
 +-------------------------------------+--------------------------------+
-| Windows Server 2016 or higher       | 3.7, 3.8, 3.9                  |
+| Windows Server 2016 or higher       | 3.7, 3.8, 3.9, 3.10            |
 +-------------------------------------+--------------------------------+
 
 OpenVINO Notebooks also require Git. Follow the guide below for your 

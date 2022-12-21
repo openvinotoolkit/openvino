@@ -3010,6 +3010,9 @@ bool evaluate(const shared_ptr<op::v1::ConvertLike>& op,
     case element::Type_t::f32:
         convert_like_v1::evaluate<element::Type_t::f32, OUT_ET>(op, outputs, inputs);
         break;
+    case element::Type_t::f64:
+        convert_like_v1::evaluate<element::Type_t::f64, OUT_ET>(op, outputs, inputs);
+        break;
     default:
         return false;
     }

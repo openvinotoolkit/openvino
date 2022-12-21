@@ -17,11 +17,6 @@ op::v1::LogicalNot::LogicalNot(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v1::LogicalNot::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v1_LogicalNot_visit_attributes);
-    return true;
-}
-
 void op::v1::LogicalNot::validate_and_infer_types() {
     OV_OP_SCOPE(v1_LogicalNot_validate_and_infer_types);
     const auto& element_type = get_input_element_type(0);
@@ -69,7 +64,7 @@ bool evaluate_not(const HostTensorPtr& arg0, const HostTensorPtr& out, const siz
 bool op::v1::LogicalNot::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v1_LogicalNot_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
-    return notop::evaluate_not(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return notop::evaluate_not(inputs[0], outputs[0], inputs[0]->get_element_count());
 }
 
 bool op::v1::LogicalNot::has_evaluate() const {

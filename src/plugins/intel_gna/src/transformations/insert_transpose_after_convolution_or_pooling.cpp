@@ -96,13 +96,13 @@ bool InsertTransposeAfterConvOrPool::run_on_model(const std::shared_ptr<ngraph::
                                                                              transposeInShape);
         auto reshapeBefore = std::make_shared<ngraph::opset7::Reshape>(node, reshapeConstBefore, false);
         reshapeBefore->set_friendly_name(node->get_friendly_name() + "/reshape_out");
-        ngraph::copy_runtime_info(node, reshapeBefore);
+        ngraph::copy_runtime_info(node, {reshapeBefore, reshapeConstBefore});
 
         auto transpose_order = transposeInShape.size() == 3 ? ngraph::Shape{0, 2, 1} : ngraph::Shape{0, 3, 1, 2};
-        auto transpose = std::make_shared<ngraph::opset7::Transpose>(reshapeBefore,
-            ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{transpose_order.size()}, transpose_order));
+        auto transpose_order_const = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{transpose_order.size()}, transpose_order);
+        auto transpose = std::make_shared<ngraph::opset7::Transpose>(reshapeBefore, transpose_order_const);
         transpose->set_friendly_name(node->get_friendly_name() + "/transpose_out");
-        ngraph::copy_runtime_info(node, transpose);
+        ngraph::copy_runtime_info(node, {transpose, transpose_order_const});
 
         for (auto& input : consumers) {
             input.replace_source_output(transpose);
