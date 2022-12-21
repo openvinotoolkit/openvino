@@ -56,6 +56,7 @@ protected:
         if (primitive.empty())
             primitive = getPrimitiveType();
         // WA: I32 precision support disabled in snippets => primitive has to be changed
+        // TODO: remove the WA after I32 is supported in snippets (ticket: 99803)
         if (inPrc == InferenceEngine::Precision::I32 || outPrc == InferenceEngine::Precision::I32)
             primitive = "unknown";
 
