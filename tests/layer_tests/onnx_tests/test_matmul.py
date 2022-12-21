@@ -33,7 +33,7 @@ class TestMatMul(OnnxRuntimeLayerTest):
         extended_shape2 = np.concatenate([np.ones(max_len - len(shape2)), shape2], axis=0)
         output_shape = np.concatenate(
             [np.maximum(*[extended_shape1[0:-2], extended_shape2[0:-2]]), [shape1[-2], shape2[-1]]],
-            axis=0).astype(np.int).tolist()
+            axis=0).astype(int).tolist()
         input = helper.make_tensor_value_info('input', TensorProto.FLOAT, shape1)
         output = helper.make_tensor_value_info('output', TensorProto.FLOAT, output_shape)
 
@@ -107,7 +107,7 @@ class TestMatMul(OnnxRuntimeLayerTest):
         extended_shape2 = np.concatenate([np.ones(max_len - len(shape2)), shape2], axis=0)
         output_shape = np.concatenate(
             [np.maximum(*[extended_shape1[0:-2], extended_shape2[0:-2]]), [shape1[-2], shape2[-1]]],
-            axis=0).astype(np.int).tolist()
+            axis=0).astype(int).tolist()
         input1 = helper.make_tensor_value_info('input1', TensorProto.FLOAT, shape1)
         input2 = helper.make_tensor_value_info('input2', TensorProto.FLOAT, shape2)
         output = helper.make_tensor_value_info('output', TensorProto.FLOAT, output_shape)

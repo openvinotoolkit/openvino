@@ -35,7 +35,7 @@ struct argmax_gpu_test : public testing::Test {
         cldnn::mem_lock<input_type> out_ptr(mem, get_test_stream());
         for (uint32_t i = 0; i < out_size; i++) {
             float out_value = get_value<input_type>(out_ptr.data(), i);
-            EXPECT_EQ(out_value, i < (out_size / 2) ? 0 : 1);
+            ASSERT_EQ(out_value, i < (out_size / 2) ? 0 : 1);
         }
     }
 };
@@ -132,8 +132,8 @@ TEST(arg_max_gpu_min_axis_batch_bfzyx, i32) {
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "arg_max");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "arg_max");
     const int out_size = y_size * feature_num * x_size * top_k;
     auto output = outputs.at("arg_max").get_memory();
     cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
@@ -142,7 +142,7 @@ TEST(arg_max_gpu_min_axis_batch_bfzyx, i32) {
         out_buffer[i] = get_value<int32_t>(output_ptr.data(), i);
     }
     for (int i = 0; i < out_size; i++) {
-        EXPECT_EQ(out_buffer[i], i < (out_size / 2) ? 0 : 1);
+        ASSERT_EQ(out_buffer[i], i < (out_size / 2) ? 0 : 1);
     }
 }
 
@@ -199,8 +199,8 @@ TEST(arg_max_gpu_min_axis_y_yxfb, f32) {
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "arg_max");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "arg_max");
     const int out_size = y_size * feature_num * x_size * top_k;
     auto output = outputs.at("arg_max").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -209,7 +209,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb, f32) {
         out_buffer[i] = get_value<float>(output_ptr.data(), i);
     }
     for (int i = 0; i < out_size; i++) {
-        EXPECT_EQ(out_buffer[i], ref_vec[i]);
+        ASSERT_EQ(out_buffer[i], ref_vec[i]);
     }
 }
 
@@ -264,8 +264,8 @@ TEST(arg_max_gpu_min_axis_batch_yxfb, f32) {
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "arg_max");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "arg_max");
     const int out_size = y_size * feature_num * x_size * top_k;
     auto output = outputs.at("arg_max").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -274,7 +274,7 @@ TEST(arg_max_gpu_min_axis_batch_yxfb, f32) {
         out_buffer[i] = get_value<float>(output_ptr.data(), i);
     }
     for (int i = 0; i < out_size; i++) {
-        EXPECT_EQ(out_buffer[i], ref_vec[i]);
+        ASSERT_EQ(out_buffer[i], ref_vec[i]);
     }
 }
 
@@ -321,8 +321,8 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, f32) {
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "arg_max");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "arg_max");
     const int out_size = y_size * feature_num * x_size * top_k;
     auto output = outputs.at("arg_max").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -331,7 +331,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, f32) {
         out_buffer[i] = get_value<float>(output_ptr.data(), i);
     }
     for (int i = 0; i < out_size; i++) {
-        EXPECT_EQ(out_buffer[i], ref_vec[i]);
+        ASSERT_EQ(out_buffer[i], ref_vec[i]);
     }
 }
 
@@ -365,8 +365,8 @@ TEST(top_k_layer_tests, second_output) {
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "arg_max");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "arg_max");
     const int out_size = y_size * feature_num * x_size * top_k;
     auto output = outputs.at("arg_max").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -379,8 +379,8 @@ TEST(top_k_layer_tests, second_output) {
         second_out_buffer[i] = get_value<float>(second_output_ptr.data(), i);
     }
     for (int i = 0; i < out_size; i++) {
-        EXPECT_EQ(out_buffer[i], i < (out_size / 2) ? 0 : 1);
-        EXPECT_EQ(second_out_buffer[i], input_vec[i]);
+        ASSERT_EQ(out_buffer[i], i < (out_size / 2) ? 0 : 1);
+        ASSERT_EQ(second_out_buffer[i], input_vec[i]);
     }
 }
 
@@ -459,8 +459,8 @@ TEST(top_k_layer_tests, second_output2) {
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "arg_max");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "arg_max");
     const int out_size = y_size * feature_num * x_size * top_k;
     auto output = outputs.at("arg_max").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -472,8 +472,8 @@ TEST(top_k_layer_tests, second_output2) {
         second_out_buffer[i] = get_value<float>(second_output_ptr.data(), i);
     }
     for (int i = 0; i < out_size; i++) {
-        EXPECT_EQ(out_buffer[i], ref_vec[i]);
-        EXPECT_EQ(second_out_buffer[i], second_ref_vec[i]);
+        ASSERT_EQ(out_buffer[i], ref_vec[i]);
+        ASSERT_EQ(second_out_buffer[i], second_ref_vec[i]);
     }
 }
 
@@ -548,8 +548,8 @@ TEST(top_k_layer_tests, multiple_outputs) {
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "concat");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "concat");
     const int out_size = y_size * feature_num * x_size * top_k * 2;
     auto output = outputs.at("concat").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -559,7 +559,7 @@ TEST(top_k_layer_tests, multiple_outputs) {
         out_buffer[i] = get_value<float>(output_ptr.data(), i);
     }
     for (int i = 0; i < out_size; i++) {
-        EXPECT_EQ(out_buffer[i], ref_result[i]);
+        ASSERT_EQ(out_buffer[i], ref_result[i]);
     }
 }
 
@@ -606,8 +606,8 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_values) {
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "arg_max");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "arg_max");
     const int out_size = y_size * feature_num * x_size * top_k;
     auto output = outputs.at("arg_max").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -616,7 +616,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_values) {
         out_buffer[i] = get_value<float>(output_ptr.data(), i);
     }
     for (int i = 0; i < out_size; i++) {
-        EXPECT_EQ(out_buffer[i], ref_vec[i]);
+        ASSERT_EQ(out_buffer[i], ref_vec[i]);
     }
 }
 
@@ -663,8 +663,8 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_indices) {
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "arg_max");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "arg_max");
     const int out_size = y_size * feature_num * x_size * top_k;
     auto output = outputs.at("arg_max").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -673,7 +673,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_indices) {
         out_buffer[i] = get_value<float>(output_ptr.data(), i);
     }
     for (int i = 0; i < out_size; i++) {
-        EXPECT_EQ(out_buffer[i], ref_vec[i]);
+        ASSERT_EQ(out_buffer[i], ref_vec[i]);
     }
 }
 
@@ -723,8 +723,8 @@ void test_top_k_layer_tests_sort_probabilities_by_indices(bool is_caching_test) 
     network->set_input_data("input", input);
     auto outputs = network->execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "arg_max");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "arg_max");
     const int out_size = top_k;
     auto output = outputs.at("arg_max").get_memory();
     cldnn::mem_lock<int> output_ptr(output, get_test_stream());
@@ -733,7 +733,7 @@ void test_top_k_layer_tests_sort_probabilities_by_indices(bool is_caching_test) 
         out_buffer[i] = get_value<int>(output_ptr.data(), i);
     }
     for (int i = 0; i < out_size; i++) {
-        EXPECT_EQ(out_buffer[i], ref_vec[i]);
+        ASSERT_EQ(out_buffer[i], ref_vec[i]);
     }
 }
 
@@ -890,11 +890,11 @@ void test_top_k_layer_md_sync(bool is_caching_test) {
     network->set_input_data("input1", input1);
     auto outputs = network->execute();
 
-    EXPECT_EQ(outputs.size(), size_t(2));
+    ASSERT_EQ(outputs.size(), size_t(2));
     auto output = outputs.at("arg_max.1").get_memory();
     mem_lock<T> output_ptr(output, get_test_stream());
 
-    EXPECT_EQ(output_ptr[0], output_ref);
+    ASSERT_EQ(output_ptr[0], output_ref);
 }
 
 TEST(top_k_layer_tests, md_sync) {

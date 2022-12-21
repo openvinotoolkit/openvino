@@ -1,4 +1,4 @@
-# Tutorials {#tutorials}
+# Interactive Tutorials (Python) {#tutorials}
 
 @sphinxdirective
 

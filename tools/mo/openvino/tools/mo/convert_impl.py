@@ -9,6 +9,7 @@ import platform
 import sys
 from collections import OrderedDict
 from copy import deepcopy
+from pathlib import Path
 
 import numpy as np
 
@@ -235,18 +236,6 @@ def arguments_post_parsing(argv: argparse.Namespace):
 
     if is_tf and argv.tensorflow_use_custom_operations_config is not None:
         argv.transformations_config = argv.tensorflow_use_custom_operations_config
-
-    if is_caffe and argv.mean_file and argv.mean_values:
-        raise Error('Both --mean_file and mean_values are specified. Specify either mean file or mean values. ' +
-                    refer_to_faq_msg(17))
-    elif is_caffe and argv.mean_file and argv.mean_file_offsets:
-        values = get_tuple_values(argv.mean_file_offsets, t=int, num_exp_values=2)
-        mean_file_offsets = mo_array([int(x) for x in values[0].split(',')])
-        if not all([offset >= 0 for offset in mean_file_offsets]):
-            raise Error("Negative value specified for --mean_file_offsets option. "
-                        "Please specify positive integer values in format '(x,y)'. " +
-                        refer_to_faq_msg(18))
-        argv.mean_file_offsets = mean_file_offsets
 
     if argv.scale and argv.scale_values:
         raise Error(
@@ -831,7 +820,7 @@ def show_mo_convert_help():
 
 
 def input_model_is_object(argv):
-    if isinstance(argv['input_model'], str):
+    if isinstance(argv['input_model'], (str, Path)):
         return False
     if argv['input_model'] is None:
         return False

@@ -79,7 +79,7 @@ public:
 
 private:
     void loadPlaces();
-    std::vector<std::shared_ptr<OpPlace>> determine_cut_nodes() const;
+    std::vector<std::shared_ptr<OpPlace>> topologically_sort_op_nodes() const;
 
     std::vector<std::shared_ptr<OpPlace>> m_op_places;
     std::map<std::string, std::shared_ptr<OpPlace>> m_op_places_map;
@@ -198,17 +198,17 @@ void InputModel::InputModelTFImpl::loadPlaces() {
 }
 
 std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::get_op_places() const {
-    if (m_graph_changed) {
-        return determine_cut_nodes();
-    }
-    return m_op_places;
+    return topologically_sort_op_nodes();
 }
 
-std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::determine_cut_nodes() const {
+std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::topologically_sort_op_nodes() const {
     std::vector<std::shared_ptr<OpPlace>> topologically_sorted_ops;
     std::stack<std::shared_ptr<OpPlace>> ops_to_do;
-    std::unordered_set<std::shared_ptr<OpPlace>> ops_set_to_do;
     std::unordered_set<std::shared_ptr<OpPlace>> ops_done;
+
+    // TODO: implement logic to check direct cycles in the graph
+    // and break them
+    // probably not only NextIteration can generate cycles
 
     for (const auto& output_place : m_outputs) {
         FRONT_END_GENERAL_CHECK(output_place->get_names().size() > 0, "TensorPlace must have at least one name.");
@@ -221,7 +221,6 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::determine_cu
                                 "Custom specified output is incorrect: " + output_place_name);
         auto output_operation_place = m_op_places_map.at(operation_name);
         ops_to_do.push(output_operation_place);
-        ops_set_to_do.insert(output_operation_place);
     }
 
     // the traversing algorithm to compute topologically sorted nodes is taken from topological_sort in
@@ -233,6 +232,12 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::determine_cu
         if (ops_done.count(current_operation_place) == 0) {
             bool can_add = true;
             auto input_count = current_operation_decoder->get_input_size();
+            auto current_operation_type = current_operation_decoder->get_op_type();
+
+            if (current_operation_type == "NextIteration") {
+                // break the cycle created by NextIteration
+                input_count = 0;
+            }
 
             for (size_t input_port_idx = 0; input_port_idx < input_count; ++input_port_idx) {
                 std::string producer_name;
@@ -282,11 +287,9 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::determine_cu
                 // in case presence of NextIteration in the graph (or cycle created by other operation),
                 // we break the cycle by outputs from the NextIteration operation
                 // otherwise, the operations nodes in the cycle will be added to ops_to_do infinitely
-                if (!is_input && ops_done.count(producer_operation_place) == 0 &&
-                    ops_set_to_do.count(producer_operation_place) == 0) {
+                if (!is_input && ops_done.count(producer_operation_place) == 0) {
                     can_add = false;
                     ops_to_do.push(producer_operation_place);
-                    ops_set_to_do.insert(producer_operation_place);
                 }
             }
 
