@@ -23,7 +23,7 @@
 了解全堆栈应用如何以“端到端”的方式使用推理组件也至关重要。例如，了解需要编排哪些阶段以节省专门用于提取和准备输入数据的工作负载。
 
 有关此主题的更多信息，请参阅以下文章：
-* [支持的功能（按设备）](@ref features_support_matrix)、
+* [支持的功能（按设备）](@ref features_support_matrix_zh_CN)、
  
 * [使用 OpenVINO™ 对输入进行预处理](@ref inputs_pre_processing)。
 * [异步 API](@ref async_api)。
