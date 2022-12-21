@@ -65,8 +65,6 @@ namespace  {
              Output[FP32]
 */
 TEST_F(AddConvertToReorderTest, smoke_TestAddReorder_CPU) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     BuildGraph(ngraph::element::i8);
     Run();
     CheckNumberOfNodesWithType(executableNetwork, "Convert", 0);

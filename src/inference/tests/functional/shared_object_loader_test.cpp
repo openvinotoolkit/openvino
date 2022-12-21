@@ -2,25 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <file_utils.h>
 #include <gtest/gtest.h>
 
-#include <file_utils.h>
-#include "openvino/util/shared_object.hpp"
-#include "common_test_utils/file_utils.hpp"
 #include <cpp/ie_plugin.hpp>
+
+#include "common_test_utils/file_utils.hpp"
+#include "openvino/util/shared_object.hpp"
 
 using namespace std;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-class SharedObjectLoaderTests: public ::testing::Test {
+class SharedObjectLoaderTests : public ::testing::Test {
 protected:
     std::string get_mock_engine_name() {
         return FileUtils::makePluginLibraryName<char>(CommonTestUtils::getExecutableDirectory(),
-            std::string("mock_engine") + IE_BUILD_POSTFIX);
+                                                      std::string("mock_engine") + IE_BUILD_POSTFIX);
     }
 
-    void loadDll(const string &libraryName) {
+    void loadDll(const string& libraryName) {
         sharedObjectLoader = ov::util::load_shared_object(libraryName.c_str());
     }
     std::shared_ptr<void> sharedObjectLoader;
@@ -28,14 +29,14 @@ protected:
     using CreateF = void(std::shared_ptr<IInferencePlugin>&);
 
     std::function<CreateF> make_std_function(const std::string& functionName) {
-        std::function<CreateF> ptr(reinterpret_cast<CreateF*>(
-            ov::util::get_symbol(sharedObjectLoader, functionName.c_str())));
+        std::function<CreateF> ptr(
+            reinterpret_cast<CreateF*>(ov::util::get_symbol(sharedObjectLoader, functionName.c_str())));
         return ptr;
     }
 };
 
-typedef void*(*PluginEngineCreateFunc)(void);
-typedef void(*PluginEngineDestoryFunc)(void *);
+typedef void* (*PluginEngineCreateFunc)(void);
+typedef void (*PluginEngineDestoryFunc)(void*);
 
 TEST_F(SharedObjectLoaderTests, canLoadExistedPlugin) {
     loadDll(get_mock_engine_name());
