@@ -13,7 +13,7 @@ ONNX 和 PDPD 模型也可以通过 OpenVINO™ 运行时本机读取。
 
 在将模型部署到边缘设备之前可对其进行加密和优化，以用于保护深度学习模型。边缘设备应始终保护存储的模型，并**仅在运行时**解密供 OpenVINO™ 运行时使用的模型。
 
-![deploy_encrypted_model](../../../OV_Runtime_UG/img/deploy_encrypted_model.svg)
+![deploy_encrypted_model](../../OV_Runtime_UG/img/deploy_encrypted_model.svg)
 
 ## 加载加密模型
 
