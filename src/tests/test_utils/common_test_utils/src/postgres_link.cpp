@@ -603,6 +603,24 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
     void OnTestProgramEnd(const ::testing::UnitTest& unit_test) override {}
     */
 
+    std::string EscapeString(const std::string sourceString) const {
+        std::vector<char> escapedString;
+        escapedString.resize(sourceString.length() * 2);  // Doc requires to allocate two times more than initial length
+        escapedString[0] = 0;
+        int errCode = 0;
+        size_t writtenSize = 0;
+        writtenSize = PQescapeStringConn(connectionKeeper->GetConnection(),
+                                         escapedString.data(),
+                                         sourceString.c_str(),
+                                         sourceString.length(),
+                                         &errCode);
+        if (errCode == 0 && writtenSize >= sourceString.length()) {
+            return std::string(escapedString.data());
+        } else {
+            throw std::runtime_error("Error while escaping string");
+        }
+    }
+
     GET_PG_IDENTIFIER(RequestApplicationId(void),
                       "SELECT GET_APPLICATION('" << GetExecutableName() << "')",
                       appId,
@@ -628,9 +646,13 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
     void OnTestSuiteStart(const ::testing::TestSuite& test_suite) override {
         if (!this->isPostgresEnabled || !this->testRunId || !this->sessionId)
             return;
-
-        if (!RequestSuiteNameId(test_suite.name()))
+        try {
+            if (!RequestSuiteNameId(EscapeString(test_suite.name()).c_str()))
+                return;
+        } catch (const std::exception& e) {
+            std::cerr << PG_ERR << "Requesting suite name is failed with exception: " << e.what() << std::endl;
             return;
+        }
 
         std::stringstream sstr;
         sstr << "INSERT INTO suite_results (sr_id, session_id, run_id, suite_id) VALUES (DEFAULT, " << this->sessionId
@@ -664,11 +686,17 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
         }
 
         std::stringstream sstr;
-        if (reportingLevel == REPORT_LVL_DEFAULT) {
-            sstr << "SELECT GET_TEST_NAME(" << this->testSuiteNameId << ", '" << test_info.name() << "'";
-        } else if (reportingLevel == REPORT_LVL_FAST) {
-            sstr << "CALL ADD_TEST_RESULT(" << this->appId << ", " << this->sessionId << ", " << this->testRunId << ", "
-                 << this->testSuiteNameId << ", '" << test_info.name() << "'";
+        try {
+            if (reportingLevel == REPORT_LVL_DEFAULT) {
+                sstr << "SELECT GET_TEST_NAME(" << this->testSuiteNameId << ", '" << EscapeString(test_info.name())
+                     << "'";
+            } else if (reportingLevel == REPORT_LVL_FAST) {
+                sstr << "CALL ADD_TEST_RESULT(" << this->appId << ", " << this->sessionId << ", " << this->testRunId
+                     << ", " << this->testSuiteNameId << ", '" << EscapeString(test_info.name()) << "'";
+            }
+        } catch (std::exception& e) {
+            std::cerr << PG_ERR << "Query building is failed with exception: " << e.what() << std::endl;
+            return;
         }
         /*
             This part might be specific for different tests. In case amount of cases will be greater than, for example,
@@ -708,27 +736,17 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
                 /*
                     A generated XML may contains characters should be escaped in a query.
                 */
-                std::vector<char> escapedDescription;
-                escapedDescription.resize(testDescription.length() *
-                                          2);  // Doc requires to allocate two times more than initial length
-                escapedDescription[0] = 0;     //
-                int errCode = 0;
-                size_t writtenSize = 0;
-                writtenSize = PQescapeStringConn(connectionKeeper->GetConnection(),
-                                                 escapedDescription.data(),
-                                                 testDescription.c_str(),
-                                                 testDescription.length(),
-                                                 &errCode);
-                if (writtenSize >= testDescription.length()) {
-                    sstr << ", '" << std::string(escapedDescription.data()) << "'";
-                } else {
-                    std::cerr << PG_ERR << "Cannot escape string (error code is " << errCode << "):\n"
-                              << testDescription;
+                try {
+                    sstr << ", '" << EscapeString(testDescription) << "'";
+                } catch (std::exception& e) {
+                    std::cerr << PG_ERR << "Description building is failed with exception: " << e.what() << std::endl;
+                    return;
                 }
             }
         } else {
             sstr << ", NULL";
         }
+
         if (reportingLevel == REPORT_LVL_DEFAULT) {
             sstr << ")";
         } else if (reportingLevel == REPORT_LVL_FAST) {
