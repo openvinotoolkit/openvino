@@ -37,7 +37,7 @@ ngraph::snippets::pass::LoadMoveBroadcastToBroadcastLoad::LoadMoveBroadcastToBro
             auto inshape = root->input(0).get_partial_shape();
             auto outshape = root->output(0).get_partial_shape();
 
-            auto broadcastload = std::make_shared<snippets::op::BroadcastLoad>(param, outshape);
+            auto broadcastload = std::make_shared<snippets::op::BroadcastLoad>(param, outshape, ov::as_type_ptr<snippets::op::Load>(input)->get_offset());
             ngraph::copy_runtime_info(root, broadcastload);
             ngraph::replace_node(root, broadcastload);
 

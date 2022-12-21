@@ -20,6 +20,10 @@
 #include "snippets/pass/align_element_type.hpp"
 #include "snippets/pass/matmul_to_brgemm.hpp"
 #include "snippets/pass/fuse_transpose_brgemm.hpp"
+#include "snippets/pass/softmax_decomposition.hpp"
+#include "snippets/pass/propagate_buffer_offset.hpp"
+#include "snippets/pass/reset_buffer.hpp"
+#include "snippets/pass/insert_buffer.hpp"
 #include "snippets/utils.hpp"
 
 #include "transformations/common_optimizations/nop_elimination.hpp"
@@ -41,8 +45,12 @@ void snippets::op::Subgraph::set_generator(std::shared_ptr<ngraph::snippets::Gen
     m_generator = generator;
 }
 
-void snippets::op::Subgraph::set_non_scalar_constants_count(const size_t count) {
-    m_non_scalar_constants_count = count;
+void snippets::op::Subgraph::set_virtual_port_count(const size_t count) {
+    m_virtual_port_count = count;
+}
+
+void snippets::op::Subgraph::set_buffer_needed(const bool need) {
+    m_buffer_needed = need;
 }
 
 void snippets::op::Subgraph::init_config() {
@@ -50,9 +58,6 @@ void snippets::op::Subgraph::init_config() {
     for (const auto& op : ops) {
         config.m_is_quantized = config.m_is_quantized ||
             ov::is_type<ov::op::v0::FakeQuantize>(op);
-        config.m_need_fill_tail_register = config.m_need_fill_tail_register ||
-            ov::is_type<ov::op::v1::Softmax>(op) ||
-            ov::is_type<ov::op::v8::Softmax>(op);
         config.m_has_type_relaxed_ops = config.m_has_type_relaxed_ops ||
             std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(op);
         config.m_is_needed_to_align_precision = config.m_is_needed_to_align_precision ||
@@ -60,11 +65,13 @@ void snippets::op::Subgraph::init_config() {
             has_type_relaxed_ops() ||
             snippets::pass::AlignElementType::opNeedsAlignElementType(op, execution_element_type);
         config.m_has_domain_sensitive_ops = config.m_has_domain_sensitive_ops ||
-                                            ov::is_type<ov::op::v1::Transpose>(op) ||
-                                            ov::is_type<ov::op::v1::Softmax>(op) ||
-                                            ov::is_type<ov::op::v8::Softmax>(op) ||
-                                            ov::is_type<ov::op::v0::MatMul>(op);
+            ov::is_type<ov::op::v1::Transpose>(op) ||
+            ov::is_type<ov::op::v1::Softmax>(op) ||
+            ov::is_type<ov::op::v8::Softmax>(op) ||
+            ov::is_type<ov::op::v0::MatMul>(op);
     }
+    // Domain sensitive ops are decomposed with explicit Loops. So, we should explicitly insert Loops in Subgraph if it contains these ops
+    config.m_explicit_loop_insertion = config.m_has_domain_sensitive_ops;
 }
 
 snippets::op::Subgraph::Subgraph(const OutputVector& args, std::shared_ptr<ov::Model> body)
@@ -184,9 +191,17 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Nod
     auto body = create_body(node->get_friendly_name(), body_results, body_parameters);
     auto subgraph = build_subgraph(node, subgraph_inputs, body);
 
+    bool need_buffer = false;
+    size_t hidden_data_count = 0lu;
     if (auto fq_node = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node)) {
-        subgraph->set_non_scalar_constants_count(utils::get_non_scalar_constant_count_for_fq(fq_node));
+        hidden_data_count += utils::get_non_scalar_constant_count_for_fq(fq_node);
+    // Ops that requires Buffer
+    } else if (ov::is_type<ov::op::v1::Softmax>(node) ||
+               ov::is_type<ov::op::v8::Softmax>(node)) {
+        need_buffer |= true;
     }
+    subgraph->set_virtual_port_count(hidden_data_count);
+    subgraph->set_buffer_needed(need_buffer);
 
     for (size_t i = 0; i < body->get_parameters().size(); i++) {
         body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
@@ -329,6 +344,17 @@ ov::PartialShape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& 
     return master_shape;
 }
 
+size_t snippets::op::Subgraph::get_buffer_scratchpad_size() const {
+    size_t buffer_size = 0;
+    const auto ops = m_body->get_ops();
+    for (const auto& op : ops) {
+        if (const auto buffer = ov::as_type_ptr<ngraph::snippets::op::Buffer>(op)) {
+            buffer_size += buffer->get_byte_size();
+        }
+    }
+    return buffer_size;
+}
+
 void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outputShapes,
                                                  const BlockedShapeVector& inputShapes) {
     // We should insert Convert before Results to set original output element type if needed
@@ -384,13 +410,18 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
                                                         return p->get_partial_shape().rbegin()->is_dynamic();
                                                     });
     ngraph::pass::Manager manager;
-    manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
-    manager.register_pass<snippets::pass::ConvertPowerToPowerStatic>();
     manager.register_pass<snippets::pass::MatMulToBrgemm>();
     manager.register_pass<snippets::pass::FuseTransposeBrgemm>();
+    manager.register_pass<snippets::pass::InsertBuffer>(tileRank);
+    manager.register_pass<snippets::pass::SoftmaxDecomposition>(count, tileRank);
     manager.register_pass<snippets::pass::TransposeDecomposition>();
+    manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
+    manager.register_pass<snippets::pass::ConvertPowerToPowerStatic>();
     manager.register_pass<snippets::pass::InsertLoad>(count);
     manager.register_pass<snippets::pass::InsertStore>(count);
+    // After transformations above MemoryAccess operations won't be changed (not removed or added) except for [Load + MoveBroadcast = LoadBroadcast]
+    // so we can calculate offsets for each Buffer in body and propagate them to the corresponding MemoryAccess nodes
+    manager.register_pass<snippets::pass::PropagateBufferOffset>();
     // todo: presently dynamic pipeline is activated even if the last two dimension are static
     //  In general, we can use static kernels in this case, but several parameters (src and dst memory pointers for example)
     //  should be passed as run-time args, so it's a mixed mode: kernel is shape-aware, but some additional runtime args are required
@@ -422,12 +453,13 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
             manager.get_pass_config()->
                     set_callback<ngraph::snippets::pass::SetScalarCountForStore>(skip_matching_domain);
         }
-        // todo: get_lanes() assumes fp32. Could there be any int8 issues?
         // Note that InsertLoops requires validate_and_infer_types afterwards, so add it manually if
         // automatic validation will be disabled in the pass manager
-        if (!has_domain_sensitive_ops())
-            manager.register_pass<snippets::pass::InsertLoops>(master_shape, tileRank,
-                                                           m_generator->get_target_machine()->get_lanes());
+        manager.register_pass<snippets::pass::InsertLoops>(master_shape, tileRank,
+            m_generator->get_target_machine()->get_lanes(), !config.m_explicit_loop_insertion);
+        if (config.m_has_domain_sensitive_ops) {
+            manager.register_pass<snippets::pass::ResetBufferState>();
+        }
     }
     manager.run_passes(m_body);
 }
@@ -462,8 +494,13 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
     opt.run_passes(m_body);
     snippets::pass::AssignRegisters().run_on_model(m_body);
 
+    const auto ops = m_body->get_ops();
     ngraph::snippets::Generator::GeneratorConfig generatorConfig;
     generatorConfig.m_save_lowered_code = config.m_has_domain_sensitive_ops;
+    generatorConfig.m_need_fill_tail_register = config.m_has_domain_sensitive_ops;
+    generatorConfig.m_optimize_single_evaluation = std::none_of(ops.begin(), ops.end(), [](const std::shared_ptr<ov::Node>& op) {
+        return ov::is_type<ngraph::snippets::op::Buffer>(op);
+    });
     // actual code emission
     ngraph::snippets::code ptr = m_generator->generate(m_body, generatorConfig, compile_params);
 

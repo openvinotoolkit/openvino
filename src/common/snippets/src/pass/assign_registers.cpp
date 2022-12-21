@@ -7,6 +7,10 @@
 #include "snippets/snippets_isa.hpp"
 #include <iterator>
 
+namespace {
+static constexpr size_t reg_count = 16lu;
+}  // namespace
+
 bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_MODEL_SCOPE(AssignRegisters);
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::AssignRegisters")
@@ -24,7 +28,8 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
                 std::dynamic_pointer_cast<opset1::Result>(op) ||
                 std::dynamic_pointer_cast<op::LoopBegin>(op) ||
                 std::dynamic_pointer_cast<op::LoopEnd>(op) ||
-                std::dynamic_pointer_cast<op::Brgemm>(op))
+                std::dynamic_pointer_cast<op::Brgemm>(op) ||
+                std::dynamic_pointer_cast<op::Buffer>(op))
             return gpr2gpr;
         else if (std::dynamic_pointer_cast<snippets::op::Load>(op) ||
                  std::dynamic_pointer_cast<snippets::op::BroadcastLoad>(op))
@@ -41,22 +46,57 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
     size_t counter_gpr = 0;
     std::map<tensor, Reg> regs_vec, regs_gpr;
     // Define a set of immune tensors that will be ignored by auto reg allocation => their reg allocation is done manually
-    // todo: presently it hold only gpr's. If you need to manually assign vec's, implement reg_type or create a second map
-    std::map<tensor, Reg> manually_assigned_regs;
+    std::map<tensor, Reg> manually_assigned_gprs, manually_assigned_vecs;
     const auto IS_MANUALLY_ALLOCATED_REG = SIZE_MAX;
     const auto num_parameters = f->get_parameters().size();
+    const auto num_results = f->get_results().size();
+    auto accumulator_reg = 0lu;
     for (const auto& op : ops) {
         if (const auto& param = ov::as_type_ptr<ov::op::v0::Parameter>(op)) {
-            manually_assigned_regs[op->output(0).get_tensor_ptr()] =
+            manually_assigned_gprs[op->output(0).get_tensor_ptr()] =
                     static_cast<Reg>(f->get_parameter_index(param));
         } else if (const auto& result = ov::as_type_ptr<opset1::Result>(op)) {
             // here we use the fact that Result input & output tensors are identical by construction
-            manually_assigned_regs[op->output(0).get_tensor_ptr()] =
+            manually_assigned_gprs[op->output(0).get_tensor_ptr()] =
                     static_cast<Reg>(f->get_result_index(result) + num_parameters);
+        } else if (const auto& buffer = ov::as_type_ptr<op::Buffer>(op)) {
+            // All buffers have one common data pointer
+            manually_assigned_gprs[op->input(0).get_tensor_ptr()] =
+                    static_cast<Reg>(num_results + num_parameters);
+            manually_assigned_gprs[op->output(0).get_tensor_ptr()] =
+                    static_cast<Reg>(num_results + num_parameters);
+        } else if (ov::is_type<op::HorizonMax>(op) || ov::is_type<op::HorizonSum>(op)) {
+            // Only in SoftmaxDecomposition ReduceMax and ReduceSum use HorizonMax/HorizonSum and VectorBuffer.
+            // We should manually set the one vector register for VectorBuffer and Max/Sum output to simulate a accumulator
+            // TODO [96351]: We should rewrite accumulator pattern using another way
+            const auto input = op->get_input_node_shared_ptr(0); // input - it's accumulator math op: Add or Max
+            for (size_t i = 0; i < input->get_input_size(); ++i) {
+                if (ov::is_type<op::VectorBuffer>(input->get_input_node_shared_ptr(i))) {
+                    manually_assigned_vecs[input->input(i).get_tensor_ptr()] =
+                        static_cast<Reg>(accumulator_reg);
+                }
+            }
+
+            manually_assigned_vecs[input->output(0).get_tensor_ptr()] =
+                static_cast<Reg>(accumulator_reg);
+            manually_assigned_vecs[op->output(0).get_tensor_ptr()] =
+                static_cast<Reg>(accumulator_reg);
+
+            // If there is Broadcast, it should have the same register as Horizon op
+            // because it's a result of the accumulator as well
+            for (auto& out : op->output(0).get_target_inputs()) {
+                const auto child = out.get_node()->shared_from_this();
+                if (ov::is_type<op::BroadcastMove>(child)) {
+                    manually_assigned_vecs[child->output(0).get_tensor_ptr()] =
+                        static_cast<Reg>(accumulator_reg);
+                }
+            }
+            accumulator_reg++;
         }
     }
-    auto enumerate_out_tensors = [IS_MANUALLY_ALLOCATED_REG, &manually_assigned_regs] (const std::shared_ptr<ov::Node>& op,
+    auto enumerate_out_tensors = [IS_MANUALLY_ALLOCATED_REG] (const std::shared_ptr<ov::Node>& op,
                                      decltype(regs_vec)& reg_map,
+                                     const std::map<tensor, Reg>& manually_assigned_regs,
                                      size_t& counter) {
         for (const auto& output : op->outputs()) {
             const auto& t = output.get_tensor_ptr();
@@ -71,11 +111,11 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
         switch (t_op.first) {
             case vec2vec:
             case gpr2vec:
-                enumerate_out_tensors(t_op.second, regs_vec, counter_vec);
+                enumerate_out_tensors(t_op.second, regs_vec, manually_assigned_vecs, counter_vec);
                 break;
             case gpr2gpr:
             case vec2gpr:
-                enumerate_out_tensors(t_op.second, regs_gpr, counter_gpr);
+                enumerate_out_tensors(t_op.second, regs_gpr, manually_assigned_gprs, counter_gpr);
                 break;
         }
     }
@@ -96,7 +136,7 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
         }
         return result;
     };
-    for (int i = 0; i < typed_ops.size(); i++) {
+    for (size_t i = 0; i < typed_ops.size(); i++) {
         const auto& t_op = typed_ops[i];
         std::vector<tensor> used_tensors, defined_tensors;
         for (const auto& in : t_op.second->inputs())
@@ -239,15 +279,18 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
     };
     // todo: vec_/gpr_pool are hardware-specific and should be provided by a backend, e.g. overloaded generator
     std::set<Reg> vec_pool;
-    for (Reg i  = 0; i < 16; i++)
+    for (Reg i = 0; i < reg_count; i++)
         vec_pool.insert(i);
-    auto unique2reused_map_vec = linescan_assign_registers(live_intervals_vec, vec_pool);
-    std::set<Reg> gpr_pool(std::move(vec_pool));
-    for (const auto& t_reg : manually_assigned_regs)
+    std::set<Reg> gpr_pool(vec_pool);
+    for (const auto& t_reg : manually_assigned_vecs)
+        vec_pool.erase(t_reg.second);
+    for (const auto& t_reg : manually_assigned_gprs)
         gpr_pool.erase(t_reg.second);
+    auto unique2reused_map_vec = linescan_assign_registers(live_intervals_vec, vec_pool);
     auto unique2reused_map_gpr = linescan_assign_registers(live_intervals_gpr, gpr_pool);
 
-    std::map<tensor, Reg> assigned_regs(std::move(manually_assigned_regs));
+    std::map<tensor, Reg> assigned_regs(std::move(manually_assigned_gprs));
+    assigned_regs.insert(manually_assigned_vecs.begin(), manually_assigned_vecs.end());
     auto register_assigned_regs = [IS_MANUALLY_ALLOCATED_REG, &assigned_regs](const std::map<tensor, Reg>& unique_regs,
                                                    const std::map<Reg, Reg>& unique2reused) {
         for (const auto& reg : unique_regs) {

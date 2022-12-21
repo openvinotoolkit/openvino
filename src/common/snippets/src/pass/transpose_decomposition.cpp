@@ -60,7 +60,7 @@ ngraph::snippets::pass::TransposeDecomposition::TransposeDecomposition() {
         auto loop_C_begin = std::make_shared<op::LoopBegin>(OutputVector{loop_W_begin->output(0)});
         // todo: LoadReshape used here is essentially Load + an easy way to maintain correct shape propagation
         //  fix this in future and develop a more consistent shape propagation approach.
-        auto load = std::make_shared<snippets::op::LoadReshape>(loop_C_begin->output(0), 1, access_pattern);
+        auto load = std::make_shared<snippets::op::LoadReshape>(loop_C_begin->output(0), 1, 0, access_pattern);
         auto store = std::make_shared<snippets::op::Store>(load, 1);
         const std::vector<int64_t> ptr_increments_C {size_H * size_W, 1};
         const std::vector<int64_t> finalization_offsets_C {1 - size_H * size_W * size_C, 0};

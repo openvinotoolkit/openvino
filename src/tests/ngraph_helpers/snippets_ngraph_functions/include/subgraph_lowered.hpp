@@ -9,6 +9,7 @@
 #include "subgraph_simple.hpp"
 #include "subgraph_converts.hpp"
 #include "subgraph_matmul.hpp"
+#include "subgraph_softmax.hpp"
 
 /* This file provides lowered representations (after the generate() was called) for some simple functions.
  * This is required to test snippets lowering and optimization passes. All the functions are expected to be direct
@@ -57,6 +58,21 @@ public:
     explicit Transpose0213MatMulSinhLoweredFunction(const std::vector<PartialShape>& inputShapes, size_t position = 0) :
             Transpose0213MatMulSinhFunction(inputShapes, position, false) {
     }
+protected:
+    std::shared_ptr<ov::Model> initLowered() const override;
+};
+
+class SoftmaxLoweredFunction : public SoftmaxFunction {
+public:
+    explicit SoftmaxLoweredFunction(const std::vector<PartialShape>& inputShapes, int axis) : SoftmaxFunction(inputShapes, axis) {}
+
+protected:
+    std::shared_ptr<ov::Model> initLowered() const override;
+};
+
+class AddSoftmaxLoweredFunction : public AddSoftmaxFunction {
+public:
+    explicit AddSoftmaxLoweredFunction(const std::vector<PartialShape>& inputShapes, int axis) : AddSoftmaxFunction(inputShapes, axis) {}
 
 protected:
     std::shared_ptr<ov::Model> initLowered() const override;

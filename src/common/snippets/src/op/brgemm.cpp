@@ -13,10 +13,19 @@ namespace ngraph {
 namespace snippets {
 namespace op {
 
-Brgemm::Brgemm(const Output<Node>& A, const Output<Node>& B) : MatMul() {
+Brgemm::Brgemm(const Output<Node>& A, const Output<Node>& B, const size_t offset_a, const size_t offset_b, const size_t offset_c)
+    : MatMul(), m_offset_a(offset_a), m_offset_b(offset_b), m_offset_c(offset_c) {
     set_arguments({A, B});
     set_output_size(1);
     constructor_validate_and_infer_types();
+}
+
+bool Brgemm::visit_attributes(AttributeVisitor& visitor) {
+    MatMul::visit_attributes(visitor);
+    visitor.on_attribute("offset_a", m_offset_a);
+    visitor.on_attribute("offset_b", m_offset_b);
+    visitor.on_attribute("offset_c", m_offset_c);
+    return true;
 }
 
 void Brgemm::validate_and_infer_types() {
@@ -47,7 +56,7 @@ void Brgemm::validate_and_infer_types() {
 std::shared_ptr<Node> Brgemm::clone_with_new_inputs(const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(Brgemm_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return std::make_shared<Brgemm>(new_args.at(0), new_args.at(1));;
+    return std::make_shared<Brgemm>(new_args.at(0), new_args.at(1), m_offset_a, m_offset_b, m_offset_c);
 }
 
 } // namespace op

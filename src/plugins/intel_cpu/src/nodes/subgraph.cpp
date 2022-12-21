@@ -345,6 +345,8 @@ void Snippet::createPrimitive() {
     jcp.master_shape = masterShape;
     jcp.tile_rank = tileRank;
     generate(&jcp);
+    buffer_scratchpad_size = snippet->get_buffer_scratchpad_size();
+    buffer_scratchpad.resize(buffer_scratchpad_size * parallel_get_max_threads(), 0);
 }
 
 std::vector<VectorDims> Snippet::shapeInfer() const {
@@ -468,28 +470,6 @@ bool Snippet::needPrepareParams() const {
     return inputShapesModified() || !schedule.ptr;
 }
 
-void Snippet::updateSrcDstPtrs(jit_snippets_call_args& call_args) const {
-    for (size_t i = 0; i < srcMemPtrs.size(); i++)
-        call_args.src_ptrs[i] = reinterpret_cast<const uint8_t*>(srcMemPtrs[i]->GetData()) + start_offset_in[i];
-
-    for (size_t i = 0; i < dstMemPtrs.size(); i++)
-        call_args.dst_ptrs[i] = reinterpret_cast<uint8_t*>(dstMemPtrs[i]->GetData()) + start_offset_out[i];
-}
-
-void Snippet::execute(dnnl::stream strm) {
-    if (schedule.ptr == nullptr) {
-        IE_THROW() << "Snippet can't use Optimized implementation and can't fallback to reference";
-    }
-    jit_snippets_call_args call_args;
-    updateSrcDstPtrs(call_args);
-
-    if (tensorRank == rank6D) {
-        schedule_6d(call_args);
-    } else {
-        schedule_nt(call_args);
-    }
-}
-
 bool Snippet::canBeInPlace() const {
     if (isDynamic || getParentEdgesAtPort(0)[0]->getParent()->getType() == Type::Input) {
         return false;
@@ -543,19 +523,49 @@ void Snippet::generate(const jit_snippets_compile_args* jcp) {
     schedule = snippet->generate(optManager, reinterpret_cast<const void*>(jcp));
 }
 
-void Snippet::schedule_6d(const jit_snippets_call_args& call_args) const {
+void Snippet::update_ptrs(jit_snippets_call_args& call_args) {
+    for (size_t i = 0; i < srcMemPtrs.size(); i++)
+        call_args.src_ptrs[i] = reinterpret_cast<const uint8_t*>(srcMemPtrs[i]->GetData()) + start_offset_in[i];
+
+    for (size_t i = 0; i < dstMemPtrs.size(); i++)
+        call_args.dst_ptrs[i] = reinterpret_cast<uint8_t*>(dstMemPtrs[i]->GetData()) + start_offset_out[i];
+
+    if (buffer_scratchpad_size > 0) {
+        call_args.buffer_scratchpad_ptr =
+                reinterpret_cast<uint8_t*>(buffer_scratchpad.data()) + parallel_get_thread_num() * buffer_scratchpad_size;
+    }
+}
+
+void Snippet::execute(dnnl::stream strm) {
+    if (schedule.ptr == nullptr) {
+        IE_THROW() << "Snippet can't use Optimized implementation and can't fallback to reference";
+    }
+    if (tensorRank == rank6D) {
+        schedule_6d();
+    } else {
+        schedule_nt();
+    }
+}
+
+void Snippet::schedule_6d() {
     const auto& dom = exec_domain;
     // < N, C, H, W > < 1, 1, N, C*H*W>
     parallel_for5d(dom[0], dom[1], dom[2], dom[3], dom[4],
         [&](int64_t d0, int64_t d1, int64_t d2, int64_t d3, int64_t d4) {
             int64_t indexes[] = {d0, d1, d2, d3, d4};
+            jit_snippets_call_args call_args;
+            update_ptrs(call_args);
+
             schedule.get_callable<kernel>()(indexes, &call_args);
         });
 }
 
-void Snippet::schedule_nt(const jit_snippets_call_args& call_args) const {
+void Snippet::schedule_nt() {
     const auto& work_size = exec_domain;
     parallel_nt(0, [&](const int ithr, const int nthr) {
+        jit_snippets_call_args call_args;
+        update_ptrs(call_args);
+
         size_t start = 0, end = 0;
         splitter(harnessWorkAmount, nthr, ithr, start, end);
 

@@ -46,6 +46,8 @@ ov::intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_
     // data movement
     jitters[ngraph::opset1::Parameter::get_type_info_static()] = CREATE_EMITTER(NopEmitter);
     jitters[ngraph::opset1::Result::get_type_info_static()] = CREATE_EMITTER(NopEmitter);
+    jitters[ngraph::snippets::op::Buffer::get_type_info_static()] = CREATE_EMITTER(NopEmitter);
+    jitters[ngraph::snippets::op::VectorBuffer::get_type_info_static()] = CREATE_EMITTER(VectorBufferEmitter);
     // jitters[ngraph::opset1::Constant::get_type_info_static()] = CREATE_EMITTER(); // Not supported
 
     jitters[ngraph::snippets::op::Load::get_type_info_static()] = CREATE_EMITTER(LoadEmitter);
@@ -123,6 +125,10 @@ ov::intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_
     // jitters[ngraph::opset1::Selu::get_type_info_static()] = CREATE_EMITTER(); // not supported
     jitters[ngraph::op::v0::Gelu::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_gelu_v0_emitter);
     jitters[ngraph::op::v7::Gelu::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_gelu_v7_emitter);
+    jitters[ngraph::snippets::op::Fill::get_type_info_static()] = CREATE_EMITTER(FillEmitter);
+
+    jitters[ngraph::snippets::op::HorizonMax::get_type_info_static()] = CREATE_EMITTER(HorizonMaxEmitter);
+    jitters[ngraph::snippets::op::HorizonSum::get_type_info_static()] = CREATE_EMITTER(HorizonSumEmitter);
 
     jitters[ngraph::snippets::op::Kernel::get_type_info_static()] = CREATE_EMITTER(KernelEmitter);
     jitters[ngraph::snippets::op::LoopBegin::get_type_info_static()] = CREATE_EMITTER(LoopBeginEmitter);

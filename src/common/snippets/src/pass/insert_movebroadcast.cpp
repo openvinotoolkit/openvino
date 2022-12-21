@@ -7,6 +7,7 @@
 
 #include "snippets/pass/insert_movebroadcast.hpp"
 #include "snippets/snippets_isa.hpp"
+#include "snippets/utils.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
@@ -30,6 +31,10 @@ std::shared_ptr<ngraph::Node> broadcast_node_last_dim(const ngraph::Output<ngrap
         ov::PartialShape broadcasted_shape = normalized_shape;
         *broadcasted_shape.rbegin() = *target_shape.rbegin();
         broadcasted_node = std::make_shared<ngraph::snippets::op::BroadcastMove>(broadcasted_node, broadcasted_shape);
+        // BroadcastMove should be immediately executed after its input op (input op is node with output which should be broadcasted).
+        // For example, to execute Broadcast outside of a Loop We transfer control dependents and copy rt info
+        broadcasted_node->add_node_control_dependents(value.get_node_shared_ptr());
+        ov::copy_runtime_info(value.get_node_shared_ptr(), broadcasted_node);
     }
 
     return broadcasted_node;
@@ -64,23 +69,22 @@ ngraph::snippets::pass::InsertMoveBroadcast::InsertMoveBroadcast() {
             return false;
         }
 
-        auto is_scalar_constant = [](const ov::Output<ov::Node>& v){
-            if (auto constant = ov::as_type_ptr<ov::op::v0::Constant>(v.get_node_shared_ptr())) {
-                if (constant->get_shape().empty() || ngraph::shape_size(constant->get_shape()) == 1) {
-                    return true;
-                }
-            }
-            return false;
+        auto is_ignored_node = [](const ov::Output<ov::Node>& v){
+            // We don't need to insert BroadcastMove after the following operations:
+            // - Scalar has emitter with explicit broadcasting
+            // - VectorBuffer has scalar output shape to avoid broadcast conflicts and manually shape insertion.
+            return utils::is_scalar_constant(v.get_node_shared_ptr()) ||
+                   ov::is_type<ngraph::snippets::op::VectorBuffer>(v.get_node_shared_ptr());
         };
         std::vector<ov::PartialShape> input_shapes;
-        std::vector<bool> ignore_as_scalar;
+        std::vector<bool> is_ignored;
         for (const auto& val : values) {
             input_shapes.emplace_back(val.get_partial_shape());
-            ignore_as_scalar.push_back(is_scalar_constant(val));
+            is_ignored.push_back(is_ignored_node(val));
             // Do not insert MoveBroadcast if any of the last dims is dynamic,
             // since we don't know if we really need it. In these cases, broadcasting will be performed
             // by outer Loop based on runtime shapes.
-            if (!ignore_as_scalar.back() && !input_shapes.back().rbegin()->is_static())
+            if (!is_ignored.back() && !input_shapes.back().rbegin()->is_static())
                 return false;
         }
 
@@ -89,7 +93,7 @@ ngraph::snippets::pass::InsertMoveBroadcast::InsertMoveBroadcast() {
 
         ngraph::OutputVector broadcasted_inputs;
         for (size_t i = 0; i < values.size(); ++i) {
-            if (ignore_as_scalar[i]) {
+            if (is_ignored[i]) {
                 broadcasted_inputs.push_back(values[i]);
             } else {
                 auto node = broadcast_node_last_dim(values[i], bcast_shapes.first, bcast_shapes.second[i]);

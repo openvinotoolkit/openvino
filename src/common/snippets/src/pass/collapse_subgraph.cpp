@@ -122,8 +122,28 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
             || ov::is_type<ngraph::op::v4::Swish>(n)
             || ov::is_type<ngraph::op::v4::HSwish>(n);
     };
-    return is_supported_unary_eltwise_op(n) || is_supported_binary_eltwise_op(n) ||
-           is_supported_transpose(n) || is_supported_fq_op(n) || is_supported_matmul(n);
+
+    auto is_supported_softmax = [](const std::shared_ptr<const Node> &n) -> bool {
+        if (n->get_input_size() != 1 || n->get_input_partial_shape(0).rank().is_dynamic())
+            return false;
+        int64_t axis = -1;
+        const auto rank = n->get_input_partial_shape(0).rank();
+        if (const auto softmax_v8 = ngraph::as_type_ptr<const ov::op::v8::Softmax>(n)) {
+            axis = ngraph::normalize_axis(n->get_friendly_name(), softmax_v8->get_axis(), rank);
+        } else if (const auto softmax_v1 = ngraph::as_type_ptr<const ov::op::v1::Softmax>(n)) {
+            axis = softmax_v1->get_axis();
+        } else {
+            return false;
+        }
+        return axis >= 0 && axis == (rank.get_length() - 1);
+    };
+
+    return is_supported_fq_op(n)
+        || is_supported_unary_eltwise_op(n)
+        || is_supported_binary_eltwise_op(n)
+        || is_supported_transpose(n)
+        || is_supported_softmax(n)
+        || is_supported_matmul(n);
 }
 
 auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {
@@ -503,18 +523,24 @@ TokenizeSnippets::TokenizeSnippets() {
         // than the actual number of Constants during tokenization.
         // To avoid unsupported number of non-scalar Constants in the future (plugin specific limitation)
         // we should calculate potentional number of non-scalar Constants that will be moved up from body.
-        size_t hidden_non_scalar_constant_count = 0;
+        size_t hidden_data_count = 0;
+        bool need_buffer = false;
         if (const auto fq_node = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node)) {
-            hidden_non_scalar_constant_count += ngraph::snippets::utils::get_non_scalar_constant_count_for_fq(fq_node);
+            hidden_data_count += ngraph::snippets::utils::get_non_scalar_constant_count_for_fq(fq_node);
+        // Ops require a Buffer
+        } else if (ov::is_type<ov::op::v1::Softmax>(node) ||
+                   ov::is_type<ov::op::v8::Softmax>(node)) {
+            need_buffer |= true;
         }
 
         ResultVector body_results;
         std::vector<std::set<Input<Node>>> subgraph_result_inputs;
 
         for (auto subgraph : input_subgraphs) {
-            // we should summurize non-scalar Constants count from all input subgraphs
-            // because we will collapse them with our node and we should get total count of non-scalar Constants
-            hidden_non_scalar_constant_count += ov::as_type_ptr<ngraph::snippets::op::Subgraph>(subgraph)->get_non_scalar_constants_count();
+            // we should summurize additional needed data count (non-scalar Constants and Buffers) from all input subgraphs
+            // because we will collapse them with our node and we should get total count
+            hidden_data_count += ov::as_type_ptr<ngraph::snippets::op::Subgraph>(subgraph)->get_virtual_port_count();
+            need_buffer |= ov::as_type_ptr<ngraph::snippets::op::Subgraph>(subgraph)->is_buffer_needed();
 
             for (auto output : subgraph->outputs()) {
                 bool first_side_consumer = true;
@@ -555,13 +581,13 @@ TokenizeSnippets::TokenizeSnippets() {
         }
 
         // todo: move this plugin-specific constraint to the plugin callback
-        if (body_parameters.size() + body_results.size() + hidden_non_scalar_constant_count > 12) {
+        if (body_parameters.size() + body_results.size() + hidden_data_count + static_cast<size_t>(need_buffer) > 12) {
             const std::string message_reset = "new subgraph is created. Impossible to schedule subgraph with " +
             std::to_string(body_parameters.size()) + " inputs, " + std::to_string(body_results.size()) + " outputs and " +
-            std::to_string(hidden_non_scalar_constant_count) + " non-scalar constants.";
+            std::to_string(hidden_data_count) + " non-scalar constants and " + std::to_string(need_buffer) + "buffers.";
             const std::string message_abort = "failed to continue subgraph. Impossible to schedule subgraph with " +
             std::to_string(body_parameters.size()) + " inputs, " + std::to_string(body_results.size()) + " outputs and " +
-            std::to_string(hidden_non_scalar_constant_count) + " non-scalar constants.";
+            std::to_string(hidden_data_count) + " non-scalar constants and " + std::to_string(need_buffer) + "buffers.";
             return abort_with_strategy(message_reset, message_abort);
         }
 
@@ -596,7 +622,8 @@ TokenizeSnippets::TokenizeSnippets() {
             act_body1->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
         }
         subgraph->get_rt_info()["originalLayersNames"] = fusedNames;
-        subgraph->set_non_scalar_constants_count(hidden_non_scalar_constant_count);
+        subgraph->set_virtual_port_count(hidden_data_count);
+        subgraph->set_buffer_needed(need_buffer);
 
         remark(1) << "Replacement (merge) done for: "
                     << subgraph->get_friendly_name()

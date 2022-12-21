@@ -63,10 +63,10 @@ private:
     bool optimizeExecDomain(std::vector<VectorDims>&, std::vector<VectorDims>&, VectorDims&, size_t&) const;
 
     void generate(const jit_snippets_compile_args*);
-    void updateSrcDstPtrs(jit_snippets_call_args&) const;
+    inline void update_ptrs(jit_snippets_call_args&);
     // Evaluates generated snippet using parallel backend
-    void schedule_6d(const jit_snippets_call_args& const_args) const;
-    void schedule_nt(const jit_snippets_call_args& const_args) const;
+    void schedule_6d();
+    void schedule_nt();
 
     // Original subgraph node
     std::shared_ptr<ngraph::snippets::op::Subgraph> original_snippet;
@@ -107,6 +107,10 @@ private:
 
     std::vector<ptrdiff_t> start_offset_in = {};
     std::vector<ptrdiff_t> start_offset_out = {};
+
+    // Buffer scratchpad
+    std::vector<uint8_t> buffer_scratchpad = {};
+    size_t buffer_scratchpad_size = 0;
 };
 
 }   // namespace node

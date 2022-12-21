@@ -89,21 +89,13 @@ public:
         return m_generator;
     }
 
-    size_t get_non_scalar_constants_count() const {
-        return m_non_scalar_constants_count;
-    }
-
-    bool is_quantized() const {
-        return config.m_is_quantized;
-    }
-
-    bool has_type_relaxed_ops() const {
-        return config.m_has_type_relaxed_ops;
-    }
-
-    bool has_domain_sensitive_ops() const {
-        return config.m_has_domain_sensitive_ops;
-    }
+    // Return common memory size for all buffers in body. Should be called only after tileRank setting
+    size_t get_buffer_scratchpad_size() const;
+    size_t get_virtual_port_count() const { return m_virtual_port_count; }
+    bool is_buffer_needed() const { return m_buffer_needed; }
+    bool is_quantized() const { return config.m_is_quantized; }
+    bool has_type_relaxed_ops() const { return config.m_has_type_relaxed_ops; }
+    bool has_domain_sensitive_ops() const { return config.m_has_domain_sensitive_ops; }
 
     snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes, ngraph::pass::Manager& opt,
                                 const void* compile_params = nullptr);
@@ -117,8 +109,9 @@ public:
     // plugin sets generator for a snippet to some specific generator.
     // it's going to be replaced with Jitters table later
     void set_generator(std::shared_ptr<ngraph::snippets::Generator> generator);
-    void set_non_scalar_constants_count(const size_t count);
     void set_tile_rank(size_t newRank) {tileRank = newRank;}
+    void set_virtual_port_count(const size_t count);
+    void set_buffer_needed(const bool need);
 
     void print() const;
     void print_statistics(bool verbose);
@@ -133,11 +126,14 @@ private:
     void align_element_types(const BlockedShapeVector& outputShapes, const BlockedShapeVector& inputShapes);
     void convert_to_snippet_dialect();
     void init_config();
-    // Count of potentional non-scalar Consants that will be created after some tranformations
-    // At the moment it's relevant only for FakeQuantize decomposition
-    // NOTE: To avoid overheads in each calcution of this count (for example, in validate_and_type_infer()),
+    // Count of Subgraph virtual ports:
+    //  - Potential non-scalar Constants that will be created after some transformations (At the moment it's relevant only for FakeQuantize decomposition)
+    // Need Buffer op or not
+    //  - Buffers. All Buffers are considered as one common additional virtual port. So we cannot summarize them as potential non-scalar Constants
+    // NOTE: To avoid overheads in each calculation of this count (for example, in validate_and_type_infer()),
     //       we should MANUALLY calculate it where it needed.
-    size_t m_non_scalar_constants_count = 0;
+    size_t m_virtual_port_count = 0;
+    bool m_buffer_needed = false;
     Shape exec_domain = {};
     std::shared_ptr<ov::Model> m_body = nullptr;
     std::shared_ptr<ngraph::snippets::Generator> m_generator = nullptr;
@@ -162,11 +158,12 @@ private:
         // True if Subgraph contains TypeRelaxed nodes -> for several streams in tp mode we should copy body using mutexes
         // because TypeRelaxed::copy_with_new_inputs() isn't save-thread method
         bool m_has_type_relaxed_ops = false;
-        // True if we should check runtime info for nodes to call specific needed transformations
-        bool m_need_fill_tail_register = false;
         // True if body has operations that don't support plugin-side domain optimizations
         // (e.g. Transpose, Softmax, MatMul in general doesn't support dimensions collapsing)
         bool m_has_domain_sensitive_ops = false;
+        // True if we should go through whole body to check for where loops should be explicitly inserted.
+        // Otherwise, we insert Loops on Parameters and Results - for example, it's optimized out for subgraph with only Eltwise ops
+        bool m_explicit_loop_insertion = false;
     } config;
 };
 

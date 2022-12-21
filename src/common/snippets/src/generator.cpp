@@ -40,6 +40,53 @@ auto getRegisters(const std::shared_ptr<ngraph::Node> &n) -> RegInfo {
     return std::make_pair(rin, rout);
 }
 
+auto tail_transformations(NodeVector& tail, const size_t tail_size, const ngraph::snippets::Generator::GeneratorConfig& config) -> void {
+    NodeVector updated_tile;
+    auto insertFill = [tail_size](const ov::Input<ov::Node>& input) -> std::shared_ptr<ov::Node> {
+        auto copyRegInfo = [](const ov::descriptor::Tensor& from, ov::descriptor::Tensor& to) -> void {
+            auto rt = from.get_rt_info();
+            auto reginfo = rt.find("reginfo");
+            if (reginfo != rt.end()) {
+                to.get_rt_info()["reginfo"] = reginfo->second;
+            }
+        };
+        std::shared_ptr<ov::Node> fill = nullptr;
+        auto& rt = input.get_rt_info();
+        auto fill_rt = rt.find("set_fill");
+        if (fill_rt != rt.end()) {
+            const auto fill_value = fill_rt->second.as<uint32_t>();
+            fill = std::make_shared<ngraph::snippets::op::Fill>(input.get_source_output(), tail_size, fill_value);
+            input.get_node()->set_argument(input.get_index(), fill);
+            // we should explicitly copy reg info because we insert Fill after assign register
+            copyRegInfo(fill->get_input_tensor(0), fill->get_output_tensor(0));
+        }
+        return fill;
+    };
+
+    for (auto& op : tail) {
+        // We should fill vector regs by float_min and zero to have
+        // correct math calculations for ReduceMax and ReduceSum in scalar case.
+        // Note: We find Maximum and Add ops because HorizonMax and HorizonSum are outside Loop,
+        //       so they are missed in <tail>
+        if (config.m_need_fill_tail_register &&
+            (ov::is_type<ov::op::v1::Maximum>(op) ||
+             ov::is_type<ov::op::v1::Add>(op))) {
+            for (auto i = 0; i < op->inputs().size(); ++i) {
+                if (auto fill = insertFill(op->input(i))) {
+                    updated_tile.push_back(fill);
+                }
+            }
+        } else if (const auto memory_access = std::dynamic_pointer_cast<ngraph::snippets::op::MemoryAccess>(op)) {
+            if (memory_access->get_count() != 1) {
+                memory_access->set_count(tail_size);
+            }
+        }
+        updated_tile.push_back(op);
+    }
+
+    tail = std::move(updated_tile);
+}
+
 ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov::Model>& m,
                                                              const GeneratorConfig& config,
                                                              const void* compile_params) {
@@ -107,8 +154,12 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
                 // So if there is a tail, then we should apply offsets after it, but not now.
                 if (need_tail)
                     vector_loop_end->set_finalization_offsets(std::vector<int64_t>(tail_finalization_offsets.size(), 0));
-                // force ptr increments if there is tail
-                optimize_single_evaluation(vector_loop_end, need_tail);
+
+                if (config.m_optimize_single_evaluation) {
+                    // force ptr increments if there is tail
+                    optimize_single_evaluation(vector_loop_end, need_tail);
+                }
+
                 lower_ops(vector_loop);
             }
             OV_ITT_TASK_NEXT(GENERATE, "::TailLoop")
@@ -118,14 +169,7 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
             if (need_tail) {
                 NodeMap vector_to_tail_node_map;
                 tail_loop = ngraph::clone_nodes(vector_loop,  vector_to_tail_node_map);
-                std::transform(tail_loop.begin(), tail_loop.end(), tail_loop.begin(),
-                               [tail_size](const std::shared_ptr<Node>& n){
-                                   const auto& memory_access = std::dynamic_pointer_cast<ngraph::snippets::op::MemoryAccess>(n);
-                                   if (memory_access && memory_access->get_count() != 1) {
-                                       memory_access->set_count(tail_size);
-                                   }
-                                   return n;
-                               });
+                tail_transformations(tail_loop, tail_size, config);
                 tail_loop_end = ov::as_type_ptr<op::LoopEnd>(*tail_loop.rbegin());
                 tail_loop_end->set_finalization_offsets(tail_finalization_offsets);
                 tail_loop_end->set_increment(tail_size);
@@ -133,8 +177,12 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
                 tail_loop_end->update_ptr_increments(static_cast<int64_t>(tail_size));
                 tail_loop_end->set_work_amount(tail_size);
                 tail_loop_end->has_outer_loop = vector_loop_end->has_outer_loop;
-                // tail loop is always executed once
-                optimize_single_evaluation(tail_loop_end);
+
+                if (config.m_optimize_single_evaluation) {
+                    // tail loop is always executed once
+                    optimize_single_evaluation(tail_loop_end);
+                }
+
                 lower_ops(tail_loop);
             }
         } else {
