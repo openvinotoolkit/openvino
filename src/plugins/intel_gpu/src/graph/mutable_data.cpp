@@ -84,11 +84,13 @@ mutable_data_inst::typed_primitive_inst(network& network, mutable_data_node cons
 void mutable_data_inst::save(cldnn::BinaryOutputBuffer& ob) const {
     parent::save(ob);
 
-    const auto _allocation_type = _outputs[0]->get_allocation_type();
-    ob << make_data(&_allocation_type, sizeof(_allocation_type));
-
     size_t data_size = _outputs[0]->size();
     ob << make_data(&data_size, sizeof(size_t));
+
+    if (data_size == 0)
+        return;
+
+    allocation_type _allocation_type = _outputs[0]->get_allocation_type();
 
     if (_allocation_type == allocation_type::usm_host || _allocation_type == allocation_type::usm_shared) {
         ob << make_data(_outputs[0]->buffer_ptr(), data_size);
@@ -101,13 +103,15 @@ void mutable_data_inst::save(cldnn::BinaryOutputBuffer& ob) const {
 void mutable_data_inst::load(BinaryInputBuffer& ib) {
     parent::load(ib);
 
-    allocation_type _allocation_type;
-    ib >> make_data(&_allocation_type, sizeof(_allocation_type));
-
     size_t data_size;
     ib >> make_data(&data_size, sizeof(size_t));
 
+    if (data_size == 0)
+        return;
+
     OPENVINO_ASSERT(_outputs[0] != nullptr, "Output memory should be allocated before importing data.");
+
+    allocation_type _allocation_type = _outputs[0]->get_allocation_type();
 
     if (_allocation_type == allocation_type::usm_host || _allocation_type == allocation_type::usm_shared) {
         ib >> make_data(_outputs[0]->buffer_ptr(), data_size);
