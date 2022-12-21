@@ -24,7 +24,7 @@ OpenVINO™ 运行时可以使用以下设备类型来推理深度学习模型�
 对于与我们用于基准测试的设备类似的设备，可以使用[英特尔® DevCloud for the Edge](https://devcloud.intel.com/edge/)（一种可以访问英特尔® 硬件的远程开发环境）和最新版本的英特尔® 发行版 OpenVINO™ 工具套件进行访问。[了解更多信息](https://devcloud.intel.com/edge/get_started/devcloud/)或[在此处注册](https://inteliot.force.com/DevcloudForEdge/s/)。
 
 
-@anchor features_support_matrix
+@anchor features_support_matrix_zh_CN
 ## 功能支持表
 下表展示了 OpenVINO™ 器件插件支持的关键功能。
 
