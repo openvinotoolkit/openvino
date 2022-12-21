@@ -364,7 +364,7 @@ void Pooling::prepareParams() {
                                                key.data_pad_end);
         DnnlDesriptor desc{desc_ptr};
         primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, key.attr);
-        pooling_v2_forward::primitive_desc prim_desc = itpd.get(true);
+        pooling_v2_forward::primitive_desc prim_desc = itpd.get();
         while (static_cast<bool>(itpd)) {
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
 
