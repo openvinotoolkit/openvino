@@ -484,7 +484,7 @@ std::shared_ptr<ov::Model> CreateReferenceFunction(BinaryFactoryPtr binary_facto
 
     std::vector<size_t> dims(input_shape.size() - constant_shape.size());
     std::iota(dims.begin(), dims.end(), 0);
-    auto unsqueeze_const = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{dims.size()}, dims);
+    auto unsqueeze_const = std::make_shared<ov::opset9::Constant>(ov::element::i64, ov::Shape{dims.size()}, dims);
     auto unsqeeze = std::make_shared<ov::opset9::Unsqueeze>(in_constant, unsqueeze_const);
 
     auto ng_order1 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
