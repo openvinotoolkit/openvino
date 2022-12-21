@@ -86,7 +86,6 @@ target_compile_definitions(${TARGET_NAME}_test_static
 target_link_libraries(${TARGET_NAME}_test_static PUBLIC inference_engine_s inference_engine_transformations)
 if(NOT BUILD_SHARED_LIBS)
     message(STATUS "Br***********************uno linkign PRIVATE")
-    target_link_libraries(${TARGET_NAME}_test_static PRIVATE libGNA::API)
 else()
     message(STATUS "Br***********************uno linkign PUBLIC")
     target_link_libraries(${TARGET_NAME}_test_static PUBLIC libGNA::API)
