@@ -15,6 +15,11 @@ namespace {
             ngraph::element::u8,
     };
 
+    static const std::vector<ngraph::element::Type> nightly_floatPrecisionsMyriad = {
+            ngraph::element::f32,
+            ngraph::element::f16
+    };
+
     static const std::vector<ngraph::element::Type> smoke_precisionsMyriad = {
             ngraph::element::f32,
     };
@@ -41,8 +46,16 @@ namespace {
 
     INSTANTIATE_TEST_SUITE_P(nightly_CachingSupportCase_Myriad, LoadNetworkCacheTestBase,
                             ::testing::Combine(
-                                    ::testing::ValuesIn(LoadNetworkCacheTestBase::getStandardFunctions()),
+                                    ::testing::ValuesIn(LoadNetworkCacheTestBase::getNumericAnyTypeFunctions()),
                                     ::testing::ValuesIn(nightly_precisionsMyriad),
+                                    ::testing::ValuesIn(batchSizesMyriad),
+                                    ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
+                            LoadNetworkCacheTestBase::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(nightly_CachingSupportCase_Myriad_Float, LoadNetworkCacheTestBase,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(LoadNetworkCacheTestBase::getFloatingPointOnlyFunctions()),
+                                    ::testing::ValuesIn(nightly_floatPrecisionsMyriad),
                                     ::testing::ValuesIn(batchSizesMyriad),
                                     ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
                             LoadNetworkCacheTestBase::getTestCaseName);
