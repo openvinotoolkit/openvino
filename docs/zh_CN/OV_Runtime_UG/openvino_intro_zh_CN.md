@@ -8,7 +8,7 @@
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_ov_ug_working_with_devices_zh_CN
+   openvino_docs_OV_UG_Working_with_devices_zh_CN
    openvino_docs_OV_UG_DynamicShapes_zh_CN
    openvino_docs_OV_UG_Performance_Hints_zh_CN
    
