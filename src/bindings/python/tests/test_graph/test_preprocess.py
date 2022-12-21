@@ -482,7 +482,7 @@ def test_graph_preprocess_crop():
         "Relu",
         "Slice",
     ]
-    assert len(model_operators) == 7
+    assert len(model_operators) == 8
     assert function.get_output_size() == 1
     assert list(function.get_output_shape(0)) == [1, 2, 1, 1]
     assert function.get_output_element_type(0) == Type.f32

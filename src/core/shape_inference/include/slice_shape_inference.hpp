@@ -112,6 +112,8 @@ void shape_infer(const Slice* op,
         }
     } else if (start) {
         axes_map.generate_n(start->size());
+    } else if (start_shape.rank().is_static()) {
+        axes_map.generate_n(start_shape[0].get_length());
     }
 
     auto axis_it = axes_map.m.cbegin();

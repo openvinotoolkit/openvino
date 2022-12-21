@@ -17,13 +17,39 @@
 using namespace std;
 using namespace ngraph;
 
+namespace ov {
+namespace op {
+namespace slice {
+inline std::shared_ptr<v0::Constant> make_default_const_axes(const Output<Node>& start) {
+    const auto start_pshape = start.get_partial_shape();
+    // Static case
+    if (start_pshape.rank().is_static() && start_pshape.rank().get_length() == 1 && start_pshape[0].is_static()) {
+        size_t axes_length = start_pshape[0].get_length();
+        std::vector<int64_t> axes(axes_length);
+        std::iota(axes.begin(), axes.end(), 0);
+        return v0::Constant::create(element::i64, Shape{axes_length}, axes);
+    } else {
+        // Dynamic case
+        return nullptr;
+    }
+}
+
+inline std::shared_ptr<Node> make_default_axes(const Output<Node>& start) {
+    if (auto const_axes = make_default_const_axes(start)) {
+        return const_axes;
+    } else {
+        return std::make_shared<v0::Parameter>(start.get_element_type(), PartialShape::dynamic());
+    }
+}
+}  // namespace slice
+}  // namespace op
+}  // namespace ov
+
 op::v8::Slice::Slice(const Output<Node>& data,
                      const Output<Node>& start,
                      const Output<Node>& stop,
                      const Output<Node>& step)
-    : Op({data, start, stop, step}) {
-    constructor_validate_and_infer_types();
-}
+    : Slice(data, start, stop, step, slice::make_default_axes(start)) {}
 
 op::v8::Slice::Slice(const Output<Node>& data,
                      const Output<Node>& start,
@@ -39,17 +65,8 @@ bool op::v8::Slice::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-std::shared_ptr<ngraph::op::v0::Constant> op::v8::Slice::get_default_const_axes(const Output<Node>& start) const {
-    const auto start_pshape = start.get_partial_shape();
-    // Static case
-    if (start_pshape.rank().is_static() && start_pshape.rank().get_length() == 1 && start_pshape[0].is_static()) {
-        size_t axes_length = start_pshape[0].get_length();
-        std::vector<int64_t> axes(axes_length);
-        std::iota(axes.begin(), axes.end(), 0);
-        return op::v0::Constant::create(element::i64, Shape{axes_length}, axes);
-    }
-    // Dynamic case
-    return nullptr;
+std::shared_ptr<op::v0::Constant> op::v8::Slice::get_default_const_axes(const Output<Node>& start) const {
+    return slice::make_default_const_axes(start);
 }
 
 void op::v8::Slice::validate_and_infer_types() {
@@ -69,9 +86,8 @@ void op::v8::Slice::validate_and_infer_types() {
                           "Slice `data` input can't be a scalar.");
 
     if (get_input_size() < 5) {
-        if (auto axes_const = get_default_const_axes(input_value(1))) {
-            set_argument(4, axes_const);
-        }
+        // When op created by default ctor and axes not added.
+        set_argument(4, slice::make_default_axes(input_value(1)));
     }
 
     for (size_t i = 0; i < get_input_size(); ++i) {
