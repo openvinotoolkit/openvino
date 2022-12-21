@@ -72,6 +72,25 @@ def get_element_type(precision):
     raise Exception(f"Undefined precision: '{precision}' !")
 
 
+def fuse_mean_scale(preproc: PrePostProcessor, app_inputs_info):
+    # TODO: remove warning after 23.3 release
+    warned = False;
+    warn_msg = 'Mean/scale values are fused into the model. This slows down performance compared to --imean and --iscale which existed before'
+    for input_info in app_inputs_info:
+        print(input_info)
+        print(input_info.mean)
+        if input_info.mean.size:
+            if not warned:
+                logger.warning(warn_msg)
+                warned = True
+            preproc.input(input_info.name).preprocess().convert_element_type(Type.f32).mean(input_info.mean)
+        if input_info.scale.size:
+            if not warned:
+                logger.warning(warn_msg)
+                warned = True
+            preproc.input(input_info.name).preprocess().convert_element_type(Type.f32).scale(input_info.scale)
+
+
 def pre_post_processing(model: Model, app_inputs_info, input_precision: str, output_precision: str, input_output_precision: str):
     pre_post_processor = PrePostProcessor(model)
     if input_precision:
@@ -117,6 +136,8 @@ def pre_post_processing(model: Model, app_inputs_info, input_precision: str, out
             elif app_inputs_info[i].is_image:
                 app_inputs_info[i].element_type = Type.u8
                 pre_post_processor.input(i).tensor().set_element_type(Type.u8)
+
+    fuse_mean_scale(pre_post_processor, app_inputs_info)
 
     # set layout for model input
     for info in app_inputs_info:
@@ -507,7 +528,7 @@ def parse_scale_or_mean(parameter_string, input_info):
         if matches:
             for match in matches:
                 input_name, value = match
-                f_value = np.array(value.split(",")).astype(np.float)
+                f_value = np.array(value.split(",")).astype(float)
                 if input_name != '':
                     return_value[input_name] = f_value
                 else:

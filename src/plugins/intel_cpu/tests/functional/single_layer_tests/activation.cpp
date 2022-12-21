@@ -123,8 +123,6 @@ protected:
 };
 
 TEST_P(ActivationLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
     CheckPluginRelatedResults(compiledModel, "Eltwise");
 }

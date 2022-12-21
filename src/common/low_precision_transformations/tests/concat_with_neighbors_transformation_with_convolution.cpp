@@ -2,21 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "layer_transformation.hpp"
-
-#include <sstream>
-#include <memory>
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
 #include <low_precision/concat.hpp>
 #include <low_precision/convolution.hpp>
 #include <low_precision/fake_quantize_decomposition.hpp>
 #include <low_precision/max_pool.hpp>
+#include <memory>
+#include <sstream>
+#include <transformations/utils/utils.hpp>
 
-#include "lpt_ngraph_functions/precision_propagation_function.hpp"
+#include "layer_transformation.hpp"
 #include "lpt_ngraph_functions/common/builders.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "lpt_ngraph_functions/precision_propagation_function.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
@@ -56,12 +55,8 @@ public:
 };
 
 inline std::ostream& operator<<(std::ostream& out, const ConcatWithNeighborsWithConvolutionResultValues& values) {
-    return out << "_" <<
-        values.fakeQuantize1 << "_" <<
-        values.fakeQuantize2 << "_" <<
-        values.fakeQuantize3 << "_" <<
-        values.dequantizationAfter1 << "_" <<
-        values.dequantizationAfter2;
+    return out << "_" << values.fakeQuantize1 << "_" << values.fakeQuantize2 << "_" << values.fakeQuantize3 << "_"
+               << values.dequantizationAfter1 << "_" << values.dequantizationAfter2;
 }
 
 class ConcatWithNeighborsWithConvolutionTestValues {
@@ -76,15 +71,12 @@ inline std::ostream& operator<<(std::ostream& out, const ConcatWithNeighborsWith
     return out << "_" << values.multiChannels << "_" << values.actual << "_" << values.result;
 }
 
-typedef std::tuple <
-    ngraph::element::Type,
-    ngraph::Shape,
-    ConcatWithNeighborsWithConvolutionTestValues
-> ConcatWithNeighborsWithConvolutionParams;
+typedef std::tuple<ngraph::element::Type, ngraph::Shape, ConcatWithNeighborsWithConvolutionTestValues>
+    ConcatWithNeighborsWithConvolutionParams;
 
-class ConcatWithNeighborsWithConvolutionTransformation :
-    public LayerTransformation,
-    public testing::WithParamInterface<ConcatWithNeighborsWithConvolutionParams> {
+class ConcatWithNeighborsWithConvolutionTransformation
+    : public LayerTransformation,
+      public testing::WithParamInterface<ConcatWithNeighborsWithConvolutionParams> {
 public:
     void SetUp() override {
         const ngraph::element::Type precision = std::get<0>(GetParam());
@@ -104,23 +96,23 @@ public:
             testValues.actual.convert3,
             testValues.actual.dequantization3);
 
-        auto supportedPrecisionsOnActivation = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>({
-            ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::Convolution>({
-                {{0}, {ngraph::element::u8}},
-                {{1}, {ngraph::element::i8}}
-            })
-        });
+        auto supportedPrecisionsOnActivation = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>(
+            {ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::Convolution>(
+                {{{0}, {ngraph::element::u8}}, {{1}, {ngraph::element::i8}}})});
 
-        auto quantizationRestrictions = testValues.multiChannels ?
-            std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>() :
-            std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>({
-                ngraph::pass::low_precision::QuantizationGranularityRestriction::create<ngraph::opset1::Convolution>({0})
-            });
+        auto quantizationRestrictions =
+            testValues.multiChannels ? std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>()
+                                     : std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>(
+                                           {ngraph::pass::low_precision::QuantizationGranularityRestriction::create<
+                                               ngraph::opset1::Convolution>({0})});
 
         SimpleLowPrecisionTransformer transform(supportedPrecisionsOnActivation, quantizationRestrictions);
         transform.add<ngraph::pass::low_precision::ConcatTransformation, ngraph::opset1::Concat>(testValues.params);
-        transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::opset1::Convolution>(testValues.params);
-        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(testValues.params);
+        transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::opset1::Convolution>(
+            testValues.params);
+        transform
+            .add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(
+                testValues.params);
         transform.add<ngraph::pass::low_precision::MaxPoolTransformation, ngraph::opset1::MaxPool>(testValues.params);
         transform.transform(actualFunction);
 
@@ -143,127 +135,116 @@ public:
         const ConcatWithNeighborsWithConvolutionTestValues testValues = std::get<2>(obj.param);
 
         std::ostringstream result;
-        result <<
-            LayerTransformation::getTestCaseNameByParams(precision, shape, testValues.params) << "_" <<
-            (testValues.multiChannels ? "multiChannels_" : "notMultiChannels_") <<
-            testValues.actual << "_" <<
-            testValues.result << "_";
+        result << LayerTransformation::getTestCaseNameByParams(precision, shape, testValues.params) << "_"
+               << (testValues.multiChannels ? "multiChannels_" : "notMultiChannels_") << testValues.actual << "_"
+               << testValues.result << "_";
         return result.str();
     }
 };
 
 TEST_P(ConcatWithNeighborsWithConvolutionTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    //auto res = compare_functions(actualFunction, referenceFunction, true, false, false);
-    //ASSERT_TRUE(res.first) << res.second;
+    // auto res = compare_functions(actualFunction, referenceFunction, true, false, false);
+    // ASSERT_TRUE(res.first) << res.second;
 
     auto actualFakeQuantizes = LayerTransformation::get<opset1::FakeQuantize>(actualFunction);
-    ASSERT_EQ(3ul, actualFakeQuantizes.size()) << "unexpected FakeQuantize operations count " << actualFakeQuantizes.size();
+    ASSERT_EQ(3ul, actualFakeQuantizes.size())
+        << "unexpected FakeQuantize operations count " << actualFakeQuantizes.size();
 
-    ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<PrecisionsAttribute>(actualFakeQuantizes)) <<
-        "PrecisionsAttribute shared values are not the same";
+    ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<PrecisionsAttribute>(actualFakeQuantizes))
+        << "PrecisionsAttribute shared values are not the same";
 
     auto actualConcatOperations = LayerTransformation::get<opset1::Concat>(actualFunction);
     ASSERT_EQ(2ul, actualConcatOperations.size()) << "unexpected concat operations";
-    ASSERT_FALSE(ngraph::pass::low_precision::getAttribute<QuantizationAlignmentAttribute>(actualConcatOperations[0]).empty());
-    ASSERT_FALSE(ngraph::pass::low_precision::getAttribute<QuantizationAlignmentAttribute>(actualConcatOperations[1]).empty());
+    ASSERT_FALSE(
+        ngraph::pass::low_precision::getAttribute<QuantizationAlignmentAttribute>(actualConcatOperations[0]).empty());
+    ASSERT_FALSE(
+        ngraph::pass::low_precision::getAttribute<QuantizationAlignmentAttribute>(actualConcatOperations[1]).empty());
 
     actualConcatOperations.insert(actualConcatOperations.end(), actualFakeQuantizes.begin(), actualFakeQuantizes.end());
-    ASSERT_TRUE(checkIfAttributesSharedValuesAreTheSame<IntervalsAlignmentAttribute>(actualConcatOperations)) <<
-        "IntervalsAlignmentAttribute shared values are not the same";
+    ASSERT_TRUE(checkIfAttributesSharedValuesAreTheSame<IntervalsAlignmentAttribute>(actualConcatOperations))
+        << "IntervalsAlignmentAttribute shared values are not the same";
 
     auto convolutions = LayerTransformation::get<opset1::Convolution>(actualFunction);
     ASSERT_EQ(1ul, convolutions.size()) << "unexpected convolution operations";
-    ASSERT_EQ(2ul, convolutions[0]->input(0).get_rt_info().size()) <<
-        "unexpected input 0 attributes count: LowPrecision::PerTensorQuantization & LowPrecision::Precisions";
+    ASSERT_EQ(2ul, convolutions[0]->input(0).get_rt_info().size())
+        << "unexpected input 0 attributes count: LowPrecision::PerTensorQuantization & LowPrecision::Precisions";
     ASSERT_EQ(1ul, convolutions[0]->input(1).get_rt_info().size()) << "unexpected input 1 attributes count";
     auto& a1 = convolutions[0]->input(1).get_rt_info().begin()->second.as<PrecisionsAttribute>();
     ASSERT_EQ(element::i8, a1.value().front());
 }
 
-const std::vector<ngraph::element::Type> precisions = {
-    ngraph::element::f32
-};
+const std::vector<ngraph::element::Type> precisions = {ngraph::element::f32};
 
 const std::vector<ConcatWithNeighborsWithConvolutionTestValues> testValues = {
     // I8: concat: composed FakeQuantize
-    {
-        LayerTransformation::createParamsI8I8(),
-        false,
-        {
-            { 256ul, ngraph::Shape({}), {-1.28f / 3.f}, {1.27f / 3.f}, {-1.28f / 3.f}, {1.27f / 3.f} },
-            {},
-            {},
-            { 256ul, ngraph::Shape({}), {-1.28f / 2.f}, {1.27f / 2.f}, {-1.28f / 2.f}, {1.27f / 2.f} },
-            {},
-            {},
-            { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
-            {},
-            {}
-        },
-        {
-            {
-                256ul, ngraph::Shape({}), {-1.28f / 3.f}, {1.27f / 3.f}, {0.f}, {255.f}, element::u8,
-                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{-1.28f, 1.27f}, 256ul) }
-            },
-            {
-                256ul, ngraph::Shape({}), {-1.28f / 2.f}, {1.27f / 2.f}, {64.f}, {192.f}, element::u8,
-                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{-1.28f, 1.27f}, 256ul) }
-            },
-            {
-                256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {0.f}, {255.f}, element::u8,
-                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{-1.28f, 1.27f}, 256ul) }
-            },
-            ngraph::element::u8,
-            {{}, {}, {}},
-            ngraph::element::u8,
-            { ngraph::element::f32, {128.f}, {{ 0.00333333f, 0.00333333f, 0.00333333f, 0.01f, 0.01f, 0.01f }} },
-            { {}, {}, {{ 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f }} }
-        }
-    },
+    {LayerTransformation::createParamsI8I8(),
+     false,
+     {{256ul, ngraph::Shape({}), {-1.28f / 3.f}, {1.27f / 3.f}, {-1.28f / 3.f}, {1.27f / 3.f}},
+      {},
+      {},
+      {256ul, ngraph::Shape({}), {-1.28f / 2.f}, {1.27f / 2.f}, {-1.28f / 2.f}, {1.27f / 2.f}},
+      {},
+      {},
+      {256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f}},
+      {},
+      {}},
+     {{256ul,
+       ngraph::Shape({}),
+       {-1.28f / 3.f},
+       {1.27f / 3.f},
+       {0.f},
+       {255.f},
+       element::u8,
+       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{-1.28f, 1.27f}, 256ul)}},
+      {256ul,
+       ngraph::Shape({}),
+       {-1.28f / 2.f},
+       {1.27f / 2.f},
+       {64.f},
+       {192.f},
+       element::u8,
+       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{-1.28f, 1.27f}, 256ul)}},
+      {256ul,
+       ngraph::Shape({}),
+       {-1.28f},
+       {1.27f},
+       {0.f},
+       {255.f},
+       element::u8,
+       {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{-1.28f, 1.27f}, 256ul)}},
+      ngraph::element::u8,
+      {{}, {}, {}},
+      ngraph::element::u8,
+      {ngraph::element::f32, {128.f}, {{0.00333333f, 0.00333333f, 0.00333333f, 0.01f, 0.01f, 0.01f}}},
+      {{}, {}, {{0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f}}}}},
     // I8: concat: decomposed FakeQuantize
-    {
-        LayerTransformation::createParamsI8I8(),
-        false,
-        {
-            { 256ul, ngraph::Shape({}), {-1.28f / 3.f}, {1.27f / 3.f}, {-128.f}, {127.f} },
-            { ngraph::element::i8 },
-            {
-                { element::f32 },
-                {},
-                { 0.003333333333333f }
-            },
-            { 256ul, ngraph::Shape({}), {-1.28f / 2.f}, {1.27f / 2.f}, {-1.28f / 2.f}, {1.27f / 2.f} },
-            {},
-            {},
-            { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
-            {},
-            {}
-        },
-        {
-            { 256ul, ngraph::Shape({}), {-1.28f / 3.f}, {1.27f / 3.f}, {0.f}, {255.f} },
-            { 256ul, ngraph::Shape({}), {-1.28f / 2.f}, {1.27f / 2.f}, {64.f}, {192.f} },
-            { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {0.f}, {255.f} },
-            ngraph::element::u8,
-            {{}, {}, {}},
-            ngraph::element::u8,
-            { ngraph::element::f32, {128.f}, {{ 0.00333333f, 0.00333333f, 0.00333333f, 0.01f, 0.01f, 0.01f }} },
-            { {}, {}, {{ 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f }} }
-        }
-    }
-};
+    {LayerTransformation::createParamsI8I8(),
+     false,
+     {{256ul, ngraph::Shape({}), {-1.28f / 3.f}, {1.27f / 3.f}, {-128.f}, {127.f}},
+      {ngraph::element::i8},
+      {{element::f32}, {}, {0.003333333333333f}},
+      {256ul, ngraph::Shape({}), {-1.28f / 2.f}, {1.27f / 2.f}, {-1.28f / 2.f}, {1.27f / 2.f}},
+      {},
+      {},
+      {256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f}},
+      {},
+      {}},
+     {{256ul, ngraph::Shape({}), {-1.28f / 3.f}, {1.27f / 3.f}, {0.f}, {255.f}},
+      {256ul, ngraph::Shape({}), {-1.28f / 2.f}, {1.27f / 2.f}, {64.f}, {192.f}},
+      {256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {0.f}, {255.f}},
+      ngraph::element::u8,
+      {{}, {}, {}},
+      ngraph::element::u8,
+      {ngraph::element::f32, {128.f}, {{0.00333333f, 0.00333333f, 0.00333333f, 0.01f, 0.01f, 0.01f}}},
+      {{}, {}, {{0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f}}}}}};
 
-const std::vector<ngraph::Shape> shapes = {
-    { 1, 3, 9, 9 },
-    { 4, 3, 9, 9 }
-};
+const std::vector<ngraph::Shape> shapes = {{1, 3, 9, 9}, {4, 3, 9, 9}};
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    ConcatWithNeighborsWithConvolutionTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(precisions),
-        ::testing::ValuesIn(shapes),
-        ::testing::ValuesIn(testValues)),
-    ConcatWithNeighborsWithConvolutionTransformation::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         ConcatWithNeighborsWithConvolutionTransformation,
+                         ::testing::Combine(::testing::ValuesIn(precisions),
+                                            ::testing::ValuesIn(shapes),
+                                            ::testing::ValuesIn(testValues)),
+                         ConcatWithNeighborsWithConvolutionTransformation::getTestCaseName);
 }  // namespace

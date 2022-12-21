@@ -2,16 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <transformations/common_optimizations/transpose_sinking_binary.hpp>
-
-#include <transformations/init_node_info.hpp>
+#include <functional>
 #include <openvino/frontend/manager.hpp>
 #include <openvino/opsets/opset9.hpp>
 #include <openvino/pass/manager.hpp>
+#include <transformations/common_optimizations/transpose_sinking_binary.hpp>
+#include <transformations/init_node_info.hpp>
+
 #include "common_test_utils/ngraph_test_utils.hpp"
-
-#include <functional>
-
 #include "gtest/gtest.h"
 
 namespace {
@@ -69,24 +67,21 @@ PassFactoryPtr CreatePassFactory() {
     return std::make_shared<PassFactory<PassT>>();
 }
 
-std::vector<BinaryFactoryPtr> binary_factories = {
-    CreateBinaryFactory<ov::opset9::Add>(),
-    CreateBinaryFactory<ov::opset9::Divide>(),
-    CreateBinaryFactory<ov::opset9::Maximum>(),
-    CreateBinaryFactory<ov::opset9::Minimum>(),
-    CreateBinaryFactory<ov::opset9::Mod>(),
-    CreateBinaryFactory<ov::opset9::Multiply>(),
-    CreateBinaryFactory<ov::opset9::Power>(),
-    CreateBinaryFactory<ov::opset9::SquaredDifference>(),
-    CreateBinaryFactory<ov::opset9::Subtract>()
-};
+std::vector<BinaryFactoryPtr> binary_factories = {CreateBinaryFactory<ov::opset9::Add>(),
+                                                  CreateBinaryFactory<ov::opset9::Divide>(),
+                                                  CreateBinaryFactory<ov::opset9::Maximum>(),
+                                                  CreateBinaryFactory<ov::opset9::Minimum>(),
+                                                  CreateBinaryFactory<ov::opset9::Mod>(),
+                                                  CreateBinaryFactory<ov::opset9::Multiply>(),
+                                                  CreateBinaryFactory<ov::opset9::Power>(),
+                                                  CreateBinaryFactory<ov::opset9::SquaredDifference>(),
+                                                  CreateBinaryFactory<ov::opset9::Subtract>()};
 
 std::vector<size_t> binary_operations_numbers = {1, 10};
 
 std::vector<size_t> binary_transpose_input_indexes = {0, 1};
 
-} // namespace
-
+}  // namespace
 
 namespace binary {
 namespace single_consumer {
@@ -199,7 +194,7 @@ std::shared_ptr<ov::Model> CreateReferenceFunction(BinaryFactoryPtr binary_facto
 }
 
 }  // namespace double_transpose
-} // namespace forward
+}  // namespace forward
 
 namespace backward {
 namespace one_input_transpose {
@@ -252,10 +247,10 @@ std::shared_ptr<ov::Model> CreateReferenceFunction(BinaryFactoryPtr binary_facto
 
     return std::make_shared<ov::Model>(ov::OutputVector{in_op}, ov::ParameterVector{X});
 }
-} // namespace one_input_transpose
-} // namespace backward
-} // namespace single_consumer
-} // namespace binary
+}  // namespace one_input_transpose
+}  // namespace backward
+}  // namespace single_consumer
+}  // namespace binary
 
 using CreateGraphBinaryF = std::function<std::shared_ptr<ov::Model>(BinaryFactoryPtr unary_factory,
                                                                     size_t num_binary_ops,
@@ -272,7 +267,6 @@ using TestBinaryParams = std::tuple<BinaryFactoryPtr,
 
 class TransposeSinkingBinaryTestFixture : public ::testing::WithParamInterface<TestBinaryParams>,
                                           public TransformationTestsF {};
-
 
 TEST_P(TransposeSinkingBinaryTestFixture, CompareFunctions) {
     BinaryFactoryPtr unary_factory;
@@ -295,41 +289,46 @@ TEST_P(TransposeSinkingBinaryTestFixture, CompareFunctions) {
     pass_factory->registerPass(manager);
 }
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingBinaryForwardTestSuite, TransposeSinkingBinaryTestFixture,
-                         ::testing::Combine(::testing::ValuesIn(binary_factories),
-                                            ::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingBinaryElementwiseForward>()),
-                                            ::testing::ValuesIn(binary_operations_numbers),
-                       ::testing::Values(binary::single_consumer::forward::one_input_transpose::CreateFunction),
-                       ::testing::Values(binary::single_consumer::forward::one_input_transpose::CreateReferenceFunction),
-                                            ::testing::Values(ov::element::f32),
-                                            ::testing::ValuesIn(binary_transpose_input_indexes)));
+INSTANTIATE_TEST_SUITE_P(
+    TransposeSinkingBinaryForwardTestSuite,
+    TransposeSinkingBinaryTestFixture,
+    ::testing::Combine(
+        ::testing::ValuesIn(binary_factories),
+        ::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingBinaryElementwiseForward>()),
+        ::testing::ValuesIn(binary_operations_numbers),
+        ::testing::Values(binary::single_consumer::forward::one_input_transpose::CreateFunction),
+        ::testing::Values(binary::single_consumer::forward::one_input_transpose::CreateReferenceFunction),
+        ::testing::Values(ov::element::f32),
+        ::testing::ValuesIn(binary_transpose_input_indexes)));
 
 INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingBinaryBackwardTestSuite,
     TransposeSinkingBinaryTestFixture,
-                         ::testing::Combine(::testing::ValuesIn(binary_factories),
-                                            ::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingBinaryElementwiseBackward>()),
-                                            ::testing::ValuesIn(binary_operations_numbers),
-                       ::testing::Values(binary::single_consumer::backward::one_input_transpose::CreateFunction),
-                       ::testing::Values(binary::single_consumer::backward::one_input_transpose::CreateReferenceFunction),
-                                            ::testing::Values(ov::element::f32),
-                                            ::testing::ValuesIn(binary_transpose_input_indexes)));
+    ::testing::Combine(
+        ::testing::ValuesIn(binary_factories),
+        ::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingBinaryElementwiseBackward>()),
+        ::testing::ValuesIn(binary_operations_numbers),
+        ::testing::Values(binary::single_consumer::backward::one_input_transpose::CreateFunction),
+        ::testing::Values(binary::single_consumer::backward::one_input_transpose::CreateReferenceFunction),
+        ::testing::Values(ov::element::f32),
+        ::testing::ValuesIn(binary_transpose_input_indexes)));
 
 // --------------------------------------------------------------------------------------
 
 using CreateGraphBinaryTwoTransposeInputsF = std::function<
     std::shared_ptr<ov::Model>(BinaryFactoryPtr unary_factory, size_t num_binary_ops, ov::element::Type input_type)>;
 
-using TestBinaryTwoTransposeInputsParams = std::tuple<BinaryFactoryPtr,
-                                    PassFactoryPtr,
-                                    size_t,                                  /* num_binary_ops */
-                                    CreateGraphBinaryTwoTransposeInputsF,    /* model_factory */
-                                    CreateGraphBinaryTwoTransposeInputsF, /* reference_model_factory */
-                                    ov::element::Type>;                      /* input type */
+using TestBinaryTwoTransposeInputsParams =
+    std::tuple<BinaryFactoryPtr,
+               PassFactoryPtr,
+               size_t,                               /* num_binary_ops */
+               CreateGraphBinaryTwoTransposeInputsF, /* model_factory */
+               CreateGraphBinaryTwoTransposeInputsF, /* reference_model_factory */
+               ov::element::Type>;                   /* input type */
 
 class TransposeSinkingBinaryTwoTransposeInputsTestFixture
     : public ::testing::WithParamInterface<TestBinaryTwoTransposeInputsParams>,
-                                          public TransformationTestsF {};
+      public TransformationTestsF {};
 
 TEST_P(TransposeSinkingBinaryTwoTransposeInputsTestFixture, CompareFunctions) {
     BinaryFactoryPtr unary_factory;

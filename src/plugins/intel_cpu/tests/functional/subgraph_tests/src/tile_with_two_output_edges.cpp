@@ -33,8 +33,6 @@ protected:
 };
 
 TEST_F(TileWithTwoOutputEdges, smoke_CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     Run();
 }
 

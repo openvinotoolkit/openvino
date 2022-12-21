@@ -108,7 +108,7 @@ usage: benchmark_app.py [-h [HELP]] [-i PATHS_TO_INPUT [PATHS_TO_INPUT ...]] -m 
                         [-pin {YES,NO,NUMA,HYBRID_AWARE}] [-exec_graph_path EXEC_GRAPH_PATH] [-pc [PERF_COUNTS]] [-pcsort {no_sort,sort,simple_sort}] [-pcseq [PCSEQ]]
                         [-inference_only [INFERENCE_ONLY]] [-report_type {no_counters,average_counters,detailed_counters}] [-report_folder REPORT_FOLDER] [-dump_config DUMP_CONFIG]
                         [-load_config LOAD_CONFIG] [-infer_precision INFER_PRECISION] [-ip {u8,U8,f16,FP16,f32,FP32}] [-op {u8,U8,f16,FP16,f32,FP32}] [-iop INPUT_OUTPUT_PRECISION]
-                        [-cdir CACHE_DIR] [-lfile [LOAD_FROM_FILE]] [-iscale INPUT_SCALE] [-imean INPUT_MEAN]
+                        [-cdir CACHE_DIR] [-lfile [LOAD_FROM_FILE]] [--mean_values [R,G,B]] [--scale_values [R,G,B]]
 
 Options:
   -h [HELP], --help [HELP]
@@ -214,12 +214,16 @@ Options:
                         Optional. Enable model caching to specified directory
   -lfile [LOAD_FROM_FILE], --load_from_file [LOAD_FROM_FILE]
                         Optional. Loads model from file directly without read_model.
-  -iscale INPUT_SCALE, --input_scale INPUT_SCALE
-                        Optional. Scale values to be used for the input image per channel. Values to be provided in the [R, G, B] format. Can be defined for desired input of the model.
-                        Example: -iscale data[255,255,255],info[255,255,255]
-  -imean INPUT_MEAN, --input_mean INPUT_MEAN
-                        Optional. Mean values to be used for the input image per channel. Values to be provided in the [R, G, B] format. Can be defined for desired input of the model. Example:
-                        -imean data[255,255,255],info[255,255,255]
+  --mean_values [R,G,B]
+                        Optional. Mean values to be used for the input image per channel. Values to be provided in the [R,G,B] format. Can be defined for desired input
+                        of the model, for example: "--mean_values data[255,255,255],info[255,255,255]". The exact meaning and order of channels depend on how the
+                        original model was trained. Applying the values affects performance and may cause type conversion
+
+  --scale_values [R,G,B]
+                        Optional. Scale values to be used for the input image per channel. Values are provided in the [R,G,B] format. Can be defined for desired input
+                        of the model, for example: "--scale_values data[255,255,255],info[255,255,255]". The exact meaning and order of channels depend on how the
+                        original model was trained. If both --mean_values and --scale_values are specified, the mean is subtracted first and then scale is applied
+                        regardless of the order of options in command line. Applying the values affects performance and may cause type conversion
 ```
 
 Running the application with the empty list of options yields the usage message given above and an error message.

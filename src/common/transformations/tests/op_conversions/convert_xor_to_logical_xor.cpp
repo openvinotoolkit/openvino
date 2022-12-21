@@ -29,9 +29,8 @@ TEST_F(TransformationTestsF, ConvertXorToLogicalXor) {
         const auto input1 = std::make_shared<opset1::Parameter>(element::boolean, data_shape);
         const auto input2 = std::make_shared<opset1::Parameter>(element::boolean, data_shape);
 
-        auto xor_op = std::make_shared<opset1::Xor>(input1,
-                                                    input2,
-                                                    ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY));
+        auto xor_op =
+            std::make_shared<opset1::Xor>(input1, input2, ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY));
 
         function = std::make_shared<ngraph::Function>(NodeVector{xor_op}, ParameterVector{input1, input2});
         manager.register_pass<ov::pass::ConvertXorToLogicalXor>();
@@ -47,9 +46,10 @@ TEST_F(TransformationTestsF, ConvertXorToLogicalXor) {
         const auto input1 = std::make_shared<opset10::Parameter>(element::boolean, data_shape);
         const auto input2 = std::make_shared<opset10::Parameter>(element::boolean, data_shape);
 
-        auto logical_xor = std::make_shared<opset10::LogicalXor>(input1,
-                                                                 input2,
-                                                                 ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY));
+        auto logical_xor =
+            std::make_shared<opset10::LogicalXor>(input1,
+                                                  input2,
+                                                  ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY));
 
         function_ref = std::make_shared<ngraph::Function>(NodeVector{logical_xor}, ParameterVector{input1, input2});
     }

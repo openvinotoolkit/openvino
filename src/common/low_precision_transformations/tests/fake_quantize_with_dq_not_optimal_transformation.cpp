@@ -2,26 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "layer_transformation.hpp"
+#include <gtest/gtest.h>
 
+#include <low_precision/convolution.hpp>
+#include <low_precision/fake_quantize_decomposition.hpp>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include <gtest/gtest.h>
-
-#include <low_precision/convolution.hpp>
-#include <low_precision/fake_quantize_decomposition.hpp>
-
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "simple_low_precision_transformer.hpp"
-
-#include "lpt_ngraph_functions/fake_quantize_and_convolution_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "layer_transformation.hpp"
 #include "lpt_ngraph_functions/common/constant.hpp"
+#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
+#include "lpt_ngraph_functions/fake_quantize_and_convolution_function.hpp"
+#include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
 using namespace ngraph;
@@ -44,21 +41,18 @@ public:
     Values expected;
 };
 
-inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeWithNotOptimalTransformationTestValues& testValue) {
-    return out << "_" <<
-        testValue.actual.fqOnData << "_" << testValue.actual.fqOnWeights <<
-        testValue.expected.fqOnData << "_" << testValue.expected.fqOnWeights;
+inline std::ostream& operator<<(std::ostream& out,
+                                const FakeQuantizeWithNotOptimalTransformationTestValues& testValue) {
+    return out << "_" << testValue.actual.fqOnData << "_" << testValue.actual.fqOnWeights << testValue.expected.fqOnData
+               << "_" << testValue.expected.fqOnWeights;
 }
 
-typedef std::tuple<
-    ngraph::element::Type,
-    ngraph::Shape,
-    bool,
-    FakeQuantizeWithNotOptimalTransformationTestValues> FakeQuantizeWithNotOptimalTransformationParams;
+typedef std::tuple<ngraph::element::Type, ngraph::Shape, bool, FakeQuantizeWithNotOptimalTransformationTestValues>
+    FakeQuantizeWithNotOptimalTransformationParams;
 
-class FakeQuantizeWithNotOptimalTransformation :
-    public LayerTransformation,
-    public testing::WithParamInterface<FakeQuantizeWithNotOptimalTransformationParams> {
+class FakeQuantizeWithNotOptimalTransformation
+    : public LayerTransformation,
+      public testing::WithParamInterface<FakeQuantizeWithNotOptimalTransformationParams> {
 public:
     void SetUp() override {
         const ngraph::element::Type precision = std::get<0>(GetParam());
@@ -80,21 +74,19 @@ public:
             testValues.actual.dequantizationOnWeights,
             testValues.actual.dequantizationAfter);
 
-        auto precisionsRestrictions = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>({
-            ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::Convolution>({
-                {{0}, {ngraph::element::u8}},
-                {{1}, {ngraph::element::i8}}
-            })
-        });
+        auto precisionsRestrictions = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>(
+            {ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::Convolution>(
+                {{{0}, {ngraph::element::u8}}, {{1}, {ngraph::element::i8}}})});
 
-        auto quantizationRestrictions = std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>({
-            ngraph::pass::low_precision::QuantizationGranularityRestriction::create<ngraph::opset1::Convolution>()
-        });
+        auto quantizationRestrictions = std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>(
+            {ngraph::pass::low_precision::QuantizationGranularityRestriction::create<ngraph::opset1::Convolution>()});
 
         SimpleLowPrecisionTransformer transformer(precisionsRestrictions, quantizationRestrictions);
         transformer.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::opset1::Convolution>(
-            TestTransformationParams(params).setPrecisionsOnActivations({ element::u8 }));
-        transformer.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(params);
+            TestTransformationParams(params).setPrecisionsOnActivations({element::u8}));
+        transformer
+            .add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(
+                params);
         transformer.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
@@ -118,9 +110,8 @@ public:
         std::tie(precision, shape, updatePrecision, fakeQuantizeOnData) = obj.param;
 
         std::ostringstream result;
-        result << LayerTransformation::getTestCaseNameByParams(precision, shape, fakeQuantizeOnData.params) <<
-            (updatePrecision ? "" : "_notUpdatePrecision_") <<
-            fakeQuantizeOnData;
+        result << LayerTransformation::getTestCaseNameByParams(precision, shape, fakeQuantizeOnData.params)
+               << (updatePrecision ? "" : "_notUpdatePrecision_") << fakeQuantizeOnData;
         return result.str();
     }
 };
@@ -133,11 +124,11 @@ TEST_P(FakeQuantizeWithNotOptimalTransformation, CompareFunctions) {
 
 const std::vector<ngraph::element::Type> precisions = {
     ngraph::element::f32,
-    //ngraph::element::i32,
-    //ngraph::element::f16
+    // ngraph::element::i32,
+    // ngraph::element::f16
 };
 
-const std::vector<bool> updatePrecisions = { true/*, false*/ };
+const std::vector<bool> updatePrecisions = {true /*, false*/};
 
 const std::vector<FakeQuantizeWithNotOptimalTransformationTestValues> fakeQuantizeTransformationTestValues = {
     // Actual:
@@ -173,56 +164,44 @@ const std::vector<FakeQuantizeWithNotOptimalTransformationTestValues> fakeQuanti
     //           Multiply
     {
         LayerTransformation::createParamsU8I8AndI8(),
-        {
-            { 256ul, {{ 1, 1, 1, 1 }}, { 0.f }, { 2.55f }, { -128.f }, { 127.f }, ngraph::element::i8 },
-            { ngraph::element::i8, false },
-            {
-                { ngraph::element::f32, false },
-                { {-128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::i8, true },
-                { {0.01f}, ngraph::element::f32, {}, false }
-            },
-            {{5.f}, ngraph::element::i8},
-            {},
-            {
-                { ngraph::element::f32, false },
-                { {127.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::i8, true },
-                { {0.03f}, ngraph::element::f32, {}, false }
-            },
-            {}
-        },
-        {
-            { 256ul, {{ 1, 1, 1, 1 }, { 1, 1, 1, 1 }, {}, {}}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, ngraph::element::u8 },
-            { ngraph::element::u8, false },
-            {},
-            {{5.f}, ngraph::element::i8},
-            {},
-            {
-                {},
-                { std::vector<float>(64, 127.f), ngraph::element::f32,
-                 {64, 1, 1, 1}, false, 1ul, ngraph::element::i8, false,
-                 {{ov::pass::DisableConstantFolding::get_type_info_static(), ov::pass::DisableConstantFolding()}}},
-                {}
-            },
-            {
-                { },
-                { },
-                { {0.0003f}, ngraph::element::f32, {}}
-            }
-        },
-    }
-};
+        {{256ul, {{1, 1, 1, 1}}, {0.f}, {2.55f}, {-128.f}, {127.f}, ngraph::element::i8},
+         {ngraph::element::i8, false},
+         {{ngraph::element::f32, false},
+          {{-128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::i8, true},
+          {{0.01f}, ngraph::element::f32, {}, false}},
+         {{5.f}, ngraph::element::i8},
+         {},
+         {{ngraph::element::f32, false},
+          {{127.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::i8, true},
+          {{0.03f}, ngraph::element::f32, {}, false}},
+         {}},
+        {{256ul, {{1, 1, 1, 1}, {1, 1, 1, 1}, {}, {}}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8},
+         {ngraph::element::u8, false},
+         {},
+         {{5.f}, ngraph::element::i8},
+         {},
+         {{},
+          {std::vector<float>(64, 127.f),
+           ngraph::element::f32,
+           {64, 1, 1, 1},
+           false,
+           1ul,
+           ngraph::element::i8,
+           false,
+           {{ov::pass::DisableConstantFolding::get_type_info_static(), ov::pass::DisableConstantFolding()}}},
+          {}},
+         {{}, {}, {{0.0003f}, ngraph::element::f32, {}}}},
+    }};
 
 const std::vector<ngraph::Shape> shapes = {
-    { 1, 32, 72, 48 },
+    {1, 32, 72, 48},
     // TODO: 3D tensor
 };
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    FakeQuantizeWithNotOptimalTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(precisions),
-        ::testing::ValuesIn(shapes),
-        ::testing::ValuesIn(updatePrecisions),
-        ::testing::ValuesIn(fakeQuantizeTransformationTestValues)),
-    FakeQuantizeWithNotOptimalTransformation::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         FakeQuantizeWithNotOptimalTransformation,
+                         ::testing::Combine(::testing::ValuesIn(precisions),
+                                            ::testing::ValuesIn(shapes),
+                                            ::testing::ValuesIn(updatePrecisions),
+                                            ::testing::ValuesIn(fakeQuantizeTransformationTestValues)),
+                         FakeQuantizeWithNotOptimalTransformation::getTestCaseName);

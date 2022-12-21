@@ -22,15 +22,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVPropertiesTests,
                 ::testing::ValuesIn(gpu_properties)),
         OVPropertiesTests::getTestCaseName);
 
-const std::vector<ov::AnyMap> auto_multi_properties = {
-        {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED)},
-        {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
-        {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
-        {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)},
+auto auto_multi_properties = []() {
+    return std::vector<ov::AnyMap>{
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU),
+         ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED)},
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU),
+         ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU),
+         ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU),
+         ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)},
         {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::intel_auto::device_bind_buffer("YES")},
-        {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::intel_auto::device_bind_buffer("NO")}
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::intel_auto::device_bind_buffer("NO")}};
 };
-
 
 const std::vector<ov::AnyMap> multi_properties = {
         {ov::device::priorities("CPU", "GPU")},
@@ -65,7 +69,7 @@ const std::vector<ov::AnyMap> auto_plugin_Incorrect_properties = {
 INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiBehaviorTests, OVPropertiesTests,
         ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_AUTO, CommonTestUtils::DEVICE_MULTI),
-                ::testing::ValuesIn(auto_multi_properties)),
+                ::testing::ValuesIn(auto_multi_properties())),
         OVPropertiesTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBehaviorTests, OVPropertiesTests,
@@ -110,25 +114,27 @@ INSTANTIATE_TEST_SUITE_P(smoke_gpuCompileModelBehaviorTests,
                                             ::testing::ValuesIn(gpu_compileModel_properties)),
                          OVSetPropComplieModleGetPropTests::getTestCaseName);
 
-const std::vector<ov::AnyMap> auto_multi_plugin_properties = {
-    {ov::device::priorities(CommonTestUtils::DEVICE_GPU),
-     ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
-     ov::hint::num_requests(2),
-     ov::hint::allow_auto_batching(false),
-     ov::enable_profiling(false)}};
-const std::vector<ov::AnyMap> auto_multi_compileModel_properties = {
-    {ov::device::priorities(CommonTestUtils::DEVICE_GPU),
-     ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
-     ov::hint::num_requests(10),
-     ov::hint::allow_auto_batching(true),
-     ov::enable_profiling(true)}};
+auto auto_multi_plugin_properties = []() {
+    return std::vector<ov::AnyMap>{{ov::device::priorities(CommonTestUtils::DEVICE_GPU),
+                                    ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
+                                    ov::hint::num_requests(2),
+                                    ov::hint::allow_auto_batching(false),
+                                    ov::enable_profiling(false)}};
+};
+auto auto_multi_compileModel_properties = []() {
+    return std::vector<ov::AnyMap>{{ov::device::priorities(CommonTestUtils::DEVICE_GPU),
+                                    ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
+                                    ov::hint::num_requests(10),
+                                    ov::hint::allow_auto_batching(true),
+                                    ov::enable_profiling(true)}};
+};
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiCompileModelBehaviorTests,
                          OVSetPropComplieModleGetPropTests,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO,
                                                               CommonTestUtils::DEVICE_MULTI),
-                                            ::testing::ValuesIn(auto_multi_plugin_properties),
-                                            ::testing::ValuesIn(auto_multi_compileModel_properties)),
+                                            ::testing::ValuesIn(auto_multi_plugin_properties()),
+                                            ::testing::ValuesIn(auto_multi_compileModel_properties())),
                          OVSetPropComplieModleGetPropTests::getTestCaseName);
 
 const std::vector<std::pair<ov::AnyMap, std::string>> autoExeDeviceConfigs = {

@@ -11,6 +11,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/log.hpp"
+#include "transformations/rt_info/transpose_sinking_attr.hpp"
 
 namespace transpose_sinking {
 
@@ -168,5 +169,45 @@ NodeVector InsertTransposeBeforeNode(NodePtr main_node, std::shared_ptr<Constant
     return new_nodes;
 }
 }  // namespace sink_backward
+
+#define CHECK_TRANSPOSE_SINKING_SUPPORTED(TYPE, node) \
+    if (dynamic_cast<TYPE*>(node)) {                  \
+        return true;                                  \
+    }
+
+namespace {
+
+bool CanPropagateForwardThrough(Node* node) {
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::util::UnaryElementwiseArithmetic, node);
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(Clamp, node);
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(Elu, node);
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(SoftPlus, node);
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(LogicalNot, node);
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(Convert, node);
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::util::BinaryElementwiseArithmetic, node);
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(Concat, node);
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(Split, node);
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(Transpose, node);
+
+    return false;
+}
+
+bool CanPropagateForward(NodePtr node) {
+    for (size_t i = 0; i < node->get_output_size(); ++i) {
+        for (auto& consumer_input : node->output(i).get_target_inputs()) {
+            if (!CanPropagateForwardThrough(consumer_input.get_node()))
+                return false;
+        }
+    }
+
+    return true;
+}
+
+}  // namespace
+
+void UpdateForwardSinkingAbility(NodePtr node) {
+    if (!CanPropagateForward(node))
+        mark_as_no_sinking_node(node);
+}
 
 }  // namespace transpose_sinking

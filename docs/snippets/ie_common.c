@@ -81,8 +81,7 @@ int main() {
     ie_blob_buffer_t out_buffer;
     ie_blob_get_buffer(output_blob, &out_buffer);
     // get data
-    void* data = nullptr;
-    ov_tensor_data(output_blob, &data);
+    float *data = (float *)(out_buffer.buffer);
     // process output data
     //! [ie:get_output_tensor]
 
