@@ -507,10 +507,10 @@ TEST_P(ov_remote_context_ocl, remote_tensor_nv12_inference) {
 
     OV_EXPECT_OK(ov_preprocess_input_tensor_info_set_element_type(preprocess_input_tensor_info, ov_element_type_e::U8));
     OV_EXPECT_OK(ov_preprocess_input_tensor_info_set_color_format_with_subname(preprocess_input_tensor_info,
-                                                                  ov_color_format_e::NV12_TWO_PLANES,
-                                                                  2,
-                                                                  "y",
-                                                                  "uv"));
+                                                                               ov_color_format_e::NV12_TWO_PLANES,
+                                                                               2,
+                                                                               "y",
+                                                                               "uv"));
     OV_EXPECT_OK(ov_preprocess_input_tensor_info_set_memory_type(preprocess_input_tensor_info, "GPU_SURFACE"));
     OV_EXPECT_OK(ov_preprocess_input_tensor_info_set_spatial_static_shape(preprocess_input_tensor_info, height, width));
 
