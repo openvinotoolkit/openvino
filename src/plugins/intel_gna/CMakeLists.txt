@@ -83,7 +83,15 @@ target_compile_definitions(${TARGET_NAME}_test_static
             INTEGER_LOW_P
             USE_STATIC_IE)
 
-target_link_libraries(${TARGET_NAME}_test_static PUBLIC inference_engine_s inference_engine_transformations libGNA::API)
+target_link_libraries(${TARGET_NAME}_test_static PUBLIC inference_engine_s inference_engine_transformations)
+if(NOT BUILD_SHARED_LIBS)
+    message(STATUS "Br***********************uno linkign PRIVATE")
+    target_link_libraries(${TARGET_NAME}_test_static PRIVATE libGNA::API)
+else()
+    message(STATUS "Br***********************uno linkign PUBLIC")
+    target_link_libraries(${TARGET_NAME}_test_static PUBLIC libGNA::API)
+endif()
+
 target_include_directories(${TARGET_NAME}_test_static
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/src
