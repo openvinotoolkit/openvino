@@ -475,18 +475,6 @@ TEST_P(deconv_actv_eltw_actv, basic) {
         activation("act2", input_info("eltw"), activation_func::relu),
         reorder("out", input_info("act2"), p.default_format, data_types::f32)
     );
-
-    // Waiting MFDNN-8947
-    std::set<deconv_test_params> onednn_skip = {
-        deconv_test_params{CASE_DECONV_U8S8_6, 2, 5},
-        deconv_test_params{CASE_DECONV_U8S8_7, 2, 5},
-        deconv_test_params{CASE_DECONV_S8S8_6, 2, 5},
-        deconv_test_params{CASE_DECONV_S8S8_7, 2, 5},
-    };
-    if (engine.get_device_info().supports_immad && onednn_skip.count(p)) {
-        std::cout << "SKIP" << std::endl;
-        return;
-    }
     // Need much higher tolerance because of deconvolution -> convolution optimization
     tolerance = 1.f;
     execute(p);
@@ -702,20 +690,6 @@ TEST_P(deconv_scale_actv_quant_u8_eltw_scale_actv_quant_i8, basic) {
                  input_info("out2_lo"), input_info("out2_hi"), 255, data_types::i8),
         reorder("out", input_info("quant2"), p.default_format, data_types::f32)
     );
-
-    // Waiting MFDNN-8947
-    std::set<deconv_test_params> onednn_skip = {
-        deconv_test_params{CASE_DECONV_FP16_2, 2, 9},
-        deconv_test_params{CASE_DECONV_FP16_3, 2, 9},
-        deconv_test_params{CASE_DECONV_FP16_6, 2, 9},
-        deconv_test_params{CASE_DECONV_FP16_7, 2, 9},
-        deconv_test_params{CASE_DECONV_S8S8_6, 2, 9},
-        deconv_test_params{CASE_DECONV_S8S8_7, 2, 9},
-    };
-    if (engine.get_device_info().supports_immad && onednn_skip.count(p)) {
-        std::cout << "SKIP" << std::endl;
-        return;
-    }
     tolerance = 2.1f;
     execute(p);
 }
