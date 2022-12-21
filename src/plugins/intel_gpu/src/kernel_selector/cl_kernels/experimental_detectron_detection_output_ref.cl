@@ -286,8 +286,13 @@ KERNEL(eddo_ref_stage_1)
  __global ScoreClassIndex* score_class_index_map,
  __global uint* detection_count) {
     size_t total_detections_num = 0;
+
     // FIXME: figure out how to parallelize this!!!
+#ifdef CLASS_AGNOSTIC_BOX_REGRESSION
+    for (int class_idx = 1; class_idx < NUM_CLASSES; ++class_idx) {
+#else
     for (int class_idx = 0; class_idx < NUM_CLASSES; ++class_idx) {
+#endif
         FUNC_CALL(nms_cf)
         (&refined_scores[ROI_COUNT * class_idx],
          &refined_boxes[ROI_COUNT * 4 * class_idx],

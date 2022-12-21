@@ -1892,16 +1892,16 @@ TEST(eval, evaluate_fake_quantize_dynamic_input) {
 }
 
 TEST(eval, evaluate_cum_sum_v0) {
-    auto data = make_shared<op::Parameter>(element::f32, Shape{2,3});
+    auto data = make_shared<op::Parameter>(element::f32, Shape{2, 3});
     auto axis = op::Constant::create<int32_t>(element::i32, Shape{1}, {1});
     auto cs = make_shared<op::v0::CumSum>(data, axis);
     auto m = make_shared<ov::Model>(OutputVector{cs}, ParameterVector{data});
 
-    float input_values[6] = {1.f, 2.f, 3.f, 4.f, 5.f,6.f};
+    float input_values[6] = {1.f, 2.f, 3.f, 4.f, 5.f, 6.f};
     float out_expected[6] = {1.f, 3.f, 6.f, 4.f, 9.f, 15.f};
 
     auto outputs = ov::TensorVector(1);
-    ASSERT_TRUE(m->evaluate(outputs, {{ov::element::f32, {2,3}, input_values}}));
+    ASSERT_TRUE(m->evaluate(outputs, {{ov::element::f32, {2, 3}, input_values}}));
     EXPECT_EQ(outputs[0].get_element_type(), data->get_element_type());
     EXPECT_EQ(outputs[0].get_shape(), data->get_shape());
     EXPECT_EQ(memcmp(outputs[0].data(), out_expected, sizeof(out_expected)), 0);
