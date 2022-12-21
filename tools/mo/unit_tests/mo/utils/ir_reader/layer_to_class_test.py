@@ -8,6 +8,8 @@ from generator import generator, generate
 
 from openvino.tools.mo.graph.graph import Node
 from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.utils.ir_reader.internal_ops.squeeze import SqueezeInternal
+from openvino.tools.mo.utils.ir_reader.internal_ops.unsqueeze import UnsqueezeInternal
 from openvino.tools.mo.utils.ir_reader.layer_to_class import groupconv_to_conv, restore_tensor_names
 from unit_tests.utils.graph import build_graph
 
@@ -128,5 +130,71 @@ class TestFunction(unittest.TestCase):
 
         assert node_1['fw_tensor_debug_info'] == [('abc', 'abc'), ('def', 'def')], 'Restored debug info is wrong!'
         assert node_2['fw_tensor_debug_info'] == [('ghi,jkl', 'ghi,jkl')], 'Restored debug info is wrong!'
-        assert node_3['fw_tensor_debug_info'] == [('mno', 'mno'), ('pqr,stu', 'pqr,stu')],\
+        assert node_3['fw_tensor_debug_info'] == [('mno', 'mno'), ('pqr,stu', 'pqr,stu')], \
             'Restored debug info is wrong!'
+
+    def test_squeeze(self):
+        nodes_attributes = {
+            'input': {'kind': 'op', 'type': 'Parameter'},
+            'input_data': {'shape': [2, 1, 3], 'kind': 'data'},
+
+            'axis': {'kind': 'op', 'type': 'Const', 'op': 'Const', 'value': np.array(1), 'shape': []},
+            'axis_data': {'shape': [], 'kind': 'data', 'value': np.array(1)},
+
+            'squeeze': {'kind': 'op', 'type': 'Squeeze'},
+            'squeeze_data': {'shape': [2, 3], 'kind': 'data', 'value': None},
+
+            'result': {'kind': 'op', 'type': 'Result'}
+        }
+
+        edges = [('input', 'input_data'),
+                 ('input_data', 'squeeze'),
+                 ('axis', 'axis_data'),
+                 ('axis_data', 'squeeze'),
+                 ('squeeze', 'squeeze_data'),
+                 ('squeeze_data', 'result'),
+                 ]
+
+        graph = build_graph(nodes_attributes, edges, nodes_with_edges_only=True)
+
+        squeeze_node = Node(graph, 'squeeze')
+        SqueezeInternal.infer(squeeze_node)
+
+        graph_ref = build_graph(nodes_attributes, edges, nodes_with_edges_only=True)
+
+        # Check that graph wasn't changed after shape infer
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_unsqueeze(self):
+        nodes_attributes = {
+            'input': {'kind': 'op', 'type': 'Parameter'},
+            'input_data': {'shape': [2, 3], 'kind': 'data'},
+
+            'axis': {'kind': 'op', 'type': 'Const', 'op': 'Const', 'value': np.array(1), 'shape': []},
+            'axis_data': {'shape': [], 'kind': 'data', 'value': np.array(1)},
+
+            'unsqueeze': {'kind': 'op', 'type': 'Unsqueeze'},
+            'unsqueeze_data': {'shape': [2, 1, 3], 'kind': 'data', 'value': None},
+
+            'result': {'kind': 'op', 'type': 'Result'}
+        }
+
+        edges = [('input', 'input_data'),
+                 ('input_data', 'unsqueeze'),
+                 ('axis', 'axis_data'),
+                 ('axis_data', 'unsqueeze'),
+                 ('unsqueeze', 'unsqueeze_data'),
+                 ('unsqueeze_data', 'result'),
+                 ]
+
+        graph = build_graph(nodes_attributes, edges, nodes_with_edges_only=True)
+
+        unsqueeze_node = Node(graph, 'unsqueeze')
+        UnsqueezeInternal.infer(unsqueeze_node)
+
+        graph_ref = build_graph(nodes_attributes, edges, nodes_with_edges_only=True)
+
+        # Check that graph wasn't changed after shape infer
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)

@@ -67,7 +67,7 @@ TEST(multistream_gpu, basic) {
                 std::vector<int32_t> expected_results = {1, len, 512};
 
                 for (size_t out_idx = 0; out_idx < expected_results.size(); ++out_idx) {
-                    EXPECT_TRUE(are_equal(expected_results[out_idx], output_ptr[out_idx]));
+                    ASSERT_TRUE(are_equal(expected_results[out_idx], output_ptr[out_idx]));
                 }
             }
         });
