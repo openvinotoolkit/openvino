@@ -67,6 +67,20 @@ from openvino.tools.mo import convert_model, InputCutInfo
 ov_model = convert_model(model, input=InputCutInfo("input_name", [3], np.float32, [0.5, 2.1, 3.4]))
 ```
 
+To set parameters for models with multiple inputs `list` of parameters can be used.
+Following parameters support lists: 
+- input
+- input_shape
+- layout 
+- source_layout
+- dest_layout
+- mean_values
+- scale_values
+
+```sh
+ov_model = convert_model(model, input=[("input1", [1,3,100,100], np.float32), ("input2", [1,3,100,100], np.float32)], layout=[Layout("NCHW"), LayoutMap("NCHW", "NHWC")])
+```
+
 `layout`, `source_layout` and `dest_layout` accept an `openvino.runtime.Layout` object or `string`.
 
 ```sh
