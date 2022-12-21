@@ -51,11 +51,6 @@ public:
     Tensor(const Tensor&) = delete;
     Tensor& operator=(const Tensor&) = delete;
 
-    OPENVINO_DEPRECATED("get_name() is deprecated! Please use get_names() instead.")
-    const std::string& get_name() const {
-        // TODO: remove after clean up of private plugins
-        return m_legacy_name;
-    }
     std::string get_any_name() const;
     const std::unordered_set<std::string>& get_names() const;
     void set_names(const std::unordered_set<std::string>& names);
