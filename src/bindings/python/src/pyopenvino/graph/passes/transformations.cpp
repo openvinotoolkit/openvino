@@ -55,10 +55,10 @@ void regclass_transformations(py::module m) {
         Create Serialize pass which is used for Model to IR serialization.
 
         :param path_to_xml: Path where *.xml file will be saved.
-        :type path_to_xml: Union[str, pathlib.Path]
+        :type path_to_xml: Union[str, bytes, pathlib.Path]
 
         :param path_to_xml: Path where *.bin file will be saved.
-        :type path_to_xml: Union[str, pathlib.Path]
+        :type path_to_xml: Union[str, bytes, pathlib.Path]
 
         :param version: serialized IR version.
         :type version: int
