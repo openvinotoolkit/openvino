@@ -109,11 +109,6 @@ class CommonTFLayerTest(CommonLayerTest):
 
             input_name_to_id_mapping = {input['name']: input['index'] for input in input_details}
 
-            # part to remove
-            for k in inputs_dict.keys():
-                inputs_dict[k] = inputs_dict[k].astype('float32')
-            # end of part to remove
-
             for layer, data in inputs_dict.items():
                 tensor_index = input_name_to_id_mapping[layer]
                 tensor_id = next(i for i, tensor in enumerate(input_details) if tensor['index'] == tensor_index)
