@@ -247,7 +247,7 @@ TEST_F(ov_preprocess, ov_preprocess_input_tensor_info_set_color_format) {
     EXPECT_NE(nullptr, input_tensor_info);
 
     OV_EXPECT_OK(
-        ov_preprocess_input_tensor_info_set_color_format(input_tensor_info, ov_color_format_e::NV12_SINGLE_PLANE, 0));
+        ov_preprocess_input_tensor_info_set_color_format(input_tensor_info, ov_color_format_e::NV12_SINGLE_PLANE));
 }
 
 TEST_F(ov_preprocess, ov_preprocess_input_tensor_info_set_spatial_static_shape) {
@@ -296,11 +296,11 @@ TEST_F(ov_preprocess, ov_preprocess_preprocess_steps_convert_color) {
     OV_EXPECT_OK(ov_preprocess_input_info_get_tensor_info(input_info, &input_tensor_info));
     EXPECT_NE(nullptr, input_tensor_info);
 
-    OV_EXPECT_OK(ov_preprocess_input_tensor_info_set_color_format(input_tensor_info,
-                                                                  ov_color_format_e::NV12_TWO_PLANES,
-                                                                  2,
-                                                                  "y",
-                                                                  "uv"));
+    OV_EXPECT_OK(ov_preprocess_input_tensor_info_set_color_format_with_subname(input_tensor_info,
+                                                                               ov_color_format_e::NV12_TWO_PLANES,
+                                                                               2,
+                                                                               "y",
+                                                                               "uv"));
     OV_EXPECT_OK(ov_preprocess_preprocess_steps_convert_color(input_process, ov_color_format_e::BGR));
 }
 
@@ -453,11 +453,11 @@ TEST_F(ov_preprocess, ov_preprocess_prepostprocessor_for_nv12_input) {
     EXPECT_NE(nullptr, input_tensor_info);
 
     OV_EXPECT_OK(ov_preprocess_input_tensor_info_set_element_type(input_tensor_info, ov_element_type_e::U8));
-    OV_EXPECT_OK(ov_preprocess_input_tensor_info_set_color_format(input_tensor_info,
-                                                                  ov_color_format_e::NV12_TWO_PLANES,
-                                                                  2,
-                                                                  "y",
-                                                                  "uv"));
+    OV_EXPECT_OK(ov_preprocess_input_tensor_info_set_color_format_with_subname(input_tensor_info,
+                                                                               ov_color_format_e::NV12_TWO_PLANES,
+                                                                               2,
+                                                                               "y",
+                                                                               "uv"));
     OV_EXPECT_OK(ov_preprocess_input_tensor_info_set_memory_type(input_tensor_info, "GPU_SURFACE"));
     OV_EXPECT_OK(ov_preprocess_input_tensor_info_set_spatial_static_shape(input_tensor_info, 640, 480));
 

@@ -285,15 +285,27 @@ ov_preprocess_input_tensor_info_set_element_type(
  * @ingroup ov_prepostprocess_c_api
  * @param preprocess_input_tensor_info A pointer to the ov_preprocess_input_tensor_info_t.
  * @param colorFormat The enumerate of colorFormat
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_preprocess_input_tensor_info_set_color_format(ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
+                                                 const ov_color_format_e colorFormat);
+
+/**
+ * @brief Set ov_preprocess_input_tensor_info_t color format with subname.
+ * @ingroup ov_prepostprocess_c_api
+ * @param preprocess_input_tensor_info A pointer to the ov_preprocess_input_tensor_info_t.
+ * @param colorFormat The enumerate of colorFormat
  * @param sub_names_size The size of sub_names
  * @param variadic params sub_names Optional list of sub-names assigned for each plane (e.g. "Y", "UV").
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_preprocess_input_tensor_info_set_color_format(ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
-                                                 const ov_color_format_e colorFormat,
-                                                 const size_t sub_names_size,
-                                                 ...);
+ov_preprocess_input_tensor_info_set_color_format_with_subname(
+    ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
+    const ov_color_format_e colorFormat,
+    const size_t sub_names_size,
+    ...);
 
 /**
  * @brief Set ov_preprocess_input_tensor_info_t spatial_static_shape.

@@ -240,7 +240,7 @@ int main(int argc, char** argv) {
     // - static spatial dimensions for resize preprocessing operation
     CHECK_STATUS(ov_preprocess_input_info_get_tensor_info(input_info, &input_tensor_info));
     CHECK_STATUS(ov_preprocess_input_tensor_info_set_element_type(input_tensor_info, U8));
-    CHECK_STATUS(ov_preprocess_input_tensor_info_set_color_format(input_tensor_info, NV12_SINGLE_PLANE, 0));
+    CHECK_STATUS(ov_preprocess_input_tensor_info_set_color_format(input_tensor_info, NV12_SINGLE_PLANE));
     CHECK_STATUS(
         ov_preprocess_input_tensor_info_set_spatial_static_shape(input_tensor_info, input_height, input_width));
 

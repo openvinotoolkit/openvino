@@ -506,7 +506,7 @@ TEST_P(ov_remote_context_ocl, remote_tensor_nv12_inference) {
     EXPECT_NE(nullptr, preprocess_input_tensor_info);
 
     OV_EXPECT_OK(ov_preprocess_input_tensor_info_set_element_type(preprocess_input_tensor_info, ov_element_type_e::U8));
-    OV_EXPECT_OK(ov_preprocess_input_tensor_info_set_color_format(preprocess_input_tensor_info,
+    OV_EXPECT_OK(ov_preprocess_input_tensor_info_set_color_format_with_subname(preprocess_input_tensor_info,
                                                                   ov_color_format_e::NV12_TWO_PLANES,
                                                                   2,
                                                                   "y",

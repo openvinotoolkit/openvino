@@ -264,7 +264,7 @@ ov_status_e ov_preprocess_input_tensor_info_set_layout(ov_preprocess_input_tenso
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_input_tensor_info_set_color_format(
+ov_status_e ov_preprocess_input_tensor_info_set_color_format_with_subname(
     ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
     const ov_color_format_e colorFormat,
     const size_t sub_names_size,
@@ -273,20 +273,28 @@ ov_status_e ov_preprocess_input_tensor_info_set_color_format(
         return ov_status_e::INVALID_C_PARAM;
     }
     try {
-        std::vector<std::string> names;
-        va_list args_ptr;
-        va_start(args_ptr, sub_names_size);
-        for (size_t i = 0; i < sub_names_size; i++) {
-            std::string _value = va_arg(args_ptr, char*);
-            names.emplace_back(_value);
+        std::vector<std::string> names = {};
+        if (sub_names_size > 0) {
+            va_list args_ptr;
+            va_start(args_ptr, sub_names_size);
+            for (size_t i = 0; i < sub_names_size; i++) {
+                std::string _value = va_arg(args_ptr, char*);
+                names.emplace_back(_value);
+            }
+            va_end(args_ptr);
         }
-        va_end(args_ptr);
 
         preprocess_input_tensor_info->object->set_color_format(GET_OV_COLOR_FARMAT(colorFormat), names);
     }
     CATCH_OV_EXCEPTIONS
 
     return ov_status_e::OK;
+}
+
+ov_status_e ov_preprocess_input_tensor_info_set_color_format(
+    ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
+    const ov_color_format_e colorFormat) {
+    return ov_preprocess_input_tensor_info_set_color_format_with_subname(preprocess_input_tensor_info, colorFormat, 0);
 }
 
 ov_status_e ov_preprocess_input_tensor_info_set_spatial_static_shape(

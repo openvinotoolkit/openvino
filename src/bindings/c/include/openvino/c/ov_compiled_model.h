@@ -182,7 +182,8 @@ ov_compiled_model_export_model(const ov_compiled_model_t* compiled_model,
  * @ingroup ov_compiled_model_c_api
  * @param compiled_model A pointer to the ov_compiled_model_t to free memory.
  */
-OPENVINO_C_API(void) ov_compiled_model_free(ov_compiled_model_t* compiled_model);
+OPENVINO_C_API(void)
+ov_compiled_model_free(ov_compiled_model_t* compiled_model);
 
 /**
  * @brief Returns pointer to device-specific shared context
