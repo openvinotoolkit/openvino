@@ -142,11 +142,11 @@ CPU 基元的默认浮点精度为 `f32`。如需支持 `f16` OpenVINO™ IR，�
 @sphinxtabset
 
 @sphinxtab{C++}
-@snippet docs/snippets/cpu/dynamic_shape.cpp defined_upper_bound
+@snippet docs/snippets/cpu/dynamic_shape.cpp static_shape
 @endsphinxtab
 
 @sphinxtab{Python}
-@snippet docs/snippets/cpu/dynamic_shape.py defined_upper_bound
+@snippet docs/snippets/cpu/dynamic_shape.py static_shape
 @endsphinxtab
 
 @endsphinxtabset
