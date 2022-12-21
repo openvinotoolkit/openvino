@@ -107,7 +107,7 @@ void ov::descriptor::Tensor::set_names(const std::unordered_set<std::string>& na
     m_names = names;
     m_name_it = m_names.cbegin();
     for (auto it = m_names.cbegin(); it != m_names.cend(); it++) {
-        if (*it < *m_name_it) 
+        if (*it < *m_name_it)
             // Update any name
             m_name_it = it;
     }
