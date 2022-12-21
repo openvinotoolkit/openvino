@@ -6,7 +6,7 @@
    :maxdepth: 1
    :hidden:
    
-   pot_introduction
+   ptq_introduction
    tmo_introduction
    (Experimental) Protecting Model <pot_ranger_README>
 
@@ -19,9 +19,9 @@
 
 - :ref:`Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` implements most of the optimization parameters to a model by default. Yet, you are free to configure mean/scale values, batch size, RGB vs BGR input channels, and other parameters to speed up preprocess of a model (:ref:`Embedding Preprocessing Computation <openvino_docs_MO_DG_Additional_Optimization_Use_Cases>`).
 
-- :ref:`Post-training Optimization w/ POT <pot_introduction>` is designed to optimize inference of deep learning models by applying post-training methods that do not require model retraining or fine-tuning, for example, post-training 8-bit quantization.
+- :ref:`Post-training Quantization` is designed to optimize inference of deep learning models by applying post-training methods that do not require model retraining or fine-tuning, for example, post-training 8-bit integer quantization.
 
-- :ref:`Training-time Optimization w/ NNCF <tmo_introduction>`, a suite of advanced methods for training-time model optimization within the DL framework, such as PyTorch and TensorFlow 2.x. It supports methods, like Quantization-aware Training and Filter Pruning. NNCF-optimized models can be inferred with OpenVINO using all the available workflows.
+- :ref:`Training-time Optimization`, a suite of advanced methods for training-time model optimization within the DL framework, such as PyTorch and TensorFlow 2.x. It supports methods, like Quantization-aware Training and Filter Pruning. NNCF-optimized models can be inferred with OpenVINO using all the available workflows.
 
 @endsphinxdirective
 

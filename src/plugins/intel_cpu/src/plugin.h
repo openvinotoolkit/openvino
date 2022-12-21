@@ -4,16 +4,12 @@
 
 #pragma once
 
-#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
 #include "exec_network.h"
 
 #include <string>
 #include <map>
-#include <unordered_map>
 #include <memory>
 #include <functional>
-#include <vector>
-#include <cfloat>
 
 namespace ov {
 namespace intel_cpu {

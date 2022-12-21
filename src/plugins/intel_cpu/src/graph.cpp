@@ -1073,7 +1073,7 @@ void Graph::InferStatic(InferRequestBase* request) {
     dnnl::stream stream(eng);
 
     for (const auto& node : executableGraphNodes) {
-        VERBOSE(node, config.verbose);
+        VERBOSE(node, config.debugCaps.verbose);
         PERF(node, config.collectPerfCounters);
 
         if (request)
@@ -1160,7 +1160,7 @@ void Graph::InferDynamic(InferRequestBase* request) {
         updateNodes(stopIndx);
         for (; inferCounter < stopIndx; ++inferCounter) {
             auto& node = executableGraphNodes[inferCounter];
-            VERBOSE(node, config.verbose);
+            VERBOSE(node, config.debugCaps.verbose);
             PERF(node, config.collectPerfCounters);
 
             if (request)
@@ -1171,7 +1171,7 @@ void Graph::InferDynamic(InferRequestBase* request) {
 }
 
 inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) const {
-    DUMP(node, config, infer_count);
+    DUMP(node, config.debugCaps, infer_count);
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, node->profiling.execute);
 
     if (node->isDynamicNode()) {
