@@ -117,6 +117,7 @@ void shape_infer(const Slice* op,
     auto axis_it = axes_map.m.cbegin();
 
     auto& out = output_shapes.front();
+    out.resize(0);
     out.reserve(input_shape.size());
     for (size_t dim_idx = 0; dim_idx < input_shape.size(); ++dim_idx) {
         const DimType& input_dim = input_shape[dim_idx];

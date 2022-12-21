@@ -115,6 +115,7 @@ void shape_infer(const StridedSlice* op,
                           "and Upper bounds vector.");
 
     auto& out = output_shapes.front();
+    out.resize(0);
     int64_t input_shape_idx = 0;
     for (int64_t axis = 0; axis < number_axes; ++axis) {
         // add all dimensions hidden under the ellipsis mask if ellipsis mask is set
