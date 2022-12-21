@@ -486,8 +486,8 @@ API 2.0 用 `I64` 精度（与原始模型一致）的数据填充输入：
 
 API 2.0 处理输出的原因如下，输出精度：
 
-- 对于 OpenVINO IR v10 模型为 `I32`（与原始模型**不**一致），与[旧行为](@ref differences_api20_ie)匹配。
-- 对于 OpenVINO IR v11、ONNX、ov::Model 和 PaddlePaddle 模型为 `I64`（与原始模型一致），与[新行为](@ref differences_api20_ie)匹配。
+- 对于 OpenVINO IR v10 模型为 `I32`（与原始模型**不**一致），与[旧行为](@ref differences_api20_ie_zh_CN)匹配。
+- 对于 OpenVINO IR v11、ONNX、ov::Model 和 PaddlePaddle 模型为 `I64`（与原始模型一致），与[新行为](@ref differences_api20_ie_zh_CN)匹配。
 
 
 @sphinxtabset
