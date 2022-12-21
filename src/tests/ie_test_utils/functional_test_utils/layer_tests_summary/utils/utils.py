@@ -66,11 +66,13 @@ def update_conformance_test_counters(results: ET.SubElement, logger: logging.Log
 def prepare_filelist(input_dir: os.path, pattern: str, logger):
     filelist_path = os.path.join(input_dir, "conformance_ir_files.lst")
     if os.path.isfile(filelist_path):
-        logger.info(f"{filelist_path} is exists! Skip the step to prepare fileslist")
-        # return filelist_path
+        logger.info(f"{filelist_path} is exists! Update it!")
     xmls = Path(input_dir).rglob(pattern)
-    with open(filelist_path, 'w') as file:
-        for xml in xmls:
-            file.write(str(xml) + '\n')
-        file.close()
+    try:
+        with open(filelist_path, 'w') as file:
+            for xml in xmls:
+                file.write(str(xml) + '\n')
+            file.close()
+    except:
+        logger.warning(f"Impossible to update {filelist_path}! Something going is wrong!")
     return filelist_path
