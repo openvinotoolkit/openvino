@@ -24,7 +24,6 @@
 
 有关此主题的更多信息，请参阅以下文章：
 * [支持的功能（按设备）](@ref features_support_matrix_zh_CN)、
- 
 * [使用 OpenVINO™ 对输入进行预处理](@ref inputs_pre_processing)。
 * [异步 API](@ref async_api)。
 * [惯用语“get_tensor”](@ref tensor_idiom)。
