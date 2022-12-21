@@ -154,7 +154,7 @@ std::vector<Precision> netPrc = {
         Precision::FP32
 };
 
-/* ============= Activation (3D) ============= */
+/* ============= Activation (1D) ============= */
 std::vector<CPUSpecificParams> cpuParams_3D = {
         CPUSpecificParams({nwc}, {nwc}, {}, {}),
         CPUSpecificParams({ncw}, {ncw}, {}, {})
@@ -198,7 +198,7 @@ const auto blockedCases3D = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation3D_Eltwise_CPU_BF16_Blocked, ActivationLayerCPUTest, blockedCases3D, ActivationLayerCPUTest::getTestCaseName);
 
-/* ============= Activation (4D) ============= */
+/* ============= Activation (2D) ============= */
 std::vector<CPUSpecificParams> cpuParams_4D = {
         CPUSpecificParams({nChw16c}, {nChw16c}, {}, {}),
         CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
@@ -223,7 +223,7 @@ const auto basicCases4D = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation4D_Eltwise_CPU_BF16, ActivationLayerCPUTest, basicCases4D, ActivationLayerCPUTest::getTestCaseName);
 
-/* ============= Activation (5D) ============= */
+/* ============= Activation (3D) ============= */
 std::vector<CPUSpecificParams> cpuParams_5D = {
         CPUSpecificParams({nCdhw16c}, {nCdhw16c}, {}, {}),
         CPUSpecificParams({ndhwc}, {ndhwc}, {}, {}),
