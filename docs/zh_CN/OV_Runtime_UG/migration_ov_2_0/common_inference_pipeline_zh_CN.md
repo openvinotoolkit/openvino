@@ -1,19 +1,19 @@
 # 推理管道 {#openvino_2_0_inference_pipeline_zh_CN}
 
 如需使用 OpenVINO™ 运行时推理模型，通常您需要在应用管道中执行以下步骤：
-1. [创建核心对象](@ref create_core)。
-   - 1.1.[（可选）加载扩展](@ref load_extensions)
-2. [从驱动器中读取模型](@ref read_model)。
-   - 2.1.[（可选）执行模型预处理](@ref perform_preprocessing)。
-3. [将模型加载到设备](@ref load_model_to_device)。
-4. [创建推理请求](@ref create_inference_request)。
-5. [用数据填充输入张量](@ref fill_tensor)。
-6. [开始推理](@ref start_inference)。
-7. [处理推理结果](@ref process_results)。
+1. [创建核心对象](@ref create_core_zh_CN)。
+   - 1.1.[（可选）加载扩展](@ref load_extensions_zh_CN)
+2. [从驱动器中读取模型](@ref read_model_zh_CN)。
+   - 2.1.[（可选）执行模型预处理](@ref perform_preprocessing_zh_CN)。
+3. [将模型加载到设备](@ref load_model_to_device_zh_CN)。
+4. [创建推理请求](@ref create_inference_request_zh_CN)。
+5. [用数据填充输入张量](@ref fill_tensor_zh_CN)。
+6. [开始推理](@ref start_inference_zh_CN)。
+7. [处理推理结果](@ref process_results_zh_CN)。
 
 以下代码将基于这些步骤演示如何更改应用代码以迁移到 API 2.0。
 
-@anchor create_core
+@anchor create_core_zh_CN
 ## 1. 创建核心对象
 
 **推理引擎 API**
@@ -44,7 +44,7 @@
 
 @endsphinxtabset
 
-@anchor load_extensions
+@anchor load_extensions_zh_CN
 ### 1.1 （可选）加载扩展
 
 如需通过自定义操作加载模型，您需要为这些操作添加扩展。强烈建议您使用 [OpenVINO™ 扩展性 API](@ref openvino_docs_Extensibility_UG_Intro_zh_CN) 编写扩展。但是，您也可以将旧扩展加载到新的 OpenVINO™ 运行时：
@@ -77,7 +77,7 @@
 
 @endsphinxtabset
 
-@anchor read_model
+@anchor read_model_zh_CN
 ## 2.从驱动器中读取模型
 
 **推理引擎 API**
@@ -112,12 +112,12 @@
 
 您可以在单次 `ov::Core::compile_model(filename, devicename)` 调用中组合模型读取和编译。
 
-@anchor perform_preprocessing
+@anchor perform_preprocessing_zh_CN
 ### 2.1 （可选）执行模型预处理
 
 当应用输入数据与模型输入格式不完全匹配时，可能需要进行预处理。请参阅 [API 2.0 中的预处理](@ref openvino_2_0_preprocessing_zh_CN)了解更多详情。
 
-@anchor load_model_to_device
+@anchor load_model_to_device_zh_CN
 ## 3.将模型加载到设备
 
 **推理引擎 API**
@@ -150,7 +150,7 @@
 
 如果需要用 OpenVINO™ 运行时的其他参数配置设备，请参阅[配置设备](@ref openvino_2_0_configure_devices_zh_CN)。
 
-@anchor create_inference_request
+@anchor create_inference_request_zh_CN
 ## 4.创建推理请求
 
 **推理引擎 API**
@@ -181,7 +181,7 @@
 
 @endsphinxtabset
 
-@anchor fill_tensor
+@anchor fill_tensor_zh_CN
 ## 5.用数据填充输入张量
 
 **推理引擎 API**
@@ -328,7 +328,7 @@ API 2.0 用 `I64` 精度（与原始模型一致）的数据填充输入：
 
 @endsphinxtabset
 
-@anchor start_inference
+@anchor start_inference_zh_CN
 ## 6.开始推理
 
 **推理引擎 API**
@@ -407,7 +407,7 @@ API 2.0 用 `I64` 精度（与原始模型一致）的数据填充输入：
 
 @endsphinxtabset
 
-@anchor process_results
+@anchor process_results_zh_CN
 ## 7.处理推理结果
 
 **推理引擎 API**
