@@ -22,6 +22,7 @@ def test_reverse_sequence():
     assert model.get_type_name() == "ReverseSequence"
     assert model.get_output_size() == 1
     assert list(model.get_output_shape(0)) == expected_shape
+    assert model.get_output_element_type(0) == Type.i32
 
 
 def test_pad_edge():
@@ -35,6 +36,7 @@ def test_pad_edge():
     assert model.get_type_name() == "Pad"
     assert model.get_output_size() == 1
     assert list(model.get_output_shape(0)) == expected_shape
+    assert model.get_output_element_type(0) == Type.i32
 
 
 def test_pad_constant():
@@ -48,6 +50,7 @@ def test_pad_constant():
     assert model.get_type_name() == "Pad"
     assert model.get_output_size() == 1
     assert list(model.get_output_shape(0)) == expected_shape
+    assert model.get_output_element_type(0) == Type.i32
 
 
 def test_select():
@@ -60,6 +63,7 @@ def test_select():
     assert node.get_type_name() == "Select"
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == expected_shape
+    assert node.get_output_element_type(0) == Type.i32
 
 
 def test_gather_v8_nd():
