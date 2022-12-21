@@ -18,6 +18,7 @@
 #include <openvino/opsets/opset9.hpp>
 
 using std::make_shared;
+using std::shared_ptr;
 
 namespace {
     // TODO: Remove this duplicate: CPU transforms has it, copied and pasted here
@@ -59,13 +60,16 @@ namespace tensorflow {
 namespace pass {
 
 StructuralTypeProp::StructuralTypeProp() {
-    auto data_movement = ngraph::pattern::wrap_type<ov::op::Op>(ov::pass::pattern::op::as_value_predicate(is_data_movement_operation));
+    //auto data_movement = ngraph::pattern::wrap_type<ov::op::Op>(
+    //    ov::pass::pattern::op::as_value_predicate(is_data_movement_operation));
+    auto data_movement = ngraph::pattern::wrap_type<ov::op::Op>(
+        ov::pass::pattern::op::as_value_predicate([] (std::shared_ptr<Node>) -> bool { return true; }));
     std::cerr << "[ INFO TF FE ] Registering StructuralTypeProp\n";
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto node = m.get_match_root();
 
-        std::cerr << "[ INFO TF FE ] Matching data movement op: " << node->get_type_name() << "\n";
+        std::cerr << "[ INFO TF FE ] Matching prop: " << node->get_type_name() << "\n";
 
         // Depending on operation, propagate structural type field
         // TODO: This code should be moved to the operations themselves, but now we are trying
@@ -83,6 +87,9 @@ StructuralTypeProp::StructuralTypeProp() {
         } else if (auto reshape = std::dynamic_pointer_cast<ov::op::v1::Reshape>(node)) {
             std::cerr << "[ INFO TF FE ] Detected Reshape\n";
             StructuralTypeAttribute::copy(reshape->get_input_tensor(0).get_rt_info(), reshape->get_output_tensor(0).get_rt_info());
+        } else {
+            // Make usual propagation by op design
+            node->validate_and_infer_types();
         }
 
         return false;
@@ -184,37 +191,57 @@ bool DecomposeStrParameters::run_on_model(const std::shared_ptr<Model>& model) {
         // Check 1D and Str structural type
         auto rank = parameter->get_partial_shape().rank();
         if(
-            rank.is_static() && rank.get_length() == 1 &&
             parameter->get_element_type() == element::dynamic &&
             StructuralTypeAttribute::has_type(parameter->get_rt_info(), element::StructuralType::Str()))
         {
-            std::cerr << "Applying decomposition for parameter: " << parameter->get_name() << "\n";
-            OutputVector inputs_for_struct_pack;
+            if(rank.is_static() && rank.get_length() == 1) {
+                std::cerr << "Applying decomposition for parameter: " << parameter->get_name() << "\n";
+                OutputVector inputs_for_struct_pack;
 
-            // for individual strings start and end indices
-            for (size_t i = 0; i < 2; ++i) {
+                // for individual strings start and end indices
+                for (size_t i = 0; i < 2; ++i) {
+                    auto new_parameter =
+                        make_shared<opset9::Parameter>(element::i32, parameter->get_partial_shape());
+                    new_parameters.push_back(new_parameter);
+                    inputs_for_struct_pack.push_back(new_parameter);
+                    // TODO: add links via RT info between original parameter and new ones
+                }
+
+                // for tensor elements
                 auto new_parameter =
-                    make_shared<opset9::Parameter>(element::i32, parameter->get_partial_shape());
+                    // using u8 here because we know that we are dealing with strings
+                    make_shared<opset9::Parameter>(/*element::dynamic*/element::u8, PartialShape{Dimension()});
                 new_parameters.push_back(new_parameter);
                 inputs_for_struct_pack.push_back(new_parameter);
-                // TODO: add links via RT info between original parameter and new ones
+
+                auto struct_pack = make_shared<StructPack>(
+                    inputs_for_struct_pack,
+                    element::StructuralType::Str(), // parameter->get_rt_info()["structural_type"].as<StructuralTypeAttribute>().value
+                    parameter->get_partial_shape()
+                );
+
+                replace_node(parameter, struct_pack);
+                model->remove_parameter({parameter});
+            } else if(rank.is_static() && rank.get_length() == 0) {
+                std::cerr << "Parameter override to u8/1d\n";
+                //if(true) {
+                auto new_parameter = make_shared<opset9::Parameter>(element::u8, PartialShape{Dimension()});
+                //} else {
+                //    parameter->set_element_type(element::u8);
+                //    parameter->set_partial_shape(PartialShape{Dimension()});
+                //}
+                auto struct_pack = make_shared<StructPack>(
+                    new_parameter->outputs(),
+                    element::StructuralType::Str(), // parameter->get_rt_info()["structural_type"].as<StructuralTypeAttribute>().value
+                    parameter->get_partial_shape()
+                );
+                std::cerr << "[ BREAK ]\n";
+                //return true;
+                new_parameters.push_back(new_parameter);
+                replace_node(parameter, struct_pack);
+                //struct_pack->validate_and_infer_types();
+                model->remove_parameter({parameter});
             }
-
-            // for tensor elements
-            auto new_parameter =
-                // using u8 here because we know that we are dealing with strings
-                make_shared<opset9::Parameter>(/*element::dynamic*/element::u8, PartialShape{Dimension()});
-            new_parameters.push_back(new_parameter);
-            inputs_for_struct_pack.push_back(new_parameter);
-
-            auto struct_pack = make_shared<StructPack>(
-                inputs_for_struct_pack,
-                element::StructuralType::Str(), // parameter->get_rt_info()["structural_type"].as<StructuralTypeAttribute>().value
-                parameter->get_partial_shape()
-            );
-
-            replace_node(parameter, struct_pack);
-            model->remove_parameter({parameter});
         }
     }
 
@@ -231,11 +258,22 @@ OutputVector get_inputs (std::shared_ptr<Node> node) {
     return result;
 }
 
+using ov::pass::pattern::wrap_type;
+using ov::pass::pattern::op::as_value_predicate;
+using ov::pass::pattern::any_input;
+
+
+using ov::opset9::Constant;
+
+template <typename T>
+shared_ptr<Constant> const_value (const T& value, size_t rank = 0, element::Type et = element::i32) {
+    return make_shared<Constant>(et, Shape(rank, 1), value);
+}
+
 
 ThroughStrOpsProp::ThroughStrOpsProp() {
-    // Should better match node that has at least one StructPack at least at one inputs
-    auto node = ngraph::pattern::wrap_type<ov::op::Op>(
-        ov::pass::pattern::op::as_value_predicate(is_str_operation));
+    auto input = wrap_type<StructPack>();
+    auto node = wrap_type<ov::op::Op>({input}, as_value_predicate(is_str_operation));
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto node = m.get_match_root();
@@ -270,7 +308,7 @@ ThroughStrOpsProp::ThroughStrOpsProp() {
             return false;
         }
 
-                        std::cerr << "[ 4 ]\n";
+        std::cerr << "[ 4 ]\n";
 
 
         auto new_node = node->clone_with_new_inputs(new_inputs);
@@ -280,25 +318,109 @@ ThroughStrOpsProp::ThroughStrOpsProp() {
 
         // Outputs
         const auto& outputs = node->outputs();
-        if(outputs.size() == 1 && new_node->outputs().size() == 3) {
-                            std::cerr << "[ 5 ]\n";
+        auto output_rt_info = node->output(0).get_tensor().get_rt_info();   // can use any output node, TODO: group
+        if(outputs.size() == 1) {
+            std::cerr << "[ 4.5 ]\n";
+            if(output_rt_info.count("structural_type")) {
+                std::cerr << "[ 5 ]\n";
 
-            // Suppose str tensor in the output
-            auto output_shape = new_node->output(0).get_partial_shape();
-            new_node = make_shared<StructPack>(
-                new_node->outputs(),
-                element::StructuralType::Str(), // parameter->get_rt_info()["structural_type"].as<StructuralTypeAttribute>().value
-                output_shape);
-        } else {
-            std::cerr << "[ ERROR ] Multiple outputs unsupported\n";
-            for(size_t i = 0; i < outputs.size(); ++i) {
+                // Suppose str tensor in the output
+                auto output_shape = node->output(0).get_partial_shape();
+                auto structural_type = output_rt_info["structural_type"].as<StructuralTypeAttribute>().value;
+                new_node = make_shared<StructPack>(
+                    new_node->outputs(),
+                    structural_type,
+                    output_shape);
             }
+        } else {
+            std::cerr << "[ ERROR ] Multiple outputs unsupported -- structural type lost\n";
         }
 
-                std::cerr << "[ 6 ]\n";
+        std::cerr << "[ 6 ]\n";
 
         replace_node(node, new_node);
 
+        return false;
+    };
+
+    auto m = make_shared<ov::pass::pattern::Matcher>(node, "ov::frontend::tensorflow::pass::ThroughStrOpsProp");
+    register_matcher(m, callback);
+}
+
+
+
+
+
+ThroughReshapeProp::ThroughReshapeProp() {
+    // Should better match node that has at least one StructPack at least at one inputs
+    auto input = wrap_type<StructPack>();
+    auto node = ngraph::pattern::wrap_type<ov::opset9::Reshape>(OutputVector{input, any_input()});
+
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto node = m.get_match_root();
+        std::cerr << "[ INFO TF FE ] Matching Reshape op: " << node->get_type_name() << "\n";
+
+        // Replace each input that consumes StructPack with decomposed tensors
+        // Insert StructPack for each output that has type str
+
+        // Inputs
+        auto input = node->input(0);
+        auto target_shape = node->get_output_partial_shape(0);  // validation has already done a good part of the job here, just reuse
+        if(StructuralTypeAttribute::has_type(input.get_tensor().get_rt_info(), element::StructuralType::Str())) {
+            std::cerr << "[ 1 ]\n";
+
+            auto input_inputs = get_inputs(input.get_source_output().get_node_shared_ptr());
+
+            auto rank = input.get_partial_shape().rank();
+            FRONT_END_GENERAL_CHECK(rank.is_static(), "Rank is dynamic, not supported");
+            FRONT_END_GENERAL_CHECK(target_shape.rank().is_static(), "Expected static rank after Reshape op");
+            auto target_rank = target_shape.rank().get_length();
+            if(rank.get_length() == 0) {
+                std::cerr << "[ 2 ]\n";
+                // Scalar case, represented as a single input tensor of rank 1
+                FRONT_END_GENERAL_CHECK(input_inputs.size() == 1, "Expected one input to StructPack when output type is scalar Str");
+
+                if(target_rank == 0) {
+                                    std::cerr << "[ 2.5 ]\n";
+
+                    // Nothing to do as we are converting scalar to scalar
+                    return false;
+                }
+
+                // Reshape scalar to non scalar
+
+                auto begins = const_value(0, target_rank);
+                auto ends = make_shared<opset9::Reshape>(make_shared<opset9::ShapeOf>(input_inputs[0]), const_value(1, target_rank), false);     // TODO: Unsqeeze looks better?
+                auto new_node = make_shared<StructPack>(
+                    OutputVector{begins, ends, input_inputs[0]},
+                    element::StructuralType::Str(),
+                    target_shape);
+                replace_node(node, new_node);
+                return true;
+            } else {
+                std::cerr << "[ 3 ]\n";
+                // Not a scalar case, represented as three input tensors: (begins, ends, elements)
+                FRONT_END_GENERAL_CHECK(input_inputs.size() == 3, "Expected three inputs to StructPack when output type is not a scalar Str");
+
+                if(target_rank == 0) {
+                    FRONT_END_GENERAL_CHECK(false, "Not a scalar to scalar reshape for Str tensors is not supported");
+                    return false;
+                } else {
+                    // Just Reshape indices shape in the same way as this Reshape works
+                    OutputVector new_inputs;
+                    auto begins = node->clone_with_new_inputs({input_inputs[0], node->input(1).get_source_output()});
+                    auto ends = node->clone_with_new_inputs({input_inputs[1], node->input(1).get_source_output()});
+
+                    auto new_node = make_shared<StructPack>(
+                        OutputVector{begins, ends, input_inputs[2]},
+                        element::StructuralType::Str(),
+                        target_shape);
+                    replace_node(node, new_node);
+                    return true;
+                }
+            }
+
+        }
         return false;
     };
 

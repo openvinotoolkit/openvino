@@ -43,6 +43,12 @@ public:
     ThroughStrOpsProp();
 };
 
+class ThroughReshapeProp : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("ov::frontend::tensorflow::pass::ThroughReshapeProp");
+    ThroughReshapeProp();
+};
+
 class DecomposeStructResults : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("ov::frontend::tensorflow::pass::DecomposeStructResults");

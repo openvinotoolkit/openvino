@@ -498,10 +498,12 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
     manager.register_pass<pass::BlockLSTMReplacer>();
     manager.register_pass<pass::GRUBlockCellReplacer>();
     manager.set_per_pass_validation(true);
-    manager.register_pass<ov::pass::GraphRewrite>(std::make_shared<pass::StructuralTypeProp>());
-    manager.register_pass<ov::pass::GraphRewrite>(std::make_shared<pass::ReplaceStrByU81D>());
+    //manager.register_pass<ov::pass::GraphRewrite>(std::make_shared<pass::StructuralTypeProp>());
+    //manager.register_pass<ov::pass::GraphRewrite>(std::make_shared<pass::ReplaceStrByU81D>());
     manager.register_pass<pass::DecomposeStrParameters>();
-    manager.register_pass<ov::pass::GraphRewrite>(std::make_shared<pass::ThroughStrOpsProp>());
+    auto propagators = manager.register_pass<ov::pass::GraphRewrite>();
+    propagators->add_matcher<ov::pass::GraphRewrite>(std::make_shared<pass::ThroughStrOpsProp>());
+    propagators->add_matcher<ov::pass::GraphRewrite>(std::make_shared<pass::ThroughReshapeProp>());
     manager.register_pass<pass::DecomposeStructResults>();
 
     manager.set_per_pass_validation(false);
