@@ -782,6 +782,22 @@ TEST(partial_shape, changed_dimension_by_reference) {
     ASSERT_TRUE(s.is_static());
 }
 
+TEST(partial_shape, emplace_back_new_dimension) {
+    PartialShape s{2, 3, Dimension::dynamic(), 5};
+
+    s.emplace_back(3, 5);
+
+    ASSERT_EQ(s, PartialShape({2, 3, -1, 5, {3, 5}}));
+}
+
+TEST(partial_shape, copy_with_back_inserter_iterator) {
+    PartialShape s{2, 3, Dimension::dynamic(), 5}, s_copy;
+
+    std::copy(s.begin(), s.end(), std::back_inserter(s_copy));
+
+    ASSERT_EQ(s_copy, s);
+}
+
 TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_dynamic_ok) {
     auto node = std::make_shared<op::Parameter>(element::f32, Shape{});
     PartialShape data_shape{PartialShape::dynamic()};
