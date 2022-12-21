@@ -96,23 +96,29 @@ const std::unordered_set<std::string>& ov::descriptor::Tensor::get_names() const
     return m_names;
 }
 
-std::string ov::descriptor::Tensor::get_any_name() const {
-    if (m_names.empty()) {
+const std::string& ov::descriptor::Tensor::get_any_name() const {
+    if (m_name_it->empty()) {
         throw ngraph::ngraph_error("Attempt to get a name for a Tensor without names");
     }
-    // As unordered_set for std::string doesn't guaranty the same elements order between runs
-    // we have to manually determine the order by sorting tensor name in lexicographical and returning the first one
-    std::set<std::string> sorted_names(m_names.begin(), m_names.end());
-    return *sorted_names.begin();
+    return *m_name_it;
 }
 
 void ov::descriptor::Tensor::set_names(const std::unordered_set<std::string>& names) {
     m_names = names;
+    m_name_it = m_names.cbegin();
+    for (auto it = m_names.cbegin(); it != m_names.cend(); it++) {
+        if (*it < *m_name_it) 
+            // Update any name
+            m_name_it = it;
+    }
 }
 
 void ov::descriptor::Tensor::add_names(const std::unordered_set<std::string>& names) {
     for (const auto& name : names) {
-        m_names.insert(name);
+        auto res = m_names.insert(name);
+        if (*res.first < *m_name_it)
+            // Update any name
+            m_name_it = res.first;
     }
 }
 

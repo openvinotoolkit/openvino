@@ -51,7 +51,7 @@ public:
     Tensor(const Tensor&) = delete;
     Tensor& operator=(const Tensor&) = delete;
 
-    std::string get_any_name() const;
+    const std::string& get_any_name() const;
     const std::unordered_set<std::string>& get_names() const;
     void set_names(const std::unordered_set<std::string>& names);
     void add_names(const std::unordered_set<std::string>& names);
@@ -130,6 +130,7 @@ protected:
     std::string m_legacy_name;
 
     std::unordered_set<std::string> m_names;
+    std::unordered_set<std::string>::const_iterator m_name_it;
     RTMap m_rt_info;
     mutable std::atomic_bool m_shape_changed;
 
