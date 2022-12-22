@@ -60,9 +60,11 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_external_data_incorrect_size_exception) {
                                  "onnx/external_data/external_data_incorrect_data_shape.onnx"));
         FAIL() << "Incorrect size of external data not detected";
     } catch (const ngraph_error& error) {
-        EXPECT_PRED_FORMAT2(testing::IsSubstring,
-                            std::string("Size of constant A doesn't match amount of data provided in external file"),
-                            error.what());
+        EXPECT_PRED_FORMAT2(
+            testing::IsSubstring,
+            std::string(
+                "The size of the external data file does not match the byte size of an initializer 'A' in the model"),
+            error.what());
     } catch (...) {
         FAIL() << "Importing onnx model failed for unexpected reason";
     }

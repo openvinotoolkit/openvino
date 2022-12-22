@@ -240,8 +240,9 @@ private:
             auto external_data = load_external_data();
             constant = std::make_shared<ngraph::op::Constant>(type, m_shape, external_data.data());
             if (constant->get_byte_size() != external_data.size()) {
-                throw error::invalid_external_data("Size of constant " + get_name() +
-                                                   " doesn't match amount of data provided in external file");
+                throw error::invalid_external_data(
+                    "The size of the external data file does not match the byte size of an initializer '" + get_name() +
+                    "' in the model");
             }
         } else if (data_size == shape_size(m_shape)) {
             constant = std::make_shared<ngraph::op::Constant>(type, m_shape, get_data_ptr());
