@@ -1,16 +1,5 @@
 # OpenCV Graph API (G-API) 简介 {#openvino_docs_gapi_gapi_intro_zh_CN}
 
-@sphinxdirective
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-
-   openvino_docs_gapi_kernel_api
-   openvino_docs_gapi_face_beautification
-   openvino_docs_gapi_gapi_face_analytics_pipeline
-
-@endsphinxdirective
 
 OpenCV Graph API (G-API) 是一个旨在以快捷、可移植的方式处理常规图像和视频的 OpenCV 模块。G-API 是 OpenCV 中的一个特殊模块，与其他大多数主要模块不同，此模块充当框架，而不是某种特定的 CV 算法。
 

@@ -1,16 +1,5 @@
 # 性能基准测试 {#openvino_docs_performance_benchmarks_zh_CN}
 
-@sphinxdirective
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-
-   openvino_docs_performance_benchmarks_openvino
-   openvino_docs_performance_benchmarks_ovms
-
-
-@endsphinxdirective
 
 [英特尔® 发行版 OpenVINO™ 工具套件](https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html)有助于加速跨各种英特尔® 处理器和加速器的深度学习推理。
 

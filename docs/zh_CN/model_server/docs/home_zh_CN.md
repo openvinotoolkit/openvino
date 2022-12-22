@@ -1,31 +1,5 @@
 # OpenVINO&trade; 模型服务器 {#ovms_what_is_openvino_model_server_zh_CN}
 
-@sphinxdirective
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-
-   ovms_docs_quick_start_guide
-   ovms_docs_architecture
-   ovms_docs_models_repository
-   ovms_docs_starting_server
-   ovms_docs_server_api
-   ovms_docs_clients
-   ovms_docs_dag
-   ovms_docs_binary_input
-   ovms_docs_model_cache
-   ovms_docs_metrics
-   ovms_sample_cpu_extension
-   ovms_docs_dynamic_input
-   ovms_docs_stateful_models
-   ovms_docs_custom_loader
-   ovms_docs_performance_tuning
-   ovms_docs_kubernetes
-   ovms_docs_demos
-   ovms_docs_troubleshooting
-
-@endsphinxdirective
 
 ![OVMS 图片](../../img/ovms_diagram.png)
 
