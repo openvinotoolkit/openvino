@@ -1,16 +1,5 @@
 # 模型优化指南 {#openvino_docs_model_optimization_guide_zh_CN}
 
-@sphinxdirective
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-   
-   pot_introduction
-   tmo_introduction
-  （试验性）保护模型 <pot_ranger_README>
-
-@endsphinxdirective
 
 模型优化是一个可选的离线步骤，通过应用量化、修剪、预处理优化等特殊优化方法来提升模型的最终性能。OpenVINO™ 在模型开发的不同步骤中提供了几种工具来优化模型：
 @sphinxdirective
