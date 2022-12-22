@@ -252,7 +252,7 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         if(CMAKE_VERBOSE_MAKEFILE)
             set(Protobuf_DEBUG ON)
         endif()
-        find_package(Protobuf 3.20.2 REQUIRED)
+        find_package(Protobuf 4.21.12 REQUIRED)
         set(Protobuf_LITE_LIBRARIES protobuf::libprotobuf-lite)
         set(Protobuf_LIBRARIES protobuf::libprotobuf)
         set(PROTOC_EXECUTABLE protobuf::protoc)
