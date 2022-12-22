@@ -49,9 +49,9 @@ OpenVINO™ 文档
    :maxdepth: 2
    :hidden:
    
-   get_started
-   documentation_zh_CN
-   tutorials
-   api/api_reference
-   model_zoo
-   resources 
+   ../get_started
+   ../documentation_zh_CN
+   ../tutorials
+   ../api/api_reference
+   ../model_zoo
+   ../resources 

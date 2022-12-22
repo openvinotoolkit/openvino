@@ -87,7 +87,7 @@ html_theme_options = {
 
 html_context = {
     'current_language': 'English',
-    'languages': (('English', '/latest'),('','')),
+    'languages': (('English', '/latest'),('中文','/latest/zh_CN')),
     'doxygen_mapping_file': '',
     'doxygen_snippet_root': '/mnt/c/Users/kputnam/work_dir/git_repos/openvino'
 }
@@ -166,7 +166,8 @@ def autodoc_skip_member(app, what, name, obj, skip, options):
 
 
 shutil.copy("../../../docs/home.rst",".")
-shutil.copy("../../../docs/index_zh_CN.rst",".")
+os.makedirs("zh_CN",exist_ok=True)
+shutil.copy("../../../docs/index_zh_CN.rst","zh_CN/index.rst")
 
 def replace_index_with_redirect(app,exception):
     shutil.copy("../../../docs/index.html","../_build/index.html")
