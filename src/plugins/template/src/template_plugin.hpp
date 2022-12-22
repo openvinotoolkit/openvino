@@ -4,38 +4,34 @@
 
 #pragma once
 
-#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
+#include <mutex>
 
 #include "backend.hpp"
+#include "openvino/iplugin.hpp"
 #include "template_config.hpp"
 #include "template_executable_network.hpp"
 
 //! [plugin:header]
 namespace TemplatePlugin {
 
-class Plugin : public InferenceEngine::IInferencePlugin {
+class Plugin : public ov::IPlugin {
 public:
-    using Ptr = std::shared_ptr<Plugin>;
-
     Plugin();
     ~Plugin();
 
-    void SetConfig(const std::map<std::string, std::string>& config) override;
-    InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork& network,
-                                                     const std::map<std::string, std::string>& config) const override;
-    InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
-        const InferenceEngine::CNNNetwork& network,
-        const std::map<std::string, std::string>& config) override;
-    void AddExtension(const std::shared_ptr<InferenceEngine::IExtension>& extension) override;
-    InferenceEngine::Parameter GetConfig(
-        const std::string& name,
-        const std::map<std::string, InferenceEngine::Parameter>& options) const override;
-    InferenceEngine::Parameter GetMetric(
-        const std::string& name,
-        const std::map<std::string, InferenceEngine::Parameter>& options) const override;
-    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(
-        std::istream& model,
-        const std::map<std::string, std::string>& config) override;
+    void set_property(const ov::AnyMap& properties) override;
+    ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override;
+
+    ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
+                                    const ov::AnyMap& properties) const override;
+
+    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> compile_model_impl(
+        const std::shared_ptr<ov::Model>& model,
+        const ov::AnyMap& properties) override;
+
+    void add_extension(const std::shared_ptr<InferenceEngine::IExtension>& extension) override;
+    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> import_model(std::istream& model,
+                                                                              const ov::AnyMap& properties) override;
 
 private:
     friend class ExecutableNetwork;
