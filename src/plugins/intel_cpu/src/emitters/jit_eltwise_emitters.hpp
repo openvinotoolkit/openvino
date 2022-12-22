@@ -624,12 +624,12 @@ protected:
     size_t aux_gprs_count() const override { return (entry_map_.empty() ? 0 : 1) + 1; }
 
 private:
-    void emit_impl(const std::vector<size_t> &inVecIdxs, const std::vector<size_t> &outVecIdxs,
-                   const std::vector<size_t> &poolVecIdxs, const std::vector<size_t> &poolGprIdxs,
+    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
+                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
                    const emitter_context *emitContext) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-    void emit_isa(const std::vector<size_t> &inVecIdxs, const std::vector<size_t> &outVecIdxs) const;
+    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 };
 
 class jit_is_inf_emitter : public jit_emitter {
@@ -647,12 +647,12 @@ protected:
     size_t aux_gprs_count() const override { return (entry_map_.empty() ? 0 : 1) + 1; }
 
 private:
-    void emit_impl(const std::vector<size_t> &inVecIdxs, const std::vector<size_t> &outVecIdxs,
-                   const std::vector<size_t> &poolVecIdxs, const std::vector<size_t> &poolGprIdxs,
+    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
+                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
                    const emitter_context *emitContext) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-    void emit_isa(const std::vector<size_t> &inVecIdxs, const std::vector<size_t> &outVecIdxs) const;
+    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 
     bool detect_negative;
     bool detect_positive;
@@ -672,12 +672,12 @@ protected:
     size_t aux_gprs_count() const override { return (entry_map_.empty() ? 0 : 1) + 1; }
 
 private:
-    void emit_impl(const std::vector<size_t> &inVecIdxs, const std::vector<size_t> &outVecIdxs,
-                   const std::vector<size_t> &poolVecIdxs, const std::vector<size_t> &poolGprIdxs,
+    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
+                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
                    const emitter_context *emitContext) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-    void emit_isa(const std::vector<size_t> &inVecIdxs, const std::vector<size_t> &outVecIdxs) const;
+    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 };
 
 }   // namespace intel_cpu

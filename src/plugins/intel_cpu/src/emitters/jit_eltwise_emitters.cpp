@@ -1965,9 +1965,9 @@ void jit_soft_sign_emitter::register_table_entries() {
 
 /// IS_FINITE ///
 template <>
-void jit_is_finite_emitter::emit_isa<x64::avx512_core>(const std::vector<size_t> &inVecIdxs, const std::vector<size_t> &outVecIdxs) const {
-    auto vmm_src = Zmm(inVecIdxs[0]);
-    auto vmm_dst = Zmm(outVecIdxs[0]);
+void jit_is_finite_emitter::emit_isa<x64::avx512_core>(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    auto vmm_src = Zmm(in_vec_idxs[0]);
+    auto vmm_dst = Zmm(out_vec_idxs[0]);
     auto &ones_mask = h->k1;
     auto reg32_one = Reg32(aux_gpr_idxs[0]);
 
@@ -1978,12 +1978,12 @@ void jit_is_finite_emitter::emit_isa<x64::avx512_core>(const std::vector<size_t>
 }
 
 template <x64::cpu_isa_t isa>
-void jit_is_finite_emitter::emit_isa(const std::vector<size_t> &inVecIdxs, const std::vector<size_t> &outVecIdxs) const {
+void jit_is_finite_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional<isa == x64::sse41, Xmm, Ymm>::type;
-    bool equalInOut = inVecIdxs[0] == outVecIdxs[0];
+    bool equalInOut = in_vec_idxs[0] == out_vec_idxs[0];
 
-    auto vmm_src = Vmm(inVecIdxs[0]);
-    auto vmm_dst = Vmm(equalInOut ? aux_vec_idxs[0] : outVecIdxs[0]);
+    auto vmm_src = Vmm(in_vec_idxs[0]);
+    auto vmm_dst = Vmm(equalInOut ? aux_vec_idxs[0] : out_vec_idxs[0]);
     auto xmm_dst = Xmm(vmm_dst.getIdx());
     auto reg32_aux = Reg32(aux_gpr_idxs[0]);
 
@@ -2005,15 +2005,15 @@ void jit_is_finite_emitter::emit_isa(const std::vector<size_t> &inVecIdxs, const
     }
 }
 
-void jit_is_finite_emitter::emit_impl(const std::vector<size_t> &inVecIdxs, const std::vector<size_t> &outVecIdxs,
-                                      const std::vector<size_t> &poolVecIdxs, const std::vector<size_t> &poolGprIdxs,
-                                      const emitter_context *emitContext) const {
+void jit_is_finite_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
+                                      const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+                                      const emitter_context *emit_context) const {
     if (host_isa_ == x64::avx512_core) {
-        emit_isa<x64::avx512_core>(inVecIdxs, outVecIdxs);
+        emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == x64::avx2) {
-        emit_isa<x64::avx2>(inVecIdxs, outVecIdxs);
+        emit_isa<x64::avx2>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == x64::sse41) {
-        emit_isa<x64::sse41>(inVecIdxs, outVecIdxs);
+        emit_isa<x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else {
         IE_THROW() << "jit_is_finite_emitter doesn't support ISA " << host_isa_;
     }
@@ -2021,9 +2021,9 @@ void jit_is_finite_emitter::emit_impl(const std::vector<size_t> &inVecIdxs, cons
 
 /// IS_INF ///
 template <>
-void jit_is_inf_emitter::emit_isa<x64::avx512_core>(const std::vector<size_t> &inVecIdxs, const std::vector<size_t> &outVecIdxs) const {
-    Zmm vmm_src = Zmm(inVecIdxs[0]);
-    Zmm vmm_dst = Zmm(outVecIdxs[0]);
+void jit_is_inf_emitter::emit_isa<x64::avx512_core>(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    Zmm vmm_src = Zmm(in_vec_idxs[0]);
+    Zmm vmm_dst = Zmm(out_vec_idxs[0]);
 
     if (detect_negative || detect_positive) {
         auto &ones_mask = h->k1;
@@ -2042,13 +2042,13 @@ void jit_is_inf_emitter::emit_isa<x64::avx512_core>(const std::vector<size_t> &i
 }
 
 template <x64::cpu_isa_t isa>
-void jit_is_inf_emitter::emit_isa(const std::vector<size_t> &inVecIdxs, const std::vector<size_t> &outVecIdxs) const {
+void jit_is_inf_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional<isa == x64::sse41, Xmm, Ymm>::type;
 
     if (detect_negative || detect_positive) {
-        bool equalInOut = inVecIdxs[0] == outVecIdxs[0];
-        auto vmm_src = Vmm(inVecIdxs[0]);
-        auto vmm_dst = Vmm(equalInOut ? aux_vec_idxs[0] : outVecIdxs[0]);
+        bool equalInOut = in_vec_idxs[0] == out_vec_idxs[0];
+        auto vmm_src = Vmm(in_vec_idxs[0]);
+        auto vmm_dst = Vmm(equalInOut ? aux_vec_idxs[0] : out_vec_idxs[0]);
         auto xmm_dst = Xmm(vmm_dst.getIdx());
         auto reg32_aux = Reg32(aux_gpr_idxs[0]);
 
@@ -2078,20 +2078,20 @@ void jit_is_inf_emitter::emit_isa(const std::vector<size_t> &inVecIdxs, const st
             h->uni_vandps(vmm_dst, vmm_dst, vmm_src);
         }
     } else {
-        auto vmm_dst = Vmm(outVecIdxs[0]);
+        auto vmm_dst = Vmm(out_vec_idxs[0]);
         h->uni_vxorps(vmm_dst, vmm_dst, vmm_dst);
     }
 }
 
-void jit_is_inf_emitter::emit_impl(const std::vector<size_t> &inVecIdxs, const std::vector<size_t> &outVecIdxs,
-                                   const std::vector<size_t> &poolVecIdxs, const std::vector<size_t> &poolGprIdxs,
-                                   const emitter_context *emitContext) const {
+void jit_is_inf_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
+                                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+                                   const emitter_context *emit_context) const {
     if (host_isa_ == x64::avx512_core) {
-        emit_isa<x64::avx512_core>(inVecIdxs, outVecIdxs);
+        emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == x64::avx2) {
-        emit_isa<x64::avx2>(inVecIdxs, outVecIdxs);
+        emit_isa<x64::avx2>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == x64::sse41) {
-        emit_isa<x64::sse41>(inVecIdxs, outVecIdxs);
+        emit_isa<x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else {
         IE_THROW() << "jit_is_inf_emitter doesn't support ISA " << host_isa_;
     }
@@ -2099,9 +2099,9 @@ void jit_is_inf_emitter::emit_impl(const std::vector<size_t> &inVecIdxs, const s
 
 /// IS_NAN ///
 template <>
-void jit_is_nan_emitter::emit_isa<x64::avx512_core>(const std::vector<size_t> &inVecIdxs, const std::vector<size_t> &outVecIdxs) const {
-    auto vmm_src = Zmm(inVecIdxs[0]);
-    auto vmm_dst = Zmm(outVecIdxs[0]);
+void jit_is_nan_emitter::emit_isa<x64::avx512_core>(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    auto vmm_src = Zmm(in_vec_idxs[0]);
+    auto vmm_dst = Zmm(out_vec_idxs[0]);
     auto &ones_mask = h->k1;
     auto reg32_one = Reg32(aux_gpr_idxs[0]);
 
@@ -2111,12 +2111,12 @@ void jit_is_nan_emitter::emit_isa<x64::avx512_core>(const std::vector<size_t> &i
 }
 
 template <x64::cpu_isa_t isa>
-void jit_is_nan_emitter::emit_isa(const std::vector<size_t> &inVecIdxs, const std::vector<size_t> &outVecIdxs) const {
+void jit_is_nan_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional<isa == x64::sse41, Xmm, Ymm>::type;
-    bool equalInOut = inVecIdxs[0] == outVecIdxs[0];
+    bool equalInOut = in_vec_idxs[0] == out_vec_idxs[0];
 
-    auto vmm_src = Vmm(inVecIdxs[0]);
-    auto vmm_dst = Vmm(equalInOut ? aux_vec_idxs[0] : outVecIdxs[0]);
+    auto vmm_src = Vmm(in_vec_idxs[0]);
+    auto vmm_dst = Vmm(equalInOut ? aux_vec_idxs[0] : out_vec_idxs[0]);
     auto xmm_dst = Xmm(vmm_dst.getIdx());
     auto reg32_aux = Reg32(aux_gpr_idxs[0]);
 
@@ -2139,15 +2139,15 @@ void jit_is_nan_emitter::emit_isa(const std::vector<size_t> &inVecIdxs, const st
     }
 }
 
-void jit_is_nan_emitter::emit_impl(const std::vector<size_t> &inVecIdxs, const std::vector<size_t> &outVecIdxs,
-                                   const std::vector<size_t> &poolVecIdxs, const std::vector<size_t> &poolGprIdxs,
-                                   const emitter_context *emitContext) const {
+void jit_is_nan_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
+                                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+                                   const emitter_context *emit_context) const {
     if (host_isa_ == x64::avx512_core) {
-        emit_isa<x64::avx512_core>(inVecIdxs, outVecIdxs);
+        emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == x64::avx2) {
-        emit_isa<x64::avx2>(inVecIdxs, outVecIdxs);
+        emit_isa<x64::avx2>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == x64::sse41) {
-        emit_isa<x64::sse41>(inVecIdxs, outVecIdxs);
+        emit_isa<x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else {
         IE_THROW() << "jit_is_nan_emitter doesn't support ISA " << host_isa_;
     }
