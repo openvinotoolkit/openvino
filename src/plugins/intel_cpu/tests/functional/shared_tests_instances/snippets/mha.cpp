@@ -45,6 +45,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA, MHASelect,
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                          MHA::getTestCaseName);
 
+const std::vector<std::vector<ov::Shape>> inputShapesWOTranspose = {
+        {{1, 12, 197, 64}, {1, 12, 64, 197}, {1, 12, 197, 64}}
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWOTransposeOnInputs, MHAWOTransposeOnInputs,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(inputShapesWOTranspose),
+                                 ::testing::ValuesIn({true}),  // Need to support False for graph builder in tests
+                                 ::testing::Values(4),  // Subgraph + 3xSin
+                                 ::testing::Values(1),
+                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                         MHA::getTestCaseName);
+
 
 } // namespace
 } // namespace snippets

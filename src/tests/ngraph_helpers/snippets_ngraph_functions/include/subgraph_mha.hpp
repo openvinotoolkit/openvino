@@ -45,10 +45,22 @@ protected:
 };
 
 // TODO: Write Graph
+// MHA pattern with Select op
 class MHASelectSinhFunction : public SnippetsFunctionBase {
 public:
     explicit MHASelectSinhFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
         NGRAPH_CHECK(input_shapes.size() == 6, "Got invalid number of input shapes");
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+};
+
+// TODO: Write Graph
+// MHA pattern without Transpose ops on inputs and without Add after MatMul0
+class MHAWOTransposeOnInputsSinhFunction : public SnippetsFunctionBase {
+public:
+    explicit MHAWOTransposeOnInputsSinhFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+        NGRAPH_CHECK(input_shapes.size() == 3, "Got invalid number of input shapes");
     }
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
