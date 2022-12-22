@@ -19,6 +19,11 @@
 #include "openvino/core/node_output.hpp"
 #include "openvino/runtime/infer_request.hpp"
 #include "openvino/runtime/remote_context.hpp"
+
+namespace InferenceEngine {
+class Core;
+}
+
 namespace ov {
 
 class IPlugin;
@@ -37,7 +42,7 @@ public:
 
     virtual void export_model(std::ostream& model) const;
 
-    virtual std::shared_ptr<ov::Model> get_exec_graph_info() const;
+    virtual std::shared_ptr<ov::Model> get_runtime_model() const;
 
     virtual void set_property(const ov::AnyMap& properties);
 
@@ -56,8 +61,10 @@ private:
     std::shared_ptr<const ov::IPlugin> m_plugin;
     std::shared_ptr<void> m_so;
     bool m_loaded_from_cache = false;
+    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> m_exec_network;
 
     friend IPlugin;
+    friend InferenceEngine::Core;
 };
 
 }  // namespace ov

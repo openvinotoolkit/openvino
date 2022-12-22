@@ -254,12 +254,14 @@ std::shared_ptr<ov::ICompiledModel> ov::IPlugin::import_model(std::istream& mode
 
 void ov::IPlugin::set_core(std::weak_ptr<ov::ICore> core) {
     OPENVINO_ASSERT(!core.expired());
-    if (old_plugin)
-        old_plugin->SetCore(core);
-    m_core = core;
     auto locked_core = m_core.lock();
+    if (old_plugin) {
+        if (auto old_core = std::dynamic_pointer_cast<InferenceEngine::ICore>(core))
+            old_plugin->SetCore(old_core);
+    }
+    m_core = core;
     if (locked_core)
-        m_is_new_api = locked_core->isNewAPI();
+        m_is_new_api = locked_core->is_new_api();
 }
 
 std::shared_ptr<ov::ICore> ov::IPlugin::get_core() const {

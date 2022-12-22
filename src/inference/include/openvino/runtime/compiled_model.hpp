@@ -29,6 +29,7 @@ namespace ov {
 
 class Core;
 class InferRequest;
+class ICompiledModel;
 
 /**
  * @brief This class represents a compiled model.
@@ -37,7 +38,8 @@ class InferRequest;
  * transformations, then mapping to compute kernels.
  */
 class OPENVINO_RUNTIME_API CompiledModel {
-    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> _impl;
+    std::shared_ptr<ICompiledModel> _impl;
+    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> _old_impl;
     std::shared_ptr<void> _so;
 
     /**
@@ -46,6 +48,7 @@ class OPENVINO_RUNTIME_API CompiledModel {
      * @param so Plugin to use. This parameter is required to ensure that CompiledModel can work properly even if a
      * plugin object is destroyed.
      */
+    CompiledModel(const std::shared_ptr<ICompiledModel>& impl, const std::shared_ptr<void>& so);
     CompiledModel(const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& impl,
                   const std::shared_ptr<void>& so);
     friend class ov::Core;

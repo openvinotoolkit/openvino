@@ -9,6 +9,8 @@
 #include <ostream>
 #include <string>
 
+#include "openvino/core/any.hpp"
+
 namespace InferenceEngine {
 
 class CNNNetwork;
@@ -16,10 +18,9 @@ class CNNNetwork;
 struct NetworkCompilationContext final {
     static std::string calculateFileInfo(const std::string& filePath);
 
-    static std::string computeHash(const CNNNetwork& network, const std::map<std::string, std::string>& compileOptions);
+    static std::string computeHash(const CNNNetwork& network, const ov::AnyMap& compileOptions);
 
-    static std::string computeHash(const std::string& modelName,
-                                   const std::map<std::string, std::string>& compileOptions);
+    static std::string computeHash(const std::string& modelName, const ov::AnyMap& compileOptions);
 };
 
 class CompiledBlobHeader final {

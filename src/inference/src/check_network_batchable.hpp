@@ -7,7 +7,7 @@
 
 #include "cnn_network_ngraph_impl.hpp"
 
-namespace InferenceEngine {
+namespace ov {
 namespace details {
 /**
  * @brief Checks if the input network is batch-able (e.g. no dynamic inputs, inputs has the batch dimension, etc)
@@ -15,9 +15,9 @@ namespace details {
  * @return An enum value indicating whether the network can be safely batched (with HETERO or as is) or not
  */
 enum NetworkBatchAbility : uint32_t { NO = 0, AS_IS, WITH_HETERO };
-NetworkBatchAbility isNetworkBatchable(const CNNNetwork& network,
+NetworkBatchAbility isNetworkBatchable(const std::shared_ptr<const ov::Model>& model,
                                        const std::string& deviceNoBatch,
                                        bool strictly_track_dims);
 
 }  // namespace details
-}  // namespace InferenceEngine
+}  // namespace ov

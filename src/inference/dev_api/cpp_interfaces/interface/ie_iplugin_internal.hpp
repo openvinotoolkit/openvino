@@ -22,11 +22,9 @@
 #include "openvino/util/pp.hpp"
 #include "so_ptr.hpp"
 
-namespace ov {
-class ICore;
-}  // namespace ov
 namespace InferenceEngine {
 
+class ICore;
 class ExecutorManager;
 class IExecutableNetworkInternal;
 class RemoteContext;
@@ -286,13 +284,13 @@ public:
      * @brief Sets pointer to ICore interface
      * @param core Pointer to Core interface
      */
-    virtual void SetCore(std::weak_ptr<ov::ICore> core);
+    virtual void SetCore(std::weak_ptr<InferenceEngine::ICore> core);
 
     /**
      * @brief Gets reference to ICore interface
      * @return Reference to ICore interface
      */
-    virtual std::shared_ptr<ov::ICore> GetCore() const noexcept;
+    virtual std::shared_ptr<InferenceEngine::ICore> GetCore() const noexcept;
 
     /**
      * @brief Provides an information about used API
@@ -373,7 +371,7 @@ protected:
 
     std::string _pluginName;                            //!< A device name that plugins enables
     std::map<std::string, std::string> _config;         //!< A map config keys -> values
-    std::weak_ptr<ov::ICore> _core;                     //!< A pointer to ICore interface
+    std::weak_ptr<InferenceEngine::ICore> _core;        //!< A pointer to ICore interface
     std::shared_ptr<ExecutorManager> _executorManager;  //!< A tasks execution manager
     bool _isNewAPI;                                     //!< A flag which shows used API
 };

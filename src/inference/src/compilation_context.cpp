@@ -63,8 +63,7 @@ std::string NetworkCompilationContext::calculateFileInfo(const std::string& file
     return std::to_string(seed);
 }
 
-std::string NetworkCompilationContext::computeHash(const CNNNetwork& network,
-                                                   const std::map<std::string, std::string>& compileOptions) {
+std::string NetworkCompilationContext::computeHash(const CNNNetwork& network, const ov::AnyMap& compileOptions) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::computeHash - CNN");
 
     IE_ASSERT(network.getFunction());
@@ -79,7 +78,7 @@ std::string NetworkCompilationContext::computeHash(const CNNNetwork& network,
 
     // 2. Compute hash on serialized data and options
     for (const auto& kvp : compileOptions) {
-        seed = hash_combine(seed, kvp.first + kvp.second);
+        seed = hash_combine(seed, kvp.first + kvp.second.as<std::string>());
     }
 
     // 3. Add runtime information which may not be serialized
@@ -124,8 +123,7 @@ std::string NetworkCompilationContext::computeHash(const CNNNetwork& network,
     return std::to_string(seed);
 }
 
-std::string NetworkCompilationContext::computeHash(const std::string& modelName,
-                                                   const std::map<std::string, std::string>& compileOptions) {
+std::string NetworkCompilationContext::computeHash(const std::string& modelName, const ov::AnyMap& compileOptions) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::computeHash - ModelName");
     uint64_t seed = 0;
     try {
@@ -135,7 +133,7 @@ std::string NetworkCompilationContext::computeHash(const std::string& modelName,
         seed = hash_combine(seed, modelName);
     }
     for (const auto& kvp : compileOptions) {
-        seed = hash_combine(seed, kvp.first + kvp.second);
+        seed = hash_combine(seed, kvp.first + kvp.second.as<std::string>());
     }
     return std::to_string(seed);
 }

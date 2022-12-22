@@ -15,6 +15,7 @@
 #include <ngraph/opsets/opset.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include "openvino/core/any.hpp"
+#include "openvino/icompiled_model.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
@@ -103,18 +104,19 @@ Plugin::~Plugin() {
 // ! [plugin:transform_network]
 
 // ! [plugin:load_exe_network_impl]
-InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::compile_model_impl(const std::shared_ptr<ov::Model>& model,
-                                                                            const ov::AnyMap& properties) {
+std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::shared_ptr<ov::Model>& model,
+                                                               const ov::AnyMap& properties) {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::compile_model_impl");
 
     auto fullConfig = Configuration{properties, _cfg};
-    return std::make_shared<ExecutableNetwork>(model, fullConfig, std::static_pointer_cast<Plugin>(shared_from_this()));
+    OPENVINO_ASSERT(false);
+    // return std::make_shared<ExecutableNetwork>(model, fullConfig,
+    // std::static_pointer_cast<Plugin>(shared_from_this()));
 }
 // ! [plugin:load_exe_network_impl]
 
 // ! [plugin:import_network]
-InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::import_model(std::istream& modelStream,
-                                                                      const ov::AnyMap& config) {
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& modelStream, const ov::AnyMap& config) {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::import_model");
 
     auto fullConfig = Configuration{config, _cfg};
@@ -122,7 +124,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::import_model(std::istre
                                                     fullConfig,
                                                     std::static_pointer_cast<Plugin>(shared_from_this()));
     SetExeNetworkInfo(exec, exec->m_model);
-    return exec;
+    OPENVINO_ASSERT(false);
+    // return exec;
 }
 // ! [plugin:import_network]
 

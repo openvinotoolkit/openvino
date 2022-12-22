@@ -12,6 +12,9 @@
 #include <memory>
 #include <mutex>
 #include <openvino/core/any.hpp>
+#include <openvino/core/model.hpp>
+#include <openvino/runtime/common.hpp>
+#include <openvino/runtime/remote_context.hpp>
 #include <string>
 #include <threading/ie_executor_manager.hpp>
 #include <vector>
@@ -39,6 +42,7 @@
 #include "ngraph/opsets/opset.hpp"
 #include "ngraph/pass/constant_folding.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/icompiled_model.hpp"
 #include "openvino/iplugin.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
@@ -48,6 +52,7 @@
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "so_extension.hpp"
+#include "so_ptr.hpp"
 #include "transformations/utils/utils.hpp"
 #include "xml_parse_utils.h"
 
@@ -71,6 +76,13 @@ struct Parsed {
 };
 
 namespace {
+
+ie::CNNNetwork toCNN(const std::shared_ptr<const ngraph::Function>& model) {
+    return ie::CNNNetwork(
+        std::make_shared<ie::details::CNNNetworkNGraphImpl>(std::const_pointer_cast<ngraph::Function>(model),
+                                                            std::vector<ie::IExtensionPtr>{},
+                                                            true));
+}
 
 #ifndef OPENVINO_STATIC_LIBRARY
 
@@ -293,7 +305,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         // Passing empty or not-existing name will return global cache config
         CacheConfig getCacheConfigForDevice(const std::string& device_name,
                                             bool deviceSupportsCacheDir,
-                                            std::map<std::string, std::string>& parsedConfig) const {
+                                            ov::AnyMap& parsedConfig) const {
             if (parsedConfig.count(CONFIG_KEY(CACHE_DIR))) {
                 CoreConfig::CacheConfig tempConfig;
                 CoreConfig::fillConfig(tempConfig, parsedConfig.at(CONFIG_KEY(CACHE_DIR)));
@@ -388,24 +400,14 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
 
     const bool newAPI;
 
-    bool DeviceSupportsImportExport(const std::string& deviceName) const override {
-        auto parsed = parseDeviceNameIntoConfig(deviceName);
-        auto plugin = GetCPPPluginByName(parsed._deviceName);
-        return DeviceSupportsImportExport(plugin);
-    }
-
-    bool DeviceSupportsConfigKey(const ov::Plugin& plugin, const std::string& key) const {
-        return util::contains(plugin.get_property(ov::supported_properties), key);
-    }
-
-    bool DeviceSupportsImportExport(const ov::Plugin& plugin) const {
+    bool device_supports_import_export(const ov::Plugin& plugin) const {
         auto supportedMetricKeys =
             plugin.get_property(METRIC_KEY(SUPPORTED_METRICS), {}).as<std::vector<std::string>>();
         auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(), METRIC_KEY(IMPORT_EXPORT_SUPPORT));
         auto supported =
             (it != supportedMetricKeys.end()) && plugin.get_property(METRIC_KEY(IMPORT_EXPORT_SUPPORT), {}).as<bool>();
         if (!supported) {
-            if (DeviceSupportsConfigKey(plugin, ov::device::capabilities.name())) {
+            if (device_supports_property(plugin, ov::device::capabilities.name())) {
                 supported = util::contains(plugin.get_property(ov::device::capabilities),
                                            ov::device::capability::EXPORT_IMPORT);
             }
@@ -413,21 +415,35 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         return supported;
     }
 
-    bool DeviceSupportsCacheDir(const ov::Plugin& plugin) const {
+    bool device_supports_import_export(const std::string& deviceName) const override {
+        auto parsed = parseDeviceNameIntoConfig(deviceName);
+        auto plugin = GetCPPPluginByName(parsed._deviceName);
+        return device_supports_import_export(plugin);
+    }
+
+    bool DeviceSupportsImportExport(const std::string& deviceName) const override {
+        return device_supports_import_export(deviceName);
+    }
+
+    bool device_supports_property(const ov::Plugin& plugin, const std::string& key) const {
+        return util::contains(plugin.get_property(ov::supported_properties), key);
+    }
+
+    bool device_supports_cache_dir(const ov::Plugin& plugin) const {
         return util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir);
     }
 
     ov::SoPtr<ie::IExecutableNetworkInternal> compile_model_impl(const std::shared_ptr<const ov::Model>& network,
                                                                  ov::Plugin& plugin,
                                                                  const AnyMap& parsedConfig,
-                                                                 const ie::RemoteContext::Ptr& context,
+                                                                 const ov::RemoteContext& context,
                                                                  const CacheContent& cacheContent,
                                                                  bool forceDisableCache = false) {
         OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CoreImpl::compile_model_impl");
         ov::SoPtr<ie::IExecutableNetworkInternal> execNetwork;
-        execNetwork = context ? plugin.compile_model(network, ov::RemoteContext(context, {}), parsedConfig)
-                              : plugin.compile_model(network, parsedConfig);
-        if (!forceDisableCache && cacheContent.cacheManager && DeviceSupportsImportExport(plugin)) {
+        execNetwork = context._impl ? plugin.compile_model(network, context, parsedConfig)
+                                    : plugin.compile_model(network, parsedConfig);
+        if (!forceDisableCache && cacheContent.cacheManager && device_supports_import_export(plugin)) {
             try {
                 // need to export network for further import from "cache"
                 OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::LoadNetwork::Export");
@@ -445,12 +461,11 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         return execNetwork;
     }
 
-    static ov::SoPtr<ie::IExecutableNetworkInternal> LoadNetworkFromCache(
-        const CacheContent& cacheContent,
-        ov::Plugin& plugin,
-        const ov::AnyMap& config,
-        const std::shared_ptr<ie::RemoteContext>& context,
-        bool& networkIsImported) {
+    static ov::SoPtr<ie::IExecutableNetworkInternal> LoadNetworkFromCache(const CacheContent& cacheContent,
+                                                                          ov::Plugin& plugin,
+                                                                          const ov::AnyMap& config,
+                                                                          const ov::RemoteContext& context,
+                                                                          bool& networkIsImported) {
         ov::SoPtr<ie::IExecutableNetworkInternal> execNetwork;
         struct HeaderException {};
 
@@ -476,8 +491,8 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
                     throw HeaderException();
                 }
 
-                execNetwork = context ? plugin.import_model(networkStream, ov::RemoteContext{context, {}}, config)
-                                      : plugin.import_model(networkStream, config);
+                execNetwork = context._impl ? plugin.import_model(networkStream, context, config)
+                                            : plugin.import_model(networkStream, config);
                 networkIsImported = true;
                 execNetwork->loadedFromCache();
             });
@@ -494,11 +509,10 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         return execNetwork;
     }
 
-    std::map<std::string, std::string> CreateCompileConfig(const ov::Plugin& plugin,
-                                                           const std::string& deviceFamily,
-                                                           const std::map<std::string, std::string>& origConfig) const {
-        std::map<std::string, Any> getMetricConfig;
-        std::map<std::string, std::string> compileConfig;
+    ov::AnyMap CreateCompileConfig(const ov::Plugin& plugin,
+                                   const std::string& deviceFamily,
+                                   const ov::AnyMap& origConfig) const {
+        ov::AnyMap getMetricConfig, compileConfig;
 
         // 0. Move TARGET_FALLBACK key to getMetricConfig
         auto targetFallbackIt = origConfig.find("TARGET_FALLBACK");
@@ -516,7 +530,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         }
 
         // 2. Replace it with DEVICE_ARCHITECTURE value
-        if (DeviceSupportsConfigKey(plugin, ov::device::architecture.name())) {
+        if (device_supports_property(plugin, ov::device::architecture.name())) {
             compileConfig[ov::device::architecture.name()] =
                 plugin.get_property(ov::device::architecture, getMetricConfig);
         } else {
@@ -525,13 +539,13 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         }
 
         // 3. Extract config keys which affect compile config
-        if (DeviceSupportsConfigKey(plugin, ov::caching_properties.name())) {
+        if (device_supports_property(plugin, ov::caching_properties.name())) {
             auto cachingProps = plugin.get_property(ov::caching_properties);
             for (const auto& prop : cachingProps) {
                 // origConfig values have higher priority than plugin parameters
                 auto it = origConfig.find(prop);
-                compileConfig[prop] =
-                    it == origConfig.end() ? plugin.get_property(prop, {}).as<std::string>() : it->second;
+                compileConfig[prop] = it == origConfig.end() ? plugin.get_property(prop, {}).as<std::string>()
+                                                             : it->second.as<std::string>();
             }
         }
         return compileConfig;
@@ -540,7 +554,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
     std::string CalculateNetworkHash(const ie::CNNNetwork& network,
                                      const std::string& deviceFamily,
                                      const ov::Plugin& plugin,
-                                     const std::map<std::string, std::string>& config) const {
+                                     const ov::AnyMap& config) const {
         auto compileConfig = CreateCompileConfig(plugin, deviceFamily, config);
         return ie::NetworkCompilationContext::computeHash(network, compileConfig);
     }
@@ -548,7 +562,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
     std::string CalculateFileHash(const std::string& modelName,
                                   const std::string& deviceFamily,
                                   const ov::Plugin& plugin,
-                                  const std::map<std::string, std::string>& config) const {
+                                  const ov::AnyMap& config) const {
         auto compileConfig = CreateCompileConfig(plugin, deviceFamily, config);
         return ie::NetworkCompilationContext::computeHash(modelName, compileConfig);
     }
@@ -658,6 +672,11 @@ public:
         return InferenceEngine::details::ReadNetwork(modelPath, binPath, extensions, ov_extensions, newAPI);
     }
 
+    std::shared_ptr<ov::Model> read_model(const std::string& modelPath, const std::string& binPath) const override {
+        OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "CoreImpl::read_model from file");
+        return ReadNetwork(modelPath, binPath).getFunction();
+    }
+
     ie::CNNNetwork ReadNetwork(const std::string& model,
                                const ie::Blob::CPtr& weights,
                                bool frontendMode = false) const override {
@@ -665,8 +684,23 @@ public:
         return InferenceEngine::details::ReadNetwork(model, weights, extensions, ov_extensions, newAPI, frontendMode);
     }
 
-    bool isNewAPI() const override {
+    std::shared_ptr<ov::Model> read_model(const std::string& model,
+                                          const ov::Tensor& weights,
+                                          bool frontendMode = false) const override {
+        InferenceEngine::Blob::Ptr blob;
+        if (weights) {
+            blob = weights._impl;
+        }
+        OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "CoreImpl::read_model from memory");
+        return ReadNetwork(model, blob, frontendMode).getFunction();
+    }
+
+    bool is_new_api() const override {
         return newAPI;
+    }
+
+    bool isNewAPI() const override {
+        return is_new_api();
     }
 
     static std::tuple<bool, std::string> CheckStatic(const std::shared_ptr<const ov::Model>& model) {
@@ -690,12 +724,16 @@ public:
         return {res, errMsg.str()};
     }
 
-    ie::RemoteContext::Ptr GetDefaultContext(const std::string& deviceName) override {
+    ov::RemoteContext get_default_context(const std::string& deviceName) const override {
         auto parsed = ov::parseDeviceNameIntoConfig(deviceName, ParamMap{});
-        return GetCPPPluginByName(parsed._deviceName).get_default_context(parsed._config)._impl;
+        return GetCPPPluginByName(parsed._deviceName).get_default_context(parsed._config);
     }
 
-    std::shared_ptr<ov::Model> legacy_to_model(const ie::CNNNetwork& network) {
+    ie::RemoteContext::Ptr GetDefaultContext(const std::string& deviceName) override {
+        return get_default_context(deviceName)._impl;
+    }
+
+    std::shared_ptr<ov::Model> legacy_to_model(const ie::CNNNetwork& network) const {
         if (isNewAPI())
             return std::const_pointer_cast<ov::Model>(network.getFunction());
 
@@ -723,49 +761,57 @@ public:
         return cloned_model;
     }
 
-    ov::SoPtr<ie::IExecutableNetworkInternal> LoadNetwork(const ie::CNNNetwork& network,
-                                                          const std::shared_ptr<ie::RemoteContext>& context,
-                                                          const std::map<std::string, std::string>& config) override {
-        OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::LoadNetwork::RemoteContext");
-        if (context == nullptr) {
+    ov::SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                const ov::RemoteContext& context,
+                                                const ov::AnyMap& properties) override {
+        OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::compile_model::RemoteContext");
+        if (context._impl == nullptr) {
             IE_THROW() << "Remote context is null";
         }
         // have to deduce the device name/config from the context first
-        auto parsed = parseDeviceNameIntoConfig(context->getDeviceName(), config);
+        auto parsed = parseDeviceNameIntoConfig(context.get_device_name(), properties);
         std::string& deviceName = parsed._deviceName;
-        std::map<std::string, std::string>& config_with_batch = parsed._config;
+        auto& config_with_batch = parsed._config;
         // if auto-batching is applicable, the below function will patch the device name and config accordingly:
-        ApplyAutoBatching(network, deviceName, config_with_batch);
+        apply_auto_batching(model, deviceName, config_with_batch);
         CleanUpProperties(deviceName, config_with_batch, ov::auto_batch_timeout);
         parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch);
 
         auto plugin = GetCPPPluginByName(parsed._deviceName);
-        ov::SoPtr<ie::IExecutableNetworkInternal> res;
+        ov::SoPtr<ov::ICompiledModel> res;
         auto cacheManager =
-            coreConfig.getCacheConfigForDevice(parsed._deviceName, DeviceSupportsCacheDir(plugin), parsed._config)
+            coreConfig.getCacheConfigForDevice(parsed._deviceName, device_supports_cache_dir(plugin), parsed._config)
                 ._cacheManager;
         auto cacheContent = CacheContent{cacheManager};
-        ov::AnyMap conf = ov::any_copy(parsed._config);
-        if (cacheManager && DeviceSupportsImportExport(plugin)) {
-            cacheContent.blobId = CalculateNetworkHash(network, parsed._deviceName, plugin, parsed._config);
+        if (cacheManager && device_supports_import_export(plugin)) {
+            cacheContent.blobId = CalculateNetworkHash(toCNN(model), parsed._deviceName, plugin, parsed._config);
             bool loadedFromCache = false;
             auto lock = cacheGuard.getHashLock(cacheContent.blobId);
-            res = LoadNetworkFromCache(cacheContent, plugin, conf, context, loadedFromCache);
+            res = LoadNetworkFromCache(cacheContent, plugin, parsed._config, context, loadedFromCache);
             if (!loadedFromCache) {
-                res = compile_model_impl(legacy_to_model(network), plugin, conf, context, cacheContent);
+                res = compile_model_impl(model, plugin, parsed._config, context, cacheContent);
             } else {
                 // Temporary workaround until all plugins support caching of original model inputs
-                InferenceEngine::SetExeNetworkInfo(res._ptr, network.getFunction(), isNewAPI());
+                // FIXME:
+                // InferenceEngine::SetExeNetworkInfo(res._ptr, model, isNewAPI());
             }
         } else {
-            res = compile_model_impl(legacy_to_model(network), plugin, conf, context, cacheContent);
+            res = compile_model_impl(model, plugin, parsed._config, context, cacheContent);
         }
         return res;
     }
 
-    void ApplyAutoBatching(const ie::CNNNetwork& network,
-                           std::string& deviceName,
-                           std::map<std::string, std::string>& config) {
+    ov::SoPtr<ie::IExecutableNetworkInternal> LoadNetwork(const ie::CNNNetwork& network,
+                                                          const std::shared_ptr<ie::RemoteContext>& context,
+                                                          const std::map<std::string, std::string>& config) override {
+        OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::LoadNetwork::RemoteContext");
+        ov::RemoteContext ctx{context, {nullptr}};
+        return compile_model(legacy_to_model(network), ctx, any_copy(config));
+    }
+
+    void apply_auto_batching(const std::shared_ptr<const ov::Model>& model,
+                             std::string& deviceName,
+                             ov::AnyMap& config) {
         std::string deviceNameWithBatchSize, deviceNameWithoutBatch;
         // fully strict dims tracking by default (Auto-Batching is enabled implicitly)
         bool strictly_check_dims = true;
@@ -789,7 +835,7 @@ public:
             // check whether the Auto-Batching is disabled explicitly
             const auto& batch_mode = config.find(ov::hint::allow_auto_batching.name());
             if (batch_mode != config.end()) {
-                const auto disabled = batch_mode->second == CONFIG_VALUE(NO);
+                const auto disabled = batch_mode->second.as<std::string>() == CONFIG_VALUE(NO);
                 // virtual plugins like AUTO/MULTI will need the config
                 // e.g to deduce the #requests correctly
                 // otherwise, no need for this config key in the rest of loading
@@ -812,28 +858,28 @@ public:
             // if applicable, the Auto-Batching is implicitly enabled via the performance hints
             bool bTputInPlg = GetConfig(d, CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() == CONFIG_VALUE(THROUGHPUT);
             const auto& mode = config.find(CONFIG_KEY(PERFORMANCE_HINT));
-            bool bTputInLoadCfg = (mode != config.end() && mode->second == CONFIG_VALUE(THROUGHPUT));
+            bool bTputInLoadCfg = (mode != config.end() && mode->second.as<std::string>() == CONFIG_VALUE(THROUGHPUT));
             const auto& excl = config.find(CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS));
-            bool bExclReqsEnabled = (excl != config.end() && excl->second == CONFIG_VALUE(YES));
+            bool bExclReqsEnabled = (excl != config.end() && excl->second.as<std::string>() == CONFIG_VALUE(YES));
             if (bExclReqsEnabled || (!bTputInPlg && !bTputInLoadCfg))
                 return;
         }
         auto batchConfig = deviceNameWithBatchSize.empty() ? deviceNameWithoutBatch : deviceNameWithBatchSize;
-        auto res = InferenceEngine::details::isNetworkBatchable(network, deviceNameWithoutBatch, strictly_check_dims);
+        auto res = ov::details::isNetworkBatchable(model, deviceNameWithoutBatch, strictly_check_dims);
         switch (res) {
-        case InferenceEngine::details::NetworkBatchAbility::NO:
+        case ov::details::NetworkBatchAbility::NO:
             return;
-        case InferenceEngine::details::NetworkBatchAbility::AS_IS:
+        case ov::details::NetworkBatchAbility::AS_IS:
             deviceName = "BATCH:" + batchConfig;
             break;
-        case InferenceEngine::details::NetworkBatchAbility::WITH_HETERO:
+        case ov::details::NetworkBatchAbility::WITH_HETERO:
             deviceName = "HETERO:BATCH," + deviceNameWithoutBatch;
             config[CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)] = batchConfig;
             break;
         }
     }
 
-    void CleanUpProperties(std::string& deviceName, std::map<std::string, std::string>& config, ov::Any property) {
+    void CleanUpProperties(std::string& deviceName, ov::AnyMap& config, ov::Any property) {
         // auto-batching is not applicable, if there is auto_batch_timeout, delete it
         if (deviceName.find("BATCH") == std::string::npos) {
             const auto& batch_timeout_mode = config.find(property.as<std::string>());
@@ -844,14 +890,14 @@ public:
         }
     }
 
-    ie::SoExecutableNetworkInternal LoadNetwork(const ie::CNNNetwork& network,
+    ov::SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                 const std::string& deviceNameOrig,
-                                                const std::map<std::string, std::string>& config) override {
-        OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::LoadNetwork::CNN");
+                                                const ov::AnyMap& config) override {
+        OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::compile_model::model");
         std::string deviceName = deviceNameOrig;
-        std::map<std::string, std::string> config_with_batch = config;
+        ov::AnyMap config_with_batch = config;
         // if auto-batching is applicable, the below function will patch the device name and config accordingly:
-        ApplyAutoBatching(network, deviceName, config_with_batch);
+        apply_auto_batching(model, deviceName, config_with_batch);
         CleanUpProperties(deviceName, config_with_batch, ov::auto_batch_timeout);
 
         bool forceDisableCache = config_with_batch.count(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE)) > 0;
@@ -861,30 +907,63 @@ public:
             parsed._config.erase(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE));
         }
         auto plugin = GetCPPPluginByName(parsed._deviceName);
-        ov::SoPtr<ie::IExecutableNetworkInternal> res;
+        ov::SoPtr<ov::ICompiledModel> res;
         auto cacheManager =
-            coreConfig.getCacheConfigForDevice(parsed._deviceName, DeviceSupportsCacheDir(plugin), parsed._config)
+            coreConfig.getCacheConfigForDevice(parsed._deviceName, device_supports_cache_dir(plugin), parsed._config)
                 ._cacheManager;
         auto cacheContent = CacheContent{cacheManager};
-        ov::AnyMap conf = ov::any_copy(parsed._config);
-        if (!forceDisableCache && cacheManager && DeviceSupportsImportExport(plugin)) {
-            cacheContent.blobId = CalculateNetworkHash(network, parsed._deviceName, plugin, parsed._config);
+        if (!forceDisableCache && cacheManager && device_supports_import_export(plugin)) {
+            cacheContent.blobId = CalculateNetworkHash(toCNN(model), parsed._deviceName, plugin, parsed._config);
             bool loadedFromCache = false;
             auto lock = cacheGuard.getHashLock(cacheContent.blobId);
-            res = LoadNetworkFromCache(cacheContent, plugin, conf, nullptr, loadedFromCache);
+            res = LoadNetworkFromCache(cacheContent, plugin, config, {}, loadedFromCache);
             if (!loadedFromCache) {
-                res = compile_model_impl(legacy_to_model(network),
-                                         plugin,
-                                         conf,
-                                         nullptr,
-                                         cacheContent,
-                                         forceDisableCache);
+                res = compile_model_impl(model, plugin, config, {}, cacheContent, forceDisableCache);
             } else {
                 // Temporary workaround until all plugins support caching of original model inputs
-                InferenceEngine::SetExeNetworkInfo(res._ptr, network.getFunction(), isNewAPI());
+                // FIXME:
+                // InferenceEngine::SetExeNetworkInfo(res._ptr, model, isNewAPI());
             }
         } else {
-            res = compile_model_impl(legacy_to_model(network), plugin, conf, nullptr, cacheContent, forceDisableCache);
+            res = compile_model_impl(model, plugin, config, {}, cacheContent, forceDisableCache);
+        }
+        return {res._ptr, res._so};
+    }
+
+    ie::SoExecutableNetworkInternal LoadNetwork(const ie::CNNNetwork& network,
+                                                const std::string& deviceNameOrig,
+                                                const std::map<std::string, std::string>& config) override {
+        OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::LoadNetwork::CNN");
+        return compile_model(legacy_to_model(network), deviceNameOrig, any_copy(config));
+    }
+
+    ov::SoPtr<ov::ICompiledModel> compile_model(const std::string& modelPath,
+                                                const std::string& deviceName,
+                                                const ov::AnyMap& config) override {
+        OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::LoadNetwork::Path");
+        auto parsed = parseDeviceNameIntoConfig(deviceName, config);
+        auto plugin = GetCPPPluginByName(parsed._deviceName);
+        ov::SoPtr<ov::ICompiledModel> res;
+        auto cacheManager =
+            coreConfig.getCacheConfigForDevice(parsed._deviceName, device_supports_cache_dir(plugin), parsed._config)
+                ._cacheManager;
+        auto cacheContent = CacheContent{cacheManager, modelPath};
+        if (cacheManager && device_supports_import_export(plugin)) {
+            bool loadedFromCache = false;
+            cacheContent.blobId = CalculateFileHash(modelPath, parsed._deviceName, plugin, parsed._config);
+            auto lock = cacheGuard.getHashLock(cacheContent.blobId);
+            res = LoadNetworkFromCache(cacheContent, plugin, parsed._config, {}, loadedFromCache);
+            if (!loadedFromCache) {
+                auto cnnNetwork = ReadNetwork(modelPath, std::string());
+                res = compile_model_impl(legacy_to_model(cnnNetwork), plugin, parsed._config, {}, cacheContent);
+            }
+        } else if (cacheManager) {
+            auto cnnNetwork = ReadNetwork(modelPath, std::string());
+            // TODO: 'validation' for dynamic API doesn't work for this case, as it affects a lot of plugin API
+            res = plugin.compile_model(legacy_to_model(cnnNetwork), parsed._config);
+        } else {
+            auto cnnNetwork = ReadNetwork(modelPath, std::string());
+            res = compile_model_impl(legacy_to_model(cnnNetwork), plugin, parsed._config, {}, cacheContent);
         }
         return {res._ptr, res._so};
     }
@@ -897,22 +976,22 @@ public:
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
         auto plugin = GetCPPPluginByName(parsed._deviceName);
         ov::SoPtr<ie::IExecutableNetworkInternal> res;
+        auto conf = any_copy(parsed._config);
         auto cacheManager =
-            coreConfig.getCacheConfigForDevice(parsed._deviceName, DeviceSupportsCacheDir(plugin), parsed._config)
+            coreConfig.getCacheConfigForDevice(parsed._deviceName, device_supports_cache_dir(plugin), conf)
                 ._cacheManager;
         auto cacheContent = CacheContent{cacheManager, modelPath};
-        ov::AnyMap conf = ov::any_copy(parsed._config);
-        if (cacheManager && DeviceSupportsImportExport(plugin)) {
+        if (cacheManager && device_supports_import_export(plugin)) {
             bool loadedFromCache = false;
-            cacheContent.blobId = CalculateFileHash(modelPath, parsed._deviceName, plugin, parsed._config);
+            cacheContent.blobId = CalculateFileHash(modelPath, parsed._deviceName, plugin, any_copy(parsed._config));
             auto lock = cacheGuard.getHashLock(cacheContent.blobId);
-            res = LoadNetworkFromCache(cacheContent, plugin, conf, nullptr, loadedFromCache);
+            res = LoadNetworkFromCache(cacheContent, plugin, conf, {}, loadedFromCache);
             if (!loadedFromCache) {
                 auto cnnNetwork = ReadNetwork(modelPath, std::string());
                 if (val) {
                     val(cnnNetwork);
                 }
-                res = compile_model_impl(legacy_to_model(cnnNetwork), plugin, conf, nullptr, cacheContent);
+                res = compile_model_impl(legacy_to_model(cnnNetwork), plugin, conf, {}, cacheContent);
             }
         } else if (cacheManager) {
             auto cnnNetwork = ReadNetwork(modelPath, std::string());
@@ -923,28 +1002,39 @@ public:
             if (val) {
                 val(cnnNetwork);
             }
-            res = compile_model_impl(legacy_to_model(cnnNetwork), plugin, conf, nullptr, cacheContent);
+            res = compile_model_impl(legacy_to_model(cnnNetwork), plugin, conf, {}, cacheContent);
         }
         return {res._ptr, res._so};
+    }
+
+    ov::SoPtr<ov::ICompiledModel> import_model(std::istream& networkModel,
+                                               const std::string& deviceName,
+                                               const ov::AnyMap& config) override {
+        auto parsed = parseDeviceNameIntoConfig(deviceName, config);
+        auto exec = GetCPPPluginByName(parsed._deviceName).import_model(networkModel, config);
+
+        return {exec._ptr, exec._so};
     }
 
     ie::SoExecutableNetworkInternal ImportNetwork(std::istream& networkModel,
                                                   const std::string& deviceName,
                                                   const std::map<std::string, std::string>& config) override {
-        auto parsed = parseDeviceNameIntoConfig(deviceName, config);
-        ov::AnyMap conf = ov::any_copy(parsed._config);
-        auto exec = GetCPPPluginByName(parsed._deviceName).import_model(networkModel, conf);
+        return import_model(networkModel, deviceName, any_copy(config));
+    }
 
-        return {exec._ptr, exec._so};
+    ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
+                                    const std::string& deviceName,
+                                    const ov::AnyMap& config) const override {
+        OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::query_model");
+        auto parsed = parseDeviceNameIntoConfig(deviceName, config);
+        return GetCPPPluginByName(parsed._deviceName).query_model(model, config);
     }
 
     ie::QueryNetworkResult QueryNetwork(const ie::CNNNetwork& network,
                                         const std::string& deviceName,
                                         const std::map<std::string, std::string>& config) const override {
         OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::QueryNetwork");
-        auto parsed = parseDeviceNameIntoConfig(deviceName, config);
-        ov::AnyMap conf = ov::any_copy(parsed._config);
-        auto res = GetCPPPluginByName(parsed._deviceName).query_model(network.getFunction(), conf);
+        auto res = query_model(network.getFunction(), deviceName, any_copy(config));
         ie::QueryNetworkResult ret;
         if (!network.getFunction() || res.empty()) {
             ret.rc = InferenceEngine::GENERAL_ERROR;
@@ -1114,7 +1204,7 @@ public:
      * @return A vector of devices. The devices are returned as { CPU, GPU.0, GPU.1, MYRIAD }
      * If there more than one device of specific type, they are enumerated with .# suffix.
      */
-    std::vector<std::string> GetAvailableDevices() const override {
+    std::vector<std::string> get_available_devices() const override {
         std::vector<std::string> devices;
         const std::string propertyName = METRIC_KEY(AVAILABLE_DEVICES);
 
@@ -1149,6 +1239,10 @@ public:
         return devices;
     }
 
+    std::vector<std::string> GetAvailableDevices() const override {
+        return get_available_devices();
+    }
+
     /**
      * @brief Create a new shared context object on specified accelerator device
      * using specified plugin-specific low level device API parameters (device handle, pointer, etc.)
@@ -1156,10 +1250,14 @@ public:
      * @param params Map of device-specific shared context parameters.
      * @return A shared pointer to a created remote context.
      */
+    ov::RemoteContext create_context(const std::string& deviceName, const ov::AnyMap& params) override {
+        auto parsed = ov::parseDeviceNameIntoConfig(deviceName, params);
+        return GetCPPPluginByName(parsed._deviceName).create_context(parsed._config);
+    }
+
     InferenceEngine::RemoteContext::Ptr CreateContext(const std::string& deviceName,
                                                       const InferenceEngine::ParamMap& params) override {
-        auto parsed = ov::parseDeviceNameIntoConfig(deviceName, params);
-        return GetCPPPluginByName(parsed._deviceName).create_context(parsed._config)._impl;
+        return create_context(deviceName, params)._impl;
     }
 
     /**
@@ -1236,7 +1334,7 @@ public:
 
             // configuring
             {
-                if (DeviceSupportsCacheDir(plugin)) {
+                if (device_supports_cache_dir(plugin)) {
                     auto cacheConfig = coreConfig.getCacheConfigForDevice(deviceName);
                     if (cacheConfig._cacheManager) {
                         desc.defaultConfig[CONFIG_KEY(CACHE_DIR)] = cacheConfig._cacheDir;
@@ -1408,7 +1506,7 @@ public:
             allowNotImplemented([&]() {
                 std::lock_guard<std::mutex> lock(get_mutex(plugin.first));
                 auto configCopy = config;
-                if (DeviceSupportsCacheDir(plugin.second)) {
+                if (device_supports_cache_dir(plugin.second)) {
                     auto cacheConfig = coreConfig.getCacheConfigForDevice(deviceName);
                     if (cacheConfig._cacheManager) {
                         configCopy[CONFIG_KEY(CACHE_DIR)] = cacheConfig._cacheDir;
@@ -1455,8 +1553,7 @@ public:
         }
     }
 
-    std::map<std::string, std::string> GetSupportedConfig(const std::string& deviceName,
-                                                          const std::map<std::string, std::string>& configs) override {
+    ov::AnyMap get_supported_property(const std::string& deviceName, const ov::AnyMap& configs) override {
         std::vector<std::string> supportedConfigKeys;
         try {
             supportedConfigKeys =
@@ -1471,7 +1568,7 @@ public:
             }
         } catch (ov::Exception&) {
         }
-        std::map<std::string, std::string> supportedConfig;
+        ov::AnyMap supportedConfig;
         for (auto&& key : supportedConfigKeys) {
             auto itKey = configs.find(key);
             if (configs.end() != itKey) {
@@ -1481,7 +1578,7 @@ public:
         for (auto&& config : configs) {
             auto parsed = parseDeviceNameIntoConfig(config.first);
             if (deviceName.find(parsed._deviceName) != std::string::npos) {
-                std::stringstream strm(config.second);
+                std::stringstream strm(config.second.as<std::string>());
                 std::map<std::string, std::string> device_configs;
                 util::Read<std::map<std::string, std::string>>{}(strm, device_configs);
                 for (auto&& device_config : device_configs) {
@@ -1495,6 +1592,11 @@ public:
             }
         }
         return supportedConfig;
+    }
+
+    std::map<std::string, std::string> GetSupportedConfig(const std::string& deviceName,
+                                                          const std::map<std::string, std::string>& configs) override {
+        return any_copy(get_supported_property(deviceName, any_copy(configs)));
     }
 
     /**
@@ -1826,7 +1928,7 @@ ExecutableNetwork Core::ImportNetwork(const std::string& modelFileName,
     if (!modelStream.is_open())
         IE_THROW(NetworkNotRead) << "Model file " << modelFileName << " cannot be opened!";
     auto exec = _impl->GetCPPPluginByName(parsed._deviceName).import_model(modelStream, conf);
-    return {exec._ptr, exec._so};
+    return {exec._ptr->m_exec_network, exec._so};
 }
 
 ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
@@ -1856,7 +1958,7 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel) {
     networkModel.seekg(currentPos, networkModel.beg);
 
     auto exec = _impl->GetCPPPluginByName(deviceName).import_model(networkModel, {});
-    return {exec._ptr, exec._so};
+    return {exec._ptr->m_exec_network, exec._so};
 }
 
 ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
@@ -1877,7 +1979,7 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
     auto exec =
         _impl->GetCPPPluginByName(deviceName)
             .import_model(networkModel, ov::RemoteContext{std::dynamic_pointer_cast<RemoteContext>(context), {}}, conf);
-    return {exec._ptr, exec._so};
+    return {exec._ptr->m_exec_network, exec._so};
 }
 
 QueryNetworkResult Core::QueryNetwork(const CNNNetwork& network,
@@ -2031,17 +2133,6 @@ std::shared_ptr<ov::Model> Core::read_model(const std::string& model, const ov::
     OV_CORE_CALL_STATEMENT(return _impl->ReadNetwork(model, blob).getFunction(););
 }
 
-namespace {
-
-ie::CNNNetwork toCNN(const std::shared_ptr<const ngraph::Function>& model) {
-    return ie::CNNNetwork(
-        std::make_shared<ie::details::CNNNetworkNGraphImpl>(std::const_pointer_cast<ngraph::Function>(model),
-                                                            std::vector<ie::IExtensionPtr>{},
-                                                            true));
-}
-
-}  // namespace
-
 CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model, const AnyMap& config) {
     return compile_model(model, ov::DEFAULT_DEVICE_NAME, config);
 }
@@ -2050,7 +2141,7 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
                                   const std::string& deviceName,
                                   const AnyMap& config) {
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->LoadNetwork(toCNN(model), deviceName, any_copy(flatten_sub_properties(deviceName, config)));
+        auto exec = _impl->compile_model(model, deviceName, flatten_sub_properties(deviceName, config));
         return {exec._ptr, exec._so};
     });
 }
@@ -2061,7 +2152,7 @@ CompiledModel Core::compile_model(const std::string& modelPath, const AnyMap& co
 
 CompiledModel Core::compile_model(const std::string& modelPath, const std::string& deviceName, const AnyMap& config) {
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->LoadNetwork(modelPath, deviceName, any_copy(flatten_sub_properties(deviceName, config)));
+        auto exec = _impl->compile_model(modelPath, deviceName, flatten_sub_properties(deviceName, config));
         return {exec._ptr, exec._so};
     });
 }
@@ -2070,9 +2161,7 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
                                   const RemoteContext& context,
                                   const AnyMap& config) {
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->LoadNetwork(toCNN(model),
-                                       context._impl,
-                                       any_copy(flatten_sub_properties(context.get_device_name(), config)));
+        auto exec = _impl->compile_model(model, context, flatten_sub_properties(context.get_device_name(), config));
         return {exec._ptr, exec._so};
     });
 }
@@ -2124,7 +2213,7 @@ void Core::add_extension(const std::vector<std::shared_ptr<ov::Extension>>& exte
 CompiledModel Core::import_model(std::istream& modelStream, const std::string& deviceName, const AnyMap& config) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->ImportNetwork(modelStream, deviceName, any_copy(flatten_sub_properties(deviceName, config)));
+        auto exec = _impl->import_model(modelStream, deviceName, flatten_sub_properties(deviceName, config));
         return {exec._ptr, exec._so};
     });
 }

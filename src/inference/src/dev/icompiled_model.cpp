@@ -36,7 +36,7 @@ void ov::ICompiledModel::export_model(std::ostream& model) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-std::shared_ptr<ov::Model> ov::ICompiledModel::get_exec_graph_info() const {
+std::shared_ptr<ov::Model> ov::ICompiledModel::get_runtime_model() const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
@@ -49,5 +49,11 @@ ov::Any ov::ICompiledModel::get_property(const std::string& name) const {
 }
 
 ov::RemoteContext ov::ICompiledModel::get_context() const {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
+std::shared_ptr<InferenceEngine::IInferRequestInternal> ov::ICompiledModel::create_infer_request_impl(
+    const std::vector<ov::Output<const ov::Node>>& inputs,
+    const std::vector<ov::Output<const ov::Node>>& outputs) const {
     OPENVINO_NOT_IMPLEMENTED;
 }

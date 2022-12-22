@@ -70,28 +70,29 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream& model,
         model.read(dataBlob->buffer(), dataSize);
     }
 
-    auto cnnnetwork = _plugin->get_core()->ReadNetwork(xmlString, std::move(dataBlob));
-
-    // TODO: implement Import / Export of configuration options and merge with `cfg`
-    // TODO: implement Import / Export of network precisions, layouts, preprocessing info
-    InferenceEngine::InputsDataMap inputInfoMap = cnnnetwork.getInputsInfo();
-    InferenceEngine::OutputsDataMap outputInfoMap = cnnnetwork.getOutputsInfo();
-
-    setNetworkInputs(inputInfoMap);
-    setNetworkOutputs(outputInfoMap);
-    SetPointerToPlugin(_plugin->shared_from_this());
-
-    try {
-        // TODO: remove compilation, network is already compiled and serialized in compiled form
-        CompileNetwork(cnnnetwork.getFunction(), inputInfoMap, outputInfoMap);
-        InitExecutor();  // creates thread-based executor using for async requests
-    } catch (const InferenceEngine::Exception&) {
-        throw;
-    } catch (const std::exception& e) {
-        IE_THROW(Unexpected) << "Standard exception from compilation library: " << e.what();
-    } catch (...) {
-        IE_THROW(Unexpected) << "Generic exception is thrown";
-    }
+    IE_THROW() << "";
+    // auto cnnnetwork = _plugin->get_core()->ReadNetwork(xmlString, std::move(dataBlob));
+    //
+    // // TODO: implement Import / Export of configuration options and merge with `cfg`
+    // // TODO: implement Import / Export of network precisions, layouts, preprocessing info
+    // InferenceEngine::InputsDataMap inputInfoMap = cnnnetwork.getInputsInfo();
+    // InferenceEngine::OutputsDataMap outputInfoMap = cnnnetwork.getOutputsInfo();
+    //
+    // setNetworkInputs(inputInfoMap);
+    // setNetworkOutputs(outputInfoMap);
+    // SetPointerToPlugin(_plugin->shared_from_this());
+    //
+    // try {
+    //     // TODO: remove compilation, network is already compiled and serialized in compiled form
+    //     CompileNetwork(cnnnetwork.getFunction(), inputInfoMap, outputInfoMap);
+    //     InitExecutor();  // creates thread-based executor using for async requests
+    // } catch (const InferenceEngine::Exception&) {
+    //     throw;
+    // } catch (const std::exception& e) {
+    //     IE_THROW(Unexpected) << "Standard exception from compilation library: " << e.what();
+    // } catch (...) {
+    //     IE_THROW(Unexpected) << "Generic exception is thrown";
+    // }
 }
 // ! [executable_network:ctor_import_stream]
 
