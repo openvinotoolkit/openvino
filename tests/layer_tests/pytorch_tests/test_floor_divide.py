@@ -6,7 +6,7 @@ import numpy as np
 from pytorch_layer_test_class import PytorchLayerTest
 
 
-class Testfloor_divide(PytorchLayerTest):
+class TestFloorDivide(PytorchLayerTest):
     def _prepare_input(self):
         return (self.input_tensor, self.other_tensor)
 
