@@ -68,7 +68,7 @@ INSTALL_REQUIRES = [
     "scipy~=1.7; python_version == '3.7'",
     "scipy>=1.8; python_version >= '3.8'",
     "jstyleson>=0.0.2",
-    "numpy>=1.16.6",
+    "numpy>=1.16.6,<=1.23.4",
     "addict>=2.4.0",
     "networkx<=2.8.8",
     "tqdm>=4.54.1",

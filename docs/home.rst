@@ -10,9 +10,10 @@
 
    OpenVINO is an open-source toolkit for optimizing and deploying deep learning models. It provides boosted deep learning performance for vision, audio, and language models from popular frameworks like TensorFlow, PyTorch, and more. `Get started with OpenVINO. <get_started.html>`__
 
-.. rst-class:: openvino-chart
+.. rst-class:: openvino-diagram
 
    .. image:: _static/images/openvino_diagram.svg
+      :align: center
 
 
 Overview
@@ -22,38 +23,42 @@ OpenVINO enables you to optimize a deep learning model from almost any framework
 
 A typical workflow with OpenVINO is shown below.
 
+.. container:: section
+   :name: welcome-to-openvino-toolkit-s-documentation
+
+   .. container::
+      :name: hp-flow-container
+
+      .. container:: hp-flow-btn
+
+         .. image:: _static/images/OV_flow_model_hvr.svg
+            :alt: link to model processing introduction
+            :target: openvino_docs_model_processing_introduction.html
+
+      .. container:: hp-flow-arrow
+
+         .. image:: _static/images/OV_flow_arrow.svg
+
+      .. container:: hp-flow-btn
+
+         .. image:: _static/images/OV_flow_optimization_hvr.svg
+            :alt: link to an optimization guide
+            :target: openvino_docs_optimization_guide_dldt_optimization_guide.html
+
+      .. container:: hp-flow-arrow
+
+         .. image:: _static/images/OV_flow_arrow.svg
+
+      .. container:: hp-flow-btn
+
+         .. image:: _static/images/OV_flow_deployment_hvr.svg
+            :alt: link to deployment introduction
+            :target: openvino_docs_deployment_guide_introduction.html
+
+
 .. raw:: html
 
-   <div class="section" id="welcome-to-openvino-toolkit-s-documentation">
-
    <link rel="stylesheet" type="text/css" href="_static/css/homepage_style.css">
-
-      <div style="clear:both;"> </div>
-
-      <div id="HP_flow-container">
-		   <div class="HP_flow-btn">
-	   		<a href="https://docs.openvino.ai/latest/openvino_docs_model_processing_introduction.html">
-	   			<img src="_static/images/OV_flow_model_hvr.svg" alt="link to model processing introduction" /> 
-	   		</a>
-	   	</div>
-	   	<div class="HP_flow-arrow" >
-	   			<img src="_static/images/OV_flow_arrow.svg" alt="" /> 
-	   	</div>
-	   	<div class="HP_flow-btn">
-	   		<a href="https://docs.openvino.ai/latest/openvino_docs_deployment_optimization_guide_dldt_optimization_guide.html">
-	   			<img src="_static/images/OV_flow_optimization_hvr.svg" alt="link to an optimization guide" /> 
-	   		</a>
-	   	</div>
-	   	<div class="HP_flow-arrow" >
-	   			<img src="_static/images/OV_flow_arrow.svg" alt="" /> 
-	   	</div>
-	   	<div class="HP_flow-btn">
-	   		<a href="https://docs.openvino.ai/latest/openvino_docs_deployment_guide_introduction.html">
-	   			<img src="_static/images/OV_flow_deployment_hvr.svg" alt="link to deployment introduction" /> 
-	   		</a>
-		   </div>
-	   </div>
-
 
 High-Performance Deep Learning
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -95,20 +100,16 @@ Boost your model’s speed even further with quantization and other state-of-the
 Supported Devices
 ~~~~~~~~~~~~~~~~~
 
-OpenVINO is supported on a wide range of hardware platforms. Visit the `Supported Devices <openvino_docs_OV_UG_supported_plugins_Supported_Devices.html>`__ page for a full list of OpenVINO-compatible platforms.
+OpenVINO is supported on a wide range of hardware platforms.
 
-* All Intel Xeon, Core, and Atom CPUs, with boosted performance on 11th generation Core CPUs and 3rd generation Xeon CPUs or newer
-* Intel integrated GPUs including Intel UHD Graphics and Intel Iris Xe
-* Intel discrete GPUs including Iris Xe MAX and Arc
-* Intel accelerators such as VPUs and GNAs
-* Arm CPU, including Apple ARM based SoCs
+`Visit the Supported Devices page for a full list of OpenVINO-compatible platforms. <openvino_docs_OV_UG_supported_plugins_Supported_Devices.html>`__
 
 Check the `Performance Benchmarks <openvino_docs_performance_benchmarks.html>`__ page to see how fast OpenVINO runs popular models on a variety of processors. OpenVINO supports deployment on Windows, Linux, and macOS.
 
-Install OpenVINO
-~~~~~~~~~~~~~~~~
+.. image:: _static/images/supported_devices.png
+   :width: 70%
+   :align: center
 
-`Go to installation to set up OpenVINO on your device. <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html>`__
 
 Get Started
 ~~~~~~~~~~~
@@ -127,4 +128,3 @@ Get Started
    MODEL ZOO <model_zoo>
    RESOURCES <resources>
    RELEASE NOTES <https://software.intel.com/content/www/us/en/develop/articles/openvino-relnotes.html>
-
