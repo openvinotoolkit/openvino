@@ -220,7 +220,7 @@ void GNAPluginNS::GNAGraphCompiler::SetValidatorTarget(const std::string& target
 }
 
 bool GNAPluginNS::GNAGraphCompiler::ShouldUseOnlyConv2DGnaIface() const {
-    return gna_config.gnaCompileTarget == common::kGnaTarget3_5;
+    return cnn2dValidator && cnn2dValidator->ShouldUseOnlyConv2DGnaIface();
 }
 
 void GNAPluginNS::GNAGraphCompiler::ValidateCnn2D(const std::string& name,
@@ -254,14 +254,6 @@ void GNAPluginNS::GNAGraphCompiler::ValidatePooling2D(const std::string& name,
         cnn2dValidator->ValidatePooling2D(name, windowH, windowW, strideH, strideW);
     } else {
         THROW_GNA_EXCEPTION << "No Pooling2D validator found for layer " << name;
-    }
-}
-
-bool GNAPluginNS::GNAGraphCompiler::IsCnn2DInputPaddingSupported(const std::string& name) const {
-    if (cnn2dValidator) {
-        return cnn2dValidator->IsPaddingSupported();
-    } else {
-        THROW_GNA_EXCEPTION << "No Cnn2D input padding validator found for layer " << name;
     }
 }
 
@@ -335,6 +327,7 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
         std::swap(out_height, out_width);
         std::swap(convolution._kernel_x, convolution._kernel_y);
         std::swap(convolution._padding_x, convolution._padding_y);
+        std::swap(convolution._pads_end_x, convolution._pads_end_y);
         std::swap(convolution._stride_x, convolution._stride_y);
         std::swap(convolution._dilation_x, convolution._dilation_y);
     }
@@ -636,26 +629,19 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     // TODO add function
     // printConvolution2DLayer(convolution);
 
-    auto effectiveInputWidth = in_width;
-    auto effectiveInputHeight = in_height;
-
-    if (!IsCnn2DInputPaddingSupported(convolution.name) &&
-        (convolution._padding_x != 0 || convolution._padding_y != 0 ||
-        convolution._pads_end.at(X_AXIS) != 0 || convolution._pads_end.at(Y_AXIS) != 0)) {
-        THROW_GNA_LAYER_EXCEPTION(layer) << "Convolution's input padding is not supported";
+    if (!cnn2dValidator) {
+        THROW_GNA_EXCEPTION << "No Cnn2D validator found for layer " << convolution.name;
     }
 
-    if (convolution._padding_x != convolution._pads_end.at(X_AXIS)) {
-        THROW_GNA_LAYER_EXCEPTION(layer) << "Convolution's input padding is not symetric along X axis";
-    }
-    if (convolution._padding_y != convolution._pads_end.at(Y_AXIS)) {
-        THROW_GNA_LAYER_EXCEPTION(layer) << "Convolution's input padding is not symetric along Y axis";
-    }
-    convolution._padding_x = convolution._pads_end.at(X_AXIS);
-    convolution._padding_y = convolution._pads_end.at(Y_AXIS);
+    cnn2dValidator->ValidateInputPadding(convolution.name,
+        convolution._padding_y,
+        convolution._pads_end_y,
+        convolution._padding_x,
+        convolution._pads_end_x,
+        convolution._kernel_y,
+        convolution._kernel_x);
 
-    if (convolution._kernel_x > effectiveInputWidth ||
-        convolution._kernel_y > effectiveInputHeight) {
+    if (convolution._kernel_x > in_width || convolution._kernel_y > in_height) {
         THROW_GNA_LAYER_EXCEPTION(layer) << "Kernel dimensions XY (" << convolution._kernel_x << ", " << convolution._kernel_y << ")"
             << " are bigger than input dimensions WH (" << in_width << "," << in_height << ")";
     }
