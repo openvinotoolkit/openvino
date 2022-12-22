@@ -250,6 +250,14 @@ private:
 };
 
 }  // namespace ov
+/**
+ * @def OV_CREATE_PLUGIN
+ * @brief Defines a name of a function creating plugin instance
+ * @ingroup ie_dev_api_plugin_api
+ */
+#ifndef OV_CREATE_PLUGIN
+#    define OV_CREATE_PLUGIN CreatePluginEngine
+#endif
 
 /**
  * @def OV_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version)
