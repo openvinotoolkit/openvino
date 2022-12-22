@@ -380,7 +380,6 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         auto autoSContext = std::make_shared<AutoScheduleContext>();
         std::map<std::string, std::string> filterConfig;
         auto strDevices = GetDeviceList(fullConfig);
-        std::cout << "[WY-DEBUG]" << "strDevices: " << strDevices << std::endl;
         // fill in the context for auto
         if (loadConfig._useProfiling) {
             filterConfig.insert({PluginConfigParams::KEY_PERF_COUNT, PluginConfigParams::YES});
@@ -820,9 +819,11 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
             // filter out the supported devices
             if (!_pluginConfig.isSupportedDevice(device))
                 continue;
-            allDevices += device;
-            allDevices += ((device == deviceList[deviceList.size() - 1]) ? "" : ",");
+            allDevices += device + ",";
         }
+        // remove the last ',' if exist
+        if (allDevices.back() == ',')
+            allDevices.pop_back();
     } else {
         auto priorities = deviceListConfig->second;
         // parsing the string and splitting the comma-separated tokens
