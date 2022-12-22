@@ -106,7 +106,7 @@ def test_mo_model_analysis():
 def test_convert_impl_tmp_irs_cleanup():
     setup_env()
     args = [sys.executable, '-m', 'pytest',
-            os.path.join(os.path.dirname(__file__), 'utils', 'convert_impl_tmp_irs_cleanup_test.py')]
+            os.path.join(os.path.dirname(__file__), 'utils', 'convert_impl_tmp_irs_cleanup_test_actual.py')]
 
     status = subprocess.run(args, env=os.environ)
     assert not status.returncode
