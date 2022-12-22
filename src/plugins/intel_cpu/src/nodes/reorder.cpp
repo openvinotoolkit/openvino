@@ -176,17 +176,12 @@ void Reorder::prepareParams() {
         if (getSelectedPrimitiveDescriptor() == nullptr)
             IE_THROW() << "Preferable primitive descriptor is not set.";
 
-            createReorderPrimitive(srcMemPtr->GetDescWithType<DnnlMemoryDesc>(),
-                                   dstMemPtr->GetDescWithType<DnnlMemoryDesc>());
-        createReorderPrimitive(srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc(), srcMemPtr->GetData(),
-                               dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc(), dstMemPtr->GetData());
+        createReorderPrimitive(srcMemPtr->GetDescWithType<DnnlMemoryDesc>(),
+                               dstMemPtr->GetDescWithType<DnnlMemoryDesc>());
     }
 }
 
 void Reorder::createReorderPrimitive(const DnnlMemoryDescPtr& srcDesc, const DnnlMemoryDescPtr& dstDesc) {
-                                     void* srcPtr,
-                                     const dnnl::memory::desc& dstDesc,
-                                     void* dstPtr) {
     auto selectedPD = getSelectedPrimitiveDescriptor();
     if (!selectedPD)
         IE_THROW() << "Preferable primitive descriptor is not set.";
@@ -202,8 +197,6 @@ void Reorder::createReorderPrimitive(const DnnlMemoryDescPtr& srcDesc, const Dnn
         ///     new_desc.dims()[permutation[i]] = dims()[i];
         src_desc = src_desc.permute_axes(src_permutation);
     }
-
-    auto dst_desc = dst_blocked->GetPrimitive().get_desc();
 
     // TODO: We should keep shape consistency for const and expected shape for node.
     //       If it requires reshape operation it should explicitly injected into graph.
@@ -221,10 +214,9 @@ void Reorder::createReorderPrimitive(const DnnlMemoryDescPtr& srcDesc, const Dnn
         const auto newDims = dstDesc->getShape().getStaticDims();
         const auto newFormat = DnnlExtensionUtils::GetPlainFormatByRank(newDims.size());
 
-        key.src = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(newDims),
+        src_desc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(newDims),
                                         srcDesc->getDataType(),
                                         newFormat);
-        src_desc = src_blocked->GetPrimitive().get_desc();
     }
 
     auto result = getReorderPrim(context->getParamsCache(), getEngine(), src_desc, dst_desc);
@@ -339,8 +331,6 @@ void Reorder::execute(dnnl::stream strm) {
         } else {
             IE_THROW() << "Reorder node with name " << getName() << " doesn't have an initialized primitive";
         }
-        memory::desc src_d = srcMemDescPtr->getDnnlDesc();
-        memory::desc dst_d = dstMemDescPtr->getDnnlDesc();
     }
 }
 
