@@ -491,6 +491,8 @@ void snippets::op::Subgraph::initialize_buffer_scratchpad_size() {
                 m_buffer_scratchpad += (buffer_size - current_allocated_memory_size);
                 // Note: we don't update offset because we just add memory to needed size
             }
+
+            propagate_offset(buffer, offset);
         }
     }
 }
@@ -567,9 +569,6 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
         }
         manager.run_passes(m_body);
     }
-
-    if (config.m_has_domain_sensitive_ops)
-        initialize_buffer_scratchpad_size();
 }
 
 snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& output_shapes,
@@ -599,6 +598,12 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
 
     convert_to_snippet_dialect();
     opt.run_passes(m_body);
+
+    // After all passes, when all optimizations are completed and all MemoryAccess ops are inserted,
+    // we can calculate common buffer scratchpad size and propagate offset from Buffer to the corresponding MemoryAccess ops
+    if (config.m_has_domain_sensitive_ops)
+        initialize_buffer_scratchpad_size();
+
     snippets::pass::AssignRegisters().run_on_model(m_body);
 
     const auto ops = m_body->get_ops();
