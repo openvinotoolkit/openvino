@@ -186,7 +186,7 @@ def get_configurations_by_preset(config, model, fq_to_hw_confs, hardware_config)
         if param_type == 'weights':
             if preset_ == 'accuracy':
                 return confs[-1]
-            return confs[0]
+            return confs[-1]
         if not to_skip or fq_name not in [fq for _, fqs in to_skip for fq in fqs]:
             if preset_ == 'performance':
                 return confs[0]
