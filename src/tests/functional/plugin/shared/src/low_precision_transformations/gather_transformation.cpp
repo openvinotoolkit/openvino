@@ -19,13 +19,15 @@ std::string GatherTransformation::getTestCaseName(const testing::TestParamInfo<G
     ngraph::element::Type precision;
     std::string targetDevice;
     GatherTransformationTestValues testValues;
-    std::tie(precision, targetDevice, testValues) = obj.param;
+    int opset_version;
+    std::tie(precision, targetDevice, testValues, opset_version) = obj.param;
 
     std::ostringstream result;
     result <<
         precision << "_" <<
         targetDevice << "_" <<
-        testValues.inputShape;
+        testValues.inputShape << "_" <<
+        opset_version;
 
     return result.str();
 }
@@ -33,7 +35,8 @@ std::string GatherTransformation::getTestCaseName(const testing::TestParamInfo<G
 void GatherTransformation::SetUp() {
     ngraph::element::Type precision;
     GatherTransformationTestValues testValues;
-    std::tie(precision, targetDevice, testValues) = this->GetParam();
+    int opset_version;
+    std::tie(precision, targetDevice, testValues, opset_version) = this->GetParam();
 
     function = ngraph::builder::subgraph::GatherFunction::getOriginal(
         testValues.inputShape,
@@ -42,7 +45,8 @@ void GatherTransformation::SetUp() {
         testValues.axis,
         testValues.batch_dims,
         testValues.precisionBeforeFq,
-        testValues.fqOnData);
+        testValues.fqOnData,
+        opset_version);
 }
 
 TEST_P(GatherTransformation, CompareWithRefImpl) {

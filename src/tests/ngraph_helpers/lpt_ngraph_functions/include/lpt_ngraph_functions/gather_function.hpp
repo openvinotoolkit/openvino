@@ -23,7 +23,8 @@ public:
         const std::vector<int>& axis,
         const int64_t batch_dims,
         const ngraph::element::Type precisionBeforeDequantization,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantization);
+        const ngraph::builder::subgraph::DequantizationOperations& dequantization,
+        const int opset_version);
 
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::PartialShape& inputShape,
@@ -32,7 +33,8 @@ public:
         const std::vector<int>& axis,
         const int64_t batch_dims,
         const ngraph::element::Type precisionBeforeFq,
-        const FakeQuantizeOnData& fqOnData);
+        const FakeQuantizeOnData& fqOnData,
+        const int opset_version);
 
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::PartialShape& inputShape,
@@ -43,7 +45,8 @@ public:
         const ngraph::element::Type precisionBeforeDequantization,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
         const ngraph::element::Type precisionAfterOperation,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter);
+        const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter,
+        const int opset_version);
 };
 
 }  // namespace subgraph

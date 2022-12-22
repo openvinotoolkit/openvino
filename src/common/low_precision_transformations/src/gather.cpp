@@ -22,25 +22,20 @@ namespace low_precision {
 
 std::shared_ptr<opset1::Constant> gatherDeqConstant(
     const std::shared_ptr<ngraph::Node> gather,
-    const std::shared_ptr<ngraph::Node> dequantizaitonConstant) {
-    auto constant = ov::as_type_ptr<ngraph::opset1::Constant>(dequantizaitonConstant);
+    const std::shared_ptr<ngraph::Node> dequantizationConstant) {
+    auto constant = ov::as_type_ptr<ngraph::opset1::Constant>(dequantizationConstant);
     auto constantShape = constant->get_shape();
     if (shape_size(constantShape) == 1ul) {
         return NetworkHelper::toScalar(constant);
     }
 
-    const auto gatherShape = gather->get_input_partial_shape(0);
-    const size_t rank = gatherShape.rank().get_length();
+    const auto rank = gather->get_input_partial_shape(0).size();
     if (rank != constantShape.size()) {
-        ngraph::Shape newConstantShape;
-        newConstantShape = constantShape;
         // case when constShape without batch
-        if ((constantShape.size() > 1) &&
-            (constantShape.size() < rank)) {
-            newConstantShape.insert(newConstantShape.begin(), 1);
+        while ((constantShape.size() > 1) && (constantShape.size() < rank)) {
+            constantShape.insert(constantShape.begin(), 1);
         }
-        constantShape = newConstantShape;
-        constant = ngraph::opset1::Constant::create(ngraph::element::i32, { newConstantShape.size() }, newConstantShape);
+        constant = ngraph::opset1::Constant::create(ngraph::element::i32, { constantShape.size() }, constantShape);
     }
 
     const int64_t axis = ov::as_type_ptr<opset1::Constant>(gather->get_input_node_shared_ptr(2))->cast_vector<int64_t>()[0];
@@ -73,10 +68,7 @@ std::shared_ptr<opset1::Constant> gatherDeqConstant(
 
 GatherTransformation::GatherTransformation(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(GatherTransformation);
-    auto gather8 = pattern::wrap_type<opset8::Gather>({ pattern::wrap_type<opset1::Multiply>(),
-                                                        pattern::any_input(),
-                                                        pattern::any_input() });
-    auto gather7 = pattern::wrap_type<opset7::Gather>({ pattern::wrap_type<opset1::Multiply>(),
+    auto gather = pattern::wrap_type<opset7::Gather, opset8::Gather>({ pattern::wrap_type<opset1::Multiply>(),
                                                         pattern::any_input(),
                                                         pattern::any_input() });
 
@@ -88,9 +80,7 @@ GatherTransformation::GatherTransformation(const Params& params) : LayerTransfor
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(
-        std::make_shared<pattern::op::Or>(OutputVector{ gather8, gather7 }), matcher_name);
-
+    auto m = std::make_shared<ngraph::pattern::Matcher>(gather, matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -126,6 +116,59 @@ bool GatherTransformation::canBeTransformed(const TransformationContext& context
         return false;
     }
 
+    const auto isScalar = [&] {
+        if (dequantization.multiply != nullptr) {
+            if (!NetworkHelper::isScalarLike(dequantization.multiplyConstant)) {
+                return false;
+            }
+        }
+        if (dequantization.subtract != nullptr) {
+            if (!NetworkHelper::isScalarLike(dequantization.subtractConstant)) {
+                return false;
+            }
+        }
+        return true;
+    }();
+    if (isScalar) {
+        return true;
+    }
+
+    // If dequantization constant is not scalar, axis must be constant.
+    // If axis is match with dequantization channel, indices must be constant and has 0D or 1D shape so we can do folding.
+    const auto axisConstant = ov::as_type_ptr<opset1::Constant>(operation->get_input_node_shared_ptr(2));
+    if (axisConstant == nullptr) {
+        return false;
+    }
+
+    if (operation->get_input_partial_shape(0).rank().is_dynamic()) {
+        return false;
+    }
+    const auto canFold = [&](const std::shared_ptr<ngraph::Node> dequantizationConstant, std::shared_ptr<Node> operation) {
+        auto constantShape = dequantizationConstant->get_shape();
+        const auto rank = operation->get_input_partial_shape(0).size();
+        if (rank != constantShape.size()) {
+            while ((constantShape.size() > 1) && (constantShape.size() < rank)) {
+                constantShape.insert(constantShape.begin(), 1);
+            }
+        }
+        const int64_t axis = axisConstant->cast_vector<int64_t>()[0];
+        const size_t normalizedAxis = normalize_axis(operation->get_friendly_name(), axis, operation->get_input_partial_shape(0).rank());
+        if (constantShape[normalizedAxis] != 1ul) {
+            const auto indicesConstant = ov::as_type_ptr<opset1::Constant>(operation->get_input_node_shared_ptr(1));
+            if (indicesConstant == nullptr)
+                return false;
+            const auto indicesShape = indicesConstant->get_shape();
+            if (indicesShape.size() != 0 && indicesShape.size() != 1) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    if ((dequantization.multiply && !canFold(dequantization.multiplyConstant, operation)) ||
+        (dequantization.subtract && !canFold(dequantization.subtractConstant, operation))) {
+            return false;
+    }
     return true;
 }
 

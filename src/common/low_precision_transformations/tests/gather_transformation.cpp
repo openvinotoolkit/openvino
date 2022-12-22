@@ -51,7 +51,8 @@ public:
 
 typedef std::tuple<
     ngraph::PartialShape,
-    GatherTransformationTestValues
+    GatherTransformationTestValues,
+    int
 > GatherTransformationParams;
 
 class GatherTransformation : public LayerTransformation, public testing::WithParamInterface<GatherTransformationParams> {
@@ -59,6 +60,7 @@ public:
     void SetUp() override {
         const ngraph::PartialShape inputShape = std::get<0>(GetParam());
         const GatherTransformationTestValues testValues = std::get<1>(GetParam());
+        const int opset_version = std::get<2>(GetParam());
 
         actualFunction = ngraph::builder::subgraph::GatherFunction::getOriginal(
             inputShape,
@@ -67,7 +69,8 @@ public:
             testValues.axis,
             testValues.batch_dims,
             testValues.actual.precisionBeforeDequantization,
-            testValues.actual.dequantization);
+            testValues.actual.dequantization,
+            opset_version);
 
         SimpleLowPrecisionTransformer transformer;
         transformer.add<ngraph::pass::low_precision::GatherTransformation, ngraph::opset1::Gather>(testValues.params);
@@ -82,12 +85,14 @@ public:
             testValues.expected.precisionBeforeDequantization,
             testValues.expected.dequantizationBefore,
             testValues.expected.precisionAfterOperation,
-            testValues.expected.dequantizationAfter);
+            testValues.expected.dequantizationAfter,
+            opset_version);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<GatherTransformationParams> obj) {
         const ngraph::PartialShape inputShape = std::get<0>(obj.param);
         const GatherTransformationTestValues testValues = std::get<1>(obj.param);
+        const int opset_version = std::get<2>(obj.param);
 
         std::ostringstream result;
         result << "_" << 
@@ -98,7 +103,8 @@ public:
             testValues.batch_dims << "_" <<
             testValues.actual.precisionBeforeDequantization << "_" <<
             testValues.actual.dequantization << "_" <<
-            testValues.expected.dequantizationBefore;
+            testValues.expected.dequantizationBefore << "_" <<
+            opset_version;
         return result.str();
     }
 };
@@ -113,6 +119,10 @@ TEST_P(GatherTransformation, CompareFunctions) {
 }
 
 namespace testValues1 {
+const std::vector<int> opset_version = {
+    7, 8
+};
+
 const std::vector<ngraph::PartialShape> inputShapes3D = {
     { 3, 3, 4 },
     { -1, -1, -1 }
@@ -259,6 +269,32 @@ const std::vector<GatherTransformationTestValues> testValues = {
             }
         }
     },
+    // U8: per-channel quantization,  negative axis, gather axis match with channel
+    {
+        {1},
+        {0},
+        {-2}, // axis
+        std::int64_t{0},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {
+                { ngraph::element::f32 },
+                {{ 128, 64, 32 }, ngraph::element::f32, { 1, 3, 1 }},
+                {{ 0.3f, 0.2f, 0.1f }, ngraph::element::f32, { 1, 3, 1 }}
+            }
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {
+                { ngraph::element::f32 },
+                {{ 128 }, ngraph::element::f32, {}},
+                {{ 0.3f }, ngraph::element::f32, {}}
+            }
+        }
+    },
     // empty
     {
         {1},
@@ -284,7 +320,76 @@ INSTANTIATE_TEST_SUITE_P(
     GatherTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(inputShapes3D),
-        ::testing::ValuesIn(testValues)),
+        ::testing::ValuesIn(testValues),
+        ::testing::ValuesIn(opset_version)),
     GatherTransformation::getTestCaseName);
 } // namespace testValues1
+
+namespace testValues2 {
+const std::vector<int> opset_version = {
+    8
+};
+
+const std::vector<ngraph::PartialShape> inputShapes3D = {
+    { 3, 3, 4 },
+    { -1, -1, -1 }
+};
+
+const std::vector<GatherTransformationTestValues> testValues = {
+    // U8: per-tensor quantization, negative indices value
+    {
+        {3, 2},
+        {-2, 2, -2, 2, -2, 2}, // indices value
+        {1},
+        std::int64_t{1},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128}, {0.1f}}
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128}, {0.1f}}
+        }
+    },
+    // U8: per-channel quantization, negative indices value, gather axis match with channel
+    {
+        {1},
+        {-1}, // indices value
+        {1}, // axis
+        std::int64_t{0},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {
+                { ngraph::element::f32 },
+                {{ 128, 64, 32 }, ngraph::element::f32, { 1, 3, 1 }},
+                {{ 0.3f, 0.2f, 0.1f }, ngraph::element::f32, { 1, 3, 1 }}
+            }
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {
+                { ngraph::element::f32 },
+                {{ 32 }, ngraph::element::f32, {}},
+                {{ 0.1f }, ngraph::element::f32, {}}
+            }
+        }
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    GatherTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(inputShapes3D),
+        ::testing::ValuesIn(testValues),
+        ::testing::ValuesIn(opset_version)),
+    GatherTransformation::getTestCaseName);
+} // namespace testValues2
+
 } // namespace

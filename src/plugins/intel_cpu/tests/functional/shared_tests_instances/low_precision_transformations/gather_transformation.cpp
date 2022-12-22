@@ -14,6 +14,10 @@ const std::vector<ngraph::element::Type> precisions = {
     ngraph::element::f32,
 };
 
+const std::vector<int> opset_version = {
+    7, 8
+};
+
 const std::vector<GatherTransformationTestValues> testValues = {
     // U8: per-tensor quantization
     {
@@ -61,6 +65,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, GatherTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
-        ::testing::ValuesIn(testValues)),
+        ::testing::ValuesIn(testValues),
+        ::testing::ValuesIn(opset_version)),
     GatherTransformation::getTestCaseName);
 }  // namespace

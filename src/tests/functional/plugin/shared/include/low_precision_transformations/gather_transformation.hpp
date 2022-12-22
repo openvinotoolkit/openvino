@@ -27,7 +27,8 @@ public:
 typedef std::tuple<
     ngraph::element::Type,
     std::string,
-    GatherTransformationTestValues> GatherTransformationParams;
+    GatherTransformationTestValues,
+    int> GatherTransformationParams;
 
 class GatherTransformation :
     public testing::WithParamInterface<GatherTransformationParams>,

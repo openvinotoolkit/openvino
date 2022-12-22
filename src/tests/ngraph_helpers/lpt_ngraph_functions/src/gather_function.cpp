@@ -19,7 +19,8 @@ std::shared_ptr<ngraph::Function> GatherFunction::getOriginal(
     const std::vector<int>& axis,
     const int64_t batch_dims,
     const ngraph::element::Type precisionBeforeDequantization,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantization) {
+    const ngraph::builder::subgraph::DequantizationOperations& dequantization,
+    const int opset_version) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
     const std::shared_ptr<Node> dequantizationOp = makeDequantization(input, dequantization);
     const auto indicesNode = std::make_shared<ngraph::opset1::Constant>(
@@ -42,7 +43,8 @@ std::shared_ptr<ngraph::Function> GatherFunction::getOriginal(
     const std::vector<int>& axis,
     const int64_t batch_dims,
     const ngraph::element::Type precisionBeforeFq,
-    const FakeQuantizeOnData& fqOnData) {
+    const FakeQuantizeOnData& fqOnData,
+    const int opset_version) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeFq, inputShape);
 
     const std::shared_ptr<Node> quantizationOp = fqOnData.empty() ?
@@ -69,7 +71,8 @@ std::shared_ptr<ngraph::Function> GatherFunction::getReference(
     const ngraph::element::Type precisionBeforeDequantization,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
     const ngraph::element::Type precisionAfterOperation,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
+    const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter,
+    const int opset_version) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
 
     const std::shared_ptr<Node> quantizationOpBefore = makeDequantization(input, dequantizationBefore);
