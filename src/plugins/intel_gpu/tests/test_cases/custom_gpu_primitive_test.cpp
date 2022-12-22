@@ -88,8 +88,8 @@ TEST(custom_gpu_primitive_f32, add_basic_in2x2x2x2) {
     network.set_input_data("input2", input2);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "user_kernel");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "user_kernel");
 
     auto output = outputs.at("user_kernel").get_memory();
 
@@ -101,7 +101,7 @@ TEST(custom_gpu_primitive_f32, add_basic_in2x2x2x2) {
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++) {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -195,7 +195,7 @@ void add_basic_in2x2x2x2_with_reorder()
     auto outputs = network.execute();
 
     ASSERT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "to_float");
+    ASSERT_EQ(outputs.begin()->first, "to_float");
 
     auto output = outputs.at("to_float").get_memory();
 
@@ -208,7 +208,7 @@ void add_basic_in2x2x2x2_with_reorder()
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -294,8 +294,8 @@ TEST(custom_gpu_primitive_f32, eltwise_add_basic_in2x2x2x2) {
     network.set_input_data("input2", input2);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "user_kernel");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "user_kernel");
 
     auto output = outputs.at("user_kernel").get_memory();
 
@@ -309,7 +309,7 @@ TEST(custom_gpu_primitive_f32, eltwise_add_basic_in2x2x2x2) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -387,8 +387,8 @@ TEST(custom_gpu_primitive_f32, add_eltwise_basic_in2x2x2x2) {
     network.set_input_data("input2", input2);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "eltwise");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
 
@@ -402,7 +402,7 @@ TEST(custom_gpu_primitive_f32, add_eltwise_basic_in2x2x2x2) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -488,8 +488,8 @@ TEST(custom_gpu_primitive_f32, two_kernels_with_same_entry_point_basic_in2x2x2x2
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "user_kernel2");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "user_kernel2");
 
     auto output = outputs.at("user_kernel2").get_memory();
 
@@ -497,7 +497,7 @@ TEST(custom_gpu_primitive_f32, two_kernels_with_same_entry_point_basic_in2x2x2x2
     cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
     for (int i = 0; i < 16; i++) {
-        EXPECT_TRUE(are_equal(input_ptr[i] + 7, output_ptr[i]));
+        ASSERT_TRUE(are_equal(input_ptr[i] + 7, output_ptr[i]));
     }
 }
 
@@ -570,8 +570,8 @@ void test_custom_gpu_primitive_u8_add_basic_in2x2x2x2(bool is_caching_test) {
     network->set_input_data("input2", input2);
     auto outputs = network->execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "user_kernel");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "user_kernel");
 
     auto output = outputs.at("user_kernel").get_memory();
 
@@ -585,7 +585,7 @@ void test_custom_gpu_primitive_u8_add_basic_in2x2x2x2(bool is_caching_test) {
     cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++) {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 

@@ -87,7 +87,7 @@ TEST(scatter_elements_update_gpu_fp16, d2411_axisF) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -304,7 +304,7 @@ public:
         ASSERT_EQ(params.data.size(), output_ptr.size());
         ASSERT_EQ(params.expected.size(), output_ptr.size());
         for (uint32_t i = 0; i < output_ptr.size(); i++) {
-            EXPECT_NEAR(output_ptr[i], params.expected[i], getError<T>())
+            ASSERT_NEAR(output_ptr[i], params.expected[i], getError<T>())
                                 << "format=" << fmt_to_str(target_data_format) << ", i=" << i;
         }
     }

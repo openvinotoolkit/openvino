@@ -1,4 +1,4 @@
-# AvgPoolPrecisionPreserved attribute {#openvino_docs_OV_UG_lpt_AvgPoolPrecisionPreserved}
+# AvgPoolPrecisionPreserved Attribute {#openvino_docs_OV_UG_lpt_AvgPoolPrecisionPreserved}
 
 ngraph::AvgPoolPrecisionPreservedAttribute class represents the `AvgPoolPrecisionPreserved` attribute.
 
