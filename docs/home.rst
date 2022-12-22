@@ -12,7 +12,7 @@
 
 .. rst-class:: openvino-diagram
 
-   .. image:: _static/images/openvino_diagram.svg
+   .. image:: _static/images/ov_chart.png
       :align: center
 
 
