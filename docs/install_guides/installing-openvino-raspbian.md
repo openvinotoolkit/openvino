@@ -52,14 +52,14 @@
       .. code-block:: sh
 
          cd ~/Downloads/
-         sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/l_openvino_toolkit_debian9_2022.3.0.<update>.<patch>_armhf.tgz -O openvino_2022.3.0.tgz
+         sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/l_openvino_toolkit_debian9_2022.3.0.9052.9752fafe8eb_armhf.tgz -O openvino_2022.3.0.tgz
 
    .. tab:: ARM 64-bit
 
       .. code-block:: sh
 
          cd ~/Downloads/
-         sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/l_openvino_toolkit_debian9_arm_2022.3.0.<update>.<patch>_arm64.tgz -O openvino_2022.3.0.tgz
+         sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/l_openvino_toolkit_debian9_2022.3.0.9052.9752fafe8eb_arm64.tgz -O openvino_2022.3.0.tgz
 
 4. Extract the archive file and move it to the installation folder:
 
@@ -68,14 +68,14 @@
       .. code-block:: sh
 
          sudo tar -xf openvino_2022.3.0.tgz
-         sudo mv l_openvino_toolkit_debian9_2022.3.0.<update>.<patch>_armhf /opt/intel/openvino_2022.3.0
+         sudo mv l_openvino_toolkit_debian9_2022.3.0.9052.9752fafe8eb_armhf /opt/intel/openvino_2022.3.0
 
    .. tab:: ARM 64-bit
 
       .. code-block:: sh
 
          sudo tar -xf openvino_2022.3.0.tgz
-         sudo mv l_openvino_toolkit_debian9_arm_2022.3.0.<update>.<patch>_arm64 /opt/intel/openvino_2022.3.0
+         sudo mv l_openvino_toolkit_debian9_2022.3.0.9052.9752fafe8eb_arm64 /opt/intel/openvino_2022.3.0
 
 5. Install required system dependencies on Linux. To do this, OpenVINO provides a script in the extracted installation directory. Run the following command:
 
@@ -145,16 +145,16 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
 @sphinxdirective
 .. tab:: Get started with Python
 
-   Try the `Python Quick Start Example <https://docs.openvino.ai/nightly/notebooks/201-vision-monodepth-with-output.html>`_ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
+   Try the `Python Quick Start Example <https://docs.openvino.ai/2022.3/notebooks/201-vision-monodepth-with-output.html>`_ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
 
    .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
       :width: 400
 
    Visit the :ref:`Tutorials <notebook tutorials>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
 
-   * `OpenVINO Python API Tutorial <https://docs.openvino.ai/nightly/notebooks/002-openvino-api-with-output.html>`_
-   * `Basic image classification program with Hello Image Classification <https://docs.openvino.ai/nightly/notebooks/001-hello-world-with-output.html>`_
-   * `Convert a PyTorch model and use it for image background removal <https://docs.openvino.ai/nightly/notebooks/205-vision-background-removal-with-output.html>`_
+   * `OpenVINO Python API Tutorial <https://docs.openvino.ai/2022.3/notebooks/002-openvino-api-with-output.html>`_
+   * `Basic image classification program with Hello Image Classification <https://docs.openvino.ai/2022.3/notebooks/001-hello-world-with-output.html>`_
+   * `Convert a PyTorch model and use it for image background removal <https://docs.openvino.ai/2022.3/notebooks/205-vision-background-removal-with-output.html>`_
 
 .. tab:: Get started with C++
 
