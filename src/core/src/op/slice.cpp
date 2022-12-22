@@ -151,18 +151,7 @@ bool op::v8::Slice::evaluate(const HostTensorVector& outputs, const HostTensorVe
     OPENVINO_ASSERT(inputs[0]->get_partial_shape().is_static(),
                     "Can't evaluate Slice elements without static HostTensor data shape.");
 
-    auto constant_data = std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>{};
-    auto input_shapes = std::vector<PartialShape>();
-    input_shapes.reserve(inputs.size());
-
-    for (size_t i = 0; i < inputs.size(); ++i) {
-        auto&& tensor = inputs[i];
-        input_shapes.push_back(tensor->get_partial_shape());
-        constant_data.emplace(i, tensor);
-    }
-
     const auto starts = host_tensor_2_vector<int64_t>(inputs[1]);
-    const auto stops = host_tensor_2_vector<int64_t>(inputs[2]);
     const auto steps = host_tensor_2_vector<int64_t>(inputs[3]);
 
     std::vector<int64_t> axes;
@@ -173,12 +162,24 @@ bool op::v8::Slice::evaluate(const HostTensorVector& outputs, const HostTensorVe
         axes = host_tensor_2_vector<int64_t>(inputs[4]);
     }
 
-    auto output_shapes = std::vector<PartialShape>(1);
-    shape_infer(this, input_shapes, output_shapes, constant_data);
-    OPENVINO_ASSERT(output_shapes.front().is_static(), "Can't calculate static output shape for Slice evaluation.");
+    if (!outputs[0]->get_is_allocated()) {
+        auto constant_data = std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>{};
+        auto input_shapes = std::vector<PartialShape>();
+        input_shapes.reserve(inputs.size());
 
-    outputs[0]->set_shape(output_shapes.front().to_shape());
-    outputs[0]->set_element_type(inputs[0]->get_element_type());
+        for (size_t i = 0; i < inputs.size(); ++i) {
+            auto&& tensor = inputs[i];
+            input_shapes.push_back(tensor->get_partial_shape());
+            constant_data.emplace(i, tensor);
+        }
+
+        auto output_shapes = std::vector<PartialShape>(1);
+        shape_infer(this, input_shapes, output_shapes, constant_data);
+        OPENVINO_ASSERT(output_shapes.front().is_static(), "Can't calculate static output shape for Slice evaluation.");
+
+        outputs[0]->set_shape(output_shapes.front().to_shape());
+        outputs[0]->set_element_type(inputs[0]->get_element_type());
+    }
 
     ngraph::runtime::reference::slice(inputs[0]->get_data_ptr<char>(),
                                       inputs[0]->get_shape(),
