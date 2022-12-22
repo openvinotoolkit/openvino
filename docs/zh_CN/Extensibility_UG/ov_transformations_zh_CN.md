@@ -1,16 +1,5 @@
 # 转换 API 概述 {#openvino_docs_transformations_zh_CN}
 
-@sphinxdirective
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-
-   openvino_docs_Extensibility_UG_model_pass
-   openvino_docs_Extensibility_UG_matcher_pass
-   openvino_docs_Extensibility_UG_graph_rewrite_pass
-
-@endsphinxdirective
 
 OpenVINO™ 转换机制允许开发转换传递来修改 `ov::Model`。您可以使用此机制对原始模型应用其他优化，或将不支持的子图和操作转换为插件支持的新操作。
 本指南包含您开始实施 OpenVINO™ 转换所需的所有必要信息。
