@@ -21,14 +21,13 @@ inline bool get_data_as_shape_and_validate_sign(
     TShape& shape,
     const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
     if (constant_data.count(idx)) {
-        const auto& data = host_tensor_2_vector<int64_t>(constant_data.at(idx));
-        std::vector<size_t> dim_values;
-        dim_values.reserve(data.size());
-        std::transform(data.cbegin(), data.cend(), std::back_inserter(dim_values), [&](int64_t v) {
-            NODE_VALIDATION_CHECK(op, v >= 0, "Can't cast negative value to static shape dimension.");
-            return static_cast<size_t>(v);
+        using DimType = typename TShape::value_type;
+        const auto data = host_tensor_2_vector<int64_t>(constant_data.at(idx));
+        shape.clear();
+        std::transform(data.cbegin(), data.cend(), std::back_inserter(shape), [&](int64_t v) {
+            NODE_VALIDATION_CHECK(op, v >= 0, "OneHot depth value can't be negative.");
+            return static_cast<DimType>(v);
         });
-        shape = TShape(dim_values);
         return true;
     } else {
         return get_data_as_shape<TShape>(idx, op, shape, constant_data);
@@ -41,7 +40,16 @@ inline bool get_data_as_shape_and_validate_sign<ov::PartialShape>(
     const ov::Node* op,
     ov::PartialShape& shape,
     const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
-    return get_data_as_shape<ov::PartialShape>(idx, op, shape, constant_data);
+    if (constant_data.count(idx)) {
+        const auto data = host_tensor_2_vector<int64_t>(constant_data.at(idx));
+        for (const auto& value : data) {
+            NODE_VALIDATION_CHECK(op, value >= 0, "OneHot depth value can't be negative.");
+        }
+        shape = PartialShape(data);
+        return true;
+    } else {
+        return ov::evaluate_as_partial_shape(op->input_value(idx), shape);
+    }
 }
 
 }  // namespace one_hot
