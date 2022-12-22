@@ -12,6 +12,7 @@
 #include <ie_precision.hpp>
 #include <memory>
 
+#include "any_copy.hpp"
 #include "cnn_network_ngraph_impl.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
@@ -24,14 +25,6 @@
 #include "transformations/utils/utils.hpp"
 
 namespace {
-
-std::map<std::string, std::string> any_map_to_string_map(const ov::AnyMap& any_map) {
-    std::map<std::string, std::string> result;
-    for (const auto& it : any_map) {
-        result[it.first] = it.second.as<std::string>();
-    }
-    return result;
-}
 
 InferenceEngine::CNNNetwork create_cnnnetwork(const std::shared_ptr<const ov::Model>& model, bool is_new_api) {
     auto network = InferenceEngine::CNNNetwork(std::shared_ptr<InferenceEngine::ICNNNetwork>(
@@ -115,7 +108,7 @@ std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model(const std::shared
                                                                const ov::AnyMap& properties) {
     if (old_plugin) {
         auto compiled_model = std::make_shared<ov::ICompiledModel>(
-            old_plugin->LoadNetwork(create_cnnnetwork(model, is_new_api()), any_map_to_string_map(properties)));
+            old_plugin->LoadNetwork(create_cnnnetwork(model, is_new_api()), any_copy(properties)));
         return compiled_model;
     }
     return compile_model(model, properties, {});
@@ -126,10 +119,8 @@ std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model(const std::shared
                                                                const ov::RemoteContext& context) {
     std::shared_ptr<ICompiledModel> compiled_model;
     if (old_plugin) {
-        auto compiled_model =
-            std::make_shared<ov::ICompiledModel>(old_plugin->LoadNetwork(create_cnnnetwork(model, is_new_api()),
-                                                                         any_map_to_string_map(properties),
-                                                                         context._impl));
+        auto compiled_model = std::make_shared<ov::ICompiledModel>(
+            old_plugin->LoadNetwork(create_cnnnetwork(model, is_new_api()), any_copy(properties), context._impl));
         return compiled_model;
     }
     std::shared_ptr<ov::Model> cloned_model = model->clone();
@@ -236,8 +227,7 @@ ov::RemoteContext ov::IPlugin::get_default_context(const ov::AnyMap& remote_prop
 
 std::shared_ptr<ov::ICompiledModel> ov::IPlugin::import_model(std::istream& model, const ov::AnyMap& properties) {
     if (old_plugin) {
-        return std::make_shared<ov::ICompiledModel>(
-            old_plugin->ImportNetwork(model, any_map_to_string_map(properties)));
+        return std::make_shared<ov::ICompiledModel>(old_plugin->ImportNetwork(model, any_copy(properties)));
     }
     OPENVINO_NOT_IMPLEMENTED;
 }
@@ -247,7 +237,7 @@ std::shared_ptr<ov::ICompiledModel> ov::IPlugin::import_model(std::istream& mode
                                                               const ov::AnyMap& properties) {
     if (old_plugin) {
         return std::make_shared<ov::ICompiledModel>(
-            old_plugin->ImportNetwork(model, context._impl, any_map_to_string_map(properties)));
+            old_plugin->ImportNetwork(model, context._impl, any_copy(properties)));
     }
     OPENVINO_NOT_IMPLEMENTED;
 }
@@ -285,7 +275,7 @@ const std::shared_ptr<InferenceEngine::ExecutorManager>& ov::IPlugin::get_execut
 ov::SupportedOpsMap ov::IPlugin::query_model(const std::shared_ptr<const ov::Model>& model,
                                              const ov::AnyMap& properties) const {
     if (old_plugin) {
-        auto res = old_plugin->QueryNetwork(create_cnnnetwork(model, is_new_api()), any_map_to_string_map(properties));
+        auto res = old_plugin->QueryNetwork(create_cnnnetwork(model, is_new_api()), any_copy(properties));
         if (res.rc != InferenceEngine::OK) {
             throw ov::Exception(res.resp.msg);
         }
