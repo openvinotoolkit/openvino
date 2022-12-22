@@ -1,15 +1,5 @@
 # 使用 OpenVINO™ 部署应用 {#openvino_deployment_guide_zh_CN}
 
-@sphinxdirective
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-
-   openvino_docs_install_guides_deployment_manager_tool
-   openvino_docs_deploy_local_distribution
-
-@endsphinxdirective
 
 完成 [OpenVINO™ 应用开发](../../../OV_Runtime_UG/integrate_with_your_application.md)后，应用开发人员通常需要为最终用户部署应用。有几种方法可以实现这一目标：
 
