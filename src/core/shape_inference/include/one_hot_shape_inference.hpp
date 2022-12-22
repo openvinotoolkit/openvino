@@ -11,6 +11,9 @@ namespace ov {
 namespace op {
 namespace v1 {
 void inline resolve_axis(OneHot* op) {
+    if (op->get_input_size() < 1) {
+        return;
+    }
     const auto& indices_shape = op->get_input_partial_shape(0);
     if (indices_shape.rank().is_static()) {
         const auto indices_rank = indices_shape.rank().get_length();
