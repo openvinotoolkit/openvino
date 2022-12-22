@@ -75,33 +75,33 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
 
       .. code-block:: sh
    
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/l_openvino_toolkit_ubuntu18_2022.3.0.<update>.<patch>_x86_64.tgz --output openvino_2022.3.0.tgz
+         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/l_openvino_toolkit_ubuntu18_2022.3.0.9052.9752fafe8eb_x86_64.tgz --output openvino_2022.3.0.tgz
          tar -xf openvino_2022.3.0.tgz
-         sudo mv l_openvino_toolkit_ubuntu18_2022.3.0.<update>.<patch>_x86_64 /opt/intel/openvino_2022.3.0
+         sudo mv l_openvino_toolkit_ubuntu18_2022.3.0.9052.9752fafe8eb_x86_64 /opt/intel/openvino_2022.3.0
       
    .. tab:: Ubuntu 20.04
 
       .. code-block:: sh
    
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/l_openvino_toolkit_ubuntu20_2022.3.0.<update>.<patch>_x86_64.tgz --output openvino_2022.3.0.tgz
+         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/l_openvino_toolkit_ubuntu20_2022.3.0.9052.9752fafe8eb_x86_64.tgz --output openvino_2022.3.0.tgz
          tar -xf openvino_2022.3.0.tgz
-         sudo mv l_openvino_toolkit_ubuntu20_2022.3.0.<update>.<patch>_x86_64 /opt/intel/openvino_2022.3.0
+         sudo mv l_openvino_toolkit_ubuntu20_2022.3.0.9052.9752fafe8eb_x86_64 /opt/intel/openvino_2022.3.0
       
    .. tab:: RHEL 8
 
       .. code-block:: sh
    
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/l_openvino_toolkit_rhel8_2022.3.0.<update>.<patch>_x86_64.tgz --output openvino_2022.3.0.tgz
+         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/l_openvino_toolkit_rhel8_2022.3.0.9052.9752fafe8eb_x86_64.tgz --output openvino_2022.3.0.tgz
          tar -xf openvino_2022.3.0.tgz
-         sudo mv l_openvino_toolkit_rhel8_2022.3.0.<update>.<patch>_x86_64 /opt/intel/openvino_2022.3.0
+         sudo mv l_openvino_toolkit_rhel8_2022.3.0.9052.9752fafe8eb_x86_64 /opt/intel/openvino_2022.3.0
 
    .. tab:: CentOS 7
 
       .. code-block:: sh
    
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/l_openvino_toolkit_centos7_2022.3.0.<update>.<patch>_x86_64.tgz --output openvino_2022.3.0.tgz
+         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/l_openvino_toolkit_centos7_2022.3.0.9052.9752fafe8eb_x86_64.tgz --output openvino_2022.3.0.tgz
          tar -xf openvino_2022.3.0.tgz
-         sudo mv l_openvino_toolkit_rhel8_2022.3.0.<update>.<patch>_x86_64 /opt/intel/openvino_2022.3.0
+         sudo mv l_openvino_toolkit_centos7_2022.3.0.9052.9752fafe8eb_x86_64 /opt/intel/openvino_2022.3.0
 
 5. Install required system dependencies on Linux. To do this, OpenVINO provides a script in the extracted installation directory. Run the following command:
    
