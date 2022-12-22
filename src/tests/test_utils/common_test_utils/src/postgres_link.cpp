@@ -145,6 +145,7 @@ class PGresultHolder {
                 delete refCounter;
                 PQclear(_ptr);
                 _ptr = nullptr;
+                refCounter = nullptr;
             }
         }
     }
@@ -171,10 +172,8 @@ public:
     void reset(PGresult* ptr) {
         if (_ptr != ptr) {
             decRefCounter();
-            if (ptr != nullptr && refCounter == nullptr) {
-                refCounter = new uint32_t();
-                *refCounter = 1;
-            }
+            refCounter = new uint32_t();
+            *refCounter = 1;
             _ptr = ptr;
         }
     }
@@ -290,7 +289,6 @@ PostgreSQLConnection::~PostgreSQLConnection() {
         this->activeConnection = nullptr;
         this->isConnected = false;
     }
-    modLibPQ.reset();
 }
 
 /// \brief Initialization of exact object. Uses environment variable PGQL_ENV_CONN_NAME for making a connection.
@@ -623,25 +621,45 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
     }
 
     GET_PG_IDENTIFIER(RequestApplicationId(void),
-                      "SELECT GET_APPLICATION('" << GetExecutableName() << "')",
+                      "BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE; "
+                          << "CALL CHECK_APPLICATION('" << GetExecutableName() << "');"
+                          << "COMMIT; "
+                          << "SELECT GET_APPLICATION('" << GetExecutableName() << "');",
                       appId,
                       app_id)
     GET_PG_IDENTIFIER(RequestRunId(void),
                       "SELECT GET_RUN(" << this->testRunId << ", " << this->appId << ", " << this->sessionId << ", "
-                                        << static_cast<uint16_t>(this->reportingLevel) << "::smallint)",
+                                        << static_cast<uint16_t>(this->reportingLevel) << "::smallint);",
                       testRunId,
                       run_id)
     GET_PG_IDENTIFIER(RequestHostId(void),
-                      "SELECT GET_HOST('" << GetHostname() << "', '" << GetOSVersion() << "')",
+                      "BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE; "
+                          << "CALL CHECK_HOST('" << GetHostname() << "', '" << GetOSVersion() << "');"
+                          << "COMMIT; "
+                          << "SELECT GET_HOST('" << GetHostname() << "', '" << GetOSVersion() << "');",
                       hostId,
                       host_id)
-    GET_PG_IDENTIFIER(RequestSessionId(void), "SELECT GET_SESSION('" << this->session_id << "')", sessionId, session_id)
+    GET_PG_IDENTIFIER(RequestSessionId(void),
+                      "BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE; "
+                          << "CALL CHECK_SESSION('" << this->session_id << "');"
+                          << "COMMIT;"
+                          << "SELECT GET_SESSION('" << this->session_id << "');",
+                      sessionId,
+                      session_id)
     GET_PG_IDENTIFIER(RequestSuiteNameId(const char* test_suite_name),
-                      "SELECT GET_TEST_SUITE('" << test_suite_name << "', " << this->appId << ")",
+                      "BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE; "
+                          << "CALL CHECK_TEST_SUITE('" << test_suite_name << "', " << this->appId << ");"
+                          << "COMMIT; "
+                          << "SELECT GET_TEST_SUITE('" << test_suite_name << "', " << this->appId << ");",
                       testSuiteNameId,
                       sn_id)
+    GET_PG_IDENTIFIER(RequestTestNameId(std::string query),
+                      "BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE; "
+                          << "CALL CHECK_" << query << "; COMMIT;"
+                          << "SELECT GET_" << query,
+                      testNameId,
+                      tn_id)
     GET_PG_IDENTIFIER(RequestSuiteId(std::string query), query, testSuiteId, sr_id)
-    GET_PG_IDENTIFIER(RequestTestNameId(std::string query), query, testNameId, tn_id)
     GET_PG_IDENTIFIER(RequestTestId(std::string query), query, testId, tr_id)
 
     void OnTestSuiteStart(const ::testing::TestSuite& test_suite) override {
@@ -689,11 +707,11 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
         std::stringstream sstr;
         try {
             if (reportingLevel == REPORT_LVL_DEFAULT) {
-                sstr << "SELECT GET_TEST_NAME(" << this->testSuiteNameId << ", '" << EscapeString(test_info.name())
-                     << "'";
+                sstr << "TEST_NAME(" << this->testSuiteNameId << ", '" << EscapeString(test_info.name()) << "'";
             } else if (reportingLevel == REPORT_LVL_FAST) {
                 sstr << "CALL ADD_TEST_RESULT(" << this->appId << ", " << this->sessionId << ", " << this->testRunId
-                     << ", " << this->testSuiteNameId << ", '" << EscapeString(test_info.name()) << "'";
+                     << ", " << this->testSuiteId << ", " << this->testSuiteNameId << ", '"
+                     << EscapeString(test_info.name()) << "'";
             }
         } catch (std::exception& e) {
             std::cerr << PG_ERR << "Query building is failed with exception: " << e.what() << std::endl;
