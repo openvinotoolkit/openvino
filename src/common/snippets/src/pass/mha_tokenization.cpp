@@ -70,13 +70,19 @@ auto tokenize_broadcast(const std::shared_ptr<ov::Node>& interm_op, ov::NodeVect
             broadcast->get_output_target_inputs(0).size() == 1) {
             broadcast_nodes.push_back(broadcast);
 
-            ov::PartialShape::broadcast_merge_into(new_output_shape,
-                                                   skip_last_dim(broadcast->get_input_partial_shape(0)),
-                                                   ::ngraph::op::AutoBroadcastType::NUMPY);
+            const auto pshape = broadcast->get_input_partial_shape(0);
+            if (pshape.rank().is_static() && pshape.size() > 2) {
+                ov::PartialShape::broadcast_merge_into(new_output_shape,
+                                                       skip_last_dim(pshape),
+                                                       ::ngraph::op::AutoBroadcastType::NUMPY);
+            }
         } else {
-            ov::PartialShape::broadcast_merge_into(new_output_shape,
-                                                   skip_last_dim(input.get_partial_shape()),
-                                                   ::ngraph::op::AutoBroadcastType::NUMPY);
+            const auto pshape = input.get_partial_shape();
+            if (pshape.rank().is_static() && pshape.size() > 2) {
+                ov::PartialShape::broadcast_merge_into(new_output_shape,
+                                                       skip_last_dim(pshape),
+                                                       ::ngraph::op::AutoBroadcastType::NUMPY);
+            }
         }
     }
 
