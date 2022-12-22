@@ -36,3 +36,5 @@ race:^vpu::(anonymous namespace)::function[abi:cxx11]$
 race:^vpu::(anonymous namespace)::ConvertStage::expectedTypes$
 race:^vpu::(anonymous namespace)::eltwise_map$
 
+# Issue 91368
+race:libopenvino_gapi_preproc.so

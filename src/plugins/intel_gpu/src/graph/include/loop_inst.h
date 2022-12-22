@@ -167,13 +167,13 @@ public:
 
     layout calc_body_input_layout(const loop::io_primitive_map& inputDesc) const {
         const auto& dependency_list = this->get_dependencies();
-        auto input = std::find_if(dependency_list.begin(), dependency_list.end(), [&inputDesc](const program_node* p){
-            return p->id() == inputDesc.external_id;
+        auto input = std::find_if(dependency_list.begin(), dependency_list.end(), [&inputDesc](const std::pair<program_node*, int32_t>& dep){
+            return dep.first->id() == inputDesc.external_id;
         });
         if (input == dependency_list.end()) {
             throw std::runtime_error("Can't find input from dependency_list");
         }
-        layout calculated_layout = (*input)->get_output_layout();
+        layout calculated_layout = (*input).first->get_output_layout();
         auto shape = calculated_layout.get_tensor().sizes(calculated_layout.format);
 
         if (inputDesc.axis >= 0) {
@@ -361,6 +361,7 @@ using loop_node = typed_program_node<loop>;
 template <>
 class typed_primitive_inst<loop> : public typed_primitive_inst_base<loop> {
     using parent = typed_primitive_inst_base<loop>;
+    using parent::parent;
 
 public:
     struct backedge_memory_mapping {
@@ -564,10 +565,10 @@ public:
     void preprocess_output_memory();
     void preprocess_backedge_memory();
     void update_mapped_memory();
-    void set_output_memory(memory::ptr mem, bool check = true) override;
+    void set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0) override;
     const backedge_memory_mapping& get_current_iteration_backedge_mapping() const {
-        if (!node.is_current_iteration_used()) {
-            CLDNN_ERROR_MESSAGE(node.id(), "no backedge mapping for current_iteration");
+        if (!node->is_current_iteration_used()) {
+            CLDNN_ERROR_MESSAGE(node->id(), "no backedge mapping for current_iteration");
         }
         return backedge_memory_mappings.at(current_iteratoin_backedge_mapping_idx);
     }

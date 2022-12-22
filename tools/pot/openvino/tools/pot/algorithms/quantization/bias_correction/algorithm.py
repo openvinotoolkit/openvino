@@ -43,7 +43,7 @@ class BiasCorrection(Algorithm):
         )
         self._stat_batch_size = min(
             self._config.get('stat_batch_size', 1), len(self._engine.data_loader))
-        self._batch_stat_size = max(np.int(self._stat_subset_size * 0.2), 1)
+        self._batch_stat_size = max(int(self._stat_subset_size * 0.2), 1)
         self._graph_transformer = GraphTransformer(load_hardware_config(self._config))
         self._shuffle_data = self._config.get('shuffle_data', False)
         self._seed = self._config.get('seed', 0)
@@ -88,7 +88,7 @@ class BiasCorrection(Algorithm):
             logger.update_progress(self._batch_stat_size)
 
             bias = nu.get_bias_for_node(node)
-            bias_copy = nu.get_node_input(node_copy_bias_add, 1)
+            bias_copy = nu.get_bias_for_node(node_copy)
             current_bias_value = nu.get_node_value(bias)
 
             bias_is_updated = False
@@ -184,6 +184,7 @@ class BiasCorrection(Algorithm):
         def walk_to_children(node, is_this_branch_node=False):
             node_parents = self.get_node_parents(node)
             node_input_0 = nu.get_node_input(node, 0)
+            node_input_0 = nu.get_node_input(node, 1) if node_input_0.type == 'Const' else node_input_0
             if is_this_branch_node:
                 # Jump over Split nodes
                 if node_input_0.type in self._split_types:
@@ -346,6 +347,7 @@ class BiasCorrection(Algorithm):
 
         if model_copy.is_cascade:
             ref_stats_layout = {add_name: {'mean_per_channel': TensorStatisticAxis(asf.mean_per_channel_axis,
+                                                                                   graph_depth=add_name.count('|'),
                                                                                    channel=self._channel_axis)}}
             self._engine.set_model(model_copy)
             _, q_outputs = self._engine.predict(ref_stats_layout, self._sampler)
@@ -362,7 +364,7 @@ class BiasCorrection(Algorithm):
         add_out_shape = get_input_shape_for_bias(self._fp32_statistics, params['node_bias_add'].fullname)
         axis_channel = self.get_channel_axis(add_name)
         bias_shift_value = fp32_output - q_output
-        bias_shape = np.ones(len(add_out_shape), dtype=np.int)
+        bias_shape = np.ones(len(add_out_shape), dtype=int)
         bias_shape[axis_channel] = add_out_shape[axis_channel]
 
         bias_shift_value = bias_shift_value.reshape(bias_shape)
@@ -421,7 +423,7 @@ class BiasCorrection(Algorithm):
             add_node = self._get_add_node_for_bias(node)
             add_node_name = add_node.fullname
             if 'orig_node_name' in add_node:
-                add_node_name = nu.reset_node_fullname(add_node_name, add_node['orig_node_name'])
+                add_node_name = add_node['orig_node_name']
             axis = OPERATIONS_CHANNEL_AXIS[node.type]
             self._channel_axis[add_node_name] = axis
             node_name = node.fullname
@@ -433,6 +435,7 @@ class BiasCorrection(Algorithm):
                 {'mean_per_channel': TensorStatisticAxis(granularity='perchannel',
                                                          type='mean',
                                                          inplace_statistics=self.config['inplace_statistics'],
+                                                         graph_depth=add_node_name.count('|'),
                                                          channel=self._channel_axis)}
             statistics_layout[add_node_name]["shape"] = TensorStatistic(func=lambda x, **kwargs: x.shape,
                                                                         shape_for_inference=True)
@@ -496,4 +499,10 @@ class BiasCorrection(Algorithm):
 
     @staticmethod
     def get_node_children(node):
-        return [n for n in nu.get_all_node_outputs(node) if n is not None and nu.get_input_data_value(n, 0) is None]
+        child_nodes = []
+        for output_node in nu.get_all_node_outputs(node):
+            for input_port_id, _ in enumerate(nu.get_node_input_ports(output_node)):
+                if nu.get_input_data_value(output_node, input_port_id) is None \
+                        and output_node not in child_nodes:
+                    child_nodes.append(output_node)
+        return child_nodes

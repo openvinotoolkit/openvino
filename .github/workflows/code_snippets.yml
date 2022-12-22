@@ -1,0 +1,48 @@
+name: Code snippets
+on:
+  push:
+    paths:
+      - '.github/workflows/code_snippets.yml'
+      - 'docs/snippets/**'
+  pull_request:
+    paths:
+      - '.github/workflows/code_snippets.yml'
+      - 'docs/snippets/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  Build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ['ubuntu-22.04', 'macos-latest', 'windows-latest']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Clone OpenVINO
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+          lfs: true
+
+      - name: Check cmake
+        run: |
+          which cmake
+          cmake --version
+
+      - name: CMake
+        run: |
+          mkdir build
+          cd build
+          cmake -DENABLE_INTEL_MYRIAD_COMMON=OFF -DCMAKE_BUILD_TYPE=Release ..
+
+      - name: Get number of CPU cores
+        uses: SimenB/github-actions-cpu-cores@v1
+        id: cpu-cores
+
+      - name: Build snippets
+        run: |
+          cmake --build . --target ie_docs_snippets -j${{ steps.cpu-cores.outputs.count }}
+        working-directory: build

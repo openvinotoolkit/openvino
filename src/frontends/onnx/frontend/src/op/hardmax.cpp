@@ -26,7 +26,7 @@ OutputVector hardmax(const Node& node) {
     }
 
     // reshape to 2D - "batch size" x "input feature dimensions" (NxD)
-    const auto coerced_tensor = ngraph::builder::opset1::flatten(input, axis);
+    const auto coerced_tensor = ngraph::builder::opset1::flatten(input, static_cast<int>(axis));
 
     const auto coerced_tensor_shape = std::make_shared<default_opset::ShapeOf>(coerced_tensor);
     Output<ngraph::Node> row_size =

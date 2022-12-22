@@ -51,6 +51,10 @@ graph {
         key: "length",
         value: "16"
     }
+    external_data {
+        key: "checksum",
+        value: "bcc11eee9c25e3b505b07b3157ca42c12f92d94f"
+    }
     data_location: 1
   }
   input {

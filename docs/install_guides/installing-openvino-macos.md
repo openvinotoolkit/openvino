@@ -1,4 +1,4 @@
-# Install Intel® Distribution of OpenVINO™ toolkit for macOS from Installer
+# Install OpenVINO™ Runtime for macOS from Installer
 
 Currently only the following ways are provided to install OpenVINO™:
 

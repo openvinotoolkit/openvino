@@ -13,6 +13,7 @@
 #include "utils/ngraph_utils.hpp"
 #include "transformations/utils/utils.hpp"
 #include "common/cpu_memcpy.h"
+#include <utils/shape_inference/shape_inference_internal_dyn.hpp>
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -255,7 +256,7 @@ void DynamicBuffer::init(const dnnl::engine& eng) {
         IE_THROW() << "TensorIterator (Loop) has incorrect output shape[axis] after iteration for concatenation. " << abs_stride <<
                    " is expected, but actual: " << dims[axis];
 
-    count = std::accumulate(dims.begin(), dims.begin() + map_rule.axis, 1, std::multiplies<size_t>());
+    count = std::accumulate(dims.begin(), dims.begin() + map_rule.axis, size_t(1), std::multiplies<size_t>());
     len = std::accumulate(dims.begin() + map_rule.axis + 1, dims.end(), elem_size, std::multiplies<size_t>());
     mem_holder_buffer.reset(new memory(src_desc, eng));
     copy(reinterpret_cast<const uint8_t*>(from->GetPtr()), get_ptr(*mem_holder_buffer.get()), 0, 0, 1, from->GetSize());
@@ -350,7 +351,7 @@ bool TensorIterator::isSupportedOperation(const std::shared_ptr<const ov::Node>&
 }
 
 TensorIterator::TensorIterator(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache), ngraphOp(op) {
+        Node(op, eng, cache, InternalDynShapeInferFactory()), ngraphOp(op) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -363,7 +364,7 @@ void TensorIterator::getSupportedDescriptors() {
         THROW_ERROR << "cannot be cast to ov::op::util::SubGraphOp";
     }
     const std::shared_ptr<const ov::Model> body = tiOp->get_function();
-    sub_graph.CreateGraph(body, ext_mng, weightCache);
+    sub_graph.CreateGraph(body, ext_mng, weightCache, sharedMutex);
 
     const auto &inMap = sub_graph.GetInputNodesMap();
     for (const auto &param : tiOp->get_function()->get_parameters()) {
@@ -478,10 +479,21 @@ bool TensorIterator::needPrepareParams() const {
     if (getAlgorithm() == Algorithm::TensorIteratorLoop) {
         const auto tripCountPtr = reinterpret_cast<const uint32_t*>(getParentEdgesAtPort(loopTripCountIdx).front()->getMemoryPtr()->GetPtr());
         const auto condPtr = reinterpret_cast<const uint8_t*>(getParentEdgesAtPort(loopExecutionConditionIdx).front()->getMemoryPtr()->GetPtr());
-        if (tripCountPtr[0] != lastUsedTripCount || condPtr[0] != lastUsedCond)
+        if (tripCountPtr[0] != lastUsedTripCount || static_cast<bool>(condPtr[0]) != lastUsedCond)
             return true;
     }
 
+    // If sliced input shapes of node and body input shapes aren't equal, we should reshape body
+    if (checkForInputAndBodyShapesInequality()) {
+        return true;
+    }
+
+    // In cases, when sliced input shapes of node and body input shapes are equal,
+    // original input shapes of node may be not equal to previous input shapes and count of iterations will be another
+    // For example, TensorIterator with single sliced input by axis 1:
+    //    Input shape of node: [10, 8, 10]  ->  Sliced input shape: [10, 1, 10]  ->  Body input shape:  [10, 1, 10]  -> 8 iterations
+    //    Input shape of node: [10, 4, 10]  ->  Sliced input shape: [10, 1, 10]  ->  Body input shape:  [10, 1, 10]  -> 4 iterations
+    // Thus, sliced input shapes and body input shapes are equal but iteration counts are different. So we should update trip count
     return Node::needPrepareParams();
 }
 
@@ -667,16 +679,22 @@ void TensorIterator::prepareTripCount() {
 
 /* *==============* *==============* *==============* *==============* *==============* */
 
+inline SizeVector sliced_input_dims(const MemoryPtr& mem, const int axis, const int stride) {
+    auto dims = mem->getStaticDims();
+    if (axis != -1)
+        dims[axis] = abs(stride);
+    return dims;
+}
+
 void TensorIterator::reshapeSubgraphInput() {
     for (auto map_rule : inputPortMap) {
-        auto &from_mem = getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
+        auto new_dims = sliced_input_dims(getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr(), map_rule.axis, map_rule.stride);
         auto &to_mems = input_mems[map_rule.to];
-        auto new_dims = from_mem->getStaticDims();
-        if (map_rule.axis != -1)
-            new_dims[map_rule.axis] = abs(map_rule.stride);
-
-        const auto desc = std::make_shared<CpuBlockedMemoryDesc>(to_mems.front()->getDesc().getPrecision(), Shape(new_dims));
-        redefineToMemories(to_mems, desc);
+        const auto& body_inshape = to_mems.front()->GetShape();
+        if (body_inshape.isDynamic() || body_inshape.getDims() != new_dims) {
+            const auto desc = std::make_shared<CpuBlockedMemoryDesc>(to_mems.front()->getDesc().getPrecision(), Shape(new_dims));
+            redefineToMemories(to_mems, desc);
+        }
     }
 }
 
@@ -706,6 +724,19 @@ void TensorIterator::reshapeAndFillOutput(dnnl::stream strm) {
     for (auto buffer : buffers) {
         buffer->transfer(this);
     }
+}
+
+bool TensorIterator::checkForInputAndBodyShapesInequality() const {
+    for (auto map_rule : inputPortMap) {
+        auto original_dims = sliced_input_dims(getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr(), map_rule.axis, map_rule.stride);
+        auto &to_mems = input_mems[map_rule.to];
+        const auto& body_inshape = to_mems.front()->GetShape();
+        if (body_inshape.isDynamic() || body_inshape.getDims() != original_dims) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 int TensorIterator::getNumIteration(const std::vector<PortMap>& inputPortMap, const std::vector<PortMap>& outputPortMap) const {

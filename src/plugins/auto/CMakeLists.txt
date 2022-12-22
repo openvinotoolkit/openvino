@@ -5,6 +5,8 @@ if(NOT ENABLE_AUTO AND NOT ENABLE_MULTI)
     return()
 endif()
 
+
+
 set (TARGET_NAME "openvino_auto_plugin")
 
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/utils/*.cpp)

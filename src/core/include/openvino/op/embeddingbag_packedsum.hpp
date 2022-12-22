@@ -16,7 +16,6 @@ namespace v3 {
 class OPENVINO_API EmbeddingBagPackedSum : public util::EmbeddingBagPackedBase {
 public:
     OPENVINO_OP("EmbeddingBagPackedSum", "opset3", util::EmbeddingBagPackedBase, 3);
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a EmbeddingBagPackedSum operation.
     EmbeddingBagPackedSum() = default;
     /// \brief Constructs a EmbeddingBagPackedSum operation.

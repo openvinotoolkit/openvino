@@ -4,6 +4,7 @@
 
 #include "extension.h"
 #include "ngraph_transformations/op/fully_connected.hpp"
+#include "ngraph_transformations/op/interaction.hpp"
 #include "ngraph_transformations/op/leaky_relu.hpp"
 #include "ngraph_transformations/op/power_static.hpp"
 #include "ngraph_transformations/op/swish_cpu.hpp"
@@ -12,12 +13,14 @@
 #include "snippets_transformations/op/store_convert.hpp"
 
 #include <ngraph/ngraph.hpp>
-#include <ngraph_ops/augru_cell.hpp>
-#include <ngraph_ops/augru_sequence.hpp>
-#include <ngraph_ops/type_relaxed.hpp>
-#include <ngraph_ops/nms_ie_internal.hpp>
-#include <ngraph_ops/nms_static_shape_ie.hpp>
-#include <ngraph_ops/multiclass_nms_ie_internal.hpp>
+#include <ov_ops/augru_cell.hpp>
+#include <ov_ops/augru_sequence.hpp>
+#include <ov_ops/type_relaxed.hpp>
+#include <ov_ops/nms_ie_internal.hpp>
+#include <ov_ops/nms_static_shape_ie.hpp>
+#include <ov_ops/multiclass_nms_ie_internal.hpp>
+
+#include <snippets/op/subgraph.hpp>
 
 #include <mutex>
 
@@ -41,6 +44,7 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
         ngraph::OpSet opset;
 
 #define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
+        NGRAPH_OP(InteractionNode, ov::intel_cpu)
         NGRAPH_OP(FullyConnectedNode, ov::intel_cpu)
         NGRAPH_OP(LeakyReluNode, ov::intel_cpu)
         NGRAPH_OP(PowerStaticNode, ov::intel_cpu)
@@ -123,10 +127,33 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
         return opset;
     };
 
+    auto snippets_opset = []() {
+        ngraph::OpSet opset;
+
+#define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
+        NGRAPH_OP(BroadcastLoad, ngraph::snippets::op)
+        NGRAPH_OP(BroadcastMove, ngraph::snippets::op)
+        NGRAPH_OP(ConvertSaturation, ngraph::snippets::op)
+        NGRAPH_OP(ConvertTruncation, ngraph::snippets::op)
+        NGRAPH_OP(Kernel, ngraph::snippets::op)
+        NGRAPH_OP(Load, ngraph::snippets::op)
+        NGRAPH_OP(Nop, ngraph::snippets::op)
+        NGRAPH_OP(PowerStatic, ngraph::snippets::op)
+        NGRAPH_OP(Scalar, ngraph::snippets::op)
+        NGRAPH_OP(Store, ngraph::snippets::op)
+        NGRAPH_OP(Subgraph, ngraph::snippets::op)
+        NGRAPH_OP(Tile, ngraph::snippets::op)
+        NGRAPH_OP(TileScheduler, ngraph::snippets::op)
+#undef NGRAPH_OP
+
+        return opset;
+    };
+
     static std::map<std::string, ngraph::OpSet> opsets = {
         { "cpu_plugin_opset", cpu_plugin_opset() },
         { "type_relaxed_opset", type_relaxed_opset() },
         { "ie_internal_opset", ie_internal_opset() },
+        { "SnippetsOpset", snippets_opset() },
     };
 
     return opsets;

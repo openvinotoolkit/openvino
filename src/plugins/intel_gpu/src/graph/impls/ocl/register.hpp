@@ -19,27 +19,30 @@
 #include "intel_gpu/primitives/convolution.hpp"
 #include "intel_gpu/primitives/crop.hpp"
 #include "intel_gpu/primitives/ctc_greedy_decoder.hpp"
+#include "intel_gpu/primitives/ctc_loss.hpp"
 #include "intel_gpu/primitives/custom_gpu_primitive.hpp"
 #include "intel_gpu/primitives/deconvolution.hpp"
 #include "intel_gpu/primitives/depth_to_space.hpp"
 #include "intel_gpu/primitives/detection_output.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
+#include "intel_gpu/primitives/experimental_detectron_detection_output.hpp"
 #include "intel_gpu/primitives/experimental_detectron_prior_grid_generator.hpp"
 #include "intel_gpu/primitives/experimental_detectron_roi_feature_extractor.hpp"
 #include "intel_gpu/primitives/experimental_detectron_topk_rois.hpp"
+#include "intel_gpu/primitives/eye.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
 #include "intel_gpu/primitives/gather.hpp"
 #include "intel_gpu/primitives/gather_elements.hpp"
 #include "intel_gpu/primitives/gather_nd.hpp"
 #include "intel_gpu/primitives/gather_tree.hpp"
 #include "intel_gpu/primitives/gemm.hpp"
+#include "intel_gpu/primitives/grid_sample.hpp"
 #include "intel_gpu/primitives/grn.hpp"
 #include "intel_gpu/primitives/lrn.hpp"
 #include "intel_gpu/primitives/lstm.hpp"
 #include "intel_gpu/primitives/lstm_dynamic.hpp"
 #include "intel_gpu/primitives/lstm_dynamic_input.hpp"
 #include "intel_gpu/primitives/lstm_dynamic_timeloop.hpp"
-#include "intel_gpu/primitives/max_unpooling.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/mvn.hpp"
 #include "intel_gpu/primitives/non_max_suppression.hpp"
@@ -73,6 +76,7 @@
 #include "intel_gpu/primitives/strided_slice.hpp"
 #include "intel_gpu/primitives/tile.hpp"
 #include "intel_gpu/primitives/non_zero.hpp"
+#include "intel_gpu/primitives/eye.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -117,17 +121,21 @@ REGISTER_OCL(gather);
 REGISTER_OCL(gather_nd);
 REGISTER_OCL(gather_elements);
 REGISTER_OCL(gemm);
+REGISTER_OCL(generate_proposals);
+REGISTER_OCL(grid_sample);
 REGISTER_OCL(lrn);
 REGISTER_OCL(lstm_gemm);
 REGISTER_OCL(lstm_elt);
-REGISTER_OCL(max_unpooling);
+REGISTER_OCL(multiclass_nms);
 REGISTER_OCL(mutable_data);
 REGISTER_OCL(mvn);
 REGISTER_OCL(non_max_suppression);
+REGISTER_OCL(matrix_nms);
 REGISTER_OCL(normalize);
 REGISTER_OCL(one_hot);
 REGISTER_OCL(permute);
 REGISTER_OCL(pooling);
+REGISTER_OCL(prior_box);
 REGISTER_OCL(pyramid_roi_align);
 REGISTER_OCL(quantize);
 REGISTER_OCL(random_uniform);
@@ -161,12 +169,14 @@ REGISTER_OCL(gather_tree);
 REGISTER_OCL(resample);
 REGISTER_OCL(grn);
 REGISTER_OCL(ctc_greedy_decoder);
+REGISTER_OCL(ctc_loss);
 REGISTER_OCL(cum_sum);
 REGISTER_OCL(embedding_bag);
 REGISTER_OCL(extract_image_patches);
 REGISTER_OCL(convert_color);
 REGISTER_OCL(count_nonzero);
 REGISTER_OCL(gather_nonzero);
+REGISTER_OCL(eye);
 
 #undef REGISTER_OCL
 

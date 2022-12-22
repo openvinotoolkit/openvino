@@ -25,9 +25,9 @@ void extend_with_zeros(const Strides& strides,
                        const T* in,
                        Shape& output_shape,
                        std::vector<T>& input_zeros) {
-    std::vector<int> input_3d(3, 1);
-    std::vector<int> strides_3d(3, 1);
-    std::vector<int> output_3d(3, 1);
+    std::vector<size_t> input_3d(3, 1);
+    std::vector<size_t> strides_3d(3, 1);
+    std::vector<size_t> output_3d(3, 1);
 
     for (size_t i = 0; i < strides.size(); ++i) {
         output_shape[i + 2] = input_shape[i + 2] + (strides[i] - 1) * (input_shape[i + 2] - 1);
@@ -84,9 +84,11 @@ void infer_forward_convbackprop_output_shape(const Shape& in_spatial_shape,
                                              const Strides& dilations,
                                              const CoordinateDiff& output_padding) {
     for (size_t idx = 0; idx < in_spatial_shape.size(); idx++) {
-        int total_padding = strides[idx] * (in_spatial_shape[idx] - 1) + dilations[idx] * (f_spatial_shape[idx] - 1) +
-                            1 - out_spatial_shape[idx] + output_padding[idx];
-        size_t padded_dim = std::max<size_t>(total_padding, 0);
+        // FIXME: Incorrect logic with negative pad
+        int total_padding =
+            static_cast<int>(strides[idx] * (in_spatial_shape[idx] - 1) + dilations[idx] * (f_spatial_shape[idx] - 1) +
+                             1 - out_spatial_shape[idx] + output_padding[idx]);
+        size_t padded_dim = std::max<size_t>(static_cast<size_t>(total_padding), static_cast<size_t>(0));
         size_t filter_dilated_dim = dilations[idx] * (f_spatial_shape[idx] - 1) + 1;
         size_t out_spatial_dim =
             (in_spatial_shape[idx] - 1) * strides[idx] + filter_dilated_dim - padded_dim + output_padding[idx];
@@ -186,7 +188,7 @@ void convolution_backprop_impl(const T* in,
     // convert output shape to 3D, contains only dimensions
     Shape out_shape_3d{out_shape.begin() + 2, out_shape.end()};
 
-    int out_shape_rank = out_shape.size() - 2;
+    int out_shape_rank = static_cast<int>(out_shape.size()) - 2;
     if (out_shape_rank < 3) {
         int missing_dims = 3 - out_shape_rank;
         out_shape_3d.insert(std::prev(out_shape_3d.end(), out_shape_rank), missing_dims, 1);
@@ -299,7 +301,7 @@ void convolution_backprop_in(const T* delta_in,
 
     // extend stride and filter inputs with zero padding for stride and filter_dilation
     // > 1, after that set stride and filter params to 1.
-    const size_t stride_dim = std::accumulate(stride.begin(), stride.end(), 1, std::multiplies<size_t>());
+    const size_t stride_dim = std::accumulate(stride.begin(), stride.end(), int64_t(1), std::multiplies<int64_t>());
     if (stride_dim >= 2) {
         extend_with_zeros(stride, in_shape, delta_in, conv_input_shape, extended_input);
         std::fill(conv_stride.begin(), conv_stride.end(), 1);
@@ -307,7 +309,7 @@ void convolution_backprop_in(const T* delta_in,
     }
 
     const size_t dilation_dim =
-        std::accumulate(filter_dilation.begin(), filter_dilation.end(), 1, std::multiplies<size_t>());
+        std::accumulate(filter_dilation.begin(), filter_dilation.end(), uint64_t(1), std::multiplies<size_t>());
     if (dilation_dim >= 2) {
         extend_with_zeros<T>(filter_dilation,
                              filter_shape,

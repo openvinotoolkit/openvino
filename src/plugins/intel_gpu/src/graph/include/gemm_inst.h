@@ -27,6 +27,7 @@ using gemm_node = typed_program_node<gemm>;
 template <>
 class typed_primitive_inst<gemm> : public typed_primitive_inst_base<gemm> {
     using parent = typed_primitive_inst_base<gemm>;
+    using parent::parent;
 
 public:
     template<typename ShapeType>
@@ -34,7 +35,11 @@ public:
     static layout calc_output_layout(gemm_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(gemm_node const& node);
 
-public:
+    static std::vector<layout> transform_input_layouts(const std::shared_ptr<const gemm> primitive,
+                                                       const std::vector<layout>& input_layouts,
+                                                       const layout& output_layout);
+    static layout transform_output_layout(const std::shared_ptr<const gemm> primitive, const std::vector<layout>& input_layouts, const layout& output_layout);
+
     typed_primitive_inst(network& network, gemm_node const& node);
 };
 

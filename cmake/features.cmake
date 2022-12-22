@@ -6,14 +6,16 @@
 # Common cmake options
 #
 
-ie_dependent_option (ENABLE_INTEL_CPU "CPU plugin for inference engine" ON "X86_64" OFF)
+ie_dependent_option (ENABLE_INTEL_CPU "CPU plugin for OpenVINO Runtime" ON "X86_64" OFF)
 
 ie_option (ENABLE_TESTS "unit, behavior and functional tests" OFF)
 
+ie_option (ENABLE_COMPILE_TOOL "Enables compile_tool" ON)
+
 ie_option (ENABLE_STRICT_DEPENDENCIES "Skip configuring \"convinient\" dependencies for efficient parallel builds" ON)
 
-ie_dependent_option (ENABLE_CLDNN "clDnn based plugin for inference engine" ON "X86_64;NOT APPLE;NOT MINGW;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" OFF)
-ie_dependent_option (ENABLE_INTEL_GPU "GPU plugin for inference engine on Intel GPU" ON "ENABLE_CLDNN" OFF)
+ie_dependent_option (ENABLE_CLDNN "clDnn based plugin for OpenVINO Runtime" ON "X86_64;NOT APPLE;NOT MINGW;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" OFF)
+ie_dependent_option (ENABLE_INTEL_GPU "GPU plugin for OpenVINO Runtime on Intel GPU" ON "ENABLE_CLDNN" OFF)
 
 if (NOT ENABLE_CLDNN OR ANDROID OR
     (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0))
@@ -45,12 +47,11 @@ ie_option(ENABLE_ERROR_HIGHLIGHT "Highlight errors and warnings during compile t
 
 ie_option (ENABLE_DOCS "Build docs using Doxygen" OFF)
 
-# TODO: fix apple later
 find_package(PkgConfig QUIET)
-ie_dependent_option (ENABLE_PKGCONFIG_GEN "Enable openvino.pc pkg-config file generation" ON "LINUX;PkgConfig_FOUND;BUILD_SHARED_LIBS" OFF)
+ie_dependent_option (ENABLE_PKGCONFIG_GEN "Enable openvino.pc pkg-config file generation" ON "LINUX OR APPLE;PkgConfig_FOUND;BUILD_SHARED_LIBS" OFF)
 
 #
-# Inference Engine specific options
+# OpenVINO Runtime specific options
 #
 
 # "OneDNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
@@ -73,8 +74,10 @@ endif()
 
 ie_dependent_option (ENABLE_TBBBIND_2_5 "Enable TBBBind_2_5 static usage in OpenVINO runtime" ${ENABLE_TBBBIND_2_5_DEFAULT} "THREADING MATCHES TBB" OFF)
 
-ie_dependent_option (ENABLE_INTEL_GNA "GNA support for inference engine" ON
+ie_dependent_option (ENABLE_INTEL_GNA "GNA support for OpenVINO Runtime" ON
     "NOT APPLE;NOT ANDROID;X86_64;CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 5.4" OFF)
+
+ie_option (ENABLE_INTEL_GNA_DEBUG "GNA debug build" OFF)
 
 if(ENABLE_TESTS OR BUILD_SHARED_LIBS)
     set(ENABLE_IR_V7_READER_DEFAULT ON)
@@ -103,7 +106,7 @@ else()
     set(ENABLE_INTEL_MYRIAD_DEFAULT ON)
 endif()
 
-ie_dependent_option (ENABLE_INTEL_MYRIAD "myriad targeted plugin for inference engine" ${ENABLE_INTEL_MYRIAD_DEFAULT} "ENABLE_INTEL_MYRIAD_COMMON" OFF)
+ie_dependent_option (ENABLE_INTEL_MYRIAD "myriad targeted plugin for OpenVINO Runtime" ${ENABLE_INTEL_MYRIAD_DEFAULT} "NOT RISCV64;ENABLE_INTEL_MYRIAD_COMMON" OFF)
 
 ie_dependent_option (ENABLE_MYRIAD_NO_BOOT "myriad plugin will skip device boot" OFF "ENABLE_INTEL_MYRIAD" OFF)
 
@@ -115,22 +118,21 @@ ie_dependent_option (ENABLE_MYRIAD_MVNC_TESTS "functional and behavior tests for
 
 ie_dependent_option (ENABLE_DATA "fetch models from testdata repo" ON "ENABLE_FUNCTIONAL_TESTS;NOT ANDROID" OFF)
 
-ie_dependent_option (ENABLE_BEH_TESTS "tests oriented to check inference engine API correctness" ON "ENABLE_TESTS" OFF)
+ie_dependent_option (ENABLE_BEH_TESTS "tests oriented to check OpenVINO Runtime API correctness" ON "ENABLE_TESTS" OFF)
 
 ie_dependent_option (ENABLE_FUNCTIONAL_TESTS "functional tests" ON "ENABLE_TESTS" OFF)
 
-ie_option (ENABLE_SAMPLES "console samples are part of inference engine package" ON)
+ie_option (ENABLE_SAMPLES "console samples are part of OpenVINO Runtime package" ON)
 
 ie_option (ENABLE_OPENCV "enables custom OpenCV download" OFF)
 
 ie_option (ENABLE_V7_SERIALIZE "enables serialization to IR v7" OFF)
 
-set(IE_EXTRA_MODULES "" CACHE STRING "Extra paths for extra modules to include into OpenVINO build")
+set(OPENVINO_EXTRA_MODULES "" CACHE STRING "Extra paths for extra modules to include into OpenVINO build")
 
-ie_dependent_option(ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are linked to the Inference Engine binaries" ON "THREADING MATCHES TBB;LINUX" OFF)
+ie_dependent_option(ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are linked to the OpenVINO Runtime binaries" ON "THREADING MATCHES TBB;LINUX" OFF)
 
-get_linux_name(LINUX_OS_NAME)
-if(LINUX_OS_NAME MATCHES "(Ubuntu|Debian)")
+if(LINUX)
     # Debian packages are enabled on Ubuntu systems
     # so, system TBB / pugixml can be tried for usage
     set(ENABLE_SYSTEM_LIBS_DEFAULT ON)
@@ -138,6 +140,7 @@ else()
     set(ENABLE_SYSTEM_LIBS_DEFAULT OFF)
 endif()
 
+# try to search TBB from brew by default
 if(APPLE AND AARCH64)
     set(ENABLE_SYSTEM_TBB_DEFAULT ON)
 else()
@@ -159,12 +162,6 @@ ie_dependent_option (ENABLE_GPU_DEBUG_CAPS "enable GPU debug capabilities at run
 
 ie_dependent_option (ENABLE_CPU_DEBUG_CAPS "enable CPU debug capabilities at runtime" ON "ENABLE_DEBUG_CAPS" OFF)
 
-if(ANDROID OR WINDOWS_STORE OR (MSVC AND (ARM OR AARCH64)))
-    set(protoc_available OFF)
-else()
-    set(protoc_available ON)
-endif()
-
 find_host_package(PythonInterp 3 QUIET)
 ie_option(ENABLE_OV_ONNX_FRONTEND "Enable ONNX FrontEnd" ${PYTHONINTERP_FOUND})
 ie_option(ENABLE_OV_PADDLE_FRONTEND "Enable PaddlePaddle FrontEnd" ON)
@@ -175,7 +172,7 @@ ie_dependent_option(ENABLE_SYSTEM_PROTOBUF "Use system protobuf" OFF
 
 ie_dependent_option(ENABLE_OV_CORE_UNIT_TESTS "Enables OpenVINO core unit tests" ON "ENABLE_TESTS" OFF)
 ie_option(ENABLE_OPENVINO_DEBUG "Enable output for OPENVINO_DEBUG statements" OFF)
-ie_option(ENABLE_REQUIREMENTS_INSTALL "Dynamic dependencies install" ON)
+ie_dependent_option(ENABLE_REQUIREMENTS_INSTALL "Dynamic dependencies install" ON "ENABLE_TESTS;NOT CMAKE_CROSSCOMPILING" OFF)
 
 if(NOT BUILD_SHARED_LIBS AND ENABLE_OV_TF_FRONTEND)
     set(FORCE_FRONTENDS_USE_PROTOBUF ON)
@@ -195,24 +192,8 @@ if (ENABLE_PROFILING_RAW)
     add_definitions(-DENABLE_PROFILING_RAW=1)
 endif()
 
-if (ENABLE_INTEL_MYRIAD)
-    add_definitions(-DENABLE_INTEL_MYRIAD=1)
-endif()
-
-if (ENABLE_MYRIAD_NO_BOOT AND ENABLE_INTEL_MYRIAD)
-    add_definitions(-DENABLE_MYRIAD_NO_BOOT=1)
-endif()
-
-if (ENABLE_INTEL_GPU)
-    add_definitions(-DENABLE_INTEL_GPU=1)
-endif()
-
 if (ENABLE_INTEL_CPU)
     add_definitions(-DENABLE_INTEL_CPU=1)
-endif()
-
-if (ENABLE_INTEL_GNA)
-    add_definitions(-DENABLE_INTEL_GNA)
 endif()
 
 print_enabled_features()

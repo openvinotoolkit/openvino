@@ -20,43 +20,60 @@ namespace ocl {
 struct mvn_impl : typed_primitive_impl_ocl<mvn> {
     using parent = typed_primitive_impl_ocl<mvn>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::mvn_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::mvn_params, kernel_selector::mvn_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<mvn_impl>(*this);
     }
 
-public:
-    static primitive_impl* create(const mvn_node& arg, const kernel_impl_params& impl_param) {
-        const auto& prim = arg.get_primitive();
-        auto mvn_params = get_default_params<kernel_selector::mvn_params>(impl_param);
-        auto mvn_optional_params = get_default_optional_params<kernel_selector::mvn_optional_params>(arg.get_program());
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<mvn>();
+        auto params = get_default_params<kernel_selector::mvn_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::mvn_optional_params>(impl_param.get_program());
 
-        mvn_params.mvnMode = prim->across_channels ? kernel_selector::mvn_mode::ACROSS_CHANNELS
-                                                                  : kernel_selector::mvn_mode::WITHIN_CHANNELS;
-        mvn_params.mvnNormalizeVariance = prim->normalize_variance;
-        mvn_params.epsilon = prim->epsilon;
+        params.mvnMode = primitive->across_channels ? kernel_selector::mvn_mode::ACROSS_CHANNELS
+                                                    : kernel_selector::mvn_mode::WITHIN_CHANNELS;
+        params.mvnNormalizeVariance = primitive->normalize_variance;
+        params.epsilon = primitive->epsilon;
 
-        mvn_params.mvnEpsMode = prim->eps_inside_sqrt ? kernel_selector::mvn_eps_mode::INSIDE_SQRT
-                                                                     : kernel_selector::mvn_eps_mode::OUTSIDE_SQRT;
+        params.mvnEpsMode = primitive->eps_inside_sqrt ? kernel_selector::mvn_eps_mode::INSIDE_SQRT
+                                                       : kernel_selector::mvn_eps_mode::OUTSIDE_SQRT;
+        return {params, optional_params};
+    }
 
-        auto& kernel_selector = kernel_selector::mvn_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(mvn_params, mvn_optional_params);
-
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        auto mvn = new mvn_impl(arg, best_kernels[0]);
-
-        return mvn;
+    void update_dispatch_data(const kernel_impl_params& impl_param) override {
+        auto kernel_params = get_kernel_params(impl_param);
+        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
     }
 };
 
 namespace detail {
 
 attach_mvn_impl::attach_mvn_impl() {
-    implementation_map<mvn>::add(impl_types::ocl, mvn_impl::create, {
+    auto dyn_types = {
+        data_types::f32,
+        data_types::f16,
+        data_types::i8,
+        data_types::u8,
+        data_types::i32
+    };
+
+    auto dyn_formats = {
+        format::bfyx,
+        format::bfzyx,
+        format::bfwzyx
+    };
+
+    implementation_map<mvn>::add(impl_types::ocl,
+                                 shape_types::dynamic_shape,
+                                 typed_primitive_impl_ocl<mvn>::create<mvn_impl>,
+                                 dyn_types,
+                                 dyn_formats);
+
+    implementation_map<mvn>::add(impl_types::ocl, typed_primitive_impl_ocl<mvn>::create<mvn_impl>, {
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::u8, format::bfyx),
@@ -107,3 +124,5 @@ attach_mvn_impl::attach_mvn_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::mvn_impl)

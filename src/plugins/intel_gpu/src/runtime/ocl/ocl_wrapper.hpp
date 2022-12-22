@@ -15,9 +15,20 @@
 
 // we want exceptions
 #define CL_HPP_ENABLE_EXCEPTIONS
+
+#ifndef CL_TARGET_OPENCL_VERSION
+#define CL_TARGET_OPENCL_VERSION 200
+#endif
+
+#ifndef CL_HPP_TARGET_OPENCL_VERSION
+#define CL_HPP_TARGET_OPENCL_VERSION CL_TARGET_OPENCL_VERSION
+#endif
+#ifndef CL_HPP_MINIMUM_OPENCL_VERSION
+#define CL_HPP_MINIMUM_OPENCL_VERSION CL_TARGET_OPENCL_VERSION
+#endif
+#if CL_HPP_TARGET_OPENCL_VERSION >= 200 && CL_HPP_MINIMUM_OPENCL_VERSION >= 200
 #define CL_USE_DEPRECATED_OPENCL_1_2_APIS
-#define CL_HPP_MINIMUM_OPENCL_VERSION 200
-#define CL_HPP_TARGET_OPENCL_VERSION 200
+#endif
 
 // Check for compiler and change specific diagnostics.
 #if defined __INTEL_COMPILER
@@ -59,11 +70,13 @@
 
 #include "ocl_ext.hpp"
 
+#if CL_HPP_TARGET_OPENCL_VERSION >= 200 && CL_HPP_MINIMUM_OPENCL_VERSION >= 200
 namespace cl {
 namespace detail {
 CL_HPP_PARAM_NAME_INFO_1_1_DEPRECATED_IN_2_0_(CL_HPP_DECLARE_PARAM_TRAITS_)
 }
 }
+#endif
 
 // Restore specific diagnostics.
 #if defined __INTEL_COMPILER

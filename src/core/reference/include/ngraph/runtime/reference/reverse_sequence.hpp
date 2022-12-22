@@ -40,8 +40,8 @@ void reverse_sequence(const T* arg,
         Coordinate out_coord = in_coord;
         out_coord[sequence_axis] = sequence_index;
 
-        const size_t in_idx = std::inner_product(in_coord.begin(), in_coord.end(), strides.begin(), 0);
-        const size_t out_idx = std::inner_product(out_coord.begin(), out_coord.end(), strides.begin(), 0);
+        const size_t in_idx = std::inner_product(in_coord.begin(), in_coord.end(), strides.begin(), size_t(0));
+        const size_t out_idx = std::inner_product(out_coord.begin(), out_coord.end(), strides.begin(), size_t(0));
         out[out_idx] = arg[in_idx];
     }
 }

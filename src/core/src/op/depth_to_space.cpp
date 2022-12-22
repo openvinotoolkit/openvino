@@ -17,8 +17,6 @@
 
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::DepthToSpace);
-
 op::DepthToSpace::DepthToSpace(const Output<Node>& data, const DepthToSpaceMode& mode, const size_t block_size)
     : Op({data}),
       m_blocksize(block_size),
@@ -30,14 +28,14 @@ op::DepthToSpace::DepthToSpace(const Output<Node>& data, const std::string& mode
     : DepthToSpace(data, as_enum<DepthToSpaceMode>(mode), block_size) {}
 
 bool op::DepthToSpace::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_DepthToSpace_visit_attributes);
+    OV_OP_SCOPE(v0_DepthToSpace_visit_attributes);
     visitor.on_attribute("block_size", m_blocksize);
     visitor.on_attribute("mode", m_mode);
     return true;
 }
 
 std::shared_ptr<Node> op::DepthToSpace::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_DepthToSpace_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_DepthToSpace_clone_with_new_inputs);
     if (new_args.size() != 1) {
         throw ngraph_error("Incorrect number of new arguments");
     }
@@ -45,7 +43,7 @@ std::shared_ptr<Node> op::DepthToSpace::clone_with_new_inputs(const OutputVector
 }
 
 void op::DepthToSpace::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_DepthToSpace_validate_and_infer_types);
+    OV_OP_SCOPE(v0_DepthToSpace_validate_and_infer_types);
 
     const auto& data_type = get_input_element_type(0);
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
@@ -77,12 +75,12 @@ bool evaluate_depth_to_space(const HostTensorVector& outputs,
 }  // namespace
 
 bool op::DepthToSpace::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v0_DepthToSpace_evaluate);
+    OV_OP_SCOPE(v0_DepthToSpace_evaluate);
     return evaluate_depth_to_space(outputs, inputs, m_blocksize, m_mode);
 }
 
 bool op::DepthToSpace::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v0_DepthToSpace_has_evaluate);
+    OV_OP_SCOPE(v0_DepthToSpace_has_evaluate);
     return !get_input_partial_shape(0).is_dynamic();
 }
 
@@ -100,6 +98,4 @@ EnumNames<ngraph::op::DepthToSpace::DepthToSpaceMode>::get() {
          {"depth_first", ngraph::op::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST}});
     return enum_names;
 }
-
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::v0::DepthToSpace::DepthToSpaceMode>);
 }  // namespace ov

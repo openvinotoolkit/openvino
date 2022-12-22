@@ -137,7 +137,10 @@ def softplus(data: NodeInput, name: Optional[str] = None) -> Node:
 
 
 @nameable_op
-def mish(data: NodeInput, name: Optional[str] = None,) -> Node:
+def mish(
+    data: NodeInput,
+    name: Optional[str] = None,
+) -> Node:
     """Return a node which performs Mish.
 
     :param data: Tensor with input data floating point type.
@@ -147,7 +150,10 @@ def mish(data: NodeInput, name: Optional[str] = None,) -> Node:
 
 
 @nameable_op
-def hswish(data: NodeInput, name: Optional[str] = None,) -> Node:
+def hswish(
+    data: NodeInput,
+    name: Optional[str] = None,
+) -> Node:
     """Return a node which performs HSwish (hard version of Swish).
 
     :param data: Tensor with input data floating point type.
@@ -180,7 +186,7 @@ def acosh(node: NodeInput, name: Optional[str] = None) -> Node:
     :param name: Optional new name for output node.
     :return: New node with arccosh operation applied on it.
     """
-    return _get_node_factory_opset4().create("Acosh", [node])
+    return _get_node_factory_opset4().create("Acosh", as_nodes(node))
 
 
 @nameable_op
@@ -191,7 +197,7 @@ def asinh(node: NodeInput, name: Optional[str] = None) -> Node:
     :param name: Optional new name for output node.
     :return: New node with arcsinh operation applied on it.
     """
-    return _get_node_factory_opset4().create("Asinh", [node])
+    return _get_node_factory_opset4().create("Asinh", as_nodes(node))
 
 
 @nameable_op
@@ -202,16 +208,16 @@ def atanh(node: NodeInput, name: Optional[str] = None) -> Node:
     :param name: Optional new name for output node.
     :return: New node with arctanh operation applied on it.
     """
-    return _get_node_factory_opset4().create("Atanh", [node])
+    return _get_node_factory_opset4().create("Atanh", as_nodes(node))
 
 
 @nameable_op
 def proposal(
-        class_probs: Node,
-        bbox_deltas: Node,
-        image_shape: NodeInput,
-        attrs: dict,
-        name: Optional[str] = None,
+    class_probs: Node,
+    bbox_deltas: Node,
+    image_shape: NodeInput,
+    attrs: dict,
+    name: Optional[str] = None,
 ) -> Node:
     """Filter bounding boxes and outputs only those with the highest prediction confidence.
 
@@ -321,15 +327,11 @@ def proposal(
 
     check_valid_attributes("Proposal", attrs, requirements)
 
-    return _get_node_factory_opset4().create(
-        "Proposal", [class_probs, bbox_deltas, as_node(image_shape)], attrs
-    )
+    return _get_node_factory_opset4().create("Proposal", [class_probs, bbox_deltas, as_node(image_shape)], attrs)
 
 
 @nameable_op
-def reduce_l1(
-    node: NodeInput, reduction_axes: NodeInput, keep_dims: bool = False, name: Optional[str] = None
-) -> Node:
+def reduce_l1(node: NodeInput, reduction_axes: NodeInput, keep_dims: bool = False, name: Optional[str] = None) -> Node:
     """L1-reduction operation on input tensor, eliminating the specified reduction axes.
 
     :param node:           The tensor we want to mean-reduce.
@@ -338,15 +340,11 @@ def reduce_l1(
     :param name:           Optional name for output node.
     :return: The new node performing mean-reduction operation.
     """
-    return _get_node_factory_opset4().create(
-        "ReduceL1", as_nodes(node, reduction_axes), {"keep_dims": keep_dims}
-    )
+    return _get_node_factory_opset4().create("ReduceL1", as_nodes(node, reduction_axes), {"keep_dims": keep_dims})
 
 
 @nameable_op
-def reduce_l2(
-    node: NodeInput, reduction_axes: NodeInput, keep_dims: bool = False, name: Optional[str] = None
-) -> Node:
+def reduce_l2(node: NodeInput, reduction_axes: NodeInput, keep_dims: bool = False, name: Optional[str] = None) -> Node:
     """L2-reduction operation on input tensor, eliminating the specified reduction axes.
 
     :param node:           The tensor we want to mean-reduce.
@@ -355,9 +353,7 @@ def reduce_l2(
     :param name:           Optional name for output node.
     :return: The new node performing mean-reduction operation.
     """
-    return _get_node_factory_opset4().create(
-        "ReduceL2", as_nodes(node, reduction_axes), {"keep_dims": keep_dims}
-    )
+    return _get_node_factory_opset4().create("ReduceL2", as_nodes(node, reduction_axes), {"keep_dims": keep_dims})
 
 
 @nameable_op
@@ -369,9 +365,9 @@ def lstm_cell(
     R: NodeInput,
     B: NodeInput,
     hidden_size: int,
-    activations: List[str] = None,
-    activations_alpha: List[float] = None,
-    activations_beta: List[float] = None,
+    activations: Optional[List[str]] = None,
+    activations_alpha: Optional[List[float]] = None,
+    activations_beta: Optional[List[float]] = None,
     clip: float = 0.0,
     name: Optional[str] = None,
 ) -> Node:

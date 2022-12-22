@@ -14,6 +14,62 @@ namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32
 };
+/* ============= 1D GroupConvolution ============= */
+// 1D group convolution is not working correctly
+const std::vector<std::vector<size_t >> kernels1D = {{3}};
+const std::vector<std::vector<size_t >> strides1D = {{1}};
+const std::vector<std::vector<ptrdiff_t>> padBegins1D = {{0}};
+const std::vector<std::vector<ptrdiff_t>> padEnds1D = {{0}};
+const std::vector<std::vector<size_t >> dilations1D = {{1}};
+const std::vector<size_t> numOutChannels1D = {16};
+const std::vector<size_t> numGroups1D = {2};
+const std::vector<size_t> numDWGroups1D = {16};
+
+const auto groupConv1DParams_ExplicitPadding = ::testing::Combine(
+        ::testing::ValuesIn(kernels1D),
+        ::testing::ValuesIn(strides1D),
+        ::testing::ValuesIn(padBegins1D),
+        ::testing::ValuesIn(padEnds1D),
+        ::testing::ValuesIn(dilations1D),
+        ::testing::ValuesIn(numOutChannels1D),
+        ::testing::ValuesIn(numGroups1D),
+        ::testing::Values(ngraph::op::PadType::EXPLICIT)
+);
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution1D_ExplicitPadding_Disabled, GroupConvolutionLayerTest,
+                        ::testing::Combine(
+                                groupConv1DParams_ExplicitPadding,
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(std::vector<size_t >({1, 16, 30})),
+                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                        GroupConvolutionLayerTest::getTestCaseName);
+
+const auto dwConv1DParams_ExplicitPadding = ::testing::Combine(
+        ::testing::ValuesIn(kernels1D),
+        ::testing::ValuesIn(strides1D),
+        ::testing::ValuesIn(padBegins1D),
+        ::testing::ValuesIn(padEnds1D),
+        ::testing::ValuesIn(dilations1D),
+        ::testing::ValuesIn(numOutChannels1D),
+        ::testing::ValuesIn(numDWGroups1D),
+        ::testing::Values(ngraph::op::PadType::EXPLICIT)
+);
+
+INSTANTIATE_TEST_SUITE_P(smoke_DwGroupConvolution1D_ExplicitPadding, GroupConvolutionLayerTest,
+                        ::testing::Combine(
+                                dwConv1DParams_ExplicitPadding,
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(std::vector<size_t >({1, 16, 30})),
+                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                        GroupConvolutionLayerTest::getTestCaseName);
 
 /* ============= 2D GroupConvolution ============= */
 const std::vector<std::vector<size_t >> kernels = {{3, 3}};

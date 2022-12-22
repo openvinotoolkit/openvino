@@ -24,10 +24,17 @@
                 "level_low": -127,
                 "level_high": 127
             },
-            "q8_w": {
+            "q8_w_ch": {
                 "bits": 8,
                 "mode": "symmetric",
                 "granularity": "perchannel",
+                "level_low": -127,
+                "level_high": 127
+            },
+            "q8_w": {
+                "bits": 8,
+                "mode": "symmetric",
+                "granularity": "pertensor",
                 "level_low": -127,
                 "level_high": 127
             },
@@ -58,7 +65,7 @@
         {
             "type": "Convolution",
             "quantization": {
-                "activations": ["q8_a", "q16_a"],
+                "activations": ["q16_a"],
                 "weights": ["q8_w", "q16_w"],
                 "outputs": "q32_o"
             }
@@ -67,7 +74,7 @@
             "type": "MatMul",
             "quantization": {
                 "activations": "q16_a",
-                "weights": ["q8_w", "q16_w"],
+                "weights": ["q8_w_ch", "q16_w"],
                 "outputs": "q32_o"
             }
         },
@@ -91,7 +98,7 @@
             "type": "Multiply",
             "quantization": {
                 "activations": "q16_a",
-                "weights": ["q8_w", "q16_w"],
+                "weights": ["q8_w_ch", "q16_w"],
                 "outputs": "q32_o"
             }
         },
@@ -178,6 +185,13 @@
         },
         {
             "type": "Sign",
+            "quantization": {
+                "activations": "q32_a",
+                "outputs": "q16_o"
+            }
+        },
+        {
+            "type": "SoftSign",
             "quantization": {
                 "activations": "q32_a",
                 "outputs": "q16_o"

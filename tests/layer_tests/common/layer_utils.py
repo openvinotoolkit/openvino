@@ -71,11 +71,12 @@ class IEInfer(BaseInfer):
 
 
 class InferAPI20(BaseInfer):
-    def __init__(self, model, weights, device):
+    def __init__(self, model, weights, device, use_new_frontend):
         super().__init__('Inference Engine')
         self.device = device
         self.model = model
         self.weights = weights
+        self.use_new_frontend = use_new_frontend
 
     def fw_infer(self, input_data):
         print("Inference Engine version: {}".format(ie2_get_version()))
@@ -94,8 +95,18 @@ class InferAPI20(BaseInfer):
             # all input and output tensors have to be named
             assert out_obj.names, "Output tensor {} has no names".format(out_obj)
 
-            tensor_name = out_obj.get_any_name().split(':')[0]
-            result[tensor_name] = out_tensor
+            # For the new frontend we make this the right way because
+            # we know that tensor can have several names due to fusing
+            # and one of them the framework uses
+            if self.use_new_frontend:
+                for tensor_name in out_obj.get_names():
+                    result[tensor_name] = out_tensor
+            else:
+                # do not change behaviour for mapping tensor names
+                # between the original framework and OpenVINO
+                # because it leads to fixing this functionality in the legacy frontend
+                tensor_name = out_obj.get_any_name().split(':')[0]
+                result[tensor_name] = out_tensor
 
         if "exec_net" in locals():
             del exec_net

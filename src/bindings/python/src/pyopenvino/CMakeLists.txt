@@ -29,9 +29,10 @@ endif()
 if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # disable warning: This operator was deprecated and will be removed with v0 operation.
     add_compile_options(/wd4996)
+    add_compile_options(/wd4244)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     add_compile_options(-Wno-deprecated-register -Wno-range-loop-analysis)
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+elseif(OV_COMPILER_IS_APPLECLANG)
     add_link_options(-stdlib=libc++)
     add_compile_options(-Wno-unused-value -Wno-range-loop-analysis)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -39,7 +40,7 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     add_compile_options(-Wno-error=attributes)
 endif()
 
-if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
     # for proper fix need to update pybind to version which does not use PyEval_InitThreads()
     add_compile_options(-Wno-deprecated-declarations -Wno-undef)
 endif()
@@ -69,15 +70,13 @@ pybind11_add_module(${PROJECT_NAME} MODULE NO_EXTRAS ${SOURCES})
 
 if(TARGET offline_transformations)
     set(OFFLINE_TRANSFORMATIONS_LIB offline_transformations)
-elseif(TARGET IE::offline_transformations)
-    set(OFFLINE_TRANSFORMATIONS_LIB IE::offline_transformations)
 else()
     set(OFFLINE_TRANSFORMATIONS_LIB openvino::offline_transformations)
 endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime::dev openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB})
-set_target_properties(${PROJECT_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+set_target_properties(${PROJECT_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO} OUTPUT_NAME "_pyopenvino")
 
 addVersionDefines(pyopenvino.cpp CI_BUILD_NUMBER)
 
@@ -85,25 +84,31 @@ addVersionDefines(pyopenvino.cpp CI_BUILD_NUMBER)
 if(OpenVINO_SOURCE_DIR)
     add_custom_command(TARGET ${PROJECT_NAME}
             POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/../openvino ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
+            COMMAND ${CMAKE_COMMAND} -E copy_directory ${OpenVINOPython_SOURCE_DIR}/src/openvino ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
+            COMMAND ${CMAKE_COMMAND} -E copy ${OpenVINOPython_SOURCE_DIR}/requirements.txt ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../requirements.txt
+            COMMAND ${CMAKE_COMMAND} -E copy ${OpenVINOPython_SOURCE_DIR}/requirements.txt ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../../requirements.txt
             )
 endif()
 
-if(OpenVINO_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
+if(OpenVINO_SOURCE_DIR OR OpenVINODeveloperPackage_FOUND)
     ie_python_minimal_api(${PROJECT_NAME})
     add_clang_format_target(${PROJECT_NAME}_clang FOR_TARGETS ${PROJECT_NAME})
 
     ie_cpack_add_component(${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}
                            HIDDEN)
 
-    install(DIRECTORY ${PYTHON_SOURCE_DIR}/openvino
-            DESTINATION ${OV_CPACK_PYTHONDIR}/${pyversion}
+    install(DIRECTORY ${OpenVINOPython_SOURCE_DIR}/src/openvino
+            DESTINATION ${OV_CPACK_PYTHONDIR}
             COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}
             USE_SOURCE_PERMISSIONS
             PATTERN "test_utils" EXCLUDE)
 
     install(TARGETS ${PROJECT_NAME}
-            DESTINATION ${OV_CPACK_PYTHONDIR}/${pyversion}/openvino
+            DESTINATION ${OV_CPACK_PYTHONDIR}/openvino
+            COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion})
+
+    install(FILES ${OpenVINOPython_SOURCE_DIR}/requirements.txt
+            DESTINATION ${OV_CPACK_PYTHONDIR}
             COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion})
 
     install(DIRECTORY ${OpenVINOPython_SOURCE_DIR}/tests

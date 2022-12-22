@@ -19,7 +19,7 @@ TEST(attributes, ctc_greedy_decoder_op) {
     auto masks = make_shared<op::Parameter>(element::i32, Shape{3, 1});
     auto decoder = make_shared<op::v0::CTCGreedyDecoder>(data, masks, m_ctc_merge_repeated);
 
-    NodeBuilder builder(decoder);
+    NodeBuilder builder(decoder, {data, masks});
     auto g_decoder = ov::as_type_ptr<opset1::CTCGreedyDecoder>(builder.create());
 
     EXPECT_EQ(g_decoder->get_ctc_merge_repeated(), decoder->get_ctc_merge_repeated());

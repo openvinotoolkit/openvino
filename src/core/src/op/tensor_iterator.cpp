@@ -12,12 +12,10 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::TensorIterator);
-
 op::v0::TensorIterator::TensorIterator(const OutputVector& values) : op::util::SubGraphOp(values) {}
 
 bool op::v0::TensorIterator::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_TensorIterator_visit_attributes);
+    OV_OP_SCOPE(v0_TensorIterator_visit_attributes);
     visitor.on_attribute("body", m_bodies[0]);
     visitor.on_attribute("input_descriptions", m_input_descriptions[0]);
     visitor.on_attribute("output_descriptions", m_output_descriptions[0]);
@@ -57,7 +55,7 @@ void op::v0::TensorIterator::revalidate_and_infer_types_for_body_ops() {
 }
 
 void op::v0::TensorIterator::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_TensorIterator_validate_and_infer_types);
+    OV_OP_SCOPE(v0_TensorIterator_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this, m_bodies.size() == 1, "Number of bodies for loop is greater than 1");
 
@@ -190,38 +188,13 @@ void op::v0::TensorIterator::try_to_set_num_iterations_if_no_slice_inputs() {
 }
 
 std::shared_ptr<Node> op::v0::TensorIterator::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_TensorIterator_clone_with_new_inputs);
-    auto op = make_shared<op::v0::TensorIterator>(new_args);
-    NGRAPH_CHECK(op.get(), op != nullptr, "Cannot clone ", description(), " operation with name ", get_friendly_name());
-    op->set_output_size(m_output_descriptions[0].size());
-
-    std::vector<::ngraph::element::Type> types(m_bodies[0]->get_parameters().size());
-    std::vector<ov::PartialShape> new_shapes(m_bodies[0]->get_parameters().size());
-
-    for (size_t input_index = 0; input_index < new_args.size(); ++input_index) {
-        for (auto& input_description : m_input_descriptions[0]) {
-            if (input_description->m_input_index == input_index) {
-                types[input_description->m_body_parameter_index] = new_args[input_index].get_element_type();
-                new_shapes[input_description->m_body_parameter_index] = new_args[input_index].get_partial_shape();
-
-                if (new_shapes[input_description->m_body_parameter_index].is_static()) {
-                    if (auto slice_in = ::ngraph::as_type_ptr<ngraph::op::v0::TensorIterator::SliceInputDescription>(
-                            input_description)) {
-                        new_shapes[slice_in->m_body_parameter_index][slice_in->m_axis] = slice_in->m_part_size;
-                    }
-                }
-            }
-        }
-    }
+    OV_OP_SCOPE(v0_TensorIterator_clone_with_new_inputs);
+    auto op = make_shared<op::v0::TensorIterator>();
+    op->set_arguments(new_args);
+    op->set_output_size(m_output_descriptions.size());
 
     op->m_num_iterations = m_num_iterations;
-    auto func =
-        std::make_shared<Model>(m_bodies[0]->get_results(), m_bodies[0]->get_sinks(), m_bodies[0]->get_parameters());
-    NGRAPH_SUPPRESS_DEPRECATED_START;
-    auto spec_func = specialize_function(func, types, new_shapes, std::vector<void*>(new_args.size(), nullptr));
-    NGRAPH_SUPPRESS_DEPRECATED_END;
-    op->m_bodies[0] =
-        std::make_shared<Model>(spec_func->get_results(), spec_func->get_sinks(), spec_func->get_parameters());
+    op->m_bodies[0] = clone_function(*get_function());
 
     for (auto& input_description : m_input_descriptions[0]) {
         op->m_input_descriptions[0].push_back(input_description->copy());

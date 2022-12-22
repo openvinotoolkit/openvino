@@ -12,6 +12,11 @@ on:
       - 'src/bindings/python/**'
       - 'samples/python/**'
       - '.github/workflows/py_checks.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   linters:
     runs-on: ubuntu-20.04
@@ -23,7 +28,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: '3.6'
+          python-version: '3.7'
       - name: Install dependencies
         run: python -m pip install -r src/bindings/python/requirements_test.txt
       # samples code-style

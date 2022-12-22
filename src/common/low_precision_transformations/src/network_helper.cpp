@@ -22,6 +22,7 @@
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
 #include "low_precision/rt_info/intervals_alignment_attribute.hpp"
 #include "low_precision/rt_info/quantization_alignment_attribute.hpp"
+#include "ngraph/opsets/opset3.hpp"
 #include "ngraph/opsets/opset6.hpp"
 
 namespace ngraph {
@@ -1059,14 +1060,14 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
     std::shared_ptr<ngraph::Node> newFQ = fold_fake_quantize(
         std::make_shared<op::TypeRelaxed<opset1::FakeQuantize>>(
             fq->input_value(0),
-            fq->input_value(1),
-            fq->input_value(2),
+            getSingleConsumerConstant(fq->input_value(1)),
+            getSingleConsumerConstant(fq->input_value(2)),
             newMin->output(0),
             newMax->output(0),
             fq->get_levels(),
             fq->get_auto_broadcast()),
         true,
-        outChannelsShapeIndex);
+        static_cast<int>(outChannelsShapeIndex));
     NetworkHelper::copyInfo(fq, newFQ);
 
     std::shared_ptr<ngraph::Node> convert2;
@@ -1123,15 +1124,17 @@ std::shared_ptr<opset1::FakeQuantize> NetworkHelper::updateFakeQuantize(
     float min,
     float max,
     const bool replace) {
-    auto newMin = std::make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, min);
-    auto newMax = std::make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, max);
+    auto newInMin = getSingleConsumerConstant(fq->input_value(1));
+    auto newInMax = getSingleConsumerConstant(fq->input_value(2));
+    auto newOutMin = std::make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, min);
+    auto newOutMax = std::make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, max);
 
     std::shared_ptr<opset1::FakeQuantize> newFQ = std::make_shared<ngraph::op::TypeRelaxed<opset1::FakeQuantize>>(
             fq->input_value(0),
-            fq->input_value(1),
-            fq->input_value(2),
-            newMin->output(0),
-            newMax->output(0),
+            newInMin,
+            newInMax,
+            newOutMin->output(0),
+            newOutMax->output(0),
             fq->get_levels(),
             fq->get_auto_broadcast());
 
@@ -1804,7 +1807,7 @@ std::vector<std::vector<std::shared_ptr<ngraph::opset1::Constant>>> NetworkHelpe
     auto number_of_concat_inputs = concat->get_input_size();
     const auto concatNode = as_type_ptr<opset1::Concat>(concat);
     const auto concat_axis = concatNode->get_concatenation_axis();
-    std::vector<unsigned int> shape_axis(number_of_concat_inputs);
+    std::vector<int64_t> shape_axis(number_of_concat_inputs);
     for (size_t i{ 0 }; i < number_of_concat_inputs; ++i) {
         auto shape = concat->get_input_partial_shape(i);
         shape_axis[i] = shape[concat_axis].get_length();
@@ -1997,6 +2000,15 @@ void NetworkHelper::insertDequantizationAfter(
             replace_node_update_name(shapeOf, newShapeOf);
         }
     }
+}
+
+ov::Output<ov::Node> NetworkHelper::getSingleConsumerConstant(const ov::Output<ov::Node>& output) {
+    const auto node = output.get_node();
+    if (!ngraph::is_type<opset1::Constant>(node))
+        THROW_IE_LPT_EXCEPTION(*node) << "getSingleConsumerConstant Expected Constant node type";
+    return output.get_target_inputs().size() == 1
+        ? output
+        : node->clone_with_new_inputs(node->input_values())->output(0);
 }
 } // namespace low_precision
 } // namespace pass

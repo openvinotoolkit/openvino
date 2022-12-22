@@ -8,6 +8,9 @@ trigger:
     - docs/
     - /**/docs/*
     - /**/*.md
+    - README.md
+    - /**/layer_tests_summary/**
+    - src/tests/functional/plugin/conformance/**
 
 pr:
   branches:
@@ -19,6 +22,9 @@ pr:
     - docs/
     - /**/docs/*
     - /**/*.md
+    - README.md
+    - /**/layer_tests_summary/**
+    - src/tests/functional/plugin/conformance/**
 
 jobs:
 - job: OpenVINO_ONNX_CI
@@ -74,6 +80,7 @@ jobs:
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       sudo mkdir -p $(MODELS_DIR)
       sudo apt --assume-yes update && sudo apt --assume-yes install nfs-common
+      sudo apt install nfs-common -y
       sudo mount -vvv -t nfs cinfsshare.file.core.windows.net:/cinfsshare/onnxtestdata $(MODELS_DIR) -o vers=4,minorversion=1,sec=sys
       mkdir -p $(MODELS_DIR)/models_data
     displayName: 'Make dirs'
@@ -86,21 +93,31 @@ jobs:
 
   - script: |
       set -e
-      sudo apt --assume-yes install git-lfs uidmap
+      apt-get update && apt-get install -y lsb-release && apt-get clean all
       curl -fsSL https://get.docker.com -o get-docker.sh
       sudo sh get-docker.sh
     workingDirectory: $(WORK_DIR)
     displayName: 'Install dependencies'
 
-  - script: src/bindings/python/tests/test_onnx/model_zoo_preprocess.sh -d $(MODELS_DIR)/models_data -o -s "$(ONNX_MODEL_ZOO_SHA)"
+  - script:
+      src/bindings/python/tests/test_onnx/model_zoo_preprocess.sh -d $(MODELS_DIR)/models_data -o -s "$(ONNX_MODEL_ZOO_SHA)"
     displayName: 'Update models'
     condition: ne(variables['BUILD_TYPE'], 'Debug')
 
-  - script: sudo docker build --tag=openvino-onnx-ci-image --file=.ci/openvino-onnx/Dockerfile --build-arg BUILD_TYPE=$(BUILD_TYPE) --build-arg PROTOBUF_LITE=$(PROTOBUF_LITE) .
+  - script: |
+      sudo docker build \
+        --tag=openvino-onnx-ci-image \
+        --file=.ci/openvino-onnx/Dockerfile \
+        --build-arg BUILD_TYPE=$(BUILD_TYPE) .
     displayName: 'Docker build $(BUILD_TYPE)'
 
   - script: sudo fallocate -l 64G /swapfile ; sudo mkswap /swapfile ; sudo swapon /swapfile ; df ; free -h
     displayName: 'Create swap'
 
-  - script: sudo docker run --name openvino-onnx-ci-container --volume $(MODELS_DIR)/models_data/model_zoo/onnx_model_zoo_$(ONNX_MODEL_ZOO_SHA):/root/.onnx/model_zoo/onnx_model_zoo --volume $(MODELS_DIR)/msft:/root/.onnx/model_zoo/MSFT openvino-onnx-ci-image /bin/bash -c "$(TOX_COMMAND)"
+  - script: |
+      sudo docker run \
+        --name openvino-onnx-ci-container \
+        --volume $(MODELS_DIR)/models_data/model_zoo/onnx_model_zoo_$(ONNX_MODEL_ZOO_SHA):/root/.onnx/model_zoo/onnx_model_zoo \
+        --volume $(MODELS_DIR)/msft:/root/.onnx/model_zoo/MSFT openvino-onnx-ci-image \
+        /bin/bash -c "$(TOX_COMMAND)"
     displayName: 'Docker run $(BUILD_TYPE)'

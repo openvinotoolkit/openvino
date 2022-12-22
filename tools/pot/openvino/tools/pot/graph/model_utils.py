@@ -4,6 +4,7 @@
 import networkx as nx
 from openvino.tools.mo.graph.graph import Node
 from openvino.tools.mo.middle.passes.infer import type_infer
+from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 
 from . import editor as ge, builder as gb
 from .nx_model import CompressedModel
@@ -55,11 +56,11 @@ def add_outputs(models, node_names):
 def compress_model_weights(model: CompressedModel):
     """Apply transformations to save model weights to INT8."""
     for model_dict in model.models:
-        compress_weights(model_dict['model'])
+        for_graph_and_each_sub_graph_recursively(model_dict['model'], compress_weights)
 
 
 # TODO: set recursively = True to enable subgraphs quantization
-def get_nodes_by_type(model: CompressedModel, types: list, recursively: bool = False):
+def get_nodes_by_type(model: CompressedModel, types: list, recursively: bool = True):
     """ Returns all nodes with type from types collection
     :param model: CompressedModel model
     :param types: list of required types
@@ -87,7 +88,7 @@ def get_node_by_name(model: CompressedModel, name: str) -> Node:
 
 
 # TODO: set recursively = True to enable subgraphs quantization
-def get_all_operation_nodes(model: CompressedModel, recursively: bool = False):
+def get_all_operation_nodes(model: CompressedModel, recursively: bool = True):
     """ Returns sequence of all nodes in all graphs
     :param model: CompressedModel model
     :param recursively: whether return all nodes from the model

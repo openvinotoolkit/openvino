@@ -97,7 +97,7 @@ class TestKerasRNN(CommonTF2LayerTest):
              cell="SimpleRNNCell", return_sequences=False,
              return_state=False, go_backwards=False,
              stateful=False, unroll=False, time_major=True,
-             )
+             ),
     ]
 
     @pytest.mark.parametrize("params", test_data_others)

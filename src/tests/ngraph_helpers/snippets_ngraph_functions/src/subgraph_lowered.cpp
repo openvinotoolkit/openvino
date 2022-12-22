@@ -13,19 +13,19 @@ namespace snippets {
 
 std::shared_ptr<ov::Model> AddFunctionLoweredBroadcast::initLowered() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
-    auto load0 = std::make_shared<ngraph::snippets::op::Load>(data0);
-    std::shared_ptr<Node> add_input0 = load0;
-    if (!broadcast_shapes[0].empty()) {
-        auto broadcast0 = std::make_shared<ngraph::snippets::op::BroadcastMove>(load0, broadcast_shapes[0]);
-        add_input0 = broadcast0;
+    std::shared_ptr<Node> add_input0 = nullptr;
+    if (!broadcast_shapes[0].empty() && broadcast_shapes[0].back() != input_shapes[0].back()) {
+        add_input0 = std::make_shared<ngraph::snippets::op::BroadcastLoad>(data0, broadcast_shapes[0]);
+    } else {
+        add_input0 = std::make_shared<ngraph::snippets::op::Load>(data0);
     }
 
     auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
-    auto load1 = std::make_shared<ngraph::snippets::op::Load>(data1);
-    std::shared_ptr<Node> add_input1 = load1;
-    if (!broadcast_shapes[1].empty()) {
-        auto broadcast1 = std::make_shared<ngraph::snippets::op::BroadcastMove>(load1, broadcast_shapes[1]);
-        add_input1 = broadcast1;
+    std::shared_ptr<Node> add_input1 = nullptr;
+    if (!broadcast_shapes[1].empty() && broadcast_shapes[1].back() != input_shapes[1].back()) {
+        add_input1 = std::make_shared<ngraph::snippets::op::BroadcastLoad>(data1, broadcast_shapes[1]);
+    } else {
+        add_input1 = std::make_shared<ngraph::snippets::op::Load>(data1);
     }
     auto add = std::make_shared<op::v1::Add>(add_input0, add_input1);
     auto store = std::make_shared<ngraph::snippets::op::Store>(add);

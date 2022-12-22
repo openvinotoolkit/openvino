@@ -17,6 +17,8 @@ const char *debug_configuration::prefix = "GPU_Debug: ";
 
 #ifdef GPU_DEBUG_CONFIG
 
+#define GPU_DEBUG_COUT std::cout << cldnn::debug_configuration::prefix
+
 template<typename T>
 void print_option(std::string option_name, T option_value) {
     GPU_DEBUG_COUT << "Config " << option_name << " = " << option_value << std::endl;
@@ -105,6 +107,9 @@ static void print_help_messages() {
     message_list.emplace_back("OV_GPU_PrintMultiKernelPerf", "Print execution time of each kernel in multi-kernel primitimive");
     message_list.emplace_back("OV_GPU_DisableUsm", "Disable usm usage");
     message_list.emplace_back("OV_GPU_DisableOnednn", "Disable onednn for discrete GPU (no effect for integrated GPU)");
+    message_list.emplace_back("OV_GPU_DisableOnednnOptPostOps", "Disable onednn optimize post operators");
+    message_list.emplace_back("OV_GPU_DumpProfilingData", "Enables dump of extended profiling information to specified directory."
+                              " Note: Performance impact may be significant as this option enforces host side sync after each primitive");
     message_list.emplace_back("OV_GPU_DumpGraphs", "Dump optimized graph");
     message_list.emplace_back("OV_GPU_DumpSources", "Dump opencl sources");
     message_list.emplace_back("OV_GPU_DumpLayersPath", "Enable dumping intermediate buffers and set the dest path");
@@ -118,7 +123,8 @@ static void print_help_messages() {
                               " Supported on only on linux.");
     message_list.emplace_back("OV_GPU_SerialCompile", "Serialize creating primitives and compiling kernels");
     message_list.emplace_back("OV_GPU_ForceImplType", "Force implementation type of a target primitive or layer. [primitive or layout_name]:[impl_type]"
-                              "For primitives, fc:onednn, fc:ocl, do:cpu, do:ocl, reduce:ocl and reduce:onednn are supported");
+                              " For primitives, fc:onednn, fc:ocl, do:cpu, do:ocl, reduce:onednn, reduce:ocl, concat:onednn,"
+                              " and concat:ocl are supported");
     message_list.emplace_back("OV_GPU_MaxKernelsPerBatch", "Maximum number of kernels in a batch during compiling kernels");
 
     auto max_name_length_item = std::max_element(message_list.begin(), message_list.end(),
@@ -141,6 +147,8 @@ debug_configuration::debug_configuration()
         , print_multi_kernel_perf(0)
         , disable_usm(0)
         , disable_onednn(0)
+        , disable_onednn_opt_post_ops(0)
+        , dump_profiling_data(std::string(""))
         , dump_graphs(std::string())
         , dump_sources(std::string())
         , dump_layers_path(std::string())
@@ -164,6 +172,8 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("DumpLayersDstOnly", dump_layers_dst_only);
     get_gpu_debug_env_var("DumpLayersResult", dump_layers_result);
     get_gpu_debug_env_var("DisableOnednn", disable_onednn);
+    get_gpu_debug_env_var("DisableOnednnOptPostOps", disable_onednn_opt_post_ops);
+    get_gpu_debug_env_var("DumpProfilingData", dump_profiling_data);
     get_gpu_debug_env_var("DryRunPath", dry_run_path);
     get_gpu_debug_env_var("BaseBatchForMemEstimation", base_batch_for_memory_estimation);
     std::string dump_layers_str;

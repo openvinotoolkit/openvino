@@ -8,6 +8,9 @@ trigger:
     - docs/
     - /**/docs/*
     - /**/*.md
+    - README.md
+    - /**/layer_tests_summary/**
+    - src/tests/functional/plugin/conformance/**
 
 pr:
   branches:
@@ -19,6 +22,9 @@ pr:
     - docs/
     - /**/docs/*
     - /**/*.md
+    - README.md
+    - /**/layer_tests_summary/**
+    - src/tests/functional/plugin/conformance/**
 
 resources:
   repositories:
@@ -115,18 +121,20 @@ jobs:
       sudo docker run --volume $(REPO_DIR)/../:/root/repos --volume $(WORK_DIR):/root/w
       openvino.azurecr.io/openvino_ci/cuda-ubuntu2004:2022.1
       bash -c "
-      /root/repos/openvino/install_build_dependencies.sh &&
+      sudo -E /root/repos/openvino/install_build_dependencies.sh &&
       python3 -m pip install -r /root/repos/openvino/src/bindings/python/requirements.txt &&
       cd /root/w/build &&
       cmake -GNinja
-      -DVERBOSE_BUILD=ON
+      -DCMAKE_VERBOSE_MAKEFILE=ON
       -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
-      -DIE_EXTRA_MODULES=/root/repos/openvino_contrib/modules
-      -DNGRAPH_ONNX_IMPORT_ENABLE=OFF
-      -DENABLE_MKL_DNN=OFF
-      -DENABLE_CLDNN=OFF
-      -DENABLE_VPU=OFF
-      -DENABLE_GNA=OFF
+      -DOPENVINO_EXTRA_MODULES=/root/repos/openvino_contrib/modules
+      -DENABLE_INTEL_CPU=OFF
+      -DENABLE_INTEL_GPU=OFF
+      -DENABLE_INTEL_GNA=OFF
+      -DENABLE_INTEL_MYRIAD_COMMON=OFF
+      -DENABLE_OV_TF_FRONTEND=OFF
+      -DENABLE_OV_PADDLE_FRONTEND=OFF
+      -DENABLE_OV_ONNX_FRONTEND=OFF
       -DBUILD_arm_plugin=OFF
       -DBUILD_java_api=OFF
       -DENABLE_PYTHON=OFF

@@ -5,18 +5,18 @@
 #include "transformations/common_optimizations/clamp_fusion.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset5.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset5.hpp>
 #include <vector>
 
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-ngraph::pass::ClampFusion::ClampFusion() {
+ov::pass::ClampFusion::ClampFusion() {
     MATCHER_SCOPE(ClampFusion);
-    auto data_pattern = ngraph::pattern::any_input();
+    auto data_pattern = pass::pattern::any_input();
     auto min_const_pattern = ngraph::pattern::wrap_type<opset5::Constant>();
     auto max_const_pattern = ngraph::pattern::wrap_type<opset5::Constant>();
     auto max_pattern1 =
@@ -27,7 +27,7 @@ ngraph::pass::ClampFusion::ClampFusion() {
         ngraph::pattern::wrap_type<opset5::Maximum>({min_pattern2, min_const_pattern}, pattern::consumers_count(1));
     auto root = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{min_pattern1, max_pattern2});
 
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
         auto data = pattern_map.at(data_pattern);
         auto min_const =
@@ -46,7 +46,7 @@ ngraph::pass::ClampFusion::ClampFusion() {
         double min_value = min_const->cast_vector<double>()[0];
         double max_value = max_const->cast_vector<double>()[0];
 
-        auto clamp = register_new_node<ngraph::opset5::Clamp>(data, min_value, max_value);
+        auto clamp = register_new_node<opset5::Clamp>(data, min_value, max_value);
 
         std::shared_ptr<ov::Node> root_node;
         NodeVector nodes;

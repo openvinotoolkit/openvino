@@ -31,7 +31,7 @@ TEST(attributes, divide) {
     const op::AutoBroadcastSpec& auto_broadcast = op::AutoBroadcastSpec(op::AutoBroadcastType::NUMPY);
     const auto divide = make_shared<opset1::Divide>(in1, in2, pythondiv, auto_broadcast);
 
-    NodeBuilder builder(divide);
+    NodeBuilder builder(divide, {in1, in2});
     auto g_divide = ov::as_type_ptr<opset1::Divide>(builder.create());
 
     const auto expected_attr_count = 2;

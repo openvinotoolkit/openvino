@@ -25,7 +25,7 @@ OutputVector translate_top_k_base_op(const NodeContext& node, const ov::Output<o
                                    sorted ? TopK::SortType::SORT_VALUES : TopK::SortType::SORT_INDICES,
                                    ov::element::i32);
     set_node_name(node.get_name(), top_k);
-    return {top_k};
+    return top_k->outputs();
 }
 OutputVector translate_top_k_op(const NodeContext& node) {
     // retrieve k attribute

@@ -5,8 +5,8 @@ import numpy as np
 import pytest
 from common.layer_test_class import check_ir_version
 from common.tf_layer_test_class import CommonTFLayerTest
-
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+
 from unit_tests.utils.graph import build_graph, regular_op_with_shaped_data, connect, \
     shaped_data, connect_front, regular_op
 
@@ -89,8 +89,8 @@ class TestFakeQuantize(CommonTFLayerTest):
 
     test_data = [
         # with8BitsNoScalingNoNudging
-        dict(il=0.0, ih=255.0, num_bits=8, narrow_range=False, nudged_il=0.0, nudged_ih=255.0,
-             expected_step=1.0),
+        pytest.param(dict(il=0.0, ih=255.0, num_bits=8, narrow_range=False, nudged_il=0.0, nudged_ih=255.0,
+                          expected_step=1.0), marks=pytest.mark.precommit_tf_fe),
         # with8BitsScalingAndNudgingDown
         dict(il=0.5, ih=128.0, num_bits=8, narrow_range=False, nudged_il=0.0, nudged_ih=127.5,
              expected_step=0.5),

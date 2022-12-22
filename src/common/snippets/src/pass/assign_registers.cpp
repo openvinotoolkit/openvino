@@ -93,7 +93,7 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
 
     std::reverse(lifeIn.begin(), lifeIn.end());
     auto find_last_use = [lifeIn](int i) -> int {
-        int ln = lifeIn.size()-1;
+        int ln = static_cast<int>(lifeIn.size()) - 1;
         for (auto& x : lifeIn) {
             if (x.find(i) != x.end()) {
                 return ln;
@@ -104,7 +104,7 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
     };
 
     for (size_t i = 0; i < stmts.size(); i++) {
-        live_intervals.insert(std::make_pair(i, find_last_use(i)));
+        live_intervals.insert(std::make_pair(static_cast<int>(i), find_last_use(static_cast<int>(i))));
     }
 
     // http://web.cs.ucla.edu/~palsberg/course/cs132/linearscan.pdf

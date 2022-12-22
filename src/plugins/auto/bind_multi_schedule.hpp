@@ -18,7 +18,6 @@ namespace MultiDevicePlugin {
 class BinderMultiSchedule : public MultiSchedule {
 public:
     using Ptr = std::shared_ptr<BinderMultiSchedule>;
-    IInferPtr CreateInferRequest() override;
     IInferPtr CreateInferRequestImpl(IE::InputsDataMap networkInputs, IE::OutputsDataMap networkOutputs) override;
     IE::IInferRequestInternal::Ptr CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                                           const std::vector<std::shared_ptr<const ov::Node>>& outputs) override;

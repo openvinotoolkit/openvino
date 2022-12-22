@@ -18,47 +18,61 @@
 namespace ov {
 namespace itt {
 namespace domains {
-OV_ITT_DOMAIN(nGraph);
-OV_ITT_DOMAIN(nGraphPass_LT);
-OV_ITT_DOMAIN(ngraph_op, "nGraph::Op");
+OV_ITT_DOMAIN(core);
+OV_ITT_DOMAIN(ov_pass);
+OV_ITT_DOMAIN(ov_op, "ov::Op");
 }  // namespace domains
 }  // namespace itt
 }  // namespace ov
-OV_CC_DOMAINS(ngraph_op);
+OV_CC_DOMAINS(ov_op);
+OV_CC_DOMAINS(ov_opset);
 
+/*
+ * REGISTER_OP registers Operation creation inside OpSet
+ * INSERT_OP macro allows to ignore some Operations inside OpSet if it's creation wasn't registered
+ */
 #if defined(SELECTIVE_BUILD_ANALYZER)
-#    define NGRAPH_OP_SCOPE(region) OV_SCOPE(ngraph_op, region)
+#    define OV_OP_SCOPE(region) OV_SCOPE(ov_op, region)
 #    define OV_PASS_CALLBACK(matcher)                                   \
         openvino::itt::handle_t m_callback_handle;                      \
         m_callback_handle = openvino::itt::handle(matcher->get_name()); \
         OV_ITT_SCOPED_TASK(SIMPLE_ov_pass, m_callback_handle)
+#    define REGISTER_OP(opset_name, op_name) \
+        OV_ITT_SCOPED_TASK(SIMPLE_ov_opset, openvino::itt::handle(opset_name + "_" + op_name))
+#    define INSERT_OP(opset_name, op_name, op_namespace) opset.insert<op_namespace::op_name>()
 #elif defined(SELECTIVE_BUILD)
-#    define NGRAPH_OP_SCOPE(region)                                        \
-        if (OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(ngraph_op, _, region)) == 0) \
-        throw ngraph::ngraph_error(std::string(OV_PP_TOSTRING(OV_PP_CAT3(ngraph_op, _, region))) + " is disabled!")
+#    define OV_OP_SCOPE(region)                                        \
+        if (OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(ov_op, _, region)) == 0) \
+        throw ngraph::ngraph_error(std::string(OV_PP_TOSTRING(OV_PP_CAT3(ov_op, _, region))) + " is disabled!")
 #    define OV_PASS_CALLBACK(matcher)
+#    define REGISTER_OP(opset_name, op_name)
+#    define INSERT_OP(opset_name, op_name, op_namespace)                                \
+        if (OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT4(ov_opset_, opset_name, _, op_name)) == 1) \
+        opset.insert<op_namespace::op_name>()
 #else
-#    define NGRAPH_OP_SCOPE(region) OV_ITT_SCOPED_TASK(ov::itt::domains::ngraph_op, OV_PP_TOSTRING(region))
+#    define OV_OP_SCOPE(region) OV_ITT_SCOPED_TASK(ov::itt::domains::ov_op, OV_PP_TOSTRING(region))
 #    define OV_PASS_CALLBACK(matcher)
+#    define REGISTER_OP(opset_name, op_name)
+#    define INSERT_OP(opset_name, op_name, op_namespace) opset.insert<op_namespace::op_name>()
 #endif
 
 #define NGRAPH_TYPE_CASE(region, a, ...)                        \
     case ov::element::Type_t::a: {                              \
-        OV_SCOPE(ngraph_op, OV_PP_CAT3(region, _, a)) {         \
+        OV_SCOPE(ov_op, OV_PP_CAT3(region, _, a)) {             \
             rc = evaluate<ov::element::Type_t::a>(__VA_ARGS__); \
         }                                                       \
     } break
 
 #define NGRAPH_2_TYPES_CASE(region, a, b, ...)                                  \
     case element::Type_t::a: {                                                  \
-        OV_SCOPE(ngraph_op, OV_PP_CAT4(region, _, a, b)) {                      \
+        OV_SCOPE(ov_op, OV_PP_CAT4(region, _, a, b)) {                          \
             rc = evaluate<element::Type_t::a, element::Type_t::b>(__VA_ARGS__); \
         }                                                                       \
     } break
 
 #define NGRAPH_COPY_TENSOR(region, a, ...)                         \
     case ov::element::Type_t::a: {                                 \
-        OV_SCOPE(ngraph_op, OV_PP_CAT3(region, _, a)) {            \
+        OV_SCOPE(ov_op, OV_PP_CAT3(region, _, a)) {                \
             rc = copy_tensor<ov::element::Type_t::a>(__VA_ARGS__); \
         }                                                          \
     } break

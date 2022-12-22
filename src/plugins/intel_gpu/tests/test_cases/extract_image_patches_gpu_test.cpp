@@ -41,14 +41,14 @@ TEST(extract_image_patches_gpu, basic) {
 
     topology topology;
     topology.add(input_layout("Input0", input->get_layout()));
-    topology.add(extract_image_patches("extract_image_patches", "Input0", sizes, strides, rates, auto_pad, output_shape));
+    topology.add(extract_image_patches("extract_image_patches", input_info("Input0"), sizes, strides, rates, auto_pad, output_shape));
 
     network network(engine, topology);
     network.set_input_data("Input0", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "extract_image_patches");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "extract_image_patches");
 
     auto output = outputs.at("extract_image_patches").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -84,7 +84,7 @@ TEST(extract_image_patches_gpu, basic) {
 
     ASSERT_EQ(answers.size(), output_ptr.size());
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
     }
 }
 
@@ -115,14 +115,14 @@ TEST(extract_image_patches_gpu, basic2) {
 
     topology topology;
     topology.add(input_layout("Input0", input->get_layout()));
-    topology.add(extract_image_patches("extract_image_patches", "Input0", sizes, strides, rates, auto_pad, output_shape));
+    topology.add(extract_image_patches("extract_image_patches", input_info("Input0"), sizes, strides, rates, auto_pad, output_shape));
 
     network network(engine, topology);
     network.set_input_data("Input0", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "extract_image_patches");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "extract_image_patches");
 
     auto output = outputs.at("extract_image_patches").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -148,7 +148,7 @@ TEST(extract_image_patches_gpu, basic2) {
 
     ASSERT_EQ(answers.size(), output_ptr.size());
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
     }
 }
 
@@ -179,14 +179,14 @@ TEST(extract_image_patches_gpu, basic3) {
 
     topology topology;
     topology.add(input_layout("Input0", input->get_layout()));
-    topology.add(extract_image_patches("extract_image_patches", "Input0", sizes, strides, rates, auto_pad, output_shape));
+    topology.add(extract_image_patches("extract_image_patches", input_info("Input0"), sizes, strides, rates, auto_pad, output_shape));
 
     network network(engine, topology);
     network.set_input_data("Input0", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "extract_image_patches");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "extract_image_patches");
 
     auto output = outputs.at("extract_image_patches").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -243,7 +243,7 @@ TEST(extract_image_patches_gpu, basic3) {
 
     ASSERT_EQ(answers.size(), output_ptr.size());
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
     }
 }
 
@@ -274,14 +274,14 @@ TEST(extract_image_patches_gpu, basic3_same_lower) {
 
     topology topology;
     topology.add(input_layout("Input0", input->get_layout()));
-    topology.add(extract_image_patches("extract_image_patches", "Input0", sizes, strides, rates, auto_pad, output_shape));
+    topology.add(extract_image_patches("extract_image_patches", input_info("Input0"), sizes, strides, rates, auto_pad, output_shape));
 
     network network(engine, topology);
     network.set_input_data("Input0", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "extract_image_patches");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "extract_image_patches");
 
     auto output = outputs.at("extract_image_patches").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -338,7 +338,7 @@ TEST(extract_image_patches_gpu, basic3_same_lower) {
 
     ASSERT_EQ(answers.size(), output_ptr.size());
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
     }
 }
 
@@ -369,14 +369,14 @@ TEST(extract_image_patches_gpu, basic3_enough_space) {
 
     topology topology;
     topology.add(input_layout("Input0", input->get_layout()));
-    topology.add(extract_image_patches("extract_image_patches", "Input0", sizes, strides, rates, auto_pad, output_shape));
+    topology.add(extract_image_patches("extract_image_patches", input_info("Input0"), sizes, strides, rates, auto_pad, output_shape));
 
     network network(engine, topology);
     network.set_input_data("Input0", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "extract_image_patches");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "extract_image_patches");
 
     auto output = outputs.at("extract_image_patches").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -412,7 +412,7 @@ TEST(extract_image_patches_gpu, basic3_enough_space) {
 
     ASSERT_EQ(answers.size(), output_ptr.size());
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
     }
 }
 
@@ -443,14 +443,14 @@ TEST(extract_image_patches_gpu, basic4) {
 
     topology topology;
     topology.add(input_layout("Input0", input->get_layout()));
-    topology.add(extract_image_patches("extract_image_patches", "Input0", sizes, strides, rates, auto_pad, output_shape));
+    topology.add(extract_image_patches("extract_image_patches", input_info("Input0"), sizes, strides, rates, auto_pad, output_shape));
 
     network network(engine, topology);
     network.set_input_data("Input0", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "extract_image_patches");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "extract_image_patches");
 
     auto output = outputs.at("extract_image_patches").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -486,11 +486,12 @@ TEST(extract_image_patches_gpu, basic4) {
 
     ASSERT_EQ(answers.size(), output_ptr.size());
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
     }
 }
 
-TEST(extract_image_patches_gpu, basic5) {
+template <typename T>
+void test_extract_image_patches_gpu_basic5(bool is_caching_test) {
     //  Input  : 1x2x5x5
     //  Output : 1x8x2x2
 
@@ -507,29 +508,47 @@ TEST(extract_image_patches_gpu, basic5) {
 
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { batch, depth, in_cols, in_rows } });
 
-    std::vector<float> inputVals(batch * depth * in_rows * in_cols);
-    std::generate(inputVals.begin(), inputVals.end(), []() {
-        static float n = 1;
-        return n++;
-    });
+    std::vector<T> inputVals(batch * depth * in_rows * in_cols);
+    float n = 1;
+    for (auto& val : inputVals) {
+        val = n++;
+    }
 
     set_values(input, inputVals);
 
     topology topology;
     topology.add(input_layout("Input0", input->get_layout()));
-    topology.add(extract_image_patches("extract_image_patches", "Input0", sizes, strides, rates, auto_pad, output_shape));
+    topology.add(extract_image_patches("extract_image_patches", input_info("Input0"), sizes, strides, rates, auto_pad, output_shape));
 
-    network network(engine, topology);
-    network.set_input_data("Input0", input);
-    auto outputs = network.execute();
+    cldnn::network::ptr network;
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "extract_image_patches");
+    if (is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topology);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+        }
+    } else {
+        network = std::make_shared<cldnn::network>(engine, topology);
+    }
+
+    network->set_input_data("Input0", input);
+    auto outputs = network->execute();
+
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "extract_image_patches");
 
     auto output = outputs.at("extract_image_patches").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
-    std::vector<float> answers = {
+    std::vector<T> answers = {
          1,  4,
         16, 19,
 
@@ -557,6 +576,14 @@ TEST(extract_image_patches_gpu, basic5) {
 
     ASSERT_EQ(answers.size(), output_ptr.size());
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
     }
+}
+
+TEST(extract_image_patches_gpu, basic5) {
+    test_extract_image_patches_gpu_basic5<float>(false);
+}
+
+TEST(extract_image_patches_gpu, export_import) {
+    test_extract_image_patches_gpu_basic5<float>(true);
 }

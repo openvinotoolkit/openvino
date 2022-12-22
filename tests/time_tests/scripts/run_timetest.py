@@ -75,13 +75,19 @@ def run_timetest(args: dict, log=None):
 
     # Run executable and collect statistics
     stats = {}
+    logs = []
     for run_iter in range(args["niter"]):
         tmp_stats_path = tempfile.NamedTemporaryFile().name
         retcode, msg = cmd_exec(cmd_common + ["-s", str(tmp_stats_path)], log=log)
+
+        if os.path.exists(tmp_stats_path):
+            with open(tmp_stats_path, "r") as file:
+                logs.append(file.read())
+
         if retcode != 0:
             log.error(f"Run of executable '{args['executable']}' failed with return code '{retcode}'. Error: {msg}\n"
                       f"Statistics aggregation is skipped.")
-            return retcode, msg, {}, {}
+            return retcode, msg, {}, {}, logs
 
         # Read raw statistics
         with open(tmp_stats_path, "r") as file:
@@ -106,7 +112,7 @@ def run_timetest(args: dict, log=None):
     aggregated_stats = aggregate_stats(filtered_stats)
     log.debug(f"Aggregated statistics after full run: {aggregated_stats}")
 
-    return 0, "", aggregated_stats, stats
+    return 0, "", aggregated_stats, stats, logs
 
 
 def cli_parser():
@@ -150,7 +156,7 @@ if __name__ == "__main__":
     logging.basicConfig(format="[ %(levelname)s ] %(message)s",
                         level=logging.DEBUG, stream=sys.stdout)
 
-    exit_code, _, aggr_stats, _ = run_timetest(
+    exit_code, _, aggr_stats, _, _ = run_timetest(
         dict(args._get_kwargs()), log=logging)  # pylint: disable=protected-access
     if args.stats_path:
         # Save aggregated results to a file

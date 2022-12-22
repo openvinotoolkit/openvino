@@ -22,6 +22,9 @@ void handle_input_padding::run(program& p) {
         if (!node->is_type<convolution>()) {
             continue;
         }
+        if (node->get_input_layouts().front().is_dynamic() || (node->is_valid_output_layout() && node->get_output_layout().is_dynamic())) {
+            continue; // do nothing for dynamic shape. Use pad_above/ pad_below as is
+        }
         convolution_node& convolution_node = node->as<convolution>();
         auto convolution_prim = const_cast<convolution*>(&(*convolution_node.get_primitive()));
 
@@ -85,7 +88,7 @@ void handle_input_padding::run(program& p) {
                 convolution_prim->padding_below = ov::CoordinateDiff(spatial_rank, 0);
 
                 // create border primitive
-                primitive_id input_id = convolution_prim->input[0];
+                primitive_id input_id = convolution_prim->input[0].pid;
                 primitive_id border_id = input_id + "_border_" + convolution_prim->id;
 
                 size_t rank = node->get_input_layouts().front().get_rank();

@@ -19,7 +19,7 @@ OutputVector translate_pack_op(const NodeContext& node) {
 
     OutputVector concat_inputs;
     for (size_t i = 0; i < node.get_input_size(); ++i) {
-        auto in = node.get_input(i);
+        auto in = node.get_input(static_cast<int>(i));
         concat_inputs.push_back(make_shared<Unsqueeze>(in, axis_const));
     }
 

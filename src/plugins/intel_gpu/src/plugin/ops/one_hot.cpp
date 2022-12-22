@@ -15,7 +15,7 @@ namespace intel_gpu {
 
 static void CreateOneHotOp(Program& p, const std::shared_ptr<ngraph::op::v1::OneHot>& op) {
     validate_inputs_count(op, {4});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     int64_t axis = op->get_axis();
@@ -52,13 +52,10 @@ static void CreateOneHotOp(Program& p, const std::shared_ptr<ngraph::op::v1::One
     int64_t depth = depth_value_node->cast_vector<int64_t>()[0];
 
     auto out_pshape = op->get_output_partial_shape(0);
-    if (out_pshape.is_dynamic()) {
-        IE_THROW() << "OneHot doesn't support dynamic shapes yet";
-    }
-    auto out_tensor = tensor_from_dims(out_pshape.to_shape());
+    cldnn::tensor out_tensor = out_pshape.is_static() ? tensor_from_dims(out_pshape.to_shape()) : cldnn::tensor{};
 
     auto oneHotPrim = cldnn::one_hot(layerName,
-                                     inputPrimitives[0],
+                                     inputs[0],
                                      out_tensor,
                                      cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                      axis,

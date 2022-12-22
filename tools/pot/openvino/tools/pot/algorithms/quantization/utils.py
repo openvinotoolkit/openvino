@@ -20,7 +20,7 @@ __HARDWARE_CONFIGS_MAP = {'ANY': 'cpu.json',
                           'GNA': 'gna.json',
                           'GNA3': 'gna3.json',
                           'GNA3.5': 'gna3.json',
-                          'GPU': 'cpu.json',
+                          'GPU': 'gpu.json',  # Same as cpu.json but without LSTM/GRUSequence quantization
                           'VPU': 'vpu.json',
                           'CPU_SPR': 'cpu.json'}
 

@@ -8,6 +8,9 @@ trigger:
     - docs/
     - /**/docs/*
     - /**/*.md
+    - README.md
+    - /**/layer_tests_summary/**
+    - src/tests/functional/plugin/conformance/**
 
 pr:
   branches:
@@ -19,6 +22,9 @@ pr:
     - docs/
     - /**/docs/*
     - /**/*.md
+    - README.md
+    - /**/layer_tests_summary/**
+    - src/tests/functional/plugin/conformance/**
 
 jobs:
 - job: onnxruntime
@@ -84,11 +90,7 @@ jobs:
 
   - script: |
       set -e
-      $(REPO_DIR)/install_build_dependencies.sh
-      python3 -m pip install --upgrade pip
-      python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements.txt
-      # For running Python API tests
-      python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
+      sudo -E $(REPO_DIR)/install_build_dependencies.sh
       # Speed up build
       wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
       unzip ninja-linux.zip
@@ -104,17 +106,16 @@ jobs:
       cmakeArgs: >
         -GNinja
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
-        -DENABLE_PYTHON=ON
-        -DPYTHON_EXECUTABLE=/usr/bin/python3.8
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DENABLE_INTEL_MYRIAD_COMMON=OFF
         -DENABLE_INTEL_GNA=OFF
-        -DENABLE_CPPLINT=OFF
-        -DENABLE_TESTS=OFF
-        -DENABLE_INTEL_CPU=ON
         -DENABLE_INTEL_GPU=OFF
+        -DENABLE_CPPLINT=OFF
         -DENABLE_PROFILING_ITT=OFF
         -DENABLE_SAMPLES=OFF
-        -DENABLE_OV_ONNX_FRONTEND=ON
+        -DENABLE_COMPILE_TOOL=OFF
+        -DENABLE_OV_TF_FRONTEND=OFF
+        -DENABLE_OV_PADDLE_FRONTEND=OFF
         -DENABLE_OPENVINO_DEBUG=OFF
         $(REPO_DIR)
       workingDirectory: $(BUILD_DIR)
@@ -128,7 +129,7 @@ jobs:
 
   - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
     workingDirectory: $(BUILD_DIR)
-    displayName: 'Install'
+    displayName: 'Install OpenVINO'
 
   - script: |
       source $(INSTALL_DIR)/setupvars.sh

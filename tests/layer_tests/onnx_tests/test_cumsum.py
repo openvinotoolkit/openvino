@@ -142,7 +142,7 @@ class TestCumSum(OnnxRuntimeLayerTest):
         input = helper.make_tensor_value_info('input', TensorProto.FLOAT, shape)
         output = helper.make_tensor_value_info('output', TensorProto.FLOAT, output_shape)
 
-        constant = np.random.randn(*shape).astype(np.float)
+        constant = np.random.randn(*shape).astype(float)
 
         node_const_def = onnx.helper.make_node(
             'Constant',
@@ -256,6 +256,8 @@ class TestCumSum(OnnxRuntimeLayerTest):
                     use_old_api):
         if 'axis' not in params:
             pytest.skip('No axis cases fail in ONNX')
+        elif 'axis' in params and params['axis'] == -2 and exclusive == 1:
+            pytest.skip('Disabled due to an exception thrown by ONNXRuntime for this use case')
         self._test(
             *self.create_net(**params, exclusive=exclusive, reverse=reverse, ir_version=ir_version),
             ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
@@ -268,6 +270,8 @@ class TestCumSum(OnnxRuntimeLayerTest):
                           temp_dir, use_old_api):
         if 'axis' not in params:
             pytest.skip('No axis cases fail in ONNX')
+        elif 'axis' in params and params['axis'] == -2 and exclusive == 1:
+            pytest.skip('Disabled due to an exception thrown by ONNXRuntime for this use case')
         self._test(*self.create_net_const(**params, precision=precision, exclusive=exclusive,
                                           reverse=reverse,
                                           ir_version=ir_version), ie_device, precision, ir_version,

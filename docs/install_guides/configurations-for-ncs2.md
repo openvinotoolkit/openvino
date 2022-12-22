@@ -6,11 +6,10 @@
 
 @endsphinxdirective
 
-This page introduces additional configurations for Intel® Neural Compute Stick 2 with Intel® Distribution of OpenVINO™ toolkit on Linux, Raspbian OS and macOS.
 
 ## Linux
 
-Once you have your Intel® Distribution of OpenVINO™ toolkit installed, follow the steps to be able to work on NCS2:
+Once you have OpenVINO™ Runtime installed, follow these steps to be able to work on NCS2:
 
 1. Go to the install_dependencies directory:
    ```sh
@@ -23,7 +22,7 @@ Once you have your Intel® Distribution of OpenVINO™ toolkit installed, follow
 3. You may need to reboot your machine for this to take effect.
 
 You've completed all required configuration steps to perform inference on Intel® Neural Compute Stick 2. 
-Proceed to the [Get Started Guide](@ref get_started) section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications.
+Proceed to the [Get Started Guide](@ref get_started) section to learn the basic OpenVINO™ workflow and run code samples and demo applications.
 
 @sphinxdirective
 
@@ -48,7 +47,7 @@ Proceed to the [Get Started Guide](@ref get_started) section to learn the basic 
    ```
 4. Plug in your Intel® Neural Compute Stick 2.
 
-5. (Optional) If you want to compile and run the Image Classification sample to verify the OpenVINO™ toolkit installation follow the next steps.
+5. (Optional) If you want to compile and run the Image Classification sample to verify the installation of OpenVINO, follow the steps below.
 
    a. Navigate to a directory that you have write access to and create a samples build directory. This example uses a directory named `build`:
    ```sh
@@ -96,7 +95,7 @@ You've completed all required configuration steps to perform inference on your I
 
 ## What’s Next?
 
-Now you are ready to try out the toolkit. You can use the following tutorials to write your applications using Python and C++.
+Now you are ready to try out OpenVINO™. You can use the following tutorials to write your applications using Python and C++.
 
 Developing in Python:
    * [Start with tensorflow models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/101-tensorflow-to-openvino-with-output.html)

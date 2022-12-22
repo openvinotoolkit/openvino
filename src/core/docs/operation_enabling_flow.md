@@ -9,17 +9,9 @@
      ```cpp
      OPENVINO_OP("<Operation_name>", "opset_name", <Parent_op> /* Not needed if operation is inherited from ov::Op */);
      ```
-     If operation is inherited from Operation with `BWDCMP_RTTI_DECLARATION` please add next declaration to header file:
-     ```cpp
-     BWDCMP_RTTI_DECLARATION;
-     ```
-   * In `*.cpp` if operation is inherited from Operation with `BWDCMP_RTTI_DECLARATION` please add:
-      ```cpp
-      BWDCMP_RTTI_DEFINITION(op::vX::<Operation>);
-      ```
    * To support conditional compilation add following for each Operation method in `*.cpp` file:
       ```cpp
-      NGRAPH_OP_SCOPE(<operation_version>_<operation_name>_<method_name>);
+      OV_OP_SCOPE(<operation_version>_<operation_name>_<method_name>);
       ```
    * Add shape infer unit-tests to the `src/core/tests/type_prop/`
 

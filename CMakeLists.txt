@@ -50,6 +50,8 @@ message (STATUS "CMAKE_C_COMPILER_ID ................... " ${CMAKE_C_COMPILER_ID
 message (STATUS "CMAKE_CXX_COMPILER_ID ................. " ${CMAKE_CXX_COMPILER_ID})
 message (STATUS "CMAKE_BUILD_TYPE ...................... " ${CMAKE_BUILD_TYPE})
 message (STATUS "CMAKE_TOOLCHAIN_FILE .................. " ${CMAKE_TOOLCHAIN_FILE})
+message (STATUS "GLIBC_VERSION.......................... " ${OV_GLIBC_VERSION})
+
 
 # remove file with exported developer targets to force its regeneration
 file(REMOVE "${CMAKE_BINARY_DIR}/ngraphTargets.cmake")
@@ -81,7 +83,7 @@ function(openvino_developer_export_targets)
             get_target_property(original_name ${target_name} ALIASED_TARGET)
             if(TARGET "${original_name}")
                 message(STATUS "The name ${target_name} is an ALIAS for ${original_name}. "
-                        "It will be exported to the InferenceEngineDeveloperPackage with the original name.")
+                        "It will be exported to the OpenVINODeveloperPackage with the original name.")
                 list(REMOVE_ITEM ${EXPORT_COMPONENT} ${target_name})
                 list(APPEND ${EXPORT_COMPONENT} ${original_name})
             endif()
@@ -107,9 +109,9 @@ add_subdirectory(thirdparty)
 add_subdirectory(src)
 add_subdirectory(samples)
 
-# Enable interpreter backend
+# Enable interpreter backend for tests
 if (ENABLE_TESTS OR ENABLE_TEMPLATE)
-    add_subdirectory(docs/template_plugin/backend)
+    add_subdirectory(src/plugins/template/backend)
 endif()
 include(cmake/extra_modules.cmake)
 add_subdirectory(docs)

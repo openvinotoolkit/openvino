@@ -6,20 +6,707 @@ import ast
 import logging as log
 import os
 import re
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
 from distutils.util import strtobool
 from itertools import zip_longest
+from pathlib import Path
 from operator import xor
 from typing import List, Union
+import numbers
 
 import numpy as np
+from openvino.runtime import Layout, PartialShape, Dimension, Shape, Type
 
+import openvino
 from openvino.tools.mo.front.extractor import split_node_in_port
 from openvino.tools.mo.middle.passes.convert_data_type import destination_type_to_np_data_type
+from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_destination_type
 from openvino.tools.mo.utils import import_extensions
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.utils import refer_to_faq_msg, get_mo_root_dir
 from openvino.tools.mo.utils.version import get_version
+
+
+def extension_path_to_str_or_extensions_class(extension):
+    if isinstance(extension, str):
+        return extension
+    elif isinstance(extension, Path):
+        return str(extension)
+    else:
+        # Return unknown object as is.
+        # The type of the object will be checked by frontend.add_extension() method
+        return extension
+
+
+def transformations_config_to_str(value):
+    if value is None:
+        return value
+    return extension_path_to_str_or_extensions_class(value)
+
+
+def extensions_to_str_or_extensions_class(extensions):
+    if extensions is None:
+        return [import_extensions.default_path()]
+    extensions_list = []
+    if isinstance(extensions, str):
+        extensions_list = extensions.split(',')
+    elif isinstance(extensions, list):
+        for ext in extensions:
+            ext = extension_path_to_str_or_extensions_class(ext)
+            extensions_list.append(ext)
+    else:
+        extensions_list = [extension_path_to_str_or_extensions_class(extensions)]
+
+    for ext in extensions_list:
+        if isinstance(ext, str):
+            readable_file_or_dir(ext)
+    return extensions_list
+
+
+def path_to_str(path):
+    if path is None:
+        return None
+    if isinstance(path, str):
+        return path
+    elif isinstance(path, Path):
+        return str(path)
+    else:
+        raise Exception("Incorrect type of {} expected str or Path, got {}".format(path, type(path)))
+
+
+def path_to_str_or_object(value):
+    if value is None or isinstance(value, str):
+        return value
+    elif isinstance(value, Path):
+        return str(value)
+    else:
+        return value
+
+
+def paths_to_str(paths):
+    if paths is None:
+        return None
+    if isinstance(paths, list):
+        paths_str = []
+        for path in paths:
+            paths_str.append(path_to_str(path))
+        return ','.join(paths_str)
+    else:
+        path_to_str(paths)
+
+
+def str_list_to_str(values):
+    if values is None:
+        return None
+    if isinstance(values, str):
+        return values
+    elif isinstance(values, list):
+        for value in values:
+            if not isinstance(value, str):
+                raise Error("Incorrect argument. {} expected to string, got type {}.".format(value, type(value)))
+        return ','.join(values)
+    else:
+        raise Error("Incorrect argument. {} expected to string or list of strings, got type {}.".format(values, type(values)))
+
+
+def is_shape_type(value):
+    if isinstance(value, PartialShape):
+        return True
+    if isinstance(value, Shape):
+        return True
+    if isinstance(value, list) or isinstance(value, tuple):
+        for dim in value:
+            if not (isinstance(dim, Dimension) or isinstance(dim, int)):
+                return False
+        return True
+    return False
+
+
+def shape_to_str(shape, separator):
+    if isinstance(shape, str):
+        return shape
+    if isinstance(shape, PartialShape):
+        return shape.to_string()
+    if isinstance(shape, Shape):
+        return PartialShape(shape).to_string()
+    if isinstance(shape, list) or isinstance(shape, tuple):
+        dims = []
+        for dim in shape:
+            if isinstance(dim, Dimension):
+                dims.append(dim.to_string())
+            elif isinstance(dim, int):
+                dims.append(str(dim))
+            else:
+                raise Exception("Incorrect type of dimension. Expected Dimension or int, got {}".format(type(dim)))
+        return "[" + separator.join(dims) + "]"
+    raise Exception("Incorrect shape type. Expected PartialShape, Shape, [Dimension, ...] or [int, ...], "
+                    "got {}".format(type(shape)))
+
+
+def input_shape_to_str(input_shape):
+    if input_shape is None or isinstance(input_shape, str):
+        return input_shape
+    if isinstance(input_shape, list):
+        if len(input_shape) > 0 and isinstance(input_shape[0], int) or isinstance(input_shape[0], Dimension):
+            # The case when shape is specified as list of int or Dimension
+            return shape_to_str(input_shape, ',')
+        # The case when list of shapes is specified
+        shapes = []
+        for shape in input_shape:
+            shapes.append(shape_to_str(shape, ','))
+        return ','.join(shapes)
+    return shape_to_str(input_shape, ',')
+
+
+def type_to_str(type_obj):
+    if isinstance(type_obj, str):
+        return type_obj
+    if isinstance(type_obj, type):
+        return np_data_type_to_destination_type(type_obj)
+    if isinstance(type_obj, Type):
+        return type_obj.get_type_name()
+    raise Exception("Incorrect type. Expected Type or numpy type, got {}".format(type(type_obj)))
+
+
+def value_to_str(value, separator):
+    if isinstance(value, np.ndarray):
+        values = []
+        for x in np.nditer(value):
+            values.append(str(x))
+        return "[" + separator.join(values) + "]"
+    if isinstance(value, list):
+        values = []
+        for x in value:
+            if not isinstance(x, numbers.Number):
+                raise Exception("Incorrect value type. Expected numeric value, got {}".format(type(x)))
+            values.append(str(x))
+        return "[" + separator.join(values) + "]"
+    if isinstance(value, bool):
+        return "True" if value else "False"
+    raise Exception("Incorrect value type. Expected np.ndarray or list, got {}".format(type(value)))
+
+
+def single_input_to_str(input):
+    if isinstance(input, str):
+        return input
+    if isinstance(input, openvino.tools.mo.InputCutInfo):
+        if not isinstance(input.name, str):
+            raise Exception("Input name should be string, got {}".format(input.name))
+        input_str = input.name
+        assert input_str is not None, "Incorrect InputCutInfo. 'name' should be set."
+        if input.shape is not None:
+            input_str += shape_to_str(input.shape, " ")
+        if input.type is not None:
+            input_str += "{" + type_to_str(input.type) + "}"
+        if input.value is not None:
+            input_str += "->" + value_to_str(input.value, " ")
+        return input_str
+    if isinstance(input, tuple):
+        name = None
+        inp_type = None
+        shape = None
+        for val in input:
+            if isinstance(val, str):
+                if name is not None:
+                    raise Exception("More than one input name provided: {}".format(input))
+                name = val
+            elif isinstance(val, type) or isinstance(val, Type):
+                if inp_type is not None:
+                    raise Exception("More than one input type provided: {}".format(input))
+                inp_type = type_to_str(val)
+            elif is_shape_type(val):
+                if shape is not None:
+                    raise Exception("More than one input shape provided: {}".format(input))
+                shape = shape_to_str(val, " ")
+            else:
+                raise Exception("Incorrect input parameters provided. Expected input name and "
+                                "optionally input type or input shape. Got unknown object: {}".format(val))
+        if name is None:
+            raise Exception("Input name was not provided for following input {}.".format(input))
+        if shape is not None:
+            name += shape
+        if inp_type is not None:
+            name += "{" + inp_type + "}"
+        return name
+
+    raise Exception("Unexpected object provided for input. Expected openvino.tools.mo.InputCutInfo "
+                    "or tuple or str. Got {}".format(type(input)))
+
+
+def input_to_str(input):
+    if input is None or isinstance(input, str):
+        return input
+    if isinstance(input, list):
+        inputs_str = []
+        for inp in input:
+            inputs_str.append(single_input_to_str(inp))
+        return ','.join(inputs_str)
+    return single_input_to_str(input)
+
+
+def mean_scale_value_to_str(value):
+    # default empty value
+    if isinstance(value, tuple) and len(value) == 0:
+        return value
+
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        values_str = []
+        for op_name, val in value.items():
+            if not isinstance(op_name, str):
+                raise Exception("Incorrect operation name type. Expected string, got {}".format(type(op_name)))
+            values_str.append(op_name + value_to_str(val, ","))
+        return ",".join(values_str)
+    if isinstance(value, list) or isinstance(value, tuple):
+        list_of_lists = False
+        for val in value:
+            if isinstance(val, list) or isinstance(val, tuple):
+                list_of_lists = True
+                break
+        if list_of_lists:
+            values_str = []
+            for val in value:
+                values_str.append(value_to_str(val, ","))
+            return ",".join(values_str)
+        else:
+            return value_to_str(value, ",")
+    return value_to_str(value, ",")
+
+
+def layout_to_str(layout):
+    if isinstance(layout, str):
+        return layout
+    if isinstance(layout, Layout):
+        return layout.to_string()
+    raise Exception("Incorrect layout type. Expected Layout or string or dictionary, "
+                    "where key is operation name and value is layout or list of layouts, got {}".format(type(layout)))
+
+
+def source_target_layout_to_str(value):
+    # default empty value
+    if isinstance(value, tuple) and len(value) == 0:
+        return value
+
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        values_str = []
+        for op_name, layout in value.items():
+            if not isinstance(op_name, str):
+                raise Exception("Incorrect operation name type. Expected string, got {}".format(type(op_name)))
+            values_str.append(op_name + "(" + layout_to_str(layout) + ")")
+        return ",".join(values_str)
+
+    return layout_to_str(value)
+
+
+def layoutmap_to_str(value):
+    if isinstance(value, str):
+        return value
+    if isinstance(value, openvino.tools.mo.LayoutMap):
+        assert value.source_layout is not None, "Incorrect layout map. 'source_layout' should be set."
+        source_layout = layout_to_str(value.source_layout)
+        if value.target_layout is not None:
+            target_layout = layout_to_str(value.target_layout)
+            source_layout += "->" + target_layout
+        return source_layout
+    return layout_to_str(value)
+
+
+def layout_param_to_str(value):
+    # default empty value
+    if isinstance(value, tuple) and len(value) == 0:
+        return value
+
+    if isinstance(value, str):
+        return value
+
+    if isinstance(value, dict):
+        values_str = []
+        for op_name, layout in value.items():
+            if not isinstance(op_name, str):
+                raise Exception("Incorrect operation name type. Expected string, got {}".format(type(op_name)))
+            values_str.append(op_name + "(" + layoutmap_to_str(layout) + ")")
+        return ",".join(values_str)
+    if isinstance(value, openvino.tools.mo.LayoutMap):
+        return layoutmap_to_str(value)
+    if isinstance(value, list) or isinstance(value, tuple):
+        values_str = []
+        for layout in value:
+            values_str.append(layoutmap_to_str(layout))
+        return ",".join(values_str)
+
+    return layoutmap_to_str(value)
+
+
+def batch_to_int(value):
+    if value is None or isinstance(value, int):
+        return value
+    if isinstance(value, Dimension):
+        if not value.is_static:
+            # TODO: Ticket 88676
+            raise Exception("Dynamic batch for --batch parameter is not supported.")
+        else:
+            return value.get_length()
+    raise Exception("Incorrect batch value. Expected int, got {}.".format(type(value)))
+
+
+def transform_param_value_to_str(value):
+    # This function supports parsing of parameters of MakeStateful, LowLatency2, Pruning.
+    # If available transforms list is extended this method should be extended for new transforms.
+    if isinstance(value, str):
+        return value
+    if isinstance(value, bool):
+        return str(value)
+    if isinstance(value, dict):
+        # param_res_names dictionary for MakeStateful transform
+        values_str = []
+        for input_name, output_name in value.items():
+            assert isinstance(input_name, str), "Incorrect input name. " \
+                                                "Expected string, got {}".format(type(input_name))
+            assert isinstance(output_name, str), "Incorrect output name. " \
+                                                 "Expected string, got {}".format(type(output_name))
+            values_str.append("\'{}\':\'{}\'".format(input_name, output_name))
+        return "{" + ','.join(values_str) + "}"
+    raise Exception("Unknown parameter type.")
+
+
+def transform_to_str(value):
+    from openvino.tools.mo.back.offline_transformations import get_available_transformations
+
+    if isinstance(value, str):
+        return value
+
+    if isinstance(value, tuple):
+        assert 1 <= len(value) <= 2, "Incorrect definition of transformation in transform argument: " \
+                                     "expected two elements in tuple, provided {}. " \
+                                     "Supported transforms are: {}".format(
+            len(value),
+            list(get_available_transformations().keys()))
+        transform_name = value[0]
+        assert isinstance(transform_name, str), "Incorrect transform name type. " \
+                                                "Expected string, got {}".format(type(transform_name))
+        if len(value) == 2:
+            params = value[1]
+            assert isinstance(params, dict), "Incorrect transform params type. " \
+                                             "Expected dictionary, got {}".format(type(params))
+            params_str_list = []
+            for param_name, val in params.items():
+                assert isinstance(param_name, str), "Incorrect transform parameter name type. " \
+                                                    "Expected string, got {}".format(type(param_name))
+                val_str = transform_param_value_to_str(val)
+                params_str_list.append(param_name + "=" + val_str)
+            transform_name += '[' + ','.join(params_str_list) + ']'
+        return transform_name
+    raise Exception("Incorrect transform type. Expected tuple with transform name and "
+                    "dictionary with transform parameters. Got object of type {}".format(type(value)))
+
+
+def transform_param_to_str(value):
+    if value is None or isinstance(value, str):
+        return value
+    if isinstance(value, list):
+        transforms_str = []
+        for transform in value:
+            transforms_str.append(transform_to_str(transform))
+        return ','.join(transforms_str)
+    return transform_to_str(value)
+
+
+ParamDescription = namedtuple("ParamData",
+                              ["description", "possible_types_command_line", "possible_types_python_api", "to_string"])
+mo_convert_params = {
+    'optional':
+    {
+    'help': ParamDescription(
+        'Print available parameters.', '', '', None),
+    'framework': ParamDescription(
+        'Name of the framework used to train the input model.', '', '', None),
+    },
+    'fw_agnostic':
+    {
+    'input_model': ParamDescription(
+        '{} Tensorflow*: a file with a pre-trained model ' +
+        ' (binary or text .pb file after freezing).\n' +
+        ' Caffe*: a model proto file with model weights', '',
+        'Model object in original framework (PyTorch, Tensorflow) or path to model file. \n' +
+        'Supported object formats of input model:\n PyTorch - torch.nn.Module, torch.jit.ScriptModule, torch.jit.ScriptFunction' +
+        'TF - tf.compat.v1.GraphDef, tf.compat.v1.wrap_function, tf.compat.v1.session\n ' +
+        'TF2 / Keras - tf.keras.Model, tf.keras.layers.Layer, tf.function, tf.Module, tf.train.checkpoint, ' +
+        'tf.python.training.tracking.base.Trackable for case when it is output from tf.saved_model.load().\n' +
+        'File formats examples:\n',
+        path_to_str_or_object),
+    'model_name': ParamDescription(
+        'Model_name parameter passed to the final create_ir transform. ' +
+        'This parameter is used to name ' +
+        'a network in a generated IR and output .xml/.bin files.', '', '', None),
+    'input_shape': ParamDescription(
+        'Input shape(s) that should be fed to an input node(s) of the model. {}'
+        'Shape is defined as a comma-separated list of integer numbers enclosed in '
+        'parentheses or square brackets, for example [1,3,227,227] or (1,227,227,3), where '
+        'the order of dimensions depends on the framework input layout of the model. '
+        'For example, [N,C,H,W] is used for ONNX* models and [N,H,W,C] for TensorFlow* '
+        'models. The shape can contain undefined dimensions (? or -1) and '
+        'should fit the dimensions defined in the input '
+        'operation of the graph. Boundaries of undefined dimension can be specified with '
+        'ellipsis, for example [1,1..10,128,128]. One boundary can be undefined, for '
+        'example [1,..100] or [1,3,1..,1..]. If there are multiple inputs in the model, '
+        '--input_shape should contain definition of shape for each input separated by a '
+        'comma, for example: [1,3,227,227],[2,4] for a model with two inputs with 4D and 2D '
+        'shapes. Alternatively, specify shapes with the --input option.', '',
+        'Input shapes can be defined by passing a list of objects of type '
+        'PartialShape, Shape, [Dimension, ...] or [int, ...] or by a string '
+        'of the following format. ', input_shape_to_str),
+    'scale': ParamDescription(
+        'All input values coming from original network inputs will be ' +
+        'divided by this ' +
+        'value. When a list of inputs is overridden by the --input ' +
+        'parameter, this scale ' +
+        'is not applied for any input that does not match with ' +
+        'the original input of the model. ' +
+        'If both --mean_values and --scale  are specified, ' +
+        'the mean is subtracted first and then scale is applied ' +
+        'regardless of the order of options in command line.', '', '', None),
+    'reverse_input_channels': ParamDescription(
+        'Switch the input channels order from RGB to BGR (or vice versa). Applied to '
+        'original inputs of the model if and only if a number of channels equals 3. '
+        'When --mean_values/--scale_values are also specified, reversing of channels will '
+        'be applied to user\'s input data first, so that numbers in --mean_values '
+        'and --scale_values go in the order of channels used in the original model. '
+        'In other words, if both options are specified, then the data flow in the model '
+        'looks as following: '
+        'Parameter -> ReverseInputChannels -> Mean apply-> Scale apply -> the original body of the model.',
+        '', '', None),
+    'log_level': ParamDescription(
+        'Logger level', '', '', None),
+    'input': ParamDescription(
+        '{}Quoted list of comma-separated input nodes names with shapes, data types, '
+        'and values for freezing. The order of inputs in converted model is the same as '
+        'order of specified operation names. The shape and value are specified as comma-separated '
+        'lists. The data type of input node is specified in braces and '
+        'can have one of the values: f64 (float64), f32 (float32), f16 (float16), '
+        'i64 (int64), i32 (int32), u8 (uint8), boolean (bool). Data type is optional. '
+        'If it\'s not specified explicitly then there are two options: '
+        'if input node is a parameter, data type is taken from the original node dtype, '
+        'if input node is not a parameter, data type is set to f32. '
+        'Example, to set `input_1` with shape [1,100], and Parameter node `sequence_len` '
+        'with scalar input with value `150`, and boolean input `is_training` with '
+        '`False` value use the following format: '
+        '"input_1[1,100],sequence_len->150,is_training->False". '
+        'Another example, use the following format to set input port 0 of the node '
+        '`node_name1` with the shape [3,4] as an input node and freeze output port 1 '
+        'of the node `node_name2` with the value [20,15] of the int32 type and shape [2]: '
+        '"0:node_name1[3,4],node_name2:1[2]{{i32}}->[20,15]".', '',
+        'Input can be set by passing a list of InputCutInfo objects or by a list of tuples. '
+        'Each tuple should contain input name and optionally input type or input shape. '
+        'Example: input=("op_name", PartialShape([-1, 3, 100, 100]), Type(np.float32)). '
+        'Alternatively input can be set by a string or list of strings of the following format. ',
+        input_to_str),
+    'output': ParamDescription(
+        'The name of the output operation of the model or list of names. ' +
+        'For TensorFlow*, do not add :0 to this name.'
+        'The order of outputs in converted model is the same as order of '
+        'specified operation names.', '', '', str_list_to_str),
+    'mean_values': ParamDescription(
+        'Mean values to be used for the input image per channel. {}' +
+        'Values to be provided in the (R,G,B) or [R,G,B] format. ' +
+        'Can be defined for desired input of the model, for example: ' +
+        '"--mean_values data[255,255,255],info[255,255,255]". ' +
+        'The exact meaning and order ' +
+        'of channels depend on how the original model was trained.', '',
+        'Mean values can be set by passing a dictionary, '
+        'where key is input name and value is mean value. '
+        'For example mean_values={\'data\':[255,255,255],\'info\':[255,255,255]}. '
+        'Or mean values can be set by a string of the following format. ',
+        mean_scale_value_to_str),
+    'scale_values': ParamDescription(
+        'Scale values to be used for the input image per channel. {}' +
+        'Values are provided in the (R,G,B) or [R,G,B] format. ' +
+        'Can be defined for desired input of the model, for example: ' +
+        '"--scale_values data[255,255,255],info[255,255,255]". ' +
+        'The exact meaning and order ' +
+        'of channels depend on how the original model was trained. ' +
+        'If both --mean_values and --scale_values are specified, ' +
+        'the mean is subtracted first and then scale is applied ' +
+        'regardless of the order of options in command line.', '',
+        'Scale values can be set by passing a dictionary, '
+        'where key is input name and value is scale value. '
+        'For example scale_values={\'data\':[255,255,255],\'info\':[255,255,255]}. '
+        'Or scale values can be set by a string of the following format. ',
+        mean_scale_value_to_str),
+    'source_layout': ParamDescription(
+        'Layout of the input or output of the model in the framework. {}Layout can'
+        ' be specified in the short form, e.g. nhwc, or in complex form, e.g. "[n,h,w,c]".'
+        ' Example for many names: '
+        '"in_name1([n,h,w,c]),in_name2(nc),out_name1(n),out_name2(nc)". Layout can be '
+        'partially defined, "?" can be used to specify undefined layout for one dimension, '
+        '"..." can be used to specify undefined layout for multiple dimensions, for example '
+        '"?c??", "nc...", "n...c", etc.', '',
+        'Layout can be set by passing a dictionary, where key is input name and value is '
+        'LayoutMap object. Or layout can be set by string of the following format. ',
+        source_target_layout_to_str),
+    'target_layout': ParamDescription(
+        'Same as --source_layout, but specifies target layout that will be in the model '
+        'after processing by ModelOptimizer.', '', '', source_target_layout_to_str),
+    'layout': ParamDescription(
+        'Combination of --source_layout and --target_layout. Can\'t be used with either of '
+        'them. If model has one input it is sufficient to specify layout of this input, for'
+        ' example --layout nhwc. To specify layouts of many tensors, names must be provided,'
+        ' for example: --layout "name1(nchw),name2(nc)". It is possible to instruct '
+        'ModelOptimizer to change layout, for example: '
+        '--layout "name1(nhwc->nchw),name2(cn->nc)". Also "*" in long layout form can be'
+        ' used to fuse dimensions, for example "[n,c,...]->[n*c,...]".', '', '', layout_param_to_str),
+    'compress_to_fp16': ParamDescription(
+        'If the original model has FP32 weights or biases, they are compressed to FP16. '
+        'All intermediate data is kept in original precision.', '', '', None),
+    'transform': ParamDescription(
+        'Apply additional transformations. {}' +
+        '"--transform transformation_name1[args],transformation_name2..." ' +
+        'where [args] is key=value pairs separated by semicolon. ' +
+        'Examples:' +
+        '          "--transform LowLatency2" or \n' +
+        '          "--transform Pruning" or \n' +
+        '          "--transform LowLatency2[use_const_initializer=False]" or \n' +
+        '          "--transform \"MakeStateful[param_res_names=\n'
+        '{{\'input_name_1\':\'output_name_1\',\'input_name_2\':\'output_name_2\'}}]\"" ' +
+        'Available transformations: "LowLatency2", "MakeStateful", "Pruning"', 'Usage: ',
+        '\'transform\' can be set by a list of tuples, where the first element is '
+        'transform name and the second element is transform parameters. '
+        'For example: [(\'LowLatency2\', {{\'use_const_initializer\': False}}), ...]',
+        transform_param_to_str),
+    'extensions': ParamDescription(
+        "{} For the legacy MO path (if `--use_legacy_frontend` is used), "
+        "a directory or a comma-separated list of directories with extensions are supported. "
+        "To disable all extensions including those that are placed at the default location, "
+        "pass an empty string.",
+        "Paths or a comma-separated list of paths to libraries (.so or .dll) with extensions.",
+        "Paths to libraries (.so or .dll) with extensions, comma-separated list of paths, "
+        "objects derived from BaseExtension class or lists of objects.",
+        extensions_to_str_or_extensions_class),
+    'batch': ParamDescription(
+        'Input batch size', '', '', batch_to_int),
+    'silent': ParamDescription(
+        'Prevent any output messages except those that correspond to log level equals '
+        'ERROR, that can be set with the following option: --log_level. '
+        'By default, log level is already ERROR. ', '', '', None),
+    'version': ParamDescription(
+        "Version of Model Optimizer", '', '', None
+    ),
+    'static_shape': ParamDescription(
+        'Enables IR generation for fixed input shape (folding `ShapeOf` operations and '
+        'shape-calculating sub-graphs to `Constant`). Changing model input shape using '
+        'the OpenVINO Runtime API in runtime may fail for such an IR.', '', '', None),
+    'progress': ParamDescription(
+        'Enable model conversion progress display.', '', '', None),
+    'stream_output': ParamDescription(
+        'Switch model conversion progress display to a multiline mode.', '', '', None),
+    'transformations_config': ParamDescription(
+        'Use the configuration file with transformations '
+        'description{}. Transformations file can be specified as relative path '
+        'from the current directory, as absolute path or as a'
+        'relative path from the mo root directory.', '',
+        ' or pass object derived from BaseExtension class.',
+        transformations_config_to_str),
+    'use_new_frontend': ParamDescription(
+        'Force the usage of new Frontend of Model Optimizer for model conversion into IR. '
+        'The new Frontend is C++ based and is available for ONNX* and PaddlePaddle* models. '
+        'Model optimizer uses new Frontend for ONNX* and PaddlePaddle* by default that means '
+        '`--use_new_frontend` and `--use_legacy_frontend` options are not specified.', '', '', None),
+    'use_legacy_frontend': ParamDescription(
+        'Force the usage of legacy Frontend of Model Optimizer for model conversion into IR. '
+        'The legacy Frontend is Python based and is available for TensorFlow*, ONNX*, MXNet*, '
+        'Caffe*, and Kaldi* models.', '', '', None),
+    },
+    "caffe":
+    {
+    'input_proto': ParamDescription(
+        'Deploy-ready prototxt file that contains a topology structure ' +
+        'and layer attributes', '', '', path_to_str),
+    'caffe_parser_path': ParamDescription(
+        'Path to Python Caffe* parser generated from caffe.proto', '', '',
+        path_to_str),
+    'k': ParamDescription(
+        'Path to CustomLayersMapping.xml to register custom layers', '', '', path_to_str),
+    'disable_omitting_optional': ParamDescription(
+        'Disable omitting optional attributes to be used for custom layers. ' +
+        'Use this option if you want to transfer all attributes of a custom layer to IR. ' +
+        'Default behavior is to transfer the attributes with default values '
+        'and the attributes defined by the user to IR.',
+        '', '', None),
+    'enable_flattening_nested_params': ParamDescription(
+        'Enable flattening optional params to be used for custom layers. ' +
+        'Use this option if you want to transfer attributes of a custom layer to IR with flattened nested parameters. ' +
+        'Default behavior is to transfer the attributes without flattening nested parameters.', '', '', None),
+    },
+    "tf":
+    {
+    'input_model_is_text': ParamDescription(
+        'TensorFlow*: treat the input model file as a text protobuf format. If not specified, ' +
+        'the Model Optimizer treats it as a binary file by default.', '', '', None),
+    'input_checkpoint': ParamDescription(
+        'TensorFlow*: variables file to load.', '', '', path_to_str),
+    'input_meta_graph': ParamDescription(
+        'Tensorflow*: a file with a meta-graph of the model before freezing', '', '',
+        path_to_str),
+    'saved_model_dir': ParamDescription(
+        'TensorFlow*: directory with a model in SavedModel format '
+        'of TensorFlow 1.x or 2.x version.', '', '', path_to_str),
+    'saved_model_tags': ParamDescription(
+        "Group of tag(s) of the MetaGraphDef to load, in string format, separated by ','. "
+        "For tag-set contains multiple tags, all tags must be passed in.", '', '', str_list_to_str),
+    'tensorflow_custom_operations_config_update': ParamDescription(
+        'TensorFlow*: update the configuration file with node name patterns with input/output '
+        'nodes information.', '', '', path_to_str),
+    'tensorflow_object_detection_api_pipeline_config': ParamDescription(
+        'TensorFlow*: path to the pipeline configuration file used to generate model created '
+        'with help of Object Detection API.', '', '', path_to_str),
+    'tensorboard_logdir': ParamDescription(
+        'TensorFlow*: dump the input graph to a given directory that should be used with TensorBoard.', '', '',
+        path_to_str),
+    'tensorflow_custom_layer_libraries': ParamDescription(
+        'TensorFlow*: comma separated list of shared libraries with TensorFlow* custom '
+        'operations implementation.', '', '', path_to_str),
+    },
+    "mxnet":
+    {
+    'input_symbol': ParamDescription(
+        'Symbol file (for example, model-symbol.json) that contains a topology structure ' +
+        'and layer attributes', '', '', path_to_str),
+    'nd_prefix_name': ParamDescription(
+        "Prefix name for args.nd and argx.nd files.", '', '', None),
+    'pretrained_model_name': ParamDescription(
+        "Name of a pretrained MXNet model without extension and epoch number. "
+        "This model will be merged with args.nd and argx.nd files",
+        '', '', None),
+    'save_params_from_nd': ParamDescription(
+        "Enable saving built parameters file from .nd files", '', '', None),
+    'legacy_mxnet_model': ParamDescription(
+        "Enable MXNet loader to make a model compatible with the latest MXNet version. "
+        "Use only if your model was trained with MXNet version lower than 1.0.0",
+        '', '', None),
+    'enable_ssd_gluoncv': ParamDescription(
+        "Enable pattern matchers replacers for converting gluoncv ssd topologies.",
+        '', '', None),
+    },
+    "kaldi":
+    {
+    'counts': ParamDescription(
+        "Path to the counts file", '', '', path_to_str),
+    'remove_output_softmax': ParamDescription(
+        "Removes the SoftMax layer that is the output layer", '', '', None),
+    'remove_memory': ParamDescription(
+        "Removes the Memory layer and use additional inputs outputs instead", '', '',
+        None),
+    },
+    "pytorch":
+    {
+    'example_input': ParamDescription('Sample of model input in original framework. '
+                                       'For PyTorch it can be torch.Tensor.', '', '', None),
+    'onnx_opset_version': ParamDescription('Version of ONNX opset that is used for converting from PyTorch to ONNX.',
+                                           '', '', None)
+    }
+}
 
 
 class DeprecatedStoreTrue(argparse.Action):
@@ -136,8 +823,6 @@ class DeprecatedCanonicalizePathCheckExistenceAction(CanonicalizePathCheckExiste
             option_string)
         if 'tensorflow_use_custom_operations_config' in option_string:
             dep_msg += 'Please use --transformations_config cli option instead'
-        if 'mean_file' in option_string or 'mean_offset' in option_string:
-            dep_msg += 'Please use --mean_values cli option instead.'
         log.error(dep_msg, extra={'is_warning': True})
         super().__call__(parser, namespace, values, option_string)
 
@@ -251,11 +936,10 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     if not parser:
         parser = argparse.ArgumentParser()
     common_group = parser.add_argument_group('Framework-agnostic parameters')
+    mo_convert_params_common = mo_convert_params['fw_agnostic']
     # Common parameters
     common_group.add_argument('--input_model', '-w', '-m',
-                              help='Tensorflow*: a file with a pre-trained model ' +
-                                   ' (binary or text .pb file after freezing).\n' +
-                                   ' Caffe*: a model proto file with model weights',
+                              help=mo_convert_params_common['input_model'].description,
                               action=CanonicalizePathCheckExistenceAction,
                               type=readable_file_or_dir)
     common_group.add_argument('--model_name', '-n',
@@ -269,18 +953,8 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               action=CanonicalizePathAction,
                               type=writable_dir)
     common_group.add_argument('--input_shape',
-                              help='Input shape(s) that should be fed to an input node(s) of the model. '
-                                   'Shape is defined as a comma-separated list of integer numbers enclosed in '
-                                   'parentheses or square brackets, for example [1,3,227,227] or (1,227,227,3), where '
-                                   'the order of dimensions depends on the framework input layout of the model. '
-                                   'For example, [N,C,H,W] is used for ONNX* models and [N,H,W,C] for TensorFlow* '
-                                   'models. The shape can contain undefined dimensions (? or -1) and should fit the dimensions defined in the input '
-                                   'operation of the graph. Boundaries of undefined dimension can be specified with '
-                                   'ellipsis, for example [1,1..10,128,128]. One boundary can be undefined, for '
-                                   'example [1,..100] or [1,3,1..,1..]. If there are multiple inputs in the model, '
-                                   '--input_shape should contain definition of shape for each input separated by a '
-                                   'comma, for example: [1,3,227,227],[2,4] for a model with two inputs with 4D and 2D '
-                                   'shapes. Alternatively, specify shapes with the --input option.')
+                              help=mo_convert_params_common['input_shape'].description.format(
+                                  mo_convert_params_common['input_shape'].possible_types_command_line))
     common_group.add_argument('--scale', '-s',
                               type=float,
                               help='All input values coming from original network inputs will be ' +
@@ -307,86 +981,49 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                        'DEBUG', 'NOTSET'],
                               default='ERROR')
     common_group.add_argument('--input',
-                              help='Quoted list of comma-separated input nodes names with shapes, data types, '
-                                   'and values for freezing. The order of inputs in converted model is the same as '
-                                   'order of specified operation names. The shape and value are specified as space-separated '
-                                   'lists. The data type of input node is specified in braces and '
-                                   'can have one of the values: f64 (float64), f32 (float32), f16 (float16), '
-                                   'i64 (int64), i32 (int32), u8 (uint8), boolean (bool). Data type is optional. '
-                                   'If it\'s not specified explicitly then there are two options: '
-                                   'if input node is a parameter, data type is taken from the original node dtype, '
-                                   'if input node is not a parameter, data type is set to f32. '
-                                   'Example, to set `input_1` with shape [1 100], and Parameter node `sequence_len` '
-                                   'with scalar input with value `150`, and boolean input `is_training` with '
-                                   '`False` value use the following format: '
-                                   '"input_1[1 10],sequence_len->150,is_training->False". '
-                                   'Another example, use the following format to set input port 0 of the node '
-                                   '`node_name1` with the shape [3 4] as an input node and freeze output port 1 '
-                                   'of the node `node_name2` with the value [20 15] of the int32 type and shape [2]: '
-                                   '"0:node_name1[3 4],node_name2:1[2]{i32}->[20 15]".')
+                              help=mo_convert_params_common['input'].description.format(
+                                  mo_convert_params_common['input'].possible_types_command_line))
     common_group.add_argument('--output',
-                              help='The name of the output operation of the model. ' +
-                                   'For TensorFlow*, do not add :0 to this name.'
-                                   'The order of outputs in converted model is the same as order of '
-                                   'specified operation names.')
+                              help=mo_convert_params_common['output'].description.format(
+                                  mo_convert_params_common['output'].possible_types_command_line))
     common_group.add_argument('--mean_values', '-ms',
-                              help='Mean values to be used for the input image per channel. ' +
-                                   'Values to be provided in the (R,G,B) or [R,G,B] format. ' +
-                                   'Can be defined for desired input of the model, for example: ' +
-                                   '"--mean_values data[255,255,255],info[255,255,255]". ' +
-                                   'The exact meaning and order ' +
-                                   'of channels depend on how the original model was trained.',
+                              help=mo_convert_params_common['mean_values'].description.format(
+                                  mo_convert_params_common['mean_values'].possible_types_command_line),
                               default=())
     common_group.add_argument('--scale_values',
-                              help='Scale values to be used for the input image per channel. ' +
-                                   'Values are provided in the (R,G,B) or [R,G,B] format. ' +
-                                   'Can be defined for desired input of the model, for example: ' +
-                                   '"--scale_values data[255,255,255],info[255,255,255]". ' +
-                                   'The exact meaning and order ' +
-                                   'of channels depend on how the original model was trained.' +
-                                   'If both --mean_values and --scale_values are specified, ' +
-                                   'the mean is subtracted first and then scale is applied ' +
-                                   'regardless of the order of options in command line.',
+                              help=mo_convert_params_common['scale_values'].description.format(
+                                  mo_convert_params_common['scale_values'].possible_types_command_line),
                               default=())
     common_group.add_argument('--source_layout',
-                              help='Layout of the input or output of the model in the framework. Layout can'
-                                   ' be specified in the short form, e.g. nhwc, or in complex form, e.g. "[n,h,w,c]".'
-                                   ' Example for many names: '
-                                   '"in_name1([n,h,w,c]),in_name2(nc),out_name1(n),out_name2(nc)". Layout can be '
-                                   'partially defined, "?" can be used to specify undefined layout for one dimension, '
-                                   '"..." can be used to specify undefined layout for multiple dimensions, for example '
-                                   '"?c??", "nc...", "n...c", etc.',
+                              help=mo_convert_params_common['source_layout'].description.format(
+                                  mo_convert_params_common['source_layout'].possible_types_command_line),
                               default=())
     common_group.add_argument('--target_layout',
-                              help='Same as --source_layout, but specifies target layout that will be in the model '
-                                   'after processing by ModelOptimizer.',
+                              help=mo_convert_params_common['target_layout'].description.format(
+                                  mo_convert_params_common['target_layout'].possible_types_command_line),
                               default=())
     common_group.add_argument('--layout',
-                              help='Combination of --source_layout and --target_layout. Can\'t be used with either of '
-                                   'them. If model has one input it is sufficient to specify layout of this input, for'
-                                   ' example --layout nhwc. To specify layouts of many tensors, names must be provided,'
-                                   ' for example: --layout "name1(nchw),name2(nc)". It is possible to instruct '
-                                   'ModelOptimizer to change layout, for example: '
-                                   '--layout "name1(nhwc->nchw),name2(cn->nc)". Also "*" in long layout form can be'
-                                   ' used to fuse dimensions, for example "[n,c,...]->[n*c,...]".',
+                              help=mo_convert_params_common['layout'].description.format(
+                                  mo_convert_params_common['layout'].possible_types_command_line),
                               default=())
     # TODO: isn't it a weights precision type
     common_group.add_argument('--data_type',
-                              help='Data type for all intermediate tensors and weights. ' +
-                                   'If original model is in FP32 and --data_type=FP16 is specified, all model weights ' +
-                                   'and biases are compressed to FP16.',
+                              help='[DEPRECATED] Data type for model weights and biases. '
+                                   'If original model has FP32 weights or biases and --data_type=FP16 is specified, '
+                                   'FP32 model weights and biases are compressed to FP16. '
+                                   'All intermediate data is kept in original precision.',
                               choices=["FP16", "FP32", "half", "float"],
-                              default='float')
+                              default='float',
+                              action=DeprecatedOptionCommon)
+    common_group.add_argument('--compress_to_fp16',
+                              help=mo_convert_params_common['compress_to_fp16'].description,
+                              type=check_bool,
+                              nargs="?",
+                              const=True,
+                              default=False)
     common_group.add_argument('--transform',
-                              help='Apply additional transformations. ' +
-                                   'Usage: "--transform transformation_name1[args],transformation_name2..." ' +
-                                   'where [args] is key=value pairs separated by semicolon. ' +
-                                   'Examples: "--transform LowLatency2" or ' +
-                                   '          "--transform Pruning" or ' +
-                                   '          "--transform LowLatency2[use_const_initializer=False]" or ' +
-                                   '          "--transform \"MakeStateful[param_res_names='
-                                   '{\'input_name_1\':\'output_name_1\',\'input_name_2\':\'output_name_2\'}]\"" ' +
-                                   'Available transformations: "LowLatency2", "MakeStateful", "Pruning"',
+                              help=mo_convert_params_common['transform'].description.format(
+                                  mo_convert_params_common['transform'].possible_types_command_line),
                               default="")
     common_group.add_argument('--disable_fusing',
                               help='[DEPRECATED] Turn off fusing of linear operations to Convolution.',
@@ -403,29 +1040,24 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               action=DeprecatedStoreTrue, default=False)
     # we use CanonicalizeDirCheckExistenceAction instead of readable_dirs to handle empty strings
     common_group.add_argument("--extensions",
-                              help="Paths or a comma-separated list of paths to libraries (.so or .dll) "
-                                   "with extensions. For the legacy MO path (if `--use_legacy_frontend` is used), "
-                                   "a directory or a comma-separated list of directories with extensions are supported. "
-                                   "To disable all extensions including those that are placed at the default location, "
-                                   "pass an empty string.",
-                              default=import_extensions.default_path(),
+                              help=mo_convert_params_common['extensions'].description.format(
+                                  mo_convert_params_common['extensions'].possible_types_command_line),
+                              default=[import_extensions.default_path()],
                               action=CanonicalizePathCheckExistenceAction,
                               type=readable_dirs_or_files_or_empty)
     common_group.add_argument("--batch", "-b",
                               type=check_positive,
                               default=None,
-                              help="Input batch size")
+                              help=mo_convert_params_common['batch'].description)
     common_group.add_argument("--version",
                               action='version',
                               version='Version of Model Optimizer is: {}'.format(get_version()),
-                              help="Version of Model Optimizer")
+                              help=mo_convert_params_common['version'].description)
 
     common_group.add_argument('--silent',
-                              help='Prevent any output messages except those that correspond to log level equals '
-                                   'ERROR, that can be set with the following option: --log_level. '
-                                   'By default, log level is already ERROR. ',
-                              action='store_true',
-                              default=False)
+                              help=mo_convert_params_common['silent'].description,
+                              type=check_bool,
+                              default=True)
     common_group.add_argument('--freeze_placeholder_with_value',
                               help='Replaces input layer with constant node with '
                                    'provided value, for example: "node_name->True". '
@@ -433,35 +1065,26 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'Use --input option to specify a value for freezing.',
                               default=None)
     common_group.add_argument('--static_shape',
-                              help='Enables IR generation for fixed input shape (folding `ShapeOf` operations and '
-                                   'shape-calculating sub-graphs to `Constant`). Changing model input shape using '
-                                   'the OpenVINO Runtime API in runtime may fail for such an IR.',
+                              help=mo_convert_params_common['static_shape'].description,
                               action='store_true', default=False)
     common_group.add_argument('--disable_weights_compression',
                               help='[DEPRECATED] Disable compression and store weights with original precision.',
                               action=DeprecatedStoreTrue, default=False)
     common_group.add_argument('--progress',
-                              help='Enable model conversion progress display.',
+                              help=mo_convert_params_common['progress'].description,
                               action='store_true', default=False)
     common_group.add_argument('--stream_output',
-                              help='Switch model conversion progress display to a multiline mode.',
+                              help=mo_convert_params_common['stream_output'].description,
                               action='store_true', default=False)
     common_group.add_argument('--transformations_config',
-                              help='Use the configuration file with transformations '
-                                   'description. File can be specified as relative path '
-                                   'from the current directory, as absolute path or as a'
-                                   'relative path from the mo root directory',
+                              help=mo_convert_params_common['transformations_config'].description.format(
+                                  mo_convert_params_common['transformations_config'].possible_types_command_line),
                               action=CanonicalizeTransformationPathCheckExistenceAction)
     common_group.add_argument("--use_new_frontend",
-                              help='Force the usage of new Frontend of Model Optimizer for model conversion into IR. '
-                                   'The new Frontend is C++ based and is available for ONNX* and PaddlePaddle* models. '
-                                   'Model optimizer uses new Frontend for ONNX* and PaddlePaddle* by default that means '
-                                   '`--use_new_frontend` and `--use_legacy_frontend` options are not specified.',
+                              help=mo_convert_params_common['use_new_frontend'].description,
                               action='store_true', default=False)
     common_group.add_argument("--use_legacy_frontend",
-                              help='Force the usage of legacy Frontend of Model Optimizer for model conversion into IR. '
-                                   'The legacy Frontend is Python based and is available for TensorFlow*, ONNX*, MXNet*, '
-                                   'Caffe*, and Kaldi* models.',
+                              help=mo_convert_params_common['use_legacy_frontend'].description,
                               action='store_true', default=False)
     return parser
 
@@ -502,8 +1125,6 @@ def get_caffe_cli_options():
     d = {
         'input_proto': ['- Path to the Input prototxt', lambda x: x],
         'caffe_parser_path': ['- Path to Python Caffe* parser generated from caffe.proto', lambda x: x],
-        'mean_file': ['- Path to a mean file', lambda x: x if x else 'Not specified'],
-        'mean_file_offsets': ['- Offsets for a mean file', lambda x: x if x else 'Not specified'],
         'k': '- Path to CustomLayersMapping.xml',
         'disable_resnet_optimization': ['- Enable resnet optimization', lambda x: not x],
     }
@@ -556,8 +1177,8 @@ def get_onnx_cli_options():
 
 def get_params_with_paths_list():
     return ['input_model', 'output_dir', 'caffe_parser_path', 'extensions', 'k', 'output_dir',
-            'input_checkpoint', 'input_meta_graph', 'input_proto', 'input_symbol', 'mean_file',
-            'mean_file_offsets', 'pretrained_model_name', 'saved_model_dir', 'tensorboard_logdir',
+            'input_checkpoint', 'input_meta_graph', 'input_proto', 'input_symbol',
+            'pretrained_model_name', 'saved_model_dir', 'tensorboard_logdir',
             'tensorflow_custom_layer_libraries', 'tensorflow_custom_operations_config_update',
             'tensorflow_object_detection_api_pipeline_config', 'tensorflow_use_custom_operations_config',
             'transformations_config']
@@ -576,47 +1197,30 @@ def get_caffe_cli_parser(parser: argparse.ArgumentParser = None):
         get_common_cli_parser(parser=parser)
 
     caffe_group = parser.add_argument_group('Caffe*-specific parameters')
+    mo_convert_params_caffe = mo_convert_params['caffe']
 
     caffe_group.add_argument('--input_proto', '-d',
-                             help='Deploy-ready prototxt file that contains a topology structure ' +
-                                  'and layer attributes',
+                             help=mo_convert_params_caffe['input_proto'].description,
                              type=str,
                              action=CanonicalizePathCheckExistenceAction)
     caffe_group.add_argument('--caffe_parser_path',
-                             help='Path to Python Caffe* parser generated from caffe.proto',
+                             help=mo_convert_params_caffe['caffe_parser_path'].description,
                              type=str,
                              default=os.path.join(os.path.dirname(__file__), os.pardir, 'front', 'caffe', 'proto'),
                              action=CanonicalizePathCheckExistenceAction)
     caffe_group.add_argument('-k',
-                             help='Path to CustomLayersMapping.xml to register custom layers',
+                             help=mo_convert_params_caffe['k'].description,
                              type=str,
-                             default=os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, 'extensions', 'front', 'caffe',
+                             default=os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, 'extensions',
+                                                  'front', 'caffe',
                                                   'CustomLayersMapping.xml'),
                              action=CanonicalizePathCheckExistenceAction)
-    caffe_group.add_argument('--mean_file', '-mf',
-                             help='[DEPRECATED] ' +
-                                  'Mean image to be used for the input. Should be a binaryproto file',
-                             default=None,
-                             action=DeprecatedCanonicalizePathCheckExistenceAction)
-    caffe_group.add_argument('--mean_file_offsets', '-mo',
-                             help='[DEPRECATED] ' +
-                                  'Mean image offsets to be used for the input binaryproto file. ' +
-                                  'When the mean image is bigger than the expected input, it is cropped. By default, centers ' +
-                                  'of the input image and the mean image are the same and the mean image is cropped by ' +
-                                  'dimensions of the input image. The format to pass this option is the following: "-mo (x,y)". In this ' +
-                                  'case, the mean file is cropped by dimensions of the input image with offset (x,y) ' +
-                                  'from the upper left corner of the mean image',
-                             default=None)
     caffe_group.add_argument('--disable_omitting_optional',
-                             help='Disable omitting optional attributes to be used for custom layers. ' +
-                                  'Use this option if you want to transfer all attributes of a custom layer to IR. ' +
-                                  'Default behavior is to transfer the attributes with default values and the attributes defined by the user to IR.',
+                             help=mo_convert_params_caffe['disable_omitting_optional'].description,
                              action='store_true',
                              default=False)
     caffe_group.add_argument('--enable_flattening_nested_params',
-                             help='Enable flattening optional params to be used for custom layers. ' +
-                                  'Use this option if you want to transfer attributes of a custom layer to IR with flattened nested parameters. ' +
-                                  'Default behavior is to transfer the attributes without flattening nested parameters.',
+                             help=mo_convert_params_caffe['enable_flattening_nested_params'].description,
                              action='store_true',
                              default=False)
     return parser
@@ -633,44 +1237,40 @@ def get_tf_cli_parser(parser: argparse.ArgumentParser = None):
     if not parser:
         parser = argparse.ArgumentParser(usage='%(prog)s [options]')
         get_common_cli_parser(parser=parser)
+    mo_convert_params_tf = mo_convert_params['tf']
 
     tf_group = parser.add_argument_group('TensorFlow*-specific parameters')
     tf_group.add_argument('--input_model_is_text',
-                          help='TensorFlow*: treat the input model file as a text protobuf format. If not specified, ' +
-                               'the Model Optimizer treats it as a binary file by default.',
+                          help=mo_convert_params_tf['input_model_is_text'].description,
                           action='store_true')
-    tf_group.add_argument('--input_checkpoint', type=str, default=None, help="TensorFlow*: variables file to load.",
+    tf_group.add_argument('--input_checkpoint', type=str, default=None,
+                          help=mo_convert_params_tf['input_checkpoint'].description,
                           action=CanonicalizePathCheckExistenceAction)
     tf_group.add_argument('--input_meta_graph',
-                          help='Tensorflow*: a file with a meta-graph of the model before freezing',
+                          help=mo_convert_params_tf['input_meta_graph'].description,
                           action=CanonicalizePathCheckExistenceAction,
                           type=readable_file)
     tf_group.add_argument('--saved_model_dir', default=None,
-                          help='TensorFlow*: directory with a model in SavedModel format '
-                               'of TensorFlow 1.x or 2.x version.',
+                          help=mo_convert_params_tf['saved_model_dir'].description,
                           action=CanonicalizePathCheckExistenceAction,
                           type=readable_dirs)
     tf_group.add_argument('--saved_model_tags', type=str, default=None,
-                          help="Group of tag(s) of the MetaGraphDef to load, in string format, separated by ','. "
-                               "For tag-set contains multiple tags, all tags must be passed in.")
+                          help=mo_convert_params_tf['saved_model_tags'].description)
     tf_group.add_argument('--tensorflow_custom_operations_config_update',
-                          help='TensorFlow*: update the configuration file with node name patterns with input/output '
-                               'nodes information.',
+                          help=mo_convert_params_tf['tensorflow_custom_operations_config_update'].description,
                           action=CanonicalizePathCheckExistenceAction)
     tf_group.add_argument('--tensorflow_use_custom_operations_config',
-                              help='Use the configuration file with custom operation description.',
-                              action=DeprecatedCanonicalizePathCheckExistenceAction)
+                          help='Use the configuration file with custom operation description.',
+                          action=DeprecatedCanonicalizePathCheckExistenceAction)
     tf_group.add_argument('--tensorflow_object_detection_api_pipeline_config',
-                          help='TensorFlow*: path to the pipeline configuration file used to generate model created '
-                               'with help of Object Detection API.',
+                          help=mo_convert_params_tf['tensorflow_object_detection_api_pipeline_config'].description,
                           action=CanonicalizePathCheckExistenceAction)
     tf_group.add_argument('--tensorboard_logdir',
-                          help='TensorFlow*: dump the input graph to a given directory that should be used with TensorBoard.',
+                          help=mo_convert_params_tf['tensorboard_logdir'].description,
                           default=None,
                           action=CanonicalizePathCheckExistenceAction)
     tf_group.add_argument('--tensorflow_custom_layer_libraries',
-                          help='TensorFlow*: comma separated list of shared libraries with TensorFlow* custom '
-                               'operations implementation.',
+                          help=mo_convert_params_tf['tensorflow_custom_layer_libraries'].description,
                           default=None,
                           action=CanonicalizePathCheckExistenceAction)
     tf_group.add_argument('--disable_nhwc_to_nchw',
@@ -693,27 +1293,27 @@ def get_mxnet_cli_parser(parser: argparse.ArgumentParser = None):
         get_common_cli_parser(parser=parser)
 
     mx_group = parser.add_argument_group('Mxnet-specific parameters')
+    mo_convert_params_mxnet = mo_convert_params['mxnet']
 
     mx_group.add_argument('--input_symbol',
-                          help='Symbol file (for example, model-symbol.json) that contains a topology structure ' +
-                               'and layer attributes',
+                          help=mo_convert_params_mxnet['input_symbol'].description,
                           type=str,
                           action=CanonicalizePathCheckExistenceAction)
     mx_group.add_argument("--nd_prefix_name",
-                          help="Prefix name for args.nd and argx.nd files.",
+                          help=mo_convert_params_mxnet['nd_prefix_name'].description,
                           default=None)
     mx_group.add_argument("--pretrained_model_name",
-                          help="Name of a pretrained MXNet model without extension and epoch number. This model will be merged with args.nd and argx.nd files",
+                          help=mo_convert_params_mxnet['pretrained_model_name'].description,
                           default=None)
     mx_group.add_argument("--save_params_from_nd",
                           action='store_true',
-                          help="Enable saving built parameters file from .nd files")
+                          help=mo_convert_params_mxnet['save_params_from_nd'].description)
     mx_group.add_argument("--legacy_mxnet_model",
                           action='store_true',
-                          help="Enable MXNet loader to make a model compatible with the latest MXNet version. Use only if your model was trained with MXNet version lower than 1.0.0")
+                          help=mo_convert_params_mxnet['legacy_mxnet_model'].description)
     mx_group.add_argument("--enable_ssd_gluoncv",
                           action='store_true',
-                          help="Enable pattern matchers replacers for converting gluoncv ssd topologies.",
+                          help=mo_convert_params_mxnet['enable_ssd_gluoncv'].description,
                           default=False)
 
     return parser
@@ -732,19 +1332,20 @@ def get_kaldi_cli_parser(parser: argparse.ArgumentParser = None):
         get_common_cli_parser(parser=parser)
 
     kaldi_group = parser.add_argument_group('Kaldi-specific parameters')
+    mo_convert_params_kaldi = mo_convert_params['kaldi']
 
     kaldi_group.add_argument("--counts",
-                             help="Path to the counts file",
+                             help=mo_convert_params_kaldi['counts'].description,
                              default=None,
                              action=CanonicalizePathCheckExistenceIfNeededAction)
 
     kaldi_group.add_argument("--remove_output_softmax",
-                             help="Removes the SoftMax layer that is the output layer",
+                             help=mo_convert_params_kaldi['remove_output_softmax'].description,
                              action='store_true',
                              default=False)
 
     kaldi_group.add_argument("--remove_memory",
-                             help="Removes the Memory layer and use additional inputs outputs instead",
+                             help=mo_convert_params_kaldi['remove_memory'].description,
                              action='store_true',
                              default=False)
     return parser
@@ -821,12 +1422,12 @@ def remove_shape_from_input_value(input_value: str):
     :return: string without shape specification
     """
     assert '->' not in input_value, 'The function should not be called for input_value with constant value specified'
-    return re.sub(r'[(\[]([0-9\.?  -]*)[)\]]', '', input_value)
+    return re.sub(r'[(\[]([0-9\.?,  -]*)[)\]]', '', input_value)
 
 
 def get_shape_from_input_value(input_value: str):
     """
-    Returns the list of tuples corresponding to the shape specified in the input value string
+    Returns PartialShape corresponding to the shape specified in the input value string
     :param input_value: string passed as input to the --input command line parameter
     :return: the corresponding shape and None if the shape is not specified in the input value
     """
@@ -834,13 +1435,16 @@ def get_shape_from_input_value(input_value: str):
     input_value = input_value.split('->')[0]
 
     # parse shape
-    shape = re.findall(r'[(\[]([0-9\.\?  -]*)[)\]]', input_value)
+    shape = re.findall(r'[(\[]([0-9\.\?,  -]*)[)\]]', input_value)
     if len(shape) == 0:
         shape = None
     elif len(shape) == 1 and shape[0] in ['', ' ']:
-        shape = ()
+        # this shape corresponds to scalar
+        shape = PartialShape([])
     elif len(shape) == 1:
-        shape = tuple(map(parse_dimension, shape[0].split(' ')))
+        dims = re.split(r', *| +', shape[0])
+        dims = list(filter(None, dims))
+        shape = PartialShape([Dimension(dim) for dim in dims])
     else:
         raise Error("Wrong syntax to specify shape. Use --input "
                     "\"node_name[shape]->value\"")
@@ -869,12 +1473,27 @@ def get_value_from_input_value(input_value: str):
         if value[0] == '[' and value[-1] != ']' or value[0] != '[' and value[-1] == ']':
             raise Error("Wrong syntax to specify value. Use --input \"node_name[shape]->value\"")
         if '[' in value.strip(' '):
-            value = value.replace('[', '').replace(']', '').split(' ')
+            value = value.replace('[', '').replace(']', '')
+            if ',' in value:
+                value = value.replace(' ', '')
+                value = value.split(',')
+            else:
+                value = value.split(' ')
         if not isinstance(value, list):
             value = ast.literal_eval(value)
     elif len(parts) > 2:
         raise Error("Wrong syntax to specify value. Use --input \"node_name[shape]->value\"")
     return value
+
+
+def partial_shape_prod(shape: [PartialShape, tuple]):
+    assert not (isinstance(shape, PartialShape) and shape.is_dynamic), \
+        "Unable to calculate prod for dynamic shape {}.".format(shape)
+
+    prod = 1
+    for dim in shape:
+        prod *= dim.get_min_length()
+    return prod
 
 
 def parse_input_value(input_value: str):
@@ -901,10 +1520,10 @@ def parse_input_value(input_value: str):
 
     if value is not None and shape is not None:
         for dim in shape:
-            if isinstance(dim, tuple) or dim == -1:
+            if isinstance(dim, Dimension) and dim.is_dynamic:
                 raise Error("Cannot freeze input with dynamic shape: {}".format(shape))
 
-    if shape is not None and value is not None and np.prod(shape) != value_size:
+    if shape is not None and value is not None and partial_shape_prod(shape) != value_size:
         raise Error("The shape '{}' of the input node '{}' does not correspond to the number of elements '{}' in the "
                     "value: {}".format(shape, node_name, value_size, value))
     return node_name, shape, value, data_type
@@ -995,7 +1614,38 @@ def write_found_layout(name: str, found_layout: str, parsed: dict, dest: str = N
     parsed[name] = {'source_layout': s_layout, 'target_layout': t_layout}
 
 
-def parse_layouts_by_destination(s: str, parsed: dict, dest: str = None) -> None:
+def write_found_layout_list(idx: int, found_layout: str, parsed: list, dest: str = None):
+    """
+    Writes found layout data to the 'parsed' dict.
+    :param idx: idx of of the node to add layout
+    :param found_layout: string containing layout for the node
+    :param parsed: list where result will be stored
+    :param dest: type of the command line:
+      * 'source' is --source_layout
+      * 'target' is --target_layout
+      * None is --layout
+    """
+    s_layout = None
+    t_layout = None
+    if idx < len(parsed):
+        s_layout = parsed[idx]['source_layout']
+        t_layout = parsed[idx]['target_layout']
+    if dest == 'source':
+        s_layout = found_layout
+    elif dest == 'target':
+        t_layout = found_layout
+    else:
+        s_layout, t_layout = split_layouts_by_arrow(found_layout)
+    validate_layout(s_layout)
+    validate_layout(t_layout)
+
+    if idx < len(parsed):
+        parsed[idx] = {'source_layout': s_layout, 'target_layout': t_layout}
+    else:
+        parsed.append({'source_layout': s_layout, 'target_layout': t_layout})
+
+
+def parse_layouts_by_destination(s: str, parsed: dict, parsed_list: list, dest: str = None) -> None:
     """
     Parses layout command line to get all names and layouts from it. Adds all found data in the 'parsed' dict.
     :param s: string to parse
@@ -1010,29 +1660,25 @@ def parse_layouts_by_destination(s: str, parsed: dict, dest: str = None) -> None
         # single layout case
         write_found_layout('', list_s[0], parsed, dest)
     else:
-        for layout_str in list_s:
+        for idx, layout_str in enumerate(list_s):
             # case for: "name1(nhwc->[n,c,h,w])"
-            p1 = re.compile(r'(\S+)\((\S+)\)')
+            p1 = re.compile(r'([\w.:/\\]*)\((\S+)\)')
             m1 = p1.match(layout_str)
             # case for: "name1[n,h,w,c]->[n,c,h,w]"
-            p2 = re.compile(r'(\S+)(\[\S*\])')
+            p2 = re.compile(r'([\w.:/\\]*)(\[\S*\])')
             m2 = p2.match(layout_str)
             if m1:
                 found_g = m1.groups()
             elif m2:
                 found_g = m2.groups()
             else:
-                error_msg = "Invalid usage of --{}layout parameter. Please use following syntax for each tensor " \
-                            "or operation name:" \
-                            "\n  name(nchw)" \
-                            "\n  name[n,c,h,w]".format(dest + '_' if dest else '')
-                if dest is None:
-                    error_msg += "\n  name(nhwc->[n,h,w,c])" \
-                                 "\n  name[n,h,w,c]->[n,c,h,w]"
-                error_msg += '\n Please do not forget to surround whole expression with quotes, otherwise' \
-                             ' symbols >[]() would be treated as special characters.'
-                raise Error(error_msg)
-            write_found_layout(found_g[0], found_g[1], parsed, dest)
+                # case for layout without name
+                write_found_layout_list(idx, layout_str, parsed_list, dest)
+                continue
+            if len(found_g[0]) > 0:
+                write_found_layout(found_g[0], found_g[1], parsed, dest)
+            else:
+                write_found_layout_list(idx, found_g[1], parsed_list, dest)
 
 
 def get_layout_values(argv_layout: str = '', argv_source_layout: str = '', argv_target_layout: str = ''):
@@ -1047,13 +1693,20 @@ def get_layout_values(argv_layout: str = '', argv_source_layout: str = '', argv_
         raise Error("--layout is used as well as --source_layout and/or --target_layout which is not allowed, please "
                     "use one of them.")
     res = {}
+    res_list = []
     if argv_layout:
-        parse_layouts_by_destination(argv_layout, res)
+        parse_layouts_by_destination(argv_layout, res, res_list)
     if argv_source_layout:
-        parse_layouts_by_destination(argv_source_layout, res, 'source')
+        parse_layouts_by_destination(argv_source_layout, res, res_list, 'source')
     if argv_target_layout:
-        parse_layouts_by_destination(argv_target_layout, res, 'target')
-    return res
+        parse_layouts_by_destination(argv_target_layout, res, res_list, 'target')
+    if len(res) > 0 and len(res_list) > 0:
+        raise Error("Some layout values are provided with names, and some without names. "
+                    "Please provide ether all layouts with names or all layouts without names.")
+    if len(res) > 0:
+        return res
+    else:
+        return res_list
 
 
 def get_freeze_placeholder_values(argv_input: str, argv_freeze_placeholder_with_value: str):
@@ -1095,7 +1748,7 @@ def get_freeze_placeholder_values(argv_input: str, argv_freeze_placeholder_with_
     if argv_input is not None:
         input_node_names = ''
         # walkthrough all input values and save values for freezing
-        for input_value in argv_input.split(','):
+        for input_value in split_inputs(argv_input):
             node_name, _, value, _ = parse_input_value(input_value)
             input_node_names = input_node_names + ',' + node_name  if input_node_names != '' else node_name
             if value is None: # no value is specified for freezing
@@ -1108,32 +1761,43 @@ def get_freeze_placeholder_values(argv_input: str, argv_freeze_placeholder_with_
     return placeholder_values, input_node_names
 
 
-def parse_dimension(dim: str):
-    if '..' in dim:
-        numbers_reg = r'^[0-9]+$'
-        dims = dim.split('..')
-        match_res0 = re.match(numbers_reg, dims[0])
-        match_res1 = re.match(numbers_reg, dims[1])
-        if len(dims[0].strip()) > 0 and match_res0 is None:
-            Error("Incorrect min value of dimension '{}'".format(dims[0]))
-        if len(dims[1].strip()) > 0 and match_res1 is None:
-            Error("Incorrect max value of dimension '{}'".format(dims[1]))
+def split_inputs(input_str):
+    brakets_count = 0
+    inputs = []
+    while input_str:
+        idx = 0
+        for c in input_str:
+            if c == '[':
+                brakets_count += 1
+            if c == ']':
+                brakets_count -= 1
+            if c == ',':
+                if brakets_count != 0:
+                    idx += 1
+                    continue
+                else:
+                    break
+            idx += 1
+        if idx >= len(input_str)-1:
+            inputs.append(input_str)
+            break
+        inputs.append(input_str[:idx])
+        input_str = input_str[idx+1:]
+    return inputs
 
-        min_val = np.int64(dims[0]) if match_res0 else np.int64(0)
-        max_val = np.int64(dims[1]) if match_res1 else np.iinfo(np.int64).max
-        assert min_val >= 0, "Incorrect min value of the dimension {}".format(dim)
 
-        if min_val == np.int64(0) and max_val == np.iinfo(np.int64).max:
-            return np.int64(-1)
 
-        assert min_val < max_val, "Min value should be less than max value. Got min value: {}, " \
-                                  "max value: {}".format(min_val, max_val)
+def split_shapes(argv_input_shape: str):
+    range_reg = r'([0-9]*\.\.[0-9]*)'
+    first_digit_reg = r'([0-9 ]+|-1|\?|{})'.format(range_reg)
+    next_digits_reg = r'(,{})*'.format(first_digit_reg)
+    tuple_reg = r'((\({}{}\))|(\[{}{}\]))'.format(first_digit_reg, next_digits_reg,
+                                                  first_digit_reg, next_digits_reg)
 
-        return min_val, max_val
-    if '?' in dim:
-        return np.int64(-1)
-    return np.int64(dim)
-
+    full_reg = r'^{}(\s*,\s*{})*$|^$'.format(tuple_reg, tuple_reg)
+    if not re.match(full_reg, argv_input_shape):
+        raise Error('Input shape "{}" cannot be parsed. ' + refer_to_faq_msg(57), argv_input_shape)
+    return re.findall(r'[(\[]([0-9,\.\? -]+)[)\]]', argv_input_shape)
 
 def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=None):
     """
@@ -1171,7 +1835,7 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
     are_shapes_specified_through_input = False
     inputs_list = list()
     if argv_input:
-        for input_value in argv_input.split(','):
+        for input_value in split_inputs(argv_input):
             node_name, shape, _, data_type = parse_input_value(input_value)
             placeholder_shapes[node_name] = shape
             inputs_list.append(node_name)
@@ -1196,34 +1860,25 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
     inputs_list = list()
     placeholder_shapes = None
 
-    range_reg = r'([0-9]*\.\.[0-9]*)'
-    first_digit_reg = r'([0-9 ]+|-1|\?|{})'.format(range_reg)
-    next_digits_reg = r'(,{})*'.format(first_digit_reg)
-    tuple_reg = r'((\({}{}\))|(\[{}{}\]))'.format(first_digit_reg, next_digits_reg,
-                                                  first_digit_reg, next_digits_reg)
+
     if argv_input_shape:
-        full_reg = r'^{}(\s*,\s*{})*$|^$'.format(tuple_reg, tuple_reg)
-        if not re.match(full_reg, argv_input_shape):
-            raise Error('Input shape "{}" cannot be parsed. ' + refer_to_faq_msg(57), argv_input_shape)
-        shapes = re.findall(r'[(\[]([0-9,\.\? -]+)[)\]]', argv_input_shape)
+        shapes = split_shapes(argv_input_shape)
 
     if argv_input:
-        inputs = argv_input.split(',')
+        inputs = split_inputs(argv_input)
     inputs = [remove_data_type_from_input_value(inp) for inp in inputs]
 
     # check number of shapes with no input provided
     if argv_input_shape and not argv_input:
-        if len(shapes) > 1:
-            raise Error('Please provide input layer names for input layer shapes. ' + refer_to_faq_msg(58))
-        else:
-            placeholder_shapes = tuple(map(parse_dimension, shapes[0].split(',')))
+        placeholder_shapes = [PartialShape(shape) for shape in shapes]
+        if len(placeholder_shapes) == 1:
+            placeholder_shapes = PartialShape(placeholder_shapes[0])
     # check if number of shapes does not match number of passed inputs
     elif argv_input and (len(shapes) == len(inputs) or len(shapes) == 0):
         # clean inputs from values for freezing
         inputs_without_value = list(map(lambda x: x.split('->')[0], inputs))
         placeholder_shapes = dict(zip_longest(inputs_without_value,
-                                              map(lambda x: tuple(map(parse_dimension, x.split(','))) if x else None,
-                                                  shapes)))
+                                              map(lambda x: PartialShape(x) if x else None, shapes)))
         for inp in inputs:
             if '->' not in inp:
                 inputs_list.append(inp)
@@ -1234,7 +1889,7 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
             if shape is None:
                 continue
             for dim in shape:
-                if isinstance(dim, tuple) or dim == -1:
+                if isinstance(dim, Dimension) and not dim.is_static:
                     raise Error("Cannot freeze input with dynamic shape: {}".format(shape))
 
     elif argv_input:
@@ -1469,6 +2124,23 @@ def get_model_name(path_input_model: str) -> str:
     return 'model' if parsed_name.startswith('.') or len(parsed_name) == 0 else parsed_name
 
 
+def get_model_name_from_args(argv: argparse.Namespace):
+    model_name = "<UNKNOWN_NAME>"
+    if hasattr(argv, 'model_name'):
+        if argv.model_name:
+            model_name = argv.model_name
+        elif argv.input_model:
+            model_name = get_model_name(argv.input_model)
+        elif argv.saved_model_dir:
+            model_name = "saved_model"
+        elif argv.input_meta_graph:
+            model_name = get_model_name(argv.input_meta_graph)
+        elif argv.input_symbol:
+            model_name = get_model_name(argv.input_symbol)
+        argv.model_name = model_name
+    return model_name
+
+
 def get_absolute_path(path_to_file: str) -> str:
     """
     Deduces absolute path of the file by a given path to the file
@@ -1600,10 +2272,28 @@ def check_positive(value):
     return int_value
 
 
+def check_bool(value):
+    if isinstance(value, bool):
+        return value
+    elif isinstance(value, str):
+        if value.lower() not in ['true', 'false']:
+            raise argparse.ArgumentTypeError("expected a True/False value")
+        return value.lower() == 'true'
+    else:
+        raise argparse.ArgumentTypeError("expected a bool or str type")
+
+
 def depersonalize(value: str, key: str):
     dir_keys = [
         'output_dir', 'extensions', 'saved_model_dir', 'tensorboard_logdir', 'caffe_parser_path'
     ]
+
+    if isinstance(value, list):
+        updated_value = []
+        for elem in value:
+            updated_value.append(depersonalize(elem, key))
+        return updated_value
+
     if not isinstance(value, str):
         return value
     res = []
@@ -1615,22 +2305,6 @@ def depersonalize(value: str, key: str):
         else:
             res.append(path)
     return ','.join(res)
-
-
-def get_meta_info(argv: argparse.Namespace):
-    meta_data = {'unset': []}
-    for key, value in argv.__dict__.items():
-        if value is not None:
-            value = depersonalize(value, key)
-            meta_data[key] = value
-        else:
-            meta_data['unset'].append(key)
-    # The attribute 'k' is treated separately because it points to not existing file by default
-    for key in ['k']:
-        if key in meta_data:
-            meta_data[key] = ','.join([os.path.join('DIR', os.path.split(i)[1]) for i in meta_data[key].split(',')])
-    return meta_data
-
 
 def get_available_front_ends(fem=None):
     # Use this function as workaround to avoid IR frontend usage by MO

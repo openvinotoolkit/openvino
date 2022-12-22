@@ -16,7 +16,7 @@
 @endsphinxdirective
 
 
-After you have installed Intel® Distribution of OpenVINO™ toolkit, you may also need do some additional configurations for your device to work with OpenVINO. See the following pages:
+After you have installed OpenVINO™ Runtime, you may also need do some additional configurations for your device to work with OpenVINO™. See the following pages:
 
 * [Configurations for GPU](configurations-for-intel-gpu.md)
 * [Configurations for NCS2](configurations-for-ncs2.md)

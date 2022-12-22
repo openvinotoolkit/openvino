@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph_ops/type_relaxed.hpp>
+#include <ov_ops/type_relaxed.hpp>
 #include "test_utils/fusing_test_utils.hpp"
 #include "test_utils/convolution_params.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -146,8 +146,6 @@ protected:
 };
 
 TEST_P(ConcatConvSumInPlaceTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
 
     CheckPluginRelatedResults(compiledModel, "Convolution");
@@ -212,6 +210,23 @@ public:
 };
 
 TEST_P(ConcatConvSumInPlaceTestInt8, CompareWithRefs) {
+    run();
+
+    CheckPluginRelatedResults(compiledModel, "Convolution");
+}
+
+class ConcatConvSumInPlaceTestSeveralConsumers : public ConcatConvSumInPlaceTest {
+public:
+    std::shared_ptr<ngraph::Node> addSum(std::shared_ptr<ngraph::Node> lastNode, const ngraph::ParameterVector& inputParams) override {
+        auto sum = std::make_shared<ngraph::opset3::Add>(lastNode, inputParams[1]);
+        fusedOps.insert(fusedOps.begin(), "Add");
+
+        auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(sum);
+        return std::make_shared<ngraph::opset3::Reshape>(sum, shapeOf, true);
+    }
+};
+
+TEST_P(ConcatConvSumInPlaceTestSeveralConsumers, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
@@ -321,7 +336,8 @@ InputShape convInpShape = {
         }
 };
 
-InputShape secondInp = {
+const std::vector<InputShape> secondInp = {
+    {
         //dynamic shapes
         {-1, -1, -1, -1},
         { //target static shapes
@@ -331,12 +347,19 @@ InputShape secondInp = {
             {1, 64, 8, 8},
             {1, 64, 8, 1}
         }
+    },
+    {
+        {1, 64, 8, 8},
+        {
+            {1, 64, 8, 8}
+        }
+    },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_FP32, ConcatConvSumInPlaceTest,
                          ::testing::Combine(
                                  ::testing::Values(convInpShape),
-                                 ::testing::Values(secondInp),
+                                 ::testing::ValuesIn(secondInp),
                                  ::testing::Values(true, false),
                                  ::testing::ValuesIn(fusingParamsSet),
                                  ::testing::Values(cpuEmptyPluginConfig)),
@@ -345,7 +368,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_FP32, ConcatConvSumInPlaceTest
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_BF16, ConcatConvSumInPlaceTest,
                          ::testing::Combine(
                                  ::testing::Values(convInpShape),
-                                 ::testing::Values(secondInp),
+                                 ::testing::ValuesIn(secondInp),
                                  ::testing::Values(true, false),
                                  ::testing::ValuesIn(fusingParamsSetBF16),
                                  ::testing::Values(cpuBF16PluginConfig)),
@@ -354,9 +377,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_BF16, ConcatConvSumInPlaceTest
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_INT8, ConcatConvSumInPlaceTestInt8,
                          ::testing::Combine(
                                  ::testing::Values(convInpShape),
-                                 ::testing::Values(secondInp),
+                                 ::testing::ValuesIn(secondInp),
                                  ::testing::Values(true, false),
                                  ::testing::ValuesIn(fusingParamsSet),
+                                 ::testing::Values(cpuEmptyPluginConfig)),
+                         ConcatConvSumInPlaceTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_Several_Consumers, ConcatConvSumInPlaceTestSeveralConsumers,
+                         ::testing::Combine(
+                                 ::testing::Values(convInpShape),
+                                 ::testing::ValuesIn(secondInp),
+                                 ::testing::Values(true),
+                                 ::testing::Values(emptyFusingSpec),
                                  ::testing::Values(cpuEmptyPluginConfig)),
                          ConcatConvSumInPlaceTest::getTestCaseName);
 

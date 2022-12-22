@@ -14,7 +14,13 @@ NamedOutputs matmul_v2(const NodeContext& node) {
     const auto transpose_a = node.get_attribute<bool>("trans_x", false);
     const auto transpose_b = node.get_attribute<bool>("trans_y", false);
     const auto mm = std::make_shared<default_opset::MatMul>(x, y, transpose_a, transpose_b);
-    return node.default_single_output_mapping({mm}, {"Out"});
+
+    std::shared_ptr<Node> result = mm;
+    if (is_scalar(mm->get_output_partial_shape(0))) {
+        auto unsqueeze_scalar = default_opset::Constant::create(ov::element::i64, {}, {0});
+        result = std::make_shared<default_opset::Unsqueeze>(mm, unsqueeze_scalar);
+    }
+    return node.default_single_output_mapping({result}, {"Out"});
 }
 
 }  // namespace op

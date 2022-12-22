@@ -8,6 +8,7 @@
 
 #include "ngraph/runtime/host_tensor.hpp"
 
+
 ngraph::snippets::op::ConvertSaturation::ConvertSaturation(const Output<Node>& x, const ov::element::Type& destination_type)
     : ov::op::v0::Convert({x}, destination_type) {
 }

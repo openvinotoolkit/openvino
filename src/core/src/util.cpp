@@ -179,7 +179,7 @@ double parse_string<double>(const std::string& s) {
 template <>
 int8_t parse_string<int8_t>(const std::string& s) {
     char* err;
-    int8_t result = strtol(s.c_str(), &err, 10);
+    int8_t result = static_cast<int8_t>(strtol(s.c_str(), &err, 10));
 
     // Check that (1) parsing succeeded and (2) the entire string was used.
     if (*err != 0) {
@@ -192,7 +192,7 @@ int8_t parse_string<int8_t>(const std::string& s) {
 template <>
 uint8_t parse_string<uint8_t>(const std::string& s) {
     char* err;
-    uint8_t result = strtol(s.c_str(), &err, 10);
+    int8_t result = static_cast<int8_t>(strtol(s.c_str(), &err, 10));
 
     // Check that (1) parsing succeeded and (2) the entire string was used.
     if (*err != 0) {
@@ -211,74 +211,6 @@ std::ostream& operator<<(std::ostream& os, const ngraph::NodeVector& nv) {
     os << vector_to_string(names);
     return os;
 }
-
-bool ngraph::is_valid_permutation(ngraph::AxisVector permutation, ngraph::Rank rank) {
-    std::vector<bool> axis_occurs(permutation.size(), false);
-
-    // Check bounds if rank is static
-    if (rank.is_static()) {
-        auto bound = rank.get_length();
-        for (auto axis : permutation) {
-            if (static_cast<decltype(bound)>(axis) >= bound) {
-                return false;
-            }
-        }
-    }
-
-    for (auto& axis : permutation) {
-        axis_occurs[axis] = true;
-    }
-
-    for (size_t axis = 0; axis < permutation.size(); axis++) {
-        if (!axis_occurs[axis]) {
-            return false;
-        }
-    }
-
-    return (rank.is_dynamic() || static_cast<int64_t>(permutation.size()) == rank.get_length());
-}
-
-template <typename T>
-T ngraph::apply_permutation(T input, AxisVector order) {
-    NGRAPH_CHECK(is_valid_permutation(order, input.size()), "Permutation ", order, " is not valid for ", input);
-
-    T output(input.size());
-
-    for (size_t i = 0; i < order.size(); i++) {
-        output[i] = input.at(order.at(i));
-    }
-
-    return output;
-}
-
-template AxisVector ngraph::apply_permutation<AxisVector>(AxisVector input, AxisVector order);
-template Shape ngraph::apply_permutation<Shape>(Shape input, AxisVector order);
-template ngraph::Coordinate ngraph::apply_permutation<ngraph::Coordinate>(ngraph::Coordinate input,
-                                                                          ngraph::AxisVector order);
-template ngraph::CoordinateDiff ngraph::apply_permutation<ngraph::CoordinateDiff>(ngraph::CoordinateDiff input,
-                                                                                  ngraph::AxisVector order);
-template ngraph::Strides ngraph::apply_permutation<ngraph::Strides>(ngraph::Strides input, ngraph::AxisVector order);
-
-namespace ngraph {
-template <>
-PartialShape apply_permutation(PartialShape input, AxisVector order) {
-    NGRAPH_CHECK(is_valid_permutation(order, input.rank()), "Permutation ", order, " is not valid for ", input);
-
-    // Here's the special part: if AxisVector is a viable permutation of _some_ rank, and input
-    // has dynamic rank, we just stick with dynamic rank.
-    if (input.rank().is_dynamic()) {
-        return input;
-    }
-
-    PartialShape output{PartialShape::dynamic(order.size())};
-
-    for (size_t i = 0; i < order.size(); i++) {
-        output[i] = input[order.at(i)];
-    }
-
-    return output;
-}
-}  // namespace ngraph
 
 AxisVector ngraph::get_default_order(const Shape& shape) {
     return get_default_order(shape.size());

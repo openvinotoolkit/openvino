@@ -10,13 +10,10 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id lstm_elt::type_id() {
-    static primitive_type_base<lstm_elt> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(lstm_elt)
 
 layout lstm_elt_inst::calc_output_layout(lstm_elt_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for lstm_elt_node!");
     auto input_layout = impl_param.get_input_layout();
 

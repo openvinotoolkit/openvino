@@ -25,7 +25,9 @@
      the same name and not all of them are overrided in Derived class, the only overrided methods       \
      will be available from Derived class. We need to explicitly cast Derived to Base class to          \
      have an access to remaining methods or use this using. */                                          \
-    using ov::op::Op::evaluate;
+    using ov::op::Op::evaluate;                                                                         \
+    using ov::op::Op::evaluate_lower;                                                                   \
+    using ov::op::Op::evaluate_upper;
 
 namespace ov {
 namespace op {

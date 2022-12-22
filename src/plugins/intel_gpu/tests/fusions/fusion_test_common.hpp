@@ -89,7 +89,7 @@ public:
             cldnn::mem_lock<int16_t> ref(output_not_fused_prim, get_test_stream());
             cldnn::mem_lock<int16_t> output_ptr(output_fused_prim, get_test_stream());
             for (size_t i = 0; i < output_fused_prim->get_layout().count(); i++) {
-                ASSERT_NEAR(float16_to_float32(ref[i]), float16_to_float32(output_ptr[i]), tolerance) << "i = " << i;
+                ASSERT_NEAR(half_to_float(ref[i]), half_to_float(output_ptr[i]), tolerance) << "i = " << i;
             }
         }
     }
@@ -139,7 +139,7 @@ public:
             VF<int32_t> rnd_vec(s.count() / 32, static_cast<int32_t>(fill_value));
             set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::f16) {
-            VF<uint16_t> rnd_vec(s.count(), float32_to_float16(fill_value));
+            VF<uint16_t> rnd_vec(s.count(), float_to_half(fill_value));
             set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::f32) {
             VF<float> rnd_vec(s.count(), fill_value);

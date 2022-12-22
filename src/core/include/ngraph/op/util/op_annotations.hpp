@@ -27,7 +27,7 @@ public:
     virtual ~OpAnnotations() = default;
 
     void add_in_place_oi_pair(const struct oi_pair& oi) {
-        for (auto e : m_in_place_oi_pairs) {
+        for (const auto& e : m_in_place_oi_pairs) {
             if (e.input == oi.input || e.output == oi.output) {
                 throw ngraph_error("In_place hint conflicts with an existing entry");
             }

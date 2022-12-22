@@ -32,7 +32,7 @@ public:
 
         m_nodes.resize(m_graph_def->node_size());
         for (size_t i = 0; i < m_nodes.size(); ++i)
-            m_nodes[i] = &m_graph_def->node(i);
+            m_nodes[i] = &m_graph_def->node(static_cast<int>(i));
     }
 
     /// Set iterator to the start position

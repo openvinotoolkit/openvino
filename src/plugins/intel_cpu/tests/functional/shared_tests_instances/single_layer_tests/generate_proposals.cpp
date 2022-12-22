@@ -3,6 +3,7 @@
 //
 
 #include <vector>
+#include <shared_test_classes/base/benchmark.hpp>
 #include "single_layer_tests/generate_proposals.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 
@@ -218,7 +219,7 @@ const std::vector<std::vector<InputShape>> dynamicInputShape = {
 };
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_GenerateProposalsLayerTest,
+    smoke_BasicTest,
     GenerateProposalsLayerTest,
     ::testing::Combine(
         ::testing::ValuesIn(dynamicInputShape),
@@ -226,9 +227,33 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(nms_threshold),
         ::testing::ValuesIn(post_nms_count),
         ::testing::ValuesIn(pre_nms_count),
+        ::testing::ValuesIn({true, false}),
         ::testing::ValuesIn(inputTensors),
         ::testing::Values(ov::element::Type_t::f32),
         ::testing::Values(ov::element::Type_t::i32),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     GenerateProposalsLayerTest::getTestCaseName);
+
+struct GenerateProposalsBenchmarkTest : ov::test::BenchmarkLayerTest<GenerateProposalsLayerTest> {};
+
+TEST_P(GenerateProposalsBenchmarkTest, DISABLED_GenerateProposals_Benchmark) {
+    run_benchmark("GenerateProposals", std::chrono::milliseconds(2000), 10000);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+        BasicTest,
+        GenerateProposalsBenchmarkTest,
+        ::testing::Combine(
+                ::testing::ValuesIn(dynamicInputShape),
+                ::testing::ValuesIn(min_size),
+                ::testing::ValuesIn(nms_threshold),
+                ::testing::ValuesIn(post_nms_count),
+                ::testing::ValuesIn(pre_nms_count),
+                ::testing::ValuesIn({true, false}),
+                ::testing::ValuesIn(inputTensors),
+                ::testing::Values(ov::element::Type_t::f32),
+                ::testing::Values(ov::element::Type_t::i32),
+                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        GenerateProposalsLayerTest::getTestCaseName);
+
 } // namespace

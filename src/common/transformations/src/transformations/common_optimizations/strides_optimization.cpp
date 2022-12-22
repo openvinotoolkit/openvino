@@ -2,17 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/validation_util.hpp>
 #include <ngraph/variant.hpp>
 #include <numeric>
+#include <openvino/opsets/opset7.hpp>
 #include <transformations/common_optimizations/strides_optimization.hpp>
 #include <transformations/rt_info/strides_property.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
+
+using namespace ov;
 
 static bool can_propagate_conv_stride(const std::shared_ptr<ngraph::Node>& conv) {
     const auto& kernel_shape = conv->input_value(1).get_shape();
@@ -46,30 +48,28 @@ static void insert_pooling(const ngraph::Output<ngraph::Node>& first,
     bool do_reshape = rank.is_static() && static_cast<size_t>(rank.get_length()) < strides.size() + 2;
     if (do_reshape) {
         size_t diff = strides.size() + 2 - static_cast<size_t>(rank.get_length());
-        auto ones =
-            ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{diff}, std::vector<int64_t>(diff, 1));
-        auto current_shape = std::make_shared<ngraph::opset7::ShapeOf>(first);
+        auto ones = opset7::Constant::create(ngraph::element::i64, ngraph::Shape{diff}, std::vector<int64_t>(diff, 1));
+        auto current_shape = std::make_shared<opset7::ShapeOf>(first);
         std::shared_ptr<ngraph::Node> new_shape =
-            std::make_shared<ngraph::opset7::Concat>(ngraph::OutputVector{ones, current_shape}, 0);
+            std::make_shared<opset7::Concat>(ngraph::OutputVector{ones, current_shape}, 0);
         std::shared_ptr<ngraph::Node> constant_new_shape = get_constant_from_source(new_shape);
         if (constant_new_shape)
             new_shape = constant_new_shape;
-        first_node = std::make_shared<ngraph::opset7::Reshape>(first_node, new_shape, false);
+        first_node = std::make_shared<opset7::Reshape>(first_node, new_shape, false);
     }
-    std::shared_ptr<ngraph::Node> new_node =
-        std::make_shared<ngraph::opset7::MaxPool>(first_node,
-                                                  strides,
-                                                  ngraph::Shape{},
-                                                  ngraph::Shape{},
-                                                  ngraph::Shape(strides.size(), 1));
+    std::shared_ptr<ngraph::Node> new_node = std::make_shared<opset7::MaxPool>(first_node,
+                                                                               strides,
+                                                                               ngraph::Shape{},
+                                                                               ngraph::Shape{},
+                                                                               ngraph::Shape(strides.size(), 1));
     if (do_reshape) {
         // squeeze dimensions back
         size_t diff = strides.size() + 2 - static_cast<size_t>(rank.get_length());
         std::vector<size_t> axes(diff);
         std::iota(axes.begin(), axes.end(), 0);
-        new_node = std::make_shared<ngraph::opset7::Squeeze>(
+        new_node = std::make_shared<opset7::Squeeze>(
             new_node,
-            ngraph::opset7::Constant::create(ngraph::element::u64, ngraph::Shape{diff}, axes));
+            opset7::Constant::create(ngraph::element::u64, ngraph::Shape{diff}, axes));
     }
     std::shared_ptr<ngraph::Node> constant_new_node = get_constant_from_source(new_node);
     if (constant_new_node)
@@ -86,7 +86,7 @@ static void handle_not_equal_stride_props(std::vector<ngraph::Input<ngraph::Node
             return s == 1;
         });
         if (!are_strides_ones) {
-            auto conv = dynamic_cast<ngraph::opset7::Convolution*>(op.get_node());
+            auto conv = dynamic_cast<opset7::Convolution*>(op.get_node());
             if (conv) {
                 conv->set_strides(strides);
             } else {
@@ -102,7 +102,7 @@ static void remove_strides_property_from_nodes(std::vector<ngraph::Input<ngraph:
     }
 }
 
-ngraph::pass::ConvStridesPropagation::ConvStridesPropagation() {
+ov::pass::ConvStridesPropagation::ConvStridesPropagation() {
     MATCHER_SCOPE(ConvStridesPropagation);
     auto data = pattern::any_input([](const Output<Node>& node) -> bool {
         const auto& shape = node.get_partial_shape();
@@ -116,7 +116,7 @@ ngraph::pass::ConvStridesPropagation::ConvStridesPropagation() {
     auto weights = pattern::any_input(pattern::has_static_shape());
     auto conv_pattern = pattern::wrap_type<opset7::Convolution>({data, weights});
 
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto conv = std::dynamic_pointer_cast<opset7::Convolution>(m.get_match_root());
         if (!conv)
             return false;
@@ -163,11 +163,11 @@ ngraph::pass::ConvStridesPropagation::ConvStridesPropagation() {
     this->register_matcher(m, callback);
 }
 
-ngraph::pass::SupportedNodesStridesPropagation::SupportedNodesStridesPropagation() {
+ov::pass::SupportedNodesStridesPropagation::SupportedNodesStridesPropagation() {
     MATCHER_SCOPE(SupportedNodesStridesPropagation);
     auto root = pattern::wrap_type<op::util::UnaryElementwiseArithmetic, op::util::BinaryElementwiseArithmetic>();
 
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto node = m.get_match_root();
         auto next_ops = op::util::get_node_target_inputs(node);
         bool all_ops_are_valid;
@@ -191,11 +191,11 @@ ngraph::pass::SupportedNodesStridesPropagation::SupportedNodesStridesPropagation
     this->register_matcher(m, callback);
 }
 
-ngraph::pass::UnsupportedNodesStridesPropagation::UnsupportedNodesStridesPropagation() {
+ov::pass::UnsupportedNodesStridesPropagation::UnsupportedNodesStridesPropagation() {
     MATCHER_SCOPE(UnsupportedNodesStridesPropagation);
     auto root = pattern::any_input();
 
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto node = m.get_match_root();
         auto next_ops = op::util::get_node_target_inputs(node);
         handle_not_equal_stride_props(next_ops);
@@ -206,4 +206,11 @@ ngraph::pass::UnsupportedNodesStridesPropagation::UnsupportedNodesStridesPropaga
 
     auto m = std::make_shared<pattern::Matcher>(root, matcher_name);
     this->register_matcher(m, callback);
+}
+
+ov::pass::StridesOptimization::StridesOptimization() {
+    using namespace ov::pass;
+    ADD_MATCHER_FOR_THIS(ConvStridesPropagation);
+    ADD_MATCHER_FOR_THIS(SupportedNodesStridesPropagation);
+    ADD_MATCHER_FOR_THIS(UnsupportedNodesStridesPropagation);
 }

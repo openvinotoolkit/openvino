@@ -21,8 +21,8 @@ OutputVector detection_output(const Node& node) {
     auto proposals = inputs[2];
 
     ov::op::v8::DetectionOutput::Attributes attrs;
-    attrs.background_label_id = node.get_attribute_value<int64_t>("background_label_id", 0);
-    attrs.top_k = node.get_attribute_value<int64_t>("top_k", -1);
+    attrs.background_label_id = static_cast<int>(node.get_attribute_value<int64_t>("background_label_id", 0));
+    attrs.top_k = static_cast<int>(node.get_attribute_value<int64_t>("top_k", -1));
     attrs.variance_encoded_in_target = node.get_attribute_value<int64_t>("variance_encoded_in_target", 0);
     // spec says keep_top_k is an array of ints, but some models use a single int
     // also CPU plugin expects single integer

@@ -5,6 +5,7 @@
 #include "ngraph/node.hpp"
 
 #include <memory>
+#include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
 #include <sstream>
 #include <typeindex>
@@ -131,7 +132,8 @@ std::shared_ptr<ov::Node> ov::Node::copy_with_new_inputs(
     for (size_t i = 0; i < get_output_size(); i++) {
         clone->get_output_tensor(i).set_names(get_output_tensor(i).get_names());
         NGRAPH_SUPPRESS_DEPRECATED_START
-        clone->get_output_tensor(i).set_name(get_output_tensor(i).get_name());
+        ov::descriptor::set_ov_tensor_legacy_name(clone->get_output_tensor(i),
+                                                  ov::descriptor::get_ov_tensor_legacy_name(get_output_tensor(i)));
         NGRAPH_SUPPRESS_DEPRECATED_END
     }
     return clone;
@@ -473,18 +475,6 @@ const ov::PartialShape& ov::Node::get_input_partial_shape(size_t i) const {
     return m_inputs[i].get_partial_shape();
 }
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-const string& ov::Node::get_input_tensor_name(size_t i) const {
-    NGRAPH_CHECK(i < m_inputs.size(), "index '", i, "' out of range in get_input_tensor_name(size_t i)");
-    return m_inputs[i].get_tensor().get_name();
-}
-
-const string& ov::Node::get_output_tensor_name(size_t i) const {
-    NGRAPH_CHECK(i < m_outputs.size(), "index '", i, "' out of range in get_output_tensor_name(size_t i)");
-    return m_outputs[i].get_tensor().get_name();
-}
-NGRAPH_SUPPRESS_DEPRECATED_END
-
 bool ov::Node::has_same_type(std::shared_ptr<const Node> node) const {
     if (get_output_size() != node->get_output_size()) {
         return false;
@@ -812,7 +802,7 @@ bool ov::Node::evaluate_label(TensorLabelVector& output_labels) const {
 }
 
 bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Node::constant_fold");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Node::constant_fold");
 
     if (is_const_fold_disabled()) {
         return false;
@@ -825,8 +815,10 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
     if (!all_constants)
         return false;
 
+    NodeVector nodes;
     TensorVector input_tensors;
     for (const auto& input : input_values) {
+        nodes.push_back(input.get_node_shared_ptr());
         auto constant = ov::as_type_ptr<ngraph::op::v0::Constant>(input.get_node_shared_ptr());
         auto tensor = ov::Tensor(input.get_element_type(), input.get_shape());
         std::copy_n(constant->get_data_ptr<uint8_t>(), constant->get_byte_size(), static_cast<uint8_t*>(tensor.data()));
@@ -844,6 +836,7 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
             output_values[i] = make_shared<ngraph::op::Constant>(output_tensors[i].get_element_type(),
                                                                  output_tensors[i].get_shape(),
                                                                  output_tensors[i].data());
+            copy_runtime_info(nodes, output_values[i].get_node_shared_ptr());
         }
         return true;
     }
@@ -855,9 +848,11 @@ bool ov::Node::is_const_fold_disabled() const {
     return ov::pass::constant_folding_is_disabled(this);
 }
 
-namespace ov {
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<shared_ptr<Node>>);
+bool ov::Node::visit_attributes(AttributeVisitor&) {
+    return true;
+}
 
+namespace ov {
 AttributeAdapter<std::shared_ptr<Node>>::AttributeAdapter(std::shared_ptr<Node>& value) : m_ref(value) {}
 
 bool AttributeAdapter<std::shared_ptr<Node>>::visit_attributes(AttributeVisitor& visitor) {
@@ -869,8 +864,6 @@ bool AttributeAdapter<std::shared_ptr<Node>>::visit_attributes(AttributeVisitor&
     }
     return true;
 }
-
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<NodeVector>);
 
 AttributeAdapter<NodeVector>::AttributeAdapter(NodeVector& ref) : m_ref(ref) {}
 

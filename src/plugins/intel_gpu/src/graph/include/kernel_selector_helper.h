@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "intel_gpu/runtime/tensor.hpp"
@@ -108,12 +109,16 @@ kernel_selector::activation_function get_kernel_selector_activation_param(activa
 
 struct kernel_impl_params {
     bool has_runtime_layouts = false;
-    const program& prog;
+    const program *prog;
     std::shared_ptr<const primitive> desc;
     size_t unique_id;
     std::vector<layout> input_layouts;
-    layout output_layout;
+    std::vector<layout> output_layouts;
+    std::vector<tensor> input_offsets;
     std::vector<cldnn::fused_primitive_desc> fused_desc;
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    std::vector<cldnn::fused_primitive_desc_onednn> fused_desc_onednn;
+#endif // ENABLE_ONEDNN_FOR_GPU
     std::vector<activation_func> fused_act_funcs;
     std::vector<activation_additional_params> activation_params;
 
@@ -129,24 +134,27 @@ struct kernel_impl_params {
 
     memory::ptr reordered_weights = nullptr;
 
+    kernel_impl_params() {}
+
     kernel_impl_params(program& _prog,
                        std::shared_ptr<const primitive> _desc,
                        size_t _uid,
-                       const std::vector<layout>& _int_layouts,
-                       layout _out_layout,
+                       const std::vector<layout>& _in_layouts,
+                       const std::vector<layout>& _out_layouts,
                        const std::vector<cldnn::fused_primitive_desc>& _fused_descs,
                        const std::vector<activation_func>& _fused_act_funcs,
                        const std::vector<activation_additional_params>& _act_params)
                        : has_runtime_layouts(true)
-                       , prog(_prog)
+                       , prog(&_prog)
                        , desc(_desc)
                        , unique_id(_uid)
-                       , input_layouts(_int_layouts)
-                       , output_layout(_out_layout)
+                       , input_layouts(_in_layouts)
+                       , output_layouts(_out_layouts)
                        , fused_desc(_fused_descs)
                        , fused_act_funcs(_fused_act_funcs)
                        , activation_params(_act_params)
-                       , primary_input_idx(0) {}
+                       , primary_input_idx(0) {
+    }
 
     layout get_input_layout(size_t idx = 0) const {
         OPENVINO_ASSERT(input_layouts.size() > idx,
@@ -162,6 +170,14 @@ struct kernel_impl_params {
         return result;
     }
 
+    layout get_output_layout(size_t idx = 0) const {
+        OPENVINO_ASSERT(output_layouts.size() > idx,
+                        "The size of output layouts must be greater than the requested index: ",
+                        "Requested index is ", idx, ",",
+                        "but the size of output layouts is ", output_layouts.size());
+        return output_layouts[idx];
+    }
+
     bool has_fused_primitives() const { return !fused_desc.empty(); }
 
     layout get_fused_output_layout() const {
@@ -172,6 +188,13 @@ struct kernel_impl_params {
 
     template <class PType>
     std::shared_ptr<const PType> typed_desc() const { return std::static_pointer_cast<const PType>(desc); }
+
+    void save(BinaryOutputBuffer& ob) const;
+    void load(BinaryInputBuffer& ib);
+    const program& get_program() const {
+        OPENVINO_ASSERT(prog != nullptr, "[GPU] Program pointer in kernel_impl_params in not initialized");
+        return *prog;
+    }
 };
 
 template <typename T = std::uint32_t>
@@ -220,7 +243,7 @@ inline params_t get_default_params(const kernel_impl_params& param_info, uint32_
     set_params(param_info, params);
 
     const auto& input_layout = param_info.get_input_layout(0);
-    const auto& output_layout = param_info.output_layout;
+    const auto& output_layout = param_info.get_output_layout(0);
 
     params.inputs[0] = convert_data_tensor(input_layout, split);
     params.outputs[0] = convert_data_tensor(output_layout, split);

@@ -50,7 +50,8 @@ However, Post-Training Optimization Tool and Deep Learning Workbench of OpenVINO
 
 > **NOTE**: To quantize your OpenVINO IR v10 models to run with OpenVINO 2022.1, download and use Post-Training Optimization Tool of OpenVINO 2021.4.
 
-### <a name="differences-api20-ie"></a>Differences in API 2.0 and Inference Engine API Behaviors
+@anchor differences_api20_ie
+### Differences in API 2.0 and Inference Engine API Behaviors
 
 Inference Engine and nGraph APIs do not become deprecated with the introduction of the new API, and they can still be used in applications. However, it is highly recommended to migrate to API 2.0, as it offers more features (further extended in future releases), such as:
 - [Working with dynamic shapes](../ov_dynamic_shapes.md), which increases performance when working with compatible models such as NLP (Neural Language Processing) and super-resolution models.
@@ -64,7 +65,7 @@ To understand the differences between Inference Engine API and API 2.0, see the 
   - Inference Engine API does not support compiling of models with dynamic input shapes.
 - **New behavior** implemented in 2022.1 assumes full model alignment with the framework:
   - Model Optimizer preserves input element types and order of dimensions (layouts), and stores tensor names from the original models.
-  - OpenVINO Runtime 2022.1 reads models in any format (OpenVINO IR v10, OpenVINO IR v11, ONNX, PaddlePaddle, etc.).
+  - OpenVINO Runtime 2022.1 reads models in any format (OpenVINO IR v10, OpenVINO IR v11, TensorFlow (check [TensorFlow Frontend Capabilities and Limitations](../../resources/tensorflow_frontend.md)), ONNX, PaddlePaddle, etc.).
   - API 2.0 uses tensor names for addressing, which is the standard approach among the compatible model frameworks.
   - API 2.0 can also address input and output tensors by the index. Some model formats like ONNX are sensitive to the input and output order, which is preserved by OpenVINO 2022.1.
 
@@ -84,4 +85,4 @@ See the following pages to understand how to migrate Inference Engine-based appl
  - [Configure device](./configure_devices.md)
  - [OpenVINO™ Model Creation](graph_construction.md)
 
-[tf_openvino]: ../../img/tf_openvino.png
+[tf_openvino]: ../../img/tf_openvino.svg

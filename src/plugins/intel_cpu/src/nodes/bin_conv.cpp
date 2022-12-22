@@ -50,7 +50,7 @@ struct jit_uni_bin_conv_kernel_f32 : public jit_uni_bin_conv_kernel, public jit_
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_bin_conv_kernel_f32)
 
     explicit jit_uni_bin_conv_kernel_f32(jit_bin_conv_params jcp, jit_dw_conv_params jcp_dw_conv, const dnnl_primitive_attr &attr) :
-            jit_uni_bin_conv_kernel(jcp, jcp_dw_conv, attr), jit_generator()  {}
+        jit_uni_bin_conv_kernel(jcp, jcp_dw_conv, attr), jit_generator(jit_name())  {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -899,7 +899,7 @@ bool BinaryConvolution::isSupportedOperation(const std::shared_ptr<const ngraph:
 
 BinaryConvolution::BinaryConvolution(const std::shared_ptr<ngraph::Node>& op,
                                                          const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache) {
+        : Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "BinaryConvolution node with name '" + getName() + "' ";

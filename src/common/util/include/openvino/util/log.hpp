@@ -110,35 +110,11 @@ void default_logger_handler_func(const std::string& s);
                           ::ov::util::default_logger_handler_func)                \
         .stream()
 
-#ifdef ENABLE_OPENVINO_DEBUG
-#    define OPENVINO_DEBUG                                                            \
-        ::ov::util::LogHelper(::ov::util::LOG_TYPE::_LOG_TYPE_DEBUG,                  \
-                              ::ov::util::trim_file_name(PROJECT_ROOT_DIR, __FILE__), \
-                              __LINE__,                                               \
-                              ::ov::util::default_logger_handler_func)                \
-            .stream()
-#else
-
-struct NullLogger {};
-
-template <typename T>
-NullLogger&& operator<<(NullLogger&& logger, T&&) {
-    return std::move(logger);
-}
-
-template <typename T>
-NullLogger&& operator<<(NullLogger&& logger, const T&) {
-    return std::move(logger);
-}
-
-inline NullLogger&& operator<<(
-    NullLogger&& logger,
-    std::basic_ostream<char, std::char_traits<char>>& (&)(std::basic_ostream<char, std::char_traits<char>>&)) {
-    return std::move(logger);
-}
-
-#    define OPENVINO_DEBUG \
-        ::ov::util::NullLogger {}
-#endif
+#define OPENVINO_DEBUG                                                            \
+    ::ov::util::LogHelper(::ov::util::LOG_TYPE::_LOG_TYPE_DEBUG,                  \
+                          ::ov::util::trim_file_name(PROJECT_ROOT_DIR, __FILE__), \
+                          __LINE__,                                               \
+                          ::ov::util::default_logger_handler_func)                \
+        .stream()
 }  // namespace util
 }  // namespace ov

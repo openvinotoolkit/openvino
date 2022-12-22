@@ -128,8 +128,8 @@ TEST(type_prop, gru_sequence_bidirectional) {
     const auto B = make_shared<opset5::Parameter>(element::f32, Shape{num_directions, 3 * hidden_size});
 
     const auto direction = op::RecurrentSequenceDirection::BIDIRECTIONAL;
-    const std::vector<float> activations_alpha = {2.7, 7.0, 32.367};
-    const std::vector<float> activations_beta = {0.0, 5.49, 6.0};
+    const std::vector<float> activations_alpha = {2.7f, 7.0f, 32.367f};
+    const std::vector<float> activations_beta = {0.0f, 5.49f, 6.0f};
     const std::vector<std::string> activations = {"tanh", "sigmoid"};
 
     const auto sequence = make_shared<opset5::GRUSequence>(X,
@@ -260,7 +260,27 @@ TEST(type_prop, gru_sequence_invalid_input_dimension) {
     }
 }
 
-TEST(type_prop, gru_sequence_invalid_input_dynamic_rank) {
+TEST(type_prop, gru_sequence_input_dynamic_shape_ranges) {
+    gru_sequence_parameters param;
+
+    param.batch_size = Dimension(1, 8);
+    param.num_directions = Dimension(1, 2);
+    param.seq_length = Dimension(5, 7);
+    param.input_size = Dimension(64, 128);
+    param.hidden_size = Dimension(32, 64);
+    param.et = element::f32;
+
+    auto gru_sequence = gru_seq_tensor_initialization(param);
+    gru_sequence->validate_and_infer_types();
+
+    EXPECT_EQ(gru_sequence->get_output_partial_shape(0),
+              (PartialShape{param.batch_size, 1, param.seq_length, param.hidden_size}));
+    EXPECT_EQ(gru_sequence->get_output_partial_shape(1), (PartialShape{param.batch_size, 1, param.hidden_size}));
+    EXPECT_EQ(gru_sequence->get_output_element_type(0), param.et);
+    EXPECT_EQ(gru_sequence->get_output_element_type(1), param.et);
+}
+
+TEST(type_prop, gru_sequence_input_dynamic_rank) {
     gru_sequence_parameters param;
 
     param.batch_size = 8;
@@ -270,22 +290,56 @@ TEST(type_prop, gru_sequence_invalid_input_dynamic_rank) {
     param.hidden_size = 128;
     param.et = element::f32;
 
-    auto check_dynamic_gru = [](const shared_ptr<opset5::GRUSequence>& gru) -> bool {
-        return gru->output(0).get_partial_shape() == PartialShape::dynamic() &&
-               gru->output(1).get_partial_shape() == PartialShape::dynamic() &&
-               gru->output(0).get_element_type() == gru->input(0).get_element_type();
-    };
-
     auto gru_sequence = gru_seq_tensor_initialization(param);
-    auto invalid_dynamic_tensor = make_shared<opset5::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
+    auto dynamic_tensor = make_shared<opset5::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
 
-    // Validate invalid dynamic tensor for all inputs: X, initial_hidden_state, W, R, B
     for (size_t i = 0; i < gru_sequence->get_input_size(); i++) {
         gru_sequence = gru_seq_tensor_initialization(param);
-        gru_sequence->set_argument(i, invalid_dynamic_tensor);
+        gru_sequence->set_argument(i, dynamic_tensor);
         gru_sequence->validate_and_infer_types();
-        EXPECT_EQ(check_dynamic_gru(gru_sequence), true);
+        if (i == 0) {  // X input
+            EXPECT_EQ(gru_sequence->get_output_partial_shape(0),
+                      (PartialShape{param.batch_size, param.num_directions, -1, param.hidden_size}));
+        } else {
+            EXPECT_EQ(gru_sequence->get_output_partial_shape(0),
+                      (PartialShape{param.batch_size, param.num_directions, param.seq_length, param.hidden_size}));
+        }
+        EXPECT_EQ(gru_sequence->get_output_partial_shape(1),
+                  (PartialShape{param.batch_size, param.num_directions, param.hidden_size}));
+        EXPECT_EQ(gru_sequence->get_output_element_type(0), param.et);
+        EXPECT_EQ(gru_sequence->get_output_element_type(1), param.et);
     }
+}
+
+TEST(type_prop, gru_sequence_all_inputs_dynamic_rank) {
+    gru_sequence_parameters param;
+
+    param.batch_size = 8;
+    param.num_directions = 1;
+    param.seq_length = 6;
+    param.input_size = 4;
+    param.hidden_size = 128;
+    param.et = element::f32;
+
+    const auto X = make_shared<opset5::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
+    const auto initial_hidden_state = make_shared<opset5::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
+    const auto sequence_lengths = make_shared<opset5::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
+    const auto W = make_shared<opset5::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
+    const auto R = make_shared<opset5::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
+    const auto B = make_shared<opset5::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
+
+    const auto gru_sequence = make_shared<opset5::GRUSequence>(X,
+                                                               initial_hidden_state,
+                                                               sequence_lengths,
+                                                               W,
+                                                               R,
+                                                               B,
+                                                               param.hidden_size.get_length(),
+                                                               op::RecurrentSequenceDirection::FORWARD);
+    EXPECT_EQ(gru_sequence->get_output_partial_shape(0), (PartialShape{-1, 1, -1, -1}));
+    EXPECT_EQ(gru_sequence->get_output_partial_shape(1), (PartialShape{-1, 1, -1}));
+    EXPECT_EQ(gru_sequence->get_output_element_type(0), param.et);
+    EXPECT_EQ(gru_sequence->get_output_element_type(1), param.et);
 }
 
 TEST(type_prop, gru_sequence_invalid_input_direction_num_mismatch) {
@@ -303,7 +357,9 @@ TEST(type_prop, gru_sequence_invalid_input_direction_num_mismatch) {
             gru_sequence->validate_and_infer_types();
             FAIL() << "GRUSequence node was created with invalid data.";
         } catch (const NodeValidationFailure& error) {
-            EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter 'num_directions' doesn't match with direction"));
+            EXPECT_HAS_SUBSTRING(
+                error.what(),
+                std::string("Dimension `num_directions` doesn't match to other inputs or `direction` attribute"));
         }
     };
 

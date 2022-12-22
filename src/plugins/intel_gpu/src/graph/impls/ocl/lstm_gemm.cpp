@@ -18,13 +18,17 @@ namespace ocl {
 struct lstm_gemm_impl : typed_primitive_impl_ocl<lstm_gemm> {
     using parent = typed_primitive_impl_ocl<lstm_gemm>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::lstm_gemm_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::lstm_gemm_params, kernel_selector::lstm_gemm_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<lstm_gemm_impl>(*this);
     }
 
 protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<lstm_gemm>& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<lstm_gemm>& instance, int32_t) const override {
         kernel_arguments_data args = parent::get_arguments(instance, 0);
 
         args.outputs = { instance.output_memory_ptr() };
@@ -37,7 +41,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const lstm_gemm_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const lstm_gemm_node& arg, const kernel_impl_params& impl_param) {
         const auto input_idx = 0;
         const auto weight_idx = 1;
         const auto recurrent_idx = 2;
@@ -76,19 +80,12 @@ public:
         }
 
         auto lstm_gemm_optional_params =
-            get_default_optional_params<kernel_selector::lstm_gemm_optional_params>(arg.get_program());
+            get_default_optional_params<kernel_selector::lstm_gemm_optional_params>(impl_param.get_program());
 
         auto& kernel_selector = kernel_selector::lstm_gemm_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(lstm_gemm_params, lstm_gemm_optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(lstm_gemm_params, lstm_gemm_optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        auto lstm_gemm = new lstm_gemm_impl(arg, best_kernels[0]);
-
-        return lstm_gemm;
+        return make_unique<lstm_gemm_impl>(arg, best_kernel);
     }
 };
 
@@ -106,3 +103,5 @@ attach_lstm_gemm_impl::attach_lstm_gemm_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::lstm_gemm_impl)

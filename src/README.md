@@ -35,7 +35,7 @@ flowchart LR
 ```
 
  * [core](./core/README.md) is responsible for model representation, contains a set of supported OpenVINO operations and base API for model modification.
- * [inference](./inference) provides the API for model inference on different accelerators.
+ * [inference](./inference/README.md) provides the API for model inference on different accelerators.
  * Transformations:
     * [common transformations](../src/common/transformations) - a set of common transformations which are used for model optimization
     * [low precision transformations](../src/common/low_precision_transformations) - a set of transformations which are needed to optimize quantized models
@@ -45,20 +45,17 @@ flowchart LR
 
 OpenVINO Frontends allow to convert model from framework to OpenVINO representation.
 
- * [ir](./frontends/ir)
- * [onnx](./frontends/onnx)
-    
+Go to the [Frontends page](./frontends/README.md) to get more information.
+
 ## OpenVINO Plugins
 
-Plugins provide a support of hardware device
- * [intel_cpu](./plugins/intel_cpu)
+OpenVINO Plugins provide support for hardware devices.
+
+To get more information about supported OpenVINO Plugins, go to the [Plugins page](./plugins/README.md).
 
 ## OpenVINO Bindings
 
-OpenVINO provides bindings for several languages:
-
- * [c](./bindings/c)
- * [python](./bindings/python)
+OpenVINO provides bindings for different languages. To get the full list of supported languages, go to the [bindings page](./bindings/README.md).
 
 ## Core developer topics
 

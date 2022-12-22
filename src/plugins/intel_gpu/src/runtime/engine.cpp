@@ -111,7 +111,21 @@ allocation_type engine::get_lockable_preferred_memory_allocation_type(bool is_im
     if (support_usm_host)
         return allocation_type::usm_host;
 
-    throw std::runtime_error("[clDNN internal error] Could not find proper allocation type!");
+    OPENVINO_ASSERT(false, "[GPU] Couldn't find proper allocation type in get_lockable_preferred_memory_allocation_type method");
+}
+
+allocation_type engine::get_preferred_memory_allocation_type(bool is_image_layout) const {
+    if (!use_unified_shared_memory() || is_image_layout)
+        return get_default_allocation_type();
+
+    if (supports_allocation(allocation_type::usm_device))
+        return allocation_type::usm_device;
+
+    // Fallback to host allocations in case if device ones are not supported for some reason
+    if (supports_allocation(allocation_type::usm_host))
+        return allocation_type::usm_host;
+
+    OPENVINO_ASSERT(false, "[GPU] Couldn't find proper allocation type in get_preferred_memory_allocation_type method");
 }
 
 memory::ptr engine::attach_memory(const layout& layout, void* ptr) {
@@ -251,11 +265,8 @@ std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type,
     default:
         throw std::runtime_error("Invalid engine type");
     }
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->verbose >= 1) {
-        const auto& info = device->get_info();
-        GPU_DEBUG_COUT << "Selected Device: " << info.dev_name << std::endl;
-    }
+    const auto& info = device->get_info();
+    GPU_DEBUG_INFO << "Selected Device: " << info.dev_name << std::endl;
     return ret;
 }
 

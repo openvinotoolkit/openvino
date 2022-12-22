@@ -16,7 +16,7 @@ def check_graph(tmp_path, graph, model_name, model_framework, check_weights=Fals
     model_name = '_'.join([model_name, model_framework])
     ir_name_xml = model_name + '.xml'
     path_to_ir_xml = tmp_path.joinpath(ir_name_xml)
-    save_graph(graph, tmp_path.as_posix(), model_name, rename_results=False)
+    save_graph(graph, tmp_path.as_posix(), model_name)
 
     path_to_ref_ir_xml = REFERENCE_MODELS_PATH.joinpath(ir_name_xml)
 
@@ -44,9 +44,9 @@ def check_graph(tmp_path, graph, model_name, model_framework, check_weights=Fals
 
 def check_model(tmp_path, model, model_name, model_framework, check_weights=False):
     """
-        Checking that graphs of models are equal to their references by comparing topologies and
-        all weights if check_weights is specified as True.
-        """
+    Checking that graphs of models are equal to their references by comparing topologies and
+    all weights if check_weights is specified as True.
+    """
     model_name_ = model_name
     for model_dict in model.models:
         if model.is_cascade:

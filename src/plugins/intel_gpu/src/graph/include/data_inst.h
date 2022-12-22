@@ -31,6 +31,7 @@ using data_node = typed_program_node<data>;
 template <>
 class typed_primitive_inst<data> : public typed_primitive_inst_base<data> {
     using parent = typed_primitive_inst_base<data>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(data_node const& node, kernel_impl_params const& impl_param) {
@@ -41,6 +42,8 @@ public:
 
 public:
     typed_primitive_inst(network& network, data_node const& node);
+    void save(BinaryOutputBuffer& ob) const override;
+    void load(BinaryInputBuffer& ib) override;
 };
 
 using data_inst = typed_primitive_inst<data>;

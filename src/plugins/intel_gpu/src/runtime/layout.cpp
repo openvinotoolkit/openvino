@@ -66,6 +66,7 @@ std::pair<bool, bool> are_layouts_identical(layout const& l1, layout const& l2) 
         check_format(format::bs_fs_yx_bsv32_fsv16) ||
         check_format(format::bs_fs_yx_bsv32_fsv32) ||
         check_format(format::bs_fs_yx_bsv16_fsv16) ||
+        check_format(format::bs_fs_yx_bsv16_fsv32) ||
         check_format(format::bs_fs_zyx_bsv16_fsv32) ||
         check_format(format::bs_fs_zyx_bsv16_fsv16) ||
         check_format(format::bs_fs_zyx_bsv32_fsv16) ||
@@ -96,6 +97,22 @@ std::pair<bool, bool> are_layouts_identical(layout const& l1, layout const& l2) 
         return {false, true};
 
     return {false, false};
+}
+
+std::vector<cldnn::tensor::value_type> convert_dimensions(const std::vector<cldnn::tensor::value_type>& sizes, std::string in_order, std::string out_order) {
+    std::vector<cldnn::tensor::value_type> new_sizes(out_order.size(), {-1});
+    for (size_t out_idx = 0; out_idx < out_order.size(); ++out_idx) {
+        auto channel = out_order[out_idx];
+        if (channel == '?')
+            continue;
+
+        auto in_idx = in_order.find(channel);
+        if (in_idx != in_order.npos) {
+            if (in_idx < sizes.size())
+                new_sizes[out_idx] = sizes[in_idx];
+        }
+    }
+    return new_sizes;
 }
 
 }  // namespace
@@ -254,6 +271,25 @@ std::string layout::to_string() const {
       << "\tpad_l=" << data_padding.lower_size().to_string() << ";\n"
       << "\tpad_u=" << data_padding.upper_size().to_string() << ";\n"
       << "}";
+    return s.str();
+}
+
+std::string layout::to_short_string() const {
+    std::stringstream s;
+    auto dump_shape = [](std::stringstream& stream, const ov::PartialShape& shape) {
+        for (size_t i = 0; i < shape.size(); i++) {
+            stream << shape[i];
+            if (i != shape.size() - 1)
+                stream << "x";
+        }
+    };
+
+    s << data_type_traits::name(data_type) << ":" << format.to_string() << ":";
+    dump_shape(s, size);
+    if (data_padding)
+        s << ":pad";
+    else
+        s << ":nopad";
     return s.str();
 }
 
@@ -455,6 +491,125 @@ bool layout::compatible(const layout& other) const {
 
 bool layout::identical(const layout& other) const {
     return are_layouts_identical(*this, other).first;
+}
+
+ov::PartialShape layout::transform(cldnn::format new_fmt) const {
+    if (format == new_fmt) {
+        return size;
+    }
+
+    cldnn::tensor::value_type default_size = -1;
+    auto shape = size.to_shape();
+    std::vector<tensor::value_type> dims(shape.begin(), shape.end());
+
+    const cldnn::format default_fmt = cldnn::format::bfwzyx;
+    auto old_sizes = convert_dimensions(dims, format.order(), default_fmt.internal_order()); // convert to internal order (bfxyzw)
+
+    auto val_order = default_fmt.internal_order();
+    auto new_order = new_fmt.internal_order();
+
+    std::vector<tensor::value_type> new_sizes(old_sizes.size(), {default_size});
+    auto tmp = 1;
+    auto tmp_z = 1;
+    auto tmp_w = 1;
+
+    for (size_t i = 0; i < default_fmt.order().size(); i++) {
+        auto c = val_order[i]; //bfxywz
+
+        // skip f, y, z, and w for the formats that do not have it
+        if (((new_fmt == format::bs_xs_xsv8_bsv8) ||
+                (new_fmt == format::bs_xs_xsv8_bsv16) ||
+                (new_fmt == format::os_i_osv8__ai8) ||
+                (new_fmt == format::os_i_osv16__ai8) ||
+                (new_fmt == format::bs_x_bsv16)) &&
+            ((c == 'f') ||
+                (c == 'y') ||
+                (c == 'z') ||
+                (c == 'w'))) {
+            if (new_order[i] == '?')
+                new_sizes[i] = default_size;
+
+            tmp *= old_sizes[i]; //0f0ywz
+
+            continue;
+        }
+
+        // skip z for the formats that do not have it
+        if (((new_fmt != format::bfzyx && new_fmt != format::b_fs_zyx_fsv16 && new_fmt != format::b_fs_zyx_fsv32 &&
+                new_fmt != format::bfwzyx && new_fmt != format::bs_fs_zyx_bsv16_fsv16 && new_fmt != format::bs_fs_zyx_bsv16_fsv32 &&
+                new_fmt != format::bs_fs_zyx_bsv32_fsv16 && new_fmt != format::bs_fs_zyx_bsv32_fsv32 &&
+                new_fmt != format::b_fs_zyx_fsv2 && new_fmt != format::b_fs_zyx_fsv4 &&
+                new_fmt != format::bs_fs_zyx_bsv8_fsv2 && new_fmt != format::bs_fs_zyx_bsv8_fsv4)) && (c == 'z')) {
+            if (new_order[i] == '?')
+                new_sizes[i] = default_size;
+
+            tmp_z *= old_sizes[i]; //00000z
+
+            continue;
+        }
+
+        if (new_fmt != format::bfwzyx && c == 'w') {
+            if (new_order[i] == '?')
+                new_sizes[i] = default_size;
+
+            if (new_fmt == format::bfzyx || new_fmt == format::b_fs_zyx_fsv16 ||
+                new_fmt == format::bs_fs_zyx_bsv16_fsv16 || new_fmt == format::b_fs_zyx_fsv32 ||
+                new_fmt == format::bs_fs_zyx_bsv16_fsv32)
+                tmp_w *= old_sizes[i]; //0000w0
+            else
+                tmp_z *= old_sizes[i]; //0000w0
+
+            continue;
+        }
+
+        auto new_pos = new_order.find(c);
+        if (new_pos == std::string::npos)
+            throw std::invalid_argument("cannot convert to new format");
+        new_sizes[new_pos] = old_sizes[i];
+    }
+
+    // in case of formats with smaller number of dimensions than input, flatten is performed below
+    if (tmp != 1 || tmp_z != 1 || tmp_w != 1) {
+        for (size_t i = 0; i < default_fmt.order().size(); i++) {
+            auto c = val_order[i];
+            if (c == 'x') {
+                auto new_pos = new_order.find(c);
+                new_sizes[new_pos] *= tmp;
+            }
+
+            if (c == 'y') {
+                auto new_pos = new_order.find(c);
+                if (new_pos != std::string::npos)
+                    new_sizes[new_pos] *= tmp_z;
+            }
+
+            if (c == 'z') {
+                auto new_pos = new_order.find(c);
+                if (new_pos != std::string::npos)
+                    new_sizes[new_pos] *= tmp_w;
+            }
+        }
+    }
+
+    for (size_t i = 0; i < new_order.size(); i++) {
+        auto c = new_order[i]; //bfxywz
+        if (c == '?')
+            continue;
+        if (new_sizes[i] == -1) {
+            new_sizes[i] = 1;
+        }
+    }
+
+    auto new_dims = convert_dimensions(new_sizes, default_fmt.internal_order(), new_fmt.order());
+    for (int idx = (new_dims.size() - 1); idx >= 0; idx--) {
+        if (new_dims[idx] == -1)
+            new_dims.erase((new_dims.begin() + idx));
+        else if (new_dims[idx] < 0)
+            new_dims[idx] *= -1;
+    }
+
+    ov::Shape new_shape(new_dims.begin(), new_dims.end());
+    return ov::PartialShape(new_shape);
 }
 
 }  // namespace cldnn

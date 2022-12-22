@@ -181,7 +181,7 @@ bool PadTransformation::canBeTransformed(const TransformationContext& context, s
                 }
 
                 if (padsBegin[i] != 0) {
-                    beginNonZeroIdx = i;
+                    beginNonZeroIdx = static_cast<int>(i);
                 }
             }
 
@@ -193,7 +193,7 @@ bool PadTransformation::canBeTransformed(const TransformationContext& context, s
                 }
 
                 if (padsEnd[i] != 0) {
-                    endNonZeroIdx = i;
+                    endNonZeroIdx = static_cast<int>(i);
                 }
             }
 

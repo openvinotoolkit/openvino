@@ -19,6 +19,8 @@ struct reorder_onednn : typed_primitive_onednn_impl<reorder, void, dnnl::reorder
     using parent = typed_primitive_onednn_impl<reorder, void, dnnl::reorder::primitive_desc, dnnl::reorder>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<reorder_onednn>(*this);
@@ -41,31 +43,55 @@ protected:
         return args;
     }
 
-    static std::shared_ptr<dnnl::reorder::primitive_desc> get_reorder_descriptor(const reorder_node& arg) {
-        auto prim = arg.get_primitive();
+    static std::shared_ptr<dnnl::reorder::primitive_desc> get_reorder_descriptor(const kernel_impl_params& impl_params,
+                                                                                 const dnnl::primitive_attr& attr,
+                                                                                 const cldnn::engine& engine) {
+        auto prim = impl_params.typed_desc<reorder>();
 
-        auto& input = arg.get_dependency(0);
-        auto& engine = arg.get_program().get_engine();
+        auto input_layout = impl_params.get_input_layout(0);
+        auto output_layout = impl_params.get_output_layout();
 
-        auto input_md = onednn::layout_to_memory_desc(input.get_output_layout());
-        auto output_md = onednn::layout_to_memory_desc(arg.get_output_layout());
+        auto input_md = onednn::layout_to_memory_desc(input_layout);
+        auto output_md = onednn::layout_to_memory_desc(output_layout);
 
         return std::make_shared<dnnl::reorder::primitive_desc>(
             engine.get_onednn_engine(),
             input_md,
             engine.get_onednn_engine(),
             output_md,
-            *(arg.get_onednn_primitive_attributes()));
+            attr);
     }
 
 public:
-    static primitive_impl* create(const reorder_node& arg, const kernel_impl_params&) {
-        auto desc = get_reorder_descriptor(arg);
+    void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
+
+        std::vector<uint8_t> prim_cache;
+        prim_cache = _prim.get_cache_blob();
+        ob << prim_cache;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+
+        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernlImplParams());
+        auto desc = get_reorder_descriptor(*impl_params, *_attrs, ib.get_engine());
+        _pd = *desc;
+
+        std::vector<uint8_t> prim_cache;
+        ib >> prim_cache;
+
+        _prim = dnnl::reorder(_pd, prim_cache);
+    }
+
+    static std::unique_ptr<primitive_impl> create(const reorder_node& arg, const kernel_impl_params& impl_params) {
+        auto& engine = impl_params.prog->get_engine();
         auto attr = arg.get_onednn_primitive_attributes();
+        auto desc = get_reorder_descriptor(impl_params, *attr, impl_params.prog->get_engine());
 
         std::shared_ptr<void> dummy = nullptr;
 
-        return new reorder_onednn(arg, dummy, attr, *desc);
+        return cldnn::make_unique<reorder_onednn>(engine, dummy, attr, *desc);
     }
 };
 
@@ -78,3 +104,5 @@ attach_reorder_onednn::attach_reorder_onednn() {
 }  // namespace detail
 }  // namespace onednn
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::reorder_onednn)

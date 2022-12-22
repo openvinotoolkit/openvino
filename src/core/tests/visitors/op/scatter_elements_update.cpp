@@ -21,7 +21,7 @@ TEST(attributes, scatter_elements_update) {
     auto axis = std::make_shared<op::Parameter>(element::i16, Shape{});
 
     auto scatter = std::make_shared<opset3::ScatterElementsUpdate>(data, indices, updates, axis);
-    NodeBuilder builder(scatter);
+    NodeBuilder builder(scatter, {data, indices, updates, axis});
 
     const auto expected_attr_count = 0;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);

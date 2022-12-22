@@ -43,5 +43,4 @@ If you want to add version selector you must define both `current_language` and 
 
 ### Maintainers
 
-* Nikolay Tyukaev <nikolay.tyukaev@intel.com>
-* Andrey Zaytsev <andrey.zaytsev@intel.com>
+* OpenVINO Documentation team

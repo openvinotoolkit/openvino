@@ -118,7 +118,7 @@ void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& resha
         const std::shared_ptr<Node> broadcastedConstant = getBCastedConst(originalConstant, dimensionsToBroadcast);
 
         std::vector<int> newReshapeConstValues(reshapeOutputRank.get_length(), 1ul);
-        newReshapeConstValues[1] = reshapeOutputPShape[1].get_length();
+        newReshapeConstValues[1] = static_cast<int>(reshapeOutputPShape[1].get_length());
         const std::shared_ptr<opset1::Constant> newReshapeConstant = std::make_shared<opset1::Constant>(
             element::i32,
             Shape({ newReshapeConstValues.size() }),

@@ -196,7 +196,7 @@ Graph::Graph(const std::string& model_dir,
 
     if (m_extensions.telemetry) {
         for (const auto& op : op_statistics) {
-            m_extensions.telemetry->send_event("op_count", "onnx_" + op.first, op.second);
+            m_extensions.telemetry->send_event("op_count", "onnx_" + op.first, static_cast<int>(op.second));
         }
     }
 
@@ -230,7 +230,7 @@ void Graph::convert_to_ngraph_nodes() {
         }
         OutputVector ng_nodes{make_ng_nodes(node)};
         ++completed;
-        m_extensions.progress_reporter->report_progress(completed / total, total, completed);
+        m_extensions.progress_reporter->report_progress(completed / total, static_cast<unsigned int>(total), completed);
     }
 }
 
@@ -262,10 +262,21 @@ void Graph::remove_dangling_parameters() {
     }
 }
 
+void Graph::set_metadata(std::shared_ptr<ov::Model>& model) const {
+    const std::string framework_section = "framework";
+    const auto metadata = m_model->get_metadata();
+
+    for (const auto& pair : metadata) {
+        model->set_rt_info(pair.second, framework_section, pair.first);
+    }
+}
+
 std::shared_ptr<Function> Graph::convert() {
     convert_to_ngraph_nodes();
     remove_dangling_parameters();
-    return create_function();
+    auto function = create_function();
+    set_metadata(function);
+    return function;
 }
 
 OutputVector Graph::make_framework_nodes(const Node& onnx_node) {
@@ -305,10 +316,10 @@ void Graph::decode_to_framework_nodes() {
         // Some of them may be optional and trimmed. See:
         // https://github.com/onnx/onnx/blob/master/docs/IR.md#optional-inputs-and-outputs
         for (std::size_t i{0}; i < node.get_outputs_size(); ++i) {
-            m_cache->emplace_node(node.output(i), std::move(ng_nodes.at(i)));
+            m_cache->emplace_node(node.output(static_cast<int>(i)), std::move(ng_nodes.at(i)));
         }
         ++completed;
-        m_extensions.progress_reporter->report_progress(completed / total, total, completed);
+        m_extensions.progress_reporter->report_progress(completed / total, static_cast<unsigned int>(total), completed);
     }
 }
 
@@ -373,11 +384,26 @@ OutputVector Graph::make_ng_nodes(const Node& onnx_node) {
         std::rethrow_exception(std::current_exception());
     }
 
+    const size_t outputs_size = std::accumulate(std::begin(ng_subgraph_outputs),
+                                                std::end(ng_subgraph_outputs),
+                                                0,
+                                                [](const size_t lhs, const Output<ov::Node>& rhs) {
+                                                    return lhs + rhs.get_node()->get_output_size();
+                                                });
+    NGRAPH_CHECK(onnx_node.get_outputs_size() <= outputs_size,
+                 "Expected output number of ",
+                 onnx_node.op_type(),
+                 " node is ",
+                 onnx_node.get_outputs_size(),
+                 " while the implementation provides ",
+                 outputs_size,
+                 " outputs");
+
     set_friendly_names(onnx_node, ng_subgraph_outputs);
 
     for (std::size_t i{0}; i < onnx_node.get_outputs_size(); ++i) {
         auto ng_node_output = ng_subgraph_outputs.at(i);
-        m_cache->emplace_node(onnx_node.output(i), std::move(ng_node_output));
+        m_cache->emplace_node(onnx_node.output(static_cast<int>(i)), std::move(ng_node_output));
     }
 
     return ng_subgraph_outputs;
@@ -386,8 +412,8 @@ OutputVector Graph::make_ng_nodes(const Node& onnx_node) {
 void Graph::set_friendly_names(const Node& onnx_node, const OutputVector& ng_subgraph_outputs) const {
     if (std::all_of(std::begin(ng_subgraph_outputs), std::end(ng_subgraph_outputs), common::is_optimized_out)) {
         for (size_t i = 0; i < ng_subgraph_outputs.size(); ++i) {
-            ng_subgraph_outputs[i].get_tensor().add_names({onnx_node.output(i)});
-            ng_subgraph_outputs[i].get_node_shared_ptr()->set_friendly_name(onnx_node.output(i));
+            ng_subgraph_outputs[i].get_tensor().add_names({onnx_node.output(static_cast<int>(i))});
+            ng_subgraph_outputs[i].get_node_shared_ptr()->set_friendly_name(onnx_node.output(static_cast<int>(i)));
         }
         return;
     }
@@ -418,9 +444,10 @@ void Graph::set_friendly_names(const Node& onnx_node, const OutputVector& ng_sub
 
         // null node does not have tensor
         if (!ngraph::op::is_null(ng_subgraph_outputs[i])) {
-            ng_subgraph_outputs[i].get_tensor().set_names({onnx_node.output(i)});
+            ng_subgraph_outputs[i].get_tensor().set_names({onnx_node.output(static_cast<int>(i))});
             NGRAPH_SUPPRESS_DEPRECATED_START
-            ng_subgraph_outputs[i].get_tensor().set_name(onnx_node.output(i));
+            ov::descriptor::set_ov_tensor_legacy_name(ng_subgraph_outputs[i].get_tensor(),
+                                                      onnx_node.output(static_cast<int>(i)));
             NGRAPH_SUPPRESS_DEPRECATED_END
         }
     }
@@ -485,7 +512,7 @@ OutputVector Subgraph::make_framework_nodes(const Node& onnx_node) {
 
 void Subgraph::replace_input_from_parent_scope_with_parameter(const Node& onnx_node) {
     for (std::size_t i = 0; i < onnx_node.get_inputs_size(); ++i) {
-        const auto& in_name = onnx_node.input(i);
+        const auto& in_name = onnx_node.input(static_cast<int>(i));
         if (m_parent_graph->is_ng_node_in_cache(in_name) &&
             std::find(m_inputs_from_parent.begin(), m_inputs_from_parent.end(), in_name) ==
                 m_inputs_from_parent.end()) {

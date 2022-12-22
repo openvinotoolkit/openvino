@@ -8,6 +8,7 @@
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
+#include "base/ov_behavior_test_utils.hpp"
 
 using namespace ::testing;
 
@@ -54,6 +55,24 @@ public:
 protected:
     std::string device_names;
     bool expected_status;
+    std::shared_ptr<ngraph::Function> fn_ptr;
+};
+
+class MultiDeviceMultipleGPU_Test : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<DevicesNames> {
+    void SetUp() override {
+        device_names = getDeviceStringWithMulti(this->GetParam());
+        device_lists = this->GetParam();
+        fn_ptr = ov::test::behavior::getDefaultNGraphFunctionForTheDevice("");
+    }
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<DevicesNames> &obj) {
+        auto s = getDeviceStringWithMulti(obj.param);
+        std::replace(s.begin(), s.end(), ',', '_');
+        return "device_names_" + s;
+    }
+protected:
+    std::string device_names;
+    std::vector<std::string> device_lists;
     std::shared_ptr<ngraph::Function> fn_ptr;
 };
 #define MULTI  CommonTestUtils::DEVICE_MULTI

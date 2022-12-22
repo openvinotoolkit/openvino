@@ -83,12 +83,12 @@ void generic_test::run_single_test() {
 
     if (generic_params->network_build_options.get<cldnn::build_option_type::optimize_data>()->enabled()) {
         // Add reorder after the first input in case of optimize data flag since it might change the input layout.
-        topology.add(reorder("input0", "input0_init", input_mems[0]->get_layout()));
+        topology.add(reorder("input0", input_info("input0_init"), input_mems[0]->get_layout()));
     }
 
-    if (layer_params->input[0] == "reorder0") {
+    if (layer_params->input[0].pid == "reorder0") {
         // Add reorder layer with output padding as input to the tested layer.
-        topology.add(reorder("reorder0", "input0", input_mems[0]->get_layout().with_padding(padding{ { 0, 0, 1, 3 },{ 0, 0, 5, 2 } })));
+        topology.add(reorder("reorder0", input_info("input0"), input_mems[0]->get_layout().with_padding(padding{ { 0, 0, 1, 3 },{ 0, 0, 5, 2 } })));
     }
 
     prepare_input_for_test(input_mems);
@@ -100,7 +100,7 @@ void generic_test::run_single_test() {
     }
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.size(), size_t(1));
 
     auto output = outputs.begin()->second.get_memory();
 
@@ -118,11 +118,11 @@ void generic_test::compare_buffers(const memory::ptr out, const memory::ptr ref)
     auto out_layout = out->get_layout();
     auto ref_layout = ref->get_layout();
 
-    EXPECT_EQ(out_layout.get_tensor(), ref_layout.get_tensor());
-    EXPECT_EQ(out_layout.data_type, ref_layout.data_type);
-    EXPECT_EQ(get_expected_output_tensor(), out_layout.get_tensor());
-    EXPECT_EQ(out_layout.get_linear_size(), ref_layout.get_linear_size());
-    EXPECT_EQ(out_layout.data_padding, ref_layout.data_padding);
+    ASSERT_EQ(out_layout.get_tensor(), ref_layout.get_tensor());
+    ASSERT_EQ(out_layout.data_type, ref_layout.data_type);
+    ASSERT_EQ(get_expected_output_tensor(), out_layout.get_tensor());
+    ASSERT_EQ(out_layout.get_linear_size(), ref_layout.get_linear_size());
+    ASSERT_EQ(out_layout.data_padding, ref_layout.data_padding);
 
     int batch_size = out_layout.batch();
     int feature_size = out_layout.feature();
@@ -142,7 +142,7 @@ void generic_test::compare_buffers(const memory::ptr out, const memory::ptr ref)
                     size_t res_index = get_linear_index(out_layout, b, f, y, x, out_desc);
                     size_t ref_index = get_linear_index(ref_layout, b, f, y, x, ref_desc);
 
-                    EXPECT_TRUE(floating_point_equal(res_data[res_index], ref_data[ref_index], max_ulps_diff_allowed))
+                    ASSERT_TRUE(floating_point_equal(res_data[res_index], ref_data[ref_index], max_ulps_diff_allowed))
                         << "Expected " << (float)res_data[res_index] << " to be almost equal (within "
                         << max_ulps_diff_allowed << " ULP's) to " << (float)ref_data[ref_index]
                         << " (ref index = " << ref_index << ", B " << b << ", F "<< f << ", Y " << y << ", X " << x << ")!";
@@ -288,7 +288,7 @@ std::vector<std::shared_ptr<test_params>> generic_test::generate_generic_test_pa
     return all_generic_params;
 }
 
-cldnn::engine_configuration get_test_engine_config(cldnn::queue_types queue_type) {
+static cldnn::engine_configuration get_test_engine_config(cldnn::queue_types queue_type) {
     const bool enable_profiling = false;
     std::string sources_dumps_dir = "";
     priority_mode_types priority_mode = priority_mode_types::disabled;
@@ -310,6 +310,14 @@ cldnn::engine& get_test_engine() {
     return *test_engine;
 }
 
+cldnn::engine& get_test_engine(const cldnn::engine_configuration& configuration) {
+   static std::shared_ptr<cldnn::engine> test_engine = nullptr;
+   if (!test_engine) {
+       test_engine = cldnn::engine::create(engine_types::ocl, runtime_types::ocl, configuration);
+   }
+   return *test_engine;
+}
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
 cldnn::engine& get_onednn_test_engine() {
     static std::shared_ptr<cldnn::engine> test_engine = nullptr;
@@ -320,11 +328,15 @@ cldnn::engine& get_onednn_test_engine() {
 }
 #endif
 
-cldnn::stream& get_test_stream() {
+cldnn::stream_ptr get_test_stream_ptr() {
     static std::shared_ptr<cldnn::stream> test_stream = nullptr;
     if (!test_stream)
         test_stream = get_test_engine().create_stream();
-    return *test_stream;
+    return test_stream;
+}
+
+cldnn::stream& get_test_stream() {
+    return *get_test_stream_ptr();
 }
 
 const std::string test_dump::name() const {
@@ -386,6 +398,37 @@ double default_tolerance(data_types dt) {
         IE_THROW() << "Unknown";
     }
     IE_THROW() << "Unknown";
+}
+
+cldnn::format generic_test::get_plain_format_for(const cldnn::format input) {
+    cldnn::format fmt{format::bfzyx};
+    switch (input) {
+    case format::b_fs_zyx_fsv16:
+    case format::b_fs_zyx_fsv32:
+    case format::bs_fs_zyx_bsv16_fsv32:
+    case format::bs_fs_zyx_bsv16_fsv16:
+    case format::bs_fs_zyx_bsv32_fsv32:
+    case format::bs_fs_zyx_bsv32_fsv16:
+        fmt = format::bfzyx;
+        break;
+
+    case format::b_fs_yx_fsv16:
+    case format::b_fs_yx_fsv32:
+    case format::bs_fs_yx_bsv16_fsv16:
+    case format::bs_fs_yx_bsv32_fsv16:
+    case format::bs_fs_yx_bsv32_fsv32:
+        fmt = format::bfyx;
+        break;
+    case format::bfyx:
+    case format::bfzyx:
+    case format::bfwzyx:
+        fmt = input;
+        break;
+    default:
+        throw std::runtime_error(std::string("Unsupported format::" + format(input).to_string()));
+        break;
+    }
+    return fmt;
 }
 
 std::vector<cldnn::format> generic_test::test_input_formats = { cldnn::format::bfyx , cldnn::format::yxfb, cldnn::format::fyxb, cldnn::format::byxf };

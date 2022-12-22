@@ -5,19 +5,20 @@
 #include "transformations/op_conversions/batch_norm_decomposition.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset5.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/core/validation_util.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset5.hpp>
 #include <transformations/utils/utils.hpp>
 #include <vector>
 
 #include "itt.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
-ngraph::pass::BatchNormDecomposition::BatchNormDecomposition() {
+ov::pass::BatchNormDecomposition::BatchNormDecomposition() {
     MATCHER_SCOPE(BatchNormDecomposition);
     auto bn_1 = pattern::wrap_type<opset1::BatchNormInference>({pattern::any_input(pattern::has_static_shape()),
                                                                 pattern::any_input(pattern::has_static_shape()),
@@ -31,7 +32,7 @@ ngraph::pass::BatchNormDecomposition::BatchNormDecomposition() {
                                                                 pattern::any_input(pattern::has_static_shape())});
     auto bn = std::make_shared<ngraph::pattern::op::Or>(OutputVector{bn_1, bn_5});
 
-    ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
+    matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
         auto m_bn = m.get_match_root();
         Output<Node> m_input, m_gamma, m_beta, m_mean, m_var;
         double eps;
@@ -62,8 +63,8 @@ ngraph::pass::BatchNormDecomposition::BatchNormDecomposition() {
         auto gamma_div_scale = std::make_shared<opset5::Divide>(m_gamma, scale);
 
         int64_t dims_to_add = m_input.get_partial_shape().rank().get_length() - 2;
-        const auto one = op::Constant::create(element::i64, Shape{1}, {1});
-        const auto tail_shape_rank = op::Constant::create(element::i64, Shape{1}, {dims_to_add});
+        const auto one = opset5::Constant::create(element::i64, Shape{1}, {1});
+        const auto tail_shape_rank = opset5::Constant::create(element::i64, Shape{1}, {dims_to_add});
         const auto tail_shape = std::make_shared<opset5::Broadcast>(one, tail_shape_rank);
         const auto C_dim = std::make_shared<opset5::ShapeOf>(m_gamma);
         // create new shape [1, C, 1, 1, ...]

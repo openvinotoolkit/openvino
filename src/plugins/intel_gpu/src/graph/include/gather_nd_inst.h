@@ -8,21 +8,13 @@
 #include <string>
 
 namespace cldnn {
-template <>
-struct typed_program_node<gather_nd> : public typed_program_node_base<gather_nd> {
-    using parent = typed_program_node_base<gather_nd>;
-
-public:
-    using parent::parent;
-
-    program_node& input(size_t index = 0) const { return get_dependency(index); }
-};
 
 using gather_nd_node = typed_program_node<gather_nd>;
 
 template <>
 class typed_primitive_inst<gather_nd> : public typed_primitive_inst_base<gather_nd> {
     using parent = typed_primitive_inst_base<gather_nd>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(gather_nd_node const& node, kernel_impl_params const& impl_param);

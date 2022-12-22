@@ -7,7 +7,7 @@ import logging as log
 from functools import partial
 from typing import Any, Dict, List, Optional, Union
 
-from openvino.pyopenvino import NodeFactory as _NodeFactory
+from openvino._pyopenvino import NodeFactory as _NodeFactory
 
 from openvino.runtime import Node, Output
 

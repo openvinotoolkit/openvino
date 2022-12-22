@@ -8,18 +8,40 @@ endif()
 
 set(TARGET_NAME "openvino_intel_gna_plugin")
 
+if (ENABLE_INTEL_GNA_DEBUG)
+    add_compile_definitions(GNA_DEBUG)
+endif()
+
 if(CMAKE_COMPILER_IS_GNUCC)
     ie_add_compiler_flags(-Wno-all)
 endif()
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # C4267, 4244 issues from mkl-dnn headers conversion from 'XXX' to 'YYY', possible loss of data
+    ie_add_compiler_flags(/wd4267)
+    ie_add_compiler_flags(/wd4244)
+    # '<': signed/unsigned mismatch
+    ie_add_compiler_flags(/wd4018)
+    ie_add_compiler_flags(/wd4099)
+    ie_add_compiler_flags(/wd4200)
+endif()
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # C4661: no suitable definition provided for explicit template instantiation request
+    ie_add_compiler_flags(/wd4661)
+    # C4297: function assumed not to throw an exception but does
+    ie_add_compiler_flags(/wd4297)
+endif()
+
+
 file(GLOB_RECURSE SOURCES
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 
 file(GLOB_RECURSE HEADERS
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.h
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 
-addVersionDefines(gna_plugin_entry_points.cpp CI_BUILD_NUMBER)
+addVersionDefines(src/gna_plugin_entry_points.cpp CI_BUILD_NUMBER)
 
 find_package(libGNA REQUIRED
              PATHS "${CMAKE_CURRENT_SOURCE_DIR}/cmake"
@@ -38,7 +60,7 @@ ie_mark_target_as_cc(${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_legacy
         Threads::Threads libGNA)
-target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 target_compile_definitions(${TARGET_NAME}
     PRIVATE
@@ -61,10 +83,10 @@ target_compile_definitions(${TARGET_NAME}_test_static
             INTEGER_LOW_P
             USE_STATIC_IE)
 
-target_link_libraries(${TARGET_NAME}_test_static PUBLIC inference_engine_s openvino_gapi_preproc_s inference_engine_transformations libGNA::API)
+target_link_libraries(${TARGET_NAME}_test_static PUBLIC inference_engine_s inference_engine_transformations libGNA::API)
 target_include_directories(${TARGET_NAME}_test_static
     PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
         $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
     PRIVATE
         $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>)
@@ -112,3 +134,7 @@ if(NOT BUILD_SHARED_LIBS)
                 COMPONENT gna)
     endif()
 endif()
+
+add_subdirectory(tests)
+
+

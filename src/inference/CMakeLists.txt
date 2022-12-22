@@ -4,6 +4,11 @@
 
 set (TARGET_NAME "inference_engine")
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # TODO: Add IMPLEMENT_OPENVINO_API to inference_engine_obj
+    ie_add_compiler_flags(/wd4273)
+endif()
+
 file (GLOB LIBRARY_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp/*.cpp
@@ -39,22 +44,20 @@ file (GLOB LIBRARY_HEADERS
        ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp
       )
 
-if (LINUX)
-    file (GLOB LIBRARY_SRC
-          ${LIBRARY_SRC}
-          ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.cpp)
-    file (GLOB LIBRARY_HEADERS
-         ${LIBRARY_HEADERS}
-         ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.hpp)
-endif()
-
-if (WIN32)
+if(WIN32)
     file (GLOB LIBRARY_SRC
          ${LIBRARY_SRC}
          ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.cpp)
     file (GLOB LIBRARY_HEADERS
          ${LIBRARY_HEADERS}
          ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.hpp)
+elseif(NOT APPLE)
+    file (GLOB LIBRARY_SRC
+          ${LIBRARY_SRC}
+          ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.cpp)
+    file (GLOB LIBRARY_HEADERS
+         ${LIBRARY_HEADERS}
+         ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.hpp)
 endif()
 
 if(ENABLE_SSE42)
@@ -118,6 +121,10 @@ add_library(${TARGET_NAME}_obj OBJECT
             ${LIBRARY_SRC}
             ${LIBRARY_HEADERS}
             ${PUBLIC_HEADERS})
+
+if(NOT BUILD_SHARED_LIBS)
+    target_compile_definitions(${TARGET_NAME}_obj PUBLIC OPENVINO_STATIC_LIBRARY)
+endif()
 
 ie_faster_build(${TARGET_NAME}_obj
     UNITY PCH PRIVATE "src/precomp.hpp"
@@ -193,7 +200,7 @@ if(WIN32)
 endif()
 
 target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} ngraph
-    frontend_common::static openvino_gapi_preproc_s inference_engine_transformations openvino::pugixml)
+    frontend_common::static inference_engine_transformations openvino::pugixml)
 
 target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
 
@@ -217,3 +224,7 @@ ov_install_static_lib(${TARGET_NAME}_plugin_api ${OV_CPACK_COMP_CORE})
 install(DIRECTORY "${PUBLIC_HEADERS_DIR}/"
         DESTINATION ${OV_CPACK_INCLUDEDIR}
         COMPONENT ${OV_CPACK_COMP_CORE_DEV})
+
+if(ENABLE_TESTS)
+add_subdirectory(tests)
+endif()

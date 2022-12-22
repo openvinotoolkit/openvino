@@ -41,17 +41,21 @@ void register_implementations() {
     REGISTER_OCL(gather_elements);
     REGISTER_OCL(gather_nd);
     REGISTER_OCL(gemm);
+    REGISTER_OCL(generate_proposals);
+    REGISTER_OCL(grid_sample);
     REGISTER_OCL(lrn);
     REGISTER_OCL(lstm_gemm);
     REGISTER_OCL(lstm_elt);
-    REGISTER_OCL(max_unpooling);
+    REGISTER_OCL(multiclass_nms);
     REGISTER_OCL(mutable_data);
     REGISTER_OCL(mvn);
     REGISTER_OCL(non_max_suppression);
+    REGISTER_OCL(matrix_nms);
     REGISTER_OCL(normalize);
     REGISTER_OCL(one_hot);
     REGISTER_OCL(permute);
     REGISTER_OCL(pooling);
+    REGISTER_OCL(prior_box);
     REGISTER_OCL(pyramid_roi_align);
     REGISTER_OCL(quantize);
     REGISTER_OCL(random_uniform);
@@ -85,12 +89,14 @@ void register_implementations() {
     REGISTER_OCL(resample);
     REGISTER_OCL(grn);
     REGISTER_OCL(ctc_greedy_decoder);
+    REGISTER_OCL(ctc_loss);
     REGISTER_OCL(cum_sum);
     REGISTER_OCL(embedding_bag);
     REGISTER_OCL(extract_image_patches);
     REGISTER_OCL(convert_color);
     REGISTER_OCL(count_nonzero);
     REGISTER_OCL(gather_nonzero);
+    REGISTER_OCL(eye);
 }
 
 }  // namespace ocl

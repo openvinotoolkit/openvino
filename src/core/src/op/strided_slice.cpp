@@ -6,13 +6,12 @@
 
 #include <algorithm>
 
+#include "compare.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/op/gather.hpp"
 #include "ngraph/op/shape_of.hpp"
-#include "ngraph/pass/constant_folding.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/strided_slice.hpp"
 #include "ngraph/slice_plan.hpp"
@@ -24,8 +23,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v1::StridedSlice);
 
 op::v1::StridedSlice::StridedSlice(const Output<Node>& data,
                                    const Output<Node>& begin,
@@ -89,7 +86,7 @@ op::v1::StridedSlice::StridedSlice(const Output<Node>& data,
                    ellipsis_mask) {}
 
 bool op::v1::StridedSlice::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_StridedSlice_visit_attributes);
+    OV_OP_SCOPE(v1_StridedSlice_visit_attributes);
     visitor.on_attribute("begin_mask", m_begin_mask);
     visitor.on_attribute("end_mask", m_end_mask);
     visitor.on_attribute("new_axis_mask", m_new_axis_mask);
@@ -99,7 +96,7 @@ bool op::v1::StridedSlice::visit_attributes(AttributeVisitor& visitor) {
 }
 
 void op::v1::StridedSlice::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v1_StridedSlice_validate_and_infer_types);
+    OV_OP_SCOPE(v1_StridedSlice_validate_and_infer_types);
     const auto& begin_mask_et = get_input_element_type(1);
     const auto& end_mask_et = get_input_element_type(2);
     NODE_VALIDATION_CHECK(this,
@@ -111,9 +108,7 @@ void op::v1::StridedSlice::validate_and_infer_types() {
                           "End mask must be an integral number, but is: ",
                           end_mask_et);
 
-    auto are_mask_elem_in_range = [](size_t e) {
-        return e == 0 || e == 1;
-    };
+    constexpr auto are_mask_elem_in_range = cmp::Between<int64_t, cmp::BOTH>(0, 1);
     NODE_VALIDATION_CHECK(
         this,
         std::all_of(m_begin_mask.begin(), m_begin_mask.end(), are_mask_elem_in_range) &&
@@ -142,11 +137,8 @@ void op::v1::StridedSlice::validate_and_infer_types() {
     set_input_is_relevant_to_shape(2);
     set_input_is_relevant_to_shape(3);
 
-    std::vector<ov::PartialShape> input_shapes;
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic()};
-    for (size_t input_idx = 0; input_idx < get_input_size(); ++input_idx) {
-        input_shapes.push_back(get_input_partial_shape(input_idx));
-    }
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    auto output_shapes = std::vector<ov::PartialShape>(1, PartialShape::dynamic());
 
     shape_infer(this, input_shapes, output_shapes);
 
@@ -164,7 +156,7 @@ AxisSet op::v1::StridedSlice::convert_mask_to_axis_set(const std::vector<int64_t
 }
 
 shared_ptr<Node> op::v1::StridedSlice::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_StridedSlice_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_StridedSlice_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::StridedSlice>(new_args.at(0),
                                          new_args.at(1),
@@ -220,7 +212,7 @@ bool evaluate_strided_slice(const HostTensorPtr& in,
 }  // namespace strided_slice
 
 bool op::v1::StridedSlice::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
-    NGRAPH_OP_SCOPE(v1_StridedSlice_evaluate);
+    OV_OP_SCOPE(v1_StridedSlice_evaluate);
     // FIXME: 4th input is optional, but it is required by the following code
     NGRAPH_CHECK(validate_host_tensor_vector(input_values, 4));
     NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
@@ -237,7 +229,7 @@ bool op::v1::StridedSlice::evaluate(const HostTensorVector& output_values, const
 }
 
 bool op::v1::StridedSlice::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v1_StridedSlice_has_evaluate);
+    OV_OP_SCOPE(v1_StridedSlice_has_evaluate);
     return get_input_size() == 4;
 }
 

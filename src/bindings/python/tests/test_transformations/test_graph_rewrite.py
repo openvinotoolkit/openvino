@@ -4,7 +4,7 @@
 from openvino.runtime import opset8
 from openvino.runtime.passes import Manager, GraphRewrite, MatcherPass, WrapType, Matcher
 
-from utils.utils import count_ops, get_test_model, PatternReplacement
+from tests.test_transformations.utils.utils import count_ops, get_test_model, PatternReplacement
 
 
 def test_graph_rewrite():

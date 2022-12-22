@@ -18,6 +18,7 @@ public:
                     InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32);
 
     size_t get_inputs_num() const override;
+    static std::set<InferenceEngine::Precision> get_supported_precisions();
 
 private:
     void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
@@ -36,6 +37,7 @@ public:
                         InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32);
 
     size_t get_inputs_num() const override;
+    static std::set<InferenceEngine::Precision> get_supported_precisions();
 
 private:
     void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
@@ -57,6 +59,7 @@ public:
                          InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32);
 
     size_t get_inputs_num() const override;
+    static std::set<InferenceEngine::Precision> get_supported_precisions();
 
 private:
     void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
@@ -76,6 +79,7 @@ public:
                          InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32);
 
     size_t get_inputs_num() const override;
+    static std::set<InferenceEngine::Precision> get_supported_precisions();
 
 private:
     void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
@@ -232,6 +236,7 @@ public:
                                    InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32);
 
     size_t get_inputs_num() const override;
+    static std::set<InferenceEngine::Precision> get_supported_precisions();
 
 private:
     void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,

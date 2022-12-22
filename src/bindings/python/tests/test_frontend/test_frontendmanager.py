@@ -32,8 +32,8 @@ except Exception:
 fem = FrontEndManager()
 
 mock_needed = pytest.mark.skipif(not mock_available, reason="Mock frontend is not available. Check paths in:"
-                                                            f" LD_LIBRARY_PATH={os.environ['LD_LIBRARY_PATH']}"
-                                                            f", PYTHONPATH={os.environ['PYTHONPATH']}")
+                                                            f" LD_LIBRARY_PATH={os.environ.get('LD_LIBRARY_PATH','')}"
+                                                            f", PYTHONPATH={os.environ.get('PYTHONPATH','')}")
 
 MOCK_PY_FRONTEND_NAME = "mock_py"
 
@@ -100,7 +100,7 @@ def test_load_wrong_path():
     assert fe is not None
     with pytest.raises(RuntimeError) as e:
         fe.load(TestClass())
-    assert "Path: 'test class' does not exist. Please provide valid model's path either as a string or pathlib.Path" in str(e.value)
+    assert "Path: 'test class' does not exist. Please provide valid model's path either as a string, bytes or pathlib.Path" in str(e.value)
 
 
 @mock_needed

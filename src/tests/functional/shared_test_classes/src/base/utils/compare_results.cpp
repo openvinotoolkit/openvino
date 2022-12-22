@@ -3,6 +3,8 @@
 //
 
 #include "ngraph/ops.hpp"
+#include "ov_ops/augru_cell.hpp"
+#include "ov_ops/augru_sequence.hpp"
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/utils/compare_results.hpp"
@@ -66,19 +68,21 @@ void compareResults(const std::shared_ptr<ov::Node> &node,
 
 CompareMap getCompareMap() {
     CompareMap compareMap{
-#define NGRAPH_OP(NAME, NAMESPACE) {NAMESPACE::NAME::get_type_info_static(), compareResults<NAMESPACE::NAME>},
+#define _OPENVINO_OP_REG(NAME, NAMESPACE) {NAMESPACE::NAME::get_type_info_static(), compareResults<NAMESPACE::NAME>},
 
-#include "ngraph/opsets/opset1_tbl.hpp"
-#include "ngraph/opsets/opset2_tbl.hpp"
-#include "ngraph/opsets/opset3_tbl.hpp"
-#include "ngraph/opsets/opset4_tbl.hpp"
-#include "ngraph/opsets/opset5_tbl.hpp"
-#include "ngraph/opsets/opset6_tbl.hpp"
-#include "ngraph/opsets/opset7_tbl.hpp"
-#include "ngraph/opsets/opset8_tbl.hpp"
-#include "ngraph/opsets/opset9_tbl.hpp"
+#include "openvino/opsets/opset1_tbl.hpp"
+#include "openvino/opsets/opset2_tbl.hpp"
+#include "openvino/opsets/opset3_tbl.hpp"
+#include "openvino/opsets/opset4_tbl.hpp"
+#include "openvino/opsets/opset5_tbl.hpp"
+#include "openvino/opsets/opset6_tbl.hpp"
+#include "openvino/opsets/opset7_tbl.hpp"
+#include "openvino/opsets/opset8_tbl.hpp"
+#include "openvino/opsets/opset9_tbl.hpp"
+#include "openvino/opsets/opset10_tbl.hpp"
 
-#undef NGRAPH_OP
+#include "ov_ops/opset_private_tbl.hpp"
+#undef _OPENVINO_OP_REG
     };
     return compareMap;
 }

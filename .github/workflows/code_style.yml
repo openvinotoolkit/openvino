@@ -1,6 +1,10 @@
 name: Code Style
 on: [push, pull_request]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   clang-format:
     runs-on: ubuntu-20.04
@@ -19,7 +23,7 @@ jobs:
           sudo apt update
           sudo apt --assume-yes install libusb-1.0-0-dev
           python3 -m pip install --upgrade pip
-          python3 -m pip install -r ./src/bindings/python/src/compatibility/openvino/requirements.txt
+          python3 -m pip install -r ./src/bindings/python/requirements.txt
           # Add for -DENABLE_PYTHON=ON, no cython
           python3 -m pip install -r ./src/bindings/python/src/compatibility/openvino/requirements-dev.txt
 
@@ -37,15 +41,21 @@ jobs:
       - name: Create code style diff
         if: failure()
         run: |
-          cmake --build . --target clang_format_fix_all -j8
+          cmake --build build --target clang_format_fix_all -j8
           git diff > code_style_diff.diff
-        working-directory: build
+
+      - name: suggester / clang-format
+        if: failure() && startsWith(github.event_name, 'pull_request')
+        uses: reviewdog/action-suggester@v1
+        with:
+          level: error
+          tool_name: clang-format
 
       - uses: actions/upload-artifact@v2
         if: failure()
         with:
           name: code_style_diff
-          path: build/code_style_diff.diff
+          path: code_style_diff.diff
 
   ShellCheck:
     runs-on: ubuntu-22.04
@@ -60,7 +70,7 @@ jobs:
           sudo apt --assume-yes install shellcheck
 
       - name: Install dependencies
-        run: python3 -m pip install -r ./src/bindings/python/src/compatibility/openvino/requirements.txt
+        run: python3 -m pip install -r ./src/bindings/python/requirements.txt
 
       - name: CMake
         run: |

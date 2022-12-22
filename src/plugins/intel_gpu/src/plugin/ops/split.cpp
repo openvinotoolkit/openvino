@@ -14,43 +14,50 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateCommonSplitOp(Program& p, const std::shared_ptr<ngraph::Node>& op) {
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
-    std::string layerName = layer_type_name_ID(op);
+    auto get_layer_name = [&](size_t idx)->std::string {
+        return layer_type_name_ID(op) + ((op->get_output_size() == 1)? "" : ".out" + std::to_string(idx));
+    };
 
-    auto input_pshape = op->get_input_partial_shape(0);
-    OPENVINO_ASSERT(input_pshape.is_static(),
-                    "Dynamic shapes are not supported yet for v1::Split and v1::VariadicSplit operations");
-
-    auto input_shape = input_pshape.to_shape();
-    InferenceEngine::SizeVector start_offset(input_shape.size());
-
-    bool is_single_out_split = op->get_output_size() == 1;
-
-    for (size_t i = 0; i < op->get_output_size(); i++) {
-        std::string outLayerName = layerName + (is_single_out_split ? "" : ".out" + std::to_string(i));
-        const auto outLayerDims = op->get_output_shape(i);
-        NGRAPH_SUPPRESS_DEPRECATED_START
-        if (outLayerDims.size() != start_offset.size()) {
-            IE_THROW() << "Invalid dimesions in split layer: " << op->get_friendly_name()
-                               << " output: " <<  op->get_output_tensor_name(i);
+    auto inputs = p.GetInputInfo(op);
+    if (p.use_new_shape_infer() || op->is_dynamic()) {
+        cldnn::crop_ngraph_op_mode op_mode = cldnn::crop_ngraph_op_mode::variadic_split;
+        size_t num_splits = 1;
+        if (ngraph::is_type<ngraph::op::v1::Split>(op)) {
+            num_splits = ngraph::as_type_ptr<ngraph::op::v1::Split>(op)->get_num_splits();
+            op_mode = cldnn::crop_ngraph_op_mode::split;
         }
-        for (size_t i = 0; i < input_shape.size(); i++) {
-            if ((outLayerDims[i] + start_offset[i]) > input_shape[i]) {
+
+        for (size_t i = 0; i < op->get_output_size(); i++) {
+            auto cropPrim = cldnn::crop(get_layer_name(i), inputs, cldnn::tensor(1), cldnn::tensor(0), op_mode, i, num_splits);
+            p.add_primitive(*op, cropPrim);
+        }
+    } else {
+        auto input_pshape = op->get_input_partial_shape(0);
+        InferenceEngine::SizeVector start_offset(input_pshape.size());
+        for (size_t i = 0; i < op->get_output_size(); i++) {
+            const auto outPartialShape = op->get_output_partial_shape(i);
+            NGRAPH_SUPPRESS_DEPRECATED_START
+            if (outPartialShape.size() != start_offset.size()) {
                 IE_THROW() << "Invalid dimesions in split layer: " << op->get_friendly_name()
-                                   << " output: " <<  op->get_output_tensor_name(i);
+                                << " output: " <<  ov::descriptor::get_ov_tensor_legacy_name(op->get_output_tensor(i));
             }
-        }
-        NGRAPH_SUPPRESS_DEPRECATED_END
+            for (size_t idx = 0; idx < input_pshape.size(); idx++) {
+                if ((outPartialShape[idx].get_length() + static_cast<ov::Dimension::value_type>(start_offset[idx])) > input_pshape[idx].get_length()) {
+                    IE_THROW() << "Invalid dimesions in split layer: " << op->get_friendly_name()
+                                    << " output: " <<  ov::descriptor::get_ov_tensor_legacy_name(op->get_output_tensor(idx));
+                }
+            }
+            NGRAPH_SUPPRESS_DEPRECATED_END
 
-        auto outTensor = tensor_from_dims(outLayerDims, 1);
-        auto offsetTensor = tensor_from_dims(start_offset, 0);
+            auto offsetTensor = tensor_from_dims(start_offset, 0);
+            auto outTensor = tensor_from_dims(op->get_output_shape(i), 1);
+            auto cropPrim = cldnn::crop(get_layer_name(i), inputs[0], outTensor, offsetTensor);
+            p.add_primitive(*op, cropPrim);
 
-        auto cropPrim = cldnn::crop(outLayerName, inputPrimitives[0], outTensor, offsetTensor);
-        p.add_primitive(*op, cropPrim);
-
-        for (size_t i = 0; i < input_shape.size(); i++) {
-            if (outLayerDims[i] != input_shape[i]) {
-                start_offset[i] += outLayerDims[i];
+            for (size_t idx = 0; idx < input_pshape.size(); idx++) {
+                if (outPartialShape[idx] != input_pshape[idx]) {
+                    start_offset[idx] += outPartialShape.to_shape()[idx];
+                }
             }
         }
     }

@@ -4,12 +4,13 @@
 #pragma once
 
 #include <openvino/op/fake_quantize.hpp>
+
 #include "utils.hpp"
 
 template <class T>
 void shape_infer(const ov::op::v0::FakeQuantize* op,
-                 const std::vector<T> &input_shapes,
-                 std::vector<T> &output_shapes) {
+                 const std::vector<T>& input_shapes,
+                 std::vector<T>& output_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 5 && output_shapes.size() == 1);
 
     T data_pshape = input_shapes[0];
@@ -17,15 +18,12 @@ void shape_infer(const ov::op::v0::FakeQuantize* op,
 
     for (size_t i = 1; i <= 4; ++i) {
         if (auto_broadcast.m_type == ov::op::AutoBroadcastType::NONE) {
-            NODE_VALIDATION_CHECK(op,
-                                  T::merge_into(data_pshape, input_shapes[i]),
-                                  "Argument shapes are inconsistent.");
+            NODE_VALIDATION_CHECK(op, T::merge_into(data_pshape, input_shapes[i]), "Argument shapes are inconsistent.");
         } else if (auto_broadcast.m_type == ov::op::AutoBroadcastType::NUMPY ||
                    auto_broadcast.m_type == ov::op::AutoBroadcastType::PDPD) {
-            NODE_VALIDATION_CHECK(
-                    op,
-                    T::broadcast_merge_into(data_pshape, input_shapes[i], auto_broadcast),
-                    "Argument shapes are inconsistent.");
+            NODE_VALIDATION_CHECK(op,
+                                  T::broadcast_merge_into(data_pshape, input_shapes[i], auto_broadcast),
+                                  "Argument shapes are inconsistent.");
         } else {
             NODE_VALIDATION_CHECK(op, false, "Unsupported auto broadcast specification");
         }

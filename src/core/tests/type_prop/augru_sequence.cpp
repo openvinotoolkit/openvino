@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_ops/augru_sequence.hpp"
+#include "ov_ops/augru_sequence.hpp"
 
+#include "common_test_utils/test_assertions.hpp"
 #include "gtest/gtest.h"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/opsets/opset9.hpp"
@@ -11,6 +12,7 @@
 
 using namespace std;
 using namespace ov;
+using namespace testing;
 
 struct augru_sequence_parameters {
     Dimension batch_size = 8;
@@ -171,39 +173,94 @@ TEST(type_prop, augru_sequence_invalid_input_dimension) {
         augru_sequence = augru_seq_init(params);
         augru_sequence->set_argument(i, invalid_rank_tensor);
         ASSERT_THROW(augru_sequence->validate_and_infer_types(), ngraph::CheckFailure)
-            << "GRUSequence node was created with invalid data.";
+            << "AUGRUSequence node was created with invalid data.";
     }
 }
 
-TEST(type_prop, augru_sequence_invalid_input_dynamic_rank) {
-    augru_sequence_parameters params;
+TEST(type_prop, augru_sequence_input_dynamic_shape_ranges) {
+    augru_sequence_parameters param;
 
-    params.batch_size = 8;
-    params.num_directions = 1;
-    params.seq_length = 6;
-    params.input_size = 4;
-    params.hidden_size = 128;
-    params.et = element::f32;
+    param.batch_size = Dimension(1, 8);
+    param.num_directions = Dimension(1, 2);
+    param.seq_length = Dimension(5, 7);
+    param.input_size = Dimension(64, 128);
+    param.hidden_size = Dimension(32, 64);
+    param.et = element::f32;
 
-    auto check_dynamic_augru = [](const shared_ptr<op::internal::AUGRUSequence>& augru) -> bool {
-        return augru->output(0).get_partial_shape() == PartialShape::dynamic(4) &&
-               augru->output(1).get_partial_shape() == PartialShape::dynamic(3) &&
-               augru->output(0).get_element_type() == augru->input(0).get_element_type();
-    };
+    auto augru_sequence = augru_seq_init(param);
+    augru_sequence->validate_and_infer_types();
 
-    auto augru_sequence = augru_seq_init(params);
-    auto invalid_dynamic_tensor = make_shared<opset9::Parameter>(params.et, PartialShape::dynamic());
+    EXPECT_EQ(augru_sequence->get_output_partial_shape(0),
+              (PartialShape{param.batch_size, 1, param.seq_length, param.hidden_size}));
+    EXPECT_EQ(augru_sequence->get_output_partial_shape(1), (PartialShape{param.batch_size, 1, param.hidden_size}));
+    EXPECT_EQ(augru_sequence->get_output_element_type(0), param.et);
+    EXPECT_EQ(augru_sequence->get_output_element_type(1), param.et);
+}
 
-    // Validate invalid dynamic tensor for all inputs: X, initial_hidden_state, W, R, B, A
+TEST(type_prop, augru_sequence_input_dynamic_rank) {
+    augru_sequence_parameters param;
+
+    param.batch_size = 8;
+    param.num_directions = 1;
+    param.seq_length = 6;
+    param.input_size = 4;
+    param.hidden_size = 128;
+    param.et = element::f32;
+
+    auto augru_sequence = augru_seq_init(param);
+    auto dynamic_tensor = make_shared<opset9::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
+
     for (size_t i = 0; i < augru_sequence->get_input_size(); i++) {
-        augru_sequence = augru_seq_init(params);
-        augru_sequence->set_argument(i, invalid_dynamic_tensor);
+        augru_sequence = augru_seq_init(param);
+        augru_sequence->set_argument(i, dynamic_tensor);
         augru_sequence->validate_and_infer_types();
-        EXPECT_TRUE(check_dynamic_augru(augru_sequence));
+        if (i == 0) {  // X input dynamic rank
+            EXPECT_EQ(augru_sequence->get_output_partial_shape(0),
+                      (PartialShape{param.batch_size, param.num_directions, -1, param.hidden_size}));
+        } else {
+            EXPECT_EQ(augru_sequence->get_output_partial_shape(0),
+                      (PartialShape{param.batch_size, param.num_directions, param.seq_length, param.hidden_size}));
+        }
+        EXPECT_EQ(augru_sequence->get_output_partial_shape(1),
+                  (PartialShape{param.batch_size, param.num_directions, param.hidden_size}));
+        EXPECT_EQ(augru_sequence->get_output_element_type(0), param.et);
+        EXPECT_EQ(augru_sequence->get_output_element_type(1), param.et);
     }
 }
 
-TEST(type_prop, augru_sequence_invalid_attention_gate) {
+TEST(type_prop, augru_sequence_all_inputs_dynamic_rank) {
+    augru_sequence_parameters param;
+
+    param.batch_size = 8;
+    param.num_directions = 1;
+    param.seq_length = 6;
+    param.input_size = 4;
+    param.hidden_size = 128;
+    param.et = element::f32;
+
+    const auto X = make_shared<opset9::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
+    const auto initial_hidden_state = make_shared<opset9::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
+    const auto sequence_lengths = make_shared<opset9::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
+    const auto W = make_shared<opset9::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
+    const auto R = make_shared<opset9::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
+    const auto B = make_shared<opset9::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
+    const auto A = make_shared<opset9::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
+
+    const auto augru_sequence = make_shared<op::internal::AUGRUSequence>(X,
+                                                                         initial_hidden_state,
+                                                                         sequence_lengths,
+                                                                         W,
+                                                                         R,
+                                                                         B,
+                                                                         A,
+                                                                         param.hidden_size.get_length());
+    EXPECT_EQ(augru_sequence->get_output_partial_shape(0), (PartialShape{-1, 1, -1, -1}));
+    EXPECT_EQ(augru_sequence->get_output_partial_shape(1), (PartialShape{-1, 1, -1}));
+    EXPECT_EQ(augru_sequence->get_output_element_type(0), param.et);
+    EXPECT_EQ(augru_sequence->get_output_element_type(1), param.et);
+}
+
+TEST(type_prop, augru_sequence_invalid_attention_gate_seq_length) {
     augru_sequence_parameters params;
 
     params.batch_size = 8;
@@ -217,13 +274,28 @@ TEST(type_prop, augru_sequence_invalid_attention_gate) {
     auto invalid_attention_gate = make_shared<opset9::Parameter>(params.et, PartialShape{params.batch_size, 999, 1});
     augru_sequence->set_argument(6, invalid_attention_gate);
 
-    try {
-        augru_sequence->validate_and_infer_types();
-        FAIL() << "AUGRUSequence node was created with invalid data.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Dimension `seq_length` must be the same for `X` and `A` inputs."));
-    }
+    OV_EXPECT_THROW(augru_sequence->validate_and_infer_types(),
+                    ov::NodeValidationFailure,
+                    HasSubstr("Dimension `seq_length` must be the same for `X` and `A` inputs"));
+}
+
+TEST(type_prop, augru_sequence_invalid_attention_gate_batch) {
+    augru_sequence_parameters params;
+
+    params.batch_size = 8;
+    params.num_directions = 1;
+    params.seq_length = 6;
+    params.input_size = 4;
+    params.hidden_size = 128;
+    params.et = element::f32;
+
+    auto augru_sequence = augru_seq_init(params);
+    auto invalid_attention_gate = make_shared<opset9::Parameter>(params.et, PartialShape{999, params.seq_length, 1});
+    augru_sequence->set_argument(6, invalid_attention_gate);
+
+    OV_EXPECT_THROW(augru_sequence->validate_and_infer_types(),
+                    ov::NodeValidationFailure,
+                    HasSubstr("Dimension `batch_size` must be the same for `X` and `A` inputs"));
 }
 
 namespace {

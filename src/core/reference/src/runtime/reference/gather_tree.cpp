@@ -20,17 +20,17 @@ static size_t _asIndex(const char* source, const element::Type& element_type) {
     case element::Type_t::f16: {
         ngraph::float16 tmpBuff = 0.f;
         memcpy(&tmpBuff, source, sizeof(ngraph::float16));
-        return tmpBuff;
+        return static_cast<size_t>(tmpBuff);
     }
     case element::Type_t::f32: {
         float tmpBuff = 0.f;
         memcpy(&tmpBuff, source, sizeof(float));
-        return tmpBuff;
+        return static_cast<size_t>(tmpBuff);
     }
     case element::Type_t::i32: {
         int32_t tmpBuff = 0;
         memcpy(&tmpBuff, source, sizeof(int32_t));
-        return tmpBuff;
+        return static_cast<size_t>(tmpBuff);
     }
     default: {
         throw ngraph_error(std::string("Unsupported input data type: ") + element_type.get_type_name());
@@ -76,7 +76,7 @@ void runtime::reference::gather_tree(const char* step_ids,
     ngraph::CoordinateTransformBasic cordinate_transform(step_ids_shape);
 
     for (const auto& coord : cordinate_transform) {
-        const auto out_idx = std::inner_product(coord.begin(), coord.end(), in_strides.begin(), 0);
+        const auto out_idx = std::inner_product(coord.begin(), coord.end(), in_strides.begin(), uint64_t(0));
         memcpy(out + out_idx * elem_size, end_token, elem_size);
     }
 
@@ -89,18 +89,20 @@ void runtime::reference::gather_tree(const char* step_ids,
             }
 
             const auto coord = Coordinate({max_seq_in_beam - 1, batch, beam});
-            const auto offset = std::inner_product(coord.begin(), coord.end(), in_strides.begin(), 0) * elem_size;
+            const auto offset =
+                std::inner_product(coord.begin(), coord.end(), in_strides.begin(), uint64_t(0)) * elem_size;
             memcpy(out + offset, step_ids + offset, elem_size);
 
             size_t parent = _asIndex(parent_ids + offset, element_type);
 
             for (size_t level = max_seq_in_beam - 1; level-- > 0;) {
                 const auto coord_beam = Coordinate({level, batch, beam});
-                const auto out_idx = std::inner_product(coord_beam.begin(), coord_beam.end(), in_strides.begin(), 0);
+                const auto out_idx =
+                    std::inner_product(coord_beam.begin(), coord_beam.end(), in_strides.begin(), uint64_t(0));
 
                 const auto coord_parent = Coordinate({level, batch, parent});
                 const auto step_ids_idx =
-                    std::inner_product(coord_parent.begin(), coord_parent.end(), in_strides.begin(), 0);
+                    std::inner_product(coord_parent.begin(), coord_parent.end(), in_strides.begin(), uint64_t(0));
 
                 memcpy(out + out_idx * elem_size, step_ids + step_ids_idx * elem_size, elem_size);
 
@@ -110,7 +112,8 @@ void runtime::reference::gather_tree(const char* step_ids,
             bool finished = false;
             for (size_t time = 0; time < max_seq_in_beam; ++time) {
                 const auto out_coord = Coordinate({time, batch, beam});
-                const auto out_idx = std::inner_product(out_coord.begin(), out_coord.end(), in_strides.begin(), 0);
+                const auto out_idx =
+                    std::inner_product(out_coord.begin(), out_coord.end(), in_strides.begin(), uint64_t(0));
                 if (finished) {
                     memcpy(out + out_idx * elem_size, end_token, elem_size);
                 } else if (_asIndex(out + out_idx * elem_size, element_type) == _asIndex(end_token, element_type)) {

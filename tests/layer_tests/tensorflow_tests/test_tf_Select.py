@@ -1,122 +1,53 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import numpy as np
 import pytest
-
+import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
-from common.utils.tf_utils import permute_nchw_to_nhwc
 
 
 class TestSelect(CommonTFLayerTest):
-    def create_select_net(self, shape_condition, shape_input, ir_version, use_new_frontend):
-        """
-            Tensorflow net                 IR net
+    def _prepare_input(self, inputs_info):
+        assert 'cond' in inputs_info, "Test error: inputs_info must contain `cond`"
+        assert 'x' in inputs_info, "Test error: inputs_info must contain `x`"
+        assert 'y' in inputs_info, "Test error: inputs_info must contain `y`"
+        cond_shape = inputs_info['cond']
+        x_shape = inputs_info['x']
+        y_shape = inputs_info['y']
+        inputs_data = {}
+        inputs_data['cond'] = np.random.randint(0, 2, cond_shape).astype(bool)
+        inputs_data['x'] = np.random.randint(-100, 100, x_shape).astype(np.float32)
+        inputs_data['y'] = np.random.randint(-100, 100, y_shape).astype(np.float32)
+        return inputs_data
 
-            Condition --|               Condition --|
-                        v                           v
-            Input_1-> Select            Input_1-> Select
-                        ^                           ^
-            Input_2-----|               Input_2-----|
-        """
-
-        #
-        #   Create Tensorflow model
-        #
-
-        import tensorflow as tf
-
+    def create_select_net(self, cond_shape, x_shape, y_shape):
         tf.compat.v1.reset_default_graph()
-
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            # Permute shapes NCHW -> NHWC for TF network creation
-            shape_condition_net = permute_nchw_to_nhwc(shape_condition)
-            shape_input_net = permute_nchw_to_nhwc(shape_input)
-
-            condition = tf.compat.v1.placeholder(tf.bool, shape_condition_net, 'Input_condition')
-            input_1 = tf.compat.v1.placeholder(tf.float32, shape_input_net, 'Input_1')
-            input_2 = tf.compat.v1.placeholder(tf.float32, shape_input_net, 'Input_2')
-
-            tf.compat.v1.where(condition, input_1, input_2, name='Operation')
-
+            cond = tf.compat.v1.placeholder(tf.bool, cond_shape, 'cond')
+            x = tf.compat.v1.placeholder(tf.float32, x_shape, 'x')
+            y = tf.compat.v1.placeholder(tf.float32, y_shape, 'y')
+            tf.raw_ops.Select(condition=cond, x=x, y=y, name='select')
             tf.compat.v1.global_variables_initializer()
+
             tf_net = sess.graph_def
 
-        #
-        #   Create reference IR net
-        #   Please, specify 'type': 'Input' for input node
-        #   Moreover, do not forget to validate ALL layer attributes!!!
-        #
+        return tf_net, None
 
-        ref_net = None
-
-        return tf_net, ref_net
-
-    test_data_1D = [dict(shape_condition=[2], shape_input=[2])]
-
-    @pytest.mark.parametrize("params", test_data_1D)
-    @pytest.mark.nightly
-    def test_select_1D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                       use_old_api):
-        self._test(*self.create_select_net(**params, ir_version=ir_version,
-                                           use_new_frontend=use_new_frontend),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
-
-    test_data_2D = [
-        dict(shape_condition=[2], shape_input=[2, 3]),
-        dict(shape_condition=[3, 5], shape_input=[3, 5]),
+    test_data_basic = [
+        dict(cond_shape=[], x_shape=[3, 2, 4], y_shape=[3, 2, 4]),
+        dict(cond_shape=[2], x_shape=[2, 4, 5], y_shape=[2, 4, 5]),
+        dict(cond_shape=[2, 3, 4], x_shape=[2, 3, 4], y_shape=[2, 3, 4]),
     ]
 
-    @pytest.mark.parametrize("params", test_data_2D)
+    @pytest.mark.parametrize("params", test_data_basic)
+    @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
-    def test_select_2D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                       use_old_api):
-        self._test(*self.create_select_net(**params, ir_version=ir_version,
-                                           use_new_frontend=use_new_frontend),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
-
-    test_data_3D = [
-        dict(shape_condition=[3], shape_input=[3, 4, 5]),
-        dict(shape_condition=[3, 4, 5], shape_input=[3, 4, 5]),
-    ]
-
-    @pytest.mark.parametrize("params", test_data_3D)
-    @pytest.mark.nightly
-    def test_select_3D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                       use_old_api):
-        self._test(*self.create_select_net(**params, ir_version=ir_version,
-                                           use_new_frontend=use_new_frontend),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
-
-    test_data_4D = [
-        dict(shape_condition=[3], shape_input=[3, 4, 5, 6]),
-        dict(shape_condition=[3, 4, 5, 6], shape_input=[3, 4, 5, 6]),
-    ]
-
-    @pytest.mark.parametrize("params", test_data_4D)
-    @pytest.mark.nightly
-    @pytest.mark.precommit
-    def test_select_4D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                       use_old_api):
-        self._test(*self.create_select_net(**params, ir_version=ir_version,
-                                           use_new_frontend=use_new_frontend),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
-
-    test_data_5D = [
-        dict(shape_condition=[3], shape_input=[3, 4, 5, 6, 7]),
-        dict(shape_condition=[3, 4, 5, 6, 7], shape_input=[3, 4, 5, 6, 7]),
-    ]
-
-    # TODO mark as precommit (after successfully passing in nightly)
-    @pytest.mark.parametrize("params", test_data_5D)
-    @pytest.mark.nightly
-    def test_select_5D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                       use_old_api):
-        self._test(*self.create_select_net(**params, ir_version=ir_version,
-                                           use_new_frontend=use_new_frontend),
+    def test_select_basic(self, params, ie_device, precision, ir_version, temp_dir,
+                          use_new_frontend, use_old_api):
+        if not use_new_frontend:
+            pytest.skip("Select tests are not passing for the legacy frontend.")
+        self._test(*self.create_select_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)

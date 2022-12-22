@@ -18,7 +18,6 @@ void shape_infer(const VariadicSplit* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes,
                  const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
-    using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
     constexpr bool is_dynamic_shape = std::is_base_of<ov::PartialShape, T>::value;
 
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 3));
@@ -111,14 +110,12 @@ void shape_infer(const VariadicSplit* op,
 
                 auto out_shape = data_shape;
                 out_shape[axis] = Dimension::dynamic();
-                for (int64_t output = 0; output < num_outputs; ++output)
-                    output_shapes.push_back(out_shape);
+                output_shapes.resize(num_outputs, out_shape);
             }
         } else {
             // we only know num_outputs, only predict the rank
             auto out_shape = ov::PartialShape::dynamic(data_shape.rank());
-            for (int64_t output = 0; output < num_outputs; ++output)
-                output_shapes.push_back(out_shape);
+            output_shapes.resize(num_outputs, out_shape);
         }
     } else {
         // we don't even known the number of outputs in this case.

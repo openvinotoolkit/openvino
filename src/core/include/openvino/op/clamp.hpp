@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "openvino/op/op.hpp"
+#include "openvino/op/util/unary_elementwise_arithmetic.hpp"
 
 namespace ov {
 namespace op {
@@ -15,12 +15,11 @@ namespace v0 {
 /// depending on which side of the <min;max> range they are. The values that fall into
 /// this range remain unchanged.
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API Clamp : public Op {
+class OPENVINO_API Clamp : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_OP("Clamp", "opset1");
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("Clamp", "opset1", UnaryElementwiseArithmetic);
 
-    Clamp();
+    Clamp() = default;
     /// \brief Constructs a Clamp node.
     ///
     /// \param data - Node producing the input tensor
@@ -40,8 +39,16 @@ public:
     double get_max() const {
         return m_max;
     }
+    void set_min(const double& x) {
+        m_min = x;
+    }
+    void set_max(const double& x) {
+        m_max = x;
+    }
     OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    bool evaluate_lower(const HostTensorVector& outputs) const override;
+    bool evaluate_upper(const HostTensorVector& outputs) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 

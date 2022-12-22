@@ -7,7 +7,7 @@ include(cmake/ie_parallel.cmake)
 # pre-find TBB: need to provide TBB_IMPORTED_TARGETS used for installation
 ov_find_package_tbb()
 
-# check whether TBB has TBBBind 2.5 with hwloc 2.5 or higher which is required
+# check whether TBB has TBBBind 2.5+ with hwloc 2.5+ or higher which is required
 # to detect hybrid cores
 function(_ov_detect_dynamic_tbbbind_2_5 var)
     if(NOT TBB_FOUND)
@@ -17,15 +17,15 @@ function(_ov_detect_dynamic_tbbbind_2_5 var)
     # try to select proper library directory
     _ov_get_tbb_location(TBB::tbb _tbb_lib_location)
     get_filename_component(_tbb_libs_dir "${_tbb_lib_location}" DIRECTORY)
-
     # unset for cases if user specified different TBB_DIR / TBBROOT
     unset(_ov_tbbbind_2_5 CACHE)
 
-    find_library(_ov_tbbbind_2_5
-                 NAMES tbbbind_2_5
-                 HINTS "${_tbb_libs_dir}"
-                 "Path to TBBBind 2.5 library"
-                 NO_DEFAULT_PATH)
+    find_file(_ov_tbbbind_2_5
+              NAMES "${CMAKE_SHARED_LIBRARY_PREFIX}tbbbind_2_5${CMAKE_SHARED_LIBRARY_SUFFIX}"
+              HINTS "${_tbb_libs_dir}"
+              "Path to TBBBind 2.5+ library"
+              NO_DEFAULT_PATH
+              NO_CMAKE_FIND_ROOT_PATH)
 
     if(_ov_tbbbind_2_5)
         set(${var} ON PARENT_SCOPE)
@@ -35,11 +35,12 @@ endfunction()
 _ov_detect_dynamic_tbbbind_2_5(_ov_dynamic_tbbbind_2_5_found)
 
 if(_ov_dynamic_tbbbind_2_5_found)
-    message(STATUS "Static tbbbind_2_5 package usage is disabled, since oneTBB (ver. ${TBB_VERSION}) provides dynamic TBBBind 2.5")
+    message(STATUS "Static tbbbind_2_5 package usage is disabled, since oneTBB (ver. ${TBB_VERSION}) provides dynamic TBBBind 2.5+")
     set(ENABLE_TBBBIND_2_5 OFF)
 elseif(ENABLE_TBBBIND_2_5)
-    if(TBB_VERSION VERSION_GREATER_EQUAL 2021)
-        message(STATUS "oneTBB (ver. ${TBB_VERSION}) is used, but dynamic TBBBind 2.5 is not found. Use custom static TBBBind 2.5")
+    # TMP: for Apple Silicon TBB does not provide TBBBind
+    if(TBB_VERSION VERSION_GREATER_EQUAL 2021 AND NOT (APPLE AND AARCH64))
+        message(STATUS "oneTBB (ver. ${TBB_VERSION}) is used, but dynamic TBBBind 2.5+ is not found. Use custom static TBBBind 2.5")
     endif()
 
     # download and find a prebuilt version of TBBBind_2_5
@@ -83,6 +84,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
           DEFINED ENV{TBB_DIR}) OR ENABLE_SYSTEM_TBB ) )
     ie_cpack_add_component(tbb HIDDEN)
     list(APPEND core_components tbb)
+
     if(TBBROOT MATCHES ${TEMP})
         set(tbb_downloaded ON)
     elseif(DEFINED ENV{TBBROOT} OR DEFINED ENV{TBB_DIR} OR
@@ -90,15 +92,17 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         set(tbb_custom ON)
     endif()
 
-    if(CPACK_GENERATOR STREQUAL "DEB" AND NOT ENABLE_SYSTEM_TBB)
-        message(FATAL_ERROR "Debian packages can be built only with system TBB. Use -DENABLE_SYSTEM_TBB=ON")
+    if(OV_GLIBC_VERSION VERSION_LESS_EQUAL 2.26)
+        set(_ov_system_tbb_is_obsolete ON)
+    endif()
+
+    if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$" AND
+        NOT ENABLE_SYSTEM_TBB AND
+        NOT _ov_system_tbb_is_obsolete)
+        message(FATAL_ERROR "Debian | RPM | Conda-forge | Brew packages can be built only with system TBB. Use -DENABLE_SYSTEM_TBB=ON")
     endif()
 
     if(ENABLE_SYSTEM_TBB)
-        # TODO: what's about tbbbind for cases U22 with >= TBB 20221
-        # it seems that oneTBB from U22 distro does not contains tbbbind library
-        # the same situation for conda-forge distribution of TBB / oneTBB
-
         # for system libraries we still need to install TBB libraries
         # so, need to take locations of actual libraries and install them
         foreach(tbb_target IN LISTS TBB_IMPORTED_TARGETS)
@@ -106,21 +110,19 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
             # depending on the TBB, tbb_lib_location can be in form:
             # - libtbb.so.x.y
             # - libtbb.so.x
-            # We need to install such files
+            # We need to install such only libtbb.so.x files
             get_filename_component(name_we "${tbb_lib_location}" NAME_WE)
             get_filename_component(dir "${tbb_lib_location}" DIRECTORY)
             # grab all tbb files matching pattern
             file(GLOB tbb_files "${dir}/${name_we}.*")
+
+            # since the setup.py for pip installs tbb component
+            # explicitly, it's OK to put EXCLUDE_FROM_ALL to such component
+            # to ignore from IRC / apt / yum distribution;
+            # but they will be present in .wheel
             foreach(tbb_file IN LISTS tbb_files)
-                if(tbb_file MATCHES "^.*\.${CMAKE_SHARED_LIBRARY_SUFFIX}(\.[0-9]+)*$")
-                    # since the setup.py for pip installs tbb component
-                    # explicitly, it's OK to put EXCLUDE_FROM_ALL to such component
-                    # to ignore from IRC / apt / yum distribution;
-                    # but they will be present in .wheel
-                    install(FILES "${tbb_file}"
-                            DESTINATION runtime/3rdparty/tbb/lib
-                            COMPONENT tbb EXCLUDE_FROM_ALL)
-                endif()
+                # TODO: check by what name TBB loads the libraries
+                ov_install_with_name("${tbb_file}" tbb)
             endforeach()
         endforeach()
 
@@ -131,7 +133,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         set(IE_TBBROOT_INSTALL "runtime/3rdparty/tbb")
 
         # TBBROOT is not defined if ENV{TBBROOT} is not found
-        # so, we have to deduce this value outselves
+        # so, we have to deduce this value ourselves
         if(NOT DEFINED TBBROOT AND DEFINED ENV{TBBROOT})
             file(TO_CMAKE_PATH $ENV{TBBROOT} TBBROOT)
         endif()
@@ -162,9 +164,9 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         file(RELATIVE_PATH tbb_libs_dir "${TBBROOT}" "${_tbb_libs_dir}")
 
         # install only meaningful directories
-        foreach(dir include ${tbb_libs_dir} cmake lib/cmake lib/pkgconfig)
+        foreach(dir include ${tbb_libs_dir} cmake lib/cmake lib/pkgconfig lib/intel64/vc14)
             if(EXISTS "${TBBROOT}/${dir}")
-                if(dir STREQUAL "include" OR dir MATCHES ".*(cmake|pkgconfig)$")
+                if(dir STREQUAL "include" OR dir MATCHES ".*(cmake|pkgconfig)$" OR dir STREQUAL "lib/intel64/vc14")
                     set(tbb_component tbb_dev)
                     set(core_dev_components tbb_dev)
                     unset(exclude_pattern)

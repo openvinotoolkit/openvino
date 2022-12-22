@@ -35,7 +35,9 @@ struct fully_connected_test_params {
 class FullyConnectedFusingTest : public ::BaseFusingTest<fully_connected_test_params> {
 public:
 
-    void execute(fully_connected_test_params& p) {
+    void execute(fully_connected_test_params& p, bool is_dynamic = false) {
+        bo_not_fused.set_option(build_option::allow_new_shape_infer(is_dynamic));
+        bo_fused.set_option(build_option::allow_new_shape_infer(is_dynamic));
         auto input_prim = this->get_mem(get_input_layout(p));
         network network_not_fused(this->engine, this->topology_non_fused, this->bo_not_fused);
         network network_fused(this->engine, this->topology_fused, this->bo_fused);
@@ -78,6 +80,17 @@ public:
 
         auto input_prim = p.data_type == data_types::u8 ? get_mem(get_input_layout(p), 0, 10) : get_mem(get_input_layout(p));
 
+        auto impl_forcing_bo = bo_fused.get<build_option_type::force_implementations>();
+        const auto& impl_forcing = impl_forcing_bo->forcing;
+
+        auto forcing_format = p.input_format;
+        for (auto& forcing : impl_forcing)
+            if (forcing.first == "fc_prim")
+                forcing_format = forcing.second.output_format;
+
+        implementation_desc conv_impl = { forcing_format, "", impl_types::onednn };
+        bo_fused.set_option(build_option::force_implementations({ { "fc_prim", conv_impl } }));
+
         network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
         network network_fused(this->engine, this->topology_fused, bo_fused);
         network_fused.set_input_data("input", input_prim);
@@ -103,7 +116,8 @@ public:
     }
 
     layout get_bias_layout(fully_connected_test_params& p) {
-        return get_per_channel_layout(p);
+        auto bias_shape = p.out_shape.size() == 3 ? ov::PartialShape{1, 1, p.out_shape[2]} : ov::PartialShape{1, p.out_shape[1]};
+        return layout{ bias_shape, p.default_type, p.default_format };
     }
 
     layout get_output_layout(fully_connected_test_params& p) {
@@ -121,6 +135,10 @@ public:
 #define CASE_FC_FP32_3D_1 { 5, 3, 3 }, { 5, 3, 5 }, { 5, 3, 1 }, data_types::f32, format::bfyx, data_types::f32, format::os_iyx_osv16, data_types::f32, format::bfyx
 #define CASE_FC_FP32_3D_2 { 2, 1, 1 }, { 2, 1, 32 }, { 32, 1, 1 }, data_types::f32, format::bfyx, data_types::f32, format::os_iyx_osv16, data_types::f32, format::bfyx
 #define CASE_FC_FP32_3D_3 { 2, 32, 32 }, { 2, 32, 16 }, { 16, 32, 1 }, data_types::f32, format::bfyx, data_types::f32, format::os_iyx_osv16, data_types::f32, format::bfyx
+
+#define DYN_CASE_FC_FP32_3D_1 { 5, 3, 3 }, { 5, 3, 5 }, { 5, 3 }, data_types::f32, format::bfyx, data_types::f32, format::os_iyx_osv16, data_types::f32, format::bfyx
+#define DYN_CASE_FC_FP32_3D_2 { 2, 1, 1 }, { 2, 1, 32 }, { 32, 1 }, data_types::f32, format::bfyx, data_types::f32, format::os_iyx_osv16, data_types::f32, format::bfyx
+#define DYN_CASE_FC_FP32_3D_3 { 2, 32, 32 }, { 2, 32, 16 }, { 16, 32 }, data_types::f32, format::bfyx, data_types::f32, format::os_iyx_osv16, data_types::f32, format::bfyx
 
 #define CASE_FC_U8S8_1 { 1, 3 }, { 1, 4 }, { 4, 3 }, data_types::u8, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
 #define CASE_FC_U8S8_2 { 2, 3 }, { 2, 4 }, { 4, 3 }, data_types::u8, format::b_fs_yx_fsv4, data_types::i8, format::oiyx, data_types::f32, format::bfyx
@@ -140,9 +158,9 @@ TEST_P(fc_fp32_activation, basic) {
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
-        fully_connected("fc_prim", "input", "weights", "bias", padding(), get_output_dim_size(p)),
-        activation("activation", "fc_prim", activation_func::abs),
-        reorder("reorder_bfyx", "activation", p.default_format, data_types::f32)
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", padding(), get_output_dim_size(p)),
+        activation("activation", input_info("fc_prim"), activation_func::abs),
+        reorder("reorder_bfyx", input_info("activation"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;
@@ -157,6 +175,32 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp32_activation, ::testing::ValuesIn(st
     fully_connected_test_params{ CASE_FC_FP32_3D_3, 2, 3 },
 }));
 
+class fc_fp32_activation_dynamic : public FullyConnectedFusingTest {};
+TEST_P(fc_fp32_activation_dynamic, basic) {
+    auto p = GetParam();
+    auto test_input_layout = get_input_layout(p);
+    auto dynamic_input_layout = layout{ov::PartialShape::dynamic(test_input_layout.get_rank()), test_input_layout.data_type, test_input_layout.format};
+    create_topologies(
+        input_layout("input", dynamic_input_layout),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", padding(), get_output_dim_size(p)),
+        activation("activation", input_info("fc_prim"), activation_func::abs),
+        reorder("reorder_bfyx", input_info("activation"), p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-5f;
+    execute(p, true);
+}
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp32_activation_dynamic, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_FP32_1, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP32_2, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP32_3, 2, 3 },
+    fully_connected_test_params{ DYN_CASE_FC_FP32_3D_1, 2, 3 },
+    fully_connected_test_params{ DYN_CASE_FC_FP32_3D_2, 2, 3 },
+    fully_connected_test_params{ DYN_CASE_FC_FP32_3D_3, 2, 3 },
+}));
+
 class fc_fp32_bias : public FullyConnectedFusingTest {};
 TEST_P(fc_fp32_bias, basic) {
     auto p = GetParam();
@@ -164,9 +208,9 @@ TEST_P(fc_fp32_bias, basic) {
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
-        fully_connected("fc_prim", "input", "weights", "", padding(), get_output_dim_size(p)),
-        eltwise("bias_add", { "fc_prim", "bias" }, eltwise_mode::sum),
-        reorder("reorder_bfyx", "bias_add", p.default_format, data_types::f32)
+        fully_connected("fc_prim", input_info("input"), "weights", "", padding(), get_output_dim_size(p)),
+        eltwise("bias_add", { input_info("fc_prim"), input_info("bias") }, eltwise_mode::sum),
+        reorder("reorder_bfyx", input_info("bias_add"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;
@@ -182,6 +226,33 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp32_bias, ::testing::ValuesIn(std::vec
     fully_connected_test_params{ CASE_FC_FP32_3D_3, 2, 3 },
 }));
 
+class fc_fp32_bias_dynamic : public FullyConnectedFusingTest {};
+TEST_P(fc_fp32_bias_dynamic, basic) {
+    auto p = GetParam();
+    auto test_input_layout = get_input_layout(p);
+    auto dynamic_input_layout = layout{ov::PartialShape::dynamic(test_input_layout.get_partial_shape().rank()), test_input_layout.data_type, test_input_layout.format};
+    create_topologies(
+        input_layout("input", dynamic_input_layout),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        fully_connected("fc_prim", input_info("input"), "weights", "", padding(), get_output_dim_size(p)),
+        eltwise("bias_add", { input_info("fc_prim"), input_info("bias") }, eltwise_mode::sum),
+        reorder("reorder_bfyx", input_info("bias_add"), p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-5f;
+    execute(p, true);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp32_bias_dynamic, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_FP32_1, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP32_2, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP32_3, 2, 3 },
+    fully_connected_test_params{ DYN_CASE_FC_FP32_3D_1, 2, 3 },
+    fully_connected_test_params{ DYN_CASE_FC_FP32_3D_2, 2, 3 },
+    fully_connected_test_params{ DYN_CASE_FC_FP32_3D_3, 2, 3 },
+}));
+
 class fc_int8_quantize_u8 : public FullyConnectedFusingTest {};
 TEST_P(fc_int8_quantize_u8, basic) {
     auto p = GetParam();
@@ -193,9 +264,10 @@ TEST_P(fc_int8_quantize_u8, basic) {
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), 0)),
         data("out_hi", get_mem(get_single_element_layout(p), 255)),
-        fully_connected("fc_prim", "input", "weights", "bias", data_types::f32, padding(), get_output_dim_size(p)),
-        quantize("quantize", "fc_prim", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::u8),
-        reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", data_types::f32, padding(), get_output_dim_size(p)),
+        quantize("quantize", input_info("fc_prim"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 256, data_types::u8),
+        reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
     );
 
     tolerance = 1.f;
@@ -223,10 +295,11 @@ TEST_P(fc_int8_eltwise_quantize_i8, basic) {
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
         data("eltwise_data", get_mem(get_per_channel_layout(p), 1.0f / get_weights_layout(p).count() / 255)),
-        fully_connected("fc_prim", "input", "weights", "bias", data_types::f32, padding(), get_output_dim_size(p)),
-        eltwise("eltwise", {"fc_prim", "eltwise_data"}, eltwise_mode::prod),
-        quantize("quantize", "eltwise", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
-        reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", data_types::f32, padding(), get_output_dim_size(p)),
+        eltwise("eltwise", { input_info("fc_prim"), input_info("eltwise_data") }, eltwise_mode::prod),
+        quantize("quantize", input_info("eltwise"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
+        reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;
@@ -254,11 +327,12 @@ TEST_P(fc_int8_eltwise_activation_quantize_i8, basic) {
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
         data("eltwise_data", get_mem(get_per_channel_layout(p), 1.0f / get_weights_layout(p).count() / 255)),
-        fully_connected("fc_prim", "input", "weights", "bias", data_types::f32, padding(), get_output_dim_size(p)),
-        eltwise("eltwise", {"fc_prim", "eltwise_data"}, eltwise_mode::prod),
-        activation("activation_eltwise", "eltwise", activation_func::exp),
-        quantize("quantize", "activation_eltwise", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
-        reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", data_types::f32, padding(), get_output_dim_size(p)),
+        eltwise("eltwise", { input_info("fc_prim"), input_info("eltwise_data") }, eltwise_mode::prod),
+        activation("activation_eltwise", input_info("eltwise"), activation_func::exp),
+        quantize("quantize", input_info("activation_eltwise"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
+        reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;
@@ -292,13 +366,13 @@ TEST_P(fc_int8_inputs_fused_fp32_sum, basic) {
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
         data("shift_data", get_mem(shift_layout, 1)),
-        fully_connected("fc_prim", "input", "weights", "bias", cldnn::data_types::f32, padding(), get_output_dim_size(p)),
-        eltwise("shift", { "fc_prim", "shift_data" }, eltwise_mode::sum, cldnn::data_types::f32),
-        crop("crop", "shift", get_output_layout(p).get_tensor(), { 0, 0, 0, 0 }),
-        reorder("reorder_bfyx", "crop", p.default_format, data_types::f32)
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", cldnn::data_types::f32, padding(), get_output_dim_size(p)),
+        eltwise("shift", { input_info("fc_prim"), input_info("shift_data") }, eltwise_mode::sum, cldnn::data_types::f32),
+        crop("crop", input_info("shift"), get_output_layout(p).get_tensor(), { 0, 0, 0, 0 }),
+        reorder("reorder_bfyx", input_info("crop"), p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-5f;
+    tolerance = 1.f;
     execute(p);
 }
 

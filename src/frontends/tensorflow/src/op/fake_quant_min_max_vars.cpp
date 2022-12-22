@@ -21,7 +21,7 @@ OutputVector translate_fake_quant_op(const NodeContext& node) {
     auto narrow_range = node.get_attribute<bool>("narrow_range");
     auto num_bits = node.get_attribute<int64_t>("num_bits");
 
-    auto levels = std::pow(2, num_bits) - int(narrow_range);
+    size_t levels = static_cast<size_t>(std::pow(2, num_bits) - int(narrow_range));
     auto min_less_max = make_shared<Less>(min, max);
     auto minimum = make_shared<Select>(min_less_max, min, max);
     auto maximum = make_shared<Select>(min_less_max, max, min);

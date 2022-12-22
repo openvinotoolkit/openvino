@@ -5,6 +5,7 @@ import logging as log
 from copy import copy
 
 from openvino.tools.mo.back.ConvolutionNormalizer import ConvolutionNormalizer, ConvolutionWithGroupsResolver
+from openvino.tools.mo.back.ShapeOfConstFolding import ShapeOfConstFolding
 from openvino.tools.mo.back.MarkNodesWithShapeValues import MarkNodesWithShapeValues
 from openvino.tools.mo.back.PackBinaryWeights import PackBinaryWeights
 from openvino.tools.mo.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement
@@ -72,6 +73,7 @@ def save_restored_graph(graph: Graph, path: str, meta_data, name=None, rename_re
     # List items order matters, do not change it.
     transformation_list = [
         ConvolutionWithGroupsResolver,
+        ShapeOfConstFolding,
         StridedSliceMasksNormalizer,
         PackBinaryWeights,
         BlobNormalizer,

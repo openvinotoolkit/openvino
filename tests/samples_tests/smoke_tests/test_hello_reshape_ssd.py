@@ -14,8 +14,8 @@ import os
 import pytest
 import logging as log
 import sys
-from common.samples_common_test_clas import get_tests
-from common.samples_common_test_clas import SamplesCommonTestClass
+from common.samples_common_test_class import get_tests
+from common.samples_common_test_class import SamplesCommonTestClass
 from common.specific_samples_parsers import parse_hello_reshape_ssd
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)

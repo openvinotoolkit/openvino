@@ -12,6 +12,7 @@ cmake-build*
 # developer tools
 *.idea
 .vscode
+.vs/
 .DS_Store
 **/tags
 compile_commands.json
@@ -20,13 +21,9 @@ bin/
 .gdb_history
 .vimspector.json
 doc/
-!ngraph/doc
 docs/build_documentation/work_dir/
-inference-engine/plugins/
-inference-engine/report
 temp/
 .repo/
-docs/template_plugin/html/
 CMakeLists.txt.user
 docs/IE_PLUGIN_DG/html/
 

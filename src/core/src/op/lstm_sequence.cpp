@@ -16,9 +16,6 @@
 using namespace ngraph;
 using namespace std;
 
-BWDCMP_RTTI_DEFINITION(op::v0::LSTMSequence);
-BWDCMP_RTTI_DEFINITION(op::v5::LSTMSequence);
-
 op::v0::LSTMSequence::LSTMSequence()
     : Op(),
       m_activations_alpha(),
@@ -95,7 +92,7 @@ op::v0::LSTMSequence::LSTMSequence(const Output<Node>& X,
           input_forget) {}
 
 bool op::v0::LSTMSequence::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_LSTMSequence_visit_attributes);
+    OV_OP_SCOPE(v0_LSTMSequence_visit_attributes);
     visitor.on_attribute("hidden_size", m_hidden_size);
     visitor.on_attribute("activations", m_activations);
     visitor.on_attribute("activations_alpha", m_activations_alpha);
@@ -109,7 +106,7 @@ bool op::v0::LSTMSequence::visit_attributes(AttributeVisitor& visitor) {
 }
 
 shared_ptr<Node> op::v0::LSTMSequence::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_LSTMSequence_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_LSTMSequence_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 8) {
         return make_shared<op::v0::LSTMSequence>(new_args.at(0),  // X
@@ -150,7 +147,7 @@ shared_ptr<Node> op::v0::LSTMSequence::clone_with_new_inputs(const OutputVector&
 }
 
 void op::v0::LSTMSequence::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_LSTMSequence_validate_and_infer_types);
+    OV_OP_SCOPE(v0_LSTMSequence_validate_and_infer_types);
     for (const auto& input : inputs()) {
         if (input.get_partial_shape().rank().is_dynamic()) {
             set_output_type(0, get_input_element_type(0), ov::PartialShape::dynamic());
@@ -321,13 +318,13 @@ void op::v0::LSTMSequence::validate_and_infer_types() {
 }
 
 bool ngraph::op::v5::LSTMSequence::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v5_LSTMSequence_visit_attributes);
+    OV_OP_SCOPE(v5_LSTMSequence_visit_attributes);
     visitor.on_attribute("direction", m_direction);
     return op::util::RNNCellBase::visit_attributes(visitor);
 }
 
 shared_ptr<Node> op::v5::LSTMSequence::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v5_LSTMSequence_clone_with_new_inputs);
+    OV_OP_SCOPE(v5_LSTMSequence_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 7) {
         return make_shared<op::v5::LSTMSequence>(new_args.at(0),  // X
@@ -349,7 +346,7 @@ shared_ptr<Node> op::v5::LSTMSequence::clone_with_new_inputs(const OutputVector&
 }
 
 void op::v5::LSTMSequence::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v5_LSTMSequence_validate_and_infer_types);
+    OV_OP_SCOPE(v5_LSTMSequence_validate_and_infer_types);
     for (const auto& input : inputs()) {
         if (input.get_partial_shape().rank().is_dynamic()) {
             set_output_type(0, get_input_element_type(0), ov::PartialShape::dynamic());

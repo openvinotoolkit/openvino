@@ -6,7 +6,7 @@
 #pragma once
 #include "intel_gpu/primitives/eltwise.hpp"
 #include "primitive_inst.h"
-#include "kernel_selector/core/actual_kernels/eltwise/eltwise_kernel_base.h"
+#include "kernel_selector/kernels/eltwise/eltwise_kernel_base.h"
 
 #include <memory>
 #include <string>
@@ -83,6 +83,7 @@ using eltwise_node = typed_program_node<eltwise>;
 template <>
 class typed_primitive_inst<eltwise> : public typed_primitive_inst_base<eltwise> {
     using parent = typed_primitive_inst_base<eltwise>;
+    using parent::parent;
     static void check_inputs_count(eltwise_node const& node);
 
 public:

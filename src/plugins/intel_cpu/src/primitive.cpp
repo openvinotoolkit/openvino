@@ -14,7 +14,7 @@ Primitive::operator bool() const {
     return prim ? true : false;
 }
 
-dnnl::primitive Primitive::operator*() {
+dnnl::primitive Primitive::operator*() const {
     return *prim;
 }
 

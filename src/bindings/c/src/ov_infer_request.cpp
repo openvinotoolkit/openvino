@@ -322,10 +322,10 @@ ov_status_e ov_infer_request_get_profiling_info(const ov_infer_request_t* infer_
 
     try {
         auto infos = infer_request->object->get_profiling_info();
-        int num = infos.size();
+        size_t num = infos.size();
         profiling_infos->size = num;
         std::unique_ptr<ov_profiling_info_t[]> _profiling_info_arr(new ov_profiling_info_t[num]);
-        for (int i = 0; i < num; i++) {
+        for (size_t i = 0; i < num; i++) {
             _profiling_info_arr[i].status = (ov_profiling_info_t::Status)infos[i].status;
             _profiling_info_arr[i].real_time = infos[i].real_time.count();
             _profiling_info_arr[i].cpu_time = infos[i].cpu_time.count();

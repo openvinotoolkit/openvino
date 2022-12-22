@@ -5,23 +5,24 @@
 #include "transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset9.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset9.hpp>
 #include <vector>
 
 #include "itt.hpp"
-#include "ngraph_ops/multiclass_nms_ie_internal.hpp"
+#include "ov_ops/multiclass_nms_ie_internal.hpp"
+#include "transformations/utils/utils.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 pass::ConvertMulticlassNmsToMulticlassNmsIE::ConvertMulticlassNmsToMulticlassNmsIE(bool force_i32_output_type) {
     MATCHER_SCOPE(ConvertMulticlassNmsToMulticlassNmsIE);
-    auto nms = pattern::wrap_type<opset9::MulticlassNms>();
+    auto nms = pattern::wrap_type<op::util::MulticlassNmsBase>();
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto nms = std::dynamic_pointer_cast<opset9::MulticlassNms>(m.get_match_root());
+        auto nms = std::dynamic_pointer_cast<op::util::MulticlassNmsBase>(m.get_match_root());
         if (!nms || transformation_callback(nms)) {
             return false;
         }
@@ -60,13 +61,13 @@ pass::ConvertMulticlassNmsToMulticlassNmsIE::ConvertMulticlassNmsToMulticlassNms
 
         if (nms->output(1).get_element_type() != output_1.get_element_type()) {
             output_1 = std::make_shared<opset1::Convert>(output_1, nms->output(1).get_element_type());
-            output_1.get_node_shared_ptr()->set_friendly_name(nms->get_friendly_name() + "/convert.1");
+            output_1.get_node_shared_ptr()->set_friendly_name(op::util::create_ie_output_name(nms->output(1)));
             new_ops.emplace_back(output_1.get_node_shared_ptr());
         }
 
         if (nms->output(2).get_element_type() != output_2.get_element_type()) {
             output_2 = std::make_shared<opset1::Convert>(output_2, nms->output(2).get_element_type());
-            output_2.get_node_shared_ptr()->set_friendly_name(nms->get_friendly_name() + "/convert.2");
+            output_2.get_node_shared_ptr()->set_friendly_name(op::util::create_ie_output_name(nms->output(2)));
             new_ops.emplace_back(output_2.get_node_shared_ptr());
         }
 

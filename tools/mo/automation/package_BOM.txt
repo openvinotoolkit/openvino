@@ -1,17 +1,4 @@
-install_prerequisites/install_prerequisites.bat
-install_prerequisites/install_prerequisites.sh
-install_prerequisites/install_prerequisites_caffe.bat
-install_prerequisites/install_prerequisites_caffe.sh
-install_prerequisites/install_prerequisites_kaldi.bat
-install_prerequisites/install_prerequisites_kaldi.sh
-install_prerequisites/install_prerequisites_mxnet.bat
-install_prerequisites/install_prerequisites_mxnet.sh
-install_prerequisites/install_prerequisites_onnx.bat
-install_prerequisites/install_prerequisites_onnx.sh
-install_prerequisites/install_prerequisites_tf.bat
-install_prerequisites/install_prerequisites_tf.sh
-install_prerequisites/install_prerequisites_tf2.bat
-install_prerequisites/install_prerequisites_tf2.sh
+openvino/tools/__init__.py
 openvino/tools/mo/__init__.py
 openvino/tools/mo/__main__.py
 openvino/tools/mo/analysis/__init__.py
@@ -81,6 +68,8 @@ openvino/tools/mo/back/TopKNormalizer.py
 openvino/tools/mo/back/TransposeDFT.py
 openvino/tools/mo/back/TransposeReduceFusing.py
 openvino/tools/mo/back/UselessConcatRemoval.py
+openvino/tools/mo/convert.py
+openvino/tools/mo/convert_impl.py
 openvino/tools/mo/front/__init__.py
 openvino/tools/mo/front/ArgOpsSqueeze.py
 openvino/tools/mo/front/ATenToEmbeddingBag.py
@@ -251,6 +240,7 @@ openvino/tools/mo/front/kaldi/replace_eltwise_nin1.py
 openvino/tools/mo/front/kaldi/replace_lstm_node_pattern.py
 openvino/tools/mo/front/kaldi/replace_lstm_nonlinearity.py
 openvino/tools/mo/front/kaldi/replace_timeheightconvolution.py
+openvino/tools/mo/front/kaldi/restrictedattentioncomponent_replacer.py
 openvino/tools/mo/front/kaldi/set_ports.py
 openvino/tools/mo/front/kaldi/sigmoid_ext.py
 openvino/tools/mo/front/kaldi/split_recurrent_memoryoffset.py
@@ -302,8 +292,8 @@ openvino/tools/mo/front/mxnet/extractors/relu.py
 openvino/tools/mo/front/mxnet/extractors/scaleshift.py
 openvino/tools/mo/front/mxnet/extractors/slice_axis.py
 openvino/tools/mo/front/mxnet/extractors/utils.py
-openvino/tools/mo/front/mxnet/exp_ext.py
-openvino/tools/mo/front/mxnet/exp_mx_to_eye.py
+openvino/tools/mo/front/mxnet/eye_ext.py
+openvino/tools/mo/front/mxnet/eye_mx_to_eye.py
 openvino/tools/mo/front/mxnet/fft_ext.py
 openvino/tools/mo/front/mxnet/flatten_ext.py
 openvino/tools/mo/front/mxnet/fully_connected_ext.py
@@ -545,8 +535,8 @@ openvino/tools/mo/front/tf/extractors/pack.py
 openvino/tools/mo/front/tf/extractors/strided_slice.py
 openvino/tools/mo/front/tf/extractors/subgraph_utils.py
 openvino/tools/mo/front/tf/extractors/utils.py
-openvino/tools/mo/front/tf/exp_ext.py
-openvino/tools/mo/front/tf/exp_mx_to_eye.py
+openvino/tools/mo/front/tf/eye_ext.py
+openvino/tools/mo/front/tf/eye_tf_to_eye.py
 openvino/tools/mo/front/tf/fake_const_ext.py
 openvino/tools/mo/front/tf/FakeQuantWithMinMaxVars.py
 openvino/tools/mo/front/tf/FakeQuantWithMinMaxVars_ext.py
@@ -570,6 +560,8 @@ openvino/tools/mo/front/tf/gathernd_ext.py
 openvino/tools/mo/front/tf/GatherTree_ext.py
 openvino/tools/mo/front/tf/GNMT_DynamicSequenceLengths.py
 openvino/tools/mo/front/tf/graph_utils.py
+openvino/tools/mo/front/tf/GRUBlockCell_ext.py
+openvino/tools/mo/front/tf/GRUBlockCellReplacement.py
 openvino/tools/mo/front/tf/identity_ext.py
 openvino/tools/mo/front/tf/identityN_to_identity.py
 openvino/tools/mo/front/tf/if_ext.py
@@ -898,6 +890,7 @@ openvino/tools/mo/ops/Enter.py
 openvino/tools/mo/ops/Exit.py
 openvino/tools/mo/ops/expand_dims.py
 openvino/tools/mo/ops/ExtractImagePatches.py
+openvino/tools/mo/ops/eye.py
 openvino/tools/mo/ops/fake_output.py
 openvino/tools/mo/ops/fakequantize.py
 openvino/tools/mo/ops/fill.py
@@ -910,6 +903,7 @@ openvino/tools/mo/ops/gelu.py
 openvino/tools/mo/ops/grn.py
 openvino/tools/mo/ops/group_norm.py
 openvino/tools/mo/ops/GRU.py
+openvino/tools/mo/ops/GRUBlockCell.py
 openvino/tools/mo/ops/GRUCell.py
 openvino/tools/mo/ops/hard_sigmoid.py
 openvino/tools/mo/ops/identity.py
@@ -1035,7 +1029,6 @@ openvino/tools/mo/utils/cli_parser.py
 openvino/tools/mo/utils/custom_replacement_config.py
 openvino/tools/mo/utils/dsu.py
 openvino/tools/mo/utils/error.py
-openvino/tools/mo/utils/extract_release_version.py
 openvino/tools/mo/utils/find_ie_version.py
 openvino/tools/mo/utils/find_inputs.py
 openvino/tools/mo/utils/get_ov_update_message.py
@@ -1083,6 +1076,8 @@ openvino/tools/mo/utils/ir_reader/extenders/strided_slice_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/tensoriterator_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/topk_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/variadic_split_extender.py
+openvino/tools/mo/utils/ir_reader/internal_ops/squeeze.py
+openvino/tools/mo/utils/ir_reader/internal_ops/unsqueeze.py
 openvino/tools/mo/utils/ir_reader/layer_to_class.py
 openvino/tools/mo/utils/ir_reader/restore_graph.py
 openvino/tools/mo/utils/json_schema.py
@@ -1104,10 +1099,3 @@ openvino/tools/mo/utils/unsupported_ops.py
 openvino/tools/mo/utils/utils.py
 openvino/tools/mo/utils/version.py
 openvino/tools/mo/utils/versions_checker.py
-requirements.txt
-requirements_caffe.txt
-requirements_kaldi.txt
-requirements_mxnet.txt
-requirements_onnx.txt
-requirements_tf.txt
-requirements_tf2.txt

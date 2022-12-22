@@ -13,23 +13,19 @@ namespace snippets {
 namespace {
 
 const std::vector<std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>>> types_Convert = {
-        { { ov::element::f32 }, { ov::element::i32 } },
         { { ov::element::f32 }, { ov::element::bf16 } },
         { { ov::element::f32 }, { ov::element::u8 } },
         { { ov::element::f32 }, { ov::element::i8 } },
 
         { { ov::element::bf16 }, { ov::element::f32 } },
-        { { ov::element::bf16 }, { ov::element::i32 } },
         { { ov::element::bf16 }, { ov::element::i8 } },
         { { ov::element::bf16 }, { ov::element::u8 } },
 
         { { ov::element::i8 }, { ov::element::f32 } },
-        { { ov::element::i8 }, { ov::element::i32 } },
         { { ov::element::i8 }, { ov::element::bf16 } },
         { { ov::element::i8 }, { ov::element::u8 }  },
 
         { { ov::element::u8 }, { ov::element::f32 } },
-        { { ov::element::u8 }, { ov::element::i32 } },
         { { ov::element::u8 }, { ov::element::bf16 } },
         { { ov::element::u8 }, { ov::element::i8 } },
 };
@@ -50,17 +46,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Convert, Convert,
                          Convert::getTestCaseName);
 
 const std::vector<std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>>> types_ConvertInput = {
-        { { ov::element::f32 }, { ov::element::i32 } },
         { { ov::element::f32 }, { ov::element::bf16 } },
 
         { { ov::element::bf16 }, { ov::element::f32 } },
 
         { { ov::element::i8 }, { ov::element::f32 } },
-        { { ov::element::i8 }, { ov::element::i32 } },
         { { ov::element::i8 }, { ov::element::bf16 } },
 
         { { ov::element::u8 }, { ov::element::f32 } },
-        { { ov::element::u8 }, { ov::element::i32 } },
         { { ov::element::u8 }, { ov::element::bf16 } },
 };
 
@@ -98,8 +91,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ConvertStub, ConvertStub,
                          Convert::getTestCaseName);
 
 const std::vector<std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>>> types_ConvertPartialInputsAndResults = {
-        { { ov::element::i8, ov::element::i32, ov::element::f32 }, { ov::element::f32, ov::element::i8 } },
-        { { ov::element::bf16, ov::element::u8, ov::element::i32 }, { ov::element::i32, ov::element::bf16 } },
+        { { ov::element::i8, ov::element::i8, ov::element::f32 }, { ov::element::f32, ov::element::i8 } },
 };
 
 const std::vector<std::vector<ov::Shape>> inputShapes_ConvertPartialInputsAndResults = {
@@ -118,10 +110,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ConvertPartialInputsAndResults, ConvertP
                          Convert::getTestCaseName);
 
 const std::vector<std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>>> types_ConvertMany = {
-        { { ov::element::i32, ov::element::u8}, {} },
-        { { ov::element::i32, ov::element::u8, ov::element::i32 }, {} },
-        { { ov::element::i32, ov::element::f32, ov::element::i32, ov::element::i8 }, {} },
-        { { ov::element::i32, ov::element::i8, ov::element::i32, ov::element::f32 }, {} },
+        { { ov::element::f32, ov::element::u8}, {} },
+        { { ov::element::f32, ov::element::u8, ov::element::i8 }, {} },
+        { { ov::element::f32, ov::element::f32, ov::element::i8, ov::element::i8 }, {} },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ConvertManyOnInputs, ConvertManyOnInputs,
@@ -137,21 +128,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ConvertManyOnOutputs, ConvertManyOnOutpu
                          ::testing::Combine(
                                  ::testing::Values(std::vector<ov::Shape>{ov::Shape{5, 5, 5, 5}}),
                                  ::testing::ValuesIn(types_ConvertMany),
-                                 ::testing::Values(5), // sinh + subgraph + reorders for sinh
+                                 ::testing::Values(2), // sinh + subgraph
                                  ::testing::Values(1),
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                          Convert::getTestCaseName);
 
 const std::vector<std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>>> types_ConvertManyIO = {
-        { { ov::element::i32, ov::element::u8}, {ov::element::i32} },
-        { { ov::element::i32, ov::element::u8, ov::element::i32 }, { ov::element::i32, ov::element::i8, ov::element::i32, ov::element::f32 } },
+        { { ov::element::f32, ov::element::u8}, {ov::element::i8} },
+        { { ov::element::f32, ov::element::u8, ov::element::i8 }, { ov::element::u8, ov::element::i8, ov::element::f32, ov::element::f32 } },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ConvertManyOnInputOutput, ConvertManyOnInputOutput,
                          ::testing::Combine(
                                  ::testing::Values(std::vector<ov::Shape>{ov::Shape{5, 5, 5, 5}}),
                                  ::testing::ValuesIn(types_ConvertManyIO),
-                                 ::testing::Values(5), // sinh + subgraph + reorders for sinh
+                                 ::testing::Values(2), // sinh + subgraph
                                  ::testing::Values(1),
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                          Convert::getTestCaseName);

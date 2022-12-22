@@ -18,7 +18,7 @@ namespace preprocess {
 ///    - Postprocessing steps applied to user's input (OutputInfo::postprocess)
 ///    - User's desired output parameter information, which is a final one after preprocessing (OutputInfo::tensor)
 class OPENVINO_API OutputInfo final {
-    class OutputInfoImpl;
+    struct OutputInfoImpl;
     std::unique_ptr<OutputInfoImpl> m_impl;
     friend class PrePostProcessor;
 

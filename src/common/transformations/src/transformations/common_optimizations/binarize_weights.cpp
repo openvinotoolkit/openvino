@@ -5,14 +5,14 @@
 #include "transformations/common_optimizations/binarize_weights.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset5.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset5.hpp>
+#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <vector>
 
 #include "itt.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 static float quantize(float f, float input_low, float input_high, float output_low, float output_high) {
     if (f <= input_low)
@@ -152,10 +152,10 @@ pass::BinarizeWeights::BinarizeWeights() {
 
         // Create new FQ on activations with new output low/high
         auto output_low_normalized =
-            op::Constant::create(element::f32, activations_output_low_const->get_shape(), activations_output_low);
+            opset5::Constant::create(element::f32, activations_output_low_const->get_shape(), activations_output_low);
         output_low_normalized->set_friendly_name(activations_output_low_const->get_friendly_name());
         auto output_high_normalized =
-            op::Constant::create(element::f32, activations_output_high_const->get_shape(), activations_output_high);
+            opset5::Constant::create(element::f32, activations_output_high_const->get_shape(), activations_output_high);
         output_high_normalized->set_friendly_name(activations_output_high_const->get_friendly_name());
         auto new_activations_fq = activations_fq->clone_with_new_inputs({activations_fq->input_value(0),
                                                                          activations_fq->input_value(1),
@@ -177,7 +177,7 @@ pass::BinarizeWeights::BinarizeWeights() {
                                                   weights_output_low,
                                                   weights_output_high);
         auto quantized_weights_const =
-            op::Constant::create(element::f32, weights_const->get_shape(), quantized_weights);
+            opset5::Constant::create(element::f32, weights_const->get_shape(), quantized_weights);
         quantized_weights_const->set_friendly_name(weights_const->get_friendly_name());
         auto new_conv = conv->clone_with_new_inputs({new_activations_fq, quantized_weights_const});
 

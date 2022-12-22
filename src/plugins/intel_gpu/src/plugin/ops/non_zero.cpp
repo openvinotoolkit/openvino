@@ -14,15 +14,15 @@ namespace intel_gpu {
 
 static void CreateNonZeroOp(Program& p, const std::shared_ptr<ngraph::Node>& op) {
     validate_inputs_count(op, {1});
-    auto input_primitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layer_name = layer_type_name_ID(op);
 
     cldnn::primitive_id count_prim_id = layer_name + "_count";
     auto count_prim = cldnn::count_nonzero(count_prim_id,
-                                           input_primitives[0]);
+                                           inputs[0]);
 
     auto gather_prim = cldnn::gather_nonzero(layer_name,
-                                             input_primitives[0],
+                                             inputs[0],
                                              count_prim_id);
 
     p.add_primitive(*op, count_prim);

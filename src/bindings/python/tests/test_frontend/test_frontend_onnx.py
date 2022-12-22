@@ -142,6 +142,24 @@ def create_onnx_model_for_op_extension():
     return make_model(graph, producer_name="ONNX Frontend")
 
 
+def create_onnx_model_extension_with_custom_domain():
+    add = onnx.helper.make_node("CustomAdd", inputs=["x", "y"], outputs=["z"], domain="custom_domain")
+    const_tensor = onnx.helper.make_tensor("const_tensor",
+                                           onnx.TensorProto.FLOAT,
+                                           (2, 2),
+                                           [0.5, 1, 1.5, 2.0])
+    const_node = onnx.helper.make_node("Constant", [], outputs=["const_node"],
+                                       value=const_tensor, name="const_node")
+    mul = onnx.helper.make_node("Mul", inputs=["z", "const_node"], outputs=["out"])
+    input_tensors = [
+        make_tensor_value_info("x", onnx.TensorProto.FLOAT, (2, 2)),
+        make_tensor_value_info("y", onnx.TensorProto.FLOAT, (2, 2)),
+    ]
+    output_tensors = [make_tensor_value_info("out", onnx.TensorProto.FLOAT, (2, 2))]
+    graph = make_graph([add, const_node, mul], "graph", input_tensors, output_tensors)
+    return make_model(graph, producer_name="ONNX Frontend")
+
+
 def run_model(model, *inputs, expected):
     runtime = get_runtime()
     computation = runtime.computation(model)
@@ -159,6 +177,7 @@ onnx_model_2_filename = "model2.onnx"
 onnx_model_with_custom_attributes_filename = "model_custom_attributes.onnx"
 onnx_model_with_subgraphs_filename = "model_subgraphs.onnx"
 onnx_model_for_op_extension_test = "model_op_extension.onnx"
+onnx_model_extension_with_custom_domain = "model_extension_custom_domain.onnx"
 ONNX_FRONTEND_NAME = "onnx"
 
 
@@ -169,6 +188,7 @@ def setup_module():
                     onnx_model_with_custom_attributes_filename)
     onnx.save_model(create_onnx_model_with_subgraphs(), onnx_model_with_subgraphs_filename)
     onnx.save_model(create_onnx_model_for_op_extension(), onnx_model_for_op_extension_test)
+    onnx.save_model(create_onnx_model_extension_with_custom_domain(), onnx_model_extension_with_custom_domain)
 
 
 def teardown_module():
@@ -177,6 +197,7 @@ def teardown_module():
     os.remove(onnx_model_with_custom_attributes_filename)
     os.remove(onnx_model_with_subgraphs_filename)
     os.remove(onnx_model_for_op_extension_test)
+    os.remove(onnx_model_extension_with_custom_domain)
 
 
 def skip_if_onnx_frontend_is_disabled():
@@ -482,6 +503,53 @@ def test_onnx_conversion_extension():
     assert invoked
 
 
+def test_onnx_conversion_extension_with_custom_domain():
+    skip_if_onnx_frontend_is_disabled()
+
+    # use specific (openvino.frontend.onnx) import here
+    from openvino.frontend.onnx import ConversionExtension
+    from openvino.frontend import NodeContext
+    import openvino.runtime.opset8 as ops
+
+    fe = fem.load_by_model(onnx_model_extension_with_custom_domain)
+    assert fe
+    assert fe.get_name() == "onnx"
+
+    invoked = False
+
+    def custom_converter(node: NodeContext):
+        nonlocal invoked
+        invoked = True
+        input_1 = node.get_input(0)
+        input_2 = node.get_input(1)
+        add = ops.add(input_1, input_2)
+        return [add.output(0)]
+
+    fe.add_extension(ConversionExtension("CustomAdd", "custom_domain", custom_converter))
+    input_model = fe.load(onnx_model_extension_with_custom_domain)
+    assert input_model
+    model = fe.convert(input_model)
+    assert model
+    assert invoked
+
+
+def test_onnx_op_extension_with_custom_domain():
+    skip_if_onnx_frontend_is_disabled()
+
+    # use specific (openvino.frontend.onnx) import here
+    from openvino.frontend.onnx import OpExtension
+
+    fe = fem.load_by_model(onnx_model_extension_with_custom_domain)
+    assert fe
+    assert fe.get_name() == "onnx"
+
+    fe.add_extension(OpExtension("opset1.Add", "CustomAdd", "custom_domain", {}, {"auto_broadcast": "numpy"}))
+    input_model = fe.load(onnx_model_extension_with_custom_domain)
+    assert input_model
+    model = fe.convert(input_model)
+    assert model
+
+
 @pytest.mark.parametrize("opset_prefix", ["opset1.", "opset1::", "opset8.", "opset8::", ""])
 def test_op_extension_specify_opset(opset_prefix):
     skip_if_onnx_frontend_is_disabled()
@@ -616,7 +684,7 @@ def get_builtin_extensions_path():
     win_folder_path = Path(__file__).parent.parent.parent.parent
     linux_folder_path = win_folder_path.joinpath("lib")
     for lib_path in chain(win_folder_path.glob("*.dll"), linux_folder_path.glob("*.so")):
-        if "libtest_builtin_extensions_1" in lib_path.name:
+        if "libtest_builtin_extensions" in lib_path.name:
             return str(lib_path)
     return ""
 

@@ -124,7 +124,6 @@ std::wstring getIELibraryPathW() {
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 std::string getIELibraryPath() {
-    (void)getIELibraryPathA;
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     return ov::util::wstring_to_string(getIELibraryPathW());
 #else

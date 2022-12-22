@@ -11,11 +11,11 @@
 #include <vector>
 #include <algorithm>
 
+#include "openvino/op/add.hpp"
+#include "utils.hpp"
+
 namespace cldnn {
-primitive_type_id eltwise::type_id() {
-    static primitive_type_base<eltwise> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(eltwise)
 
 layout eltwise_inst::calc_output_layout(eltwise_node const& node, kernel_impl_params const& impl_param) {
     size_t primary_input_idx = 0;
@@ -29,7 +29,7 @@ layout eltwise_inst::calc_output_layout(eltwise_node const& node, kernel_impl_pa
     }
     auto input_node_layout = impl_param.get_non_padded_input_layout(primary_input_idx);
     auto desc = impl_param.typed_desc<eltwise>();
-    auto output_type = desc->output_data_type ? *desc->output_data_type : input_node_layout.data_type;
+    auto output_type = desc->output_data_types[0].value_or(input_node_layout.data_type);
 
     auto size = input_node_layout.get_tensor();
     auto format = input_node_layout.format;
@@ -86,8 +86,8 @@ layout eltwise_inst::calc_output_layout(eltwise_node const& node, kernel_impl_pa
         output_layout.data_type = data_types::i8;
     }
 
-    if (desc->output_data_type) {
-        output_layout.data_type = *desc->output_data_type;
+    if (desc->output_data_types[0]) {
+        output_layout.data_type = *desc->output_data_types[0];
     }
 
     if (node.has_fused_primitives()) {
@@ -111,73 +111,40 @@ template<typename ShapeType>
 std::vector<layout> eltwise_inst::calc_output_layouts(eltwise_node const& /*node*/, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<eltwise>();
     auto input_layout = impl_param.get_non_padded_input_layout(impl_param.primary_input_idx);
-    auto out_data_type = desc->output_data_type.value_or(input_layout.data_type);
+    auto out_data_type = desc->output_data_types[0].value_or(input_layout.data_type);
 
     auto get_output_layout = [&]() {
-        const auto& autob = desc->broadcast_spec;
         auto out_pshape = input_layout.get<ShapeType>();
         cldnn::format out_format = input_layout.format;
+
+        // We create dummy Add op as shape infer is exactly the same for any eltwise op type, so there is no need to have correct op type
+        ov::op::v1::Add op;
+        op.set_autob(desc->broadcast_spec);
+
+        std::vector<ShapeType> output_shapes = {ShapeType()};
+        std::vector<ShapeType> input_shapes;
+        for (size_t i = 0; i < desc->input_size(); i++) {
+            input_shapes.push_back(impl_param.get_input_layout(i).get<ShapeType>());
+        }
+        eltwise_shape_infer(&op, input_shapes, output_shapes);
 
         if (input_layout.format == format::b_fs_zyx_fsv16)  // use optimized 5D
             out_format = format::b_fs_zyx_fsv16;
         else if (input_layout.format == format::bs_fs_zyx_bsv16_fsv16)
             out_format = format::bs_fs_zyx_bsv16_fsv16;
 
-        for (size_t i = 0; i < impl_param.input_layouts.size(); i++) {
+        for (size_t i = 0; i < desc->input_size(); i++) {
             if (impl_param.primary_input_idx == i)
                 continue;
 
             auto l = impl_param.get_non_padded_input_layout(i);
-            auto in_pshape = l.get<ShapeType>();
-            if (autob.m_type == ov::op::AutoBroadcastType::NONE) {
-                OPENVINO_ASSERT(ShapeType::merge_into(out_pshape, in_pshape), desc->id + ": Argument shapes are inconsistent.\n");
-            } else if (autob.m_type == ov::op::AutoBroadcastType::NUMPY || autob.m_type == ov::op::AutoBroadcastType::PDPD) {
-                auto origin_out_pshape = out_pshape;
-                // For out_pshape{2,3,15,1} and int_pshae{1,3},
-                // expected output shape for NUMPY should be out_pshape{2,3,15,1} but the actual output will be {2,3,15,3}
-                // So, fill the rank with default dim(1) for shape which has smaller rank.
-                if (autob.m_type == ov::op::AutoBroadcastType::NUMPY
-                        && out_pshape.rank().is_static() && in_pshape.rank().is_static()
-                        && out_pshape.rank() != in_pshape.rank()) {
-                    ov::Dimension default_dim(1);
-                    const auto in_pshape_rank   = in_pshape.rank().get_length();
-                    const auto out_pshape_rank  = out_pshape.rank().get_length();
-                    auto new_rank = std::max(in_pshape_rank, out_pshape_rank);
-                    for (auto i = in_pshape_rank; i < new_rank; i++) {
-                        in_pshape.push_back(default_dim);
-                    }
-                    for (auto i = out_pshape_rank; i < new_rank; i++) {
-                        out_pshape.push_back(default_dim);
-                    }
-                }
-                if (!ShapeType::broadcast_merge_into(out_pshape, in_pshape, autob)) {
-                    // Temporarily add codes which get output shape using max value from each dimension to pass some legacy functional tests.
-                    // IE_THROW() << desc->id << ": incorrect input shapes (" <<  out_pshape << " & " << in_pshape << ")\n" << str_endline;
-                    out_pshape = origin_out_pshape;
-                    if (out_pshape.is_static() && in_pshape.is_static()) {
-                        auto in_shape = in_pshape.to_shape();
-                        auto out_shape = out_pshape.to_shape();
-                        for (size_t i = 0; i < in_shape.size(); i++) {
-                            out_shape[i] = std::max(out_shape[i], in_shape[i]);
-                        }
-                        out_pshape = ShapeType(out_shape);
-                    } else {
-                        if (in_pshape.rank().is_static()) {
-                            out_pshape = ShapeType::dynamic(in_pshape.rank());
-                        }
-                    }
-                }
-            } else {
-                OPENVINO_ASSERT(false, desc->id + ": Unsupported auto broadcast specification\n");
-            }
-
             if (l.format == format::b_fs_zyx_fsv16)  // use optimized 5D
                 out_format = format::b_fs_zyx_fsv16;
             else if (l.format == format::bs_fs_zyx_bsv16_fsv16)
                 out_format = format::bs_fs_zyx_bsv16_fsv16;
         }
 
-        return layout(out_pshape, out_data_type, out_format);
+        return layout(output_shapes[0], out_data_type, out_format);
     };
 
     auto output_layout = get_output_layout();
@@ -222,7 +189,7 @@ std::vector<layout> eltwise_inst::calc_output_layouts(eltwise_node const& /*node
         output_layout.data_type = data_types::i8;
     }
 
-    output_layout.data_type = desc->output_data_type.value_or(output_layout.data_type);
+    output_layout.data_type = desc->output_data_types[0].value_or(output_layout.data_type);
 
     if (impl_param.has_fused_primitives()) {
         output_layout.data_type = impl_param.get_fused_output_layout().data_type;
@@ -246,6 +213,8 @@ std::vector<layout> eltwise_inst::calc_output_layouts(eltwise_node const& /*node
     }
     return { output_layout };
 }
+
+template std::vector<layout> eltwise_inst::calc_output_layouts<ov::PartialShape>(eltwise_node const& node, const kernel_impl_params& impl_param);
 
 static inline std::string stringify_vector(const std::vector<float>& v) {
     std::stringstream s;

@@ -5,7 +5,7 @@ from openvino.runtime import opset8
 from openvino.runtime.passes import Manager, Matcher, MatcherPass, WrapType
 from openvino.runtime.utils import replace_node
 
-from utils.utils import count_ops, get_test_model, PatternReplacement
+from tests.test_transformations.utils.utils import count_ops, get_test_model, PatternReplacement
 
 
 def test_simple_pattern_replacement():

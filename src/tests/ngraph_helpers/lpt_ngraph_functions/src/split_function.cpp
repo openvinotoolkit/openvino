@@ -23,25 +23,18 @@ std::shared_ptr<ngraph::Function> SplitFunction::getOriginal(
     const ngraph::element::Type precisionBeforeDequantization,
     const ngraph::builder::subgraph::DequantizationOperations& dequantization,
     const int64_t splitedAxis,
-    const size_t numSplits,
-    const bool addUnsupportedConcat) {
+    const size_t numSplits) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
 
     auto dequantizationStructure = dequantization;
     dequantizationStructure.multiply.outPrecision = precision;
-    const std::shared_ptr<Node> dequantizationOp = makeDequantization(input, dequantization);
+    const auto dequantizationOp = makeDequantization(input, dequantization);
     const auto constant = std::make_shared<ngraph::opset1::Constant>(element::i64, Shape{ }, splitedAxis);
-    const std::shared_ptr<Node> split = std::make_shared<ngraph::opset1::Split>(dequantizationOp, constant, numSplits);
+    const auto split = std::make_shared<ngraph::opset1::Split>(dequantizationOp, constant, numSplits);
 
     ngraph::ResultVector results;
-
-    if (addUnsupportedConcat) {
-        const auto concat = std::make_shared<opset1::Concat>(split->outputs(), 2ul);
-        results.push_back(std::make_shared<opset1::Result>(concat));
-    } else {
-        for (size_t i = 0; i < numSplits; ++i) {
-            results.push_back(std::make_shared<ngraph::opset1::Result>(split->output(i)));
-        }
+    for (size_t i = 0; i < numSplits; ++i) {
+        results.push_back(std::make_shared<ngraph::opset1::Result>(split->output(i)));
     }
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "SplitFunction");
 }
@@ -82,31 +75,23 @@ std::shared_ptr<ngraph::Function> SplitFunction::getReference(
     const ngraph::element::Type precisionAfterOperation,
     const std::vector<ngraph::builder::subgraph::DequantizationOperations>& dequantizationAfter,
     const int64_t splitedAxis,
-    const size_t numSplit,
-    const bool addUnsupportedConcat) {
+    const size_t numSplit) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, inputShape);
-
     const auto deqBefore = makeDequantization(input, dequantizationBefore);
 
-    std::shared_ptr<ngraph::opset1::Split> split;
     const auto constant = std::make_shared<ngraph::opset1::Constant>(element::i64, Shape{ }, splitedAxis);
-    split = std::make_shared<ngraph::opset1::Split>(deqBefore, constant, numSplit);
+    const auto split = std::make_shared<ngraph::opset1::Split>(deqBefore, constant, numSplit);
 
     ngraph::ResultVector results;
-    if (addUnsupportedConcat) {
-        const auto concat = std::make_shared<opset1::Concat>(split->outputs(), 2ul);
-        results.push_back(std::make_shared<opset1::Result>(concat));
-    } else {
-        for (size_t i = 0; i < numSplit; ++i) {
-            if (!dequantizationAfter.empty()) {
-                auto dequantizationStructure = dequantizationAfter[i];
-                if (!dequantizationStructure.multiply.empty()) {
-                    dequantizationStructure.multiply.outPrecision = precision;
-                }
-                results.push_back(std::make_shared<ngraph::opset1::Result>(makeDequantization(split->output(i), dequantizationAfter[i])));
-            } else {
-                results.push_back(std::make_shared<ngraph::opset1::Result>(split->output(i)));
+    for (size_t i = 0; i < numSplit; ++i) {
+        if (!dequantizationAfter.empty()) {
+            auto dequantizationStructure = dequantizationAfter[i];
+            if (!dequantizationStructure.multiply.empty()) {
+                dequantizationStructure.multiply.outPrecision = precision;
             }
+            results.push_back(std::make_shared<ngraph::opset1::Result>(makeDequantization(split->output(i), dequantizationAfter[i])));
+        } else {
+            results.push_back(std::make_shared<ngraph::opset1::Result>(split->output(i)));
         }
     }
 

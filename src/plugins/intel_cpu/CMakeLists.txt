@@ -12,6 +12,19 @@ if(CMAKE_COMPILER_IS_GNUCC)
     ie_add_compiler_flags(-Wno-all)
 endif()
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # C4267, 4244 issues from mkl-dnn headers conversion from 'XXX' to 'YYY', possible loss of data
+    ie_add_compiler_flags(/wd4267)
+    ie_add_compiler_flags(/wd4244)
+    # mkldnn headers: '<<': result of 32-bit shift implicitly converted to 64 bits
+    ie_add_compiler_flags(/wd4334)
+    # plugin: inherits 'XXX' via dominance
+    ie_add_compiler_flags(/wd4250)
+    # '<': signed/unsigned mismatch
+    ie_add_compiler_flags(/wd4018)
+    ie_add_compiler_flags(/wd4309)
+endif()
+
 if (WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNOMINMAX")
 endif()
@@ -83,7 +96,6 @@ if(BUILD_SHARED_LIBS)
 
     target_include_directories(${TARGET_NAME}_obj
         PRIVATE
-            $<TARGET_PROPERTY:openvino_gapi_preproc_s,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:ov_shape_inference,INTERFACE_INCLUDE_DIRECTORIES>

@@ -49,6 +49,39 @@ inline std::ostream& operator<<(std::ostream& out, const impl_types& impl_type) 
     return out;
 }
 
+/// @brief Possible supported shape types.
+enum class shape_types : uint8_t {
+    static_shape = 1 << 0,
+    dynamic_shape = 1 << 1,
+    any = 0xFF,
+};
+
+inline shape_types operator&(shape_types a, shape_types b) {
+    typedef std::underlying_type<shape_types>::type underlying_type;
+    return static_cast<shape_types>(static_cast<underlying_type>(a) & static_cast<underlying_type>(b));
+}
+
+inline shape_types operator|(shape_types a, shape_types b) {
+    typedef std::underlying_type<shape_types>::type underlying_type;
+    return static_cast<shape_types>(static_cast<underlying_type>(a) | static_cast<underlying_type>(b));
+}
+
+inline shape_types operator~(shape_types a) {
+    typedef std::underlying_type<shape_types>::type underlying_type;
+    return static_cast<shape_types>(~static_cast<underlying_type>(a));
+}
+
+inline std::ostream& operator<<(std::ostream& out, const shape_types& shape_type) {
+    switch (shape_type) {
+        case shape_types::static_shape: out << "static_shape"; break;
+        case shape_types::dynamic_shape: out << "dynamic_shape"; break;
+        case shape_types::any: out << "any"; break;
+        default: out << "unknown"; break;
+    }
+
+    return out;
+}
+
 /// @brief Description of primitives implementation.
 struct implementation_desc {
     format::type output_format;  ///< Output format.

@@ -39,6 +39,7 @@ struct TestParams {
     float pad_value;
     data_types dt;
     std::string name;
+    bool is_caching_test;
 
     bool isConsistent() const
     {
@@ -59,6 +60,7 @@ struct TestParams {
                   << "; pad=[" << p.ph << "; " << p.pw << "]"
                   << "; pad_value=" << p.pad_value
                   << "; name=" << p.name
+                  << "; is_caching_test=" << p.is_caching_test
                   << "]";
     }
     friend void PrintTo(const TestParams& p, ::std::ostream* os) {
@@ -220,13 +222,31 @@ TEST_P(binary_convolution_test, conv) {
     topology_bin.add(input_layout(input_name, input->get_layout()));
     topology_bin.add(data(output_name + weights_suffix, weights));
 
-    topology_bin.add(binary_convolution(output_name, input_name, {output_name + weights_suffix},
+    topology_bin.add(binary_convolution(output_name, input_info(input_name), {output_name + weights_suffix},
                                         stride, pad, dilation, os_size, 1, p.pad_value, p.dt));
 
-    network network_bin(engine, topology_bin, options);
-    network_bin.set_input_data(input_name, input);
+    cldnn::network::ptr network_bin;
 
-    std::map<primitive_id, network_output> outputs = network_bin.execute();
+    if (p.is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topology_bin, options);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+            network_bin = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+        }
+    } else {
+        network_bin = std::make_shared<cldnn::network>(engine, topology_bin, options);
+    }
+
+    network_bin->set_input_data(input_name, input);
+
+    std::map<primitive_id, network_output> outputs = network_bin->execute();
     auto outputMemory = outputs.at(output_name).get_memory();
 
     for (size_t i = 0; i < output_ref->count(); i++) {
@@ -239,67 +259,71 @@ TEST_P(binary_convolution_test, conv) {
             cldnn::mem_lock<float> ref(output_ref, get_test_stream());
             cldnn::mem_lock<uint16_t> opt(outputMemory, get_test_stream());
 
-            ASSERT_EQ(ref[i], float16_to_float32(opt[i])) << i;
+            ASSERT_EQ(ref[i], half_to_float(opt[i])) << i;
         }
     }
 }
 
 // Batch, groups, IC, IW, IH, OC, OW, OH, KH, KW, SH, SW, PH, PW
 INSTANTIATE_TEST_SUITE_P(BinaryConvTest, binary_convolution_test, ::testing::Values(
-        TestParams{1, 1,  16,2,2,   4,2,2, 3,3, 1,1, 1,1, -1.0f, data_types::f32, "small"},
-        TestParams{1, 1,  17,2,2,   4,2,2, 3,3, 1,1, 1,1, -1.0f, data_types::f32, "small"},
-        TestParams{1, 1,  17,2,2,   4,2,2, 3,3, 1,1, 1,1,  0.0f, data_types::f32, "small"},
-        TestParams{1, 1,  17,2,2,   4,2,2, 3,3, 1,1, 1,1,  1.0f, data_types::f32, "small"},
-        TestParams{1, 1,  16,2,2,  16,2,2, 3,3, 1,1, 1,1,  1.0f, data_types::f32, "small"},
-        TestParams{1, 1,  32,2,2,  32,2,2, 3,3, 1,1, 1,1,  1.0f, data_types::f32, "small"},
-        TestParams{1, 1,  32,2,2,  32,2,2, 1,1, 1,1, 0,0,  1.0f, data_types::f32, "small"},
-        TestParams{1, 1, 128,2,2, 128,2,2, 1,1, 1,1, 0,0, -1.0f, data_types::f32, "small"},
-        TestParams{1, 1,  16,4,3,   4,4,3, 1,1, 1,1, 0,0, -1.0f, data_types::f32, "small"},
-        TestParams{1, 1,  16,2,2,   4,2,2, 3,3, 1,1, 1,1, -1.0f, data_types::f16, "small"},
-        TestParams{1, 1,  17,2,2,   4,2,2, 3,3, 1,1, 1,1, -1.0f, data_types::f16, "small"},
-        TestParams{1, 1,  17,2,2,   4,2,2, 3,3, 1,1, 1,1,  0.0f, data_types::f16, "small"},
-        TestParams{1, 1,  17,2,2,   4,2,2, 3,3, 1,1, 1,1,  1.0f, data_types::f16, "small"},
-        TestParams{1, 1,  16,2,2,  16,2,2, 3,3, 1,1, 1,1,  1.0f, data_types::f16, "small"},
-        TestParams{1, 1,  32,2,2,  32,2,2, 3,3, 1,1, 1,1,  1.0f, data_types::f16, "small"},
-        TestParams{1, 1,  32,2,2,  32,2,2, 1,1, 1,1, 0,0,  1.0f, data_types::f16, "small"},
-        TestParams{1, 1, 128,2,2, 128,2,2, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "small"},
-        TestParams{1, 1,  16,4,3,   4,4,3, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "small"},
-        TestParams{1, 1,  9,16,32, 17,8,16, 7,7, 2,2, 3,3, -1.0f, data_types::f16, "small"},
-        TestParams{1, 1,  9,16,32, 17,8,16, 7,7, 2,2, 3,3, 1.0f, data_types::f16, "small"},
+        TestParams{1, 1,  16,2,2,   4,2,2, 3,3, 1,1, 1,1, -1.0f, data_types::f32, "small", false},
+        TestParams{1, 1,  17,2,2,   4,2,2, 3,3, 1,1, 1,1, -1.0f, data_types::f32, "small", false},
+        TestParams{1, 1,  17,2,2,   4,2,2, 3,3, 1,1, 1,1,  0.0f, data_types::f32, "small", false},
+        TestParams{1, 1,  17,2,2,   4,2,2, 3,3, 1,1, 1,1,  1.0f, data_types::f32, "small", false},
+        TestParams{1, 1,  16,2,2,  16,2,2, 3,3, 1,1, 1,1,  1.0f, data_types::f32, "small", false},
+        TestParams{1, 1,  32,2,2,  32,2,2, 3,3, 1,1, 1,1,  1.0f, data_types::f32, "small", false},
+        TestParams{1, 1,  32,2,2,  32,2,2, 1,1, 1,1, 0,0,  1.0f, data_types::f32, "small", false},
+        TestParams{1, 1, 128,2,2, 128,2,2, 1,1, 1,1, 0,0, -1.0f, data_types::f32, "small", false},
+        TestParams{1, 1,  16,4,3,   4,4,3, 1,1, 1,1, 0,0, -1.0f, data_types::f32, "small", false},
+        TestParams{1, 1,  16,2,2,   4,2,2, 3,3, 1,1, 1,1, -1.0f, data_types::f16, "small", false},
+        TestParams{1, 1,  17,2,2,   4,2,2, 3,3, 1,1, 1,1, -1.0f, data_types::f16, "small", false},
+        TestParams{1, 1,  17,2,2,   4,2,2, 3,3, 1,1, 1,1,  0.0f, data_types::f16, "small", false},
+        TestParams{1, 1,  17,2,2,   4,2,2, 3,3, 1,1, 1,1,  1.0f, data_types::f16, "small", false},
+        TestParams{1, 1,  16,2,2,  16,2,2, 3,3, 1,1, 1,1,  1.0f, data_types::f16, "small", false},
+        TestParams{1, 1,  32,2,2,  32,2,2, 3,3, 1,1, 1,1,  1.0f, data_types::f16, "small", false},
+        TestParams{1, 1,  32,2,2,  32,2,2, 1,1, 1,1, 0,0,  1.0f, data_types::f16, "small", false},
+        TestParams{1, 1, 128,2,2, 128,2,2, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "small", false},
+        TestParams{1, 1,  16,4,3,   4,4,3, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "small", false},
+        TestParams{1, 1,  9,16,32, 17,8,16, 7,7, 2,2, 3,3, -1.0f, data_types::f16, "small", false},
+        TestParams{1, 1,  9,16,32, 17,8,16, 7,7, 2,2, 3,3, 1.0f, data_types::f16, "small", false},
 
         // Resnet-18 3x3
-        TestParams{1, 1,  64,56,56,  64,56,56, 3,3, 1,1, 1,1, -1.0f, data_types::f16, "resnet18_0"},
-        TestParams{1, 1,  64,56,56, 128,28,28, 3,3, 2,2, 1,1, -1.0f, data_types::f16, "resnet18_1"},
-        TestParams{1, 1, 128,28,28, 128,28,28, 3,3, 1,1, 1,1, -1.0f, data_types::f16, "resnet18_2"},
-        TestParams{1, 1, 128,28,28, 256,14,14, 3,3, 2,2, 1,1, -1.0f, data_types::f16, "resnet18_3"},
-        TestParams{1, 1, 256,14,14, 256,14,14, 3,3, 1,1, 1,1, -1.0f, data_types::f16, "resnet18_4"},
-        TestParams{1, 1, 256,14,14, 512, 7, 7, 3,3, 2,2, 1,1, -1.0f, data_types::f16, "resnet18_5"},
-        TestParams{1, 1, 512, 7, 7, 512, 7, 7, 3,3, 1,1, 1,1, -1.0f, data_types::f16, "resnet18_6"},
+        TestParams{1, 1,  64,56,56,  64,56,56, 3,3, 1,1, 1,1, -1.0f, data_types::f16, "resnet18_0", false},
+        TestParams{1, 1,  64,56,56, 128,28,28, 3,3, 2,2, 1,1, -1.0f, data_types::f16, "resnet18_1", false},
+        TestParams{1, 1, 128,28,28, 128,28,28, 3,3, 1,1, 1,1, -1.0f, data_types::f16, "resnet18_2", false},
+        TestParams{1, 1, 128,28,28, 256,14,14, 3,3, 2,2, 1,1, -1.0f, data_types::f16, "resnet18_3", false},
+        TestParams{1, 1, 256,14,14, 256,14,14, 3,3, 1,1, 1,1, -1.0f, data_types::f16, "resnet18_4", false},
+        TestParams{1, 1, 256,14,14, 512, 7, 7, 3,3, 2,2, 1,1, -1.0f, data_types::f16, "resnet18_5", false},
+        TestParams{1, 1, 512, 7, 7, 512, 7, 7, 3,3, 1,1, 1,1, -1.0f, data_types::f16, "resnet18_6", false},
         // Resnet-50
-        TestParams{1, 1, 64,56,56, 64,56,56, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "resnet50_0"},
-        TestParams{1, 1, 64,56,56, 256,56,56, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "resnet50_1"},
-        TestParams{1, 1, 256,56,56, 128,28,28, 1,1, 2,2, 0,0, -1.0f, data_types::f16, "resnet50_2"},
-        TestParams{1, 1, 128,28,28, 512,28,28, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "resnet50_3"},
-        TestParams{1, 1, 512,28,28, 128,28,28, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "resnet50_4"},
-        TestParams{1, 1, 512,28,28, 256,14,14, 1,1, 2,2, 0,0, -1.0f, data_types::f16, "resnet50_5"},
-        TestParams{1, 1, 256,14,14, 1024,14,14, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "resnet50_6"},
-        TestParams{1, 1, 1024,14,14, 256,14,14, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "resnet50_7"},
-        TestParams{1, 1, 1024,14,14, 512,7,7, 1,1, 2,2, 0,0, -1.0f, data_types::f16, "resnet50_8"},
-        TestParams{1, 1, 512,7,7, 2048,7,7, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "resnet50_9"},
-        TestParams{1, 1, 2048,7,7, 512,7,7, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "resnet50_10"},
+        TestParams{1, 1, 64,56,56, 64,56,56, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "resnet50_0", false},
+        TestParams{1, 1, 64,56,56, 256,56,56, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "resnet50_1", false},
+        TestParams{1, 1, 256,56,56, 128,28,28, 1,1, 2,2, 0,0, -1.0f, data_types::f16, "resnet50_2", false},
+        TestParams{1, 1, 128,28,28, 512,28,28, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "resnet50_3", false},
+        TestParams{1, 1, 512,28,28, 128,28,28, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "resnet50_4", false},
+        TestParams{1, 1, 512,28,28, 256,14,14, 1,1, 2,2, 0,0, -1.0f, data_types::f16, "resnet50_5", false},
+        TestParams{1, 1, 256,14,14, 1024,14,14, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "resnet50_6", false},
+        TestParams{1, 1, 1024,14,14, 256,14,14, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "resnet50_7", false},
+        TestParams{1, 1, 1024,14,14, 512,7,7, 1,1, 2,2, 0,0, -1.0f, data_types::f16, "resnet50_8", false},
+        TestParams{1, 1, 512,7,7, 2048,7,7, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "resnet50_9", false},
+        TestParams{1, 1, 2048,7,7, 512,7,7, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "resnet50_10", false},
         // Mobilenet-ssd-vd
-        TestParams{1, 1,  56,96,168, 112,96,168, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "conv2_2_sep_BIN"}, // back_bone_seq_conv2_2_sep_BIN
-        TestParams{1, 1, 112,96,168, 112,96,168, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "conv3_1_sep_BIN"}, // back_bone_seq_conv3_1_sep_BIN
-        TestParams{1, 1,  112,48,84, 208,48, 84, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "conv3_2_sep_BIN"}, // back_bone_seq_conv3_2_sep_BIN
-        TestParams{1, 1,  208,48,84, 216,48, 84, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "conv4_1_sep_BIN"}, // back_bone_seq_conv4_1_sep_BIN
-        TestParams{1, 1,  216,24,42, 328,24, 42, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "conv4_2_sep_BIN"}, // back_bone_seq_conv4_2_sep_BIN
-        TestParams{1, 1,  328,24,42, 288,24, 42, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "conv5_1_sep_BIN"}, // back_bone_seq_conv5_1_sep_BIN
-        TestParams{1, 1,  288,24,42, 288,24, 42, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "conv5_2_sep_BIN"}, // back_bone_seq_conv5_2_sep_BIN
-        TestParams{1, 1,  288,24,42, 240,24, 42, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "conv5_3_sep_BIN"}, // back_bone_seq_conv5_3_sep_BIN
-        TestParams{1, 1,  240,24,42, 264,24, 42, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "conv5_4_sep_BIN"}, // back_bone_seq_conv5_4_sep_BIN
-        TestParams{1, 1,  264,24,42, 192,24, 42, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "conv5_5_sep_BIN"}, // back_bone_seq_conv5_5_sep_BIN
-        TestParams{1, 1,  192,12,21, 208,12, 21, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "conv5_6_sep_BIN"}, // back_bone_seq_conv5_6_sep_BIN
-        TestParams{1, 1,  208,12,21,  88,12, 21, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "conv6_sep_BN"} // back_bone_seq_conv6_sep_BN
+        TestParams{1, 1,  56,96,168, 112,96,168, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "conv2_2_sep_BIN", false}, // back_bone_seq_conv2_2_sep_BIN
+        TestParams{1, 1, 112,96,168, 112,96,168, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "conv3_1_sep_BIN", false}, // back_bone_seq_conv3_1_sep_BIN
+        TestParams{1, 1,  112,48,84, 208,48, 84, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "conv3_2_sep_BIN", false}, // back_bone_seq_conv3_2_sep_BIN
+        TestParams{1, 1,  208,48,84, 216,48, 84, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "conv4_1_sep_BIN", false}, // back_bone_seq_conv4_1_sep_BIN
+        TestParams{1, 1,  216,24,42, 328,24, 42, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "conv4_2_sep_BIN", false}, // back_bone_seq_conv4_2_sep_BIN
+        TestParams{1, 1,  328,24,42, 288,24, 42, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "conv5_1_sep_BIN", false}, // back_bone_seq_conv5_1_sep_BIN
+        TestParams{1, 1,  288,24,42, 288,24, 42, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "conv5_2_sep_BIN", false}, // back_bone_seq_conv5_2_sep_BIN
+        TestParams{1, 1,  288,24,42, 240,24, 42, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "conv5_3_sep_BIN", false}, // back_bone_seq_conv5_3_sep_BIN
+        TestParams{1, 1,  240,24,42, 264,24, 42, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "conv5_4_sep_BIN", false}, // back_bone_seq_conv5_4_sep_BIN
+        TestParams{1, 1,  264,24,42, 192,24, 42, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "conv5_5_sep_BIN", false}, // back_bone_seq_conv5_5_sep_BIN
+        TestParams{1, 1,  192,12,21, 208,12, 21, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "conv5_6_sep_BIN", false}, // back_bone_seq_conv5_6_sep_BIN
+        TestParams{1, 1,  208,12,21,  88,12, 21, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "conv6_sep_BN", false} // back_bone_seq_conv6_sep_BN
+));
+
+INSTANTIATE_TEST_SUITE_P(export_import, binary_convolution_test, ::testing::Values(
+        TestParams{1, 1,  208,12,21,  88,12, 21, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "conv6_sep_BN", true}
 ));
 
 template <typename T>
@@ -357,7 +381,7 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel) {
     topology topology(
             input_layout("input", input->get_layout()),
             data("weights", weights),
-            binary_convolution("binary_conv", "input", { "weights" },
+            binary_convolution("binary_conv", input_info("input"), { "weights" },
                                { 1,1 },
                                { 0,0 },
                                { 1,1 },
@@ -374,23 +398,23 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel) {
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "binary_conv");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "binary_conv");
 
     auto output_memory = outputs.at("binary_conv").get_memory();
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
 
-    EXPECT_EQ(output_layout.format, format::bfyx);
-    EXPECT_EQ(output_layout.data_type, data_types::f32);
-    EXPECT_EQ(output_layout.batch(), 1);
-    EXPECT_EQ(output_layout.feature(), 4);
-    EXPECT_EQ(output_layout.spatial(1), 2);
-    EXPECT_EQ(output_layout.spatial(0), 2);
+    ASSERT_EQ(output_layout.format, format::bfyx);
+    ASSERT_EQ(output_layout.data_type, data_types::f32);
+    ASSERT_EQ(output_layout.batch(), 1);
+    ASSERT_EQ(output_layout.feature(), 4);
+    ASSERT_EQ(output_layout.spatial(1), 2);
+    ASSERT_EQ(output_layout.spatial(0), 2);
 
     for (size_t i = 0; i < output_layout.count(); i++)
     {
-        EXPECT_EQ(output_ptr[i], output_vec[i]) << "index="<< i;
+        ASSERT_EQ(output_ptr[i], output_vec[i]) << "index="<< i;
     }
 }
 
@@ -440,7 +464,7 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel_fp16) {
     topology topology(
             input_layout("input", input->get_layout()),
             data("weights", weights),
-            binary_convolution("binary_conv", "input", { "weights" },
+            binary_convolution("binary_conv", input_info("input"), { "weights" },
                                { 1,1 },
                                { 0,0 },
                                { 1,1 },
@@ -457,21 +481,21 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel_fp16) {
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "binary_conv");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "binary_conv");
 
     auto output_memory = outputs.at("binary_conv").get_memory();
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<uint16_t> output_ptr(output_memory, get_test_stream());
 
-    EXPECT_EQ(output_layout.format, format::bfyx);
-    EXPECT_EQ(output_layout.data_type, data_types::f16);
-    EXPECT_EQ(output_layout.batch(), 1);
-    EXPECT_EQ(output_layout.feature(), 4);
-    EXPECT_EQ(output_layout.spatial(1), 2);
-    EXPECT_EQ(output_layout.spatial(0), 2);
+    ASSERT_EQ(output_layout.format, format::bfyx);
+    ASSERT_EQ(output_layout.data_type, data_types::f16);
+    ASSERT_EQ(output_layout.batch(), 1);
+    ASSERT_EQ(output_layout.feature(), 4);
+    ASSERT_EQ(output_layout.spatial(1), 2);
+    ASSERT_EQ(output_layout.spatial(0), 2);
 
     for (size_t i = 0; i < output_layout.count(); i++) {
-        EXPECT_EQ(float16_to_float32(output_ptr[i]), output_vec[i]) << "index="<< i;
+        ASSERT_EQ(half_to_float(output_ptr[i]), output_vec[i]) << "index="<< i;
     }
 }

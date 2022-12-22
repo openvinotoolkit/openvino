@@ -24,7 +24,7 @@ public:
     program_node& input() const { return get_dependency(0); }
     program_node& input2() const { return get_dependency(1); }
 
-    std::vector<size_t> get_shape_infer_dependencies() const override { return {1}; }
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {1, 2}; }
 };
 
 using resample_node = typed_program_node<resample>;
@@ -32,6 +32,7 @@ using resample_node = typed_program_node<resample>;
 template <>
 class typed_primitive_inst<resample> : public typed_primitive_inst_base<resample> {
     using parent = typed_primitive_inst_base<resample>;
+    using parent::parent;
 
 public:
     template<typename ShapeType>

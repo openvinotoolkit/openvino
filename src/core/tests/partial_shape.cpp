@@ -217,7 +217,7 @@ TEST(partial_shape, to_shape_rank_dynamic) {
 }
 
 TEST(partial_shape, tensor_descriptor_from_shape) {
-    descriptor::Tensor t{element::i32, Shape{1, 2, 3}, "Ankeny"};
+    descriptor::Tensor t{element::i32, Shape{1, 2, 3}};
 
     ASSERT_EQ(t.get_shape(), (Shape{1, 2, 3}));
     ASSERT_EQ(t.get_partial_shape().rank().get_length(), 3);
@@ -225,7 +225,7 @@ TEST(partial_shape, tensor_descriptor_from_shape) {
 }
 
 TEST(partial_shape, tensor_descriptor_from_static_partial_shape) {
-    descriptor::Tensor t{element::i32, PartialShape{1, 2, 3}, "Burnside"};
+    descriptor::Tensor t{element::i32, PartialShape{1, 2, 3}};
 
     ASSERT_EQ(t.get_shape(), (Shape{1, 2, 3}));
     ASSERT_EQ(t.get_partial_shape().rank().get_length(), 3);
@@ -233,7 +233,7 @@ TEST(partial_shape, tensor_descriptor_from_static_partial_shape) {
 }
 
 TEST(partial_shape, tensor_descriptor_from_rank_static_dynamic_partial_shape) {
-    descriptor::Tensor t{element::i32, PartialShape{1, Dimension::dynamic(), 3}, "Couch"};
+    descriptor::Tensor t{element::i32, PartialShape{1, Dimension::dynamic(), 3}};
 
     ASSERT_EQ(t.get_partial_shape().rank().get_length(), 3);
     ASSERT_THROW({ t.get_shape(); }, std::invalid_argument);
@@ -241,7 +241,7 @@ TEST(partial_shape, tensor_descriptor_from_rank_static_dynamic_partial_shape) {
 }
 
 TEST(partial_shape, tensor_descriptor_from_rank_dynamic_partial_shape) {
-    descriptor::Tensor t{element::i32, PartialShape::dynamic(), "Davis"};
+    descriptor::Tensor t{element::i32, PartialShape::dynamic()};
 
     ASSERT_TRUE(t.get_partial_shape().rank().is_dynamic());
     ASSERT_THROW({ t.get_shape(); }, std::invalid_argument);
@@ -780,6 +780,22 @@ TEST(partial_shape, changed_dimension_by_reference) {
     d = 2;
 
     ASSERT_TRUE(s.is_static());
+}
+
+TEST(partial_shape, emplace_back_new_dimension) {
+    PartialShape s{2, 3, Dimension::dynamic(), 5};
+
+    s.emplace_back(3, 5);
+
+    ASSERT_EQ(s, PartialShape({2, 3, -1, 5, {3, 5}}));
+}
+
+TEST(partial_shape, copy_with_back_inserter_iterator) {
+    PartialShape s{2, 3, Dimension::dynamic(), 5}, s_copy;
+
+    std::copy(s.begin(), s.end(), std::back_inserter(s_copy));
+
+    ASSERT_EQ(s_copy, s);
 }
 
 TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_dynamic_ok) {

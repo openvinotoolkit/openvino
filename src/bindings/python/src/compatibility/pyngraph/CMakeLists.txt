@@ -7,7 +7,8 @@ cmake_minimum_required (VERSION 3.13)
 project (pyngraph)
 
 if(NOT DEFINED OpenVINO_SOURCE_DIR)
-    find_package(InferenceEngineDeveloperPackage QUIET)
+    find_package(OpenVINODeveloperPackage QUIET
+                 PATHS "${InferenceEngineDeveloperPackage_DIR}")
     find_package(OpenVINO REQUIRED)
 endif()
 
@@ -33,9 +34,10 @@ endif()
 if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # disable warning: This operator was deprecated and will be removed with v0 operation.
     add_compile_options(/wd4996)
+    add_compile_options(/wd4244)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     add_compile_options(-Wno-deprecated-register -Wno-range-loop-analysis)
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+elseif(OV_COMPILER_IS_APPLECLANG)
     add_link_options(-stdlib=libc++)
     add_compile_options(-Wno-unused-value -Wno-range-loop-analysis)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -70,18 +72,18 @@ endif()
 
 # Install
 
-if(OpenVINO_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
+if(OpenVINO_SOURCE_DIR OR OpenVINODeveloperPackage_FOUND)
     ie_python_minimal_api(_${PROJECT_NAME})
     add_clang_format_target(_${PROJECT_NAME}_clang FOR_TARGETS _${PROJECT_NAME})
 
     ie_cpack_add_component(${OV_CPACK_COMP_PYTHON_NGRAPH}_${pyversion} HIDDEN)
 
     install(TARGETS _${PROJECT_NAME}
-            DESTINATION ${OV_CPACK_PYTHONDIR}/${pyversion}
+            DESTINATION ${OV_CPACK_PYTHONDIR}
             COMPONENT ${OV_CPACK_COMP_PYTHON_NGRAPH}_${pyversion})
 
     install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../ngraph
-            DESTINATION ${OV_CPACK_PYTHONDIR}/${pyversion}
+            DESTINATION ${OV_CPACK_PYTHONDIR}
             COMPONENT ${OV_CPACK_COMP_PYTHON_NGRAPH}_${pyversion}
             USE_SOURCE_PERMISSIONS)
 

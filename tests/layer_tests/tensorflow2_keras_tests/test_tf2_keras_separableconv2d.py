@@ -114,9 +114,10 @@ class TestKerasSeparableConv2D(CommonTF2LayerTest):
         dict(input_names=["x1"], input_shapes=[[5, 17, 14, 3]], input_type=tf.float32,
              filters=3, kernel_size=(2, 1), strides=1, padding='valid', data_format='channels_last',
              dilation_rate=1, depth_multiplier=1, activation='relu', use_bias=True),
-        dict(input_names=["x1"], input_shapes=[[1, 14, 12, 2]], input_type=tf.float32,
-             filters=4, kernel_size=(2, 2), strides=1, padding='valid', data_format='channels_last',
-             dilation_rate=2, depth_multiplier=3, activation='relu', use_bias=False),
+        pytest.param(dict(input_names=["x1"], input_shapes=[[1, 14, 12, 2]], input_type=tf.float32,
+                          filters=4, kernel_size=(2, 2), strides=1, padding='valid', data_format='channels_last',
+                          dilation_rate=2, depth_multiplier=3, activation='relu', use_bias=False),
+                     marks=pytest.mark.precommit_tf_fe),
     ]
 
     @pytest.mark.parametrize("params", test_data_different_bias)

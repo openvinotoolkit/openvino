@@ -32,7 +32,7 @@ Thus we can define:
 - **Scale** as `(output_high - output_low) / (levels-1)`
 - **Zero-point** as `-output_low / (output_high - output_low) * (levels-1)`
 
-**Note**: During the quantization process the values `input_low`, `input_high`, `output_low`, `output_high` are selected so that to map a floating-point zero exactly to an integer value (zero-point) and vice versa.
+> **NOTE**: During the quantization process the values `input_low`, `input_high`, `output_low`, `output_high` are selected so that to map a floating-point zero exactly to an integer value (zero-point) and vice versa.
 
 ## Quantization specifics and restrictions
 In general, OpenVINO can represent and execute quantized models from different sources. However, the Post-training Optimization Tool (POT)

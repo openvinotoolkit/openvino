@@ -12,10 +12,7 @@
 #include "gather_shape_inference.hpp"
 
 namespace cldnn {
-primitive_type_id gather::type_id() {
-    static primitive_type_base<gather> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(gather)
 
 layout gather_inst::calc_output_layout(gather_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<gather>();
@@ -48,6 +45,8 @@ layout gather_inst::calc_output_layout(gather_node const& node, kernel_impl_para
         switch (input_layout.format) {
         case format::bfyx:
         case format::bfzyx:
+        case format::b_fs_zyx_fsv16:
+        case format::b_fs_zyx_fsv32:
             output_format = format::get_default_format(dims_converted.size());
             break;
         default:
@@ -95,6 +94,8 @@ std::vector<layout> gather_inst::calc_output_layouts(gather_node const& /*node*/
 
     return { layout{output_shapes[0], output_type, output_format} };
 }
+
+template std::vector<layout> gather_inst::calc_output_layouts<ov::PartialShape>(gather_node const& node, const kernel_impl_params& impl_param);
 
 std::string gather_inst::to_string(gather_node const& node) {
     auto desc = node.get_primitive();

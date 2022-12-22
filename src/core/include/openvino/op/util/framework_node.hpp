@@ -72,7 +72,6 @@ private:
 class OPENVINO_API FrameworkNode : public Op {
 public:
     OPENVINO_OP("FrameworkNode", "util");
-    BWDCMP_RTTI_DECLARATION;
 
     FrameworkNode() = default;
 

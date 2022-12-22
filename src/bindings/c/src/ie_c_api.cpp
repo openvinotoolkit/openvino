@@ -1437,7 +1437,7 @@ IEStatusCode ie_infer_request_set_batch(ie_infer_request_t* infer_request, const
     }
 
     try {
-        infer_request->object.SetBatch(size);
+        infer_request->object.SetBatch(static_cast<int>(size));
     }
     CATCH_IE_EXCEPTIONS
 
@@ -1641,7 +1641,7 @@ IEStatusCode ie_blob_size(ie_blob_t* blob, int* size_result) {
         return status;
     }
 
-    *size_result = blob->object->size();
+    *size_result = static_cast<int>(blob->object->size());
 
     return status;
 }
@@ -1654,7 +1654,7 @@ IEStatusCode ie_blob_byte_size(ie_blob_t* blob, int* bsize_result) {
         return status;
     }
 
-    *bsize_result = blob->object->byteSize();
+    *bsize_result = static_cast<int>(blob->object->byteSize());
 
     return status;
 }

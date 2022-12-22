@@ -53,7 +53,7 @@ jobs:
 #      # CMake must get Python 3.x version by default
 #      cmakeArgs: >
 #        -GNinja
-#        -DVERBOSE_BUILD=ON
+#        -DCMAKE_VERBOSE_MAKEFILE=ON
 #        -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
 #        -DENABLE_PYTHON=ON
 #        -DPYTHON_EXECUTABLE=/usr/bin/python3.8
@@ -62,7 +62,7 @@ jobs:
 #        -DENABLE_FASTER_BUILD=ON
 #        -DENABLE_STRICT_DEPENDENCIES=OFF
 #        -DENABLE_REQUIREMENTS_INSTALL=OFF
-#        -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
+#        -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
 #        $(REPO_DIR)
 #      workingDirectory: $(BUILD_DIR)
 

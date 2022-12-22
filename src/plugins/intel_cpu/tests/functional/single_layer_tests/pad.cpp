@@ -74,10 +74,7 @@ protected:
 };
 
 TEST_P(PadLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
-
     CheckPluginRelatedResults(compiledModel, "Pad");
 }
 

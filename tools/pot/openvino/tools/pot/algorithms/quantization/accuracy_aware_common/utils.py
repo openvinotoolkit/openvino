@@ -175,10 +175,13 @@ def sort_by_logit_distance(u, v, reverse=False, distance='cosine'):
                                                    scipy.special.softmax(v))
     mse_distance = lambda u, v: np.mean((u - v) ** 2)
 
+    nmse_distance = lambda u, v: np.dot(u - v, u - v) / np.dot(u, u)
+
     distance_function = {
         'cosine': scipy.spatial.distance.cosine,
         'kd': kd_distance,
         'mse': mse_distance,
+        'nmse': nmse_distance,
     }
 
     distance_between_samples = np.array([distance_function[distance](ui.flatten(), vi.flatten())

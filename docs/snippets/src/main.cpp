@@ -67,3 +67,15 @@ const float *output_buffer = output.data<const float>();
 //! [part6]
 return 0;
 }
+/*
+//! [part7]
+project/
+   ├── CMakeLists.txt  - CMake file to build
+   ├── ...             - Additional folders like includes/
+   └── src/            - source folder
+       └── main.cpp
+build/                  - build directory
+   ... 
+
+//! [part7]
+*/

@@ -7,6 +7,7 @@
 #include <memory>
 
 #include <openvino/core/model.hpp>
+#include <openvino/op/util/sub_graph_base.hpp>
 #include <ngraph/op/op.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -22,9 +23,10 @@ namespace op {
  * @brief An operation that is implemented by a model
  * @ingroup snippets
  */
-class Subgraph : public ngraph::op::Op {
+class Subgraph : public ov::op::util::SubGraphOp {
 public:
-    OPENVINO_OP("Subgraph", "SnippetsOpset");
+    OPENVINO_OP("Subgraph", "SnippetsOpset", ov::op::util::SubGraphOp);
+    BWDCMP_RTTI_DECLARATION;
 
     // < 1, 42, 17, 15, 16> < 0, 1, 2, 3, 1>
     // should be:
@@ -70,6 +72,8 @@ public:
     using BlockedShape = std::tuple<ngraph::Shape, ngraph::AxisVector, ngraph::element::Type>;
     using BlockedShapeVector = std::vector<BlockedShape>;
 
+    Subgraph() = default;
+
     Subgraph(const OutputVector& args, std::shared_ptr<ov::Model> body);
 
     Subgraph(const NodeVector& args, std::shared_ptr<ov::Model> body);
@@ -80,14 +84,43 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 
-    std::shared_ptr<ov::Model> get_body() const {
-        return m_body;
+    // we introduce this method instead of using SubGraphOp::get_function()
+    // to align naming with other methods
+    const std::shared_ptr<ov::Model> & body_ptr() const {
+        return m_bodies[0];
     }
 
-    std::shared_ptr<ngraph::snippets::Generator> get_generator() const {
+    std::shared_ptr<ov::Model> & body_ptr() {
+        return m_bodies[0];
+    }
+
+    const ov::Model & body() const {
+        return *m_bodies[0];
+    }
+
+    ov::Model & body() {
+        return *m_bodies[0];
+    }
+
+    const std::shared_ptr<ngraph::snippets::Generator> & get_generator() const {
         return m_generator;
     }
 
+    std::shared_ptr<ngraph::snippets::Generator> & get_generator() {
+        return m_generator;
+    }
+
+    size_t get_non_scalar_constants_count() const {
+        return m_non_scalar_constants_count;
+    }
+
+    bool is_quantized() const {
+        return config.m_is_quantized;
+    }
+
+    bool has_type_relaxed_ops() const {
+        return config.m_has_type_relaxed_ops;
+    }
 
     snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes, ngraph::pass::Manager& opt,
                                 const void* compile_params = nullptr);
@@ -99,6 +132,7 @@ public:
     // plugin sets generator for a snippet to some specific generator.
     // it's going to be replaced with Jitters table later
     void set_generator(std::shared_ptr<ngraph::snippets::Generator> generator);
+    void set_non_scalar_constants_count(const size_t count);
 
     void print() const;
     void print_statistics(bool verbose);
@@ -111,19 +145,35 @@ public:
 private:
     void align_element_types(const BlockedShapeVector& outputShapes, const BlockedShapeVector& inputShapes);
     void convert_to_snippet_dialect();
-    Shape exec_domain;
-    std::shared_ptr<ov::Model> m_body;
-    std::shared_ptr<ngraph::snippets::Generator> m_generator;
+
+    // Count of potentional non-scalar Consants that will be created after some tranformations
+    // At the moment it's relevant only for FakeQuantize decomposition
+    // NOTE: To avoid overheads in each calcution of this count (for example, in validate_and_type_infer()),
+    //       we should MANUALLY calculate it where it needed.
+    size_t m_non_scalar_constants_count = 0;
+    Shape exec_domain = {};
+    std::shared_ptr<ngraph::snippets::Generator> m_generator = nullptr;
+
+    // TODO: Change logic of insert Converts. This exec element type can be different for plugins
+    const ov::element::Type execution_element_type = ov::element::f32;
+
+    // Config to know which transformations should be called.
+    // It helps to avoid overheads of extra transformation calls
+    struct {
+        // True if Subgraph contains FakeQuantize -> FQ decomposition should be called
+        bool m_is_quantized = false;
+        // True if we should align element types indise body
+        bool m_is_needed_to_align_precision = false;
+        // True if Subgraph contains TypeRelaxed nodes -> for several streams in tp mode we should copy body using mutexes
+        // because TypeRelaxed::copy_with_new_inputs() isn't save-thread method
+        bool m_has_type_relaxed_ops = false;
+    } config;
 };
 
 static inline std::ostream& operator<<(std::ostream& os, const op::Subgraph::BlockedShape& blocked_shape) {
     os << std::get<0>(blocked_shape) << " " << std::get<1>(blocked_shape) << " " << std::get<2>(blocked_shape);
     return os;
 }
-
-static inline auto is_scalar_constant(const std::shared_ptr<ngraph::Node>& source_output_node) -> bool {
-    return ngraph::is_type<ngraph::opset1::Constant>(source_output_node) && ngraph::shape_size(source_output_node->get_shape()) == 1;
-};
 
 static inline auto create_body(std::string name, const ngraph::ResultVector& results, const ngraph::ParameterVector& parameters) ->
     std::shared_ptr<ov::Model> {

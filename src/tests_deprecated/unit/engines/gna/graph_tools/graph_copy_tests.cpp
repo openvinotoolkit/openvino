@@ -12,21 +12,41 @@
 #include <ie_core.hpp>
 #include "graph_test_base.hpp"
 #include <memory>
-
-#ifdef ENABLE_INTEL_GNA
-# include <frontend/model_quantizer.hpp>
-#endif
+#include <frontend/model_quantizer.hpp>
 
 using namespace testing;
 using namespace InferenceEngine;
 using namespace std;
 using namespace GraphTest;
-
+using namespace ov::intel_gna::frontend;
 
 class GraphCopyTests : public GraphTestsBase {
 
 protected:
     MockCopier mc;
+    InferenceEngine::CNNNetwork quantize(const InferenceEngine::CNNNetwork& model,
+                                         std::vector<float> scale_factors) const {
+        GNAPluginNS::GnaInputs inputs;
+        InferenceEngine::InputsDataMap inputs_map = model.getInputsInfo();
+        size_t sf_id = 0;
+        for (auto&& input_data : inputs_map) {
+            auto input_layer = getCreatorLayer(input_data.second->getInputData()).lock();
+            if (scale_factors.size() <= sf_id) {
+                THROW_GNA_EXCEPTION << "Scale factors are not set for some of the inputs";
+            }
+            inputs[input_layer->name].scale_factor = scale_factors[sf_id++];
+        }
+
+        GNAPluginNS::Config gna_config;
+        gna_config.gnaPrecision = InferenceEngine::Precision::I16;
+        gna_config.gnaFlags.input_low_precision = false;
+
+        return ModelQuantizer(gna_config, false)
+            .quantize(
+            model,
+            [](InferenceEngine::CNNNetwork&, bool run_before_copy, bool inputs_int8_precision) {},
+            inputs);
+    }
 
     void SetUp() override {
         GraphTestsBase::_batchSize = 12;
@@ -95,14 +115,10 @@ TEST_F(GraphCopyTests, canPreserveAttributes) {
     ASSERT_STREQ(idMemInput.c_str(), "r-1-2-3");
 }
 
-#ifdef ENABLE_INTEL_GNA
 using namespace GNAPluginNS;
-struct _FP32_2_FP32  : public GNAPluginNS::frontend::QuantDescTmpl<float, float, float, float, float> {
-};
-using FP32_2_FP32 = GNAPluginNS::frontend::QuantPair<_FP32_2_FP32 , _FP32_2_FP32 >;
 
 TEST_F(GraphCopyTests, canQuantizeTopology) {
-    auto clone = ModelQuantizer<FP32_2_FP32>().quantize(CNNNetwork(mockNet), std::vector<float >({1.0f, 1.0f}));
+    auto clone = quantize(CNNNetwork(mockNet), std::vector<float >({1.0f, 1.0f}));
 
     CNNNetBFS(CommonTestUtils::getLayerByName(clone, "1"), [&](CNNLayerPtr layer) {
         auto params = getInjectedData<QuantizedLayerParams>(layer);
@@ -114,8 +130,6 @@ TEST_F(GraphCopyTests, canQuantizeTopology) {
         ASSERT_NE(params, nullptr);
     });
 }
-
-#endif
 
 TEST(CNNSpecificGraphCopyTests, copyNetworkWithClampLayer) {
     //define minimal network with Clamp layer

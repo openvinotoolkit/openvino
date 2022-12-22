@@ -41,7 +41,9 @@ public:
     using variable_states_map = std::map<std::string, std::vector<cldnn::network::VariableState::Ptr>>;
 
     Graph(InferenceEngine::CNNNetwork& network, InferenceEngine::gpu::ClContext::Ptr context, Config config, uint16_t stream_id = 0);
+    Graph(cldnn::BinaryInputBuffer& ib, InferenceEngine::gpu::ClContext::Ptr context, Config config, uint16_t stream_id = 0);
     explicit Graph(std::shared_ptr<Graph> graph, uint16_t stream_id = 0);
+    void Export(cldnn::BinaryOutputBuffer &ob);
     std::shared_ptr<ngraph::Function> GetExecGraphInfo();
 
     bool IsLoaded() const;

@@ -12,12 +12,19 @@
 #include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
+#include "openvino/core/descriptor/tensor.hpp"
 #include "transformations/utils/utils.hpp"
 
-bool ngraph::pass::UnrollIf::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+bool ov::pass::UnrollIf::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(UnrollIf);
     bool is_applicable = false;
     for (const auto& op : f->get_ordered_ops()) {
+        auto multisubgraph_op = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(op);
+        if (multisubgraph_op) {
+            for (size_t i = 0; i < multisubgraph_op->get_internal_subgraphs_size(); ++i) {
+                run_on_model(multisubgraph_op->get_function(static_cast<int>(i)));
+            }
+        }
         auto if_node = std::dynamic_pointer_cast<opset8::If>(op);
         if (!if_node || transformation_callback(if_node)) {
             continue;
@@ -37,7 +44,9 @@ bool ngraph::pass::UnrollIf::run_on_model(const std::shared_ptr<ngraph::Function
         for (const auto& input_descr : input_descriptions) {
             auto in_data = if_node->input_value(input_descr->m_input_index);
             auto& param = body->get_parameters()[input_descr->m_body_parameter_index];
-            ngraph::replace_node(param, in_data.get_node_shared_ptr());
+            for (const auto& input : param->output(0).get_target_inputs()) {
+                input.replace_source_output(in_data);
+            }
         }
         for (const auto& output_desc : output_descriptions) {
             std::shared_ptr<opset8::Result> result = body->get_results()[output_desc->m_body_value_index];
@@ -45,7 +54,8 @@ bool ngraph::pass::UnrollIf::run_on_model(const std::shared_ptr<ngraph::Function
 
             // set output name to Tensor to store it for ngraph to cnn conversion
             NGRAPH_SUPPRESS_DEPRECATED_START
-            in_value.get_tensor().set_name(
+            ov::descriptor::set_ov_tensor_legacy_name(
+                in_value.get_tensor(),
                 op::util::create_ie_output_name(if_node->output(output_desc->m_output_index)));
             NGRAPH_SUPPRESS_DEPRECATED_END
             for (const auto& input : if_node->output(output_desc->m_output_index).get_target_inputs()) {

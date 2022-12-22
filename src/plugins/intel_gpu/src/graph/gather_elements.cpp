@@ -11,10 +11,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id gather_elements::type_id() {
-    static primitive_type_base<gather_elements> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(gather_elements)
 
 layout gather_elements_inst::calc_output_layout(gather_elements_node const& node, kernel_impl_params const& impl_param) {
     auto op = impl_param.typed_desc<gather_elements>();
@@ -57,6 +54,9 @@ std::vector<layout> gather_elements_inst::calc_output_layouts(gather_elements_no
 
     return { layout{output_shapes[0], output_type, output_format} };
 }
+
+template std::vector<layout> gather_elements_inst::calc_output_layouts<ov::PartialShape>(gather_elements_node const& node,
+                                                                                         const kernel_impl_params& impl_param);
 
 std::string gather_elements_inst::to_string(gather_elements_node const& node) {
     auto desc = node.get_primitive();

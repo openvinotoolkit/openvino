@@ -14,9 +14,12 @@ OP_CONVERTER(assign_value);
 OP_CONVERTER(batch_norm);
 OP_CONVERTER(bicubic_interp_v2);
 OP_CONVERTER(bilinear_interp_v2);
+OP_CONVERTER(box_coder);
 OP_CONVERTER(cast);
+OP_CONVERTER(ceil);
 OP_CONVERTER(clip);
 OP_CONVERTER(concat);
+OP_CONVERTER(conditional_block);
 OP_CONVERTER(conv2d);
 OP_CONVERTER(conv2d_transpose);
 OP_CONVERTER(cumsum);
@@ -25,10 +28,13 @@ OP_CONVERTER(dropout);
 OP_CONVERTER(elementwise_add);
 OP_CONVERTER(elementwise_div);
 OP_CONVERTER(elementwise_equal);
+OP_CONVERTER(elementwise_floordiv);
 OP_CONVERTER(elementwise_greater_equal);
 OP_CONVERTER(elementwise_max);
 OP_CONVERTER(elementwise_min);
+OP_CONVERTER(elementwise_mod);
 OP_CONVERTER(elementwise_mul);
+OP_CONVERTER(elementwise_not_equal);
 OP_CONVERTER(elementwise_pow);
 OP_CONVERTER(elementwise_sub);
 OP_CONVERTER(embedding);
@@ -50,6 +56,7 @@ OP_CONVERTER(layer_norm);
 OP_CONVERTER(leaky_relu);
 OP_CONVERTER(less_than);
 OP_CONVERTER(linear_interp_v2);
+OP_CONVERTER(lod_array_length);
 OP_CONVERTER(log);
 OP_CONVERTER(logical_and);
 OP_CONVERTER(logical_not);
@@ -75,9 +82,11 @@ OP_CONVERTER(reduce_sum);
 OP_CONVERTER(relu);
 OP_CONVERTER(relu6);
 OP_CONVERTER(reshape2);
+OP_CONVERTER(reverse);
 OP_CONVERTER(rnn);
 OP_CONVERTER(roi_align);
 OP_CONVERTER(scale);
+OP_CONVERTER(select_input);
 OP_CONVERTER(shape);
 OP_CONVERTER(slice);
 OP_CONVERTER(softmax);
@@ -91,12 +100,15 @@ OP_CONVERTER(strided_slice);
 OP_CONVERTER(sum);
 OP_CONVERTER(swish);
 OP_CONVERTER(tanh);
+OP_CONVERTER(tensor_array_to_tensor);
 OP_CONVERTER(tile);
 OP_CONVERTER(top_k_v2);
 OP_CONVERTER(transpose2);
 OP_CONVERTER(trilinear_interp_v2);
 OP_CONVERTER(unsqueeze);
 OP_CONVERTER(where);
+OP_CONVERTER(while_);
+OP_CONVERTER(write_to_array);
 OP_CONVERTER(where_index);
 OP_CONVERTER(yolo_box);
 OP_CONVERTER(generate_proposals_v2);
@@ -110,9 +122,12 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"bilinear_interp_v2", op::bilinear_interp_v2},
             {"bilinear_interp", op::bilinear_interp_v2},
             {"bmm", op::matmul},
+            {"box_coder", op::box_coder},
             {"cast", op::cast},
+            {"ceil", op::ceil},
             {"clip", op::clip},
             {"concat", op::concat},
+            {"conditional_block", op::conditional_block},
             {"conv2d", op::conv2d},
             {"conv2d_transpose", op::conv2d_transpose},
             {"cumsum", op::cumsum},
@@ -123,8 +138,10 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"dropout", op::dropout},
             {"elementwise_add", op::elementwise_add},
             {"elementwise_div", op::elementwise_div},
+            {"elementwise_floordiv", op::elementwise_floordiv},
             {"elementwise_max", op::elementwise_max},
             {"elementwise_min", op::elementwise_min},
+            {"elementwise_mod", op::elementwise_mod},
             {"elementwise_mul", op::elementwise_mul},
             {"elementwise_pow", op::elementwise_pow},
             {"elementwise_sub", op::elementwise_sub},
@@ -139,6 +156,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"gather", op::gather},
             {"gather_nd", op::gather_nd},
             {"gelu", op::gelu},
+            {"generate_proposals_v2", op::generate_proposals_v2},
             {"greater_equal", op::elementwise_greater_equal},
             {"greater_than", op::greater_than},
             {"group_norm", op::group_norm},
@@ -148,6 +166,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"leaky_relu", op::leaky_relu},
             {"less_than", op::less_than},
             {"linear_interp_v2", op::linear_interp_v2},
+            {"lod_array_length", op::lod_array_length},
             {"log", op::log},
             {"logical_and", op::logical_and},
             {"logical_not", op::logical_not},
@@ -162,6 +181,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"multiclass_nms3", op::multiclass_nms},
             {"nearest_interp_v2", op::nearest_interp_v2},
             {"nearest_interp", op::nearest_interp_v2},
+            {"not_equal", op::elementwise_not_equal},
             {"p_norm", op::p_norm},
             {"pad3d", op::pad3d},
             {"pow", op::pow},
@@ -176,9 +196,11 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"relu", op::relu},
             {"relu6", op::relu6},
             {"reshape2", op::reshape2},
+            {"reverse", op::reverse},
             {"rnn", op::rnn},
             {"roi_align", op::roi_align},
             {"scale", op::scale},
+            {"select_input", op::select_input},
             {"shape", op::shape},
             {"slice", op::slice},
             {"softmax", op::softmax},
@@ -193,12 +215,15 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"swish", op::swish},
             {"sync_batch_norm", op::batch_norm},
             {"tanh", op::tanh},
+            {"tensor_array_to_tensor", op::tensor_array_to_tensor},
             {"tile", op::tile},
             {"top_k_v2", op::top_k_v2},
             {"transpose2", op::transpose2},
             {"trilinear_interp_v2", op::trilinear_interp_v2},
             {"unsqueeze2", op::unsqueeze},
             {"where", op::where},
+            {"while", op::while_},
+            {"write_to_array", op::write_to_array},
             {"where_index", op::where_index},
             {"yolo_box", op::yolo_box},
             {"generate_proposals_v2", op::generate_proposals_v2}};

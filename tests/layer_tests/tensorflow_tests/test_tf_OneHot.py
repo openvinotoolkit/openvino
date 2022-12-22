@@ -23,10 +23,6 @@ class TestOneHot(CommonTFLayerTest):
             Input (> 3D)  -> Permute (NCHW -> NHWC) -> OneHot ->   Permute (NHWC -> NCHW)
         """
 
-        #
-        #   Create Tensorflow model
-        #
-
         import tensorflow as tf
 
         tf.compat.v1.reset_default_graph()
@@ -103,7 +99,8 @@ class TestOneHot(CommonTFLayerTest):
         # check for default on/off value, axis params
         dict(shape=[5, 6, 7], depth=8, on_value=None, off_value=None, axis=0),
         dict(shape=[5, 6, 7], depth=8, on_value=None, off_value=None, axis=1),
-        dict(shape=[5, 6, 7], depth=8, on_value=None, off_value=None, axis=2),
+        pytest.param(dict(shape=[5, 6, 7], depth=8, on_value=None, off_value=None, axis=2),
+                     marks=pytest.mark.precommit_tf_fe),
     ]
 
     @pytest.mark.parametrize("params", test_data_3D)

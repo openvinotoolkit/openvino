@@ -68,7 +68,7 @@ public:
         if (configuration.count(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED) &&
             configuration.count(InferenceEngine::PluginConfigParams::YES)) {
             auto batchSize = executableNetwork.GetInputsInfo().begin()->second->getTensorDesc().getDims()[0] / 2;
-            inferRequest.SetBatch(batchSize);
+            inferRequest.SetBatch(static_cast<int>(batchSize));
         }
         inferRequest.Infer();
     }

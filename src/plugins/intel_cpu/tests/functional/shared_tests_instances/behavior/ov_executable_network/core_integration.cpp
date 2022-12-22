@@ -75,7 +75,9 @@ INSTANTIATE_TEST_SUITE_P(
 //INSTANTIATE_TEST_SUITE_P(
 //        smoke_OVClassHeteroExecutableNetworkGetMetricTest, OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK,
 //        ::testing::Values("CPU"));
-
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassHeteroExecutableNetworkGetMetricTest, OVClassHeteroExecutableNetworkGetMetricTest_EXEC_DEVICES,
+        ::testing::Values("CPU"));
 //////////////////////////////////////////////////////////////////////////////////////////
 
 } // namespace

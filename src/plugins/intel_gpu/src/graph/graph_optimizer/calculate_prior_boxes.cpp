@@ -20,6 +20,9 @@ void calculate_prior_boxes::run(program& p) {
             continue;
 
         auto& pb_node = node->as<prior_box>();
+        if (pb_node.get_primitive()->support_opset8) {
+            continue;
+        }
 
         pb_node.calc_result();
         p.remove_connection(pb_node.input(), pb_node);

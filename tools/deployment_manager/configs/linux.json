@@ -22,18 +22,28 @@
     "ie_core": {
       "group": ["ie"],
       "files": [
+        "runtime/lib/intel64/libopenvino.so.2022.3.0",
+        "runtime/lib/intel64/libopenvino.so.2230",
         "runtime/lib/intel64/libopenvino.so",
         "runtime/lib/intel64/libopenvino_gapi_preproc.so",
+        "runtime/lib/intel64/libopenvino_c.so.2022.3.0",
+        "runtime/lib/intel64/libopenvino_c.so.2230",
         "runtime/lib/intel64/libopenvino_c.so",
         "runtime/lib/intel64/libopenvino_hetero_plugin.so",
         "runtime/lib/intel64/libopenvino_auto_plugin.so",
         "runtime/lib/intel64/libopenvino_auto_batch_plugin.so",
-        "runtime/lib/intel64/libopenvino_ir_frontend.so",
+        "runtime/lib/intel64/libopenvino_ir_frontend.so.2022.3.0",
+        "runtime/lib/intel64/libopenvino_ir_frontend.so.2230",
+        "runtime/lib/intel64/libopenvino_onnx_frontend.so.2022.3.0",
+        "runtime/lib/intel64/libopenvino_onnx_frontend.so.2230",
         "runtime/lib/intel64/libopenvino_onnx_frontend.so",
+        "runtime/lib/intel64/libopenvino_paddle_frontend.so.2022.3.0",
+        "runtime/lib/intel64/libopenvino_paddle_frontend.so.2230",
         "runtime/lib/intel64/libopenvino_paddle_frontend.so",
-        "runtime/lib/intel64/libopenvino_tensorflow_fe.so",
-        "runtime/lib/intel64/plugins.xml",
-        "runtime/3rdparty/tbb"
+        "runtime/lib/intel64/libopenvino_tensorflow_frontend.so.2022.3.0",
+        "runtime/lib/intel64/libopenvino_tensorflow_frontend.so.2230",
+        "runtime/lib/intel64/libopenvino_tensorflow_frontend.so",
+        "runtime/lib/intel64/plugins.xml"
       ]
     },
     "cpu": {
@@ -59,7 +69,7 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "runtime/3rdparty/97-myriad-usbboot.rules",
+        "install_dependencies/97-myriad-usbboot.rules",
         "runtime/lib/intel64/usb-ma2x8x.mvcmd",
         "runtime/lib/intel64/pcie-ma2x8x.mvcmd",
         "runtime/lib/intel64/libopenvino_intel_myriad_plugin.so",
@@ -72,9 +82,8 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "runtime/lib/intel64/libgna.so",
-        "runtime/lib/intel64/libgna.so.2",
-        "runtime/lib/intel64/libgna.so.3.0.0.1377",
+        "runtime/lib/intel64/libgna.so.3",
+        "runtime/lib/intel64/libgna.so.3.0.0.1910",
         "runtime/lib/intel64/libopenvino_intel_gna_plugin.so"
       ]
     },
@@ -87,16 +96,8 @@
         "runtime/3rdparty/hddl"
       ]
     },
-    "python3.6": {
-      "ui_name": "OpenVINO Python API for Python3.6",
-      "group": ["python"],
-      "dependencies" : ["ie_core"],
-      "files": [
-        "python/python3.6"
-      ]
-    },
     "python3.7": {
-      "ui_name": "OpenVINO Python API for Python3.7",
+      "ui_name": "OpenVINO Python API for Python 3.7",
       "group": ["python"],
       "dependencies" : ["ie_core"],
       "files": [
@@ -104,7 +105,7 @@
       ]
     },
     "python3.8": {
-      "ui_name": "OpenVINO Python API for Python3.8",
+      "ui_name": "OpenVINO Python API for Python 3.8",
       "group": ["python"],
       "dependencies" : ["ie_core"],
       "files": [
@@ -112,11 +113,19 @@
       ]
     },
     "python3.9": {
-      "ui_name": "OpenVINO Python API for Python3.9",
+      "ui_name": "OpenVINO Python API for Python 3.9",
       "group": ["python"],
       "dependencies" : ["ie_core"],
       "files": [
         "python/python3.9"
+      ]
+    },
+    "python3.10": {
+      "ui_name": "OpenVINO Python API for Python 3.10",
+      "group": ["python"],
+      "dependencies" : ["ie_core"],
+      "files": [
+        "python/python3.10"
       ]
     }
   }

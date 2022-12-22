@@ -1,129 +1,110 @@
-# Model Accuracy for INT8 and FP32 Precision {#openvino_docs_performance_int8_vs_fp32}
+# Model Accuracy and Performance for INT8 and FP32 {#openvino_docs_performance_int8_vs_fp32}
 
-The following table presents the absolute accuracy drop calculated as the accuracy difference between FP32 and INT8 representations of a model:
+The following table presents the absolute accuracy drop calculated as the accuracy difference between FP32 and INT8 representations of a model on two platforms
+
+* A - Intel® Core™ i9-9000K (AVX2)
+* B - Intel® Xeon® 6338, (VNNI)
+* C - Intel® Flex-170
 
 @sphinxdirective
-.. raw:: html
+.. list-table:: Model Accuracy
+   :header-rows: 1
 
-    <table class="table">
-      <tr align="left">
-        <th></th>
-        <th></th>
-        <th></th>
-        <th>Intel® Core™ i9-12900K @ 3.2 GHz (AVX2)</th>
-        <th>Intel® Core™ i9-12900K @ 3.2 GHz (AVX2)</th>
-        <th>iGPU Gen12LP (Intel® Core™ i9-12900K @ 3.2 GHz)</th>
-      </tr>
-      <tr align="left">
-        <th>OpenVINO Benchmark <br>Model Name</th>
-        <th>Dataset</th>
-        <th>Metric Name</th>
-        <th colspan="3" align="center">Absolute Accuracy Drop, %</th>
-      </tr>
-      <tr>
-        <td>bert-base-cased</td>
-        <td>SST-2</td>
-        <td>accuracy</td>
-        <td>0.11</td>
-        <td>0.34</td>
-        <td>0.46</td>
-      </tr>
-      <tr>
-        <td>bert-large-uncased-whole-word-masking-squad-0001</td>
-        <td>SQUAD</td>
-        <td>F1</td>
-        <td>0.87</td>
-        <td>1.11</td>
-        <td>0.70</td>
-      </tr>      
-      <tr>
-        <td>deeplabv3</td>
-        <td>VOC2012</td>
-        <td>mean_iou</td>
-        <td>0.04</td>
-        <td>0.04</td>
-        <td>0.11</td>
-      </tr>
-      <tr>
-        <td>densenet-121</td>
-        <td>ImageNet</td>
-        <td>accuracy@top1</td>
-        <td>0.56</td>
-        <td>0.56</td>
-        <td>0.63</td>
-      </tr>
-      <tr>
-        <td>efficientdet-d0</td>
-        <td>COCO2017</td>
-        <td>coco_precision</td>
-        <td>0.63</td>
-        <td>0.62</td>
-        <td>0.45</td>
-      </tr>
-      <tr>
-        <td>faster_rcnn_<br>resnet50_coco</td>
-        <td>COCO2017</td>
-        <td>coco_<br>precision</td>
-        <td>0.52</td>
-        <td>0.55</td>
-        <td>0.31</td>
-      </tr>
-      <tr>
-        <td>resnet-18</td>
-        <td>ImageNet</td>
-        <td>acc@top-1</td>
-        <td>0.16</td>
-        <td>0.16</td>
-        <td>0.16</td>
-      </tr>
-      <tr>
-        <td>resnet-50</td>
-        <td>ImageNet</td>
-        <td>acc@top-1</td>
-        <td>0.09</td>
-        <td>0.09</td>
-        <td>0.09</td>
-      </tr>
-      <tr>
-        <td>resnet-50-pytorch</td>
-        <td>ImageNet</td>
-        <td>acc@top-1</td>
-        <td>0.13</td>
-        <td>0.13</td>
-        <td>0.11</td>
-      </tr>
-      <tr>
-        <td>ssd-resnet34-1200</td>
-        <td>COCO2017</td>
-        <td>COCO mAp</td>
-        <td>0.09</td>
-        <td>0.09</td>
-        <td>0.13</td>
-      </tr>
-      <tr>
-        <td>unet-camvid-onnx-0001</td>
-        <td>CamVid</td>
-        <td>mean_iou@mean</td>
-        <td>0.56</td>
-        <td>0.56</td>
-        <td>0.60</td>
-      </tr>
-      <tr>
-        <td>yolo-v3-tiny</td>
-        <td>COCO2017</td>
-        <td>COCO mAp</td>
-        <td>0.12</td>
-        <td>0.12</td>
-        <td>0.17</td>
-      </tr>
-      <tr>
-        <td>yolo_v4</td>
-        <td>COCO2017</td>
-        <td>COCO mAp</td>
-        <td>0.52</td>
-        <td>0.52</td>
-        <td>0.54</td>
-      </tr>
-    </table>
+   * - OpenVINO™  Model name
+     - dataset
+     - Metric Name
+     - A
+     - B
+     - C
+   * - bert-base-cased
+     - SST-2_bert_cased_padded
+     - accuracy
+     - 0.11%
+     - 1.15%
+     - 0.57%
+   * - bert-large-uncased-whole-word-masking-squad-0001
+     - SQUAD_v1_1_bert_msl384_mql64_ds128_lowercase
+     - F1
+     - 0.51%
+     - 0.55%
+     - 0.68%
+   * - deeplabv3
+     - VOC2012_segm
+     - mean_iou
+     - 0.44%
+     - 0.06%
+     - 0.04%
+   * - densenet-121
+     - ImageNet2012
+     - accuracy @ top1
+     - 0.31%
+     - 0.32%
+     - 0.30%
+   * - efficientdet-d0
+     - COCO2017_detection_91cl
+     - coco_precision
+     - 0.88%	
+     - 0.62%	
+     - 0.50%
+   * - faster_rcnn_resnet50_coco
+     - COCO2017_detection_91cl_bkgr
+     - coco_precision
+     - 0.19%
+     - 0.19%
+     - 0.20%
+   * - googlenet-v4
+     - ImageNet2012_bkgr
+     - accuracy @ top1
+     - 0.07%
+     - 0.09%
+     - 0.26%
+   * - mobilenet-ssd
+     - VOC2007_detection
+     - map
+     - 0.47%
+     - 0.14%
+     - 0.48%
+   * - mobilenet-v2
+     - ImageNet2012
+     - accuracy @ top1
+     - 0.50%
+     - 0.18%
+     - 0.20%
+   * - resnet-18
+     - ImageNet2012
+     - accuracy @ top1
+     - 0.27%
+     - 0.24%
+     - 0.29%
+   * - resnet-50
+     - ImageNet2012
+     - accuracy @ top1
+     - 0.13%
+     - 0.12%
+     - 0.13%
+   * - ssd-resnet34-1200
+     - COCO2017_detection_80cl_bkgr
+     - map
+     - 0.08%
+     - 0.09%
+     - 0.06%
+   * - unet-camvid-onnx-0001
+     - CamVid_12cl
+     - mean_iou @ mean
+     - 0.33%
+     - 0.33%	
+     - 0.30%
+   * - yolo_v3_tiny
+     - COCO2017_detection_80cl
+     - map
+     - 0.01%
+     - 0.07%
+     - 0.12%
+   * - yolo_v4
+     - COCO2017_detection_80cl
+     - map
+     - 0.05%
+     - 0.06%
+     - 0.01%
 
 @endsphinxdirective

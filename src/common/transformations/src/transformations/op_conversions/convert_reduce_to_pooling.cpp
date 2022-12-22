@@ -5,29 +5,30 @@
 #include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
 
 #include "itt.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
-ngraph::pass::ConvertReduceMeanToPooling::ConvertReduceMeanToPooling() {
+ov::pass::ConvertReduceMeanToPooling::ConvertReduceMeanToPooling() {
     MATCHER_SCOPE(ConvertReduceMeanToPooling);
-    auto m = std::make_shared<ngraph::pattern::Matcher>(
-        ngraph::pattern::wrap_type<opset1::ReduceMean>(
+    auto m = std::make_shared<pattern::Matcher>(
+        pattern::wrap_type<opset1::ReduceMean>(
             {pattern::any_input(pattern::has_static_shape()), pattern::wrap_type<opset1::Constant>()},
             pattern::has_static_shape()),
         matcher_name);
     register_matcher(m, convert_reduce_to_pooling<opset1::ReduceMean>());
 }
-ngraph::pass::ConvertReduceMaxToPooling::ConvertReduceMaxToPooling() {
+ov::pass::ConvertReduceMaxToPooling::ConvertReduceMaxToPooling() {
     MATCHER_SCOPE(ConvertReduceMaxToPooling);
-    auto m = std::make_shared<ngraph::pattern::Matcher>(
-        ngraph::pattern::wrap_type<opset1::ReduceMax>(
+    auto m = std::make_shared<pattern::Matcher>(
+        pattern::wrap_type<opset1::ReduceMax>(
             {pattern::any_input(pattern::has_static_shape()), pattern::wrap_type<opset1::Constant>()},
             pattern::has_static_shape()),
         matcher_name);
     register_matcher(m, convert_reduce_to_pooling<opset1::ReduceMax>());
 }
-ngraph::pass::ConvertReduceSumToPooling::ConvertReduceSumToPooling() {
+ov::pass::ConvertReduceSumToPooling::ConvertReduceSumToPooling() {
     MATCHER_SCOPE(ConvertReduceSumToPooling);
-    auto m = std::make_shared<ngraph::pattern::Matcher>(
-        ngraph::pattern::wrap_type<opset1::ReduceSum>(
+    auto m = std::make_shared<pattern::Matcher>(
+        pattern::wrap_type<opset1::ReduceSum>(
             {pattern::any_input(pattern::has_static_shape()), pattern::wrap_type<opset1::Constant>()},
             pattern::has_static_shape()),
         matcher_name);

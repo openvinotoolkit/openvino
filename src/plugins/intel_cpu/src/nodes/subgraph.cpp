@@ -23,6 +23,7 @@
 #include <snippets/op/subgraph.hpp>
 #include "emitters/cpu_generator.hpp"
 #include "snippets_transformations/fuse_load_store_and_convert.hpp"
+#include "ngraph_transformations/convert_to_swish_cpu.hpp"
 
 using namespace InferenceEngine;
 using namespace dnnl::impl::utils;
@@ -34,30 +35,42 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
+
 Snippet::Snippet(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache) {
+        : Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     host_isa = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ?
         dnnl::impl::cpu::x64::avx512_core : dnnl::impl::cpu::x64::avx2;
-
-    // Create a deep local copy of the input snippet to perform canonicalization & code generation
-    // Todo: Probably better to implement a proper copy constructor
-    if (const auto tmp_snippet =  ov::as_type_ptr<ngraph::snippets::op::Subgraph>(op)) {
-        ngraph::OutputVector subgraph_node_inputs;
-        for (const auto &input : tmp_snippet->input_values()) {
-            auto new_input = std::make_shared<ngraph::opset1::Parameter>(input.get_element_type(), input.get_partial_shape());
-            subgraph_node_inputs.push_back(new_input);
-        }
-        auto new_body = ov::clone_model(*tmp_snippet->get_body().get());
-        snippet = std::make_shared<ngraph::snippets::op::Subgraph>(subgraph_node_inputs, new_body);
-        ngraph::copy_runtime_info(tmp_snippet, snippet);
-        snippet->set_friendly_name(tmp_snippet->get_friendly_name());
-        snippet->set_generator(std::make_shared<CPUGenerator>(host_isa));
-    } else {
+    original_snippet = ov::as_type_ptr<ngraph::snippets::op::Subgraph>(op);
+    if (!original_snippet) {
         IE_THROW(NotImplemented) << "Node is not an instance of snippets::op::Subgraph";
     }
 }
 
+void Snippet::copy_snippet() {
+    ngraph::OutputVector subgraph_node_inputs;
+    for (const auto &input : original_snippet->input_values()) {
+        auto new_input = std::make_shared<ngraph::opset1::Parameter>(input.get_element_type(), input.get_partial_shape());
+        subgraph_node_inputs.push_back(new_input);
+    }
+    std::shared_ptr<ov::Model> new_body = nullptr;
+    // Ticket[79554]: TypeRelaxed ops aren't thread safe so we use mutex to avoid collision in throughput mode
+    if (original_snippet->has_type_relaxed_ops()) {
+        if (!sharedMutex) {
+            IE_THROW() << "Subgraph doesn't have shared mutex";
+        }
+        std::lock_guard<std::mutex> lock(*sharedMutex);
+        new_body = ov::clone_model(*original_snippet->body_ptr());
+    } else {
+        new_body = ov::clone_model(*original_snippet->body_ptr());
+    }
+    snippet = std::make_shared<ngraph::snippets::op::Subgraph>(subgraph_node_inputs, new_body);
+    ngraph::copy_runtime_info(original_snippet, snippet);
+    snippet->set_friendly_name(original_snippet->get_friendly_name());
+    snippet->set_generator(std::make_shared<CPUGenerator>(host_isa));
+}
+
 void Snippet::initSupportedPrimitiveDescriptors() {
+    copy_snippet();
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -72,7 +85,7 @@ void Snippet::initSupportedPrimitiveDescriptors() {
     }
 
     const size_t ndims = outputShapes[0].getRank();
-    const bool isChannelsFirstApplicable = dnnl::impl::utils::one_of(ndims, 1, 2, 4, 5) && dimRanksAreEqual;
+    const bool isChannelsFirstApplicable = dnnl::impl::utils::one_of(ndims, 1, 2, 3, 4, 5) && dimRanksAreEqual;
     // Todo: Snippets currently don't support per-channel broadcasting of Blocked descriptors because
     //  canonicalization can't distinguish between <N, C, H, W, c> and <N, C, D, H, W> cases.
     //  See snippets::op::Subgraph::canonicalize for details.
@@ -307,13 +320,13 @@ void Snippet::define_schedule() {
     // Canonicalization broadcasts inputs and outputs to max input rank, which can be smaller than tensorRank
     // prepend to enable 6D scheduler
     exec_domain = prependWithOnes(exec_domain);
-    const auto &body = snippet->get_body();
-    for (const auto& p : body->get_parameters()) {
+    const auto &body = snippet->body();
+    for (const auto& p : body.get_parameters()) {
         dims_in.emplace_back(prependWithOnes(p->get_shape()));
     }
 
-    for (size_t i = 0; i < body->get_output_size(); i++) {
-        dims_out.push_back(prependWithOnes(body->get_output_shape(i)));
+    for (size_t i = 0; i < body.get_output_size(); i++) {
+        dims_out.push_back(prependWithOnes(body.get_output_shape(i)));
     }
 
     const auto config = getSelectedPrimitiveDescriptor()->getConfig();
@@ -488,6 +501,7 @@ void Snippet::generate() {
     ov::pass::Manager optManager;
     optManager.register_pass<ov::intel_cpu::pass::FuseLoadConvert>();
     optManager.register_pass<ov::intel_cpu::pass::FuseStoreConvert>();
+    optManager.register_pass<ConvertToSwishCPU>();
 
     // LoadConvert uses Load emitter that support conversion from any type to only f32
     optManager.get_pass_config()->set_callback<ov::intel_cpu::pass::FuseLoadConvert>(

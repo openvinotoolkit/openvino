@@ -8,18 +8,19 @@
 
 #include <functional>
 #include <memory>
-#include <ngraph/op/broadcast.hpp>
-#include <ngraph/op/constant.hpp>
-#include <ngraph/op/gather.hpp>
-#include <ngraph/op/reshape.hpp>
 #include <ngraph/op/util/op_annotations.hpp>
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/op/broadcast.hpp>
+#include <openvino/op/constant.hpp>
+#include <openvino/op/gather.hpp>
+#include <openvino/op/reshape.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset3.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace op {
 namespace util {
 
-bool get_single_value(const std::shared_ptr<op::Constant>& const_node, float& value) {
+bool get_single_value(const std::shared_ptr<op::v0::Constant>& const_node, float& value) {
     switch (const_node->get_element_type()) {
     case element::Type_t::f16:
         return util::normalize_single_value(const_node->get_vector<float16>(), value);
@@ -46,11 +47,11 @@ bool get_single_value(const std::shared_ptr<op::Constant>& const_node, float& va
     case element::Type_t::u64:
         return util::normalize_single_value(const_node->get_vector<uint64_t>(), value);
     default:
-        throw ngraph_error("Unsupported precision for const operation: " + const_node->get_friendly_name());
+        throw ov::Exception("Unsupported precision for const operation: " + const_node->get_friendly_name());
     }
 }
 
-std::shared_ptr<Node> normalize_constant(const std::shared_ptr<op::Constant>& constant, const PartialShape& shape) {
+std::shared_ptr<Node> normalize_constant(const std::shared_ptr<op::v0::Constant>& constant, const PartialShape& shape) {
     auto const_shape = constant->get_shape();
     if (static_cast<int64_t>(const_shape.size()) == shape.rank().get_length()) {
         return constant;
@@ -64,17 +65,18 @@ std::shared_ptr<Node> normalize_constant(const std::shared_ptr<op::Constant>& co
 }
 
 std::shared_ptr<Node> broadcastTo(const Output<Node>& input, const ngraph::Shape& shape) {
-    return std::make_shared<op::v1::Broadcast>(input,
-                                               op::Constant::create(ngraph::element::i64, Shape{shape.size()}, shape));
+    return std::make_shared<op::v1::Broadcast>(
+        input,
+        op::v0::Constant::create(ngraph::element::i64, Shape{shape.size()}, shape));
 }
 
 std::shared_ptr<ngraph::Node> reshapeTo(const Output<Node>& input, const Shape& shape) {
     return std::make_shared<op::v1::Reshape>(input,
-                                             op::Constant::create(element::i64, Shape{shape.size()}, shape),
+                                             op::v0::Constant::create(element::i64, Shape{shape.size()}, shape),
                                              true);
 }
 
-bool constantIsEqualTo(const std::shared_ptr<ngraph::op::Constant>& const_node, float value, float eps) {
+bool constantIsEqualTo(const std::shared_ptr<op::v0::Constant>& const_node, float value, float eps) {
     float res(0);
     if (!get_single_value(const_node, res)) {
         return false;
@@ -85,7 +87,7 @@ bool constantIsEqualTo(const std::shared_ptr<ngraph::op::Constant>& const_node, 
 
 bool has_f16_constants(const std::shared_ptr<const ngraph::Function>& function) {
     for (auto& layer : function->get_ops()) {
-        if (std::dynamic_pointer_cast<ngraph::op::Constant>(layer) &&
+        if (std::dynamic_pointer_cast<op::v0::Constant>(layer) &&
             layer->output(0).get_element_type() == ngraph::element::f16) {
             return true;
         }
@@ -117,18 +119,18 @@ bool check_for_broadcast(const ngraph::PartialShape& ref_shape, const ngraph::Pa
 std::shared_ptr<ngraph::Node> activation(const std::string& activation_name,
                                          const ngraph::Output<ngraph::Node>& apply_to) {
     if (activation_name == "relu") {
-        return std::make_shared<ngraph::opset4::Relu>(apply_to);
+        return std::make_shared<opset4::Relu>(apply_to);
     } else if (activation_name == "sigmoid") {
-        return std::make_shared<ngraph::opset4::Sigmoid>(apply_to);
+        return std::make_shared<opset4::Sigmoid>(apply_to);
     } else if (activation_name == "tanh") {
-        return std::make_shared<ngraph::opset4::Tanh>(apply_to);
+        return std::make_shared<opset4::Tanh>(apply_to);
     } else {
-        throw ngraph_error("Unsupported activation function");
+        throw ov::Exception("Unsupported activation function");
     }
 }
 
 bool is_seq_len_provided(const std::shared_ptr<Node>& seq_len_input, int64_t max_seq_len) {
-    if (const auto& seq_len_const = std::dynamic_pointer_cast<ngraph::op::Constant>(seq_len_input)) {
+    if (const auto& seq_len_const = std::dynamic_pointer_cast<op::v0::Constant>(seq_len_input)) {
         const auto& seq_len_values = seq_len_const->cast_vector<int64_t>();
         return std::any_of(seq_len_values.begin(), seq_len_values.end(), [max_seq_len](const int64_t val) {
             return val != max_seq_len;
@@ -194,8 +196,7 @@ void visit_shape_path(Node* node, std::unordered_set<ov::Node*>& visited, std::f
         auto curr_node = nodes.front();
         nodes.pop_front();
         // Do not check if already visited
-        if (ngraph::is_type<ngraph::opset1::ShapeOf>(curr_node) ||
-            ngraph::is_type<ngraph::opset3::ShapeOf>(curr_node)) {
+        if (ngraph::is_type<opset1::ShapeOf>(curr_node) || ngraph::is_type<opset3::ShapeOf>(curr_node)) {
             continue;
         }
 
@@ -338,4 +339,4 @@ bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise,
 }
 }  // namespace util
 }  // namespace op
-}  // namespace ngraph
+}  // namespace ov
