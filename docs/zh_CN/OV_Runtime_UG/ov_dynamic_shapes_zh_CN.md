@@ -1,14 +1,5 @@
 # 动态形状 {#openvino_docs_OV_UG_DynamicShapes_zh_CN}
 
-@sphinxdirective
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-
-   openvino_docs_OV_UG_NoDynamicShapes
-
-@endsphinxdirective
 
 在 `Core::compile_model` 中，有些模型支持在模型编译之前更改输入形状。这一点我们在[更改输入形状](../../OV_Runtime_UG/ShapeInference.md)一文中进行了说明。
 重塑模型能够定制模型输入形状，以达到最终应用所要求的精确尺寸。
