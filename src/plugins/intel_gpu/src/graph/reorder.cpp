@@ -170,8 +170,11 @@ std::vector<layout> reorder_inst::calc_output_layouts(reorder_node const& /*node
 
     auto ifmt = input_layout.format;
     auto ofmt = desc->output_format == format::any ? ifmt : desc->output_format;
-
-    return { layout(input_layout.get<ShapeType>(), desc->output_data_types[0].value(), ofmt, desc->output_paddings[0]) };
+    auto ofdt = desc->output_data_types[0].value();
+    if (input_layout.is_dynamic()) {
+        return {layout(ShapeType::dynamic(format::dimension(desc->output_format)), ofdt, ofmt, desc->output_paddings[0])};
+    }
+    return { layout(input_layout.transform(ofmt), ofdt, ofmt, desc->output_paddings[0]) };
 }
 
 std::string reorder_inst::to_string(reorder_node const& node) {
