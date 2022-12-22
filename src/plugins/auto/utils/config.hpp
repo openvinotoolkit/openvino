@@ -211,6 +211,7 @@ struct PluginConfig {
     }
     std::vector<std::string> ParsePrioritiesDevices(const std::string& priorities, const char separator = ',') const {
         std::vector<std::string> devices;
+        std::cout << "[WY-DEBUG]" << "priorities: " << priorities << std::endl;
         std::string::size_type pos = 0;
         std::string::size_type endpos = 0;
         while ((endpos = priorities.find(separator, pos)) != std::string::npos) {

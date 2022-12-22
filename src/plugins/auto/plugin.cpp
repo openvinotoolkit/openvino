@@ -380,6 +380,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         auto autoSContext = std::make_shared<AutoScheduleContext>();
         std::map<std::string, std::string> filterConfig;
         auto strDevices = GetDeviceList(fullConfig);
+        std::cout << "[WY-DEBUG]" << "strDevices: " << strDevices << std::endl;
         // fill in the context for auto
         if (loadConfig._useProfiling) {
             filterConfig.insert({PluginConfigParams::KEY_PERF_COUNT, PluginConfigParams::YES});
