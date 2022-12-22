@@ -8,6 +8,15 @@
 
 using namespace std;
 
+ov::descriptor::Tensor::Tensor(const element::Type& element_type,
+                               const PartialShape& pshape,
+                               const std::unordered_set<std::string>& names)
+    : m_element_type(element_type),
+      m_partial_shape(pshape),
+      m_shape_changed(true) {
+    set_names(names);
+}
+
 ov::descriptor::Tensor::Tensor(const element::Type& element_type, const PartialShape& pshape, const std::string& name)
     : m_element_type(element_type),
       m_partial_shape(pshape),
@@ -97,7 +106,7 @@ const std::unordered_set<std::string>& ov::descriptor::Tensor::get_names() const
 }
 
 const std::string& ov::descriptor::Tensor::get_any_name() const {
-    if (m_name_it->empty()) {
+    if (m_name_it == m_names.cend()) {
         throw ngraph::ngraph_error("Attempt to get a name for a Tensor without names");
     }
     return *m_name_it;
@@ -116,7 +125,7 @@ void ov::descriptor::Tensor::set_names(const std::unordered_set<std::string>& na
 void ov::descriptor::Tensor::add_names(const std::unordered_set<std::string>& names) {
     for (const auto& name : names) {
         auto res = m_names.insert(name);
-        if (*res.first < *m_name_it)
+        if (m_name_it == m_names.end() || *res.first < *m_name_it)
             // Update any name
             m_name_it = res.first;
     }
