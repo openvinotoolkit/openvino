@@ -1,6 +1,5 @@
 # OpenVINO™ 深度学习工作台概述 {#workbench_docs_Workbench_DG_Introduction_zh_CN}
 
-<!---
 @sphinxdirective
 .. toctree::
    :maxdepth: 1
@@ -13,7 +12,6 @@
    workbench_docs_Workbench_DG_Troubleshooting
 
 @endsphinxdirective
---->
 
 深度学习工作台 (DL Workbench) 是官方的 OpenVINO™ 图形界面，旨在使预训练深度学习计算机视觉和自然语言处理模型的生成变得更加容易。
 

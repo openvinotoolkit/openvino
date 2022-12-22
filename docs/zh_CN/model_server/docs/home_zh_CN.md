@@ -1,5 +1,5 @@
 # OpenVINO&trade; 模型服务器 {#ovms_what_is_openvino_model_server_zh_CN}
-<!---
+
 @sphinxdirective
 
 .. toctree::
@@ -26,7 +26,6 @@
    ovms_docs_troubleshooting
 
 @endsphinxdirective
---->
 
 ![OVMS 图片](../../img/ovms_diagram.png)
 

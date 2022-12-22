@@ -1,5 +1,5 @@
 # 运行时推理优化 {#openvino_docs_deployment_optimization_guide_dldt_optimization_guide_zh_CN}
-<!---
+
 @sphinxdirective
 
 .. toctree::
@@ -13,7 +13,6 @@
    openvino_docs_deployment_optimization_guide_internals
 
 @endsphinxdirective
---->
 
 运行时优化（也称为部署优化）侧重于调优推理参数和执行方法（例如，同时执行最佳数量的请求）。与模型级优化不同，它们高度依赖于自身针对的硬件和用例，并往往需要付出代价。
 `ov::hint::inference_precision` 是一种“典型的运行时配置”，它会以准确性换取性能，允许在量化原始 `fp32` 模型后对仍处于 `fp32` 的层执行 `fp16/bf16`。

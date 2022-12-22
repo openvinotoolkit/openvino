@@ -65,7 +65,6 @@ templates_path = ['_templates']
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
-
 panels_add_bootstrap_css = False
 
 # -- Options for HTML output -------------------------------------------------
@@ -88,9 +87,9 @@ html_theme_options = {
 
 html_context = {
     'current_language': 'English',
-    'languages': (('English', '/latest'), ('Chinese', '/cn/latest')),
-    'doxygen_mapping_file': '@DOXYGEN_MAPPING_FILE@',
-    'doxygen_snippet_root': '@OpenVINO_SOURCE_DIR@'
+    'languages': (('English', '/latest')),
+    'doxygen_mapping_file': '',
+    'doxygen_snippet_root': '/mnt/c/Users/kputnam/work_dir/git_repos/openvino'
 }
 
 repositories = {
@@ -127,7 +126,7 @@ repositories = {
 }
 
 try:
-    doxygen_mapping_file = '@DOXYGEN_MAPPING_FILE@'
+    doxygen_mapping_file = ''
     with open(doxygen_mapping_file, 'r', encoding='utf-8') as f:
         doxygen_mapping_file = json.load(f)
 except JSONDecodeError:
@@ -167,6 +166,7 @@ def autodoc_skip_member(app, what, name, obj, skip, options):
 
 
 shutil.copy("../../../docs/home.rst",".")
+shutil.copy("../../../docs/index_zh_CN.rst",".")
 
 def replace_index_with_redirect(app,exception):
     shutil.copy("../../../docs/index.html","../_build/index.html")
@@ -181,5 +181,9 @@ def setup(app):
     app.add_js_file('js/custom.js')
     app.add_js_file('js/graphs.js')
     app.add_js_file('js/graphs_ov_tf.js')
+<<<<<<< HEAD
+    
+=======
     app.add_js_file('js/open_sidebar.js')
     
+>>>>>>> 3a77bb8408dcff23bc42fb5c0b7a6dcd4e6c3b18

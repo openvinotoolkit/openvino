@@ -1,6 +1,5 @@
 # 推理引擎插件库概述 {#openvino_docs_ie_plugin_dg_overview_zh_CN}
 
-<!---
 @sphinxdirective
 
 .. toctree::
@@ -18,7 +17,6 @@
    openvino_docs_ie_plugin_api_references
 
 @endsphinxdirective
---->
 
 推理引擎的插件架构支持开发和插入不同设备专用的独立推理解决方案。从物理上讲，插件用导出支持创建新插件实例的单个 `CreatePluginEngine` 函数的动态库来表示。
 

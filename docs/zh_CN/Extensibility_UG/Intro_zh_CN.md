@@ -1,6 +1,5 @@
 ﻿# OpenVINO™ 可扩展性机制 {#openvino_docs_Extensibility_UG_Intro_zh_CN}
 
-<!---
 @sphinxdirective
 
 .. toctree::
@@ -14,7 +13,6 @@
    openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer
 
 @endsphinxdirective
---->
 
 英特尔® 发行版 OpenVINO™ 工具套件支持通过各种框架训练的神经网络模型。这些框架包括：
 TensorFlow、PyTorch、ONNX、PaddlePaddle、Apache MXNet、Caffe 和 Kaldi。支持的操作列表
