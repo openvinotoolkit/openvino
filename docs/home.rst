@@ -12,7 +12,7 @@
 
 .. rst-class:: openvino-diagram
 
-   .. image:: _static/images/openvino_diagram.svg
+   .. image:: _static/images/ov_chart.png
       :align: center
 
 
@@ -43,7 +43,7 @@ A typical workflow with OpenVINO is shown below.
 
          .. image:: _static/images/OV_flow_optimization_hvr.svg
             :alt: link to an optimization guide
-            :target: openvino_docs_optimization_guide_dldt_optimization_guide.html
+            :target: openvino_docs_model_optimization_guide.html
 
       .. container:: hp-flow-arrow
 
