@@ -79,7 +79,7 @@ private:
 
     void optimizedNspc2Ncsp();
     void optimizedNcsp2Nspc();
-    void createReorderPrimitive(const dnnl::memory::desc &srcDesc, const dnnl::memory::desc &dstDesc);
+    void createReorderPrimitive(const DnnlMemoryDescPtr &srcDesc, const DnnlMemoryDescPtr &dstDesc);
 };
 
 }   // namespace node
