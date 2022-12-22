@@ -50,6 +50,7 @@ protected:
 #ifdef ENABLE_OV_ONNX_FRONTEND
 
 TEST_F(SerializationDeterministicityTest, BasicModel) {
+    GTEST_SKIP() << "Ticket 99981";
     const std::string model =
         CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc.onnx"}));
 
@@ -67,6 +68,7 @@ TEST_F(SerializationDeterministicityTest, BasicModel) {
 }
 
 TEST_F(SerializationDeterministicityTest, ModelWithMultipleLayers) {
+    GTEST_SKIP() << "Ticket 99981";
     const std::string model =
         CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir/addmul_abc.onnx"}));
 
