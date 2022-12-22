@@ -174,10 +174,12 @@ void program::init_primitives() {
 }
 
 void program::compile() {
+    GPU_DEBUG_MEM_LOGGER("compile");
     _kernels_cache->build_all();
 }
 
 void program::init_kernels() {
+    GPU_DEBUG_MEM_LOGGER("init_kernels");
     for (auto& n : get_processing_order()) {
         if (n->get_selected_impl())
             n->get_selected_impl()->init_kernels(*_kernels_cache);
@@ -186,6 +188,7 @@ void program::init_kernels() {
 
 void program::load_tuning_cache() {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::LoadTuningCache");
+    GPU_DEBUG_MEM_LOGGER("ProgramImpl::LoadTuningCache");
     try {
         tuning_cache = kernel_selector::CreateTuningCacheFromFile(get_engine().configuration().tuning_cache_path);
     } catch (...) {
@@ -239,6 +242,7 @@ program_node const& program::get_node(primitive_id const& id) const {
 
 // TODO: Remove once we will get full support for input/output padding in all primitive implementations.
 bool program::analyze_output_size_handling_need() {
+    GPU_DEBUG_MEM_LOGGER("analyze_output_size_handling_need");
     bool handling_needed = false;
 
     // Calculate output size and compare with specified.
@@ -700,6 +704,7 @@ void program::mark_if_data_flow(program_node& node) {
 }
 
 void program::transfer_memory_to_device() {
+    GPU_DEBUG_MEM_LOGGER("transfer_memory_to_device");
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::TransferMemory");
     if (!get_engine().supports_allocation(allocation_type::usm_device))
         return;
@@ -734,6 +739,7 @@ void program::transfer_memory_to_device() {
 }
 
 void program::cleanup() {
+    GPU_DEBUG_MEM_LOGGER("cleanup");
     for (auto& node : processing_order)
         node->get_output_layout();
 

@@ -107,6 +107,8 @@ void Plugin::TransformNetwork(std::shared_ptr<ov::Model>& model, const Config& c
 
 InferenceEngine::CNNNetwork Plugin::CloneAndTransformNetwork(const InferenceEngine::CNNNetwork& network,
                                                              const Config& config) const {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_CODE(cldnn::instrumentation::mem_usage_logger mem_logger{"Plugin::CloneAndTransformNetwork", debug_config->verbose >= 2});
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::CloneAndTransformNetwork");
     CNNNetwork clonedNetwork = InferenceEngine::details::cloneNetwork(network);
 

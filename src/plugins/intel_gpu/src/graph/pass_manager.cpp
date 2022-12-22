@@ -49,9 +49,13 @@ void pass_manager::run(program& p, base_pass& pass) {
     using Time = std::chrono::high_resolution_clock;
 
     GPU_DEBUG_LOG << "Run pass " << pass.get_name() << std::endl;
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_CODE(cldnn::instrumentation::mem_usage_logger mem_logger{pass.get_name(), false});
+    GPU_DEBUG_CODE(GPU_DEBUG_IF(debug_config->verbose >= 2) mem_logger.start_logging());
     auto start = Time::now();
     pass.run(p);
     auto stop = Time::now();
+    GPU_DEBUG_CODE(GPU_DEBUG_IF(debug_config->verbose >= 2) mem_logger.stop_logging());
     std::chrono::duration<float> fs = stop - start;
     ms opt_pass_time = std::chrono::duration_cast<ms>(fs);
     GPU_DEBUG_LOG << "Pass " << pass.get_name() << " execution time: " << opt_pass_time.count() << " ms" << std::endl;

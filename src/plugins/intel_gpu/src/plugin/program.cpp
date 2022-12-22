@@ -327,8 +327,11 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
         options.set_option(cldnn::build_option::partial_build_program(true));
     }
     PrepareBuild(networkInputs, networkOutputs);
-    for (const auto& op : ops) {
-        CreateSingleLayerPrimitive(*m_topology, op);
+    {
+        GPU_DEBUG_MEM_LOGGER("CreateSingleLayerPrimitives");
+        for (const auto& op : ops) {
+            CreateSingleLayerPrimitive(*m_topology, op);
+        }
     }
     if (createTopologyOnly) {
         return {};
