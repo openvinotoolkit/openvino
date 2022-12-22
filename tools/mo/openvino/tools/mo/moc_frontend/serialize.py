@@ -20,7 +20,7 @@ def moc_emit_ir(ngraph_function: Model, argv: argparse.Namespace):
     from openvino.tools.mo.back.offline_transformations import apply_user_transformations, apply_moc_transformations, \
         apply_moc_legacy_transformations, apply_fused_names_cleanup
 
-    apply_moc_transformations(ngraph_function)
+    # apply_moc_transformations(ngraph_function)
     from openvino._offline_transformations import compress_quantize_weights_transformation
     compress_quantize_weights_transformation(ngraph_function)
 
