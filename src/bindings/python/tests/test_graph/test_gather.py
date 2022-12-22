@@ -12,8 +12,7 @@ import pytest
     ((3, 3), (1, 2), [1], [3, 1, 2], []),
     ((3, 3), (1, 2), 1, [3, 1, 2], []),
     ((2, 5), (2, 3), [1], [2, 3], [1]),
-    ((3, 3), (1, 2), [1], [3, 1, 2], [1]),
-    ((2, 5), (2, 3), [1], [2, 3], []),
+    ((2, 5), (2, 3), [1], [2, 2, 3], []),
 ])
 def test_gather(input_shape, indices, axis, expected_shape, batch_dims):
     input_data = ov.parameter(input_shape, name="input_data", dtype=np.float32)
