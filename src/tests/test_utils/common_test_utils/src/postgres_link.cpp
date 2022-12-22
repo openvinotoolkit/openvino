@@ -21,6 +21,7 @@
 #undef PGQL_DEBUG
 static const char* PGQL_ENV_CONN_NAME = "OV_POSTGRES_CONN";    // Environment variable with connection settings
 static const char* PGQL_ENV_SESS_NAME = "OV_TEST_SESSION_ID";  // Environment variable identifies current session
+static const char* PGQL_ENV_RUN_NAME = "OV_TEST_RUN_ID";       // Environment variable with external run id
 static const char* PGQL_ENV_RLVL_NAME = "OV_TEST_REPORT_LVL";  // Environment variable identifies reporting
                                                                // level: default ("", empty), "fast", "suite"
 
@@ -854,6 +855,13 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
             } else {
                 reportingLevel = REPORT_LVL_DEFAULT;
                 std::cerr << PG_WRN << "Wrong reporting level is passed, default reporting level is using\n";
+            }
+
+            char* env_run_id = std::getenv(PGQL_ENV_RUN_NAME);
+            if (env_run_id != nullptr) {
+                // In case of not-numeric it will be set to default value - 0, and will be generated at RequestRunId()
+                this->testRunId = std::atoi(env_run_id);
+                std::cerr << PG_INF << "External Run ID is provided: " << this->testRunId << std::endl;
             }
 
             std::cerr << PG_INF << "Test session ID has been found\n";
