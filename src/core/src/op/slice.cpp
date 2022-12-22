@@ -87,10 +87,7 @@ void op::v8::Slice::validate_and_infer_types() {
         set_input_is_relevant_to_shape(i);
     }
 
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic()};
-
-    shape_infer(this, input_shapes, output_shapes);
+    const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this));
     set_output_type(0, get_input_element_type(0), output_shapes.front());
 }
 
@@ -173,8 +170,7 @@ bool op::v8::Slice::evaluate(const HostTensorVector& outputs, const HostTensorVe
             constant_data.emplace(i, tensor);
         }
 
-        auto output_shapes = std::vector<PartialShape>(1);
-        shape_infer(this, input_shapes, output_shapes, constant_data);
+        const auto output_shapes = shape_infer(this, input_shapes, constant_data);
         OPENVINO_ASSERT(output_shapes.front().is_static(), "Can't calculate static output shape for Slice evaluation.");
 
         outputs[0]->set_shape(output_shapes.front().to_shape());

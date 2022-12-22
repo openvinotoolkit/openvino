@@ -42,11 +42,10 @@ struct AxesMap {
 namespace v8 {
 
 template <class T>
-void shape_infer(const Slice* op,
-                 const std::vector<T>& input_shapes,
-                 std::vector<T>& output_shapes,
-                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
-    using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
+std::vector<T> shape_infer(const Slice* op,
+                           const std::vector<T>& input_shapes,
+                           const std::map<size_t, HostTensorPtr>& constant_data = {}) {
+    using DimType = typename T::value_type;
 
     const auto& num_of_inputs = input_shapes.size();
 
@@ -54,7 +53,6 @@ void shape_infer(const Slice* op,
                           num_of_inputs == 4 || num_of_inputs == 5,
                           "Slice has to have 4 or 5 inputs. Got: ",
                           num_of_inputs);
-    NODE_VALIDATION_CHECK(op, output_shapes.size() == 1);
 
     const auto& input_shape = input_shapes[0];
     const auto& input_rank = input_shape.rank();
@@ -90,62 +88,71 @@ void shape_infer(const Slice* op,
     // it is not possible to define output shape if input data shape rank is undefined
     // even the lengths of begin, end, or strides are defined
     if (input_rank.is_dynamic()) {
-        output_shapes[0] = PartialShape::dynamic();
-        return;
-    }
+        return {PartialShape::dynamic()};
+    } else {
+        // compute constant values of begin, end, and strides if possible
+        const auto start = slice::get_input_bounds<T>(op, 1, constant_data);
+        const auto stop = slice::get_input_bounds<T>(op, 2, constant_data);
+        const auto steps = get_input_const_data_as<T, int64_t>(op, 3, constant_data);
 
-    // compute constant values of begin, end, and strides if possible
-    const auto start = slice::get_input_bounds<T>(op, 1, constant_data);
-    const auto stop = slice::get_input_bounds<T>(op, 2, constant_data);
-    const auto steps = get_input_const_data_as<T, int64_t>(op, 3, constant_data);
+        slice::AxesMap axes_map;
+        if (input_shapes.size() > 4) {
+            NODE_VALIDATION_CHECK(op,
+                                  input_shapes[4].compatible(start_shape),
+                                  "Slice `axes` input must have compatible shape with `start`, `stop`, `step` inputs.");
 
-    slice::AxesMap axes_map;
-    if (input_shapes.size() > 4) {
-        NODE_VALIDATION_CHECK(op,
-                              input_shapes[4].compatible(start_shape),
-                              "Slice `axes` input must have compatible shape with `start`, `stop`, `step` inputs.");
-
-        if (auto axes = get_input_const_data_as<T, int64_t>(op, 4, constant_data)) {
-            ov::normalize_axes(op, input_shape.rank().get_length(), *axes);
-            axes_map.add(*axes);
-            NODE_VALIDATION_CHECK(op, axes_map.is_valid, "Slice values in `axes` input must be unique.");
+            if (auto axes = get_input_const_data_as<T, int64_t>(op, 4, constant_data)) {
+                ov::normalize_axes(op, input_shape.rank().get_length(), *axes);
+                axes_map.add(*axes);
+                NODE_VALIDATION_CHECK(op, axes_map.is_valid, "Slice values in `axes` input must be unique.");
+            }
+        } else if (start) {
+            axes_map.generate_n(start->size());
         }
-    } else if (start) {
-        axes_map.generate_n(start->size());
-    }
 
-    auto axis_it = axes_map.m.cbegin();
+        auto axis_it = axes_map.m.cbegin();
 
-    auto& out = output_shapes.front();
-    out.reserve(input_shape.size());
-    for (size_t dim_idx = 0; dim_idx < input_shape.size(); ++dim_idx) {
-        const DimType& input_dim = input_shape[dim_idx];
+        T out;
+        out.reserve(input_shape.size());
+        for (size_t dim_idx = 0; dim_idx < input_shape.size(); ++dim_idx) {
+            const DimType& input_dim = input_shape[dim_idx];
 
-        if (axes_map.is_valid && (axis_it != axes_map.m.cend()) && (axis_it->first == dim_idx)) {
-            const auto& i = axis_it->second;
+            if (axes_map.is_valid && (axis_it != axes_map.m.cend()) && (axis_it->first == dim_idx)) {
+                const auto& i = axis_it->second;
 
-            if (start && stop && steps) {
-                const auto& step = (*steps)[i];
-                NODE_VALIDATION_CHECK(op, step != 0, "Step must be non-zero");
-                out.push_back(slice::make_dim(input_dim, (*start)[i], (*stop)[i], step));
+                if (start && stop && steps) {
+                    const auto& step = (*steps)[i];
+                    NODE_VALIDATION_CHECK(op, step != 0, "Step must be non-zero");
+                    out.push_back(slice::make_dim(input_dim, (*start)[i], (*stop)[i], step));
+                } else {
+                    out.emplace_back(0, input_dim.get_max_length());
+                }
+
+                auto& last_dim = out[out.size() - 1];
+                if (std::is_same<DimType, ov::Dimension>::value && (last_dim == input_dim)) {
+                    // for equal ov::Dimension do merge to get input label (always success)
+                    DimType::merge(last_dim, last_dim, input_dim);
+                }
+                ++axis_it;
+            } else if (axes_map.is_valid) {
+                // dimension not on axes list, no change
+                out.push_back(input_dim);
             } else {
+                // axes are unknow so any dimension can be sliced
                 out.emplace_back(0, input_dim.get_max_length());
             }
-
-            auto& last_dim = out[out.size() - 1];
-            if (std::is_same<DimType, ov::Dimension>::value && (last_dim == input_dim)) {
-                // for equal ov::Dimension do merge to get input label (always success)
-                DimType::merge(last_dim, last_dim, input_dim);
-            }
-            ++axis_it;
-        } else if (axes_map.is_valid) {
-            // dimension not on axes list, no change
-            out.push_back(input_dim);
-        } else {
-            // axes are unknow so any dimension can be sliced
-            out.emplace_back(0, input_dim.get_max_length());
         }
+        return {out};
     }
+}
+
+template <class T>
+void shape_infer(const Slice* op,
+                 const std::vector<T>& input_shapes,
+                 std::vector<T>& output_shapes,
+                 const std::map<size_t, HostTensorPtr>& constant_data = {}) {
+    output_shapes = shape_infer(op, input_shapes, constant_data);
+    NODE_VALIDATION_CHECK(op, output_shapes.size() == 1);
 }
 }  // namespace v8
 }  // namespace op
