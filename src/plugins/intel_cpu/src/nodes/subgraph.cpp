@@ -519,7 +519,11 @@ void Snippet::generate(const jit_snippets_compile_args* jcp) {
                     return convert->get_input_element_type(0) != ov::element::f32;
                 return true;
             });
-    schedule = snippet->generate(optManager, reinterpret_cast<const void*>(jcp));
+    schedule = snippet->generate(
+        optManager,
+        ov::pass::Manager(),
+        ov::pass::Manager(),
+        reinterpret_cast<const void*>(jcp));
 }
 
 void Snippet::update_ptrs(jit_snippets_call_args& call_args) {

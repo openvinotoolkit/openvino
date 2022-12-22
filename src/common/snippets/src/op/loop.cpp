@@ -28,6 +28,13 @@ bool LoopBase::get_evaluate_once() const {
     return evaluate_once;
 }
 
+void LoopBase::validate_and_infer_types() {
+    const auto input_type1 = get_input_element_type(0);
+    for (auto index = 0ull; index < this->get_output_size(); ++index) {
+        set_output_type(index, input_type1, get_input_partial_shape(0));
+    }
+}
+
 size_t LoopBase::get_increment() const {
     return work_amount_increment;
 }

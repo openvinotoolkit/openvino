@@ -7,10 +7,12 @@
 
 #include "snippets/op/subgraph.hpp"
 #include "snippets/op/convert_saturation.hpp"
+#include "snippets/pass/convert_to_snippets_opset.hpp"
 #include "snippets/pass/insert_load_store.hpp"
 #include "snippets/pass/insert_movebroadcast.hpp"
 #include "snippets/pass/broadcast_to_movebroadcast.hpp"
 #include "snippets/pass/load_movebroadcast_to_broadcastload.hpp"
+#include "snippets/pass/propagate_precision.hpp"
 #include "snippets/pass/assign_registers.hpp"
 #include "snippets/pass/convert_constants.hpp"
 #include "snippets/pass/convert_power_to_powerstatic.hpp"
@@ -18,7 +20,6 @@
 #include "snippets/pass/insert_loops.hpp"
 #include "snippets/pass/transpose_decomposition.hpp"
 #include "snippets/pass/transform_convert.hpp"
-#include "snippets/pass/align_element_type.hpp"
 #include "snippets/pass/matmul_to_brgemm.hpp"
 #include "snippets/pass/fuse_transpose_brgemm.hpp"
 #include "snippets/pass/softmax_decomposition.hpp"
@@ -38,6 +39,8 @@
 #include <algorithm>
 #include <memory>
 #include <array>
+
+#include "ngraph/pass/visualize_tree.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -62,10 +65,6 @@ void snippets::op::Subgraph::init_config() {
             ov::is_type<ov::op::v0::FakeQuantize>(op);
         config.m_has_type_relaxed_ops = config.m_has_type_relaxed_ops ||
             std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(op);
-        config.m_is_needed_to_align_precision = config.m_is_needed_to_align_precision ||
-            is_quantized() ||
-            has_type_relaxed_ops() ||
-            snippets::pass::AlignElementType::opNeedsAlignElementType(op, execution_element_type);
         config.m_has_domain_sensitive_ops = config.m_has_domain_sensitive_ops ||
             ov::is_type<ov::op::v1::Transpose>(op) ||
             ov::is_type<ov::op::v1::Softmax>(op) ||
@@ -373,31 +372,25 @@ void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outpu
     }
 
     // We should change existing element type to original for Parameters if needed
-    const auto& body_parameters = body_ptr()->get_parameters();
+    const auto& parameters = body_ptr()->get_parameters();
     for (size_t i = 0; i < inputShapes.size(); ++i) {
         const auto needed_in_type = std::get<2>(inputShapes[i]);
-        if (body_parameters[i]->get_element_type() != needed_in_type) {
-            body_parameters[i]->set_element_type(needed_in_type);
-            config.m_is_needed_to_align_precision = true;
+        if (parameters[i]->get_element_type() != needed_in_type) {
+            const auto output = parameters[i]->output(0);
+            for (const auto input : output.get_target_inputs()) {
+                const auto convert = std::make_shared<ngraph::snippets::op::ConvertSaturation>(
+                    output,
+                    output.get_element_type());
+
+                const auto op = input.get_node()->shared_from_this();
+                ngraph::copy_runtime_info(op, convert);
+                op->set_argument(input.get_index(), convert);
+            }
+
+            parameters[i]->set_element_type(needed_in_type);
+            parameters[i]->validate_and_infer_types();
         }
     }
-
-    // We should align element type inside body using the corresponding pass:
-    //  - Insert Convert before operations that doesn't support original element type for execution
-    //  - Insert reverse Convert before operations that support original element type
-    //    but have inputs that doesn't support it (because before them will be inserted Convert with exec_type - first point)
-    //  - Then we should use ConstantFolding pass to convert element type of Scalars before inference.
-    //  - Eliminate redundant Converts which can be inserted in AlignElementType() pass
-    ngraph::pass::Manager manager;
-    if (config.m_is_needed_to_align_precision) {
-        manager.register_pass<snippets::pass::AlignElementType>(execution_element_type);
-        manager.register_pass<ov::pass::ConstantFolding>();
-        // TODO [100041] : In some cases AlignElementType pass can insert extra Convert because
-        //                 the pass doesn't know real precisions in real time.
-        //                 We call EliminateConverts pass to remove them
-        manager.register_pass<ov::pass::EliminateConvert>();
-    }
-    manager.run_passes(body_ptr());
 }
 
 void snippets::op::Subgraph::initialize_buffer_scratchpad_size() {
@@ -591,6 +584,8 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
         }
     }
     manager.run_passes(body_ptr());
+
+    snippets::pass::ConvertToSnippetsOpset().run_on_model(body_ptr());
 }
 
 snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& output_shapes,
@@ -602,24 +597,35 @@ snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& ou
 
 snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& output_shapes,
                                                     const BlockedShapeVector& input_shapes,
-                                                    ngraph::pass::Manager& opt,
+                                                    ngraph::pass::Manager& opt1,
+                                                    ngraph::pass::Manager& opt2,
+                                                    ngraph::pass::Manager& opt3,
                                                     const void* compile_params) {
     canonicalize(output_shapes, input_shapes);
-    return generate(opt, compile_params);
+    return generate(opt1, opt2, opt3, compile_params);
 }
 
 snippets::Schedule snippets::op::Subgraph::generate(const void* compile_params) {
     auto mngr = ngraph::pass::Manager();
-    return generate(mngr, compile_params);
+    return generate(mngr, mngr, mngr, compile_params);
 }
 
-snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, const void* compile_params) {
+snippets::Schedule snippets::op::Subgraph::generate(
+    ngraph::pass::Manager& opt1,
+    ngraph::pass::Manager& opt2,
+    ngraph::pass::Manager& opt3,
+    const void* compile_params) {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::generate")
     NGRAPH_CHECK(m_generator != nullptr, "generate is called while generator is not set");
 
+    opt1.run_passes(body_ptr());
     convert_to_snippet_dialect();
-    opt.run_passes(body_ptr());
+    opt2.run_passes(body_ptr());
+
+    snippets::pass::PropagatePrecision(element::f32, m_generator->get_target_machine()).run_on_model(body_ptr());
+
+    opt3.run_passes(body_ptr());
 
     // After all passes, when all optimizations are completed and all MemoryAccess ops are inserted,
     // we can calculate common buffer scratchpad size and propagate offset from Buffer to the corresponding MemoryAccess ops

@@ -57,7 +57,7 @@ namespace {
 
 template<typename T>
 struct SupportedPrecisions {
-    void operator()(std::set<Precision> &precisions) {
+    void operator()(std::set<std::vector<Precision>> &precisions) {
         precisions = T::get_supported_precisions();
     }
 };
@@ -175,10 +175,22 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
     void generate() override {
         Precision exec_prc = Precision::UNSPECIFIED;
 
-        std::set<Precision> supported_precision_intersection = get_supported_precisions(eltwise_data_.front().algo);
+        std::set<std::vector<Precision>> supported_precision_intersection = get_supported_precisions(eltwise_data_.front().algo);
+
+        // for element-wise operations all inputs must to have the same precisions
+        assert(std::all_of(
+            supported_precision_intersection.begin(),
+            supported_precision_intersection.end(),
+            [&supported_precision_intersection](const std::vector<InferenceEngine::Precision>& precisions) {
+                return std::all_of(
+                    precisions.begin(),
+                    precisions.end(),
+                    [&precisions](const InferenceEngine::Precision precision) { return precision == precisions[0]; });
+            }));
+
         for (size_t i = 1; i < eltwise_data_.size(); ++i) {
-            std::set<Precision> prcs = get_supported_precisions(eltwise_data_[i].algo);
-            std::set<Precision> prcs_intersect = {};
+            std::set<std::vector<Precision>> prcs = get_supported_precisions(eltwise_data_[i].algo);
+            std::set<std::vector<Precision>> prcs_intersect = {};
 
             std::set_intersection(supported_precision_intersection.begin(), supported_precision_intersection.end(),
                                   prcs.begin(), prcs.end(), std::inserter(prcs_intersect, prcs_intersect.begin()));
@@ -196,8 +208,11 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
                 Precision::FP32
         };
 
-        for (auto prc : exec_precisions_priority) {
-            if (std::find(supported_precision_intersection.begin(), supported_precision_intersection.end(), prc) != supported_precision_intersection.end()) {
+        for (const auto prc : exec_precisions_priority) {
+            if (std::any_of(
+                supported_precision_intersection.begin(),
+                supported_precision_intersection.end(),
+                [&prc](const std::vector<Precision>& precisions) { return std::find(precisions.begin(), precisions.end(), prc) == precisions.end(); })) {
                 exec_prc = prc;
                 break;
             }
@@ -481,8 +496,8 @@ private:
     const std::vector<ov::intel_cpu::Type>& ops_list_;
     const dnnl::post_ops& post_ops_;
 
-    std::set<Precision> get_supported_precisions(Algorithm algo) {
-        std::set<Precision> precisions;
+    std::set<std::vector<Precision>> get_supported_precisions(Algorithm algo) {
+        std::set<std::vector<Precision>> precisions;
 
         OV_SWITCH(intel_cpu, SupportedPrecisions, precisions, algo,
         OV_CASE(Algorithm::EltwiseRelu, jit_dnnl_aux_emitter),

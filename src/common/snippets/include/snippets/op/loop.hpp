@@ -27,6 +27,8 @@ public:
     size_t get_increment() const;
     bool get_evaluate_once() const;
 
+    void validate_and_infer_types() override;
+
 protected:
     size_t work_amount;
     size_t work_amount_increment;

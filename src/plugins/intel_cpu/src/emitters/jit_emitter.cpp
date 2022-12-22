@@ -55,8 +55,8 @@ size_t jit_emitter::aux_gprs_count() const {
     return entry_map_.empty() ? 0 : 1;
 }
 
-std::set<InferenceEngine::Precision> jit_emitter::get_supported_precisions() {
-    return {InferenceEngine::Precision::FP32};
+std::set<std::vector<InferenceEngine::Precision>> jit_emitter::get_supported_precisions() {
+    return {};
 }
 
 void jit_emitter::emitter_preamble(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,

@@ -188,6 +188,8 @@ public:
 
     size_t get_inputs_num() const override {return 0;}
 
+    static std::set<std::vector<InferenceEngine::Precision>> get_supported_precisions() { return {}; }
+
 private:
     void emit_impl(const std::vector<size_t>& in,
                    const std::vector<size_t>& out,
@@ -267,6 +269,10 @@ public:
 
     size_t get_inputs_num() const override {return 1;}
 
+    static std::set<std::vector<InferenceEngine::Precision>> get_supported_precisions() {
+        return {{InferenceEngine::Precision::FP32}};
+    }
+
 private:
     void emit_impl(const std::vector<size_t>& in,
               const std::vector<size_t>& out,
@@ -287,6 +293,8 @@ public:
     LoadEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override {return 0;}
+
+    static std::set<std::vector<InferenceEngine::Precision>> get_supported_precisions() { return {}; }
 
 private:
     void emit_impl(const std::vector<size_t>& in,
@@ -346,6 +354,10 @@ public:
     StoreConvertEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override {return 1;}
+
+    static std::set<std::vector<InferenceEngine::Precision>> get_supported_precisions() {
+        return {{InferenceEngine::Precision::FP32}};
+    }
 
 private:
     void emit_impl(const std::vector<size_t>& in,

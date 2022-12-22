@@ -102,10 +102,18 @@ public:
     bool has_type_relaxed_ops() const { return config.m_has_type_relaxed_ops; }
     bool has_domain_sensitive_ops() const { return config.m_has_domain_sensitive_ops; }
 
-    snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes, ngraph::pass::Manager& opt,
+    snippets::Schedule generate(const BlockedShapeVector& output_shapes,
+                                const BlockedShapeVector& input_shapes,
+                                ngraph::pass::Manager& opt1,
+                                ngraph::pass::Manager& opt2,
+                                ngraph::pass::Manager& opt3,
                                 const void* compile_params = nullptr);
     snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes, const void* compile_params = nullptr);
-    snippets::Schedule generate(ngraph::pass::Manager &opt, const void* compile_params = nullptr);
+    snippets::Schedule generate(
+        ngraph::pass::Manager& opt1,
+        ngraph::pass::Manager& opt2,
+        ngraph::pass::Manager& opt3,
+        const void* compile_params = nullptr);
     snippets::Schedule generate(const void* compile_params = nullptr);
     ov::PartialShape canonicalize(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes);
     std::vector<PartialShape> reshape_body(const std::vector<PartialShape>& input_shapes);
@@ -164,8 +172,6 @@ private:
     public:
         // True if Subgraph contains FakeQuantize -> FQ decomposition should be called
         bool m_is_quantized = false;
-        // True if we should align element types indise body
-        bool m_is_needed_to_align_precision = false;
         // True if Subgraph contains TypeRelaxed nodes -> for several streams in tp mode we should copy body using mutexes
         // because TypeRelaxed::copy_with_new_inputs() isn't save-thread method
         bool m_has_type_relaxed_ops = false;

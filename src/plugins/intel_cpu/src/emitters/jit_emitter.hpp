@@ -56,7 +56,11 @@ public:
     virtual size_t get_inputs_num() const = 0;
     virtual size_t aux_vecs_count() const;
     emitter_in_out_map get_in_out_type() const;
-    static std::set<InferenceEngine::Precision> get_supported_precisions();
+
+    // returns supported precisions
+    // precisions are ordered, the first bigger bitnes precision with the same type will be selected
+    // empty collection means an emitter supports any input precisions
+    static std::set<std::vector<InferenceEngine::Precision>> get_supported_precisions();
 
 protected:
     virtual size_t aux_gprs_count() const;
