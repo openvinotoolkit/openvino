@@ -10,6 +10,43 @@
 namespace ov {
 namespace op {
 namespace v1 {
+
+namespace utils {
+namespace one_hot {
+
+template <class TShape>
+inline bool get_data_as_shape_and_validate_sign(
+    size_t idx,
+    const ov::Node* op,
+    TShape& shape,
+    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
+    if (constant_data.count(idx)) {
+        const auto& data = host_tensor_2_vector<int64_t>(constant_data.at(idx));
+        std::vector<size_t> dim_values;
+        dim_values.reserve(data.size());
+        std::transform(data.cbegin(), data.cend(), std::back_inserter(dim_values), [&](int64_t v) {
+            NODE_VALIDATION_CHECK(op, v >= 0, "Can't cast negative value to static shape dimension.");
+            return static_cast<size_t>(v);
+        });
+        shape = TShape(dim_values);
+        return true;
+    } else {
+        return get_data_as_shape<TShape>(idx, op, shape, constant_data);
+    }
+}
+
+template <>
+inline bool get_data_as_shape_and_validate_sign<ov::PartialShape>(
+    size_t idx,
+    const ov::Node* op,
+    ov::PartialShape& shape,
+    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
+    return get_data_as_shape<ov::PartialShape>(idx, op, shape, constant_data);
+}
+
+}  // namespace one_hot
+}  // namespace utils
+
 void inline resolve_axis(OneHot* op) {
     if (op->get_input_size() < 1) {
         return;
@@ -52,7 +89,8 @@ void shape_infer(const OneHot* op,
         const auto axis = ov::normalize_axis(op, op->get_axis(), indices_rank + 1, -indices_rank - 1, indices_rank);
 
         T depth_dim_as_shape;
-        if (get_data_as_shape<T>(1, op, depth_dim_as_shape, constant_data) && depth_dim_as_shape.size() == 1) {
+        if (utils::one_hot::get_data_as_shape_and_validate_sign<T>(1, op, depth_dim_as_shape, constant_data) &&
+            depth_dim_as_shape.size() == 1) {
             result_shape.insert(result_shape.begin() + axis, depth_dim_as_shape[0]);
         } else {
             result_shape.insert(result_shape.begin() + axis, DimType());

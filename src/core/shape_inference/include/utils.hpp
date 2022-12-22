@@ -184,14 +184,7 @@ inline bool get_data_as_shape(
     T& shape,
     const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
     if (constant_data.count(idx)) {
-        const auto& data = host_tensor_2_vector<int64_t>(constant_data.at(idx));
-        std::vector<size_t> dim_values;
-        dim_values.reserve(data.size());
-        std::transform(data.cbegin(), data.cend(), std::back_inserter(dim_values), [&](int64_t v) {
-            NODE_VALIDATION_CHECK(op, v >= 0, "Can't cast negative value to static shape dimension.");
-            return static_cast<size_t>(v);
-        });
-        shape = T(dim_values);
+        shape = T(ov::opset1::Constant(constant_data.at(idx)).cast_vector<size_t>());
     } else {
         const auto& constant = ov::as_type_ptr<ov::opset1::Constant>(op->get_input_node_shared_ptr(idx));
         NODE_VALIDATION_CHECK(op, constant != nullptr, "Static shape inference lacks constant data on port ", idx);
