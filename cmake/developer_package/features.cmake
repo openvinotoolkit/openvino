@@ -54,7 +54,7 @@ ie_option (BUILD_SHARED_LIBS "Build as a shared library" ON)
 # see https://www.opengis.ch/2011/11/23/creating-non-versioned-shared-libraries-for-android/
 ie_dependent_option (ENABLE_LIBRARY_VERSIONING "Enable libraries versioning" ON "NOT WIN32;NOT ANDROID" OFF)
 
-ie_dependent_option (ENABLE_FASTER_BUILD "Enable build features (PCH, UNITY) to speed up build time" OFF "CMAKE_VERSION VERSION_GREATER_EQUAL 3.16" OFF)
+ie_dependent_option (ENABLE_FASTER_BUILD "Enable build features (PCH, UNITY) to speed up build time" OFF "CMAKE_VERSION VERSION_GREATER_EQUAL 3.16.1" OFF)
 
 if(UNIX AND NOT ANDROID)
     set(STYLE_CHECKS_DEFAULT ON)
