@@ -86,11 +86,13 @@ ngraph::snippets::pass::SoftmaxDecomposition::SoftmaxDecomposition(const size_t 
                 InsertLoops::calculate_inner_apply_increments(master_shape, {data->get_shape(), data->get_shape(), data->get_shape()});
         // Input of softmax is Input and Output of this loop, which isn't used inside (it's just to have one output in Loop at least)
         // So we shouldn't increment pointer after each loop iteration
+        apply_increments_max[0] = false;
         apply_increments_max[1] = false;
-        apply_increments_max[2] = false;
         // we should always reset data ptr after this loop because in the next Loop this ptr is used
+        // Although output isn't a Buffer op, we set finalization offset and ptr increment for output, because ResetBufferState pass
+        // normalizes offsets and increments starting from outputs
         const auto finalization_offsets_max =
-            std::vector<int64_t>{ ResetBufferState::calculate_required_finalization_offsets(inner_master_work_amount, data->get_shape()[inner_dim]), 0, 0 };
+            std::vector<int64_t>{ 0, 0, ResetBufferState::calculate_required_finalization_offsets(inner_master_work_amount, data->get_shape()[inner_dim]) };
         const auto loop_max_end = std::make_shared<ngraph::snippets::op::LoopEnd>(ngraph::OutputVector{loop_max_begin->output(1), loop_max_begin->output(2)},
             work_amount, increment, apply_increments_max, finalization_offsets_max);
 
