@@ -40,7 +40,7 @@ void op::v1::Select::validate_and_infer_types() {
                           "Argument 1 and 2 element types must match.");
 
     const auto input_shapes = get_node_input_partial_shapes(*this);
-    std::vector<ov::PartialShape> output_shapes{ov::PartialShape::dynamic()};
+    auto output_shapes = std::vector<ov::PartialShape>(1);
 
     shape_infer(this, input_shapes, output_shapes);
     set_output_type(0, result_et, output_shapes[0]);
