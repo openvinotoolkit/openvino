@@ -44,8 +44,7 @@ TEST(type_prop, select_default_constructor) {
 
 TEST(type_prop, select_labels_cond_numpy) {
     auto labeled_shape = PartialShape{{2, 8}, {3, 7}, {1, 10}, {1, 6}, {1, 10}};
-    set_shape_labels(labeled_shape, {10, 11, 12, 13, 14});
-
+    set_shape_labels(labeled_shape, 10);
     std::vector<size_t> expected_labels{10, 11, 12, ov::no_label, 14};
 
     auto cond_param = make_shared<op::Parameter>(element::boolean, labeled_shape);
@@ -62,7 +61,7 @@ TEST(type_prop, select_labels_cond_numpy) {
 
 TEST(type_prop, select_labels_then_numpy) {
     auto labeled_shape = PartialShape::dynamic(5);
-    set_shape_labels(labeled_shape, {10, 11, 12, 13, 14});
+    set_shape_labels(labeled_shape, 10);
     std::vector<size_t> expected_labels{ov::no_label, ov::no_label, 12, ov::no_label, 14};
 
     auto cond_param =
@@ -80,7 +79,7 @@ TEST(type_prop, select_labels_then_numpy) {
 
 TEST(type_prop, select_labels_else_numpy) {
     auto labeled_shape = PartialShape{{1, 5}, {1, 11}, 5, {1, 8}};
-    set_shape_labels(labeled_shape, {10, 11, 12, 13});
+    set_shape_labels(labeled_shape, 10);
 
     std::vector<size_t> expected_labels{ov::no_label, ov::no_label, 11, 12, 13};
 
@@ -98,15 +97,15 @@ TEST(type_prop, select_labels_else_numpy) {
 }
 
 TEST(type_prop, select_labels_all_params_numpy) {
-    auto labeled_shape_cond = PartialShape{-1, 2, 1, 3, 1, {2, 5}, {1, 8}};
-    auto labeled_shape_then = PartialShape{-1, 2, 4, 1, 1, {1, 5}, {2, 8}};
-    auto labeled_shape_else = PartialShape{-1, 2, 1, 3, 5, {1, 7}, {1, 8}};
+    auto labeled_shape_cond = PartialShape{-1, 2, 1, 3, 1, {2, 5}, {1, 8}, {5, -1}, {-1, 5}};
+    auto labeled_shape_then = PartialShape{-1, 2, 4, 1, 1, {1, 5}, {2, 8}, {5, -1}, {-1, 5}};
+    auto labeled_shape_else = PartialShape{-1, 2, 1, 3, 5, {1, 7}, {1, 8}, {5, -1}, {-1, 5}};
 
-    set_shape_labels(labeled_shape_cond, {10, 11, 12, 13, 14, 15, 16});
-    set_shape_labels(labeled_shape_then, {20, 21, 22, 23, 24, 25, 26});
-    set_shape_labels(labeled_shape_else, {30, 31, 32, 33, 34, 35, 36});
+    set_shape_labels(labeled_shape_cond, 10);
+    set_shape_labels(labeled_shape_then, 20);
+    set_shape_labels(labeled_shape_else, 30);
 
-    std::vector<size_t> expected_labels{10, 11, 22, 13, 34, 15, 26};
+    std::vector<size_t> expected_labels{10, 11, 22, 13, 34, 15, 26, 17, 18};
 
     auto cond_param = make_shared<op::Parameter>(element::boolean, labeled_shape_cond);
     auto then_param = make_shared<op::Parameter>(element::f32, labeled_shape_then);
@@ -116,20 +115,20 @@ TEST(type_prop, select_labels_all_params_numpy) {
     const auto& out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(op->get_element_type(), element::f32);
-    EXPECT_EQ(out_shape, (PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}}));
+    EXPECT_EQ(out_shape, (PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}, {5, -1}, {-1, 5}}));
     EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
 }
 
 TEST(type_prop, select_labels_all_params_none) {
-    auto labeled_shape_cond = PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}};
-    auto labeled_shape_then = PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}};
-    auto labeled_shape_else = PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}};
+    auto labeled_shape_cond = PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}, {5, -1}, {-1, 5}};
+    auto labeled_shape_then = PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}, {5, -1}, {-1, 5}};
+    auto labeled_shape_else = PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}, {5, -1}, {-1, 5}};
 
-    set_shape_labels(labeled_shape_cond, {10, 11, 12, 13, 14, 15, 16});
-    set_shape_labels(labeled_shape_then, {20, 21, 22, 23, 24, 25, 26});
-    set_shape_labels(labeled_shape_else, {30, 31, 32, 33, 34, 35, 36});
+    set_shape_labels(labeled_shape_cond, 10);
+    set_shape_labels(labeled_shape_then, 20);
+    set_shape_labels(labeled_shape_else, 30);
 
-    std::vector<size_t> expected_labels{10, 11, 12, 13, 14, 15, 16};
+    std::vector<size_t> expected_labels{10, 11, 12, 13, 14, 15, 16, 17, 18};
 
     auto cond_param = make_shared<op::Parameter>(element::boolean, labeled_shape_cond);
     auto then_param = make_shared<op::Parameter>(element::f32, labeled_shape_then);
@@ -139,20 +138,20 @@ TEST(type_prop, select_labels_all_params_none) {
     const auto& out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(op->get_element_type(), element::f32);
-    EXPECT_EQ(out_shape, (PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}}));
+    EXPECT_EQ(out_shape, (PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}, {5, -1}, {-1, 5}}));
     EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
 }
 
 TEST(type_prop, select_labels_all_params_pdpd) {
     auto labeled_shape_cond = PartialShape{-1, -1, -1, -1, -1, -1, -1};
-    auto labeled_shape_then = PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}};
-    auto labeled_shape_else = PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}};
+    auto labeled_shape_then = PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}, {5, -1}, {-1, 5}};
+    auto labeled_shape_else = PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}, {5, -1}, {-1, 5}};
 
-    set_shape_labels(labeled_shape_cond, {10, 11, 12, 13, 14, 15, 16});
-    set_shape_labels(labeled_shape_then, {20, 21, 22, 23, 24, 25, 26});
-    set_shape_labels(labeled_shape_else, {30, 31, 32, 33, 34, 35, 36});
+    set_shape_labels(labeled_shape_cond, 10);
+    set_shape_labels(labeled_shape_then, 20);
+    set_shape_labels(labeled_shape_else, 30);
 
-    std::vector<size_t> expected_labels{20, 21, 22, 23, 24, 25, 26};
+    std::vector<size_t> expected_labels{20, 21, 22, 23, 24, 25, 26, 27, 28};
 
     auto cond_param = make_shared<op::Parameter>(element::boolean, labeled_shape_cond);
     auto then_param = make_shared<op::Parameter>(element::f32, labeled_shape_then);
@@ -165,7 +164,7 @@ TEST(type_prop, select_labels_all_params_pdpd) {
     const auto& out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(op->get_element_type(), element::f32);
-    EXPECT_EQ(out_shape, (PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}}));
+    EXPECT_EQ(out_shape, (PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}, {5, -1}, {-1, 5}}));
     EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
 }
 
