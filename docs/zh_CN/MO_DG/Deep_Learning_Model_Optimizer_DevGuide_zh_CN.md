@@ -74,7 +74,7 @@ mo --input_model ocr.onnx --output probabilities
 ```sh
 mo --input_model unet.pdmodel --mean_values [123,117,104] --scale 255
 ```
-有关更多信息，请参阅[转换 PaddlePaddle 模型](../../MO_DG/prepare_model/convert_model/Convert_Model_From_Paddle_zh_CN.md)指南。
+有关更多信息，请参阅[转换 PaddlePaddle 模型](./prepare_model/convert_model/Convert_Model_From_Paddle_zh_CN.md)指南。
 
 4. 为 Apache MXNet SSD Inception V3 模型启动模型优化器，并为输入指定第一通道布局：
 ```sh
