@@ -1,22 +1,5 @@
 # 模型优化器用法 {#openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide_zh_CN}
 
-@sphinxdirective
-
-.. _deep learning model optimizer:
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-
-   openvino_docs_model_inputs_outputs
-   openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model
-   openvino_docs_MO_DG_prepare_model_Model_Optimization_Techniques 
-   openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model
-   openvino_docs_MO_DG_Additional_Optimization_Use_Cases
-   openvino_docs_MO_DG_FP16_Compression
-   openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ
-
-@endsphinxdirective
 
 模型优化器是一个跨平台命令行工具，有助于在训练与部署环境之间进行迁移，执行静态模型分析，并调整深度学习模型，以在端点目标设备上优化执行。
 
