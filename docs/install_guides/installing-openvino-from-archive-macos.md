@@ -71,17 +71,17 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
 
       .. code-block:: sh
 
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/macos/m_openvino_toolkit_osx_2022.3.0.<update>.<patch>_x86_64.tgz --output openvino_2022.3.0.tgz
+         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/macos/m_openvino_toolkit_macos_10_15_2022.3.0.9052.9752fafe8eb_x86_64.tgz --output openvino_2022.3.0.tgz
          tar -xf openvino_2022.3.0.tgz
-         sudo mv m_openvino_toolkit_osx_2022.3.0.<update>.<patch>_x86_64 /opt/intel/openvino_2022.3.0
+         sudo mv m_openvino_toolkit_macos_10_15_2022.3.0.9052.9752fafe8eb_x86_64 /opt/intel/openvino_2022.3.0
 
    .. tab:: ARM, 64-bit
 
       .. code-block:: sh
 
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/macos/m_openvino_toolkit_osx_2022.3.0.<update>.<patch>_arm64.tgz --output openvino_2022.3.0.tgz
+         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/macos/m_openvino_toolkit_macos_11_0_2022.3.0.9052.9752fafe8eb_arm64.tgz --output openvino_2022.3.0.tgz
          tar -xf openvino_2022.3.0.tgz
-         sudo mv m_openvino_toolkit_osx_2022.3.0.<update>.<patch>_arm64 /opt/intel/openvino_2022.3.0
+         sudo mv m_openvino_toolkit_macos_11_0_2022.3.0.9052.9752fafe8eb_arm64 /opt/intel/openvino_2022.3.0
 
 5. For simplicity, it is useful to create a symbolic link as below:
 
