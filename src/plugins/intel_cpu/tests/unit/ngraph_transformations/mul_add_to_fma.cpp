@@ -155,7 +155,7 @@ protected:
 };
 
 TEST_P(MulAddToFMATests, MulAddToFMATests) {
-    auto subgraph = getLoweredSubgraph(snippets_function->getOriginal(), master_shape, cpu_manager, generator);
+    auto subgraph = getLoweredSubgraph(snippets_function->getOriginal(), master_shape, {}, {}, cpu_manager, generator);
     model = subgraph->body_ptr();
     model_ref = snippets_function->getLowered();
 }

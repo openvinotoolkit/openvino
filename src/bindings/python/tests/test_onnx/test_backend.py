@@ -37,7 +37,6 @@ from tests import (
     xfail_issue_58033,
     xfail_issue_63033,
     xfail_issue_63036,
-    xfail_issue_63039,
     xfail_issue_63043,
     xfail_issue_63137,
     xfail_issue_63138,
@@ -278,10 +277,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_batchnorm_example_training_mode_cpu",
     ),
     (xfail_issue_63036, "OnnxBackendNodeModelTest.test_convtranspose_autopad_same_cpu"),
-    (
-        xfail_issue_63039,
-        "OnnxBackendNodeModelTest.test_div_uint8_cpu",
-    ),
     (
         xfail_issue_63043,
         "OnnxBackendNodeModelTest.test_gru_batchwise_cpu",

@@ -16,7 +16,7 @@ using BlockedShapeVector = ngraph::snippets::op::Subgraph::BlockedShapeVector;
 class DummyEmitter : public ngraph::snippets::Emitter {
 public:
     // Here I pass Add to Emitter, but could be any other op, since it's ignored anyway.
-    DummyEmitter() : ngraph::snippets::Emitter(std::make_shared<ov::op::v1::Add>()) {}
+    DummyEmitter(const std::vector<ov::Node::type_info_t>& custom_opset = {}) : ngraph::snippets::Emitter(std::make_shared<ov::op::v1::Add>()) {}
     void emit_code(const std::vector<size_t>&,
                    const std::vector<size_t>&,
                    const std::vector<size_t>&,
@@ -49,7 +49,9 @@ protected:
     static std::shared_ptr<ngraph::snippets::op::Subgraph> getSubgraph(const std::shared_ptr<Model>& f);
     static std::shared_ptr<ngraph::snippets::op::Subgraph> getLoweredSubgraph(const std::shared_ptr<Model>& f,
                                                                               const ov::PartialShape& master_shape,
-                                                                              ov::pass::Manager target_optimizations = {},
+                                                                              ov::pass::Manager pre_dialect = {},
+                                                                              ov::pass::Manager post_dialect = {},
+                                                                              ov::pass::Manager post_precision = {},
                                                                               const std::shared_ptr<ngraph::snippets::Generator> generator = nullptr);
     static std::shared_ptr<ngraph::snippets::op::Subgraph> getTokenizedSubgraph(const std::shared_ptr<Model>& f);
     ov::PartialShape master_shape{};
