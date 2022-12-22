@@ -10,25 +10,27 @@ using namespace InferenceEngine;
 
 using ExceptionTests = ::testing::Test;
 
-template<StatusCode statusCode>
+template <StatusCode statusCode>
 class WrapperClass {
 public:
-    static InferenceEngine::StatusCode toStatusWrapper(InferenceEngine::ResponseDesc *resp) {
-        TO_STATUS(IE_EXCEPTION_SWITCH(statusCode, ExceptionType,
-            InferenceEngine::details::ThrowNow<ExceptionType>{}
-                <<= std::stringstream{} << IE_LOCATION))
+    static InferenceEngine::StatusCode toStatusWrapper(InferenceEngine::ResponseDesc* resp) {
+        TO_STATUS(IE_EXCEPTION_SWITCH(
+            statusCode,
+            ExceptionType,
+            InferenceEngine::details::ThrowNow<ExceptionType>{} <<= std::stringstream{} << IE_LOCATION))
     }
 
-    static InferenceEngine::StatusCode toStatusWrapperMsg(std::string &msg, InferenceEngine::ResponseDesc *resp) {
-        TO_STATUS(IE_EXCEPTION_SWITCH(statusCode, ExceptionType,
-            InferenceEngine::details::ThrowNow<ExceptionType>{}
-                <<= std::stringstream{} << IE_LOCATION << msg))
+    static InferenceEngine::StatusCode toStatusWrapperMsg(std::string& msg, InferenceEngine::ResponseDesc* resp) {
+        TO_STATUS(IE_EXCEPTION_SWITCH(
+            statusCode,
+            ExceptionType,
+            InferenceEngine::details::ThrowNow<ExceptionType>{} <<= std::stringstream{} << IE_LOCATION << msg))
     }
 };
 
 // TO_STATUS macros tests
 TEST_F(ExceptionTests, canConvertToStatus) {
-    ResponseDesc *resp = nullptr;
+    ResponseDesc* resp = nullptr;
     ASSERT_EQ(WrapperClass<StatusCode::GENERAL_ERROR>::toStatusWrapper(resp), StatusCode::GENERAL_ERROR);
     ASSERT_EQ(WrapperClass<StatusCode::NOT_IMPLEMENTED>::toStatusWrapper(resp), StatusCode::NOT_IMPLEMENTED);
     ASSERT_EQ(WrapperClass<StatusCode::NETWORK_NOT_LOADED>::toStatusWrapper(resp), StatusCode::NETWORK_NOT_LOADED);
@@ -51,8 +53,12 @@ TEST_F(ExceptionTests, canConvertStatusToException) {
 TEST_F(ExceptionTests, canHandleNullPtr) {
     class Mock {
     public:
-        StatusCode func0(ResponseDesc*) {return StatusCode ::OK;}
-        StatusCode func1(int, ResponseDesc*) {return StatusCode ::OK;}
+        StatusCode func0(ResponseDesc*) {
+            return StatusCode ::OK;
+        }
+        StatusCode func1(int, ResponseDesc*) {
+            return StatusCode ::OK;
+        }
     };
     //  shared_ptr holding the nullptr
     std::shared_ptr<Mock> actual;
