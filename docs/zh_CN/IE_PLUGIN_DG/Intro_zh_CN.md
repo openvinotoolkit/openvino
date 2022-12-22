@@ -1,22 +1,5 @@
 # 推理引擎插件库概述 {#openvino_docs_ie_plugin_dg_overview_zh_CN}
 
-@sphinxdirective
-
-.. toctree::
-   :maxdepth: 1
-   :caption: 转换和准备模型
-   :hidden:
-
-   实现插件功能 <openvino_docs_ie_plugin_dg_plugin>
-   实现可执行网络功能 <openvino_docs_ie_plugin_dg_executable_network>
-   实现同步推理请求 <openvino_docs_ie_plugin_dg_infer_request>
-   实现异步推理请求 <openvino_docs_ie_plugin_dg_async_infer_request>
-   openvino_docs_ie_plugin_dg_plugin_build
-   openvino_docs_ie_plugin_dg_plugin_testing
-   openvino_docs_ie_plugin_detailed_guides
-   openvino_docs_ie_plugin_api_references
-
-@endsphinxdirective
 
 推理引擎的插件架构支持开发和插入不同设备专用的独立推理解决方案。从物理上讲，插件用导出支持创建新插件实例的单个 `CreatePluginEngine` 函数的动态库来表示。
 
