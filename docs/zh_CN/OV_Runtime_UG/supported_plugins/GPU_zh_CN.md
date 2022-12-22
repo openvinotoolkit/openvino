@@ -1,14 +1,5 @@
 # GPU 设备 {#openvino_docs_OV_UG_supported_plugins_GPU_zh_CN}
 
-@sphinxdirective
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-
-   openvino_docs_OV_UG_supported_plugins_GPU_RemoteTensor_API
-
-@endsphinxdirective
 
 GPU 插件是一个基于 OpenCL 的插件，用于在英特尔 GPU 上推理深度神经网络，包括集成 GPU 和独立 GPU。
 有关 GPU 插件的深入描述，请参见：
