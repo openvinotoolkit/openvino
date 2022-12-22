@@ -364,7 +364,7 @@ void InputModel::InputModelImpl::createTempConsts() {
             var_place->set_element_type(type);
             var_place->set_partial_shape(tensor_ps);
 
-            Shape shape(tensor_ps.size());
+            Shape shape(tensor_ps.size(), 0);
             for (auto i = 0; i < tensor_ps.size(); i++) {
                 const auto& dim = tensor_ps[i];
                 if (dim.is_static()) {
@@ -373,7 +373,10 @@ void InputModel::InputModelImpl::createTempConsts() {
             }
 
             if (tensor_ps.is_static()) {
-                shape[1] = 0;
+                // this tensorarray tensor originally could be scalar, then
+                // tensor_ps size would be 1 after unsqueeze.
+                auto idx = tensor_ps.size() > 1 ? 1 : 0;
+                shape[idx] = 0;
             }
 
             auto node = opset7::Constant::create(type, shape, {0});
