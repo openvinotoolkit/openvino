@@ -152,9 +152,6 @@ std::shared_ptr<ov::Model> MHASinhFunction::initOriginal() const {
     auto transpose2Const = ngraph::builder::makeConstant(ngraph::element::i64, constantShapes[5], std::vector<int64_t>{0, 2, 1, 3});
     auto transpose3Const = ngraph::builder::makeConstant(ngraph::element::i64, constantShapes[6], std::vector<int64_t>{0, 2, 1, 3});
 
-    std::vector<float> mulConstData(ngraph::shape_size(constantShapes[2]));
-    auto mulConst = ngraph::builder::makeConstant(precision, constantShapes[2], mulConstData, true);
-
     std::vector<int64_t> reshape0ConstData = {static_cast<int64_t>(input_shapes[0].get_shape()[0] *
                                                                    input_shapes[0].get_shape()[1] * input_shapes[0].get_shape()[2]),
                                               -1};
@@ -170,8 +167,13 @@ std::shared_ptr<ov::Model> MHASinhFunction::initOriginal() const {
     float transB = false;
     const auto transpose0 = std::make_shared<ov::op::v1::Transpose>(sinh0, transpose0Const);
     const auto transpose1 = std::make_shared<ov::op::v1::Transpose>(sinh1, transpose1Const);
-    const auto mul = std::make_shared<ngraph::opset3::Multiply>(transpose1, mulConst);
-    const auto matMul0 = std::make_shared<ngraph::opset3::MatMul>(transpose0, mul, transA, transB);
+    std::shared_ptr<ov::Node> matmul_parent1 = transpose1;
+    if (with_mul) {
+        std::vector<float> mulConstData(ngraph::shape_size(constantShapes[2]));
+        auto mulConst = ngraph::builder::makeConstant(precision, constantShapes[2], mulConstData, true);
+        matmul_parent1 = std::make_shared<ngraph::opset3::Multiply>(transpose1, mulConst);
+    }
+    const auto matMul0 = std::make_shared<ngraph::opset3::MatMul>(transpose0, matmul_parent1, transA, transB);
     const auto add = std::make_shared<ngraph::opset3::Add>(matMul0, sinh2);
     const auto reshape0 = std::make_shared<ngraph::opset1::Reshape>(add, reshape0Const, true);
     const auto softMax = std::make_shared<ngraph::opset1::Softmax>(reshape0, 1);

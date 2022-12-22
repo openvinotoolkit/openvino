@@ -133,6 +133,11 @@ void TransposeMatMul::SetUp() {
     }
 }
 
+TEST_P(MatMul, CompareWithRefImpl) {
+    run();
+    validateNumSubgraphs();
+}
+
 TEST_P(MatMulBias, CompareWithRefImpl) {
     run();
     validateNumSubgraphs();

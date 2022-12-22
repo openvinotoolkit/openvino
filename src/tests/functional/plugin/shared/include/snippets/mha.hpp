@@ -12,6 +12,7 @@ namespace snippets {
 
 typedef std::tuple<
         std::vector<ov::Shape>,          // Input shapes
+        bool,                            // With Multiply
         size_t,                          // Expected num nodes
         size_t,                          // Expected num subgraphs
         std::string                      // Target Device
@@ -25,6 +26,8 @@ public:
 
 protected:
     void SetUp() override;
+
+    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override;
 };
 
 class MHASelect : public MHA {

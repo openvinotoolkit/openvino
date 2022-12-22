@@ -26,11 +26,14 @@ protected:
 // TODO: Write Graph
 class MHASinhFunction : public SnippetsFunctionBase {
 public:
-    explicit MHASinhFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+    explicit MHASinhFunction(const std::vector<PartialShape>& inputShapes, bool with_mul = true)
+        : SnippetsFunctionBase(inputShapes), with_mul(with_mul) {
         NGRAPH_CHECK(input_shapes.size() == 4, "Got invalid number of input shapes");
     }
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
+
+    bool with_mul = true;
 };
 
 // TODO: Write Graph
