@@ -20,6 +20,7 @@
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "file_utils.h"
 #include "ie_plugin_config.hpp"
+#include "openvino/icompiled_model.hpp"
 #include "openvino/iplugin.hpp"
 #include "openvino/runtime/common.hpp"
 #include "so_ptr.hpp"
@@ -198,14 +199,14 @@ public:
         OV_PLUGIN_CALL_STATEMENT(m_ptr->set_property(config));
     }
 
-    SoPtr<ie::IExecutableNetworkInternal> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                        const ov::AnyMap& properties) {
+    SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                            const ov::AnyMap& properties) {
         OV_PLUGIN_CALL_STATEMENT(return {m_ptr->compile_model(model, properties), m_so});
     }
 
-    SoPtr<ie::IExecutableNetworkInternal> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                        const ov::RemoteContext& context,
-                                                        const ov::AnyMap& properties) {
+    SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                            const ov::RemoteContext& context,
+                                            const ov::AnyMap& properties) {
         OV_PLUGIN_CALL_STATEMENT(return {m_ptr->compile_model(model, properties, context), m_so});
     }
 
@@ -213,13 +214,13 @@ public:
         OV_PLUGIN_CALL_STATEMENT(return m_ptr->query_model(model, properties));
     }
 
-    SoPtr<ie::IExecutableNetworkInternal> import_model(std::istream& model, const ov::AnyMap& properties) {
+    SoPtr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) {
         OV_PLUGIN_CALL_STATEMENT(return {m_ptr->import_model(model, properties), m_so});
     }
 
-    SoPtr<ie::IExecutableNetworkInternal> import_model(std::istream& networkModel,
-                                                       const ov::RemoteContext& context,
-                                                       const ov::AnyMap& config) {
+    SoPtr<ov::ICompiledModel> import_model(std::istream& networkModel,
+                                           const ov::RemoteContext& context,
+                                           const ov::AnyMap& config) {
         OV_PLUGIN_CALL_STATEMENT(return {m_ptr->import_model(networkModel, context, config), m_so});
     }
 

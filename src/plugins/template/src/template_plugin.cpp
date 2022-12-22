@@ -16,6 +16,7 @@
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include "openvino/core/any.hpp"
 #include "openvino/runtime/common.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
 #include <transformations/disable_decompression_convert_constant_folding.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -176,7 +177,18 @@ void Plugin::set_property(const ov::AnyMap& config) {
 
 // ! [plugin:get_config]
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& /*options*/) const {
-    if (METRIC_KEY(SUPPORTED_METRICS) == name) {
+    if (ov::supported_properties.name() == name) {
+        const static std::vector<ov::PropertyName> supportedProperties = {ov::available_devices.name(),
+                                                                          ov::supported_properties.name(),
+                                                                          METRIC_KEY(SUPPORTED_METRICS),
+                                                                          METRIC_KEY(SUPPORTED_CONFIG_KEYS),
+                                                                          METRIC_KEY(FULL_DEVICE_NAME),
+                                                                          METRIC_KEY(IMPORT_EXPORT_SUPPORT),
+                                                                          METRIC_KEY(DEVICE_ARCHITECTURE),
+                                                                          METRIC_KEY(OPTIMIZATION_CAPABILITIES),
+                                                                          METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS)};
+        return decltype(ov::supported_properties)::value_type(supportedProperties);
+    } else if (METRIC_KEY(SUPPORTED_METRICS) == name) {
         std::vector<std::string> supportedMetrics = {METRIC_KEY(AVAILABLE_DEVICES),
                                                      METRIC_KEY(SUPPORTED_METRICS),
                                                      METRIC_KEY(SUPPORTED_CONFIG_KEYS),

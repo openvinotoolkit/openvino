@@ -111,26 +111,25 @@ const std::string& ov::IPlugin::get_name() const {
     return m_plugin_name;
 }
 
-std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ov::IPlugin::compile_model(
-    const std::shared_ptr<const ov::Model>& model,
-    const ov::AnyMap& properties) {
+std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                               const ov::AnyMap& properties) {
     if (old_plugin) {
-        auto compiled_model =
-            old_plugin->LoadNetwork(create_cnnnetwork(model, is_new_api()), any_map_to_string_map(properties));
+        auto compiled_model = std::make_shared<ov::ICompiledModel>(
+            old_plugin->LoadNetwork(create_cnnnetwork(model, is_new_api()), any_map_to_string_map(properties)));
         return compiled_model;
     }
     return compile_model(model, properties, {});
 }
 
-std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ov::IPlugin::compile_model(
-    const std::shared_ptr<const ov::Model>& model,
-    const ov::AnyMap& properties,
-    const ov::RemoteContext& context) {
-    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> compiled_model;
+std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                               const ov::AnyMap& properties,
+                                                               const ov::RemoteContext& context) {
+    std::shared_ptr<ICompiledModel> compiled_model;
     if (old_plugin) {
-        compiled_model = old_plugin->LoadNetwork(create_cnnnetwork(model, is_new_api()),
-                                                 any_map_to_string_map(properties),
-                                                 context._impl);
+        auto compiled_model =
+            std::make_shared<ov::ICompiledModel>(old_plugin->LoadNetwork(create_cnnnetwork(model, is_new_api()),
+                                                                         any_map_to_string_map(properties),
+                                                                         context._impl));
         return compiled_model;
     }
     std::shared_ptr<ov::Model> cloned_model = model->clone();
@@ -175,25 +174,22 @@ std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ov::IPlugin::compil
         }
     }
 
-    // TODO:
-    // if (context == ov::RemoteContext()) {
-    compiled_model = compile_model_impl(cloned_model, properties);
-    // } else {
-    //     compiled_model = compile_model_impl(cloned_model, context, properties);
-    // }
+    if (!context._impl) {
+        compiled_model = compile_model_impl(cloned_model, properties);
+    } else {
+        compiled_model = compile_model_impl(cloned_model, context, properties);
+    }
     return compiled_model;
 }
 
-std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ov::IPlugin::compile_model_impl(
-    const std::shared_ptr<ov::Model>& model,
-    const ov::RemoteContext& context,
-    const ov::AnyMap& properties) {
+std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model_impl(const std::shared_ptr<ov::Model>& model,
+                                                                    const ov::RemoteContext& context,
+                                                                    const ov::AnyMap& properties) {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ov::IPlugin::compile_model_impl(
-    const std::shared_ptr<ov::Model>& model,
-    const ov::AnyMap& properties) {
+std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model_impl(const std::shared_ptr<ov::Model>& model,
+                                                                    const ov::AnyMap& properties) {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
@@ -238,19 +234,20 @@ ov::RemoteContext ov::IPlugin::get_default_context(const ov::AnyMap& remote_prop
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ov::IPlugin::import_model(std::istream& model,
-                                                                                       const ov::AnyMap& properties) {
+std::shared_ptr<ov::ICompiledModel> ov::IPlugin::import_model(std::istream& model, const ov::AnyMap& properties) {
     if (old_plugin) {
-        return old_plugin->ImportNetwork(model, any_map_to_string_map(properties));
+        return std::make_shared<ov::ICompiledModel>(
+            old_plugin->ImportNetwork(model, any_map_to_string_map(properties)));
     }
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ov::IPlugin::import_model(std::istream& model,
-                                                                                       const ov::RemoteContext& context,
-                                                                                       const ov::AnyMap& properties) {
+std::shared_ptr<ov::ICompiledModel> ov::IPlugin::import_model(std::istream& model,
+                                                              const ov::RemoteContext& context,
+                                                              const ov::AnyMap& properties) {
     if (old_plugin) {
-        return old_plugin->ImportNetwork(model, context._impl, any_map_to_string_map(properties));
+        return std::make_shared<ov::ICompiledModel>(
+            old_plugin->ImportNetwork(model, context._impl, any_map_to_string_map(properties)));
     }
     OPENVINO_NOT_IMPLEMENTED;
 }

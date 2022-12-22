@@ -67,9 +67,8 @@ public:
      * @param properties A ov::AnyMap of properties relevant only for this load operation
      * @return Created Compiled Model object
      */
-    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> compile_model(
-        const std::shared_ptr<const ov::Model>& model,
-        const ov::AnyMap& properties);
+    std::shared_ptr<ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                  const ov::AnyMap& properties);
 
     /**
      * @brief Compiles model from ov::Model object, on specified remote context
@@ -79,10 +78,9 @@ public:
      *        execute the model
      * @return Created Compiled Model object
      */
-    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> compile_model(
-        const std::shared_ptr<const ov::Model>& model,
-        const ov::AnyMap& properties,
-        const ov::RemoteContext& context);
+    std::shared_ptr<ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                  const ov::AnyMap& properties,
+                                                  const ov::RemoteContext& context);
 
     /**
      * @brief Sets properties for plugin, acceptable keys can be found in openvino/runtime/properties.hpp
@@ -123,8 +121,7 @@ public:
      * @param properties A ov::AnyMap of properties
      * @return An Compiled model
      */
-    virtual std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> import_model(std::istream& model,
-                                                                                      const ov::AnyMap& properties);
+    virtual std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties);
 
     /**
      * @brief Creates an compiled model from an previously exported model using plugin implementation
@@ -135,9 +132,9 @@ public:
      * @param properties A ov::AnyMap of properties
      * @return An Compiled model
      */
-    virtual std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> import_model(std::istream& model,
-                                                                                      const ov::RemoteContext& context,
-                                                                                      const ov::AnyMap& properties);
+    virtual std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
+                                                             const ov::RemoteContext& context,
+                                                             const ov::AnyMap& properties);
 
     /**
      * @brief Sets pointer to ICore interface
@@ -197,9 +194,8 @@ protected:
      * @param properties ov::AnyMap of properties relevant only for this load operation
      * @return Shared pointer to the CompiledModel object
      */
-    virtual std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> compile_model_impl(
-        const std::shared_ptr<ov::Model>& model,
-        const ov::AnyMap& properties);
+    virtual std::shared_ptr<ICompiledModel> compile_model_impl(const std::shared_ptr<ov::Model>& model,
+                                                               const ov::AnyMap& properties);
 
     /**
      * @brief Creates an compiled model from ov::Model object, users can create as many networks as they need
@@ -212,10 +208,9 @@ protected:
      * @param properties ov::AnyMap of properties relevant only for this load operation
      * @return Shared pointer to the CompiledModel object
      */
-    virtual std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> compile_model_impl(
-        const std::shared_ptr<ov::Model>& model,
-        const ov::RemoteContext& context,
-        const ov::AnyMap& properties);
+    virtual std::shared_ptr<ICompiledModel> compile_model_impl(const std::shared_ptr<ov::Model>& model,
+                                                               const ov::RemoteContext& context,
+                                                               const ov::AnyMap& properties);
 
     /**
      * @brief Set input and output information to executable network. This method is used to
