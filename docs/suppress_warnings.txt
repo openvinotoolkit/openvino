@@ -101,3 +101,5 @@ explicit markup ends without a blank line
 \* modulenotfounderror
 unexpected unindent
 failed to import object
+autosummary: stub file not found
+failed to parse name
