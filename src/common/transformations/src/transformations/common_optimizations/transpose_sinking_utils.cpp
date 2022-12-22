@@ -104,7 +104,7 @@ NodePtr InsertUnsqueeze(Output<Node> node, size_t n_dims) {
     return unsqueeze;
 }
 
-ov::Output<ov::Node> FixInputNodeRank(ov::Output<ov::Node> input_node, size_t required_rank) {
+ov::Output<ov::Node> FixInputNodeRank(ov::Output<ov::Node> input_node, ov::Rank::value_type required_rank) {
     const ov::Rank::value_type output_rank = input_node.get_partial_shape().rank().get_length();
     if (output_rank >= required_rank)
         return input_node;
