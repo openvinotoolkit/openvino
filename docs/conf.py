@@ -181,9 +181,4 @@ def setup(app):
     app.add_js_file('js/custom.js')
     app.add_js_file('js/graphs.js')
     app.add_js_file('js/graphs_ov_tf.js')
-<<<<<<< HEAD
-    
-=======
     app.add_js_file('js/open_sidebar.js')
-    
->>>>>>> 3a77bb8408dcff23bc42fb5c0b7a6dcd4e6c3b18
