@@ -59,27 +59,27 @@ xfail_issue_38701 = xfail_test(reason="RuntimeError: unsupported element type: S
 xfail_issue_38706 = xfail_test(reason="RuntimeError: output_3.0 has zero dimension which is not allowed")
 xfail_issue_38708 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Slice): y>': "
                                       "Axes input must be constant")
-xfail_issue_XXXX1 = xfail_test(reason="Bitwise operators - RuntimeError: Check 'unknown_operators.empty()' failed")
-xfail_issue_XXXX2 = xfail_test(reason="CenterCropPad func - RuntimeError: Check 'unknown_operators.empty()' failed")
-xfail_issue_XXXX3 = xfail_test(reason="Col2Im - RuntimeError: Check 'unknown_operators.empty()' failed")
-xfail_issue_XXXX4 = xfail_test(reason="Constant Pad - RuntimeError: Shape inference of Reference node with name y failed")
-xfail_issue_XXXX5 = xfail_test(reason="GroupNorm - RuntimeError: Validating node or 'unknown_operators.empty()' failed")
-xfail_issue_XXXX6 = xfail_test(reason="LayerNorm - RuntimeError: While validating node '<Node(Reshape): Mean>'")
-xfail_issue_XXXX7 = xfail_test(reason="LogSoftmax - AssertionError")
-xfail_issue_XXXX8 = xfail_test(reason="Mish - RuntimeError: Check 'unknown_operators.empty()' failed")
-xfail_issue_XXXX9 = xfail_test(reason="MVN - AssertionError")
-xfail_issue_XXX10 = xfail_test(reason="Optional has/get element - RuntimeError: Check 'unknown_operators.empty()'")
-xfail_issue_XXX11 = pytest.mark.skip(reason="ReduceL1/L2 - Unrecognized attribute: axes for operator ReduceL1/L2")
-xfail_issue_XXX12 = xfail_test(reason="ReduceL1/L2 - AssertionError or unsupported ReduceSum with "
+xfail_issue_99949 = xfail_test(reason="Bitwise operators are not supported")
+xfail_issue_99950 = xfail_test(reason="CenterCropPad func is not supported")
+xfail_issue_99952 = xfail_test(reason="Col2Im operator is not supported")
+xfail_issue_99954 = xfail_test(reason="Constant Pad - RuntimeError: Shape inference of Reference node with name y failed")
+xfail_issue_99955 = xfail_test(reason="GroupNorm is not supported")
+xfail_issue_99957 = xfail_test(reason="LayerNorm - RuntimeError: While validating node '<Node(Reshape): Mean>'")
+xfail_issue_99958 = xfail_test(reason="LogSoftmax - Results mismatch")
+xfail_issue_99959 = xfail_test(reason="Mish function is not supported")
+xfail_issue_99960 = xfail_test(reason="MVN - Results mismatch")
+xfail_issue_99961 = xfail_test(reason="Optional has/get element operators are not supported)'")
+xfail_issue_99962 = pytest.mark.skip(reason="ReduceL1/L2 - Unrecognized attribute: axes for operator ReduceL1/L2")
+xfail_issue_99968 = xfail_test(reason="ReduceL1/L2 - Results mismatch or unsupported ReduceSum with "
                                       "dynamic rank by CPU plugin")
-xfail_issue_XXX13 = xfail_test(reason="Resize - AssertionError / "
+xfail_issue_99969 = xfail_test(reason="Resize - Results mismatch / "
                                       "RuntimeError: While validating ONNX node '<Node(Resize): Y>' / "
                                       "RuntimeError: Check '(false)' failed at onnx/frontend/src/op/resize.cpp")
-xfail_issue_XXX14 = xfail_test(reason="Scatter and ScatterND - RuntimeError: Check '(reduction == none)' failed at "
+xfail_issue_99970 = xfail_test(reason="Scatter and ScatterND - RuntimeError: Check '(reduction == none)' failed at "
                                       "src/frontends/onnx/frontend/src/op/scatter_elements.cpp OR at "
                                       "src/frontends/onnx/frontend/src/op/scatter_nd")
-xfail_issue_XXX15 = xfail_test(reason="Softmax - AssertionError")
-xfail_issue_XXX16 = xfail_test(reason="Split -  RuntimeError: While validating ONNX node "
+xfail_issue_99972 = xfail_test(reason="Softmax - Results mismatch")
+xfail_issue_99973 = xfail_test(reason="Split -  RuntimeError: While validating ONNX node "
                                       "'<Node(Split): output_1, output_2, output_3, output_4>'")
 xfail_issue_38710 = xfail_test(reason="RuntimeError: data has zero dimension which is not allowed")
 xfail_issue_38713 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations: "

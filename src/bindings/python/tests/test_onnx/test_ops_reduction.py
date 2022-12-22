@@ -6,7 +6,7 @@ import numpy as np
 import onnx
 import pytest
 
-from tests import xfail_issue_XXX11
+from tests import xfail_issue_99962
 from tests.runtime import get_runtime
 from tests.test_onnx.utils import (
     run_node,
@@ -81,7 +81,7 @@ def test_reduce_operation_keepdims_none_axes(operation, ref_operation):
 
 @pytest.mark.parametrize(("operation", "ref_operation"), reduce_operation_parameters_as_attr)
 @pytest.mark.parametrize("axes", reduce_axis_parameters)
-@xfail_issue_XXX11
+@xfail_issue_99962
 def test_reduce_operation_keepdims_with_axes_as_attr(operation, ref_operation, axes):
     assert np.array_equal(import_and_compute(operation, reduce_data, axes=axes, keepdims=True),
                           ref_operation(reduce_data, keepdims=True, axis=axes))
@@ -104,7 +104,7 @@ def test_reduce_operation_keepdims_with_axes_as_const(operation, ref_operation, 
     (1, 2),
     (0, 1, 2)])
 @pytest.mark.parametrize(("operation", "ref_operation"), reduce_operation_parameters_as_attr)
-@xfail_issue_XXX11
+@xfail_issue_99962
 def test_reduce_operation_no_keepdims_axes_as_attr(operation, ref_operation, axes):
     if axes:
         assert np.array_equal(import_and_compute(operation, reduce_data, axes=axes, keepdims=False),
@@ -136,7 +136,7 @@ def test_reduce_operation_no_keepdims_axes_as_const(operation, ref_operation, ax
                               ref_operation(reduce_data, keepdims=False))
 
 
-@xfail_issue_XXX11
+@xfail_issue_99962
 @pytest.mark.parametrize("reduction_axes", [(0,), (0, 2), (0, 1, 2)])
 def test_reduce_l1(reduction_axes):
     shape = [2, 4, 3, 2]
@@ -156,7 +156,7 @@ def test_reduce_l1(reduction_axes):
     assert np.allclose(expected, graph_result)
 
 
-@xfail_issue_XXX11
+@xfail_issue_99962
 def test_reduce_l1_default_axes():
     shape = [2, 4, 3, 2]
     np.random.seed(133391)
@@ -175,7 +175,7 @@ def test_reduce_l1_default_axes():
     assert np.allclose(expected, graph_result)
 
 
-@xfail_issue_XXX11
+@xfail_issue_99962
 @pytest.mark.parametrize("reduction_axes", [(0,), (0, 2), (0, 1, 2)])
 def test_reduce_l2(reduction_axes):
     shape = [2, 4, 3, 2]
@@ -196,7 +196,7 @@ def test_reduce_l2(reduction_axes):
     assert np.allclose(expected, graph_result)
 
 
-@xfail_issue_XXX11
+@xfail_issue_99962
 def test_reduce_l2_default_axes():
     shape = [2, 4, 3, 2]
     np.random.seed(133391)
@@ -215,7 +215,7 @@ def test_reduce_l2_default_axes():
     assert np.allclose(expected, graph_result)
 
 
-@xfail_issue_XXX11
+@xfail_issue_99962
 @pytest.mark.parametrize("reduction_axes", [(0,), (0, 2), (0, 1, 2)])
 def test_reduce_log_sum(reduction_axes):
     shape = [2, 4, 3, 2]
@@ -235,7 +235,7 @@ def test_reduce_log_sum(reduction_axes):
     assert np.allclose(expected, graph_result)
 
 
-@xfail_issue_XXX11
+@xfail_issue_99962
 def test_reduce_log_sum_default_axes():
     shape = [2, 4, 3, 2]
     np.random.seed(133391)
@@ -254,7 +254,7 @@ def test_reduce_log_sum_default_axes():
     assert np.allclose(expected, graph_result)
 
 
-@xfail_issue_XXX11
+@xfail_issue_99962
 def test_reduce_log_sum_exp():
     def logsumexp(data, axis=None, keepdims=True):
         return np.log(np.sum(np.exp(data), axis=axis, keepdims=keepdims))
@@ -286,7 +286,7 @@ def test_reduce_log_sum_exp():
     )
 
 
-@xfail_issue_XXX11
+@xfail_issue_99962
 @pytest.mark.parametrize("reduction_axes", [(0,), (0, 2), (0, 1, 2)])
 def test_reduce_sum_square(reduction_axes):
     shape = [2, 4, 3, 2]
@@ -306,7 +306,7 @@ def test_reduce_sum_square(reduction_axes):
     assert np.allclose(expected, graph_result)
 
 
-@xfail_issue_XXX11
+@xfail_issue_99962
 def test_reduce_sum_square_default_axes():
     shape = [2, 4, 3, 2]
     np.random.seed(133391)
