@@ -504,7 +504,8 @@ string pass::VisualizeTree::get_node_name(shared_ptr<Node> node) {
     if (node->get_friendly_name() != node->get_name()) {
         rc += "\\n" + (nvtmn ? string("name: ") : "") + node->get_name();
     }
-    rc += "\\n" + (nvtmn ? string("type_name: ") : "") + std::string(node->get_type_name());
+    const auto type_info = node->get_type_info();
+    rc += "\\n" + (nvtmn ? string("type_name: ") : "") + std::string(type_info.version_id) + "::" + std::string(type_info.name);
 
     static const bool nvtrti = getenv_bool("OV_VISUALIZE_TREE_RUNTIME_INFO");
     if (nvtrti) {

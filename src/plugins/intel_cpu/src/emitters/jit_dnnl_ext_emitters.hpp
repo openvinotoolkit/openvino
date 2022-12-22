@@ -101,6 +101,10 @@ public:
 
             set_injector();
         }
+
+    static std::set<std::vector<InferenceEngine::Precision>> get_supported_precisions() {
+        return {{InferenceEngine::Precision::FP32}};
+    }
 };
 
 class jit_swish_emitter : public jit_dnnl_emitter {

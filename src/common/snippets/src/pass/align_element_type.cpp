@@ -13,6 +13,10 @@
 
 #include <ngraph/rt_info.hpp>
 
+#ifdef CPU_DEBUG_CAPS_SNIPPETS
+#include "ngraph/pass/visualize_tree.hpp"
+#endif
+
 namespace {
 
 inline auto is_in_op(const std::shared_ptr<ov::Node>& n) -> bool {
@@ -39,6 +43,10 @@ ngraph::snippets::pass::AlignElementType::AlignElementType(const ov::element::Ty
 
 bool ngraph::snippets::pass::AlignElementType::run_on_model(const std::shared_ptr<ov::Model> &m) {
     RUN_ON_FUNCTION_SCOPE(AlignElementType);
+
+#ifdef CPU_DEBUG_CAPS_SNIPPETS
+    ngraph::pass::VisualizeTree("svg/snippets.align_element_type.1.svg").run_on_model(m);
+#endif
 
     auto insertConvert = [](const std::shared_ptr<ov::Node>& op, const size_t idx, const ov::element::Type& element_type) -> void {
         auto convert = std::make_shared<ngraph::snippets::op::ConvertSaturation>(op->input(idx).get_source_output(), element_type);
@@ -89,6 +97,10 @@ bool ngraph::snippets::pass::AlignElementType::run_on_model(const std::shared_pt
             }
         }
     }
+
+#ifdef CPU_DEBUG_CAPS_SNIPPETS
+    ngraph::pass::VisualizeTree("svg/snippets.align_element_type.2.svg").run_on_model(m);
+#endif
 
     return rewritten;
 }

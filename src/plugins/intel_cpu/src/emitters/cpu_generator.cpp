@@ -22,11 +22,18 @@
 
 #include <ngraph/opsets/opset5.hpp>
 
+#include "snippets/op/add.hpp"
+#include "snippets/op/multiply.hpp"
+
 using namespace std;
 using namespace ngraph::snippets;
 
-#define CREATE_EMITTER(e_type) [this](const std::shared_ptr<ngraph::Node>& n) \
-    -> std::shared_ptr<ngraph::snippets::Emitter> {return std::make_shared<e_type>(h.get(), isa, n);};
+#define CREATE_EMITTER(e_type) { \
+    [this](const std::shared_ptr<ngraph::Node>& n) -> std::shared_ptr<ngraph::snippets::Emitter> { \
+        return std::make_shared<e_type>(h.get(), isa, n); \
+    }, \
+    e_type::get_supported_precisions() \
+};
 
 class jit_snippet : public dnnl::impl::cpu::x64::jit_generator {
 public:
@@ -73,7 +80,7 @@ ov::intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_
     jitters[ngraph::opset1::Select::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_select_emitter);
 
     // binary
-    jitters[ngraph::opset1::Add::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_add_emitter);
+    jitters[ngraph::snippets::op::Add::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_add_emitter);
     jitters[ngraph::opset1::Divide::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_divide_emitter);
     jitters[ngraph::opset1::Equal::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_equal_emitter);
     jitters[ngraph::opset1::FloorMod::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_floor_mod_emitter);
@@ -87,7 +94,7 @@ ov::intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_
     jitters[ngraph::opset1::Maximum::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_maximum_emitter);
     jitters[ngraph::opset1::Minimum::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_minimum_emitter);
     jitters[ngraph::opset1::Mod::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_mod_emitter);
-    jitters[ngraph::opset1::Multiply::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_multiply_emitter);
+    jitters[ngraph::snippets::op::Multiply::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_multiply_emitter);
     jitters[ngraph::opset1::NotEqual::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_not_equal_emitter);
     jitters[ngraph::snippets::op::PowerStatic::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_power_static_emitter);
     jitters[ngraph::opset1::Power::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_power_dynamic_emitter);

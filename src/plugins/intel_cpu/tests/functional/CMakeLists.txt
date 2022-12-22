@@ -8,10 +8,12 @@ set(TARGET_NAME ov_cpu_func_tests)
 # is a specific version for debugging purpose, just set DEBUG_SRC_PATH
 # to the test case to be debugged and debug using cpuDebugFuncTests
 set(DEBUG_TARGET_NAME cpuDebugFuncTests)
-set(DEBUG_SRC_PATH ${CMAKE_CURRENT_SOURCE_DIR}/subgraph_tests/src/conv_sum_broadcast.cpp)
+set(DEBUG_SRC_PATH ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/snippets/precision_propagation.cpp)
 
 add_library(cpuSpecificRtInfo STATIC $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/utils/rt_info/memory_formats_attribute.hpp
                                      $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/utils/rt_info/memory_formats_attribute.cpp)
+
+
 target_link_libraries(cpuSpecificRtInfo PRIVATE openvino::runtime)
 
 set(INCLUDES ${CMAKE_CURRENT_SOURCE_DIR} $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src)

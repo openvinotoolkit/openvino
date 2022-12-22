@@ -7,10 +7,12 @@
 
 #include "snippets/op/subgraph.hpp"
 #include "snippets/op/convert_saturation.hpp"
+#include "snippets/pass/convert_to_snippets_opset.hpp"
 #include "snippets/pass/insert_load_store.hpp"
 #include "snippets/pass/insert_movebroadcast.hpp"
 #include "snippets/pass/broadcast_to_movebroadcast.hpp"
 #include "snippets/pass/load_movebroadcast_to_broadcastload.hpp"
+#include "snippets/pass/propagate_precision.hpp"
 #include "snippets/pass/assign_registers.hpp"
 #include "snippets/pass/convert_constants.hpp"
 #include "snippets/pass/convert_power_to_powerstatic.hpp"
@@ -38,6 +40,10 @@
 #include <algorithm>
 #include <memory>
 #include <array>
+
+#ifdef CPU_DEBUG_CAPS_SNIPPETS
+#include "ngraph/pass/visualize_tree.hpp"
+#endif
 
 using namespace std;
 using namespace ngraph;
@@ -591,6 +597,14 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
         }
     }
     manager.run_passes(body_ptr());
+
+#ifdef CPU_DEBUG_CAPS_SNIPPETS
+    ngraph::pass::VisualizeTree("svg/snippets.convert_to_snippet_dialect.1.svg").run_on_model(body_ptr());
+#endif
+    snippets::pass::ConvertToSnippetsOpset().run_on_model(body_ptr());
+#ifdef CPU_DEBUG_CAPS_SNIPPETS
+    ngraph::pass::VisualizeTree("svg/snippets.convert_to_snippet_dialect.2.svg").run_on_model(body_ptr());
+#endif
 }
 
 snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& output_shapes,
@@ -620,6 +634,16 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
 
     convert_to_snippet_dialect();
     opt.run_passes(body_ptr());
+
+#ifdef CPU_DEBUG_CAPS_SNIPPETS
+    ngraph::pass::VisualizeTree("svg/snippets.generate.2.svg").run_on_model(body_ptr());
+#endif
+
+    snippets::pass::PropagatePrecision(element::f32, m_generator->get_target_machine()).run_on_model(body_ptr());
+
+#ifdef CPU_DEBUG_CAPS_SNIPPETS
+    ngraph::pass::VisualizeTree("svg/snippets.generate.3.svg").run_on_model(body_ptr());
+#endif
 
     // After all passes, when all optimizations are completed and all MemoryAccess ops are inserted,
     // we can calculate common buffer scratchpad size and propagate offset from Buffer to the corresponding MemoryAccess ops

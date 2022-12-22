@@ -211,6 +211,8 @@ protected:
             FAIL() << "Unsupported MHA pattern type";
         }
 
+        ngraph::pass::VisualizeTree("c:\\projects\\temp\\test.actual.svg").run_on_model(function);
+
         // TODO: try better input data initialization to avoid threshold adjustment
         // TODO: support different precisions on inputs
         if (inputPrecisions[0] == ElementType::bf16) {

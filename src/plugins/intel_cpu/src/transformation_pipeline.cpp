@@ -159,13 +159,19 @@ void Transformations::UpToCpuSpecificOpSet() {
 
     PreLpt(defaultPrecisions, isLegacyApi);
 
+    ngraph::pass::VisualizeTree("svg/cpu.common.svg").run_on_model(model);
+
     if (useLpt)
         Lpt(hasINT16orINT32Levels, defaultPrecisions);
+
+    ngraph::pass::VisualizeTree("svg/cpu.lpt.svg").run_on_model(model);
 
     PostLpt();
 
     if (useSnippets)
         Snippets();
+
+    ngraph::pass::VisualizeTree("svg/cpu.transformed.svg").run_on_model(model);
 }
 
 void Transformations::CpuSpecificOpSet(void) {
