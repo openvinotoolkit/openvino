@@ -50,22 +50,14 @@ ov::pass::TransposeSinkingBinaryElementwiseBackward::TransposeSinkingBinaryEleme
     MATCHER_SCOPE(TransposeSinkingBinaryElementwiseBackward);
 
     auto main_node_label = wrap_type<op::util::BinaryElementwiseArithmetic>([](const Output<Node>& output) -> bool {
-        auto consumers_check = consumers_count(1);
-        auto rank_check = has_static_rank();
-        return consumers_check(output) && rank_check(output);
+        return consumers_count(1)(output) && has_static_rank()(output);
     });
 
-    auto transpose_const_label = wrap_type<Constant>([](const Output<Node>& output) -> bool {
-        auto consumers_check = consumers_count(1);
-        auto rank_check = has_static_rank();
-        return consumers_check(output) && rank_check(output);
-    });
+    auto transpose_const_label = wrap_type<Constant>(consumers_count(1));
 
     auto transpose_label =
         wrap_type<Transpose>({main_node_label, transpose_const_label}, [](const Output<Node>& output) -> bool {
-            auto consumers_check = consumers_count(1);
-            auto rank_check = has_static_rank();
-            return consumers_check(output) && rank_check(output) && is_sinking_node(output.get_node_shared_ptr());
+            return consumers_count(1)(output) && has_static_rank()(output) && is_sinking_node(output);
         });
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {

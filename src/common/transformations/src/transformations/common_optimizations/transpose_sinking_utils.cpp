@@ -206,6 +206,8 @@ NodeVector InsertTransposeBeforeNode(NodePtr main_node, std::shared_ptr<Constant
     NodeVector new_nodes;
 
     const auto max_input_rank = GetMaxInputRank(main_node);
+    if (max_input_rank < 0)
+        return {};
 
     for (size_t i = 0; i < main_node->get_input_size(); ++i) {
         auto input_node = FixInputNodeRank(main_node->input_value(i), max_input_rank);
