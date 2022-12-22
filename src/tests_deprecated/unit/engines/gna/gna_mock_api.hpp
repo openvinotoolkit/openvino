@@ -3,7 +3,7 @@
 //
 
 #pragma once
-#include <gmock/gmock-generated-function-mockers.h>
+#include <gmock/gmock.h>
 #include <gna2-instrumentation-api.h>
 #include <gna2-inference-api.h>
 #include <gna2-model-export-api.h>

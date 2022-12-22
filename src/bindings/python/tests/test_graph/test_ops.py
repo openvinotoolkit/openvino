@@ -6,9 +6,8 @@
 import numpy as np
 
 import openvino.runtime.opset8 as ov
-from openvino.runtime import AxisSet, Model, Shape, Type
+from openvino.runtime import AxisSet, Shape, Type
 from openvino.runtime.op import Constant, Parameter
-from tests.runtime import get_runtime
 
 
 def binary_op(op_str, a, b):
@@ -81,47 +80,40 @@ def binary_op_ref(op_str, a, b):
         return np.power(a, b)
 
 
-def binary_op_exec(op_str):
+def binary_op_exec(op_str, expected_ov_str=None):
+    if not expected_ov_str:
+        expected_ov_str = op_str
 
     element_type = Type.f32
     shape = Shape([2, 2])
     A = Parameter(element_type, shape)
     B = Parameter(element_type, shape)
-    parameter_list = [A, B]
-    function = Model([binary_op(op_str, A, B)], parameter_list, "test")
+    node = binary_op(op_str, A, B)
 
-    a_arr = np.array([[1, 6], [7, 4]], dtype=np.float32)
-    b_arr = np.array([[5, 2], [3, 8]], dtype=np.float32)
-
-    runtime = get_runtime()
-    computation = runtime.computation(function, A, B)
-    result = computation(a_arr, b_arr)[0]
-
-    expected = binary_op_ref(op_str, a_arr, b_arr)
-    assert np.allclose(result, expected)
+    assert node.get_type_name() == expected_ov_str
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [2, 2]
+    assert node.get_output_element_type(0) == Type.f32
 
 
-def binary_op_comparison(op_str):
+def binary_op_comparison(op_str, expected_ov_str=None):
+    if not expected_ov_str:
+        expected_ov_str = op_str
 
     element_type = Type.f32
     shape = Shape([2, 2])
     A = Parameter(element_type, shape)
     B = Parameter(element_type, shape)
-    parameter_list = [A, B]
-    function = Model([binary_op(op_str, A, B)], parameter_list, "test")
-    a_arr = np.array([[1, 5], [3, 2]], dtype=np.float32)
-    b_arr = np.array([[2, 4], [3, 1]], dtype=np.float32)
+    node = binary_op(op_str, A, B)
 
-    runtime = get_runtime()
-    computation = runtime.computation(function, A, B)
-    result = computation(a_arr, b_arr)[0]
-
-    expected = binary_op_ref(op_str, a_arr, b_arr)
-    assert np.allclose(result, expected)
+    assert node.get_type_name() == expected_ov_str
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [2, 2]
+    assert node.get_output_element_type(0) == Type.boolean
 
 
 def test_add():
-    binary_op_exec("+")
+    binary_op_exec("+", "Add")
 
 
 def test_add_op():
@@ -129,27 +121,27 @@ def test_add_op():
 
 
 def test_sub():
-    binary_op_exec("-")
+    binary_op_exec("-", "Subtract")
 
 
 def test_sub_op():
-    binary_op_exec("Sub")
+    binary_op_exec("Sub", "Subtract")
 
 
 def test_mul():
-    binary_op_exec("*")
+    binary_op_exec("*", "Multiply")
 
 
 def test_mul_op():
-    binary_op_exec("Mul")
+    binary_op_exec("Mul", "Multiply")
 
 
 def test_div():
-    binary_op_exec("/")
+    binary_op_exec("/", "Divide")
 
 
 def test_div_op():
-    binary_op_exec("Div")
+    binary_op_exec("Div", "Divide")
 
 
 def test_maximum():
@@ -169,7 +161,7 @@ def test_greater():
 
 
 def test_greater_eq():
-    binary_op_comparison("GreaterEq")
+    binary_op_comparison("GreaterEq", "GreaterEqual")
 
 
 def test_less():
@@ -177,7 +169,7 @@ def test_less():
 
 
 def test_less_eq():
-    binary_op_comparison("LessEq")
+    binary_op_comparison("LessEq", "LessEqual")
 
 
 def test_not_equal():
@@ -191,23 +183,12 @@ def test_add_with_mul():
     A = Parameter(element_type, shape)
     B = Parameter(element_type, shape)
     C = Parameter(element_type, shape)
-    parameter_list = [A, B, C]
-    function = Model([ov.multiply(ov.add(A, B), C)], parameter_list, "test")
+    node = ov.multiply(ov.add(A, B), C)
 
-    runtime = get_runtime()
-    computation = runtime.computation(function, A, B, C)
-    result = computation(
-        np.array([1, 2, 3, 4], dtype=np.float32),
-        np.array([5, 6, 7, 8], dtype=np.float32),
-        np.array([9, 10, 11, 12], dtype=np.float32),
-    )[0]
-
-    a_arr = np.array([1, 2, 3, 4], dtype=np.float32)
-    b_arr = np.array([5, 6, 7, 8], dtype=np.float32)
-    c_arr = np.array([9, 10, 11, 12], dtype=np.float32)
-    result_arr_ref = (a_arr + b_arr) * c_arr
-
-    assert np.allclose(result, result_arr_ref)
+    assert node.get_type_name() == "Multiply"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [4]
+    assert node.get_output_element_type(0) == Type.f32
 
 
 def unary_op(op_str, a):
@@ -298,22 +279,22 @@ def unary_op_ref(op_str, a):
         return np.tanh(a)
 
 
-def unary_op_exec(op_str, input_list):
+def unary_op_exec(op_str, input_list, expected_ov_str=None):
     """
     input_list needs to have deep length of 4
     """
+    if not expected_ov_str:
+        expected_ov_str = op_str
+
     element_type = Type.f32
     shape = Shape(np.array(input_list).shape)
     A = Parameter(element_type, shape)
-    parameter_list = [A]
-    function = Model([unary_op(op_str, A)], parameter_list, "test")
+    node = unary_op(op_str, A)
 
-    runtime = get_runtime()
-    computation = runtime.computation(function, *parameter_list)
-    result = computation(np.array(input_list, dtype=np.float32))[0]
-
-    expected = unary_op_ref(op_str, np.array(input_list, dtype=np.float32))
-    assert np.allclose(result, expected)
+    assert node.get_type_name() == expected_ov_str
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == list(shape)
+    assert node.get_output_element_type(0) == Type.f32
 
 
 def test_abs():
@@ -385,19 +366,19 @@ def test_floor():
 def test_log():
     input_list = [1, 2, 3, 4]
     op_str = "log"
-    unary_op_exec(op_str, input_list)
+    unary_op_exec(op_str, input_list, "Log")
 
 
 def test_exp():
     input_list = [-1, 0, 1, 2]
     op_str = "exp"
-    unary_op_exec(op_str, input_list)
+    unary_op_exec(op_str, input_list, "Exp")
 
 
 def test_negative():
     input_list = [-1, 0, 1, 2]
     op_str = "negative"
-    unary_op_exec(op_str, input_list)
+    unary_op_exec(op_str, input_list, "Negative")
 
 
 def test_sign():
@@ -437,95 +418,62 @@ def test_tanh():
 
 
 def test_reshape():
-
     element_type = Type.f32
     shape = Shape([2, 3])
     A = Parameter(element_type, shape)
-    parameter_list = [A]
-    function = Model([ov.reshape(A, Shape([3, 2]), special_zero=False)], parameter_list, "test")
+    node = ov.reshape(A, Shape([3, 2]), special_zero=False)
 
-    runtime = get_runtime()
-    computation = runtime.computation(function, *parameter_list)
-    result = computation(np.array(np.array([[1, 2, 3], [4, 5, 6]], dtype=np.float32), dtype=np.float32))[0]
-
-    expected = np.reshape(np.array([[1, 2, 3], [4, 5, 6]], dtype=np.float32), (3, 2))
-    assert np.allclose(result, expected)
+    assert node.get_type_name() == "Reshape"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [3, 2]
+    assert node.get_output_element_type(0) == element_type
 
 
 def test_broadcast():
-
     element_type = Type.f32
     A = Parameter(element_type, Shape([3]))
-    parameter_list = [A]
-    function = Model([ov.broadcast(A, [3, 3])], parameter_list, "test")
-
-    runtime = get_runtime()
-    computation = runtime.computation(function, *parameter_list)
-    result = computation(np.array([1, 2, 3], dtype=np.float32))[0]
-
-    a_arr = np.array([[0], [0], [0]], dtype=np.float32)
-    b_arr = np.array([[1, 2, 3]], dtype=np.float32)
-    expected = np.add(a_arr, b_arr)
-    assert np.allclose(result, expected)
+    node = ov.broadcast(A, [3, 3])
+    assert node.get_type_name() == "Broadcast"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [3, 3]
+    assert node.get_output_element_type(0) == element_type
 
 
 def test_constant():
     element_type = Type.f32
-    parameter_list = []
-    function = Model([Constant(element_type, Shape([3, 3]), list(range(9)))], parameter_list, "test")
-
-    runtime = get_runtime()
-    computation = runtime.computation(function, *parameter_list)
-    result = computation()[0]
-
-    expected = np.arange(9).reshape(3, 3)
-    assert np.allclose(result, expected)
+    node = Constant(element_type, Shape([3, 3]), list(range(9)))
+    assert node.get_type_name() == "Constant"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [3, 3]
+    assert node.get_output_element_type(0) == element_type
 
 
 def test_constant_opset_ov_type():
-    parameter_list = []
-    function = Model([ov.constant(np.arange(9).reshape(3, 3), Type.f32)], parameter_list, "test")
-
-    runtime = get_runtime()
-    computation = runtime.computation(function, *parameter_list)
-    result = computation()[0]
-
-    expected = np.arange(9).reshape(3, 3)
-    assert np.allclose(result, expected)
+    node = ov.constant(np.arange(9).reshape(3, 3), Type.f32)
+    assert node.get_type_name() == "Constant"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [3, 3]
+    assert node.get_output_element_type(0) == Type.f32
 
 
 def test_constant_opset_numpy_type():
-    parameter_list = []
-    function = Model([ov.constant(np.arange(9).reshape(3, 3), np.float32)], parameter_list, "test")
-
-    runtime = get_runtime()
-    computation = runtime.computation(function, *parameter_list)
-    result = computation()[0]
-
-    expected = np.arange(9).reshape(3, 3)
-    assert np.allclose(result, expected)
+    node = ov.constant(np.arange(9).reshape(3, 3), np.float32)
+    assert node.get_type_name() == "Constant"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [3, 3]
+    assert node.get_output_element_type(0) == Type.f32
 
 
 def test_concat():
-
     element_type = Type.f32
     A = Parameter(element_type, Shape([1, 2]))
     B = Parameter(element_type, Shape([1, 2]))
     C = Parameter(element_type, Shape([1, 2]))
-    parameter_list = [A, B, C]
-    axis = 0
-    function = Model([ov.concat([A, B, C], axis)], parameter_list, "test")
-
-    a_arr = np.array([[1, 2]], dtype=np.float32)
-    b_arr = np.array([[5, 6]], dtype=np.float32)
-    c_arr = np.array([[7, 8]], dtype=np.float32)
-
-    runtime = get_runtime()
-    computation = runtime.computation(function, *parameter_list)
-    result = computation(a_arr, b_arr, c_arr)[0]
-
-    expected = np.concatenate((a_arr, b_arr, c_arr), axis)
-    assert np.allclose(result, expected)
+    node = ov.concat([A, B, C], axis=0)
+    assert node.get_type_name() == "Concat"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [3, 2]
+    assert node.get_output_element_type(0) == element_type
 
 
 def test_axisset():
@@ -549,29 +497,17 @@ def test_select():
     A = Parameter(Type.boolean, Shape([1, 2]))
     B = Parameter(element_type, Shape([1, 2]))
     C = Parameter(element_type, Shape([1, 2]))
-    parameter_list = [A, B, C]
+    node = ov.select(A, B, C)
+    assert node.get_type_name() == "Select"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [1, 2]
+    assert node.get_output_element_type(0) == element_type
 
-    function = Model([ov.select(A, B, C)], parameter_list, "test")
 
-    runtime = get_runtime()
-    computation = runtime.computation(function, *parameter_list)
-    result = computation(
-        np.array([[True, False]], dtype=bool),
-        np.array([[5, 6]], dtype=np.float32),
-        np.array([[7, 8]], dtype=np.float32),
-    )[0]
-
-    expected = np.array([[5, 8]])
-    assert np.allclose(result, expected)
-
-def test_max_pool():
-    # test 1d
+def test_max_pool_1d():
     element_type = Type.f32
     shape = Shape([1, 1, 10])
     A = Parameter(element_type, shape)
-    parameter_list = [A]
-
-    input_arr = np.arange(10, dtype=np.float32).reshape([1, 1, 10])
     window_shape = [3]
 
     strides = [1] * len(window_shape)
@@ -593,19 +529,25 @@ def test_max_pool():
         auto_pad,
         idx_elem_type,
     )
-    function = Model([model], parameter_list, "test")
+    assert model.get_type_name() == "MaxPool"
+    assert model.get_output_size() == 2
+    assert list(model.get_output_shape(0)) == [1, 1, 8]
+    assert list(model.get_output_shape(1)) == [1, 1, 8]
+    assert model.get_output_element_type(0) == element_type
+    assert model.get_output_element_type(1) == Type.i32
 
-    runtime = get_runtime()
-    computation = runtime.computation(function, *parameter_list)
-    result = computation(input_arr)[0]
-
-    expected = (np.arange(8) + 2).reshape(1, 1, 8)
-    assert np.allclose(result, expected)
-
-    # test 1d with strides
+def test_max_pool_1d_with_strides():
+    element_type = Type.f32
+    shape = Shape([1, 1, 10])
+    A = Parameter(element_type, shape)
+    window_shape = [3]
     strides = [2]
     pads_begin = [0] * len(window_shape)
+    dilations = [1] * len(window_shape)
     pads_end = [0] * len(window_shape)
+    rounding_type = "floor"
+    auto_pad = "explicit"
+    idx_elem_type = "i32"
 
     model = ov.max_pool(
         A,
@@ -618,23 +560,22 @@ def test_max_pool():
         auto_pad,
         idx_elem_type,
     )
-    function = Model([model], parameter_list, "test")
 
-    size = 4
-    computation = runtime.computation(function, *parameter_list)
-    result = computation(input_arr)[0]
+    assert model.get_type_name() == "MaxPool"
+    assert model.get_output_size() == 2
+    assert list(model.get_output_shape(0)) == [1, 1, 4]
+    assert list(model.get_output_shape(1)) == [1, 1, 4]
+    assert model.get_output_element_type(0) == element_type
+    assert model.get_output_element_type(1) == Type.i32
 
-    expected = ((np.arange(size) + 1) * 2).reshape(1, 1, size)
-    assert np.allclose(result, expected)
-
-    # test 2d
+def test_max_pool_2d():
     element_type = Type.f32
     shape = Shape([1, 1, 10, 10])
     A = Parameter(element_type, shape)
-    parameter_list = [A]
-
-    input_arr = np.arange(100, dtype=np.float32).reshape(1, 1, 10, 10)
     window_shape = [3, 3]
+    rounding_type = "floor"
+    auto_pad = "explicit"
+    idx_elem_type = "i32"
 
     strides = [1, 1]
     dilations = [1, 1]
@@ -652,19 +593,26 @@ def test_max_pool():
         auto_pad,
         idx_elem_type,
     )
-    function = Model([model], parameter_list, "test")
+    assert model.get_type_name() == "MaxPool"
+    assert model.get_output_size() == 2
+    assert list(model.get_output_shape(0)) == [1, 1, 8, 8]
+    assert list(model.get_output_shape(1)) == [1, 1, 8, 8]
+    assert model.get_output_element_type(0) == element_type
+    assert model.get_output_element_type(1) == Type.i32
 
-    computation = runtime.computation(function, *parameter_list)
-    result = computation(input_arr)[0]
 
-    expected = ((np.arange(100).reshape(10, 10))[2:, 2:]).reshape(1, 1, 8, 8)
-    assert np.allclose(result, expected)
-
-    # test 2d with strides
+def test_max_pool_2d_with_strides():
+    element_type = Type.f32
+    shape = Shape([1, 1, 10, 10])
+    A = Parameter(element_type, shape)
     strides = [2, 2]
     dilations = [1, 1]
     pads_begin = [0, 0]
     pads_end = [0, 0]
+    window_shape = [3, 3]
+    rounding_type = "floor"
+    auto_pad = "explicit"
+    idx_elem_type = "i32"
 
     model = ov.max_pool(
         A,
@@ -677,13 +625,12 @@ def test_max_pool():
         auto_pad,
         idx_elem_type,
     )
-    function = Model([model], parameter_list, "test")
-    computation = runtime.computation(function, *parameter_list)
-    result = computation(input_arr)[0]
-
-    size = 4
-    expected = ((np.arange(100).reshape(10, 10))[2::2, 2::2]).reshape(1, 1, size, size)
-    assert np.allclose(result, expected)
+    assert model.get_type_name() == "MaxPool"
+    assert model.get_output_size() == 2
+    assert list(model.get_output_shape(0)) == [1, 1, 4, 4]
+    assert list(model.get_output_shape(1)) == [1, 1, 4, 4]
+    assert model.get_output_element_type(0) == element_type
+    assert model.get_output_element_type(1) == Type.i32
 
 
 def convolution2d(
@@ -733,15 +680,11 @@ def convolution2d(
 
 
 def test_convolution_simple():
-
     element_type = Type.f32
     image_shape = Shape([1, 1, 16, 16])
     filter_shape = Shape([1, 1, 3, 3])
     data = Parameter(element_type, image_shape)
     filters = Parameter(element_type, filter_shape)
-    parameter_list = [data, filters]
-
-    image_arr = np.arange(-128, 128, 1, dtype=np.float32).reshape(1, 1, 16, 16)
     filter_arr = np.ones(9, dtype=np.float32).reshape(1, 1, 3, 3)
     filter_arr[0][0][0][0] = -1
     filter_arr[0][0][1][1] = -1
@@ -755,14 +698,11 @@ def test_convolution_simple():
     dilations = [1, 1]
 
     model = ov.convolution(data, filters, strides, pads_begin, pads_end, dilations)
-    function = Model([model], parameter_list, "test")
 
-    runtime = get_runtime()
-    computation = runtime.computation(function, *parameter_list)
-    result = computation(image_arr, filter_arr)[0]
-
-    expected = convolution2d(image_arr[0][0], filter_arr[0][0]).reshape(1, 1, 14, 14)
-    assert np.allclose(result, expected)
+    assert model.get_type_name() == "Convolution"
+    assert model.get_output_size() == 1
+    assert list(model.get_output_shape(0)) == [1, 1, 14, 14]
+    assert model.get_output_element_type(0) == element_type
 
 
 def test_convolution_with_strides():
@@ -772,9 +712,6 @@ def test_convolution_with_strides():
     filter_shape = Shape([1, 1, 3, 3])
     data = Parameter(element_type, image_shape)
     filters = Parameter(element_type, filter_shape)
-    parameter_list = [data, filters]
-
-    image_arr = np.arange(100, dtype=np.float32).reshape([1, 1, 10, 10])
     filter_arr = np.zeros(9, dtype=np.float32).reshape([1, 1, 3, 3])
     filter_arr[0][0][1][1] = 1
     strides = [2, 2]
@@ -783,14 +720,11 @@ def test_convolution_with_strides():
     dilations = [1, 1]
 
     model = ov.convolution(data, filters, strides, pads_begin, pads_end, dilations)
-    function = Model([model], parameter_list, "test")
 
-    runtime = get_runtime()
-    computation = runtime.computation(function, *parameter_list)
-    result = computation(image_arr, filter_arr)[0]
-
-    expected = convolution2d(image_arr[0][0], filter_arr[0][0], strides).reshape(1, 1, 4, 4)
-    assert np.allclose(result, expected)
+    assert model.get_type_name() == "Convolution"
+    assert model.get_output_size() == 1
+    assert list(model.get_output_shape(0)) == [1, 1, 4, 4]
+    assert model.get_output_element_type(0) == element_type
 
 
 def test_convolution_with_filter_dilation():
@@ -800,24 +734,17 @@ def test_convolution_with_filter_dilation():
     filter_shape = Shape([1, 1, 3, 3])
     data = Parameter(element_type, image_shape)
     filters = Parameter(element_type, filter_shape)
-    parameter_list = [data, filters]
-
-    image_arr = np.arange(100, dtype=np.float32).reshape([1, 1, 10, 10])
-    filter_arr = np.ones(9, dtype=np.float32).reshape([1, 1, 3, 3])
     strides = [1, 1]
     pads_begin = [0, 0]
     pads_end = [0, 0]
     dilations = [2, 2]
 
     model = ov.convolution(data, filters, strides, pads_begin, pads_end, dilations)
-    function = Model([model], parameter_list, "test")
 
-    runtime = get_runtime()
-    computation = runtime.computation(function, *parameter_list)
-    result = computation(image_arr, filter_arr)[0]
-
-    expected = convolution2d(image_arr[0][0], filter_arr[0][0], strides, dilations).reshape([1, 1, 6, 6])
-    assert np.allclose(result, expected)
+    assert model.get_type_name() == "Convolution"
+    assert model.get_output_size() == 1
+    assert list(model.get_output_shape(0)) == [1, 1, 6, 6]
+    assert model.get_output_element_type(0) == element_type
 
 
 def test_convolution_with_padding():
@@ -827,9 +754,6 @@ def test_convolution_with_padding():
     filter_shape = Shape([1, 1, 3, 3])
     data = Parameter(element_type, image_shape)
     filters = Parameter(element_type, filter_shape)
-    parameter_list = [data, filters]
-
-    image_arr = np.arange(100, dtype=np.float32).reshape(1, 1, 10, 10)
     filter_arr = np.zeros(9, dtype=np.float32).reshape(1, 1, 3, 3)
     filter_arr[0][0][1][1] = 1
     strides = [1, 1]
@@ -838,16 +762,11 @@ def test_convolution_with_padding():
     pads_end = [0, 0]
 
     model = ov.convolution(data, filters, strides, pads_begin, pads_end, dilations)
-    function = Model([model], parameter_list, "test")
 
-    runtime = get_runtime()
-    computation = runtime.computation(function, *parameter_list)
-    result = computation(image_arr, filter_arr)[0]
-
-    expected = convolution2d(
-        image_arr[0][0], filter_arr[0][0], strides, dilations, pads_begin, pads_end
-    ).reshape([1, 1, 6, 6])
-    assert np.allclose(result, expected)
+    assert model.get_type_name() == "Convolution"
+    assert model.get_output_size() == 1
+    assert list(model.get_output_shape(0)) == [1, 1, 6, 6]
+    assert model.get_output_element_type(0) == element_type
 
 
 def test_convolution_with_non_zero_padding():
@@ -856,9 +775,6 @@ def test_convolution_with_non_zero_padding():
     filter_shape = Shape([1, 1, 3, 3])
     data = Parameter(element_type, image_shape)
     filters = Parameter(element_type, filter_shape)
-    parameter_list = [data, filters]
-
-    image_arr = np.arange(100, dtype=np.float32).reshape(1, 1, 10, 10)
     filter_arr = (np.ones(9, dtype=np.float32).reshape(1, 1, 3, 3)) * -1
     filter_arr[0][0][1][1] = 1
     strides = [1, 1]
@@ -867,13 +783,8 @@ def test_convolution_with_non_zero_padding():
     pads_end = [1, 2]
 
     model = ov.convolution(data, filters, strides, pads_begin, pads_end, dilations)
-    function = Model([model], parameter_list, "test")
 
-    runtime = get_runtime()
-    computation = runtime.computation(function, *parameter_list)
-    result = computation(image_arr, filter_arr)[0]
-
-    expected = convolution2d(
-        image_arr[0][0], filter_arr[0][0], strides, dilations, pads_begin, pads_end
-    ).reshape([1, 1, 9, 9])
-    assert np.allclose(result, expected)
+    assert model.get_type_name() == "Convolution"
+    assert model.get_output_size() == 1
+    assert list(model.get_output_shape(0)) == [1, 1, 9, 9]
+    assert model.get_output_element_type(0) == element_type
