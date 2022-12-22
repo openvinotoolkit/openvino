@@ -15,14 +15,13 @@ namespace op {
 namespace v1 {
 
 template <class T>
-void shape_infer(const StridedSlice* op,
-                 const std::vector<T>& input_shapes,
-                 std::vector<T>& output_shapes,
-                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
+std::vector<T> shape_infer(const StridedSlice* op,
+                           const std::vector<T>& input_shapes,
+                           const std::map<size_t, HostTensorPtr>& constant_data = {}) {
     using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
     static constexpr std::array<char const*, 3> shape_names{"Begin", "End", "Strides"};
 
-    NODE_VALIDATION_CHECK(op, (input_shapes.size() == 3 || input_shapes.size() == 4) && output_shapes.size() == 1);
+    NODE_VALIDATION_CHECK(op, (input_shapes.size() == 3 || input_shapes.size() == 4));
 
     const auto& input_shape = input_shapes[0];
 
@@ -42,9 +41,9 @@ void shape_infer(const StridedSlice* op,
     // it is not possible to define output shape if input data shape rank is undefined
     // even the lengths of begin, end, or strides are defined
     if (input_shape.rank().is_dynamic()) {
-        output_shapes[0] = ov::PartialShape::dynamic();
-        return;
+        return {PartialShape::dynamic()};
     }
+
     auto input_rank = input_shape.size();
 
     auto number_elements_in_1d = [](const StridedSlice* op, const T& shape_1d) -> int64_t {
@@ -89,8 +88,7 @@ void shape_infer(const StridedSlice* op,
 
     // if number of axes is undefined we cannot say about output rank
     if (number_axes < 0) {
-        output_shapes[0] = ov::PartialShape::dynamic();
-        return;
+        return {PartialShape::dynamic()};
     }
 
     // collect indices of axes by which the shape needs to be changed
@@ -114,7 +112,7 @@ void shape_infer(const StridedSlice* op,
                           "Input rank plus number of new axis has to be at least the size of Lower "
                           "and Upper bounds vector.");
 
-    auto& out = output_shapes.front();
+    T out;
     int64_t input_shape_idx = 0;
     for (int64_t axis = 0; axis < number_axes; ++axis) {
         // add all dimensions hidden under the ellipsis mask if ellipsis mask is set
@@ -193,7 +191,18 @@ void shape_infer(const StridedSlice* op,
     for (; input_shape_idx < input_shape.rank().get_length(); ++input_shape_idx) {
         out.push_back(input_shape[input_shape_idx]);
     }
+    return {out};
 }
+
+template <class T>
+void shape_infer(const StridedSlice* op,
+                 const std::vector<T>& input_shapes,
+                 std::vector<T>& output_shapes,
+                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
+    output_shapes = shape_infer(op, input_shapes, constant_data);
+    NODE_VALIDATION_CHECK(op, output_shapes.size() == 1);
+}
+
 }  // namespace v1
 }  // namespace op
 }  // namespace ov
