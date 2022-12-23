@@ -103,7 +103,6 @@ def test_roi_align():
     data_shape = [7, 256, 200, 200]
     rois = [1000, 4]
     batch_indices = [1000]
-    expected_shape = [1000, 256, 6, 6]
 
     data_parameter = ov.parameter(data_shape, name="Data", dtype=np.float32)
     rois_parameter = ov.parameter(rois, name="Rois", dtype=np.float32)
@@ -127,7 +126,7 @@ def test_roi_align():
 
     assert node.get_type_name() == "ROIAlign"
     assert node.get_output_size() == 1
-    assert list(node.get_output_shape(0)) == expected_shape
+    assert list(node.get_output_shape(0)) == [1000, 256, 6, 6]
 
 
 @pytest.mark.parametrize(

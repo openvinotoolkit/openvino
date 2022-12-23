@@ -98,36 +98,21 @@ def test_simple_model_on_parameters(dtype):
     assert list(model.get_output_shape(0)) == [2, 2]
 
 
-def test_broadcast_1():
-    input_data = ops.parameter((3,), name="input_data", dtype=np.int32)
-    new_shape = [3, 3]
-    node = ops.broadcast(input_data, new_shape)
+@pytest.mark.parametrize(
+    ("input_shape", "dtype", "new_shape", "axis_mapping", "mode"),
+    [
+        ((3,), np.int32, [3, 3], [], []),
+        ((4,), np.float32, [3, 4, 2, 4], [], []),
+        ((3,), np.int8, [3, 3], [[0]], ["EXPLICIT"]),
+    ],
+)
+def test_broadcast(input_shape, dtype, new_shape, axis_mapping, mode):
+    input_data = ops.parameter(input_shape, name="input_data", dtype=dtype)
+    node = ops.broadcast(input_data, new_shape, *axis_mapping, *mode)
     assert node.get_type_name() == "Broadcast"
     assert node.get_output_size() == 1
-    assert node.get_output_element_type(0) == Type.i32
-    assert list(node.get_output_shape(0)) == [3, 3]
-
-
-def test_broadcast_2():
-    input_data = ops.parameter((4,), name="input_data", dtype=np.int32)
-    new_shape = [3, 4, 2, 4]
-    expected_shape = np.broadcast_to(input_data, new_shape).shape
-    node = ops.broadcast(input_data, new_shape)
-    assert node.get_type_name() == "Broadcast"
-    assert node.get_output_size() == 1
-    assert node.get_output_element_type(0) == Type.i32
-    assert list(node.get_output_shape(0)) == list(expected_shape)
-
-
-def test_broadcast_3():
-    input_data = ops.parameter((3,), name="input_data", dtype=np.int32)
-    new_shape = [3, 3]
-    axis_mapping = [0]
-    node = ops.broadcast(input_data, new_shape, axis_mapping, "EXPLICIT")
-    assert node.get_type_name() == "Broadcast"
-    assert node.get_output_size() == 1
-    assert node.get_output_element_type(0) == Type.i32
-    assert list(node.get_output_shape(0)) == [3, 3]
+    assert node.get_output_element_type(0) == get_element_type(dtype)
+    assert list(node.get_output_shape(0)) == new_shape
 
 
 @pytest.mark.parametrize(
@@ -491,20 +476,6 @@ def test_node_target_inputs_soruce_output():
     assert in_model1.get_node().name == parameter_b.name
     assert np.equal([in_model0.get_shape()], [model.get_output_shape(0)]).all()
     assert np.equal([in_model1.get_shape()], [model.get_output_shape(0)]).all()
-
-
-def test_any():
-    any_int = OVAny(32)
-    any_str = OVAny("test_text")
-
-    assert any_int.get() == 32
-    assert any_str.get() == "test_text"
-
-    any_int.set(777)
-    any_str.set("another_text")
-
-    assert any_int.get() == 777
-    assert any_str.get() == "another_text"
 
 
 def test_runtime_info():
