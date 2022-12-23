@@ -24,7 +24,7 @@ using ModelPtr = std::shared_ptr<Model>;
 using Output = ov::Output<ov::Node>;
 
 namespace {
-std::string to_string(const ov::Shape& shape) {
+std::string to_string(const Shape& shape) {
     std::ostringstream result;
     result << "{";
     for (size_t idx = 0; idx < shape.size(); ++idx) {
@@ -97,7 +97,7 @@ public:
 #define CREATE_PASS_FACTORY(pass_name) std::make_shared<PassFactory<ov::pass::pass_name>>(#pass_name)
 
 #undef CREATE_BINARY_FACTORY
-#define CREATE_BINARY_FACTORY(type_name) CreateBinaryFactory<ov::opset9::type_name>(#type_name)
+#define CREATE_BINARY_FACTORY(type_name) CreateBinaryFactory<type_name>(#type_name)
 
 /*
  * binary operations without PRelu
@@ -431,7 +431,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(binary_operations_numbers),
         ::testing::Values(single_consumer::forward::one_input_transpose::CreateFunction),
         ::testing::Values(single_consumer::forward::one_input_transpose::CreateReferenceFunction),
-        ::testing::Values(ov::element::f32),
+        ::testing::Values(element::f32),
         ::testing::ValuesIn(binary_transpose_input_indexes)),
     TransposeSinkingBinaryTestFixture::get_test_name);
 
@@ -444,25 +444,25 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(binary_operations_numbers),
         ::testing::Values(single_consumer::backward::one_input_transpose::CreateFunction),
         ::testing::Values(single_consumer::backward::one_input_transpose::CreateReferenceFunction),
-        ::testing::Values(ov::element::f32),
+        ::testing::Values(element::f32),
         ::testing::ValuesIn(binary_transpose_input_indexes)),
     TransposeSinkingBinaryTestFixture::get_test_name);
 
 // --------------------------------------------------------------------------------------
 
-using CreateGraphBinaryIncompatShapesF = std::function<std::shared_ptr<ov::Model>(BinaryFactoryPtr unary_factory,
-                                                                                  ov::element::Type input_type,
-                                                                                  ov::Shape input_shape,
-                                                                                  ov::Shape constant_shape,
+using CreateGraphBinaryIncompatShapesF = std::function<std::shared_ptr<Model>(BinaryFactoryPtr unary_factory,
+                                                                                  element::Type input_type,
+                                                                                  Shape input_shape,
+                                                                                  Shape constant_shape,
                                                                                   size_t binary_transpose_input_idx)>;
 
 using TestBinaryIncompatShapesParams = std::tuple<BinaryFactoryPtr,
                                                   PassFactoryPtr,
-                                                  ov::Shape,                        /* input shape */
-                                                  ov::Shape,                        /* constant_shape */
+                                                  Shape,                        /* input shape */
+                                                  Shape,                        /* constant_shape */
                                                   CreateGraphBinaryIncompatShapesF, /* model_factory */
                                                   CreateGraphBinaryIncompatShapesF, /* reference_model_factory */
-                                                  ov::element::Type,                /* input type */
+                                                  element::Type,                /* input type */
                                                   size_t>;                          /* binary_transpose_input_idx */
 
 class TransposeSinkingBinaryIncompatShapesTestFixture
@@ -472,11 +472,11 @@ public:
     static std::string get_test_name(const testing::TestParamInfo<TestBinaryIncompatShapesParams>& obj) {
         BinaryFactoryPtr binary_factory;
         PassFactoryPtr pass_factory;
-        ov::Shape input_shape;
-        ov::Shape constant_shape;
+        Shape input_shape;
+        Shape constant_shape;
         CreateGraphBinaryIncompatShapesF model_factory;
         CreateGraphBinaryIncompatShapesF reference_model_factory;
-        ov::element::Type input_type;
+        element::Type input_type;
         size_t binary_transpose_input_idx;
         std::tie(binary_factory,
                  pass_factory,
@@ -502,11 +502,11 @@ public:
 TEST_P(TransposeSinkingBinaryIncompatShapesTestFixture, CompareFunctions) {
     BinaryFactoryPtr binary_factory;
     PassFactoryPtr pass_factory;
-    ov::Shape input_shape;
-    ov::Shape constant_shape;
+    Shape input_shape;
+    Shape constant_shape;
     CreateGraphBinaryIncompatShapesF model_factory;
     CreateGraphBinaryIncompatShapesF reference_model_factory;
-    ov::element::Type input_type;
+    element::Type input_type;
     size_t binary_transpose_input_idx;
     std::tie(binary_factory,
              pass_factory,
@@ -528,46 +528,46 @@ namespace single_consumer {
 namespace backward {
 namespace incompat_shapes {
 
-std::shared_ptr<ov::Model> CreateFunction(BinaryFactoryPtr binary_factory,
-                                          ov::element::Type input_type,
-                                          ov::Shape input_shape,
-                                          ov::Shape constant_shape,
+std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
+                                          element::Type input_type,
+                                          Shape input_shape,
+                                          Shape constant_shape,
                                           size_t binary_transpose_input_idx) {
-    auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
+    auto X = std::make_shared<Parameter>(input_type, input_shape);
 
-    auto in_constant = std::make_shared<ov::opset9::Constant>(input_type, constant_shape, ov::Shape{1});
+    auto in_constant = std::make_shared<Constant>(input_type, constant_shape, Shape{1});
 
     NodePtr binary_op;
     if (!binary_transpose_input_idx)
         binary_op = binary_factory->create(X, in_constant);
     else
         binary_op = binary_factory->create(in_constant, X);
-    // FIXME: ov::opset9::
-    auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
-    auto transpose0 = std::make_shared<ov::opset9::Transpose>(binary_op, ng_order0);
 
-    return std::make_shared<ov::Model>(ov::OutputVector{transpose0}, ov::ParameterVector{X});
+    auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
+    auto transpose0 = std::make_shared<Transpose>(binary_op, ng_order0);
+
+    return std::make_shared<Model>(ov::OutputVector{transpose0}, ov::ParameterVector{X});
 }
 
-std::shared_ptr<ov::Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
-                                                   ov::element::Type input_type,
-                                                   ov::Shape input_shape,
-                                                   ov::Shape constant_shape,
+std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
+                                                   element::Type input_type,
+                                                   Shape input_shape,
+                                                   Shape constant_shape,
                                                    size_t binary_transpose_input_idx) {
-    auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
+    auto X = std::make_shared<Parameter>(input_type, input_shape);
 
-    auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
-    auto transpose0 = std::make_shared<ov::opset9::Transpose>(X, ng_order0);
+    auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
+    auto transpose0 = std::make_shared<Transpose>(X, ng_order0);
 
-    auto in_constant = std::make_shared<ov::opset9::Constant>(input_type, constant_shape, ov::Shape{1});
+    auto in_constant = std::make_shared<Constant>(input_type, constant_shape, Shape{1});
 
     std::vector<size_t> dims(input_shape.size() - constant_shape.size());
     std::iota(dims.begin(), dims.end(), 0);
-    auto unsqueeze_const = std::make_shared<ov::opset9::Constant>(ov::element::i64, ov::Shape{dims.size()}, dims);
-    auto unsqeeze = std::make_shared<ov::opset9::Unsqueeze>(in_constant, unsqueeze_const);
+    auto unsqueeze_const = std::make_shared<Constant>(element::i64, Shape{dims.size()}, dims);
+    auto unsqeeze = std::make_shared<Unsqueeze>(in_constant, unsqueeze_const);
 
-    auto ng_order1 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
-    auto transpose1 = std::make_shared<ov::opset9::Transpose>(unsqeeze, ng_order1);
+    auto ng_order1 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
+    auto transpose1 = std::make_shared<Transpose>(unsqeeze, ng_order1);
 
     NodePtr binary_op;
     if (!binary_transpose_input_idx)
@@ -575,10 +575,10 @@ std::shared_ptr<ov::Model> CreateReferenceFunction(BinaryFactoryPtr binary_facto
     else
         binary_op = binary_factory->create(transpose1, transpose0);
 
-    return std::make_shared<ov::Model>(ov::OutputVector{binary_op}, ov::ParameterVector{X});
+    return std::make_shared<Model>(ov::OutputVector{binary_op}, ov::ParameterVector{X});
 }
 
-std::vector<ov::Shape> constant_shapes = {ov::Shape{96, 55, 55}, ov::Shape{1}};
+std::vector<Shape> constant_shapes = {Shape{96, 55, 55}, Shape{1}};
 
 }  // namespace incompat_shapes
 }  // namespace backward
@@ -586,17 +586,17 @@ std::vector<ov::Shape> constant_shapes = {ov::Shape{96, 55, 55}, ov::Shape{1}};
 namespace forward {
 namespace incompat_shapes {
 
-std::shared_ptr<ov::Model> CreateFunction(BinaryFactoryPtr binary_factory,
-                                          ov::element::Type input_type,
-                                          ov::Shape input_shape,
-                                          ov::Shape constant_shape,
+std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
+                                          element::Type input_type,
+                                          Shape input_shape,
+                                          Shape constant_shape,
                                           size_t binary_transpose_input_idx) {
-    auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
+    auto X = std::make_shared<Parameter>(input_type, input_shape);
 
-    auto in_constant = std::make_shared<ov::opset9::Constant>(input_type, constant_shape, ov::Shape{1});
+    auto in_constant = std::make_shared<Constant>(input_type, constant_shape, Shape{1});
 
-    auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
-    auto transpose0 = std::make_shared<ov::opset9::Transpose>(X, ng_order0);
+    auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
+    auto transpose0 = std::make_shared<Transpose>(X, ng_order0);
 
     NodePtr binary_op;
     if (!binary_transpose_input_idx)
@@ -604,25 +604,25 @@ std::shared_ptr<ov::Model> CreateFunction(BinaryFactoryPtr binary_factory,
     else
         binary_op = binary_factory->create(in_constant, transpose0);
 
-    return std::make_shared<ov::Model>(ov::OutputVector{binary_op}, ov::ParameterVector{X});
+    return std::make_shared<Model>(ov::OutputVector{binary_op}, ov::ParameterVector{X});
 }
 
-std::shared_ptr<ov::Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
-                                                   ov::element::Type input_type,
-                                                   ov::Shape input_shape,
-                                                   ov::Shape constant_shape,
+std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
+                                                   element::Type input_type,
+                                                   Shape input_shape,
+                                                   Shape constant_shape,
                                                    size_t binary_transpose_input_idx) {
-    auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
+    auto X = std::make_shared<Parameter>(input_type, input_shape);
 
-    auto in_constant = std::make_shared<ov::opset9::Constant>(input_type, constant_shape, ov::Shape{1});
+    auto in_constant = std::make_shared<Constant>(input_type, constant_shape, Shape{1});
 
     std::vector<size_t> dims(input_shape.size() - constant_shape.size());
     std::iota(dims.begin(), dims.end(), 0);
-    auto unsqueeze_const = std::make_shared<ov::opset9::Constant>(ov::element::i64, ov::Shape{dims.size()}, dims);
-    auto unsqeeze = std::make_shared<ov::opset9::Unsqueeze>(in_constant, unsqueeze_const);
+    auto unsqueeze_const = std::make_shared<Constant>(element::i64, Shape{dims.size()}, dims);
+    auto unsqeeze = std::make_shared<Unsqueeze>(in_constant, unsqueeze_const);
 
-    auto ng_order1 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
-    auto transpose1 = std::make_shared<ov::opset9::Transpose>(unsqeeze, ng_order1);
+    auto ng_order1 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 3, 1, 2});
+    auto transpose1 = std::make_shared<Transpose>(unsqeeze, ng_order1);
 
     NodePtr binary_op;
     if (!binary_transpose_input_idx)
@@ -630,13 +630,13 @@ std::shared_ptr<ov::Model> CreateReferenceFunction(BinaryFactoryPtr binary_facto
     else
         binary_op = binary_factory->create(transpose1, X);
 
-    auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
-    auto transpose0 = std::make_shared<ov::opset9::Transpose>(binary_op, ng_order0);
+    auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
+    auto transpose0 = std::make_shared<Transpose>(binary_op, ng_order0);
 
-    return std::make_shared<ov::Model>(ov::OutputVector{transpose0}, ov::ParameterVector{X});
+    return std::make_shared<Model>(ov::OutputVector{transpose0}, ov::ParameterVector{X});
 }
 
-std::vector<ov::Shape> constant_shapes = {ov::Shape{55, 55, 96}, ov::Shape{1}};
+std::vector<Shape> constant_shapes = {Shape{55, 55, 96}, Shape{1}};
 
 }  // namespace incompat_shapes
 }  // namespace forward
@@ -649,11 +649,11 @@ INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingBinaryIncompatShapesTestFixture,
     ::testing::Combine(::testing::ValuesIn(binary_elementwise_factories),
                        ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingBinaryBackward)),
-                       ::testing::Values(ov::Shape{1, 96, 55, 55}),
+                       ::testing::Values(Shape{1, 96, 55, 55}),
                        ::testing::ValuesIn(binary::single_consumer::backward::incompat_shapes::constant_shapes),
                        ::testing::Values(binary::single_consumer::backward::incompat_shapes::CreateFunction),
                        ::testing::Values(binary::single_consumer::backward::incompat_shapes::CreateReferenceFunction),
-                       ::testing::Values(ov::element::f32),
+                       ::testing::Values(element::f32),
                        ::testing::ValuesIn(binary_transpose_input_indexes)),
     TransposeSinkingBinaryIncompatShapesTestFixture::get_test_name);
 
@@ -662,11 +662,11 @@ INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingBinaryIncompatShapesTestFixture,
     ::testing::Combine(::testing::ValuesIn(binary_elementwise_factories),
                        ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingBinaryForward)),
-                       ::testing::Values(ov::Shape{1, 96, 55, 55}),
+                       ::testing::Values(Shape{1, 96, 55, 55}),
                        ::testing::ValuesIn(binary::single_consumer::forward::incompat_shapes::constant_shapes),
                        ::testing::Values(binary::single_consumer::forward::incompat_shapes::CreateFunction),
                        ::testing::Values(binary::single_consumer::forward::incompat_shapes::CreateReferenceFunction),
-                       ::testing::Values(ov::element::f32),
+                       ::testing::Values(element::f32),
                        ::testing::ValuesIn(binary_transpose_input_indexes)),
     TransposeSinkingBinaryIncompatShapesTestFixture::get_test_name);
 
@@ -675,11 +675,11 @@ INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingBinaryIncompatShapesTestFixture,
     ::testing::Combine(::testing::Values(CREATE_BINARY_FACTORY(PRelu)),
                        ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingBinaryBackward)),
-                       ::testing::Values(ov::Shape{1, 3, 16, 16}),
-                       ::testing::ValuesIn(std::vector<ov::Shape>{ov::Shape{3}}),
+                       ::testing::Values(Shape{1, 3, 16, 16}),
+                       ::testing::ValuesIn(std::vector<Shape>{Shape{3}}),
                        ::testing::Values(binary::single_consumer::backward::incompat_shapes::CreateFunction),
                        ::testing::Values(binary::single_consumer::backward::incompat_shapes::CreateReferenceFunction),
-                       ::testing::Values(ov::element::f32),
+                       ::testing::Values(element::f32),
                        ::testing::Values(0)),
     TransposeSinkingBinaryIncompatShapesTestFixture::get_test_name);
 
@@ -688,11 +688,11 @@ INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingBinaryIncompatShapesTestFixture,
     ::testing::Combine(::testing::Values(CREATE_BINARY_FACTORY(PRelu)),
                        ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingBinaryForward)),
-                       ::testing::Values(ov::Shape{1, 3, 16, 16}),
-                       ::testing::ValuesIn(std::vector<ov::Shape>{ov::Shape{3}}),
+                       ::testing::Values(Shape{1, 3, 16, 16}),
+                       ::testing::ValuesIn(std::vector<Shape>{Shape{3}}),
                        ::testing::Values(binary::single_consumer::forward::incompat_shapes::CreateFunction),
                        ::testing::Values(binary::single_consumer::forward::incompat_shapes::CreateReferenceFunction),
-                       ::testing::Values(ov::element::f32),
+                       ::testing::Values(element::f32),
                        ::testing::Values(0)),
     TransposeSinkingBinaryIncompatShapesTestFixture::get_test_name);
 
