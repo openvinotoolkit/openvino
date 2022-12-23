@@ -6,13 +6,14 @@
 #include "openvino/opsets/opset8.hpp"
 
 using namespace std;
+using namespace ov;
 using namespace ov::opset8;
 
 namespace ov {
 namespace frontend {
 namespace tensorflow {
 namespace op {
-ov::OutputVector translate_interpolate_op(const NodeContext& node) {
+OutputVector translate_interpolate_op(const NodeContext& node) {
     default_op_checks(node, 2, {"ResizeBilinear", "ResizeNearestNeighbor"});
     auto images = node.get_input(0);
     auto size = node.get_input(1);
@@ -56,7 +57,7 @@ ov::OutputVector translate_interpolate_op(const NodeContext& node) {
     }
 
     // prepare scales input
-    auto images_shape = make_shared<ShapeOf>(images, ov::element::i32);
+    auto images_shape = make_shared<ShapeOf>(images, element::i32);
     auto spatial_shape = make_shared<Slice>(images_shape,
                                             make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{1}),
                                             make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{3}),
@@ -68,6 +69,12 @@ ov::OutputVector translate_interpolate_op(const NodeContext& node) {
     // since Interpolate is layout agnostic
     // we can avoid Transpose operation by specifying axes = {1, 2} for original NHWC layout
     auto axes = make_shared<Constant>(element::i32, Shape{2}, std::vector<int>({1, 2}));
+
+    // according to the specification of ResizeBilinear,
+    // it always returns FP32 output type so we immediately align input type for it
+    if (op_type == "ResizeBilinear") {
+        images = make_shared<Convert>(images, element::f32);
+    }
 
     auto interpolate = make_shared<Interpolate>(images, size, scales, axes, interpolate_attrs);
     set_node_name(node.get_name(), interpolate);
