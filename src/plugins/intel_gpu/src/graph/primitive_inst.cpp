@@ -802,11 +802,14 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
     auto use_lockable_memory = is_output_buffer(_node) || is_cpu || is_any_user_cpu(_node.get_users()) ||
                                !_engine.supports_allocation(allocation_type::usm_device);
     const auto& lockable_mem_type = _engine.get_lockable_preferred_memory_allocation_type(layout.format.is_image_2d());
-    const auto& alloc_type = use_lockable_memory ? lockable_mem_type
-        : usm_device_allocatable ? allocation_type::usm_device : lockable_mem_type;
+    auto alloc_type = use_lockable_memory ? lockable_mem_type
+                    : usm_device_allocatable ? allocation_type::usm_device : lockable_mem_type;
 
     if ((is_internal && (_node.can_be_optimized() || _node.is_type<generic_layer>())) || (memory_reuse_by_user == false)) {
         GPU_DEBUG_LOG << "[" << _node.id() << ": output]" << std::endl;
+        // Use usm_device memory for weights reordering
+        if (is_internal && _node.is_type<generic_layer>() && _engine.supports_allocation(allocation_type::usm_device))
+            alloc_type = allocation_type::usm_device;
         return get_memory_from_pool(_engine,
                 layout,
                 _node.id(),
