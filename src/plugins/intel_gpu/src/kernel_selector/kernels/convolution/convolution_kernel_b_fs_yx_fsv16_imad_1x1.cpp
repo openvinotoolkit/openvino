@@ -228,7 +228,7 @@ Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetAutoTuneParams(const convolution_p
     size_t block_spatial = 1;
     size_t block_features = 1;
     size_t feature_slm_split = 1;
-    std::string exe_mode = DEFAULT;
+    std::string exe_mode = EXE_MODE_DEFAULT;
 
     size_t total_spatial = params.outputs[0].X().v * params.outputs[0].Y().v;
     // Try two features per work-item

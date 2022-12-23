@@ -49,7 +49,7 @@ KernelsData ShapeOfKernelRef::GetKernelsData(const Params &params, const optiona
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
     };
 
-    FillCLKernelData(clKernelData, dispatch_data, params.engineInfo, kernelName, jit, entry_point, DEFAULT,
+    FillCLKernelData(clKernelData, dispatch_data, params.engineInfo, kernelName, jit, entry_point, EXE_MODE_DEFAULT,
                      false, false, 0, 0, 1, derived_params.inputs[0].is_dynamic());
     return kernels_data;
 }
