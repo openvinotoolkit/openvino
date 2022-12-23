@@ -50,7 +50,7 @@ public:
      * @brief Constructs context object from user-supplied context list
      * @param contexts a vector holding the hardware contexts
      */
-    MultiContext(Core& core, std::vector<RemoteContext> contexts ) {
+    MultiContext(Core& core, std::vector<RemoteContext> contexts) {
         *this = core.create_context(device_name, contexts).as<MultiContext>();
     }
 };

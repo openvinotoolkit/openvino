@@ -42,7 +42,7 @@ std::vector<std::string> parseDevices(std::string device) {
             devicelist.push_back(device.substr(0, pos));
         } else {
             devicelist.push_back(device);
-        }      
+        }
     }
     return devicelist;
 }
@@ -51,14 +51,15 @@ int main(int argc, char* argv[]) {
         slog::info << "OpenVINO:" << slog::endl;
         slog::info << ov::get_openvino_version();
         if (argc != 3) {
-            slog::info << "Usage : " << argv[0] << " <path_to_model>" << argv[1] << "target device, like GPU or MULTI:GPU.0,GPU.1" << slog::endl;
+            slog::info << "Usage : " << argv[0] << " <path_to_model>" << argv[1]
+                       << "target device, like GPU or MULTI:GPU.0,GPU.1" << slog::endl;
             return EXIT_FAILURE;
         }
         // parse the devices
         std::string device = argv[2];
         if (device.find("CPU") != std::string::npos) {
             slog::info << "for remote tensor usage, does not support CPU in device list";
-            return EXIT_FAILURE; 
+            return EXIT_FAILURE;
         }
         std::vector<std::string> hwtargets = parseDevices(device);
         bool isMulti = device.find("MULTI") != std::string::npos;
@@ -69,7 +70,7 @@ int main(int argc, char* argv[]) {
         // construct remote context for GPU
         // inference using remote tensor
         auto ocl_instance = std::make_shared<gpu::OpenCL>();
-        //ocl_instance->_queue = cl::CommandQueue(ocl_instance->_context, ocl_instance->_device);
+        // ocl_instance->_queue = cl::CommandQueue(ocl_instance->_context, ocl_instance->_device);
         cl_int err;
         std::vector<ov::RemoteContext> remote_contexts;
         for (auto iter = hwtargets.begin(); iter != hwtargets.end();) {
@@ -79,7 +80,8 @@ int main(int argc, char* argv[]) {
                 deviceid = (*iter).substr(pos + 1, (*iter).size());
             }
             try {
-                auto remote_context = ov::intel_gpu::ocl::ClContext(core, ocl_instance->_context.get(), std::stoi(deviceid));
+                auto remote_context =
+                    ov::intel_gpu::ocl::ClContext(core, ocl_instance->_context.get(), std::stoi(deviceid));
                 remote_contexts.push_back(remote_context);
                 iter++;
             } catch (...) {
@@ -88,7 +90,7 @@ int main(int argc, char* argv[]) {
             }
         }
         auto model = core.read_model(argv[1]);
-        
+
         ov::RemoteContext multi_context;
         if (isMulti)
             multi_context = ov::intel_auto::MultiContext(core, remote_contexts);
@@ -101,7 +103,8 @@ int main(int argc, char* argv[]) {
             }
             loadConfig.insert({ov::device::priorities(devicepriority)});
         }
-        ov::CompiledModel compiled_model = core.compile_model(model, isMulti ? multi_context : remote_contexts.back(), loadConfig);
+        ov::CompiledModel compiled_model =
+            core.compile_model(model, isMulti ? multi_context : remote_contexts.back(), loadConfig);
         // Create optimal number of ov::InferRequest instances
         uint32_t nireq = compiled_model.get_property(ov::optimal_number_of_infer_requests);
         std::vector<ov::InferRequest> ireqs(nireq);
@@ -116,12 +119,14 @@ int main(int argc, char* argv[]) {
                 // Allocate shared buffers for input and output data which will be set to infer request
                 cl::Buffer shared_input_buffer(ocl_instance->_context, CL_MEM_READ_WRITE, in_size, NULL, &err);
                 void* mappedPtr = ocl_instance->_queue.enqueueMapBuffer(shared_input_buffer,
-                                                                       CL_TRUE,
-                                                                       CL_MEM_READ_WRITE,
-                                                                       0,
-                                                                       (cl::size_type)in_size);
+                                                                        CL_TRUE,
+                                                                        CL_MEM_READ_WRITE,
+                                                                        0,
+                                                                        (cl::size_type)in_size);
                 auto createdContext = remote_contexts.back().as<ov::intel_gpu::ocl::ClContext>();
-                auto createdTensor = createdContext.create_tensor(model_input.get_element_type(), model_input.get_shape(), shared_input_buffer);
+                auto createdTensor = createdContext.create_tensor(model_input.get_element_type(),
+                                                                  model_input.get_shape(),
+                                                                  shared_input_buffer);
                 auto hosttensor = ov::Tensor(model_input.get_element_type(), model_input.get_shape(), mappedPtr);
                 fill_tensor_random(hosttensor);
                 ocl_instance->_queue.enqueueUnmapMemObject(shared_input_buffer, mappedPtr);
