@@ -98,6 +98,22 @@ public:
 
 #undef CREATE_BINARY_FACTORY
 #define CREATE_BINARY_FACTORY(type_name) CreateBinaryFactory<ov::opset9::type_name>(#type_name)
+
+/*
+ * binary operations without PRelu
+ * PRelu input(1) is special constant input that is important for some tests. Specially for the
+ * Unsqueeze insertion
+ */
+std::vector<BinaryFactoryPtr> binary_elementwise_factories = {CREATE_BINARY_FACTORY(Add),
+                                                  CREATE_BINARY_FACTORY(Divide),
+                                                  CREATE_BINARY_FACTORY(Maximum),
+                                                  CREATE_BINARY_FACTORY(Minimum),
+                                                  CREATE_BINARY_FACTORY(Mod),
+                                                  CREATE_BINARY_FACTORY(Multiply),
+                                                  CREATE_BINARY_FACTORY(Power),
+                                                  CREATE_BINARY_FACTORY(SquaredDifference),
+                                                  CREATE_BINARY_FACTORY(Subtract)};
+
 std::vector<BinaryFactoryPtr> binary_factories = {CREATE_BINARY_FACTORY(Add),
                                                   CREATE_BINARY_FACTORY(Divide),
                                                   CREATE_BINARY_FACTORY(Maximum),
@@ -108,7 +124,6 @@ std::vector<BinaryFactoryPtr> binary_factories = {CREATE_BINARY_FACTORY(Add),
                                                   CREATE_BINARY_FACTORY(SquaredDifference),
                                                   CREATE_BINARY_FACTORY(Subtract),
                                                   CREATE_BINARY_FACTORY(PRelu)};
-#undef CREATE_BINARY_FACTORY
 
 std::vector<size_t> binary_operations_numbers = {1, 10};
 
@@ -527,7 +542,7 @@ std::shared_ptr<ov::Model> CreateFunction(BinaryFactoryPtr binary_factory,
         binary_op = binary_factory->create(X, in_constant);
     else
         binary_op = binary_factory->create(in_constant, X);
-
+    // FIXME: ov::opset9::
     auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
     auto transpose0 = std::make_shared<ov::opset9::Transpose>(binary_op, ng_order0);
 
@@ -632,7 +647,7 @@ std::vector<ov::Shape> constant_shapes = {ov::Shape{55, 55, 96}, ov::Shape{1}};
 INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingBinaryIncompatShapesBackwardTestSuite,
     TransposeSinkingBinaryIncompatShapesTestFixture,
-    ::testing::Combine(::testing::ValuesIn(binary_factories),
+    ::testing::Combine(::testing::ValuesIn(binary_elementwise_factories),
                        ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingBinaryBackward)),
                        ::testing::Values(ov::Shape{1, 96, 55, 55}),
                        ::testing::ValuesIn(binary::single_consumer::backward::incompat_shapes::constant_shapes),
@@ -645,7 +660,7 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingBinaryIncompatShapesForwardTestSuite,
     TransposeSinkingBinaryIncompatShapesTestFixture,
-    ::testing::Combine(::testing::ValuesIn(binary_factories),
+    ::testing::Combine(::testing::ValuesIn(binary_elementwise_factories),
                        ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingBinaryForward)),
                        ::testing::Values(ov::Shape{1, 96, 55, 55}),
                        ::testing::ValuesIn(binary::single_consumer::forward::incompat_shapes::constant_shapes),
@@ -653,6 +668,32 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(binary::single_consumer::forward::incompat_shapes::CreateReferenceFunction),
                        ::testing::Values(ov::element::f32),
                        ::testing::ValuesIn(binary_transpose_input_indexes)),
+    TransposeSinkingBinaryIncompatShapesTestFixture::get_test_name);
+
+INSTANTIATE_TEST_SUITE_P(
+    TransposeSinkingPReluIncompatShapesBackwardTestSuite,
+    TransposeSinkingBinaryIncompatShapesTestFixture,
+    ::testing::Combine(::testing::Values(CREATE_BINARY_FACTORY(PRelu)),
+                       ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingBinaryBackward)),
+                       ::testing::Values(ov::Shape{1, 3, 16, 16}),
+                       ::testing::ValuesIn(std::vector<ov::Shape>{ov::Shape{3}}),
+                       ::testing::Values(binary::single_consumer::backward::incompat_shapes::CreateFunction),
+                       ::testing::Values(binary::single_consumer::backward::incompat_shapes::CreateReferenceFunction),
+                       ::testing::Values(ov::element::f32),
+                       ::testing::Values(0)),
+    TransposeSinkingBinaryIncompatShapesTestFixture::get_test_name);
+
+INSTANTIATE_TEST_SUITE_P(
+    TransposeSinkingPReluIncompatShapesForwardTestSuite,
+    TransposeSinkingBinaryIncompatShapesTestFixture,
+    ::testing::Combine(::testing::Values(CREATE_BINARY_FACTORY(PRelu)),
+                       ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingBinaryForward)),
+                       ::testing::Values(ov::Shape{1, 3, 16, 16}),
+                       ::testing::ValuesIn(std::vector<ov::Shape>{ov::Shape{3}}),
+                       ::testing::Values(binary::single_consumer::forward::incompat_shapes::CreateFunction),
+                       ::testing::Values(binary::single_consumer::forward::incompat_shapes::CreateReferenceFunction),
+                       ::testing::Values(ov::element::f32),
+                       ::testing::Values(0)),
     TransposeSinkingBinaryIncompatShapesTestFixture::get_test_name);
 
 }  // namespace one_input_transpose
