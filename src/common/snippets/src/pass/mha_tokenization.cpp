@@ -253,7 +253,7 @@ ngraph::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets() {
         ordered_ops.push_back(matmul1);
 
         auto child = matmul1->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
-        // TODO: Add support Eltwises between MatMul1 and Transpose out in FuseBrgemmTranspose
+        // TODO: Add support Eltwises between MatMul1 and Transpose
         // status = collapse_intermediate_supported_ops(child, ordered_ops);
         // if (!status) {
         //     ordered_ops.push_back(child);
@@ -262,6 +262,10 @@ ngraph::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets() {
         auto transpose3 = ngraph::as_type_ptr<ngraph::opset1::Transpose>(child);
         if (is_valid_transpose(transpose3, {0, 2, 1, 3})) {
             ordered_ops.push_back(transpose3);
+        }
+
+        if (transformation_callback(matmul1)) {
+            return false;
         }
 
         /**********************/
@@ -362,10 +366,6 @@ ngraph::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets() {
         subgraph->get_rt_info()["originalLayersNames"] = fused_names;
         subgraph->set_virtual_port_count(hidden_virtual_ports_count);
         subgraph->set_buffer_needed(need_buffer);
-
-        if (transformation_callback(subgraph)) {
-            return false;
-        }
 
         return true;
 

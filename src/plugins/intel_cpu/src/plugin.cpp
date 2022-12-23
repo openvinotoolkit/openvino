@@ -646,6 +646,24 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         if (!_enableBF16) {
             // TODO: Need to add BF16 support for MHA in Snippets
             snippetsManager.register_pass<ngraph::snippets::pass::TokenizeMHASnippets>();
+            snippetsManager.get_pass_config()->set_callback<ngraph::snippets::pass::TokenizeMHASnippets>(
+                    [](const std::shared_ptr<const ov::Node>& n) -> bool {
+                        const auto pshape = n->get_output_partial_shape(0);
+                        // Need to add support of non 4D tensors
+                        if (pshape.is_dynamic() || pshape.size() != 4)
+                            return true;
+                        const auto shape = pshape.get_shape();
+                        const auto parallel_work_amount = std::accumulate(shape.rbegin() + 2, shape.rend(), 1, std::multiplies<size_t>());
+                        const auto kernel_work_amount = std::accumulate(shape.rbegin(), shape.rbegin() + 2, 1, std::multiplies<size_t>());
+                        // Heuristic values:
+                        //    parallelism work amount - not enough work amount for parallelism
+                        //    kernel work amount - large shape for kernel execution, not cache-local
+                        const auto needed_num_of_threads = dnnl::impl::cpu::platform::get_num_cores() / 2;
+                        const auto needed_cache_size = dnnl::utils::get_cache_size(1, true);
+                        const auto is_unsupported_parallel_work_amount = parallel_work_amount < needed_num_of_threads;
+                        const auto is_unsupported_kernel_work_amount = kernel_work_amount > needed_cache_size;
+                        return is_unsupported_parallel_work_amount || is_unsupported_kernel_work_amount;
+                    });
         }
         snippetsManager.register_pass<ngraph::snippets::pass::TokenizeSnippets>();
         if (_snippetsMode != Config::SnippetsMode::IgnoreCallback) {
