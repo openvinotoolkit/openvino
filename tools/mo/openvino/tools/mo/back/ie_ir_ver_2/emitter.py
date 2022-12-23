@@ -513,7 +513,7 @@ def serialize_network(graph, net_element, unsupported):
             continue
 
         # Here output data node count is checked. Each port cannot have more than one data node.
-        assert len(node.out_nodes()) == 1, "Incorrect graph. Non-Result node with name {} " \
+        assert len(node.out_nodes()) >= 1, "Incorrect graph. Non-Result node with name {} " \
                                            "has no output data node.".format(output_name)
 
         # After port renumbering port/connection API is not applicable, and output port numbering
