@@ -1020,7 +1020,8 @@ public:
     ie::SoExecutableNetworkInternal ImportNetwork(std::istream& networkModel,
                                                   const std::string& deviceName,
                                                   const std::map<std::string, std::string>& config) override {
-        return import_model(networkModel, deviceName, any_copy(config));
+        auto compiled_model = import_model(networkModel, deviceName, any_copy(config));
+        return {convert_compiled_model_to_legacy(compiled_model._ptr), compiled_model._so};
     }
 
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
