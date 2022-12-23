@@ -132,7 +132,7 @@ KernelsData DeconvolutionKernelBase::GetKernelsData(const Params& params, const 
                      kernelName,
                      jit,
                      entry_point,
-                     DEFAULT,
+                     EXE_MODE_DEFAULT,
                      true,
                      !newParams.bias.empty(),
                      1,
