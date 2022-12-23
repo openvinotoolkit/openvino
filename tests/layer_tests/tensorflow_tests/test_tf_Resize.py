@@ -34,6 +34,8 @@ class TestResize(CommonTFLayerTest):
         # ResizeBilinear testing
         dict(images_shape=[1, 30, 30, 3], images_type=tf.float32, size_value=[40, 40], align_corners=False,
              half_pixel_centers=False, resize_op=tf.raw_ops.ResizeBilinear),
+        dict(images_shape=[1, 30, 30, 3], images_type=tf.float64, size_value=[40, 40], align_corners=False,
+             half_pixel_centers=False, resize_op=tf.raw_ops.ResizeBilinear),
         dict(images_shape=[2, 100, 100, 3], images_type=tf.float32, size_value=[40, 40], align_corners=True,
              half_pixel_centers=False, resize_op=tf.raw_ops.ResizeBilinear),
         dict(images_shape=[2, 10, 10, 3], images_type=tf.float32, size_value=[40, 40], align_corners=False,
