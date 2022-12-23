@@ -446,7 +446,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         if (!forceDisableCache && cacheContent.cacheManager && device_supports_import_export(plugin)) {
             try {
                 // need to export network for further import from "cache"
-                OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::LoadNetwork::Export");
+                OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::compile_model_impl::export_model");
                 cacheContent.cacheManager->writeCacheEntry(cacheContent.blobId, [&](std::ostream& networkStream) {
                     networkStream << ie::CompiledBlobHeader(
                         ie::GetInferenceEngineVersion()->buildNumber,
@@ -461,12 +461,12 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         return execNetwork;
     }
 
-    static ov::SoPtr<ie::IExecutableNetworkInternal> LoadNetworkFromCache(const CacheContent& cacheContent,
-                                                                          ov::Plugin& plugin,
-                                                                          const ov::AnyMap& config,
-                                                                          const ov::RemoteContext& context,
-                                                                          bool& networkIsImported) {
-        ov::SoPtr<ie::IExecutableNetworkInternal> execNetwork;
+    static ov::SoPtr<ov::ICompiledModel> LoadNetworkFromCache(const CacheContent& cacheContent,
+                                                              ov::Plugin& plugin,
+                                                              const ov::AnyMap& config,
+                                                              const ov::RemoteContext& context,
+                                                              bool& networkIsImported) {
+        ov::SoPtr<ov::ICompiledModel> execNetwork;
         struct HeaderException {};
 
         OPENVINO_ASSERT(cacheContent.cacheManager != nullptr);
@@ -494,7 +494,8 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
                 execNetwork = context._impl ? plugin.import_model(networkStream, context, config)
                                             : plugin.import_model(networkStream, config);
                 networkIsImported = true;
-                execNetwork->loadedFromCache();
+                // TODO:
+                // execNetwork->loadedFromCache();
             });
         } catch (const HeaderException&) {
             // For these exceptions just remove old cache and set that import didn't work
@@ -792,8 +793,7 @@ public:
                 res = compile_model_impl(model, plugin, parsed._config, context, cacheContent);
             } else {
                 // Temporary workaround until all plugins support caching of original model inputs
-                // FIXME:
-                // InferenceEngine::SetExeNetworkInfo(res._ptr, model, isNewAPI());
+                InferenceEngine::SetExeNetworkInfo(convert_compiled_model_to_legacy(res._ptr), model, isNewAPI());
             }
         } else {
             res = compile_model_impl(model, plugin, parsed._config, context, cacheContent);
@@ -806,7 +806,8 @@ public:
                                                           const std::map<std::string, std::string>& config) override {
         OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::LoadNetwork::RemoteContext");
         ov::RemoteContext ctx{context, {nullptr}};
-        return compile_model(legacy_to_model(network), ctx, any_copy(config));
+        auto compiled_model = compile_model(legacy_to_model(network), ctx, any_copy(config));
+        return {convert_compiled_model_to_legacy(compiled_model._ptr), compiled_model._so};
     }
 
     void apply_auto_batching(const std::shared_ptr<const ov::Model>& model,
@@ -916,16 +917,15 @@ public:
             cacheContent.blobId = CalculateNetworkHash(toCNN(model), parsed._deviceName, plugin, parsed._config);
             bool loadedFromCache = false;
             auto lock = cacheGuard.getHashLock(cacheContent.blobId);
-            res = LoadNetworkFromCache(cacheContent, plugin, config, {}, loadedFromCache);
+            res = LoadNetworkFromCache(cacheContent, plugin, parsed._config, {}, loadedFromCache);
             if (!loadedFromCache) {
-                res = compile_model_impl(model, plugin, config, {}, cacheContent, forceDisableCache);
+                res = compile_model_impl(model, plugin, parsed._config, {}, cacheContent, forceDisableCache);
             } else {
                 // Temporary workaround until all plugins support caching of original model inputs
-                // FIXME:
-                // InferenceEngine::SetExeNetworkInfo(res._ptr, model, isNewAPI());
+                InferenceEngine::SetExeNetworkInfo(convert_compiled_model_to_legacy(res._ptr), model, isNewAPI());
             }
         } else {
-            res = compile_model_impl(model, plugin, config, {}, cacheContent, forceDisableCache);
+            res = compile_model_impl(model, plugin, parsed._config, {}, cacheContent, forceDisableCache);
         }
         return {res._ptr, res._so};
     }
@@ -934,13 +934,14 @@ public:
                                                 const std::string& deviceNameOrig,
                                                 const std::map<std::string, std::string>& config) override {
         OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::LoadNetwork::CNN");
-        return compile_model(legacy_to_model(network), deviceNameOrig, any_copy(config));
+        auto compiled_model = compile_model(legacy_to_model(network), deviceNameOrig, any_copy(config));
+        return {convert_compiled_model_to_legacy(compiled_model._ptr), compiled_model._so};
     }
 
     ov::SoPtr<ov::ICompiledModel> compile_model(const std::string& modelPath,
                                                 const std::string& deviceName,
                                                 const ov::AnyMap& config) override {
-        OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::LoadNetwork::Path");
+        OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::compile_model::Path");
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
         auto plugin = GetCPPPluginByName(parsed._deviceName);
         ov::SoPtr<ov::ICompiledModel> res;
@@ -975,7 +976,7 @@ public:
         OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::LoadNetwork::Path");
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
         auto plugin = GetCPPPluginByName(parsed._deviceName);
-        ov::SoPtr<ie::IExecutableNetworkInternal> res;
+        ov::SoPtr<ov::ICompiledModel> res;
         auto conf = any_copy(parsed._config);
         auto cacheManager =
             coreConfig.getCacheConfigForDevice(parsed._deviceName, device_supports_cache_dir(plugin), conf)
@@ -1004,7 +1005,7 @@ public:
             }
             res = compile_model_impl(legacy_to_model(cnnNetwork), plugin, conf, {}, cacheContent);
         }
-        return {res._ptr, res._so};
+        return {convert_compiled_model_to_legacy(res._ptr), res._so};
     }
 
     ov::SoPtr<ov::ICompiledModel> import_model(std::istream& networkModel,

@@ -107,8 +107,8 @@ const std::string& ov::IPlugin::get_name() const {
 std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                                const ov::AnyMap& properties) {
     if (old_plugin) {
-        auto compiled_model = std::make_shared<ov::ICompiledModel>(
-            old_plugin->LoadNetwork(create_cnnnetwork(model, is_new_api()), any_copy(properties)));
+        auto exec_network = old_plugin->LoadNetwork(create_cnnnetwork(model, is_new_api()), any_copy(properties));
+        auto compiled_model = std::make_shared<ov::ICompiledModel>(exec_network);
         return compiled_model;
     }
     return compile_model(model, properties, {});
@@ -244,12 +244,13 @@ std::shared_ptr<ov::ICompiledModel> ov::IPlugin::import_model(std::istream& mode
 
 void ov::IPlugin::set_core(std::weak_ptr<ov::ICore> core) {
     OPENVINO_ASSERT(!core.expired());
+    m_core = core;
     auto locked_core = m_core.lock();
     if (old_plugin) {
-        if (auto old_core = std::dynamic_pointer_cast<InferenceEngine::ICore>(core))
+        auto old_core = std::dynamic_pointer_cast<InferenceEngine::ICore>(locked_core);
+        if (old_core)
             old_plugin->SetCore(old_core);
     }
-    m_core = core;
     if (locked_core)
         m_is_new_api = locked_core->is_new_api();
 }

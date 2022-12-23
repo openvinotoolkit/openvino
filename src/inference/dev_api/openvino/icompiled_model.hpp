@@ -28,6 +28,9 @@ namespace ov {
 
 class IPlugin;
 
+OPENVINO_RUNTIME_API std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> convert_compiled_model_to_legacy(
+    const std::shared_ptr<ov::ICompiledModel>& model);
+
 class OPENVINO_RUNTIME_API ICompiledModel : public std::enable_shared_from_this<ICompiledModel> {
 public:
     using Ptr = std::shared_ptr<ICompiledModel>;
@@ -65,6 +68,8 @@ private:
 
     friend IPlugin;
     friend InferenceEngine::Core;
+    friend OPENVINO_RUNTIME_API std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
+    convert_compiled_model_to_legacy(const std::shared_ptr<ov::ICompiledModel>& model);
 };
 
 }  // namespace ov
