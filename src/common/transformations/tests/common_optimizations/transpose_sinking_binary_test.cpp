@@ -105,14 +105,14 @@ public:
  * Unsqueeze insertion
  */
 std::vector<BinaryFactoryPtr> binary_elementwise_factories = {CREATE_BINARY_FACTORY(Add),
-                                                  CREATE_BINARY_FACTORY(Divide),
-                                                  CREATE_BINARY_FACTORY(Maximum),
-                                                  CREATE_BINARY_FACTORY(Minimum),
-                                                  CREATE_BINARY_FACTORY(Mod),
-                                                  CREATE_BINARY_FACTORY(Multiply),
-                                                  CREATE_BINARY_FACTORY(Power),
-                                                  CREATE_BINARY_FACTORY(SquaredDifference),
-                                                  CREATE_BINARY_FACTORY(Subtract)};
+                                                              CREATE_BINARY_FACTORY(Divide),
+                                                              CREATE_BINARY_FACTORY(Maximum),
+                                                              CREATE_BINARY_FACTORY(Minimum),
+                                                              CREATE_BINARY_FACTORY(Mod),
+                                                              CREATE_BINARY_FACTORY(Multiply),
+                                                              CREATE_BINARY_FACTORY(Power),
+                                                              CREATE_BINARY_FACTORY(SquaredDifference),
+                                                              CREATE_BINARY_FACTORY(Subtract)};
 
 std::vector<BinaryFactoryPtr> binary_factories = {CREATE_BINARY_FACTORY(Add),
                                                   CREATE_BINARY_FACTORY(Divide),
@@ -425,44 +425,42 @@ TEST_P(TransposeSinkingBinaryTestFixture, CompareFunctions) {
 INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingBinaryForwardTestSuite,
     TransposeSinkingBinaryTestFixture,
-    ::testing::Combine(
-        ::testing::ValuesIn(binary_factories),
-        ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingBinaryForward)),
-        ::testing::ValuesIn(binary_operations_numbers),
-        ::testing::Values(single_consumer::forward::one_input_transpose::CreateFunction),
-        ::testing::Values(single_consumer::forward::one_input_transpose::CreateReferenceFunction),
-        ::testing::Values(element::f32),
-        ::testing::ValuesIn(binary_transpose_input_indexes)),
+    ::testing::Combine(::testing::ValuesIn(binary_factories),
+                       ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingBinaryForward)),
+                       ::testing::ValuesIn(binary_operations_numbers),
+                       ::testing::Values(single_consumer::forward::one_input_transpose::CreateFunction),
+                       ::testing::Values(single_consumer::forward::one_input_transpose::CreateReferenceFunction),
+                       ::testing::Values(element::f32),
+                       ::testing::ValuesIn(binary_transpose_input_indexes)),
     TransposeSinkingBinaryTestFixture::get_test_name);
 
 INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingBinaryBackwardTestSuite,
     TransposeSinkingBinaryTestFixture,
-    ::testing::Combine(
-        ::testing::ValuesIn(binary_factories),
-        ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingBinaryBackward)),
-        ::testing::ValuesIn(binary_operations_numbers),
-        ::testing::Values(single_consumer::backward::one_input_transpose::CreateFunction),
-        ::testing::Values(single_consumer::backward::one_input_transpose::CreateReferenceFunction),
-        ::testing::Values(element::f32),
-        ::testing::ValuesIn(binary_transpose_input_indexes)),
+    ::testing::Combine(::testing::ValuesIn(binary_factories),
+                       ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingBinaryBackward)),
+                       ::testing::ValuesIn(binary_operations_numbers),
+                       ::testing::Values(single_consumer::backward::one_input_transpose::CreateFunction),
+                       ::testing::Values(single_consumer::backward::one_input_transpose::CreateReferenceFunction),
+                       ::testing::Values(element::f32),
+                       ::testing::ValuesIn(binary_transpose_input_indexes)),
     TransposeSinkingBinaryTestFixture::get_test_name);
 
 // --------------------------------------------------------------------------------------
 
 using CreateGraphBinaryIncompatShapesF = std::function<std::shared_ptr<Model>(BinaryFactoryPtr unary_factory,
-                                                                                  element::Type input_type,
-                                                                                  Shape input_shape,
-                                                                                  Shape constant_shape,
-                                                                                  size_t binary_transpose_input_idx)>;
+                                                                              element::Type input_type,
+                                                                              Shape input_shape,
+                                                                              Shape constant_shape,
+                                                                              size_t binary_transpose_input_idx)>;
 
 using TestBinaryIncompatShapesParams = std::tuple<BinaryFactoryPtr,
                                                   PassFactoryPtr,
-                                                  Shape,                        /* input shape */
-                                                  Shape,                        /* constant_shape */
+                                                  Shape,                            /* input shape */
+                                                  Shape,                            /* constant_shape */
                                                   CreateGraphBinaryIncompatShapesF, /* model_factory */
                                                   CreateGraphBinaryIncompatShapesF, /* reference_model_factory */
-                                                  element::Type,                /* input type */
+                                                  element::Type,                    /* input type */
                                                   size_t>;                          /* binary_transpose_input_idx */
 
 class TransposeSinkingBinaryIncompatShapesTestFixture
@@ -529,10 +527,10 @@ namespace backward {
 namespace incompat_shapes {
 
 std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
-                                          element::Type input_type,
-                                          Shape input_shape,
-                                          Shape constant_shape,
-                                          size_t binary_transpose_input_idx) {
+                                      element::Type input_type,
+                                      Shape input_shape,
+                                      Shape constant_shape,
+                                      size_t binary_transpose_input_idx) {
     auto X = std::make_shared<Parameter>(input_type, input_shape);
 
     auto in_constant = std::make_shared<Constant>(input_type, constant_shape, Shape{1});
@@ -550,10 +548,10 @@ std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
 }
 
 std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
-                                                   element::Type input_type,
-                                                   Shape input_shape,
-                                                   Shape constant_shape,
-                                                   size_t binary_transpose_input_idx) {
+                                               element::Type input_type,
+                                               Shape input_shape,
+                                               Shape constant_shape,
+                                               size_t binary_transpose_input_idx) {
     auto X = std::make_shared<Parameter>(input_type, input_shape);
 
     auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
@@ -587,10 +585,10 @@ namespace forward {
 namespace incompat_shapes {
 
 std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
-                                          element::Type input_type,
-                                          Shape input_shape,
-                                          Shape constant_shape,
-                                          size_t binary_transpose_input_idx) {
+                                      element::Type input_type,
+                                      Shape input_shape,
+                                      Shape constant_shape,
+                                      size_t binary_transpose_input_idx) {
     auto X = std::make_shared<Parameter>(input_type, input_shape);
 
     auto in_constant = std::make_shared<Constant>(input_type, constant_shape, Shape{1});
@@ -608,10 +606,10 @@ std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
 }
 
 std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
-                                                   element::Type input_type,
-                                                   Shape input_shape,
-                                                   Shape constant_shape,
-                                                   size_t binary_transpose_input_idx) {
+                                               element::Type input_type,
+                                               Shape input_shape,
+                                               Shape constant_shape,
+                                               size_t binary_transpose_input_idx) {
     auto X = std::make_shared<Parameter>(input_type, input_shape);
 
     auto in_constant = std::make_shared<Constant>(input_type, constant_shape, Shape{1});
@@ -815,9 +813,9 @@ std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
     return std::make_shared<Model>(ov::OutputVector{tanh1, tanh2}, ov::ParameterVector{X});
 }
 
-} // namespace one_binary
+}  // namespace one_binary
 
-} // namespace output_consumers
+}  // namespace output_consumers
 
 namespace input_node_consumers {
 
@@ -874,9 +872,9 @@ std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
     return std::make_shared<Model>(ov::OutputVector{transpose1, tanh}, ov::ParameterVector{X});
 }
 
-} // namespace input_node_consumers
+}  // namespace input_node_consumers
 
-} // namespace forward
+}  // namespace forward
 
 namespace backward {
 
@@ -1196,8 +1194,7 @@ TEST_P(TransposeBinaryMultiSinkingFixture, CompareFunctions) {
 std::vector<CreateGraphFunctionDesc> forward_subtests = {
     SUBTEST(forward::input_transpose_consumers, "forward_input_transpose_consumers"),
     SUBTEST(forward::output_consumers::one_binary, "forward_output_consumers"),
-    SUBTEST(forward::input_node_consumers, "forward_input_node_consumers")
-};
+    SUBTEST(forward::input_node_consumers, "forward_input_node_consumers")};
 
 std::vector<CreateGraphFunctionDesc> backward_subtests = {
     SUBTEST(backward::output_consumers::one_binary, "backward_output_consumers_one_binary"),
@@ -1216,15 +1213,14 @@ INSTANTIATE_TEST_SUITE_P(TransposeSinkingBinaryForwardMultiConsumersTestSuite,
                                             ::testing::ValuesIn(binary_transpose_input_indexes)),
                          TransposeBinaryMultiSinkingFixture::get_test_name);
 
-INSTANTIATE_TEST_SUITE_P(
-    TransposeSinkingBinaryBackwardMultiConsumersTestSuite,
-    TransposeBinaryMultiSinkingFixture,
-    ::testing::Combine(::testing::ValuesIn(binary_factories),
-                       ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingBinaryBackward)),
-                       ::testing::ValuesIn(backward_subtests),
-                       ::testing::Values(element::f32),
-                       ::testing::ValuesIn(binary_transpose_input_indexes)),
-                       TransposeBinaryMultiSinkingFixture::get_test_name);
-} // namespace mult_consumers
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingBinaryBackwardMultiConsumersTestSuite,
+                         TransposeBinaryMultiSinkingFixture,
+                         ::testing::Combine(::testing::ValuesIn(binary_factories),
+                                            ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingBinaryBackward)),
+                                            ::testing::ValuesIn(backward_subtests),
+                                            ::testing::Values(element::f32),
+                                            ::testing::ValuesIn(binary_transpose_input_indexes)),
+                         TransposeBinaryMultiSinkingFixture::get_test_name);
+}  // namespace mult_consumers
 
 }  // namespace transpose_sinking_binary_eltwise
