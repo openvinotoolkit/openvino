@@ -40,9 +40,8 @@ class TestResize(CommonTFLayerTest):
              half_pixel_centers=True, resize_op=tf.raw_ops.ResizeBilinear),
         dict(images_shape=[2, 40, 40, 3], images_type=tf.uint8, size_value=[10, 10], align_corners=False,
              half_pixel_centers=False, resize_op=tf.raw_ops.ResizeBilinear),
-        pytest.param(dict(images_shape=[1, 40, 40, 3], images_type=tf.int32, size_value=[10, 10], align_corners=False,
-                          half_pixel_centers=True, resize_op=tf.raw_ops.ResizeBilinear),
-                     marks=pytest.mark.xfail(reason="100025")),
+        dict(images_shape=[1, 40, 40, 3], images_type=tf.int32, size_value=[10, 10], align_corners=False,
+             half_pixel_centers=True, resize_op=tf.raw_ops.ResizeBilinear),
         # ResizeNearestNeighbor testing
         dict(images_shape=[1, 30, 30, 3], images_type=tf.float32, size_value=[40, 40], align_corners=False,
              half_pixel_centers=False, resize_op=tf.raw_ops.ResizeNearestNeighbor),

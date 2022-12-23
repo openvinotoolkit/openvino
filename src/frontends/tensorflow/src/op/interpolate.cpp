@@ -70,15 +70,14 @@ OutputVector translate_interpolate_op(const NodeContext& node) {
     // we can avoid Transpose operation by specifying axes = {1, 2} for original NHWC layout
     auto axes = make_shared<Constant>(element::i32, Shape{2}, std::vector<int>({1, 2}));
 
-    auto interpolate = make_shared<Interpolate>(images, size, scales, axes, interpolate_attrs)->output(0);
-
     // according to the specification of ResizeBilinear,
-    // it always returns FP32 output type
+    // it always returns FP32 output type so we immediately align input type for it
     if (op_type == "ResizeBilinear") {
-        interpolate = make_shared<Convert>(interpolate, element::f32);
+        images = make_shared<Convert>(images, element::f32);
     }
 
-    set_node_name(node.get_name(), interpolate.get_node_shared_ptr());
+    auto interpolate = make_shared<Interpolate>(images, size, scales, axes, interpolate_attrs);
+    set_node_name(node.get_name(), interpolate);
     return {interpolate};
 }
 }  // namespace op
