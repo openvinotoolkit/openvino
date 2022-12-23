@@ -8,33 +8,12 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
 
 > **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter can be installed via [pypi.org](https://pypi.org/project/openvino-dev/) only.
 
-## System Requirements
-
 @sphinxdirective
 
-.. tab:: Operating Systems
+.. tab:: System Requirements
 
-   * macOS 10.15, 11, 12, and 13, x86, 64-bit
-   * macOS 10.15, 11, 12, and 13, ARM, 64-bit
-  
-  .. note::
-   
-     Only macOS 10.15 is fully validated with OpenVINO. Other versions depend on the compatibility of macOS.
-
-.. tab:: Hardware
-
-  Optimized for these processors:
-
-  * 6th to 12th generation Intel® Core™ processors and Intel® Xeon® processors 
-  * 3rd generation Intel® Xeon® Scalable processor (formerly code named Cooper Lake)
-  * Intel® Xeon® Scalable processor (formerly Skylake and Cascade Lake)
-  * Intel® Neural Compute Stick 2
-  
-  .. note::
-    The current version of the Intel® Distribution of OpenVINO™ toolkit for macOS supports inference on Intel CPUs and Intel® Neural Compute Stick 2 devices only.
-    
-  .. note::    
-    Macintosh* computers using the M1* processor can now install OpenVINO and use the OpenVINO ARM* Device Plug-in on OpenVINO 2022.3 LTS and later. This plugin is community supported; no support is provided by Intel and it doesn't fall under the LTS 2-year support policy. :doc:`Learn more <openvino_docs_OV_UG_supported_plugins_ARM_CPU>`
+   | Full requirement listing is available in:
+   | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`_
 
 .. tab:: Software Requirements
 
