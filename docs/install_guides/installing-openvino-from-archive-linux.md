@@ -8,30 +8,12 @@ Installing OpenVINO Runtime from archive files is recommended for C++ developers
 
 See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes) for more information on updates in the latest release.
 
-## System Requirements
 
 @sphinxdirective
-.. tab:: Operating Systems
+.. tab:: System Requirements
 
-  * Ubuntu 18.04 long-term support (LTS) x86, 64-bit
-  * Ubuntu 20.04 long-term support (LTS) x86, 64-bit
-  * Red Hat Enterprise Linux 8 x86, 64-bit
-
-  .. note::
-     Since the OpenVINO™ 2022.1 release, CentOS 7.6, 64-bit is no longer supported.
-
-.. tab:: Hardware
-
-  Optimized for these processors:
-
-  * 6th to 12th generation Intel® Core™ processors and Intel® Xeon® processors 
-  * 3rd generation Intel® Xeon® Scalable processor (formerly code named Cooper Lake)
-  * Intel® Xeon® Scalable processor (formerly Skylake and Cascade Lake)
-  * Intel Atom® processor with support for Intel® Streaming SIMD Extensions 4.1 (Intel® SSE4.1)
-  * Intel Pentium® processor N4200/5, N3350/5, or N3450/5 with Intel® HD Graphics
-  * Intel® Iris® Xe MAX Graphics
-  * Intel® Neural Compute Stick 2
-  * Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
+   | Full requirement listing is available in:
+   | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`_
 
 .. tab:: Processor Notes
 
