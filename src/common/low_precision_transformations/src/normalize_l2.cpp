@@ -81,6 +81,8 @@ bool NormalizeL2Transformation::canBeTransformed(const TransformationContext& co
     const Shape outputShape = scalesConst->get_shape();
     const size_t size = shape_size(outputShape);
     if (size != 1ul) {
+        if (operation->get_output_partial_shape(0).size() < 2)
+            return false;
         const auto channelsInterval = operation->get_output_partial_shape(0)[1];
         if (channelsInterval.is_dynamic() || static_cast<size_t>(channelsInterval.get_length()) != size) {
             return false;
