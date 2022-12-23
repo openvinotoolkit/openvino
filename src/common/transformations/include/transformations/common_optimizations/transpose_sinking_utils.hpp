@@ -82,7 +82,8 @@ void RemoveInputNode(std::shared_ptr<ov::Node>, size_t input_idx);
 /**
  * @brief Inserts transposes on each main_node output with the order specified in @arg transpose_input_info
  */
-ov::NodeVector InsertOutputTransposes(std::shared_ptr<ov::Node> main_node, const TransposeInputsInfo& transpose_input_info);
+ov::NodeVector InsertOutputTransposes(std::shared_ptr<ov::Node> main_node,
+                                      const TransposeInputsInfo& transpose_input_info);
 }  // namespace sink_forward
 
 namespace sink_backward {
