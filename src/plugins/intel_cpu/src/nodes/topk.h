@@ -144,7 +144,7 @@ private:
     std::vector<uint8_t> vec_process_ptr;
     std::vector<uint8_t> vec_process_idx_ptr;
 
-    std::shared_ptr<jit_uni_topk_kernel> topk_kernel;
+    std::shared_ptr<jit_uni_topk_kernel> topk_kernel = nullptr;
 
     std::string errorPrefix;
 };

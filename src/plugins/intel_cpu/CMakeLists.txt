@@ -24,6 +24,13 @@ if (WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNOMINMAX")
 endif()
 
+
+if(X86_64 OR X86 OR AARCH64 OR RISCV64)
+    # nothing for now
+else()
+    message(FATAL_ERROR "Unsupported system processor ${CMAKE_SYSTEM_PROCESSOR}")
+endif()
+
 if (ENABLE_CPU_DEBUG_CAPS)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DCPU_DEBUG_CAPS")
 endif()
@@ -37,6 +44,43 @@ add_subdirectory(thirdparty)
 if(ENABLE_TESTS)
     add_subdirectory(tests)
 endif()
+
+add_definitions(-DOV_CPU_WITH_DNNL)
+set(OV_CPU_WITH_DNNL ON)
+
+if(DNNL_AARCH64_USE_ACL)
+    add_definitions(-DOV_CPU_WITH_ACL)
+    set(OV_CPU_WITH_ACL ON)
+endif()
+
+if(OV_CPU_WITH_ACL)
+    set(CMAKE_CXX_STANDARD 14)
+endif()
+
+# remove target specific files from compilation
+
+if (NOT OV_CPU_WITH_ACL)
+    set(EXCLUDE_PATHS ${EXCLUDE_PATHS}
+                      ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/acl/*)
+endif()
+
+if (NOT X86_64)
+    set(EXCLUDE_PATHS ${EXCLUDE_PATHS}
+                      ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/x64/*
+                      ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/x64/*
+                      ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/x64/*
+                      ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/x64/*
+                      ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/x64/*)
+endif()
+
+if (NOT AARCH64)
+    set(EXCLUDE_PATHS ${EXCLUDE_PATHS}
+                      ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/arm/*)
+endif()
+
+file(GLOB_RECURSE FILES_TO_REMOVE ${EXCLUDE_PATHS})
+list(REMOVE_ITEM SOURCES ${FILES_TO_REMOVE})
+list(REMOVE_ITEM HEADERS ${FILES_TO_REMOVE})
 
 # create plugin
 
