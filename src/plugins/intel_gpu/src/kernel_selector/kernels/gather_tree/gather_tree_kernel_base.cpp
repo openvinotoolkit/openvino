@@ -42,7 +42,7 @@ KernelsData GatherTreeKernelBase::GetCommonKernelsData(const Params& params,
                      kernelName,
                      jit,
                      entry_point,
-                     DEFAULT,
+                     EXE_MODE_DEFAULT,
                      false,
                      false,
                      static_cast<int>(gt_params.inputs.size()));
