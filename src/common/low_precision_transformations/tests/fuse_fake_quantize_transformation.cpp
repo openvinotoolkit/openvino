@@ -1,22 +1,17 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-
-#include <low_precision/fake_quantize.hpp>
-#include <low_precision/fake_quantize_decomposition.hpp>
 #include <memory>
 #include <sstream>
-#include <string>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/add.hpp"
+#include "low_precision/fake_quantize.hpp"
+#include "low_precision/fake_quantize_decomposition.hpp"
+#include "low_precision/fuse_fake_quantize.hpp"
+#include "low_precision/max_pool.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 #include "lpt_ngraph_functions/fuse_fake_quantize_function.hpp"
 #include "simple_low_precision_transformer.hpp"
 
@@ -26,27 +21,22 @@ using namespace testing;
 using namespace ngraph;
 using namespace ngraph::pass;
 
+// clang-format off
 class FuseFakeQuantizeTransformationTestValues {
 public:
     class Actual {
     public:
-        ngraph::element::Type precisionBeforeAdd;
-        ngraph::builder::subgraph::Add add;
-        ngraph::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
-        ngraph::element::Type precisionAfterDequantization;
-        ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
+        ngraph::element::Type precisionBefore;
+        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData1;
+        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData2;
     };
 
     class Expected {
     public:
-        ngraph::element::Type precisionBeforeAdd;
-        ngraph::builder::subgraph::Add add;
-        ngraph::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
-        ngraph::element::Type precisionAfterDequantization;
-        ngraph::element::Type precisionFakeQuantizeOnData;
-        ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
+        ngraph::element::Type precisionBefore;
+        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData1;
+        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData2;
+        ngraph::builder::subgraph::DequantizationOperations dequantizationOperations2;
     };
 
     ngraph::PartialShape inputShape;
@@ -61,360 +51,88 @@ public:
     void SetUp() override {
         const FuseFakeQuantizeTransformationTestValues testValues = GetParam();
 
-        actualFunction = ngraph::builder::subgraph::FuseFakeQuantizeFunction::getOriginal(
-            testValues.inputShape,
-            testValues.actual.precisionBeforeAdd,
-            testValues.actual.add,
-            testValues.actual.precisionBeforeDequantization,
-            testValues.actual.dequantization,
-            testValues.actual.precisionAfterDequantization,
-            testValues.actual.precisionAfterDequantization,
-            testValues.actual.fakeQuantizeOnData);
+        actualFunction = ngraph::builder::subgraph::FuseFakeQuantizeFunction::get(testValues.inputShape,
+                                                                                  testValues.actual.precisionBefore,
+                                                                                  testValues.actual.fakeQuantizeOnData1,
+                                                                                  testValues.actual.fakeQuantizeOnData2,
+                                                                                  {});
 
         SimpleLowPrecisionTransformer transformer;
         transformer
             .add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(
                 testValues.params);
-        transformer.transform(actualFunction);
-
+        transformer.add<ngraph::pass::low_precision::MaxPoolTransformation, ngraph::opset1::MaxPool>(testValues.params);
         transformer.add<ngraph::pass::low_precision::FakeQuantizeTransformation, ngraph::opset1::FakeQuantize>(
+            testValues.params);
+        transformer.add<ngraph::pass::low_precision::FuseFakeQuantizeTransformation, ngraph::opset1::FakeQuantize>(
             testValues.params);
         transformer.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::FuseFakeQuantizeFunction::getReference(
-            testValues.inputShape,
-            testValues.expected.precisionBeforeAdd,
-            testValues.expected.add,
-            testValues.expected.precisionBeforeDequantization,
-            testValues.expected.dequantization,
-            testValues.expected.precisionAfterDequantization,
-            testValues.expected.precisionFakeQuantizeOnData,
-            testValues.expected.fakeQuantizeOnData);
+		referenceFunction =
+			ngraph::builder::subgraph::FuseFakeQuantizeFunction::get(testValues.inputShape,
+				                                                     testValues.expected.precisionBefore,
+				                                                     testValues.expected.fakeQuantizeOnData1,
+				                                                     testValues.expected.fakeQuantizeOnData2,
+				                                                     testValues.expected.dequantizationOperations2);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<FuseFakeQuantizeTransformationTestValues> obj) {
         const FuseFakeQuantizeTransformationTestValues testValues = obj.param;
 
         std::ostringstream result;
-        result << testValues.inputShape << "_" << testValues.params.updatePrecisions << "_"
-               << testValues.actual.precisionBeforeAdd << "_" << testValues.actual.add.values.size() << "_"
-               << testValues.actual.add.outPrecision << "_" << testValues.actual.add.constantShape << "_"
-               << testValues.actual.precisionBeforeDequantization << testValues.actual.dequantization << "_"
-               << testValues.actual.precisionBeforeDequantization << "_" << testValues.actual.fakeQuantizeOnData << "_"
-               << testValues.expected.dequantization << "_" << testValues.expected.add.values.size() << "_"
-               << testValues.expected.add.outPrecision << "_" << testValues.expected.add.constantShape;
+        result << testValues.inputShape << "_"
+               << testValues.params.updatePrecisions << "_"
+               << testValues.actual.precisionBefore << "_"
+               << testValues.actual.fakeQuantizeOnData1 << "_" << testValues.actual.fakeQuantizeOnData2 << "_"
+               << testValues.expected.precisionBefore << "_"
+               << testValues.expected.fakeQuantizeOnData1 << "_" << testValues.expected.fakeQuantizeOnData2 << "_";
         return result.str();
     }
 };
+// clang-format on
 
 TEST_P(FuseFakeQuantizeTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(actualFunction, referenceFunction, true, true);
+    auto res = compare_functions(actualFunction, referenceFunction, true, false);
     ASSERT_TRUE(res.first) << res.second;
 
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
+// clang-format off
 const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
-    // Convert: U8 -> FP32, updatePrecisions = true
-    {{1, 3, 16, 16},
-     TestTransformationParams(true, {ngraph::element::u8}, {ngraph::element::i8}),
-     {element::f32,
-      {},
-      element::u8,
-      {{element::f32}, {}, {}},
-      element::f32,
-      {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}},
-     {element::f32,
-      {},
-      element::u8,
-      {{}, {}, {}},
-      element::f32,
-      element::f32,
-      {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, element::u8}}},
-    // Convert: U8 -> FP32, updatePrecisions = false
-    {{1, 3, 16, 16},
-     TestTransformationParams(false, {ngraph::element::u8}, {ngraph::element::i8}),
-     {element::f32,
-      {},
-      element::u8,
-      {{element::f32}, {}, {}},
-      element::f32,
-      {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}},
-     {element::f32,
-      {},
-      element::u8,
-      {{element::f32}, {}, {}},
-      element::f32,
-      element::f32,
-      {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, element::f32}}},
-    // 1) Multiply
-    {{1, 3, 16, 16},
-     LayerTransformation::createParamsU8I8(),
-     {element::f32, {}, element::f32, {{}, {}, {0.01f}}, element::f32, {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}},
-     {element::f32,
-      {},
-      element::f32,
-      {{}, {}, {}},
-      element::f32,
-      element::f32,
-      {256ul, {}, {0.f}, {255.f}, {0.f}, {2.55f}}}},
-    // 1) Multiply
-    {{1, 3, 16, 16},
-     LayerTransformation::createParamsU8I8(),
-     {element::f32,
-      {},
-      element::f32,
-      {{}, {}, {{0.01f, 0.02f, 0.03f}}},
-      element::f32,
-      {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}},
-     {element::f32,
-      {},
-      element::f32,
-      {{}, {}, {}},
-      element::f32,
-      element::f32,
-      {256ul, {{1, 3, 1, 1}, {1, 3, 1, 1}, {}, {}}, {0.f, 0.f, 0.f}, {255.f, 127.5f, 85.f}, {0.f}, {2.55f}}}},
-    // 1) Per-channel multiply and dynamic shape
-    {{Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic()},
-     LayerTransformation::createParamsU8I8(),
-     {element::f32,
-      {},
-      element::f32,
-      {{}, {}, {{0.01f, 0.02f, 0.03f}}},
-      element::f32,
-      {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}},
-     {element::f32,
-      {},
-      element::f32,
-      {{}, {}, {}},
-      element::f32,
-      element::f32,
-      {256ul, {{1, 3, 1, 1}, {1, 3, 1, 1}, {}, {}}, {0.f, 0.f, 0.f}, {255.f, 127.5f, 85.f}, {0.f}, {2.55f}}}},
-    // 1) Per-channel multiply and dynamic shape with dynamic channels
-    {{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
-     LayerTransformation::createParamsU8I8(),
-     {element::f32,
-      {},
-      element::f32,
-      {{}, {}, {{0.01f, 0.02f, 0.03f}}},
-      element::f32,
-      {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}},
-     {element::f32,
-      {},
-      element::f32,
-      {{}, {}, {{0.01f, 0.02f, 0.03f}}},
-      element::f32,
-      element::f32,
-      {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}}},
-    // 1) Multiply with different input and output shape
-    {{128, 1},
-     LayerTransformation::createParamsU8I8(),
-     {element::f32,
-      {},
-      element::f32,
-      {{}, {}, {{0.01f, 0.1f, 1.f}, ngraph::element::f32, {1, 3}}},
-      element::f32,
-      {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}},
-     {element::f32,
-      {},
-      element::f32,
-      {{}, {}, {{0.01f, 0.1f, 1.f}, ngraph::element::f32, {1, 3}}},
-      element::f32,
-      element::f32,
-      {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}}},
-    // Dynamic shape
-    {{Dimension::dynamic(), Dimension::dynamic()},
-     LayerTransformation::createParamsU8I8(),
-     {element::f32,
-      {},
-      element::f32,
-      {{}, {}, {{0.01f, 0.1f, 1.f}, ngraph::element::f32, {1, 3}}},
-      element::f32,
-      {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}},
-     {element::f32,
-      {},
-      element::f32,
-      {{}, {}, {{0.01f, 0.1f, 1.f}, ngraph::element::f32, {1, 3}}},
-      element::f32,
-      element::f32,
-      {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}}},
-    // 1) Multiply + 2) Add
-    {{1, 3, 16, 16},
-     LayerTransformation::createParamsU8I8(),
-     {element::f32,
-      {{128}, element::f32},
-      element::f32,
-      {{}, {}, {0.01f}},
-      element::f32,
-      {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}},
-     {element::f32,
-      {},
-      element::f32,
-      {{}, {}, {}},
-      element::f32,
-      element::f32,
-      {256ul, {}, {-128.f}, {127.f}, {0.f}, {2.55f}}}},
-    // 1) Subtract + Multiply
-    {{1, 3, 16, 16},
-     LayerTransformation::createParamsU8I8(),
-     {element::f32, {}, element::f32, {{}, {-128}, {0.01f}}, element::f32, {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}},
-     {element::f32,
-      {},
-      element::f32,
-      {{}, {}, {}},
-      element::f32,
-      element::f32,
-      {256ul, {}, {-128.f}, {127.f}, {0.f}, {2.55f}}}},
-    // 1) Convert + Subtract + Multiply
-    {{1, 3, 16, 16},
-     LayerTransformation::createParamsU8I8(),
-     {element::f32,
-      {},
-      element::u8,
-      {{element::f32}, {-128}, {0.01f}},
-      element::f32,
-      {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}},
-     {element::f32,
-      {},
-      element::u8,
-      {{}, {}, {}},
-      element::u8,
-      element::f32,
-      {256ul, {}, {-128.f}, {127.f}, {0.f}, {2.55f}}}},
-    // 1) Convert + Subtract + Multiply 2) Add
-    {{1, 3, 16, 16},
-     LayerTransformation::createParamsU8I8(),
-     {element::f32,
-      {{127}, element::f32},
-      element::f32,
-      {{element::f32}, {-128}, {0.01f}},
-      element::f32,
-      {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}},
-     {element::f32,
-      {},
-      element::f32,
-      {{}, {}, {}},
-      element::f32,
-      element::f32,
-      {256ul, {}, {-255.f}, {0.f}, {0.f}, {2.55f}}}},
-    // Dynamic shape
-    {{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
-     LayerTransformation::createParamsU8I8(),
-     {element::f32,
-      {{127}, element::f32},
-      element::f32,
-      {{element::f32}, {-128}, {0.01f}},
-      element::f32,
-      {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}},
-     {element::f32,
-      {},
-      element::f32,
-      {{}, {}, {}},
-      element::f32,
-      element::f32,
-      {256ul, {}, {-255.f}, {0.f}, {0.f}, {2.55f}}}},
-    // Dynamic rank
-    {PartialShape::dynamic(),
-     LayerTransformation::createParamsU8I8(),
-     {element::f32,
-      {{127}, element::f32},
-      element::f32,
-      {{element::f32}, {-128}, {0.01f}},
-      element::f32,
-      {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}},
-     {element::f32,
-      {},
-      element::f32,
-      {{}, {}, {}},
-      element::f32,
-      element::f32,
-      {256ul, {}, {-255.f}, {0.f}, {0.f}, {2.55f}}}},
-    // negative multiply
-    {{1, 3, 16, 16},
-     LayerTransformation::createParamsU8I8(),
-     {element::f32,
-      {},
-      element::f32,
-      {{}, {-128}, {-0.01f}},
-      element::f32,
-      {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}},
-     {element::f32,
-      {},
-      element::f32,
-      {{}, {-128}, {-0.01f}},
-      element::f32,
-      element::f32,
-      {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}}},
-    // issue #40611 for FP32
-    {{1, 3, 16, 16},
-     LayerTransformation::createParamsU8I8(),
-     {{},
-      {},
-      ngraph::element::i32,
-      {{ngraph::element::f32}, {}, {}},
-      ngraph::element::f32,
-      {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}},
-     {{},
-      {},
-      ngraph::element::i32,
-      {{ngraph::element::f32}, {}, {}},
-      element::f32,
-      element::f32,
-      {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}}},
-    // issue #40611 for FP16
-    {{1, 3, 16, 16},
-     LayerTransformation::createParamsU8I8(),
-     {{},
-      {},
-      ngraph::element::i32,
-      {{ngraph::element::f16}, {}, {}},
-      ngraph::element::f16,
-      {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}},
-     {{},
-      {},
-      ngraph::element::i32,
-      {{ngraph::element::f16}, {}, {}},
-      element::f16,
-      element::f16,
-      {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}}},
-    // multiply by zero
-    {{1, 3, 16, 16},
-     LayerTransformation::createParamsU8I8(),
-     {element::f32,
-      {},
-      element::u8,
-      {{element::f32}, {{-128, -128, -128}}, {{0.01f, 0.f, 0.01f}}},
-      element::f32,
-      {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}},
-     {element::f32,
-      {},
-      element::u8,
-      {{element::f32}, {{-128, -128, -128}}, {{0.01f, 0.f, 0.01f}}},
-      element::f32,
-      element::f32,
-      {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}}},
-    // non per-channel operation
-    {{1, 3, 4},
-     LayerTransformation::createParamsU8I8(),
-     {element::f32,
-      {},
-      element::u8,
-      {{element::f32},
-       {{-128, -128, -128, -128}, ngraph::element::f32, {1, 1, 4}},
-       {{0.01f, 0.02f, 0.03f, 0.04f}, ngraph::element::f32, {1, 1, 4}}},
-      element::f32,
-      {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}},
-     {element::f32,
-      {},
-      element::u8,
-      {{element::f32},
-       {{-128, -128, -128, -128}, ngraph::element::f32, {1, 1, 4}},
-       {{0.01f, 0.02f, 0.03f, 0.04f}, ngraph::element::f32, {1, 1, 4}}},
-      element::f32,
-      element::f32,
-      {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}}},
+    {
+        {1, 3, 16, 16},
+        TestTransformationParams(true, {ngraph::element::u8}, {ngraph::element::i8}),
+        {
+            element::f32,
+            {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
+            {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}
+        },
+        {
+            element::f32,
+            {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, element::u8},
+            {},
+            { ov::element::f32, {}, {{0.01f}, ov::element::f32, {}} }
+        }
+    },
+    {
+        {1, 3, 16, 16},
+        TestTransformationParams(true, {ngraph::element::u8}, {ngraph::element::i8}),
+        {
+            element::f32,
+            {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
+            {256ul, {}, {0.f}, {2.55f / 2.f}, {0.f}, {2.55f / 2.f}}
+        },
+        {
+            element::f32,
+            {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, element::u8},
+            {256ul, {}, {0.f}, {127.5f}, {0.f}, {255.f}, element::u8},
+            { ov::element::f32, {}, {{0.005f}, ov::element::f32, {}} }
+        }
+    }
 };
+// clang-format on
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT,
                          FuseFakeQuantizeTransformation,

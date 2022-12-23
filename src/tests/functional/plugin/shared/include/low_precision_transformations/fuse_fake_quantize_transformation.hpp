@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <string>
+#include <set>
 
 #include <ngraph/ngraph.hpp>
 #include "lpt_ngraph_functions/common/add.hpp"
@@ -18,26 +19,31 @@ class FuseFakeQuantizeTransformationTestValues {
 public:
     class Actual {
     public:
-        ngraph::element::Type precisionBeforeAdd;
-        ngraph::builder::subgraph::Add add;
-        ngraph::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
-        ngraph::element::Type precisionAfterDequantization;
-        ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
+        ngraph::element::Type precisionBefore;
+        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData1;
+        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData2;
+    };
+
+    class Expected {
+    public:
+        std::set<std::string> exist;
+        std::set<std::string> absent;
+        size_t int8_convolutions;
     };
 
     ngraph::PartialShape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     Actual actual;
+    Expected expected;
 };
 
 typedef std::tuple<
     std::string,
     FuseFakeQuantizeTransformationTestValues> FuseFakeQuantizeTransformationParams;
 
-class FuseFakeQuantizeTransformation :
-    public testing::WithParamInterface<FuseFakeQuantizeTransformationParams>,
-    public LayerTestsUtils::LayerTransformation {
+class FuseFakeQuantizeTransformation
+    : public testing::WithParamInterface<FuseFakeQuantizeTransformationParams>,
+      public LayerTestsUtils::LayerTransformation {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<FuseFakeQuantizeTransformationParams>& obj);
 

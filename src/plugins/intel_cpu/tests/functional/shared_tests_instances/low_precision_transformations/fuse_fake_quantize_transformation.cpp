@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "low_precision_transformations/fuse_fake_quantize_transformation.hpp"
+
 #include <vector>
 #include <gtest/gtest.h>
 
@@ -12,96 +13,49 @@ using namespace InferenceEngine::details;
 namespace {
 
 const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
-    // 1) Multiply
     {
         {1, 3, 16, 16},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
             ngraph::element::f32,
-            { },
-            ngraph::element::f32,
-            { {}, {}, { 0.01f } },
-            ngraph::element::f32,
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
-        }
-    },
-    {
-        {128, 3},
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f }, ngraph::element::f32 },
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f }, ngraph::element::f32 }
+        },
         {
-            ngraph::element::f32,
-            { },
-            ngraph::element::f32,
-            { {}, {}, { {0.01f, 0.1f, 1.f}, ngraph::element::f32, {1, 3} } },
-            ngraph::element::f32,
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+            { "fakeQuantize1" },
+            { "fakeQuantize2" }, // was fused to fakeQuantize1
+            2ull
         }
     },
-    // 1) Multiply by zero
+    // pipeline test: both Convolutions have to be in U8 independently of possible fuse
     {
         {1, 3, 16, 16},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
             ngraph::element::f32,
+            { 256ul, {}, { -1.27f }, { 1.28f }, { -1.27f }, { 1.28f }, ngraph::element::f32 },
+            { 256ul, {}, { -1.27f }, { 1.28f }, { -1.27f }, { 1.28f }, ngraph::element::f32 }
+        },
+        {
+            { "fakeQuantize1", "fakeQuantize2" }, // not fused
             { },
-            ngraph::element::f32,
-            { {}, {}, { {0.01f, 0.f, 0.01f} } },
-            ngraph::element::f32,
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+            2ull
         }
     },
-    // 1) Subtract + Multiply
     {
         {1, 3, 16, 16},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
             ngraph::element::f32,
-            { },
-            ngraph::element::f32,
-            { {}, { -128 }, { 0.01f } },
-            ngraph::element::f32,
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
-        }
-    },
-    // 1) Convert + Subtract + Multiply
-    {
-        {1, 3, 16, 16},
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f }, ngraph::element::f32 },
+            { 256ul, {}, { 0.f }, { 2.55f / 2.f }, { 0.f }, { 2.55f / 2.f }, ngraph::element::f32 }
+        },
         {
-            ngraph::element::f32,
+            { "fakeQuantize1", "fakeQuantize2" }, // not fused
             { },
-            ngraph::element::u8,
-            { {ngraph::element::f32}, { -128 }, { 0.01f } },
-            ngraph::element::f32,
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+            2ull
         }
-    },
-    // 1) Convert + Subtract + Multiply 2) Add
-    {
-        {1, 3, 16, 16},
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
-        {
-            ngraph::element::f32,
-            { {128}, ngraph::element::f32 },
-            ngraph::element::u8,
-            { {ngraph::element::f32}, { -128 }, { 0.01f } },
-            ngraph::element::f32,
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
-        }
-    },
-    // issue #40611 for FP32
-    {
-        {1, 3, 16, 16},
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
-        {
-            { },
-            { },
-            ngraph::element::i32,
-            { {ngraph::element::f32}, {}, {} },
-            ngraph::element::f32,
-            { 256ul, {}, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } }
-        }
-    },
+    }
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, FuseFakeQuantizeTransformation,
@@ -109,4 +63,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, FuseFakeQuantizeTransformation,
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(testValues)),
     FuseFakeQuantizeTransformation::getTestCaseName);
+
 }  // namespace
