@@ -317,6 +317,8 @@ protected:
 
     static std::string generic_to_string(program_node const& node, const char* type_name);
 
+    static std::vector<layout> forward_input0_shape(const kernel_impl_params& impl_param);
+
     // This could be implemented via single map std::unordered_map<instrumentation::perf_counter_key, std::tuple<int64_t, size_t>>
     // but the overhead on using perf_counter_key as map key is too big, thus we use hash as map key
     // and store mapping onto original perf_clounter_key for further data analysis and dumps

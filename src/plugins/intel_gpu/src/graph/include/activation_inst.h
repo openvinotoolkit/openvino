@@ -45,10 +45,14 @@ class typed_primitive_inst<activation> : public typed_primitive_inst_base<activa
     using parent::parent;
 
 public:
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(activation_node const& /*node*/, const kernel_impl_params& impl_param) {
+        return forward_input0_shape(impl_param);
+    }
+
     static layout calc_output_layout(activation_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(activation_node const& node);
 
-public:
     typed_primitive_inst(network& network, activation_node const& node);
 
     memory::ptr slope_memory() const { return dep_memory_ptr(1); }
