@@ -17,6 +17,21 @@ namespace frontend {
 namespace tensorflow_lite {
 namespace op {
 
+void set_output_names(const ov::frontend::tensorflow::NodeContext& node, OutputVector& outputs) {
+    const auto& decoder_with_name = std::dynamic_pointer_cast<DecoderFlatBuffer>(node.get_decoder());
+    FRONT_END_GENERAL_CHECK(decoder_with_name != nullptr, "Unexpected decoder during operation translation. Expected DecoderFlatBuffer");
+    FRONT_END_GENERAL_CHECK(outputs.size() == decoder_with_name->get_output_size(), "Unexpected decoder during operation translation. Expected DecoderFlatBuffer");
+    for (size_t i = 0; i < decoder_with_name->get_output_size(); ++i) {
+        outputs[i].set_names({decoder_with_name->get_output_tensor_name(i)});
+    }
+}
+
+void del_output_names(OutputVector& outputs) {
+    for (auto& output : outputs) {
+        output.set_names({});
+    }
+}
+
 
 void get_conv(ov::OutputVector& output, const ov::frontend::tensorflow::NodeContext& node, const std::shared_ptr<ov::frontend::tensorflow_lite::DecoderMap>& decoder, ov::OutputVector(*converter)(const ov::frontend::tensorflow::NodeContext&)) {
     ov::OutputVector inputs = {node.get_input(0),

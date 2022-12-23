@@ -7,32 +7,23 @@
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/frontend.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"
-#include "openvino/frontend/tensorflow/visibility.hpp"
+#include "openvino/frontend/tensorflow/extension/conversion.hpp"
+#include "openvino/frontend/tensorflow_lite/visibility.hpp"
 
 namespace ov {
 namespace frontend {
-namespace tensorflow {
+namespace tensorflow_lite {
 
-class TENSORFLOW_API ConversionExtension : public ConversionExtensionBase {
+class TENSORFLOW_LITE_API ConversionExtension : public ov::frontend::tensorflow::ConversionExtension {
 public:
     using Ptr = std::shared_ptr<ConversionExtension>;
 
     ConversionExtension() = delete;
-
     ConversionExtension(const std::string& op_type, const ov::frontend::CreatorFunction& converter)
-        : ConversionExtensionBase(op_type),
-          m_converter(converter) {}
-
-    const ov::frontend::CreatorFunction& get_converter() const {
-        return m_converter;
-    }
-
+        : ov::frontend::tensorflow::ConversionExtension(op_type, converter) {}
     ~ConversionExtension() override;
-
-protected:
-    ov::frontend::CreatorFunction m_converter;
 };
 
-}  // namespace tensorflow
+}  // namespace tensorflow_lite
 }  // namespace frontend
 }  // namespace ov

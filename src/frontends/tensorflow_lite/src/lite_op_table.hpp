@@ -28,6 +28,7 @@ OutputVector conv2d(const ov::frontend::tensorflow::NodeContext& node);
 OutputVector depthwise_conv2d(const ov::frontend::tensorflow::NodeContext& node);
 OutputVector concatenation(const ov::frontend::tensorflow::NodeContext& node);
 OutputVector reshape(const ov::frontend::tensorflow::NodeContext& node);
+OutputVector pad(const ov::frontend::tensorflow::NodeContext& node);
 
 }  // namespace op
 }  // namespace tensorflow_lite

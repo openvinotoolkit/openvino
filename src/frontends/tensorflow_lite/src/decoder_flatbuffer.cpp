@@ -39,8 +39,7 @@ void DecoderFlatBuffer::get_input_node(size_t input_port_idx,
     const auto inputs = m_node_def->inputs();
     FRONT_END_GENERAL_CHECK(inputs->size() > input_port_idx, "Input port index is out of range for node ", get_op_name(), ". Requested input index: ", input_port_idx, ". Number of inputs: ", inputs->size());
     auto input_tensor_idx = (*inputs)[input_port_idx];
-    FRONT_END_GENERAL_CHECK(m_tensors.size() > input_tensor_idx, "Input tensor index is out of range for node ", get_op_name(), ". Requested input index: ", input_port_idx, ". Tensor index: ", input_tensor_idx, " Number of inputs: ", inputs->size());
-    auto tensor = m_tensors[input_tensor_idx];
+    auto tensor = m_input_info.at(input_port_idx).tensor;
     std::string name = (*tensor).name()->str();
     producer_name = name;
     producer_output_port_index = input_tensor_idx;
@@ -65,10 +64,33 @@ size_t DecoderFlatBuffer::get_output_size() const {
 
 std::string DecoderFlatBuffer::get_output_tensor_name(size_t idx) const {
     // FIXME add checks
-    const auto tensor_idx = (*m_node_def->outputs())[idx];
-    return m_tensors[tensor_idx]->name()->str();
+    return m_output_info.at(idx).tensor->name()->str();
 }
 
+std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> DecoderFlatBuffer::decode_input_tensor(size_t idx, const InputModel& model) const {
+    FRONT_END_GENERAL_CHECK(idx < get_input_size(), "Requested input is out-of-range");
+    return decode_tensor(m_input_info.at(idx), model);
+}
+
+std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> DecoderFlatBuffer::decode_output_tensor(size_t idx, const InputModel& model) const {
+    FRONT_END_GENERAL_CHECK(idx < get_output_size(), "Requested output is out-of-range");
+    return decode_tensor(m_output_info.at(idx), model);
+}
+
+std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> DecoderFlatBuffer::decode_tensor(const ov::frontend::tensorflow_lite::TensorInfo& tensor_info, const InputModel& model) const {
+    const auto tensor = tensor_info.tensor;
+    std::vector<std::string> names = {tensor->name()->str()};
+
+    return std::make_shared<ov::frontend::tensorflow_lite::TensorLitePlace>(
+            model,
+            ov::frontend::tensorflow_lite::get_ov_shape(tensor->shape()),
+            ov::frontend::tensorflow_lite::get_ov_type(tensor->type()),
+            names,
+            ov::frontend::tensorflow_lite::get_quantization(tensor->quantization()),
+            tensor_info.input_idx,
+            tensor_info.output_idx,
+            (tensor_info.buffer->data() ? tensor_info.buffer->data()->data() : nullptr));
+}
 
 }  // namespace tensorflow_lite
 }  // namespace frontend

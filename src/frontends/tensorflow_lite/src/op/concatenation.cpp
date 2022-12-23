@@ -29,11 +29,9 @@ OutputVector concatenation(const ov::frontend::tensorflow::NodeContext& node) {
     }
     auto context = ov::frontend::tensorflow::NodeContext(decoder_for_tf_translator, inputs);
     auto output = ov::frontend::tensorflow::op::translate_concat_op(context);
+    del_output_names(output);
     get_activation(output, node, decoder_for_tf_translator);
-
-    const auto& decoder_with_name = dynamic_pointer_cast<DecoderFlatBuffer>(node.get_decoder());
-    FRONT_END_GENERAL_CHECK(decoder != nullptr, "Unexpected decoder during operation translation. Expected DecoderFlatBuffer");
-    output[0].set_names({decoder_with_name->get_output_tensor_name(0)});
+    del_output_names(output);
     return output;
 }
 

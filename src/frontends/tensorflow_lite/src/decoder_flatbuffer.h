@@ -7,7 +7,9 @@
 #include <string>
 #include <vector>
 #include <flatbuffers/vector.h>
-
+#include "tensor_lite_place.hpp"
+#include "graph_iterator_flatbuffer.hpp"
+#include "openvino/frontend/tensorflow_lite/visibility.hpp"
 #include "openvino/frontend/tensorflow/decoder.hpp"
 
 namespace tflite {
@@ -19,13 +21,17 @@ namespace ov {
 namespace frontend {
 namespace tensorflow_lite {
 
-class DecoderFlatBuffer : public ov::frontend::tensorflow::DecoderBase {
+class TensorLitePlace;
+class TensorInfo;
+
+class TENSORFLOW_LITE_API DecoderFlatBuffer : public ov::frontend::tensorflow::DecoderBase {
 public:
     explicit DecoderFlatBuffer(const tflite::Operator* node_def,
                                const std::string& type,
                                const std::string& name,
-                               const std::vector<const tflite::Tensor*>& tensors)
-                               : m_node_def(node_def), m_type(type), m_name(name), m_tensors(tensors) {}
+                               std::map<size_t, ov::frontend::tensorflow_lite::TensorInfo> input_info,
+                               std::map<size_t, ov::frontend::tensorflow_lite::TensorInfo> output_info)
+                               : m_node_def(node_def), m_type(type), m_name(name), m_input_info(input_info), m_output_info(output_info) {}
 
     ov::Any get_attribute(const std::string& name) const override;
 
@@ -42,13 +48,23 @@ public:
     const std::string& get_op_type() const override;
     const std::string& get_op_name() const override;
 
+    std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> decode_input_tensor(size_t idx, const InputModel& model) const;
+
+    std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> decode_output_tensor(size_t idx, const InputModel& model) const;
+    // access to input / output tensors / buffers -- get info like quantization
+    //  or simply method decode to translate tensor info to tensor place!
+
 private:
 //    std::vector<::tensorflow::AttrValue> decode_attribute_helper(const std::string& name) const;
-    const tflite::Operator* m_node_def;
-    const std::vector<const tflite::Tensor*> m_tensors;
-    std::string m_type, m_name;
 
+    std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> decode_tensor(
+            const ov::frontend::tensorflow_lite::TensorInfo& tensor_info, const InputModel& model) const;
+
+    const tflite::Operator* m_node_def;
+    std::string m_type, m_name;
+    std::map<size_t, ov::frontend::tensorflow_lite::TensorInfo> m_input_info, m_output_info;
 };
-}  // namespace tensorflow
+
+} // namespace tensorflow_lite
 }  // namespace frontend
 }  // namespace ov

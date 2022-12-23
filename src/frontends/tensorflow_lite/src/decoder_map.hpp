@@ -20,7 +20,7 @@ public:
     DecoderMap(std::shared_ptr<ov::frontend::tensorflow::DecoderBase> decoder, const std::map<std::string, ov::Any>& attrs, bool empty_name=false) :
             ov::frontend::tensorflow::DecoderBase(), m_decoder(std::move(decoder)), m_attrs(attrs), m_empty_name(empty_name) {}
 
-    DecoderMap(std::shared_ptr<ov::frontend::tensorflow::DecoderBase> decoder, const std::map<std::string, ov::Any>& attrs, const std::string& type, bool empty_name=false) :
+    DecoderMap(std::shared_ptr<ov::frontend::tensorflow::DecoderBase> decoder, const std::map<std::string, ov::Any>& attrs, std::string type, bool empty_name=false) :
             ov::frontend::tensorflow::DecoderBase(), m_decoder(std::move(decoder)), m_attrs(attrs), m_type(type), m_empty_name(empty_name) {}
 
     /// \brief Get attribute value by name

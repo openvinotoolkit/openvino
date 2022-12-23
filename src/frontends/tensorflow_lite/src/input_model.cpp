@@ -10,7 +10,7 @@
 
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"
-#include "openvino/opsets/opset7.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/util/log.hpp"
 #include "tensor_lite_place.hpp"
 #include "utils.hpp"
@@ -29,33 +29,37 @@ public:
                          const std::shared_ptr<TelemetryExtension>& telemetry);
     std::vector<ov::frontend::Place::Ptr> getInputs() const;
     std::vector<ov::frontend::Place::Ptr> getOutputs() const;
-//    ov::frontend::Place::Ptr getPlaceByTensorName(const std::string& tensorName) const;
-//    void overrideAllOutputs(const std::vector<ov::frontend::Place::Ptr>& outputs);
-//    void overrideAllInputs(const std::vector<ov::frontend::Place::Ptr>& inputs);
-//    void extractSubgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,
-//                         const std::vector<ov::frontend::Place::Ptr>& outputs);
-//    void setPartialShape(ov::frontend::Place::Ptr place, const ov::PartialShape&);
-//    ov::PartialShape getPartialShape(ov::frontend::Place::Ptr place) const;
-//    void setElementType(ov::frontend::Place::Ptr place, const ov::element::Type&);
-//    ov::element::Type getElementType(ov::frontend::Place::Ptr place) const;
-//    void setTensorValue(ov::frontend::Place::Ptr place, const void* value);
+    ov::frontend::Place::Ptr getPlaceByTensorName(const std::string& tensorName) const;
 
+    /////  Searching for places  /////
     std::vector<std::shared_ptr<OpPlace>> get_op_places() const {
         return m_op_places;
     }
-    std::map<std::string, std::shared_ptr<TensorLitePlace>> get_tensor_places() const {
+    std::map<std::string, std::shared_ptr<TensorPlace>> get_tensor_places() const {
         return m_tensor_places;
     }
     std::map<std::string, Output<Node>> get_tensor_values() const {
         return m_tensor_values;
     }
 
+    ///// Naming and annotation  /////
+    void setNameForTensor(const Place::Ptr &tensor, const std::string &new_name);
+    void addNameForTensor(const Place::Ptr &tensor, const std::string &new_name);
+    void setNameForOperation(const Place::Ptr &operation, const std::string &new_name);
+
+    ///// Setting / getting tensor properties  /////
+    void setPartialShape(ov::frontend::Place::Ptr place, const ov::PartialShape& shape);
+    ov::PartialShape getPartialShape(ov::frontend::Place::Ptr place) const;
+    void setElementType(ov::frontend::Place::Ptr place, const ov::element::Type& type);
+    ov::element::Type getElementType(ov::frontend::Place::Ptr place) const;
+    void setTensorValue(ov::frontend::Place::Ptr place, const void* value);
+
 private:
     void loadModel();
 
     std::vector<std::shared_ptr<OpPlace>> m_op_places;
     std::map<std::string, std::shared_ptr<OpPlace>> m_op_places_map;
-    std::map<std::string, std::shared_ptr<TensorLitePlace>> m_tensor_places;
+    std::map<std::string, std::shared_ptr<TensorPlace>> m_tensor_places;
     std::vector<ov::frontend::Place::Ptr> m_inputs;
     std::vector<ov::frontend::Place::Ptr> m_outputs;
     std::map<std::string, Output<Node>> m_tensor_values;
@@ -70,59 +74,53 @@ private:
 void InputModel::InputModelTFLiteImpl::loadModel() {
     std::unordered_set<size_t> non_constant_tensors;
 
-    // inputs
-    const auto& input_tensor_indices = m_graph_iterator->get_model_input_tensor_indices();
-    m_inputs.reserve(input_tensor_indices.size());
-    for (const auto& i : input_tensor_indices) {
-        auto tensor = m_graph_iterator->get_tensor(i);
-        const auto& names = std::vector<std::string>{tensor->name()->str()};
-        const auto& ov_shape = get_ov_shape(tensor->shape());
-        const auto& ov_type = get_ov_type(tensor->type());
-        auto quantization = get_quantization(tensor->quantization());
-        m_inputs.push_back(std::make_shared<ov::frontend::tensorflow_lite::TensorLitePlace>(
-                m_input_model, ov_shape, ov_type, names, quantization));
-        non_constant_tensors.insert(i);
-    }
-
-    // outputs
-    const auto& output_tensor_indices = m_graph_iterator->get_model_output_tensor_indices();
-    m_outputs.reserve(output_tensor_indices.size());
-    for (const auto& i : output_tensor_indices) {
-        auto tensor = m_graph_iterator->get_tensor(i);
-        const auto& name = tensor->name()->str();
-        const auto& ov_shape = get_ov_shape(tensor->shape());
-        const auto& ov_type = get_ov_type(tensor->type());
-        auto quantization = get_quantization(tensor->quantization());
-        m_outputs.push_back(std::make_shared<ov::frontend::tensorflow_lite::TensorLitePlace>(m_input_model, ov_shape, ov_type, std::vector<std::string>{name}, quantization));
-        non_constant_tensors.insert(i);
-    }
-
-    // ops
+    // go over all ops. collect info regarding constant, input and output tensors
+    //  -- how to preserve order of inputs / outputs?
     m_op_places.reserve(m_graph_iterator->size());
     for (; !m_graph_iterator->is_end(); m_graph_iterator->next()) {
         const auto& decoder = m_graph_iterator->get_decoder();
         m_op_places.push_back(std::make_shared<OpPlace>(m_input_model, decoder));
-        for (size_t idx : decoder->get_output_tensor_indices())
-            non_constant_tensors.insert(idx);
-    }
 
-    // constant data aka buffer data
-    const auto tensors = m_graph_iterator->get_tensors();
-    const auto buffers = m_graph_iterator->get_buffers();
-    for (size_t i = 0; i < tensors.size(); ++i) {
-        const auto tensor = tensors[i];
-        const auto& name = tensor->name()->str();
-        const auto& type = get_ov_type(tensor->type());
-        const auto& shape = get_ov_shape(tensor->shape()).to_shape();
-        if (non_constant_tensors.find(i) == non_constant_tensors.end()) {
-            auto buffer = buffers[tensor->buffer()]->data()->data();
-            auto constant = ov::op::v0::Constant::create(type, shape, buffer);
-            m_tensor_values[name] = constant;
-            // TODO: we must work with quantization parameter in that tensor
+        for (size_t i = 0; i < decoder->get_input_size(); ++i) {
+            auto place = decoder->decode_input_tensor(i, m_input_model);
+            auto name = place->get_names()[0];
+            if (m_tensor_places.find(name) == m_tensor_places.end()) {
+                m_tensor_places[name] = place;
+                if (place->is_input()) {
+                    // will reorder by index later
+                    m_inputs.push_back(place);
+                } else if (auto data = place->get_data()) {
+                    auto constant = ov::op::v0::Constant::create(
+                            place->get_element_type(),
+                            place->get_partial_shape().to_shape(),
+                            data);
+                    m_tensor_values[name] = constant;
+                } else {
+                    FRONT_END_GENERAL_CHECK(false,
+                                            "This tensor should be either input, constant or ",
+                                            "should be already produced by previous operators: ",
+                                            name,
+                                            ". Error is encountered while working with operation of type ",
+                                            decoder->get_op_type(),
+                                            " and name ",
+                                            decoder->get_op_name(),
+                                            ".");
+                }
+            }
         }
-        auto quantization = get_quantization(tensor->quantization());
-        m_tensor_places[name] = std::make_shared<ov::frontend::tensorflow_lite::TensorLitePlace>(m_input_model, shape, type, std::vector<std::string>{name}, quantization);
+        for (size_t i = 0; i < decoder->get_output_size(); ++i) {
+            auto place = decoder->decode_output_tensor(i, m_input_model);
+            auto name = place->get_names()[0];
+            if (m_tensor_places.find(name) == m_tensor_places.end()) {
+                m_tensor_places[name] = place;
+                if (place->is_output()) {
+                    // will reorder by index later
+                    m_outputs.push_back(place);
+                }
+            }
+        }
     }
+    // TODO: reorder inputs and outputs in their respective vectors with regards to their original indices
 }
 
 
@@ -152,13 +150,87 @@ std::vector<ov::frontend::Place::Ptr> InputModel::InputModelTFLiteImpl::getOutpu
     return m_outputs;
 }
 
+std::shared_ptr<TensorPlace> castToTensorPlace(const ov::frontend::Place::Ptr& place) {
+    if (auto var_place = std::dynamic_pointer_cast<TensorPlace>(place)) {
+        return var_place;
+    }
+    FRONT_END_GENERAL_CHECK(false, "Cannot cast this Place to TensorPlace.");
+}
+
+ov::frontend::Place::Ptr
+InputModel::InputModelTFLiteImpl::getPlaceByTensorName(const std::string &tensorName) const {
+    if (m_tensor_places.find(tensorName) != m_tensor_places.end())
+        return castToTensorPlace(m_tensor_places.at(tensorName));
+    else
+        return nullptr;
+}
+
+std::shared_ptr<OpPlace> castToOpPlace(const ov::frontend::Place::Ptr& place) {
+    if (auto var_place = std::dynamic_pointer_cast<OpPlace>(place)) {
+        return var_place;
+    }
+    FRONT_END_GENERAL_CHECK(false, "Cannot cast this Place to TensorPlace.");
+}
+
+void InputModel::InputModelTFLiteImpl::setPartialShape(ov::frontend::Place::Ptr place, const PartialShape & shape) {
+    castToTensorPlace(place)->set_partial_shape(shape);
+}
+
+ov::PartialShape InputModel::InputModelTFLiteImpl::getPartialShape(ov::frontend::Place::Ptr place) const {
+    return castToTensorPlace(place)->get_partial_shape();
+}
+
+void InputModel::InputModelTFLiteImpl::setElementType(ov::frontend::Place::Ptr place, const element::Type & type) {
+    castToTensorPlace(place)->set_element_type(type);
+}
+
+ov::element::Type InputModel::InputModelTFLiteImpl::getElementType(ov::frontend::Place::Ptr place) const {
+    return castToTensorPlace(place)->get_element_type();
+}
+
+void InputModel::InputModelTFLiteImpl::setTensorValue(ov::frontend::Place::Ptr place, const void *value) {
+    auto tensor_place = castToTensorPlace(place);
+    auto p_shape = tensor_place->get_partial_shape();
+    auto type = tensor_place->get_element_type();
+    FRONT_END_GENERAL_CHECK(tensor_place->get_names().size() > 0,
+                            "TensorFlow Lite Frontend: place to be frozen must have the name.");
+    auto name = tensor_place->get_names()[0];
+    FRONT_END_GENERAL_CHECK(p_shape.is_static(),
+                            "TensorFlow Lite Frontend: specify static shape for " + name + " to be frozen.");
+    FRONT_END_GENERAL_CHECK(type.is_static(),
+                            "TensorFlow Lite Frontend: define static size type for " + name + " to be frozen.");
+    auto constant = opset10::Constant::create(type, p_shape.to_shape(), value);
+    constant->set_friendly_name(name);
+    m_tensor_values[name] = constant;
+}
+
+void InputModel::InputModelTFLiteImpl::setNameForTensor(const Place::Ptr &tensor, const std::string &new_name) {
+    castToTensorPlace(tensor)->set_names({new_name});
+}
+
+void InputModel::InputModelTFLiteImpl::addNameForTensor(const Place::Ptr &tensor, const std::string &new_name) {
+    auto tf_tensor = castToTensorPlace(tensor);
+    auto names = tf_tensor->get_names();
+    names.push_back(new_name);
+    tf_tensor->set_names(names);
+}
+
+void
+InputModel::InputModelTFLiteImpl::setNameForOperation(const Place::Ptr &operation, const std::string &new_name) {
+    auto op = castToOpPlace(operation);
+    auto names = op->get_names();
+    names.push_back(new_name);
+    op->set_names(names);
+}
+
+
 InputModel::InputModel(const GraphIteratorFlatBuffer::Ptr& graph_iterator, const std::shared_ptr<TelemetryExtension>& telemetry) : _impl{std::make_shared<InputModelTFLiteImpl>(graph_iterator, *this, telemetry)} {}
 
 std::vector<std::shared_ptr<ov::frontend::tensorflow::OpPlace>> InputModel::get_op_places() const {
     return _impl->get_op_places();
 }
 
-std::map<std::string, std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace>>
+std::map<std::string, std::shared_ptr<ov::frontend::tensorflow::TensorPlace>>
 InputModel::get_tensor_places() const {
     return _impl->get_tensor_places();
 }
@@ -173,6 +245,42 @@ std::vector<ov::frontend::Place::Ptr> InputModel::get_inputs() const {
 
 std::vector<ov::frontend::Place::Ptr> InputModel::get_outputs() const {
     return _impl->getOutputs();
+}
+
+ov::frontend::Place::Ptr InputModel::get_place_by_tensor_name(const std::string &tensorName) const {
+    return _impl->getPlaceByTensorName(tensorName);
+}
+
+void InputModel::set_partial_shape(const Place::Ptr &place, const PartialShape &shape) {
+    _impl->setPartialShape(place, shape);
+}
+
+ov::PartialShape InputModel::get_partial_shape(const Place::Ptr &place) const {
+    return _impl->getPartialShape(place);
+}
+
+void InputModel::set_element_type(const Place::Ptr &place, const element::Type &type) {
+    _impl->setElementType(place, type);
+}
+
+ov::element::Type InputModel::get_element_type(const Place::Ptr &place) const {
+    return _impl->getElementType(place);
+}
+
+void InputModel::set_tensor_value(const Place::Ptr &place, const void *value) {
+    _impl->setTensorValue(place, value);
+}
+
+void InputModel::set_name_for_tensor(const Place::Ptr &tensor, const std::string &new_name) {
+    _impl->setNameForTensor(tensor, new_name);
+}
+
+void InputModel::add_name_for_tensor(const Place::Ptr &tensor, const std::string &new_name) {
+    _impl->addNameForTensor(tensor, new_name);
+}
+
+void InputModel::set_name_for_operation(const Place::Ptr &operation, const std::string &new_name) {
+    _impl->setNameForOperation(operation, new_name);
 }
 
 }  // namespace tensorflow

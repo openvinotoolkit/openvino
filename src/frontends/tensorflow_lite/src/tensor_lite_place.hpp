@@ -10,6 +10,8 @@
 #include "utils.hpp"
 #include "place.hpp"
 
+#include <utility>
+
 namespace ov {
 namespace frontend {
 namespace tensorflow_lite {
@@ -27,13 +29,37 @@ public:
                     const ov::PartialShape& pshape,
                     ov::element::Type type,
                     const std::vector<std::string>& names,
-                    const ov::frontend::tensorflow_lite::Quantization& quantization) : ov::frontend::tensorflow::TensorPlace(input_model, pshape, type, names),
-                                             m_quantization(quantization) {};
+                    std::shared_ptr<ov::frontend::tensorflow_lite::Quantization> quantization,
+                    int64_t input_idx, int64_t output_idx, const void* data) :
+            ov::frontend::tensorflow::TensorPlace(input_model, pshape, type, names),
+            m_quantization(std::move(quantization)), m_input_idx(input_idx), m_output_idx(output_idx), m_data(data) {};
 
-    const ov::frontend::tensorflow_lite::Quantization& get_quantization() const;
+    std::shared_ptr<Quantization> get_quantization() const;
     void disable_quantization();
+
+    void translate(ov::Output<ov::Node>& output);
+
+    bool is_input () const override {
+        return m_input_idx >= 0;
+    }
+    size_t get_input_index() const {
+        FRONT_END_GENERAL_CHECK(is_input(), "This is not input TensorPlace. Can not deliver input index");
+        return static_cast<size_t>(m_input_idx);
+    }
+    bool is_output() const override {
+        return m_output_idx >= 0;
+    }
+    size_t get_output_index() const {
+        FRONT_END_GENERAL_CHECK(is_output(), "This is not output TensorPlace. Can not deliver output index");
+        return static_cast<size_t>(m_input_idx);
+    }
+    const void* get_data() const {
+        return m_data;
+    }
 protected:
-    ov::frontend::tensorflow_lite::Quantization m_quantization;
+    std::shared_ptr<ov::frontend::tensorflow_lite::Quantization> m_quantization;
+    int64_t m_input_idx, m_output_idx;
+    const void* m_data;
 };
 
 }  // namespace tensorflow_lite

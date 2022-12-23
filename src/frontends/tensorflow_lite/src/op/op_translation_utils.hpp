@@ -22,6 +22,9 @@ namespace tensorflow_lite {
 namespace op {
 
 
+void set_output_names(const ov::frontend::tensorflow::NodeContext& node, OutputVector& outputs);
+void del_output_names(OutputVector& outputs);
+
 // convolutions
 template <class T>
 std::shared_ptr<ov::frontend::tensorflow_lite::DecoderMap> get_conv_decoder_map(
@@ -37,7 +40,6 @@ std::shared_ptr<ov::frontend::tensorflow_lite::DecoderMap> get_conv_decoder_map(
     };
     return std::make_shared<ov::frontend::tensorflow_lite::DecoderMap>(decoder, attrs, new_type_name, true);
 }
-ov::frontend::tensorflow::NodeContext get_conv_context(const ov::frontend::tensorflow::NodeContext& node, const std::shared_ptr<ov::frontend::tensorflow_lite::DecoderMap>& decoder);
 void get_conv(ov::OutputVector& output, const ov::frontend::tensorflow::NodeContext& node, const std::shared_ptr<ov::frontend::tensorflow_lite::DecoderMap>& decoder, ov::OutputVector(*converter)(const ov::frontend::tensorflow::NodeContext&));
 void get_bias(ov::OutputVector& output, const ov::frontend::tensorflow::NodeContext& node, const std::shared_ptr<ov::frontend::tensorflow_lite::DecoderMap>& decoder);
 void get_activation(ov::OutputVector& output, const ov::frontend::tensorflow::NodeContext& node, const std::shared_ptr<ov::frontend::tensorflow_lite::DecoderMap>& decoder);

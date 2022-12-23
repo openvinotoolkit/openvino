@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-ov_add_frontend(NAME tensorflow_lite
-        LINKABLE_FRONTEND
-        FILEDESCRIPTION "FrontEnd to load and convert TensorFlow Lite file format"
-        LINK_LIBRARIES openvino::util openvino::runtime::dev openvino::frontend::tensorflow
-                       openvino_tensorflow_frontend_common_logic)
+add_subdirectory(src)
+
+if(ENABLE_TESTS)
+    add_subdirectory(tests)
+endif()

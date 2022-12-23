@@ -21,6 +21,11 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         {"CONCATENATION", concatenation},
         {"RESHAPE", reshape},
         {"LOGISTIC", ov::frontend::tensorflow::op::translate_unary_op<opset10::Sigmoid>},
+        {"PAD", pad},
+        {"ADD", ov::frontend::tensorflow::op::translate_binary_op<opset10::Add>},
+        // AVERAGE_POOL_2D
+        // PACK
+        // SOFTMAX
     };
 }
 }  // namespace op

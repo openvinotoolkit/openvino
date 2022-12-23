@@ -10,20 +10,20 @@
 
 using namespace ov;
 
-ov::frontend::tensorflow_lite::Quantization ov::frontend::tensorflow_lite::get_quantization(const tflite::QuantizationParameters* tf_quantization) {
+std::shared_ptr<ov::frontend::tensorflow_lite::Quantization> ov::frontend::tensorflow_lite::get_quantization(const tflite::QuantizationParameters* tf_quantization) {
     if (tf_quantization == NULL)
         return {};
-    ov::frontend::tensorflow_lite::Quantization quantization;
+    auto quantization = std::make_shared<ov::frontend::tensorflow_lite::Quantization>();
     auto tf_zp = tf_quantization->zero_point();
     auto tf_scale = tf_quantization->scale();
     if (tf_zp != NULL)
-        quantization.zero_point = {(*tf_zp).begin(), (*tf_zp).end()};
+        quantization->zero_point = {(*tf_zp).begin(), (*tf_zp).end()};
     if (tf_scale != NULL)
-        quantization.scale = {(*tf_scale).begin(), (*tf_scale).end()};
-    if (quantization.zero_point.empty() && quantization.scale.empty())
+        quantization->scale = {(*tf_scale).begin(), (*tf_scale).end()};
+    if (quantization->zero_point.empty() && quantization->scale.empty())
         return {};
-    quantization.axis = tf_quantization->quantized_dimension();
-    quantization.no_quantization = false;
+    quantization->axis = tf_quantization->quantized_dimension();
+    quantization->no_quantization = false;
     return quantization;
 }
 
@@ -67,16 +67,17 @@ ov::PartialShape ov::frontend::tensorflow_lite::get_ov_shape(const flatbuffers::
 }
 
 ov::Output<ov::Node> ov::frontend::tensorflow_lite::apply_quantization(
-        ov::Output<ov::Node> output, const std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace>& tensor, bool is_input) {
+        ov::Output<ov::Node> output, const std::shared_ptr<ov::frontend::tensorflow::TensorPlace>& tensor_, bool is_input) {
+    auto tensor = std::dynamic_pointer_cast<ov::frontend::tensorflow_lite::TensorLitePlace>(tensor_);
     auto quantization = tensor->get_quantization();
-    if (quantization.no_quantization)
+    if (!quantization || quantization->no_quantization)
         return output;
 
     auto input_type = output.get_element_type();
     ov::Output<ov::Node> input_low, input_high, output_low, output_high;
 
-    auto zp = quantization.zero_point;
-    auto scale = quantization.scale;
+    auto zp = quantization->zero_point;
+    auto scale = quantization->scale;
     auto zp_node = ov::opset10::Constant::create(element::f32, (zp.size() == 1 ? ov::Shape{} : ov::Shape{zp.size()}), zp);
     auto scale_node = ov::opset10::Constant::create(element::f32, (scale.size() == 1 ? ov::Shape{} : ov::Shape{scale.size()}), scale);
 

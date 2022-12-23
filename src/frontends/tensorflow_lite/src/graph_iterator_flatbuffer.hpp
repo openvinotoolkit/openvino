@@ -13,18 +13,24 @@
 #include "openvino/frontend/tensorflow/decoder.hpp"
 #include "openvino/frontend/tensorflow/graph_iterator.hpp"
 
+
 using namespace tflite;
 
 namespace ov {
 namespace frontend {
 namespace tensorflow_lite {
+class DecoderFlatBuffer;
+
+struct TENSORFLOW_LITE_API TensorInfo {
+    int64_t input_idx, output_idx;
+    const tflite::Tensor* tensor;
+    const tflite::Buffer* buffer;
+};
 
 class GraphIteratorFlatBuffer {
     size_t node_index = 0;
     std::vector<const Operator*> m_nodes;
     std::shared_ptr<tflite::Model> m_model;
-    std::vector<const tflite::Tensor *> m_tensors;
-    std::vector<const tflite::Buffer *> m_buffers;
 
 public:
     template <typename T>
@@ -47,10 +53,6 @@ public:
                                 subgraphs->size(),
                                 ". Supported number of sub-graphs is 1.");
         const auto graph = *subgraphs->begin();
-        const auto tensors = graph->tensors();
-        m_tensors = {tensors->begin(), tensors->end()};
-        const auto buffers = m_model->buffers();
-        m_buffers = {buffers->begin(), buffers->end()};
         const auto operators = graph->operators();
         m_nodes = {operators->begin(), operators->end()};
     }
@@ -76,45 +78,8 @@ public:
         return node_index >= m_nodes.size();
     }
 
-    std::vector<size_t> get_model_input_tensor_indices() const {
-        auto inputs = (*m_model->subgraphs()->begin())->inputs();
-        return {inputs->begin(), inputs->end()};
-    }
-
-    std::vector<size_t> get_model_output_tensor_indices() const {
-        auto outputs = (*m_model->subgraphs()->begin())->outputs();
-        return {outputs->begin(), outputs->end()};
-    }
-
-    const tflite::Tensor* get_tensor(size_t index) const {
-        FRONT_END_GENERAL_CHECK(m_tensors.size() > index,
-                                "Input tensor index is out of range. Tensor index: ",
-                                index,
-                                " Number of inputs: ",
-                                m_tensors.size());
-        return m_tensors[index];
-    }
-
-    std::vector<const tflite::Tensor *> get_tensors() const {
-        return m_tensors;
-    }
-
-    std::vector<const tflite::Buffer *> get_buffers() const {
-        return m_buffers;
-    }
-
     /// Return NodeContext for the current node that iterator points to
-    std::shared_ptr<DecoderFlatBuffer> get_decoder() const {
-        auto op_codes = m_model->operator_codes();
-        auto operator_code = (*op_codes)[m_nodes[node_index]->opcode_index()];
-        std::string type;
-        if (operator_code->deprecated_builtin_code() < tflite::BuiltinOperator::BuiltinOperator_PLACEHOLDER_FOR_GREATER_OP_CODES) {
-            type = tflite::EnumNamesBuiltinOperator()[operator_code->deprecated_builtin_code()];
-        } else {
-            type = tflite::EnumNamesBuiltinOperator()[operator_code->builtin_code()];
-        }
-        return std::make_shared<DecoderFlatBuffer>(m_nodes[node_index], type, std::to_string(node_index), m_tensors);
-    }
+    std::shared_ptr<ov::frontend::tensorflow_lite::DecoderFlatBuffer> get_decoder() const;
 };
 
 }  // namespace tensorflow_lite

@@ -21,11 +21,11 @@ OutputVector conv2d(const ov::frontend::tensorflow::NodeContext& node) {
     OutputVector output;
 
     get_conv(output, node, decoder_for_tf_translator, &ov::frontend::tensorflow::op::translate_conv_2d_op);
+    del_output_names(output);
     get_bias(output, node, decoder_for_tf_translator);
+    del_output_names(output);
     get_activation(output, node, decoder_for_tf_translator);
-    const auto& decoder = dynamic_pointer_cast<DecoderFlatBuffer>(node.get_decoder());
-    FRONT_END_GENERAL_CHECK(decoder != nullptr, "Unexpected decoder during operation translation. Expected DecoderFlatBuffer");
-    output[0].set_names({decoder->get_output_tensor_name(0)});
+    del_output_names(output);
     return output;
 }
 

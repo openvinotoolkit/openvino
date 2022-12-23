@@ -12,6 +12,7 @@
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "tensor_lite_place.hpp"
 #include "openvino/pass/visualize_tree.hpp"
+#include "op/op_translation_utils.hpp"
 
 using namespace ov;
 using namespace ov::frontend::tensorflow_lite;
@@ -110,12 +111,15 @@ void FrontEnd::translate_graph(const InputModel::Ptr &model, const std::string &
     auto all_tensor_places = model_lite->get_tensor_places();
 
     for (auto& value : all_tensor_values) {
-        FRONT_END_GENERAL_CHECK(ov::is_type<ov::opset1::Constant>(value.second.get_node_shared_ptr()),
-                "Unexpected constant data configuration at the begining of graph translation");
+        auto output = value.second;
+        FRONT_END_GENERAL_CHECK(ov::is_type<ov::opset1::Constant>(output.get_node_shared_ptr()),
+                "Unexpected constant data configuration at the beginning of graph translation");
         const auto& input_tensor = std::dynamic_pointer_cast<ov::frontend::tensorflow_lite::TensorLitePlace>(
                 all_tensor_places.at(value.first));
         FRONT_END_GENERAL_CHECK(input_tensor != nullptr, "Inputs must be TensorPlaces");
-        value.second = apply_quantization(value.second, input_tensor);
+        output.get_node_shared_ptr()->set_friendly_name(*input_tensor->get_names().begin());
+        output.set_names({*input_tensor->get_names().begin()});
+        value.second = apply_quantization(output, input_tensor);
     }
 
     // inputs
@@ -171,6 +175,8 @@ void FrontEnd::translate_graph(const InputModel::Ptr &model, const std::string &
             auto op_fun = &(translate_map.at(decoder->get_op_type()));
             ov::frontend::tensorflow::NodeContext node_context(decoder, inputs);
             ov_outputs = (*op_fun)(node_context);
+            std::cout << ov_outputs[0].get_node_shared_ptr() << std::endl;
+            op::set_output_names(node_context, ov_outputs);
         } catch (...) {
             if (fail_fast) {
                 // re-throw any exception
