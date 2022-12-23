@@ -72,7 +72,7 @@ namespace sink_forward {
  * @brief Inserts reversed transposed on @args main_node inputs. Removes input transpose specified in @arg
  * transpose_input_info
  */
-void UpdateInputTransposes(std::shared_ptr<ov::Node> main_node, TransposeInputsInfo& transpose_input_info);
+void UpdateInputTransposes(std::shared_ptr<ov::Node> main_node, const TransposeInputsInfo& transpose_input_info);
 
 /**
  * @brief Removes @arg input node
@@ -82,7 +82,7 @@ void RemoveInputNode(std::shared_ptr<ov::Node>, size_t input_idx);
 /**
  * @brief Inserts transposes on each main_node output with the order specified in @arg transpose_input_info
  */
-ov::NodeVector InsertOutputTransposes(std::shared_ptr<ov::Node> main_node, TransposeInputsInfo& transpose_input_info);
+ov::NodeVector InsertOutputTransposes(std::shared_ptr<ov::Node> main_node, const TransposeInputsInfo& transpose_input_info);
 }  // namespace sink_forward
 
 namespace sink_backward {
