@@ -65,7 +65,7 @@ void SwapNames(std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>);
  * @brief Clone @arg node with the same inputs as original. Reconnect all output consumers to a cloned node
  * except consumers specified as @args consumers.
  */
-std::shared_ptr<ov::Node> CloneNodeWithoutConsumers(std::shared_ptr<ov::Node> node, ov::NodeVector consumers);
+std::shared_ptr<ov::Node> CloneNodeWithoutConsumers(std::shared_ptr<ov::Node> node, const ov::NodeVector& consumers);
 
 namespace sink_forward {
 // insert input reversed transposes, remove first input tranpose

@@ -111,7 +111,7 @@ ov::Output<ov::Node> FixInputNodeRank(ov::Output<ov::Node> input_node, ov::Rank:
     return InsertUnsqueeze(input_node, required_rank - output_rank)->output(0);
 }
 
-std::set<size_t> GetNodeIds(NodeVector nodes) {
+std::set<size_t> GetNodeIds(const NodeVector& nodes) {
     std::set<size_t> node_ids;
 
     std::transform(nodes.begin(), nodes.end(), std::inserter(node_ids, node_ids.begin()), [](NodePtr node) -> size_t {
@@ -123,7 +123,7 @@ std::set<size_t> GetNodeIds(NodeVector nodes) {
 
 }  // namespace
 
-NodePtr CloneNodeWithoutConsumers(NodePtr node, NodeVector consumers) {
+NodePtr CloneNodeWithoutConsumers(NodePtr node, const NodeVector& consumers) {
     const auto consumer_ids = GetNodeIds(consumers);
 
     auto new_node = node->clone_with_new_inputs(node->input_values());
