@@ -433,14 +433,14 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         return util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir);
     }
 
-    ov::SoPtr<ie::IExecutableNetworkInternal> compile_model_impl(const std::shared_ptr<const ov::Model>& network,
-                                                                 ov::Plugin& plugin,
-                                                                 const AnyMap& parsedConfig,
-                                                                 const ov::RemoteContext& context,
-                                                                 const CacheContent& cacheContent,
-                                                                 bool forceDisableCache = false) {
+    ov::SoPtr<ov::ICompiledModel> compile_model_impl(const std::shared_ptr<const ov::Model>& network,
+                                                     ov::Plugin& plugin,
+                                                     const AnyMap& parsedConfig,
+                                                     const ov::RemoteContext& context,
+                                                     const CacheContent& cacheContent,
+                                                     bool forceDisableCache = false) {
         OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CoreImpl::compile_model_impl");
-        ov::SoPtr<ie::IExecutableNetworkInternal> execNetwork;
+        ov::SoPtr<ov::ICompiledModel> execNetwork;
         execNetwork = context._impl ? plugin.compile_model(network, context, parsedConfig)
                                     : plugin.compile_model(network, parsedConfig);
         if (!forceDisableCache && cacheContent.cacheManager && device_supports_import_export(plugin)) {
@@ -451,7 +451,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
                     networkStream << ie::CompiledBlobHeader(
                         ie::GetInferenceEngineVersion()->buildNumber,
                         ie::NetworkCompilationContext::calculateFileInfo(cacheContent.modelPath));
-                    execNetwork->Export(networkStream);
+                    execNetwork->export_model(networkStream);
                 });
             } catch (...) {
                 cacheContent.cacheManager->removeCacheEntry(cacheContent.blobId);
