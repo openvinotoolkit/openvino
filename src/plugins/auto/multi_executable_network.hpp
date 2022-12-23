@@ -27,6 +27,7 @@ public:
     IE::Parameter GetConfig(const std::string& name) const override;
     IE::Parameter GetMetric(const std::string& name) const override;
     std::shared_ptr<IE::RemoteContext> GetContext() const override;
+    std::shared_ptr<IE::RemoteContext> GetContext(const std::string& devicename) override;
     ~MultiExecutableNetwork() override;
 
 private:

@@ -20,21 +20,45 @@ std::shared_ptr<IE::RemoteContext> MultiExecutableNetwork::GetContext() const {
         return _multiSContext->_devicePriorities;
     }();
     std::string devices_names;
-    MultiRemoteContext::Ptr multiRemoteContext;
     for (auto&& device : devices) {
         devices_names += device.deviceName + " ";
         const auto& n  = _multiSContext->_networksPerDevice.at(device.deviceName);
         try {
-            multiRemoteContext->AddContext(n->GetContext());
+            return n->GetContext();
         } catch (const IE::NotImplemented&) {}
     }
-    if (multiRemoteContext->isEmpty()) {
-        IE_THROW(NotImplemented) <<
-            "None of the devices in the MULTI device has an associated remote context."
-            << " Current list of devices allowed via the DEVICE_PRIORITIES config: " <<
-            devices_names;
+    IE_THROW(NotImplemented) <<
+        "None of the devices in the MULTI device has an associated remote context."
+        << " Current list of devices allowed via the DEVICE_PRIORITIES config: " <<
+        devices_names;
+}
+
+std::shared_ptr<IE::RemoteContext> MultiExecutableNetwork::GetContext(const std::string& devicename) {
+    auto devices = [&] {
+        std::lock_guard<std::mutex> lock(_multiSContext->_mutex);
+        return _multiSContext->_devicePriorities;
+    }();
+    DeviceIDParser deviceParser(devicename);
+    std::string deviceNameWithID = deviceParser.getDeviceID().empty() ? devicename + ".0" : devicename;
+    std::string devices_names;
+    const auto res = std::find_if(
+        devices.cbegin(), devices.cend(),
+    [&deviceNameWithID](const MultiDevicePlugin::DeviceInformation & d) {
+        return (d.defaultDeviceID.empty() ? d.deviceName : (d.deviceName + "." +
+                d.defaultDeviceID)) == deviceNameWithID;
+    });
+    if (devices.cend() == res) {
+        IE_THROW() << "cannot retrieve context for " << devicename;
     } else {
-        return multiRemoteContext;
+        const auto& n  = _multiSContext->_networksPerDevice.at(res->deviceName);
+        // correct ownership lifecycle
+        _so = n._so;
+        try {
+            return n->GetContext();
+        } catch (const IE::NotImplemented&) {
+            IE_THROW(NotImplemented) <<
+                "not able to find the target remote context:" << devicename;
+        }
     }
 }
 

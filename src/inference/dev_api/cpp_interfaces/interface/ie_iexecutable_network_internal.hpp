@@ -156,6 +156,13 @@ public:
     virtual std::shared_ptr<RemoteContext> GetContext() const;
 
     /**
+     * @brief Gets the remote context.
+     * @param devicename device to retrive remote context from
+     * @return A reference to a context
+     */
+    virtual std::shared_ptr<RemoteContext> GetContext(const std::string& devicename);
+
+    /**
      * @brief Raises the flag that model was loaded from cache
      */
     void loadedFromCache();

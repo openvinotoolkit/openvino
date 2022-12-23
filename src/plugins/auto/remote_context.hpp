@@ -50,15 +50,6 @@ public:
         return m_contexts[0]->getParams();
     }
 
-    MemoryBlob::Ptr CreateHostBlob(const TensorDesc& tensorDesc, int index) {
-        return m_contexts[index]->CreateHostBlob(tensorDesc);
-    }
-
-    void AddContext(RemoteContext::Ptr hwcontext) {
-        if (hwcontext)
-            m_contexts.push_back(hwcontext);
-    }
-
     RemoteContext::Ptr GetTargetContext(const std::string deviceName) {
         RemoteContext::Ptr res;
         DeviceIDParser parser(deviceName);
