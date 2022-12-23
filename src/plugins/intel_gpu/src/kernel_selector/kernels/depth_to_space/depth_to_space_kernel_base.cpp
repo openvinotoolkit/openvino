@@ -56,7 +56,7 @@ KernelsData DepthToSpaceKernelBase::GetCommonKernelsData(const Params& params, c
     auto& kernel = kd.kernels[0];
 
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
-                     DEFAULT, false, false, 1, GetFusedPrimitiveInputsCount(params));
+                     EXE_MODE_DEFAULT, false, false, 1, GetFusedPrimitiveInputsCount(params));
 
     return { kd };
 }

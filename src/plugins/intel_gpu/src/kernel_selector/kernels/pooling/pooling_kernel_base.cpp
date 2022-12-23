@@ -200,7 +200,7 @@ KernelsData PoolingKernelBase::GetCommonKernelsData(const Params& params,
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, DEFAULT, false, false, 1,
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, EXE_MODE_DEFAULT, false, false, 1,
                      GetFusedPrimitiveInputsCount(params));
     uint32_t param_idx = 1;
 

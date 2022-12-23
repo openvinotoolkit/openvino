@@ -29,16 +29,16 @@ ConvolutionKernel_b_fs_yx_fsv16_1x1::AutoTuneOption ConvolutionKernel_b_fs_yx_fs
     auto f = cp.outputs[0].Feature().v;
 
     if (x == 1 && y == 1) {
-        return { 1, DEFAULT };
+        return { 1, EXE_MODE_DEFAULT };
     } else if (x * f <= 256) {
         if (x < 8 || x * f <= 128)
-            return { 2, DEFAULT };
+            return { 2, EXE_MODE_DEFAULT };
         else
-            return { 4, DEFAULT };
+            return { 4, EXE_MODE_DEFAULT };
     } else if (x * f <= 1536) {
-        return { 4, DEFAULT };
+        return { 4, EXE_MODE_DEFAULT };
     } else {
-        return { 8, DEFAULT };
+        return { 8, EXE_MODE_DEFAULT };
     }
 }
 
@@ -250,7 +250,7 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
 }
 
 KernelsData ConvolutionKernel_b_fs_yx_fsv16_1x1::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options, DEFAULT, -1);
+    return GetCommonKernelsData(params, options, EXE_MODE_DEFAULT, -1);
 }
 
 }  // namespace kernel_selector

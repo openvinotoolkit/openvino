@@ -117,7 +117,7 @@ KernelsData GemmKernelMMADslmInt8::GetKernelsData(const Params& params, const op
                      kernelName,
                      jit,
                      entry_point,
-                     DEFAULT,
+                     EXE_MODE_DEFAULT,
                      false,
                      false,
                      (uint32_t)prim_params.inputs.size(),

@@ -81,7 +81,7 @@ KernelsData BroadcastKernelBase::GetCommonKernelsData(const Params& params,
 
     auto& kernel = k_data.kernels[0];
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
-                     DEFAULT,
+                     EXE_MODE_DEFAULT,
                      false,
                      false,
                      1,

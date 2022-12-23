@@ -88,7 +88,7 @@ KernelsData ActivationKernelBase::GetCommonKernelsData(const Params& params, con
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
-                     DEFAULT, false, false, 1, GetFusedPrimitiveInputsCount(params));
+                     EXE_MODE_DEFAULT, false, false, 1, GetFusedPrimitiveInputsCount(params));
 
     if (!newParams.inputActivationParams.empty()) {
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::SLOPE, 0});

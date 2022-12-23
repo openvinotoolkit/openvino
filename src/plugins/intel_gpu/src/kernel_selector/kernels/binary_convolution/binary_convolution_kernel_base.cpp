@@ -248,7 +248,7 @@ std::string BinaryConvolutionKernelBase::GetAutoTuneOptions(int autoTuneIndex) c
         return autoTuneOptions[autoTuneIndex];
     }
 
-    return DEFAULT;
+    return EXE_MODE_DEFAULT;
 }
 
 KernelsData BinaryConvolutionKernelBase::GetTunedKernelsDataByIndex(const Params& params,
