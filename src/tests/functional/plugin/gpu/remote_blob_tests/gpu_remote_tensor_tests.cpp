@@ -1552,7 +1552,7 @@ static void check_contexts_are_same(const ov::RemoteContext& c1, const ov::Remot
     auto c2_casted = c2.as<ov::intel_gpu::ocl::ClContext>();
 
     ASSERT_EQ(c1_casted.get(), c2_casted.get());
-};
+}
 
 TEST(OVRemoteContextGPU, smoke_RemoteContextPerDevice) {
 #if defined(ANDROID)

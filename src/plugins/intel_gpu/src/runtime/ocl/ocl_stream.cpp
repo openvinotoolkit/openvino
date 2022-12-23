@@ -225,7 +225,6 @@ ocl_stream::ocl_stream(const ocl_engine &engine, const ExecutionConfig& config, 
 
     OPENVINO_ASSERT(ocl_stream::detect_queue_type(handle) == queue_type,
                     "[GPU] Inconsistent engine config and external user queue are passed to ocl_stream");
-
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
