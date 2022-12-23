@@ -90,9 +90,7 @@ inline int removeFilesWithExt(std::string path, std::string ext) {
             stat(file.c_str(), &stat_path);
             if (!S_ISDIR(stat_path.st_mode) && endsWith(file, "." + ext)) {
                 auto err = std::remove(file.c_str());
-                std::cout << "removing " << file.c_str() << std::endl;
                 if (err != 0) {
-                    std::cout << "removing failed: " << file.c_str() << std::endl;
                     closedir(dir);
                     return err;
                 }
