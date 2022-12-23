@@ -108,7 +108,7 @@ core.add_extension(ov::frontend::OpExtension<CustomOperation>(
 
 //! [frontend_extension_ThresholdedReLU]
 core.add_extension(ov::frontend::ConversionExtension(
-    "ThresholdedReLU",
+    "ThresholdedRelu",
     [](const ov::frontend::NodeContext& node) {
         auto greater = std::make_shared<ov::opset8::Greater>(
             node.get_input(0),
