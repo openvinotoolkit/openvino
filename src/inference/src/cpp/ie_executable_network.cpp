@@ -255,7 +255,7 @@ Any CompiledModel::get_property(const std::string& name) const {
 }
 
 RemoteContext CompiledModel::get_context() const {
-    OV_EXEC_NET_CALL_STATEMENT(return {_impl->GetContext(), {_so}});
+    OV_EXEC_NET_CALL_STATEMENT(return {_impl->GetContext(), {_so, _impl->GetPointerToSo()}});
 }
 
 bool CompiledModel::operator!() const noexcept {

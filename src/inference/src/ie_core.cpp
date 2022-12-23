@@ -2151,6 +2151,23 @@ RemoteContext Core::create_context(const std::string& deviceName, const AnyMap& 
     });
 }
 
+RemoteContext Core::create_context(const std::string& deviceName, const std::vector<RemoteContext>& contexts) {
+    OPENVINO_ASSERT(deviceName.find("MULTI") == 0, "only MULTI device support remote context from context list");
+    std::vector<InferenceEngine::RemoteContext::Ptr> iecontexts;
+    std::vector<std::shared_ptr<void>> sovec;
+    for (auto& iter : contexts) {
+        iecontexts.push_back(iter._impl);
+        for (auto& tmp : iter._so)
+            sovec.push_back(tmp);
+    }
+    OV_CORE_CALL_STATEMENT({
+        auto parsed = parseDeviceNameIntoConfig(deviceName, {});
+        auto remoteContext = _impl->GetCPPPluginByName(parsed._deviceName).create_context(iecontexts);
+        sovec.push_back(remoteContext._so);
+        return {remoteContext._ptr, sovec};
+    });
+}
+
 RemoteContext Core::get_default_context(const std::string& deviceName) {
     OPENVINO_ASSERT(deviceName.find("HETERO") != 0, "HETERO device does not support default remote context");
     OPENVINO_ASSERT(deviceName.find("MULTI") != 0, "MULTI device does not support default remote context");

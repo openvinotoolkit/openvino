@@ -15,6 +15,7 @@
 #include "utils/log_util.hpp"
 #include "common.hpp"
 #include "utils/config.hpp"
+#include "remote_context.hpp"
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual
@@ -34,7 +35,11 @@ public:
                                                                        const std::map<std::string, std::string>& config) override;
 
     ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> LoadNetwork(const std::string& modelPath,
-                                                                 const std::map<std::string, std::string>& config) override;
+                                                                       const std::map<std::string, std::string>& config) override;
+
+    InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
+                                                                        const std::shared_ptr<InferenceEngine::RemoteContext> &context,
+                                                                        const std::map<std::string, std::string> &config) override;
 
     void SetConfig(const std::map<std::string, std::string>& config) override;
     InferenceEngine::Parameter GetConfig(const std::string& name, const std::map<std::string, InferenceEngine::Parameter> & options) const override;
@@ -56,6 +61,7 @@ public:
                                                  unsigned int priority = 0);
     void UnregisterPriority(const unsigned int& priority, const std::string& deviceName);
     void RegisterPriority(const unsigned int& priority, const std::string& deviceName);
+    InferenceEngine::RemoteContext::Ptr CreateContext(const std::vector<InferenceEngine::RemoteContext::Ptr>) override;
 
 protected:
     std::map<std::string, std::string> GetSupportedConfig(const std::map<std::string, std::string>& config,
@@ -64,6 +70,7 @@ protected:
 private:
     InferenceEngine::IExecutableNetworkInternal::Ptr LoadNetworkImpl(const std::string& modelPath,
                                                                        InferenceEngine::CNNNetwork network,
+                                                                       const std::shared_ptr<InferenceEngine::RemoteContext> ctx,
                                                                        const std::map<std::string, std::string>& config,
                                                                        const std::string &networkPrecision = METRIC_VALUE(FP32));
     PluginConfig _pluginConfig;

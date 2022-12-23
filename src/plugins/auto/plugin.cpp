@@ -304,7 +304,7 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::stri
 // Is called only when caching is enabled
 ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> MultiDeviceInferencePlugin::LoadNetwork(const std::string& modelPath,
                                                                         const std::map<std::string, std::string>& config) {
-    return {LoadNetworkImpl(modelPath, {}, config), nullptr};
+    return {LoadNetworkImpl(modelPath, {}, nullptr, config), nullptr};
 }
 
 IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(const CNNNetwork &network,
@@ -314,11 +314,19 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(c
     }
 
     auto networkPrecision = GetNetworkPrecision(network);
-    return LoadNetworkImpl({}, network, config, networkPrecision);
+    return LoadNetworkImpl({}, network, nullptr, config, networkPrecision);
+}
+
+InferenceEngine::IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(
+    const InferenceEngine::CNNNetwork& network,
+    const std::shared_ptr<InferenceEngine::RemoteContext>& context,
+    const std::map<std::string, std::string>& config) {
+    return LoadNetworkImpl({}, network, context, config);
 }
 
 IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(const std::string& modelPath,
                                                                               CNNNetwork network,
+                                                                              const std::shared_ptr<InferenceEngine::RemoteContext> ctx,
                                                                               const std::map<std::string, std::string>& config,
                                                                               const std::string &networkPrecision) {
     if (GetCore() == nullptr) {
@@ -327,6 +335,10 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
 
     if (modelPath.empty() && network.getFunction() == nullptr) {
         IE_THROW() << GetName() << " device supports just ngraph network representation";
+    }
+
+    if (ctx && !ctx->is<MultiRemoteContext>() && !ctx->as<MultiRemoteContext>()->isEmpty()) {
+        IE_THROW() << GetName() << " Please , load to " << GetName() << " via valid MULTI remote context";
     }
     // to use plugin's name as the log tag
     _LogTag = GetName();
@@ -497,14 +509,19 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         SoExecutableNetworkInternal exec_net;
         LOG_DEBUG_TAG("load network to device:%s", deviceName.c_str());
         if (modelPath.empty()) {
-            exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
+            // check if device Config is needed, like the device ID information needed for multiple same type devices
+            auto tempCtx = ctx->as<MultiRemoteContext>()->GetTargetContext(deviceName);
+            exec_net = tempCtx ? GetCore()->LoadNetwork(network, tempCtx, deviceConfig)
+                               : GetCore()->LoadNetwork(network, deviceName, deviceConfig);
         } else if (GetCore()->DeviceSupportsImportExport(deviceName)) {
             exec_net = GetCore()->LoadNetwork(modelPath, deviceName, deviceConfig);
         } else {
             std::call_once(readNetworkFlag, [&]() {
                 network = GetCore()->ReadNetwork(modelPath, std::string());
             });
-            exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
+            auto tempCtx = ctx->as<MultiRemoteContext>()->GetTargetContext(deviceName);
+            exec_net = tempCtx ? GetCore()->LoadNetwork(network, tempCtx, deviceConfig)
+                               : GetCore()->LoadNetwork(network, deviceName, deviceConfig);
         }
 
         try {
@@ -953,7 +970,13 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDeviceByNetwork
     // dynamic network or not
     return metaDevices;
 }
+
 std::string MultiDeviceInferencePlugin::GetLogTag() const noexcept {
     return _LogTag;
+}
+
+RemoteContext::Ptr MultiDeviceInferencePlugin::CreateContext(const std::vector<RemoteContext::Ptr> contexts) {
+    MultiRemoteContext::Ptr multiRemoteContext = std::make_shared<MultiRemoteContext>(contexts);
+    return multiRemoteContext;
 }
 }  // namespace MultiDevicePlugin

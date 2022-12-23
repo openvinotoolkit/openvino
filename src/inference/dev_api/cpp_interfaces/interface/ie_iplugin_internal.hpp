@@ -244,6 +244,13 @@ public:
     virtual std::shared_ptr<RemoteContext> CreateContext(const ParamMap& params);
 
     /**
+     * @brief      Creates a remote context instance from a vector of user input contexts
+     * @param[in]  contexts  The vector of user created contexts
+     * @return     A remote context object
+     */
+    virtual std::shared_ptr<RemoteContext> CreateContext(const std::vector<std::shared_ptr<RemoteContext>> contexts);
+
+    /**
      * @brief      Provides a default remote context instance if supported by a plugin
      * @param[in]  params  The map of parameters
      * @return     The default context.

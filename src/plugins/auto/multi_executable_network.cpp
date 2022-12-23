@@ -13,23 +13,29 @@ MultiExecutableNetwork::MultiExecutableNetwork(MultiScheduleContext::Ptr& contex
 }
 
 MultiExecutableNetwork::~MultiExecutableNetwork() {}
+
 std::shared_ptr<IE::RemoteContext> MultiExecutableNetwork::GetContext() const {
     auto devices = [&] {
         std::lock_guard<std::mutex> lock(_multiSContext->_mutex);
         return _multiSContext->_devicePriorities;
     }();
     std::string devices_names;
+    MultiRemoteContext::Ptr multiRemoteContext;
     for (auto&& device : devices) {
         devices_names += device.deviceName + " ";
         const auto& n  = _multiSContext->_networksPerDevice.at(device.deviceName);
         try {
-            return n->GetContext();
+            multiRemoteContext->AddContext(n->GetContext());
         } catch (const IE::NotImplemented&) {}
     }
-    IE_THROW(NotImplemented) <<
-        "None of the devices in the MULTI device has an associated remote context."
-        << " Current list of devices allowed via the DEVICE_PRIORITIES config: " <<
-        devices_names;
+    if (multiRemoteContext->isEmpty()) {
+        IE_THROW(NotImplemented) <<
+            "None of the devices in the MULTI device has an associated remote context."
+            << " Current list of devices allowed via the DEVICE_PRIORITIES config: " <<
+            devices_names;
+    } else {
+        return multiRemoteContext;
+    }
 }
 
 

@@ -239,6 +239,10 @@ public:
         OV_PLUGIN_CALL_STATEMENT(return {_ptr->CreateContext(params), _so});
     }
 
+    SoPtr<ie::RemoteContext> create_context(const std::vector<std::shared_ptr<ie::RemoteContext>> contexts) {
+        OV_PLUGIN_CALL_STATEMENT(return {_ptr->CreateContext(contexts), _so});
+    }
+
     SoPtr<ie::RemoteContext> get_default_context(const AnyMap& params) {
         OV_PLUGIN_CALL_STATEMENT(return {_ptr->GetDefaultContext(params), _so});
     }

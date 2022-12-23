@@ -225,6 +225,10 @@ std::shared_ptr<RemoteContext> IInferencePlugin::CreateContext(const ParamMap&) 
     IE_THROW(NotImplemented);
 }
 
+std::shared_ptr<RemoteContext> IInferencePlugin::CreateContext(const std::vector<std::shared_ptr<RemoteContext>>) {
+    IE_THROW(NotImplemented);
+}
+
 std::shared_ptr<RemoteContext> IInferencePlugin::GetDefaultContext(const ParamMap&) {
     IE_THROW(NotImplemented);
 }
