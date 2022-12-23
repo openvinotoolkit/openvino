@@ -401,9 +401,9 @@ std::shared_ptr<ov::Model> AddSoftmaxLoweredFunction::initLowered() const {
 std::shared_ptr<ov::Model> BroadcastAddLoweredFunction::initLowered() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
-    std::vector<std::shared_ptr<ov::Node>> datas = {data0, data1};
+    ov::NodeVector datas = {data0, data1};
     auto last_dim = std::max(input_shapes[0].get_shape().back(), std::max(input_shapes[1].get_shape().back(), m_target_shape.get_shape().back()));
-    std::vector<std::shared_ptr<ov::Node>> loads(datas.size(), nullptr);
+    ov::NodeVector loads(datas.size(), nullptr);
     for (auto i = 0; i < datas.size(); i++) {
         if (input_shapes[i].get_shape().back() != last_dim) {
             auto new_shape = input_shapes[i];

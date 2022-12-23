@@ -38,6 +38,7 @@ inline ov::Dimension get_outer_dim(const ov::PartialShape &shape) { return *(sha
 inline auto constant_input_should_be_inside_body(const std::shared_ptr<ov::Node>& node) -> bool {
     return ov::is_type<ov::op::v1::Transpose>(node) ||
            ov::is_type<ov::op::v1::Broadcast>(node) ||
+           ov::is_type<ov::op::v3::Broadcast>(node) ||
            ov::is_type<ov::op::v1::Reshape>(node);
 }
 

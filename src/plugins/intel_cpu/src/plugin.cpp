@@ -658,6 +658,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                                                                ov::is_type<const ov::op::v0::MatMul>(n) ||
                                                                ov::is_type<const ov::op::v1::Transpose>(n) ||
                                                                ov::is_type<const ov::op::v1::Broadcast>(n) ||
+                                                               ov::is_type<const ov::op::v3::Broadcast>(n) ||
                                                                ov::is_type<const ov::op::v1::Select>(n));
                         const auto& inputs = n->inputs();
                         // todo: clarify whether we can evaluate snippets on const paths

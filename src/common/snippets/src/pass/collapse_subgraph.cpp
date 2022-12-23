@@ -152,8 +152,12 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
         //           \               /                --->>>                Add
         //                  Add                                              |
         //             Result [1, 10, 1]                              Result [1, 1, 1]
-        auto broadcast = ov::as_type_ptr<const opset1::Broadcast>(n);
-        return broadcast && broadcast->get_broadcast_spec().m_type == ov::op::AutoBroadcastType::NUMPY;
+        if (auto broadcast_v1 = ov::as_type_ptr<const ov::op::v1::Broadcast>(n)) {
+            return broadcast_v1->get_broadcast_spec().m_type == ov::op::AutoBroadcastType::NUMPY;
+        } else if (auto broadcast_v3 = ov::as_type_ptr<const ov::op::v3::Broadcast>(n)) {
+            return broadcast_v3->get_broadcast_spec().m_type == ov::op::BroadcastType::NUMPY;
+        }
+        return false;
     };
 
     return is_supported_fq_op(n) ||

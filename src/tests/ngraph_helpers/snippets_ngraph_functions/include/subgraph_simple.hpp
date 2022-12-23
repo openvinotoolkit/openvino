@@ -216,9 +216,7 @@ protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 };
 /// Verify Select
-/// Need to remove Roll and Sin when we can create Subgraphs on inputs
 //   in0     in1    in2
-//   Roll    Sin    Sin
 //     \      |     /
 //         Select
 //         Result
@@ -249,11 +247,8 @@ protected:
 };
 
 /// Verify Select + Broadcast
-/// Just for inference test (because in0 is boolean element type which isn't explicitly supported in snippets)
-/// Need to remove Roll and Sin when we can create Subgraphs on inputs
 //   in0     in1    in2
-//   Roll     |      |
-// Broadcast Sin    Sin
+// Broadcast  |      |
 //     \      |     /
 //         Select
 //         Result

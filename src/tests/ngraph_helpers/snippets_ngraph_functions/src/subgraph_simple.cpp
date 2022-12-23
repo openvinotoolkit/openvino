@@ -303,12 +303,7 @@ std::shared_ptr<ov::Model> SelectFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(ov::element::boolean, input_shapes[0]);
     auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
     auto data2 = std::make_shared<op::v0::Parameter>(precision, input_shapes[2]);
-    auto shift = std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<float>{1});
-    auto axes = std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<float>{0});
-    auto roll0 = std::make_shared<ov::op::v7::Roll>(data0, shift, axes);
-    auto sin1 = std::make_shared<op::v0::Sin>(data1);
-    auto sin2 = std::make_shared<op::v0::Sin>(data2);
-    auto select = std::make_shared<op::v1::Select>(roll0, sin1, sin2);
+    auto select = std::make_shared<op::v1::Select>(data0, data1, data2);
 
     return std::make_shared<Model>(NodeVector{select}, ParameterVector{data0, data1, data2});
 }
@@ -328,14 +323,9 @@ std::shared_ptr<ov::Model> BroadcastSelectFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(ov::element::boolean, input_shapes[0]);
     auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
     auto data2 = std::make_shared<op::v0::Parameter>(precision, input_shapes[2]);
-    auto shift = std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<float>{1});
-    auto axes = std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<float>{0});
-    auto roll0 = std::make_shared<ov::op::v7::Roll>(data0, shift, axes);
     auto target_shape = std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{m_target_shape.size()}, m_target_shape.get_shape());
-    auto broadcast = std::make_shared<ov::op::v1::Broadcast>(roll0, target_shape);
-    auto sin1 = std::make_shared<op::v0::Sin>(data1);
-    auto sin2 = std::make_shared<op::v0::Sin>(data2);
-    auto select = std::make_shared<op::v1::Select>(broadcast, sin1, sin2);
+    auto broadcast = std::make_shared<ov::op::v1::Broadcast>(data0, target_shape);
+    auto select = std::make_shared<op::v1::Select>(broadcast, data1, data2);
 
     return std::make_shared<Model>(NodeVector{select}, ParameterVector{data0, data1, data2});
 }

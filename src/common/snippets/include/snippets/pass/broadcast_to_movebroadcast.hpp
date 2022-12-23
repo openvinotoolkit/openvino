@@ -12,15 +12,16 @@ namespace snippets {
 namespace pass {
 
 /**
- * @interface InsertMoveBroadcast
- * @brief Inserts explicit MoveBroadcast instruction if broadcasting by most varying dimension is needed.
- * The pass is used to convert model to a canonical form for code generation
+ * @interface BroadcastToMoveBroadcast
+ * @brief Inserts explicit MoveBroadcast instruction if broadcasting by most varying dimension is needed instead of Broadcast.
+ *        Otherwise the pass removes Broadcast operation.
  * @ingroup snippets
  */
-class InsertMoveBroadcast: public ngraph::pass::MatcherPass {
+class BroadcastToMoveBroadcast: public ngraph::pass::MatcherPass {
 public:
-    InsertMoveBroadcast();
+    BroadcastToMoveBroadcast();
 };
+
 
 } // namespace pass
 } // namespace snippets

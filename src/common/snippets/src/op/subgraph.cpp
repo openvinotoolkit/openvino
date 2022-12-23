@@ -9,6 +9,7 @@
 #include "snippets/op/convert_saturation.hpp"
 #include "snippets/pass/insert_load_store.hpp"
 #include "snippets/pass/insert_movebroadcast.hpp"
+#include "snippets/pass/broadcast_to_movebroadcast.hpp"
 #include "snippets/pass/load_movebroadcast_to_broadcastload.hpp"
 #include "snippets/pass/assign_registers.hpp"
 #include "snippets/pass/convert_constants.hpp"
@@ -495,17 +496,6 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
 
     convert_to_snippet_dialect();
     opt.run_passes(m_body);
-    snippets::pass::AssignRegisters().run_on_model(m_body);
-
-    const auto ops = m_body->get_ops();
-    ngraph::snippets::Generator::GeneratorConfig generatorConfig;
-    generatorConfig.m_save_lowered_code = config.m_has_domain_sensitive_ops;
-    generatorConfig.m_need_fill_tail_register = config.m_has_domain_sensitive_ops;
-    generatorConfig.m_optimize_single_evaluation = std::none_of(ops.begin(), ops.end(), [](const std::shared_ptr<ov::Node>& op) {
-        return ov::is_type<ngraph::snippets::op::Buffer>(op);
-    });
-    // actual code emission
-    ngraph::snippets::code ptr = m_generator->generate(m_body, generatorConfig, compile_params);
 
     // check that body doesn't have constants or non-decomposed ops for scheduling
     std::vector<std::shared_ptr<opset1::Constant>> constants;
@@ -515,10 +505,24 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
              ov::is_type<ov::op::v8::Softmax>(op) ||
              ov::is_type<ov::op::v1::Transpose>(op) ||
              ov::is_type<ov::op::v1::Broadcast>(op) ||
+             ov::is_type<ov::op::v3::Broadcast>(op) ||
              ov::is_type<ov::op::v1::Reshape>(op)) {
             throw ngraph::ngraph_error("External op detected: " + std::string(op->get_type_name()) + ". Snippet is illigal for scheduling");
         }
     }
+
+    snippets::pass::AssignRegisters().run_on_model(m_body);
+
+    const auto ops = m_body->get_ops();
+    ngraph::snippets::Generator::GeneratorConfig generatorConfig;
+    generatorConfig.m_save_lowered_code = config.m_has_domain_sensitive_ops;
+    generatorConfig.m_need_fill_tail_register = config.m_has_domain_sensitive_ops;
+    generatorConfig.m_optimize_single_evaluation = std::none_of(ops.begin(), ops.end(), [](const std::shared_ptr<ov::Node>& op) {
+        return ov::is_type<ngraph::snippets::op::Buffer>(op);
+    });
+
+    // actual code emission
+    ngraph::snippets::code ptr = m_generator->generate(m_body, generatorConfig, compile_params);
 
     return {master_shape, false /*canBeLinearized*/, ptr};
 }
