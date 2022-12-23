@@ -13,7 +13,7 @@ The following Python\* API is used in the application:
 
 ## How It Works
 
-The sample downloads a model and a tokenizer, export the model to onnx, reads the exported model and reshapes it to enforce dynamic inpus shapes, compiles the resulting model, downloads a dataset and runs benhcmarking on the dataset.
+The sample downloads a model and a tokenizer, export the model to onnx, reads the exported model and reshapes it to enforce dynamic inpus shapes, compiles the resulting model, downloads a dataset and runs benchmarking on the dataset.
 
 You can see the explicit description of
 each sample step at [Integration Steps](../../../../docs/OV_Runtime_UG/integrate_with_your_application.md) section of "Integrate OpenVINO™ Runtime with Your Application" guide.
@@ -35,7 +35,7 @@ python -m pip install -r requirements.txt
 Run the sample
 
 ```
-python bert_benhcmark.py
+python bert_benchmark.py
 ```
 
 ## Sample Output

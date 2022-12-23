@@ -1,2 +1,0 @@
-transformers[onnx]
-torch
