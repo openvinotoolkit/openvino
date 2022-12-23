@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,37 +20,80 @@ std::string FuseFakeQuantizeTransformation::getTestCaseName(const testing::TestP
     std::tie(targetDevice, testValues) = obj.param;
 
     std::ostringstream result;
-    result << "targetDevice=" << targetDevice << "_" <<
-        testValues.actual.precisionBeforeAdd << "_" <<
-        testValues.actual.add.values.size() << "_" <<
-        testValues.actual.add.outPrecision << "_" <<
-        testValues.actual.add.constantShape << "_" <<
-        testValues.actual.precisionBeforeDequantization << "_" <<
-        testValues.actual.dequantization << "_" <<
-        testValues.actual.precisionAfterDequantization << "_" <<
-        testValues.actual.fakeQuantizeOnData;
+    result << targetDevice << "_" <<
+        testValues.actual.precisionBefore << "_" <<
+        testValues.actual.fakeQuantizeOnData1 << "_" <<
+        testValues.actual.fakeQuantizeOnData2;
     return result.str();
+}
+
+InferenceEngine::Blob::Ptr FuseFakeQuantizeTransformation::GenerateInput(const InferenceEngine::InputInfo& info) const {
+    return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 20, 0, 1, 1);
 }
 
 void FuseFakeQuantizeTransformation::SetUp() {
     FuseFakeQuantizeTransformationTestValues testValues;
     std::tie(targetDevice, testValues) = this->GetParam();
 
-    function = ngraph::builder::subgraph::FuseFakeQuantizeFunction::getOriginal(
+    // Convolution is used in a model as operation with specific precision requirements on data branch
+    // to test the transformation place in LPT pipeline:
+    // markup transformations and FakeQuantize operation decomposition transformation have to handle FakeQuantize as usual
+    function = ngraph::builder::subgraph::FuseFakeQuantizeFunction::get(
         testValues.inputShape,
-        testValues.actual.precisionBeforeAdd,
-        testValues.actual.add,
-        testValues.actual.precisionBeforeDequantization,
-        testValues.actual.dequantization,
-        testValues.actual.precisionAfterDequantization,
-        testValues.actual.precisionAfterDequantization,
-        testValues.actual.fakeQuantizeOnData);
+        testValues.actual.precisionBefore,
+        testValues.actual.fakeQuantizeOnData1,
+        testValues.actual.fakeQuantizeOnData2,
+        {});
 
     ov::pass::InitNodeInfo().run_on_model(function);
 }
 
 TEST_P(FuseFakeQuantizeTransformation, CompareWithRefImpl) {
     Run();
+
+    FuseFakeQuantizeTransformationTestValues testValues;
+    std::tie(targetDevice, testValues) = this->GetParam();
+
+    auto rtInfo = LayerTestsCommon::getRuntimeInfo();
+
+    auto split = [](const std::string& s, char delim) -> std::vector<std::string> {
+        std::vector<std::string> result;
+        std::stringstream ss(s);
+        std::string item;
+
+        while (std::getline(ss, item, delim)) {
+            result.push_back(item);
+        }
+        return result;
+    };
+
+    auto exist = testValues.expected.exist;
+    auto absent = testValues.expected.absent;
+    auto int8_convolutions = 0ull;
+    for (auto it : rtInfo) {
+        const auto& nameIt = it.second.find("originalLayersNames");
+        const auto fused_name = nameIt->second.as<std::string>();
+
+        const auto names = split(fused_name, ',');
+        for (const auto& name : names) {
+            ASSERT_TRUE(absent.find(name) == absent.end());
+            exist.erase(name);
+        }
+
+        const auto& type_it = it.second.find("layerType");
+        const auto type = type_it->second.as<std::string>();
+
+        if (type == "Convolution") {
+            const auto& precision_it = it.second.find("runtimePrecision");
+            const auto precision = precision_it->second.as<std::string>();
+            if (precision == "U8") {
+                int8_convolutions++;
+            }
+        }
+    }
+
+    ASSERT_TRUE(exist.empty());
+    ASSERT_EQ(testValues.expected.int8_convolutions, int8_convolutions);
 };
 
 }  // namespace LayerTestsDefinitions

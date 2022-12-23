@@ -72,6 +72,7 @@
                             <tab type="user" title="FoldConvertTransformation" url="@ref openvino_docs_OV_UG_lpt_FoldConvertTransformation"/>
                             <tab type="user" title="FoldFakeQuantizeTransformation" url="@ref openvino_docs_OV_UG_lpt_FoldFakeQuantizeTransformation"/>
                             <tab type="user" title="FuseConvertTransformation" url="@ref openvino_docs_OV_UG_lpt_FuseConvertTransformation"/>
+                            <tab type="user" title="FuseFakeQuantizeTransformation" url="@ref openvino_docs_OV_UG_lpt_FuseFakeQuantizeTransformation"/>
                             <tab type="user" title="FuseMultiplyToFakeQuantizeTransformation" url="@ref openvino_docs_OV_UG_lpt_FuseMultiplyToFakeQuantizeTransformation"/>
                             <tab type="user" title="FuseSubtractToFakeQuantizeTransformation" url="@ref openvino_docs_OV_UG_lpt_FuseSubtractToFakeQuantizeTransformation"/>
                             <tab type="user" title="MultiplyToGroupConvolutionTransformation" url="@ref openvino_docs_OV_UG_lpt_MultiplyToGroupConvolutionTransformation"/>
