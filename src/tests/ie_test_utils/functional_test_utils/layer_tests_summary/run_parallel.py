@@ -43,14 +43,12 @@ def parse_arguments():
     cache_path_help = "Path to the cache file with test_name list sorted by execution time. .lst file!"
     worker_num_help = "Worker number. Default value is `cpu_count-1` "
     working_dir_num_help = "Working dir"
-    test_batch_help = "Test counter in 1 process"
     process_timeout_help = "Process timeout in s"
 
     parser.add_argument("-e", "--exec_file", help=exec_file_path_help, type=str, required=True)
     parser.add_argument("-c", "--cache_path", help=cache_path_help, type=str, required=False, default="")
     parser.add_argument("-j", "--worker_num", help=worker_num_help, type=int, required=False, default=(os.cpu_count() - 1) if os.cpu_count() > 2 else 1)
     parser.add_argument("-w", "--working_dir", help=working_dir_num_help, type=str, required=False, default=".")
-    parser.add_argument("-b", "--test_batch", help=test_batch_help, type=int, required=False, default=1)
     parser.add_argument("-t", "--process_timeout", help=process_timeout_help, type=int, required=False, default=DEFAUALT_PROCESS_TIMEOUT)
     return parser.parse_args()
 
@@ -145,11 +143,10 @@ class TaskManager:
                     continue
 
 class TestParallelRunner:
-    def __init__(self, exec_file_path: os.path, test_command_line: list, worker_num: int, working_dir: os.path, test_batch:int, cache_path: os.path):
+    def __init__(self, exec_file_path: os.path, test_command_line: list, worker_num: int, working_dir: os.path, cache_path: os.path):
         self._exec_file_path = exec_file_path
         self._command = self.__init_basic_command_line_for_exec_file(test_command_line)
         self._worker_num = worker_num
-        self._test_batch = test_batch
         self._working_dir = working_dir
         if not os.path.exists(self._working_dir):
             os.mkdir(self._working_dir)
@@ -421,11 +418,10 @@ if __name__ == "__main__":
     logger.info(f"[ARGUMENTS] --exec_file={args.exec_file}")
     logger.info(f"[ARGUMENTS] --worker_num={args.worker_num}")
     logger.info(f"[ARGUMENTS] --working_dir={args.working_dir}")
-    logger.info(f"[ARGUMENTS] --test_batch={args.test_batch}")
     logger.info(f"[ARGUMENTS] --process_timeout={args.process_timeout}")
     logger.info(f"[ARGUMENTS] Executable file arguments = {exec_file_args}")
     TaskManager.process_timeout = args.process_timeout
-    conformance = TestParallelRunner(args.exec_file, exec_file_args, args.worker_num, args.working_dir, args.test_batch, args.cache_path)
+    conformance = TestParallelRunner(args.exec_file, exec_file_args, args.worker_num, args.working_dir, args.cache_path)
     conformance.run()
     if not conformance.postprocess_logs():
         logger.error("Run is not successful")
