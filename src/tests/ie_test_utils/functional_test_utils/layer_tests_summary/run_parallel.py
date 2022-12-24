@@ -108,7 +108,6 @@ class TaskManager:
                         logger.warning(f"Process {pid} exceed time limetattion per process")
                         self._process_list[pid].kill()
                     self._process_list[pid].wait(timeout=0)
-                    logger.info(f"Process {pid} {float((datetime.datetime.now() - self._timers[pid]).total_seconds())}")
                     return pid
                 except TimeoutExpired:
                     continue
@@ -245,6 +244,8 @@ class TestParallelRunner:
                     test_times[0] += proved_test_list[0]._time
                     proved_test_list.pop(0)
             for filter in worker_test_filters:
+                cnt = filter.count('\":')
+                logger.info(f"Number of tests in job: {cnt}")
                 res_test_filters.append(filter)
             is_not_full = True
         return res_test_filters
@@ -265,7 +266,9 @@ class TestParallelRunner:
                     time = line[:pos]
                     test_name = line[pos+1:]
                     test_list_cache.append(TestStructure(test_name.replace("\n", ""), time))
-                    
+
+        logger.info(f"Len test_list_runtime: {len(test_list_runtime)}")
+        logger.info(f"Len test_list_cache: {len(test_list_cache)}")                
         if len(test_list_cache) >= len(test_list_runtime):
             self._is_save_cache = False
             logger.info("Test list in taken from cache")
@@ -291,20 +294,13 @@ class TestParallelRunner:
         logger.info(f"Run test parallel is started. Worker num is {self._worker_num}")
         t_start = datetime.datetime.now()
         task_manger = TaskManager(self.__generate_command_list(), self._working_dir)
-        a = datetime.datetime.now()
         for index in range(self._worker_num):
             task_manger.init_worker()
-        b = datetime.datetime.now()
         while task_manger.update_worker():
             pass
-        c = datetime.datetime.now()
         task_manger.compelete_all_processes()
         t_end = datetime.datetime.now()
-        
-        logger.info(f"Total time is {(a - t_start).total_seconds()}s")
-        logger.info(f"Total time is {(b - a).total_seconds()}s")
-        logger.info(f"Total time is {(c - b).total_seconds()}s")
-        logger.info(f"Total time is {(t_end - c).total_seconds()}s")
+
         logger.info(f"Run test parallel is finished successfully. Total time is {(t_end - t_start).total_seconds()}s")
 
 
@@ -382,7 +378,7 @@ class TestParallelRunner:
                                 test_name = None
                                 test_log = list()
                                 dir = None
-            # logger.info(f"Number of tests in {log}: {test_cnt_log}")
+            logger.info(f"Number of tests in {log}: {test_cnt_log}")
             os.remove(log)
         if self._is_save_cache:
             test_times.sort(reverse=True)
