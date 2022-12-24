@@ -156,6 +156,7 @@ class TestParallelRunner:
         if cache_path == "":
             cache_path = os.path.join(self._working_dir, "test_cache.lst")
         self._cache_path = os.path.join(cache_path)
+        self._is_save_cache = True
 
     def __init_basic_command_line_for_exec_file(self, test_command_line: list):
         command = f'{self._exec_file_path}'
@@ -184,41 +185,6 @@ class TestParallelRunner:
         return input_string
 
 
-    def __sort_test_list(self, test_list:list):
-        test_list_size = len(test_list)
-        while test_list_size % self._worker_num != 0:
-            test_list.append("")
-            test_list_size += 1
-
-        index = 0
-        pos_start = 0
-        index_ = int(len(test_list) / self._worker_num)
-        while pos_start < test_list_size / 2:
-            if index % 2 == 1:
-                pos_start = index * self._worker_num
-                pos_end_ = index_ * self._worker_num
-                index += 1
-                index_ -= 1
-                pos_end = index * self._worker_num
-                pos_start_ = index_ * self._worker_num
-                
-                buf = test_list[pos_start_:pos_end_]
-                buf.reverse()
-                test_list[pos_start_:pos_end_] = test_list[pos_start:pos_end]
-                test_list[pos_start:pos_end] = buf
-            else:
-                index += 1
-                index_ -= 1
-        for idx in range(len(test_list)):
-            col_num = idx % self._worker_num
-            row_num = int(idx / self._worker_num)
-            if row_num < col_num:
-                new_idx = self._worker_num * col_num + row_num 
-                buf = test_list[new_idx]
-                test_list[new_idx] = test_list[idx]
-                test_list[idx] = buf
-        return test_list
-
     def __get_test_list_by_runtime(self):
         test_list_file_name = os.path.join(self._working_dir, "test_list.lst")
         command_to_get_test_list = self._command + f' --gtest_list_tests >> {test_list_file_name}'
@@ -240,40 +206,47 @@ class TestParallelRunner:
         return test_list
 
 
-    def __generate_gtest_filters(self, test_list: list):
+    def __generate_gtest_filters(self, test_list: list, test_list_runtime:list):
         res_test_filters = list()
         def_length = len(self._command) + len(" --gtest_filter=")
+        proved_test_list = list()
+        if len(test_list) == len(test_list_runtime):
+            proved_test_list = test_list
+        else:
+            for test in test_list:
+                if test._name in test_list_runtime:
+                    proved_test_list.append(test)
 
-        while len(test_list) > 0:
+        while len(proved_test_list) > 0:
             test_times = []
             is_not_full = True
             worker_test_filters = list()
 
             for _ in range(self._worker_num):
-                if len(test_list) == 0:
+                if len(proved_test_list) == 0:
                     break
-                worker_test_filters.append(test_list[0]._name)
-                test_times.append(test_list[0]._time)
-                test_list.pop(0)
-            while is_not_full and len(test_list) > 0:
+                worker_test_filters.append(proved_test_list[0]._name)
+                test_times.append(proved_test_list[0]._time)
+                proved_test_list.pop(0)
+            while is_not_full and len(proved_test_list) > 0:
                 for i in range(self._worker_num):
-                    if i >= len(test_list):
+                    if i >= len(proved_test_list):
                         break
                     if i == 0:
                         continue
-                    while test_times[0] > test_times[i] + test_list[len(test_list) - 1]._time:
-                        final_pos = len(test_list) - 1
-                        if len(worker_test_filters[i]) + def_length + len(test_list[final_pos]._name) < MAX_LENGHT:
-                            worker_test_filters[i] += test_list[final_pos]._name
-                            test_times[i] += test_list[final_pos]._time
-                            test_list.pop(final_pos)
+                    while test_times[0] > test_times[i] + proved_test_list[len(proved_test_list) - 1]._time:
+                        final_pos = len(proved_test_list) - 1
+                        if len(worker_test_filters[i]) + def_length + len(proved_test_list[final_pos]._name) < MAX_LENGHT:
+                            worker_test_filters[i] += proved_test_list[final_pos]._name
+                            test_times[i] += proved_test_list[final_pos]._time
+                            proved_test_list.pop(final_pos)
                         else:
                             is_not_full = False
                             break
-                if is_not_full and len(test_list) > 0:
-                    worker_test_filters[0] += test_list[0]._name
-                    test_times[0] += test_list[0]._time
-                    test_list.pop(0)
+                if is_not_full and len(proved_test_list) > 0:
+                    worker_test_filters[0] += proved_test_list[0]._name
+                    test_times[0] += proved_test_list[0]._time
+                    proved_test_list.pop(0)
             for filter in worker_test_filters:
                 res_test_filters.append(filter)
             is_not_full = True
@@ -297,13 +270,14 @@ class TestParallelRunner:
                     test_list_cache.append(TestStructure(test_name.replace("\n", ""), time))
                     
         if len(test_list_cache) >= len(test_list_runtime):
+            self._is_save_cache = False
             logger.info("Test list in taken from cache")
             logger.info(f"Total test counter is {len(test_list_cache)}")
-            return self.__generate_gtest_filters(test_list_cache)
+            return self.__generate_gtest_filters(test_list_cache, test_list_runtime)
         else:
             logger.info("Test list in taken from runtime")
             logger.info(f"Total test counter is {len(test_list_runtime)}")
-            test_list_runtime = self.__sort_test_list(test_list_runtime)
+            test_list_runtime.reverse()
             return test_list_runtime
 
 
@@ -413,14 +387,15 @@ class TestParallelRunner:
                                 dir = None
             # logger.info(f"Number of tests in {log}: {test_cnt_log}")
             os.remove(log)
-        test_times.sort(reverse=True)
-        head, tail = os.path.split(self._cache_path)
-        if not os.path.isdir(head) and head != "":
-            logger.error(f"Impossible to create cche file! The dir {head} does not exist!")
-            exit(-1)
-        with open(self._cache_path, "w") as cache_file:
-            cache_file.writelines([f"{time}:\"" + test_name + "\":\n" for time, test_name in test_times])
-            cache_file.close()
+        if self._is_save_cache:
+            test_times.sort(reverse=True)
+            head, tail = os.path.split(self._cache_path)
+            if not os.path.isdir(head) and head != "":
+                logger.error(f"Impossible to create cche file! The dir {head} does not exist!")
+                exit(-1)
+            with open(self._cache_path, "w") as cache_file:
+                cache_file.writelines([f"{time}:\"" + test_name + "\":\n" for time, test_name in test_times])
+                cache_file.close()
         logger.info(f"Cache file: {self._cache_path} was created")
         hash_table_path = os.path.join(logs_dir, "hash_table.csv")
         with open(hash_table_path, "w") as csv_file:
