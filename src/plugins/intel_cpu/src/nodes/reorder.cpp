@@ -233,12 +233,16 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
         src_desc = src_blocked->GetPrimitive().get_desc();
     }
 
-    auto result = getReorderPrim(getRuntimeCache(), getEngine(), src_desc, dst_desc, &impl_type);
+    auto result = getReorderPrim(getRuntimeCache(), getEngine(), src_desc, dst_desc);
     if (!result) {
         IE_THROW() << "Cannot create reorder primitive: unsupported reorder case";
     }
     prim = result;
-    supportedPrimitiveDescriptors[0].setImplementationType(impl_type);
+
+    const char* impl_info_str;
+    IE_ASSERT(dnnl_primitive_desc_query(prim.get_primitive_desc(), dnnl_query_impl_info_str, 0, &impl_info_str) ==
+              dnnl_success);
+    supportedPrimitiveDescriptors[0].setImplementationType(parse_impl_name(impl_info_str));
     auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
     auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
     primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}};
@@ -387,15 +391,15 @@ void Reorder::reorderData(const Memory &input, const Memory &output, MultiCacheP
         auto copySize = output.GetSize();
         cpu_memcpy(dstPtr, srcPtr, copySize);
     } else {
-        std::shared_ptr<dnnl::primitive> pReorder;
+        dnnl::reorder reorder;
         std::vector<uint8_t> tmpBuff;
 
         auto srcMemory = input.GetPrimitive();
         auto dstMemory = output.GetPrimitive();
         auto engine = output.getEngine();
         // try directly reorder
-        pReorder = getReorderPrim(cache, srcMemory, dstMemory);
-        if (!pReorder) {
+        reorder = getReorderPrim(cache, dstMemory.get_engine(), srcMemory.get_desc(), dstMemory.get_desc());
+        if (!reorder) {
             // try precision conversion then do the reorder
             if (output.GetDataType() != input.GetDataType() && Convert::isSupportedDesc(input.getDesc()) &&
                 Convert::isSupportedDesc(output.getDesc())) {
@@ -413,16 +417,16 @@ void Reorder::reorderData(const Memory &input, const Memory &output, MultiCacheP
                 tmpMem.Create(std::move(tmpDesc), tmpBuff.data());
 
                 srcMemory = tmpMem.GetPrimitive();
-                pReorder = getReorderPrim(cache, srcMemory, dstMemory);
+                reorder = getReorderPrim(cache, dstMemory.get_engine(), srcMemory.get_desc(), dstMemory.get_desc());
             }
-            if (!pReorder) {
+            if (!reorder) {
                 IE_THROW() << "No reorder available for the following tensor descriptors: "
                     << input.getDesc().serializeFormat() << " and " << output.getDesc().serializeFormat();
             }
         }
-        if (pReorder) {
+        if (reorder) {
             dnnl::stream loc_stream(engine, dnnl::stream::flags::in_order);
-            pReorder->execute(loc_stream, {{DNNL_ARG_FROM, srcMemory}, {DNNL_ARG_TO, dstMemory}});
+            reorder.execute(loc_stream, {{DNNL_ARG_FROM, srcMemory}, {DNNL_ARG_TO, dstMemory}});
         } else {
             IE_THROW() << "Could not make onednn reorder.";
         }

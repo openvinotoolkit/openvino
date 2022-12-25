@@ -370,54 +370,6 @@ public:
      */
     virtual void init() {}
 
-    template <class PD, class D, typename FPD = bool>
-    PD createPrimitiveDescriptor(const dnnl::primitive_attr &attr = dnnl::primitive_attr()) {
-        auto descsCompatible = [](const std::vector<MemoryDescPtr>& srcDescs,
-                               const std::vector<PortConfig>& selectedDescs) {
-            if (srcDescs.empty() && selectedDescs.empty())
-                return true;
-            if (srcDescs.empty() || selectedDescs.empty())
-                return false;
-            for (size_t i = 0; i < srcDescs.size() && i < selectedDescs.size(); i++) {
-                if (!srcDescs[i]->isCompatible(*selectedDescs[i].getMemDesc()))
-                    return false;
-            }
-            return true;
-        };
-
-        const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
-        if (selected_pd == nullptr)
-            IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
-
-        for (const auto& desc : descs) {
-            auto itpd = desc.createPrimitiveDescriptorIterator(engine, attr);
-
-            while (static_cast<bool>(itpd))  {
-                std::vector<MemoryDescPtr> srcDescs;
-                for (size_t i = 0; i < descInputNumbers(desc); i++)
-                    srcDescs.push_back(getSrcMemDesc(itpd, i));
-
-                std::vector<MemoryDescPtr> dstDescs;
-                for (size_t i = 0; i < descOutputNumbers(desc); i++)
-                    dstDescs.push_back(getDstMemDesc(itpd, i));
-
-                impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-
-                if (impl_type == selected_pd->getImplementationType() &&
-                    descsCompatible(srcDescs, selected_pd->getConfig().inConfs) &&
-                    descsCompatible(dstDescs, selected_pd->getConfig().outConfs)) {
-                    prepareMemory(itpd);
-                    PD prim_desc = createPd<PD, D, FPD>(desc);
-                    return {itpd.get()};
-                }
-                if (!itpd.next_impl())
-                    break;
-            }
-        }
-
-        IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
-    }
-
     int getExecIndex() const {
         return execIndex;
     }
@@ -642,7 +594,7 @@ protected:
     std::vector<NodeDesc> supportedPrimitiveDescriptors;
     std::unordered_map<int, dnnl::memory> primArgs;
     std::unordered_map<int, MemoryPtr> postOpsArgs;
-    Primitive prim;
+    dnnl::primitive prim;
     std::vector<DnnlDesriptor> descs;
 
     WeightsSharing::Ptr weightCache;
@@ -761,21 +713,6 @@ private:
     MemoryPtr scratchpadMem;
 
     bool isEdgesEmpty(const std::vector<EdgeWeakPtr>& edges) const;
-
-    template <class PD, class D, typename FPD>
-    typename std::enable_if<!std::is_same<FPD, bool>::value, PD>::type
-    createPd(DnnlDesriptor desc) {
-        std::shared_ptr<D> selected_desc_ptr = desc;
-        std::shared_ptr<FPD> backward_prim_desc_ptr = desc;
-        return PD(*selected_desc_ptr, engine, *backward_prim_desc_ptr);
-    }
-
-    template <class PD, class D, typename FPD>
-    typename std::enable_if<std::is_same<FPD, bool>::value, PD>::type
-    createPd(DnnlDesriptor desc) {
-        std::shared_ptr<D> selected_desc_ptr = desc;
-        return PD(*selected_desc_ptr, engine);
-    }
 
     enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2 };
     ConstantType checkConstant(LOOK look, std::vector<NodePtr>& checkNodes);

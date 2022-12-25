@@ -12,18 +12,10 @@
 namespace ov {
 namespace intel_cpu {
 
-std::shared_ptr<dnnl::primitive> getReorderPrim(MultiCachePtr cache,
-                                                const dnnl::engine& engine,
-                                                const dnnl::memory::desc& src,
-                                                const dnnl::memory::desc& dest,
-                                                impl_desc_type* p_impl_type = nullptr);
-
-inline std::shared_ptr<dnnl::primitive> getReorderPrim(MultiCachePtr cache,
-                                                const dnnl::memory& src,
-                                                const dnnl::memory& dest,
-                                                impl_desc_type* p_impl_type = nullptr) {
-    return getReorderPrim(cache, dest.get_engine(), src.get_desc(), dest.get_desc(), p_impl_type);
-}
+dnnl::reorder getReorderPrim(MultiCachePtr cache,
+                             const dnnl::engine& engine,
+                             const dnnl::memory::desc& src,
+                             const dnnl::memory::desc& dest);
 
 }  // namespace intel_cpu
 }  // namespace ov

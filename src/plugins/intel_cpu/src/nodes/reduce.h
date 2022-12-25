@@ -157,7 +157,7 @@ private:
 
     std::vector<const void*> postOpsDataPtrs;
 
-    std::shared_ptr<dnnl::memory> prc_mem;
+    dnnl::memory prc_mem;
     std::vector<uint8_t> vec_reduceDH_prc;
 
     std::shared_ptr<jit_uni_reduce_kernel> reduce_kernel;

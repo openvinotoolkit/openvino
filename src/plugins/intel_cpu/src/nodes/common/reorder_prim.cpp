@@ -42,21 +42,18 @@ bool ReorderKey::operator==(const ReorderKey& rhs) const {
     return retVal;
 }
 
-std::shared_ptr<dnnl::primitive> getReorderPrim(MultiCachePtr cache,
-                                                const dnnl::engine& engine,
-                                                const dnnl::memory::desc& src,
-                                                const dnnl::memory::desc& dest,
-                                                impl_desc_type* p_impl_type) {
-    auto builder = [&engine, &p_impl_type](const ReorderKey& key) -> std::shared_ptr<dnnl::primitive> {
+dnnl::reorder getReorderPrim(MultiCachePtr cache,
+                             const dnnl::engine& engine,
+                             const dnnl::memory::desc& src,
+                             const dnnl::memory::desc& dest) {
+    auto builder = [&engine](const ReorderKey& key) {
         dnnl::primitive_attr attr;
         DEBUG_LOG(key.src, "->", key.dest);
         dnnl::reorder::primitive_desc pd = dnnl::reorder::primitive_desc(engine, key.src, engine, key.dest, attr, true);
-        if (!pd)
-            return nullptr;
-        auto info = pd.impl_info_str();
-        if (p_impl_type)
-            *p_impl_type = parse_impl_name(info);
-        return std::make_shared<dnnl::reorder>(pd);
+        if (!pd) {
+            return dnnl::reorder();
+        }
+        return dnnl::reorder(pd);
     };
 
     ReorderKey key = {src, dest};

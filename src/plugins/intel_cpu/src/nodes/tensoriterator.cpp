@@ -123,7 +123,7 @@ public:
             mem_holder_src = from->GetPrimitive();
             mem_holder_dst = chunk_mem;
         }
-        reorder = getReorderPrim(cache, mem_holder_src, mem_holder_dst);
+        reorder = getReorderPrim(cache, mem_holder_dst.get_engine(), mem_holder_src.get_desc(), mem_holder_dst.get_desc());
     }
 
     void execute(dnnl::stream strm, int iter) override {
@@ -133,7 +133,7 @@ public:
         chunk_mem.set_data_handle(static_cast<uint8_t *>(full_mem.get_data_handle()) +
                                           chunk_offset_in_byte + chunk_stride_in_byte * iter);
 
-        reorder->execute(strm, {{DNNL_ARG_FROM, mem_holder_src}, {DNNL_ARG_TO, mem_holder_dst}});
+        reorder.execute(strm, {{DNNL_ARG_FROM, mem_holder_src}, {DNNL_ARG_TO, mem_holder_dst}});
     }
 
 private:
@@ -151,12 +151,12 @@ public:
     BackEdgePortHelper(MultiCachePtr cache, const MemoryPtr &from, const MemoryPtr &to, const dnnl::engine& eng) {
         mem_holder_src = from->GetPrimitive();
         mem_holder_dst = to->GetPrimitive();
-        reorder = getReorderPrim(cache, mem_holder_src, mem_holder_dst);
+        reorder = getReorderPrim(cache, mem_holder_dst.get_engine(), mem_holder_src.get_desc(), mem_holder_dst.get_desc());
     }
 
     void execute(dnnl::stream strm, int iter = -1) override {
         if (iter != 0) {
-            reorder->execute(strm, {{DNNL_ARG_FROM, mem_holder_src}, {DNNL_ARG_TO, mem_holder_dst}});
+            reorder.execute(strm, {{DNNL_ARG_FROM, mem_holder_src}, {DNNL_ARG_TO, mem_holder_dst}});
         }
     }
 };
@@ -259,16 +259,16 @@ void DynamicBuffer::init(const dnnl::engine& eng) {
 
     count = std::accumulate(dims.begin(), dims.begin() + map_rule.axis, size_t(1), std::multiplies<size_t>());
     len = std::accumulate(dims.begin() + map_rule.axis + 1, dims.end(), elem_size, std::multiplies<size_t>());
-    mem_holder_buffer.reset(new memory(src_desc, eng));
-    copy(reinterpret_cast<const uint8_t*>(from->GetPtr()), get_ptr(*mem_holder_buffer.get()), 0, 0, 1, from->GetSize());
+    mem_holder_buffer = memory(src_desc, eng);
+    copy(reinterpret_cast<const uint8_t*>(from->GetPtr()), get_ptr(mem_holder_buffer), 0, 0, 1, from->GetSize());
 }
 
-std::shared_ptr<dnnl::memory> DynamicBuffer::create_buffer(const dnnl::engine& eng) {
+dnnl::memory DynamicBuffer::create_buffer(const dnnl::engine& eng) {
     const auto axis = map_rule.axis;
     const auto stride = map_rule.stride;
     const auto abs_stride = std::abs(stride);
 
-    const auto old_desc = mem_holder_buffer->get_desc();
+    const auto old_desc = mem_holder_buffer.get_desc();
     auto dims = old_desc.dims();
 
     if (from->getStaticDims()[axis] != abs_stride)
@@ -284,15 +284,15 @@ std::shared_ptr<dnnl::memory> DynamicBuffer::create_buffer(const dnnl::engine& e
         buffer_offset_in_byte = from->GetPrimitive().get_desc().data.format_desc.blocking.strides[axis] * elem_size * abs_stride;
     }
 
-    return std::make_shared<dnnl::memory>(new_buffer_desc, eng);
+    return dnnl::memory(new_buffer_desc, eng);
 }
 
-void DynamicBuffer::move_buffer(std::shared_ptr<dnnl::memory> new_buffer) {
+void DynamicBuffer::move_buffer(dnnl::memory new_buffer) {
     const auto axis = map_rule.axis;
-    const auto src_stride = mem_holder_buffer->get_desc().dims()[axis] * len;
-    const auto dst_stride = new_buffer->get_desc().dims()[axis] * len;
+    const auto src_stride = mem_holder_buffer.get_desc().dims()[axis] * len;
+    const auto dst_stride = new_buffer.get_desc().dims()[axis] * len;
 
-    copy(get_ptr(*mem_holder_buffer.get()), get_ptr(*new_buffer.get()) + buffer_offset_in_byte,
+    copy(get_ptr(mem_holder_buffer), get_ptr(new_buffer) + buffer_offset_in_byte,
          src_stride, dst_stride, count, src_stride);
     mem_holder_buffer = new_buffer;
 }
@@ -300,19 +300,19 @@ void DynamicBuffer::move_buffer(std::shared_ptr<dnnl::memory> new_buffer) {
 void DynamicBuffer::move_data() {
     const auto axis = map_rule.axis;
     const auto src_stride = abs(map_rule.stride) * len;
-    const auto dst_stride = mem_holder_buffer->get_desc().dims()[axis] * len;
+    const auto dst_stride = mem_holder_buffer.get_desc().dims()[axis] * len;
 
-    copy(reinterpret_cast<const uint8_t*>(from->GetPtr()), get_ptr(*mem_holder_buffer.get()) + chunk_offset_in_byte,
+    copy(reinterpret_cast<const uint8_t*>(from->GetPtr()), get_ptr(mem_holder_buffer) + chunk_offset_in_byte,
          src_stride, dst_stride, count, src_stride);
 }
 
 void DynamicBuffer::transfer(const Node* node) {
     if (mem_holder_buffer) {
         const auto desc = node->getBaseMemDescAtOutputPort(map_rule.from)->cloneWithNewDims(
-                DnnlExtensionUtils::convertToVectorDims(mem_holder_buffer->get_desc().dims()));
+                DnnlExtensionUtils::convertToVectorDims(mem_holder_buffer.get_desc().dims()));
         redefineToMemories(to, desc);
 
-        copy(get_ptr(*mem_holder_buffer.get()), reinterpret_cast<uint8_t*>(to.front()->GetPtr()), 0, 0, 1, to.front()->GetSize());
+        copy(get_ptr(mem_holder_buffer), reinterpret_cast<uint8_t*>(to.front()->GetPtr()), 0, 0, 1, to.front()->GetSize());
     } else {
         VectorDims newDims = to.front()->GetShape().getDims();
         nullifyUndefinedDims(newDims);
@@ -321,7 +321,7 @@ void DynamicBuffer::transfer(const Node* node) {
         redefineToMemories(to, desc);
     }
 
-    mem_holder_buffer.reset();
+    mem_holder_buffer.reset(nullptr);
 }
 
 void DynamicBuffer::copy(const uint8_t* src, uint8_t* dst, const size_t src_stride, const size_t dst_stride, const size_t count, const size_t len) {
