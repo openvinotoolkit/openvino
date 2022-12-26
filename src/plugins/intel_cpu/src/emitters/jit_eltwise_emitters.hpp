@@ -613,15 +613,20 @@ private:
 class jit_is_finite_emitter : public jit_emitter {
 public:
     jit_is_finite_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t hostIsa,
-                    InferenceEngine::Precision execPrc = InferenceEngine::Precision::FP32) : jit_emitter(host, hostIsa, execPrc) {}
+                    InferenceEngine::Precision execPrc = InferenceEngine::Precision::FP32) : jit_emitter(host, hostIsa, execPrc) {
+        prepare_table();
+    }
     jit_is_finite_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t hostIsa, const std::shared_ptr<ov::Node>& node,
-                    InferenceEngine::Precision execPrc = InferenceEngine::Precision::FP32) : jit_emitter(host, hostIsa, node, execPrc) {}
+                    InferenceEngine::Precision execPrc = InferenceEngine::Precision::FP32) : jit_emitter(host, hostIsa, node, execPrc) {
+        prepare_table();
+    }
 
     size_t get_inputs_num() const override { return 1; };
     size_t aux_vecs_count() const override { return host_isa_ == dnnl::impl::cpu::x64::avx512_core ? 0 : 2; }
 
 protected:
     size_t aux_gprs_count() const override { return (entry_map_.empty() ? 0 : 1) + 1; }
+    void register_table_entries() override;
 
 private:
     void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
@@ -636,15 +641,20 @@ class jit_is_inf_emitter : public jit_emitter {
 public:
     jit_is_inf_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t hostIsa,
                        InferenceEngine::Precision execPrc = InferenceEngine::Precision::FP32, bool detect_negative = true, bool detect_positive = true)
-            : jit_emitter(host, hostIsa, execPrc), detect_negative(detect_negative), detect_positive(detect_positive) {}
+            : jit_emitter(host, hostIsa, execPrc), detect_negative(detect_negative), detect_positive(detect_positive) {
+        prepare_table();
+    }
     jit_is_inf_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t hostIsa, const std::shared_ptr<ov::Node>& node,
-                       InferenceEngine::Precision execPrc = InferenceEngine::Precision::FP32): jit_emitter(host, hostIsa, node, execPrc) {}
+                       InferenceEngine::Precision execPrc = InferenceEngine::Precision::FP32): jit_emitter(host, hostIsa, node, execPrc) {
+        prepare_table();
+    }
 
     size_t get_inputs_num() const override { return 1; };
     size_t aux_vecs_count() const override { return host_isa_ == dnnl::impl::cpu::x64::avx512_core ? 0 : detect_positive ? 2 : 1; }
 
 protected:
     size_t aux_gprs_count() const override { return (entry_map_.empty() ? 0 : 1) + 1; }
+    void register_table_entries() override;
 
 private:
     void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
@@ -661,15 +671,20 @@ private:
 class jit_is_nan_emitter : public jit_emitter {
 public:
     jit_is_nan_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t hostIsa,
-                       InferenceEngine::Precision execPrc = InferenceEngine::Precision::FP32) : jit_emitter(host, hostIsa, execPrc) {}
+                       InferenceEngine::Precision execPrc = InferenceEngine::Precision::FP32) : jit_emitter(host, hostIsa, execPrc) {
+        prepare_table();
+    }
     jit_is_nan_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t hostIsa, const std::shared_ptr<ov::Node>& node,
-                       InferenceEngine::Precision execPrc = InferenceEngine::Precision::FP32) : jit_emitter(host, hostIsa, node, execPrc) {}
+                       InferenceEngine::Precision execPrc = InferenceEngine::Precision::FP32) : jit_emitter(host, hostIsa, node, execPrc) {
+        prepare_table();
+    }
 
     size_t get_inputs_num() const override { return 1; }
     size_t aux_vecs_count() const override { return host_isa_ == dnnl::impl::cpu::x64::avx512_core ? 0 : 1; }
 
 protected:
     size_t aux_gprs_count() const override { return (entry_map_.empty() ? 0 : 1) + 1; }
+    void register_table_entries() override;
 
 private:
     void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
