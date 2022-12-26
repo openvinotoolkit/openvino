@@ -178,6 +178,8 @@ gpu_image2d::gpu_image2d(ocl_engine* engine, const layout& layout)
 
     cl::ImageFormat imageFormat(order, type);
     _buffer = cl::Image2D(engine->get_cl_context(), CL_MEM_READ_WRITE, imageFormat, _width, _height, 0);
+    size_t elem_size = _buffer.getImageInfo<CL_IMAGE_ELEMENT_SIZE>();
+    _bytes_count = elem_size * _width * _height;
 }
 
 gpu_image2d::gpu_image2d(ocl_engine* engine,
