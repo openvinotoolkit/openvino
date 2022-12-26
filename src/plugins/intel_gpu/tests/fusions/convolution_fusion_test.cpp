@@ -3063,29 +3063,30 @@ TEST_P(conv_int8_eltwise_onednn, u8_eltwise_prod_out) {
     execute(p);
 }
 
+static const int NOT_FOR_CLDNN=0;
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_eltwise_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_U8S8_1, 0, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 0, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 0, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 0, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 0, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 0, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_1, NOT_FOR_CLDNN, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_2, NOT_FOR_CLDNN, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_3, NOT_FOR_CLDNN, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_1, NOT_FOR_CLDNN, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_2, NOT_FOR_CLDNN, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_3, NOT_FOR_CLDNN, 2, 3 },
 
-    convolution_test_params{ CASE_CONV_U8S8_11, 0, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_12, 0, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_13, 0, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_12, 0, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_13, 0, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_14, 0, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_11, NOT_FOR_CLDNN, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_12, NOT_FOR_CLDNN, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_13, NOT_FOR_CLDNN, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_12, NOT_FOR_CLDNN, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_13, NOT_FOR_CLDNN, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_14, NOT_FOR_CLDNN, 2, 3 },
 
-    convolution_test_params{ CASE_CONV3D_U8S8_1, 0, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_U8S8_2, 0, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_U8S8_3, 0, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_U8S8_5, 0, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_1, 0, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_2, 0, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_3, 0, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_5, 0, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_U8S8_1, NOT_FOR_CLDNN, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_U8S8_2, NOT_FOR_CLDNN, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_U8S8_3, NOT_FOR_CLDNN, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_U8S8_5, NOT_FOR_CLDNN, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_S8S8_1, NOT_FOR_CLDNN, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_S8S8_2, NOT_FOR_CLDNN, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_S8S8_3, NOT_FOR_CLDNN, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_S8S8_5, NOT_FOR_CLDNN, 2, 3 },
 }));
 
 class conv_fp32_activation_abs_onednn : public WeightsPrimitiveFusingTestOneDNN {};

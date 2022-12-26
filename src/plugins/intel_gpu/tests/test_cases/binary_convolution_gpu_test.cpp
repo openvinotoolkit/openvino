@@ -181,7 +181,7 @@ class binary_convolution_test : public ::testing::TestWithParam<TestParams> {
 TEST_P(binary_convolution_test, conv) {
     auto& engine = get_test_engine();
 
-    //FIXME: https://github.com/openvinotoolkit/openvino/pull/12486
+    // DG2 has an issue for binary convolution: https://github.com/openvinotoolkit/openvino/pull/12486
     if(engine.get_device_info().supports_immad)
         return;
 

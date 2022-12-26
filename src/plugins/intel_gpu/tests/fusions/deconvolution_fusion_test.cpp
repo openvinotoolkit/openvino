@@ -386,7 +386,7 @@ TEST_P(deconv_scale, basic) {
         reorder("out", input_info("scale"), p.default_format, data_types::f32)
     );
 
-    tolerance = default_tolerance(data_types::f16);
+    tolerance = default_tolerance(p.data_type);
     execute(p, get_mem(get_input_layout(p), 0, 16));
 }
 
@@ -401,7 +401,7 @@ TEST_P(deconv_scale, fp16_scale_out) {
         reorder("out", input_info("scale"), p.default_format, data_types::f32)
     );
 
-    tolerance = default_tolerance(data_types::f16);
+    tolerance = default_tolerance(p.data_type);
     execute(p, get_mem(get_input_layout(p), 0, 16));
 }
 
