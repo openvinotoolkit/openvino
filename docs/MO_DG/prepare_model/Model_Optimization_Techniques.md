@@ -26,7 +26,7 @@ This optimization method consists of three stages:
 
 The picture below shows the depicted part of Caffe Resnet269 topology where `BatchNorm` and `ScaleShift` layers will be fused to `Convolution` layers.
 
-![Caffe ResNet269 block before and after optimization generated with Netscope*](../img/optimizations/resnet_269.png)
+![Caffe ResNet269 block before and after optimization generated with Netscope*](../img/optimizations/resnet_269.svg)
 
 * * *
 
@@ -38,7 +38,7 @@ ResNet optimization is a specific optimization that applies to Caffe ResNet topo
 
 In the picture below, you can see the original and optimized parts of a Caffe ResNet50 model. The main idea of this optimization is to move the stride that is greater than 1 from Convolution layers with the kernel size = 1 to upper Convolution layers. In addition, the Model Optimizer adds a Pooling layer to align the input shape for a Eltwise layer, if it was changed during the optimization. 
 
-![ResNet50 blocks (original and optimized) from Netscope](../img/optimizations/resnet_optimization.png)
+![ResNet50 blocks (original and optimized) from Netscope](../img/optimizations/resnet_optimization.svg)
 
 In this example, the stride from the `res3a_branch1` and `res3a_branch2a` Convolution layers moves to the `res2c_branch2b` Convolution layer. In addition, to align the input shape for `res2c` Eltwise, the optimization inserts the Pooling layer with kernel size = 1 and stride = 2.
 
@@ -48,7 +48,7 @@ In this example, the stride from the `res3a_branch1` and `res3a_branch2a` Convol
 
 Grouped convolution fusing is a specific optimization that applies for TensorFlow topologies. The main idea of this optimization is to combine convolutions results for the `Split` outputs and then recombine them using `Concat` operation in the same order as they were out from `Split`.
 
-![Split→Convolutions→Concat block from TensorBoard*](../img/optimizations/groups.png)
+![Split→Convolutions→Concat block from TensorBoard*](../img/optimizations/groups.svg)
 
 * * *
 
@@ -62,4 +62,4 @@ On the picture below you can see two visualized Intermediate Representations (IR
 The first one is original IR that will be produced by the Model Optimizer.
 The second one will be produced by the Model Optimizer with key `--finegrain_fusing InceptionV4/InceptionV4/Conv2d_1a_3x3/Conv2D`, where you can see that `Convolution` was not fused with `Mul1_3752` and `Mul1_4061/Fused_Mul_5096/FusedScaleShift_5987` operations.
 
-![TF InceptionV4 block without/with key --finegrain_fusing (from IR visualizer)](../img/optimizations/inception_v4.png)
+![TF InceptionV4 block without/with key --finegrain_fusing (from IR visualizer)](../img/optimizations/inception_v4.svg)

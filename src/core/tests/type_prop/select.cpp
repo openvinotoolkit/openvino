@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "dimension_tracker.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "util/type_prop.hpp"
@@ -18,6 +19,153 @@ TEST(type_prop, select_deduce) {
     auto bc = make_shared<op::v1::Select>(tv0_2_4_param_0, tv0_2_4_param_1, tv0_2_4_param_2);
     ASSERT_EQ(bc->get_element_type(), element::f32);
     ASSERT_EQ(bc->get_shape(), (Shape{2, 4}));
+}
+
+TEST(type_prop, select_default_constructor) {
+    auto cond_param = make_shared<op::Parameter>(element::boolean, Shape{2, 4});
+    auto then_param = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    auto else_param = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    auto op = make_shared<op::v1::Select>();
+
+    EXPECT_EQ(op->get_auto_broadcast().m_type, op::AutoBroadcastType::NUMPY);
+
+    op->set_argument(0, cond_param);
+    op->set_argument(1, then_param);
+    op->set_argument(2, else_param);
+
+    op->set_auto_broadcast(op::AutoBroadcastType::NONE);
+    EXPECT_EQ(op->get_auto_broadcast().m_type, op::AutoBroadcastType::NONE);
+
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_element_type(), element::f32);
+    EXPECT_EQ(op->get_output_shape(0), (Shape{2, 4}));
+}
+
+TEST(type_prop, select_labels_cond_numpy) {
+    auto labeled_shape = PartialShape{{2, 8}, {3, 7}, {1, 10}, {1, 6}, {1, 10}};
+    set_shape_labels(labeled_shape, 10);
+    std::vector<size_t> expected_labels{10, 11, 12, ov::no_label, 14};
+
+    auto cond_param = make_shared<op::Parameter>(element::boolean, labeled_shape);
+    auto then_param = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(5));
+    auto else_param = make_shared<op::Parameter>(element::f32, PartialShape({{1, 5}, {1, 11}, 5, {1, 8}}));
+    auto op = make_shared<op::v1::Select>(cond_param, then_param, else_param);
+
+    const auto& out_shape = op->get_output_partial_shape(0);
+
+    EXPECT_EQ(op->get_element_type(), element::f32);
+    EXPECT_EQ(out_shape, PartialShape({{2, 8}, {3, 7}, -1, 5, -1}));
+    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+}
+
+TEST(type_prop, select_labels_then_numpy) {
+    auto labeled_shape = PartialShape::dynamic(5);
+    set_shape_labels(labeled_shape, 10);
+    std::vector<size_t> expected_labels{ov::no_label, ov::no_label, 12, ov::no_label, 14};
+
+    auto cond_param =
+        make_shared<op::Parameter>(element::boolean, PartialShape{{2, 8}, {3, 7}, {1, 10}, {1, 6}, {1, 10}});
+    auto then_param = make_shared<op::Parameter>(element::f32, labeled_shape);
+    auto else_param = make_shared<op::Parameter>(element::f32, PartialShape({{1, 5}, {1, 11}, 5, {1, 8}}));
+    auto op = make_shared<op::v1::Select>(cond_param, then_param, else_param);
+
+    const auto& out_shape = op->get_output_partial_shape(0);
+
+    EXPECT_EQ(op->get_element_type(), element::f32);
+    EXPECT_EQ(out_shape, PartialShape({{2, 8}, {3, 7}, -1, 5, -1}));
+    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+}
+
+TEST(type_prop, select_labels_else_numpy) {
+    auto labeled_shape = PartialShape{{1, 5}, {1, 11}, 5, {1, 8}};
+    set_shape_labels(labeled_shape, 10);
+
+    std::vector<size_t> expected_labels{ov::no_label, ov::no_label, 11, 12, 13};
+
+    auto cond_param =
+        make_shared<op::Parameter>(element::boolean, PartialShape{{2, 8}, {3, 7}, {1, 10}, {1, 6}, {1, 10}});
+    auto then_param = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(5));
+    auto else_param = make_shared<op::Parameter>(element::f32, labeled_shape);
+    auto op = make_shared<op::v1::Select>(cond_param, then_param, else_param);
+
+    const auto& out_shape = op->get_output_partial_shape(0);
+
+    EXPECT_EQ(op->get_element_type(), element::f32);
+    EXPECT_EQ(out_shape, PartialShape({{2, 8}, {3, 7}, -1, 5, -1}));
+    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+}
+
+TEST(type_prop, select_labels_all_params_numpy) {
+    auto labeled_shape_cond = PartialShape{-1, 2, 1, 3, 1, {2, 5}, {1, 8}, {5, -1}, {-1, 5}};
+    auto labeled_shape_then = PartialShape{-1, 2, 4, 1, 1, {1, 5}, {2, 8}, {5, -1}, {-1, 5}};
+    auto labeled_shape_else = PartialShape{-1, 2, 1, 3, 5, {1, 7}, {1, 8}, {5, -1}, {-1, 5}};
+
+    set_shape_labels(labeled_shape_cond, 10);
+    set_shape_labels(labeled_shape_then, 20);
+    set_shape_labels(labeled_shape_else, 30);
+
+    std::vector<size_t> expected_labels{10, 11, 22, 13, 34, 15, 26, 17, 18};
+
+    auto cond_param = make_shared<op::Parameter>(element::boolean, labeled_shape_cond);
+    auto then_param = make_shared<op::Parameter>(element::f32, labeled_shape_then);
+    auto else_param = make_shared<op::Parameter>(element::f32, labeled_shape_else);
+    auto op = make_shared<op::v1::Select>(cond_param, then_param, else_param);
+
+    const auto& out_shape = op->get_output_partial_shape(0);
+
+    EXPECT_EQ(op->get_element_type(), element::f32);
+    EXPECT_EQ(out_shape, (PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}, {5, -1}, {-1, 5}}));
+    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+}
+
+TEST(type_prop, select_labels_all_params_none) {
+    auto labeled_shape_cond = PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}, {5, -1}, {-1, 5}};
+    auto labeled_shape_then = PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}, {5, -1}, {-1, 5}};
+    auto labeled_shape_else = PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}, {5, -1}, {-1, 5}};
+
+    set_shape_labels(labeled_shape_cond, 10);
+    set_shape_labels(labeled_shape_then, 20);
+    set_shape_labels(labeled_shape_else, 30);
+
+    std::vector<size_t> expected_labels{10, 11, 12, 13, 14, 15, 16, 17, 18};
+
+    auto cond_param = make_shared<op::Parameter>(element::boolean, labeled_shape_cond);
+    auto then_param = make_shared<op::Parameter>(element::f32, labeled_shape_then);
+    auto else_param = make_shared<op::Parameter>(element::f32, labeled_shape_else);
+    auto op = make_shared<op::v1::Select>(cond_param, then_param, else_param, op::AutoBroadcastType::NONE);
+
+    const auto& out_shape = op->get_output_partial_shape(0);
+
+    EXPECT_EQ(op->get_element_type(), element::f32);
+    EXPECT_EQ(out_shape, (PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}, {5, -1}, {-1, 5}}));
+    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+}
+
+TEST(type_prop, select_labels_all_params_pdpd) {
+    auto labeled_shape_cond = PartialShape{-1, -1, -1, -1, -1, -1, -1};
+    auto labeled_shape_then = PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}, {5, -1}, {-1, 5}};
+    auto labeled_shape_else = PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}, {5, -1}, {-1, 5}};
+
+    set_shape_labels(labeled_shape_cond, 10);
+    set_shape_labels(labeled_shape_then, 20);
+    set_shape_labels(labeled_shape_else, 30);
+
+    std::vector<size_t> expected_labels{20, 21, 22, 23, 24, 25, 26, 27, 28};
+
+    auto cond_param = make_shared<op::Parameter>(element::boolean, labeled_shape_cond);
+    auto then_param = make_shared<op::Parameter>(element::f32, labeled_shape_then);
+    auto else_param = make_shared<op::Parameter>(element::f32, labeled_shape_else);
+    auto op = make_shared<op::v1::Select>(cond_param,
+                                          then_param,
+                                          else_param,
+                                          op::AutoBroadcastSpec{op::AutoBroadcastType::PDPD});
+
+    const auto& out_shape = op->get_output_partial_shape(0);
+
+    EXPECT_EQ(op->get_element_type(), element::f32);
+    EXPECT_EQ(out_shape, (PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}, {5, -1}, {-1, 5}}));
+    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
 }
 
 TEST(type_prop, select_dynamic) {
@@ -250,9 +398,9 @@ INSTANTIATE_TEST_SUITE_P(
                       SelectParams({{2}, {2, 4}, {2}, {2, 4}},
                                    {element::boolean, element::f32, element::dynamic, element::f32},
                                    {op::AutoBroadcastType::PDPD, 0}),
-                      // TODO: Whats the right behavior here?
-                      // SelectParams({{2}, {2, 4}, {2}, {2, 4}}, {element::boolean, element::f32,
-                      // element::dynamic, element::f32}, {op::AutoBroadcastType::PDPD, 0}),
+                      SelectParams({{2}, {2, 4}, {2}, {2, 4}},
+                                   {element::boolean, element::f32, element::dynamic, element::f32},
+                                   {op::AutoBroadcastType::PDPD, 0}),
                       SelectParams({{4}, {2, 4}, {2, 4}, {2, 4}},
                                    {element::boolean, element::f32, element::f32, element::f32},
                                    {op::AutoBroadcastType::PDPD, 1}),

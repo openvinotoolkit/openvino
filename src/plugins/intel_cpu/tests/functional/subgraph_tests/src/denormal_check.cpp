@@ -77,7 +77,6 @@ void SetUp() override {
 };
 
 TEST_F(DenormalNullifyCheck, smoke_CPU_Denormal_Check) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     using indexInterval = std::pair<size_t, size_t>;
     size_t elemsCount = pConstStorage->size();
     const indexInterval intervals[] = {

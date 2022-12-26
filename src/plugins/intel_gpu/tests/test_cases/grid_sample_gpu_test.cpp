@@ -81,7 +81,7 @@ public:
 
         ASSERT_EQ(output_ptr.size(), p.expected_values.size());
         for (size_t i = 0; i < output_ptr.size(); ++i) {
-            EXPECT_NEAR(p.expected_values[i], output_ptr[i], getError<TD>());
+            ASSERT_NEAR(p.expected_values[i], output_ptr[i], getError<TD>());
         }
     }
 

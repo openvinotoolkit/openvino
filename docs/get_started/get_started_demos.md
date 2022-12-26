@@ -18,6 +18,7 @@ Once the prerequisites have been installed, perform the following steps:
 To use sample applications, install OpenVINO Runtime via one of the following distribution channels (other distributions do not include sample files):
 
 * Archive files (recommended) - [Linux](@ref openvino_docs_install_guides_installing_openvino_from_archive_linux) | [Windows](@ref openvino_docs_install_guides_installing_openvino_from_archive_windows) | [macOS](@ref openvino_docs_install_guides_installing_openvino_from_archive_macos)
+* [APT](@ref openvino_docs_install_guides_installing_openvino_apt) or [YUM](@ref openvino_docs_install_guides_installing_openvino_yum) for Linux
 * Docker image - [Linux](@ref openvino_docs_install_guides_installing_openvino_docker_linux) | [Windows](@ref openvino_docs_install_guides_installing_openvino_docker_windows)
 * [Build from source](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode)
 

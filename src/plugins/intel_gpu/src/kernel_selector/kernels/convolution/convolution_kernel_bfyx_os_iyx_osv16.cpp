@@ -107,7 +107,7 @@ ConvolutionKernel_bfyx_os_iyx_osv16::AutoTuneOption ConvolutionKernel_bfyx_os_iy
         return autoTuneOptions[autoTuneIndex];
     }
 
-    AutoTuneOption option = {0, 0, 0, DEFAULT};
+    AutoTuneOption option = {0, 0, 0, EXE_MODE_DEFAULT};
 
     const convolution_params& cp = static_cast<const convolution_params&>(p);
 

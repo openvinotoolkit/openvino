@@ -138,8 +138,6 @@ protected:
 };
 
 TEST_P(TileLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
     CheckPluginRelatedResults(compiledModel, "Tile");
 }

@@ -16,6 +16,7 @@ message(STATUS "ONNX frontend test enabled")
 add_compile_definitions(
     TEST_MODEL_ZOO="${TEST_MODEL_ZOO}"
     ONNX_MODELS_DIR="${TEST_MODEL_ZOO}/onnx"
+    ONNX_TEST_MODELS="${TEST_MODEL_ZOO}/onnx/"
     TEST_ONNX_MODELS_DIRNAME="${TEST_MODEL_ZOO}/onnx/"
     MANIFEST="${CMAKE_CURRENT_SOURCE_DIR}/unit_test.manifest"
     SERIALIZED_ZOO="${TEST_MODEL_ZOO}")
@@ -73,6 +74,7 @@ set(MULTI_TEST_SRC
     onnx_import_dyn_shapes.in.cpp
     onnx_import_external_data.in.cpp
     onnx_import_org_openvino.in.cpp
+    onnx_import_org_pytorch.in.cpp
     onnx_import_reshape.in.cpp
     onnx_import_rnn.in.cpp
     onnx_import_quant.in.cpp
@@ -90,7 +92,11 @@ set(SRC
     onnx_test_util.cpp
     onnx_transformations.cpp
     op_extension.cpp
-    telemetry.cpp)
+    telemetry.cpp
+    lib_close.cpp
+    model_support_tests.cpp
+    onnx_reader_external_data.cpp
+    skip_tests_config.cpp)
 
 foreach(src IN LISTS SRC MULTI_TEST_SRC)
     if(IS_ABSOLUTE "${src}")
@@ -134,7 +140,7 @@ if(ONNX_TESTS_DEPENDENCIES)
 endif()
 
 target_link_libraries(ov_onnx_frontend_tests PRIVATE engines_test_util gtest_main_manifest openvino::runtime::dev
-    openvino_onnx_frontend onnx_common)
+    openvino_onnx_frontend onnx_common funcTestUtils)
 
 # It's needed by onnx_import_library.cpp and onnx_import_exceptions.cpp tests to include onnx_pb.h.
 # Not linking statically to libprotobuf (linked into libonnx) avoids false-failing onnx_editor tests.

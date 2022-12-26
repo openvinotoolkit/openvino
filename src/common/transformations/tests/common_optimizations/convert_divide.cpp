@@ -4,19 +4,18 @@
 
 #include <gtest/gtest.h>
 
-#include <string>
 #include <memory>
-#include <queue>
-
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
-#include <transformations/op_conversions/convert_divide.hpp>
+#include <ngraph/pass/manager.hpp>
+#include <queue>
+#include <string>
 #include <transformations/common_optimizations/mark_precision_sensitive_divides.hpp>
 #include <transformations/init_node_info.hpp>
+#include <transformations/op_conversions/convert_divide.hpp>
 #include <transformations/utils/utils.hpp>
-#include <ngraph/pass/manager.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -64,7 +63,6 @@ TEST_F(TransformationTestsF, ConvertDivideInverse) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
-
 TEST_F(TransformationTestsF, ConvertDivideNegative) {
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i32, ngraph::Shape{3, 1, 2});
@@ -92,7 +90,8 @@ TEST_F(TransformationTestsF, ConvertDivideScalar) {
         auto data2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{});
         auto divide = std::make_shared<ngraph::opset1::Divide>(data1, data2);
 
-        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{data1, data2});
+        function =
+            std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{data1, data2});
 
         NGRAPH_CHECK(divide->get_output_partial_shape(0).rank().get_length() == 0);
 
@@ -102,11 +101,13 @@ TEST_F(TransformationTestsF, ConvertDivideScalar) {
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{});
         auto pow_input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{});
-        auto pow = std::make_shared<ngraph::opset1::Power>(pow_input,
-                                                           ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{}, {-1}));
+        auto pow = std::make_shared<ngraph::opset1::Power>(
+            pow_input,
+            ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{}, {-1}));
         auto mul = std::make_shared<ngraph::opset1::Multiply>(data, pow);
 
-        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{data, pow_input});
+        function_ref =
+            std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{data, pow_input});
 
         NGRAPH_CHECK(mul->get_output_partial_shape(0).rank().get_length() == 0);
     }
@@ -139,7 +140,8 @@ TEST_F(TransformationTestsF, ConvertDivideWithConstantNegative) {
         auto data2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{});
         auto divide = std::make_shared<ngraph::opset1::Divide>(data1, data2);
 
-        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{data1, data2});
+        function =
+            std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{data1, data2});
         manager.register_pass<ngraph::pass::ConvertDivideWithConstant>();
     }
 
@@ -148,7 +150,8 @@ TEST_F(TransformationTestsF, ConvertDivideWithConstantNegative) {
         auto data2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{});
         auto divide = std::make_shared<ngraph::opset1::Divide>(data1, data2);
 
-        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{data1, data2});
+        function_ref =
+            std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{data1, data2});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
@@ -196,7 +199,8 @@ TEST_F(TransformationTestsF, ConvertDivide_If) {
         auto interpolate = std::make_shared<ngraph::opset1::Interpolate>(data, convert_after, interp_attr);
         auto then_op_result = std::make_shared<ngraph::opset1::Result>(interpolate);
 
-        auto body_then_function = std::make_shared<ngraph::Function>(ngraph::NodeVector{then_op_result}, ngraph::ParameterVector{data});
+        auto body_then_function =
+            std::make_shared<ngraph::Function>(ngraph::NodeVector{then_op_result}, ngraph::ParameterVector{data});
 
         // create else body
         auto input_else = std::make_shared<ov::opset8::Parameter>(ov::element::f16, ov::Shape{1, 3, 22, 22});
@@ -251,9 +255,10 @@ TEST_F(TransformationTestsF, ConvertDivideFP16ShapeOfSubgraphNegative2) {
 
         auto interpolate = std::make_shared<ngraph::opset1::Interpolate>(data, convert_after, interp_attr);
 
-        // "add" node specially set as a first output, so MarkPrecisionSensitiveDivides will start graph traversal from it
-        // and after all nodes above are visited it will start traverse from "interpolate"
-        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{add, interpolate}, ngraph::ParameterVector{data, data2});
+        // "add" node specially set as a first output, so MarkPrecisionSensitiveDivides will start graph traversal from
+        // it and after all nodes above are visited it will start traverse from "interpolate"
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{add, interpolate},
+                                                      ngraph::ParameterVector{data, data2});
 
         manager.register_pass<ov::pass::MarkPrecisionSensitiveDivides>();
         manager.register_pass<ngraph::pass::ConvertDivide>();
