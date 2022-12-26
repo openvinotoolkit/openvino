@@ -353,7 +353,7 @@ std::string ConvolutionKernelBase::GetAutoTuneOptions(int autoTuneIndex) const {
         return autoTuneOptions[autoTuneIndex];
     }
 
-    return DEFAULT;
+    return EXE_MODE_DEFAULT;
 }
 
 KernelsData ConvolutionKernelBase::GetTunedKernelsDataByIndex(const Params& params,
