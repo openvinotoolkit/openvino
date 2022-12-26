@@ -12,7 +12,7 @@
 #include <ngraph/pass/manager.hpp>
 #include <queue>
 #include <string>
-#include <transformations/common_optimizations/mark_precision_sensitive_divides.hpp>
+#include <transformations/common_optimizations/mark_shape_subgraphs.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/op_conversions/convert_divide.hpp>
 #include <transformations/utils/utils.hpp>
@@ -176,7 +176,7 @@ TEST_F(TransformationTestsF, ConvertDivideFP16ShapeOfSubgraphNegative) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{interpolate}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ov::pass::MarkPrecisionSensitiveDivides>();
+        manager.register_pass<ov::pass::MarkDividesInShapeSubgraphs>();
         manager.register_pass<ngraph::pass::ConvertDivide>();
     }
 }
@@ -220,7 +220,7 @@ TEST_F(TransformationTestsF, ConvertDivide_If) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{if_result}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ov::pass::MarkPrecisionSensitiveDivides>();
+        manager.register_pass<ov::pass::MarkDividesInShapeSubgraphs>();
         auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
         decomp->add_matcher<ngraph::pass::ConvertDivide>();
     }
@@ -229,11 +229,11 @@ TEST_F(TransformationTestsF, ConvertDivide_If) {
 
 TEST_F(TransformationTestsF, ConvertDivideFP16ShapeOfSubgraphNegative2) {
     {
-        // This test case checks that MarkPrecisionSensitiveDivides works correctly when Divide is included
+        // This test case checks that MarkDividesInShapeSubgraphs works correctly when Divide is included
         // into precision sensitive and non precision sensitive sub-graphs. So the potential problem here is
-        // that MarkPrecisionSensitiveDivides could traverse graph first form "add" output so all nodes including
+        // that MarkDividesInShapeSubgraphs could traverse graph first form "add" output so all nodes including
         // Divide will be marked as visited, but Divide and other nodes must also be visited again because of
-        // precision sensitive Interpolate second input. And to handle this MarkPrecisionSensitiveDivides has
+        // precision sensitive Interpolate second input. And to handle this MarkDividesInShapeSubgraphs has
         // special visited set for precision sensitive nodes which needs to be tested as well. So in the worst case
         // we will traverse each node twice.
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f16, ngraph::Shape{1, 3, 22, 22});
@@ -255,12 +255,12 @@ TEST_F(TransformationTestsF, ConvertDivideFP16ShapeOfSubgraphNegative2) {
 
         auto interpolate = std::make_shared<ngraph::opset1::Interpolate>(data, convert_after, interp_attr);
 
-        // "add" node specially set as a first output, so MarkPrecisionSensitiveDivides will start graph traversal from
+        // "add" node specially set as a first output, so MarkDividesInShapeSubgraphs will start graph traversal from
         // it and after all nodes above are visited it will start traverse from "interpolate"
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{add, interpolate},
                                                       ngraph::ParameterVector{data, data2});
 
-        manager.register_pass<ov::pass::MarkPrecisionSensitiveDivides>();
+        manager.register_pass<ov::pass::MarkDividesInShapeSubgraphs>();
         manager.register_pass<ngraph::pass::ConvertDivide>();
     }
 }
@@ -285,7 +285,7 @@ TEST_F(TransformationTestsF, ConvertDivideFP32ShapeOfSubgraphNegative) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{interpolate}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ov::pass::MarkPrecisionSensitiveDivides>();
+        manager.register_pass<ov::pass::MarkDividesInShapeSubgraphs>();
         manager.register_pass<ngraph::pass::ConvertDivide>();
     }
 }
