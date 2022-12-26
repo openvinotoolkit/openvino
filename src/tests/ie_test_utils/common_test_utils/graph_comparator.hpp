@@ -7,6 +7,8 @@
 #include <limits>
 #include <memory>
 #include <queue>
+#include <iomanip>
+#include <cmath>
 
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/except.hpp"
@@ -137,15 +139,19 @@ class UniqueNamesHolder {
     std::unordered_map<Node*, names_t> m_result_tensor_names;
     std::unordered_map<Node*, std::pair<std::string, bool>> m_result_node_names;
 
-    size_t m_index{0};
+    size_t m_tensor_index{0};
+    size_t m_node_index{0};
     bool m_soft_names_comparison{false};
 
     std::string generate_tensor_name() {
-        return "tensor_" + std::to_string(m_index++);
+        return "tensor_" + std::to_string(m_tensor_index++);
     }
 
-    std::string generate_friendly_name() {
-        return "node_" + std::to_string(m_index++);
+    std::string generate_friendly_name(size_t num_ops) {
+        std::stringstream ss;
+        ss.fill('0');
+        ss << std::setw(std::floor(std::log10(num_ops)) + 1) << m_node_index++;
+        return "node_" + ss.str();
     }
 
 public:
@@ -155,16 +161,19 @@ public:
 
     void init_names(std::shared_ptr<Function> f) {
         // initialize function with unique friendly and tensor names
+        size_t num_ops = f->get_ordered_ops().size();
         for (auto node : f->get_ordered_ops()) {
-            const auto& node_name = generate_friendly_name();
             // this expression means that user didn't set friendly name and it was generated automatically
-            if (node->get_friendly_name() == node->get_name()) {
+            // Result friendly names are updated later
+            if (node->get_friendly_name() == node->get_name() &&
+                !ov::is_type<ov::op::v0::Result>(node)) {
+                const auto& node_name = generate_friendly_name(num_ops);
                 node->set_friendly_name(node_name);
             }
 
             for (auto output : node->outputs()) {
-                const auto& tensor_name = generate_tensor_name();
                 if (output.get_names().empty()) {
+                    const auto& tensor_name = generate_tensor_name();
                     output.set_names({tensor_name});
                 }
             }
@@ -179,7 +188,7 @@ public:
             // As get_ordered_ops doesn't guaranty that the order of Result ops is the same
             // we explicitly update Result names to have them in increasing order that
             // helps FunctionComparator to compare Functions with multiple Results.
-            r->set_friendly_name(generate_friendly_name());
+            r->set_friendly_name(generate_friendly_name(num_ops));
         }
     }
 
