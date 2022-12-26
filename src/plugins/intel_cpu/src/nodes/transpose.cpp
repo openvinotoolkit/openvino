@@ -146,10 +146,8 @@ void Transpose::prepareParams() {
         }
         prim = result;
 
-        impl_desc_type impl_type = getPrimitiveImplType();
-        if (impl_type != impl_desc_type::unknown) {
-            getSelectedPrimitiveDescriptor()->setImplementationType(impl_type);
-        }
+        getSelectedPrimitiveDescriptor()->setImplementationType(
+            parse_impl_name(DnnlExtensionUtils::query_impl_info_str(prim.get_primitive_desc())));
 
         primArgs = {{DNNL_ARG_SRC, getParentEdgesAtPort(INPUT_DATA_IDX)[0]->getMemoryPtr()->GetPrimitive()},
                     {DNNL_ARG_DST, getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive()}};

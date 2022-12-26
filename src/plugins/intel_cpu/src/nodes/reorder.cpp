@@ -238,10 +238,8 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
     }
     prim = result;
 
-    impl_desc_type impl_type = getPrimitiveImplType();
-    if (impl_type != impl_desc_type::unknown) {
-        selectedPD->setImplementationType(impl_type);
-    }
+    selectedPD->setImplementationType(
+        parse_impl_name(DnnlExtensionUtils::query_impl_info_str(prim.get_primitive_desc())));
 
     auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
     auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();

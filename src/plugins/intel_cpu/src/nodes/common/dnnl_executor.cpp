@@ -40,7 +40,7 @@ void DnnlExecutor::exec(std::unordered_map<int, dnnl::memory> primArgs, dnnl::st
             IE_THROW() << "DnnlExecutor has reorder for output " << outReorder.first << ", but doesn't have destination memory";
         }
     }
-    (*execPrim).execute(strm, primArgs);
+    execPrim.execute(strm, primArgs);
     for (auto &outReorder : outputReorders) {
         outReorder.second.exec(primArgs[outReorder.first], outputMem[outReorder.first], strm);
     }
@@ -50,12 +50,12 @@ bool DnnlExecutor::needReordering() const {
     return !inputReorders.empty() || !outputReorders.empty();
 }
 
-Primitive DnnlExecutor::getExecPrim() const {
+dnnl::primitive DnnlExecutor::getExecPrim() const {
     return execPrim;
 }
 
 const_dnnl_primitive_desc_t DnnlExecutor::getPrimitiveDesc() const {
-    return (*execPrim).get_primitive_desc();
+    return execPrim.get_primitive_desc();
 }
 
 dnnl::memory::desc DnnlExecutor::getSrcDesc() const {

@@ -18,7 +18,6 @@
 #include "onednn/dnnl.h"
 #include "onednn/iml_type_mapper.h"
 #include "extension_mngr.h"
-#include "primitive.h"
 #include "weights_cache.hpp"
 #include "dnnl_scratch_pad.h"
 #include <openvino/itt.hpp>
@@ -679,15 +678,6 @@ protected:
         auto scratchpadMemoryDesc = DnnlExtensionUtils::query_md(pd, dnnl::query::scratchpad_md);
         scratchpadMem = getRuntimeScratchPad()->createScratchPadMem(scratchpadMemoryDesc);
         return scratchpadMem;
-    }
-
-    impl_desc_type getPrimitiveImplType() {
-        const char* impl_info_str;
-        if (prim && dnnl_primitive_desc_query(prim.get_primitive_desc(), dnnl_query_impl_info_str, 0, &impl_info_str) ==
-                        dnnl_success) {
-            return parse_impl_name(impl_info_str);
-        }
-        return impl_desc_type::unknown;
     }
 
     std::vector<VectorDims> lastInputDims = {};
