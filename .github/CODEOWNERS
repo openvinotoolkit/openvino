@@ -110,7 +110,7 @@ install_build_dependencies.sh @openvinotoolkit/openvino-scripts-maintainers @ope
 # OpenVINO ONNX Frontend:
 /src/frontends/onnx/ @openvinotoolkit/openvino-onnx-frontend-maintainers
 /thirdparty/onnx/ @openvinotoolkit/openvino-onnx-frontend-maintainers @openvinotoolkit/openvino-ie-maintainers
-/thirdparty/protobuf/ @openvinotoolkit/openvino-onnx-frontend-maintainers @openvinotoolkit/openvino-ie-maintainers
+/thirdparty/protobuf/ @openvinotoolkit/openvino-onnx-frontend-maintainers @openvinotoolkit/openvino-tf-frontend-maintainers @openvinotoolkit/openvino-ie-maintainers
 
 # OpenVINO Func Tests:
 /src/tests/  @openvinotoolkit/openvino-ie-tests-maintainers @openvinotoolkit/openvino-ie-test-developers
