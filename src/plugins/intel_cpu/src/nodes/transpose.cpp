@@ -140,20 +140,17 @@ void Transpose::prepareParams() {
                                             memory::format_tag::acdb);
         src_blocked->Create(DnnlExtensionUtils::makeDescriptor(newDesc), srcMemPtr->GetData(), false);
 
-        impl_desc_type impl_type = getSelectedPrimitiveDescriptor()->getImplementationType();
-
         auto result = getReorderPrim(getRuntimeCache(), getEngine(), src_blocked->GetPrimitive().get_desc(), dst_blocked->GetPrimitive().get_desc());
         if (!result) {
             IE_THROW() << "Reorder primitive descriptor was not found for Transpose node " << getName() << ".";
         }
         prim = result;
 
-        const char* impl_info_str;
-        if (dnnl_primitive_desc_query(prim.get_primitive_desc(), dnnl_query_impl_info_str, 0, &impl_info_str) ==
-            dnnl_success) {
-            impl_type = parse_impl_name(impl_info_str);
+        impl_desc_type impl_type = getPrimitiveImplType();
+        if (impl_type != impl_desc_type::unknown) {
+            getSelectedPrimitiveDescriptor()->setImplementationType(impl_type);
         }
-        supportedPrimitiveDescriptors[0].setImplementationType(impl_type);
+
         primArgs = {{DNNL_ARG_SRC, getParentEdgesAtPort(INPUT_DATA_IDX)[0]->getMemoryPtr()->GetPrimitive()},
                     {DNNL_ARG_DST, getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive()}};
         return;

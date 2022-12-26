@@ -681,6 +681,15 @@ protected:
         return scratchpadMem;
     }
 
+    impl_desc_type getPrimitiveImplType() {
+        const char* impl_info_str;
+        if (prim && dnnl_primitive_desc_query(prim.get_primitive_desc(), dnnl_query_impl_info_str, 0, &impl_info_str) ==
+                        dnnl_success) {
+            return parse_impl_name(impl_info_str);
+        }
+        return impl_desc_type::unknown;
+    }
+
     std::vector<VectorDims> lastInputDims = {};
 
     std::shared_ptr<IShapeInfer> shapeInference;

@@ -206,7 +206,6 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
         src_desc = src_desc.permute_axes(src_permutation);
     }
 
-    impl_desc_type impl_type = selectedPD->getImplementationType();
     auto dst_desc = dst_blocked->GetPrimitive().get_desc();
 
     // TODO: We should keep shape consistency for const and expected shape for node.
@@ -239,10 +238,11 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
     }
     prim = result;
 
-    const char* impl_info_str;
-    IE_ASSERT(dnnl_primitive_desc_query(prim.get_primitive_desc(), dnnl_query_impl_info_str, 0, &impl_info_str) ==
-              dnnl_success);
-    supportedPrimitiveDescriptors[0].setImplementationType(parse_impl_name(impl_info_str));
+    impl_desc_type impl_type = getPrimitiveImplType();
+    if (impl_type != impl_desc_type::unknown) {
+        selectedPD->setImplementationType(impl_type);
+    }
+
     auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
     auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
     primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}};
