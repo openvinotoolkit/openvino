@@ -91,3 +91,8 @@ TEST_F(TransformationTestsF, AssertAndStringTensors) {
         model_ref = make_shared<Model>(OutputVector{select}, ParameterVector{x, y});
     }
 }
+
+TEST_F(TransformationTestsF, UnsortedNodes) {
+    { function = convert_model("forward_edge_model_unsorted/forward_edge_model_unsorted.pb"); }
+    { function_ref = convert_model("forward_edge_model/forward_edge_model.pb"); }
+}

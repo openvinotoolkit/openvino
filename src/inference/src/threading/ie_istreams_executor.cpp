@@ -445,7 +445,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
             num_cores_default = (num_big_cores_phys <= hyper_threading_threshold) ? num_big_cores : num_big_cores_phys;
         }
         // if nstreams or nthreads are set, need to calculate the Hybrid aware parameters here
-        if (streamExecutorConfig._big_core_streams == 0 || streamExecutorConfig._threads) {
+        if (!bLatencyCase && (streamExecutorConfig._big_core_streams == 0 || streamExecutorConfig._threads)) {
             UpdateHybridCustomThreads(streamExecutorConfig);
         }
         // temporary change for core binding refactor
@@ -453,7 +453,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
             streamExecutorConfig._big_core_streams /= 2;
             streamExecutorConfig._big_core_logic_streams = streamExecutorConfig._big_core_streams;
         }
-        std::cout << "[ p_e_core_info ] streams (threads): " << streamExecutorConfig._streams << "("
+        OPENVINO_DEBUG << "[ p_e_core_info ] streams (threads): " << streamExecutorConfig._streams << "("
                        << streamExecutorConfig._threads_per_stream_big * streamExecutorConfig._big_core_streams +
                               streamExecutorConfig._threads_per_stream_small * streamExecutorConfig._small_core_streams
                        << ") -- PCore: " << streamExecutorConfig._big_core_streams << "("
@@ -495,7 +495,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
         streamExecutorConfig._bind_cores = true;
     }
     streamExecutorConfig._threads =
-        ThreadBindingType::HYBRID_AWARE == streamExecutorConfig._threadBindingType
+        (!bLatencyCase && ThreadBindingType::HYBRID_AWARE == streamExecutorConfig._threadBindingType)
             ? (streamExecutorConfig._big_core_streams + streamExecutorConfig._big_core_logic_streams) *
                       streamExecutorConfig._threads_per_stream_big +
                   streamExecutorConfig._small_core_streams * streamExecutorConfig._threads_per_stream_small

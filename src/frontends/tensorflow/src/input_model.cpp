@@ -79,7 +79,7 @@ public:
 
 private:
     void loadPlaces();
-    std::vector<std::shared_ptr<OpPlace>> determine_cut_nodes() const;
+    std::vector<std::shared_ptr<OpPlace>> topologically_sort_op_nodes() const;
 
     std::vector<std::shared_ptr<OpPlace>> m_op_places;
     std::map<std::string, std::shared_ptr<OpPlace>> m_op_places_map;
@@ -198,13 +198,10 @@ void InputModel::InputModelTFImpl::loadPlaces() {
 }
 
 std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::get_op_places() const {
-    if (m_graph_changed) {
-        return determine_cut_nodes();
-    }
-    return m_op_places;
+    return topologically_sort_op_nodes();
 }
 
-std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::determine_cut_nodes() const {
+std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::topologically_sort_op_nodes() const {
     std::vector<std::shared_ptr<OpPlace>> topologically_sorted_ops;
     std::stack<std::shared_ptr<OpPlace>> ops_to_do;
     std::unordered_set<std::shared_ptr<OpPlace>> ops_done;

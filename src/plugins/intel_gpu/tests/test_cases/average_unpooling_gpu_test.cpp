@@ -59,11 +59,11 @@ TEST(average_unpooling_gpu, basic_in2x2x2x1) {
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     auto output_layout = output->get_layout();
 
-    EXPECT_EQ(output_layout.format, format::bfyx);
-    EXPECT_EQ(output_layout.spatial(1), 2);
-    EXPECT_EQ(output_layout.spatial(0), 3);
-    EXPECT_EQ(output_layout.feature(), 2);
-    EXPECT_EQ(output_layout.batch(), 2);
+    ASSERT_EQ(output_layout.format, format::bfyx);
+    ASSERT_EQ(output_layout.spatial(1), 2);
+    ASSERT_EQ(output_layout.spatial(0), 3);
+    ASSERT_EQ(output_layout.feature(), 2);
+    ASSERT_EQ(output_layout.batch(), 2);
 
     std::vector<float> expected_output_vec = {
         0.625f, -0.5f, -1.125,
@@ -77,7 +77,7 @@ TEST(average_unpooling_gpu, basic_in2x2x2x1) {
     };
 
     for (size_t i = 0; i < expected_output_vec.size(); ++i) {
-        EXPECT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -131,11 +131,11 @@ TEST(average_unpooling_gpu, basic_in2x2x3x2_with_average_pooling_unpooling) {
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     auto output_layout = output->get_layout();
 
-    EXPECT_EQ(output_layout.format, format::bfyx);
-    EXPECT_EQ(output_layout.spatial(1), 2);
-    EXPECT_EQ(output_layout.spatial(0), 3);
-    EXPECT_EQ(output_layout.feature(), 2);
-    EXPECT_EQ(output_layout.batch(), 2);
+    ASSERT_EQ(output_layout.format, format::bfyx);
+    ASSERT_EQ(output_layout.spatial(1), 2);
+    ASSERT_EQ(output_layout.spatial(0), 3);
+    ASSERT_EQ(output_layout.feature(), 2);
+    ASSERT_EQ(output_layout.batch(), 2);
 
     std::vector<float> expected_output_vec = {
         0.625f, 0.625f, -6,
@@ -149,7 +149,7 @@ TEST(average_unpooling_gpu, basic_in2x2x3x2_with_average_pooling_unpooling) {
     };
 
     for (size_t i = 0; i < expected_output_vec.size(); ++i) {
-        EXPECT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -198,11 +198,11 @@ TEST(average_unpooling_gpu, basic_in2x2x2x1_output_padding) {
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     auto output_layout = output->get_layout();
 
-    EXPECT_EQ(output_layout.format, format::bfyx);
-    EXPECT_EQ(output_layout.spatial(1), 2);
-    EXPECT_EQ(output_layout.spatial(0), 3);
-    EXPECT_EQ(output_layout.feature(), 2);
-    EXPECT_EQ(output_layout.batch(), 2);
+    ASSERT_EQ(output_layout.format, format::bfyx);
+    ASSERT_EQ(output_layout.spatial(1), 2);
+    ASSERT_EQ(output_layout.spatial(0), 3);
+    ASSERT_EQ(output_layout.feature(), 2);
+    ASSERT_EQ(output_layout.batch(), 2);
 
     std::vector<float> expected_output_vec = {
         0.f, 0.f, 0.f, 0.f, 0.f,
@@ -228,7 +228,7 @@ TEST(average_unpooling_gpu, basic_in2x2x2x1_output_padding) {
     std::vector<float> out;
     for (size_t i = 0; i < expected_output_vec.size(); ++i) {
         out.push_back(output_ptr[i]);
-        EXPECT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -297,11 +297,11 @@ void test_average_unpooling_gpu_basic_in2x2x2x1_fp16(bool is_caching_test) {
     cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
     auto output_layout = output->get_layout();
 
-    EXPECT_EQ(output_layout.format, format::bfyx);
-    EXPECT_EQ(output_layout.spatial(1), 2);
-    EXPECT_EQ(output_layout.spatial(0), 3);
-    EXPECT_EQ(output_layout.feature(), 2);
-    EXPECT_EQ(output_layout.batch(), 2);
+    ASSERT_EQ(output_layout.format, format::bfyx);
+    ASSERT_EQ(output_layout.spatial(1), 2);
+    ASSERT_EQ(output_layout.spatial(0), 3);
+    ASSERT_EQ(output_layout.feature(), 2);
+    ASSERT_EQ(output_layout.batch(), 2);
 
     std::vector<T> expected_output_vec = {
         0.625f, -0.5f, -1.125,
@@ -314,7 +314,7 @@ void test_average_unpooling_gpu_basic_in2x2x2x1_fp16(bool is_caching_test) {
         1.75f, 2.9375f, 1.1875f
     };
     for (size_t i = 0; i < expected_output_vec.size(); ++i) {
-        EXPECT_EQ(expected_output_vec[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_output_vec[i], half_to_float(output_ptr[i]));
     }
 }
 

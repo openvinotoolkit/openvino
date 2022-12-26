@@ -493,7 +493,7 @@ void InferRequest::enqueue() {
     // If dump layers path is set, only runs first inference.
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0) {
-        GPU_DEBUG_COUT << "Only run first inference to dump layers." << std::endl;
+        GPU_DEBUG_INFO << "Only run first inference to dump layers." << std::endl;
         exit(0);
     }
 }
@@ -760,10 +760,7 @@ void InferRequest::allocate_inputs() {
             OPENVINO_ASSERT(litr != inputLayouts.end(), "[GPU] Input layout for ", name, " is not found");
             const auto input_layout = litr->second;
 
-            GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(debug_config->verbose >= 2) {
-                GPU_DEBUG_COUT << "[" << name << ": input blob]" << std::endl;
-            }
+            GPU_DEBUG_LOG << "[" << name << ": input blob]" << std::endl;
             if (desc.getPrecision() == Precision::I16 || desc.getPrecision() == Precision::U16) {
                 TensorDesc desc_fp32 = desc;
                 desc_fp32.setPrecision(Precision::FP32);
@@ -796,10 +793,7 @@ void InferRequest::allocate_outputs() {
         if (output_layout.is_static())
             desc.setDims(m_graph->GetOutputSize(no.first));
 
-        GPU_DEBUG_GET_INSTANCE(debug_config);
-        GPU_DEBUG_IF(debug_config->verbose >= 2) {
-            GPU_DEBUG_COUT << "[" << no.first << ": output blob]" << std::endl;
-        }
+        GPU_DEBUG_LOG << "[" << no.first << ": output blob]" << std::endl;
 
         outputsMap[no.first] = outputID;
         if (desc.getPrecision() == Precision::I16 || desc.getPrecision() == Precision::U16 ||
@@ -902,6 +896,19 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
     const bool is_dev_input = remote_ptr != nullptr;
     const bool can_use_usm = m_graph->GetEngine()->use_unified_shared_memory();
 
+    auto conv_to_supported_prec = [](Precision::ePrecision prec) {
+        switch (prec) {
+            case Precision::I16:
+            case Precision::U16:
+            case Precision::FP64:
+                return Precision::FP32;
+            case Precision::U64:
+            case Precision::U32:
+                return Precision::I32;
+            default: return prec;
+        }
+    };
+
     if (input_layout.is_dynamic()) {
         bool has_device_blob = _deviceInputs.find(inputName) != _deviceInputs.end();
         bool should_allocate_device_blob = !has_device_blob;
@@ -918,7 +925,7 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
             _deviceInputs[inputName] = reinterpret_device_blob(_deviceInputs[inputName], inputBlob->getTensorDesc());
         }
     } else if (input_layout.is_static() && !is_dev_input && can_use_usm) {
-        allocate_dev_mem_if_needed(_deviceInputs, inputBlob, inputName, input_layout);
+        allocate_dev_mem_if_needed(_deviceInputs, inputBlob, inputName, input_layout, (conv_to_supported_prec(prec) != prec));
     }
     OPENVINO_ASSERT(_deviceInputs.find(inputName) != _deviceInputs.end(), "[GPU] Couldn't find device blob allocated for ", inputName, " input");
     auto reqBlob = _deviceInputs.at(inputName)->as<gpu::ClBlob>();
@@ -954,8 +961,9 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
             }
 
             if (!is_dev_input) {
+                Precision conv_prec = conv_to_supported_prec(prec);
                 // TODO: Remove this checks once 95363 issue is solved
-                if (prec == Precision::I16 || prec == Precision::U16 || prec == Precision::FP64) {
+                if (conv_prec != prec && conv_prec == Precision::FP32) {
                     // GPU plugin doesn't support I16 input precision,
                     // so have to convert input data to fp32 precision
                     cldnn::mem_lock<float> ptr{ inputMem, stream };
@@ -966,7 +974,7 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
                     } else {
                         convertAndCopy<double, float>(inputBlob.get(), ptr.data());
                     }
-                } else if (prec == Precision::U64 || prec == Precision::U32) {
+                } else if (conv_prec != prec && conv_prec == Precision::I32) {
                     cldnn::mem_lock<int32_t> ptr{ inputMem, stream };
                     if (prec == Precision::U64) {
                         convertAndCopy<uint64_t, int32_t>(inputBlob.get(), ptr.data());

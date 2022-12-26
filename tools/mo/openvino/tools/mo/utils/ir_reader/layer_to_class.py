@@ -32,6 +32,8 @@ from openvino.tools.mo.ops.split import Split, VariadicSplit
 from openvino.tools.mo.utils.class_registration import update_registration
 from openvino.tools.mo.utils.import_extensions import import_by_path
 from openvino.tools.mo.utils.ir_reader.extender import Extender
+from openvino.tools.mo.utils.ir_reader.internal_ops.squeeze import SqueezeInternal
+from openvino.tools.mo.utils.ir_reader.internal_ops.unsqueeze import UnsqueezeInternal
 
 # Operations not registered in collect_ops() function
 custom_ops = {
@@ -50,9 +52,11 @@ custom_ops = {
     'Power': Pow,
     'Slice': OvSlice,
     'Split': Split,
+    'Squeeze': SqueezeInternal,
     'Subtract': Sub,
     'VariadicSplit': VariadicSplit,
     'Clamp': AttributedClamp,
+    'Unsqueeze': UnsqueezeInternal,
 }
 
 
