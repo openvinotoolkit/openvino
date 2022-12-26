@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "low_precision_transformations/transpose_transformation.hpp"
+#include "low_precision_transformations/gather_transformation.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
@@ -13,6 +13,10 @@ namespace {
 const std::vector<ngraph::element::Type> precisions = {
     ngraph::element::f32,
     ngraph::element::f16
+};
+
+const std::vector<int> opset_version = {
+    7, 8
 };
 
 const std::vector<GatherTransformationTestValues> testValues = {
@@ -33,11 +37,12 @@ const std::vector<GatherTransformationTestValues> testValues = {
         {1},
         {0},
         {0},
+        std::int64_t{0},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         ngraph::element::f32,
         {
             256,
-            {1, 3, 1, 1},
+            {1, 3, 1},
             {0.f, 0.f, 0.f},
             {25.5f, 25.5f, 25.5f},
             {0.f, 12.5f, 25.5f},
@@ -50,16 +55,18 @@ const std::vector<GatherTransformationTestValues> testValues = {
         {2},
         {1, 2},
         {0},
+        std::int64_t{0},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         ngraph::element::f32,
         {256, {}, {0.f}, {25.5f}, {12.5f}, {25.5f + 12.5f}}
     },
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_LPT, TransposeTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, GatherTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
-        ::testing::ValuesIn(testValues)),
-    TransposeTransformation::getTestCaseName);
+        ::testing::ValuesIn(testValues),
+        ::testing::ValuesIn(opset_version)),
+    GatherTransformation::getTestCaseName);
 }  // namespace
