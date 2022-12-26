@@ -495,6 +495,9 @@ void primitive_inst::set_arguments() {
 }
 
 void primitive_inst::build_deps() {
+    if (!_deps.empty())
+        return;
+
     OPENVINO_ASSERT(_node != nullptr, "_node should not be nullptr for build_deps.");
 
     if (_deps.empty() && !_node->get_dependencies().empty()) {

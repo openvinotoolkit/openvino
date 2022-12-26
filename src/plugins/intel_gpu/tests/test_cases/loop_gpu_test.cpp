@@ -25,7 +25,8 @@ using namespace cldnn;
 using namespace tests;
 using namespace testing;
 
-TEST(loop_gpu, basic_no_concat)
+template <typename T>
+void test_loop_gpu_basic_no_concat(bool is_caching_test)
 {
     auto& engine = get_test_engine();
 
@@ -35,11 +36,11 @@ TEST(loop_gpu, basic_no_concat)
     auto initial_condition_mem = engine.allocate_memory({ data_types::i32, format::bfyx, { 1, 1, 1, 1 } });
     auto num_iteration_mem = engine.allocate_memory({ data_types::i32, format::bfyx, { 1, 1, 1, 1 } });
 
-    std::vector<float> input_data{
+    std::vector<T> input_data{
         1.0f,  2.0f, -15.f,  3.0f, 4.0f, -15.f, 5.0f,  6.0f, -15.f, 7.0f,
         -15.f, 0.0f,  0.0f, -15.f, 0.5f, -0.5f, -15.f, 8.0f,  1.5f,  5.2f
     };
-    std::vector<float> eltwise_operand {
+    std::vector<T> eltwise_operand {
         1.f, -2.f, 3.f, -4.f, 3.0f, -2.0f, 1.f, -2.f, 3.0f, -4.0f,
         3.f, -2.f, 1.f, -2.f, 3.5f, -4.5f, 5.f, -4.f, 3.5f, -2.2f
     };
@@ -74,12 +75,30 @@ TEST(loop_gpu, basic_no_concat)
              input_primitive_maps, output_primitive_maps, back_edges, 8)
     );
 
-    network network(engine, topology);
-    network.set_input_data("input", input_mem);
-    network.set_input_data("trip_count", trip_count_mem);
-    network.set_input_data("initial_condition", initial_condition_mem);
+    cldnn::network::ptr network;
 
-    auto outputs = network.execute();
+    if (is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topology);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+        }
+    } else {
+        network = std::make_shared<cldnn::network>(engine, topology);
+    }
+
+    network->set_input_data("input", input_mem);
+    network->set_input_data("trip_count", trip_count_mem);
+    network->set_input_data("initial_condition", initial_condition_mem);
+
+    auto outputs = network->execute();
     ASSERT_EQ(outputs.size(), 1);
     auto output = outputs.begin()->second.get_memory();
     auto output_layout = output->get_layout();
@@ -91,7 +110,7 @@ TEST(loop_gpu, basic_no_concat)
 
     // value check
     {
-        mem_lock<float> output_ptr{ output, get_test_stream() };
+        mem_lock<T> output_ptr{ output, get_test_stream() };
         ASSERT_EQ(output_ptr.size(), input_data.size());
         for (size_t i = 0, iend = input_data.size(); i < iend; ++i) {
             ASSERT_FLOAT_EQ(output_ptr[i], input_data[i] + eltwise_operand[i] * trip_count);
@@ -99,22 +118,22 @@ TEST(loop_gpu, basic_no_concat)
     }
 
     // allocate new output memory
-    layout loop_l = network.get_output_memory("loop")->get_layout();
+    layout loop_l = network->get_output_memory("loop")->get_layout();
     auto output_mem = engine.allocate_memory(loop_l);
-    network.set_output_memory("loop", output_mem);
+    network->set_output_memory("loop", output_mem);
 
     //one more execute
     set_values(input_mem, input_data);
     set_values(operand_mem, eltwise_operand);
     set_values(trip_count_mem, { trip_count });
     set_values(initial_condition_mem, { initial_condition });
-    outputs = network.execute();
+    outputs = network->execute();
 
     // check everything once again
     ASSERT_EQ(outputs.size(), 1);
     auto output2 = outputs.begin()->second.get_memory();
     {
-        mem_lock<float> output_ptr2{ output2, get_test_stream() };
+        mem_lock<T> output_ptr2{ output2, get_test_stream() };
         ASSERT_EQ(output_ptr2.size(), input_data.size());
         for (size_t i = 0, iend = input_data.size(); i < iend; ++i) {
             ASSERT_FLOAT_EQ(output_ptr2[i], input_data[i] + eltwise_operand[i] * trip_count);
@@ -122,7 +141,16 @@ TEST(loop_gpu, basic_no_concat)
     }
 }
 
-TEST(loop_gpu, basic_concat)
+TEST(loop_gpu, basic_no_concat) {
+    test_loop_gpu_basic_no_concat<float>(false);
+}
+
+TEST(export_import_loop_gpu, basic_no_concat) {
+    test_loop_gpu_basic_no_concat<float>(true);
+}
+
+template <typename T>
+void test_loop_gpu_basic_concat(bool is_caching_test)
 {
     auto& engine = get_test_engine();
 
@@ -132,11 +160,11 @@ TEST(loop_gpu, basic_concat)
     auto initial_condition_mem = engine.allocate_memory({ data_types::i64, format::bfyx, { 1, 1, 1, 1 } });
     auto num_iteration_mem = engine.allocate_memory({ data_types::i64, format::bfyx, { 1, 1, 1, 1 } });
 
-    std::vector<float> input_data{
+    std::vector<T> input_data{
         1.0f,  2.0f, -15.f,  3.0f, 4.0f, -15.f, 5.0f,  6.0f, -15.f, 7.0f,
         -15.f, 0.0f,  0.0f, -15.f, 0.5f, -0.5f, -15.f, 8.0f,  1.5f,  5.2f
     };
-    std::vector<float> eltwise_operand {
+    std::vector<T> eltwise_operand {
         1.f, -2.f, 3.f, -4.f
     };
     size_t trip_count = input_data.size()/eltwise_operand.size();
@@ -169,12 +197,30 @@ TEST(loop_gpu, basic_concat)
              input_primitive_maps, output_primitive_maps, back_edges, trip_count)
     );
 
-    network network(engine, topology);
-    network.set_input_data("input", input_mem);
-    network.set_input_data("trip_count", trip_count_mem);
-    network.set_input_data("initial_condition", initial_condition_mem);
+    cldnn::network::ptr network;
 
-    auto outputs = network.execute();
+    if (is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topology);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+        }
+    } else {
+        network = std::make_shared<cldnn::network>(engine, topology);
+    }
+
+    network->set_input_data("input", input_mem);
+    network->set_input_data("trip_count", trip_count_mem);
+    network->set_input_data("initial_condition", initial_condition_mem);
+
+    auto outputs = network->execute();
     ASSERT_EQ(outputs.size(), 1);
     auto output = outputs.begin()->second.get_memory();
     auto output_layout = output->get_layout();
@@ -186,7 +232,7 @@ TEST(loop_gpu, basic_concat)
 
     // value check
     {
-        mem_lock<float> output_ptr{ output, get_test_stream() };
+        mem_lock<T> output_ptr{ output, get_test_stream() };
         for (size_t i = 0, iend = input_data.size(); i < iend; ++i) {
             const size_t j = i % eltwise_operand.size();
             float expected = input_data[i] + eltwise_operand[j];
@@ -195,18 +241,18 @@ TEST(loop_gpu, basic_concat)
     }
 
     // allocate new output memory
-    layout loop_l = network.get_output_memory("loop")->get_layout();
+    layout loop_l = network->get_output_memory("loop")->get_layout();
     auto output_mem = engine.allocate_memory(loop_l);
-    network.set_output_memory("loop", output_mem);
+    network->set_output_memory("loop", output_mem);
 
     set_values(input_mem, input_data);
     set_values(operand_mem, eltwise_operand);
     set_values(trip_count_mem, { trip_count });
     set_values(initial_condition_mem, { initial_condition });
-    outputs = network.execute();
+    outputs = network->execute();
     auto output2 = outputs.begin()->second.get_memory();
     {
-        mem_lock<float> output_ptr2{ output2, get_test_stream() };
+        mem_lock<T> output_ptr2{ output2, get_test_stream() };
         for (size_t i = 0, iend = input_data.size(); i < iend; ++i) {
             const size_t j = i % eltwise_operand.size();
             float expected = input_data[i] + eltwise_operand[j];
@@ -215,7 +261,16 @@ TEST(loop_gpu, basic_concat)
     }
 }
 
-TEST(loop_gpu, basic_concat_nested)
+TEST(loop_gpu, basic_concat) {
+    test_loop_gpu_basic_concat<float>(false);
+}
+
+TEST(export_import_loop_gpu, basic_concat) {
+    test_loop_gpu_basic_concat<float>(true);
+}
+
+template <typename T>
+void test_loop_gpu_basic_concat_nested(bool is_caching_test)
 {
     auto& engine = get_test_engine();
 
@@ -231,12 +286,12 @@ TEST(loop_gpu, basic_concat_nested)
     /////////////////////////////////
     // set data
     /////////////////////////////////
-    std::vector<float> input_data{
+    std::vector<T> input_data{
         1.0f,  2.0f, -15.f,  3.0f, 4.0f, -15.f, 5.0f,  6.0f, -15.f, 7.0f,
         -15.f, 0.0f,  0.0f, -15.f, 0.5f, -0.5f, -15.f, 8.0f,  1.5f,  5.2f
     };
 
-    std::vector<float> inner_eltwise_operand {
+    std::vector<T> inner_eltwise_operand {
         1.f, -2.f, 3.f, -4.f
     };
 
@@ -304,14 +359,32 @@ TEST(loop_gpu, basic_concat_nested)
     /////////////////////////////////
     // network execution
     /////////////////////////////////
-    network network(engine, main_topology);
-    network.set_input_data("input", input_mem);
-    network.set_input_data("trip_count", trip_count_mem);
-    network.set_input_data("initial_condition", initial_condition_mem);
-    network.set_input_data("inner_trip_count", inner_trip_count_mem);
-    network.set_input_data("inner_initial_condition", inner_initial_condition_mem);
+    cldnn::network::ptr network;
 
-    auto outputs = network.execute();
+    if (is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, main_topology);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+        }
+    } else {
+        network = std::make_shared<cldnn::network>(engine, main_topology);
+    }
+
+    network->set_input_data("input", input_mem);
+    network->set_input_data("trip_count", trip_count_mem);
+    network->set_input_data("initial_condition", initial_condition_mem);
+    network->set_input_data("inner_trip_count", inner_trip_count_mem);
+    network->set_input_data("inner_initial_condition", inner_initial_condition_mem);
+
+    auto outputs = network->execute();
     ASSERT_EQ(outputs.size(), 1);
     auto output = outputs.begin()->second.get_memory();
     auto output_layout = output->get_layout();
@@ -319,8 +392,8 @@ TEST(loop_gpu, basic_concat_nested)
     /////////////////////////////////
     // calculate expected output
     /////////////////////////////////
-    std::vector<float> input_data2(input_data);
-    std::vector<float> expected(input_data2.size());
+    std::vector<T> input_data2(input_data);
+    std::vector<T> expected(input_data2.size());
     for (int i=0 ; i<outer_trip_count ; ++i) {
         for (size_t i=0, iend = input_data2.size(); i<iend; ++i) {
             // eltwise sum in inner loop
@@ -341,16 +414,16 @@ TEST(loop_gpu, basic_concat_nested)
     // check output values
     ASSERT_EQ(output_layout.count(), expected.size());
     {
-        mem_lock<float> output_ptr{ output, get_test_stream() };
+        mem_lock<T> output_ptr{ output, get_test_stream() };
         for (size_t i = 0; i < output_layout.count(); ++i) {
             ASSERT_FLOAT_EQ(output_ptr[i], expected.at(i));
         }
     }
 
     // allocate new output memory, run and test everything once again
-    layout loop_l = network.get_output_memory("loop")->get_layout();
+    layout loop_l = network->get_output_memory("loop")->get_layout();
     auto output_mem = engine.allocate_memory(loop_l);
-    network.set_output_memory("loop", output_mem);
+    network->set_output_memory("loop", output_mem);
 
     set_values(input_mem, input_data);
     set_values(inner_operand_mem, inner_eltwise_operand);
@@ -359,12 +432,20 @@ TEST(loop_gpu, basic_concat_nested)
     set_values(trip_count_mem, { outer_trip_count });
     set_values(initial_condition_mem, { outer_initial_condition });
 
-    outputs = network.execute();
+    outputs = network->execute();
     auto output2 = outputs.begin()->second.get_memory();
     {
-        mem_lock<float> output_ptr{ output2, get_test_stream() };
+        mem_lock<T> output_ptr{ output2, get_test_stream() };
         for (size_t i = 0; i < output_layout.count(); ++i) {
             ASSERT_FLOAT_EQ(output_ptr[i], expected.at(i));
         }
     }
+}
+
+TEST(loop_gpu, basic_concat_nested) {
+    test_loop_gpu_basic_concat_nested<float>(false);
+}
+
+TEST(export_import_loop_gpu, basic_concat_nested) {
+    test_loop_gpu_basic_concat_nested<float>(true);
 }
