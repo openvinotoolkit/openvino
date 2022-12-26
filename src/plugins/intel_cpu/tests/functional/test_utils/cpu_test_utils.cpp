@@ -115,9 +115,8 @@ std::string CPUTestsBase::impls2str(const std::vector<std::string> &priority) {
     return str;
 }
 
-void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, const std::string& nodeType) const {
-    if (!execNet) return;
-    if (nodeType.empty()) return;
+void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, const std::set<std::string>& nodeType) const {
+    if (!execNet || nodeType.empty()) return;
 
     ASSERT_TRUE(!selectedType.empty()) << "Node type is not defined.";
     InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
@@ -125,16 +124,23 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
     CheckPluginRelatedResultsImpl(function, nodeType);
 }
 
-void CPUTestsBase::CheckPluginRelatedResults(const ov::CompiledModel &execNet, const std::string& nodeType) const {
-    if (!execNet) return;
-    if (nodeType.empty()) return;
+void CPUTestsBase::CheckPluginRelatedResults(const ov::CompiledModel &execNet, const std::set<std::string>& nodeType) const {
+    if (!execNet || nodeType.empty()) return;
 
     ASSERT_TRUE(!selectedType.empty()) << "Node type is not defined.";
     auto function = execNet.get_runtime_model();
     CheckPluginRelatedResultsImpl(function, nodeType);
 }
 
-void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov::Model>& function, const std::string& nodeType) const {
+void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, const std::string& nodeType) const {
+    CheckPluginRelatedResults(execNet, std::set<std::string>{nodeType});
+}
+
+void CPUTestsBase::CheckPluginRelatedResults(const ov::CompiledModel &execNet, const std::string& nodeType) const {
+    CheckPluginRelatedResults(execNet, std::set<std::string>{nodeType});
+}
+
+void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov::Model>& function, const std::set<std::string>& nodeType) const {
     ASSERT_NE(nullptr, function);
     for (const auto &node : function->get_ops()) {
         const auto & rtInfo = node->get_rt_info();
@@ -161,7 +167,7 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
             return skip_unsquized_1D || permule_of_1;
         };
 
-        if (getExecValue(ExecGraphInfoSerialization::LAYER_TYPE) == nodeType) {
+        if (nodeType.count(getExecValue(ExecGraphInfoSerialization::LAYER_TYPE))) {
             ASSERT_LE(inFmts.size(), node->get_input_size());
             ASSERT_LE(outFmts.size(), node->get_output_size());
             for (int i = 0; i < inFmts.size(); i++) {
@@ -212,7 +218,6 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
 
                 if (should_be_skipped(shape, outFmts[i]))
                     continue;
-
                 ASSERT_EQ(outFmts[i], cpu_str2fmt(actualOutputMemoryFormats[i].c_str()));
             }
 
