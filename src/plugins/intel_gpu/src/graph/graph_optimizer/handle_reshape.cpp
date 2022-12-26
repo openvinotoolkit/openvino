@@ -73,9 +73,6 @@ void handle_reshape::run(program& p) {
             if (input_node.is_type<reorder>())
                 continue;
 
-            if (node->get_users().size() < 2)
-                continue;
-
             node->get_output_layout();
 
             // vector for storing nodes that are reorder type, for which splitted primitives are needed (except for the
