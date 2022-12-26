@@ -19,6 +19,7 @@ OP_CONVERTER(translate_adaptive_max_pool2d);
 OP_CONVERTER(translate_add);
 OP_CONVERTER(translate_addcmul);
 OP_CONVERTER(translate_addmm);
+OP_CONVERTER(translate_arange);
 OP_CONVERTER(translate_as_tensor);
 OP_CONVERTER(translate_avg_pool2d);
 OP_CONVERTER(translate_batch_norm);
@@ -98,6 +99,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::add_", op::inplace_op<op::translate_add>},
         {"aten::addcmul", op::translate_addcmul},
         {"aten::addmm", op::translate_addmm},
+        {"aten::arange", op::translate_arange},
         {"aten::as_tensor", op::translate_as_tensor},
         {"aten::avg_pool2d", op::translate_avg_pool2d},
         {"aten::batch_norm", op::translate_batch_norm},
