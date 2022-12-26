@@ -26,6 +26,16 @@ enum class QueueTypes : int16_t {
     out_of_order
 };
 
+inline std::ostream& operator<<(std::ostream& os, const QueueTypes& val) {
+    switch (val) {
+        case QueueTypes::in_order: os << "in-order"; break;
+        case QueueTypes::out_of_order: os << "out-of-order"; break;
+        default: os << "unknown";
+    }
+
+    return os;
+}
+
 /**
  * @brief Defines queue type that must be used for model execution
  */
@@ -65,6 +75,12 @@ struct TuningConfig {
 
     TuningConfig() : mode(TuningMode::tuning_disabled), cache_file_path("") {}
 };
+
+inline std::ostream& operator<<(std::ostream& os, const TuningConfig& val) {
+    os << val.cache_file_path;
+    return os;
+}
+
 static constexpr Property<TuningConfig, PropertyMutability::RW> tuning_config{"GPU_TUNING_CONFIG"};
 
 static constexpr Property<ImplForcingMap, PropertyMutability::RW> force_implementations{"GPU_FORCE_IMPLEMENTATIONS"};

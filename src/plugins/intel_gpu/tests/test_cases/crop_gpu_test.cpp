@@ -1026,7 +1026,10 @@ TEST(crop_gpu, basic_in1x4x1x1_split_w_relu) {
     std::vector<float> out2 = { 4.f, };
     set_values(input, input_vec);
 
-    ExecutionConfig cfg{ov::intel_gpu::enable_memory_pool(false), ov::intel_gpu::optimize_data(true)};
+    ExecutionConfig cfg{
+        ov::intel_gpu::enable_memory_pool(false),
+        ov::intel_gpu::optimize_data(true)
+    };
     network network(*engine, topology, cfg);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -1035,7 +1038,7 @@ TEST(crop_gpu, basic_in1x4x1x1_split_w_relu) {
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     // check if crop has been executed in place
-    auto in_place = engine->is_the_same_buffer(*outputs.at("crop1").get_memory(), *outputs.at("relu").get_memory());
+    auto in_place = engine->is_the_same_buffer(*network.get_output_memory("crop1"), *network.get_output_memory("relu"));
     ASSERT_TRUE(in_place);
 
     for (size_t i = 0; i < out1.size();i++)

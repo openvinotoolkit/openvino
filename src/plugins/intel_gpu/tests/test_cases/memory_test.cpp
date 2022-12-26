@@ -411,37 +411,14 @@ TEST(memory_pool, shared_dep_two_output) {
     // as it's tracked within engine instance
     auto engine = create_test_engine();
 
-    auto batch_1 = 1;
-    auto feature_num = 1;
-    auto inp_x_size = 4;
-    auto inp_y_size = 4;
-    auto dt = data_types::f32;
-    auto fmt = format::bfyx;
-    layout lay_batch_1 = { dt, fmt,{ tensor(spatial(inp_x_size, inp_y_size), feature(feature_num), batch(batch_1)) } };
-    auto input_1 = engine->allocate_memory(lay_batch_1);
+    auto input_1 = engine->allocate_memory({ {1, 1, 4, 4}, data_types::f32, format::bfyx });
     set_random_values<float>(input_1);
-
-    //build primitives
-    auto constant_0_0 = cldnn::data(
-        "constant_0_0",
-        input_1
-    );
-    auto result_1_0 = cldnn::concatenation(
-        "result_1_0",
-        { input_info(constant_0_0) },
-        0
-    );
-    auto result_2_0 = cldnn::concatenation(
-        "result_2_0",
-        { input_info(constant_0_0) },
-        0
-    );
 
     //build and execute network
     topology topo;
-    topo.add(constant_0_0);
-    topo.add(result_1_0);
-    topo.add(result_2_0);
+    topo.add(cldnn::data("constant_0_0", input_1));
+    topo.add(cldnn::concatenation("result_1_0", { input_info("constant_0_0") }, 0));
+    topo.add(cldnn::concatenation("result_2_0", { input_info("constant_0_0") }, 0));
 
     ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));

@@ -113,6 +113,8 @@ program::program(engine& engine_ref,
     set_options();
     query_local_block_io_supported();
 
+    GPU_DEBUG_LOG << "Internal " << config.to_string();
+
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(topology);
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id,

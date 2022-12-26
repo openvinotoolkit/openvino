@@ -317,13 +317,13 @@ network::network(engine& engine,
                  const topology& topo,
                  const ExecutionConfig& config,
                  bool is_internal)
-    : network(program::build_program(engine, topo, config, is_internal), engine.create_stream(config), is_internal) {}
+    : network(program::build_program(engine, topo, config, is_internal), config, engine.create_stream(config), is_internal) {}
 
 network::network(engine& engine,
                  const std::set<std::shared_ptr<program_node>>& nodes,
                  const ExecutionConfig& config,
                  bool is_internal)
-    : network(program::build_program(engine, nodes, config, is_internal), engine.create_stream(config), is_internal) {}
+    : network(program::build_program(engine, nodes, config, is_internal), config, engine.create_stream(config), is_internal) {}
 
 network::network(program::ptr program, uint16_t stream_id)
     : network(program, program->get_config(), program->get_engine().create_stream(program->get_config()), false, stream_id == 0) {}

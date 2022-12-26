@@ -217,14 +217,11 @@ ocl_stream::ocl_stream(const ocl_engine &engine, const ExecutionConfig& config)
 }
 
 ocl_stream::ocl_stream(const ocl_engine &engine, const ExecutionConfig& config, void *handle)
-    : stream(config.get_property(ov::intel_gpu::queue_type))
+    : stream(ocl_stream::detect_queue_type(handle))
     , _engine(engine)
     , sync_method(get_expected_sync_method(config)) {
     auto casted_handle = static_cast<cl_command_queue>(handle);
     _command_queue = ocl_queue_type(casted_handle, true);
-
-    OPENVINO_ASSERT(ocl_stream::detect_queue_type(handle) == queue_type,
-                    "[GPU] Inconsistent engine config and external user queue are passed to ocl_stream");
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
