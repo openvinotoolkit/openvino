@@ -36,8 +36,8 @@ static void CreateNormalizeL2Op(Program& p, const std::shared_ptr<ngraph::op::v0
     // We create fake scale constant and fill it with ones to keep the same behavior as current primitive
     auto scale = std::make_shared<ngraph::op::v0::Constant>(op->get_output_element_type(0), ngraph::Shape{1}, std::vector<float>{1.0});
     cldnn::layout constLayout = cldnn::layout(cldnn::element_type_to_data_type(op->get_output_element_type(0)), cldnn::format::bfyx, cldnn::tensor{1});
-    auto mem = p.GetEngine().allocate_memory(constLayout, false);
-    cldnn::mem_lock<int8_t> tmpPointer{mem, p.GetEngine().get_service_stream()};
+    auto mem = p.get_engine().allocate_memory(constLayout, false);
+    cldnn::mem_lock<int8_t> tmpPointer{mem, p.get_engine().get_service_stream()};
     auto buf = tmpPointer.data();
     auto bufSize = scale->get_output_tensor(0).size();
 

@@ -90,7 +90,7 @@ private:
     template<typename RemoteBlobType, typename = typename std::enable_if<std::is_same<RemoteBlobType, RemoteCLbuffer>::value ||
                                                                          std::is_same<RemoteBlobType, RemoteUSMbuffer>::value>::type>
     InferenceEngine::Blob::Ptr create_remote_blob(const InferenceEngine::TensorDesc& desc, const cldnn::layout& layout,
-                                                  const RemoteBlobImpl::BlobType mem_type, void* mem_ptr = nullptr);
+                                                  const BlobType mem_type, void* mem_ptr = nullptr);
     InferenceEngine::Blob::Ptr create_shared_device_blob(const InferenceEngine::TensorDesc& desc, const cldnn::layout& layout, void* usm_host_mem);
     void allocate_inputs();
     void allocate_outputs();

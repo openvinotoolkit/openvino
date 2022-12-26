@@ -162,6 +162,104 @@ private:
     }
 };
 
+template<typename Key, typename Value>
+class ThreadSafeLruCache {
+public:
+    explicit ThreadSafeLruCache(size_t caps) : _impl(caps) {}
+
+    ~ThreadSafeLruCache() {
+        clear();
+    }
+
+    /**
+     * @brief Get the least recently used element object in the cache
+     *
+     * @return Value
+     */
+    Value get_lru_element() const {
+        std::lock_guard<std::mutex> lock(_mutex);
+        return _impl.get_lru_element();
+    }
+
+    /**
+     * @brief Add new value with associated key into the LRU cache
+     *
+     * @param key if same key is existed in the cache, the value of key is updated new entry.
+     * @param value
+     * @return true, if cache is full and lease recently used entry are removed to add new entry.
+     * @return false Otherwise
+     */
+    bool add(const Key& key, const Value& value) {
+        std::lock_guard<std::mutex> lock(_mutex);
+        return _impl.add(key, value);
+    }
+
+    /**
+     * @brief Check whether the value assocaited with key is existed in the cache
+     *
+     * @param key
+     * @return true if any value associated with the key is existed.
+     * @return false otherwise
+     */
+    bool has(const Key& key) const {
+        std::lock_guard<std::mutex> lock(_mutex);
+        return _impl.has(key);
+    }
+
+    /**
+     * @brief Find a value associated with a key
+     *
+     * @param key
+     * @return Value a value associated with input key. if the key is not existed in the cache, return nullptr
+     */
+    Value get(const Key& key) {
+        std::lock_guard<std::mutex> lock(_mutex);
+        return _impl.get(key);
+    }
+
+    /**
+     * @brief Remove all entries
+     *
+     */
+    void clear() {
+        std::lock_guard<std::mutex> lock(_mutex);
+        return _impl.clear();
+    }
+
+    /**
+     * @brief Return current size of cache
+     *
+     * @return size_t
+     */
+    size_t size() const {
+        std::lock_guard<std::mutex> lock(_mutex);
+        return _impl.size();
+    }
+
+    /**
+     * @brief Return capacity of the cache
+     *
+     * @return size_t
+     */
+    size_t capacity() const {
+        std::lock_guard<std::mutex> lock(_mutex);
+        return _impl.capacity();
+    }
+
+    /**
+     * @brief Get the all keys object
+     *
+     * @return std::vector<Key>
+     */
+    std::vector<Key> get_all_keys() const {
+        std::lock_guard<std::mutex> lock(_mutex);
+        return _impl.get_all_keys();
+    }
+private:
+    LruCache<Key, Value> _impl;
+    mutable std::mutex _mutex;
+};
+
 using ImplementationsCache = cldnn::LruCache<size_t, std::shared_ptr<primitive_impl>>;
 using KernelsCache = cldnn::LruCache<std::string, cldnn::kernel::ptr>;
 }  // namespace cldnn

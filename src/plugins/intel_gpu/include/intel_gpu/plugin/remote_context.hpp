@@ -35,547 +35,144 @@
 
 namespace ov {
 namespace intel_gpu {
-class RemoteAllocator;
 
-class RemoteBlobImpl : public InferenceEngine::gpu::details::param_map_obj_getter {
-    friend class RemoteAllocator;
-public:
-    enum BlobType {
-        BT_EMPTY,
-        BT_BUF_INTERNAL,
-        BT_BUF_SHARED,
-        BT_USM_SHARED,
-        BT_USM_HOST_INTERNAL,
-        BT_USM_DEVICE_INTERNAL,
-        BT_IMG_SHARED,
-        BT_SURF_SHARED,
-        BT_DX_BUF_SHARED,
-    };
-
-    explicit RemoteBlobImpl(InferenceEngine::gpu::ClContext::Ptr context,
-                            cldnn::stream& stream,
-                            const cldnn::layout& layout,
-                            cldnn::shared_handle mem = nullptr,
-                            cldnn::shared_surface surf = 0,
-                            uint32_t plane = 0,
-                            BlobType mem_type = BT_BUF_INTERNAL,
-                            cldnn::memory::ptr mem_handle = nullptr);
-
-    void allocate();
-    bool deallocate() noexcept;
-    InferenceEngine::ParamMap getParams() const;
-    std::string getDeviceName() const noexcept;
-    std::shared_ptr<InferenceEngine::RemoteContext> getContext() const noexcept;
-    InferenceEngine::LockedMemory<void> buffer() noexcept;
-    InferenceEngine::LockedMemory<const void> cbuffer() const noexcept;
-    InferenceEngine::LockedMemory<void> rwmap() noexcept;
-    InferenceEngine::LockedMemory<const void> rmap() const noexcept;
-    InferenceEngine::LockedMemory<void> wmap() noexcept;
-    const std::shared_ptr<InferenceEngine::IAllocator> &getAllocator() const noexcept;
-    void *getHandle() const noexcept { return _handle; }
-
-    void reinterpret(cldnn::layout new_layout);
-
-    bool is_allocated() const noexcept;
-    bool is_locked() const noexcept;
-    cldnn::memory::ptr getMemory() { return m_memObject; }
-
-protected:
-    static RemoteAllocator m_allocator;
-    InferenceEngine::gpu::ClContext::Ptr m_context;
-    cldnn::stream& m_stream;
-
-    // constructor stuff
-    cldnn::shared_handle m_mem;
-    cldnn::shared_surface m_surf;
-
-    uint32_t m_plane;
-    cldnn::layout m_layout;
-    BlobType m_mem_type;
-
-    cldnn::memory::ptr m_memObject;
-    bool m_reused_memory_object;
-
-    mutable std::mutex lockedMutex;
-    mutable size_t lockedCounter;
-    mutable std::unique_ptr<cldnn::mem_lock<uint8_t>> lockedHolder;
-    mutable void* _handle;
-    mutable std::shared_ptr<InferenceEngine::IAllocator> _allocator;
-
-    void lock() const;
-    void unlock() const;
+enum class BlobType {
+    BT_EMPTY,
+    BT_BUF_INTERNAL,
+    BT_BUF_SHARED,
+    BT_USM_SHARED,
+    BT_USM_HOST_INTERNAL,
+    BT_USM_DEVICE_INTERNAL,
+    BT_IMG_SHARED,
+    BT_SURF_SHARED,
+    BT_DX_BUF_SHARED,
 };
 
-template<typename TpublicAPI>
-class TypedRemoteBlob : public TpublicAPI {
-public:
-    using Ptr = std::shared_ptr<TypedRemoteBlob>;
-
-    explicit TypedRemoteBlob(InferenceEngine::gpu::ClContext::Ptr context,
-                             cldnn::stream& stream,
-                             const InferenceEngine::TensorDesc& desc,
-                             const cldnn::layout& layout,
-                             cldnn::shared_handle mem = nullptr,
-                             cldnn::shared_surface surf = 0,
-                             uint32_t plane = 0,
-                             RemoteBlobImpl::BlobType mem_type = RemoteBlobImpl::BlobType::BT_BUF_INTERNAL,
-                             cldnn::memory::ptr mem_handle = nullptr)
-        : TpublicAPI(desc)
-        , _impl(context, stream, layout, mem, surf, plane, mem_type, mem_handle) {}
-
-    void allocate() noexcept override {
-        try {
-            if (!_impl.is_allocated())
-                _impl.allocate();
-        } catch (...) {}
-    }
-    bool deallocate() noexcept override { return _impl.deallocate(); }
-    InferenceEngine::ParamMap getParams() const override { return _impl.getParams(); }
-    std::string getDeviceName() const noexcept override { return _impl.getDeviceName(); }
-    std::shared_ptr<InferenceEngine::RemoteContext> getContext() const noexcept override { return _impl.getContext(); }
-    InferenceEngine::LockedMemory<void> buffer() noexcept override { return _impl.buffer(); }
-    InferenceEngine::LockedMemory<const void> cbuffer() const noexcept override { return _impl.cbuffer(); }
-    InferenceEngine::LockedMemory<void> rwmap() noexcept override { return _impl.rwmap(); }
-    InferenceEngine::LockedMemory<const void> rmap() const noexcept override { return _impl.rmap(); }
-    InferenceEngine::LockedMemory<void> wmap()noexcept override { return _impl.wmap(); }
-    RemoteBlobImpl* getImpl() { return &_impl; }
-
-protected:
-    const std::shared_ptr<InferenceEngine::IAllocator> &getAllocator() const noexcept override { return _impl.getAllocator(); }
-    void *getHandle() const noexcept override { return _impl.getHandle(); }
-    RemoteBlobImpl _impl;
-};
-
-using RemoteCLbuffer = TypedRemoteBlob<InferenceEngine::gpu::ClBufferBlob>;
-using RemoteUSMbuffer = TypedRemoteBlob<InferenceEngine::gpu::USMBlob>;
-using RemoteCLImage2D = TypedRemoteBlob<InferenceEngine::gpu::ClImage2DBlob>;
-#ifdef _WIN32
-using RemoteD3DBuffer = TypedRemoteBlob<InferenceEngine::gpu::D3DBufferBlob>;
-using RemoteD3DSurface = TypedRemoteBlob<InferenceEngine::gpu::D3DSurface2DBlob>;
-#else
-using RemoteVASurface = TypedRemoteBlob<InferenceEngine::gpu::VASurfaceBlob>;
-#endif
-
-inline RemoteBlobImpl* getBlobImpl(InferenceEngine::gpu::ClBlob* blobPtr) {
-#ifdef _WIN32
-    {
-        auto ptr = blobPtr->as<RemoteD3DSurface>();
-        if (ptr) return ptr->getImpl();
-    }
-    {
-        auto ptr = blobPtr->as<RemoteD3DBuffer>();
-        if (ptr) return ptr->getImpl();
-    }
-#else
-    {
-        auto ptr = blobPtr->as<RemoteVASurface>();
-        if (ptr) return ptr->getImpl();
-    }
-#endif
-    {
-        auto ptr = blobPtr->as<RemoteCLbuffer>();
-        if (ptr) return ptr->getImpl();
-    }
-    {
-        auto ptr = blobPtr->as<RemoteCLImage2D>();
-        if (ptr) return ptr->getImpl();
-    }
-    {
-        auto ptr = blobPtr->as<RemoteUSMbuffer>();
-        if (ptr) return ptr->getImpl();
-    }
-    return nullptr;
+template <typename Result>
+Result extract_object(const InferenceEngine::ParamMap& params, const std::string& key) {
+    auto itrHandle = params.find(key);
+    OPENVINO_ASSERT(itrHandle != params.end(), "[GPU] No parameter ", key, " found in ParamsMap");
+    return itrHandle->second.as<Result>();
 }
 
-class RemoteAllocator : public InferenceEngine::IAllocator {
-protected:
-    friend class RemoteBlobImpl;
-    std::atomic_flag _lock;
-    std::map<void*, const RemoteBlobImpl*> m_lockedBlobs;
-
-    void regLockedBlob(void* handle, const RemoteBlobImpl* blob);
-
-public:
-    using Ptr = std::shared_ptr<RemoteAllocator>;
-
-    RemoteAllocator() { _lock.clear(std::memory_order_relaxed); }
-    /**
-    * @brief Maps handle to heap memory accessible by any memory manipulation routines.
-    * @return Generic pointer to memory
-    */
-    void* lock(void* handle, InferenceEngine::LockOp = InferenceEngine::LOCK_FOR_WRITE)  noexcept override { return handle; };
-    /**
-    * @brief Unmaps memory by handle with multiple sequential mappings of the same handle.
-    * The multiple sequential mappings of the same handle are suppose to get the same
-    * result while there isn't a ref counter supported.
-    */
-    void unlock(void* handle) noexcept override;
-    /**
-    * @brief Allocates memory
-    * @param size The size in bytes to allocate
-    * @return Handle to the allocated resource
-    */
-    void* alloc(size_t size) noexcept override { return nullptr; }
-    /**
-    * @brief Releases handle and all associated memory resources which invalidates the handle.
-    * @return false if handle cannot be released, otherwise - true.
-    */
-    bool free(void* handle) noexcept override { return true; }
-
-    void lock() {
-        while (_lock.test_and_set(std::memory_order_acquire)) {}
-    }
-
-    void unlock() {
-        _lock.clear(std::memory_order_release);
-    }
-};
-
-class USMHostAllocator : public InferenceEngine::IAllocator {
-protected:
-    InferenceEngine::gpu::USMBlob::Ptr _usm_host_blob = nullptr;
-    InferenceEngine::gpu::ClContext* _context = nullptr;
-
-public:
-    using Ptr = std::shared_ptr<USMHostAllocator>;
-
-    USMHostAllocator(InferenceEngine::gpu::ClContext* context) : _context(context) { }
-    /**
-    * @brief Maps handle to heap memory accessible by any memory manipulation routines.
-    * @return Generic pointer to memory
-    */
-    void* lock(void* handle, InferenceEngine::LockOp = InferenceEngine::LOCK_FOR_WRITE) noexcept override {
-        if (!_usm_host_blob)
-            return nullptr;
-        try {
-            return _usm_host_blob->get();
-        } catch (...) {
-            return nullptr;
-        }
-    };
-
-    /**
-    * @brief Unmaps memory by handle with multiple sequential mappings of the same handle.
-    * The multiple sequential mappings of the same handle are suppose to get the same
-    * result while there isn't a ref counter supported.
-    */
-    void unlock(void* handle) noexcept override {}
-
-    /**
-    * @brief Allocates memory
-    * @param size The size in bytes to allocate
-    * @return Handle to the allocated resource
-    */
-    void* alloc(size_t size) noexcept override {
-        try {
-            auto td = InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, InferenceEngine::SizeVector{size}, InferenceEngine::Layout::C);
-            InferenceEngine::ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(USM_HOST_BUFFER)}};
-            _usm_host_blob = std::dynamic_pointer_cast<InferenceEngine::gpu::USMBlob>(_context->CreateBlob(td, params));
-            _usm_host_blob->allocate();
-            if (!getBlobImpl(_usm_host_blob.get())->is_allocated()) {
-                return nullptr;
-            }
-            return _usm_host_blob->get();
-        } catch (...) {
-            return nullptr;
-        }
-    }
-
-    /**
-    * @brief Releases handle and all associated memory resources which invalidates the handle.
-    * @return false if handle cannot be released, otherwise - true.
-    */
-    bool free(void* handle) noexcept override {
-        try {
-            _usm_host_blob = nullptr;
-        } catch(...) { }
-        return true;
-    }
-};
-
-
-class ExecutionContextImpl : public InferenceEngine::gpu::details::param_map_obj_getter {
+class RemoteContextImpl {
 public:
     enum ContextType {
         OCL,
         DEV_SHARED
     };
 
-    using Ptr = std::shared_ptr<ExecutionContextImpl>;
-    using CPtr = std::shared_ptr<const ExecutionContextImpl>;
+    using Ptr = std::shared_ptr<RemoteContextImpl>;
+    using CPtr = std::shared_ptr<const RemoteContextImpl>;
 
-    explicit ExecutionContextImpl(std::shared_ptr<InferenceEngine::IInferencePlugin> plugin,
-                                  const InferenceEngine::ParamMap& params,
-                                  const Config& config = {});
+    RemoteContextImpl(std::string plugin_name, const InferenceEngine::ParamMap& params, const Config& config = {});
 
+    InferenceEngine::ParamMap get_params() const;
+    std::string get_device_name() const noexcept;
+    InferenceEngine::MemoryBlob::Ptr create_host_blob(InferenceEngine::gpu::ClContext::Ptr public_context, const InferenceEngine::TensorDesc& desc);
+    InferenceEngine::RemoteBlob::Ptr create_blob(InferenceEngine::gpu::ClContext::Ptr public_context,
+                                                 const InferenceEngine::TensorDesc& desc,
+                                                 const InferenceEngine::ParamMap& params = {});
 
-    ~ExecutionContextImpl();
+    cldnn::engine& get_engine() { return *m_engine; }
+    Config& get_config() { return m_config; }
+    InferenceEngine::gpu_handle_param get_external_queue() const { return m_external_queue; }
 
-    InferenceEngine::ParamMap getParams() const;
-    std::string getDeviceName() const noexcept;
+private:
+    std::string get_device_name(const std::map<std::string, cldnn::device::ptr>& all_devices, const cldnn::device::ptr current_device);
+    InferenceEngine::RemoteBlob::Ptr reuse_surface(InferenceEngine::gpu::ClContext::Ptr public_context,
+                                                   const InferenceEngine::TensorDesc& desc,
+                                                   const InferenceEngine::ParamMap& params);
+    InferenceEngine::RemoteBlob::Ptr reuse_memory(InferenceEngine::gpu::ClContext::Ptr public_context,
+                                                  const InferenceEngine::TensorDesc& desc,
+                                                  cldnn::shared_handle mem,
+                                                  BlobType blob_type);
+    InferenceEngine::RemoteBlob::Ptr create_buffer(InferenceEngine::gpu::ClContext::Ptr public_context, const InferenceEngine::TensorDesc& desc);
+    InferenceEngine::RemoteBlob::Ptr create_usm(InferenceEngine::gpu::ClContext::Ptr public_context,
+                                                const InferenceEngine::TensorDesc& desc,
+                                                BlobType alloc_type);
+    void check_if_shared();
 
-    std::shared_ptr<cldnn::engine> GetEngine() const { return m_engine; }
-    Config& GetConfig() { return m_config; }
-    ContextType GetType() const { return m_type; }
-    InferenceEngine::gpu_handle_param GetExternalQueue() const { return m_external_queue; }
-    const std::weak_ptr<InferenceEngine::IInferencePlugin> GetPlugin() const { return m_plugin; }
-    void lock() {
-        while (m_lock.test_and_set(std::memory_order_acquire)) {}
-    }
-
-    void unlock() {
-        m_lock.clear(std::memory_order_release);
-    }
-
-protected:
-    // TODO: refactor to unique_ptr
     std::shared_ptr<cldnn::engine> m_engine;
     InferenceEngine::gpu_handle_param m_va_display;
     InferenceEngine::gpu_handle_param m_external_queue;
     Config m_config;
-
-    ContextType m_type;
-    std::weak_ptr<InferenceEngine::IInferencePlugin> m_plugin;
-    std::atomic_flag m_lock;
-};
-
-template<typename TpublicContextAPI>
-class TypedExecutionContext : public TpublicContextAPI {
-    InferenceEngine::RemoteBlob::Ptr reuse_surf(const InferenceEngine::TensorDesc& tensorDesc, const InferenceEngine::ParamMap& params) {
-        using namespace InferenceEngine;
-        using InferenceEngine::gpu::details::param_map_obj_getter;
-        auto& stream = _impl.GetEngine()->get_service_stream();
-        uint32_t plane = param_map_obj_getter::_ObjFromParamSimple<uint32_t>(params, GPU_PARAM_KEY(VA_PLANE));
-#ifdef _WIN32
-        cldnn::shared_handle mem = param_map_obj_getter::_ObjFromParamSimple<cldnn::shared_handle>(params, GPU_PARAM_KEY(DEV_OBJECT_HANDLE));
-#else
-        cldnn::shared_surface surf = param_map_obj_getter::_ObjFromParamSimple<cldnn::shared_surface>(params, GPU_PARAM_KEY(DEV_OBJECT_HANDLE));
-#endif
-        auto key = cldnn::hash_combine(0, surf);
-        key = cldnn::hash_combine(key, plane);
-        std::lock_guard<ExecutionContextImpl> locker(_impl);
-
-        cldnn::layout layout(DataTypeFromPrecision(tensorDesc.getPrecision()),
-                             ImageFormatFromLayout(tensorDesc.getLayout()),
-                             tensor_from_dims(tensorDesc.getDims()));
-        auto smart_this = std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>(this->shared_from_this());
-
-        cldnn::memory::ptr reused_mem = nullptr;
-        // try to locate previously shared surface
-        if (memory_cache.has(key)) {
-            reused_mem = memory_cache.get(key);
-        }
-
-#ifdef _WIN32
-        auto blob = std::make_shared<RemoteD3DSurface>(smart_this, stream,
-            tensorDesc, layout, mem, 0, plane,
-            RemoteBlobImpl::BlobType::BT_SURF_SHARED, reused_mem);
-#else
-        auto blob = std::make_shared<RemoteVASurface>(smart_this, stream,
-            tensorDesc, layout, nullptr, surf, plane,
-            RemoteBlobImpl::BlobType::BT_SURF_SHARED, reused_mem);
-#endif
-        memory_cache.add(key, blob->getImpl()->getMemory());
-
-        return blob;
-    }
-
-    InferenceEngine::RemoteBlob::Ptr reuse_obj(const InferenceEngine::TensorDesc& tensorDesc,
-                                               cldnn::shared_handle mem,
-                                               RemoteBlobImpl::BlobType blob_type) {
-        std::lock_guard<ExecutionContextImpl> locker(_impl);
-        auto& stream = _impl.GetEngine()->get_service_stream();
-
-        cldnn::layout layout(DataTypeFromPrecision(tensorDesc.getPrecision()),
-                                FormatFromLayout(tensorDesc.getLayout()),
-                                tensor_from_dims(tensorDesc.getDims()));
-        auto smart_this = std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>(this->shared_from_this());
-
-        auto key = cldnn::hash_combine(0, mem);
-
-        cldnn::memory::ptr reused_mem = nullptr;
-        if (memory_cache.has(key)) {
-            reused_mem = memory_cache.get(key);
-        }
-
-        switch (blob_type) {
-        case RemoteBlobImpl::BlobType::BT_BUF_SHARED: {
-            auto blob = std::make_shared<RemoteCLbuffer>(smart_this, stream, tensorDesc, layout, mem, 0, 0, blob_type, reused_mem);
-            memory_cache.add(key, blob->getImpl()->getMemory());
-            return blob;
-        }
-        case RemoteBlobImpl::BlobType::BT_USM_SHARED: {
-            auto blob = std::make_shared<RemoteUSMbuffer>(smart_this, stream, tensorDesc, layout, mem, 0, 0, blob_type, reused_mem);
-            memory_cache.add(key, blob->getImpl()->getMemory());
-            return blob;
-        }
-        case RemoteBlobImpl::BlobType::BT_IMG_SHARED: {
-            layout.format = ImageFormatFromLayout(tensorDesc.getLayout());
-            auto blob = std::make_shared<RemoteCLImage2D>(smart_this, stream, tensorDesc, layout, mem, 0, 0, blob_type, reused_mem);
-            memory_cache.add(key, blob->getImpl()->getMemory());
-            return blob;
-        }
-#ifdef _WIN32
-        case RemoteBlobImpl::BlobType::BT_DX_BUF_SHARED: {
-            ret = std::make_shared<RemoteD3DBuffer>(smart_this, stream, tensorDesc, layout, mem, 0, 0, blob_type, reused_mem);
-            memory_cache.add(key, blob->getImpl()->getMemory());
-            return blob;
-        }
-#endif
-        default:
-            break;
-        }
-
-        return nullptr;
-    }
-
-    InferenceEngine::RemoteBlob::Ptr create_buffer(const InferenceEngine::TensorDesc& tensorDesc) {
-        cldnn::layout layout(DataTypeFromPrecision(tensorDesc.getPrecision()),
-                             FormatFromLayout(tensorDesc.getLayout()),
-                             tensor_from_dims(tensorDesc.getDims()));
-        auto smart_this = std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>(this->shared_from_this());
-        auto& stream = _impl.GetEngine()->get_service_stream();
-        return std::make_shared<RemoteCLbuffer>(smart_this,
-                                                stream,
-                                                tensorDesc,
-                                                layout,
-                                                nullptr, 0, 0,
-                                                RemoteBlobImpl::BlobType::BT_BUF_INTERNAL);
-    }
-
-    InferenceEngine::RemoteBlob::Ptr create_usm(const InferenceEngine::TensorDesc& tensorDesc, RemoteBlobImpl::BlobType alloc_type) {
-        cldnn::layout layout(DataTypeFromPrecision(tensorDesc.getPrecision()),
-                             FormatFromLayout(tensorDesc.getLayout()),
-                             tensor_from_dims(tensorDesc.getDims()));
-        auto smart_this = std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>(this->shared_from_this());
-        auto& stream = _impl.GetEngine()->get_service_stream();
-
-        return std::make_shared<RemoteUSMbuffer>(smart_this,
-                                                 stream,
-                                                 tensorDesc,
-                                                 layout,
-                                                 nullptr, 0, 0,
-                                                 alloc_type);
-    }
-
-    void check_if_shared() {
-        if (GetType() != ExecutionContextImpl::ContextType::DEV_SHARED)
-            IE_THROW() << "Shared context is required to to share this type of memory";
-    }
-
-public:
-    using Ptr = std::shared_ptr<TypedExecutionContext>;
-    using CPtr = std::shared_ptr<const TypedExecutionContext>;
-
     static const size_t cache_capacity = 100;
 
-    explicit TypedExecutionContext(std::shared_ptr<InferenceEngine::IInferencePlugin> plugin,
-                                   const InferenceEngine::ParamMap& params,
-                                   const Config& config = {})
-        : _impl(plugin, params, config),
-        memory_cache(cache_capacity) {}
-
-    ~TypedExecutionContext() {
-        memory_cache.clear();
-    }
-
-    InferenceEngine::ParamMap getParams() const override { return _impl.getParams(); }
-    std::string getDeviceName() const noexcept override { return _impl.getDeviceName(); }
-
-    InferenceEngine::MemoryBlob::Ptr CreateHostBlob(const InferenceEngine::TensorDesc& tensorDesc) override {
-        if (_impl.GetEngine()->use_unified_shared_memory())
-            return std::dynamic_pointer_cast<InferenceEngine::MemoryBlob>(make_blob_with_precision(tensorDesc, std::make_shared<USMHostAllocator>(this)));
-        else
-            return std::dynamic_pointer_cast<InferenceEngine::MemoryBlob>(make_blob_with_precision(tensorDesc));
-    }
-
-    InferenceEngine::RemoteBlob::Ptr CreateBlob(const InferenceEngine::TensorDesc& tensorDesc, const InferenceEngine::ParamMap& params = {}) override {
-        using namespace InferenceEngine;
-        using InferenceEngine::gpu::details::param_map_obj_getter;
-        if (params.empty()) {
-            // user wants plugin to allocate blob by itself and return handle
-            return create_buffer(tensorDesc);
-        } else {
-            // user will supply shared object handle
-            std::string memTypeStr = param_map_obj_getter::_StrFromParams(params, GPU_PARAM_KEY(SHARED_MEM_TYPE));
-
-            bool is_usm = memTypeStr == GPU_PARAM_VALUE(USM_HOST_BUFFER) ||
-                          memTypeStr == GPU_PARAM_VALUE(USM_DEVICE_BUFFER) ||
-                          memTypeStr == GPU_PARAM_VALUE(USM_USER_BUFFER);
-
-            if (is_usm && !_impl.GetEngine()->use_unified_shared_memory()) {
-                IE_THROW(NotAllocated) << "Can't create USM tensor as USM is not supported (or manually disabled) on current device";
-            }
-
-            if (GPU_PARAM_VALUE(VA_SURFACE) == memTypeStr) {
-                check_if_shared();
-                return reuse_surf(tensorDesc, params);
-            } else if (GPU_PARAM_VALUE(USM_HOST_BUFFER) == memTypeStr) {
-                return create_usm(tensorDesc, RemoteBlobImpl::BlobType::BT_USM_HOST_INTERNAL);
-            } else if (GPU_PARAM_VALUE(USM_DEVICE_BUFFER) == memTypeStr) {
-                return create_usm(tensorDesc, RemoteBlobImpl::BlobType::BT_USM_DEVICE_INTERNAL);
-            } else {
-                RemoteBlobImpl::BlobType blob_type;
-                cldnn::shared_handle mem = nullptr;
-
-                if (GPU_PARAM_VALUE(OCL_BUFFER) == memTypeStr) {
-                    blob_type = RemoteBlobImpl::BlobType::BT_BUF_SHARED;
-                    mem = param_map_obj_getter::_ObjFromParamSimple<cldnn::shared_handle>(params, GPU_PARAM_KEY(MEM_HANDLE));
-                } else if (GPU_PARAM_VALUE(USM_USER_BUFFER) == memTypeStr) {
-                    blob_type = RemoteBlobImpl::BlobType::BT_USM_SHARED;
-                    mem = param_map_obj_getter::_ObjFromParamSimple<cldnn::shared_handle>(params, GPU_PARAM_KEY(MEM_HANDLE));
-                } else if (GPU_PARAM_VALUE(OCL_IMAGE2D) == memTypeStr) {
-                    blob_type = RemoteBlobImpl::BlobType::BT_IMG_SHARED;
-                    mem = param_map_obj_getter::_ObjFromParamSimple<cldnn::shared_handle>(params, GPU_PARAM_KEY(MEM_HANDLE));
-#ifdef _WIN32
-                } else if (GPU_PARAM_VALUE(DX_BUFFER) == memTypeStr) {
-                    blob_type = RemoteBlobImpl::BlobType::BT_DX_BUF_SHARED;
-                    mem = param_map_obj_getter::_ObjFromParamSimple<cldnn::shared_handle>(params, GPU_PARAM_KEY(DEV_OBJECT_HANDLE));
-                    check_if_shared();
-#endif
-                } else {
-                    IE_THROW() << "Unsupported shared object type " << memTypeStr;
-                }
-
-                return reuse_obj(tensorDesc, mem, blob_type);
-            }
-        }
-    }
-
-    Config& GetConfig() { return _impl.GetConfig(); }
-    ExecutionContextImpl::ContextType GetType() const { return _impl.GetType(); }
-
-    ExecutionContextImpl* getImpl() { return &_impl; }
-
-protected:
-    ExecutionContextImpl _impl;
-    cldnn::LruCache<size_t, cldnn::memory::ptr> memory_cache;
+    ContextType m_type;
+    std::string m_device_name = "";
+    const std::string m_plugin_name;
+    cldnn::ThreadSafeLruCache<size_t, cldnn::memory::ptr> m_memory_cache;
 };
 
-using RemoteCLContext = TypedExecutionContext<InferenceEngine::gpu::ClContext>;
+// Template class below is needed to allow proper cast of user contexts
+// We have the following public classes hierarchy:
+//        RemoteContext
+//              |
+//          ClContext
+//        |          |
+//   VAContext      D3DContext
+// So our implementation must allow casting of context object to proper type user type (ClContext, VAContext or D3DContext)
+// Thus we introduce this template which have 3 instances with different base classes:
+//                RemoteContext
+//                      |
+//        ---------- ClContext -----------
+//        |             |                |
+//   VAContext          |            D3DContext
+//        |             |                |
+// RemoteVAContext  RemoteCLContext  RemoteD3DContext
+//
+// All these context types are just thin wrappers that calls common context internal impl (RemoteContextImpl)
+template<typename PublicContextType>
+class TypedRemoteContext : public PublicContextType {
+public:
+    using Ptr = std::shared_ptr<TypedRemoteContext>;
+
+    TypedRemoteContext(std::string plugin_name, const InferenceEngine::ParamMap& params, const Config& config = {})
+        : m_impl(std::make_shared<RemoteContextImpl>(plugin_name, params, config)) {}
+
+    InferenceEngine::ParamMap getParams() const override { return m_impl->get_params(); }
+    std::string getDeviceName() const noexcept override { return m_impl->get_device_name(); }
+    InferenceEngine::MemoryBlob::Ptr CreateHostBlob(const InferenceEngine::TensorDesc& desc) override {
+        return m_impl->create_host_blob(std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>(this->shared_from_this()), desc);
+    }
+    InferenceEngine::RemoteBlob::Ptr CreateBlob(const InferenceEngine::TensorDesc& desc, const InferenceEngine::ParamMap& params = {}) override {
+        return m_impl->create_blob(std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>(this->shared_from_this()), desc, params);
+    }
+
+    RemoteContextImpl::Ptr get_impl() { return m_impl; }
+
+private:
+    std::shared_ptr<RemoteContextImpl> m_impl;
+};
+
+using RemoteCLContext = TypedRemoteContext<InferenceEngine::gpu::ClContext>;
 #ifdef _WIN32
-using RemoteD3DContext = TypedExecutionContext<InferenceEngine::gpu::D3DContext>;
+using RemoteD3DContext = TypedRemoteContext<InferenceEngine::gpu::D3DContext>;
 #else
-using RemoteVAContext = TypedExecutionContext<InferenceEngine::gpu::VAContext>;
+using RemoteVAContext = TypedRemoteContext<InferenceEngine::gpu::VAContext>;
 #endif
 
-inline ExecutionContextImpl* getContextImpl(InferenceEngine::gpu::ClContext::Ptr ctxPtr) {
+inline std::shared_ptr<RemoteContextImpl> get_context_impl(InferenceEngine::gpu::ClContext::Ptr context) {
+    OPENVINO_ASSERT(context != nullptr, "[GPU] Couldn't get impl from invalid context object");
 #ifdef _WIN32
-    {
-        auto ptr = ctxPtr->as<RemoteD3DContext>();
-        if (ptr) return ptr->getImpl();
-    }
+    if (auto ptr = context->as<RemoteD3DContext>())
+        return ptr->get_impl();
 #else
-    {
-        auto ptr = ctxPtr->as<RemoteVAContext>();
-        if (ptr) return ptr->getImpl();
-    }
+    if (auto ptr = context->as<RemoteVAContext>())
+        return ptr->get_impl();
 #endif
-    {
-        auto ptr = ctxPtr->as<RemoteCLContext>();
-        if (ptr) return ptr->getImpl();
-    }
-    return nullptr;
+    if (auto ptr = context->as<RemoteCLContext>())
+        return ptr->get_impl();
+
+    OPENVINO_ASSERT(false, "[GPU] Couldn't get context impl from public context object.");
+}
+
+inline std::shared_ptr<RemoteContextImpl> get_context_impl(InferenceEngine::RemoteContext::Ptr context) {
+    OPENVINO_ASSERT(context != nullptr, "[GPU] Couldn't get impl from invalid context object");
+    auto casted = std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>(context);
+    OPENVINO_ASSERT(casted != nullptr, "[GPU] Couldn't get context impl: Context type is not ClContext or it's derivatives");
+    return get_context_impl(casted);
 }
 
 }  // namespace intel_gpu

@@ -123,7 +123,8 @@ struct ImplementationDesc {
         kernel_name(kernel_name),
         impl_type(impl_type) {}
 };
-inline std::ostream& operator<<(std::ostream& out, ImplementationDesc& desc) {
+
+inline std::ostream& operator<<(std::ostream& out, const ImplementationDesc& desc) {
     out << desc.impl_type << ":" << desc.kernel_name << ":" << desc.output_format;
     return out;
 }

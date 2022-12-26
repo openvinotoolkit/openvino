@@ -25,6 +25,7 @@
 #include "intel_gpu/plugin/custom_layer.hpp"
 #include "intel_gpu/plugin/device_config.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
+#include "intel_gpu/plugin/remote_blob.hpp"
 #include "intel_gpu/plugin/program.hpp"
 
 namespace ov {
@@ -55,10 +56,11 @@ public:
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const;
     void UpdatePerfStatistics();
 
-    const Config& getConfig() const { return m_config; }
-    InferenceEngine::gpu::ClContext::Ptr GetContext() { return m_context; }
-    std::shared_ptr<cldnn::engine> GetEngine() const { return getContextImpl(m_context)->GetEngine(); }
-    int GetMaxDynamicBatchSize() const { return getConfig().max_dynamic_batch; }
+    const Config& get_config() const { return m_config; }
+    InferenceEngine::gpu::ClContext::Ptr get_context() const { return m_context; }
+    cldnn::engine& get_engine() const { return get_context_impl(m_context)->get_engine(); }
+
+    int GetMaxDynamicBatchSize() const { return get_config().max_dynamic_batch; }
     const std::map<std::string, cldnn::layout>& GetInputLayouts() const { return m_program->GetInputLayouts(); }
     const InferenceEngine::InputsDataMap GetNetworkInputs() const { return m_program->GetNetworkInputs(); }
     const InferenceEngine::OutputsDataMap GetNetworkOutputs() const { return m_program->GetNetworkOutputs(); }

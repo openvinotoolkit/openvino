@@ -25,8 +25,8 @@ class CompiledModel : public InferenceEngine::ExecutableNetworkThreadSafeDefault
 public:
     typedef std::shared_ptr<CompiledModel> Ptr;
 
-    CompiledModel(InferenceEngine::CNNNetwork &network, std::shared_ptr<InferenceEngine::RemoteContext> context, Config config, ExecutionConfig new_conf);
-    CompiledModel(std::istream& networkModel, std::shared_ptr<InferenceEngine::RemoteContext> context, Config config, ExecutionConfig new_conf);
+    CompiledModel(InferenceEngine::CNNNetwork &network, InferenceEngine::gpu::ClContext::Ptr context, Config config, ExecutionConfig new_conf);
+    CompiledModel(std::istream& networkModel,InferenceEngine::gpu::ClContext::Ptr context, Config config, ExecutionConfig new_conf);
 
     void Export(std::ostream& networkModel) override;
     std::shared_ptr<ngraph::Function> GetExecGraphInfo() override;

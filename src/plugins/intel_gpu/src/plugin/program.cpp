@@ -121,7 +121,7 @@ bool Program::IsDynBatchModel(const std::shared_ptr<ov::Model>& model,
     return dyn_shape_batch_found;
 }
 
-Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::engine> engine, const Config& config, const ExecutionConfig& new_conf,
+Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, const Config& config, const ExecutionConfig& new_conf,
     bool createTopologyOnly, bool partialBuild)
     : m_curBatch(-1)
     , m_config(config)
@@ -189,7 +189,7 @@ Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::en
             }
             new_func->reshape(new_shapes);
             {
-                auto deviceInfo = engine->get_device_info();
+                auto deviceInfo = engine.get_device_info();
                 TransformationsPipeline transformations(config, deviceInfo);
                 transformations.apply(new_func);
             }
@@ -351,7 +351,7 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Program::CreateProgram");
         cldnn::program::ptr program;
         try {
-            program = cldnn::program::build_program(*m_engine, *m_topology, conf);
+            program = cldnn::program::build_program(m_engine, *m_topology, conf);
         } catch (std::exception& e) {
             IE_THROW() << "cldnn program build failed! " << e.what();
         }

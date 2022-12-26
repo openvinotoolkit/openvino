@@ -77,7 +77,7 @@ struct Plugin::impl {
     Configs m_configs;
 };
 
-std::string Plugin::GetDeviceIDFromConfig(const std::map<std::string, std::string>& config) const {
+std::string Plugin::get_device_id_from_config(const std::map<std::string, std::string>& config) const {
     std::string device_id;
     if (config.find(PluginConfigParams::KEY_DEVICE_ID) != config.end()) {
         device_id = config.at(PluginConfigParams::KEY_DEVICE_ID);
@@ -87,7 +87,7 @@ std::string Plugin::GetDeviceIDFromConfig(const std::map<std::string, std::strin
 
 cldnn::device_info Plugin::GetDeviceInfo(const std::map<std::string, std::string> &config) const {
     auto device_info = device_map.begin()->second->get_info();
-    std::string device_id = GetDeviceIDFromConfig(config);
+    std::string device_id = get_device_id_from_config(config);
     if (!device_id.empty()) {
         if (device_map.find(device_id) == device_map.end()) {
             IE_THROW() << "Invalid device ID: " << device_id;
@@ -203,21 +203,15 @@ void Plugin::UpdateConfig(Config& conf, const InferenceEngine::CNNNetwork &netwo
     }
 }
 
-void Plugin::UpdateStatistics(const RemoteCLContext::Ptr& context) const {
+void Plugin::UpdateStatistics(const RemoteContextImpl::Ptr& context) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::UpdateStatistics");
     {
         std::lock_guard<std::mutex> lock(engine_mutex);
 
-        std::map<std::string, uint64_t> statistics;
-        auto impl = getContextImpl(context);
-        std::lock_guard<ExecutionContextImpl> locker(*impl);
-        std::shared_ptr<cldnn::engine> eng = impl->GetEngine();
-        statistics = eng->get_memory_statistics();
-
         // if the same context exists, the statistics is replaced with the latest one
         // (currently, memory usage is accumulated for several networks in the same context)
         // if it does not exist, a new statistics is added
-        statistics_map[context] = statistics;
+        statistics_map[context] = context->get_engine().get_memory_statistics();
     }
 }
 
@@ -262,7 +256,7 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
     check_inputs(_networkInputs);
 
     Configs confs = _impl->m_configs;
-    std::string device_id = GetDeviceIDFromConfig(orig_config);
+    std::string device_id = get_device_id_from_config(orig_config);
     Config conf = confs.GetConfig(device_id);
 
     auto config = ConvertPerfHintsToConfig(orig_config, conf);
@@ -270,13 +264,13 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
 
     ExecutionConfig new_conf(ov::AnyMap(conf.key_config_map.begin(), conf.key_config_map.end()));
 
-    RemoteCLContext::Ptr context = GetDefaultContext(conf);
+    auto context = get_default_context(conf);
 
     auto transformedNetwork = CloneAndTransformNetwork(network, conf);
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::LoadExeNetworkImpl::CreateExeNetwork");
         CompiledModel::Ptr exeNetwork = std::make_shared<CompiledModel>(transformedNetwork, context, conf, new_conf);
-        UpdateStatistics(context);
+        UpdateStatistics(context->get_impl());
         return exeNetwork;
     }
 }
@@ -292,7 +286,7 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
         IE_THROW() << "Invalid context";
     }
 
-    Config conf = getContextImpl(casted)->GetConfig();
+    Config conf = get_context_impl(casted)->get_config();
     auto config = ConvertPerfHintsToConfig(orig_config, conf);
     UpdateConfig(conf, network, config);
 
@@ -303,26 +297,24 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
 }
 
 InferenceEngine::RemoteContext::Ptr Plugin::CreateContext(const AnyMap& params) {
-    // parameter map is non-empty
-    std::string contextTypeStr = _StrFromParams(params, GPU_PARAM_KEY(CONTEXT_TYPE));
+    std::string context_type = extract_object<std::string>(params, GPU_PARAM_KEY(CONTEXT_TYPE));
 
-    if (GPU_PARAM_VALUE(OCL) == contextTypeStr) {
-        return std::make_shared<RemoteCLContext>(shared_from_this(), params, _impl->m_configs.GetDefaultDeviceConfig());
-    } else if (GPU_PARAM_VALUE(VA_SHARED) == contextTypeStr) {
+    if (GPU_PARAM_VALUE(OCL) == context_type) {
+        return std::make_shared<RemoteCLContext>(GetName(), params, _impl->m_configs.GetDefaultDeviceConfig());
+    } else if (GPU_PARAM_VALUE(VA_SHARED) == context_type) {
 #ifdef _WIN32
-        return std::make_shared<RemoteD3DContext>(shared_from_this(), params, _impl->m_configs.GetDefaultDeviceConfig());
+        return std::make_shared<RemoteD3DContext>(GetName(), params, _impl->m_configs.GetDefaultDeviceConfig());
 #else
-        return std::make_shared<RemoteVAContext>(shared_from_this(), params, _impl->m_configs.GetDefaultDeviceConfig());
+        return std::make_shared<RemoteVAContext>(GetName(), params, _impl->m_configs.GetDefaultDeviceConfig());
 #endif
-    } else {
-        IE_THROW() << "Invalid remote context type" << contextTypeStr;
     }
+
+    OPENVINO_ASSERT(false, "[GPU] Unsupported context type passed to CreateContext method: ", context_type);
 }
 
-RemoteCLContext::Ptr Plugin::GetDefaultContext(const Config& config) const {
+RemoteCLContext::Ptr Plugin::get_default_context(const Config& config) const {
     if (m_defaultContexts.find(config.device_id) == m_defaultContexts.end()) {
-        m_defaultContexts[config.device_id] = std::make_shared<RemoteCLContext>(
-            std::const_pointer_cast<InferenceEngine::IInferencePlugin>(shared_from_this()), AnyMap(), config);
+        m_defaultContexts[config.device_id] = std::make_shared<RemoteCLContext>(GetName(), AnyMap(), config);
     }
 
     return m_defaultContexts.at(config.device_id);;
@@ -336,7 +328,7 @@ InferenceEngine::RemoteContext::Ptr Plugin::GetDefaultContext(const AnyMap& para
 
     const Config conf = _impl->m_configs.GetConfig(device_id);
 
-    return GetDefaultContext(conf);
+    return get_default_context(conf);
 }
 
 void Plugin::SetConfig(const std::map<std::string, std::string> &config) {
@@ -353,7 +345,7 @@ void Plugin::SetConfig(const std::map<std::string, std::string> &config) {
         }
         _impl->m_configs.GetConfig(device_id).UpdateFromMap(config, device_info);
     } else {
-        device_id = GetDeviceIDFromConfig(config);
+        device_id = get_device_id_from_config(config);
         if (!device_id.empty()) {
             if (device_map.find(device_id) != device_map.end()) {
                 device_info = device_map.at(device_id)->get_info();
@@ -376,13 +368,13 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::QueryNetwork");
     QueryNetworkResult res;
     Configs confs = _impl->m_configs;
-    std::string device_id = GetDeviceIDFromConfig(config);
+    std::string device_id = get_device_id_from_config(config);
     Config conf = confs.GetConfig(device_id);
 
     UpdateConfig(conf, network, config);
 
-    auto ctx = GetDefaultContext(conf);
-    Program prog(ctx->getImpl()->GetEngine(), conf);
+    auto ctx = get_default_context(conf)->get_impl();
+    Program prog(ctx->get_engine(), conf);
     bool dyn_shape_batch_found = false;
 
     auto model = network.getFunction();
@@ -437,22 +429,22 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
 }
 
 InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(std::istream& networkModel,
-                                            const std::map<std::string, std::string>& orig_config) {
+                                                                       const std::map<std::string, std::string>& orig_config) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork");
     Configs confs = _impl->m_configs;
-    std::string device_id = GetDeviceIDFromConfig(orig_config);
+    std::string device_id = get_device_id_from_config(orig_config);
     Config conf = confs.GetConfig(device_id);
 
     auto config = ConvertPerfHintsToConfig(orig_config, conf);
 
-    auto context = GetDefaultContext(conf);
+    auto context = get_default_context(conf);
 
     ExecutionConfig new_conf(ov::AnyMap(conf.key_config_map.begin(), conf.key_config_map.end()));
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork::CreateExeNetwork");
         CompiledModel::Ptr exeNetwork = std::make_shared<CompiledModel>(networkModel, context, conf, new_conf);
         exeNetwork->SetPointerToPlugin(shared_from_this());
-        UpdateStatistics(context);
+        UpdateStatistics(context->get_impl());
         return exeNetwork;
     }
 }
@@ -828,7 +820,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
 
         ExecutionConfig new_conf(ov::AnyMap(config.key_config_map.begin(), config.key_config_map.end()));
 
-        auto engine = GetDefaultContext(config)->getImpl()->GetEngine();
+        auto& engine = get_default_context(config)->get_impl()->get_engine();
 
         std::shared_ptr<Program> program;
 

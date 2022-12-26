@@ -29,8 +29,8 @@ namespace intel_gpu {
 
 template<class DATA_TYPE>
 static DATA_TYPE CreateScalarData(Program &p, const cldnn::primitive_id& id, int64_t num) {
-    auto mem = p.GetEngine().allocate_memory({ cldnn::data_types::i64, cldnn::format::bfyx, { 1, 1, 1, 1 } });
-    cldnn::mem_lock<int64_t> ptr{mem, p.GetEngine().get_service_stream()};
+    auto mem = p.get_engine().allocate_memory({ cldnn::data_types::i64, cldnn::format::bfyx, { 1, 1, 1, 1 } });
+    cldnn::mem_lock<int64_t> ptr{mem, p.get_engine().get_service_stream()};
     *ptr.begin() = num;
     return {id, mem};
 }
@@ -42,7 +42,7 @@ static cldnn::mutable_data CreateAdditionalOutputData(Program &p, const std::sha
     const auto format = cldnn::format::get_default_format(op->get_output_shape(output_idx).size());
     const auto tensor = tensor_from_dims(op->get_output_shape(output_idx));
     cldnn::layout output_layout = cldnn::layout(precision, format, tensor);
-    auto mem = p.GetEngine().allocate_memory(output_layout);
+    auto mem = p.get_engine().allocate_memory(output_layout);
     auto md = cldnn::mutable_data(id, {cldnn::input_info(input)}, mem); // cldnn::data cannot set dependency
     return md;
 }
@@ -82,7 +82,7 @@ static void CreateLoopOp(Program& p, const std::shared_ptr<Loop>& op) {
     }
 
     // get body topology from ngraph function
-    Program body_program(body_network, p.GetEnginePtr(), p.GetConfig(), p.GetExecutionConfig(), true);
+    Program body_program(body_network, p.get_engine(), p.GetConfig(), p.GetExecutionConfig(), true);
     auto body_topology = *body_program.GetTopology();
 
     // setup input_primitive_maps/ output_primitive_maps and back_edges

@@ -108,8 +108,8 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         if (bufIter != p.blobMemCache.end()) {
             meanBlobID = bufIter->second;
         } else {
-            auto mem = p.GetEngine().allocate_memory(meanBlobLayout, false);
-            cldnn::mem_lock<int8_t> tmpPointer{ mem, p.GetEngine().get_service_stream() };
+            auto mem = p.get_engine().allocate_memory(meanBlobLayout, false);
+            cldnn::mem_lock<int8_t> tmpPointer{ mem, p.get_engine().get_service_stream() };
             auto buf = tmpPointer.data();
             auto bufSize = meanBlobLayout.bytes_count();
 

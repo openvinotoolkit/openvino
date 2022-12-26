@@ -45,26 +45,26 @@ using namespace InferenceEngine::details;
 namespace ov {
 namespace intel_gpu {
 
-Graph::Graph(InferenceEngine::CNNNetwork& network, gpu::ClContext::Ptr context, Config config, ExecutionConfig exec_config, uint16_t stream_id)
+Graph::Graph(InferenceEngine::CNNNetwork& network, InferenceEngine::gpu::ClContext::Ptr context, Config config, ExecutionConfig exec_config, uint16_t stream_id)
     : m_context(context)
     , m_networkName(network.getName())
     , m_config(config)
     , m_exec_config(exec_config)
     , m_stream_id(stream_id)
     , m_state(0) {
-    m_program = std::make_shared<Program>(network, GetEngine(), m_config, exec_config);
+    m_program = std::make_shared<Program>(network, get_engine(), m_config, exec_config);
     if (m_program->m_max_batch > 1)
         m_config.max_dynamic_batch = m_program->m_max_batch;
     Build();
 }
 
-Graph::Graph(cldnn::BinaryInputBuffer &ib, gpu::ClContext::Ptr context, Config config, ExecutionConfig exec_config, uint16_t stream_id)
+Graph::Graph(cldnn::BinaryInputBuffer &ib, InferenceEngine::gpu::ClContext::Ptr context, Config config, ExecutionConfig exec_config, uint16_t stream_id)
     : m_context(context)
     , m_config(config)
     , m_exec_config(exec_config)
     , m_stream_id(stream_id)
     , m_state(0) {
-    m_program = std::make_shared<Program>(GetEngine(), m_config);
+    m_program = std::make_shared<Program>(get_engine(), m_config);
     if (m_program->m_max_batch > 1)
         m_config.max_dynamic_batch = m_program->m_max_batch;
 
@@ -72,7 +72,7 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, gpu::ClContext::Ptr context, Config c
     ib >> primitiveIDs;
     ib >> outputDims;
 
-    m_networks.emplace_back(std::make_shared<cldnn::network>(ib, GetEngine()->create_stream(exec_config), *GetEngine(), m_stream_id));
+    m_networks.emplace_back(std::make_shared<cldnn::network>(ib, get_engine().create_stream(exec_config), get_engine(), m_stream_id));
 }
 
 Graph::Graph(std::shared_ptr<Graph> graph, uint16_t stream_id)
@@ -132,20 +132,18 @@ void Graph::Build() {
 }
 
 bool Graph::use_external_queue() const {
-    auto impl = getContextImpl(m_context);
-    return impl->GetExternalQueue() != nullptr;
+    return get_context_impl(m_context)->get_external_queue() != nullptr;
 }
 
 std::shared_ptr<cldnn::network> Graph::BuildNetwork(std::shared_ptr<cldnn::program> program) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Graph::BuildNetwork");
     std::shared_ptr<cldnn::network> network = nullptr;
 
-    auto impl = getContextImpl(m_context);
-    auto externalQueue = impl->GetExternalQueue();
+    auto externalQueue = get_context_impl(m_context)->get_external_queue();
     if (externalQueue) {
         if (m_config.throughput_streams != 1)
             IE_THROW(ParameterMismatch) << "Throughput streams can't be used with shared queue!\n";
-        auto &engine = m_program->GetEngine();
+        auto &engine = m_program->get_engine();
         network = std::make_shared<cldnn::network>(program, engine.create_stream(m_exec_config, externalQueue), m_stream_id);
     } else {
         network = std::make_shared<cldnn::network>(program, m_stream_id);
@@ -166,7 +164,7 @@ Graph::variable_states_map Graph::AllocateVariablesMemories() {
         std::vector<cldnn::network::VariableState::Ptr> memoryStates;
         memoryStates.reserve(orderedLayouts.size());
         for (const auto& layout : orderedLayouts)
-            memoryStates.push_back(std::make_shared<cldnn::network::VariableState>(GetEngine()->allocate_memory(layout, false)));
+            memoryStates.push_back(std::make_shared<cldnn::network::VariableState>(get_engine().allocate_memory(layout, false)));
         states.insert({memStateInfo.first, memoryStates });
     }
     return states;

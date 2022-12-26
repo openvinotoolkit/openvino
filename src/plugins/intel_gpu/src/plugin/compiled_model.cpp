@@ -36,7 +36,7 @@ namespace ov {
 namespace intel_gpu {
 
 CompiledModel::CompiledModel(InferenceEngine::CNNNetwork &network,
-                             std::shared_ptr<InferenceEngine::RemoteContext> context,
+                             InferenceEngine::gpu::ClContext::Ptr context,
                              Config config,
                              ExecutionConfig new_conf) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault{[&]() -> InferenceEngine::ITaskExecutor::Ptr {
@@ -51,15 +51,10 @@ CompiledModel::CompiledModel(InferenceEngine::CNNNetwork &network,
                 IStreamsExecutor::Config{"Intel GPU plugin executor", 1});
         }
     }()},
+    m_context(context),
     m_config(config),
     m_taskExecutor{ _taskExecutor },
     m_waitExecutor(executorManager()->getIdleCPUStreamsExecutor({ "GPUWaitExecutor" })) {
-    auto casted_context = std::dynamic_pointer_cast<gpu::ClContext>(context);
-
-    OPENVINO_ASSERT((casted_context != nullptr), "Invalid remote context");
-
-    m_context = casted_context;
-
     auto graph_base = std::make_shared<Graph>(network, m_context, m_config, new_conf, 0);
     for (uint16_t n = 0; n < m_config.throughput_streams; n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
@@ -90,7 +85,7 @@ static InferenceEngine::Layout layout_from_string(const std::string & name) {
     IE_THROW(NetworkNotRead) << "Unknown layout with name '" << name << "'";
 }
 
-CompiledModel::CompiledModel(std::istream& networkModel, std::shared_ptr<InferenceEngine::RemoteContext> context, Config config, ExecutionConfig new_conf) :
+CompiledModel::CompiledModel(std::istream& networkModel, InferenceEngine::gpu::ClContext::Ptr context, Config config, ExecutionConfig new_conf) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault{[&]() -> InferenceEngine::ITaskExecutor::Ptr {
         if (config.exclusiveAsyncRequests) {
             //exclusiveAsyncRequests essentially disables the streams (and hence should be checked first) => aligned with the CPU behavior
@@ -103,16 +98,13 @@ CompiledModel::CompiledModel(std::istream& networkModel, std::shared_ptr<Inferen
                 IStreamsExecutor::Config{"Intel GPU plugin executor", 1});
         }
     }()},
+    m_context(context),
     m_config(config),
     m_taskExecutor{ _taskExecutor },
     m_waitExecutor(executorManager()->getIdleCPUStreamsExecutor({ "GPUWaitExecutor" })) {
-    auto casted_context = std::dynamic_pointer_cast<gpu::ClContext>(context);
+    auto& engine = get_context_impl(m_context)->get_engine();
 
-    OPENVINO_ASSERT((casted_context != nullptr), "Invalid remote context");
-
-    m_context = casted_context;
-
-    cldnn::BinaryInputBuffer ib(networkModel, *getContextImpl(m_context)->GetEngine());
+    cldnn::BinaryInputBuffer ib(networkModel, engine);
 
     // InputsInfo and OutputsInfor for CNNNetwork
     {
@@ -257,7 +249,6 @@ CompiledModel::CompiledModel(std::istream& networkModel, std::shared_ptr<Inferen
 
         setOutputs(new_results);
     }
-
 
     auto graph_base = std::make_shared<Graph>(ib, m_context, m_config, new_conf, 0);
     for (uint16_t n = 0; n < m_config.throughput_streams; n++) {
