@@ -1027,6 +1027,7 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
 
     params.engineInfo.supports_imad = device_info.supports_imad;
     params.engineInfo.supports_immad = device_info.supports_immad;
+    params.engineInfo.enable_sub_groups_emulation = true;
     params.engineInfo.bOptHintsSupport = false;
 
     params.engineInfo.bLocalBlockIOSupport = device_info.supports_local_block_io && program->is_local_block_io_supported();

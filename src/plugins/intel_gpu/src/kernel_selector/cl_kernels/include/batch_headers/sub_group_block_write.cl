@@ -101,7 +101,7 @@
     #define _sub_group_block_write2(ptr, v) intel_sub_group_block_write2(ptr, v)
     #define _sub_group_block_write4(ptr, v) intel_sub_group_block_write4(ptr, v)
     #define _sub_group_block_write8(ptr, v) intel_sub_group_block_write8(ptr, v)
-#else
+#elif (__OPENCL_C_VERSION__ >= 200)
     DECLARE_BLOCK_WRITE_EMULATION(4, 1)
     DECLARE_BLOCK_WRITE_EMULATION(4, 2)
     DECLARE_BLOCK_WRITE_EMULATION(4, 4)
@@ -113,7 +113,7 @@
     #define _sub_group_block_write_us2(ptr, v) intel_sub_group_block_write_us2(ptr, v)
     #define _sub_group_block_write_us4(ptr, v) intel_sub_group_block_write_us4(ptr, v)
     #define _sub_group_block_write_us8(ptr, v) intel_sub_group_block_write_us8(ptr, v)
-#else
+#elif (__OPENCL_C_VERSION__ >= 200)
     DECLARE_BLOCK_WRITE_EMULATION(2, 1)
     DECLARE_BLOCK_WRITE_EMULATION(2, 2)
     DECLARE_BLOCK_WRITE_EMULATION(2, 4)
@@ -126,7 +126,7 @@
     #define _sub_group_block_write_uc4(ptr, v) intel_sub_group_block_write_uc4(ptr, v)
     #define _sub_group_block_write_uc8(ptr, v) intel_sub_group_block_write_uc8(ptr, v)
     #define _sub_group_block_write_uc16(ptr, v) intel_sub_group_block_write_uc16(ptr, v)
-#else
+#elif (__OPENCL_C_VERSION__ >= 200)
     DECLARE_BLOCK_WRITE_EMULATION(1, 1)
     DECLARE_BLOCK_WRITE_EMULATION(1, 2)
     DECLARE_BLOCK_WRITE_EMULATION(1, 4)

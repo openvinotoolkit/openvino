@@ -30,7 +30,6 @@ DeviceFeaturesKey FullyConnected_bf_io_input_spatial::get_required_device_featur
     return k;
 }
 
-
 FullyConnected_bf_io_input_spatial::DispatchData FullyConnected_bf_io_input_spatial::SetDefault(
     const fully_connected_params& arg,
     int) const {

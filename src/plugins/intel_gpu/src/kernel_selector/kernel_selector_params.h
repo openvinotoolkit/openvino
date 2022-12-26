@@ -394,6 +394,7 @@ struct EngineInfo {
     bool supports_image = false;
     bool supports_imad = false;
     bool supports_immad = false;
+    bool enable_sub_groups_emulation = false;
     bool bOptHintsSupport = false;
     bool bLocalBlockIOSupport = false;
     uint32_t vendor_id = 0x0;

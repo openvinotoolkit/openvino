@@ -64,7 +64,8 @@ KERNEL(convolution_bfyx_1x1)(
 #endif
     uint split_idx)
 {
-    const uint xy = (uint)get_group_id(0) * 16 + get_sub_group_local_id();
+    const uint group_xy = (uint)get_group_id(0) * 16;
+    const uint xy = group_xy + get_sub_group_local_id();
     const uint x = xy % OUTPUT_SIZE_X;
     const uint y = xy / OUTPUT_SIZE_X;
     const uint f = (uint)get_group_id(1) * 16 + get_sub_group_local_id();//get_global_id(1);
@@ -93,7 +94,7 @@ KERNEL(convolution_bfyx_1x1)(
     const uint filter_offset = group_f * ((FILTER_OFM_PITCH + 8 - 1) / 8) * 8;//f*FILTER_OFM_PITCH;
     const uint xy_block_num = (INPUT0_FEATURE_PITCH + 16 - 1) / 16;
     const uint f_block_num = (INPUT0_FEATURE_NUM + 8 - 1) / 8;
-    const uint input_offset = in_split_offset + xy * 8 + b * xy_block_num * f_block_num * 128;//b*INPUT0_BATCH_PITCH + INPUT0_OFFSET + in_split_offset;
+    const uint input_offset = in_split_offset + group_xy * 8 + b * xy_block_num * f_block_num * 128;//b*INPUT0_BATCH_PITCH + INPUT0_OFFSET + in_split_offset;
 
     for (uint k = 0; k < (FILTER_IFM_NUM + 8 - 1) / 8; ++k)
     {
@@ -129,3 +130,4 @@ KERNEL(convolution_bfyx_1x1)(
 #undef CONCAT_TOKEN
 #undef CONCAT_TOKEN_HANDLER1
 #undef MULTIPLY_BLOCKS_16x16
+#undef ACCUMULATOR_TYPE

@@ -119,7 +119,7 @@
     #define _sub_group_block_read2(ptr) intel_sub_group_block_read2(ptr)
     #define _sub_group_block_read4(ptr) intel_sub_group_block_read4(ptr)
     #define _sub_group_block_read8(ptr) intel_sub_group_block_read8(ptr)
-#else
+#elif (__OPENCL_C_VERSION__ >= 200)
     DECLARE_BLOCK_READ_EMULATION(4, 1)
     DECLARE_BLOCK_READ_EMULATION(4, 2)
     DECLARE_BLOCK_READ_EMULATION(4, 4)
@@ -131,7 +131,7 @@
     #define _sub_group_block_read_us2(ptr) intel_sub_group_block_read_us2(ptr)
     #define _sub_group_block_read_us4(ptr) intel_sub_group_block_read_us4(ptr)
     #define _sub_group_block_read_us8(ptr) intel_sub_group_block_read_us8(ptr)
-#else
+#elif (__OPENCL_C_VERSION__ >= 200)
     DECLARE_BLOCK_READ_EMULATION(2, 1)
     DECLARE_BLOCK_READ_EMULATION(2, 2)
     DECLARE_BLOCK_READ_EMULATION(2, 4)
@@ -144,7 +144,7 @@
     #define _sub_group_block_read_uc4(ptr) intel_sub_group_block_read_uc4(ptr)
     #define _sub_group_block_read_uc8(ptr) intel_sub_group_block_read_uc8(ptr)
     #define _sub_group_block_read_uc16(ptr) intel_sub_group_block_read_uc16(ptr)
-#else
+#elif (__OPENCL_C_VERSION__ >= 200)
     DECLARE_BLOCK_READ_EMULATION(1, 1)
     DECLARE_BLOCK_READ_EMULATION(1, 2)
     DECLARE_BLOCK_READ_EMULATION(1, 4)

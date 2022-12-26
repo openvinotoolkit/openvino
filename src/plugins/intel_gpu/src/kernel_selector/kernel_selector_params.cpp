@@ -16,14 +16,22 @@ DeviceFeaturesKey EngineInfo::get_supported_device_features_key() const {
     DeviceFeaturesKey k;
 
     if (supports_intel_subgroups) {
-        k.enable_subgroup_reduce();
-        k.enable_subgroup_broadcast();
         k.enable_subgroup_shuffle_relative();
     }
 
-    if (supports_khr_subgroups || supports_intel_subgroups) {
+    // Note: sub-group extension emulation is an experimental thing and may produce incorrect results in some cases.
+    // Several known issues are listed below:
+    // 1. Kernels with subgroups may be implemented for specific sub-group size which is controlled by cl_intel_required_subgroup_size extension.
+    //    If that extension is unsupported then such kernels may produce wrong result.
+    // 2. Offset for sub-group block read/write functions in some cases includes get_sub_group_local_id() value which seems to be processed correctly
+    //    by intel extension, but may produce wrong result for emulation path.
+    // If you face such kind of issue, you may want to disable emulation by setting enable_sub_groups_emulation = false in set_params() method
+    bool can_emulate_intel_subgroups = enable_sub_groups_emulation && supports_khr_subgroups && (CL_TARGET_OPENCL_VERSION >= 200);
+
+    if (can_emulate_intel_subgroups || supports_intel_subgroups) {
         k.enable_subgroups();
-        // if supports_intel_subgroups is not supported, then emulation will be used
+        k.enable_subgroup_reduce();
+        k.enable_subgroup_broadcast();
         k.enable_reqd_subgroup_size();
         k.enable_blocked_read_write();
         k.enable_subgroup_shuffle();

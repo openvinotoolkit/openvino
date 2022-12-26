@@ -62,7 +62,7 @@ inline uint FUNC(get_output_batch_offset)(uint b, uint f, uint w, uint z) {
 }
 
 // Optimized gemm kernel for fp16/fp32 inputs
-__attribute__((intel_reqd_sub_group_size(SIMD_WIDTH)))
+REQD_SUB_GROUP_SIZE(SIMD_WIDTH)
 __attribute__((reqd_work_group_size(SIMD_WIDTH, 1, 1)))
 KERNEL(gemm_tiled_opt)(
     const __global INPUT0_TYPE* input0,

@@ -297,9 +297,6 @@ KERNEL(fc)(
 #undef BIAS_BLOCK_READ
 #undef OUTPUT_BLOCK_WRITE
 
-#undef MIN
-#undef MAX
-
 #undef USE_BLOCK_WRITE
 
 #undef MAIN_LOOP_ELEMENTS_COUNT

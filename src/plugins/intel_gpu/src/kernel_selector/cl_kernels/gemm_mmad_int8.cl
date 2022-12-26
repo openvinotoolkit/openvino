@@ -3,7 +3,6 @@
 //
 
 #include "include/batch_headers/sub_group_block_read.cl"
-#include "include/batch_headers/sub_group_block_write.cl"
 #include "include/batch_headers/sub_group_shuffle.cl"
 #include "include/batch_headers/fetch_data.cl"
 #include "include/mmad.cl"

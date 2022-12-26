@@ -187,8 +187,8 @@ device_info init_device_info(const cl::Device& device) {
     info.supports_imad = get_imad_support(device);
     info.supports_immad = false;
 
-    info.supports_usm = extensions.find("cl_intel_unified_shared_memory") != std::string::npos ||
-                        extensions.find("cl_intel_unified_shared_memory_preview") != std::string::npos;
+    info.supports_usm = extensions.find("cl_intel_unified_shared_memory ") != std::string::npos ||
+                        extensions.find("cl_intel_unified_shared_memory_preview ") != std::string::npos;
 
     info.supports_local_block_io = extensions.find("cl_intel_subgroup_local_block_io ") != std::string::npos;
 

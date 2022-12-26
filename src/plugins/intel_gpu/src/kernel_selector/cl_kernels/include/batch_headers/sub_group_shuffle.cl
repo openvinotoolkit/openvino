@@ -8,7 +8,22 @@
 #define _sub_group_shuffle(v, c) intel_sub_group_shuffle(v, c)
 #define _sub_group_shuffle_up(c, n, d) intel_sub_group_shuffle_up(c, n, d)
 #define _sub_group_shuffle_down(c, n, d) intel_sub_group_shuffle_down(c, n, d)
-#else
+#elif (__OPENCL_C_VERSION__ >= 200)
+
+// The spec for intel_subgroup_shuffle says that index (c) need not be the same value for all work-items in
+// a subgroup while sub_group_broadcast requires that.
+// However, most of our kernels uses shuffle in a way that produces same index for all work-items,
+// so for now we use this solution.
+// In case of accuracy issues we may switch to something like this:
+// #define MAX_SG_SIZE 32
+// #define DECLARE_SUB_GROUP_SHUFFLE1(type, cast_type)
+// inline type _sub_group_shuffle(type v, uint c) __attribute__((overloadable)) {
+//     type vals[MAX_SG_SIZE];
+//     for (size_t i = 0; i < get_max_sub_group_size(); i++) {
+//         vals[i] = AS_TYPE(type, sub_group_broadcast(AS_TYPE(cast_type, v), i));
+//     }
+//     return vals[c];
+// }
 
 #define DECLARE_SUB_GROUP_SHUFFLE1(type, cast_type)                                               \
 inline type _sub_group_shuffle(type v, uint c) __attribute__((overloadable)) {                    \
