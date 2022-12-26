@@ -448,10 +448,17 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
         if (streamExecutorConfig._big_core_streams == 0 || streamExecutorConfig._threads) {
             UpdateHybridCustomThreads(streamExecutorConfig);
         }
-        OPENVINO_DEBUG << "[ p_e_core_info ] streams (threads): " << streamExecutorConfig._streams << "("
+        // temporary change for core binding refactor
+        if (streamExecutorConfig._big_core_streams * streamExecutorConfig._threads_per_stream_big > num_big_cores_phys) {
+            streamExecutorConfig._big_core_streams /= 2;
+            streamExecutorConfig._big_core_logic_streams = streamExecutorConfig._big_core_streams;
+        }
+        std::cout << "[ p_e_core_info ] streams (threads): " << streamExecutorConfig._streams << "("
                        << streamExecutorConfig._threads_per_stream_big * streamExecutorConfig._big_core_streams +
                               streamExecutorConfig._threads_per_stream_small * streamExecutorConfig._small_core_streams
                        << ") -- PCore: " << streamExecutorConfig._big_core_streams << "("
+                       << streamExecutorConfig._threads_per_stream_big
+                       << ") " << streamExecutorConfig._big_core_logic_streams << "("
                        << streamExecutorConfig._threads_per_stream_big
                        << ")  ECore: " << streamExecutorConfig._small_core_streams << "("
                        << streamExecutorConfig._threads_per_stream_small << ")";
@@ -474,9 +481,23 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
         streamExecutorConfig._threads ? streamExecutorConfig._threads : (envThreads ? envThreads : hwCores);
     streamExecutorConfig._threadsPerStream =
         streamExecutorConfig._streams ? std::max(1, threads / streamExecutorConfig._streams) : threads;
+    // temporary change for core binding refactor
+    if (streamExecutorConfig._big_core_streams == 0) {
+        streamExecutorConfig._big_core_streams = streamExecutorConfig._streams;
+        streamExecutorConfig._threads_per_stream_big = streamExecutorConfig._threadsPerStream;
+        if (streamExecutorConfig._big_core_streams * streamExecutorConfig._threads_per_stream_big > num_cores_default){
+            streamExecutorConfig._big_core_streams /= 2;
+            streamExecutorConfig._big_core_logic_streams = streamExecutorConfig._big_core_streams;
+        }
+    }
+    if (ThreadBindingType::HYBRID_AWARE == streamExecutorConfig._threadBindingType ||
+        ThreadBindingType::CORES == streamExecutorConfig._threadBindingType) {
+        streamExecutorConfig._bind_cores = true;
+    }
     streamExecutorConfig._threads =
         ThreadBindingType::HYBRID_AWARE == streamExecutorConfig._threadBindingType
-            ? streamExecutorConfig._big_core_streams * streamExecutorConfig._threads_per_stream_big +
+            ? (streamExecutorConfig._big_core_streams + streamExecutorConfig._big_core_logic_streams) *
+                      streamExecutorConfig._threads_per_stream_big +
                   streamExecutorConfig._small_core_streams * streamExecutorConfig._threads_per_stream_small
             : streamExecutorConfig._threadsPerStream * streamExecutorConfig._streams;
     return streamExecutorConfig;

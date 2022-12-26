@@ -132,4 +132,43 @@ INFERENCE_ENGINE_API_CPP(bool) with_cpu_x86_avx512_core_amx_bf16();
  */
 INFERENCE_ENGINE_API_CPP(bool) with_cpu_x86_avx512_core_amx();
 
+/**
+ * @brief      Checks whether CPU mapping Available
+ * @ingroup    ie_dev_api_system_conf
+ * @return     `True` is CPU mapping is available, `false` otherwise
+ */
+INFERENCE_ENGINE_API_CPP(bool) cpuMapAvailable();
+
+/**
+ * @brief      Returns offset of cores on Linux
+ * @ingroup    ie_dev_api_system_conf
+ * @param[in]  cpu_col col in cup_mapping.
+ * @return     Offset of CPU cores.
+ */
+INFERENCE_ENGINE_API_CPP(int) getCoreOffset(const int cpu_col);
+
+/**
+ * @brief      Returns step of threads on Linux
+ * @ingroup    ie_dev_api_system_conf
+ * @param[in]  cpu_col col in cup_mapping.
+ * @return     Step of threads.
+ */
+INFERENCE_ENGINE_API_CPP(int) getThreadStep(const int cpu_col);
+
+/**
+ * @enum CpuMapColumn
+ * @brief This enum contains columns of CPU map. Below is the structure of CPU map
+ *
+ * Proc ID | Socket ID | HW Core ID | Phy Core of Pcores | Logic Core of Pcores | ID of Ecore Group | Used
+ *
+ */
+enum CpuMapColumn : int {
+    CPU_MAP_SOCKET = 0,
+    CPU_MAP_CORE = 1,
+    CPU_MAP_PHY_CORE = 2,
+    CPU_MAP_LOG_CORE = 3,
+    CPU_MAP_SMALL_CORE = 4,
+    CPU_MAP_USED_PROC = 5
+};
+
 }  // namespace InferenceEngine
