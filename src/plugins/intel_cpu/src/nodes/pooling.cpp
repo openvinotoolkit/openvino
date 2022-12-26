@@ -363,8 +363,8 @@ void Pooling::prepareParams() {
                                                key.effective_dilation,
                                                key.data_pad_end);
         DnnlDesriptor desc{desc_ptr};
-        pooling_v2_forward::primitive_desc prim_desc;
         primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, key.attr);
+        pooling_v2_forward::primitive_desc prim_desc = itpd.get();
         while (static_cast<bool>(itpd)) {
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
 
@@ -373,7 +373,7 @@ void Pooling::prepareParams() {
                 break;
             }
             if (!itpd.next_impl())
-                return pooling_v2_forward();
+                break;
         }
         return pooling_v2_forward(prim_desc);
     };

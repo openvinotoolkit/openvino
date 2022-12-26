@@ -57,7 +57,7 @@ ConvolutionKernel_fs_byx_fsv32_1x1::AutoTuneOption ConvolutionKernel_fs_byx_fsv3
 
     const convolution_params& cp = static_cast<const convolution_params&>(arg);
 
-    ConvolutionKernel_fs_byx_fsv32_1x1::AutoTuneOption result = {1, 1, AGE_BASED};
+    ConvolutionKernel_fs_byx_fsv32_1x1::AutoTuneOption result = {1, 1, EXE_MODE_AGE_BASED};
 
     size_t selected_w = 0;
     size_t selected_h = 0;
@@ -94,7 +94,7 @@ ConvolutionKernel_fs_byx_fsv32_1x1::AutoTuneOption ConvolutionKernel_fs_byx_fsv3
         selected_w = maxBlockSize / selected_h;
     }
 
-    return {selected_w, selected_h, AGE_BASED};
+    return {selected_w, selected_h, EXE_MODE_AGE_BASED};
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_fs_byx_fsv32_1x1::SetDefault(const convolution_params& arg,

@@ -67,7 +67,7 @@ inline void DoTestBase(engine& engine,
     auto output_format = output->get_layout().format;
     auto output_shape = output->get_layout().get_tensor();
 
-    EXPECT_EQ(fmt, output_format);
+    ASSERT_EQ(fmt, output_format);
 
     int32_t dim_size = 6;
     if (fmt == format::bfyx) {
@@ -78,13 +78,13 @@ inline void DoTestBase(engine& engine,
 
     for (int32_t i = 0; i < dim_size; i++)
     {
-        EXPECT_EQ(ts.sizes()[i], output_shape.sizes()[i]);
+        ASSERT_EQ(ts.sizes()[i], output_shape.sizes()[i]);
     }
 
     // Compare output value
     cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
