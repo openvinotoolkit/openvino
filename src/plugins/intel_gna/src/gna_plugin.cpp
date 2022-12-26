@@ -344,15 +344,6 @@ GNAPlugin::GNAPlugin() :
     InitGNADevice();
 }
 
-std::string GNAPluginNS::GNAPlugin::GetCompileTarget() const {
-    if (gnadevice) {
-        return gnadevice->GetCompileTarget();
-    } else if (!config.gnaCompileTarget.empty()) {
-        return config.gnaCompileTarget;
-    }
-    return common::kGnaTarget3_0;
-}
-
 GNAPlugin::GNAPlugin(const std::map<std::string, std::string>& configMap) :
     graphCompiler(config) {
     Init();
@@ -669,7 +660,8 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     OV_ITT_SCOPED_TASK(itt::domains::GNAPlugin, "LoadNetwork");
     std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
 
-    std::string effectiveGnaCompileTargetValue = effectiveGnaCompileTarget();
+    const auto effectiveGnaCompileTargetValue = effectiveGnaCompileTarget();
+    graphCompiler.SetValidatorTarget(effectiveGnaCompileTargetValue);
 
     bool isNgraphPassesUsed = false;
     bool fake_quantized = false;
@@ -941,8 +933,6 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         gnaFlags->num_requests = 1;
     }
 
-    graphCompiler.SetValidatorTarget(GetCompileTarget());
-
     // keep inputs information and create input primitives
     inputs_data_map_ = newNet.getInputsInfo();
     if (inputs_data_map_.empty()) {
@@ -1130,9 +1120,12 @@ bool GNAPluginNS::GNAPlugin::isFP32ModeActive() const {
 std::string GNAPluginNS::GNAPlugin::effectiveGnaCompileTarget() const {
     if (gnadevice) {
         return gnadevice->GetCompileTarget();
+    } else if (!config.gnaCompileTarget.empty()) {
+        return config.gnaCompileTarget;
     }
-    return config.gnaCompileTarget;
+    return common::kGnaDefaultTarget;
 }
+
 std::shared_ptr<request::Worker> GNAPlugin::createWorkerForLoadNetwork(bool trivial, bool fp32Mode) {
     return createWorker(createModelWrapperForLoadNetwork(trivial), trivial, fp32Mode);
 }
@@ -1335,7 +1328,9 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap& inputs, Infer
         ++inputNum;
     }
 
-    freeWorker->enqueueRequest();
+    if (!freeWorker->enqueueRequest()) {
+        THROW_GNA_EXCEPTION << "Error with enqueueing inference request";
+    }
 
     freeWorker->setResult(result);
 
@@ -1351,7 +1346,13 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap& inputs, Infer
 }
 
 bool GNAPlugin::Wait(uint32_t request_idx) {
-    return RequestStatus::kCompleted == WaitFor(request_idx, MAX_TIMEOUT);
+    auto result = WaitFor(request_idx, MAX_TIMEOUT);
+
+    if (result == RequestStatus::kCompletedWithError) {
+        THROW_GNA_EXCEPTION << "Error when waiting for inference results!";
+    }
+
+    return result == RequestStatus::kCompleted;
 }
 
 RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
@@ -1367,6 +1368,10 @@ RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
     }
 
     const auto waitStatus = worker.wait(millisTimeout);
+
+    if (waitStatus == RequestStatus::kCompletedWithError) {
+        return waitStatus;
+    }
 
     if (waitStatus == RequestStatus::kAborted) {
         return waitStatus;
@@ -1528,7 +1533,7 @@ bool GNAPlugin::Infer(const InferenceEngine::Blob &input, InferenceEngine::Blob 
 }
 
 bool GNAPlugin::Infer(const InferenceEngine::BlobMap &input, InferenceEngine::BlobMap &result) {
-    return  Wait(QueueInference(input, result));
+    return Wait(QueueInference(input, result));
 }
 
 static InferenceEngine::Layout GetLayoutForDims(const InferenceEngine::SizeVector &dims) {

@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-#include <queue>
-
-#include "openvino/opsets/opset9.hpp"
 #include "transformations/common_optimizations/gru_cell_fusion.hpp"
 
+#include <gtest/gtest.h>
+
+#include <queue>
+
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "openvino/opsets/opset9.hpp"
 
 using namespace std;
 using namespace ov;
@@ -18,12 +19,9 @@ using namespace testing;
 
 namespace {
 
-enum class WeightsFormat {
-    zr,
-    rz
-};
+enum class WeightsFormat { zr, rz };
 
-Output <Node> create_activation_by_name(const string &activation_name, const Output <Node> &input) {
+Output<Node> create_activation_by_name(const string& activation_name, const Output<Node>& input) {
     if (activation_name == "sigmoid") {
         return make_shared<Sigmoid>(input);
     } else if (activation_name == "tanh") {
@@ -34,9 +32,15 @@ Output <Node> create_activation_by_name(const string &activation_name, const Out
     OPENVINO_ASSERT(false, "Unsupported activation function");
 }
 
-shared_ptr<Model> gen_model(WeightsFormat format, const string& activation_1, const string& activation_2,
-                            size_t batch, size_t hidden_size, size_t input_size,
-                            bool use_bias_add_1, bool use_bias_add_2, bool use_dyn_shapes) {
+shared_ptr<Model> gen_model(WeightsFormat format,
+                            const string& activation_1,
+                            const string& activation_2,
+                            size_t batch,
+                            size_t hidden_size,
+                            size_t input_size,
+                            bool use_bias_add_1,
+                            bool use_bias_add_2,
+                            bool use_dyn_shapes) {
     int r_idx = 0, z_idx = 1;
     if (format == WeightsFormat::zr) {
         swap(r_idx, z_idx);
@@ -78,8 +82,14 @@ shared_ptr<Model> gen_model(WeightsFormat format, const string& activation_1, co
     return make_shared<Model>(OutputVector{add}, ParameterVector{X, H, WRzr, WRh, Bzr, Bh});
 }
 
-shared_ptr<Model> gen_reference(WeightsFormat format, const string& activation_1, const string& activation_2, size_t batch, size_t hidden_size,
-                                    size_t input_size, bool use_bias_add_1, bool use_bias_add_2) {
+shared_ptr<Model> gen_reference(WeightsFormat format,
+                                const string& activation_1,
+                                const string& activation_2,
+                                size_t batch,
+                                size_t hidden_size,
+                                size_t input_size,
+                                bool use_bias_add_1,
+                                bool use_bias_add_2) {
     auto X = make_shared<Parameter>(f32, Shape{batch, input_size});
     auto H = make_shared<Parameter>(f32, Shape{batch, hidden_size});
     auto WR = make_shared<Parameter>(f32, Shape{2 * hidden_size, input_size + hidden_size});
@@ -111,16 +121,19 @@ shared_ptr<Model> gen_reference(WeightsFormat format, const string& activation_1
         auto split_WRrz = make_shared<VariadicSplit>(WR, axis_1, split_lenghts);
         auto split_W_r_z = make_shared<Split>(split_WRrz->output(0), axis_0, 2);
         auto split_R_r_z = make_shared<Split>(split_WRrz->output(1), axis_0, 2);
-        Wzrh = make_shared<Concat>(OutputVector{split_W_r_z->output(1), split_W_r_z->output(0), split_WRh->output(0)}, 0);
-        Rzrh = make_shared<Concat>(OutputVector{split_R_r_z->output(1), split_R_r_z->output(0), split_WRh->output(1)}, 0);
+        Wzrh =
+            make_shared<Concat>(OutputVector{split_W_r_z->output(1), split_W_r_z->output(0), split_WRh->output(0)}, 0);
+        Rzrh =
+            make_shared<Concat>(OutputVector{split_R_r_z->output(1), split_R_r_z->output(0), split_WRh->output(1)}, 0);
     }
     auto B = make_shared<Concat>(OutputVector{Bzr, Bh}, 1);
 
     auto squeeze_B = make_shared<Squeeze>(B, axis_0);
-    auto cell = make_shared<GRUCell>(X, H, Wzrh, Rzrh, squeeze_B, hidden_size, vector<string>{activation_1, activation_2});
-    return make_shared<Model>(OutputVector {cell}, params);
+    auto cell =
+        make_shared<GRUCell>(X, H, Wzrh, Rzrh, squeeze_B, hidden_size, vector<string>{activation_1, activation_2});
+    return make_shared<Model>(OutputVector{cell}, params);
 }
-} // namespace
+}  // namespace
 
 struct GRUFusionParams {
     WeightsFormat format;
@@ -133,52 +146,68 @@ struct GRUFusionParams {
     bool use_bias_add_2;
 };
 
-class GRUFusionTest
-        : public WithParamInterface<GRUFusionParams>,
-          public TransformationTestsF {
-};
+class GRUFusionTest : public WithParamInterface<GRUFusionParams>, public TransformationTestsF {};
 
 TEST_P(GRUFusionTest, GRUCellPattern) {
     const auto& p = GetParam();
     {
-        model = gen_model(p.format, p.activation_1, p.activation_2, p.batch,
-                             p.hidden_size, p.input_size, p.use_bias_add_1, p.use_bias_add_2, false);
+        model = gen_model(p.format,
+                          p.activation_1,
+                          p.activation_2,
+                          p.batch,
+                          p.hidden_size,
+                          p.input_size,
+                          p.use_bias_add_1,
+                          p.use_bias_add_2,
+                          false);
         manager.register_pass<pass::GRUCellFusion>();
     }
 
     {
-        model_ref = gen_reference(p.format, p.activation_1, p.activation_2, p.batch,
-                                     p.hidden_size, p.input_size, p.use_bias_add_1, p.use_bias_add_2);
+        model_ref = gen_reference(p.format,
+                                  p.activation_1,
+                                  p.activation_2,
+                                  p.batch,
+                                  p.hidden_size,
+                                  p.input_size,
+                                  p.use_bias_add_1,
+                                  p.use_bias_add_2);
     }
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
-class GRUFusionTestDyn
-        : public WithParamInterface<GRUFusionParams>, public TransformationTestsF {
-};
+class GRUFusionTestDyn : public WithParamInterface<GRUFusionParams>, public TransformationTestsF {};
 
 TEST_P(GRUFusionTestDyn, GRUCellPatternDynamicShapes) {
     const auto& p = GetParam();
     {
-        model = gen_model(p.format, p.activation_1, p.activation_2, p.batch, p.hidden_size, p.input_size, false, false, true);
-        manager.register_pass<pass::GRUCellFusion>(); // the transformation won't be applied
+        model = gen_model(p.format,
+                          p.activation_1,
+                          p.activation_2,
+                          p.batch,
+                          p.hidden_size,
+                          p.input_size,
+                          false,
+                          false,
+                          true);
+        manager.register_pass<pass::GRUCellFusion>();  // the transformation won't be applied
     }
 }
 
 static const vector<GRUFusionParams> params = {
-        GRUFusionParams{WeightsFormat::zr, "sigmoid", "tanh", 1, 1, 1, true, true},
-        GRUFusionParams{WeightsFormat::zr, "tanh", "sigmoid", 2, 128, 32, true, true},
-        GRUFusionParams{WeightsFormat::zr, "tanh", "tanh", 2, 128, 32, true, false},
-        GRUFusionParams{WeightsFormat::zr, "sigmoid", "relu", 2, 128, 32, false, false},
-        GRUFusionParams{WeightsFormat::rz, "sigmoid", "tanh", 1, 1, 1, true, true},
-        GRUFusionParams{WeightsFormat::rz, "tanh", "sigmoid", 2, 128, 32, true, true},
-        GRUFusionParams{WeightsFormat::rz, "tanh", "tanh", 2, 128, 32, true, false},
-        GRUFusionParams{WeightsFormat::rz, "sigmoid", "relu", 2, 128, 32, false, false},
-        // 92424: accuracy issue, it looks like the test infrastructure issue, the graphs are the same.
-        // GRUFusionParams{WeightsFormat::zr, "relu", "tanh", 2, 128, 32, false, true},
-        // GRUFusionParams{WeightsFormat::rz, "relu", "tanh", 2, 128, 32, false, true},
+    GRUFusionParams{WeightsFormat::zr, "sigmoid", "tanh", 1, 1, 1, true, true},
+    GRUFusionParams{WeightsFormat::zr, "tanh", "sigmoid", 2, 128, 32, true, true},
+    GRUFusionParams{WeightsFormat::zr, "tanh", "tanh", 2, 128, 32, true, false},
+    GRUFusionParams{WeightsFormat::zr, "sigmoid", "relu", 2, 128, 32, false, false},
+    GRUFusionParams{WeightsFormat::rz, "sigmoid", "tanh", 1, 1, 1, true, true},
+    GRUFusionParams{WeightsFormat::rz, "tanh", "sigmoid", 2, 128, 32, true, true},
+    GRUFusionParams{WeightsFormat::rz, "tanh", "tanh", 2, 128, 32, true, false},
+    GRUFusionParams{WeightsFormat::rz, "sigmoid", "relu", 2, 128, 32, false, false},
+    // 92424: accuracy issue, it looks like the test infrastructure issue, the graphs are the same.
+    // GRUFusionParams{WeightsFormat::zr, "relu", "tanh", 2, 128, 32, false, true},
+    // GRUFusionParams{WeightsFormat::rz, "relu", "tanh", 2, 128, 32, false, true},
 };
 
 INSTANTIATE_TEST_SUITE_P(GRUFusionTest, GRUFusionTest, ValuesIn(params));

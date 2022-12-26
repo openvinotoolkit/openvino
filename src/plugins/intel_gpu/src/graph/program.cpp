@@ -719,17 +719,12 @@ void program::transfer_memory_to_device() {
 
 
             if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
-                GPU_DEBUG_GET_INSTANCE(debug_config);
-                GPU_DEBUG_IF(debug_config->verbose >= 2) {
-                    GPU_DEBUG_COUT << "[" << data_node.id() << ": constant]" << std::endl;
-                }
+                GPU_DEBUG_LOG << "[" << data_node.id() << ": constant]" << std::endl;
                 // Allocate and transfer memory
                 auto device_mem = mem.get_engine()->allocate_memory(data_node_layout, allocation_type::usm_device, false);
                 device_mem->copy_from(get_stream(), mem);
                 data_node.attach_memory(device_mem);
-                GPU_DEBUG_IF(debug_config->verbose >= 2) {
-                    GPU_DEBUG_COUT << "[" << data_node.id() << ": constant]" << std::endl;
-                }
+                GPU_DEBUG_LOG << "[" << data_node.id() << ": constant]" << std::endl;
                 const_cast<memory::ptr&>(data_node.get_primitive()->mem).reset();
                 // TODO: Do we need finish call here? Maybe call it in network::execute() ?
                 get_stream().finish();
@@ -1487,6 +1482,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
              || (prim.as<mvn>().input().get_output_layout().data_type != data_types::u8 &&
                  prim.as<mvn>().input().get_output_layout().data_type != data_types::i8)
              || prim.as<mvn>().get_primitive()->across_channels) &&
+            prim.type() != cldnn::arg_max_min::type_id() &&
             prim.type() != cldnn::dft::type_id() &&
             prim.type() != cldnn::grid_sample::type_id() &&
             prim.type() != cldnn::mutable_data::type_id() &&
@@ -1655,7 +1651,6 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
               });
     auto& engine = get_engine();
     int64_t host_alloc = 0;
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     // just to prevent the memories from being freed during allocation
     std::unordered_set<memory::ptr> allocated_mem_ptrs;
     for (const auto& node : nodes_to_allocate) {
@@ -1675,10 +1670,8 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
         if (engine.get_device_info().dev_type == cldnn::device_type::integrated_gpu)
             total_host_alloc_size += engine.get_used_device_memory(allocation_type::usm_device);
         if ((cur_vmem != -1 && total_host_alloc_size > cur_vmem * 0.5) || (total_host_alloc_size >= max_global_mem_size)) {
-            GPU_DEBUG_IF(debug_config->verbose >= 1) {
-                GPU_DEBUG_COUT << "Estimated host mem usage calculated with default base batch size(16) exceeds the available memory ("
-                    << cur_vmem << ")" << std::endl;
-            }
+            GPU_DEBUG_INFO << "Estimated host mem usage calculated with default base batch size(16) exceeds the available memory ("
+                           << cur_vmem << ")" << std::endl;
             return {-1L, -1L};
         }
         #endif

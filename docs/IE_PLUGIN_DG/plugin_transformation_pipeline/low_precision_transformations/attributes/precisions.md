@@ -1,4 +1,4 @@
-# Precisions attribute {#openvino_docs_OV_UG_lpt_Precisions}
+# Precisions Attribute {#openvino_docs_OV_UG_lpt_Precisions}
 
 ngraph::PrecisionsAttribute class represents the `Precisions` attribute.
 

@@ -200,6 +200,35 @@ void warn_if_no_batch(const benchmark_app::InputsInfo& first_inputs) {
             << slog::endl;
     }
 }
+
+void fuse_mean_scale(ov::preprocess::PrePostProcessor& preproc, const benchmark_app::InputsInfo& app_inputs_info) {
+    // TODO: remove warning after 23.3 release
+    bool warned = false;
+    constexpr char warn_msg[] = "Mean/scale values are fused into the model. This slows down performance compared to "
+                                "--imean and --iscale which existed before";
+    for (const std::pair<std::string, benchmark_app::InputInfo>& input_info : app_inputs_info) {
+        if (!input_info.second.mean.empty()) {
+            if (!warned) {
+                slog::warn << warn_msg << slog::endl;
+                warned = true;
+            }
+            preproc.input(input_info.first)
+                .preprocess()
+                .convert_element_type(ov::element::f32)
+                .mean(input_info.second.mean);
+        }
+        if (!input_info.second.scale.empty()) {
+            if (!warned) {
+                slog::warn << warn_msg << slog::endl;
+                warned = true;
+            }
+            preproc.input(input_info.first)
+                .preprocess()
+                .convert_element_type(ov::element::f32)
+                .scale(input_info.second.scale);
+        }
+    }
+}
 }  // namespace
 
 /**
@@ -600,12 +629,17 @@ int main(int argc, char* argv[]) {
 
         // If set batch size, disable the auto batching
         if (FLAGS_b > 0) {
+            slog::warn << "Batch size is set. Auto batching will be disabled" << slog::endl;
             core.set_property(ov::hint::allow_auto_batching(false));
         }
 
         bool isDynamicNetwork = false;
 
         if (FLAGS_load_from_file && !isNetworkCompiled) {
+            if (!FLAGS_mean_values.empty() || !FLAGS_scale_values.empty()) {
+                throw std::runtime_error("--mean_values and --scale_values aren't supported with --load_from_file. "
+                                         "The values can be set via model_optimizer while generating xml");
+            }
             next_step();
             slog::info << "Skipping the step for loading model from file" << slog::endl;
             next_step();
@@ -630,8 +664,8 @@ int main(int argc, char* argv[]) {
                                               batchSize,
                                               FLAGS_data_shape,
                                               inputFiles,
-                                              FLAGS_iscale,
-                                              FLAGS_imean,
+                                              FLAGS_scale_values,
+                                              FLAGS_mean_values,
                                               compiledModel.inputs());
             if (batchSize == 0) {
                 batchSize = 1;
@@ -677,8 +711,8 @@ int main(int argc, char* argv[]) {
                                               FLAGS_b,
                                               FLAGS_data_shape,
                                               inputFiles,
-                                              FLAGS_iscale,
-                                              FLAGS_imean,
+                                              FLAGS_scale_values,
+                                              FLAGS_mean_values,
                                               inputInfo,
                                               reshape);
             if (reshape) {
@@ -751,6 +785,8 @@ int main(int argc, char* argv[]) {
                 }
             }
 
+            fuse_mean_scale(preproc, app_inputs_info.at(0));
+
             const auto& outs = model->outputs();
             for (int i = 0; i < outs.size(); i++) {
                 const auto& item = outs[i];
@@ -798,6 +834,10 @@ int main(int argc, char* argv[]) {
                     StatisticsReport::Category::EXECUTION_RESULTS,
                     {StatisticsVariant("compile model time (ms)", "load_model_time", duration_ms)});
         } else {
+            if (!FLAGS_mean_values.empty() || !FLAGS_scale_values.empty()) {
+                throw std::runtime_error("--mean_values and --scale_values aren't supported for compiled model. "
+                                         "The values can be set via model_optimizer while generating xml");
+            }
             next_step();
             slog::info << "Skipping the step for compiled model" << slog::endl;
             next_step();
@@ -832,8 +872,8 @@ int main(int argc, char* argv[]) {
                                               FLAGS_b,
                                               FLAGS_data_shape,
                                               inputFiles,
-                                              FLAGS_iscale,
-                                              FLAGS_imean,
+                                              FLAGS_scale_values,
+                                              FLAGS_mean_values,
                                               compiledModel.inputs());
             if (batchSize == 0) {
                 batchSize = 1;

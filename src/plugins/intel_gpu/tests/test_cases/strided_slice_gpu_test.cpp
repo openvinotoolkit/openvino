@@ -53,8 +53,8 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_full) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -66,7 +66,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_full) {
     ASSERT_EQ(output_ptr.size(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -110,8 +110,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_full) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -123,7 +123,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_full) {
     ASSERT_EQ(output_ptr.size(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -167,8 +167,8 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_ignore) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -182,7 +182,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_ignore) {
     ASSERT_EQ(output_ptr.size(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -226,8 +226,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_ignore) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -241,7 +241,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_ignore) {
     ASSERT_EQ(output_ptr.size(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -285,8 +285,8 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_single) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -297,7 +297,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_single) {
     ASSERT_EQ(output_ptr.size(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -341,8 +341,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_single) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -353,7 +353,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_single) {
     ASSERT_EQ(output_ptr.size(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -401,8 +401,8 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x4x3_stride) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -416,7 +416,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x4x3_stride) {
     ASSERT_EQ(output_ptr.size(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -464,8 +464,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x4x3_stride) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -479,7 +479,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x4x3_stride) {
     ASSERT_EQ(output_ptr.size(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -540,8 +540,8 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x4x4_part_stride) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -562,7 +562,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x4x4_part_stride) {
     ASSERT_EQ(output_ptr.size(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -623,8 +623,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x4x4_part_stride) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -645,7 +645,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x4x4_part_stride) {
     ASSERT_EQ(output_ptr.size(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -687,8 +687,8 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x4x1_new_axis_mask) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -701,7 +701,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x4x1_new_axis_mask) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -743,8 +743,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x4x1_new_axis_mask) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -757,7 +757,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x4x1_new_axis_mask) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -798,8 +798,8 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x1x1_new_axis_mask_2) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -811,7 +811,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x1x1_new_axis_mask_2) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -852,8 +852,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x1x1_new_axis_mask_2) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -865,7 +865,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x1x1_new_axis_mask_2) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -905,8 +905,8 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x1x1) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -918,7 +918,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x1x1) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -958,8 +958,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x1x1) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -971,7 +971,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x1x1) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1011,8 +1011,8 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x1x1) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -1024,7 +1024,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x1x1) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1064,8 +1064,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -1077,7 +1077,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1118,8 +1118,8 @@ TEST(strided_slice_gpu_i8_i64, test_2x2x2x1x1) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -1130,7 +1130,7 @@ TEST(strided_slice_gpu_i8_i64, test_2x2x2x1x1) {
     cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1170,8 +1170,8 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x1x1_2) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -1183,7 +1183,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x1x1_2) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1223,8 +1223,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -1236,7 +1236,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1280,8 +1280,8 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_full_negative_stride) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -1293,7 +1293,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_full_negative_stride) {
     ASSERT_EQ(output_ptr.size(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1337,8 +1337,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_full_negative_stride) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -1350,7 +1350,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_full_negative_stride) {
     ASSERT_EQ(output_ptr.size(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1390,8 +1390,8 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x1x1_2_negative_all) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -1403,7 +1403,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x1x1_2_negative_all) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1443,8 +1443,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2_negative_all) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -1456,7 +1456,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2_negative_all) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1493,8 +1493,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2_negative_all_dynamic) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -1506,7 +1506,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2_negative_all_dynamic) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1537,8 +1537,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2_negative_all_dynamic_begin) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -1550,6 +1550,6 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2_negative_all_dynamic_begin) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }

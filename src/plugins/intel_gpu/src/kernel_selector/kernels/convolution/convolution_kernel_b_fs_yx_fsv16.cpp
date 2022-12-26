@@ -40,18 +40,18 @@ ConvolutionKernel_b_fs_yx_fsv16::AutoTuneOption ConvolutionKernel_b_fs_yx_fsv16:
     auto f = cp.outputs[0].Feature().v;
     if (x * f <= 256) {
         if (x <= 8 || x * f <= 128)
-            return { 2, DEFAULT };
+            return { 2, EXE_MODE_DEFAULT };
         else
-            return { 4, DEFAULT };
+            return { 4, EXE_MODE_DEFAULT };
     } else if (x * f <= 1536) {
-        return { 4, DEFAULT };
+        return { 4, EXE_MODE_DEFAULT };
     } else {
         if (x >= 8  && x < 12 && x * f < 2600)
-            return { 4, DEFAULT };
+            return { 4, EXE_MODE_DEFAULT };
         else if (x < 12 && x * f < 8192)
-            return { 8, DEFAULT };
+            return { 8, EXE_MODE_DEFAULT };
         else
-            return { 8, AGE_BASED };
+            return { 8, EXE_MODE_AGE_BASED };
     }
 }
 
