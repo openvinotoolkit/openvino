@@ -55,7 +55,7 @@ CompiledModel::CompiledModel(InferenceEngine::CNNNetwork &network,
     m_config(config),
     m_taskExecutor{ _taskExecutor },
     m_waitExecutor(executorManager()->getIdleCPUStreamsExecutor({ "GPUWaitExecutor" })) {
-    auto graph_base = std::make_shared<Graph>(network, m_context, m_config, new_conf, 0);
+    auto graph_base = std::make_shared<Graph>(network, get_context_impl(m_context), m_config, new_conf, 0);
     for (uint16_t n = 0; n < m_config.throughput_streams; n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
         m_graphs.push_back(graph);
@@ -102,7 +102,8 @@ CompiledModel::CompiledModel(std::istream& networkModel, InferenceEngine::gpu::C
     m_config(config),
     m_taskExecutor{ _taskExecutor },
     m_waitExecutor(executorManager()->getIdleCPUStreamsExecutor({ "GPUWaitExecutor" })) {
-    auto& engine = get_context_impl(m_context)->get_engine();
+    auto context_impl = get_context_impl(m_context);
+    auto& engine = context_impl->get_engine();
 
     cldnn::BinaryInputBuffer ib(networkModel, engine);
 
@@ -250,7 +251,7 @@ CompiledModel::CompiledModel(std::istream& networkModel, InferenceEngine::gpu::C
         setOutputs(new_results);
     }
 
-    auto graph_base = std::make_shared<Graph>(ib, m_context, m_config, new_conf, 0);
+    auto graph_base = std::make_shared<Graph>(ib, context_impl, m_config, new_conf, 0);
     for (uint16_t n = 0; n < m_config.throughput_streams; n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
         m_graphs.push_back(graph);

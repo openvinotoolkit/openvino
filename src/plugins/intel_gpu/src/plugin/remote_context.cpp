@@ -230,7 +230,7 @@ InferenceEngine::RemoteBlob::Ptr RemoteContextImpl::create_usm(InferenceEngine::
 }
 
 void RemoteContextImpl::check_if_shared() {
-    OPENVINO_ASSERT(m_type != RemoteContextImpl::ContextType::DEV_SHARED, "[GPU] Shared context is required to to share this type of memory");
+    OPENVINO_ASSERT(m_type == RemoteContextImpl::ContextType::DEV_SHARED, "[GPU] Shared context is required to to share this type of memory");
 }
 
 InferenceEngine::MemoryBlob::Ptr RemoteContextImpl::create_host_blob(InferenceEngine::gpu::ClContext::Ptr public_context,

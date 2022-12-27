@@ -70,6 +70,7 @@ private:
     bool m_useStreams = false;
     bool m_useExternalQueue = false;
     std::shared_ptr<Graph> m_graph;
+    InferenceEngine::gpu::ClContext::Ptr m_context = nullptr;
 
     InferenceEngine::IStreamsExecutor* streamExecutor = nullptr;
 

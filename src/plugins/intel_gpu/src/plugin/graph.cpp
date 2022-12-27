@@ -45,7 +45,7 @@ using namespace InferenceEngine::details;
 namespace ov {
 namespace intel_gpu {
 
-Graph::Graph(InferenceEngine::CNNNetwork& network, InferenceEngine::gpu::ClContext::Ptr context, Config config, ExecutionConfig exec_config, uint16_t stream_id)
+Graph::Graph(InferenceEngine::CNNNetwork& network, RemoteContextImpl::Ptr context, Config config, ExecutionConfig exec_config, uint16_t stream_id)
     : m_context(context)
     , m_networkName(network.getName())
     , m_config(config)
@@ -58,7 +58,7 @@ Graph::Graph(InferenceEngine::CNNNetwork& network, InferenceEngine::gpu::ClConte
     Build();
 }
 
-Graph::Graph(cldnn::BinaryInputBuffer &ib, InferenceEngine::gpu::ClContext::Ptr context, Config config, ExecutionConfig exec_config, uint16_t stream_id)
+Graph::Graph(cldnn::BinaryInputBuffer &ib, RemoteContextImpl::Ptr context, Config config, ExecutionConfig exec_config, uint16_t stream_id)
     : m_context(context)
     , m_config(config)
     , m_exec_config(exec_config)
@@ -132,14 +132,14 @@ void Graph::Build() {
 }
 
 bool Graph::use_external_queue() const {
-    return get_context_impl(m_context)->get_external_queue() != nullptr;
+    return m_context->get_external_queue() != nullptr;
 }
 
 std::shared_ptr<cldnn::network> Graph::BuildNetwork(std::shared_ptr<cldnn::program> program) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Graph::BuildNetwork");
     std::shared_ptr<cldnn::network> network = nullptr;
 
-    auto externalQueue = get_context_impl(m_context)->get_external_queue();
+    auto externalQueue = m_context->get_external_queue();
     if (externalQueue) {
         if (m_config.throughput_streams != 1)
             IE_THROW(ParameterMismatch) << "Throughput streams can't be used with shared queue!\n";

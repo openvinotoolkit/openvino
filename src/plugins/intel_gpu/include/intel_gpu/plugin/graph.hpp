@@ -42,11 +42,11 @@ public:
     using variable_states_map = std::map<std::string, std::vector<cldnn::network::VariableState::Ptr>>;
 
     Graph(InferenceEngine::CNNNetwork& network,
-          InferenceEngine::gpu::ClContext::Ptr context,
+          RemoteContextImpl::Ptr context,
           Config config,
           ExecutionConfig exec_config,
           uint16_t stream_id = 0);
-    Graph(cldnn::BinaryInputBuffer& ib, InferenceEngine::gpu::ClContext::Ptr context, Config config, ExecutionConfig exec_config, uint16_t stream_id = 0);
+    Graph(cldnn::BinaryInputBuffer& ib, RemoteContextImpl::Ptr context, Config config, ExecutionConfig exec_config, uint16_t stream_id = 0);
     explicit Graph(std::shared_ptr<Graph> graph, uint16_t stream_id = 0);
     void Export(cldnn::BinaryOutputBuffer &ob);
     std::shared_ptr<ngraph::Function> GetExecGraphInfo();
@@ -57,8 +57,7 @@ public:
     void UpdatePerfStatistics();
 
     const Config& get_config() const { return m_config; }
-    InferenceEngine::gpu::ClContext::Ptr get_context() const { return m_context; }
-    cldnn::engine& get_engine() const { return get_context_impl(m_context)->get_engine(); }
+    cldnn::engine& get_engine() const { return m_context->get_engine(); }
 
     int GetMaxDynamicBatchSize() const { return get_config().max_dynamic_batch; }
     const std::map<std::string, cldnn::layout>& GetInputLayouts() const { return m_program->GetInputLayouts(); }
@@ -91,7 +90,7 @@ public:
     bool use_external_queue() const;
 
 protected:
-    InferenceEngine::gpu::ClContext::Ptr m_context;
+    RemoteContextImpl::Ptr m_context;
     std::shared_ptr<Program> m_program;
     std::string m_networkName;
     Config m_config;

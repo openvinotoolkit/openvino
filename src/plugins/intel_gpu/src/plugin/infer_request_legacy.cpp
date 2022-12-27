@@ -621,6 +621,8 @@ InferRequestLegacy::InferRequestLegacy(InputsDataMap networkInputs, OutputsDataM
         : IInferRequestInternal(networkInputs, networkOutputs) {
     IE_ASSERT(nullptr != execNetwork);
     streamExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(execNetwork->m_taskExecutor.get());
+    m_context = std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>(execNetwork->GetContext());
+    OPENVINO_ASSERT(m_context != nullptr, "[GPU] Can't initialize context of InferRequest: wrong context type");
 }
 
 InferRequestLegacy::InferRequestLegacy(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
@@ -629,6 +631,8 @@ InferRequestLegacy::InferRequestLegacy(const std::vector<std::shared_ptr<const o
         : IInferRequestInternal(inputs, outputs) {
     IE_ASSERT(nullptr != execNetwork);
     streamExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(execNetwork->m_taskExecutor.get());
+    m_context = std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>(execNetwork->GetContext());
+    OPENVINO_ASSERT(m_context != nullptr, "[GPU] Can't initialize context of InferRequest: wrong context type");
 }
 
 // ----------------------------------------------------------------------------------------- //
@@ -700,7 +704,7 @@ void InferRequestLegacy::enqueue() {
                                      FormatFromTensorDesc(blobsDesc),
                                      tensor_from_dims(blobsDesc.getDims()));
 
-                auto mergedBlobs = std::make_shared<RemoteCLbuffer>(m_graph->get_context(),
+                auto mergedBlobs = std::make_shared<RemoteCLbuffer>(m_context,
                                                                     m_graph->GetNetwork()->get_stream(),
                                                                     blobsDesc,
                                                                     layout);
@@ -916,7 +920,7 @@ Blob::Ptr InferRequestLegacy::create_host_blob(const TensorDesc& desc, std::shar
 }
 
 Blob::Ptr InferRequestLegacy::create_shared_device_blob(const InferenceEngine::TensorDesc& desc, const cldnn::layout& layout, void* usm_host_mem) {
-    auto blob = std::make_shared<RemoteUSMbuffer>(m_graph->get_context(),
+    auto blob = std::make_shared<RemoteUSMbuffer>(m_context,
                                                   m_graph->GetNetwork()->get_stream(),
                                                   desc,
                                                   layout,
@@ -1045,7 +1049,7 @@ void InferRequestLegacy::allocate_inputs() {
                 if (m_graph->get_engine().use_unified_shared_memory()) {
                     // For USM case we create host blob using custom USM host allocator
                     // and then create shared device blob on top of this buffer
-                    auto host_blob = create_host_blob(desc, std::make_shared<USMHostAllocator>(m_graph->get_context()));
+                    auto host_blob = create_host_blob(desc, std::make_shared<USMHostAllocator>(m_context));
                     _inputs[name] = host_blob;
                     _deviceInputs[name] = create_shared_device_blob(desc, litr->second, host_blob->buffer().as<void*>());
                 } else {
@@ -1108,7 +1112,7 @@ void InferRequestLegacy::allocate_outputs() {
             if (m_graph->get_engine().use_unified_shared_memory()) {
                 // For USM case we create host blob using custom USM host allocator
                 // and then create shared device blob on top of this buffer
-                auto host_blob = create_host_blob(desc, std::make_shared<USMHostAllocator>(m_graph->get_context()));
+                auto host_blob = create_host_blob(desc, std::make_shared<USMHostAllocator>(m_context));
                 _outputs[no.first] = host_blob;
                 _deviceOutputs[no.first] = create_shared_device_blob(desc, output_layout, host_blob->buffer().as<void*>());
             } else {
@@ -1249,7 +1253,7 @@ void InferRequestLegacy::prepare_output(const cldnn::primitive_id& outputName, B
 
 InferenceEngine::Blob::Ptr InferRequestLegacy::create_device_blob(const InferenceEngine::TensorDesc& desc, const cldnn::layout& layout) {
     if (m_graph->get_engine().use_unified_shared_memory()) {
-        auto blobPtr = std::make_shared<RemoteUSMbuffer>(m_graph->get_context(),
+        auto blobPtr = std::make_shared<RemoteUSMbuffer>(m_context,
                                                          m_graph->GetNetwork()->get_stream(),
                                                          desc,
                                                          layout,
@@ -1261,7 +1265,7 @@ InferenceEngine::Blob::Ptr InferRequestLegacy::create_device_blob(const Inferenc
         checkAlloc(blobPtr, str_device_mem_not_allocated);
         return blobPtr;
     } else {
-        auto blobPtr = std::make_shared<RemoteCLbuffer>(m_graph->get_context(),
+        auto blobPtr = std::make_shared<RemoteCLbuffer>(m_context,
                                                         m_graph->GetNetwork()->get_stream(),
                                                         desc,
                                                         layout);

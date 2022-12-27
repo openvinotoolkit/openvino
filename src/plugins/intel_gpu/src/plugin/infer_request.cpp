@@ -391,18 +391,22 @@ void InferRequest::SetGraph(std::shared_ptr<Graph> graph) {
 }
 
 InferRequest::InferRequest(InputsDataMap networkInputs, OutputsDataMap networkOutputs,
-                                     const CompiledModel::Ptr& execNetwork)
+                           const CompiledModel::Ptr& execNetwork)
         : IInferRequestInternal(networkInputs, networkOutputs) {
     IE_ASSERT(nullptr != execNetwork);
     streamExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(execNetwork->m_taskExecutor.get());
+    m_context = std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>(execNetwork->GetContext());
+    OPENVINO_ASSERT(m_context != nullptr, "[GPU] Can't initialize context of InferRequest: wrong context type");
 }
 
 InferRequest::InferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
-                                     const std::vector<std::shared_ptr<const ov::Node>>& outputs,
-                                     const CompiledModel::Ptr& execNetwork)
+                           const std::vector<std::shared_ptr<const ov::Node>>& outputs,
+                           const CompiledModel::Ptr& execNetwork)
         : IInferRequestInternal(inputs, outputs) {
     IE_ASSERT(nullptr != execNetwork);
     streamExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(execNetwork->m_taskExecutor.get());
+    m_context = std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>(execNetwork->GetContext());
+    OPENVINO_ASSERT(m_context != nullptr, "[GPU] Can't initialize context of InferRequest: wrong context type");
 }
 
 // ----------------------------------------------------------------------------------------- //
@@ -593,7 +597,7 @@ Blob::Ptr InferRequest::create_host_blob(const TensorDesc& desc, bool is_dynamic
     // Disable USM usage as USMHostAllocator may fail for attempt to allocate 0 bytes
     // If we add WA for such case to avoid driver call, then deallocate method will return false and Blob::setShape call will throw an exception
     bool use_usm = m_graph->get_engine().use_unified_shared_memory() && !is_dynamic;
-    auto alloc = use_usm ? std::make_shared<USMHostAllocator>(m_graph->get_context()) : CreateDefaultAllocator();
+    auto alloc = use_usm ? std::make_shared<USMHostAllocator>(m_context) : CreateDefaultAllocator();
     auto blob = make_blob_with_precision(desc, alloc);
     blob->allocate();
     return blob;
@@ -602,14 +606,14 @@ Blob::Ptr InferRequest::create_host_blob(const TensorDesc& desc, bool is_dynamic
 template<typename RemoteBlobType, typename>
 InferenceEngine::Blob::Ptr InferRequest::create_remote_blob(const InferenceEngine::TensorDesc& desc, const cldnn::layout& layout,
                                                             const BlobType mem_type, void* mem_ptr) {
-    auto blob = std::make_shared<RemoteBlobType>(m_graph->get_context(),
-                                                  m_graph->GetNetwork()->get_stream(),
-                                                  desc,
-                                                  layout,
-                                                  mem_ptr,
-                                                  0,
-                                                  0,
-                                                  mem_type);
+    auto blob = std::make_shared<RemoteBlobType>(m_context,
+                                                 m_graph->GetNetwork()->get_stream(),
+                                                 desc,
+                                                 layout,
+                                                 mem_ptr,
+                                                 0,
+                                                 0,
+                                                 mem_type);
     OPENVINO_ASSERT(blob, "[GPU] Failed to allocate remote blob");
     blob->allocate();
     return blob;
