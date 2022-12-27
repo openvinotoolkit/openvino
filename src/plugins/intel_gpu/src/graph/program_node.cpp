@@ -1055,6 +1055,8 @@ void program_node::init_onednn_primitive_attributes() {
                 // Usage of alpha and beta between cldnn::pow and dnnl::eltwise::pow is different : d = pow(src, a) / d = a * pow(src, b)
                 if (alg == dnnl::algorithm::eltwise_pow)
                     post_ops.append_eltwise(alg, 1.0f, fused_desc->additional_params.a);
+                else if (alg == dnnl::algorithm::eltwise_hardswish) // mapping val * min(max(0, val + 3), 6) / 6 to val * max(min(1, alpha * val + beta), 0)
+                    post_ops.append_eltwise(alg, 1/6.f, 0.5f);
                 else
                     post_ops.append_eltwise(alg, fused_desc->additional_params.a, fused_desc->additional_params.b);
 
