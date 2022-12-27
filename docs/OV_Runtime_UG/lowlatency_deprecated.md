@@ -75,8 +75,8 @@ After applying the transformation, `ReadValue` operations can receive other oper
 
 	@sphinxdirective
 
-	.. image:: _static/images/low_latency_limitation_2.svg
-	   :scale: 80 %
+	.. image:: _static/images/low_latency_limitation_1.svg
+	   :scale: 70 %
 
 	@endsphinxdirective
 
@@ -107,7 +107,7 @@ After applying the transformation, `ReadValue` operations can receive other oper
 	@sphinxdirective
 
 	.. image:: _static/images/low_latency_limitation_2.svg
-	   :scale: 80 %
+	   :scale: 70 %
 
 	@endsphinxdirective
 
