@@ -1038,9 +1038,9 @@ TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_3) {
         auto interpolate = std::make_shared<opset8::Interpolate>(input_1, convert_3, concat, attrs);
 
         auto const_4 = opset8::Constant::create(element::f32, Shape{}, {0.1f});
-        auto add_1 = std::make_shared<ngraph::opset5::Add>(input_1, const_4);
-        auto result_1 = std::make_shared<ngraph::opset5::Result>(add_1);
-        auto result_2 = std::make_shared<ngraph::opset5::Result>(interpolate);
+        auto add_1 = std::make_shared<opset8::Add>(input_1, const_4);
+        auto result_1 = std::make_shared<opset8::Result>(add_1);
+        auto result_2 = std::make_shared<opset8::Result>(interpolate);
         model = std::make_shared<ov::Model>(NodeVector{result_1, result_2}, ParameterVector{input_1, input_2});
 
         pass::Manager manager;
@@ -1086,9 +1086,9 @@ TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_3) {
         auto interpolate = std::make_shared<opset8::Interpolate>(input_1, convert_3, concat, attrs);
 
         auto const_4 = opset8::Constant::create(element::f16, Shape{}, {0.1f});
-        auto add_1 = std::make_shared<ngraph::opset5::Add>(input_1, const_4);
-        auto result_1 = std::make_shared<ngraph::opset5::Result>(add_1);
-        auto result_2 = std::make_shared<ngraph::opset5::Result>(interpolate);
+        auto add_1 = std::make_shared<opset8::Add>(input_1, const_4);
+        auto result_1 = std::make_shared<opset8::Result>(add_1);
+        auto result_2 = std::make_shared<opset8::Result>(interpolate);
         model_ref = std::make_shared<ov::Model>(NodeVector{result_1, result_2}, ParameterVector{input_1, input_2});
     }
 

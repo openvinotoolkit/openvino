@@ -14,7 +14,7 @@
 
 bool ov::pass::ConvertModelToFP16ElementType::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_MODEL_SCOPE(ConvertModelToFP16ElementType);
-    if (!ngraph::op::util::has_decompression_converts(f))
+    if (!ov::op::util::has_decompression_converts(f))
         return false;
 
     Manager manager(get_pass_config());

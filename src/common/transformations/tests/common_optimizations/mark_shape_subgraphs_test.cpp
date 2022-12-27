@@ -7,10 +7,9 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <ngraph/opsets/opset4.hpp>
-#include <ngraph/opsets/opset5.hpp>
-#include <ngraph/opsets/opset8.hpp>
-#include <ngraph/pass/manager.hpp>
+#include <openvino/opsets/opset5.hpp>
+#include <openvino/opsets/opset8.hpp>
+#include <openvino/pass/manager.hpp>
 #include <string>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
@@ -199,9 +198,9 @@ TEST(TransformationTests, MarkEntireShapeSubgraphs_whole_shape_subgraph_is_marke
         auto interpolate = std::make_shared<opset8::Interpolate>(input_1, convert_3, concat, attrs);
 
         auto const_4 = opset8::Constant::create(element::f32, Shape{}, {0.1f});
-        auto add_1 = std::make_shared<ngraph::opset5::Add>(input_1, const_4);
-        auto result_1 = std::make_shared<ngraph::opset5::Result>(add_1);
-        auto result_2 = std::make_shared<ngraph::opset5::Result>(interpolate);
+        auto add_1 = std::make_shared<opset5::Add>(input_1, const_4);
+        auto result_1 = std::make_shared<opset5::Result>(add_1);
+        auto result_2 = std::make_shared<opset5::Result>(interpolate);
         model = std::make_shared<ov::Model>(NodeVector{result_1, result_2}, ParameterVector{input_1, input_2});
 
         pass::Manager manager;
@@ -242,9 +241,9 @@ TEST(TransformationTests, MarkEntireShapeSubgraphs_whole_shape_subgraph_is_marke
         auto interpolate = std::make_shared<opset8::Interpolate>(input_1, convert_3, concat, attrs);
 
         auto const_4 = opset8::Constant::create(element::f32, Shape{}, {0.1f});
-        auto add_1 = std::make_shared<ngraph::opset5::Add>(input_1, const_4);
-        auto result_1 = std::make_shared<ngraph::opset5::Result>(add_1);
-        auto result_2 = std::make_shared<ngraph::opset5::Result>(interpolate);
+        auto add_1 = std::make_shared<ov::opset5::Add>(input_1, const_4);
+        auto result_1 = std::make_shared<ov::opset5::Result>(add_1);
+        auto result_2 = std::make_shared<ov::opset5::Result>(interpolate);
 
         ov::disable_fp16_compression(gather_1);
         ov::disable_fp16_compression(convert_1);

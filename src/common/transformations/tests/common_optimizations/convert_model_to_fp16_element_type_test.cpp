@@ -16,7 +16,6 @@
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/decompression.hpp"
-#include "transformations/utils/utils.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -41,7 +40,7 @@ TEST(TransformationTests, ConvertModelToFP16ElementType) {
         f = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
 
         ov::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::ConvertModelToFP16ElementType>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -85,7 +84,7 @@ TEST(TransformationTests, ConvertModelToFP16ElementTypeNoConvertion) {
         f = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
 
         ov::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::ConvertModelToFP16ElementType>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -111,9 +110,9 @@ TEST(TransformationTests, ConvertModelToFP16ElementTypeNoConvertion) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-template <ngraph::element::Type_t T>
-bool has_type(std::shared_ptr<ngraph::Function> f) {
-    for (auto& node : f->get_ordered_ops()) {
+template <element::Type_t T>
+bool has_type(std::shared_ptr<Model> model) {
+    for (auto& node : model->get_ordered_ops()) {
         for (auto& input : node->inputs()) {
             if (input.get_element_type() == element::Type(T)) {
                 return true;
