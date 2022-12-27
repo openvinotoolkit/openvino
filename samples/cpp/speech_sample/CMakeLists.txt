@@ -39,7 +39,7 @@ if(EXISTS "${Samples_SOURCE_DIR}/thirdparty/cnpy")
     # OpenVINO package puts thirdparty to samples dir
     add_subdirectory("${Samples_SOURCE_DIR}/thirdparty/cnpy"
                      "${Samples_BINARY_DIR}/thirdparty/cnpy" EXCLUDE_FROM_ALL)
-elseif(EXISTS "${Samples_SOURCE_DIR}/../../thirdparty/cnpy")
+elseif(EXISTS "${Samples_SOURCE_DIR}/../../thirdparty/cnpy" AND NOT TARGET cnpy)
     # Allow running samples CMakeLists.txt as stand alone from openvino sources
     add_subdirectory("${Samples_SOURCE_DIR}/../../thirdparty/cnpy"
                      "${Samples_BINARY_DIR}/../../thirdparty/cnpy" EXCLUDE_FROM_ALL)
