@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9086,8 +9086,7 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
 
     auto out_ptr = network.get_output_values<FLOAT16>("conv_fsv");
     auto out_lay = network.get_output_layout("conv_fsv");
-    ASSERT_TRUE(is_eq_data_type_T<FLOAT16>(out_lay.data_type));
-
+    ASSERT_EQ(out_lay.data_type, data_types::f16);
     ASSERT_EQ(out_lay.format.to_string(), format(format::byxf).to_string());
     ASSERT_EQ(out_lay.batch(), expected_result.size());
     ASSERT_EQ(out_lay.feature(), expected_result[0].size());

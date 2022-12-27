@@ -573,34 +573,6 @@ T div_up(const T a, const U b) {
 }
 
 double default_tolerance(data_types dt);
-
-template <class T>
-inline bool is_eq_data_type_T(data_types dt) {
-    switch (dt) {
-        case data_types::f16: return typeid(T) == typeid(FLOAT16);
-        case data_types::f32: return typeid(T) == typeid(float);
-        case data_types::i32: return typeid(T) == typeid(int);
-        case data_types::i64: return typeid(T) == typeid(long long);
-        case data_types::i8:  return typeid(T) == typeid(char);
-        case data_types::u8:  return typeid(T) == typeid(unsigned char);
-        default: return false;
-    }
-    return false;
-}
-
-template <class T>
-inline void print_primitive(network& net, const std::string& prim_id, size_t max_cnt = 300) {
-    std::cout << std::endl << "==========" << prim_id << "==========" << std::endl;
-    for (T i : net.get_output_values<T>(prim_id, max_cnt))
-        std::cout << std::setw(6) << std::to_string(i).substr(0, 5) << ' ';
-}
-template <>
-inline void print_primitive<FLOAT16>(network& net, const std::string& prim_id, size_t max_cnt) {
-    std::cout << std::endl << "==========" << prim_id << "==========" << std::endl;
-    for (float i : net.get_output_values<FLOAT16>(prim_id, max_cnt))
-        std::cout << std::setw(6) << std::to_string(i).substr(0, 5) << ' ';
-}
-
 class membuf : public std::streambuf
 {
 public:
