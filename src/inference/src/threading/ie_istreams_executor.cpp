@@ -449,7 +449,8 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
             UpdateHybridCustomThreads(streamExecutorConfig);
         }
         // temporary change for core binding refactor
-        if (streamExecutorConfig._big_core_streams * streamExecutorConfig._threads_per_stream_big > num_big_cores_phys) {
+        if (streamExecutorConfig._big_core_streams * streamExecutorConfig._threads_per_stream_big >
+            num_big_cores_phys) {
             streamExecutorConfig._big_core_streams /= 2;
             streamExecutorConfig._big_core_logic_streams = streamExecutorConfig._big_core_streams;
         }
@@ -457,8 +458,8 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
                        << streamExecutorConfig._threads_per_stream_big * streamExecutorConfig._big_core_streams +
                               streamExecutorConfig._threads_per_stream_small * streamExecutorConfig._small_core_streams
                        << ") -- PCore: " << streamExecutorConfig._big_core_streams << "("
-                       << streamExecutorConfig._threads_per_stream_big
-                       << ") " << streamExecutorConfig._big_core_logic_streams << "("
+                       << streamExecutorConfig._threads_per_stream_big << ") "
+                       << streamExecutorConfig._big_core_logic_streams << "("
                        << streamExecutorConfig._threads_per_stream_big
                        << ")  ECore: " << streamExecutorConfig._small_core_streams << "("
                        << streamExecutorConfig._threads_per_stream_small << ")";
@@ -485,7 +486,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
     if (streamExecutorConfig._big_core_streams == 0) {
         streamExecutorConfig._big_core_streams = streamExecutorConfig._streams;
         streamExecutorConfig._threads_per_stream_big = streamExecutorConfig._threadsPerStream;
-        if (streamExecutorConfig._big_core_streams * streamExecutorConfig._threads_per_stream_big > num_cores_default){
+        if (streamExecutorConfig._big_core_streams * streamExecutorConfig._threads_per_stream_big > num_cores_default) {
             streamExecutorConfig._big_core_streams /= 2;
             streamExecutorConfig._big_core_logic_streams = streamExecutorConfig._big_core_streams;
         }

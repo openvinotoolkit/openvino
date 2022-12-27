@@ -99,7 +99,7 @@ public:
         int _threads = 0;                   //!< Number of threads distributed between streams.
                                             //!< Reserved. Should not be used.
         int _big_core_streams = 0;          //!< Number of streams in Performance-core(big core)
-        int _big_core_logic_streams = 0;
+        int _big_core_logic_streams = 0;    //!< Number of streams in Logical-core
         int _small_core_streams = 0;        //!< Number of streams in Efficient-core(small core)
         int _threads_per_stream_big = 0;    //!< Threads per stream in big cores
         int _threads_per_stream_small = 0;  //!< Threads per stream in small cores

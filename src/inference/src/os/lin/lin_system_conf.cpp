@@ -81,7 +81,7 @@ struct CPU {
         for (int i = 0; i < _proc; i++) {
             _cpu_mapping[i].resize(CPU_MAP_USED_PROC + 1, 0);
         }
-        
+
         // _cpu_mapping[_proc][CPU_MAP_USED_PROC + 1] = {0};
         // memset(_cpu_mapping, 0, _proc * (CPU_MAP_USED_PROC + 1) * sizeof(int));
 
@@ -264,7 +264,7 @@ int getThreadStep(const int cpu_col) {
             if (cpu._cpu_mapping[i][cpu_col] > 0 && cpu._cpu_mapping[i][CPU_MAP_USED_PROC] == 0) {
                 proc_array.push_back(i);
             }
-            if(proc_array.size() == 2){
+            if (proc_array.size() == 2) {
                 break;
             }
         }
