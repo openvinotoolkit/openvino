@@ -35,6 +35,10 @@ benchmark_app -m model.xml -hint latency
 benchmark_app -m model.xml -hint throughput
 ```
 
+> **NOTE**
+It is up to the user to ensure the environment on which the benchmark is running is optimized for maximum performance.
+Otherwise, different results may occur when using the application in different environment settings (such as power optimization settings, processor overclocking, thermal throttling).
+
 #### Latency
 Latency is the amount of time it takes to process a single inference request. In applications where data needs to be inferenced and acted on as quickly as possible (such as autonomous driving), low latency is desirable. For conventional devices, lower latency is achieved by reducing the amount of parallel processing streams so the system can utilize as many resources as possible to quickly calculate each inference request. However, advanced devices like multi-socket CPUs and modern GPUs are capable of running multiple inference requests while delivering the same latency.
 
@@ -108,7 +112,7 @@ usage: benchmark_app.py [-h [HELP]] [-i PATHS_TO_INPUT [PATHS_TO_INPUT ...]] -m 
                         [-pin {YES,NO,NUMA,HYBRID_AWARE}] [-exec_graph_path EXEC_GRAPH_PATH] [-pc [PERF_COUNTS]] [-pcsort {no_sort,sort,simple_sort}] [-pcseq [PCSEQ]]
                         [-inference_only [INFERENCE_ONLY]] [-report_type {no_counters,average_counters,detailed_counters}] [-report_folder REPORT_FOLDER] [-dump_config DUMP_CONFIG]
                         [-load_config LOAD_CONFIG] [-infer_precision INFER_PRECISION] [-ip {u8,U8,f16,FP16,f32,FP32}] [-op {u8,U8,f16,FP16,f32,FP32}] [-iop INPUT_OUTPUT_PRECISION]
-                        [-cdir CACHE_DIR] [-lfile [LOAD_FROM_FILE]] [-iscale INPUT_SCALE] [-imean INPUT_MEAN]
+                        [-cdir CACHE_DIR] [-lfile [LOAD_FROM_FILE]] [--mean_values [R,G,B]] [--scale_values [R,G,B]]
 
 Options:
   -h [HELP], --help [HELP]
@@ -180,6 +184,27 @@ Options:
                         Optional. Path to JSON file to dump OpenVINO parameters, which were set by application.
   -load_config LOAD_CONFIG
                         Optional. Path to JSON file to load custom OpenVINO parameters. Please note, command line parameters have higher priority then parameters from configuration file.
+                        Example 1: a simple JSON file for HW device with primary properties.
+                                    {
+                                       "CPU": {"NUM_STREAMS": "3", "PERF_COUNT": "NO"}
+                                    }
+                        Example 2: a simple JSON file for meta device(AUTO/MULTI) with HW device properties.
+                                    {
+                                    	"AUTO": {
+                                    		"PERFORMANCE_HINT": "",
+                                    		"PERF_COUNT": "NO",
+                                    		"DEVICE_PROPERTIES": {
+                                    			"CPU": {
+                                    				"INFERENCE_PRECISION_HINT": "f32",
+                                    				"NUM_STREAMS": "3"
+                                    			},
+                                    			"GPU": {
+                                    				"INFERENCE_PRECISION_HINT": "f32",
+                                    				"NUM_STREAMS": "5"
+                                    			}
+                                    		}
+                                    	}
+                                    }
   -infer_precision INFER_PRECISION
                         Optional. Hint to specifies inference precision. Example: -infer_precision CPU:bf16,GPU:f32
   -ip {u8,U8,f16,FP16,f32,FP32}, --input_precision {u8,U8,f16,FP16,f32,FP32}
@@ -193,12 +218,16 @@ Options:
                         Optional. Enable model caching to specified directory
   -lfile [LOAD_FROM_FILE], --load_from_file [LOAD_FROM_FILE]
                         Optional. Loads model from file directly without read_model.
-  -iscale INPUT_SCALE, --input_scale INPUT_SCALE
-                        Optional. Scale values to be used for the input image per channel. Values to be provided in the [R, G, B] format. Can be defined for desired input of the model.
-                        Example: -iscale data[255,255,255],info[255,255,255]
-  -imean INPUT_MEAN, --input_mean INPUT_MEAN
-                        Optional. Mean values to be used for the input image per channel. Values to be provided in the [R, G, B] format. Can be defined for desired input of the model. Example:
-                        -imean data[255,255,255],info[255,255,255]
+  --mean_values [R,G,B]
+                        Optional. Mean values to be used for the input image per channel. Values to be provided in the [R,G,B] format. Can be defined for desired input
+                        of the model, for example: "--mean_values data[255,255,255],info[255,255,255]". The exact meaning and order of channels depend on how the
+                        original model was trained. Applying the values affects performance and may cause type conversion
+
+  --scale_values [R,G,B]
+                        Optional. Scale values to be used for the input image per channel. Values are provided in the [R,G,B] format. Can be defined for desired input
+                        of the model, for example: "--scale_values data[255,255,255],info[255,255,255]". The exact meaning and order of channels depend on how the
+                        original model was trained. If both --mean_values and --scale_values are specified, the mean is subtracted first and then scale is applied
+                        regardless of the order of options in command line. Applying the values affects performance and may cause type conversion
 ```
 
 Running the application with the empty list of options yields the usage message given above and an error message.
@@ -216,7 +245,7 @@ This section provides step-by-step instructions on how to run the Benchmark Tool
    pip install openvino-dev
    ```
 
-2. Download the model using omz_downloader, specifying the model name and directory to download the model to:
+2. Download the model using `omz_downloader`, specifying the model name and directory to download the model to:
    ```sh
    omz_downloader --name asl-recognition-0004 --precisions FP16 --output_dir omz_models
    ```

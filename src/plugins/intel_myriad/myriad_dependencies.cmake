@@ -6,14 +6,14 @@ include_guard(GLOBAL)
 
 set(VPU_SUPPORTED_FIRMWARES usb-ma2x8x pcie-ma2x8x)
 set(VPU_SUPPORTED_FIRMWARES_HASH
-    "877c4e1616d14a94dd2764f4f32f1c1aa2180dcd64ad1823b31efdc3f56ad593"
-    "aabff3d817431792ef9e17056448979c2cdbb484ad4b0af9e68cb874ee10eef5")
+    "1ca3566d294c8d269f3a0ad2f5699e9dbb2679a24a455b2cc343612303d867bd"
+    "5667eb028290fbec92220031590ba5f87774a7b638b13178e0dcf8447a4ee8ca")
 
 #
 # Default packages
 #
 
-set(FIRMWARE_PACKAGE_VERSION 20220307_34)
+set(FIRMWARE_PACKAGE_VERSION 20221129_35)
 set(VPU_CLC_MA2X8X_VERSION "movi-cltools-22.08.1")
 
 #
@@ -34,16 +34,17 @@ foreach(idx RANGE 0 ${num_firmwares})
     reset_deps_cache(VPU_FIRMWARE_${firmware_name_upper}_FILE)
 
     RESOLVE_DEPENDENCY(VPU_FIRMWARE_${firmware_name_upper}
-        ARCHIVE_UNIFIED VPU/${firmware_name}/firmware_${firmware_name}_${FIRMWARE_PACKAGE_VERSION}.zip
+        ARCHIVE_UNIFIED myriad/firmware_${firmware_name}_${FIRMWARE_PACKAGE_VERSION}.zip
         TARGET_PATH "${TEMP}/vpu/firmware/${firmware_name}"
         ENVIRONMENT "VPU_FIRMWARE_${firmware_name_upper}_FILE"
         FOLDER
-        SHA256 ${hash})
+        SHA256 ${hash}
+        USE_NEW_LOCATION TRUE)
     debug_message(STATUS "${firmware_name}=" ${VPU_FIRMWARE_${firmware_name_upper}})
 
     update_deps_cache(
         VPU_FIRMWARE_${firmware_name_upper}_FILE
-        "${VPU_FIRMWARE_${firmware_name_upper}}/mvnc/${firmware_name_full}"
+        "${VPU_FIRMWARE_${firmware_name_upper}}/${firmware_name_full}"
         "[VPU] ${firmware_name_full} firmware")
 
     find_file(

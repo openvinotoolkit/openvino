@@ -125,7 +125,6 @@ jobs:
       sudo apt --assume-yes install --no-install-recommends libopencv-imgproc-dev libopencv-imgcodecs-dev
       # For opencv-python: python3-setuptools and pip upgrade
       python3 -m pip install --upgrade pip
-      python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements.txt
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/requirements.txt
       # For running Python API tests
@@ -134,6 +133,8 @@ jobs:
       python3 -m pip install -r $(REPO_DIR)/src/frontends/paddle/tests/requirements.txt
       # For running ONNX frontend unit tests
       python3 -m pip install -r $(REPO_DIR)/src/frontends/onnx/tests/requirements.txt
+      # For running TensorFlow frontend unit tests
+      python3 -m pip install -r $(REPO_DIR)/src/frontends/tensorflow/tests/requirements.txt
       # For MO unit tests
       python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements.txt
       python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements_dev.txt
@@ -166,7 +167,6 @@ jobs:
         -DENABLE_TESTS=ON
         -DENABLE_FASTER_BUILD=ON
         -DENABLE_STRICT_DEPENDENCIES=OFF
-        -DENABLE_REQUIREMENTS_INSTALL=OFF
         -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
@@ -234,8 +234,6 @@ jobs:
 
     # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
   - script: |
-      export DATA_PATH=$(MODELS_PATH)
-      export MODELS_PATH=$(MODELS_PATH)
       python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph \
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
         --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py \
@@ -245,8 +243,6 @@ jobs:
 
     # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
   - script: |
-      export DATA_PATH=$(MODELS_PATH)
-      export MODELS_PATH=$(MODELS_PATH)
       # Required by python imports to load requires libraries
       # - tests install dir for mock_py
       # - OpenVINO wheel installation dir for others frontend required by mock_py (is not part of wheel pkg)

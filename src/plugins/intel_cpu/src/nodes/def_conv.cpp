@@ -342,10 +342,10 @@ private:
                         size_t ind_off_lh = ind_off_hl + 1;
                         size_t ind_off_ll = ind_off_lh + 1;
 
-                        uni_vmovq(xmm_v1_off, qword[aux_reg_sampled_offs + ind_off_ll * jcp_.typesize_sampled_offsets]);
-                        uni_vmovq(xmm_v2_off, qword[aux_reg_sampled_offs + ind_off_hl * jcp_.typesize_sampled_offsets]);
-                        uni_vmovq(xmm_v3_off, qword[aux_reg_sampled_offs + ind_off_lh * jcp_.typesize_sampled_offsets]);
-                        uni_vmovq(xmm_v4_off, qword[aux_reg_sampled_offs + ind_off_hh * jcp_.typesize_sampled_offsets]);
+                        uni_vmovd(xmm_v1_off, dword[aux_reg_sampled_offs + ind_off_ll * jcp_.typesize_sampled_offsets]);
+                        uni_vmovd(xmm_v2_off, dword[aux_reg_sampled_offs + ind_off_hl * jcp_.typesize_sampled_offsets]);
+                        uni_vmovd(xmm_v3_off, dword[aux_reg_sampled_offs + ind_off_lh * jcp_.typesize_sampled_offsets]);
+                        uni_vmovd(xmm_v4_off, dword[aux_reg_sampled_offs + ind_off_hh * jcp_.typesize_sampled_offsets]);
 
                         // w's computation
                         uni_vbroadcastss(vmm_w1, dword[aux_reg_sampled_wei + ind_off_ll * jcp_.typesize_sampled_wei]);

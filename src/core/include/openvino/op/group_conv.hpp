@@ -15,7 +15,6 @@ namespace v1 {
 class OPENVINO_API GroupConvolution : public Op {
 public:
     OPENVINO_OP("GroupConvolution", "opset1", op::Op, 1);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a batched convolution operation.
     GroupConvolution() = default;
@@ -132,7 +131,6 @@ private:
 class OPENVINO_API GroupConvolutionBackpropData : public Op {
 public:
     OPENVINO_OP("GroupConvolutionBackpropData", "opset1", op::Op, 1);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a batched-convolution data batch-backprop operation.
     GroupConvolutionBackpropData();

@@ -19,40 +19,31 @@ const std::vector<ov::element::Type> inTypes = {
         ov::element::u8, ov::element::f32
 };
 
-const auto testCase_values = ::testing::Combine(
-    ::testing::ValuesIn(inShapes_nhwc),
-    ::testing::ValuesIn(inTypes),
-    ::testing::Bool(),
-    ::testing::Bool(),
-    ::testing::Values(CommonTestUtils::DEVICE_GPU)
-);
-
-INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColorI420, ConvertColorI420LayerTest, testCase_values, ConvertColorI420LayerTest::getTestCaseName);
-
-const auto testCase_accuracy_values = ::testing::Combine(
-        ::testing::Values(ov::Shape{1, 16*6, 16, 1}),
-        ::testing::Values(ov::element::u8),
-        ::testing::Bool(),
-        ::testing::Bool(),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)
-);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColorI420,
+                         ConvertColorI420LayerTest,
+                         ::testing::Combine(::testing::ValuesIn(inShapes_nhwc),
+                                            ::testing::ValuesIn(inTypes),
+                                            ::testing::Bool(),
+                                            ::testing::Bool(),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                         ConvertColorI420LayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColorI420_acc,
                          ConvertColorI420AccuracyTest,
-                         testCase_accuracy_values,
+                         ::testing::Combine(::testing::Values(ov::Shape{1, 16 * 6, 16, 1}),
+                                            ::testing::Values(ov::element::u8),
+                                            ::testing::Bool(),
+                                            ::testing::Bool(),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                          ConvertColorI420LayerTest::getTestCaseName);
-
-const auto testCase_accuracy_values_nightly = ::testing::Combine(
-        ::testing::Values(ov::Shape{1, 256*256, 256, 1}),
-        ::testing::Values(ov::element::u8),
-        ::testing::Values(false),
-        ::testing::Values(true),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)
-);
 
 INSTANTIATE_TEST_SUITE_P(nightly_TestsConvertColorI420_acc,
                          ConvertColorI420AccuracyTest,
-                         testCase_accuracy_values_nightly,
+                         ::testing::Combine(::testing::Values(ov::Shape{1, 256 * 256, 256, 1}),
+                                            ::testing::Values(ov::element::u8),
+                                            ::testing::Values(false),
+                                            ::testing::Values(true),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                          ConvertColorI420LayerTest::getTestCaseName);
 
 }  // namespace

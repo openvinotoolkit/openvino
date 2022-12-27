@@ -14,7 +14,6 @@ namespace v1 {
 class OPENVINO_API Minimum : public util::BinaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Minimum", "opset1", op::util::BinaryElementwiseArithmetic, 1);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a minimum operation.
     Minimum() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}

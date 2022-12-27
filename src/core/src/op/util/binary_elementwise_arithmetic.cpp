@@ -12,8 +12,6 @@
 
 using namespace std;
 
-BWDCMP_RTTI_DEFINITION(ov::op::util::BinaryElementwiseArithmetic);
-
 ov::op::util::BinaryElementwiseArithmetic::BinaryElementwiseArithmetic(const AutoBroadcastSpec& autob)
     : m_autob(autob) {}
 

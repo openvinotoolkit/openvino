@@ -9,8 +9,6 @@
 
 using namespace std;
 
-BWDCMP_RTTI_DEFINITION(ov::op::util::EmbeddingBagPackedBase);
-
 ov::op::util::EmbeddingBagPackedBase::EmbeddingBagPackedBase(const Output<Node>& emb_table,
                                                              const Output<Node>& indices,
                                                              const Output<Node>& per_sample_weights)

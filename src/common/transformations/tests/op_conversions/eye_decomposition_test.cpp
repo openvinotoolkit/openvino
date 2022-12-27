@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/op_conversions/eye_decomposition.hpp"
+
 #include <memory>
 #include <string>
 
@@ -11,7 +13,6 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/opsets/opset9.hpp"
-#include "transformations/op_conversions/eye_decomposition.hpp"
 
 using namespace testing;
 

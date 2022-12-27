@@ -201,8 +201,6 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
                                             const std::string& suffix, const cldnn::primitive_id& primitiveId) -> cldnn::input_info {
             std::vector<uint16_t> transposeOrder(shape.size());
             std::iota(transposeOrder.begin(), transposeOrder.end(), 0);
-            for (auto o = transposeOrder.size(); o < 4; o++)
-                transposeOrder.push_back((uint16_t)o);
             std::swap(*(transposeOrder.end() - 1), *(transposeOrder.end() - 2));
 
             auto permuteName = op->get_friendly_name() + suffix;
@@ -228,8 +226,8 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
         auto gemmPrim = cldnn::gemm(layerName,
                                     inputs,
                                     cldnn::element_type_to_data_type(op->get_output_element_type(0)),
-                                    op->get_transpose_a(),
-                                    op->get_transpose_b(),
+                                    transA,
+                                    transB,
                                     alpha,
                                     beta,
                                     rank_a,

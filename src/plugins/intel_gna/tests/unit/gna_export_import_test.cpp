@@ -16,6 +16,7 @@
 
 using namespace ::testing;
 using GNAPluginNS::GNAPlugin;
+using ::testing::InSequence;
 using namespace InferenceEngine;
 
 class GNAExportImportTest : public ::testing::Test {
@@ -154,6 +155,10 @@ protected:
             }));
 
         EXPECT_CALL(*mockApi, Gna2InstrumentationConfigAssignToRequestConfig(_, _)).Times(AtLeast(1)).WillRepeatedly(Return(Gna2StatusSuccess));
+
+        InSequence seq;
+        EXPECT_CALL(*mockApi, Gna2DeviceClose(_)).WillOnce(Return(Gna2StatusSuccess));
+        EXPECT_CALL(*mockApi, Gna2MemoryFree(_)).Times(AtLeast(1)).WillRepeatedly(Return(Gna2StatusSuccess));
     }
     void TearDown() override {
         std::remove(exported_file_name.c_str());

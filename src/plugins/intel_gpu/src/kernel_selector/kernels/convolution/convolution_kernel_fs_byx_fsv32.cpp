@@ -75,7 +75,7 @@ ConvolutionKernel_fs_byx_fsv32::AutoTuneOption ConvolutionKernel_fs_byx_fsv32::G
     // Check if output can be evenly divided into large blocks
     for (auto w : optBlockWidths) {
         if (cp.outputs[0].X().v % w == 0 && getMinRegisterUsage(cp, w) < regThreshold)
-            return {w, AGE_BASED};
+            return {w, EXE_MODE_AGE_BASED};
     }
 
     // Try to find large blocks with smallest offset
@@ -89,16 +89,16 @@ ConvolutionKernel_fs_byx_fsv32::AutoTuneOption ConvolutionKernel_fs_byx_fsv32::G
     }
 
     if (foundWidth != 0)
-        return {foundWidth, AGE_BASED};
+        return {foundWidth, EXE_MODE_AGE_BASED};
 
     // Check small and memory bound block sizes
     for (auto w : nonOptBlockWidths) {
         if (cp.outputs[0].X().v % w == 0 && getMinRegisterUsage(cp, w) < regThreshold)
-            return {w, AGE_BASED};
+            return {w, EXE_MODE_AGE_BASED};
     }
 
     // This means all previous block sizes consumed too much registers, fallback to block width = 1
-    return {1, AGE_BASED};
+    return {1, EXE_MODE_AGE_BASED};
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_fs_byx_fsv32::SetDefault(const convolution_params& arg,

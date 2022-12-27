@@ -18,8 +18,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::FakeQuantize);
-
 op::FakeQuantize::FakeQuantize() : Op(), m_levels() {}
 
 op::FakeQuantize::FakeQuantize(const Output<Node>& data,

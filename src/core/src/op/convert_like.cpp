@@ -13,8 +13,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v1::ConvertLike);
-
 op::v1::ConvertLike::ConvertLike(const Output<Node>& data, const Output<Node>& like) : Op({data, like}) {
     constructor_validate_and_infer_types();
 }

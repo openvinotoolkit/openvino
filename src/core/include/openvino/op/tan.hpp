@@ -28,7 +28,6 @@ namespace v0 {
 class OPENVINO_API Tan : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Tan", "opset1", util::UnaryElementwiseArithmetic);
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a tangent operation.
     ///
     /// \param arg Node that produces the input tensor.

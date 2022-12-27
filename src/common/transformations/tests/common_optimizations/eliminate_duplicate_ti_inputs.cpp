@@ -37,13 +37,14 @@ TEST(TransformationTests, EliminateDuplicateTIInputs) {
     auto relu = make_shared<Relu>(merged_A);
 
     auto res_A = make_shared<Result>(relu);
-    auto concat = make_shared<Concat>(ov::OutputVector{inv_A, inv_B, inv_C, split_A, split_B, split_C,
-                                                       merged_A, merged_B, merged_C}, 0);
+    auto concat = make_shared<Concat>(
+        ov::OutputVector{inv_A, inv_B, inv_C, split_A, split_B, split_C, merged_A, merged_B, merged_C},
+        0);
 
     auto ti_res = make_shared<Result>(concat);
-    auto body = make_shared<ov::Model>(ov::ResultVector{ti_res, res_A},
-                                    ov::ParameterVector{inv_A, inv_B, inv_C, split_A, split_B, split_C,
-                                                        merged_A, merged_B, merged_C});
+    auto body = make_shared<ov::Model>(
+        ov::ResultVector{ti_res, res_A},
+        ov::ParameterVector{inv_A, inv_B, inv_C, split_A, split_B, split_C, merged_A, merged_B, merged_C});
 
     ti->set_body(body);
     ti->set_invariant_input(inv_A, invariant);
@@ -68,7 +69,7 @@ TEST(TransformationTests, EliminateDuplicateTIInputs) {
 
     shared_ptr<TensorIterator> ti_after_transformation;
     for (const auto& op : model->get_ordered_ops()) {
-        if (ti_after_transformation = dynamic_pointer_cast<TensorIterator>(op)) {
+        if ((ti_after_transformation = dynamic_pointer_cast<TensorIterator>(op))) {
             break;
         }
     }

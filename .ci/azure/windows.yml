@@ -155,6 +155,8 @@ jobs:
       python -m pip install -r $(REPO_DIR)\src\frontends\paddle\tests\requirements.txt
       rem For running ONNX frontend unit tests
       python -m pip install -r $(REPO_DIR)\src\frontends\onnx\tests\requirements.txt
+      rem For running TensorFlow frontend unit tests
+      python -m pip install -r $(REPO_DIR)\src\frontends\tensorflow\tests\requirements.txt
       rem For MO unit tests
       python -m pip install -r $(REPO_DIR)\tools\mo\requirements.txt
       python -m pip install -r $(REPO_DIR)\tools\mo\requirements_dev.txt
@@ -177,7 +179,6 @@ jobs:
       call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) -G "Ninja Multi-Config" ^
         -DENABLE_ONEDNN_FOR_GPU=$(CMAKE_BUILD_SHARED_LIBS) ^
         -DBUILD_SHARED_LIBS=$(CMAKE_BUILD_SHARED_LIBS) ^
-        -DENABLE_REQUIREMENTS_INSTALL=OFF ^
         -DENABLE_FASTER_BUILD=ON ^
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) ^
         -DENABLE_TESTS=ON ^
@@ -192,7 +193,7 @@ jobs:
         -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
         -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
         -S $(REPO_DIR) -B $(BUILD_DIR)
-    displayName: 'CMake Samples Tests'
+    displayName: 'CMake OpenVINO'
 
   - script: dir $(REPO_DIR)\temp\ /s
     displayName: 'List temp SDKs'
@@ -222,7 +223,7 @@ jobs:
         -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
         -S $(REPO_DIR)\tests\samples_tests ^
         -B $(BUILD_SAMPLES_TESTS_DIR)
-    displayName: 'CMake'
+    displayName: 'CMake Samples Tests'
 
   - script: |
       $(CMAKE_CMD) -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_SAMPLES_TESTS_DIR)\cmake_install.cmake
@@ -274,6 +275,10 @@ jobs:
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_conditional_compilation_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ConditionalCompilation.xml
     displayName: 'Conditional Compilation Tests'
+    continueOnError: false
+
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-PaddleTests.xml
+    displayName: 'Paddle Tests'
     continueOnError: false
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_ir_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-IRFrontend.xml

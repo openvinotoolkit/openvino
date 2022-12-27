@@ -77,6 +77,8 @@ ie_dependent_option (ENABLE_TBBBIND_2_5 "Enable TBBBind_2_5 static usage in Open
 ie_dependent_option (ENABLE_INTEL_GNA "GNA support for OpenVINO Runtime" ON
     "NOT APPLE;NOT ANDROID;X86_64;CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 5.4" OFF)
 
+ie_option (ENABLE_INTEL_GNA_DEBUG "GNA debug build" OFF)
+
 if(ENABLE_TESTS OR BUILD_SHARED_LIBS)
     set(ENABLE_IR_V7_READER_DEFAULT ON)
 else()
@@ -170,7 +172,6 @@ ie_dependent_option(ENABLE_SYSTEM_PROTOBUF "Use system protobuf" OFF
 
 ie_dependent_option(ENABLE_OV_CORE_UNIT_TESTS "Enables OpenVINO core unit tests" ON "ENABLE_TESTS" OFF)
 ie_option(ENABLE_OPENVINO_DEBUG "Enable output for OPENVINO_DEBUG statements" OFF)
-ie_dependent_option(ENABLE_REQUIREMENTS_INSTALL "Dynamic dependencies install" ON "ENABLE_TESTS;NOT CMAKE_CROSSCOMPILING" OFF)
 
 if(NOT BUILD_SHARED_LIBS AND ENABLE_OV_TF_FRONTEND)
     set(FORCE_FRONTENDS_USE_PROTOBUF ON)

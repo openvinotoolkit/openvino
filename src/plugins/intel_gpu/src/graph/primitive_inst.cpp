@@ -142,7 +142,6 @@ void primitive_inst::set_output_memory(memory::ptr mem_new, bool check, size_t i
 }
 
 void primitive_inst::update_shape() {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::shape_inference);
 
     bool input_shape_changed = false;
@@ -199,9 +198,7 @@ void primitive_inst::update_shape() {
         // Events may be not created for in-order queue, so take them for OOO queue only
         if (_network.has_event(dep.id()) && queue_type == queue_types::out_of_order) {
             dependencies_events.push_back(_network.get_primitive_event(dep_id));
-            GPU_DEBUG_IF(debug_config->verbose >= 4) {
-                GPU_DEBUG_COUT << id() << ": shape infer waits for " << i << " dependency\n";
-            }
+            GPU_DEBUG_TRACE_DETAIL << id() << ": shape infer waits for " << i << " dependency\n";
         }
         auto dep_mem = _network.get_output_memory(dep_id);
         memory_deps.insert({i, dep_mem});
@@ -221,10 +218,8 @@ void primitive_inst::update_shape() {
     auto update_output_layout = [&](layout& layout, size_t idx) {
         layout.data_padding = padding::max(_node->get_primitive()->output_paddings[idx], layout.data_padding);
         if (_impl_params->get_output_layout(idx) != layout) {
-            GPU_DEBUG_IF(debug_config->verbose >= 4) {
-                GPU_DEBUG_COUT << id() << ": update shape: was: " << _impl_params->get_output_layout(idx).to_short_string()
-                               << " now: " << layout.to_short_string() << std::endl;
-            }
+            GPU_DEBUG_TRACE_DETAIL << id() << ": update shape: was: " << _impl_params->get_output_layout(idx).to_short_string()
+                                   << " now: " << layout.to_short_string() << std::endl;
             set_shape_change();
         }
         _impl_params->output_layouts[idx] = layout;
@@ -265,16 +260,12 @@ void primitive_inst::realloc_if_needed() {
     bool can_reuse_buffer = _outputs[0] && actual_layout.count() <= max_output_layout_size;
 
     if (can_reuse_buffer) {
-        GPU_DEBUG_IF(debug_config->verbose >= 4) {
-            GPU_DEBUG_COUT << id() << ": reuse previously allocated output buffer" << std::endl;
-        }
+        GPU_DEBUG_TRACE_DETAIL << id() << ": reuse previously allocated output buffer" << std::endl;
         _outputs[0] = _network.get_engine().reinterpret_buffer(*_outputs[0], actual_layout);
     } else {
-        GPU_DEBUG_IF(debug_config->verbose >= 4) {
-            GPU_DEBUG_COUT << id() << ": realloc output memory. "
-                           <<  " Current buffer_size=" << max_output_layout_size
-                           <<  " Requested buffer_size=" << actual_layout.count() << std::endl;
-        }
+        GPU_DEBUG_TRACE_DETAIL << id() << ": realloc output memory. "
+                               <<  " Current buffer_size=" << max_output_layout_size
+                               <<  " Requested buffer_size=" << actual_layout.count() << std::endl;
         _outputs = allocate_outputs(&updated_params);
         // TODO : need to handle multiple outputs
         max_output_layout_size = updated_params.output_layouts[0].count();
@@ -285,7 +276,6 @@ void primitive_inst::realloc_if_needed() {
 
 void primitive_inst::update_impl() {
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::update_implementation);
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     auto prev_impl_str =  _impl != nullptr ? _impl->get_kernel_name() : "nullptr";
     auto extend_to_6d = [this](ov::PartialShape ps) -> std::vector<size_t> {
         // For shape_of we extend shape with 1-s to 6d rank to make kernel simpler
@@ -321,7 +311,7 @@ void primitive_inst::update_impl() {
         return seed;
     };
 
-    auto update_shape_info = [this, extend_to_6d, debug_config, prev_impl_str](const kernel_impl_params& params) {
+    auto update_shape_info = [this, extend_to_6d, prev_impl_str](const kernel_impl_params& params) {
         mem_lock<int32_t> lock(_shape_info_memory, _network.get_stream());
         size_t offset = 0;
         for (size_t i = 0; i < _node->get_dependencies().size(); i++) {
@@ -337,17 +327,14 @@ void primitive_inst::update_impl() {
             for (size_t j = 0; j < output_shape.size(); j++)
                 lock[offset++] = static_cast<int32_t>(output_shape[j]);
         }
-        GPU_DEBUG_IF(debug_config->verbose >= 4) {
-            std::stringstream s;
-            s << "shapes: ";
-            for (size_t i = 0; i < offset; i++)
-                s << lock[i] << " ";
-            GPU_DEBUG_COUT << id() << ": update dynamic impl " << prev_impl_str << " to new shape: " << s.str() << std::endl;
-        }
+        std::stringstream s;
+        s << "shapes: ";
+        for (size_t i = 0; i < offset; i++)
+            s << lock[i] << " ";
+        GPU_DEBUG_TRACE_DETAIL << id() << ": update dynamic impl " << prev_impl_str << " to new shape: " << s.str() << std::endl;
     };
 
     if (!_node->is_type<data>() && !(_node->is_type<mutable_data>() && _node->get_dependencies().empty())) {
-        GPU_DEBUG_GET_INSTANCE(debug_config);
         // Update param if fake_alignment is available
         auto updated_params = _node->type()->get_fake_aligned_params(*_impl_params);
         auto layout_key = get_layout_key(updated_params);
@@ -359,10 +346,7 @@ void primitive_inst::update_impl() {
             if (has_cached_impl) {
                 _impl = cache.get(layout_key)->clone();
                 GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
-
-                GPU_DEBUG_IF(debug_config->verbose >= 4) {
-                    GPU_DEBUG_COUT << id() << ": get impl from cache " << _impl->get_kernel_name() << std::endl;
-                }
+                GPU_DEBUG_TRACE_DETAIL << id() << ": get impl from cache " << _impl->get_kernel_name() << std::endl;
             }
         }
         if (!has_cached_impl) {
@@ -402,10 +386,9 @@ void primitive_inst::update_impl() {
                 kernels_cache.reset();
                 std::lock_guard<std::mutex> lock(get_network().get_impl_cache_mutex());
                 cache.add(layout_key, _impl->clone());
-                GPU_DEBUG_IF(debug_config->verbose >= 4) {
-                    auto new_impl_str = _impl != nullptr ? _impl->get_kernel_name() : "nullptr";
-                    GPU_DEBUG_COUT << id() << ": update impl from " << prev_impl_str << " to " << new_impl_str << std::endl;
-                }
+
+                auto new_impl_str = _impl != nullptr ? _impl->get_kernel_name() : "nullptr";
+                GPU_DEBUG_TRACE_DETAIL << id() << ": update impl from " << prev_impl_str << " to " << new_impl_str << std::endl;
             }
         }
 
@@ -436,14 +419,9 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
                     subgraph->set_input_data(d.first->id(), actual_mem);
                 }
             }
-            GPU_DEBUG_IF(debug_config->verbose >= 4) {
-                GPU_DEBUG_COUT << "[Start] Executing unfused subgraph of " << id() << std::endl;
-            }
-
+            GPU_DEBUG_TRACE_DETAIL << "[Start] Executing unfused subgraph of " << id() << std::endl;
             auto outputs = subgraph->execute(events);
-            GPU_DEBUG_IF(debug_config->verbose >= 4) {
-                GPU_DEBUG_COUT << "[End] Finished executing unfused subgraph of " << id() << std::endl;
-            }
+            GPU_DEBUG_TRACE_DETAIL << "[End] Finished executing unfused subgraph of " << id() << std::endl;
 
             auto last_fd = _impl_params->fused_desc.back();
             auto last_prim_id = last_fd.desc->id;
@@ -476,27 +454,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     }
     on_execute();
 
-    GPU_DEBUG_IF(debug_config->verbose >= 1) {
-        std::ostringstream in_addr;
-        // buffer_ptr() only support usm_memory
-        for (size_t i = 0; i < this->dependencies().size(); i++) {
-            auto in_mem = dep_memory_ptr(i);
-            if (in_mem) {
-                in_addr << in_mem->buffer_ptr();
-                if (i < this->dependencies().size() - 1) {
-                    in_addr << ", ";
-                }
-            }
-        }
-        auto out_mem = output_memory_ptr();
-        auto out_alloc_type = out_mem ? out_mem->get_allocation_type() : allocation_type::unknown;
-        auto out_ptr = out_mem ? out_mem->buffer_ptr() : nullptr;
-
-        GPU_DEBUG_COUT << id() << ": execute. Memory type: "
-                       << out_alloc_type << ", in_usm("
-                       << in_addr.str() << "), out_usm("
-                       << out_ptr << ")" << std::endl;
-    }
+    GPU_DEBUG_TRACE << id() << ": execute " << _impl->get_kernel_name() << std::endl;
 
     if (_exec_deps.empty() && dependencies.empty()) {
         dependencies = events;
@@ -537,6 +495,9 @@ void primitive_inst::set_arguments() {
 }
 
 void primitive_inst::build_deps() {
+    if (!_deps.empty())
+        return;
+
     OPENVINO_ASSERT(_node != nullptr, "_node should not be nullptr for build_deps.");
 
     if (_deps.empty() && !_node->get_dependencies().empty()) {
@@ -683,6 +644,7 @@ void primitive_inst::allocate_internal_buffers(void) {
     // check if there is any device mem input
     if (engine.supports_allocation(allocation_type::usm_device)) {
         for (const auto& dep : inst_deps) {
+            if (!dep.first->mem_allocated()) continue;
             if (dep.first->output_memory().get_allocation_type() == allocation_type::usm_device) {
                 input_device_mem = true;
                 break;
@@ -693,10 +655,7 @@ void primitive_inst::allocate_internal_buffers(void) {
     // allocate intermediate memory for the updated layout of buffer
     std::vector<memory::cptr> intermediates_memory;
     for (auto layout : ibuf_layouts) {
-        GPU_DEBUG_GET_INSTANCE(debug_config);
-        GPU_DEBUG_IF(debug_config->verbose >= 2) {
-            GPU_DEBUG_COUT << "[" << _node->id() << ": internal buf]" << std::endl;
-        }
+        GPU_DEBUG_LOG << "[" << _node->id() << ": internal buf]" << std::endl;
         auto alloc_type = allocation_type::unknown;
         if (input_device_mem && (available_device_mem_size - (int64_t)layout.bytes_count() >= 0)) {
             alloc_type = engine.get_preferred_memory_allocation_type();
@@ -716,8 +675,6 @@ event::ptr primitive_inst::update_weights() {
     bool weightable_node = _node->is_type<fully_connected>() || _node->is_type<convolution>() || _node->is_type<deconvolution>();
     if (!weightable_node)
         return nullptr;
-
-    GPU_DEBUG_GET_INSTANCE(debug_config);
 
     auto& weights_params = _impl->_weights_reorder_params;
     bool requires_reorder = weights_params.engine != kernel_selector::GenericKernelParams::Engine::NONE &&
@@ -742,17 +699,13 @@ event::ptr primitive_inst::update_weights() {
         if (layout_key != "") {
             auto& cache = get_network().get_in_mem_kernels_cache();
             if (cache.has(layout_key)) {
-                GPU_DEBUG_IF(debug_config->verbose >= 4) {
-                    GPU_DEBUG_COUT << id() << ": reorder weights (cached) from " << original_layout.to_short_string()
-                                   << " to " << expected_layout.to_short_string() << std::endl;
-                }
+                GPU_DEBUG_TRACE_DETAIL << id() << ": reorder weights (cached) from " << original_layout.to_short_string()
+                                       << " to " << expected_layout.to_short_string() << std::endl;
                 GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
                 kernel = cache.get(layout_key);
             } else {
-                GPU_DEBUG_IF(debug_config->verbose >= 4) {
-                    GPU_DEBUG_COUT << id() << ": reorder weights from " << original_layout.to_short_string()
-                                   << " to " << expected_layout.to_short_string() << std::endl;
-                }
+                GPU_DEBUG_TRACE_DETAIL << id() << ": reorder weights from " << original_layout.to_short_string()
+                                       << " to " << expected_layout.to_short_string() << std::endl;
                 auto& kernels_cache = get_network().get_kernels_cache();
                 auto kernel_id = kernels_cache.set_kernel_source(weights_params.clKernel->code.kernelString, false);
                 kernels_cache.compile();
@@ -766,9 +719,7 @@ event::ptr primitive_inst::update_weights() {
 
         bool can_reuse = _impl_params->reordered_weights != nullptr && _impl_params->reordered_weights->size() <= expected_layout.bytes_count();
         if (can_reuse) {
-            GPU_DEBUG_IF(debug_config->verbose >= 4) {
-                GPU_DEBUG_COUT << id() << ": reuse weights memory" << std::endl;
-            }
+            GPU_DEBUG_TRACE_DETAIL << id() << ": reuse weights memory" << std::endl;
             _impl_params->reordered_weights = engine.reinterpret_buffer(*_impl_params->reordered_weights, expected_layout);
         } else {
             auto alloc_type = engine.get_preferred_memory_allocation_type();
@@ -781,6 +732,7 @@ event::ptr primitive_inst::update_weights() {
         stream.set_arguments(*kernel, weights_params.clKernel->params, args);
         auto ev = stream.enqueue_kernel(*kernel, weights_params.clKernel->params, args, {}, true);
 
+        GPU_DEBUG_GET_INSTANCE(debug_config);
         GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
             stream.wait_for_events({ev});
         }
@@ -849,15 +801,12 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
     bool is_cpu = _node.get_selected_impl() ? _node.get_selected_impl()->is_cpu() : false;
     auto use_lockable_memory = is_output_buffer(_node) || is_cpu || is_any_user_cpu(_node.get_users()) ||
                                !_engine.supports_allocation(allocation_type::usm_device);
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     const auto& lockable_mem_type = _engine.get_lockable_preferred_memory_allocation_type(layout.format.is_image_2d());
     const auto& alloc_type = use_lockable_memory ? lockable_mem_type
         : usm_device_allocatable ? allocation_type::usm_device : lockable_mem_type;
 
     if ((is_internal && (_node.can_be_optimized() || _node.is_type<generic_layer>())) || (memory_reuse_by_user == false)) {
-        GPU_DEBUG_IF(debug_config->verbose >= 2) {
-            GPU_DEBUG_COUT << "[" << _node.id() << ": output]" << std::endl;
-        }
+        GPU_DEBUG_LOG << "[" << _node.id() << ": output]" << std::endl;
         return get_memory_from_pool(_engine,
                 layout,
                 _node.id(),
@@ -866,21 +815,15 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
                 false);
     } else if (is_internal && _node.is_output() && _node.is_type<generic_layer>() &&
             _engine.supports_allocation(allocation_type::usm_device) && usm_device_allocatable) {
-        GPU_DEBUG_IF(debug_config->verbose >= 2) {
-            GPU_DEBUG_COUT << "[" << _node.id() << ": output]" << std::endl;
-        }
+        GPU_DEBUG_LOG << "[" << _node.id() << ": output]" << std::endl;
         return _engine.allocate_memory(layout, allocation_type::usm_device, false);
     } else if (is_internal && !_node.is_output() && _node.is_type<input_layout>()) {
         // Skip memory reset for input_layout primitives, since data will be copied from cldnn::data primitive
         // or just reuse primitive's memory
-        GPU_DEBUG_IF(debug_config->verbose >= 2) {
-            GPU_DEBUG_COUT << "[" << _node.id() << ": constant]" << std::endl;
-        }
+        GPU_DEBUG_LOG << "[" << _node.id() << ": constant]" << std::endl;
         return _engine.allocate_memory(layout, alloc_type, false);
     } else if (is_internal || (!_node.can_share_buffer()) || _node.can_be_optimized() || _node.is_output()) {
-        GPU_DEBUG_IF(debug_config->verbose >= 2) {
-            GPU_DEBUG_COUT << "[" << _node.id() << ": output]" << std::endl;
-        }
+        GPU_DEBUG_LOG << "[" << _node.id() << ": output]" << std::endl;
         return _engine.allocate_memory(layout, alloc_type);
     } else {
         return get_memory_from_pool(_engine,
@@ -938,10 +881,7 @@ std::string primitive_inst::generic_to_string(program_node const& node, const ch
 }
 
 cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->verbose >= 4) {
-        GPU_DEBUG_COUT << id() << ": Use unfused subgraph due to unexpected fusions\n";
-    }
+    GPU_DEBUG_TRACE_DETAIL << id() << ": Use unfused subgraph due to unexpected fusions\n";
     if (!_unfused_subgraph) {
         topology t;
 

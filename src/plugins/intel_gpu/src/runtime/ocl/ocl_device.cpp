@@ -230,6 +230,19 @@ device_info init_device_info(const cl::Device& device) {
         info.num_threads_per_eu = 0;
     }
 
+    info.num_ccs = 1;
+    if (info.supports_queue_families) {
+        cl_uint num_queues = 0;
+
+        std::vector<cl_queue_family_properties_intel> qfprops = device.getInfo<CL_DEVICE_QUEUE_FAMILY_PROPERTIES_INTEL>();
+        for (cl_uint q = 0; q < qfprops.size(); q++) {
+            if (qfprops[q].capabilities == CL_QUEUE_DEFAULT_CAPABILITIES_INTEL && qfprops[q].count > num_queues) {
+                num_queues = qfprops[q].count;
+            }
+        }
+        info.num_ccs = std::max<uint32_t>(num_queues, info.num_ccs);
+    }
+
     return info;
 }
 

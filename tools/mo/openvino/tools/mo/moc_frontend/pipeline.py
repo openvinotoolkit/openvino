@@ -147,9 +147,6 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
                             "Place (operation or tensor) with name {} is not found.".format(name))
             place = node.get('node')
 
-            if node.get('shape'):
-                input_model.set_partial_shape(place, node['shape'])
-
             if node.get('data_type'):
                 dtype = node['data_type']
                 ov_type = Type(dtype)
@@ -177,8 +174,19 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
                 value = mo_array(casted_list, dtype=dtype)
             else:
                 value = np_map_cast[dtype](value)
-
             value = np.array(value, dtype=dtype)
+
+            ov_shape = input_model.get_partial_shape(place)
+            if node.get('shape'):
+                # set user defined shape
+                ov_shape = PartialShape(node['shape'])
+                input_model.set_partial_shape(place, ov_shape)
+            elif ov_shape.is_dynamic:
+                # in case of dynamic shape (dynamic rank or dynamic dimension)
+                # deduce it based on the value shape and set it
+                ov_shape = PartialShape(value.shape)
+                input_model.set_partial_shape(place, ov_shape)
+
             input_model.set_tensor_value(place, value)
 
     def shape_to_array(shape: PartialShape):

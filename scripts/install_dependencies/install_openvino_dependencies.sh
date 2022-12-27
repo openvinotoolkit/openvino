@@ -88,7 +88,7 @@ if [ "$os" == "auto" ] ; then
     fi
     case $os in
         centos7|centos8|rhel8|rhel9.1|\
-        almalinux8.7|\
+        almalinux8.7|amzn2|\
         fedora34|fedora35|fedora36|fedora37|fedora38|\
         raspbian9|debian9|ubuntu18.04|\
         raspbian10|debian10|ubuntu20.04|ubuntu20.10|ubuntu21.04|\
@@ -182,11 +182,22 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
      [ "$os" == "rhel8" ] || [ "$os" == "rhel9.1" ] ||
      [ "$os" == "fedora34" ] || [ "$os" == "fedora35" ] || [ "$os" == "fedora36" ] ||
      [ "$os" == "fedora36" ] || [ "$os" == "fedora38" ] ||
-     [ "$os" == "almalinux8.7" ] ; then
+     [ "$os" == "almalinux8.7" ] || [ "$os" == "amzn2" ] ; then
 
     arch=$(uname -m)
-    pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake3 json-devel.$arch zlib-devel.$arch sudo)
 
+    if [ "$os" == "amzn2" ] ; then
+        amazon-linux-extras install epel python3.8
+    fi
+
+    pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake3 json-devel.$arch zlib-devel.$arch sudo)
+    
+    if [ "$os" == "centos7" ] || [ "$os" == "amzn2" ] ; then
+        pkgs_dev+=(pkgconfig)
+    else
+        pkgs_dev+=(pkgconf-pkg-config)
+    fi
+    
     if [ "$os" == "rhel9.1" ] ; then
         pkgs_dev+=(curl-minimal)
     else
@@ -203,7 +214,7 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
         pkgs_myriad=(libusbx.$arch)
     fi
 
-    if [ "$os" == "centos7" ] ; then
+    if [ "$os" == "centos7" ] || [ "$os" == "amzn2" ] ; then
         pkgs_core=(tbb.$arch pugixml.$arch gflags.$arch)
         pkgs_dev+=(gflags-devel.$arch)
         pkgs_opencv_opt=(
@@ -213,14 +224,17 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
             gstreamer1-plugins-bad-free.$arch
         )
         extra_repos+=(https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm)
-    elif [ "$os" == "centos8" ] || [ "$os" == "rhel8"] || [ "$os" == "almalinux8.7" ] ; then
+    elif [ "$os" == "centos8" ] || [ "$os" == "rhel8" ] || [ "$os" == "almalinux8.7" ] ; then
         pkgs_core+=(
             https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/tbb-2018.2-9.el8.$arch.rpm
             https://download-ib01.fedoraproject.org/pub/epel/8/Everything/$arch/Packages/p/pugixml-1.13-1.el8.$arch.rpm
             https://vault.centos.org/centos/8/PowerTools/$arch/os/Packages/gflags-2.1.2-6.el8.$arch.rpm
         )
         pkgs_python+=(python38 python38-pip)
-        pkgs_dev+=(https://vault.centos.org/centos/8/PowerTools/$arch/os/Packages/gflags-devel-2.1.2-6.el8.$arch.rpm)
+        pkgs_dev+=(
+            https://vault.centos.org/centos/8/PowerTools/$arch/os/Packages/gflags-devel-2.1.2-6.el8.$arch.rpm
+            https://download-ib01.fedoraproject.org/pub/epel/8/Everything/$arch/Packages/j/json-devel-3.6.1-2.el8.$arch.rpm
+        )
         pkgs_opencv_req=(gtk3)
         pkgs_opencv_opt=(
             https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/libcdio-2.0.0-3.el8.$arch.rpm
@@ -323,7 +337,7 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
      [ "$os" == "rhel8" ] || [ "$os" == "rhel9.1" ] ||
      [ "$os" == "fedora34" ] || [ "$os" == "fedora35" ] || [ "$os" == "fedora36" ] ||
      [ "$os" == "fedora36" ] || [ "$os" == "fedora38" ] ||
-     [ "$os" == "almalinux8.7" ] ; then
+     [ "$os" == "almalinux8.7" ] || [ "$os" == "amzn2" ] ; then
 
     [ -z "$interactive" ] && iopt="--assumeyes"
     [ -n "$dry" ] && iopt="--downloadonly"

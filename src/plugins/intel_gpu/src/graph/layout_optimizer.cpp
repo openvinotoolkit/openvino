@@ -11,6 +11,8 @@
 #include "reorder_inst.h"
 #include "resample_inst.h"
 #include "reshape_inst.h"
+#include "arg_max_min_inst.h"
+#include "shape_of_inst.h"
 #include "generic_layer.hpp"
 #include <sstream>
 
@@ -1348,8 +1350,8 @@ impl_types layout_optimizer::get_forced_impl_type_by_config(program_node& node) 
                 preferred_type = impl_types::cpu;
 
             if (node.id() == forced_impl_type.substr(0, found_type)) {
-                GPU_DEBUG_COUT << " Forced implementation type : " << forced_impl_type.substr(0, found_type) << " : "
-                    << forced_impl_type.substr(found_type + 1) << std::endl;
+                GPU_DEBUG_LOG << " Forced implementation type : " << forced_impl_type.substr(0, found_type) << " : "
+                              << forced_impl_type.substr(found_type + 1) << std::endl;
                 return preferred_type;
             }
         }
@@ -1592,13 +1594,22 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             if (node.is_dynamic()) {
                 impl_candidate = impl_types::ocl;
             } else {
-                auto in0_l = node.get_dependency(0).get_output_layout();
-                auto in1_l = node.get_dependency(1).get_output_layout();
-                auto out_l = node.get_output_layout();
                 auto has_input2 = gemm_prim->dependencies().size() == 3;
+                std::vector<layout> in_layouts { node.get_dependency(0).get_output_layout(), node.get_dependency(1).get_output_layout() };
+                if (has_input2) {
+                    in_layouts.emplace_back(node.get_dependency(2).get_output_layout());
+                }
+                auto out_l = node.get_output_layout();
+
+                in_layouts = gemm_inst::transform_input_layouts(gemm_prim, in_layouts, out_l);
+                out_l = gemm_inst::transform_output_layout(gemm_prim, in_layouts, out_l);
+
+                auto in0_l = in_layouts[0];
+                auto in1_l = in_layouts[1];
+
                 size_t in2_batched_size = 0;
                 if (has_input2) {
-                    auto in2_l = node.get_dependency(2).get_output_layout();
+                    auto in2_l = in_layouts[2];
                     in2_batched_size = in2_l.count() / (in2_l.spatial(0) * in2_l.spatial(1));
                 }
                 size_t size_k = gemm_prim->transpose_input0 ? in0_l.spatial(1) : in0_l.spatial(0);
@@ -1643,6 +1654,22 @@ format layout_optimizer::get_preferred_format(program_node& node) {
     auto output_layout = node.get_output_layout();
     bool use_onednn_impls = _optimization_attributes.use_onednn_impls;
 
+    bool allow_new_shape_infer = node.get_program().get_options().get<build_option_type::allow_new_shape_infer>()->enabled();
+
+    if (allow_new_shape_infer) {
+        if (node.is_type<shape_of>())
+            return format::get_default_format(node.get_dependency(0).get_output_layout(false).get_rank());
+        for (auto u : node.get_users()) {
+            for (auto dep_idx : u->get_shape_infer_dependencies()) {
+                if (u->get_dependencies().size() <= dep_idx)
+                    continue;
+                if (u->get_dependency(dep_idx).get_unique_id() == node.get_unique_id()) {
+                    expected = format::get_default_format(output_layout.get_rank(), false, false);
+                    return expected;
+                }
+            }
+        }
+    }
     if (!_forcing_map.empty() && _forcing_map.count(node.id()) != 0) {
         expected = _forcing_map.at(node.id()).first;
     } else if (node.is_type<convolution>()) {
@@ -1781,6 +1808,10 @@ format layout_optimizer::get_preferred_format(program_node& node) {
             else if (input_layout.format.dimension() == 4)
                 expected = format::bfyx;
         }
+    } else if (node.is_type<arg_max_min>()) {
+        // Set default format for issue 92967/98750
+        // TODO: will remove when arg_max_min_ref supports blocked format
+        expected = format::get_default_format(node.get_input_layouts()[0].get_rank(), false, false);
     }
 
     return expected;
@@ -1788,7 +1819,6 @@ format layout_optimizer::get_preferred_format(program_node& node) {
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, dnnl::primitive_desc prim_desc) {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     if (node.is_input() || !are_data_types_suitable_for_onednn(node)) {
         return;
     }
@@ -1823,15 +1853,22 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
             node.set_preferred_input_fmt(idx, src_fmt);
 
             auto dst_fmt = onednn::find_data_format(prim_desc.dst_desc());
+            // Errata: Best impl for shallow input conv with zero-point ops is ocl:xe_lp.
+            if (node.is_type<convolution>() && src_fmt == format::bfyx) {
+                auto& conv = node.as<convolution>();
+                if (conv.get_input_layouts()[0].feature() <= 8 && conv.activations_zero_points_term() &&
+                    conv.get_input_layouts()[0].data_type == data_types::u8 && conv.get_output_layout().data_type == data_types::u8) {
+                    dst_fmt = format::b_fs_yx_fsv32;
+                }
+            }
+
             if (node.get_preferred_output_fmt() == format::any) {
                 for (size_t usr = 0 ; usr < node.get_users().size() ; usr++)
                     node.set_preferred_output_fmt(usr, dst_fmt);
             }
 
-            GPU_DEBUG_IF(debug_config->verbose >= 2) {
-                std::cout << "select_preferred_formats:" << node.id() << ": " << fmt_to_str(src_fmt) << " --> " << fmt_to_str(dst_fmt)
-                 << " For index : " << idx << std::endl;
-            }
+            GPU_DEBUG_LOG << "select_preferred_formats:" << node.id() << ": " << fmt_to_str(src_fmt) << " --> " << fmt_to_str(dst_fmt)
+                          << " For index : " << idx << std::endl;
         }
     }
 
