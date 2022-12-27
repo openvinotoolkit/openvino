@@ -31,7 +31,7 @@ if(NOT TARGET zlib::zlib)
     elseif(EXISTS "${Samples_SOURCE_DIR}/thirdparty/zlib")
         # Allow running samples CMakeLists.txt as stand alone from openvino sources
         add_subdirectory("${Samples_SOURCE_DIR}/../../thirdparty/zlib"
-                         "${Samples_BINARY_DIR}/../../thirdparty/zlib" EXCLUDE_FROM_ALL)
+                         "${Samples_BINARY_DIR}/thirdparty/zlib" EXCLUDE_FROM_ALL)
     endif()
 endif()
 
@@ -42,7 +42,7 @@ if(EXISTS "${Samples_SOURCE_DIR}/thirdparty/cnpy")
 elseif(EXISTS "${Samples_SOURCE_DIR}/../../thirdparty/cnpy" AND NOT TARGET cnpy)
     # Allow running samples CMakeLists.txt as stand alone from openvino sources
     add_subdirectory("${Samples_SOURCE_DIR}/../../thirdparty/cnpy"
-                     "${Samples_BINARY_DIR}/../../thirdparty/cnpy" EXCLUDE_FROM_ALL)
+                     "${Samples_BINARY_DIR}/thirdparty/cnpy" EXCLUDE_FROM_ALL)
 endif()
 
 # add sample
