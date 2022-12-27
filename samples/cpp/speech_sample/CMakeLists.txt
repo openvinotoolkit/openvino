@@ -25,14 +25,24 @@ if(NOT TARGET zlib::zlib)
     if(zlib_FOUND)
         message(STATUS "${PKG_CONFIG_EXECUTABLE}: zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
     elseif(EXISTS "${Samples_SOURCE_DIR}/thirdparty/zlib")
+        # OpenVINO package puts thirdparty to samples dir
         add_subdirectory("${Samples_SOURCE_DIR}/thirdparty/zlib"
                          "${Samples_BINARY_DIR}/thirdparty/zlib" EXCLUDE_FROM_ALL)
+    elseif(EXISTS "${Samples_SOURCE_DIR}/thirdparty/zlib")
+        # Allow running samples CMakeLists.txt as stand alone from openvino sources
+        add_subdirectory("${Samples_SOURCE_DIR}/../../thirdparty/zlib"
+                         "${Samples_BINARY_DIR}/../../thirdparty/zlib" EXCLUDE_FROM_ALL)
     endif()
 endif()
 
 if(EXISTS "${Samples_SOURCE_DIR}/thirdparty/cnpy")
+    # OpenVINO package puts thirdparty to samples dir
     add_subdirectory("${Samples_SOURCE_DIR}/thirdparty/cnpy"
                      "${Samples_BINARY_DIR}/thirdparty/cnpy" EXCLUDE_FROM_ALL)
+elseif(EXISTS "${Samples_SOURCE_DIR}/../../thirdparty/cnpy")
+    # Allow running samples CMakeLists.txt as stand alone from openvino sources
+    add_subdirectory("${Samples_SOURCE_DIR}/../../thirdparty/cnpy"
+                     "${Samples_BINARY_DIR}/../../thirdparty/cnpy" EXCLUDE_FROM_ALL)
 endif()
 
 # add sample
