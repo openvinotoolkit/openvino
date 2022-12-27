@@ -31,7 +31,7 @@ public:
 
     template<typename ShapeType>
     static std::vector<layout> calc_output_layouts(bucketize_node const& /*node*/, const kernel_impl_params& impl_param) {
-        return forward_input0_shape(impl_param);
+        return forward_input0_shape<ShapeType>(impl_param);
     }
 
     static layout calc_output_layout(const bucketize_node& node, kernel_impl_params const& impl_param);

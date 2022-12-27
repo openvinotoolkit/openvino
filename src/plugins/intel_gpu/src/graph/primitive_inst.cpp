@@ -880,17 +880,6 @@ std::string primitive_inst::generic_to_string(program_node const& node, const ch
     return primitive_description.str();
 }
 
-std::vector<layout> primitive_inst::forward_input0_shape(const kernel_impl_params& impl_param) {
-    auto in_layout = impl_param.get_input_layout(0);
-    auto output_type = impl_param.desc->output_data_types[0].value_or(in_layout.data_type);
-
-    if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_fused_output_layout().data_type;
-    }
-
-    return { layout(in_layout.get_partial_shape(), output_type, in_layout.format) };
-}
-
 cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
     GPU_DEBUG_TRACE_DETAIL << id() << ": Use unfused subgraph due to unexpected fusions\n";
     if (!_unfused_subgraph) {

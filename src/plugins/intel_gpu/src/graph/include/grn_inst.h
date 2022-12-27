@@ -21,7 +21,7 @@ class typed_primitive_inst<grn> : public typed_primitive_inst_base<grn> {
 public:
     template<typename ShapeType>
     static std::vector<layout> calc_output_layouts(grn_node const& /*node*/, const kernel_impl_params& impl_param) {
-        return forward_input0_shape(impl_param);
+        return forward_input0_shape<ShapeType>(impl_param);
     }
     static layout calc_output_layout(grn_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(grn_node const& node);
