@@ -499,13 +499,13 @@ TEST_P(conv_fp32_scale, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_scale, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    // convolution_test_params{ CASE_CONV_FP32_1, CASE_CONV_FP32_1, 2, 3
+    // convolution_test_params{ CASE_CONV_FP32_1, 2, 2, 3 },
     convolution_test_params{ CASE_CONV_FP32_2, 2, 2, 3 },
     convolution_test_params{ CASE_CONV_FP32_3, 2, 2, 3 },
     convolution_test_params{ CASE_CONV_FP32_4, 2, 2, 3 },
     convolution_test_params{ CASE_CONV_FP32_10, 2, 2, 3 },
 
-    // convolution_test_params{ CASE_CONV_FP16_1, CASE_CONV_FP16_1, 2, 3
+    // convolution_test_params{ CASE_CONV_FP16_1, 2, 2, 3 },
     convolution_test_params{ CASE_CONV_FP16_2, 2, 2, 3 },
     convolution_test_params{ CASE_CONV_FP16_3, 2, 2, 3 },
     convolution_test_params{ CASE_CONV_FP16_4, 2, 2, 3 },
@@ -860,12 +860,12 @@ TEST_P(conv_fp32_prelu_eltwise, vector_ops_mixed_types_slope_2) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_prelu_eltwise, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    // convolution_test_params{ CASE_CONV_FP32_1, CASE_CONV_FP32_1, 2, 4
+    // convolution_test_params{ CASE_CONV_FP32_1, 2, 2, 4 },
     convolution_test_params{ CASE_CONV_FP32_2, 2, 2, 4 },
     convolution_test_params{ CASE_CONV_FP32_3, 2, 2, 4 },
     convolution_test_params{ CASE_CONV_FP32_4, 2, 2, 4 },
 
-    // convolution_test_params{ CASE_CONV_FP32_1, CASE_CONV_FP32_1, 2, 4
+    // convolution_test_params{ CASE_CONV_FP16_1, 2, 2, 4 },
     convolution_test_params{ CASE_CONV_FP16_2, 2, 2, 4 },
     convolution_test_params{ CASE_CONV_FP16_3, 2, 2, 4 },
     convolution_test_params{ CASE_CONV_FP16_4, 2, 2, 4 },
@@ -1179,7 +1179,7 @@ TEST_P(conv_fp32_multi_eltwise_quantization, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_multi_eltwise_quantization, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    // convolution_test_params{ CASE_CONV_FP32_2, CASE_CONV_FP32_2, 4, 5
+    // convolution_test_params{ CASE_CONV_FP32_2, 4, 4, 5 },
     convolution_test_params{ CASE_CONV_FP32_4, 4, 4, 5 },
 
     convolution_test_params{ CASE_CONV_FP16_2, 4, 4, 5 },
@@ -1264,12 +1264,12 @@ TEST_P(conv_fp32_swish, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_swish, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    // convolution_test_params{ CASE_CONV_FP32_1, CASE_CONV_FP32_1, 2, 4
+    // convolution_test_params{ CASE_CONV_FP32_1, 2, 2, 4 },
     convolution_test_params{ CASE_CONV_FP32_2, 2, 2, 4 },
     convolution_test_params{ CASE_CONV_FP32_3, 2, 2, 4 },
     convolution_test_params{ CASE_CONV_FP32_4, 2, 2, 4 },
 
-    // convolution_test_params{ CASE_CONV_FP32_1, CASE_CONV_FP32_1, 2, 4
+    // convolution_test_params{ CASE_CONV_FP32_1, 2, 2, 4 },
     convolution_test_params{ CASE_CONV_FP16_2, 2, 2, 4 },
     convolution_test_params{ CASE_CONV_FP16_3, 2, 2, 4 },
     convolution_test_params{ CASE_CONV_FP16_4, 2, 2, 4 },
@@ -1307,7 +1307,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_eltwise_b_fs_zyx_fsv16, ::testin
     convolution_test_params{ CASE_CONV_FP32_9, 2, 2, 3 },
     convolution_test_params{ CASE_CONV_FP32_11, 2, 2, 3 },
     convolution_test_params{ CASE_CONV_FP32_12, 2, 2, 3 },
-    // convolution_test_params{ CASE_CONV_FP32_13, CASE_CONV_FP32_13, 2, 3
+    // convolution_test_params{ CASE_CONV_FP32_13, 2, 2, 3 }, - leads to mvn_scale_activation_quantize_i8_eltwise_fp32_quantize_i8.basic/11 test failure
 
     convolution_test_params{ CASE_CONV_FP16_6, 2, 2, 3 },
     convolution_test_params{ CASE_CONV_FP16_7, 2, 2, 3 },
@@ -1566,14 +1566,14 @@ TEST_P(conv_fp32_activation_eltwise_in_u8_fp32, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_activation_eltwise_in_u8_fp32, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    // convolution_test_params{ CASE_CONV_FP32_1, CASE_CONV_FP32_1, 2, 4
+    // convolution_test_params{ CASE_CONV_FP32_1, 2, 2, 4 }, - eltwise fusing not supported
     convolution_test_params{ CASE_CONV_FP32_2, 2, 2, 4 },
     convolution_test_params{ CASE_CONV_FP32_3, 2, 2, 4 },
     convolution_test_params{ CASE_CONV_FP32_4, 2, 2, 4 },
-    // convolution_test_params{ CASE_CONV_FP32_5, CASE_CONV_FP32_5, 2, 4
+    // convolution_test_params{ CASE_CONV_FP32_5, 2, 2, 4 }, - eltwise fusing not supported
     convolution_test_params{ CASE_CONV_FP32_6, 2, 2, 4 },
     convolution_test_params{ CASE_CONV_FP32_7, 2, 2, 4 },
-    // convolution_test_params{ CASE_CONV_FP32_8, CASE_CONV_FP32_8, 2, 4
+    // convolution_test_params{ CASE_CONV_FP32_8, 2, 2, 4 }, - unknown bug
     convolution_test_params{ CASE_CONV_FP32_9, 2, 2, 4 },
     convolution_test_params{ CASE_CONV_FP32_10, 2, 2, 4 },
 }));
@@ -3063,7 +3063,7 @@ TEST_P(conv_int8_eltwise_onednn, u8_eltwise_prod_out) {
     execute(p);
 }
 
-static const int NOT_FOR_CLDNN=0;
+static const int NOT_FOR_CLDNN = 0;
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_eltwise_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
     convolution_test_params{ CASE_CONV_U8S8_1, NOT_FOR_CLDNN, 2, 3 },
     convolution_test_params{ CASE_CONV_U8S8_2, NOT_FOR_CLDNN, 2, 3 },
