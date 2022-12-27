@@ -128,6 +128,15 @@ public:
      * @return A map of name/parameter elements.
      */
     virtual ParamMap getParams() const = 0;
+
+    /**
+     * @brief retrieve the context of the target device from the meta remote context wrapper
+     * Returns RemoteContext object and dependent dynamic loaded library.
+     * @param targetDevice Defines the target device name to retrieve context from
+     * @return pair of RemoteContext object and dependent dynamic loaded library
+     */
+    virtual std::pair<std::shared_ptr<RemoteContext>, std::shared_ptr<void>> GetTargetContext(
+        const std::string& targetDevice);
 };
 
 /**

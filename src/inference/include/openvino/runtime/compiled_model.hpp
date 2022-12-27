@@ -212,13 +212,6 @@ public:
     RemoteContext get_context() const;
 
     /**
-     * @brief Returns pointer to device-specific shared context
-     * on a remote accelerator device that was used to create this CompiledModel.
-     * @param devicename  device to retrieve context from.
-     * @return A context.
-     */
-    RemoteContext get_context(std::string devicename) const;
-    /**
      * @brief Checks if the current CompiledModel object is not initialized.
      * @return `true` if the current CompiledModel object is not initialized; `false`, otherwise.
      */

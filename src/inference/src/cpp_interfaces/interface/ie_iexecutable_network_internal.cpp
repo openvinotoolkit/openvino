@@ -111,10 +111,6 @@ std::shared_ptr<RemoteContext> IExecutableNetworkInternal::GetContext() const {
     IE_THROW(NotImplemented);
 }
 
-std::shared_ptr<RemoteContext> IExecutableNetworkInternal::GetContext(const std::string&) {
-    IE_THROW(NotImplemented);
-}
-
 std::shared_ptr<IInferRequestInternal> IExecutableNetworkInternal::CreateInferRequestImpl(
     InputsDataMap networkInputs,
     OutputsDataMap networkOutputs) {

@@ -35,17 +35,6 @@ protected:
     static constexpr const char* device_name = "MULTI";
 
 public:
-    // Needed to make create_tensor overloads from base class visible for user
-    using RemoteContext::create_tensor;
-
-    /**
-     * @brief Constructs context object from user-supplied context handle
-     * @param core A reference to OpenVINO Runtime Core object
-     * @param ctx_device_id An ID of device to be used from ctx
-     */
-    MultiContext(Core& core, int ctx_device_id = 0) {
-        // TBD, user contexts can be various, need to support?
-    }
     /**
      * @brief Constructs context object from user-supplied context list
      * @param contexts a vector holding the hardware contexts

@@ -50,18 +50,19 @@ public:
         return m_contexts[0]->getParams();
     }
 
-    RemoteContext::Ptr GetTargetContext(const std::string deviceName) {
+    std::pair<std::shared_ptr<RemoteContext>, std::shared_ptr<void>> GetTargetContext(const std::string deviceName) {
         RemoteContext::Ptr res;
         DeviceIDParser parser(deviceName);
         std::string deviceIDLocal = parser.getDeviceID();
         if (deviceIDLocal.empty())
             deviceIDLocal = m_default_device_id;
         for (auto&& iter : m_contexts) {
-            if (iter->getDeviceName() == parser.getDeviceName() + "." + deviceIDLocal)
+            if (iter->getDeviceName() == parser.getDeviceName() + "." + deviceIDLocal) {
                 res = iter;
-                // to be check, if allowed 2 context for a same target?
+                break;
+            }
         }
-        return res;
+        return {res, m_libs[res->getDeviceName()]};
     }
 
     bool isEmpty() const {
@@ -73,12 +74,20 @@ public:
         return deviceName;
     };
 
+    void AddContext(RemoteContext::Ptr hwcontext, std::shared_ptr<void> deplib) {
+        if (hwcontext) {
+            m_contexts.push_back(hwcontext);
+            m_libs[hwcontext->getDeviceName()] = deplib;
+        }
+    }
+
     ~MultiRemoteContext() {
         m_contexts.clear();
     }
 
 private:
     std::vector<RemoteContext::Ptr> m_contexts {nullptr};
+    std::map<std::string, std::shared_ptr<void>> m_libs;
     std::string m_default_device_id = "0";
 };
 }  // namespace MultiDevicePlugin

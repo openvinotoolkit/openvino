@@ -509,9 +509,11 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         SoExecutableNetworkInternal exec_net;
         LOG_DEBUG_TAG("load network to device:%s", deviceName.c_str());
         if (modelPath.empty()) {
+            std::pair<std::shared_ptr<RemoteContext>, std::shared_ptr<void>> tempCtx;
             // check if device Config is needed, like the device ID information needed for multiple same type devices
-            auto tempCtx = ctx->as<MultiRemoteContext>()->GetTargetContext(deviceName);
-            exec_net = tempCtx ? GetCore()->LoadNetwork(network, tempCtx, deviceConfig)
+            if (ctx && ctx->is<MultiRemoteContext>())
+                tempCtx = ctx->as<MultiRemoteContext>()->GetTargetContext(deviceName);
+            exec_net = tempCtx.first ? GetCore()->LoadNetwork(network, tempCtx.first, deviceConfig)
                                : GetCore()->LoadNetwork(network, deviceName, deviceConfig);
         } else if (GetCore()->DeviceSupportsImportExport(deviceName)) {
             exec_net = GetCore()->LoadNetwork(modelPath, deviceName, deviceConfig);
@@ -519,8 +521,10 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
             std::call_once(readNetworkFlag, [&]() {
                 network = GetCore()->ReadNetwork(modelPath, std::string());
             });
-            auto tempCtx = ctx->as<MultiRemoteContext>()->GetTargetContext(deviceName);
-            exec_net = tempCtx ? GetCore()->LoadNetwork(network, tempCtx, deviceConfig)
+            std::pair<std::shared_ptr<RemoteContext>, std::shared_ptr<void>> tempCtx;
+            if (ctx && ctx->is<MultiRemoteContext>())
+                tempCtx = ctx->as<MultiRemoteContext>()->GetTargetContext(deviceName);
+            exec_net = tempCtx.first ? GetCore()->LoadNetwork(network, tempCtx.first, deviceConfig)
                                : GetCore()->LoadNetwork(network, deviceName, deviceConfig);
         }
 
