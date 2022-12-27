@@ -3825,6 +3825,8 @@ public:
 class onednn_binary_add_full_tensor : public EltwiseSumFusingTestOneDNN {};
 TEST_P(onednn_binary_add_full_tensor, basic) {
     auto p = GetParam();
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives = p.expected_fused_primitives_onednn;
 
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -3853,15 +3855,17 @@ TEST_P(onednn_binary_add_full_tensor, basic) {
 #define CASE_CONV_ELTW_SUM_SUM_DIFF_DTYPE_1 { 1, 32, 4, 4 }, { 1, 16, 4, 4 }, { 1, 1, 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, 1, data_types::u8, format::b_fs_yx_fsv32, data_types::i8, format::bfyx, data_types::i8, format::b_fs_yx_fsv32, data_types::u8, format::b_fs_yx_fsv32, data_types::f32, format::bfyx
 
 INSTANTIATE_TEST_SUITE_P(eltwise_sum_fusings_gpu, onednn_binary_add_full_tensor, ::testing::ValuesIn(std::vector<convolution_eltw_sum_test_params>{
-    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_BINARY_ADD_1, 2, 3, 5 },
-    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_SUM_1, 2, 3, 5 },
-    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_SUM_DIFF_DTYPE_1, 2, 3, 5 },
+    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_BINARY_ADD_1, 2, 4, 5 },
+    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_SUM_1, 2, 4, 5 },
+    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_SUM_DIFF_DTYPE_1, 2, 4, 5 },
 }));
 
 
 class onednn_multiple_binary_add_full_tensor : public EltwiseSumFusingTestOneDNN {};
 TEST_P(onednn_multiple_binary_add_full_tensor, basic) {
     auto p = GetParam();
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives = p.expected_fused_primitives_onednn;
 
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -3889,8 +3893,8 @@ TEST_P(onednn_multiple_binary_add_full_tensor, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(multiple_eltwise_sum_fusings_gpu, onednn_multiple_binary_add_full_tensor, ::testing::ValuesIn(std::vector<convolution_eltw_sum_test_params>{
-    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_BINARY_ADD_1, 2, 3, 7 },
-    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_SUM_1, 2, 3, 7 },
+    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_BINARY_ADD_1, 2, 4, 7 },
+    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_SUM_1, 2, 4, 7 },
 }));
 
 struct implicit_crop_concat_convolution_test_params {

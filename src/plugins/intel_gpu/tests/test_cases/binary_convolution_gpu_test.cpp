@@ -398,23 +398,23 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel) {
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "binary_conv");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "binary_conv");
 
     auto output_memory = outputs.at("binary_conv").get_memory();
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
 
-    EXPECT_EQ(output_layout.format, format::bfyx);
-    EXPECT_EQ(output_layout.data_type, data_types::f32);
-    EXPECT_EQ(output_layout.batch(), 1);
-    EXPECT_EQ(output_layout.feature(), 4);
-    EXPECT_EQ(output_layout.spatial(1), 2);
-    EXPECT_EQ(output_layout.spatial(0), 2);
+    ASSERT_EQ(output_layout.format, format::bfyx);
+    ASSERT_EQ(output_layout.data_type, data_types::f32);
+    ASSERT_EQ(output_layout.batch(), 1);
+    ASSERT_EQ(output_layout.feature(), 4);
+    ASSERT_EQ(output_layout.spatial(1), 2);
+    ASSERT_EQ(output_layout.spatial(0), 2);
 
     for (size_t i = 0; i < output_layout.count(); i++)
     {
-        EXPECT_EQ(output_ptr[i], output_vec[i]) << "index="<< i;
+        ASSERT_EQ(output_ptr[i], output_vec[i]) << "index="<< i;
     }
 }
 
@@ -481,21 +481,21 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel_fp16) {
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "binary_conv");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "binary_conv");
 
     auto output_memory = outputs.at("binary_conv").get_memory();
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<uint16_t> output_ptr(output_memory, get_test_stream());
 
-    EXPECT_EQ(output_layout.format, format::bfyx);
-    EXPECT_EQ(output_layout.data_type, data_types::f16);
-    EXPECT_EQ(output_layout.batch(), 1);
-    EXPECT_EQ(output_layout.feature(), 4);
-    EXPECT_EQ(output_layout.spatial(1), 2);
-    EXPECT_EQ(output_layout.spatial(0), 2);
+    ASSERT_EQ(output_layout.format, format::bfyx);
+    ASSERT_EQ(output_layout.data_type, data_types::f16);
+    ASSERT_EQ(output_layout.batch(), 1);
+    ASSERT_EQ(output_layout.feature(), 4);
+    ASSERT_EQ(output_layout.spatial(1), 2);
+    ASSERT_EQ(output_layout.spatial(0), 2);
 
     for (size_t i = 0; i < output_layout.count(); i++) {
-        EXPECT_EQ(half_to_float(output_ptr[i]), output_vec[i]) << "index="<< i;
+        ASSERT_EQ(half_to_float(output_ptr[i]), output_vec[i]) << "index="<< i;
     }
 }

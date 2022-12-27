@@ -83,7 +83,6 @@ DEV_EXTRAS = [
     "pytest>=5.0,<=7.0.1;python_version<'3.10'",
     "pytest==7.2.0;python_version>='3.10'",
     "py>=1.9.0",
-    "openpyxl==2.6.4",
     "pytest-mock==3.1.1"
 ]
 

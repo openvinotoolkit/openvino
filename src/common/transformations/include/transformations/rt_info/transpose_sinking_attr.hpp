@@ -14,6 +14,7 @@ TRANSFORMATIONS_API void mark_as_no_sinking_node(const std::shared_ptr<Node>& no
 
 TRANSFORMATIONS_API bool is_sinking_node(const std::shared_ptr<Node>& node);
 TRANSFORMATIONS_API bool is_sinking_node(const Node* node);
+TRANSFORMATIONS_API bool is_sinking_node(ov::Output<ov::Node> output);
 
 /**
  * @ingroup ie_runtime_attr_api

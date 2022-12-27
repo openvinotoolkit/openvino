@@ -340,7 +340,7 @@ TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK, GetMetricNoT
 
     std::string targets;
     OV_ASSERT_NO_THROW(targets = compiled_model.get_property(ov::device::priorities));
-    auto expectedTargets = target_device + "," + CommonTestUtils::DEVICE_CPU;
+    auto expectedTargets = target_device;
 
     std::cout << "Compiled model fallback targets: " << targets << std::endl;
     ASSERT_EQ(expectedTargets, targets);
