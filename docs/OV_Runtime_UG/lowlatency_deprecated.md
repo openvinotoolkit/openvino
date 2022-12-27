@@ -2,11 +2,7 @@
 
 The deprecated LowLatency transformation changes the structure of the network containing [TensorIterator](../ops/infrastructure/TensorIterator_1.md) and [Loop](../ops/infrastructure/Loop_5.md) operations by adding the ability to work with the state, inserting the [Assign](../ops/infrastructure/Assign_3.md)/[ReadValue](../ops/infrastructure/ReadValue_3.md) layers, as shown in the picture below.
 
-@sphinxdirective
-
-.. image:: _static/images/applying_low_latency.svg
-
-@endsphinxdirective
+![](img/applying_low_latency.svg)
 
 After applying the transformation, `ReadValue` operations can receive other operations as an input, as shown in the picture above. These inputs should set the initial value for initialization of `ReadValue` operations. However, such initialization is not supported in the current State API implementation. Input values are ignored and the initial values for the `ReadValue` operations are set to 0 unless otherwise specified by the user via [State API](@ref openvino-state-api).
 

@@ -86,7 +86,12 @@ After applying the transformation, the `ReadValue` operations can receive other 
 
 	The only way to change the number iterations of `TensorIterator`/`Loop` layer is to use the `Reshape` feature. However, networks can be non-reshapable. The most common reason is that the value of shapes is hardcoded in a constant somewhere in the network. 
 
-	![low_latency_limitation_2](./img/low_latency_limitation_2.png)
+	@sphinxdirective
+
+	.. image:: _static/images/low_latency_limitation_2.svg
+	   :scale: 70 %
+
+	@endsphinxdirective
 
 	**Current solution:** 
    
