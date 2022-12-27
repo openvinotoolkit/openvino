@@ -70,7 +70,7 @@ The applications include:
    - [Sync Benchmark Python* Sample](../../samples/python/benchmark/sync_benchmark/README.md)
    - [Throughput Benchmark C++ Sample](../../samples/cpp/benchmark/throughput_benchmark/README.md)
    - [Throughput Benchmark Python* Sample](../../samples/python/benchmark/throughput_benchmark/README.md)
-   - [Bert Benhcmark Python* Sample](../../samples/python/benchmark/bert_benhcmark/README.md)
+   - [Bert Benchmark Python* Sample](../../samples/python/benchmark/bert_benchmark/README.md)
 
 
 - **Benchmark Application** – Estimates deep learning inference performance on supported devices for synchronous and asynchronous modes.

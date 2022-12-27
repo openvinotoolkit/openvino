@@ -79,7 +79,7 @@ ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32::AutoTuneOption ConvolutionKernel_m
         return autoTuneOptions[autoTuneIndex];
     }
 
-    AutoTuneOption option = {0, 0, 0, DEFAULT};
+    AutoTuneOption option = {0, 0, 0, EXE_MODE_DEFAULT};
 
     auto &params = dynamic_cast<const convolution_params &>(p);
     auto &output = params.outputs[0];
