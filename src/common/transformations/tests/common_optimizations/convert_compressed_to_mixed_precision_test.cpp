@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/convert_model_to_fp16_element_type.hpp"
+#include "transformations/common_optimizations/convert_compressed_to_mixed_precision.hpp"
 
 #include <gtest/gtest.h>
 
@@ -20,7 +20,7 @@
 using namespace testing;
 using namespace ov;
 
-TEST(TransformationTests, ConvertModelToFP16ElementType) {
+TEST(TransformationTests, ConvertCompressedToMixedPrecision) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
@@ -41,7 +41,7 @@ TEST(TransformationTests, ConvertModelToFP16ElementType) {
 
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
-        manager.register_pass<ov::pass::ConvertModelToFP16ElementType>();
+        manager.register_pass<ov::pass::ConvertCompressedToMixedPrecision>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -66,7 +66,8 @@ TEST(TransformationTests, ConvertModelToFP16ElementType) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertModelToFP16ElementTypeNoConvertion) {
+TEST(TransformationTests, ConvertCompressedToMixedPrecissionNoConvertion) {
+    // test that pass is not triggered when there are no decompression Converts
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
@@ -85,7 +86,7 @@ TEST(TransformationTests, ConvertModelToFP16ElementTypeNoConvertion) {
 
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
-        manager.register_pass<ov::pass::ConvertModelToFP16ElementType>();
+        manager.register_pass<ov::pass::ConvertCompressedToMixedPrecision>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -127,15 +128,14 @@ bool has_type(std::shared_ptr<Model> model) {
     return false;
 }
 
-TEST(TransformationTests, ConvertModelToFP16ElementType_keep_sensitive_nodes_in_fp32) {
-    // with keep_precision_sensitive_in_fp32 = true should keep precision sensitive nodes in FP32
+TEST(TransformationTests, ConvertCompressedToMixedPrecission_keep_sensitive_nodes_in_fp32) {
     std::shared_ptr<ov::Model> model(nullptr), model_ref(nullptr);
     {
         auto input_1 = std::make_shared<opset8::Parameter>(element::f32, Shape{360, 640});
         auto input_2 = std::make_shared<opset8::Parameter>(element::f32, Shape{720, 1280});
         auto shapeof = std::make_shared<opset8::ShapeOf>(input_2);
 
-        // decompression Converts are needed for ConvertModelToFP16ElementType to be triggered
+        // decompression Converts are needed for ConvertCompressedToMixedPrecision to be triggered
         auto compressed_const = opset8::Constant::create(element::f16, Shape{}, {2.0f});
         auto decompress_convert = std::make_shared<opset8::Convert>(compressed_const, element::f32);
         mark_as_decompression(decompress_convert);
@@ -150,8 +150,7 @@ TEST(TransformationTests, ConvertModelToFP16ElementType_keep_sensitive_nodes_in_
         model = std::make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{input_1, input_2});
 
         pass::Manager manager;
-        bool keep_precision_sensitive_in_fp32 = true;
-        manager.register_pass<ov::pass::ConvertModelToFP16ElementType>(keep_precision_sensitive_in_fp32);
+        manager.register_pass<ov::pass::ConvertCompressedToMixedPrecision>();
         manager.run_passes(model);
     }
     {
@@ -159,7 +158,7 @@ TEST(TransformationTests, ConvertModelToFP16ElementType_keep_sensitive_nodes_in_
         auto input_2 = std::make_shared<opset8::Parameter>(element::f16, Shape{720, 1280});
         auto shapeof_1 = std::make_shared<opset8::ShapeOf>(input_2);
 
-        // after ConvertModelToFP16ElementType Const->Convert are constant-folded into a single f16 Const
+        // after ConvertCompressedToMixedPrecision Const->Convert are constant-folded into a single f16 Const
         auto compressed_const = opset8::Constant::create(element::f16, Shape{}, {2.0f});
         auto add_compressed_const = std::make_shared<opset8::Add>(input_1, compressed_const);
 
@@ -175,47 +174,4 @@ TEST(TransformationTests, ConvertModelToFP16ElementType_keep_sensitive_nodes_in_
                         .enable(FunctionsComparator::CONST_VALUES);
     const auto res = fc.compare(model, model_ref);
     ASSERT_TRUE(res.valid) << res.message;
-}
-
-TEST(TransformationTests, ConvertModelToFP16ElementType_do_not_keep_in_fp32) {
-    // negative test: check that without keeping sensitive nodes in FP32 the whole ov::Model is converted to f16
-    // including ShapeOf subgraph and we get wrong output shape [1, 3, 287, 511] instead of correct one [1, 3, 288, 512]
-    std::shared_ptr<ov::Model> model(nullptr);
-    std::shared_ptr<opset8::Interpolate> interpolate(nullptr);
-    {
-        auto input = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 720, 1280});
-        auto sizes = opset8::Constant::create(element::i64, Shape{4}, {1, 3, 288, 512});
-        auto scales_const = opset8::Constant::create(element::f32, Shape{4}, {1.0f, 1.0f, 0.4f, 0.4f});
-
-        // decompression Converts are needed for ConvertModelToFP16ElementType to be triggered
-        auto compressed_const = opset8::Constant::create(element::f16, Shape{}, {0.0f});
-        auto decompress_convert = std::make_shared<opset8::Convert>(compressed_const, element::f32);
-        mark_as_decompression(decompress_convert);
-        // scales still are {1., 1., 0.4, 0.4}
-        auto scales = std::make_shared<opset8::Add>(scales_const, decompress_convert);
-
-        opset8::Interpolate::InterpolateAttrs attrs;
-
-        attrs.mode = opset8::Interpolate::InterpolateMode::LINEAR_ONNX;
-        attrs.shape_calculation_mode = opset8::Interpolate::ShapeCalcMode::SCALES;
-        attrs.nearest_mode = opset8::Interpolate::NearestMode::FLOOR;
-        attrs.pads_begin = std::vector<size_t>{0};
-        attrs.pads_end = std::vector<size_t>{0};
-        attrs.antialias = false;
-        attrs.coordinate_transformation_mode = opset8::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL;
-        attrs.cube_coeff = -0.75f;
-
-        interpolate = std::make_shared<opset8::Interpolate>(input, sizes, scales, attrs);
-        model = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
-
-        pass::Manager manager;
-        // didn't keep in FP32 intentionally
-        bool keep_precision_sensitive_in_fp32 = false;
-        manager.register_pass<ov::pass::ConvertModelToFP16ElementType>(keep_precision_sensitive_in_fp32);
-        manager.run_passes(model);
-    }
-
-    ASSERT_FALSE(has_type<element::Type_t::f32>(model));
-    ASSERT_TRUE(interpolate->input_value(2).get_element_type() == element::Type_t::f16);
-    ASSERT_TRUE(interpolate->output(0).get_partial_shape() == ov::PartialShape({1, 3, 287, 511}));
 }

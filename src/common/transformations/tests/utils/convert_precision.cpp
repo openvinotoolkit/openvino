@@ -21,7 +21,7 @@
 #include <vector>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "transformations/common_optimizations/mark_shape_subgraphs.hpp"
+#include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 
 using namespace testing;
@@ -812,7 +812,7 @@ TEST(TransformationTests, ConvertPrecision_skip_precision_sensitive) {
         model = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
 
         pass::Manager manager;
-        manager.register_pass<ov::pass::MarkEntireShapeSubgraphs>();
+        manager.register_pass<ov::pass::MarkPrecisionSensitiveShapeOfSubgraphs>();
         type_to_fuse_map empty_type_to_fuse_map = {};
         bool keep_precision_sensitive_in_fp32 = true;
         manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::f32, element::f16}},
@@ -847,7 +847,7 @@ TEST(TransformationTests, ConvertPrecision_without_keep_precision_sensitive_in_f
         interpolate = std::make_shared<opset8::Interpolate>(input, sizes, scales, attrs);
         model = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
         pass::Manager manager;
-        manager.register_pass<ov::pass::MarkEntireShapeSubgraphs>();
+        manager.register_pass<ov::pass::MarkPrecisionSensitiveShapeOfSubgraphs>();
         type_to_fuse_map empty_type_to_fuse_map = {};
         bool keep_precision_sensitive_in_fp32 = false;
         manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::f32, element::f16}},
@@ -870,7 +870,7 @@ TEST(TransformationTests, ConvertPrecision_check_marking_does_not_leak_in_trivia
         model = std::make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{input_1, input_2});
 
         pass::Manager manager;
-        manager.register_pass<ov::pass::MarkEntireShapeSubgraphs>();
+        manager.register_pass<ov::pass::MarkPrecisionSensitiveShapeOfSubgraphs>();
         type_to_fuse_map empty_type_to_fuse_map = {};
         bool keep_precision_sensitive_in_fp32 = true;
         manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::f32, element::f16}},
@@ -910,7 +910,7 @@ TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_1) {
         model = std::make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{input_1, input_2});
 
         pass::Manager manager;
-        manager.register_pass<ov::pass::MarkEntireShapeSubgraphs>();
+        manager.register_pass<ov::pass::MarkPrecisionSensitiveShapeOfSubgraphs>();
         type_to_fuse_map empty_type_to_fuse_map = {};
         bool keep_precision_sensitive_in_fp32 = true;
         manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::f32, element::f16}},
@@ -964,7 +964,7 @@ TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_2) {
         model = std::make_shared<ov::Model>(NodeVector{result}, ParameterVector{input_1});
 
         pass::Manager manager;
-        manager.register_pass<ov::pass::MarkEntireShapeSubgraphs>();
+        manager.register_pass<ov::pass::MarkPrecisionSensitiveShapeOfSubgraphs>();
         type_to_fuse_map empty_type_to_fuse_map = {};
         bool keep_precision_sensitive_in_fp32 = true;
         manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::f32, element::f16}},
@@ -1044,7 +1044,7 @@ TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_3) {
         model = std::make_shared<ov::Model>(NodeVector{result_1, result_2}, ParameterVector{input_1, input_2});
 
         pass::Manager manager;
-        manager.register_pass<ov::pass::MarkEntireShapeSubgraphs>();
+        manager.register_pass<ov::pass::MarkPrecisionSensitiveShapeOfSubgraphs>();
         type_to_fuse_map empty_type_to_fuse_map = {};
         bool keep_precision_sensitive_in_fp32 = true;
         manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::f32, element::f16}},
@@ -1097,6 +1097,44 @@ TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_3) {
                         .enable(FunctionsComparator::CONST_VALUES);
     const auto res = fc.compare(model, model_ref);
     ASSERT_TRUE(res.valid) << res.message;
+}
+
+TEST(TransformationTests, ConvertCompressedToMixedPrecission_do_not_keep_in_fp32) {
+    // negative test: check that without keeping sensitive nodes in FP32 the whole ov::Model is converted to f16
+    // including ShapeOf subgraph and we get wrong output shape [1, 3, 287, 511] instead of correct one [1, 3, 288, 512]
+    std::shared_ptr<ov::Model> model(nullptr);
+    std::shared_ptr<opset8::Interpolate> interpolate(nullptr);
+    {
+        auto input = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 720, 1280});
+        auto sizes = opset8::Constant::create(element::i64, Shape{4}, {1, 3, 288, 512});
+        auto scales_const = opset8::Constant::create(element::f32, Shape{4}, {1.0f, 1.0f, 0.4f, 0.4f});
+
+        opset8::Interpolate::InterpolateAttrs attrs;
+        attrs.mode = opset8::Interpolate::InterpolateMode::LINEAR_ONNX;
+        attrs.shape_calculation_mode = opset8::Interpolate::ShapeCalcMode::SCALES;
+        attrs.nearest_mode = opset8::Interpolate::NearestMode::FLOOR;
+        attrs.pads_begin = std::vector<size_t>{0};
+        attrs.pads_end = std::vector<size_t>{0};
+        attrs.antialias = false;
+        attrs.coordinate_transformation_mode = opset8::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL;
+        attrs.cube_coeff = -0.75f;
+
+        interpolate = std::make_shared<opset8::Interpolate>(input, sizes, scales_const, attrs);
+        model = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+
+        pass::Manager manager;
+        manager.register_pass<ov::pass::MarkPrecisionSensitiveShapeOfSubgraphs>();
+        type_to_fuse_map empty_type_to_fuse_map = {};
+        bool keep_precision_sensitive_in_fp32 = false;  // didn't keep in FP32 intentionally
+        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::f32, element::f16}},
+                                                      empty_type_to_fuse_map,
+                                                      keep_precision_sensitive_in_fp32);
+        manager.run_passes(model);
+    }
+
+    ASSERT_FALSE(has_type<element::Type_t::f32>(model));
+    ASSERT_TRUE(interpolate->input_value(2).get_element_type() == element::Type_t::f16);
+    ASSERT_TRUE(interpolate->output(0).get_partial_shape() == ov::PartialShape({1, 3, 287, 511}));
 }
 
 template <typename From, typename To>

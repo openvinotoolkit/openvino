@@ -40,7 +40,7 @@
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
-#include "transformations/common_optimizations/convert_model_to_fp16_element_type.hpp"
+#include "transformations/common_optimizations/convert_compressed_to_mixed_precision.hpp"
 #include <transformations/common_optimizations/wrap_interpolate_into_transposes.hpp>
 #include <transformations/common_optimizations/transpose_sinking.hpp>
 
@@ -236,11 +236,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         auto pass_config = manager.get_pass_config();
         pass_config->disable<ov::pass::EyeDecomposition>();
-        pass_config->disable<ov::pass::ConvertCompressedOnlyToLegacy>();
-        // use new conversion pass which keep precision sensitive nodes in FP32
-        bool keep_precision_sensitive_in_fp32 = true;
-        manager.register_pass<ov::pass::ConvertModelToFP16ElementType>(keep_precision_sensitive_in_fp32);
 
+        // disable conversion to legacy and use the new mixed precision
+        // in which precision sensitive nodes are kept in FP32
+        pass_config->disable<ov::pass::ConvertCompressedOnlyToLegacy>();
+        manager.register_pass<ov::pass::ConvertCompressedToMixedPrecision>();
 
         // SpaceToDepth/DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
         pass_config->set_callback<ngraph::pass::ConvertSpaceToDepth,

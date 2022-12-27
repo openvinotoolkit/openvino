@@ -10,8 +10,8 @@
 namespace ov {
 namespace pass {
 
-class TRANSFORMATIONS_API MarkEntireShapeSubgraphs;
-class TRANSFORMATIONS_API MarkConstantsInShapeSubgraphs;
+class TRANSFORMATIONS_API MarkPrecisionSensitiveShapeOfSubgraphs;
+class TRANSFORMATIONS_API MarkPrecisionSensitiveConstants;
 class TRANSFORMATIONS_API MarkDividesInShapeSubgraphs;
 
 }  // namespace pass
@@ -19,14 +19,14 @@ class TRANSFORMATIONS_API MarkDividesInShapeSubgraphs;
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief MarkEntireShapeSubgraphs marks entirely
+ * @brief MarkPrecisionSensitiveShapeOfSubgraphs marks entirely
  * all shape subgraphs starting from precision-sensitive inputs and ending at
  * the ShapeOf node as disabled for FP16 compression.
  */
-class ov::pass::MarkEntireShapeSubgraphs : public ModelPass {
+class ov::pass::MarkPrecisionSensitiveShapeOfSubgraphs : public ModelPass {
 public:
-    OPENVINO_RTTI("MarkEntireShapeSubgraphs", "0");
-    MarkEntireShapeSubgraphs();
+    OPENVINO_RTTI("MarkPrecisionSensitiveShapeOfSubgraphs", "0");
+    MarkPrecisionSensitiveShapeOfSubgraphs();
     bool run_on_model(const std::shared_ptr<ov::Model>& f) override;
 
 protected:
@@ -35,14 +35,14 @@ protected:
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief MarkConstantsInShapeSubgraphs marks the constants
+ * @brief MarkPrecisionSensitiveConstants marks the constants
  * inside of all shape subgraphs starting from precision-sensitive inputs and ending at
  * the ShapeOf node as disabled for FP16 compression.
  */
-class ov::pass::MarkConstantsInShapeSubgraphs : public MarkEntireShapeSubgraphs {
+class ov::pass::MarkPrecisionSensitiveConstants : public MarkPrecisionSensitiveShapeOfSubgraphs {
 public:
-    OPENVINO_RTTI("MarkConstantsInShapeSubgraphs", "0");
-    MarkConstantsInShapeSubgraphs();
+    OPENVINO_RTTI("MarkPrecisionSensitiveConstants", "0");
+    MarkPrecisionSensitiveConstants();
 };
 
 /**
@@ -51,7 +51,7 @@ public:
  * inside of all shape subgraphs starting from precision-sensitive input and ending at
  * the ShapeOf node as disabled for ConvertDivide transformation.
  */
-class ov::pass::MarkDividesInShapeSubgraphs : public MarkEntireShapeSubgraphs {
+class ov::pass::MarkDividesInShapeSubgraphs : public MarkPrecisionSensitiveShapeOfSubgraphs {
 public:
     OPENVINO_RTTI("MarkDividesInShapeSubgraphs", "0");
     MarkDividesInShapeSubgraphs();

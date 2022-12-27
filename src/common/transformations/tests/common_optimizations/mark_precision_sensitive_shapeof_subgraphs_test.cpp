@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/mark_shape_subgraphs.hpp"
+#include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
 
 #include <gtest/gtest.h>
 
@@ -22,7 +22,7 @@ using namespace testing;
 using namespace ov;
 
 TEST(TransformationTests, MarkEntireShapeSubgraphs_trivial_case) {
-    //    check that marking does not leak in trivial case
+    // check that marking does not leak in trivial case
     std::shared_ptr<ov::Model> model(nullptr), model_ref(nullptr);
     {
         auto input_1 = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 720, 1280});
@@ -32,7 +32,7 @@ TEST(TransformationTests, MarkEntireShapeSubgraphs_trivial_case) {
         model = std::make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{input_1, input_2});
 
         pass::Manager manager;
-        manager.register_pass<ov::pass::MarkEntireShapeSubgraphs>();
+        manager.register_pass<ov::pass::MarkPrecisionSensitiveShapeOfSubgraphs>();
         manager.run_passes(model);
     }
     {
@@ -67,7 +67,7 @@ TEST(TransformationTests, MarkEntireShapeSubgraphs_whole_shape_subgraph_is_marke
         model = std::make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{input_1, input_2});
 
         pass::Manager manager;
-        manager.register_pass<ov::pass::MarkEntireShapeSubgraphs>();
+        manager.register_pass<ov::pass::MarkPrecisionSensitiveShapeOfSubgraphs>();
         manager.run_passes(model);
     }
     {
@@ -121,7 +121,7 @@ TEST(TransformationTests, MarkEntireShapeSubgraphs_whole_shape_subgraph_is_marke
         model = std::make_shared<ov::Model>(NodeVector{result}, ParameterVector{input_1});
 
         pass::Manager manager;
-        manager.register_pass<ov::pass::MarkEntireShapeSubgraphs>();
+        manager.register_pass<ov::pass::MarkPrecisionSensitiveShapeOfSubgraphs>();
         manager.run_passes(model);
     }
     {
@@ -204,7 +204,7 @@ TEST(TransformationTests, MarkEntireShapeSubgraphs_whole_shape_subgraph_is_marke
         model = std::make_shared<ov::Model>(NodeVector{result_1, result_2}, ParameterVector{input_1, input_2});
 
         pass::Manager manager;
-        manager.register_pass<ov::pass::MarkEntireShapeSubgraphs>();
+        manager.register_pass<ov::pass::MarkPrecisionSensitiveShapeOfSubgraphs>();
         manager.run_passes(model);
     }
 
@@ -281,7 +281,7 @@ TEST(TransformationTests, MarkConstantsInShapeSubgraphs_only_consts_marked_1) {
         model = std::make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{input_1, input_2});
 
         pass::Manager manager;
-        manager.register_pass<ov::pass::MarkConstantsInShapeSubgraphs>();
+        manager.register_pass<ov::pass::MarkPrecisionSensitiveConstants>();
         manager.run_passes(model);
     }
     {
@@ -334,7 +334,7 @@ TEST(TransformationTests, MarkConstantsInShapeSubgraphs_only_consts_marked_2) {
         model = std::make_shared<ov::Model>(NodeVector{result}, ParameterVector{input_1});
 
         pass::Manager manager;
-        manager.register_pass<ov::pass::MarkConstantsInShapeSubgraphs>();
+        manager.register_pass<ov::pass::MarkPrecisionSensitiveConstants>();
         manager.run_passes(model);
     }
     {

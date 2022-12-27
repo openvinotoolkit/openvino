@@ -12,7 +12,7 @@
 #include <ngraph/pass/manager.hpp>
 #include <queue>
 #include <string>
-#include <transformations/common_optimizations/mark_shape_subgraphs.hpp>
+#include <transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/op_conversions/convert_divide.hpp>
 #include <transformations/utils/utils.hpp>

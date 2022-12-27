@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/mark_shape_subgraphs.hpp"
+#include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
 
 #include <memory>
 #include <vector>
@@ -19,13 +19,13 @@
 
 using namespace std;
 
-ov::pass::MarkEntireShapeSubgraphs::MarkEntireShapeSubgraphs() {
+ov::pass::MarkPrecisionSensitiveShapeOfSubgraphs::MarkPrecisionSensitiveShapeOfSubgraphs() {
     m_markup_func = [](Node* node) {
         ov::disable_fp16_compression(node->shared_from_this());
     };
 }
 
-ov::pass::MarkConstantsInShapeSubgraphs::MarkConstantsInShapeSubgraphs() {
+ov::pass::MarkPrecisionSensitiveConstants::MarkPrecisionSensitiveConstants() {
     m_markup_func = [](Node* node) {
         if (ov::is_type<ov::opset8::Constant>(node)) {
             ov::disable_fp16_compression(node->shared_from_this());
@@ -41,8 +41,8 @@ ov::pass::MarkDividesInShapeSubgraphs::MarkDividesInShapeSubgraphs() {
     };
 }
 
-bool ov::pass::MarkEntireShapeSubgraphs::run_on_model(const shared_ptr<ov::Model>& f) {
-    RUN_ON_MODEL_SCOPE(MarkEntireShapeSubgraphs);
+bool ov::pass::MarkPrecisionSensitiveShapeOfSubgraphs::run_on_model(const shared_ptr<ov::Model>& f) {
+    RUN_ON_MODEL_SCOPE(MarkPrecisionSensitiveShapeOfSubgraphs);
     deque<Node*> nodes;
     unordered_set<Node*> visited, precision_sensitive_visited;
 
