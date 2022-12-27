@@ -72,7 +72,7 @@ KernelsData CountNonzeroKernelRef::GetKernelsData(const Params& params, const op
                                                                    newParams.outputs[0].GetLayout(),
                                                                    dims_by_gws);
 
-    kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
+    kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, EXE_MODE_DEFAULT);
     kernel.params.arguments = GetArgsDesc(1, false, false);
 
     return {kd};

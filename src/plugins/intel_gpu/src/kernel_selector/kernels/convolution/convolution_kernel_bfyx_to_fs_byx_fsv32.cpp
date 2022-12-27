@@ -60,7 +60,7 @@ ConvolutionKernel_bfyx_to_fs_byx_fsv32::AutoTuneOption ConvolutionKernel_bfyx_to
     if (autoTuneIndex >= 0 && autoTuneIndex < static_cast<int>(autoTuneOptions.size()))
         return autoTuneOptions[autoTuneIndex];
 
-    return {8, 2, AGE_BASED};
+    return {8, 2, EXE_MODE_AGE_BASED};
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_to_fs_byx_fsv32::SetDefault(const convolution_params& arg,
