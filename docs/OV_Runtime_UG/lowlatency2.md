@@ -10,7 +10,7 @@ The LowLatency2 transformation changes the structure of the network containing [
 
 ## Example of Applying the Transformation:<a name="example-of-applying-lowlatency2-transformation"></a>
 
-![applying_low_latency_2_example](./img/applying_low_latency_2.png)
+![](img/applying_low_latency_2.svg)
 
 After applying the transformation, the `ReadValue` operations can receive other operations as an input, as shown in the picture above. These inputs should set the initial value for initialization of the `ReadValue` operations. However, such initialization is not supported in the current State API implementation. Input values are ignored and the initial values for the `ReadValue` operations are set to 0 unless otherwise specified by the user via [State API](@ref openvino-state-api).
 
