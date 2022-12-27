@@ -1095,10 +1095,15 @@ void program_node::init_onednn_primitive_attributes() {
                 if (alg == dnnl::algorithm::eltwise_pow)
                     post_ops.append_eltwise(alg, 1.0f, fused_desc->additional_params.a);
 <<<<<<< HEAD
+<<<<<<< HEAD
                 else if (alg == dnnl::algorithm::eltwise_hardswish) // mapping val * min(max(0, val + 3), 6) / 6 to val * max(min(1, alpha * val + beta), 0)
                     post_ops.append_eltwise(alg, 1/6.f, 0.5f);
 =======
 >>>>>>> 2388ca972e ([GPU] The draft for integration oneDNN3.0)
+=======
+                else if (alg == dnnl::algorithm::eltwise_hardswish) // mapping val * min(max(0, val + 3), 6) / 6 to val * max(min(1, alpha * val + beta), 0)
+                    post_ops.append_eltwise(alg, 1/6.f, 0.5f);
+>>>>>>> e1ee11f79f (Fix hardwish issue in 3.0)
                 else
                     post_ops.append_eltwise(alg, fused_desc->additional_params.a, fused_desc->additional_params.b);
 
