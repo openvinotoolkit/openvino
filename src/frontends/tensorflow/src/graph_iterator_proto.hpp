@@ -66,9 +66,6 @@ public:
         FRONT_END_GENERAL_CHECK(pb_stream && pb_stream.is_open(), "Model file does not exist");
         FRONT_END_GENERAL_CHECK(m_graph_def->ParseFromIstream(&pb_stream), "Model cannot be parsed");
 
-        auto tmp = m_graph_def->SerializeAsString();
-        m_graph_def->ParseFromString(tmp);
-
         auto nodes_size = m_graph_def->node_size();
         m_decoders.resize(static_cast<size_t>(nodes_size));
         for (int node_ind = 0; node_ind < nodes_size; ++node_ind) {
