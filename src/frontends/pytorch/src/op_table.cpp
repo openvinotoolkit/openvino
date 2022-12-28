@@ -20,7 +20,7 @@ OP_CONVERTER(translate_add);
 OP_CONVERTER(translate_addcmul);
 OP_CONVERTER(translate_addmm);
 OP_CONVERTER(translate_as_tensor);
-OP_CONVERTER(translate_avg_pool2d);
+OP_CONVERTER(translate_avg_poolnd);
 OP_CONVERTER(translate_batch_norm);
 OP_CONVERTER(translate_clamp);
 OP_CONVERTER(translate_constant);
@@ -45,7 +45,7 @@ OP_CONVERTER(translate_int);
 OP_CONVERTER(translate_layer_norm);
 OP_CONVERTER(translate_linear);
 OP_CONVERTER(translate_loop);
-OP_CONVERTER(translate_max_pool2d);
+OP_CONVERTER(translate_max_poolnd);
 OP_CONVERTER(translate_max);
 OP_CONVERTER(translate_masked_fill);
 OP_CONVERTER(translate_mean);
@@ -99,7 +99,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::addcmul", op::translate_addcmul},
         {"aten::addmm", op::translate_addmm},
         {"aten::as_tensor", op::translate_as_tensor},
-        {"aten::avg_pool2d", op::translate_avg_pool2d},
+        {"aten::avg_pool1d", op::translate_avg_poolnd},
+        {"aten::avg_pool2d", op::translate_avg_poolnd},
+        {"aten::avg_pool3d", op::translate_avg_poolnd},
         {"aten::batch_norm", op::translate_batch_norm},
         // {"aten::cat", done as transformation},
         {"aten::clamp", op::translate_clamp},
@@ -109,8 +111,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::contiguous", op::skip_node},  // In openvino how tensors are stored in memory is internal plugin detail,
                                               // we assume all tensors are contiguous
         {"aten::conv1d", op::translate_convnd},
-        {"aten::conv3d", op::translate_convnd},
         {"aten::conv2d", op::translate_convnd},
+        {"aten::conv3d", op::translate_convnd},
         {"aten::convolution", op::translate_convolution},
         {"aten::cumsum", op::translate_1to1_match_2_inputs<opset8::CumSum>},
         {"aten::dim", op::translate_dim},
@@ -144,7 +146,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::matmul", op::translate_1to1_match_2_inputs<opset8::MatMul>},
         {"aten::masked_fill", op::translate_masked_fill},
         {"aten::masked_fill_", op::inplace_op<op::translate_masked_fill>},
-        {"aten::max_pool2d", op::translate_max_pool2d},
+        {"aten::max_pool1d", op::translate_max_poolnd},
+        {"aten::max_pool2d", op::translate_max_poolnd},
+        {"aten::max_pool3d", op::translate_max_poolnd},
         {"aten::max", op::translate_max},
         {"aten::mean", op::translate_mean},
         {"aten::min", op::translate_min},
