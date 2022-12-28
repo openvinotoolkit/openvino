@@ -14,7 +14,6 @@
 #include <remote_blob_tests/remote_blob_helpers.hpp>
 
 TEST_P(MultiDeviceMultipleGPU_Test, canCreateRemoteTensorThenInferWithAffinity) {
-    GTEST_SKIP() << "Disabled test due to segment fault" << std::endl;
     auto ie = ov::Core();
     using namespace ov::preprocess;
     auto p = PrePostProcessor(fn_ptr);
@@ -24,7 +23,8 @@ TEST_P(MultiDeviceMultipleGPU_Test, canCreateRemoteTensorThenInferWithAffinity) 
     auto function = p.build();
     ov::CompiledModel exec_net;
     try {
-        exec_net = ie.compile_model(function, device_names, ov::hint::allow_auto_batching(false));
+        exec_net = ie.compile_model(function, device_names, {ov::hint::allow_auto_batching(false),
+            ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED)});
     } catch (...) {
         // device is unavailable (e.g. for the "second GPU" test) or other (e.g. env) issues not related to the test
         return;
@@ -39,10 +39,12 @@ TEST_P(MultiDeviceMultipleGPU_Test, canCreateRemoteTensorThenInferWithAffinity) 
     inf_req_regular.infer();
     auto output_tensor_regular = inf_req_regular.get_tensor(output);
     auto imSize = ov::shape_size(input->get_shape());
+    std::vector<ov::intel_gpu::ocl::ClContext> contexts = {};
     std::vector<ov::intel_gpu::ocl::ClBufferTensor> cldnn_tensor = {};
     for (auto& iter : device_lists) {
         try {
             auto cldnn_context = ie.get_default_context(iter).as<ov::intel_gpu::ocl::ClContext>();
+            contexts.push_back(cldnn_context);
             cl_context ctx = cldnn_context;
             auto ocl_instance = std::make_shared<OpenCL>(ctx);
             cl_int err;

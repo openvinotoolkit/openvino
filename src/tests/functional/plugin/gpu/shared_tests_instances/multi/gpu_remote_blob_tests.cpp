@@ -60,6 +60,15 @@ TEST_P(MultiDevice_Test, cannotInferRemoteBlobIfNotInitializedForDevice) {
     ASSERT_NO_THROW(req.SetBlob(first_input_name, rblob));
     ASSERT_NO_THROW(req.StartAsync());
     ASSERT_THROW(req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY), InferenceEngine::Exception);
+
+    // testing for creating multiple infers and throws exceptions in device_bind_buffer
+    if (configs.find(ov::intel_auto::device_bind_buffer.name()) != configs.end()) {
+        InferenceEngine::InferRequest req;
+        for (int i = 0; i < 7; i++) {
+            req = exec_net_multi.CreateInferRequest();
+        }
+        ASSERT_ANY_THROW(req = exec_net_multi.CreateInferRequest());
+    }
 }
 
 auto device_names_and_support_for_remote_blobs2 = []() {
