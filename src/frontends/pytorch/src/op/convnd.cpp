@@ -11,7 +11,7 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-OutputVector translate_conv2d(NodeContext& context) {
+OutputVector translate_convnd(NodeContext& context) {
     auto strides = context.const_input<Strides>(3);
     // In torch pads at beginning are same as at end
     auto pads = CoordinateDiff(strides.size(), 0);
@@ -49,8 +49,16 @@ OutputVector translate_conv2d(NodeContext& context) {
             dilations,
             pad_type);
     }
+    if (!context.input_is_none(2)) {
+        auto bias = context.get_input(2);
+        auto bias_rank = bias.get_partial_shape().rank();
+        if (bias_rank == 1) {
+            bias = reshape_conv_bias(context, bias, conv);
+        }
+        conv = context.mark_node(std::make_shared<opset8::Add>(conv, bias));
+    }
 
-    return {context.mark_output(make_optional_bias(conv, context, 2, {-2, -1}))};
+    return {conv};
 };
 
 }  // namespace op

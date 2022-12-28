@@ -24,7 +24,7 @@ OP_CONVERTER(translate_avg_pool2d);
 OP_CONVERTER(translate_batch_norm);
 OP_CONVERTER(translate_clamp);
 OP_CONVERTER(translate_constant);
-OP_CONVERTER(translate_conv2d);
+OP_CONVERTER(translate_convnd);
 OP_CONVERTER(translate_convolution);
 OP_CONVERTER(translate_convolution_mode);
 OP_CONVERTER(translate_dim);
@@ -108,7 +108,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::clone", op::skip_node},       // ignore clone operators that are inserted by PyTorch autograd
         {"aten::contiguous", op::skip_node},  // In openvino how tensors are stored in memory is internal plugin detail,
                                               // we assume all tensors are contiguous
-        {"aten::conv2d", op::translate_conv2d},
+        {"aten::conv1d", op::translate_convnd},
+        {"aten::conv3d", op::translate_convnd},
+        {"aten::conv2d", op::translate_convnd},
         {"aten::convolution", op::translate_convolution},
         {"aten::cumsum", op::translate_1to1_match_2_inputs<opset8::CumSum>},
         {"aten::dim", op::translate_dim},
