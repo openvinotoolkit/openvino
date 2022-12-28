@@ -77,6 +77,7 @@ OP_CONVERTER(translate_sum);
 OP_CONVERTER(translate_to);
 OP_CONVERTER(translate_transpose);
 OP_CONVERTER(translate_tuple_construct);
+OP_CONVERTER(translate_upsample_bicubic2d);
 OP_CONVERTER(translate_upsample_bilinear2d);
 OP_CONVERTER(translate_upsample_nearest2d);
 OP_CONVERTER(translate_var);
@@ -117,6 +118,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::clamp", op::translate_clamp},
         {"aten::clamp_min", op::translate_1to1_match_2_inputs<opset8::Maximum>},
         {"aten::clamp_max", op::translate_1to1_match_2_inputs<opset8::Minimum>},
+        {"aten::ceil", op::translate_1to1_match_1_inputs<opset8::Ceiling>},
+        {"aten::ceil_", op::inplace_op<op::translate_1to1_match_1_inputs<opset8::Ceiling>>},
         {"aten::clone", op::skip_node},       // ignore clone operators that are inserted by PyTorch autograd
         {"aten::contiguous", op::skip_node},  // In openvino how tensors are stored in memory is internal plugin detail,
                                               // we assume all tensors are contiguous
@@ -137,6 +140,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::expand", op::translate_expand},
         {"aten::expand_as", op::translate_expand_as},
         {"aten::flatten", op::translate_flatten},
+        {"aten::floor", op::translate_1to1_match_1_inputs<opset8::Floor>},
+        {"aten::floor_", op::inplace_op<op::translate_1to1_match_1_inputs<opset8::Floor>>},
         {"aten::floordiv", op::translate_floordiv},
         {"aten::full", op::translate_full},
         {"aten::full_like", op::translate_full_like},
@@ -216,6 +221,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::transpose", op::translate_transpose},
         {"aten::unsqueeze", op::translate_1to1_match_2_inputs<opset8::Unsqueeze>},
         {"aten::unsqueeze_", op::inplace_op<op::translate_1to1_match_2_inputs<opset8::Unsqueeze>>},
+        {"aten::upsample_bicubic2d", op::translate_upsample_bicubic2d},
         {"aten::upsample_bilinear2d", op::translate_upsample_bilinear2d},
         {"aten::upsample_nearest2d", op::translate_upsample_nearest2d},
         {"aten::var", op::translate_var},
