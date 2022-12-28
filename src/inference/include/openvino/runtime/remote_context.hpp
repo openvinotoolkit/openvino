@@ -166,13 +166,6 @@ public:
      * @return A tensor instance with device friendly memory.
      */
     Tensor create_host_tensor(const element::Type type, const Shape& shape);
-
-    /**
-     * @brief Get a target context from wrapped meta context
-     * @param target_device target device to retrieve context from
-     * @return A remoteContext object.
-     */
-    RemoteContext get_target_context(const std::string& target_device) const;
 };
 
 }  // namespace ov

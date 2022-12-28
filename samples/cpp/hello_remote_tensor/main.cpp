@@ -19,7 +19,6 @@
 #    include <openvino/runtime/intel_gpu/ocl/ocl.hpp>
 #    include <openvino/runtime/intel_gpu/ocl/ocl_wrapper.hpp>
 #endif
-#include <openvino/runtime/auto/remote_context_wrapper.hpp>
 // clang-format on
 
 using Ms = std::chrono::duration<double, std::ratio<1, 1000>>;
@@ -93,7 +92,7 @@ int main(int argc, char* argv[]) {
 
         ov::RemoteContext multi_context;
         if (isMulti)
-            multi_context = ov::intel_auto::MultiContext(core, remote_contexts);
+            multi_context = core.create_context("MULTI", remote_contexts);
         ov::AnyMap loadConfig = {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)};
         if (isMulti) {
             std::string devicepriority;

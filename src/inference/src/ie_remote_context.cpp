@@ -19,8 +19,4 @@ MemoryBlob::Ptr RemoteContext::CreateHostBlob(const TensorDesc& tensorDesc) {
     return blob;
 }
 
-std::pair<std::shared_ptr<RemoteContext>, std::shared_ptr<void>> RemoteContext::GetTargetContext(
-    const std::string& targetDevice) {
-    IE_THROW(NotImplemented);
-}
 }  // namespace InferenceEngine

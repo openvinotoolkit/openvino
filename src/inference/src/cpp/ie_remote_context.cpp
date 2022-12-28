@@ -90,13 +90,4 @@ AnyMap RemoteContext::get_params() const {
     return paramMap;
 }
 
-RemoteContext RemoteContext::get_target_context(const std::string& target_device) const {
-    std::vector<std::shared_ptr<void>> soVec = _so;
-    OV_REMOTE_CONTEXT_STATEMENT({
-        auto res = _impl->GetTargetContext(target_device);
-        soVec.push_back(res.second);
-        RemoteContext context = {res.first, soVec};
-        return context;
-    });
-}
 }  // namespace ov

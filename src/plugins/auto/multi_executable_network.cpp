@@ -20,22 +20,17 @@ std::shared_ptr<IE::RemoteContext> MultiExecutableNetwork::GetContext() const {
         return _multiSContext->_devicePriorities;
     }();
     std::string devices_names;
-    MultiRemoteContext::Ptr multiRemoteContext;
     for (auto&& device : devices) {
         devices_names += device.deviceName + " ";
         const auto& n  = _multiSContext->_networksPerDevice.at(device.deviceName);
         try {
-            multiRemoteContext->AddContext(n->GetContext(), n._so);
+            return n->GetContext();
         } catch (const IE::NotImplemented&) {}
     }
-    if (multiRemoteContext->isEmpty()) {
-        IE_THROW(NotImplemented) <<
-            "None of the devices in the MULTI device has an associated remote context."
-            << " Current list of devices allowed via the DEVICE_PRIORITIES config: " <<
-            devices_names;
-    } else {
-        return multiRemoteContext;
-    }
+    IE_THROW(NotImplemented) <<
+        "None of the devices in the MULTI device has an associated remote context."
+        << " Current list of devices allowed via the DEVICE_PRIORITIES config: " <<
+        devices_names;
 }
 
 void MultiExecutableNetwork::SetConfig(const
