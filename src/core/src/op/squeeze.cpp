@@ -18,8 +18,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::Squeeze);
-
 op::Squeeze::Squeeze() : Op() {}
 
 op::Squeeze::Squeeze(const Output<Node>& data, const Output<Node>& axes) : Op({data, axes}) {

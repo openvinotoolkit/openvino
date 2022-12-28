@@ -18,7 +18,7 @@ using namespace ov;
 ov::pass::AddMultiplyFusion::AddMultiplyFusion() {
     MATCHER_SCOPE(AddMultiplyFusion);
     // Create Add->Multiply pattern where Add has exactly one consumer
-    auto m_data = ngraph::pattern::any_input();
+    auto m_data = pass::pattern::any_input();
     auto m_add_constant = ngraph::pattern::wrap_type<opset3::Constant>();
     auto m_add = ngraph::pattern::wrap_type<opset3::Add>({m_data, m_add_constant}, pattern::consumers_count(1));
     auto m_mul_constant = ngraph::pattern::wrap_type<opset3::Constant>();
@@ -65,7 +65,7 @@ ov::pass::AddMultiplyFusion::AddMultiplyFusion() {
 ov::pass::AddAddFusion::AddAddFusion() {
     MATCHER_SCOPE(AddAddFusion);
     // Create Add->Add pattern where first Add has exactly one consumer
-    auto m_data = ngraph::pattern::any_input();
+    auto m_data = pass::pattern::any_input();
     auto m_add1_constant = ngraph::pattern::wrap_type<opset3::Constant>();
     auto m_add1 = ngraph::pattern::wrap_type<opset3::Add>({m_data, m_add1_constant}, pattern::consumers_count(1));
     auto m_add2_constant = ngraph::pattern::wrap_type<opset3::Constant>();
@@ -99,7 +99,7 @@ ov::pass::AddAddFusion::AddAddFusion() {
 ov::pass::MultiplyMultiplyFusion::MultiplyMultiplyFusion() {
     MATCHER_SCOPE(MultiplyMultiplyFusion);
     // Create Multiply->Multiply pattern where first Multiply has exactly one consumer
-    auto m_data = ngraph::pattern::any_input();
+    auto m_data = pass::pattern::any_input();
     auto m_mul1_constant = ngraph::pattern::wrap_type<opset3::Constant>();
     auto m_mul1 = ngraph::pattern::wrap_type<opset3::Multiply>({m_data, m_mul1_constant}, pattern::consumers_count(1));
     auto m_mul2_constant = ngraph::pattern::wrap_type<opset3::Constant>();

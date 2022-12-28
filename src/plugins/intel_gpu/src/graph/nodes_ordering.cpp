@@ -85,7 +85,7 @@ void program::nodes_ordering::calculate_BFS_processing_order() {
 // verifies if a given node will be processed before all its dependent nodes
 bool program::nodes_ordering::is_correct(program_node* node) {
     for (auto& dep : node->get_dependencies()) {
-        if (get_processing_number(node) < get_processing_number(dep)) {
+        if (get_processing_number(node) < get_processing_number(dep.first)) {
             return false;
         }
     }

@@ -32,10 +32,20 @@ protected:
         auto input_layout = impl_params.get_input_layout(0);
         auto output_layout = impl_params.get_output_layout();
 
-        dnnl::memory::dims stride(prim->stride.begin(), prim->stride.end());
-        dnnl::memory::dims kernel(prim->size.begin(), prim->size.end());
-        dnnl::memory::dims pad_l(prim->pads_begin.begin(), prim->pads_begin.end());
-        dnnl::memory::dims pad_r(prim->pads_end.begin(), prim->pads_end.end());
+        auto kernel_shape = prim->size;
+        auto stride_shape = prim->stride;
+        auto pads_begin_shape = prim->pads_begin;
+        auto pads_end_shape = prim->pads_end;
+
+        kernel_shape.resize(std::max<size_t>(2, prim->size.size()), 1);
+        stride_shape.resize(std::max<size_t>(2, prim->stride.size()), 1);
+        pads_begin_shape.resize(std::max<size_t>(2, prim->pads_begin.size()), 0);
+        pads_end_shape.resize(std::max<size_t>(2, prim->pads_end.size()), 0);
+
+        dnnl::memory::dims stride(stride_shape.begin(), stride_shape.end());
+        dnnl::memory::dims kernel(kernel_shape.begin(), kernel_shape.end());
+        dnnl::memory::dims pad_l(pads_begin_shape.begin(), pads_begin_shape.end());
+        dnnl::memory::dims pad_r(pads_end_shape.begin(), pads_end_shape.end());
 
         auto input_md = onednn::layout_to_memory_desc(input_layout);
         auto output_md = onednn::layout_to_memory_desc(output_layout);

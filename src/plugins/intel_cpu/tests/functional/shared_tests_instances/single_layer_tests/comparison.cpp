@@ -55,4 +55,22 @@ const auto ComparisonTestParams = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs, ComparisonLayerTest, ComparisonTestParams, ComparisonLayerTest::getTestCaseName);
 
+std::vector<ngraph::helpers::ComparisonTypes> comparisonOpTypesIs = {
+        ngraph::helpers::ComparisonTypes::IS_FINITE,
+        ngraph::helpers::ComparisonTypes::IS_INF,
+        ngraph::helpers::ComparisonTypes::IS_NAN
+};
+
+const auto ComparisonTestParamsIs = ::testing::Combine(
+        ::testing::ValuesIn(CommonTestUtils::combineParams(inputShapes)),
+        ::testing::Values(InferenceEngine::Precision::FP32),
+        ::testing::ValuesIn(comparisonOpTypesIs),
+        ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(additional_config));
+
+INSTANTIATE_TEST_SUITE_P(smoke_IsOp, ComparisonLayerTest, ComparisonTestParamsIs, ComparisonLayerTest::getTestCaseName);
+
 }  // namespace

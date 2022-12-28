@@ -28,7 +28,7 @@ struct arg_max_min_test_params {
     int64_t axis;
     data_types output_data_type;
     std::vector<input_info> inputs;
-    int32_t num_outputs;
+    size_t num_outputs;
     std::vector<layout> expected_layouts;
 };
 
@@ -41,12 +41,12 @@ TEST_P(arg_max_min_test, shape_infer) {
 
     cldnn::program prog(engine);
     std::vector<std::shared_ptr<primitive>> input_prims;
-    std::vector<primitive_id> input_prim_ids;
+    std::vector<input_info> input_prim_ids;
     {
         auto prim_id = "input";
         auto input_layout_prim = std::make_shared<input_layout>(prim_id, p.in_layouts[0]);
         input_prims.push_back(input_layout_prim);
-        input_prim_ids.push_back(prim_id);
+        input_prim_ids.push_back(input_info(prim_id));
     }
 
     for (size_t i = 1; i < p.in_layouts.size(); i++) {
@@ -59,12 +59,21 @@ TEST_P(arg_max_min_test, shape_infer) {
             auto const_data_prim = std::make_shared<data>(prim_id, prim_mem);
             input_prims.push_back(const_data_prim);
         }
-        input_prim_ids.push_back(prim_id);
+        input_prim_ids.push_back(input_info(prim_id));
     }
 
-    auto arg_max_min_prim = std::make_shared<arg_max_min>("output", input_prim_ids, p.mode, p.top_k, p.axis,
+    auto arg_max_min_prim = std::make_shared<arg_max_min>("output", p.inputs.empty() ? input_prim_ids : p.inputs,
+                                                          p.mode, p.top_k, p.axis,
                                                           ov::op::TopKSortType::SORT_VALUES, false, padding(),
-                                                          p.output_data_type, p.inputs, p.num_outputs);
+                                                          p.output_data_type, p.num_outputs);
+    std::vector<padding> output_paddings;
+    std::vector<optional_data_type> output_data_types;
+    for (size_t i = 0; i < p.num_outputs; i++) {
+        output_paddings.push_back(padding());
+        output_data_types.push_back(optional_data_type{p.output_data_type});
+    }
+    arg_max_min_prim->output_paddings = output_paddings;
+    arg_max_min_prim->output_data_types = output_data_types;
     auto& arg_max_min_node = prog.get_or_create(arg_max_min_prim);
     for (auto& prim : input_prims) {
         auto& input_layout_node = prog.get_or_create(prim);

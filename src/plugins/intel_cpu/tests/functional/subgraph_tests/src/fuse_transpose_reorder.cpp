@@ -91,8 +91,6 @@ void FuseTransposeAndReorderTest::CreateGraph() {
 }
 
 TEST_P(FuseTransposeAndReorderTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     Run();
     CheckTransposeCount(0);
 }
@@ -168,8 +166,6 @@ void FuseTransposeAndReorderTest1::CreateGraph() {
 
 // Test disabled temporarily, it conflicts with TransposeFuse transformation in common optimizations step
 TEST_P(FuseTransposeAndReorderTest1, DISABLED_CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     Run();
     CheckTransposeCount(2);
 }
@@ -230,8 +226,6 @@ void FuseTransposeAndReorderTest2::CreateGraph() {
 }
 
 TEST_P(FuseTransposeAndReorderTest2, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     Run();
     CheckTransposeCount(1);
 }
@@ -285,8 +279,6 @@ void FuseTransposeAndReorderTest3::CreateGraph() {
 }
 
 TEST_P(FuseTransposeAndReorderTest3, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     Run();
     CheckTransposeCount(1);
 }
@@ -343,8 +335,6 @@ void FuseTransposeAndReorderTest4::CreateGraph() {
 }
 
 TEST_P(FuseTransposeAndReorderTest4, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     Run();
     CheckTransposeCount(0);
 }

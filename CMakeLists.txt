@@ -50,6 +50,8 @@ message (STATUS "CMAKE_C_COMPILER_ID ................... " ${CMAKE_C_COMPILER_ID
 message (STATUS "CMAKE_CXX_COMPILER_ID ................. " ${CMAKE_CXX_COMPILER_ID})
 message (STATUS "CMAKE_BUILD_TYPE ...................... " ${CMAKE_BUILD_TYPE})
 message (STATUS "CMAKE_TOOLCHAIN_FILE .................. " ${CMAKE_TOOLCHAIN_FILE})
+message (STATUS "GLIBC_VERSION.......................... " ${OV_GLIBC_VERSION})
+
 
 # remove file with exported developer targets to force its regeneration
 file(REMOVE "${CMAKE_BINARY_DIR}/ngraphTargets.cmake")

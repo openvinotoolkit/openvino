@@ -6,13 +6,14 @@
 #include "shared_test_classes/single_layer/comparison.hpp"
 
 using namespace LayerTestsDefinitions::ComparisonParams;
+using namespace ngraph::helpers;
 
 namespace LayerTestsDefinitions {
 std::string ComparisonLayerTest::getTestCaseName(const testing::TestParamInfo<ComparisonTestParams> &obj) {
     InputShapesTuple inputShapes;
     InferenceEngine::Precision ngInputsPrecision;
-    ngraph::helpers::ComparisonTypes comparisonOpType;
-    ngraph::helpers::InputLayerType secondInputType;
+    ComparisonTypes comparisonOpType;
+    InputLayerType secondInputType;
     InferenceEngine::Precision ieInPrecision;
     InferenceEngine::Precision ieOutPrecision;
     std::string targetName;
@@ -45,8 +46,7 @@ std::string ComparisonLayerTest::getTestCaseName(const testing::TestParamInfo<Co
 void ComparisonLayerTest::SetUp() {
     InputShapesTuple inputShapes;
     InferenceEngine::Precision ngInputsPrecision;
-    ngraph::helpers::ComparisonTypes comparisonOpType;
-    ngraph::helpers::InputLayerType secondInputType;
+    InputLayerType secondInputType;
     InferenceEngine::Precision ieInPrecision;
     InferenceEngine::Precision ieOutPrecision;
     std::string targetName;
@@ -69,11 +69,36 @@ void ComparisonLayerTest::SetUp() {
     auto inputs = ngraph::builder::makeParams(ngInputsPrc, {inputShapes.first});
 
     auto secondInput = ngraph::builder::makeInputLayer(ngInputsPrc, secondInputType, inputShapes.second);
-    if (secondInputType == ngraph::helpers::InputLayerType::PARAMETER) {
-        inputs.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondInput));
+    if (secondInputType == InputLayerType::PARAMETER) {
+        inputs.push_back(std::dynamic_pointer_cast<ov::op::v0::Parameter>(secondInput));
     }
 
     auto comparisonNode = ngraph::builder::makeComparison(inputs[0], secondInput, comparisonOpType);
-    function = std::make_shared<ngraph::Function>(comparisonNode, inputs, "Comparison");
+    function = std::make_shared<ov::Model>(comparisonNode, inputs, "Comparison");
 }
+
+InferenceEngine::Blob::Ptr ComparisonLayerTest::GenerateInput(const InferenceEngine::InputInfo &inputInfo) const {
+    auto blob = LayerTestsUtils::LayerTestsCommon::GenerateInput(inputInfo);
+
+    if (comparisonOpType == ComparisonTypes::IS_FINITE || comparisonOpType == ComparisonTypes::IS_NAN) {
+        auto *dataPtr = blob->buffer().as<float*>();
+        auto range = blob->size();
+        testing::internal::Random random(1);
+
+        if (comparisonOpType == ComparisonTypes::IS_FINITE) {
+            for (size_t i = 0; i < range / 2; i++) {
+                dataPtr[random.Generate(range)] =
+                        i % 3 == 0 ? std::numeric_limits<float>::infinity() : i % 3 == 1 ? -std::numeric_limits<float>::infinity() :
+                                                                              std::numeric_limits<double>::quiet_NaN();
+            }
+        } else {
+            for (size_t i = 0; i < range / 2; i++) {
+                dataPtr[random.Generate(range)] = std::numeric_limits<double>::quiet_NaN();
+            }
+        }
+    }
+
+    return blob;
+}
+
 } // namespace LayerTestsDefinitions

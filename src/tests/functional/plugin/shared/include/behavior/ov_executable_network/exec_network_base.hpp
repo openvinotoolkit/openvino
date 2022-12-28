@@ -4,7 +4,7 @@
 
 #include <exec_graph_info.hpp>
 #include <fstream>
-#include <transformations/serialize.hpp>
+#include <openvino/pass/serialize.hpp>
 
 #include "base/ov_behavior_test_utils.hpp"
 #include "common_test_utils/file_utils.hpp"

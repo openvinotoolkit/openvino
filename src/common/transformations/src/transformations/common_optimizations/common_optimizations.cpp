@@ -92,6 +92,7 @@
 #include "transformations/op_conversions/convert_softmax_upgrade.hpp"
 #include "transformations/op_conversions/convert_space_to_depth.hpp"
 #include "transformations/op_conversions/convert_subtract.hpp"
+#include "transformations/op_conversions/convert_xor_to_logical_xor.hpp"
 #include "transformations/op_conversions/detection_output_downgrade.hpp"
 #include "transformations/op_conversions/detection_output_upgrade.hpp"
 #include "transformations/op_conversions/einsum_decomposition.hpp"
@@ -107,7 +108,7 @@
 #include "transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp"
 #include "transformations/op_conversions/unique_decomposition.hpp"
 
-bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(CommonOptimizations);
     ngraph::pass::Manager manager(get_pass_config());
     manager.set_per_pass_validation(false);
@@ -126,7 +127,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngraph::F
     REGISTER_PASS(manager, MarkPrecisionSensitiveDivides)
     REGISTER_PASS(manager, WeightsDequantizeToFakeQuantize)
 
-    auto common_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
+    auto common_fusions = manager.register_pass<GraphRewrite>();
     ADD_MATCHER(common_fusions, SpaceToBatchFusion)
     ADD_MATCHER(common_fusions, BatchToSpaceFusion)
     ADD_MATCHER(common_fusions, InterpolateSequenceFusion)
@@ -138,7 +139,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngraph::F
     REGISTER_DISABLED_PASS(manager, ConvertPadToGroupConvolution)
     REGISTER_DISABLED_PASS(manager, ConvertInterpolate1ToInterpolate4)
 
-    auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
+    auto decomp = manager.register_pass<GraphRewrite>();
     ADD_MATCHER(decomp, Gelu7Downgrade)
     ADD_MATCHER(decomp, BidirectionalSequenceDecomposition)
     ADD_MATCHER(decomp, ReduceL1Decomposition)
@@ -177,7 +178,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngraph::F
     manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
     REGISTER_PASS(manager, UnrollIf)
 
-    auto multiply_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
+    auto multiply_fusions = manager.register_pass<GraphRewrite>();
     ADD_MATCHER(multiply_fusions, ConvolutionMultiplyFusion)
     ADD_MATCHER(multiply_fusions, GroupConvolutionMultiplyFusion)
     ADD_MATCHER(multiply_fusions, ConvolutionBackpropDataMultiplyFusion)
@@ -206,8 +207,9 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngraph::F
     REGISTER_DISABLED_PASS(manager, ConvertROIAlign3To9)
     REGISTER_PASS(manager, ConvertROIAlign9To3)
     REGISTER_PASS(manager, ConvertMulticlassNms8ToMulticlassNms9)
+    REGISTER_PASS(manager, ConvertXorToLogicalXor)
 
-    auto fq_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
+    auto fq_fusions = manager.register_pass<GraphRewrite>();
     ADD_MATCHER(fq_fusions, FakeQuantizeMulFusion)
     ADD_MATCHER(fq_fusions, FakeQuantizeReshapeFusion)
     ADD_MATCHER(fq_fusions, PullTransposeThroughFQUp)

@@ -58,8 +58,6 @@ class FuseNon0OuputPort : public SubgraphBaseTest {
 };
 
 TEST_F(FuseNon0OuputPort, smoke_FuseNon0OuputPort) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
 }
 

@@ -99,6 +99,6 @@ ov::pass::RemoveMultiSubGraphOpDanglingParams::RemoveMultiSubGraphOpDanglingPara
         }
         return false;
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(multi_subgraph_op_pattern, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(multi_subgraph_op_pattern, matcher_name);
     this->register_matcher(m, callback);
 }

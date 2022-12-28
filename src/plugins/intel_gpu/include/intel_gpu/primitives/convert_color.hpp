@@ -40,13 +40,13 @@ struct convert_color : public primitive_base<convert_color> {
     /// @param mem_type Memory type.
     /// @param output_layout Requested memory layout.
     convert_color(const primitive_id& id,
-                  const std::vector<primitive_id>& inputs,
+                  const std::vector<input_info>& inputs,
                   const color_format input_color_format,
                   const color_format output_color_format,
                   const memory_type mem_type,
                   const layout& output_layout,
                   const padding& output_padding = padding())
-        : primitive_base(id, inputs, output_padding),
+        : primitive_base(id, inputs, {output_padding}),
           input_color_format(input_color_format),
           output_color_format(output_color_format),
           mem_type(mem_type),

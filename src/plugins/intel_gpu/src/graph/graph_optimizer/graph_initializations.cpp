@@ -293,9 +293,9 @@ void graph_initializations::handle_lstm_node(program& p, lstm_node& node) {
     }
     // if there is no next lstm, concatenation is created
     if (!has_lstm_children) {
-        std::vector<primitive_id> output_ids_offsets;
+        std::vector<input_info> output_ids_offsets;
         for (auto& e : output_map) {
-            output_ids_offsets.push_back(e.second.first);
+            output_ids_offsets.push_back(input_info(e.second.first));
         }
         primitive_id concatenation_id = node.id() + ":concat";
         auto concatenation_primitive = std::make_shared<concatenation>(concatenation_id, output_ids_offsets, 1);
@@ -345,7 +345,7 @@ void graph_initializations::handle_dynamic_lstm_node(program& p, lstm_dynamic_no
                                              dyn_length_id,
                                              weights_id,
                                              bias_id,
-                                             node.get_primitive()->output_padding);
+                                             node.get_primitive()->output_paddings[0]);
     auto& lstm_dynamic_input_node = p.get_or_create(lstm_dynamic_input_primitive);
     p.add_connection(node.input(), lstm_dynamic_input_node);  // connect real input to dlstm_input
     // connect other deps
@@ -371,7 +371,7 @@ void graph_initializations::handle_dynamic_lstm_node(program& p, lstm_dynamic_no
                                                 init_cell_id,
                                                 node.clip(),
                                                 node.input_forget(),
-                                                lstm_dynamic_input_primitive->output_padding);
+                                                lstm_dynamic_input_primitive->output_paddings[0]);
     auto& lstm_dynamic_timeloop_node = p.get_or_create(lstm_dynamic_timeloop_primitive);
     p.add_connection(lstm_dynamic_input_node, lstm_dynamic_timeloop_node);  // connect dlstm_input to dlstm_timeloop
     // connect other deps

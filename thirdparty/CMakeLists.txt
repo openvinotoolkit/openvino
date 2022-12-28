@@ -91,9 +91,6 @@ if(ENABLE_SYSTEM_PUGIXML)
             if(interface_include_dir AND NOT EXISTS "${interface_include_dir}")
                 set_target_properties(${pugixml_target} PROPERTIES
                     INTERFACE_INCLUDE_DIRECTORIES "")
-                # buggy pugixml.pc does not allow to work with openvino.pc well
-                set(pugixml_buggy_pkgconfig ON CACHE INTERNAL "" FORCE)
-                message(WARNING "openvino.pc pkg-config file generation has turned off because it should have to depend on pugixml.pc")
             endif()
             message(STATUS "${PKG_CONFIG_EXECUTABLE}: pugixml (${pugixml_VERSION}) is found at ${pugixml_PREFIX}")
         endif()
@@ -189,37 +186,37 @@ endif()
 #
 
 if(ENABLE_SAMPLES OR ENABLE_COMPILE_TOOL OR ENABLE_TESTS)
-    if(NOT APPLE OR CPACK_GENERATOR MATCHES "^(BREW|CONDA-FORGE)$")
-        # - on Apple only dynamic libraries are available
-        #   also, we can easily mix arm64 and x86_64 binaries when cross-compile for Intel CPU
-
-        if(CPACK_GENERATOR MATCHES "^(BREW|CONDA-FORGE)$" OR DEFINED ENV{HOMEBREW_PREFIX} OR LINUX_OS_NAME MATCHES "(Fedora|CentOS)")
-            # conda-forge and brew contains only shared version of gflags
-            find_package(gflags QUIET COMPONENTS nothreads_shared)
-        else()
-            find_package(gflags QUIET COMPONENTS nothreads_static)
+    if(LINUX)
+        if(OV_OS_RHEL)
+            set(gflag_component nothreads_shared)
+        elseif(OV_OS_DEBIAN)
+            set(gflag_component nothreads_static)
         endif()
+        find_package(gflags QUIET OPTIONAL_COMPONENTS ${gflag_component})
     endif()
 
     if(gflags_FOUND)
         if(TARGET gflags)
             set_target_properties(gflags PROPERTIES IMPORTED_GLOBAL ON)
-        elseif(TARGET gflags_nothreads-shared)
-            # gflags shared case for CentOS/RHEL8
-            set_target_properties(gflags_nothreads-shared PROPERTIES IMPORTED_GLOBAL ON)
-            add_library(gflags ALIAS gflags_nothreads-shared)
         elseif(TARGET gflags_nothreads-static)
-            # debian_9_arm case
+            # Debian 9: gflag_component is ignored
             set_target_properties(gflags_nothreads-static PROPERTIES IMPORTED_GLOBAL ON)
             add_library(gflags ALIAS gflags_nothreads-static)
+        elseif(TARGET gflags_nothreads-shared)
+            # CentOS / RHEL / Fedora case
+            set_target_properties(gflags_nothreads-shared PROPERTIES IMPORTED_GLOBAL ON)
+            add_library(gflags ALIAS gflags_nothreads-shared)
         elseif(TARGET ${GFLAGS_TARGET})
             set_target_properties(${GFLAGS_TARGET} PROPERTIES IMPORTED_GLOBAL ON)
             add_library(gflags ALIAS ${GFLAGS_TARGET})
         else()
-            message(FATAL_ERROR "Internal error: failed to find imported target 'gflags'")
+            message(FATAL_ERROR "Internal error: failed to find imported target 'gflags' using '${gflag_component}' component")
         endif()
-        message(STATUS "gflags (${gflags_VERSION}) is found at ${gflags_DIR}")
-    else()
+
+        message(STATUS "gflags (${gflags_VERSION}) is found at ${gflags_DIR} using '${gflag_component}' component")
+    endif()
+
+    if(NOT TARGET gflags)
         add_subdirectory(gflags EXCLUDE_FROM_ALL)
         openvino_developer_export_targets(COMPONENT openvino_common TARGETS gflags)
     endif()
@@ -305,6 +302,14 @@ if(ENABLE_SAMPLES)
     # this is required only because of VPUX plugin reused this
     openvino_developer_export_targets(COMPONENT openvino_common
                                       TARGETS nlohmann_json)
+
+    # for nlohmann library version v3.0.0 and later
+    if(NOT TARGET nlohmann_json::nlohmann_json)
+        add_library(nlohmann_json::nlohmann_json INTERFACE IMPORTED GLOBAL)
+        set_target_properties(nlohmann_json::nlohmann_json PROPERTIES
+            INTERFACE_LINK_LIBRARIES nlohmann_json
+            INTERFACE_COMPILE_DEFINITIONS JSON_HEADER)
+    endif()
 endif()
 
 #
@@ -322,10 +327,10 @@ if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$")
             message(FATAL_ERROR "zlib must be used as a ${CPACK_GENERATOR} package. Install zlib1g-dev / zlib-devel")
         endif()
     endif()
-    if(NOT ENABLE_SYSTEM_PUGIXML AND NOT LINUX_OS_NAME STREQUAL "CentOS 7")
+    if(NOT ENABLE_SYSTEM_PUGIXML)
         message(FATAL_ERROR "Pugixml must be used as a ${CPACK_GENERATOR} package. Install libpugixml-dev / pugixml-devel")
     endif()
-else()
+elseif(APPLE OR WIN32)
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
             COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
@@ -368,7 +373,6 @@ else()
             PATTERN .lgtm.yml EXCLUDE
             PATTERN Makefile EXCLUDE
             PATTERN meson.build EXCLUDE
-            PATTERN nlohmann_json.natvis EXCLUDE
             PATTERN README.md EXCLUDE
             PATTERN .reuse EXCLUDE
             PATTERN tests EXCLUDE

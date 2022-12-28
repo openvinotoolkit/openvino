@@ -20,7 +20,6 @@ NGRAPH_API EnumNames<ngraph::reduction::Type>& EnumNames<ngraph::reduction::Type
                                                                      {"MAX", ngraph::reduction::Type::MAX}});
     return enum_names;
 }
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<ngraph::reduction::Type>);
 }  // namespace ov
 
 std::ostream& ngraph::reduction::operator<<(std::ostream& out, const ngraph::reduction::Type& obj) {

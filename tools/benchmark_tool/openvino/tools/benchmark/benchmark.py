@@ -40,7 +40,7 @@ class Benchmark:
 
     def print_version_info(self) -> None:
         version = get_version()
-        logger.info("OpenVINO:")
+        logger.info('OpenVINO:')
         logger.info(f"{'Build ':.<39} {version}")
         logger.info("")
 

@@ -205,15 +205,11 @@ protected:
 };
 
 TEST_P(PoolingLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
     CheckPluginRelatedResults(compiledModel, "Pooling");
 }
 
 TEST_P(MaxPoolingV8LayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
     CheckPluginRelatedResults(compiledModel, "Pooling");
 }
@@ -269,7 +265,8 @@ const std::vector<InputShape> inputShapes4D = {
             {
                 {1, 32, 8, 8},
                 {1, 21, 8, 4},
-                {2, 8, 8, 12}
+                {2, 8, 8, 12},
+                {1, 96, 125, 125}
             }
         },
         {

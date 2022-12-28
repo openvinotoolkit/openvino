@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <map>
-#include <nlohmann/json.hpp>
 #include <regex>
 #include <string>
 #include <utility>
@@ -19,6 +18,12 @@
 
 #include "utils.hpp"
 // clang-format on
+
+#ifdef JSON_HEADER
+#    include <json.hpp>
+#else
+#    include <nlohmann/json.hpp>
+#endif
 
 #ifdef USE_OPENCV
 #    include <opencv2/core.hpp>
@@ -218,7 +223,7 @@ std::string get_shapes_string(const benchmark_app::PartialShapes& shapes) {
 
 std::map<std::string, std::vector<float>> parse_scale_or_mean(const std::string& scale_mean,
                                                               const benchmark_app::InputsInfo& inputs_info) {
-    //  Format: data:[255,255,255],info[255,255,255]
+    //  Format: data[255,255,255],info[255,255,255]
     std::map<std::string, std::vector<float>> return_value;
 
     std::string search_string = scale_mean;
@@ -625,9 +630,6 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
 
         for (auto& item : info_map) {
             if (item.second.is_image()) {
-                item.second.scale.assign({1, 1, 1});
-                item.second.mean.assign({0, 0, 0});
-
                 if (scale_map.count(item.first)) {
                     item.second.scale = scale_map.at(item.first);
                 }
@@ -767,21 +769,28 @@ void load_config(const std::string& filename, std::map<std::string, ov::AnyMap>&
     nlohmann::json jsonConfig;
     try {
         ifs >> jsonConfig;
-    } catch (const nlohmann::json::parse_error& e) {
+    } catch (const std::exception& e) {
         throw std::runtime_error("Can't parse config file \"" + filename + "\".\n" + e.what());
     }
 
-    for (const auto& item : jsonConfig.items()) {
-        std::string deviceName = item.key();
-        for (const auto& option : item.value().items()) {
+    for (auto item = jsonConfig.cbegin(), end = jsonConfig.cend(); item != end; ++item) {
+        const std::string& deviceName = item.key();
+        const auto& itemValue = item.value();
+        for (auto option = itemValue.cbegin(), itemValueEnd = itemValue.cend(); option != itemValueEnd; ++option) {
             if (option.key() != "DEVICE_PROPERTIES") {
                 config[deviceName][option.key()] = option.value().get<std::string>();
                 continue;
             }
-            for (const auto& hw_properties : option.value().items()) {
-                auto hw_device_name = hw_properties.key();
+            const auto& optionValue = option.value();
+            for (auto hw_properties = optionValue.cbegin(), optionValueEnd = optionValue.cend();
+                 hw_properties != optionValueEnd;
+                 ++hw_properties) {
+                const std::string& hw_device_name = hw_properties.key();
                 std::map<std::string, ov::Any> hw_device_properties;
-                for (const auto& property : hw_properties.value().items())
+                const auto& hw_propertiesValue = hw_properties.value();
+                for (auto property = hw_propertiesValue.cbegin(), hw_propertiesEnd = hw_propertiesValue.cend();
+                     property != hw_propertiesEnd;
+                     ++property)
                     hw_device_properties[property.key()] = property.value().get<std::string>();
                 config[deviceName][hw_device_name] = hw_device_properties;
             }

@@ -17,7 +17,7 @@ namespace intel_gpu {
 
 static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v1::StridedSlice>& op) {
     validate_inputs_count(op, {4});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     auto output_pshape = op->get_output_partial_shape(0);
@@ -191,14 +191,14 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
             break;
         }
 
-        auto inPrimitive = inputPrimitives[0];
+        auto inPrimitive = inputs[0];
         // Reshape in case of new axis
         if (!new_axis_mask.empty()) {
             auto targetShape = tensor_from_dims(reshape_pattern);
             auto reshapeInName = op->get_friendly_name() + "/Reshape_before";
-            auto reshapePrim = cldnn::reshape(reshapeInName, inputPrimitives[0], targetShape);
+            auto reshapePrim = cldnn::reshape(reshapeInName, inputs[0], targetShape);
             p.add_primitive(*op, reshapePrim);
-            inPrimitive = reshapeInName;
+            inPrimitive = cldnn::input_info(reshapeInName);
         }
 
         auto data_node_shape = data_output.get_shape();
@@ -246,10 +246,10 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
     auto output_shape = output_pshape.is_static() ? output_pshape.to_shape() : ov::Shape{};
 
     auto stridedSlicePrim = cldnn::strided_slice(layerName,
-                                                 inputPrimitives[0],
-                                                 inputPrimitives[1],
-                                                 inputPrimitives[2],
-                                                 inputPrimitives[3],
+                                                 inputs[0],
+                                                 inputs[1],
+                                                 inputs[2],
+                                                 inputs[3],
                                                  op->get_begin_mask(),
                                                  op->get_end_mask(),
                                                  op->get_new_axis_mask(),

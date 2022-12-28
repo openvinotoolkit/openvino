@@ -5,7 +5,7 @@ import itertools
 import os
 import re
 import warnings
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
 from pathlib import Path
 
 import numpy as np
@@ -112,13 +112,14 @@ class CommonLayerTest:
         if 'custom_eps' in kwargs and kwargs['custom_eps'] is not None:
             custom_eps = kwargs['custom_eps']
         else:
-            custom_eps = 1e-4
-
+            if precision == 'FP32':
+                custom_eps = 1e-4
+            else:
+                custom_eps = 5e-2
         # Compare Ie results with Framework results
-        fw_eps = custom_eps if precision == 'FP32' else 5e-2
         assert self.compare_ie_results_with_framework(infer_res=infer_res, framework_res=fw_res,
                                                       mapping_dict=mapping_dict,
-                                                      framework_eps=fw_eps), \
+                                                      framework_eps=custom_eps), \
             "Comparing with Framework failed: ie_res={}; framework_res={}.".format(infer_res,
                                                                                    fw_res)
 

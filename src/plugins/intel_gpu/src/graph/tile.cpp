@@ -16,7 +16,7 @@ namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(tile)
 
 layout tile_inst::calc_output_layout(tile_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for tile_node!");
     auto desc = impl_param.typed_desc<tile>();
 

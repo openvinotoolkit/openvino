@@ -33,7 +33,7 @@ function(ieTargetLinkWholeArchive targetName)
                     "-WHOLEARCHIVE:\"$<TARGET_FILE:${staticLib}>\""
                     )
             endif()
-        elseif(APPLE)
+        elseif(OV_COMPILER_IS_APPLECLANG)
             list(APPEND libs
                 "-Wl,-all_load"
                 ${staticLib}

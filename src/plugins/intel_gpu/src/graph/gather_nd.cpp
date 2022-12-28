@@ -70,7 +70,7 @@ layout gather_nd_inst::calc_output_layout(gather_nd_node const& node, kernel_imp
     }
 
     auto output_sizes_tensor = tensor(tensor(final_output_sizes).sizes(output_format));
-    auto padding = op->output_padding;
+    auto padding = op->output_paddings[0];
 
     if (impl_param.has_fused_primitives()) {
         input_layout_origin.data_type = impl_param.get_fused_output_layout().data_type;

@@ -9,8 +9,6 @@
 
 using namespace std;
 
-BWDCMP_RTTI_DEFINITION(ov::op::util::ReductionBase);
-
 ov::op::util::ReductionBase::ReductionBase() = default;
 
 ov::op::util::ReductionBase::ReductionBase(const Output<Node>& arg, const Output<Node>& reduction_axes)

@@ -80,10 +80,11 @@ static bool InsertReshape(
     bool need_reshape_before = !reshape_input_node || reshape_input_node->get_output_shape(0).size() != 2;
     if (need_reshape_before) {
         std::vector<int> before_shape = {-1, static_cast<int>(first_node->get_output_shape(0).back())};
-        auto reshape_before_node = std::make_shared<ngraph::opset8::Reshape>(first_node,
-            std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{before_shape.size()}, before_shape), false);
+        auto reshape_before_node_const = std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64,
+            ngraph::Shape{before_shape.size()}, before_shape);
+        auto reshape_before_node = std::make_shared<ngraph::opset8::Reshape>(first_node, reshape_before_node_const, false);
         reshape_before_node->set_friendly_name(matmul_node->get_friendly_name() + "/reshape_before_matmul");
-        ngraph::copy_runtime_info(first_node, reshape_before_node);
+        ngraph::copy_runtime_info(first_node, { reshape_before_node, reshape_before_node_const });
         matmul_node->input(matmul_input_index).replace_source_output(reshape_before_node->output(0));
         if (auto transpose_node = std::dynamic_pointer_cast<ngraph::opset8::Transpose>(nodes.back())) {
             nodes.pop_back();
@@ -103,11 +104,11 @@ static bool InsertReshape(
                     << " For this reason, there is no way to determine permutation shape.";
             }
             std::vector<int> permutation_shape = {1, 0};
+            auto transpose_node_copy_const = std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64,
+                    ngraph::Shape{permutation_shape.size()}, permutation_shape);
             auto transpose_node_copy = transpose_node->clone_with_new_inputs(
-                {transpose_node->input_values()[0],
-                std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64,
-                    ngraph::Shape{permutation_shape.size()}, permutation_shape)});
-            ngraph::copy_runtime_info(transpose_node, transpose_node_copy);
+                {transpose_node->input_values()[0], transpose_node_copy_const });
+            ngraph::copy_runtime_info(transpose_node, {transpose_node_copy, transpose_node_copy_const});
             ngraph::replace_node(transpose_node, transpose_node_copy);
             nodes.push_back(transpose_node_copy);
         }
@@ -124,11 +125,11 @@ static bool InsertReshape(
     }
 
     if (need_reshape_after) {
-        auto reshape_after_node = std::make_shared<ngraph::opset8::Reshape>(nodes.back(),
-            std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64,
-                ngraph::Shape{last_node_shape.size()}, last_node_shape), false);
+        auto reshape_after_node_const = std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64,
+                ngraph::Shape{last_node_shape.size()}, last_node_shape);
+        auto reshape_after_node = std::make_shared<ngraph::opset8::Reshape>(nodes.back(), reshape_after_node_const, false);
         reshape_after_node->set_friendly_name(nodes.back()->get_friendly_name());
-        ngraph::copy_runtime_info(nodes.back(), reshape_after_node);
+        ngraph::copy_runtime_info(nodes.back(), { reshape_after_node, reshape_after_node_const});
         for (auto consumer : consumers) {
             consumer.replace_source_output(reshape_after_node);
         }

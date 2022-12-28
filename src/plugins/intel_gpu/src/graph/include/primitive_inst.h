@@ -101,27 +101,17 @@ public:
     primitive_inst(network& network);
     virtual ~primitive_inst() = default;
 
-    const std::vector<std::shared_ptr<const primitive_inst>>& dependencies() const {
-        return reinterpret_cast<std::vector<std::shared_ptr<const primitive_inst>> const&>(_deps);
-    }
-
-    const std::vector<std::pair<std::shared_ptr<const primitive_inst>, int32_t>>& dependencies_new() const {
-        return reinterpret_cast<std::vector<std::pair<std::shared_ptr<const primitive_inst>, int32_t>> const&>(_deps_new);
+    const std::vector<std::pair<std::shared_ptr<const primitive_inst>, int32_t>>& dependencies() const {
+        return reinterpret_cast<std::vector<std::pair<std::shared_ptr<const primitive_inst>, int32_t>> const&>(_deps);
     }
 
     memory& dep_memory(size_t index) const {
-        if (!dependencies_new().empty()) {
-            auto dep = dependencies_new().at(index);
-            return dep.first->output_memory(dep.second);
-        }
-        return dependencies().at(index)->output_memory();
+        auto dep = dependencies().at(index);
+        return dep.first->output_memory(dep.second);
     }
     memory::ptr dep_memory_ptr(size_t index) const {
-        if (!dependencies_new().empty()) {
-            auto dep = dependencies_new().at(index);
-            return dep.first->output_memory_ptr(dep.second);
-        }
-        return dependencies().at(index)->output_memory_ptr();
+        auto dep = dependencies().at(index);
+        return dep.first->output_memory_ptr(dep.second);
     }
     memory& output_memory(size_t index = 0) const { return *_outputs[index]; }
     memory::ptr output_memory_ptr(size_t index = 0) const { return _outputs[index]; }
@@ -242,8 +232,7 @@ protected:
 
     // this is a set of dependencies in terms of memory, if execution of this primitive requires data from another one,
     // it should be added to this set
-    std::vector<std::shared_ptr<primitive_inst>> _deps;
-    std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> _deps_new;
+    std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> _deps;
     std::vector<cldnn::primitive_id> _dep_ids;
 
     // this is a set of dependencies in terms of execution
@@ -295,7 +284,7 @@ protected:
 
     std::vector<memory::ptr> allocate_outputs(kernel_impl_params* updated_params = nullptr);
     static std::vector<std::shared_ptr<primitive_inst>> build_exec_deps(
-        std::vector<std::shared_ptr<primitive_inst>> const& mem_deps);
+        std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> const& mem_deps);
     void convert_args(const kernel_arguments_data& args, kernel_arguments_data_idx& args_idx) const;
     int32_t get_index_in_deps(memory::cptr arg) const;
 
@@ -327,6 +316,19 @@ protected:
     bool is_valid_fusion() const;
 
     static std::string generic_to_string(program_node const& node, const char* type_name);
+
+    template<typename ShapeType>
+    static std::vector<layout> forward_input0_shape(const kernel_impl_params& impl_param) {
+        auto in_layout = impl_param.get_input_layout(0);
+        auto output_type = impl_param.desc->output_data_types[0].value_or(in_layout.data_type);
+
+        if (impl_param.has_fused_primitives()) {
+            output_type = impl_param.get_fused_output_layout().data_type;
+        }
+
+        return { layout(in_layout.get<ShapeType>(), output_type, in_layout.format) };
+    }
+
 
     // This could be implemented via single map std::unordered_map<instrumentation::perf_counter_key, std::tuple<int64_t, size_t>>
     // but the overhead on using perf_counter_key as map key is too big, thus we use hash as map key

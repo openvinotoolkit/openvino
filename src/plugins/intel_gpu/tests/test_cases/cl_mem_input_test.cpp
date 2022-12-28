@@ -122,7 +122,7 @@ void start_cl_mem_check_2_inputs(bool is_caching_test) {
     topology topology;
     topology.add(input);
     topology.add(input2);
-    topology.add(reorder("reorder", "input", "input2", output_layout));
+    topology.add(reorder("reorder", input_info("input"), input_info("input2"), output_layout));
 
     cldnn::network::ptr network;
 
@@ -153,7 +153,7 @@ void start_cl_mem_check_2_inputs(bool is_caching_test) {
     cldnn::mem_lock<T> output_ptr(output_prim, get_test_stream());
     int size = width * height * 3;
     for (auto i = 0; i < size; i++) {
-        EXPECT_NEAR(reference_results[i], output_ptr[i], 1.001f);
+        ASSERT_NEAR(reference_results[i], output_ptr[i], 1.001f);
     }
     checkStatus(clReleaseMemObject(nv12_image_plane_uv), "clReleaseMemObject");
     checkStatus(clReleaseMemObject(nv12_image_plane_y), "clReleaseMemObject");
@@ -258,7 +258,7 @@ TEST(cl_mem_check, check_input) {
     topology topology;
 
     topology.add(input);
-    topology.add(reorder("reorder", "input", output_layout));
+    topology.add(reorder("reorder", input_info("input"), output_layout));
 
     network network(*engine, topology);
     network.set_input_data("input", input_memory);
@@ -270,7 +270,7 @@ TEST(cl_mem_check, check_input) {
     cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
     int size = width * height * 3;
     for (auto i = 0; i < size; i++) {
-        EXPECT_NEAR(reference_results[i], output_ptr[i], 1.001f);
+        ASSERT_NEAR(reference_results[i], output_ptr[i], 1.001f);
     }
     checkStatus(clReleaseMemObject(img), "clReleaseMemObject");
 }

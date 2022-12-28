@@ -104,7 +104,7 @@ public:
         topology tp;
 
         std::vector<std::pair<primitive_id, memory_ptr>> network_inputs;
-        std::vector<primitive_id> gemm_inputs;
+        std::vector<input_info> gemm_inputs;
 
         auto &engine = get_test_engine();
         for (size_t i = 0; i < shapes.size(); ++i) {
@@ -119,12 +119,12 @@ public:
             // tp.add(data(prim_id, input));
             tp.add(input_layout(prim_id, input->get_layout()));
             tp.add(reorder(prim_id_reordered, prim_id, fmt, type));
-            gemm_inputs.push_back(prim_id_reordered);
+            gemm_inputs.push_back(input_info(prim_id_reordered));
         }
 
         auto g = gemm("gemm_output", gemm_inputs, type, transpose_input0, transpose_input1, alpha, beta);
         tp.add(g);
-        tp.add(reorder("output", "gemm_output", format::bfyx, data_types::f32));
+        tp.add(reorder("output", input_info("gemm_output"), format::bfyx, data_types::f32));
 
         network network(engine, tp);
         for (auto &input : network_inputs) {
@@ -135,10 +135,10 @@ public:
         auto output = outputs.at("output").get_memory();
         cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
-        EXPECT_EQ(output_ptr.size(), out_data.size());
+        ASSERT_EQ(output_ptr.size(), out_data.size());
         const auto abs_error = type == data_types::f16 ? 0.1 : 0.0001;
         for (uint32_t i = 0; i < out_data.size(); ++i) {
-            EXPECT_NEAR(output_ptr[i], out_data[i], abs_error);
+            ASSERT_NEAR(output_ptr[i], out_data[i], abs_error);
         }
     }
 };
@@ -268,10 +268,10 @@ TEST(gemm_gpu, basic_bfyx_t2_inplace_crop_with_pad) {
         input_layout("input2", input2->get_layout())
     );
     topology.add(
-        crop("crop.1", "input", { 1, 1, 4, 3 }, { 0, 1, 0, 0 })
+        crop("crop.1", input_info("input"), { 1, 1, 4, 3 }, { 0, 1, 0, 0 })
     );
     topology.add(
-        gemm("output", { "crop.1", "input2" }, data_types::f32, false, true)
+        gemm("output", { input_info("crop.1"), input_info("input2") }, data_types::f32, false, true)
     );
 
     build_options options;
@@ -284,9 +284,9 @@ TEST(gemm_gpu, basic_bfyx_t2_inplace_crop_with_pad) {
     auto output = outputs.at("output").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
-    EXPECT_EQ(output_ptr.size(), (uint32_t)3);
+    ASSERT_EQ(output_ptr.size(), (uint32_t)3);
     for (uint32_t i = 0; i < out_data.size(); ++i) {
-        EXPECT_FLOAT_EQ(output_ptr[i], out_data[i]);
+        ASSERT_FLOAT_EQ(output_ptr[i], out_data[i]);
     }
 }
 
@@ -318,7 +318,7 @@ TEST(gemm_gpu, dynamic) {
     topology topology;
     topology.add(input_layout("input1", in1_layout),
                  input_layout("input2", in2_layout),
-                 gemm("gemm", { "input1", "input2" }, data_types::f32, false, true, 1.0f, 0.0f, 4, 2)
+                 gemm("gemm", { input_info("input1"), input_info("input2") }, data_types::f32, false, true, 1.0f, 0.0f, 4, 2)
     );
 
     build_options options;
@@ -338,9 +338,9 @@ TEST(gemm_gpu, dynamic) {
     auto output = outputs.at("gemm").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
-    EXPECT_EQ(output_ptr.size(), (uint32_t)3);
+    ASSERT_EQ(output_ptr.size(), (uint32_t)3);
     for (uint32_t i = 0; i < out_data.size(); ++i) {
-        EXPECT_FLOAT_EQ(output_ptr[i], out_data[i]);
+        ASSERT_FLOAT_EQ(output_ptr[i], out_data[i]);
     }
 }
 
@@ -1104,11 +1104,11 @@ public:
         topology.add(input_layout("input1", input1_mem->get_layout()));
         if (p.beta != 0) {
             topology.add(input_layout("input2", input2_mem->get_layout()));
-            topology.add(gemm("gemm_bfyx", { "input0", "input1", "input2" }, p.output_type, p.transpose_input0, p.transpose_input1, p.alpha, p.beta));
+            topology.add(gemm("gemm_bfyx", { input_info("input0"), input_info("input1"), input_info("input2") }, p.output_type, p.transpose_input0, p.transpose_input1, p.alpha, p.beta));
         } else {
-            topology.add(gemm("gemm_bfyx", { "input0", "input1" }, p.output_type, p.transpose_input0, p.transpose_input1, p.alpha, p.beta));
+            topology.add(gemm("gemm_bfyx", { input_info("input0"), input_info("input1") }, p.output_type, p.transpose_input0, p.transpose_input1, p.alpha, p.beta));
         }
-        topology.add(reorder("reorder_bfyx", "gemm_bfyx", format::bfyx, data_types::f32));
+        topology.add(reorder("reorder_bfyx", input_info("gemm_bfyx"), format::bfyx, data_types::f32));
 
         build_options options;
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -1132,18 +1132,18 @@ public:
         const float threshold_fp16 = 1e-1;
         const float threshold_fp32 = 3e-4;
 
-        EXPECT_EQ(output_ptr.size(), (size_t)(p.b_out_num * p.f_out_num * p.m_size * p.n_size));
+        ASSERT_EQ(output_ptr.size(), (size_t)(p.b_out_num * p.f_out_num * p.m_size * p.n_size));
         if (sizeof(input0_type) == 1) {
             for (size_t i = 0; i < out_data.size(); ++i) {
-                EXPECT_NEAR(float(output_ptr[i]), float(out_data[i]), threshold_int8) << "index = " << i;
+                ASSERT_NEAR(float(output_ptr[i]), float(out_data[i]), threshold_int8) << "index = " << i;
             }
         } else if (sizeof(input0_type) == 2) {
             for (size_t i = 0; i < out_data.size(); ++i) {
-                EXPECT_NEAR(float(output_ptr[i]), float(out_data[i]), threshold_fp16) << "index = " << i;
+                ASSERT_NEAR(float(output_ptr[i]), float(out_data[i]), threshold_fp16) << "index = " << i;
             }
         } else {
             for (size_t i = 0; i < out_data.size(); ++i) {
-                EXPECT_NEAR(float(output_ptr[i]), float(out_data[i]), threshold_fp32) << "index = " << i;
+                ASSERT_NEAR(float(output_ptr[i]), float(out_data[i]), threshold_fp32) << "index = " << i;
             }
         }
     }

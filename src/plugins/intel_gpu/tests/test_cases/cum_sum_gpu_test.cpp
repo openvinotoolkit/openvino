@@ -185,7 +185,7 @@ public:
 
         topology topology;
         topology.add(input_layout("Input0", input->get_layout()));
-        topology.add(cum_sum("cum_sum", "Input0", axis, exclusive, reverse));
+        topology.add(cum_sum("cum_sum", input_info("Input0"), axis, exclusive, reverse));
 
         cldnn::network::ptr network;
 
@@ -210,8 +210,8 @@ public:
 
         auto outputs = network->execute();
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "cum_sum");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "cum_sum");
 
         auto output = outputs.at("cum_sum").get_memory();
         cldnn::mem_lock<output_type> output_ptr(output, get_test_stream());
@@ -219,7 +219,7 @@ public:
         auto answers = cumsum<output_type>(inputVals, in_out_format, { b, f, w, z, y, x }, axis, exclusive, reverse);
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i) {
-            EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+            ASSERT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
         }
     }
 };
@@ -299,7 +299,7 @@ TEST(cum_sum_gpu_f16, DISABLED_basic_1d) {
 
     topology topology;
     topology.add(input_layout("Input0", input->get_layout()));
-    topology.add(cum_sum("cum_sum", "Input0"));
+    topology.add(cum_sum("cum_sum", input_info("Input0")));
 
     network network(engine, topology);
 
@@ -307,8 +307,8 @@ TEST(cum_sum_gpu_f16, DISABLED_basic_1d) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "cum_sum");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "cum_sum");
 
     auto output = outputs.at("cum_sum").get_memory();
     cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
@@ -317,7 +317,7 @@ TEST(cum_sum_gpu_f16, DISABLED_basic_1d) {
 
     ASSERT_EQ(output->count(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_TRUE(are_equal(answers[i], half_to_float(output_ptr[i]))) << i;
+        ASSERT_TRUE(are_equal(answers[i], half_to_float(output_ptr[i]))) << i;
     }
 }
 
@@ -334,7 +334,7 @@ TEST(cum_sum_gpu_fp32, dynamic) {
 
     topology topology;
     topology.add(input_layout("input", in_layout));
-    topology.add(cum_sum("cum_sum", "input"));
+    topology.add(cum_sum("cum_sum", input_info("input")));
 
     build_options bo;
     bo.set_option(build_option::allow_new_shape_infer(true));
@@ -348,8 +348,8 @@ TEST(cum_sum_gpu_fp32, dynamic) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "cum_sum");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "cum_sum");
 
     auto output = outputs.at("cum_sum").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -358,6 +358,6 @@ TEST(cum_sum_gpu_fp32, dynamic) {
 
     ASSERT_EQ(output->count(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
     }
 }

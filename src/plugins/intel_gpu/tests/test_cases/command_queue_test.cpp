@@ -22,7 +22,7 @@ void exexute_network(cldnn::engine& engine, bool is_caching_test=false) {
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ batch_num, feature_num, x_size, y_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(arg_max_min("arg_max", { "input" }, ov::op::TopKMode::MIN, top_k, 0));
+    topology.add(arg_max_min("arg_max", { input_info("input") }, ov::op::TopKMode::MIN, top_k, 0));
 
     std::vector<float> input_vec = {
         //y0x0 y0x1 y1x0 y1x1
@@ -60,8 +60,8 @@ void exexute_network(cldnn::engine& engine, bool is_caching_test=false) {
     network->set_input_data("input", input);
     auto outputs = network->execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "arg_max");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "arg_max");
     const int out_size = y_size * feature_num * x_size * top_k;
     auto output = outputs.at("arg_max").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -70,7 +70,7 @@ void exexute_network(cldnn::engine& engine, bool is_caching_test=false) {
         out_buffer[i] = get_value<float>(output_ptr.data(), i);
     }
     for (int i = 0; i < out_size; i++) {
-        EXPECT_EQ(out_buffer[i], i < (out_size / 2) ? 0 : 1);
+        ASSERT_EQ(out_buffer[i], i < (out_size / 2) ? 0 : 1);
     }
 }
 }  // namespace

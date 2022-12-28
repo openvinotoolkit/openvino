@@ -15,8 +15,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::Result);
-
 op::Result::Result(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();
 }
@@ -74,8 +72,6 @@ ov::Layout op::Result::get_layout() const {
 void op::Result::set_layout(const ov::Layout& layout) {
     ov::layout::set_layout(output(0), layout);
 }
-
-BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ResultVector>);
 
 ov::AttributeAdapter<ResultVector>::AttributeAdapter(ResultVector& ref) : m_ref(ref) {}
 

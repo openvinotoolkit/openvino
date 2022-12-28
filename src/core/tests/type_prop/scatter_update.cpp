@@ -2,12 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "dimension_tracker.hpp"
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "util/type_prop.hpp"
 
 using namespace std;
 using namespace ngraph;
+using namespace testing;
 
 namespace {
 using type = ngraph::element::Type;
@@ -208,29 +211,65 @@ TEST(type_prop, scatter_update_v3_dynamic_data_shape) {
     EXPECT_TRUE(scatter_update->get_output_partial_shape(0).is_dynamic());
 }
 
+TEST(type_prop, scatter_update_v3_interval_label_data_shape) {
+    auto labeled_dim = Dimension(1, 9);
+    size_t label = 222;
+    ov::DimensionTracker::set_label(labeled_dim, label);
+    PartialShape data_shape = PartialShape{-1, {2, 8}, labeled_dim, 4};
+    Shape indices_shape{2, 1};
+    Shape updates_shape{3, 2, 1, 2, 4};
+
+    auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    auto idx = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto updates = make_shared<op::Parameter>(element::f32, updates_shape);
+    auto axis = op::Constant::create(element::i32, Shape{}, {1});
+
+    auto scatter_update = make_shared<op::v3::ScatterUpdate>(data, idx, updates, axis);
+
+    const auto& output_shape = scatter_update->get_output_partial_shape(0);
+    EXPECT_EQ(output_shape, data_shape);
+    EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(ov::no_label, ov::no_label, label, ov::no_label));
+    EXPECT_EQ(scatter_update->get_output_element_type(0), element::f32);
+}
+
+TEST(type_prop, scatter_update_v3_value_label_propagation) {
+    auto labeled_dim = Dimension(5, 7);
+    size_t label = 2345664;
+    ov::DimensionTracker::set_label(labeled_dim, label);
+    PartialShape data_shape = PartialShape{labeled_dim};
+
+    auto data = make_shared<op::Parameter>(element::i8, data_shape);
+    auto shape_of = make_shared<op::v3::ShapeOf>(data);
+    auto scatter_update = make_shared<op::v3::ScatterUpdate>(op::Constant::create(element::i64, Shape{2}, {1, 0}),
+                                                             op::Constant::create(element::i64, Shape{1}, {1}),
+                                                             shape_of,
+                                                             op::Constant::create(element::i64, Shape{1}, {0}));
+    auto broadcast =
+        make_shared<op::v3::Broadcast>(op::Constant::create(element::i64, Shape{1, 1}, {4}), scatter_update);
+
+    const auto& output_shape = broadcast->get_output_partial_shape(0);
+    EXPECT_EQ(output_shape, PartialShape({1, {5, 7}}));
+    EXPECT_EQ(ov::DimensionTracker::get_label(output_shape[0]), ov::no_label);
+    EXPECT_EQ(ov::DimensionTracker::get_label(output_shape[1]), label);
+}
+
 TEST(type_prop, scatter_update_v3_partial_value_propagation) {
-    // ss should take from 5 to 7 elements from the 10 elements in the input data
+    // strided slice should take from 5 to 7 elements from the 10 elements in the input data
     auto input = make_shared<op::Parameter>(element::i8, PartialShape{ov::Dimension(5, 7)});
     auto shape = make_shared<op::v3::ShapeOf>(input);
     auto scatter_update = make_shared<op::v3::ScatterUpdate>(op::Constant::create(element::i64, Shape{2}, {1, 0}),
                                                              op::Constant::create(element::i64, Shape{1}, {1}),
                                                              shape,
                                                              op::Constant::create(element::i64, Shape{1}, {0}));
+    const auto& masks = std::vector<int64_t>(0, 2);
+    const auto& strided_slice = make_shared<op::v1::StridedSlice>(
+        op::Constant::create(element::i64, Shape{1, 10}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 0}),
+        op::Constant::create(element::i64, Shape{2}, {0, 0}),
+        scatter_update,
+        op::Constant::create(element::i64, Shape{2}, {1, 1}),
+        masks,
+        masks);
 
-    //    TODO: enable better StridedSlice shape inference for dynamic begin and end input values
-    //    const auto& masks = std::vector<int64_t>{0, 0};
-    //    const auto& ss = make_shared<op::v1::StridedSlice>(
-    //            op::Constant::create(element::i64, Shape{1, 10}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 0}),
-    //            op::Constant::create(element::i64, Shape{2}, {0, 0}),
-    //            scatter_update,
-    //            op::Constant::create(element::i64, Shape{2}, {1, 1}),
-    //            masks, masks
-    //    );
-    //    EXPECT_EQ(ss->get_output_partial_shape(0), PartialShape({1, {5, 7}}));
-
-    const auto& reshape =
-        make_shared<op::v1::Reshape>(make_shared<op::Parameter>(element::dynamic, PartialShape({1, {5, 7}})),
-                                     scatter_update,
-                                     false);
+    const auto& reshape = make_shared<op::v1::Reshape>(strided_slice, scatter_update, false);
     EXPECT_EQ(reshape->get_output_partial_shape(0), PartialShape({1, {5, 7}}));
 }

@@ -151,7 +151,7 @@ jobs:
       export INSTALL_OPENVINO=$(INSTALL_OPENVINO)
       $(OPENVINO_CONTRIB_REPO_DIR)/modules/arm_plugin/scripts/install_build_dependencies.sh
       python3 -m pip install --upgrade pip
-      python3 -m pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements.txt
+      python3 -m pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/requirements.txt
       python3 -m pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
     workingDirectory: $(BUILD_OPENVINO)
     displayName: 'Install dependencies'
@@ -177,7 +177,6 @@ jobs:
         -DENABLE_PYTHON=OFF
         -DENABLE_TESTS=ON
         -DENABLE_DATA=OFF
-        -DENABLE_LTO=ON
         -DCMAKE_TOOLCHAIN_FILE=$(OPENVINO_REPO_DIR)/cmake/arm64.toolchain.cmake
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_INTEL_MYRIAD=OFF

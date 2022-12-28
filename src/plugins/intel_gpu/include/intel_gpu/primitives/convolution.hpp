@@ -45,7 +45,7 @@ struct convolution : public primitive_base<convolution> {
     /// bfwzyx -> error (grouped_weights_shape=false) or goizyx (grouped_weights_shape=true)
     /// If weights already have (g)oi(z)yx format, then this flag has no effect
     convolution(const primitive_id& id,
-                const primitive_id& input,
+                const input_info& input,
                 const std::vector<primitive_id>& weights,
                 const std::vector<primitive_id>& bias,
                 uint32_t groups,
@@ -56,7 +56,7 @@ struct convolution : public primitive_base<convolution> {
                 data_types output_type,
                 bool grouped_weights_shape,
                 const padding& output_padding = padding())
-            : primitive_base(id, {input}, output_padding, optional_data_type{output_type}),
+            : primitive_base(id, {input}, {output_padding}, {optional_data_type{output_type}}),
               pad(pad),
               stride(stride),
               dilation(dilation),
@@ -92,7 +92,7 @@ struct convolution : public primitive_base<convolution> {
     /// For dilation 2 the filter would instead compute w[0]*x[0] + w[1]*x[2] + w[2]*x[4].
     /// @param output_size User-defined output data size of the primitive (w/o padding).
     convolution(const primitive_id& id,
-                const primitive_id& input,
+                const input_info& input,
                 const std::vector<primitive_id>& weights,
                 const std::vector<primitive_id>& bias,
                 const std::vector<primitive_id>& w_zero_point,
@@ -105,7 +105,7 @@ struct convolution : public primitive_base<convolution> {
                 tensor output_size,
                 bool grouped_weights_shape,
                 const padding& output_padding = padding())
-            : primitive_base(id, {input}, output_padding, optional_data_type{output_data_type}),
+            : primitive_base(id, {input}, {output_padding}, {optional_data_type{output_data_type}}),
               pad(pad),
               stride(stride),
               dilation(dilation),
@@ -147,7 +147,7 @@ struct convolution : public primitive_base<convolution> {
     /// For dilation 2 the filter would instead compute w[0]*x[0] + w[1]*x[2] + w[2]*x[4].
     /// @param output_size User-defined output data size of the primitive (w/o padding).
     convolution(const primitive_id& id,
-                const primitive_id& input,
+                const input_info& input,
                 const std::vector<primitive_id>& weights,
                 const std::vector<primitive_id>& bias,
                 const std::vector<primitive_id>& w_zero_point,
@@ -161,7 +161,7 @@ struct convolution : public primitive_base<convolution> {
                 tensor output_size,
                 bool grouped_weights_shape,
                 const padding& output_padding = padding())
-            : primitive_base(id, {input}, output_padding, optional_data_type{output_data_type}),
+            : primitive_base(id, {input}, {output_padding}, {optional_data_type{output_data_type}}),
               pad(pad),
               stride(stride),
               dilation(dilation),
@@ -199,14 +199,14 @@ struct convolution : public primitive_base<convolution> {
     /// @param with_activation Enable Relu activation.
     /// @param activation_slp Relu activation slope.
     convolution(const primitive_id& id,
-                const primitive_id& input,
+                const input_info& input,
                 const std::vector<primitive_id>& weights,
                 const std::vector<primitive_id>& bias,
                 ov::Strides stride = {1, 1},
                 ov::CoordinateDiff pad = {0, 0},
                 ov::Strides dilation = {1, 1},
                 const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           pad(pad),
           stride(stride),
           dilation(dilation),
@@ -241,7 +241,7 @@ struct convolution : public primitive_base<convolution> {
     /// @param with_activation Enable Relu activation.
     /// @param activation_slp Relu activation slope.
     convolution(const primitive_id& id,
-                const primitive_id& input,
+                const input_info& input,
                 const std::vector<primitive_id>& weights,
                 const std::vector<primitive_id>& bias,
                 ov::Strides stride,
@@ -250,7 +250,7 @@ struct convolution : public primitive_base<convolution> {
                 ov::CoordinateDiff padding_above,
                 ov::CoordinateDiff padding_below,
                 const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           pad(pad),
           stride(stride),
           dilation(dilation),
@@ -286,7 +286,7 @@ struct convolution : public primitive_base<convolution> {
     /// @param with_activation Enable Relu activation.
     /// @param activation_slp Relu activation slope.
     convolution(const primitive_id& id,
-                const primitive_id& input,
+                const input_info& input,
                 const std::vector<primitive_id>& weights,
                 const std::vector<primitive_id>& bias,
                 uint32_t groups,
@@ -297,7 +297,7 @@ struct convolution : public primitive_base<convolution> {
                 ov::CoordinateDiff padding_below,
                 bool grouped_weights_shape = false,
                 const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           pad(pad),
           stride(stride),
           dilation(dilation),
@@ -332,7 +332,7 @@ struct convolution : public primitive_base<convolution> {
     /// @param with_activation Enable Relu activation.
     /// @param activation_slp Relu activation slope.
     convolution(const primitive_id& id,
-                const primitive_id& input,
+                const input_info& input,
                 const std::vector<primitive_id>& weights,
                 const std::vector<primitive_id>& bias,
                 uint32_t groups,
@@ -341,7 +341,7 @@ struct convolution : public primitive_base<convolution> {
                 ov::Strides dilation = {1, 1},
                 bool grouped_weights_shape = false,
                 const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           pad(pad),
           stride(stride),
           dilation(dilation),
@@ -376,14 +376,14 @@ struct convolution : public primitive_base<convolution> {
     /// @param with_activation Enable Relu activation.
     /// @param activation_slp Relu activation slope.
     convolution(const primitive_id& id,
-                const primitive_id& input,
+                const input_info& input,
                 const std::vector<primitive_id>& weights,
                 ov::Strides stride = {1, 1},
                 ov::CoordinateDiff pad = {0, 0},
                 ov::Strides dilation = {1, 1},
                 bool grouped_weights_shape = false,
                 const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           pad(pad),
           stride(stride),
           dilation(dilation),
@@ -415,7 +415,7 @@ struct convolution : public primitive_base<convolution> {
     /// @param with_activation Enable Relu activation.
     /// @param activation_slp Relu activation slope.
     convolution(const primitive_id& id,
-                const primitive_id& input,
+                const input_info& input,
                 const std::vector<primitive_id>& weights,
                 ov::Strides stride,
                 ov::CoordinateDiff pad,
@@ -423,7 +423,7 @@ struct convolution : public primitive_base<convolution> {
                 ov::CoordinateDiff padding_above,
                 ov::CoordinateDiff padding_below,
                 const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           pad(pad),
           stride(stride),
           dilation(dilation),
@@ -456,7 +456,7 @@ struct convolution : public primitive_base<convolution> {
     /// @param with_activation Enable Relu activation.
     /// @param activation_slp Relu activation slope.
     convolution(const primitive_id& id,
-                const primitive_id& input,
+                const input_info& input,
                 const std::vector<primitive_id>& weights,
                 uint32_t groups,
                 ov::Strides stride,
@@ -465,7 +465,7 @@ struct convolution : public primitive_base<convolution> {
                 ov::CoordinateDiff padding_above,
                 ov::CoordinateDiff padding_below,
                 const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           pad(pad),
           stride(stride),
           dilation(dilation),
@@ -496,7 +496,7 @@ struct convolution : public primitive_base<convolution> {
     /// @param with_activation Enable Relu activation.
     /// @param activation_slp Relu activation slope.
     convolution(const primitive_id& id,
-                const primitive_id& input,
+                const input_info& input,
                 const std::vector<primitive_id>& weights,
                 uint32_t groups,
                 ov::Strides stride = {1, 1},
@@ -505,7 +505,7 @@ struct convolution : public primitive_base<convolution> {
                 tensor output_size = {0, 0, 0, 0},
                 bool grouped_weights_shape = false,
                 const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           pad(pad),
           stride(stride),
           dilation(dilation),
@@ -538,7 +538,7 @@ struct convolution : public primitive_base<convolution> {
     /// @param activation_slp Relu activation slope.
     /// @param output_size User-defined output data size of the primitive (w/o padding).
     convolution(const primitive_id& id,
-                const primitive_id& input,
+                const input_info& input,
                 const std::vector<primitive_id>& weights,
                 const std::vector<primitive_id>& bias,
                 ov::Strides stride,
@@ -546,7 +546,7 @@ struct convolution : public primitive_base<convolution> {
                 ov::Strides dilation,
                 tensor output_size,
                 const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           pad(pad),
           stride(stride),
           dilation(dilation),
@@ -581,14 +581,14 @@ struct convolution : public primitive_base<convolution> {
     /// @param activation_slp Relu activation slope.
     /// @param output_size User-defined output data size of the primitive (w/o padding).
     convolution(const primitive_id& id,
-                const primitive_id& input,
+                const input_info& input,
                 const std::vector<primitive_id>& weights,
                 ov::Strides stride,
                 ov::CoordinateDiff pad,
                 ov::Strides dilation,
                 tensor output_size,
                 const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           pad(pad),
           stride(stride),
           dilation(dilation),
@@ -625,7 +625,7 @@ struct convolution : public primitive_base<convolution> {
     /// one pixel outside of the feature map boundary, then bilinear interpolation is performed on the zero padded feature map.
     /// @param output_size Shape of the output
     convolution(const primitive_id& id,
-                const std::vector<primitive_id>& inputs,
+                const std::vector<input_info>& inputs,
                 const std::vector<primitive_id>& weights,
                 const std::vector<primitive_id>& bias,
                 uint32_t groups,
@@ -636,7 +636,7 @@ struct convolution : public primitive_base<convolution> {
                 tensor output_size,
                 bool bilinear_interpolation_pad = false,
                 const padding& output_padding = padding())
-    : primitive_base(id, inputs, output_padding),
+    : primitive_base(id, inputs, {output_padding}),
       pad(pad),
       stride(stride),
       dilation(dilation),
@@ -677,7 +677,7 @@ struct convolution : public primitive_base<convolution> {
     /// @param output_size User-defined output data size of the primitive (w/o padding).
     /// @return Convolution primitive with specified settings.
     static convolution create_with_output_size(const primitive_id& id,
-                                               const primitive_id& input,
+                                               const input_info& input,
                                                const std::vector<primitive_id>& weights,
                                                const std::vector<primitive_id>& bias,
                                                tensor output_size,
@@ -693,7 +693,7 @@ struct convolution : public primitive_base<convolution> {
                            pad,
                            dilation,
                            output_size,
-                           output_padding);
+                           {output_padding});
     }
 
     /// @brief Constructs convolution primitive (w/o bias; computes input paddings to match output size).
@@ -712,7 +712,7 @@ struct convolution : public primitive_base<convolution> {
     /// @param output_size User-defined output data size of the primitive (w/o padding).
     /// @return Convolution primitive with specified settings.
     static convolution create_with_output_size(const primitive_id& id,
-                                               const primitive_id& input,
+                                               const input_info& input,
                                                const std::vector<primitive_id>& weights,
                                                tensor output_size,
                                                ov::Strides stride = {1, 1},
@@ -726,7 +726,7 @@ struct convolution : public primitive_base<convolution> {
                            pad,
                            dilation,
                            output_size,
-                           output_padding);
+                           {output_padding});
     }
 
     /// @brief Defines logical pad value added to input tensor.
@@ -790,7 +790,7 @@ struct deformable_interp : public primitive_base<deformable_interp> {
     CLDNN_DECLARE_PRIMITIVE(deformable_interp)
 
     deformable_interp(const primitive_id& id,
-                      const std::vector<primitive_id>& inputs,
+                      const std::vector<input_info>& inputs,
                       uint32_t groups,
                       uint32_t deformable_groups,
                       ov::Strides stride,
@@ -800,7 +800,7 @@ struct deformable_interp : public primitive_base<deformable_interp> {
                       tensor kernel_size,
                       bool bilinear_interpolation_pad,
                       const padding& output_padding = padding())
-    : primitive_base(id, inputs, output_padding),
+    : primitive_base(id, inputs, {output_padding}),
       pad(pad),
       stride(stride),
       dilation(dilation),
@@ -842,13 +842,13 @@ struct deformable_conv : public primitive_base<deformable_conv> {
     CLDNN_DECLARE_PRIMITIVE(deformable_conv)
 
     deformable_conv(const primitive_id& id,
-                    const primitive_id& input,
+                    const input_info& input,
                     const std::vector<primitive_id>& weights,
                     const std::vector<primitive_id>& biases,
                     uint32_t groups,
                     tensor output_size,
                     const padding& output_padding = padding())
-    : primitive_base(id, {input}, output_padding),
+    : primitive_base(id, {input}, {output_padding}),
       output_size(output_size),
       groups(groups),
       weights(weights),

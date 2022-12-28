@@ -8,8 +8,6 @@
 
 using namespace std;
 
-BWDCMP_RTTI_DEFINITION(ov::pass::pattern::op::Any);
-
 bool ov::pass::pattern::op::Any::match_value(Matcher* matcher,
                                              const Output<Node>& pattern_value,
                                              const Output<Node>& graph_value) {

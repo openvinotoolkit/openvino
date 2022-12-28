@@ -43,7 +43,7 @@ class BiasCorrection(Algorithm):
         )
         self._stat_batch_size = min(
             self._config.get('stat_batch_size', 1), len(self._engine.data_loader))
-        self._batch_stat_size = max(np.int(self._stat_subset_size * 0.2), 1)
+        self._batch_stat_size = max(int(self._stat_subset_size * 0.2), 1)
         self._graph_transformer = GraphTransformer(load_hardware_config(self._config))
         self._shuffle_data = self._config.get('shuffle_data', False)
         self._seed = self._config.get('seed', 0)
@@ -364,7 +364,7 @@ class BiasCorrection(Algorithm):
         add_out_shape = get_input_shape_for_bias(self._fp32_statistics, params['node_bias_add'].fullname)
         axis_channel = self.get_channel_axis(add_name)
         bias_shift_value = fp32_output - q_output
-        bias_shape = np.ones(len(add_out_shape), dtype=np.int)
+        bias_shape = np.ones(len(add_out_shape), dtype=int)
         bias_shape[axis_channel] = add_out_shape[axis_channel]
 
         bias_shift_value = bias_shift_value.reshape(bias_shape)

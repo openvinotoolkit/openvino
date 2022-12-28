@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <chrono>
 #include <signal.h>
 #include <setjmp.h>
 
@@ -77,8 +78,8 @@ void SubgraphBaseTest::run() {
                     }
                     generate_inputs(targetStaticShapeVec);
                 } catch (const std::exception& ex) {
-                    throw std::runtime_error("Incorrect target static shape: " +
-                                             CommonTestUtils::vec2str(targetStaticShapeVec) + " " + ex.what());
+                    throw std::runtime_error("[IE TEST INFRA] Impossible to reshape ov::Model using the shape: " +
+                        CommonTestUtils::vec2str(targetStaticShapeVec) + " " + ex.what());
                 }
                 validate();
             }
@@ -198,6 +199,11 @@ void SubgraphBaseTest::configure_model() {
 }
 
 void SubgraphBaseTest::compile_model() {
+    if (is_report_stages) {
+        std::cout << "[ PLUGIN      ] `SubgraphBaseTest::compile_model()` is started" << std::endl;
+    }
+    auto start_time = std::chrono::system_clock::now();
+
     configure_model();
     if (functionRefs == nullptr) {
         functionRefs = ov::clone_model(*function);
@@ -211,6 +217,11 @@ void SubgraphBaseTest::compile_model() {
     #endif
 
     compiledModel = core->compile_model(function, targetDevice, configuration);
+    if (is_report_stages) {
+        auto end_time = std::chrono::system_clock::now();
+        std::chrono::duration<double> duration = end_time - start_time;
+        std::cout << "[ PLUGIN      ] `SubgraphBaseTest::compile_model()` is finished successfully. Duration is " << duration.count() << "s" << std::endl;
+    }
 }
 
 void SubgraphBaseTest::init_ref_function(std::shared_ptr<ov::Model> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes) {
@@ -255,6 +266,11 @@ void SubgraphBaseTest::infer() {
 }
 
 std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
+    if (is_report_stages) {
+        std::cout << "[ REFERENCE   ] `SubgraphBaseTest::calculate_refs()` is started"<< std::endl;
+    }
+    auto start_time = std::chrono::system_clock::now();
+
     using InputsMap = std::map<std::shared_ptr<ov::Node>, ov::Tensor>;
 
     auto functionToProcess = ov::clone_model(*functionRefs);
@@ -311,14 +327,30 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
 
     functionToProcess = p.build();
 
-    return ngraph::helpers::interpretFunction(functionToProcess, inputs);
+    auto results = ngraph::helpers::interpretFunction(functionToProcess, inputs);
+    if (is_report_stages) {
+        auto end_time = std::chrono::system_clock::now();
+        std::chrono::duration<double> duration = end_time - start_time;
+        std::cout << "[ REFERENCE   ] `SubgraphBaseTest::calculate_refs()` is finished successfully. Duration is " << duration.count() << "s" << std::endl;
+    }
+    return results;
 }
 
 std::vector<ov::Tensor> SubgraphBaseTest::get_plugin_outputs() {
+    if (is_report_stages) {
+        std::cout << "[ PLUGIN      ] `SubgraphBaseTest::get_plugin_outputs()` is started"<< std::endl;
+    }
+    auto start_time = std::chrono::system_clock::now();
+
     infer();
     auto outputs = std::vector<ov::Tensor>{};
     for (const auto& output : function->outputs()) {
         outputs.push_back(inferRequest.get_tensor(output));
+    }
+    if (is_report_stages) {
+        auto end_time = std::chrono::system_clock::now();
+        std::chrono::duration<double> duration = end_time - start_time;
+        std::cout << "[ PLUGIN      ] `SubgraphBaseTest::get_plugin_outputs()` is finished successfully. Duration is " << duration.count() << "s" << std::endl;
     }
     return outputs;
 }
@@ -342,8 +374,17 @@ void SubgraphBaseTest::validate() {
 
     ASSERT_EQ(actualOutputs.size(), expectedOutputs.size())
         << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
+    if (is_report_stages) {
+        std::cout << "[ COMPARATION ] `ov_tensor_utils.hpp::compare()` is started"<< std::endl;
+    }
+    auto start_time = std::chrono::system_clock::now();
 
     compare(expectedOutputs, actualOutputs);
+    if (is_report_stages) {
+        auto end_time = std::chrono::system_clock::now();
+        std::chrono::duration<double> duration = end_time - start_time;
+        std::cout << "[ COMPARATION ] `ov_tensor_utils.hpp::compare()` is finished successfully. Duration is " << duration.count() << "s" << std::endl;
+    }
 }
 
 void SubgraphBaseTest::init_input_shapes(const std::vector<InputShape>& shapes) {

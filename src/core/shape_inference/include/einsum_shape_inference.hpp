@@ -33,8 +33,7 @@ void shape_infer(const Einsum* op, const std::vector<T>& input_shapes, std::vect
 
     for (size_t input_idx = 0; input_idx < input_shapes.size(); ++input_idx) {
         const auto& pshape = input_shapes[input_idx];
-        std::vector<std::string> labels;
-        labels = Einsum::extract_labels(input_subscripts[input_idx]);
+        const auto labels = Einsum::extract_labels(input_subscripts[input_idx]);
 
         if (pshape.rank().is_static()) {
             size_t input_rank = pshape.size();
@@ -91,8 +90,7 @@ void shape_infer(const Einsum* op, const std::vector<T>& input_shapes, std::vect
     }
 
     // compute the output shape
-    std::vector<std::string> output_labels;
-    output_labels = Einsum::extract_labels(output_subscript);
+    const auto output_labels = Einsum::extract_labels(output_subscript);
     auto& output_shape = output_shapes[0];
 
     output_shape.resize(0);

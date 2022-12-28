@@ -178,8 +178,6 @@ string get_results_str(const std::vector<char>& ref_data, const std::vector<char
     return ::testing::AssertionSuccess();
 }
 
-constexpr NodeTypeInfo ngraph::TestOpMultiOut::type_info;
-
 bool ngraph::TestOpMultiOut::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     inputs[0]->read(outputs[0]->get_data_ptr(), inputs[0]->get_size_in_bytes());
     inputs[1]->read(outputs[1]->get_data_ptr(), inputs[1]->get_size_in_bytes());

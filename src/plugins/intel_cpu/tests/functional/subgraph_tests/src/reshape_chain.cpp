@@ -37,8 +37,6 @@ class ReshapeChain : public SubgraphBaseTest {
 };
 
 TEST_F(ReshapeChain, smoke_ReshapeChain) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
 }
 

@@ -279,11 +279,11 @@ static bool eliminate_unsqueeze(const shared_ptr<Node>& node) {
         OPENVINO_RTTI(STR(NAME), "0");                                                  \
         NAME() {                                                                        \
             MATCHER_SCOPE(NAME);                                                        \
-            auto match_node = ngraph::pattern::wrap_type<OP>();                         \
-            ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) { \
+            auto match_node = ov::pass::pattern::wrap_type<OP>();                       \
+            ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {   \
                 return FUNC(m.get_match_root());                                        \
             };                                                                          \
-            auto m = make_shared<ngraph::pattern::Matcher>(match_node, matcher_name);   \
+            auto m = make_shared<ov::pass::pattern::Matcher>(match_node, matcher_name); \
             register_matcher(m, callback);                                              \
         }                                                                               \
     };

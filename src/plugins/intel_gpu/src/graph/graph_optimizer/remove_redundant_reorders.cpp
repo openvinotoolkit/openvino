@@ -22,10 +22,8 @@
 
 using namespace cldnn;
 
-#define LOG_NODE_REMOVAL(id) GPU_DEBUG_IF(debug_config->verbose >= 2) {                                                         \
-            GPU_DEBUG_COUT << "[remove_redundant_reorders:" << __LINE__ << "] " << "Remove node: " << (id) << std::endl; }
-#define LOG_NODE_REPLACEMENT(id) GPU_DEBUG_IF(debug_config->verbose >= 2) {                                                     \
-            GPU_DEBUG_COUT << "[remove_redundant_reorders:" << __LINE__ << "] " << "Replace node: " << (id) << std::endl; }
+#define LOG_NODE_REMOVAL(id)      GPU_DEBUG_LOG_PASS << "Remove node: " << (id) << std::endl;
+#define LOG_NODE_REPLACEMENT(id)  GPU_DEBUG_LOG_PASS << "Replace node: " << (id) << std::endl;
 
 
 remove_redundant_reorders::remove_redundant_reorders(layout_optimizer& lo_ref, bool enable_reorder_fusing, bool update_implementations,
@@ -34,7 +32,6 @@ remove_redundant_reorders::remove_redundant_reorders(layout_optimizer& lo_ref, b
     remove_output_reorders(remove_output_reorders) {}
 
 void remove_redundant_reorders::run(program& p) {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     auto update_implementation = [&](program_node& node) {
         if (!update_implementations)
             return;
@@ -182,7 +179,7 @@ void remove_redundant_reorders::run(program& p) {
             auto output_layout = r_node.get_output_layout();
             auto dep_prim = std::const_pointer_cast<reorder>(r_dep_node.get_primitive());
             dep_prim->output_format = output_layout.format;
-            dep_prim->output_data_type = output_layout.data_type;
+            dep_prim->output_data_types = {output_layout.data_type};
 
             LOG_NODE_REMOVAL(r_node.id());
             r_node.can_be_optimized(true);
@@ -249,6 +246,9 @@ void remove_redundant_reorders::run(program& p) {
     while (itr != p.get_processing_order().end()) {
         auto node = *itr++;
         if (!node->is_type<reorder>())  // only care for reorders
+            continue;
+
+        if (node->is_dynamic())
             continue;
 
         auto& r_node = node->as<reorder>();

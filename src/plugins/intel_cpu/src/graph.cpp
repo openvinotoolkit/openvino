@@ -26,6 +26,7 @@
 #include <nodes/reorder.h>
 #include "nodes/convert.h"
 #include "nodes/subgraph.h"
+#include "nodes/fullyconnected.h"
 
 #include <ie_algorithm.hpp>
 #include <blob_factory.hpp>
@@ -339,6 +340,9 @@ void Graph::Replicate(const CNNNetwork &network, const ExtensionManager::Ptr& ex
 
     if (config.enforceBF16)
         EnforceBF16();
+
+    if (config.fcSparseWeiDecompressionRate < 1.0f)
+        setMinSparseRate(config.fcSparseWeiDecompressionRate);
 
     auto hasSubgraphConsumers = [] (const NodePtr& node) -> bool {
         const auto & childEdges = node->getChildEdges();
@@ -1069,7 +1073,7 @@ void Graph::InferStatic(InferRequestBase* request) {
     dnnl::stream stream(eng);
 
     for (const auto& node : executableGraphNodes) {
-        VERBOSE(node, config.verbose);
+        VERBOSE(node, config.debugCaps.verbose);
         PERF(node, config.collectPerfCounters);
 
         if (request)
@@ -1156,7 +1160,7 @@ void Graph::InferDynamic(InferRequestBase* request) {
         updateNodes(stopIndx);
         for (; inferCounter < stopIndx; ++inferCounter) {
             auto& node = executableGraphNodes[inferCounter];
-            VERBOSE(node, config.verbose);
+            VERBOSE(node, config.debugCaps.verbose);
             PERF(node, config.collectPerfCounters);
 
             if (request)
@@ -1167,7 +1171,7 @@ void Graph::InferDynamic(InferRequestBase* request) {
 }
 
 inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) const {
-    DUMP(node, config, infer_count);
+    DUMP(node, config.debugCaps, infer_count);
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, node->profiling.execute);
 
     if (node->isDynamicNode()) {
@@ -1599,7 +1603,7 @@ void Graph::EnforceBF16() {
                     // Concatenation node is exception because it doesn't change an accuracy for BF16 activation
                       node->getType() != Type::Concatenation) &&
                     // exclude Eltwise after Input since it supports conversion to BF16
-                    !(parent->getType() == Type::Input && node->getType() == Type::Eltwise) &&
+                    !(parent->getType() == Type::Input && (node->getType() == Type::Eltwise || node->getType() == Type::Subgraph)) &&
                     node->getOriginalInputPrecisionAtPort(i) == Precision::FP32)
                     node->setOriginalInputPrecisionAtPort(i, Precision::BF16);
             }
@@ -1608,6 +1612,14 @@ void Graph::EnforceBF16() {
                 if (node->getOriginalOutputPrecisionAtPort(i) == Precision::FP32)
                     node->setOriginalOutputPrecisionAtPort(i, Precision::BF16);
             }
+        }
+    }
+}
+
+void Graph::setMinSparseRate(float minSparseRate) {
+    for (const auto &node : graphNodes) {
+        if (auto fcNodePtr = std::dynamic_pointer_cast<node::FullyConnected>(node)) {
+            fcNodePtr->setMinSparseRate(minSparseRate);
         }
     }
 }

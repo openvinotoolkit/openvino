@@ -7,13 +7,6 @@
 #include "ngraph/graph_util.hpp"
 #include "ngraph/opsets/opset5.hpp"
 
-BWDCMP_RTTI_DEFINITION(ov::op::util::MultiSubGraphOp);
-BWDCMP_RTTI_DEFINITION(ov::op::util::MultiSubGraphOp::SliceInputDescription);
-BWDCMP_RTTI_DEFINITION(ov::op::util::MultiSubGraphOp::MergedInputDescription);
-BWDCMP_RTTI_DEFINITION(ov::op::util::MultiSubGraphOp::InvariantInputDescription);
-BWDCMP_RTTI_DEFINITION(ov::op::util::MultiSubGraphOp::BodyOutputDescription);
-BWDCMP_RTTI_DEFINITION(ov::op::util::MultiSubGraphOp::ConcatOutputDescription);
-
 ov::op::util::MultiSubGraphOp::InputDescription::InputDescription(uint64_t input_index, uint64_t body_parameter_index)
     : m_input_index(input_index),
       m_body_parameter_index(body_parameter_index) {}
@@ -153,8 +146,3 @@ ov::Output<ov::Node> ov::op::util::MultiSubGraphOp::set_body_outputs(const Resul
     validate_and_infer_types();
     return Output<Node>(shared_from_this(), output_index);
 }
-
-namespace ov {
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<std::vector<std::shared_ptr<op::util::MultiSubGraphOp::InputDescription>>>);
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<std::vector<std::shared_ptr<op::util::MultiSubGraphOp::OutputDescription>>>);
-}  // namespace ov

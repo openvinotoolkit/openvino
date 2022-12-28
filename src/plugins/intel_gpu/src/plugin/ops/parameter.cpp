@@ -165,7 +165,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         networkInputLayout.set_partial_shape({ 1, input_pshape[3], input_pshape[1], input_pshape[2] });
 
         std::string suffix = "";
-        std::vector<std::string> surfaces_inputs;
+        std::vector<cldnn::input_info> surfaces_inputs;
         for (size_t i = 0; i < batch; ++i) {
             if (batch > 1)
                 suffix = "_" + std::to_string(i);
@@ -178,11 +178,11 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
 
             auto preprocessPrimID = "reorder:" + inputName + Program::m_preProcessTag + suffix;
             auto reorder = cldnn::reorder(preprocessPrimID,
-                                          batched_name,
+                                          cldnn::input_info(batched_name),
                                           reorder_layout);
             reorder.input_mem_type = cldnn::reorder::memory_type::surface;
             p.add_primitive(*op, reorder);
-            surfaces_inputs.push_back(preprocessPrimID);
+            surfaces_inputs.push_back(cldnn::input_info(preprocessPrimID));
         }
 
         if (batch > 1 && !is_convert_color_input)
@@ -208,7 +208,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
             int height = input_pshape[2].get_length();
             int width = input_pshape[3].get_length();
             size_t batch = input_pshape[0].get_length();
-            std::vector<cldnn::primitive_id> reorders;
+            std::vector<cldnn::input_info> reorders;
 
             for (size_t i = 0; i < batch; i++) {
                 auto preprocessPrimID = "reorder:" + inputName + std::to_string(i) + Program::m_preProcessTag;
@@ -230,8 +230,8 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
                 case NONE:
                 case MEAN_VALUE: {
                     p.add_primitive(*op, cldnn::reorder(preprocessPrimID,
-                                                        y_name,
-                                                        uv_name,
+                                                        cldnn::input_info(y_name),
+                                                        cldnn::input_info(uv_name),
                                                         networkInputLayout,
                                                         meanValues,
                                                         cldnn::reorder_mean_mode::subtract), {inputName});
@@ -239,8 +239,8 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
                 }
                 case MEAN_IMAGE: {
                     p.add_primitive(*op, cldnn::reorder(preprocessPrimID,
-                                                        y_name,
-                                                        uv_name,
+                                                        cldnn::input_info(y_name),
+                                                        cldnn::input_info(uv_name),
                                                         networkInputLayout,
                                                         meanBlobID,
                                                         cldnn::reorder_mean_mode::subtract), {inputName});
@@ -250,7 +250,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
                     break;
                 }
 
-                reorders.push_back(preprocessPrimID);
+                reorders.push_back(cldnn::input_info(preprocessPrimID));
             }
 
             if (input_pshape[0].get_length() > 1) {
@@ -269,7 +269,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
             case NONE:
             case MEAN_VALUE: {
                 p.add_primitive(*op, cldnn::reorder(preprocessPrimID,
-                                                    inputName,
+                                                    cldnn::input_info(inputName),
                                                     networkInputLayout,
                                                     meanValues,
                                                     cldnn::reorder_mean_mode::subtract), {inputName});
@@ -277,7 +277,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
             }
             case MEAN_IMAGE: {
                 p.add_primitive(*op, cldnn::reorder(preprocessPrimID,
-                                                    inputName,
+                                                    cldnn::input_info(inputName),
                                                     networkInputLayout,
                                                     meanBlobID,
                                                     cldnn::reorder_mean_mode::subtract), {inputName});

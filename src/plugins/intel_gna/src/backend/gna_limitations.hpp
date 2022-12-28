@@ -66,6 +66,20 @@ inline bool IsTransposeSupported(const std::vector<size_t>& shape) {
 }
 
 namespace Cnn2D {
+struct IsEqualToLimit {
+    uint32_t compared_value;
+    std::string what;
+    bool isValid(const uint32_t val) const;
+    std::string GetErrorOrEmpty(const uint32_t val) const;
+};
+
+struct IsLessThanLimit {
+    uint32_t compared_value;
+    std::string what;
+    bool isValid(const uint32_t val) const;
+    std::string GetErrorOrEmpty(const uint32_t val) const;
+};
+
 struct RangeLimit {
     uint32_t min;
     uint32_t max;
@@ -140,7 +154,14 @@ public:
         const uint32_t strideH, const uint32_t strideW,
         bool exception = true) const = 0;
 
-    virtual bool IsPaddingSupported() const = 0;
+    virtual bool ValidateInputPadding(const std::string& name,
+        const uint32_t pad_h_begin, const uint32_t pad_h_end,
+        const uint32_t pad_w_begin, const uint32_t pad_w_end,
+        const uint32_t kernel_h,
+        const uint32_t kernel_w,
+        const bool throwOnError = true) const = 0;
+
+    virtual bool ShouldUseOnlyConv2DGnaIface() const = 0;
 
     virtual bool ValidateCnn1D(const std::string& name, const uint32_t inHeight, const uint32_t inWidth,
         const uint32_t inChannels, const uint32_t kH, const uint32_t kW, const uint32_t kN,
@@ -173,7 +194,14 @@ public:
         const uint32_t strideH, const uint32_t strideW,
         bool exception = true) const override;
 
-    bool IsPaddingSupported() const override;
+    bool ValidateInputPadding(const std::string& name,
+        const uint32_t pad_h_begin, const uint32_t pad_h_end,
+        const uint32_t pad_w_begin, const uint32_t pad_w_end,
+        const uint32_t kernel_h,
+        const uint32_t kernel_w,
+        const bool throwOnError = true) const override;
+
+    bool ShouldUseOnlyConv2DGnaIface() const override;
 
     bool ValidateCnn1D(const std::string& name, const uint32_t inHeight, const uint32_t inWidth,
     const uint32_t inChannels, const uint32_t kH, const uint32_t kW, const uint32_t kN,
@@ -233,7 +261,14 @@ public:
         const uint32_t strideH, const uint32_t strideW,
         bool exception = true) const override;
 
-    bool IsPaddingSupported() const override;
+    bool ValidateInputPadding(const std::string& name,
+        const uint32_t pad_h_begin, const uint32_t pad_h_end,
+        const uint32_t pad_w_begin, const uint32_t pad_w_end,
+        const uint32_t kernel_h,
+        const uint32_t kernel_w,
+        const bool throwOnError = true) const override;
+
+    bool ShouldUseOnlyConv2DGnaIface() const override;
 
     bool ValidateCnn1D(const std::string& name, const uint32_t inHeight, const uint32_t inWidth,
         const uint32_t inChannels, const uint32_t kH, const uint32_t kW, const uint32_t kN,

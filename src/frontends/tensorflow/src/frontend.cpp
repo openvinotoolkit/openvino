@@ -18,8 +18,10 @@
 #include "pass/transpose_sinking.hpp"
 #include "so_extension.hpp"
 #include "tf_framework_node.hpp"
+#include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
 #include "utils.hpp"
 
+using namespace ov;
 using namespace ov::frontend::tensorflow;
 
 namespace {
@@ -95,6 +97,12 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
         auto input_shape = input_tensor_place->get_partial_shape();
         auto input_type = input_tensor_place->get_element_type();
 
+        // in case of cutting graph, types of custom inputs can be undefined,
+        // according to MO help, fp32 is used by default in such cases
+        if (input_type == element::undefined) {
+            input_type = element::f32;
+        }
+
         auto param = std::make_shared<ov::opset8::Parameter>(input_type, input_shape);
         set_node_name(input_name, param);
         params.push_back(param);
@@ -112,7 +120,13 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
 
         // prepare a list of OV node inputs for each node
         ov::OutputVector ng_inputs;
-        for (size_t input_port_idx = 0; input_port_idx < operation_decoder->get_input_size(); ++input_port_idx) {
+        size_t operation_input_size = operation_decoder->get_input_size();
+
+        if (operation_decoder->get_op_type() == "NextIteration") {
+            // we expect no inputs for NextIteration because we break-up the cycle in InputModel
+            operation_input_size = 0;
+        }
+        for (size_t input_port_idx = 0; input_port_idx < operation_input_size; ++input_port_idx) {
             // TODO: Implement more general approach. Skipping Constants that have input edges
             if (operation_decoder->get_op_type() == "Const") {
                 break;
@@ -170,13 +184,16 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
             FRONT_END_OP_CONVERSION_CHECK(translate_map.count(operation_decoder->get_op_type()),
                                           "No translator found for " + operation_decoder->get_op_type() + " node.");
             auto op_fun = &(translate_map[operation_decoder->get_op_type()]);
-            // NodeContext node_context(ng_inputs, operation_decoder, model_inputs);
-            // TODO: Check why NodeContextNew doesn't have ngOutputVector ng_inputs input in constructor
             NodeContext node_context(operation_decoder, ng_inputs);
             // generate OV node output vector using translator for given operation type
             ng_outputs = (*op_fun)(node_context);
         } catch (...) {
             if (fail_fast) {
+                // in case of decode, unsupported operation will be converted to FrameworkNode
+                if (m_telemetry && translate_map.count(operation_decoder->get_op_type()) == 0) {
+                    // send event about which operation is not supported for conversion
+                    m_telemetry->send_event("error_cause", "tf_" + operation_decoder->get_op_type());
+                }
                 // re-throw any exception
                 throw;
             } else {
@@ -435,6 +452,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
 
     // TODO: reimplement TransposeSinking that does not corrupt filters for Convolution
     manager.register_pass<ov::frontend::tensorflow::pass::TransposeSinking>();
+    manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
     manager.run_passes(function);
 }
 

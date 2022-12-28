@@ -16,7 +16,6 @@ namespace op {
 class ScaleShiftIE : public Op {
 public:
     OPENVINO_OP("ScaleShiftIE", "legacy");
-    BWDCMP_RTTI_DECLARATION;
 
     ScaleShiftIE(const Output<Node>& data_batch,
                  const Output<Node>& weights,

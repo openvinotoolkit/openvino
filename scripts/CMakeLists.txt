@@ -64,8 +64,17 @@ install(PROGRAMS "${_setupvars_file}"
 if(LINUX)
     ie_cpack_add_component(${OV_CPACK_COMP_INSTALL_DEPENDENCIES} HIDDEN)
 
-    install(DIRECTORY install_dependencies/
-            DESTINATION install_dependencies
-            COMPONENT ${OV_CPACK_COMP_INSTALL_DEPENDENCIES}
-            USE_SOURCE_PERMISSIONS)
+    set(install_dependencies_files install_openvino_dependencies.sh)
+    if(ENABLE_INTEL_GPU)
+        list(APPEND install_dependencies_files install_NEO_OCL_driver.sh)
+    endif()
+    if(ENABLE_INTEL_MYRIAD)
+        list(APPEND install_dependencies_files install_NCS_udev_rules.sh)
+    endif()
+
+    foreach(install_dependencies_file IN LISTS install_dependencies_files)
+        install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/install_dependencies/${install_dependencies_file}"
+                DESTINATION install_dependencies/
+                COMPONENT ${OV_CPACK_COMP_INSTALL_DEPENDENCIES})
+    endforeach()
 endif()
