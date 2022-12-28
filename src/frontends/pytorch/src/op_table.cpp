@@ -190,6 +190,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::to", op::translate_to},
         {"aten::transpose", op::translate_transpose},
         {"aten::unsqueeze", op::translate_1to1_match_2_inputs<opset8::Unsqueeze>},
+        {"aten::unsqueeze_", op::inplace_op<op::translate_1to1_match_2_inputs<opset8::Unsqueeze>>},
         {"aten::upsample_bilinear2d", op::translate_upsample_bilinear2d},
         {"aten::upsample_nearest2d", op::translate_upsample_nearest2d},
         {"aten::var", op::translate_var},
