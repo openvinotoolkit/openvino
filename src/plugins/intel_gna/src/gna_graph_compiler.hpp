@@ -15,7 +15,6 @@
 #include "descriptions/gna_desc.hpp"
 #include "descriptions/gna_flags.hpp"
 #include "connection_details.hpp"
-#include "backend/dnn.hpp"
 #include "memory/gna_memory.hpp"
 #include "layers/gna_memory_layer.hpp"
 #include "layers/gna_concat_layer.hpp"

@@ -25,13 +25,6 @@ const char *intel_dnn_activation_name[kActNumType] = {
         "kActPwl"
 };
 
-const char *intel_dnn_softmax_name[kSoftmaxNumType] = {
-        "kSoftmaxNone",
-        "kSoftmaxKaldiSumGroup",
-        "kSoftmaxKaldiApplyLog",
-        "kSoftmaxGoogle"
-};
-
 const char* intel_dnn_operation_name[kDnnNumOp] = {
         "kDnnNullOp",
         "kDnnAffineOp",
@@ -44,12 +37,6 @@ const char* intel_dnn_operation_name[kDnnNumOp] = {
         "kDnnInterleaveOp",
         "kDnnDeinterleaveOp",
         "kDnnCopyOp"
-};
-
-const char *intel_dnn_macro_operation_name[kDnnNumMacroOp] = {
-        "kDnnMacroOpNone",
-        "kDnnMacroOpLstm",
-        "kDnnMacroOpBiLstm"
 };
 
 const char *intel_dnn_number_type_name[kDnnNumNumberType] = {

@@ -83,16 +83,6 @@ static_assert(std::is_trivial<DnnActivation>::value, "DnnActivation is not triva
 
 extern const char *intel_dnn_activation_name[kActNumType];
 
-typedef enum DnnSoftmaxType {
-    kSoftmaxNone,
-    kSoftmaxKaldiSumgroup,
-    kSoftmaxEesen,
-    kSoftmaxGoogle,
-    kSoftmaxNumType
-} intel_dnn_softmax_type_t;
-
-extern const char *intel_dnn_softmax_name[kSoftmaxNumType];
-
 typedef enum {
     kDnnUnknownOrientation = 100,
     kDnnInterleavedOrientation,
@@ -116,15 +106,6 @@ typedef enum {
 } intel_dnn_operation_t;
 
 extern const char* intel_dnn_operation_name[kDnnNumOp];
-
-typedef enum {
-    kDnnMacroOpNone,
-    kDnnMacroOpLstm,
-    kDnnMacroOpBiLstm,
-    kDnnNumMacroOp
-} intel_dnn_macro_operation_t;
-
-extern const char *intel_dnn_macro_operation_name[kDnnNumMacroOp];
 
 typedef enum {
     kDnnFloat,
@@ -262,7 +243,6 @@ struct intel_dnn_component_t {
     uint32_t num_bytes_per_input;
     uint32_t num_bytes_per_output;
     intel_dnn_operation_t operation;
-    intel_dnn_macro_operation_t macro_operation;
     intel_dnn_orientation_t orientation_in;
     intel_dnn_orientation_t orientation_out;
     union operation_struct_t {

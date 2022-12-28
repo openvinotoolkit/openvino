@@ -22,7 +22,6 @@
 #include "memory/gna_memory_util.hpp"
 #include "log/log.hpp"
 #include "log/dump.hpp"
-#include "backend/dnn.hpp"
 #include "backend/am_intel_dnn.hpp"
 #include "backend/dnn_types.h"
 #include "gna/gna_config.hpp"
@@ -68,22 +67,10 @@ void GNAPluginNS::backend::AMIntelDNN::Init(GNAMemoryInterface* memoryInterface,
 
     ptr_active_outputs_ = nullptr;
     num_active_outputs_ = 0;
-    num_left_context = 0;
-    num_right_context = 0;
-    softmax_type = kSoftmaxNone;
-    ptr_sumgroup_sizes = nullptr;
-    num_sumgroup_sizes = 0;
-    ptr_priors = nullptr;
 }
 
 GNAPluginNS::backend::AMIntelDNN::~AMIntelDNN() {
     component.clear();
-    if (ptr_sumgroup_sizes != NULL) {
-        _mm_free(ptr_sumgroup_sizes);
-    }
-    if (ptr_priors != NULL) {
-        _mm_free(ptr_priors);
-    }
 }
 
 void GNAPluginNS::backend::AMIntelDNN::InitActiveList(uint32_t *ptr_active_list) {
@@ -123,7 +110,6 @@ void GNAPluginNS::backend::AMIntelDNN::InitAffineComponentPrivate(intel_dnn_comp
     comp.num_bytes_per_input = num_bytes_per_input;
     comp.num_bytes_per_output = num_bytes_per_output;
     comp.operation = isDiag ? kDnnDiagonalOp : kDnnAffineOp;
-    comp.macro_operation = kDnnMacroOpNone;
     comp.orientation_in = kDnnInterleavedOrientation;
     comp.orientation_out = kDnnInterleavedOrientation;
     comp.op.affine.num_bytes_per_weight = num_bytes_per_weight;
@@ -146,22 +132,22 @@ void GNAPluginNS::backend::AMIntelDNN::InitAffineComponentPrivate(intel_dnn_comp
 
 
 void GNAPluginNS::backend::AMIntelDNN::InitConvolutional1DComponentPrivate(intel_dnn_component_t &comp,
-                                                 uint32_t num_columns_in,
-                                                 uint32_t num_columns_out,
-                                                 uint32_t num_bytes_per_input,
-                                                 uint32_t num_bytes_per_output,
-                                                 uint32_t num_bytes_per_weight,
-                                                 uint32_t num_bytes_per_bias,
-                                                 uint32_t num_filters,
-                                                 uint32_t num_filter_coefficients,
-                                                 const uint32_t convStride,
-                                                 float weight_scale_factor,
-                                                 float output_scale_factor,
-                                                 void *&ptr_inputs,
-                                                 void *&ptr_outputs,
-                                                 void *&ptr_filters,
-                                                 void *&ptr_biases,
-                                                 bool postInitMem) {
+                                            uint32_t num_columns_in,
+                                            uint32_t num_columns_out,
+                                            uint32_t num_bytes_per_input,
+                                            uint32_t num_bytes_per_output,
+                                            uint32_t num_bytes_per_weight,
+                                            uint32_t num_bytes_per_bias,
+                                            uint32_t num_filters,
+                                            uint32_t num_filter_coefficients,
+                                            const uint32_t convStride,
+                                            float weight_scale_factor,
+                                            float output_scale_factor,
+                                            void *&ptr_inputs,
+                                            void *&ptr_outputs,
+                                            void *&ptr_filters,
+                                            void *&ptr_biases,
+                                            bool postInitMem) {
     comp.num_rows_in = 1;
     comp.num_columns_in = num_columns_in;
     comp.num_rows_out = 1;
@@ -169,7 +155,6 @@ void GNAPluginNS::backend::AMIntelDNN::InitConvolutional1DComponentPrivate(intel
     comp.num_bytes_per_input = num_bytes_per_input;
     comp.num_bytes_per_output = num_bytes_per_output;
     comp.operation = kDnnConvolutional1dOp;
-    comp.macro_operation = kDnnMacroOpNone;
     comp.orientation_in = kDnnNonInterleavedOrientation;
     comp.orientation_out = kDnnNonInterleavedOrientation;
     comp.ptr_inputs = ptr_inputs;
@@ -211,25 +196,24 @@ void GNAPluginNS::backend::AMIntelDNN::InitConvolutional1DComponentPrivate(intel
 }
 
 void GNAPluginNS::backend::AMIntelDNN::InitConvolutional2DComponentPrivate(intel_dnn_component_t& comp,
-    OvGnaTensor inputTensor,
-    OvGnaTensor outputTensor,
-    OvGnaTensor filterTensor,
-    OvGnaTensor biasTensor,
-    std::array<uint32_t, 2> convStride,
-    std::array<uint32_t, 2> zeroPadding,
-    float weight_scale_factor,
-    float output_scale_factor,
-    void*& ptr_inputs,
-    void*& ptr_outputs,
-    void*& ptr_filters,
-    void*& ptr_biases) {
+                                            OvGnaTensor inputTensor,
+                                            OvGnaTensor outputTensor,
+                                            OvGnaTensor filterTensor,
+                                            OvGnaTensor biasTensor,
+                                            std::array<uint32_t, 2> convStride,
+                                            std::array<uint32_t, 2> zeroPadding,
+                                            float weight_scale_factor,
+                                            float output_scale_factor,
+                                            void*& ptr_inputs,
+                                            void*& ptr_outputs,
+                                            void*& ptr_filters,
+                                            void*& ptr_biases) {
     comp.tensors.clear();
     comp.tensors.push_back(inputTensor);
     comp.tensors.push_back(outputTensor);
     comp.tensors.push_back(filterTensor);
     comp.tensors.push_back(biasTensor);
     comp.operation = kDnnConvolutional2dOp;
-    comp.macro_operation = kDnnMacroOpNone;
     comp.orientation_in = kDnnNonInterleavedOrientation;
     comp.orientation_out = kDnnNonInterleavedOrientation;
     comp.ptr_inputs = ptr_inputs;
@@ -290,20 +274,19 @@ void GNAPluginNS::backend::AMIntelDNN::updateNumberOfOutputsIfPoolingEnabled(Gna
 }
 
 void GNAPluginNS::backend::AMIntelDNN::InitMaxpoolComponentPrivate(intel_dnn_component_t &comp,
-    std::array<uint32_t, 3> inCHW,
-    std::array<uint32_t, 3> outCHW,
-    uint32_t num_bytes_per_input,
-    uint32_t num_bytes_per_output,
-    std::array<uint32_t, 2> poolingWindowXY,
-    std::array<uint32_t, 2> poolingStrideXY,
-    float output_scale_factor,
-    void *&ptr_inputs,
-    void *&ptr_outputs,
-    bool postInitMem) {
+                                            std::array<uint32_t, 3> inCHW,
+                                            std::array<uint32_t, 3> outCHW,
+                                            uint32_t num_bytes_per_input,
+                                            uint32_t num_bytes_per_output,
+                                            std::array<uint32_t, 2> poolingWindowXY,
+                                            std::array<uint32_t, 2> poolingStrideXY,
+                                            float output_scale_factor,
+                                            void *&ptr_inputs,
+                                            void *&ptr_outputs,
+                                            bool postInitMem) {
     comp.num_bytes_per_input = num_bytes_per_input;
     comp.num_bytes_per_output = num_bytes_per_output;
     comp.operation = kDnnMaxPoolOp;
-    comp.macro_operation = kDnnMacroOpNone;
     comp.orientation_in = kDnnNonInterleavedOrientation;
     comp.orientation_out = kDnnNonInterleavedOrientation;
     comp.op.maxpool.inCHW = inCHW;
@@ -322,19 +305,19 @@ void GNAPluginNS::backend::AMIntelDNN::InitMaxpoolComponentPrivate(intel_dnn_com
 }
 
 void GNAPluginNS::backend::AMIntelDNN::InitCopyComponentPrivate(intel_dnn_component_t &comp,
-                                          intel_dnn_orientation_t orientation,
-                                          uint32_t num_rows_in,
-                                          uint32_t num_columns_in,
-                                          uint32_t num_rows_out,
-                                          uint32_t num_columns_out,
-                                          uint32_t num_bytes_per_input,
-                                          uint32_t num_bytes_per_output,
-                                          float output_scale_factor,
-                                          uint32_t num_copy_rows,
-                                          uint32_t num_copy_columns,
-                                          void *&ptr_inputs,
-                                          void *&ptr_outputs,
-                                          bool postInitMem) {
+                                            intel_dnn_orientation_t orientation,
+                                            uint32_t num_rows_in,
+                                            uint32_t num_columns_in,
+                                            uint32_t num_rows_out,
+                                            uint32_t num_columns_out,
+                                            uint32_t num_bytes_per_input,
+                                            uint32_t num_bytes_per_output,
+                                            float output_scale_factor,
+                                            uint32_t num_copy_rows,
+                                            uint32_t num_copy_columns,
+                                            void *&ptr_inputs,
+                                            void *&ptr_outputs,
+                                            bool postInitMem) {
     comp.num_rows_in = num_rows_in;
     comp.num_columns_in = num_columns_in;
     comp.num_rows_out = num_rows_out;
@@ -342,7 +325,6 @@ void GNAPluginNS::backend::AMIntelDNN::InitCopyComponentPrivate(intel_dnn_compon
     comp.num_bytes_per_input = num_bytes_per_input;
     comp.num_bytes_per_output = num_bytes_per_output;
     comp.operation = kDnnCopyOp;
-    comp.macro_operation = kDnnMacroOpNone;
     comp.orientation_in = orientation;
     comp.orientation_out = orientation;
     comp.ptr_inputs = ptr_inputs;
@@ -362,19 +344,19 @@ void GNAPluginNS::backend::AMIntelDNN::InitCopyComponentPrivate(intel_dnn_compon
 }
 
 void GNAPluginNS::backend::AMIntelDNN::InitPiecewiseLinearComponentPrivate(intel_dnn_component_t &comp,
-                                                     const DnnActivation& function_id,
-                                                     intel_dnn_orientation_t orientation,
-                                                     uint32_t num_rows,
-                                                     uint32_t num_columns,
-                                                     uint32_t num_bytes_per_input,
-                                                     uint32_t num_bytes_per_output,
-                                                     uint32_t num_segments,
-                                                     float output_scale_factor,
-                                                     float input_scale_factor,
-                                                     void *&ptr_inputs,
-                                                     void *&ptr_outputs,
-                                                     gna_pwl_segment_t *ptr_segments,
-                                                     bool postInitMem) {
+                                            const DnnActivation& function_id,
+                                            intel_dnn_orientation_t orientation,
+                                            uint32_t num_rows,
+                                            uint32_t num_columns,
+                                            uint32_t num_bytes_per_input,
+                                            uint32_t num_bytes_per_output,
+                                            uint32_t num_segments,
+                                            float output_scale_factor,
+                                            float input_scale_factor,
+                                            void *&ptr_inputs,
+                                            void *&ptr_outputs,
+                                            gna_pwl_segment_t *ptr_segments,
+                                            bool postInitMem) {
     comp.num_rows_in = num_rows;
     comp.num_columns_in = num_columns;
     comp.num_rows_out = num_rows;
@@ -382,7 +364,6 @@ void GNAPluginNS::backend::AMIntelDNN::InitPiecewiseLinearComponentPrivate(intel
     comp.num_bytes_per_input = num_bytes_per_input;
     comp.num_bytes_per_output = num_bytes_per_output;
     comp.operation = kDnnPiecewiselinearOp;
-    comp.macro_operation = kDnnMacroOpNone;
     comp.orientation_in = orientation;
     comp.orientation_out = orientation;
     comp.op.pwl.func_id = function_id;
@@ -405,14 +386,14 @@ void GNAPluginNS::backend::AMIntelDNN::InitPiecewiseLinearComponentPrivate(intel
 }
 
 void GNAPluginNS::backend::AMIntelDNN::InitInterleaveComponentPrivate(intel_dnn_component_t &comp,
-                                                                      uint32_t num_rows_in,
-                                                                      uint32_t num_columns_in,
-                                                                      uint32_t num_bytes_per_input,
-                                                                      uint32_t num_bytes_per_output,
-                                                                      float output_scale_factor,
-                                                                      void *&ptr_inputs,
-                                                                      void *&ptr_outputs,
-                                                                      bool postInitMem) {
+                                            uint32_t num_rows_in,
+                                            uint32_t num_columns_in,
+                                            uint32_t num_bytes_per_input,
+                                            uint32_t num_bytes_per_output,
+                                            float output_scale_factor,
+                                            void *&ptr_inputs,
+                                            void *&ptr_outputs,
+                                            bool postInitMem) {
     comp.num_rows_in = num_rows_in;
     comp.num_columns_in = num_columns_in;
     comp.num_rows_out = num_columns_in;
@@ -420,7 +401,6 @@ void GNAPluginNS::backend::AMIntelDNN::InitInterleaveComponentPrivate(intel_dnn_
     comp.num_bytes_per_input = num_bytes_per_input;
     comp.num_bytes_per_output = num_bytes_per_output;
     comp.operation = kDnnInterleaveOp;
-    comp.macro_operation = kDnnMacroOpNone;
     comp.orientation_in = kDnnNonInterleavedOrientation;
     comp.orientation_out = kDnnInterleavedOrientation;
     comp.output_scale_factor = output_scale_factor;
@@ -435,14 +415,14 @@ void GNAPluginNS::backend::AMIntelDNN::InitInterleaveComponentPrivate(intel_dnn_
 }
 
 void GNAPluginNS::backend::AMIntelDNN::InitDeinterleaveComponentPrivate(intel_dnn_component_t &comp,
-                                                                        uint32_t num_rows_in,
-                                                                        uint32_t num_columns_in,
-                                                                        uint32_t num_bytes_per_input,
-                                                                        uint32_t num_bytes_per_output,
-                                                                        float output_scale_factor,
-                                                                        void *&ptr_inputs,
-                                                                        void *&ptr_outputs,
-                                                                        bool postInitMem) {
+                                            uint32_t num_rows_in,
+                                            uint32_t num_columns_in,
+                                            uint32_t num_bytes_per_input,
+                                            uint32_t num_bytes_per_output,
+                                            float output_scale_factor,
+                                            void *&ptr_inputs,
+                                            void *&ptr_outputs,
+                                            bool postInitMem) {
     comp.num_rows_in = num_rows_in;
     comp.num_columns_in = num_columns_in;
     comp.num_rows_out = num_columns_in;
@@ -450,7 +430,6 @@ void GNAPluginNS::backend::AMIntelDNN::InitDeinterleaveComponentPrivate(intel_dn
     comp.num_bytes_per_input = num_bytes_per_input;
     comp.num_bytes_per_output = num_bytes_per_output;
     comp.operation = kDnnDeinterleaveOp;
-    comp.macro_operation = kDnnMacroOpNone;
     comp.orientation_in = kDnnInterleavedOrientation;
     comp.orientation_out = kDnnInterleavedOrientation;
     comp.output_scale_factor = output_scale_factor;
@@ -777,7 +756,6 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
 
         out_file << "<intel_dnn_file>\n";
         out_file << "<number_type> " << intel_dnn_number_type_name[logging_precision] << "\n";
-        out_file << "<softmax_type> " << intel_dnn_softmax_name[softmax_type] << "\n";
         const auto& regionsMap = GNAPluginNS::memory::GetAllRegionsToStrMap();
         for (const auto& regionPair : regionsMap) {
             out_file << "<memory_region_type> " << std::dec << regionPair.second << "\n";
@@ -818,7 +796,6 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                 layer++;
             }
             out_file << "<component_operation> " << intel_dnn_operation_name[component[i].operation] << "\n";
-            out_file << "<macro_operation> " << intel_dnn_macro_operation_name[component[i].macro_operation] << "\n";
             out_file << "<num_rows_in> " << std::dec << num_rows_in << "\n";
             out_file << "<num_columns_in> " << std::dec << num_columns_in << "\n";
             out_file << "<num_rows_out> " << std::dec << num_rows_out << "\n";
