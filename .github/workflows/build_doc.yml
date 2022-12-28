@@ -7,7 +7,7 @@ on:
       - 'releases/**'
 
 env:
-  DOXY_VER: '1.9.3'
+  DOXY_VER: '1.9.2'
   DOXYREST_VER: '2.1.3'
 
 concurrency:
@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   Build_Doc:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-20.04
     steps:
       - name: Clone OpenVINO
         uses: actions/checkout@v3
@@ -27,7 +27,7 @@ jobs:
       - name: Install apt-get dependencies
         uses: awalsh128/cache-apt-pkgs-action@v1.1.3
         with:
-          packages: graphviz texlive liblua5.2-0
+          packages: graphviz texlive liblua5.2-0 libclang1-9 libclang-cpp9
           version: 3.0
 
       - uses: actions/setup-python@v4
@@ -98,7 +98,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: openvino_docs_${{ env.PR_NUMBER }}_html.zip
-          path: build/docs/openvino_docs_html.zip
+          path: openvino_docs_html.zip
 
       - name: Run Pytest
         run: |
