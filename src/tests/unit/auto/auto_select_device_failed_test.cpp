@@ -225,6 +225,11 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
         devicesStr += ((++iter) == deviceConfigs.end()) ? "" : ",";
     }
     ON_CALL(*plugin, ParseMetaDevices(_, _)).WillByDefault(Return(metaDevices));
+    ON_CALL(*plugin, GetValidDevice)
+        .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
+            std::list<DeviceInformation> devices(metaDevices.begin(), metaDevices.end());
+            return devices;
+        });
     config.insert({InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , devicesStr});
     // if set this parameter true, the second selecting call will thrown exception,
     // if there is only one device, it will thrown exception at the first call
