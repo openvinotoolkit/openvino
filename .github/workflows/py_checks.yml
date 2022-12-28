@@ -41,7 +41,7 @@ jobs:
           python -m black -l 160 -S ./
           git diff > samples_diff.diff
         working-directory: samples/python
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: samples_diff
@@ -56,7 +56,7 @@ jobs:
           python -m black -l 160 -S ./
           git diff > ie_python_diff.diff
         working-directory: src/bindings/python/src/compatibility/openvino
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: ie_python_diff
@@ -71,7 +71,7 @@ jobs:
           python -m black -l 160 -S ./
           git diff > pyngraph_diff.diff
         working-directory: src/bindings/python/src/compatibility/ngraph
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: pyngraph_diff
@@ -86,7 +86,7 @@ jobs:
           python -m black -l 160 -S ./
           git diff > pyopenvino_diff.diff
         working-directory: src/bindings/python/src/openvino
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: pyopenvino_diff
@@ -101,7 +101,7 @@ jobs:
           python -m black -l 160 -S ./
           git diff > wheel_diff.diff
         working-directory: src/bindings/python/wheel
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: wheel_diff

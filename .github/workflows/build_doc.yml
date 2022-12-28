@@ -117,28 +117,28 @@ jobs:
 
       - name: 'Upload test results'
         if: always()
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: openvino_doc_pytest
           path: build/docs/_artifacts/
       
       - name: 'Upload doxygen.log'
         if: always()
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: doxygen_log
           path: build/docs/doxygen.log
 
       - name: 'Upload sphinx.log'
         if: always()
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: sphinx_log
           path: build/docs/sphinx.log
 
       - name: 'Upload html'
         if: always()
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: openvino_html
           path: build/docs/openvino_html.zip

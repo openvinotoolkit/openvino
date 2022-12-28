@@ -51,7 +51,7 @@ jobs:
           level: error
           tool_name: clang-format
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: code_style_diff
