@@ -279,12 +279,15 @@ size_t DecoderProto::get_input_size() const {
 void DecoderProto::get_input_node(size_t input_port_idx,
                                   std::string& producer_name,
                                   size_t& producer_output_port_index) const {
-    // TODO: handle body graph nodes with a couple of columns
+    // Body graph nodes may have two colons `:`, for example,
+    // producer_name:z:2 means that producer operation name is `producer_name`
+    // and output port is 2
     std::string producer_port_name = m_node_def->input(static_cast<int>(input_port_idx));
-    auto delim_pos = producer_port_name.find(':');
-    if (delim_pos != std::string::npos) {
-        producer_name = producer_port_name.substr(0, delim_pos);
-        auto port_id = producer_port_name.substr(delim_pos + 1);
+    auto first_colon = producer_port_name.find_first_of(":");
+    auto last_colon = producer_port_name.find_last_of(":");
+    if (first_colon != std::string::npos && last_colon != std::string::npos) {
+        producer_name = producer_port_name.substr(0, first_colon);
+        auto port_id = producer_port_name.substr(last_colon + 1);
         FRONT_END_GENERAL_CHECK(!port_id.empty() && std::all_of(port_id.begin(), port_id.end(), ::isdigit),
                                 "Port id is not specified or not a number. Value: ",
                                 port_id);

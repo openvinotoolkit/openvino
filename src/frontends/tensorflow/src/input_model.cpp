@@ -76,6 +76,7 @@ public:
     std::map<std::string, Output<Node>> get_tensor_values() const {
         return m_tensor_values;
     };
+    std::shared_ptr<InputModel> get_body_input_model(const std::string& body_model_name) const;
 
 private:
     void loadPlaces();
@@ -314,6 +315,15 @@ InputModel::InputModelTFImpl::InputModelTFImpl(const GraphIterator::Ptr& graph_i
     loadPlaces();
 }
 
+std::shared_ptr<InputModel> InputModel::InputModelTFImpl::get_body_input_model(
+    const std::string& body_model_name) const {
+    auto body_graph_iterator = m_graph_iterator->get_body_graph_iterator(body_model_name);
+    if (!body_graph_iterator) {
+        return nullptr;
+    }
+    return std::make_shared<InputModel>(body_graph_iterator, m_telemetry);
+}
+
 InputModel::InputModelTFImpl::InputModelTFImpl(const GraphIterator::Ptr& graph_iterator,
                                                const ov::frontend::InputModel& input_model,
                                                const std::shared_ptr<TelemetryExtension>& telemetry)
@@ -425,6 +435,10 @@ InputModel::InputModel(const GraphIterator::Ptr& graph_iterator, const std::shar
 
 std::vector<std::shared_ptr<OpPlace>> InputModel::get_op_places() const {
     return _impl->get_op_places();
+}
+
+std::shared_ptr<InputModel> InputModel::get_body_input_model(const std::string& body_model_name) const {
+    return _impl->get_body_input_model(body_model_name);
 }
 
 std::map<std::string, std::shared_ptr<TensorPlace>> InputModel::get_tensor_places() const {
