@@ -119,8 +119,8 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
 
             return true;
         }
-        if (auto where = cast_fw_node(input_node, "aten::nonzero_numpy")) {
-            const auto input = where->get_input_source_output(0);
+        if (auto nonzero_numpy = cast_fw_node(input_node, "aten::nonzero_numpy")) {
+            const auto input = nonzero_numpy->get_input_source_output(0);
             auto non_zero = std::make_shared<opset8::NonZero>(input);
             auto axis = opset8::Constant::create(element::i64, Shape{}, {0});
             const auto num_splits = list_unpack->get_output_size();
