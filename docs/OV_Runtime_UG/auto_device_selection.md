@@ -196,23 +196,23 @@ AUTO will then query all available devices and remove CPU from the candidate lis
 Note that if you choose to exclude CPU from device candidate list, CPU will not be able to support the initial model compilation stage. See more information in [How AUTO Works](#how-auto-works).
 
 ### Performance Hints for AUTO
-The `ov::hint::performance_mode` property enables you to specify a performance option for AUTO to be more efficient for particular use cases.
+The `ov::hint::performance_mode` property enables you to specify a performance option for AUTO to be more efficient for particular use cases. The default hint for AUTO is `LATENCY`.
 
 > **NOTE**: Currently, the `ov::hint` property is supported by CPU and GPU devices only.
 
-#### THROUGHPUT
-This option prioritizes high throughput, balancing between latency and power. It is best suited for tasks involving multiple jobs, such as inference of video feeds or large numbers of images.
-
-> **NOTE**: If no performance hint is set explicitly, AUTO will set THROUGHPUT for devices that have not set `ov::device::properties`. For example, if you have both a CPU and a GPU in the system, this command `core.compile_model("AUTO", ov::device::properties("CPU", ov::enable_profiling(true)))` will set THROUGHPUT for the GPU only. No hint will be set for the CPU although it's the selected device.
-
 #### LATENCY
 This option prioritizes low latency, providing short response time for each inference job. It performs best for tasks where inference is required for a single input image, e.g. a medical analysis of an ultrasound scan image. It also fits the tasks of real-time or nearly real-time applications, such as an industrial robot's response to actions in its environment or obstacle avoidance for autonomous vehicles.
+
+> **NOTE**: If no performance hint is set explicitly, AUTO will set LATENCY for devices that have not set `ov::device::properties`.
 
 @sphinxdirective
 
 .. _cumulative throughput:
 
 @endsphinxdirective
+
+#### THROUGHPUT
+This option prioritizes high throughput, balancing between latency and power. It is best suited for tasks involving multiple jobs, such as inference of video feeds or large numbers of images.
 
 #### CUMULATIVE_THROUGHPUT
 While `LATENCY` and `THROUGHPUT` can select one target device with your preferred performance option, the `CUMULATIVE_THROUGHPUT` option enables running inference on multiple devices for higher throughput. With `CUMULATIVE_THROUGHPUT`, AUTO loads the network model to all available devices in the candidate list, and then runs inference on them based on the default or specified priority. 
