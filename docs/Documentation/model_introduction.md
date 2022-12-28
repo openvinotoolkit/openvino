@@ -28,7 +28,3 @@ This section describes the how to obtain and prepare your model for work with Op
 * [Automate model-related tasks with Model Downloader and additional OMZ Tools](https://docs.openvino.ai/latest/omz_tools_downloader.html).
 
 To begin with, you may want to [browse a database of models for use in your projects](../model_zoo.md).
-
-
-
-
