@@ -27,22 +27,12 @@ jobs:
           submodules: recursive
           lfs: true
 
-      - name: Check cmake
-        run: |
-          which cmake
-          cmake --version
-
-      - name: CMake
-        run: |
-          mkdir build
-          cd build
-          cmake -DENABLE_INTEL_MYRIAD_COMMON=OFF -DCMAKE_BUILD_TYPE=Release ..
+      - name: CMake configure
+        run: cmake -DENABLE_INTEL_MYRIAD_COMMON=OFF -DCMAKE_BUILD_TYPE=Release -B build
 
       - name: Get number of CPU cores
         uses: SimenB/github-actions-cpu-cores@v1
         id: cpu-cores
 
       - name: Build snippets
-        run: |
-          cmake --build . --target ie_docs_snippets -j${{ steps.cpu-cores.outputs.count }}
-        working-directory: build
+        run:  cmake --build build --target ie_docs_snippets --parallel ${{ steps.cpu-cores.outputs.count }}

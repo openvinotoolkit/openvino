@@ -12,10 +12,7 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: git ls-tree
-        run: |
-          git ls-tree -r -t -l --full-name HEAD | sort -n -r -k 4
+        run: git ls-tree -r -t -l --full-name HEAD | sort -n -r -k 4
 
       - name: git lfs ls-files
-        run: |
-          git lfs ls-files --size
-
+        run: git lfs ls-files --size
