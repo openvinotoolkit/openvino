@@ -55,9 +55,9 @@ def aggregate_stats(stats: dict, args:dict):
                         "stdev": statistics.stdev(duration_list) if len(duration_list) > 1 else 0}
             for step_name, duration_list in stats.items()}
     if args["model_cache"]: # FIL-First Inference Latency
-        agg_stats['time_to_first_inference_result (ms)']={'avg': (agg_stats['time_to_inference']['avg']+agg_stats['first_inference']['avg']) / 10 **3}
+        agg_stats['time_to_first_inference_result']={'avg': (agg_stats['time_to_inference']['avg']+agg_stats['first_inference']['avg']) / 10 **3}
     else: #FEIL-First Ever Inference Latency
-        agg_stats['time_to_first_inference_result (s)']={'avg': (agg_stats['time_to_inference']['avg']+agg_stats['first_inference']['avg']) / 10 **6}
+        agg_stats['time_to_first_inference_result']={'avg': (agg_stats['time_to_inference']['avg']+agg_stats['first_inference']['avg']) / 10 **6}
 
     return agg_stats
 
