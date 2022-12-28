@@ -102,7 +102,6 @@ public:
     std::shared_ptr<GraphIterator> get_body_graph_iterator(const std::string& func_name) const override {
         // check that the requested function exists in the library
         auto num_funcs = m_graph_def->library().function_size();
-        bool does_exist = false;
         for (int func_ind = 0; func_ind < num_funcs; ++func_ind) {
             auto curr_func = m_graph_def->library().function(func_ind);
             auto curr_func_name = curr_func.signature().name();
