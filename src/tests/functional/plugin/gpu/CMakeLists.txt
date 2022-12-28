@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME gpuFuncTests)
+set(TARGET_NAME ov_gpu_func_tests)
 
 addIeTargetTest(
         NAME

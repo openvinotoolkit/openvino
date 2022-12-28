@@ -11,7 +11,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ie_add_compiler_flags(/wd4305)
 endif()
 
-set(TARGET_NAME "clDNN_unit_tests64")
+set(TARGET_NAME "ov_gpu_unit_tests")
 
 file(GLOB_RECURSE SOURCES_MAIN
     "${CMAKE_CURRENT_SOURCE_DIR}/*.h"
