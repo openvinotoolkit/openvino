@@ -131,13 +131,15 @@ def mse_scale_per_tensor(x):
     best_sigma = sigma
     sigma_cur = sigma_min
 
-    while sigma_cur < sigma_max:
+    while sigma_cur < sigma_max and n_steps > 0:
         scaled_data = sigma_cur * x
         y = find_closest_quantize(hf8_abs_quants, scaled_data)
         tmp = np.mean((y - scaled_data)**2)
         if tmp < min_mse:
             min_mse = tmp
             best_sigma = sigma_cur
+        n_steps -= 1
+        sigma_cur += sigma_step
     return best_sigma
 
 
