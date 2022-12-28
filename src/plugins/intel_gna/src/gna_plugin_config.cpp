@@ -268,6 +268,8 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 OPENVINO_SUPPRESS_DEPRECATED_END
         } else if (key == CONFIG_KEY(LOG_LEVEL) || key == ov::log::level) {
             gnaFlags.log_level = ov::util::from_string(value, ov::log::level);
+        } else if (key == CONFIG_KEY(CACHE_DIR) || key == ov::cache_dir) {
+            cacheDir = value;
         } else {
             IE_THROW(NotFound)
                 << "[GNAPlugin] in function " << __PRETTY_FUNCTION__<< ": "
@@ -350,6 +352,7 @@ OPENVINO_SUPPRESS_DEPRECATED_END
     keyConfigMap[ov::enable_profiling.name()] =
             gnaFlags.performance_counting ? PluginConfigParams::YES: PluginConfigParams::NO;
     keyConfigMap[ov::log::level.name()] = ov::util::to_string(gnaFlags.log_level);
+    keyConfigMap[ov::cache_dir.name()] = cacheDir;
 }
 
 Parameter Config::GetParameter(const std::string& name) const {
@@ -391,6 +394,7 @@ const Parameter Config::GetSupportedProperties(bool compiled) {
         { ov::device::capabilities.name(), ov::PropertyMutability::RO },
         { ov::device::full_name.name(), ov::PropertyMutability::RO },
         { ov::intel_gna::library_full_version.name(), ov::PropertyMutability::RO },
+        { ov::caching_properties.name(), ov::PropertyMutability::RO},
         { ov::intel_gna::scale_factors_per_input.name(), model_mutability },
         { ov::intel_gna::firmware_model_image_path.name(), model_mutability },
         { ov::intel_gna::execution_mode.name(), ov::PropertyMutability::RW },
@@ -403,6 +407,7 @@ const Parameter Config::GetSupportedProperties(bool compiled) {
         { ov::hint::num_requests.name(), model_mutability },
         { ov::log::level.name(), ov::PropertyMutability::RW },
         { ov::execution_devices.name(), ov::PropertyMutability::RO },
+        { ov::cache_dir.name(), ov::PropertyMutability::RW },
     };
     return supported_properties;
 }

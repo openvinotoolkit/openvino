@@ -6,6 +6,7 @@
 #include "gna_plugin.hpp"
 #include "gna/gna_config.hpp"
 #include "openvino/runtime/intel_gna/properties.hpp"
+#include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 
 #include <string>
 #include <map>
@@ -61,6 +62,21 @@ Parameter GNAPlugin::GetMetric(const std::string& name, const std::map<std::stri
         return decltype(ov::execution_devices)::value_type {GetName()};
     } else if (ov::model_name == name) {
         return _network_name;
+    } else if (name == ov::caching_properties) {
+        std::vector<ov::PropertyName> cachingProperties;
+        cachingProperties.push_back(ov::PropertyName(ov::intel_gna::scale_factors_per_input.name(), ov::PropertyMutability::RO));
+        cachingProperties.push_back(ov::PropertyName(ov::intel_gna::firmware_model_image_path.name(), ov::PropertyMutability::RO));
+        cachingProperties.push_back(ov::PropertyName(ov::intel_gna::execution_mode.name(), ov::PropertyMutability::RO));
+        cachingProperties.push_back(ov::PropertyName(ov::intel_gna::execution_target.name(), ov::PropertyMutability::RO));
+        cachingProperties.push_back(ov::PropertyName(ov::intel_gna::compile_target.name(), ov::PropertyMutability::RO));
+        cachingProperties.push_back(ov::PropertyName(ov::intel_gna::pwl_design_algorithm.name(), ov::PropertyMutability::RO));
+        cachingProperties.push_back(ov::PropertyName(ov::intel_gna::pwl_max_error_percent.name(), ov::PropertyMutability::RO));
+        cachingProperties.push_back(ov::PropertyName(ov::hint::performance_mode.name(), ov::PropertyMutability::RO));
+        cachingProperties.push_back(ov::PropertyName(ov::hint::inference_precision.name(), ov::PropertyMutability::RO));
+        cachingProperties.push_back(ov::PropertyName(ov::hint::num_requests.name(), ov::PropertyMutability::RO));
+        cachingProperties.push_back(ov::PropertyName(ov::log::level.name(), ov::PropertyMutability::RO));
+        cachingProperties.push_back(ov::PropertyName(ov::execution_devices.name(), ov::PropertyMutability::RO));
+        return decltype(ov::caching_properties)::value_type(cachingProperties);
     } else {
         const std::unordered_map<std::string, std::function<Parameter()>> queryApiSupported = {
             {METRIC_KEY(AVAILABLE_DEVICES), [this]() {return GetAvailableDevices();}},

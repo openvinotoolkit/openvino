@@ -45,6 +45,7 @@ struct Config {
         gnaFlags = r.gnaFlags;
         std::lock_guard<std::mutex> lock(r.mtx4keyConfigMap);
         keyConfigMap = r.keyConfigMap;
+        cacheDir = r.cacheDir;
     }
     void UpdateFromMap(const std::map<std::string, std::string>& configMap);
     void AdjustKeyMapValues();
@@ -73,8 +74,8 @@ struct Config {
 
     mutable std::mutex mtx4keyConfigMap;
     std::map<std::string, std::string> keyConfigMap;
-
     static const uint8_t max_num_requests = 127;
+    std::string cacheDir;
 };
 
 }  // namespace intel_gna
