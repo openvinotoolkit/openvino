@@ -7,6 +7,9 @@ on:
       - 'src/bindings/python/**'
       - 'samples/python/**'
       - '.github/workflows/py_checks.yml'
+    branches:
+      - 'master'
+      - 'releases/**'
   pull_request:
     paths:
       - 'src/bindings/python/**'
