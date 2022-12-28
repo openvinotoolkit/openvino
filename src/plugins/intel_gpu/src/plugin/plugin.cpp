@@ -73,10 +73,6 @@ void Plugin::RegisterPrimitives() {
     #undef REGISTER_FACTORY
 }
 
-struct Plugin::impl {
-    Configs m_configs;
-};
-
 std::string Plugin::get_device_id_from_config(const std::map<std::string, std::string>& config) const {
     std::string device_id = default_device_id;
     if (config.find(PluginConfigParams::KEY_DEVICE_ID) != config.end()) {
@@ -125,7 +121,6 @@ InferenceEngine::CNNNetwork Plugin::CloneAndTransformNetwork(const InferenceEngi
 
 Plugin::Plugin() : m_defaultContexts({}) {
     _pluginName = "GPU";
-    _impl = std::make_shared<impl>();
     RegisterPrimitives();
     // try loading gpu engine and get info from it
     {
@@ -135,7 +130,6 @@ Plugin::Plugin() : m_defaultContexts({}) {
 
         // Set default configs for each device
         for (auto& device : device_map) {
-            _impl->m_configs.CreateConfig(device.first);
             m_configs_map.insert({device.first, ExecutionConfig()});
             std::cerr << "Init config for: " << device.first << std::endl;
         }
@@ -163,9 +157,8 @@ Plugin::Plugin() : m_defaultContexts({}) {
         config_path = configFile.substr(0, dir_split_pos);
     }
     config_path += "/cldnn_global_custom_kernels/cldnn_global_custom_kernels.xml";
-    for (auto& config : _impl->m_configs) {
-        CustomLayer::LoadFromFile(config_path, config.second.customLayers, true);
-    }
+    CustomLayerMap customLayers;
+    CustomLayer::LoadFromFile(config_path, customLayers, true);
 
     if (const char* env_p = std::getenv("OV_GPU_CACHE_MODEL")) {
         if (env_p[0] == '1') {
@@ -194,16 +187,6 @@ auto check_inputs = [](InferenceEngine::InputsDataMap _networkInputs) {
         }
     }
 };
-
-void Plugin::UpdateConfig(Config& conf, const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &params) const {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::UpdateConfig");
-    auto device_info = GetDeviceInfo(params);
-    conf.enableInt8 = device_info.supports_imad || device_info.supports_immad;
-    conf.UpdateFromMap(params, device_info);
-    if (conf.enableDynamicBatch) {
-        conf.max_dynamic_batch = static_cast<int>(network.getBatchSize());
-    }
-}
 
 void Plugin::UpdateStatistics(const RemoteContextImpl::Ptr& context) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::UpdateStatistics");
@@ -239,7 +222,7 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
     auto transformedNetwork = CloneAndTransformNetwork(network, config);
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::LoadExeNetworkImpl::CreateExeNetwork");
-        CompiledModel::Ptr exeNetwork = std::make_shared<CompiledModel>(transformedNetwork, context, Config(), config);
+        CompiledModel::Ptr exeNetwork = std::make_shared<CompiledModel>(transformedNetwork, context, config);
         UpdateStatistics(context->get_impl());
         return exeNetwork;
     }
@@ -266,19 +249,19 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
     config.apply_user_properties();
 
     auto transformedNetwork = CloneAndTransformNetwork(network, config);
-    return std::make_shared<CompiledModel>(transformedNetwork, casted, Config(), config);
+    return std::make_shared<CompiledModel>(transformedNetwork, casted, config);
 }
 
 InferenceEngine::RemoteContext::Ptr Plugin::CreateContext(const AnyMap& params) {
     std::string context_type = extract_object<std::string>(params, GPU_PARAM_KEY(CONTEXT_TYPE));
 
     if (GPU_PARAM_VALUE(OCL) == context_type) {
-        return std::make_shared<RemoteCLContext>(GetName(), params, _impl->m_configs.GetDefaultDeviceConfig());
+        return std::make_shared<RemoteCLContext>(GetName(), params, m_configs_map.at(default_device_id));
     } else if (GPU_PARAM_VALUE(VA_SHARED) == context_type) {
 #ifdef _WIN32
-        return std::make_shared<RemoteD3DContext>(GetName(), params, _impl->m_configs.GetDefaultDeviceConfig());
+        return std::make_shared<RemoteD3DContext>(GetName(), params, m_configs_map.at(default_device_id));
 #else
-        return std::make_shared<RemoteVAContext>(GetName(), params, _impl->m_configs.GetDefaultDeviceConfig());
+        return std::make_shared<RemoteVAContext>(GetName(), params, m_configs_map.at(default_device_id));
 #endif
     }
 
@@ -287,7 +270,7 @@ InferenceEngine::RemoteContext::Ptr Plugin::CreateContext(const AnyMap& params) 
 
 RemoteCLContext::Ptr Plugin::get_default_context(const std::string& device_id) const {
     if (m_defaultContexts.find(device_id) == m_defaultContexts.end()) {
-        m_defaultContexts[device_id] = std::make_shared<RemoteCLContext>(GetName(), AnyMap());
+        m_defaultContexts[device_id] = std::make_shared<RemoteCLContext>(GetName(), AnyMap(), m_configs_map.at(device_id));
     }
 
     return m_defaultContexts.at(device_id);;
@@ -407,7 +390,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(std::istr
 
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork::CreateExeNetwork");
-        CompiledModel::Ptr exeNetwork = std::make_shared<CompiledModel>(networkModel, context, Config(), config);
+        CompiledModel::Ptr exeNetwork = std::make_shared<CompiledModel>(networkModel, context, config);
         exeNetwork->SetPointerToPlugin(shared_from_this());
         UpdateStatistics(context->get_impl());
         return exeNetwork;
@@ -649,9 +632,10 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         return decltype(ov::device::full_name)::value_type {deviceName};
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys;
-        for (auto opt : _impl->m_configs.GetConfig(device_id).key_config_map) {
+        LegacyPropertiesHelper helper;
+        for (auto opt : m_configs_map.at(device_id).get_properties()) {
             // Exclude new API properties
-            if (!Config::isNewApiProperty(opt.first))
+            if (!helper.is_new_api_property(opt))
                 configKeys.push_back(opt.first);
         }
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);

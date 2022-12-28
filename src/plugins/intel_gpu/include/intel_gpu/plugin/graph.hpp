@@ -23,7 +23,6 @@
 
 #include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
 #include "intel_gpu/plugin/custom_layer.hpp"
-#include "intel_gpu/plugin/device_config.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/remote_blob.hpp"
 #include "intel_gpu/plugin/program.hpp"
@@ -43,10 +42,9 @@ public:
 
     Graph(InferenceEngine::CNNNetwork& network,
           RemoteContextImpl::Ptr context,
-          Config config,
           ExecutionConfig exec_config,
           uint16_t stream_id = 0);
-    Graph(cldnn::BinaryInputBuffer& ib, RemoteContextImpl::Ptr context, Config config, ExecutionConfig exec_config, uint16_t stream_id = 0);
+    Graph(cldnn::BinaryInputBuffer& ib, RemoteContextImpl::Ptr context,  ExecutionConfig exec_config, uint16_t stream_id = 0);
     explicit Graph(std::shared_ptr<Graph> graph, uint16_t stream_id = 0);
     void Export(cldnn::BinaryOutputBuffer &ob);
     std::shared_ptr<ngraph::Function> GetExecGraphInfo();
@@ -56,10 +54,10 @@ public:
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const;
     void UpdatePerfStatistics();
 
-    const Config& get_config() const { return m_config; }
     cldnn::engine& get_engine() const { return m_context->get_engine(); }
+    const ExecutionConfig& get_config() const { return m_exec_config; }
 
-    int GetMaxDynamicBatchSize() const { return get_config().max_dynamic_batch; }
+    int GetMaxDynamicBatchSize() const { return m_exec_config.get_property(ov::intel_gpu::max_dynamic_batch); }
     const std::map<std::string, cldnn::layout>& GetInputLayouts() const { return m_program->GetInputLayouts(); }
     const InferenceEngine::InputsDataMap GetNetworkInputs() const { return m_program->GetNetworkInputs(); }
     const InferenceEngine::OutputsDataMap GetNetworkOutputs() const { return m_program->GetNetworkOutputs(); }
@@ -93,7 +91,6 @@ protected:
     RemoteContextImpl::Ptr m_context;
     std::shared_ptr<Program> m_program;
     std::string m_networkName;
-    Config m_config;
     ExecutionConfig m_exec_config;
     uint16_t m_stream_id;
     uint32_t m_state;

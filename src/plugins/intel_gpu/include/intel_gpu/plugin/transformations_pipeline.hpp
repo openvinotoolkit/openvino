@@ -8,7 +8,8 @@
 
 #include <ngraph/function.hpp>
 
-#include "intel_gpu/plugin/device_config.hpp"
+#include "intel_gpu/runtime/execution_config.hpp"
+#include "intel_gpu/runtime/device.hpp"
 
 namespace ov {
 namespace intel_gpu {

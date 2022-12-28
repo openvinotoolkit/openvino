@@ -14,7 +14,6 @@
 #include "cpp/ie_cnn_network.h"
 #include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
 #include "intel_gpu/plugin/graph.hpp"
-#include "intel_gpu/plugin/device_config.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/runtime/execution_config.hpp"
 
@@ -27,6 +26,7 @@ public:
     std::pair<std::string, ov::Any> convert_legacy_property(const std::pair<std::string, ov::Any>& legacy_property) const;
     std::pair<std::string, ov::Any> convert_to_legacy_property(const std::pair<std::string, ov::Any>& property) const;
     bool is_legacy_property(const std::pair<std::string, ov::Any>& property) const;
+    bool is_new_api_property(const std::pair<std::string, ov::Any>& property) const;
 };
 
 
@@ -34,8 +34,8 @@ class CompiledModel : public InferenceEngine::ExecutableNetworkThreadSafeDefault
 public:
     typedef std::shared_ptr<CompiledModel> Ptr;
 
-    CompiledModel(InferenceEngine::CNNNetwork &network, InferenceEngine::gpu::ClContext::Ptr context, Config config, ExecutionConfig new_conf);
-    CompiledModel(std::istream& networkModel,InferenceEngine::gpu::ClContext::Ptr context, Config config, ExecutionConfig new_conf);
+    CompiledModel(InferenceEngine::CNNNetwork &network, InferenceEngine::gpu::ClContext::Ptr context, ExecutionConfig config);
+    CompiledModel(std::istream& networkModel, InferenceEngine::gpu::ClContext::Ptr context, ExecutionConfig config);
 
     void Export(std::ostream& networkModel) override;
     std::shared_ptr<ngraph::Function> GetExecGraphInfo() override;
@@ -53,8 +53,7 @@ public:
 
     std::vector<std::shared_ptr<Graph>> m_graphs;
     InferenceEngine::gpu::ClContext::Ptr m_context;
-    Config m_config;
-    ExecutionConfig m_exec_config;
+    ExecutionConfig m_config;
     InferenceEngine::ITaskExecutor::Ptr m_taskExecutor;
     InferenceEngine::ITaskExecutor::Ptr m_waitExecutor;
 

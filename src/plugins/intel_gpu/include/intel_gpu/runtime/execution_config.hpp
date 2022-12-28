@@ -20,6 +20,7 @@ public:
     void set_property(const AnyMap& properties);
     void set_user_property(const AnyMap& properties);
     Any get_property(const std::string& name) const;
+    ov::AnyMap get_properties() const;
     bool has_property(std::string name) const;
     bool is_set_by_user(std::string name) const;
 

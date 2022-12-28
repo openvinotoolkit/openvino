@@ -85,6 +85,10 @@ Any ExecutionConfig::get_property(const std::string& name) const {
     return internal_properties.at(name);
 }
 
+ov::AnyMap ExecutionConfig::get_properties() const {
+    return internal_properties;
+}
+
 void ExecutionConfig::apply_performance_hints() {
     if (is_set_by_user(ov::hint::performance_mode)) {
         const auto mode = get_property(ov::hint::performance_mode);

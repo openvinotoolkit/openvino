@@ -14,12 +14,14 @@
 
 #include <cpp/ie_cnn_network.h>
 #include <ngraph/ngraph.hpp>
+#include "gpu/gpu_config.hpp"
 
-#include "intel_gpu/plugin/device_config.hpp"
 
+#include "intel_gpu/plugin/custom_layer.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/graph/topology.hpp"
+#include "intel_gpu/graph/program.hpp"
 
 // Forward declarations for cldnn part
 namespace cldnn {

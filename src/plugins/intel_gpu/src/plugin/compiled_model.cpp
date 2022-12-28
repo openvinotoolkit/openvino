@@ -37,6 +37,18 @@ namespace intel_gpu {
 
 
 
+bool LegacyPropertiesHelper::is_new_api_property(const std::pair<std::string, ov::Any>& property) const {
+    static const std::vector<std::string> new_properties_list = {
+        ov::intel_gpu::hint::queue_priority.name(),
+        ov::intel_gpu::hint::queue_throttle.name(),
+        ov::hint::inference_precision.name(),
+        ov::compilation_num_threads.name(),
+        ov::num_streams.name(),
+    };
+
+    return std::find(new_properties_list.begin(), new_properties_list.end(), property.first) != new_properties_list.end();
+}
+
 bool LegacyPropertiesHelper::is_legacy_property(const std::pair<std::string, ov::Any>& property) const {
     static const std::vector<std::string> legacy_properties_list = {
         InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS,
@@ -55,8 +67,6 @@ ov::AnyMap LegacyPropertiesHelper::convert_legacy_properties(const ov::AnyMap& p
     for (auto& property : properties) {
         if (is_legacy_property(property)) {
             auto new_property = convert_legacy_property(property);
-            std::cerr << "Convert property from " << property.first << "=" << property.second.as<std::string>()
-                      << " to " << new_property.first << "=" << new_property.second.as<std::string>() << std::endl;
             converted_properties[new_property.first] = new_property.second;
         } else {
             converted_properties[property.first] = property.second;
@@ -212,18 +222,16 @@ std::pair<std::string, ov::Any> LegacyPropertiesHelper::convert_to_legacy_proper
     OPENVINO_ASSERT(false, "[GPU] Unhandled legacy property in convert_to_legacy_property method: ", property.first);
 }
 
-
 CompiledModel::CompiledModel(InferenceEngine::CNNNetwork &network,
                              InferenceEngine::gpu::ClContext::Ptr context,
-                             Config config,
-                             ExecutionConfig new_conf) :
+                             ExecutionConfig config) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault{[&]() -> InferenceEngine::ITaskExecutor::Ptr {
-        if (config.exclusiveAsyncRequests) {
+        if (config.get_property(ov::intel_gpu::exclusive_async_requests)) {
             //exclusiveAsyncRequests essentially disables the streams (and hence should be checked first) => aligned with the CPU behavior
             return executorManager()->getExecutor("GPU");
-        }  else if (config.throughput_streams > 1) {
+        }  else if (config.get_property(ov::num_streams) > 1) {
             return std::make_shared<InferenceEngine::CPUStreamsExecutor>(
-                IStreamsExecutor::Config{"Intel GPU plugin executor", config.throughput_streams});
+                IStreamsExecutor::Config{"Intel GPU plugin executor", config.get_property(ov::num_streams)});
         } else {
             return std::make_shared<InferenceEngine::CPUStreamsExecutor>(
                 IStreamsExecutor::Config{"Intel GPU plugin executor", 1});
@@ -231,11 +239,10 @@ CompiledModel::CompiledModel(InferenceEngine::CNNNetwork &network,
     }()},
     m_context(context),
     m_config(config),
-    m_exec_config(new_conf),
     m_taskExecutor{ _taskExecutor },
     m_waitExecutor(executorManager()->getIdleCPUStreamsExecutor({ "GPUWaitExecutor" })) {
-    auto graph_base = std::make_shared<Graph>(network, get_context_impl(m_context), m_config, new_conf, 0);
-    for (uint16_t n = 0; n < m_config.throughput_streams; n++) {
+    auto graph_base = std::make_shared<Graph>(network, get_context_impl(m_context), m_config, 0);
+    for (uint16_t n = 0; n < m_config.get_property(ov::num_streams); n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
         m_graphs.push_back(graph);
     }
@@ -264,14 +271,14 @@ static InferenceEngine::Layout layout_from_string(const std::string & name) {
     IE_THROW(NetworkNotRead) << "Unknown layout with name '" << name << "'";
 }
 
-CompiledModel::CompiledModel(std::istream& networkModel, InferenceEngine::gpu::ClContext::Ptr context, Config config, ExecutionConfig new_conf) :
+CompiledModel::CompiledModel(std::istream& networkModel, InferenceEngine::gpu::ClContext::Ptr context, ExecutionConfig config) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault{[&]() -> InferenceEngine::ITaskExecutor::Ptr {
-        if (config.exclusiveAsyncRequests) {
+        if (config.get_property(ov::intel_gpu::exclusive_async_requests)) {
             //exclusiveAsyncRequests essentially disables the streams (and hence should be checked first) => aligned with the CPU behavior
             return executorManager()->getExecutor("GPU");
-        }  else if (config.throughput_streams > 1) {
+        }  else if (config.get_property(ov::num_streams) > 1) {
             return std::make_shared<InferenceEngine::CPUStreamsExecutor>(
-                IStreamsExecutor::Config{"Intel GPU plugin executor", config.throughput_streams});
+                IStreamsExecutor::Config{"Intel GPU plugin executor", config.get_property(ov::num_streams)});
         } else {
             return std::make_shared<InferenceEngine::CPUStreamsExecutor>(
                 IStreamsExecutor::Config{"Intel GPU plugin executor", 1});
@@ -279,7 +286,6 @@ CompiledModel::CompiledModel(std::istream& networkModel, InferenceEngine::gpu::C
     }()},
     m_context(context),
     m_config(config),
-    m_exec_config(new_conf),
     m_taskExecutor{ _taskExecutor },
     m_waitExecutor(executorManager()->getIdleCPUStreamsExecutor({ "GPUWaitExecutor" })) {
     auto context_impl = get_context_impl(m_context);
@@ -431,8 +437,8 @@ CompiledModel::CompiledModel(std::istream& networkModel, InferenceEngine::gpu::C
         setOutputs(new_results);
     }
 
-    auto graph_base = std::make_shared<Graph>(ib, context_impl, m_config, new_conf, 0);
-    for (uint16_t n = 0; n < m_config.throughput_streams; n++) {
+    auto graph_base = std::make_shared<Graph>(ib, context_impl, m_config, 0);
+    for (uint16_t n = 0; n < m_config.get_property(ov::num_streams); n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
         m_graphs.push_back(graph);
     }
@@ -442,9 +448,9 @@ template <class T>
 IInferRequestInternal::Ptr CompiledModel::GetInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                                               const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
     auto ptr = std::make_shared<T>(inputs, outputs, std::static_pointer_cast<CompiledModel>(shared_from_this()));
-    if (m_config.throughput_streams > 1)
+    if (m_config.get_property(ov::num_streams) > 1)
         ptr->EnableStreams();
-    if (m_config.useProfiling)
+    if (m_config.get_property(ov::enable_profiling))
         ptr->EnableProfiling();
     if (m_graphs.front()->use_external_queue())
         ptr->enable_external_queue();
@@ -458,9 +464,9 @@ IInferRequestInternal::Ptr CompiledModel::CreateInferRequestImpl(InputsDataMap n
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CompiledModel::CreateInferRequestImpl");
     auto ptr = std::make_shared<InferRequestLegacy>(networkInputs, networkOutputs,
                                                     std::static_pointer_cast<CompiledModel>(shared_from_this()));
-    if (m_config.throughput_streams > 1)
+    if (m_config.get_property(ov::num_streams) > 1)
         ptr->EnableStreams();
-    if (m_config.useProfiling)
+    if (m_config.get_property(ov::enable_profiling))
         ptr->EnableProfiling();
     if (m_graphs.front()->use_external_queue())
         ptr->enable_external_queue();
@@ -655,7 +661,7 @@ InferenceEngine::Parameter CompiledModel::GetConfig(const std::string &name) con
         }
     }
 
-    auto val = m_exec_config.get_property(actual_name);
+    auto val = m_config.get_property(actual_name);
     if (is_old_api) {
         LegacyPropertiesHelper helper;
         if (helper.is_legacy_property({name, nullptr})) {
@@ -702,13 +708,14 @@ InferenceEngine::Parameter CompiledModel::GetMetric(const std::string &name) con
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys;
-        for (auto && value : m_config.key_config_map)
-            if (!Config::isNewApiProperty(value.first))
+        LegacyPropertiesHelper helper;
+        for (auto && value : m_config.get_properties())
+            if (!helper.is_new_api_property(value))
                 configKeys.push_back(value.first);
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else if (name == ov::optimal_number_of_infer_requests) {
-        unsigned int nr = m_config.throughput_streams;
-        if (m_config.perfHintsConfig.ovPerfHint != CONFIG_VALUE(LATENCY))
+        unsigned int nr = m_config.get_property(ov::num_streams);
+        if (m_config.get_property(ov::hint::performance_mode) != ov::hint::PerformanceMode::LATENCY)
             nr *= 2;
         return decltype(ov::optimal_number_of_infer_requests)::value_type {nr};
     } else if (name == ov::execution_devices) {

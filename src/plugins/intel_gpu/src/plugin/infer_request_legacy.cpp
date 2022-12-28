@@ -291,7 +291,7 @@ void InferRequestLegacy::SetBlob(const std::string& name, const Blob::Ptr& data)
             bool is_nv12 = nv12_ptr != nullptr;
             int expected_batch = is_batched ? desc.getDims()[0] : 1;
             if (ColorFormat::NV12 == foundInput->getPreProcess().getColorFormat() &&
-                m_graph->get_config().nv12_two_inputs) {
+                m_graph->get_config().get_property(ov::intel_gpu::nv12_two_inputs)) {
                 // try extracting Y and UV remote blobs from it
                 // and put them into appropriate network inputs
                 // that should then go into biplanar NV12 reorder
@@ -502,7 +502,7 @@ void InferRequestLegacy::checkBlobs() {
         auto node = findInputByNodeName(input.first);
         bool is_dynamic = (node && node->get_output_partial_shape(0).is_dynamic());
         if (!is_dynamic)
-            checkInputBlob(input.second, input.first, foundInput, m_graph->get_config().nv12_two_inputs);
+            checkInputBlob(input.second, input.first, foundInput, m_graph->get_config().get_property(ov::intel_gpu::nv12_two_inputs));
     }
     for (auto const &output : _outputs) {
         DataPtr foundOutput = nullptr;
@@ -1015,7 +1015,7 @@ void InferRequestLegacy::allocate_inputs() {
         const TensorDesc& desc = ni.second->getTensorDesc();
 
         bool is_nv12_input = ColorFormat::NV12 == ni.second->getPreProcess().getColorFormat() &&
-                             m_graph->get_config().nv12_two_inputs;
+                             m_graph->get_config().get_property(ov::intel_gpu::nv12_two_inputs);
 
         auto parameter = std::find_if(_parameters.begin(), _parameters.end(), [&](const std::shared_ptr<const ov::Node>& node) {
             return node->get_friendly_name() == name;

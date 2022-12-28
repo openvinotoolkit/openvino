@@ -16,11 +16,11 @@ using namespace InferenceEngine::details;
 namespace ov {
 namespace intel_gpu {
 
-RemoteContextImpl::RemoteContextImpl(std::string plugin_name, const AnyMap& params, const Config& config)
+RemoteContextImpl::RemoteContextImpl(std::string plugin_name, const AnyMap& params, const ExecutionConfig& config)
         : m_va_display(nullptr)
         , m_external_queue(nullptr)
-        , m_config(config)
         , m_type(ContextType::OCL)
+        , m_device_id(config.get_property(ov::device::id))
         , m_plugin_name(plugin_name)
         , m_memory_cache(cache_capacity) {
     gpu_handle_param _context_id = nullptr;
@@ -61,15 +61,18 @@ RemoteContextImpl::RemoteContextImpl(std::string plugin_name, const AnyMap& para
 
     auto iter = device_map.find(std::to_string(cldnn::device_query::device_id));
     if (iter == device_map.end())
-        iter = device_map.find(m_config.device_id);
+        iter = device_map.find(m_device_id);
     if (iter == device_map.end())
         iter = device_map.begin();
     auto& dev = iter->second;
 
+    InferenceEngine::CPUStreamsExecutor::Config executor_config("GPU task stream executor", 1);
+    executor_config._streams = config.get_property(ov::compilation_num_threads);
+
     m_engine = cldnn::engine::create(engine_type,
                                      runtime_type,
                                      dev,
-                                     std::make_shared<InferenceEngine::CPUStreamsExecutor>(config.task_exec_config));
+                                     std::make_shared<InferenceEngine::CPUStreamsExecutor>(executor_config));
 
     m_device_name = get_device_name(device_map, m_engine->get_device());
 
@@ -104,8 +107,8 @@ std::string RemoteContextImpl::get_device_name(const std::map<std::string, cldnn
         }
     } catch (...) { }
 
-    if (!m_config.device_id.empty())
-        device_name += "." + m_config.device_id;
+    if (!m_device_id.empty())
+        device_name += "." + m_device_id;
     return device_name;
 
 }

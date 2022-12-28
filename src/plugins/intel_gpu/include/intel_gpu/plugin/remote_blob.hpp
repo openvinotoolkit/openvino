@@ -6,7 +6,6 @@
 
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
-#include "intel_gpu/plugin/device_config.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 
 #ifndef NOMINMAX

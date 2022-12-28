@@ -6,7 +6,7 @@
 
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
-#include "intel_gpu/plugin/device_config.hpp"
+#include "intel_gpu/runtime/lru_cache.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 
 #include <ie_parameter.hpp>
@@ -65,7 +65,7 @@ public:
     using Ptr = std::shared_ptr<RemoteContextImpl>;
     using CPtr = std::shared_ptr<const RemoteContextImpl>;
 
-    RemoteContextImpl(std::string plugin_name, const InferenceEngine::ParamMap& params, const Config& config = {});
+    RemoteContextImpl(std::string plugin_name, const InferenceEngine::ParamMap& params, const ExecutionConfig& config);
 
     InferenceEngine::ParamMap get_params() const;
     std::string get_device_name() const noexcept;
@@ -75,7 +75,6 @@ public:
                                                  const InferenceEngine::ParamMap& params = {});
 
     cldnn::engine& get_engine() { return *m_engine; }
-    Config& get_config() { return m_config; }
     InferenceEngine::gpu_handle_param get_external_queue() const { return m_external_queue; }
 
 private:
@@ -96,11 +95,11 @@ private:
     std::shared_ptr<cldnn::engine> m_engine;
     InferenceEngine::gpu_handle_param m_va_display;
     InferenceEngine::gpu_handle_param m_external_queue;
-    Config m_config;
     static const size_t cache_capacity = 100;
 
     ContextType m_type;
     std::string m_device_name = "";
+    std::string m_device_id = "";
     const std::string m_plugin_name;
     cldnn::ThreadSafeLruCache<size_t, cldnn::memory::ptr> m_memory_cache;
 };
@@ -128,7 +127,7 @@ class TypedRemoteContext : public PublicContextType {
 public:
     using Ptr = std::shared_ptr<TypedRemoteContext>;
 
-    TypedRemoteContext(std::string plugin_name, const InferenceEngine::ParamMap& params, const Config& config = {})
+    TypedRemoteContext(std::string plugin_name, const InferenceEngine::ParamMap& params, const ExecutionConfig& config)
         : m_impl(std::make_shared<RemoteContextImpl>(plugin_name, params, config)) {}
 
     InferenceEngine::ParamMap getParams() const override { return m_impl->get_params(); }

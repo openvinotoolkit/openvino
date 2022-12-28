@@ -36,7 +36,6 @@ class Plugin : public InferenceEngine::IInferencePlugin {
                                                          const ExecutionConfig& config) const;
     void TransformNetwork(std::shared_ptr<ov::Model>& model, const ExecutionConfig& config) const;
     void RegisterPrimitives();
-    void UpdateConfig(Config& conf, const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &params) const;
     void UpdateStatistics(const RemoteContextImpl::Ptr& context) const;
     std::string get_device_id_from_config(const std::map<std::string, std::string>& config) const;
     RemoteCLContext::Ptr get_default_context(const std::string& device_id) const;
