@@ -124,6 +124,7 @@ using OVClassSetLogLevelConfigTest = OVClassBaseTestP;
 using OVClassSpecificDeviceTestSetConfig = OVClassBaseTestP;
 using OVClassSpecificDeviceTestGetConfig = OVClassBaseTestP;
 using OVClassLoadNetworkWithCorrectPropertiesTest = OVClassSetDevicePriorityConfigTest;
+using OVClassLoadNetworkWithCondidateDeviceListContainedMetaPluginTest = OVClassSetDevicePriorityConfigTest;
 using OVClassLoadNetWorkReturnDefaultHintTest = OVClassSetDevicePriorityConfigTest;
 using OVClassLoadNetWorkDoNotReturnDefaultHintTest = OVClassSetDevicePriorityConfigTest;
 using OVClassLoadNetworkAndCheckSecondaryPropertiesTest = OVClassSetDevicePriorityConfigTest;
@@ -1095,6 +1096,11 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkWithBigDeviceIDThrows) {
     }
 }
 
+TEST_P(OVClassLoadNetworkWithCondidateDeviceListContainedMetaPluginTest, LoadNetworkRepeatedlyWithMetaPluginTestThrow) {
+    ov::Core ie = createCoreWithTemplate();
+    ASSERT_THROW(ie.compile_model(actualNetwork, target_device, configuration), ov::Exception);
+}
+
 TEST_P(OVClassLoadNetworkWithCorrectPropertiesTest, LoadNetworkWithCorrectPropertiesTest) {
     ov::Core ie = createCoreWithTemplate();
     OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, target_device, configuration));
@@ -1170,31 +1176,6 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROAndDeviceIDThrows) {
                                       ov::device::priorities(target_device, CommonTestUtils::DEVICE_CPU),
                                       ov::device::id("110")),
                      ov::Exception);
-    } else {
-        GTEST_FAIL() << "Device does not support DeviceID property" << std::endl;
-    }
-}
-
-//
-// LoadNetwork with AUTO on MULTI combinations particular device
-//
-TEST_P(OVClassLoadNetworkTest, LoadNetworkMULTIwithAUTONoThrow) {
-    ov::Core ie = createCoreWithTemplate();
-    if (supportsDeviceID(ie, target_device) && supportsAvaliableDevices(ie, target_device)) {
-        std::string devices;
-        auto availableDevices = ie.get_property(target_device, ov::available_devices);
-        for (auto&& device : availableDevices) {
-            devices += target_device + '.' + device;
-            if (&device != &(availableDevices.back())) {
-                devices += ',';
-            }
-        }
-        OV_ASSERT_NO_THROW(
-            ie.compile_model(actualNetwork,
-                             CommonTestUtils::DEVICE_MULTI,
-                             ov::device::properties(CommonTestUtils::DEVICE_AUTO, ov::device::priorities(devices)),
-                             ov::device::properties(CommonTestUtils::DEVICE_MULTI,
-                                                    ov::device::priorities(CommonTestUtils::DEVICE_AUTO, target_device))));
     } else {
         GTEST_FAIL() << "Device does not support DeviceID property" << std::endl;
     }
