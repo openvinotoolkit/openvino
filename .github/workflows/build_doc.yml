@@ -7,7 +7,7 @@ on:
       - 'releases/**'
 
 env:
-  DOXY_VER: '1.9.6'
+  DOXY_VER: '1.9.3'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -79,19 +79,19 @@ jobs:
       - name: 'Upload doxygen.log'
         uses: actions/upload-artifact@v3
         with:
-          name: doxygen_build_log
+          name: doxygen_build_log_${{ github.ref }}.log
           path: build/docs/doxygen.log
 
       - name: 'Upload sphinx.log'
         uses: actions/upload-artifact@v3
         with:
-          name: sphinx_build_log
+          name: sphinx_build_log_${{ github.ref }}.log
           path: build/docs/sphinx.log
 
       - name: 'Upload docs html'
         uses: actions/upload-artifact@v3
         with:
-          name: openvino_docs_html
+          name: openvino_docs_${{ github.ref }}_html.zip
           path: build/docs/openvino_docs_html.zip
 
       - name: Run Pytest
