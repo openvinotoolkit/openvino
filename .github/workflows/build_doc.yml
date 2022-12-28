@@ -39,8 +39,6 @@ jobs:
             docs/requirements.txt
             docs/openvino_sphinx_theme/setup.py
 
-      - run: echo '${{ steps.cp310.outputs.cache-hit }}'
-
       - name: Install python dependencies
         run: |
           python3 -m pip install -r docs/requirements.txt
@@ -75,7 +73,7 @@ jobs:
         run: cmake --build build --target sphinx_docs --parallel ${{ steps.cpu-cores.outputs.count }}
 
       - name: Archive docs HTML
-        run: zip -r openvino_docs_html.zip build/docs/_build
+        run: (cd build/docs && zip -r openvino_docs_html.zip _build)
 
       - name: Set PR number
         run: |
@@ -97,8 +95,8 @@ jobs:
       - name: 'Upload docs html'
         uses: actions/upload-artifact@v3
         with:
-          name: openvino_docs_${{ env.PR_NUMBER }}_html.zip
-          path: openvino_docs_html.zip
+          name: openvino_docs_html_${{ env.PR_NUMBER }}.zip
+          path: build/docs/openvino_docs_html.zip
 
       - name: Run Pytest
         run: |
