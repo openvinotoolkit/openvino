@@ -23,12 +23,15 @@ class GraphIteratorProto : public GraphIterator {
 
     size_t node_index = 0;
     std::vector<std::shared_ptr<DecoderBase>> m_decoders;
+    std::unordered_map<std::string, int> m_library_map;
 
 public:
     GraphIteratorProto(const std::shared_ptr<::tensorflow::GraphDef>& graph_def,
-                       const std::shared_ptr<::tensorflow::FunctionDef>& func_def)
+                       const std::shared_ptr<::tensorflow::FunctionDef>& func_def,
+                       const std::unordered_map<std::string, int>& library_map)
         : m_graph_def(graph_def),
-          m_func_def(func_def) {
+          m_func_def(func_def),
+          m_library_map(library_map) {
         auto nodes_size = m_func_def->node_def_size();
         auto input_size = m_func_def->signature().input_arg_size();
         auto output_size = m_func_def->signature().output_arg_size();
@@ -71,6 +74,14 @@ public:
         for (int node_ind = 0; node_ind < nodes_size; ++node_ind) {
             m_decoders[node_ind] = std::make_shared<DecoderProto>(&m_graph_def->node(node_ind));
         }
+
+        // initialize a library map
+        auto num_funcs = m_graph_def->library().function_size();
+        for (int func_ind = 0; func_ind < num_funcs; ++func_ind) {
+            auto func = m_graph_def->library().function(func_ind);
+            auto func_name = func.signature().name();
+            m_library_map.insert(std::pair<std::string, int>(func_name, func_ind));
+        }
     }
 
     /// Set iterator to the start position
@@ -97,21 +108,21 @@ public:
     }
 
     std::shared_ptr<GraphIterator> get_body_graph_iterator(const std::string& func_name) const override {
-        // check that the requested function exists in the library
-        auto num_funcs = m_graph_def->library().function_size();
-        for (int func_ind = 0; func_ind < num_funcs; ++func_ind) {
-            auto curr_func = m_graph_def->library().function(func_ind);
-            auto curr_func_name = curr_func.signature().name();
-            if (curr_func_name == func_name) {
-                auto func = std::make_shared<::tensorflow::FunctionDef>(curr_func);
-                return std::make_shared<GraphIteratorProto>(m_graph_def, func);
-            }
+        if (m_library_map.count(func_name)) {
+            auto func_ind = m_library_map.at(func_name);
+            auto func_size = m_graph_def->library().function_size();
+            FRONT_END_GENERAL_CHECK(
+                0 <= func_ind && func_ind < func_size,
+                "[TensorFlow Error] Internal Error: incorrect library map to cache function indices by names.");
+
+            auto func = m_graph_def->library().function(func_ind);
+            auto func_ptr = std::make_shared<::tensorflow::FunctionDef>(func);
+            return std::make_shared<GraphIteratorProto>(m_graph_def, func_ptr, m_library_map);
         }
 
         return nullptr;
     }
 };
-
 }  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov
