@@ -52,7 +52,7 @@ Graph::Graph(InferenceEngine::CNNNetwork& network, RemoteContextImpl::Ptr contex
     , m_exec_config(exec_config)
     , m_stream_id(stream_id)
     , m_state(0) {
-    m_program = std::make_shared<Program>(network, get_engine(), m_config, exec_config);
+    m_program = std::make_shared<Program>(network, get_engine(), exec_config);
     if (m_program->m_max_batch > 1)
         m_config.max_dynamic_batch = m_program->m_max_batch;
     Build();
@@ -64,7 +64,7 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, RemoteContextImpl::Ptr context, Confi
     , m_exec_config(exec_config)
     , m_stream_id(stream_id)
     , m_state(0) {
-    m_program = std::make_shared<Program>(get_engine(), m_config);
+    m_program = std::make_shared<Program>(get_engine(), exec_config);
     if (m_program->m_max_batch > 1)
         m_config.max_dynamic_batch = m_program->m_max_batch;
 

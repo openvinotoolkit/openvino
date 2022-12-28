@@ -16,32 +16,48 @@ public:
     explicit ExecutionConfig(const ov::AnyMap& properties) : ExecutionConfig() { set_property(properties); }
     explicit ExecutionConfig(const ov::AnyMap::value_type& property) : ExecutionConfig() { set_property(property); }
 
+    void set_default();
     void set_property(const AnyMap& properties);
+    void set_user_property(const AnyMap& properties);
+    Any get_property(const std::string& name) const;
+    bool has_property(std::string name) const;
+    bool is_set_by_user(std::string name) const;
 
     template <typename... Properties>
     util::EnableIfAllStringAny<void, Properties...> set_property(Properties&&... properties) {
         set_property(AnyMap{std::forward<Properties>(properties)...});
     }
 
-    Any get_property(const std::string& name) const;
+    template <typename... Properties>
+    util::EnableIfAllStringAny<void, Properties...> set_user_property(Properties&&... properties) {
+        set_user_property(AnyMap{std::forward<Properties>(properties)...});
+    }
+
+    template <typename T, PropertyMutability mutability>
+    bool is_set_by_user(const ov::Property<T, mutability>& property) const {
+        return is_set_by_user(property.name());
+    }
+
+    template <typename T, PropertyMutability mutability>
+    bool has_property(const ov::Property<T, mutability>& property) const {
+        return has_property(property.name());
+    }
 
     template <typename T, PropertyMutability mutability>
     T get_property(const ov::Property<T, mutability>& property) const {
         return get_property(property.name()).template as<T>();
     }
 
-    std::string to_string() const {
-        std::stringstream s;
-        s << "Config\n";
-        for (auto& kv : properties) {
-            s << "\t" << kv.first << ": " << kv.second.as<std::string>() << std::endl;
-        }
+    void apply_user_properties();
+    void apply_hints();
+    void apply_performance_hints();
+    void apply_priority_hints();
 
-        return s.str();
-    }
+    std::string to_string() const;
 
 private:
-    AnyMap properties;
+    AnyMap internal_properties;
+    AnyMap user_properties;
 };
 
 }  // namespace intel_gpu

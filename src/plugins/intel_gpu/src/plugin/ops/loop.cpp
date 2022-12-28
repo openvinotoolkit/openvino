@@ -82,7 +82,7 @@ static void CreateLoopOp(Program& p, const std::shared_ptr<Loop>& op) {
     }
 
     // get body topology from ngraph function
-    Program body_program(body_network, p.get_engine(), p.GetConfig(), p.get_exec_config(), true);
+    Program body_program(body_network, p.get_engine(), p.get_exec_config(), true);
     auto body_topology = *body_program.GetTopology();
 
     // setup input_primitive_maps/ output_primitive_maps and back_edges

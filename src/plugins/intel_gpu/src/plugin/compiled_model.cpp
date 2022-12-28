@@ -35,6 +35,184 @@ using namespace InferenceEngine::details;
 namespace ov {
 namespace intel_gpu {
 
+
+
+bool LegacyPropertiesHelper::is_legacy_property(const std::pair<std::string, ov::Any>& property) const {
+    static const std::vector<std::string> legacy_properties_list = {
+        InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS,
+        InferenceEngine::PluginConfigParams::KEY_MODEL_PRIORITY,
+        InferenceEngine::GPUConfigParams::KEY_GPU_HOST_TASK_PRIORITY,
+        InferenceEngine::GPUConfigParams::KEY_GPU_MAX_NUM_THREADS,
+        InferenceEngine::GPUConfigParams::KEY_GPU_PLUGIN_PRIORITY,
+        InferenceEngine::GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE,
+    };
+
+    return std::find(legacy_properties_list.begin(), legacy_properties_list.end(), property.first) != legacy_properties_list.end();
+}
+
+ov::AnyMap LegacyPropertiesHelper::convert_legacy_properties(const ov::AnyMap& properties) const {
+    ov::AnyMap converted_properties;
+    for (auto& property : properties) {
+        if (is_legacy_property(property)) {
+            auto new_property = convert_legacy_property(property);
+            std::cerr << "Convert property from " << property.first << "=" << property.second.as<std::string>()
+                      << " to " << new_property.first << "=" << new_property.second.as<std::string>() << std::endl;
+            converted_properties[new_property.first] = new_property.second;
+        } else {
+            converted_properties[property.first] = property.second;
+        }
+    }
+
+    return converted_properties;
+}
+
+std::pair<std::string, ov::Any> LegacyPropertiesHelper::convert_legacy_property(const std::pair<std::string, ov::Any>& legacy_property) const {
+    auto legacy_name = legacy_property.first;
+    if (legacy_name == InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS) {
+        return { ov::num_streams.name(), legacy_property.second };
+    } else if (legacy_name == InferenceEngine::PluginConfigParams::KEY_MODEL_PRIORITY) {
+        ov::Any converted_val{nullptr};
+        auto legacy_val = legacy_property.second.as<std::string>();
+        if (legacy_val == InferenceEngine::PluginConfigParams::MODEL_PRIORITY_HIGH) {
+            converted_val = ov::hint::Priority::HIGH;
+        } else if (legacy_val == InferenceEngine::PluginConfigParams::MODEL_PRIORITY_MED) {
+            converted_val = ov::hint::Priority::MEDIUM;
+        } else if (legacy_val == InferenceEngine::PluginConfigParams::MODEL_PRIORITY_LOW) {
+            converted_val = ov::hint::Priority::LOW;
+        }
+
+        return { ov::hint::model_priority.name(), converted_val };
+    } else if (legacy_name == InferenceEngine::GPUConfigParams::KEY_GPU_MAX_NUM_THREADS) {
+        return { ov::compilation_num_threads.name(), legacy_property.second };
+    } else if (legacy_name == InferenceEngine::GPUConfigParams::KEY_GPU_HOST_TASK_PRIORITY) {
+        ov::Any converted_val{nullptr};
+        auto legacy_val = legacy_property.second.as<std::string>();
+        if (legacy_val == InferenceEngine::GPUConfigParams::GPU_HOST_TASK_PRIORITY_HIGH) {
+            converted_val = ov::hint::Priority::HIGH;
+        } else if (legacy_val == InferenceEngine::GPUConfigParams::GPU_HOST_TASK_PRIORITY_MEDIUM) {
+            converted_val = ov::hint::Priority::MEDIUM;
+        } else if (legacy_val == InferenceEngine::GPUConfigParams::GPU_HOST_TASK_PRIORITY_LOW) {
+            converted_val = ov::hint::Priority::LOW;
+        }
+        return { ov::intel_gpu::hint::host_task_priority.name(), converted_val };
+    } else if (legacy_name == InferenceEngine::GPUConfigParams::KEY_GPU_PLUGIN_PRIORITY) {
+        ov::Any converted_val{nullptr};
+        auto legacy_val = legacy_property.second.as<std::string>();
+        if (!legacy_val.empty()) {
+            std::stringstream ss(legacy_val);
+            uint32_t uVal(0);
+            ss >> uVal;
+            OPENVINO_ASSERT(!ss.fail(), "[GPU] Unsupported property value by plugin: ", legacy_val);
+            switch (uVal) {
+            case 0:
+            case 2:
+                converted_val = ov::hint::Priority::MEDIUM;
+                break;
+            case 1:
+                converted_val = ov::hint::Priority::LOW;
+                break;
+            case 3:
+                converted_val = ov::hint::Priority::HIGH;
+                break;
+            default:
+                OPENVINO_ASSERT(false, "[GPU] Unsupported queue priority value ", uVal);
+            }
+        }
+
+        return { ov::intel_gpu::hint::queue_priority.name(), converted_val };
+    } else if (legacy_name == InferenceEngine::GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE) {
+        ov::Any converted_val{nullptr};
+        auto legacy_val = legacy_property.second.as<std::string>();
+        if (!legacy_val.empty()) {
+            std::stringstream ss(legacy_val);
+            uint32_t uVal(0);
+            ss >> uVal;
+            OPENVINO_ASSERT(!ss.fail(), "[GPU] Unsupported property value by plugin: ", legacy_val);
+            switch (uVal) {
+            case 0:
+            case 2:
+                converted_val = ov::intel_gpu::hint::ThrottleLevel::MEDIUM;
+                break;
+            case 1:
+                converted_val = ov::intel_gpu::hint::ThrottleLevel::LOW;
+                break;
+            case 3:
+                converted_val = ov::intel_gpu::hint::ThrottleLevel::HIGH;
+                break;
+            default:
+                OPENVINO_ASSERT(false, "[GPU] Unsupported queue throttle value ", uVal);
+            }
+        }
+
+        return { ov::intel_gpu::hint::queue_throttle.name(), converted_val };
+    }
+
+    OPENVINO_ASSERT(false, "[GPU] Unhandled legacy property in convert_legacy_property method: ", legacy_property.first);
+}
+
+std::pair<std::string, ov::Any> LegacyPropertiesHelper::convert_to_legacy_property(const std::pair<std::string, ov::Any>& property) const {
+    auto name = property.first;
+    if (name == ov::num_streams.name()) {
+        return { InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, property.second };
+    } else if (name == ov::hint::model_priority.name()) {
+        ov::Any legacy_val{nullptr};
+        if (!property.second.empty()) {
+            ov::hint::Priority val = property.second.as<ov::hint::Priority>();
+            switch (val) {
+            case ov::hint::Priority::LOW: legacy_val = InferenceEngine::PluginConfigParams::MODEL_PRIORITY_LOW; break;
+            case ov::hint::Priority::MEDIUM: legacy_val = InferenceEngine::PluginConfigParams::MODEL_PRIORITY_MED; break;
+            case ov::hint::Priority::HIGH: legacy_val = InferenceEngine::PluginConfigParams::MODEL_PRIORITY_HIGH; break;
+            default: OPENVINO_ASSERT(false, "[GPU] Unsupported model priority value ", val);
+            }
+        }
+
+        return { InferenceEngine::PluginConfigParams::KEY_MODEL_PRIORITY, legacy_val };
+    } else if (name == ov::compilation_num_threads.name()) {
+        return { InferenceEngine::GPUConfigParams::KEY_GPU_MAX_NUM_THREADS, property.second };
+    } else if (name == ov::intel_gpu::hint::host_task_priority.name()) {
+        ov::Any legacy_val{nullptr};
+        if (!property.second.empty()) {
+            ov::hint::Priority val = property.second.as<ov::hint::Priority>();
+            switch (val) {
+            case ov::hint::Priority::LOW: legacy_val = InferenceEngine::GPUConfigParams::GPU_HOST_TASK_PRIORITY_LOW; break;
+            case ov::hint::Priority::MEDIUM: legacy_val = InferenceEngine::GPUConfigParams::GPU_HOST_TASK_PRIORITY_MEDIUM; break;
+            case ov::hint::Priority::HIGH: legacy_val = InferenceEngine::GPUConfigParams::GPU_HOST_TASK_PRIORITY_HIGH; break;
+            default: OPENVINO_ASSERT(false, "[GPU] Unsupported host task priority value ", val);
+            }
+        }
+
+        return { InferenceEngine::PluginConfigParams::KEY_MODEL_PRIORITY, legacy_val };
+    } else if (name == ov::intel_gpu::hint::queue_priority.name()) {
+        ov::Any legacy_val{nullptr};
+        if (!property.second.empty()) {
+            ov::hint::Priority val = property.second.as<ov::hint::Priority>();
+            switch (val) {
+            case ov::hint::Priority::LOW: legacy_val = "1"; break;
+            case ov::hint::Priority::MEDIUM: legacy_val = "2"; break;
+            case ov::hint::Priority::HIGH: legacy_val = "3"; break;
+            default: OPENVINO_ASSERT(false, "[GPU] Unsupported queue throttle value ", val);
+            }
+        }
+
+        return { InferenceEngine::GPUConfigParams::KEY_GPU_PLUGIN_PRIORITY, legacy_val };
+    } else if (name == ov::intel_gpu::hint::queue_throttle.name()) {
+        ov::Any legacy_val{nullptr};
+        if (!property.second.empty()) {
+            ov::intel_gpu::hint::ThrottleLevel val = property.second.as<ov::intel_gpu::hint::ThrottleLevel>();
+            switch (val) {
+            case ov::intel_gpu::hint::ThrottleLevel::LOW: legacy_val = "1"; break;
+            case ov::intel_gpu::hint::ThrottleLevel::MEDIUM: legacy_val = "2"; break;
+            case ov::intel_gpu::hint::ThrottleLevel::HIGH: legacy_val = "3"; break;
+            default: OPENVINO_ASSERT(false, "[GPU] Unsupported queue throttle value ", val);
+            }
+        }
+        return { InferenceEngine::GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE, legacy_val };
+    }
+
+    OPENVINO_ASSERT(false, "[GPU] Unhandled legacy property in convert_to_legacy_property method: ", property.first);
+}
+
+
 CompiledModel::CompiledModel(InferenceEngine::CNNNetwork &network,
                              InferenceEngine::gpu::ClContext::Ptr context,
                              Config config,
@@ -53,6 +231,7 @@ CompiledModel::CompiledModel(InferenceEngine::CNNNetwork &network,
     }()},
     m_context(context),
     m_config(config),
+    m_exec_config(new_conf),
     m_taskExecutor{ _taskExecutor },
     m_waitExecutor(executorManager()->getIdleCPUStreamsExecutor({ "GPUWaitExecutor" })) {
     auto graph_base = std::make_shared<Graph>(network, get_context_impl(m_context), m_config, new_conf, 0);
@@ -100,6 +279,7 @@ CompiledModel::CompiledModel(std::istream& networkModel, InferenceEngine::gpu::C
     }()},
     m_context(context),
     m_config(config),
+    m_exec_config(new_conf),
     m_taskExecutor{ _taskExecutor },
     m_waitExecutor(executorManager()->getIdleCPUStreamsExecutor({ "GPUWaitExecutor" })) {
     auto context_impl = get_context_impl(m_context);
@@ -465,50 +645,25 @@ std::shared_ptr<ngraph::Function> CompiledModel::GetExecGraphInfo() {
 }
 
 InferenceEngine::Parameter CompiledModel::GetConfig(const std::string &name) const {
-    const bool is_new_api = _plugin->IsNewAPI();
-    auto it = m_config.key_config_map.find(name);
-    if (it != m_config.key_config_map.end()) {
-        std::string val = it->second;
-        if (is_new_api) {
-            if (name == ov::enable_profiling) {
-                return val == PluginConfigParams::YES ? true : false;
-            } else if (name == ov::hint::model_priority) {
-                return ov::util::from_string(val, ov::hint::model_priority);
-            } else if (name == ov::intel_gpu::hint::host_task_priority) {
-                return ov::util::from_string(val, ov::intel_gpu::hint::host_task_priority);
-            } else if (name == ov::intel_gpu::hint::queue_priority) {
-                return ov::util::from_string(val, ov::intel_gpu::hint::queue_priority);
-            } else if (name == ov::intel_gpu::hint::queue_throttle) {
-                return ov::util::from_string(val, ov::intel_gpu::hint::queue_throttle);
-            } else if (name == ov::intel_gpu::enable_loop_unrolling) {
-                return val == PluginConfigParams::YES ? true : false;
-            } else if (name == ov::cache_dir) {
-                return ov::util::from_string(val, ov::cache_dir);
-            } else if (name == ov::hint::performance_mode) {
-                return ov::util::from_string(val, ov::hint::performance_mode);
-            } else if (name == ov::compilation_num_threads) {
-                return ov::util::from_string(val, ov::compilation_num_threads);
-            } else if (name == ov::num_streams) {
-                return ov::util::from_string(val, ov::num_streams);
-            } else if (name == ov::hint::num_requests) {
-                return ov::util::from_string(val, ov::hint::num_requests);
-            } else if (name == ov::hint::inference_precision) {
-                return ov::util::from_string(val, ov::hint::inference_precision);
-            } else if (name == ov::device::id) {
-                return ov::util::from_string(val, ov::device::id);
-            } else {
-                return val;
-            }
-        } else {
-            if (name == PluginConfigParams::KEY_MODEL_PRIORITY ||
-                name == GPUConfigParams::KEY_GPU_HOST_TASK_PRIORITY)
-                return Config::ConvertPropertyToLegacy(name, val);
-            else
-                return val;
+    const bool is_old_api = !_plugin->IsNewAPI();
+
+    auto actual_name = name;
+    if (is_old_api) {
+        LegacyPropertiesHelper helper;
+        if (helper.is_legacy_property({name, nullptr})) {
+            actual_name = helper.convert_legacy_property({name, nullptr}).first;
         }
-    } else {
-        IE_THROW() << "Unsupported ExecutableNetwork config key: " << name;
     }
+
+    auto val = m_exec_config.get_property(actual_name);
+    if (is_old_api) {
+        LegacyPropertiesHelper helper;
+        if (helper.is_legacy_property({name, nullptr})) {
+            val = helper.convert_to_legacy_property({actual_name, val}).second;
+        }
+    }
+
+    return val;
 }
 
 InferenceEngine::Parameter CompiledModel::GetMetric(const std::string &name) const {

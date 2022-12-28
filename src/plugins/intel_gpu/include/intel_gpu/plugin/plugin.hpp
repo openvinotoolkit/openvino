@@ -16,16 +16,15 @@ namespace ov {
 namespace intel_gpu {
 
 using CustomLayerPtr = std::shared_ptr<class CustomLayer>;
-
 class Plugin : public InferenceEngine::IInferencePlugin {
     struct impl;
     std::shared_ptr<impl> _impl;
-    bool streamsSet = false;
-    bool throttlingSet = false;
     bool isModelCachingEnabled = false;
 
     // key: device_id, value: cldnn device
     std::map<std::string, cldnn::device::ptr> device_map;
+    std::map<std::string, ExecutionConfig> m_configs_map;
+    std::string default_device_id = "0";
     // key: cldnn context, value: memory statistics
     mutable std::map<RemoteContextImpl::Ptr, std::map<std::string, uint64_t>> statistics_map;
     mutable std::mutex engine_mutex;
@@ -34,14 +33,13 @@ class Plugin : public InferenceEngine::IInferencePlugin {
 
     cldnn::device_info GetDeviceInfo(const std::map<std::string, std::string> &config) const;
     InferenceEngine::CNNNetwork CloneAndTransformNetwork(const InferenceEngine::CNNNetwork& network,
-                                                         const Config& config) const;
-    void TransformNetwork(std::shared_ptr<ov::Model>& model, const Config& config) const;
-    std::map<std::string, std::string> ConvertPerfHintsToConfig(const std::map<std::string, std::string>& network_config, const Config& plugin_config) const;
+                                                         const ExecutionConfig& config) const;
+    void TransformNetwork(std::shared_ptr<ov::Model>& model, const ExecutionConfig& config) const;
     void RegisterPrimitives();
     void UpdateConfig(Config& conf, const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &params) const;
     void UpdateStatistics(const RemoteContextImpl::Ptr& context) const;
     std::string get_device_id_from_config(const std::map<std::string, std::string>& config) const;
-    RemoteCLContext::Ptr get_default_context(const Config& config) const;
+    RemoteCLContext::Ptr get_default_context(const std::string& device_id) const;
 
 public:
     Plugin();

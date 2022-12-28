@@ -78,7 +78,7 @@ struct Plugin::impl {
 };
 
 std::string Plugin::get_device_id_from_config(const std::map<std::string, std::string>& config) const {
-    std::string device_id;
+    std::string device_id = default_device_id;
     if (config.find(PluginConfigParams::KEY_DEVICE_ID) != config.end()) {
         device_id = config.at(PluginConfigParams::KEY_DEVICE_ID);
     }
@@ -98,15 +98,15 @@ cldnn::device_info Plugin::GetDeviceInfo(const std::map<std::string, std::string
     return device_info;
 }
 
-void Plugin::TransformNetwork(std::shared_ptr<ov::Model>& model, const Config& config) const {
+void Plugin::TransformNetwork(std::shared_ptr<ov::Model>& model, const ExecutionConfig& config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::TransformNetwork");
-    auto deviceInfo = GetDeviceInfo(config.key_config_map);
+    auto deviceInfo = device_map.at(config.get_property(ov::device::id))->get_info();
     TransformationsPipeline transformations(config, deviceInfo);
     transformations.apply(model);
 }
 
 InferenceEngine::CNNNetwork Plugin::CloneAndTransformNetwork(const InferenceEngine::CNNNetwork& network,
-                                                             const Config& config) const {
+                                                             const ExecutionConfig& config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::CloneAndTransformNetwork");
     GPU_DEBUG_DEFINE_MEM_LOGGER("Plugin::CloneAndTransformNetwork");
     CNNNetwork clonedNetwork = InferenceEngine::details::cloneNetwork(network);
@@ -136,6 +136,8 @@ Plugin::Plugin() : m_defaultContexts({}) {
         // Set default configs for each device
         for (auto& device : device_map) {
             _impl->m_configs.CreateConfig(device.first);
+            m_configs_map.insert({device.first, ExecutionConfig()});
+            std::cerr << "Init config for: " << device.first << std::endl;
         }
     }
     // locate global custom kernel config
@@ -215,39 +217,6 @@ void Plugin::UpdateStatistics(const RemoteContextImpl::Ptr& context) const {
     }
 }
 
-std::map<std::string, std::string> Plugin::ConvertPerfHintsToConfig(
-        const std::map<std::string, std::string>& network_config,
-        const Config& plugin_config) const {
-    // deduces the actual settings from the performance hints and returns fully-defined config
-    auto config = network_config;
-    const auto &mode = config.find(PluginConfigParams::KEY_PERFORMANCE_HINT);
-    // the mode may have just arrived to the LoadNetwork, or was set with the plugins' SetConfig
-    if (mode != config.end() || !plugin_config.perfHintsConfig.ovPerfHint.empty()) {
-        const auto mode_name = (mode != config.end())
-                               ? PerfHintsConfig::CheckPerformanceHintValue(mode->second)
-                               : plugin_config.perfHintsConfig.ovPerfHint;
-        //checking streams (to avoid overriding what user might explicitly set in the incoming config or previously via SetConfig)
-        const auto streams = config.find(PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS) == config.end() &&
-                             config.find(ov::num_streams.name()) == config.end();
-        if (streams && !streamsSet) {
-            if (mode_name == CONFIG_VALUE(LATENCY)) {
-                config[PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS] = std::to_string(1);
-                config[ov::num_streams.name()] = std::to_string(1);
-            } else if (mode_name == CONFIG_VALUE(THROUGHPUT)) {
-                config[PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS] = CONFIG_VALUE(GPU_THROUGHPUT_AUTO);
-                config[ov::num_streams.name()] = ov::util::to_string(ov::streams::AUTO);
-                //disabling the throttling temporarily to set the validation (that is switching to the hints) perf baseline
-                //checking throttling (to avoid overriding what user might explicitly set in the incoming config or previously via SetConfig)
-                // const auto bInConfig = config.find(GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE) != config.end() ||
-                //    config.find(CLDNNConfigParams::KEY_CLDNN_PLUGIN_THROTTLE) != config.end();
-                // if (!bInConfig && !throttlingSet)
-                //    config[GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE] = std::to_string(1);
-            }
-        }
-    }
-    return config;
-}
-
 IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
                                                            const std::map<std::string, std::string> &orig_config) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::LoadExeNetworkImpl");
@@ -255,21 +224,22 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     check_inputs(_networkInputs);
 
-    Configs confs = _impl->m_configs;
     std::string device_id = get_device_id_from_config(orig_config);
-    Config conf = confs.GetConfig(device_id);
+    auto context = get_default_context(device_id);
 
-    auto config = ConvertPerfHintsToConfig(orig_config, conf);
-    UpdateConfig(conf, network, config);
+    if (m_configs_map.find(device_id) == m_configs_map.end())
+        IE_THROW() << "LoadNetwork not found device config\n";
 
-    ExecutionConfig new_conf(ov::AnyMap(conf.key_config_map.begin(), conf.key_config_map.end()));
+    ExecutionConfig config = m_configs_map.at(device_id);
+    std::cerr << "Base config: " << config.to_string();
+    config.set_property(ov::AnyMap(orig_config.begin(), orig_config.end()));
+    config.apply_user_properties();
+    std::cerr << "\n\n\nProcessed config: " << config.to_string();
 
-    auto context = get_default_context(conf);
-
-    auto transformedNetwork = CloneAndTransformNetwork(network, conf);
+    auto transformedNetwork = CloneAndTransformNetwork(network, config);
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::LoadExeNetworkImpl::CreateExeNetwork");
-        CompiledModel::Ptr exeNetwork = std::make_shared<CompiledModel>(transformedNetwork, context, conf, new_conf);
+        CompiledModel::Ptr exeNetwork = std::make_shared<CompiledModel>(transformedNetwork, context, Config(), config);
         UpdateStatistics(context->get_impl());
         return exeNetwork;
     }
@@ -286,14 +256,17 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
         IE_THROW() << "Invalid context";
     }
 
-    Config conf = get_context_impl(casted)->get_config();
-    auto config = ConvertPerfHintsToConfig(orig_config, conf);
-    UpdateConfig(conf, network, config);
+    // TODO: find proper device id for given context and use default config for it
+    // if (m_configs_map.find(device_id) == m_configs_map.end())
+    //     IE_THROW() << "LoadNetwork not found device config\n";
 
-    ExecutionConfig new_conf(ov::AnyMap(conf.key_config_map.begin(), conf.key_config_map.end()));
+    // ExecutionConfig config = m_configs_map.at(device_id);
+    ExecutionConfig config;
+    config.set_property(ov::AnyMap(orig_config.begin(), orig_config.end()));
+    config.apply_user_properties();
 
-    auto transformedNetwork = CloneAndTransformNetwork(network, conf);
-    return std::make_shared<CompiledModel>(transformedNetwork, casted, conf, new_conf);
+    auto transformedNetwork = CloneAndTransformNetwork(network, config);
+    return std::make_shared<CompiledModel>(transformedNetwork, casted, Config(), config);
 }
 
 InferenceEngine::RemoteContext::Ptr Plugin::CreateContext(const AnyMap& params) {
@@ -312,69 +285,63 @@ InferenceEngine::RemoteContext::Ptr Plugin::CreateContext(const AnyMap& params) 
     OPENVINO_ASSERT(false, "[GPU] Unsupported context type passed to CreateContext method: ", context_type);
 }
 
-RemoteCLContext::Ptr Plugin::get_default_context(const Config& config) const {
-    if (m_defaultContexts.find(config.device_id) == m_defaultContexts.end()) {
-        m_defaultContexts[config.device_id] = std::make_shared<RemoteCLContext>(GetName(), AnyMap(), config);
+RemoteCLContext::Ptr Plugin::get_default_context(const std::string& device_id) const {
+    if (m_defaultContexts.find(device_id) == m_defaultContexts.end()) {
+        m_defaultContexts[device_id] = std::make_shared<RemoteCLContext>(GetName(), AnyMap());
     }
 
-    return m_defaultContexts.at(config.device_id);;
+    return m_defaultContexts.at(device_id);;
 }
 
 InferenceEngine::RemoteContext::Ptr Plugin::GetDefaultContext(const AnyMap& params) {
-    std::string device_id = "";
+    std::string device_id = default_device_id;
 
     if (params.find(CONFIG_KEY(DEVICE_ID)) != params.end())
         device_id = params.at(CONFIG_KEY(DEVICE_ID)).as<std::string>();
 
-    const Config conf = _impl->m_configs.GetConfig(device_id);
-
-    return get_default_context(conf);
+    return get_default_context(device_id);
 }
 
 void Plugin::SetConfig(const std::map<std::string, std::string> &config) {
-    streamsSet = config.find(PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS) != config.end() ||
-                 config.find(ov::num_streams.name()) != config.end();
-    throttlingSet = config.find(GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE) != config.end() ||
-                    config.find(ov::intel_gpu::hint::queue_throttle.name()) != config.end();
-    std::string device_id;
-    cldnn::device_info device_info = device_map.begin()->second->get_info();
-    if (config.find(PluginConfigInternalParams::KEY_CONFIG_DEVICE_ID) != config.end()) {
-        device_id = config.at(PluginConfigInternalParams::KEY_CONFIG_DEVICE_ID);
-        if (!device_id.empty() && device_map.find(device_id) != device_map.end()) {
-            device_info = device_map.at(device_id)->get_info();
+    const bool is_new_api = IsNewAPI();
+    auto update_config = [is_new_api](ExecutionConfig& execution_config, const std::map<std::string, std::string>& user_config) {
+        auto config_to_set = ov::AnyMap(user_config.begin(), user_config.end());
+        if (!is_new_api) {
+            LegacyPropertiesHelper helper;
+            config_to_set = helper.convert_legacy_properties(config_to_set);
         }
-        _impl->m_configs.GetConfig(device_id).UpdateFromMap(config, device_info);
+        execution_config.set_user_property(config_to_set);
+    };
+
+    if (config.find(PluginConfigInternalParams::KEY_CONFIG_DEVICE_ID) != config.end()) {
+        std::string device_id = config.at(PluginConfigInternalParams::KEY_CONFIG_DEVICE_ID);
+        update_config(m_configs_map.at(device_id), config);
     } else {
-        device_id = get_device_id_from_config(config);
+        std::string device_id = get_device_id_from_config(config);
         if (!device_id.empty()) {
-            if (device_map.find(device_id) != device_map.end()) {
-                device_info = device_map.at(device_id)->get_info();
-            }
-            _impl->m_configs.SetDefaultDeviceID(device_id);
-            _impl->m_configs.GetConfig(device_id).UpdateFromMap(config, device_info);
+            default_device_id = device_id;
+            update_config(m_configs_map.at(device_id), config);
         } else {
-            for (auto& conf : _impl->m_configs) {
-                if (device_map.find(conf.first) != device_map.end()) {
-                    device_info = device_map.at(conf.first)->get_info();
-                }
-                conf.second.UpdateFromMap(config, device_info);
+            for (auto& conf : m_configs_map) {
+                update_config(conf.second, config);
             }
         }
     }
 }
 
 QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
-                                        const std::map<std::string, std::string>& config) const {
+                                        const std::map<std::string, std::string>& orig_config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::QueryNetwork");
     QueryNetworkResult res;
-    Configs confs = _impl->m_configs;
-    std::string device_id = get_device_id_from_config(config);
-    Config conf = confs.GetConfig(device_id);
+    std::string device_id = get_device_id_from_config(orig_config);
 
-    UpdateConfig(conf, network, config);
+    auto ctx = get_default_context(device_id)->get_impl();
 
-    auto ctx = get_default_context(conf)->get_impl();
-    Program prog(ctx->get_engine(), conf);
+    ExecutionConfig config = m_configs_map.at(device_id);
+    config.set_property(ov::AnyMap(orig_config.begin(), orig_config.end()));
+    config.apply_user_properties();
+
+    Program prog(ctx->get_engine(), config);
     bool dyn_shape_batch_found = false;
 
     auto model = network.getFunction();
@@ -387,7 +354,7 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
         std::map<std::string, ngraph::PartialShape> shapes;
         std::map<std::string, std::pair<int64_t, int64_t>> batch_dim;
         dyn_shape_batch_found = prog.IsDynBatchModel(model, shapes, batch_dim);
-        TransformNetwork(model, conf);
+        TransformNetwork(model, config);
     },
     [&](std::shared_ptr<ngraph::Node> node) {
             if (node->is_dynamic()) {
@@ -422,7 +389,7 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
     });
 
     for (auto&& layerName : supported) {
-        res.supportedLayersMap.emplace(layerName, GetName() + "." + conf.device_id);
+        res.supportedLayersMap.emplace(layerName, ctx->get_device_name());
     }
 
     return res;
@@ -431,18 +398,16 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
 InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(std::istream& networkModel,
                                                                        const std::map<std::string, std::string>& orig_config) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork");
-    Configs confs = _impl->m_configs;
     std::string device_id = get_device_id_from_config(orig_config);
-    Config conf = confs.GetConfig(device_id);
+    auto context = get_default_context(device_id);
 
-    auto config = ConvertPerfHintsToConfig(orig_config, conf);
+    ExecutionConfig config = m_configs_map.at(device_id);
+    config.set_property(ov::AnyMap(orig_config.begin(), orig_config.end()));
+    config.apply_user_properties();
 
-    auto context = get_default_context(conf);
-
-    ExecutionConfig new_conf(ov::AnyMap(conf.key_config_map.begin(), conf.key_config_map.end()));
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork::CreateExeNetwork");
-        CompiledModel::Ptr exeNetwork = std::make_shared<CompiledModel>(networkModel, context, conf, new_conf);
+        CompiledModel::Ptr exeNetwork = std::make_shared<CompiledModel>(networkModel, context, Config(), config);
         exeNetwork->SetPointerToPlugin(shared_from_this());
         UpdateStatistics(context->get_impl());
         return exeNetwork;
@@ -451,57 +416,34 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(std::istr
 
 Parameter Plugin::GetConfig(const std::string& name, const std::map<std::string, Parameter>& options) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::GetConfig");
-    Parameter result;
 
-    std::string device_id;
+    std::string device_id = default_device_id;
     if (options.find(ov::device::id.name()) != options.end()) {
         device_id = options.find(ov::device::id.name())->second.as<std::string>();
     }
-    Config config = _impl->m_configs.GetConfig(device_id);
+    const bool is_old_api = !IsNewAPI();
 
-    const bool is_new_api = IsNewAPI();
-    if (config.key_config_map.find(name) != config.key_config_map.end()) {
-        std::string val = config.key_config_map.find(name)->second;
-        if (is_new_api) {
-            if (name == ov::enable_profiling) {
-                return val == PluginConfigParams::YES ? true : false;
-            } else if (name == ov::hint::model_priority) {
-                return ov::util::from_string(val, ov::hint::model_priority);
-            } else if (name == ov::intel_gpu::hint::host_task_priority) {
-                return ov::util::from_string(val, ov::intel_gpu::hint::host_task_priority);
-            } else if (name == ov::intel_gpu::hint::queue_priority) {
-                return ov::util::from_string(val, ov::intel_gpu::hint::queue_priority);
-            } else if (name == ov::intel_gpu::hint::queue_throttle) {
-                return ov::util::from_string(val, ov::intel_gpu::hint::queue_throttle);
-            } else if (name == ov::intel_gpu::enable_loop_unrolling) {
-                return val == PluginConfigParams::YES ? true : false;
-            } else if (name == ov::cache_dir) {
-                return ov::util::from_string(val, ov::cache_dir);
-            } else if (name == ov::hint::performance_mode) {
-                return ov::util::from_string(val, ov::hint::performance_mode);
-            } else if (name == ov::compilation_num_threads) {
-                return ov::util::from_string(val, ov::compilation_num_threads);
-            } else if (name == ov::num_streams) {
-                return ov::util::from_string(val, ov::num_streams);
-            } else if (name == ov::hint::num_requests) {
-                return ov::util::from_string(val, ov::hint::num_requests);
-            } else if (name == ov::hint::inference_precision) {
-                return ov::util::from_string(val, ov::hint::inference_precision);
-            } else if (name == ov::device::id) {
-                return ov::util::from_string(val, ov::device::id);
-            } else {
-                return val;
-            }
-        } else {
-            if (name == PluginConfigParams::KEY_MODEL_PRIORITY ||
-                name == GPUConfigParams::KEY_GPU_HOST_TASK_PRIORITY)
-                return Config::ConvertPropertyToLegacy(name, val);
-            else
-                return val;
+    if (m_configs_map.find(device_id) == m_configs_map.end())
+        IE_THROW() << "GetConfig not found device config\n";
+
+    const auto& c = m_configs_map.at(device_id);
+    auto actual_name = name;
+    if (is_old_api) {
+        LegacyPropertiesHelper helper;
+        if (helper.is_legacy_property({name, nullptr})) {
+            actual_name = helper.convert_legacy_property({name, nullptr}).first;
         }
-    } else {
-        IE_THROW() << "3-Unsupported config key : " << name;
     }
+
+    auto val = c.get_property(actual_name);
+    if (is_old_api) {
+        LegacyPropertiesHelper helper;
+        if (helper.is_legacy_property({name, nullptr})) {
+            val = helper.convert_to_legacy_property({actual_name, val}).second;
+        }
+    }
+
+    return val;
 }
 
 auto StringRightTrim = [](std::string string, std::string substring, bool case_sensitive = true) {
@@ -680,7 +622,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
                            << ", gen_kbytes_per_bank : " << kbytes_per_bank
                            << ", L3_cache_size is (MB): " << float(L3_cache_size) / 1024 / 1024 << std::endl;
         }
-        Config config = _impl->m_configs.GetConfig(device_id);
+        auto config = m_configs_map.at(device_id);
         auto networkCloned = CloneAndTransformNetwork(CNNNetwork(model), config);
         ov::MemBandwidthPressure memPressure = ov::MemBandwidthPressureTolerance(networkCloned.getFunction(), L3_cache_size);
         unsigned int batch = 1;
@@ -752,8 +694,8 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         return decltype(ov::intel_gpu::memory_statistics)::value_type {statistics};
     } else if (name == METRIC_KEY(MAX_BATCH_SIZE) ||
                name == ov::max_batch_size) {
-        const auto& config = _impl->m_configs.GetConfig(device_id);
-        uint32_t n_streams = static_cast<uint32_t>(config.throughput_streams);
+        const auto& config = m_configs_map.at(device_id);
+        uint32_t n_streams = static_cast<uint32_t>(config.get_property(ov::num_streams));
         uint64_t occupied_device_mem = 0;
         auto statistic_result = GetMetric(ov::intel_gpu::memory_statistics.name(), options).as<std::map<std::string, uint64_t>>();
         auto occupied_usm_dev = statistic_result.find("usm_device_current");
@@ -786,7 +728,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
                     n_streams_str != util::to_string(ov::streams::AUTO)) {
                     IE_THROW() << "[GPU_MAX_BATCH_SIZE] bad casting: GPU_THROUGHPUT_STREAMS should be either of uint32_t type or \"GPU_THROUGHPUT_AUTO\"";
                 }
-                n_streams = std::max(config.GetDefaultNStreamsForThroughputMode(), device_info.num_ccs);
+                n_streams = std::max(/* config.GetDefaultNStreamsForThroughputMode() */2u, device_info.num_ccs);
             } else {
                 IE_THROW() << "[GPU_MAX_BATCH_SIZE] bad casting: GPU_THROUGHPUT_STREAMS should be either of uint32_t type or \"GPU_THROUGHPUT_AUTO\"";
             }
@@ -818,9 +760,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         InferenceEngine::CNNNetwork network(model);
         size_t base_batch_size = 16; // empirically decided for DG1
 
-        ExecutionConfig new_conf(ov::AnyMap(config.key_config_map.begin(), config.key_config_map.end()));
-
-        auto& engine = get_default_context(config)->get_impl()->get_engine();
+        auto& engine = get_default_context(device_id)->get_impl()->get_engine();
 
         std::shared_ptr<Program> program;
 
@@ -882,7 +822,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             auto nGraphFunc = cloned_network.getFunction();
             TransformationsPipeline transformations(config, device_info);
             transformations.apply(nGraphFunc);
-            program = std::make_shared<Program>(cloned_network, engine, config, new_conf, false, true);
+            program = std::make_shared<Program>(cloned_network, engine, config, false, true);
             std::pair<int64_t, int64_t> device_memory_usage = program->GetCompiledProgram(0)->get_estimated_device_mem_usage();
             if (device_memory_usage.first == static_cast<int64_t>(-1L) && device_memory_usage.second == static_cast<int64_t>(-1L)) {
                 return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(max_batch_size)};

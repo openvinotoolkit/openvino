@@ -79,9 +79,9 @@ public:
 
 class Program {
 public:
-    Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, const Config& config, const ExecutionConfig& new_conf,
+    Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, const ExecutionConfig& config,
             bool createTopologyOnly = false, bool partialBuild = false);
-    Program(cldnn::engine& engine, const Config& config)
+    Program(cldnn::engine& engine, const ExecutionConfig& config)
         : m_max_batch(1)
         , m_curBatch(-1)
         , m_config(config)
@@ -115,8 +115,7 @@ public:
     InferenceEngine::InputsDataMap GetNetworkInputs() const { return m_networkInputs; }
     InferenceEngine::OutputsDataMap GetNetworkOutputs() const { return m_networkOutputs; }
     cldnn::engine& get_engine() const { return m_engine; }
-    const Config& GetConfig() const { return m_config; }
-    const ExecutionConfig& get_exec_config() const { return m_new_config; }
+    const ExecutionConfig& get_exec_config() const { return m_config; }
     int GetMaxBatchSizeForSingleProgram();
 
     bool IsOpSupported(const InferenceEngine::CNNNetwork& network, const std::shared_ptr<ngraph::Node>& op);
@@ -161,8 +160,7 @@ public:
 private:
     static factories_map_t factories_map;
     std::vector<std::shared_ptr<cldnn::program>> m_programs;
-    Config m_config;
-    ExecutionConfig m_new_config;
+    ExecutionConfig m_config;
     cldnn::engine& m_engine;
 
     std::shared_ptr<cldnn::topology> m_topology;

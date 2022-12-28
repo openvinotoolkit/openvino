@@ -121,11 +121,10 @@ bool Program::IsDynBatchModel(const std::shared_ptr<ov::Model>& model,
     return dyn_shape_batch_found;
 }
 
-Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, const Config& config, const ExecutionConfig& new_conf,
+Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, const ExecutionConfig& config,
     bool createTopologyOnly, bool partialBuild)
     : m_curBatch(-1)
     , m_config(config)
-    , m_new_config(new_conf)
     , m_engine(engine)
     , queryMode(false) {
     // Extract inputs/outputs info from CNNNetwork
@@ -142,25 +141,26 @@ Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, co
     bool dyn_shape_batch_found = false;
     std::map<std::string, ngraph::PartialShape> shapes;
     std::map<std::string, std::pair<int64_t, int64_t>> batch_dim;
-    if (m_config.enableDynamicBatch) {
+    auto enable_dynamic_batch = m_config.get_property(ov::intel_gpu::enable_dynamic_batch);
+    if (enable_dynamic_batch) {
         // in case of legacy dynamic batch,
         // we assume 4D input with 0 batch dim
         auto param = func->get_parameters().front();
         auto pname = getParamName(param);
         shapes[pname] = param->get_output_partial_shape(0);
         batch_dim[pname].first = 0;
-        batch_dim[pname].second = m_config.max_dynamic_batch;
+        batch_dim[pname].second =  m_config.get_property(ov::intel_gpu::max_dynamic_batch);
     } else {
         dyn_shape_batch_found = IsDynBatchModel(func, shapes, batch_dim);
         if (dyn_shape_batch_found) {
-            m_config.max_dynamic_batch = batch_dim.begin()->second.second;
+            m_config.set_property(ov::intel_gpu::max_dynamic_batch(batch_dim.begin()->second.second));
         }
     }
 
     int m_bv_sz = GetMaxBatchSizeForSingleProgram();
-    m_max_batch = m_config.max_dynamic_batch;
+    m_max_batch = m_config.get_property(ov::intel_gpu::max_dynamic_batch);
 
-    if (dyn_shape_batch_found || config.max_dynamic_batch > 1) {
+    if (dyn_shape_batch_found || m_max_batch > 1) {
         // compile log2 networks to serve dynamic batch requests
         for (int b = m_bv_sz - 1; b >= 0; b--) {
             inputLayouts.clear();
@@ -190,7 +190,7 @@ Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, co
             new_func->reshape(new_shapes);
             {
                 auto deviceInfo = engine.get_device_info();
-                TransformationsPipeline transformations(config, deviceInfo);
+                TransformationsPipeline transformations(m_config, deviceInfo);
                 transformations.apply(new_func);
             }
 
@@ -276,9 +276,10 @@ Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, co
 }
 
 int Program::GetMaxBatchSizeForSingleProgram() {
-    if (m_config.max_dynamic_batch > 1) {
+    auto max_dynamic_batch = m_config.get_property(ov::intel_gpu::max_dynamic_batch);
+    if (max_dynamic_batch > 1) {
         // calculate number of networks necessary based on binary log
-        unsigned int tmp = m_config.max_dynamic_batch;
+        unsigned int tmp = max_dynamic_batch;
         unsigned int mask = 1U << 31;
         unsigned int ldigit = 31;
 
@@ -333,7 +334,7 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
         }
     }
 
-    ExecutionConfig conf = m_new_config;
+    ExecutionConfig conf = m_config;
     conf.set_property(ov::intel_gpu::partial_build_program(partialBuild));
     conf.set_property(ov::intel_gpu::optimize_data(true));
     conf.set_property(ov::intel_gpu::allow_new_shape_infer(allow_new_shape_infer));
@@ -396,11 +397,11 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, const std::s
     bool is_created = false;
     const ngraph::NodeTypeInfo* op_type_info = &op->get_type_info();
     while (op_type_info != nullptr) {
-        auto customLayer = m_config.customLayers.find(op->get_type_name());
-        if (customLayer != m_config.customLayers.end()) {
-            CreateCustomOp(*this, op, customLayer->second);
-            return;
-        }
+        // auto customLayer = m_config.customLayers.find(op->get_type_name());
+        // if (customLayer != m_config.customLayers.end()) {
+            // CreateCustomOp(*this, op, customLayer->second);
+            // return;
+        // }
 
         auto factory_it = factories_map.find(*op_type_info);
         if (factory_it != factories_map.end()) {
@@ -488,7 +489,7 @@ void Program::add_primitive(const ngraph::Node& op, std::shared_ptr<cldnn::primi
             prim->origin_op_type_name = prim->type_string();
     }
 
-    if (this->m_config.useProfiling && should_profile) {
+    if (this->m_config.get_property(ov::enable_profiling) && should_profile) {
         profiling_ids.push_back(prim_id);
         init_profile_info(*prim);
     }

@@ -131,7 +131,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         ngraph::pass::Manager manager;
         manager.set_per_pass_validation(false);
 
-        enableInt8 = config.enableInt8 && ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(func);
+        enableInt8 = ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(func);
         if (enableInt8) {
             manager.register_pass<ov::pass::MarkDequantizationSubgraph>(
                 std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
@@ -144,7 +144,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ngraph::pass::WrapInterpolateIntoTransposes>();
         manager.register_pass<ngraph::pass::TransposeSinking>();
 
-        if (!config.enable_loop_unrolling) {
+        if (!config.get_property(ov::intel_gpu::enable_loop_unrolling)) {
             manager.register_pass<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();
             manager.register_pass<ngraph::pass::BidirectionalGRUSequenceDecomposition>();
             manager.register_pass<ngraph::pass::BidirectionalRNNSequenceDecomposition>();
@@ -158,7 +158,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ngraph::pass::GRUCellDecomposition>();
         manager.register_pass<ngraph::pass::RNNCellDecomposition>();
 
-        if (config.enable_loop_unrolling) {
+        if (config.get_property(ov::intel_gpu::enable_loop_unrolling)) {
             manager.register_pass<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();
             manager.register_pass<ngraph::pass::BidirectionalGRUSequenceDecomposition>();
             manager.register_pass<ngraph::pass::BidirectionalRNNSequenceDecomposition>();
@@ -205,8 +205,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         };
 
         // Add conversion from FP data types to infer precision if it's specified
-        if (config.inference_precision != ov::element::undefined) {
-            auto inference_precision = config.inference_precision;
+        if (config.get_property(ov::hint::inference_precision) != ov::element::undefined) {
+            auto inference_precision = config.get_property(ov::hint::inference_precision);
             if (!fp_precision_supported(inference_precision))
                 inference_precision = fallback_precision;
 
@@ -330,7 +330,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return isCellPrimitiveSupported(node);
             });
 
-        if (config.enable_loop_unrolling) {
+        if (config.get_property(ov::intel_gpu::enable_loop_unrolling)) {
             pass_config->set_callback<ngraph::pass::ConvertRNNSequenceToTensorIterator,
                     ngraph::pass::ConvertGRUSequenceToTensorIterator,
                     ngraph::pass::ConvertLSTMSequenceToTensorIterator>(
@@ -553,7 +553,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             [this](const std::shared_ptr<const ngraph::Node> &node) -> bool {
                 auto sub_graph_op = std::dynamic_pointer_cast<const ngraph::op::util::SubGraphOp>(node);
                 int64_t num_iter = sub_graph_op->get_num_iterations();
-                if (!config.enable_loop_unrolling)
+                if (!config.get_property(ov::intel_gpu::enable_loop_unrolling))
                     return num_iter != 1;
                 return num_iter >= 16;
             });

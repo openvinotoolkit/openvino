@@ -84,6 +84,11 @@ inline std::ostream& operator<<(std::ostream& os, const TuningConfig& val) {
 static constexpr Property<TuningConfig, PropertyMutability::RW> tuning_config{"GPU_TUNING_CONFIG"};
 
 static constexpr Property<ImplForcingMap, PropertyMutability::RW> force_implementations{"GPU_FORCE_IMPLEMENTATIONS"};
+static constexpr Property<std::string, PropertyMutability::RW> config_file{"CONFIG_FILE"};
+static constexpr Property<bool, PropertyMutability::RW> enable_dynamic_batch{"DYN_BATCH_ENABLED"};
+static constexpr Property<size_t, PropertyMutability::RW> max_dynamic_batch{"DYN_BATCH_LIMIT"};
+static constexpr Property<bool, PropertyMutability::RW> exclusive_async_requests{"EXCLUSIVE_ASYNC_REQUESTS"};
+static constexpr Property<bool, PropertyMutability::RW> nv12_two_inputs{"GPU_NV12_TWO_INPUTS"};
 
 }  // namespace intel_gpu
 }  // namespace ov

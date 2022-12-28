@@ -21,6 +21,15 @@
 namespace ov {
 namespace intel_gpu {
 
+class LegacyPropertiesHelper {
+public:
+    ov::AnyMap convert_legacy_properties(const ov::AnyMap& properties) const;
+    std::pair<std::string, ov::Any> convert_legacy_property(const std::pair<std::string, ov::Any>& legacy_property) const;
+    std::pair<std::string, ov::Any> convert_to_legacy_property(const std::pair<std::string, ov::Any>& property) const;
+    bool is_legacy_property(const std::pair<std::string, ov::Any>& property) const;
+};
+
+
 class CompiledModel : public InferenceEngine::ExecutableNetworkThreadSafeDefault {
 public:
     typedef std::shared_ptr<CompiledModel> Ptr;
@@ -45,6 +54,7 @@ public:
     std::vector<std::shared_ptr<Graph>> m_graphs;
     InferenceEngine::gpu::ClContext::Ptr m_context;
     Config m_config;
+    ExecutionConfig m_exec_config;
     InferenceEngine::ITaskExecutor::Ptr m_taskExecutor;
     InferenceEngine::ITaskExecutor::Ptr m_waitExecutor;
 
