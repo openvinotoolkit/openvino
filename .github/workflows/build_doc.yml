@@ -77,22 +77,27 @@ jobs:
       - name: Archive docs HTML
         run: zip -r openvino_docs_html.zip build/docs/_build
 
+      - name: Set PR number
+        run: |
+          PR_NUMBER=$(echo $GITHUB_REF | awk 'BEGIN { FS = "/" } ; { print $3 }')
+          echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
+
       - name: 'Upload doxygen.log'
         uses: actions/upload-artifact@v3
         with:
-          name: doxygen_build_log_${{ github.ref }}.log
+          name: doxygen_build_log_${{ env.PR_NUMBER }}.log
           path: build/docs/doxygen.log
 
       - name: 'Upload sphinx.log'
         uses: actions/upload-artifact@v3
         with:
-          name: sphinx_build_log_${{ github.ref }}.log
+          name: sphinx_build_log_${{ env.PR_NUMBER }}.log
           path: build/docs/sphinx.log
 
       - name: 'Upload docs html'
         uses: actions/upload-artifact@v3
         with:
-          name: openvino_docs_${{ github.ref }}_html.zip
+          name: openvino_docs_${{ env.PR_NUMBER }}_html.zip
           path: build/docs/openvino_docs_html.zip
 
       - name: Run Pytest
