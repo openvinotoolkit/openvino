@@ -34,28 +34,9 @@ RemoteBlobImpl::RemoteBlobImpl(InferenceEngine::gpu::ClContext::Ptr context,
     , m_layout(layout)
     , m_mem_type(mem_type)
     , m_memory_object(mem_handle)
-    , m_reused_memory_object(mem_handle != nullptr)
     , lockedCounter(0)
     , lockedHolder(nullptr)
-    , _handle(nullptr) {
-    OPENVINO_ASSERT(m_context != nullptr, "[GPU] Invalid context object passed to RemoteBlobImpl contructro");
-    auto& engine = get_context_impl(m_context)->get_engine();
-
-    if (!m_reused_memory_object) {
-        // Verify shared buffer/usm memory and ensure that requested byte size is not greater than allocated one
-        switch (m_mem_type) {
-        case BlobType::BT_BUF_SHARED: {
-            engine.share_buffer(m_layout, m_mem);
-            break;
-        }
-        case BlobType::BT_USM_SHARED: {
-            engine.share_usm(m_layout, m_mem);
-            break;
-        }
-        default: break;
-        }
-    }
-}
+    , _handle(nullptr) { }
 
 AnyMap RemoteBlobImpl::getParams() const {
     assert(m_memory_object != nullptr);
@@ -132,9 +113,9 @@ bool RemoteBlobImpl::is_locked() const noexcept {
 
 void RemoteBlobImpl::allocate() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "RemoteBlobImpl::Allocate");
-    assert(m_memory_object == nullptr || m_reused_memory_object);
 
-    if (m_reused_memory_object)
+    // If mem object was allocated earlier
+    if (m_memory_object != nullptr)
         return;
 
     auto& engine = get_context_impl(m_context)->get_engine();

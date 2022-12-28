@@ -23,7 +23,6 @@ class Plugin : public InferenceEngine::IInferencePlugin {
     bool streamsSet = false;
     bool throttlingSet = false;
     bool isModelCachingEnabled = false;
-    std::string default_device_id = "0";
 
     // key: device_id, value: cldnn device
     std::map<std::string, cldnn::device::ptr> device_map;

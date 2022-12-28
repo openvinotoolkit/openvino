@@ -116,7 +116,7 @@ public:
     InferenceEngine::OutputsDataMap GetNetworkOutputs() const { return m_networkOutputs; }
     cldnn::engine& get_engine() const { return m_engine; }
     const Config& GetConfig() const { return m_config; }
-    const ExecutionConfig& GetExecutionConfig() const { return m_new_config; }
+    const ExecutionConfig& get_exec_config() const { return m_new_config; }
     int GetMaxBatchSizeForSingleProgram();
 
     bool IsOpSupported(const InferenceEngine::CNNNetwork& network, const std::shared_ptr<ngraph::Node>& op);

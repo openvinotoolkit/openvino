@@ -77,7 +77,6 @@ protected:
     BlobType m_mem_type;
 
     cldnn::memory::ptr m_memory_object;
-    bool m_reused_memory_object;
 
     mutable std::mutex lockedMutex;
     mutable size_t lockedCounter;
