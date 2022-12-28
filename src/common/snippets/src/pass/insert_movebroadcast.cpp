@@ -8,6 +8,7 @@
 #include "snippets/pass/insert_movebroadcast.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/utils.hpp"
+#include <ngraph/pattern/op/wrap_type.hpp>
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
@@ -17,29 +18,6 @@
 using namespace ngraph;
 
 namespace {
-
-std::shared_ptr<ngraph::Node> broadcast_node_last_dim(const ngraph::Output<ngraph::Node>& value,
-                                                   const ov::PartialShape& target_shape, const ov::PartialShape& normalized_shape) {
-    std::shared_ptr<ngraph::Node> broadcasted_node = value.get_node_shared_ptr();
-
-    if (target_shape == value.get_partial_shape()) {
-        return broadcasted_node;
-    }
-    // Insert BroadcastMove only if the last dimension needs to be broadcasted. Higher-level dims broadcasting
-    // will be handled by pointer arithmetics inside outer LoopEmitter
-    if (*target_shape.rbegin() != *normalized_shape.rbegin()) {
-        ov::PartialShape broadcasted_shape = normalized_shape;
-        *broadcasted_shape.rbegin() = *target_shape.rbegin();
-        broadcasted_node = std::make_shared<ngraph::snippets::op::BroadcastMove>(broadcasted_node, broadcasted_shape);
-        // BroadcastMove should be immediately executed after its input op (input op is node with output which should be broadcasted).
-        // For example, to execute Broadcast outside of a Loop We transfer control dependents and copy rt info
-        broadcasted_node->add_node_control_dependents(value.get_node_shared_ptr());
-        ov::copy_runtime_info(value.get_node_shared_ptr(), broadcasted_node);
-    }
-
-    return broadcasted_node;
-}
-
 
 std::pair<ov::PartialShape, std::vector<ov::PartialShape>> get_numpy_broadcast_partial_shapes(const std::vector<ov::PartialShape>& input_shapes) {
     ov::PartialShape target_shape =  input_shapes.front();
@@ -58,6 +36,29 @@ std::pair<ov::PartialShape, std::vector<ov::PartialShape>> get_numpy_broadcast_p
 }
 
 } // namespace
+
+ngraph::Output<ngraph::Node> ngraph::snippets::pass::InsertMoveBroadcast::BroadcastNodeLastDim(
+        const ngraph::Output<ngraph::Node>& value, const ov::PartialShape& target_shape, const ov::PartialShape& normalized_shape) {
+    if (target_shape == value.get_partial_shape()) {
+        return value;
+    }
+
+    // Insert BroadcastMove only if the last dimension needs to be broadcasted. Higher-level dims broadcasting
+    // will be handled by pointer arithmetics inside outer LoopEmitter
+    if (*target_shape.rbegin() != *normalized_shape.rbegin()) {
+        ov::PartialShape broadcasted_shape = normalized_shape;
+        *broadcasted_shape.rbegin() = *target_shape.rbegin();
+        const auto broadcast_node = std::make_shared<ngraph::snippets::op::BroadcastMove>(value, broadcasted_shape);
+        // BroadcastMove should be immediately executed after its input op (input op is node with output which should be broadcasted).
+        // For example, to execute Broadcast outside of a Loop We transfer control dependents and copy rt info
+        broadcast_node->add_node_control_dependents(value.get_node_shared_ptr());
+        ov::copy_runtime_info(value.get_node_shared_ptr(), broadcast_node);
+
+        return broadcast_node->output(0);
+    }
+
+    return value;
+}
 
 ngraph::snippets::pass::InsertMoveBroadcast::InsertMoveBroadcast() {
     MATCHER_SCOPE(InsertMoveBroadcast);
@@ -96,8 +97,8 @@ ngraph::snippets::pass::InsertMoveBroadcast::InsertMoveBroadcast() {
             if (is_ignored[i]) {
                 broadcasted_inputs.push_back(values[i]);
             } else {
-                auto node = broadcast_node_last_dim(values[i], bcast_shapes.first, bcast_shapes.second[i]);
-                ngraph::copy_runtime_info(root, node);
+                auto node = BroadcastNodeLastDim(values[i], bcast_shapes.first, bcast_shapes.second[i]);
+                ngraph::copy_runtime_info(root, node.get_node_shared_ptr());
                 broadcasted_inputs.push_back(node);
             }
         }

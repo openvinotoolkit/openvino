@@ -9,6 +9,7 @@
 #include "snippets/op/convert_saturation.hpp"
 #include "snippets/pass/insert_load_store.hpp"
 #include "snippets/pass/insert_movebroadcast.hpp"
+#include "snippets/pass/broadcast_to_movebroadcast.hpp"
 #include "snippets/pass/load_movebroadcast_to_broadcastload.hpp"
 #include "snippets/pass/assign_registers.hpp"
 #include "snippets/pass/convert_constants.hpp"
@@ -156,9 +157,9 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Nod
 
     for (const auto& input : node->input_values()) {
         if (ov::is_type<ngraph::opset1::Constant>(input.get_node_shared_ptr()) &&
-               (ngraph::shape_size(input.get_shape()) == 1 ||
-                ov::is_type<ov::op::v0::FakeQuantize>(node) ||
-                ov::is_type<ov::op::v1::Transpose>(node))) {
+            (ngraph::shape_size(input.get_shape()) == 1 ||
+             ov::is_type<ov::op::v0::FakeQuantize>(node) ||
+             constant_input_should_be_inside_body(node))) {
             body_inputs.push_back(input);
         } else {
             auto parameter = std::make_shared<ngraph::opset1::Parameter>(input.get_element_type(), input.get_partial_shape());
@@ -225,6 +226,13 @@ void snippets::op::Subgraph::fill_empty_output_names(const Output<Node>& target_
         out_tensor->set_names(replacement_output_node.get_names());
     }
     NGRAPH_SUPPRESS_DEPRECATED_END
+}
+
+auto snippets::op::Subgraph::constant_input_should_be_inside_body(const std::shared_ptr<ov::Node>& node) -> bool {
+    return ov::is_type<ov::op::v1::Transpose>(node) ||
+           ov::is_type<ov::op::v1::Broadcast>(node) ||
+           ov::is_type<ov::op::v3::Broadcast>(node) ||
+           ov::is_type<ov::op::v1::Reshape>(node);
 }
 
 ///
@@ -382,11 +390,16 @@ void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outpu
     //  - Insert Convert before operations that doesn't support original element type for execution
     //  - Insert reverse Convert before operations that support original element type
     //    but have inputs that doesn't support it (because before them will be inserted Convert with exec_type - first point)
-    // Then we should use ConstantFolding pass to convert element type of Scalars before inference.
+    //  - Then we should use ConstantFolding pass to convert element type of Scalars before inference.
+    //  - Eliminate redundant Converts which can be inserted in AlignElementType() pass
     ngraph::pass::Manager manager;
     if (config.m_is_needed_to_align_precision) {
         manager.register_pass<snippets::pass::AlignElementType>(execution_element_type);
         manager.register_pass<ngraph::pass::ConstantFolding>();
+        // TODO [100041] : In some cases AlignElementType pass can insert extra Convert because
+        //                 the pass doesn't know real precisions in real time.
+        //                 We call EliminateConverts pass to remove them
+        manager.register_pass<ngraph::pass::EliminateConvert>();
     }
     manager.run_passes(m_body);
 }
@@ -415,6 +428,7 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
     manager.register_pass<snippets::pass::InsertBuffer>(tileRank);
     manager.register_pass<snippets::pass::SoftmaxDecomposition>(count, tileRank);
     manager.register_pass<snippets::pass::TransposeDecomposition>();
+    manager.register_pass<snippets::pass::BroadcastToMoveBroadcast>();
     manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
     manager.register_pass<snippets::pass::ConvertPowerToPowerStatic>();
     manager.register_pass<snippets::pass::InsertLoad>(count);
@@ -492,6 +506,7 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
 
     convert_to_snippet_dialect();
     opt.run_passes(m_body);
+
     snippets::pass::AssignRegisters().run_on_model(m_body);
 
     const auto ops = m_body->get_ops();
@@ -501,19 +516,9 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
     generatorConfig.m_optimize_single_evaluation = std::none_of(ops.begin(), ops.end(), [](const std::shared_ptr<ov::Node>& op) {
         return ov::is_type<ngraph::snippets::op::Buffer>(op);
     });
+
     // actual code emission
     ngraph::snippets::code ptr = m_generator->generate(m_body, generatorConfig, compile_params);
-
-    // check that body doesn't have constants for scheduling
-    std::vector<std::shared_ptr<opset1::Constant>> constants;
-    for (auto op : m_body->get_ordered_ops()) {
-        if (auto constant = ov::as_type_ptr<opset1::Constant>(op)) {
-            if (ngraph::shape_size(constant->get_shape()) != 1 && constant->get_shape() != Shape()) {
-                constants.push_back(constant);
-            }
-        }
-    }
-    NGRAPH_CHECK(!constants.size(), "External constants detected. Snippet is illigal for scheduling");
 
     return {master_shape, false /*canBeLinearized*/, ptr};
 }

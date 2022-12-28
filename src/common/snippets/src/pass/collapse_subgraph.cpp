@@ -77,6 +77,10 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
                is_type<opset1::Constant>(n->get_input_node_shared_ptr(4));
     };
 
+    auto is_supported_ternary_eltwise_op = [](const std::shared_ptr<const Node> &n) -> bool {
+        return ov::is_type<opset1::Select>(n);
+    };
+
     auto is_supported_binary_eltwise_op = [](const std::shared_ptr<const Node> &n) -> bool {
         return ov::is_type<opset1::Add>(n)
             || ov::is_type<opset1::Divide>(n)
@@ -138,12 +142,32 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
         return axis >= 0 && axis == (rank.get_length() - 1);
     };
 
-    return is_supported_fq_op(n)
-        || is_supported_unary_eltwise_op(n)
-        || is_supported_binary_eltwise_op(n)
-        || is_supported_transpose(n)
-        || is_supported_softmax(n)
-        || is_supported_matmul(n);
+    auto is_supported_broadcast_op = [](const std::shared_ptr<const Node> &n) -> bool {
+        // TODO: Add check for broadcastable input shapes of Broadcast children in MHA tokenization
+        //       Codogen removes Broadcast op, insert BroadcastMove if needed and save just last dim.
+        //       But if Broadcast child output shape depends on Broadcast we can loss needed output shape
+        //       Example:
+        //        in0 [1, 1, 1]      in0 [1, 1, 1]              in0 [1, 1, 1]   in0 [1, 1, 1]
+        //     Broadcast [1, 10, 1]    /                                 \       /
+        //           \               /                --->>>                Add
+        //                  Add                                              |
+        //             Result [1, 10, 1]                              Result [1, 1, 1]
+        if (auto broadcast_v1 = ov::as_type_ptr<const ov::op::v1::Broadcast>(n)) {
+            return broadcast_v1->get_broadcast_spec().m_type == ov::op::AutoBroadcastType::NUMPY;
+        } else if (auto broadcast_v3 = ov::as_type_ptr<const ov::op::v3::Broadcast>(n)) {
+            return broadcast_v3->get_broadcast_spec().m_type == ov::op::BroadcastType::NUMPY;
+        }
+        return false;
+    };
+
+    return is_supported_fq_op(n) ||
+           is_supported_unary_eltwise_op(n) ||
+           is_supported_binary_eltwise_op(n) ||
+           is_supported_ternary_eltwise_op(n) ||
+           is_supported_transpose(n) ||
+           is_supported_softmax(n) ||
+           is_supported_matmul(n) ||
+           is_supported_broadcast_op(n);
 }
 
 auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {
@@ -151,10 +175,12 @@ auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {
         static const std::set<ngraph::element::Type> supported_data_types =
                 { ngraph::element::f32, ngraph::element::bf16, ngraph::element::i8, ngraph::element::u8 };
         // Todo: int32 isn't supported in general because i32 emitters are required for bit-exact i32 calculations in some cases
-        //  So i32 is supported exclusively for transposes
+        //  So i32 is supported exclusively for transposes and broadcast
         return t.get_partial_shape().is_static() &&
-                (supported_data_types.count(t.get_element_type()) != 0 ||
-                (ov::is_type<const opset1::Transpose>(n) && t.get_element_type() == ngraph::element::i32));
+               (supported_data_types.count(t.get_element_type()) != 0 ||
+                (t.get_element_type() == ngraph::element::i32 &&
+                        (ov::is_type<const opset1::Transpose>(n) ||
+                         ov::is_type<const opset1::Broadcast>(n))));
     };
     const auto & inputs = n->inputs();
     const auto & outputs = n->outputs();
@@ -491,9 +517,9 @@ TokenizeSnippets::TokenizeSnippets() {
                 // [*] We support Transpose with second Constant input (represents order). This Constant will not be scheduled
                 //     and will only be used to decompose Transpose into a proper Load, Store and Loop combination.
                 if (ov::is_type<ngraph::opset1::Constant>(input_node) &&
-                        (ngraph::shape_size(input_value.get_shape()) == 1 ||
-                         ov::is_type<ov::op::v0::FakeQuantize>(node) ||
-                         ov::is_type<ov::op::v1::Transpose>(node))) {
+                    (ngraph::shape_size(input_value.get_shape()) == 1 ||
+                     ov::is_type<ov::op::v0::FakeQuantize>(node) ||
+                     op::Subgraph::constant_input_should_be_inside_body(node))) {
                     internal_inputs.push_back(input_node->output(0));
                 } else {
                     external_inputs.push_back(input_value);

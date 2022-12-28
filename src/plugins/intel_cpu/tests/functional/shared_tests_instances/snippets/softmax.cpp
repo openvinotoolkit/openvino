@@ -43,7 +43,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Softmax, Softmax,
                      ::testing::Combine(
                              ::testing::ValuesIn(inputShape),
                              ::testing::Values(-1),
-                             ::testing::Values(2),  // Subgraph + Sin
+                             ::testing::Values(1),
                              ::testing::Values(1),
                              ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                      Softmax::getTestCaseName);
@@ -61,7 +61,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_AddSoftmax, AddSoftmax,
                      ::testing::Combine(
                              ::testing::ValuesIn(inputShapesPair),
                              ::testing::Values(-1),
-                             ::testing::Values(3),  // Subgraph + Sin * 2
+                             ::testing::Values(1),
                              ::testing::Values(1),
                              ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                      AddSoftmax::getTestCaseName);

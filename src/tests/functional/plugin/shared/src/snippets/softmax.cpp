@@ -35,7 +35,7 @@ void Softmax::SetUp() {
     std::tie(inputShape, axis, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
     init_input_shapes({{{}, {inputShape, }}});
 
-    auto f = ov::test::snippets::SinhSoftmaxFunction({inputShape}, axis);
+    auto f = ov::test::snippets::SoftmaxFunction({inputShape}, axis);
     function = f.getOriginal();
 
     if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
@@ -67,7 +67,7 @@ void AddSoftmax::SetUp() {
     std::tie(inputShapes, axis, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
     init_input_shapes({{{}, {inputShapes.first, }}, {{}, {inputShapes.second, }}});
 
-    auto f = ov::test::snippets::SinhAddSoftmaxFunction({inputShapes.first, inputShapes.second}, axis);
+    auto f = ov::test::snippets::AddSoftmaxFunction({inputShapes.first, inputShapes.second}, axis);
     function = f.getOriginal();
 
     if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {

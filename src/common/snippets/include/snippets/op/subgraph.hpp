@@ -122,6 +122,11 @@ public:
     static auto wrap_node_as_subgraph(const std::shared_ptr<ngraph::Node>& node) -> std::shared_ptr<Subgraph>;
     static void fill_empty_output_names(const Output<Node>& target_output_node, const Output<Node>& replacement_output_node);
 
+    // Non-scalar Constants are tokenized as Parameters inside Subgraph body but some operations with constant inputs
+    // should have explicit Constants even if they're non-scalar (Reshape, Transpose, Broadcast)
+    // This check returns True if Constant op which is input of this op should be inside Subgraph body
+    static auto constant_input_should_be_inside_body(const std::shared_ptr<ov::Node>& node) -> bool;
+
 private:
     void align_element_types(const BlockedShapeVector& outputShapes, const BlockedShapeVector& inputShapes);
     void convert_to_snippet_dialect();

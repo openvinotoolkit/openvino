@@ -299,6 +299,37 @@ std::shared_ptr<ov::Model> TwoInputsAndOutputsFunction::initOriginal() const {
     return std::make_shared<Model>(NodeVector{hswish, sin3}, ParameterVector{data0, data1});
 }
 
+std::shared_ptr<ov::Model> SelectFunction::initOriginal() const {
+    auto data0 = std::make_shared<op::v0::Parameter>(ov::element::boolean, input_shapes[0]);
+    auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
+    auto data2 = std::make_shared<op::v0::Parameter>(precision, input_shapes[2]);
+    auto select = std::make_shared<op::v1::Select>(data0, data1, data2);
+
+    return std::make_shared<Model>(NodeVector{select}, ParameterVector{data0, data1, data2});
+}
+
+std::shared_ptr<ov::Model> BroadcastAddFunction::initOriginal() const {
+    auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
+    auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
+    auto target_shape = std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{m_target_shape.size()}, m_target_shape.get_shape());
+    auto broadcast = std::make_shared<ov::op::v1::Broadcast>(data0, target_shape);
+    auto add = std::make_shared<op::v1::Add>(broadcast, data1);
+
+    return std::make_shared<Model>(NodeVector{add}, ParameterVector{data0, data1});
+}
+
+
+std::shared_ptr<ov::Model> BroadcastSelectFunction::initOriginal() const {
+    auto data0 = std::make_shared<op::v0::Parameter>(ov::element::boolean, input_shapes[0]);
+    auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
+    auto data2 = std::make_shared<op::v0::Parameter>(precision, input_shapes[2]);
+    auto target_shape = std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{m_target_shape.size()}, m_target_shape.get_shape());
+    auto broadcast = std::make_shared<ov::op::v1::Broadcast>(data0, target_shape);
+    auto select = std::make_shared<op::v1::Select>(broadcast, data1, data2);
+
+    return std::make_shared<Model>(NodeVector{select}, ParameterVector{data0, data1, data2});
+}
+
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov

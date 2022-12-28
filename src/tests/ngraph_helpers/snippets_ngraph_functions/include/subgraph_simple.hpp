@@ -215,6 +215,52 @@ public:
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 };
+/// Verify Select
+//   in0     in1    in2
+//     \      |     /
+//         Select
+//         Result
+class SelectFunction : public SnippetsFunctionBase {
+public:
+    explicit SelectFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+        NGRAPH_CHECK(input_shapes.size() == 3, "Got invalid number of input shapes");
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+};
+/// Verify Broadcast in passes
+//   in0     in1
+// Broadcast  |
+//     \     /
+//        Add
+//       Result
+class BroadcastAddFunction : public SnippetsFunctionBase {
+public:
+    explicit BroadcastAddFunction(const std::vector<PartialShape>& inputShapes, const PartialShape& targetShape)
+        : SnippetsFunctionBase(inputShapes), m_target_shape(targetShape) {
+        NGRAPH_CHECK(input_shapes.size() == 2, "Got invalid number of input shapes");
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+
+    PartialShape m_target_shape;
+};
+
+/// Verify Select + Broadcast
+//   in0     in1    in2
+// Broadcast  |      |
+//     \      |     /
+//         Select
+//         Result
+class BroadcastSelectFunction : public SelectFunction {
+public:
+    explicit BroadcastSelectFunction(const std::vector<PartialShape>& inputShapes, const PartialShape& targetShape)
+            : SelectFunction(inputShapes), m_target_shape(targetShape) {}
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+
+    PartialShape m_target_shape;
+};
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov

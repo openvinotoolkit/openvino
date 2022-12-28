@@ -398,6 +398,41 @@ std::shared_ptr<ov::Model> AddSoftmaxLoweredFunction::initLowered() const {
 
     return std::make_shared<ov::Model>(ResultVector{result}, input_params);
 }
+std::shared_ptr<ov::Model> BroadcastAddLoweredFunction::initLowered() const {
+    auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
+    auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
+    ov::NodeVector datas = {data0, data1};
+    auto last_dim = std::max(input_shapes[0].get_shape().back(), std::max(input_shapes[1].get_shape().back(), m_target_shape.get_shape().back()));
+    ov::NodeVector loads(datas.size(), nullptr);
+    for (auto i = 0; i < datas.size(); i++) {
+        if (input_shapes[i].get_shape().back() != last_dim) {
+            auto new_shape = input_shapes[i];
+            new_shape[new_shape.size() - 1] = last_dim;
+            loads[i] = std::make_shared<ngraph::snippets::op::BroadcastLoad>(datas[i], new_shape);
+        } else {
+            loads[i] = std::make_shared<ngraph::snippets::op::Load>(datas[i]);
+        }
+    }
+    auto add = std::make_shared<op::v1::Add>(loads[0], loads[1]);
+    auto store = std::make_shared<ngraph::snippets::op::Store>(add);
+    auto model = std::make_shared<Model>(NodeVector{store}, ParameterVector{data0, data1});
+
+    // Create dummy scheduler to pass graph comparison tests
+    // Note that if there is more than one results, they should be reverted
+    ResultVector results({model->get_results()[0]});
+    const auto& inner_loop_begin = ngraph::snippets::op::insertLoopBegin(datas);
+    std::vector<bool> apply_increments(datas.size() + results.size(), true);
+    insertLoopEnd(results, inner_loop_begin, 1, 1, apply_increments);
+    auto outer_WA = std::accumulate(input_shapes.begin(), input_shapes.end(), 0,
+                                    [](int64_t max_val, const PartialShape& ps) {
+                                        return std::max(ps[ps.size() - 2].get_length(), max_val);
+                                    });
+    if (outer_WA > 1) {
+        const auto& outer_loop_begin = ngraph::snippets::op::insertLoopBegin(datas);
+        insertLoopEnd(results, outer_loop_begin, 1, 1, apply_increments);
+    }
+    return model;
+}
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov
