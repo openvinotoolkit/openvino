@@ -26,11 +26,7 @@ bool ov::pass::ConvertCompressedToMixedPrecision::run_on_model(const std::shared
     const precisions_array convert_precision_list{{ov::element::f32, ov::element::f16}};
     type_to_fuse_map additional_fuse_map = {};
     //  call ConvertPrecision with keep_precision_sensitive_in_fp32 = true
-    REGISTER_PASS(manager,
-                  ConvertPrecision,
-                  convert_precision_list,
-                  additional_fuse_map,
-                  true);
+    REGISTER_PASS(manager, ConvertPrecision, convert_precision_list, additional_fuse_map, true);
 
     REGISTER_PASS(manager, EnableDecompressionConvertConstantFolding)
     REGISTER_PASS(manager, ConstantFolding)
