@@ -33,6 +33,8 @@ struct pooling_test_params {
 class PoolingFusingTest : public ::BaseFusingTest<pooling_test_params> {
 public:
     void execute(pooling_test_params& p) {
+        if (engine.get_device_info().supports_immad)
+            p.expected_fused_primitives = p.expected_fused_primitives_onednn;
         auto input_prim = get_mem(get_input_layout(p));
         build_options options;
         options.set_option(build_option::optimize_data(true));
@@ -313,7 +315,7 @@ TEST_P(pooling_scale_activation_quantize, per_channel) {
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / 16.0f)),
         pooling("pooling", input_info("input"), p.pool_mode, kernel, stride, pads_begin, pads_end),
         eltwise("scale", { input_info("pooling"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
-        activation("activation", input_info("scale"), activation_func::hyperbolic_tan),
+        activation("activation", input_info("scale"), activation_func::relu),
         quantize("quantize", input_info("activation"), input_info("in_lo"), input_info("in_hi"),
                  input_info("out_lo"), input_info("out_hi"), 255, data_types::u8),
         reorder("output_reorder", input_info("quantize"), p.default_format, data_types::f32)
@@ -325,40 +327,40 @@ TEST_P(pooling_scale_activation_quantize, per_channel) {
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, pooling_scale_activation_quantize, ::testing::ValuesIn(std::vector<pooling_test_params>{
     // Input type: FP32
-    pooling_test_params{ CASE_POOLING_F32_3, 2, 3, 5, pooling_mode::average, "pooling_gpu_bfyx_block_opt" },
-    pooling_test_params{ CASE_POOLING_F32_3, 2, 3, 5, pooling_mode::max, "pooling_gpu_bfyx_block_opt" },
-    pooling_test_params{ CASE_POOLING_F32_3, 2, 3, 5, pooling_mode::average, "pooling_gpu_ref" },
-    pooling_test_params{ CASE_POOLING_F32_3, 2, 3, 5, pooling_mode::max, "pooling_gpu_ref" },
-    pooling_test_params{ CASE_POOLING_F32_4, 2, 3, 5, pooling_mode::average, "pooling_gpu_fs_b_yx_fsv32" },
-    pooling_test_params{ CASE_POOLING_F32_4, 2, 3, 5, pooling_mode::max, "pooling_gpu_fs_b_yx_fsv32" },
-    pooling_test_params{ CASE_POOLING_F32_5, 2, 3, 5, pooling_mode::average, "pooling_gpu_byxf_padding_opt" },
-    pooling_test_params{ CASE_POOLING_F32_5, 2, 3, 5, pooling_mode::max, "pooling_gpu_byxf_padding_opt" },
-    pooling_test_params{ CASE_POOLING_F32_6, 2, 3, 5, pooling_mode::average, "pooling_gpu_byxf_opt" },
-    pooling_test_params{ CASE_POOLING_F32_6, 2, 3, 5, pooling_mode::max, "pooling_gpu_byxf_opt" },
-    pooling_test_params{ CASE_POOLING_F32_7, 2, 3, 5, pooling_mode::average, "pooling_gpu_bsv16_fsv16" },
-    pooling_test_params{ CASE_POOLING_F32_7, 2, 3, 5, pooling_mode::max, "pooling_gpu_bsv16_fsv16" },
-    pooling_test_params{ CASE_POOLING_F32_8, 2, 3, 5, pooling_mode::average, "pooling_gpu_blocked" },
-    pooling_test_params{ CASE_POOLING_F32_8, 2, 3, 5, pooling_mode::max, "pooling_gpu_blocked" },
-    pooling_test_params{ CASE_POOLING_F32_9, 2, 3, 5, pooling_mode::average, "pooling_gpu_ref" },
-    pooling_test_params{ CASE_POOLING_F32_9, 2, 3, 5, pooling_mode::max, "pooling_gpu_ref" },
-    pooling_test_params{ CASE_POOLING_F32_10, 2, 3, 5, pooling_mode::average, "pooling_gpu_bsv16_fsv16" },
-    pooling_test_params{ CASE_POOLING_F32_10, 2, 3, 5, pooling_mode::max, "pooling_gpu_bsv16_fsv16" },
+    pooling_test_params{ CASE_POOLING_F32_3, 2, 2, 5, pooling_mode::average, "pooling_gpu_bfyx_block_opt" },
+    pooling_test_params{ CASE_POOLING_F32_3, 2, 2, 5, pooling_mode::max, "pooling_gpu_bfyx_block_opt" },
+    pooling_test_params{ CASE_POOLING_F32_3, 2, 2, 5, pooling_mode::average, "pooling_gpu_ref" },
+    pooling_test_params{ CASE_POOLING_F32_3, 2, 2, 5, pooling_mode::max, "pooling_gpu_ref" },
+    pooling_test_params{ CASE_POOLING_F32_4, 2, 2, 5, pooling_mode::average, "pooling_gpu_fs_b_yx_fsv32" },
+    pooling_test_params{ CASE_POOLING_F32_4, 2, 2, 5, pooling_mode::max, "pooling_gpu_fs_b_yx_fsv32" },
+    pooling_test_params{ CASE_POOLING_F32_5, 2, 2, 5, pooling_mode::average, "pooling_gpu_byxf_padding_opt" },
+    pooling_test_params{ CASE_POOLING_F32_5, 2, 2, 5, pooling_mode::max, "pooling_gpu_byxf_padding_opt" },
+    pooling_test_params{ CASE_POOLING_F32_6, 2, 2, 5, pooling_mode::average, "pooling_gpu_byxf_opt" },
+    pooling_test_params{ CASE_POOLING_F32_6, 2, 2, 5, pooling_mode::max, "pooling_gpu_byxf_opt" },
+    pooling_test_params{ CASE_POOLING_F32_7, 2, 2, 5, pooling_mode::average, "pooling_gpu_bsv16_fsv16" },
+    pooling_test_params{ CASE_POOLING_F32_7, 2, 2, 5, pooling_mode::max, "pooling_gpu_bsv16_fsv16" },
+    pooling_test_params{ CASE_POOLING_F32_8, 2, 2, 5, pooling_mode::average, "pooling_gpu_blocked" },
+    pooling_test_params{ CASE_POOLING_F32_8, 2, 2, 5, pooling_mode::max, "pooling_gpu_blocked" },
+    pooling_test_params{ CASE_POOLING_F32_9, 2, 2, 5, pooling_mode::average, "pooling_gpu_ref" },
+    pooling_test_params{ CASE_POOLING_F32_9, 2, 2, 5, pooling_mode::max, "pooling_gpu_ref" },
+    pooling_test_params{ CASE_POOLING_F32_10, 2, 2, 5, pooling_mode::average, "pooling_gpu_bsv16_fsv16" },
+    pooling_test_params{ CASE_POOLING_F32_10, 2, 2, 5, pooling_mode::max, "pooling_gpu_bsv16_fsv16" },
 
     // Input type: INT8
-    pooling_test_params{ CASE_POOLING_I8_5, 2, 3, 5, pooling_mode::average, "pooling_gpu_b_fs_yx_fsv4" },
-    pooling_test_params{ CASE_POOLING_I8_5, 2, 3, 5, pooling_mode::max, "pooling_gpu_b_fs_yx_fsv4" },
-    pooling_test_params{ CASE_POOLING_I8_6, 2, 3, 5, pooling_mode::average, "pooling_gpu_int8_ref" },
-    pooling_test_params{ CASE_POOLING_I8_6, 2, 3, 5, pooling_mode::max, "pooling_gpu_int8_ref" },
+    pooling_test_params{ CASE_POOLING_I8_5, 2, 2, 5, pooling_mode::average, "pooling_gpu_b_fs_yx_fsv4" },
+    pooling_test_params{ CASE_POOLING_I8_5, 2, 2, 5, pooling_mode::max, "pooling_gpu_b_fs_yx_fsv4" },
+    pooling_test_params{ CASE_POOLING_I8_6, 2, 2, 5, pooling_mode::average, "pooling_gpu_int8_ref" },
+    pooling_test_params{ CASE_POOLING_I8_6, 2, 2, 5, pooling_mode::max, "pooling_gpu_int8_ref" },
 
     // Input type: UINT8
-    pooling_test_params{ CASE_POOLING_U8_3, 2, 3, 5, pooling_mode::average, "pooling_gpu_int8_ref" },
-    pooling_test_params{ CASE_POOLING_U8_3, 2, 3, 5, pooling_mode::max, "pooling_gpu_int8_ref" },
-    pooling_test_params{ CASE_POOLING_U8_3, 2, 3, 5, pooling_mode::average, "pooling_gpu_b_fs_yx_fsv4" },
-    pooling_test_params{ CASE_POOLING_U8_3, 2, 3, 5, pooling_mode::max, "pooling_gpu_b_fs_yx_fsv4" },
-    pooling_test_params{ CASE_POOLING_U8_5, 2, 3, 5, pooling_mode::average, "pooling_gpu_int8_ref" },
-    pooling_test_params{ CASE_POOLING_U8_5, 2, 3, 5, pooling_mode::max, "pooling_gpu_int8_ref" },
-    pooling_test_params{ CASE_POOLING_U8_6, 2, 3, 5, pooling_mode::average, "pooling_gpu_int8_ref" },
-    pooling_test_params{ CASE_POOLING_U8_6, 2, 3, 5, pooling_mode::max, "pooling_gpu_int8_ref" },
+    pooling_test_params{ CASE_POOLING_U8_3, 2, 2, 5, pooling_mode::average, "pooling_gpu_int8_ref" },
+    pooling_test_params{ CASE_POOLING_U8_3, 2, 2, 5, pooling_mode::max, "pooling_gpu_int8_ref" },
+    pooling_test_params{ CASE_POOLING_U8_3, 2, 2, 5, pooling_mode::average, "pooling_gpu_b_fs_yx_fsv4" },
+    pooling_test_params{ CASE_POOLING_U8_3, 2, 2, 5, pooling_mode::max, "pooling_gpu_b_fs_yx_fsv4" },
+    pooling_test_params{ CASE_POOLING_U8_5, 2, 2, 5, pooling_mode::average, "pooling_gpu_int8_ref" },
+    pooling_test_params{ CASE_POOLING_U8_5, 2, 2, 5, pooling_mode::max, "pooling_gpu_int8_ref" },
+    pooling_test_params{ CASE_POOLING_U8_6, 2, 2, 5, pooling_mode::average, "pooling_gpu_int8_ref" },
+    pooling_test_params{ CASE_POOLING_U8_6, 2, 2, 5, pooling_mode::max, "pooling_gpu_int8_ref" },
 }));
 
 INSTANTIATE_TEST_SUITE_P(DISABLED_fusings_gpu, pooling_scale_activation_quantize, ::testing::ValuesIn(std::vector<pooling_test_params>{

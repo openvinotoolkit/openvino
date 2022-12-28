@@ -35,6 +35,8 @@ struct mvn_test_params {
 class MVNFusingTest : public ::BaseFusingTest<mvn_test_params> {
 public:
     void execute(mvn_test_params& p) {
+        if (engine.get_device_info().supports_immad)
+            p.expected_fused_primitives = p.expected_fused_primitives_onednn;
         auto input_prim = get_mem(get_input_layout(p));
 
         network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
@@ -211,30 +213,30 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, mvn_scale_activation_eltwise_fp32_quantize
     // mvn_test_params{ CASE_MVN_F16_2, 2, 7 },
     // mvn_test_params{ CASE_MVN_3D_F16_1, 2, 7 },
     // mvn_test_params{ CASE_MVN_3D_F16_2, 2, 7 },
-    mvn_test_params{ CASE_MVN_I8_1, 2, 3, 6 },
-    mvn_test_params{ CASE_MVN_I8_2, 2, 3, 6 },
-    mvn_test_params{ CASE_MVN_I8_3, 2, 3, 6 },
-    mvn_test_params{ CASE_MVN_I8_4, 2, 3, 6 },
-    mvn_test_params{ CASE_MVN_I8_5, 2, 3, 6 },
-    mvn_test_params{ CASE_MVN_I8_6, 2, 3, 6 },
-    mvn_test_params{ CASE_MVN_I8_7, 3, 3, 6 },
-    mvn_test_params{ CASE_MVN_3D_I8_1, 2, 3, 6 },
-    mvn_test_params{ CASE_MVN_3D_I8_2, 2, 3, 6 },
-    mvn_test_params{ CASE_MVN_3D_I8_3, 2, 3, 6 },
-    mvn_test_params{ CASE_MVN_3D_I8_4, 2, 3, 6 },
-    mvn_test_params{ CASE_MVN_3D_I8_5, 3, 3, 6 },
-    mvn_test_params{ CASE_MVN_U8_1, 2, 3, 6 },
-    mvn_test_params{ CASE_MVN_U8_2, 2, 3, 6 },
-    mvn_test_params{ CASE_MVN_U8_3, 2, 3, 6 },
-    mvn_test_params{ CASE_MVN_U8_4, 2, 3, 6 },
-    mvn_test_params{ CASE_MVN_U8_5, 2, 3, 6 },
-    mvn_test_params{ CASE_MVN_U8_6, 2, 3, 6 },
-    mvn_test_params{ CASE_MVN_U8_7, 3, 3, 6 },
-    mvn_test_params{ CASE_MVN_3D_U8_1, 2, 3, 6 },
-    mvn_test_params{ CASE_MVN_3D_U8_2, 2, 3, 6 },
-    mvn_test_params{ CASE_MVN_3D_U8_3, 2, 3, 6 },
-    mvn_test_params{ CASE_MVN_3D_U8_4, 2, 3, 6 },
-    mvn_test_params{ CASE_MVN_3D_U8_5, 3, 3, 6 },
+    mvn_test_params{ CASE_MVN_I8_1, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_I8_2, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_I8_3, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_I8_4, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_I8_5, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_I8_6, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_I8_7, 3, 4, 6 },
+    mvn_test_params{ CASE_MVN_3D_I8_1, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_3D_I8_2, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_3D_I8_3, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_3D_I8_4, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_3D_I8_5, 3, 4, 6 },
+    mvn_test_params{ CASE_MVN_U8_1, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_U8_2, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_U8_3, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_U8_4, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_U8_5, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_U8_6, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_U8_7, 3, 4, 6 },
+    mvn_test_params{ CASE_MVN_3D_U8_1, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_3D_U8_2, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_3D_U8_3, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_3D_U8_4, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_3D_U8_5, 3, 4, 6 },
 }));
 
 class mvn_eltwise : public MVNFusingTest {};

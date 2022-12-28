@@ -393,7 +393,7 @@ double default_tolerance(data_types dt) {
         return 1e-5;
     case data_types::i8:
     case data_types::u8:
-        return 1.;
+        return 1.5;
     default:
         IE_THROW() << "Unknown";
     }
