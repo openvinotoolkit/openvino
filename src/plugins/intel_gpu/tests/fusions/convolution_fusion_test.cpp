@@ -1611,8 +1611,8 @@ class conv_fp32_group_conv_eltwise_sum : public ConvEltwTest {};
 TEST_P(conv_fp32_group_conv_eltwise_sum, basic) {
     auto p = GetParam();
 
-    implementation_desc conv_impl = { format::bfyx, "convolution_gpu_bfyx_os_iyx_osv16", impl_types::ocl };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::bfyx, "convolution_gpu_bfyx_os_iyx_osv16", impl_types::ocl };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     create_topologies(
         input_layout("input", get_input_layout(p)),

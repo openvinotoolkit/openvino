@@ -622,7 +622,7 @@ InferRequestLegacy::InferRequestLegacy(InputsDataMap networkInputs, OutputsDataM
     IE_ASSERT(nullptr != execNetwork);
     streamExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(execNetwork->m_taskExecutor.get());
     m_context = std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>(execNetwork->GetContext());
-    OPENVINO_ASSERT(m_context != nullptr, "[GPU] Can't initialize context of InferRequest: wrong context type");
+    OPENVINO_ASSERT(m_context != nullptr, "[GPU] Can't initialize context of InferRequestLegacy: wrong context type");
 }
 
 InferRequestLegacy::InferRequestLegacy(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
@@ -632,7 +632,7 @@ InferRequestLegacy::InferRequestLegacy(const std::vector<std::shared_ptr<const o
     IE_ASSERT(nullptr != execNetwork);
     streamExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(execNetwork->m_taskExecutor.get());
     m_context = std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>(execNetwork->GetContext());
-    OPENVINO_ASSERT(m_context != nullptr, "[GPU] Can't initialize context of InferRequest: wrong context type");
+    OPENVINO_ASSERT(m_context != nullptr, "[GPU] Can't initialize context of InferRequestLegacy: wrong context type");
 }
 
 // ----------------------------------------------------------------------------------------- //
