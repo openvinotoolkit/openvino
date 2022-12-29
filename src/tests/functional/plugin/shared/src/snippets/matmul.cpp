@@ -14,14 +14,15 @@ namespace snippets {
 
 std::string MatMul::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MatMulParams> obj) {
     std::vector<ov::PartialShape> input_shapes;
-    ov::element::Type elem_type;
+    std::vector<ov::element::Type> elem_types;
     std::string targetDevice;
     size_t num_nodes, num_subgraphs;
-    std::tie(input_shapes, elem_type, num_nodes, num_subgraphs, targetDevice) = obj.param;
+    std::tie(input_shapes, elem_types, num_nodes, num_subgraphs, targetDevice) = obj.param;
     std::ostringstream result;
     for (size_t i = 0; i < input_shapes.size(); i++)
         result << "IS[" << i <<"]=" << CommonTestUtils::partialShape2str({input_shapes[i]}) << "_";
-    result << "T=" << elem_type << "_";
+    for (size_t i = 0; i < elem_types.size(); i++)
+        result << "T[" << i <<"]=" << elem_types[i] << "_";
     result << "#N=" << num_nodes << "_";
     result << "#S=" << num_subgraphs << "_";
     result << "targetDevice=" << targetDevice;
@@ -30,11 +31,25 @@ std::string MatMul::getTestCaseName(testing::TestParamInfo<ov::test::snippets::M
 
 void MatMul::SetUp() {
     std::vector<ov::PartialShape> input_shapes;
-    ov::element::Type elem_type;
-    std::tie(input_shapes, elem_type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    std::vector<ov::element::Type> elem_types;
+    std::tie(input_shapes, elem_types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
     init_input_shapes(static_partial_shapes_to_test_representation(input_shapes));
 
-    auto f = ov::test::snippets::MatMulFunction(input_shapes);
+    auto f = ov::test::snippets::MatMulFunction(input_shapes, elem_types);
+    function = f.getOriginal();
+    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
+        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
+                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    }
+}
+
+void MatMulFQ::SetUp() {
+    std::vector<ov::PartialShape> input_shapes;
+    std::vector<ov::element::Type> elem_types;
+    std::tie(input_shapes, elem_types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    init_input_shapes(static_partial_shapes_to_test_representation(input_shapes));
+
+    auto f = ov::test::snippets::FQMatMulFunction(input_shapes);
     function = f.getOriginal();
     if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
         configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
@@ -44,11 +59,11 @@ void MatMul::SetUp() {
 
 void MatMulBias::SetUp() {
     std::vector<ov::PartialShape> input_shapes;
-    ov::element::Type elem_type;
-    std::tie(input_shapes, elem_type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    std::vector<ov::element::Type> elem_types;
+    std::tie(input_shapes, elem_types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
     init_input_shapes(static_partial_shapes_to_test_representation(input_shapes));
 
-    auto f = ov::test::snippets::MatMulBiasFunction(input_shapes);
+    auto f = ov::test::snippets::MatMulBiasFunction(input_shapes, elem_types);
     function = f.getOriginal();
     if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
         configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
@@ -58,8 +73,8 @@ void MatMulBias::SetUp() {
 
 void ExplicitTransposeMatMul::SetUp() {
     std::vector<ov::PartialShape> input_shapes;
-    ov::element::Type elem_type;
-    std::tie(input_shapes, elem_type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    std::vector<ov::element::Type> elem_types;
+    std::tie(input_shapes, elem_types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
     init_input_shapes(static_partial_shapes_to_test_representation(input_shapes));
 
     auto f = ov::test::snippets::TransposeMatMulFunction(input_shapes);
@@ -72,8 +87,8 @@ void ExplicitTransposeMatMul::SetUp() {
 
 void ExplicitTransposeMatMulBias::SetUp() {
     std::vector<ov::PartialShape> input_shapes;
-    ov::element::Type elem_type;
-    std::tie(input_shapes, elem_type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    std::vector<ov::element::Type> elem_types;
+    std::tie(input_shapes, elem_types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
     init_input_shapes(static_partial_shapes_to_test_representation(input_shapes));
 
     auto f = ov::test::snippets::TransposeMatMulBiasFunction(input_shapes);
@@ -84,41 +99,32 @@ void ExplicitTransposeMatMulBias::SetUp() {
     }
 }
 
-void ExplicitTransposeMulMatMulBias::SetUp() {
-    std::vector<ov::PartialShape> input_shapes;
-    ov::element::Type elem_type;
-    std::tie(input_shapes, elem_type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(static_partial_shapes_to_test_representation(input_shapes));
-
-    auto f = ov::test::snippets::TransposeMulMatMulBiasFunction(input_shapes);
-    function = f.getOriginal();
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
-    }
+TEST_P(MatMul, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run();
+    validateNumSubgraphs();
 }
 
-TEST_P(MatMul, CompareWithRefImpl) {
+TEST_P(MatMulFQ, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();
 }
 
 TEST_P(MatMulBias, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();
 }
 
 TEST_P(ExplicitTransposeMatMul, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();
 }
 
 TEST_P(ExplicitTransposeMatMulBias, CompareWithRefImpl) {
-    run();
-    validateNumSubgraphs();
-}
-
-TEST_P(ExplicitTransposeMulMatMulBias, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();
 }

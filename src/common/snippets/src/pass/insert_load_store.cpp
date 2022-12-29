@@ -30,7 +30,7 @@ ngraph::snippets::pass::InsertLoad::InsertLoad(const size_t count) {
                     const auto& consumer_node = consumer.get_node();
                     if (ov::is_type<ngraph::snippets::op::Load>(consumer_node) ||
                         ov::is_type<ngraph::snippets::op::LoopBegin>(consumer_node) ||
-                        ov::is_type<ngraph::op::v0::MatMul>(consumer_node) ||
+                        ov::is_type<ngraph::snippets::op::Brgemm>(consumer_node) ||
                         ov::is_type<ngraph::op::v1::Transpose>(consumer_node)) {
                         return false;
                     }
@@ -67,7 +67,7 @@ ngraph::snippets::pass::InsertStore::InsertStore(const size_t count) {
                 const auto& parent_node = input.get_source_output().get_node();
                 if (ov::is_type<ngraph::snippets::op::Store>(parent_node) ||
                     ov::is_type<ngraph::snippets::op::LoopEnd>(parent_node) ||
-                    ov::is_type<ngraph::op::v0::MatMul>(parent_node)  ||
+                    ov::is_type<ngraph::snippets::op::Brgemm>(parent_node)  ||
                     ov::is_type<ngraph::op::v1::Transpose>(parent_node)) {
                     return false;
                 }

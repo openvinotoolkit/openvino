@@ -30,7 +30,9 @@ inline auto op_supports_only_exec_type(const std::shared_ptr<ov::Node>& n) -> bo
            !ov::is_type<ov::op::v1::Transpose>(n) &&
            !ov::is_type<ov::op::v0::Convert>(n) &&
            !ov::is_type<ov::op::v1::Broadcast>(n) &&
-           !ov::is_type<ov::op::v3::Broadcast>(n);
+           !ov::is_type<ov::op::v3::Broadcast>(n) &&
+           !ov::is_type<ov::op::v0::MatMul>(n) &&
+           !ov::is_type<ov::op::v1::Transpose>(n);
 }
 
 }  // namespace

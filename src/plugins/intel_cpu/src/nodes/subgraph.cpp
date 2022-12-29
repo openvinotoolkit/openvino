@@ -25,6 +25,7 @@
 #include "utils/cpu_utils.hpp"
 #include "snippets_transformations/fuse_load_store_and_convert.hpp"
 #include "snippets_transformations/mul_add_to_fma.hpp"
+#include "snippets_transformations/brgemm_to_brgemm_cpu.hpp"
 #include "ngraph_transformations/convert_to_swish_cpu.hpp"
 
 using namespace InferenceEngine;
@@ -532,6 +533,7 @@ void Snippet::generate(const jit_snippets_compile_args* jcp) {
     ov::pass::Manager optManager;
     optManager.register_pass<ov::intel_cpu::pass::FuseLoadConvert>();
     optManager.register_pass<ov::intel_cpu::pass::FuseStoreConvert>();
+    optManager.register_pass<ov::intel_cpu::pass::BrgemmToBrgemmCPU>();
     optManager.register_pass<ConvertToSwishCPU>();
     optManager.register_pass<ov::intel_cpu::pass::MulAddToFMA>();
 
@@ -550,6 +552,7 @@ void Snippet::generate(const jit_snippets_compile_args* jcp) {
                     return convert->get_input_element_type(0) != ov::element::f32;
                 return true;
             });
+
     schedule = snippet->generate(optManager, reinterpret_cast<const void*>(jcp));
 }
 

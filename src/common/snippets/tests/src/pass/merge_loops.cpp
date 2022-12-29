@@ -38,7 +38,7 @@ TEST(TransformationTests, UnaryEltwisesLoops) {
                 OutputVector{inner_loop_end_up->output(0), outer_loop_begin_up->output(1)}, shape[shape.size() - 2], 1,
                 std::vector<int64_t>{0, 0}, std::vector<int64_t>{0, 0});
 
-        auto buffer = std::make_shared<snippets::op::Buffer>(outer_loop_end_up);
+        auto buffer = std::make_shared<snippets::op::IntermediateBuffer>(outer_loop_end_up);
 
         auto outer_loop_begin_down = std::make_shared<snippets::op::LoopBegin>(OutputVector{buffer});
         auto inner_loop_begin_down = std::make_shared<snippets::op::LoopBegin>(OutputVector{outer_loop_begin_down});
@@ -108,7 +108,7 @@ TEST(TransformationTests, BinaryEltwisesLoops) {
                 OutputVector{inner_loop_end_up->output(0), outer_loop_begin_up->output(2)}, shape[shape.size() - 2], 1,
                 std::vector<int64_t>{0, 0, 0}, std::vector<int64_t>{0, 0, 0});
 
-        auto buffer = std::make_shared<snippets::op::Buffer>(outer_loop_end_up);
+        auto buffer = std::make_shared<snippets::op::IntermediateBuffer>(outer_loop_end_up);
 
         auto data2 = std::make_shared<opset1::Parameter>(element::f32, shape);
 

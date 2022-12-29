@@ -137,7 +137,10 @@ void insert_loops_explicitly(const ov::NodeVector& ops, const size_t vector_size
         // on LoopBegin to guarantee that the constants are executed inside the Loop.
         for (const auto& n : body) {
             if (auto c = std::dynamic_pointer_cast<ov::op::v0::Constant>(n)) {
-                c->add_control_dependency(inner_loop_begin);
+                // Except Constant Shape for Buffers
+                if (!ov::is_type<op::Buffer>(n->get_output_target_inputs(0).begin()->get_node())) {
+                    c->add_control_dependency(inner_loop_begin);
+                }
             }
         }
 
@@ -154,6 +157,8 @@ void insert_loops_explicitly(const ov::NodeVector& ops, const size_t vector_size
         if (ov::is_type<ov::op::v0::Parameter>(op) ||
             ov::is_type<ov::op::v0::Result>(op) ||
             ov::is_type<op::Buffer>(op))
+            return true;
+        if (ov::is_type<ov::op::v0::Constant>(op) && ov::is_type<op::Buffer>(op->get_output_target_inputs(0).begin()->get_node()))
             return true;
         auto& rt = op->get_rt_info();
         auto outside_rt = rt.find("outside_loop");

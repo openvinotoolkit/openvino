@@ -38,7 +38,8 @@ DummyTargetMachine::DummyTargetMachine(const std::vector<ov::Node::type_info_t>&
     jitters[ngraph::snippets::op::LoopBegin::get_type_info_static()] = dummy_functor;
     jitters[ngraph::snippets::op::LoopEnd::get_type_info_static()] = dummy_functor;
     jitters[ngraph::snippets::op::Brgemm::get_type_info_static()] = dummy_functor;
-    jitters[ngraph::snippets::op::Buffer::get_type_info_static()] = dummy_functor;
+    jitters[ngraph::snippets::op::IntermediateBuffer::get_type_info_static()] = dummy_functor;
+    jitters[ngraph::snippets::op::AllocationBuffer::get_type_info_static()] = dummy_functor;
     jitters[ngraph::snippets::op::VectorBuffer::get_type_info_static()] = dummy_functor;
     jitters[ngraph::snippets::op::Fill::get_type_info_static()] = dummy_functor;
 

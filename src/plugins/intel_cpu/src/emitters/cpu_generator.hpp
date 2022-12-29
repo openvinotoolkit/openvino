@@ -20,6 +20,9 @@ public:
     ngraph::snippets::code get_snippet() const override;
     size_t get_lanes() const override;
 
+protected:
+    opRegType get_specific_op_reg_type(const std::shared_ptr<ov::Node>& op) const override;
+
 private:
     std::unique_ptr<dnnl::impl::cpu::x64::jit_generator> h;
     dnnl::impl::cpu::x64::cpu_isa_t isa;

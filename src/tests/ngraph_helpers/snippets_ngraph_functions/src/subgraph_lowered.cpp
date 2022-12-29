@@ -107,8 +107,8 @@ std::shared_ptr<ov::Model> EltwiseThreeInputsLoweredFunction::initLowered() cons
 }
 
 std::shared_ptr<ov::Model> Transpose0213MatMulLoweredFunction::initLowered() const {
-    ParameterVector data{std::make_shared<op::v0::Parameter>(precision, input_shapes[0]),
-                         std::make_shared<op::v0::Parameter>(precision, input_shapes[1])};
+    ParameterVector data{std::make_shared<op::v0::Parameter>(precisions[0], input_shapes[0]),
+                         std::make_shared<op::v0::Parameter>(precisions[1], input_shapes[1])};
     std::vector<size_t> layout{0, 2, 1, 3};
     // Note: validity of transpose_position values is checked in Transpose0213MatMulSinhFunction constructor
     if (transpose_position <= 1) {
@@ -194,7 +194,8 @@ std::shared_ptr<ov::Model> SoftmaxLoweredFunction::initLowered() const {
     const auto horizon_sum = std::make_shared<ngraph::snippets::op::HorizonSum>(sum);
     horizon_sum->add_control_dependency(loop_sum_end);
 
-    const auto buffer_exp = std::make_shared<ngraph::snippets::op::Buffer>(loop_sum_end->output(0));
+    const auto size_exp = std::make_shared<ngraph::opset1::Constant>(ov::element::i32, ov::Shape{2});
+    const auto buffer_exp = std::make_shared<ngraph::snippets::op::IntermediateBuffer>(loop_sum_end->output(0), size_exp);
 
     loop_sum_begin->add_control_dependency(vector_buffer_sum);
     loop_sum_begin->add_control_dependency(horizon_max);
@@ -303,7 +304,8 @@ std::shared_ptr<ov::Model> AddSoftmaxLoweredFunction::initLowered() const {
 
     /* =========================================== */
 
-    const auto buffer_add = std::make_shared<ngraph::snippets::op::Buffer>(loop_max_end->output(0));
+    const auto size_add = std::make_shared<ngraph::opset1::Constant>(ov::element::i32, ov::Shape{2});
+    const auto buffer_add = std::make_shared<ngraph::snippets::op::IntermediateBuffer>(loop_max_end->output(0), size_add);
 
     /* === Sub + Exp + ReduceSum decomposition === */
 
@@ -331,7 +333,8 @@ std::shared_ptr<ov::Model> AddSoftmaxLoweredFunction::initLowered() const {
     const auto horizon_sum = std::make_shared<ngraph::snippets::op::HorizonSum>(sum);
     horizon_sum->add_control_dependency(loop_sum_end);
 
-    const auto buffer_exp = std::make_shared<ngraph::snippets::op::Buffer>(loop_sum_end->output(0));
+    const auto size_exp = std::make_shared<ngraph::opset1::Constant>(ov::element::i32, ov::Shape{2});
+    const auto buffer_exp = std::make_shared<ngraph::snippets::op::IntermediateBuffer>(loop_sum_end->output(0), size_exp);
 
     loop_sum_begin->add_control_dependency(vector_buffer_sum);
     loop_sum_begin->add_control_dependency(horizon_max);

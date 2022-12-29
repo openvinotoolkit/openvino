@@ -30,6 +30,9 @@ public:
     bool is_supported() const override { return true; }
     ngraph::snippets::code get_snippet() const override { return nullptr; }
     size_t get_lanes() const override { return 10; }
+
+protected:
+    opRegType get_specific_op_reg_type(const std::shared_ptr<ov::Node>& op) const override { return vec2vec; };
 };
 
 class DummyGenerator : public ngraph::snippets::Generator {

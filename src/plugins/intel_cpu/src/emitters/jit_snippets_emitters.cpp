@@ -6,9 +6,10 @@
 #include <cpu/x64/jit_generator.hpp>
 
 #include "jit_snippets_emitters.hpp"
-#include "snippets/op/brgemm.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/utils.hpp"
+#include "snippets_transformations/op/brgemm_copy_b.hpp"
+#include "snippets_transformations/op/brgemm_cpu.hpp"
 
 using namespace InferenceEngine;
 using ngraph::snippets::op::Subgraph;
@@ -68,7 +69,8 @@ void jit_container_emitter::map_abstract_registers(mapping_info& gpr_map_pool,  
                 //  where all utility emitters align with conventional Op emitters
                 if (std::dynamic_pointer_cast<LoopBeginEmitter>(emitter) ||
                     std::dynamic_pointer_cast<LoopEndEmitter>(emitter) ||
-                    std::dynamic_pointer_cast<BrgemmEmitter>(emitter))
+                    std::dynamic_pointer_cast<BrgemmEmitter>(emitter) ||
+                    std::dynamic_pointer_cast<BrgemmCopyBEmitter>(emitter))
                     in_physical_regs = map_regs(in_abstract_regs, gpr_map_pool);
                 else
                     in_physical_regs = std::move(in_abstract_regs);
@@ -182,7 +184,8 @@ KernelEmitter::KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
                                    // todo: how this will be handled if Brgemm in & out are op::Buffer
                                    // Brgemm is a special case since it incorporates input and output (we use onednn kernel)
                                    // Just like Load & Store it requires offsets calculation
-                                   const auto is_brgemm = std::dynamic_pointer_cast<BrgemmEmitter>(emitter) != nullptr;
+                                   const auto is_brgemm = std::dynamic_pointer_cast<BrgemmEmitter>(emitter) ||
+                                                          std::dynamic_pointer_cast<BrgemmCopyBEmitter>(emitter);
                                    return emitter_type == gpr_to_vec || emitter_type == vec_to_gpr || is_brgemm;
                            });
     // Note that we can't use reg_indexes_idx or reg_const_params_idx to store data pointers because these two
@@ -554,9 +557,6 @@ LoadEmitter::LoadEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu
         IE_THROW() << "LoadEmitter supports only equal input and output types but gets: " << src_prc.name() << " and " << dst_prc.name();
 
     const auto load = std::dynamic_pointer_cast<ngraph::snippets::op::Load>(n);
-    if (!load)
-        IE_THROW() << "LoadEmitter expects Load snippets op";
-
     count = load->get_count();
     byte_offset = load->get_offset();
     in_out_type_ = emitter_in_out_map::gpr_to_vec;
@@ -593,9 +593,6 @@ BroadcastLoadEmitter::BroadcastLoadEmitter(dnnl::impl::cpu::x64::jit_generator* 
         IE_THROW() << "BroadcastEmitters support only equal input and output types but gets: " << src_prc.name() << " and " << dst_prc.name();
 
     const auto broadcast_load = std::dynamic_pointer_cast<ngraph::snippets::op::BroadcastLoad>(n);
-    if (!broadcast_load)
-        IE_THROW() << "BroadcastLoadEmitter expects BroadcastLoad snippets op";
-
     byte_offset = broadcast_load->get_offset();
     in_out_type_ = emitter_in_out_map::gpr_to_vec;
 }
@@ -704,12 +701,15 @@ size_t BrgemmEmitter::getBrgIdx(size_t mIdx, size_t kIdx, size_t nIdx) const {
     return mIdx * 4 + kIdx * 2 + nIdx;
 }
 BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
-                                         const std::shared_ptr<ov::Node>& node) : jit_emitter(h, isa, node) {
+                             const std::shared_ptr<ov::Node>& node) : jit_emitter(h, isa, node) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
-    const auto& brgemm_node = as_type_ptr<ngraph::snippets::op::Brgemm>(node);
+    const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(node);
     if (brgemm_node->is_dynamic())
         IE_THROW() << "Snippets don't support code generation for dynamic Brgemm";
-    const OutputVector io_values {brgemm_node->input_value(0), brgemm_node->input_value(1), brgemm_node->output(0)};
+    const auto brgemm_copy = brgemm_node->get_brgemm_copy();
+    const OutputVector io_values {brgemm_node->input_value(0),
+                                  brgemm_copy ? brgemm_copy->input_value(0) : brgemm_node->input_value(1),
+                                  brgemm_node->output(0)};
     std::vector<size_t> leading_dimensions;
     std::vector<std::vector<size_t>> io_layouts;
     for (const auto& val : io_values) {
@@ -753,13 +753,16 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
     auto brg1Prc = InferenceEngine::details::convertPrecision(brgemm_node->get_input_element_type(1));
     io_data_size = {brg0Prc.size(), brg1Prc.size(), brgemm_node->get_output_element_type(0).size()};
     brg0VnniFactor = 4 / brg0Prc.size();
-    bool brg0WithAMX = isAMXSupported && brg0Prc != Precision::FP32 && (K % brg0VnniFactor == 0) && (N % brg0VnniFactor == 0);
+    bool brgWithAMX = isAMXSupported && brg0Prc != Precision::FP32 && (K % brg0VnniFactor == 0) && (N % brg0VnniFactor == 0);
 
-    N_blk = brg0Prc == Precision::FP32 ? N :
-             brg0Prc == Precision::BF16 ? 32 : 64;
+    with_scratch = brgemm_node->get_input_size() == 3;
+    with_comp = !brgWithAMX && brg0Prc == Precision::I8;
+
+    N_blk = brg1Prc == Precision::FP32 ? N :
+            brg1Prc == Precision::BF16 ? 32 : 64;
     N_tail = N % N_blk;
-    K_blk = brg0WithAMX ? brg0Prc == Precision::BF16 ? 32 : 64
-                         : K;
+    K_blk = brgWithAMX ? brg0Prc == Precision::BF16 ? 32 : 64
+                       : K;
     K_tail = K % K_blk;
 
     size_t brg0BaseIdx = -1;
@@ -778,7 +781,7 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
                 brgemmCtx.N = N_;
                 brgemmCtx.K = K_;
                 brgemmCtx.LDA = leading_dimensions[0];
-                brgemmCtx.LDB = leading_dimensions[1];
+                brgemmCtx.LDB = brg1Prc == Precision::FP32 ? leading_dimensions[1] : rnd_up(N, N_blk);
                 brgemmCtx.LDC = leading_dimensions[2];
                 brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg0Prc));
                 brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg1Prc));
@@ -788,7 +791,7 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
                 if (M_ != 0 && K_ != 0 && N_ != 0) {
                     if (brg0BaseIdx == -1)
                         brg0BaseIdx = getBrgIdx(m, k, n);
-                    initBrgemm(brgemmCtx, brgKernels0[getBrgIdx(m, k, n)], brg0WithAMX);
+                    initBrgemm(brgemmCtx, brgKernels0[getBrgIdx(m, k, n)], brgWithAMX);
                 }
             }
         }
@@ -797,13 +800,17 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
     load_offset_a = brgemm_node->get_offset_a();
     load_offset_b = brgemm_node->get_offset_b();
     store_offset_c = brgemm_node->get_offset_c();
+    if (with_scratch)
+        load_offset_scratch = brgemm_node->get_offset_scratch();
 }
 
 void BrgemmEmitter::initBrgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKernel, bool use_amx) const {
     brgemm_t brgDesc;
     brgemm_strides_t strides {static_cast<dnnl_dim_t>(ctx.M * ctx.K), static_cast<dnnl_dim_t>(ctx.K * ctx.N)};
-    // When implementing int8 support, note that isa logics is more complicated in the MHA node
-    auto status = brgemm_desc_init(&brgDesc, host_isa_, brgemm_strd, ctx.dt_in0, ctx.dt_in1,
+    const bool is_int8 = utils::one_of(ctx.dt_in0, data_type::u8, data_type::s8) && utils::one_of(ctx.dt_in1, data_type::u8, data_type::s8);
+    auto isa = use_amx ? isa_undef
+                       : ctx.dt_in0 == dnnl_data_type_t::dnnl_bf16 ? avx512_core_bf16 : (is_int8 ? avx512_core_vnni : avx512_core);
+    auto status = brgemm_desc_init(&brgDesc, isa, brgemm_strd, ctx.dt_in0, ctx.dt_in1,
                                    false, false, brgemm_row_major, 1.f, ctx.beta, ctx.LDA, ctx.LDB, ctx.LDC, ctx.M, ctx.N, ctx.K, &strides);
     if (status != dnnl_success)
         IE_THROW() << "BrgemmEmitter cannot initialize brgemm descriptor due to invalid params";
@@ -824,23 +831,93 @@ void BrgemmEmitter::initBrgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>&
 
 void BrgemmEmitter::emit_impl(const std::vector<size_t>& in,
                               const std::vector<size_t>& out) const {
-    if (host_isa_ == cpu::x64::sse41 || host_isa_ == cpu::x64::avx2) {
-        IE_THROW() << "BrgemmEmitter requires at least avx512_core instruction set";
-    } else if (host_isa_ == cpu::x64::avx512_core) {
-        emit_isa<cpu::x64::avx512_core>(in, out);
+    if (host_isa_ == cpu::x64::avx512_core) {
+        Reg64 input_0(static_cast<int>(in[0]));
+        Reg64 input_1(static_cast<int>(in[1]));
+        Reg64 input_2(static_cast<int>(0));  // scratch. Default reg index is 0 if there isn't scratch
+        if (with_scratch) {
+            if (in.size() != 3) {
+                IE_THROW() << "BRGEMM Emitter expects 3 inputs if there are compensations/wsp";
+            }
+            input_2 = Reg64(static_cast<int>(in[2]));
+        }
+        Reg64 output_0(static_cast<int>(out[0]));
+
+        for (size_t mb = 0; mb < div_up(M, M_blk); mb++) {
+            const bool is_M_tail = (M - mb * M_blk < M_blk);
+
+            size_t brgIdx0 = getBrgIdx(0, 0, 0);
+            size_t K0_step0 = brgCtxs0[brgIdx0].K;
+            size_t K0_step1 = brgCtxs0[brgIdx0].K * brgCtxs0[brgIdx0].LDB;
+            size_t N0_step0 = brgCtxs0[brgIdx0].N * brg0VnniFactor;
+            size_t N0_step1 = brgCtxs0[brgIdx0].N;
+            for (size_t n = 0; n < 2; n++) {
+                for (size_t k = 0; k < 2; k++) {
+                    size_t mIdx = is_M_tail ? 1 : 0;
+                    auto& brgemmCtx = brgCtxs0[getBrgIdx(mIdx, k, n)];
+
+                    if (brgemmCtx.K != 0 && brgemmCtx.N != 0) {
+                        const size_t in0_offset = load_offset_a + (k * K0_step0 + mb * M_blk * brgemmCtx.LDA) * io_data_size[0];
+                        const size_t in1_offset = load_offset_b + (k * K0_step1 + n * N0_step0) * io_data_size[1];
+                        const size_t in2_offset = load_offset_scratch + (with_comp ? n * N0_step1 * sizeof(int32_t) : 0);
+                        const size_t out0_offset = store_offset_c + (n * N0_step1 + mb * M_blk * brgemmCtx.LDC) * io_data_size[2];
+
+                        emit_brgemm_kernel_call(brgKernels0[getBrgIdx(mIdx, k, n)].get(),
+                                                brgemmCtx,
+                                                input_0,
+                                                input_1,
+                                                input_2,
+                                                output_0,
+                                                in0_offset,
+                                                in1_offset,
+                                                in2_offset,
+                                                out0_offset);
+                    }
+                }
+            }
+        }
     } else {
-        assert(!"unsupported isa");
+        IE_THROW() << "BrgemmEmitter requires at least avx512_core instruction set";
     }
 }
-template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-void BrgemmEmitter::emit_brgemm_kernel_call(const brgemm_kernel_t *brgKernel, int bs,
-                                            Reg64 addr_A, Reg64 addr_B,
-                                            const brgemm_batch_element_t *batch, Reg64 addr_C, void *scratch,
-                                            const size_t in0_kernel_offset, const size_t in1_kernel_offset, const size_t out0_kernel_offset) const {
-    using Vmm = typename dnnl::impl::utils::conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
+
+void BrgemmEmitter::emit_brgemm_kernel_call(const brgemm_kernel_t *brg_kernel, const brgemmCtx& ctx,
+                                            Reg64 addr_A, Reg64 addr_B, Reg64 scratch, Reg64 addr_C,
+                                            const size_t in0_kernel_offset, const size_t in1_kernel_offset,
+                                            const size_t in2_kernel_offset, const size_t out0_kernel_offset) const {
+    if (ctx.is_with_amx) {
+        size_t gpr_size = 8;
+        Xbyak::Operand gprs_to_save[] = {h->r8, h->r9, h->r10, h->r11, h->rax,
+                                         h->rcx, h->rdx, h->rdi, h->rsi, h->rbp, h->rbx};
+        size_t n_gprs_to_save = sizeof(gprs_to_save) / sizeof(gprs_to_save[0]);
+
+        h->sub(h->rsp, n_gprs_to_save * gpr_size);
+        for (size_t i = 0; i < n_gprs_to_save; ++i)
+            h->mov(h->ptr[h->rsp + i * gpr_size], gprs_to_save[i]);
+
+        // save function address in gpr to pass in call instruction
+        const auto& overload = static_cast<status_t(*)(const char*)>(amx_tile_configure);
+        h->mov(h->rbp, reinterpret_cast<uintptr_t>(overload));
+        h->mov(abi_param1, reinterpret_cast<uintptr_t>(ctx.palette));
+
+        // align stack on 16-byte as ABI requires
+        // note that RBX must not be changed by the callee
+        h->mov(h->rbx, h->rsp);
+        h->and_(h->rbx, 0xf);
+        h->sub(h->rsp, h->rbx);
+
+        h->call(h->rbp);
+
+        h->add(h->rsp, h->rbx);
+        // restore gpr registers
+        for (int i = n_gprs_to_save - 1; i >= 0; --i)
+            h->mov(gprs_to_save[i], h->ptr[h->rsp + i * gpr_size]);
+        h->add(h->rsp, n_gprs_to_save * gpr_size);
+    }
+
     size_t gpr_size = 8;
-    Xbyak::Operand gprs_to_save[] = {h->r8, h->r9, h->r10, h->r11, h->rax,
-                                     h->rcx, h->rdx, h->rdi, h->rsi, h->rbp, h->rbx};
+    Xbyak::Operand gprs_to_save[] = {h->r8, h->r9, h->r10, h->r11, h->r12, h->r13, h->r14, h->r15,
+                                     h->rax, h->rcx, h->rdx, h->rdi, h->rsi, h->rbp, h->rbx};
     size_t n_gprs_to_save = sizeof(gprs_to_save) / sizeof(gprs_to_save[0]);
 
     h->sub(h->rsp, n_gprs_to_save * gpr_size);
@@ -849,14 +926,12 @@ void BrgemmEmitter::emit_brgemm_kernel_call(const brgemm_kernel_t *brgKernel, in
 
     // caller obligation to save k-regs as callee may use them
     size_t n_k_regs_to_save = 8;
-    if (isa == cpu::x64::avx512_core) {
-        h->sub(h->rsp, n_k_regs_to_save * k_mask_size);
-        for (size_t i = 0; i < n_k_regs_to_save; ++i) {
-            if (mayiuse(avx512_core))
-                h->kmovq(h->ptr[h->rsp + i * k_mask_size], Opmask(static_cast<int>(i)));
-            else
-                h->kmovw(h->ptr[h->rsp + i * k_mask_size], Opmask(static_cast<int>(i)));
-        }
+    h->sub(h->rsp, n_k_regs_to_save * k_mask_size);
+    for (size_t i = 0; i < n_k_regs_to_save; ++i) {
+        if (mayiuse(avx512_core))
+            h->kmovq(h->ptr[h->rsp + i * k_mask_size], Opmask(static_cast<int>(i)));
+        else
+            h->kmovw(h->ptr[h->rsp + i * k_mask_size], Opmask(static_cast<int>(i)));
     }
 
     // 1. Caller obligation to save vector registers as callee may use them.
@@ -866,13 +941,16 @@ void BrgemmEmitter::emit_brgemm_kernel_call(const brgemm_kernel_t *brgKernel, in
     // `host_isa::vecs_count`.
     h->sub(h->rsp, get_max_vecs_count() * get_vec_length());
     for (size_t i = 0; i < get_max_vecs_count(); ++i)
-        h->uni_vmovups(h->ptr[h->rsp + i * get_vec_length()], Vmm(i));
+        h->uni_vmovups(h->ptr[h->rsp + i * get_vec_length()], Zmm(i));
 
+    size_t num_args_passed_on_stack = 0;
     // save function address in gpr to pass in call instruction
     const auto& brgemm_kernel_overload = static_cast<void (*)(const brgemm_kernel_t*,
                                                               const void*,
                                                               const void*,
-                                                              void*)>(kernel_execute);
+                                                              void*,
+                                                              void*,
+                                                              int)>(kernel_execute);
     h->mov(h->rbp, reinterpret_cast<uintptr_t>(brgemm_kernel_overload));
     // todo: several of addr_{A, B, C} could be also abi_paramX, so one of them could be corrupted
     //  if moving directly h->uni_vmovq(abi_paramX, adr_X). Save them to vector regs to avoid corruption.
@@ -880,15 +958,43 @@ void BrgemmEmitter::emit_brgemm_kernel_call(const brgemm_kernel_t *brgKernel, in
     h->uni_vmovq(Xmm(0), addr_A);
     h->uni_vmovq(Xmm(1), addr_B);
     h->uni_vmovq(Xmm(2), addr_C);
-
+    if (with_scratch)
+        h->uni_vmovq(Xmm(3), scratch);
+    // todo: Windows ABI : requires different num of arguments passed in regs and on the stack. Need to align.
     const auto data_ptr_reg = [&](Xmm xmm, Xbyak::Reg64 reg, size_t bytes_offset) {
         h->uni_vmovq(reg, xmm);
         if (bytes_offset) h->add(reg, bytes_offset);
     };
-    h->mov(abi_param1, reinterpret_cast<uintptr_t>(brgKernel));
+    h->mov(abi_param1, reinterpret_cast<uintptr_t>(brg_kernel));
     data_ptr_reg(Xmm(0), abi_param2, in0_kernel_offset);
     data_ptr_reg(Xmm(1), abi_param3, in1_kernel_offset);
     data_ptr_reg(Xmm(2), abi_param4, out0_kernel_offset);
+
+#ifdef _WIN32
+    // Before function call we should allocate stack area for
+    //  - register parameters - ABI parameters (shadow space)
+    //  - stack parameters - remaining parameters
+    num_args_passed_on_stack = 6;  // count of function brgemm_kernel_overload() parameters
+    size_t abi_param_count = sizeof(abi_param_regs) / sizeof(abi_param_regs[0]);
+    h->sub(h->rsp, num_args_passed_on_stack * gpr_size);
+
+    // Push the remaining parameters on the stack
+    if (with_scratch) {
+        h->uni_vmovq(h->qword[h->rsp + (abi_param_count + 0) * gpr_size], Xmm(3));
+        if (in2_kernel_offset) h->add(h->qword[h->rsp + (abi_param_count + 0) * gpr_size], in2_kernel_offset);
+    } else {
+        h->mov(h->qword[h->rsp + (abi_param_count + 0) * gpr_size], reinterpret_cast<uintptr_t>(nullptr));
+    }
+    h->mov(abi_not_param1, static_cast<int>(with_comp));
+    h->mov(h->qword[h->rsp + (abi_param_count + 1) * gpr_size], abi_not_param1);
+#else
+    if (with_scratch) {
+        data_ptr_reg(Xmm(3), abi_param5, in2_kernel_offset);
+    } else {
+        h->mov(abi_param5, reinterpret_cast<uintptr_t>(nullptr));
+    }
+    h->mov(abi_param6, static_cast<int>(with_comp));
+#endif
 
     // align stack on 16-byte as ABI requires
     // note that RBX must not be changed by the callee
@@ -899,22 +1005,22 @@ void BrgemmEmitter::emit_brgemm_kernel_call(const brgemm_kernel_t *brgKernel, in
     h->call(h->rbp);
 
     h->add(h->rsp, h->rbx);
+    if (num_args_passed_on_stack > 0)
+        h->add(h->rsp, num_args_passed_on_stack * gpr_size);
     // restore vector registers
     for (int i = static_cast<int>(get_max_vecs_count()) - 1; i >= 0; --i) {
-        h->uni_vmovups(Vmm(i), h->ptr[h->rsp + i * get_vec_length()]);
+        h->uni_vmovups(Zmm(i), h->ptr[h->rsp + i * get_vec_length()]);
     }
     h->add(h->rsp, (get_max_vecs_count()) * get_vec_length());
 
     // restore k registers
-    if (isa == cpu::x64::avx512_core) {
-        for (int i = n_k_regs_to_save - 1; i >= 0; --i) {
-            if (mayiuse(avx512_core))
-                h->kmovq(Opmask(i), h->ptr[h->rsp + i * k_mask_size]);
-            else
-                h->kmovw(Opmask(i), h->ptr[h->rsp + i * k_mask_size]);
-        }
-        h->add(h->rsp, n_k_regs_to_save * k_mask_size);
+    for (int i = n_k_regs_to_save - 1; i >= 0; --i) {
+        if (mayiuse(avx512_core))
+            h->kmovq(Opmask(i), h->ptr[h->rsp + i * k_mask_size]);
+        else
+            h->kmovw(Opmask(i), h->ptr[h->rsp + i * k_mask_size]);
     }
+    h->add(h->rsp, n_k_regs_to_save * k_mask_size);
 
     // restore gpr registers
     for (int i = n_gprs_to_save - 1; i >= 0; --i)
@@ -922,9 +1028,8 @@ void BrgemmEmitter::emit_brgemm_kernel_call(const brgemm_kernel_t *brgKernel, in
     h->add(h->rsp, n_gprs_to_save * gpr_size);
 }
 
-void BrgemmEmitter::kernel_execute(const brgemm_kernel_t *brg_kernel, const void *A, const void *B, void *C) {
-    // TODO: There are 4 available abi_params on Windows so we have the copy of brgemm_kernel_execute() function
-    //       with 4 runtime parameters (kernel and I/O) and 4 default parameter values (batch, bs and scratch)
+void BrgemmEmitter::kernel_execute(const brgemm_kernel_t *brg_kernel,
+                                   const void *A, const void *B, void *C, void *scratch, int with_comp) {
     brgemm_kernel_params_t brgemm_p;
 
     brgemm_p.batch = nullptr;  // default value
@@ -932,54 +1037,267 @@ void BrgemmEmitter::kernel_execute(const brgemm_kernel_t *brg_kernel, const void
     brgemm_p.ptr_B = B;
     brgemm_p.ptr_C = C;
     brgemm_p.ptr_D = C;
-    brgemm_p.ptr_buf = nullptr;  // default value
+    brgemm_p.ptr_buf = scratch;
     brgemm_p.ptr_bias = nullptr;
-    brgemm_p.do_post_ops = 0;
-    brgemm_p.do_apply_comp = 0;
+    brgemm_p.do_post_ops = with_comp;
+    brgemm_p.do_apply_comp = with_comp;
     brgemm_p.skip_accm = 0;
     brgemm_p.BS = 1;  // default value
     assert(brg_kernel);
     (*brg_kernel)(&brgemm_p);
 }
 
-template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-void BrgemmEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
-    Reg64 input_0(static_cast<int>(in[0]));
-    Reg64 input_1(static_cast<int>(in[1]));
-    Reg64 output_0(static_cast<int>(out[0]));
+BrgemmCopyBEmitter::BrgemmCopyBEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
+    : jit_emitter(h, isa, n) {
+    in_out_type_ = emitter_in_out_map::gpr_to_gpr;
+    const auto brgemm_repack = ov::as_type_ptr<ov::intel_cpu::BrgemmCopyB>(n);
+    if (!brgemm_repack)
+        IE_THROW() << "BrgemmCopyBEmitters expects BrgemmCopyB node";
 
-    for (size_t mb = 0; mb < div_up(M, M_blk); mb++) {
-        const bool is_M_tail = (M - mb * M_blk < M_blk);
+    brgemm_prc_in0 = brgemm_repack->get_src_element_type();
+    brgemm_prc_in1 = brgemm_repack->get_input_element_type(0);
+    brgemmVNNIFactor = 4 / brgemm_prc_in0.size();
+    with_comp = brgemm_repack->is_with_comp();
+    in_offset = brgemm_repack->get_offset_in();
+    out_offset = brgemm_repack->get_offset_out();
+    if (with_comp)
+        comp_offset = brgemm_repack->get_offset_comp();
 
-        size_t brgIdx0 = getBrgIdx(0, 0, 0);
-        size_t K0_step0 = brgCtxs0[brgIdx0].K;
-        size_t K0_step1 = brgCtxs0[brgIdx0].K * brgCtxs0[brgIdx0].LDB;
-        size_t N0_step0 = brgCtxs0[brgIdx0].N * brg0VnniFactor;
-        size_t N0_step1 = brgCtxs0[brgIdx0].N;
-        for (size_t n = 0; n < 2; n++) {
-            for (size_t k = 0; k < 2; k++) {
-                size_t mIdx = is_M_tail ? 1 : 0;
-                auto& brgemmCtx = brgCtxs0[getBrgIdx(mIdx, k, n)];
-
-                if (brgemmCtx.K != 0 && brgemmCtx.N != 0) {
-                    const size_t in0_offset = load_offset_a + (k * K0_step0 + mb * M_blk * brgemmCtx.LDA) * io_data_size[0];
-                    const size_t in1_offset = load_offset_b + (k * K0_step1 + n * N0_step0) * io_data_size[1];
-                    const size_t out0_offset = store_offset_c + (n * N0_step1 + mb * M_blk * brgemmCtx.LDC) * io_data_size[2];
-
-                    emit_brgemm_kernel_call<isa>(brgKernels0[getBrgIdx(mIdx, k, n)].get(),
-                                                 1,
-                                                 input_0,
-                                                 input_1,
-                                                 nullptr,
-                                                 output_0,
-                                                 nullptr,
-                                                 in0_offset,
-                                                 in1_offset,
-                                                 out0_offset);
-                }
-            }
+    auto layout = ngraph::snippets::utils::get_node_output_layout(brgemm_repack->get_input_node_shared_ptr(0));
+    const auto& original_shape = brgemm_repack->get_input_shape(0);
+    auto transposed_shape = original_shape;
+    size_t leading_dimension = *(original_shape.rbegin());
+    if (!layout.empty()) {
+        transposed_shape.resize(layout.size(), 1);
+        for (size_t i = 0; i < layout.size(); ++i) {
+            transposed_shape[i] = original_shape[layout[i]];
         }
+        // The idea here is to find "2" (for 4D shapes) in the layout and multiply dimensions that are to the right
+        // This implies that "3" is the last layout value, otherwise this layout is not supported.
+        // counting from the end since shape could be prepended with ones
+        const int64_t num_last_dims = layout.end() - std::find(layout.begin(), layout.end(), layout.size() - 2) - 1;
+        if (layout.back() != layout.size() - 1 || num_last_dims < 1)
+            IE_THROW() << "BrgemmRepackEmitter detected invalid layout values: " <<
+                       "check that this shape + layout combination is schedulable";
+        leading_dimension = std::accumulate(original_shape.end() - num_last_dims, original_shape.end(), 1, std::multiplies<size_t>());
     }
+
+    N = *(transposed_shape.rbegin());
+    K = *(transposed_shape.rbegin() + 1);
+
+    const bool isAMXSupported = mayiuse(avx512_core_amx);
+    const auto use_amx = isAMXSupported && brgemm_prc_in0 != ov::element::f32 && (K % brgemmVNNIFactor == 0) && (N % brgemmVNNIFactor == 0);
+
+    N_blk = brgemm_prc_in1 == ov::element::f32 ? N :
+            brgemm_prc_in1 == ov::element::bf16 ? 32 : 64;
+    K_blk = use_amx ? brgemm_prc_in0 == ov::element::bf16 ? 32 : 64
+                    : K;
+    N_tail = N % N_blk;
+    K_tail = K % K_blk;
+    LDB = brgemm_prc_in1 == ov::element::f32 ? leading_dimension : rnd_up(N, N_blk);
+
+    const auto dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(InferenceEngine::details::convertPrecision(brgemm_prc_in0)));
+    const auto dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(InferenceEngine::details::convertPrecision(brgemm_prc_in1)));
+    init_brgemm_copy(kernel, leading_dimension, N_blk, N_tail, LDB, K - K_tail, use_amx, dt_in0, dt_in1);
+}
+
+void BrgemmCopyBEmitter::init_brgemm_copy(std::unique_ptr<matmul::jit_brgemm_matmul_copy_b_t>& kernel,
+                                            size_t N, size_t N_blk, size_t N_tail, size_t LDB, size_t K,
+                                            bool is_with_amx, dnnl_data_type_t dt_in0, dnnl_data_type_t dt_in1) const {
+    matmul::brgemm_matmul_conf_t brgCopyKernelConf;
+    brgCopyKernelConf.src_dt = dt_in0;
+    brgCopyKernelConf.wei_dt = dt_in1;
+    brgCopyKernelConf.wei_n_blk = N_blk;
+    brgCopyKernelConf.wei_tag = dnnl_abcd;  // What's about other ranks?
+    brgCopyKernelConf.copy_B_wei_stride = 0;
+    brgCopyKernelConf.LDB = LDB;
+    brgCopyKernelConf.N = N;
+    brgCopyKernelConf.N_tail = N_tail;
+    brgCopyKernelConf.N_blk = N_blk;
+    brgCopyKernelConf.K = K;
+    brgCopyKernelConf.K_blk = K;
+    brgCopyKernelConf.N_chunk_elems = brgCopyKernelConf.N_blk;
+    brgCopyKernelConf.b_dt_sz = DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(brgCopyKernelConf.src_dt));
+    brgCopyKernelConf.tr_b_dt_sz = DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(brgCopyKernelConf.src_dt));
+    brgCopyKernelConf.req_wei_vnni_downconvert = false;
+
+    if (is_with_amx) {
+        brgCopyKernelConf.isa = avx512_core_amx;
+        brgCopyKernelConf.s8s8_compensation_required = false;
+    } else {
+        brgCopyKernelConf.isa = dt_in0 == dnnl_data_type_t::dnnl_bf16 ? avx512_core_bf16 : avx512_core_vnni;
+        brgCopyKernelConf.s8s8_compensation_required = dt_in0 == dnnl_data_type_t::dnnl_s8;
+    }
+
+    brgCopyKernelConf.has_zero_point_a = false;
+    brgCopyKernelConf.has_zero_point_b = false;
+    brgCopyKernelConf.src_zp_type = dnnl::impl::cpu::x64::none;
+
+    auto status = matmul::create_brgemm_matmul_copy_b(kernel, &brgCopyKernelConf);
+    if (status != dnnl_success)
+        IE_THROW() << "BrgemmRepackEmitter cannot create kernel due to invalid params";
+}
+
+void BrgemmCopyBEmitter::emit_impl(const std::vector<size_t>& in,
+                                   const std::vector<size_t>& out) const {
+    if (host_isa_ == cpu::x64::avx512_core) {
+        Reg64 src(static_cast<int>(in[0]));
+        Reg64 dst(static_cast<int>(out[0]));
+        Reg64 comp(static_cast<int>(0));  // Compensations. Default reg idx is 0 if there aren't the compensations
+        if (with_comp) {
+            if (out.size() != 2) {
+                IE_THROW() << "BrgemmCopyBEmitter with compensations requires separate register for them";
+            }
+            comp = Reg64(static_cast<int>(out[1]));
+        }
+
+        const size_t data_size = brgemm_prc_in1.size();
+        for (size_t nb = 0; nb < div_up(N, N_blk); nb++) {
+            const size_t offset_in = in_offset + nb * N_blk * data_size;
+            const size_t offset_out = out_offset + nb * N_blk * brgemmVNNIFactor * data_size;
+            const size_t offset_comp = with_comp ? comp_offset + nb * N_blk * sizeof(int32_t) : 0;
+
+            const bool is_N_tail = (N - nb * N_blk < N_blk);
+            const auto current_N_blk = is_N_tail ? N_tail : N_blk;
+
+            emit_kernel_call(kernel.get(), src, dst, comp, current_N_blk, K, offset_in, offset_out, offset_comp);
+        }
+    } else {
+        IE_THROW() << "BrgemmCopyBEmitter requires at least avx512_core instruction set";
+    }
+}
+
+void BrgemmCopyBEmitter::emit_kernel_call(const matmul::jit_brgemm_matmul_copy_b_t* kernel, Reg64 src, Reg64 dst, Reg64 comp,
+                                            size_t N, size_t K, size_t offset_in, size_t offset_out, size_t offset_comp) const {
+    size_t gpr_size = 8;
+    Xbyak::Operand gprs_to_save[] = {h->r8, h->r9, h->r10, h->r11, h->r12, h->r13, h->r14, h->r15,
+                                     h->rax, h->rcx, h->rdx, h->rdi, h->rsi, h->rbp, h->rbx};
+    size_t n_gprs_to_save = sizeof(gprs_to_save) / sizeof(gprs_to_save[0]);
+
+    h->sub(h->rsp, n_gprs_to_save * gpr_size);
+    for (size_t i = 0; i < n_gprs_to_save; ++i)
+        h->mov(h->ptr[h->rsp + i * gpr_size], gprs_to_save[i]);
+
+    // caller obligation to save k-regs as callee may use them
+    size_t n_k_regs_to_save = 8;
+    h->sub(h->rsp, n_k_regs_to_save * k_mask_size);
+    for (size_t i = 0; i < n_k_regs_to_save; ++i) {
+        if (mayiuse(avx512_core))
+            h->kmovq(h->ptr[h->rsp + i * k_mask_size], Opmask(static_cast<int>(i)));
+        else
+            h->kmovw(h->ptr[h->rsp + i * k_mask_size], Opmask(static_cast<int>(i)));
+    }
+
+    // 1. Caller obligation to save vector registers as callee may use them.
+    // 2. There is an implicit assumption that the host code uses the same
+    // `isa` as the injector. Once the assumption is wrong, `vecs_count` and
+    // `vlen` should be replaced with `host_isa::vlen` and
+    // `host_isa::vecs_count`.
+    h->sub(h->rsp, get_max_vecs_count() * get_vec_length());
+    for (size_t i = 0; i < get_max_vecs_count(); ++i)
+        h->uni_vmovups(h->ptr[h->rsp + i * get_vec_length()], Zmm(i));
+
+    const auto data_ptr = [&](Xmm xmm, Xbyak::Reg64 reg, size_t bytes_offset) {
+        h->uni_vmovq(reg, xmm);
+        if (bytes_offset) h->add(reg, bytes_offset);
+    };
+#ifdef _WIN32
+    const auto push_value = [&](size_t value, size_t index) {
+        // Firstly we need to move integer to GPR. Then we can move value from GPR to stack
+        h->mov(abi_not_param1, value);
+        h->mov(h->qword[h->rsp + index * gpr_size], abi_not_param1);
+    };
+#endif
+
+    size_t num_args_passed_on_stack = 0;
+    // save function address in gpr to pass in call instruction
+    const auto &kernel_overload = static_cast<void (*)(matmul::jit_brgemm_matmul_copy_b_t*,
+                                                       const void*,
+                                                       const void*,
+                                                       const void*,
+                                                       size_t,
+                                                       size_t)>(execute);
+    h->mov(h->rbp, reinterpret_cast<uintptr_t>(kernel_overload));
+    // todo: several of addr_{A, B, C} could be also abi_paramX, so one of them could be corrupted
+    //  if moving directly h->uni_vmovq(abi_paramX, adr_X). Save them to vector regs to avoid corruption.
+    //  It's likely that a more efficient solution exists.
+    h->uni_vmovq(Xmm(0), src);
+    h->uni_vmovq(Xmm(1), dst);
+    if (with_comp)
+        h->uni_vmovq(Xmm(2), comp);
+    // todo: Windows ABI : requires different num of arguments passed in regs and on the stack. Need to align.
+    h->mov(abi_param1, reinterpret_cast<uintptr_t>(kernel));
+
+    data_ptr(Xmm(0), abi_param2, offset_in);
+    data_ptr(Xmm(1), abi_param3, offset_out);
+    if (with_comp) {
+        data_ptr(Xmm(2), abi_param4, offset_comp);
+    } else {
+        h->mov(abi_param4, reinterpret_cast<uintptr_t>(nullptr));
+    }
+
+#ifdef _WIN32
+    // Before function call we should allocate stack area for
+    //  - register parameters - ABI parameters (shadow space)
+    //  - stack parameters - remaining parameters
+    num_args_passed_on_stack = 6;  // count of function kernel_overload() parameters
+    size_t abi_param_count = sizeof(abi_param_regs) / sizeof(abi_param_regs[0]);
+
+    h->sub(h->rsp, num_args_passed_on_stack * gpr_size);
+    push_value(N, abi_param_count + 0);
+    push_value(K, abi_param_count + 1);
+#else
+    h->mov(abi_param5, N);
+    h->mov(abi_param6, K);
+#endif
+    // align stack on 16-byte as ABI requires
+    // note that RBX must not be changed by the callee
+    h->mov(h->rbx, h->rsp);
+    h->and_(h->rbx, 0xf);
+    h->sub(h->rsp, h->rbx);
+
+    h->call(h->rbp);
+
+    h->add(h->rsp, h->rbx);
+    if (num_args_passed_on_stack > 0)
+        h->add(h->rsp, gpr_size * num_args_passed_on_stack);
+    // restore vector registers
+    for (int i = static_cast<int>(get_max_vecs_count()) - 1; i >= 0; --i) {
+        h->uni_vmovups(Zmm(i), h->ptr[h->rsp + i * get_vec_length()]);
+    }
+    h->add(h->rsp, (get_max_vecs_count()) * get_vec_length());
+
+    // restore k registers
+    for (int i = n_k_regs_to_save - 1; i >= 0; --i) {
+        if (mayiuse(avx512_core))
+            h->kmovq(Opmask(i), h->ptr[h->rsp + i * k_mask_size]);
+        else
+            h->kmovw(Opmask(i), h->ptr[h->rsp + i * k_mask_size]);
+    }
+    h->add(h->rsp, n_k_regs_to_save * k_mask_size);
+
+    // restore gpr registers
+    for (int i = n_gprs_to_save - 1; i >= 0; --i)
+        h->mov(gprs_to_save[i], h->ptr[h->rsp + i * gpr_size]);
+    h->add(h->rsp, n_gprs_to_save * gpr_size);
+}
+
+void BrgemmCopyBEmitter::execute(matmul::jit_brgemm_matmul_copy_b_t *kernel, const void *src,
+                                 const void *dst, const void *comp, size_t N, size_t K) {
+    if (!kernel)
+        IE_THROW() << "Kernel for `brgemm_copy_b` hasn't been created";
+
+    auto ctx = dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t::ctx_t();
+    ctx.current_N_blk = N;
+    ctx.src = src;
+    ctx.tr_src = dst;
+    ctx.compensation_ptr = comp;
+    ctx.zp_a_compensation_ptr = nullptr;
+    ctx.zp_a_neg_value_ptr = nullptr;
+    ctx.current_K_start = 0;
+    ctx.current_K_iters = K;
+
+    (*kernel)(&ctx);
 }
 
 HorizonMaxEmitter::HorizonMaxEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n) :

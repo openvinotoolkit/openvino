@@ -56,7 +56,7 @@ auto can_be_merged(const std::shared_ptr<ngraph::snippets::op::LoopEnd>& loop_en
 
 auto get_buffer_and_loop_end(const std::shared_ptr<ngraph::snippets::op::LoopBegin>& loop_begin_down,
                              std::shared_ptr<ngraph::snippets::op::LoopEnd>& loop_end_up,
-                             std::shared_ptr<ngraph::snippets::op::Buffer>& buffer) -> bool {
+                             std::shared_ptr<ngraph::snippets::op::IntermediateBuffer>& buffer) -> bool {
     size_t fusion_input_num = 0;
     for (const auto& parent : loop_begin_down->input_values()) {
         const auto parent_shared = parent.get_node_shared_ptr();
@@ -70,10 +70,9 @@ auto get_buffer_and_loop_end(const std::shared_ptr<ngraph::snippets::op::LoopBeg
             continue;
 
         loop_end_up = ngraph::as_type_ptr<ngraph::snippets::op::LoopEnd>(parent_shared);
-        buffer = ov::as_type_ptr<ngraph::snippets::op::Buffer>(parent_shared);
+        buffer = ov::as_type_ptr<ngraph::snippets::op::IntermediateBuffer>(parent_shared);
         if (buffer) {
             if (buffer->output(0).get_target_inputs().size() == 0 ||
-                buffer->get_input_size() != 1 ||
                 buffer->get_input_source_output(0).get_target_inputs().size() != 1)
                 return false;
 
@@ -87,7 +86,7 @@ auto get_buffer_and_loop_end(const std::shared_ptr<ngraph::snippets::op::LoopBeg
 }
 
 auto collect_loop_inputs(const std::shared_ptr<ngraph::snippets::op::LoopBegin>& loop_begin,
-                         const std::shared_ptr<ngraph::snippets::op::Buffer>& buffer,
+                         const std::shared_ptr<ngraph::snippets::op::IntermediateBuffer>& buffer,
                          std::vector<Edge>& new_loop_inputs,
                          std::vector<int64_t>& new_ptr_increments,
                          std::vector<int64_t>& new_finalization_offsets) -> void {
@@ -110,7 +109,7 @@ auto collect_loop_inputs(const std::shared_ptr<ngraph::snippets::op::LoopBegin>&
 }
 
 auto collect_loop_outputs(const std::shared_ptr<ngraph::snippets::op::LoopEnd>& loop_end,
-                          const std::shared_ptr<ngraph::snippets::op::Buffer>& buffer,
+                          const std::shared_ptr<ngraph::snippets::op::IntermediateBuffer>& buffer,
                           std::vector<Edge>& new_loop_outputs,
                           std::vector<int64_t>& new_ptr_increments,
                           std::vector<int64_t>& new_finalization_offsets,
@@ -163,7 +162,7 @@ bool ngraph::snippets::pass::LoopFusion::Merge(const std::shared_ptr<op::LoopBeg
     }
 
     std::shared_ptr<ngraph::snippets::op::LoopEnd> loop_end_up = nullptr;
-    std::shared_ptr<ngraph::snippets::op::Buffer> buffer = nullptr;
+    std::shared_ptr<ngraph::snippets::op::IntermediateBuffer> buffer = nullptr;
     // Initialize the corresponding upper LoopEnd and Buffer
     if (!get_buffer_and_loop_end(loop_begin_down, loop_end_up, buffer)) {
         return false;

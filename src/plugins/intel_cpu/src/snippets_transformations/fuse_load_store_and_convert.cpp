@@ -10,7 +10,6 @@
 #include "snippets_transformations/op/load_convert.hpp"
 #include "snippets_transformations/op/store_convert.hpp"
 
-#include "ngraph/opsets/opset1.hpp"
 #include "ngraph/rt_info.hpp"
 #include "ngraph/pattern/op/wrap_type.hpp"
 
@@ -81,6 +80,7 @@ ov::intel_cpu::pass::FuseStoreConvert::FuseStoreConvert() {
         const auto store = std::dynamic_pointer_cast<ngraph::snippets::op::Store>(pm.at(store_pattern).get_node_shared_ptr());
         if (!store)
             return false;
+        const auto desc = store->get_output_port_descriptor(0);
 
         const auto convert = pm.at(convert_pattern).get_node_shared_ptr();
         if (convert->output(0).get_target_inputs().size() != 1 || transformation_callback(convert))
@@ -91,17 +91,16 @@ ov::intel_cpu::pass::FuseStoreConvert::FuseStoreConvert() {
                 std::dynamic_pointer_cast<ngraph::snippets::op::ConvertSaturation>(convert)) {
             store_convert = std::make_shared<ov::intel_cpu::StoreConvertSaturation>(input,
                                                                                     convert_saturation->get_destination_type(),
-                                                                                    store->get_count(), store->get_offset());
+                                                                                    desc.m_count, desc.m_offset);
         } else if (const auto convert_truncation =
                 std::dynamic_pointer_cast<ngraph::snippets::op::ConvertTruncation>(convert)) {
             store_convert = std::make_shared<ov::intel_cpu::StoreConvertTruncation>(input,
                                                                                     convert_truncation->get_destination_type(),
-                                                                                    store->get_count(), store->get_offset());
+                                                                                    desc.m_count, desc.m_offset);
         } else {
             throw ngraph::ngraph_error(
                 "Type of Convert op is undefined. Supports only fusing Store and ConvertTruncation or ConvertSaturation ops");
         }
-
 
         if (!store_convert)
             return false;

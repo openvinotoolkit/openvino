@@ -6,6 +6,8 @@
 
 #include <ngraph/pass/pass.hpp>
 
+#include "snippets/generator.hpp"
+
 namespace ngraph {
 namespace snippets {
 namespace pass {
@@ -18,10 +20,13 @@ namespace pass {
  */
 class AssignRegisters : public ngraph::pass::FunctionPass {
 public:
-    explicit AssignRegisters() {
+    explicit AssignRegisters(const std::shared_ptr<const TargetMachine>& target_machine) : m_target_machine(target_machine) {
         set_property(ngraph::pass::PassProperty::REQUIRE_STATIC_SHAPE, true);
     }
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
+
+private:
+    std::shared_ptr<const TargetMachine> m_target_machine = nullptr;
 };
 
 }  // namespace pass
