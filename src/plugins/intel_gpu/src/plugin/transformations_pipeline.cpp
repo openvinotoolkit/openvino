@@ -240,7 +240,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // disable conversion to legacy and use the new mixed precision
         // in which precision sensitive nodes are kept in FP32
         pass_config->disable<ov::pass::ConvertCompressedOnlyToLegacy>();
-        pass_config->disable<ov::pass::ConvertCompressedToMixedPrecision>();
+        pass_config->enable<ov::pass::ConvertCompressedToMixedPrecision>();
 
         // SpaceToDepth/DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
         pass_config->set_callback<ngraph::pass::ConvertSpaceToDepth,
