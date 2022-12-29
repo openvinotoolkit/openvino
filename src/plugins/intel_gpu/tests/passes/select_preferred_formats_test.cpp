@@ -41,6 +41,8 @@ TEST(test_select_preferred_formats, setting_target_conv_format) {
     layout_optimizer lo(true);
     auto prog = program::build_program(engine, topology, build, false, true);
 
+    // It initializes output_layout.
+    // It's necessary because this test runs select_preferred_formats pass alone.
     prog->get_node("conv1").get_output_layouts(false);
     program_wrapper::apply_opt_pass<select_preferred_formats>(*prog, lo);
 
