@@ -16,6 +16,7 @@ public:
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
+    DeviceFeaturesKey get_required_device_features_key(const Params& params, const optional_params& /*options*/) const override;
 
 protected:
     JitConstants GetJitConstants(const softmax_params& params, DispatchData dispatchData) const override;

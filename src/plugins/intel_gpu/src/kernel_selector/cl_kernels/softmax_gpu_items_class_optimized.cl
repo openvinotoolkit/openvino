@@ -4,11 +4,10 @@
 
 #include "include/batch_headers/common.cl"
 
-
 #define DATA_PER_WORKITEM ( (INPUT0_CLASS_NUM + (WORKITEMS_PER_CLASSES - 1) ) / WORKITEMS_PER_CLASSES)
 #define FULL_ITERATIONS_NUM (INPUT0_CLASS_NUM / WORKITEMS_PER_CLASSES)
 
-__attribute__((intel_reqd_sub_group_size(16)))
+REQD_SUB_GROUP_SIZE(16)
 KERNEL(softmax_items_class_optimized)(
     __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output
