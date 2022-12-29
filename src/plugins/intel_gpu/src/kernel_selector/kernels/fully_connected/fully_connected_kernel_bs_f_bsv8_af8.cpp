@@ -19,7 +19,13 @@ ParamsKey FullyConnected_bs_f_bsv8_af8::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
-    k.EnableSubGroup();
+    return k;
+}
+
+DeviceFeaturesKey FullyConnected_bs_f_bsv8_af8::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_shuffle();
+
     return k;
 }
 
@@ -63,7 +69,7 @@ bool FullyConnected_bs_f_bsv8_af8::Validate(const Params& p, const optional_para
     const auto& params = static_cast<const fully_connected_params&>(p);
     const auto& optParams = static_cast<const fully_connected_optional_params&>(o);
 
-    if (!params.engineInfo.bSubGroupShortSupport && params.inputs[0].GetDType() == Datatype::F16) {
+    if (!params.engineInfo.supports_intel_subgroups_short && params.inputs[0].GetDType() == Datatype::F16) {
         return false;
     }
 
