@@ -15,7 +15,7 @@ class TestExp(PytorchLayerTest):
             return (np.array(start).astype(dtype), np.array(end).astype(dtype))
         return (np.array(start).astype(dtype), np.array(end).astype(dtype), np.array(step).astype(dtype))
 
-    def create_model(self, dtype, num_inputs):
+    def create_model(self, dtype, num_inputs, use_out=False):
         import torch
 
         dtype_map = {
@@ -26,46 +26,72 @@ class TestExp(PytorchLayerTest):
             "uint8": torch.uint8,
             "int8": torch.int8
         }
-        class aten_arange_end(torch.nn.Module):
+        class aten_arange_end_dtype(torch.nn.Module):
             def __init__(self, dtype) -> None:
-                super(aten_arange_end, self).__init__()
+                super(aten_arange_end_dtype, self).__init__()
                 self.dtype = dtype
 
             def forward(self, x:int):
                 return torch.arange(x, dtype=self.dtype)
 
-        class aten_arange_start_end(torch.nn.Module):
+        class aten_arange_start_end_dtype(torch.nn.Module):
             def __init__(self, dtype) -> None:
-                super(aten_arange_start_end, self).__init__()
+                super(aten_arange_start_end_dtype, self).__init__()
                 self.dtype = dtype
 
             def forward(self, x:float, y:float):
                 return torch.arange(start=x, end=y, dtype=self.dtype)
 
-        class aten_arange_start_end_step(torch.nn.Module):
+        class aten_arange_start_end_step_dtype(torch.nn.Module):
             def __init__(self, dtype) -> None:
-                super(aten_arange_start_end_step, self).__init__()
+                super(aten_arange_start_end_step_dtype, self).__init__()
                 self.dtype = dtype
 
             def forward(self, x:float, y:float, z:float):
                 return torch.arange(start=x, end=y, step=z, dtype=self.dtype)
+
+        class aten_arange_end_out(torch.nn.Module):
+            def __init__(self, dtype) -> None:
+                super(aten_arange_end_out, self).__init__()
+                self.dtype = dtype
+
+            def forward(self, x:int):
+                return torch.arange(x, out=torch.zeros(1, dtype=self.dtype))
+
+        class aten_arange_start_end_out(torch.nn.Module):
+            def __init__(self, out) -> None:
+                super(aten_arange_start_end_out, self).__init__()
+                self.out = out
+
+            def forward(self, x:float, y:float):
+                return torch.arange(start=x, end=y, out=self.out)
+
+        class aten_arange_start_end_step_out(torch.nn.Module):
+            def __init__(self, out) -> None:
+                super(aten_arange_start_end_step_out, self).__init__()
+                self.out = out
+
+            def forward(self, x:float, y:float, z:float):
+                return torch.arange(start=x, end=y, step=z, out=self.out)
         model_classes = {
-            1: aten_arange_end,
-            2: aten_arange_start_end,
-            3: aten_arange_start_end_step
+            1: (aten_arange_end_dtype, aten_arange_end_out),
+            2: (aten_arange_start_end_dtype, aten_arange_start_end_out),
+            3: (aten_arange_start_end_step_dtype, aten_arange_start_end_step_out)
         }
         dtype = dtype_map.get(dtype)
-        model_class = model_classes[num_inputs]
+        model_class = model_classes[num_inputs][0](dtype) if not use_out or dtype is None else model_classes[num_inputs][1](dtype)
+        print(model_class)
 
         ref_net = None
 
-        return model_class(dtype), ref_net, "aten::arange"
+        return model_class, ref_net, "aten::arange"
 
     @pytest.mark.nightly
     @pytest.mark.parametrize("dtype", [None, "float32", "float64", "int32", "int64", "int8", "uin8"])
     @pytest.mark.parametrize("end", [1, 2, 3])
-    def test_arange_end_only(self, dtype, end, ie_device, precision, ir_version):
-        self._test(*self.create_model(dtype, 1), ie_device, precision, ir_version, kwargs_to_prepare_input={"end": end})
+    @pytest.mark.parametrize("use_out", [True, False])
+    def test_arange_end_only(self, dtype, end, use_out, ie_device, precision, ir_version):
+        self._test(*self.create_model(dtype, 1, use_out), ie_device, precision, ir_version, kwargs_to_prepare_input={"end": end})
 
     @pytest.mark.nightly
     @pytest.mark.parametrize("dtype", [None, "float32", "float64", "int32", "int64", "int8"])

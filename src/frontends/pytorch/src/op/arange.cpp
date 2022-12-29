@@ -21,6 +21,10 @@ OutputVector translate_arange(NodeContext& context) {
     if (num_inputs == 2) {
         auto end = context.get_input(0);
         auto range = context.mark_node(std::make_shared<opset8::Range>(zero, end, one, dtype));
+        if (!context.input_is_none(1)) {
+            auto out_tensor = context.get_input(1);
+            return {context.mark_node(std::make_shared<opset8::ConvertLike>(range, out_tensor))};
+        }
         return {context.mark_node(std::make_shared<opset8::ConvertLike>(range, end))};
     }
     // # aten::arange(Scalar start, Scalar end, Scalar step, Tensor out)
@@ -29,6 +33,10 @@ OutputVector translate_arange(NodeContext& context) {
         auto end = context.get_input(1);
         auto step = context.get_input(2);
         auto range = context.mark_node(std::make_shared<opset8::Range>(start, end, step, dtype));
+        if (!context.input_is_none(3)) {
+            auto out_tensor = context.get_input(3);
+            return {context.mark_node(std::make_shared<opset8::ConvertLike>(range, out_tensor))};
+        }
         return {context.mark_node(std::make_shared<opset8::ConvertLike>(range, end))};
     }
     // aten::arange(Scalar end, ScalarType dtype, Layout, Device, bool pin_memory)
