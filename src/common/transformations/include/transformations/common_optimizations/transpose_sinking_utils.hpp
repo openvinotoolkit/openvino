@@ -96,4 +96,15 @@ ov::NodeVector InsertTransposeBeforeNode(std::shared_ptr<ov::Node> main_node,
 
 void UpdateForwardSinkingAbility(std::shared_ptr<ov::Node>);
 
+/**
+ *  @brief Checks if @arg has consumers that all are the same transpose operation. If no consumers at all
+ *  returns false.
+ */
+bool HasSameOutputTransposeNodes(std::shared_ptr<ov::Node>);
+
+/**
+ * Removes all direct node consumers
+ */
+void RemoveConsumers(std::shared_ptr<ov::Node>);
+
 }  // namespace transpose_sinking

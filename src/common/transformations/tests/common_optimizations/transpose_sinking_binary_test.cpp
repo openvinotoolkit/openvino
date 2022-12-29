@@ -265,10 +265,10 @@ public:
             obj.param;
 
         std::ostringstream test_name;
-        test_name << "binary_factory=" << binary_factory->getTypeName() << "_";
-        test_name << "pass_factory=" << pass_factory->getTypeName() << "_";
-        test_name << "num_binary_ops=" << num_binary_ops << "_";
-        test_name << "input_type=" << input_type;
+        test_name << "binaryFactory=" << binary_factory->getTypeName() << "/";
+        test_name << "passFactory=" << pass_factory->getTypeName() << "/";
+        test_name << "numBinaryOps=" << num_binary_ops << "/";
+        test_name << "inputType=" << input_type;
 
         return test_name.str();
     }
@@ -391,11 +391,11 @@ public:
                  binary_transpose_input_idx) = obj.param;
 
         std::ostringstream test_name;
-        test_name << "binary_factory=" << binary_factory->getTypeName() << "_";
-        test_name << "pass_factory=" << pass_factory->getTypeName() << "_";
-        test_name << "num_binary_ops=" << num_binary_ops << "_";
-        test_name << "input_type=" << input_type << "_";
-        test_name << "binary_transpose_input_idx=" << binary_transpose_input_idx;
+        test_name << "binaryFactory=" << binary_factory->getTypeName() << "/";
+        test_name << "passFactory=" << pass_factory->getTypeName() << "/";
+        test_name << "numBinaryOps=" << num_binary_ops << "/";
+        test_name << "inputType=" << input_type << "/";
+        test_name << "binaryTransposeInputIdx=" << binary_transpose_input_idx;
 
         return test_name.str();
     }
@@ -486,12 +486,12 @@ public:
                  binary_transpose_input_idx) = obj.param;
 
         std::ostringstream test_name;
-        test_name << "binary_factory=" << binary_factory->getTypeName() << "_";
-        test_name << "pass_factory=" << pass_factory->getTypeName() << "_";
-        test_name << "input_shape=" << to_string(input_shape) << "_";
-        test_name << "constant_shape=" << to_string(constant_shape) << "_";
-        test_name << "input_type=" << input_type << "_";
-        test_name << "binary_transpose_input_idx=" << binary_transpose_input_idx;
+        test_name << "binaryFactory=" << binary_factory->getTypeName() << "/";
+        test_name << "passFactory=" << pass_factory->getTypeName() << "/";
+        test_name << "inputShape=" << to_string(input_shape) << "/";
+        test_name << "constantShape=" << to_string(constant_shape) << "/";
+        test_name << "inputType=" << input_type << "/";
+        test_name << "binaryTransposeInputIdx=" << binary_transpose_input_idx;
 
         return test_name.str();
     }
@@ -906,6 +906,7 @@ std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
     return std::make_shared<Model>(ov::OutputVector{transpose0, tanh}, ov::ParameterVector{X});
 }
 
+#if 0
 std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
                                                element::Type input_type,
                                                size_t binary_transpose_input_idx) {
@@ -940,6 +941,7 @@ std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
 
     return std::make_shared<Model>(ov::OutputVector{binary1, tanh1}, ov::ParameterVector{X});
 }
+#endif
 
 }  // namespace one_binary
 
@@ -972,6 +974,7 @@ std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
     return std::make_shared<Model>(ov::OutputVector{transpose0, tanh}, ov::ParameterVector{X});
 }
 
+#if 0
 std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
                                                element::Type input_type,
                                                size_t binary_transpose_input_idx) {
@@ -1011,6 +1014,7 @@ std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
 
     return std::make_shared<Model>(ov::OutputVector{in_op, tanh1}, ov::ParameterVector{X});
 }
+#endif
 
 }  // namespace multiple_binaries
 
@@ -1164,11 +1168,11 @@ public:
         std::tie(binary_factory, pass_factory, function_desc, input_type, binary_transpose_input_idx) = obj.param;
 
         std::ostringstream test_name;
-        test_name << "binary_factory=" << binary_factory->getTypeName() << "_";
-        test_name << "pass_factory=" << pass_factory->getTypeName() << "_";
-        test_name << function_desc.subtest_name << "_";
-        test_name << "input_type=" << input_type << "_";
-        test_name << "binary_transpose_input_idx=" << binary_transpose_input_idx;
+        test_name << "binaryFactory=" << binary_factory->getTypeName() << "/";
+        test_name << "passFactory=" << pass_factory->getTypeName() << "/";
+        test_name << function_desc.subtest_name << "/";
+        test_name << "inputType=" << input_type << "/";
+        test_name << "binaryTransposeInputIdx=" << binary_transpose_input_idx;
 
         return test_name.str();
     }
@@ -1192,17 +1196,16 @@ TEST_P(TransposeBinaryMultiSinkingFixture, CompareFunctions) {
     CreateGraphFunctionDesc(nmspace::CreateFunction, nmspace::CreateReferenceFunction, subtest_name)
 
 std::vector<CreateGraphFunctionDesc> forward_subtests = {
-    SUBTEST(forward::input_transpose_consumers, "forward_input_transpose_consumers"),
-    SUBTEST(forward::output_consumers::one_binary, "forward_output_consumers"),
-    SUBTEST(forward::input_node_consumers, "forward_input_node_consumers")};
+    SUBTEST(forward::input_transpose_consumers, "forwardInputTransposeConsumers"),
+    SUBTEST(forward::output_consumers::one_binary, "forwardOutputConsumers"),
+    SUBTEST(forward::input_node_consumers, "forwardInputNodeConsumers")};
 
 std::vector<CreateGraphFunctionDesc> backward_subtests = {
-    SUBTEST(backward::output_consumers::one_binary, "backward_output_consumers_one_binary"),
-    SUBTEST(backward::output_consumers::multiple_binaries, "backward_output_consumers_multiple_binaries"),
-    SUBTEST(backward::input_node_consumers, "backward_input_node_consumers"),
-    SUBTEST(backward::output_transpose_mult_consumers, "backward_output_transpose_mult_consumers")};
+    SUBTEST(backward::input_node_consumers, "backwardInputNodeConsumers"),
+    SUBTEST(backward::output_transpose_mult_consumers, "backwardOutputTransposeMultConsumers")};
 
 #undef SUBTEST
+
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingBinaryForwardMultiConsumersTestSuite,
                          TransposeBinaryMultiSinkingFixture,
@@ -1221,6 +1224,84 @@ INSTANTIATE_TEST_SUITE_P(TransposeSinkingBinaryBackwardMultiConsumersTestSuite,
                                             ::testing::Values(element::f32),
                                             ::testing::ValuesIn(binary_transpose_input_indexes)),
                          TransposeBinaryMultiSinkingFixture::get_test_name);
+
+namespace no_sinking {
+
+struct CreateGraphFunctionDesc {
+    CreateGraphFunctionDesc() = default;
+    CreateGraphFunctionDesc(CreateGraphF a_model_factory,
+                            std::string a_subtest_name)
+        : model_factory(a_model_factory),
+          subtest_name(a_subtest_name) {}
+    CreateGraphF model_factory;
+    std::string subtest_name;
+};
+
+using TestBinaryParams = std::tuple<BinaryFactoryPtr,
+                                    PassFactoryPtr,
+                                    CreateGraphFunctionDesc,
+                                    element::Type, /* input type */
+                                    size_t>;       /*binary_transpose_input_idx*/
+
+class TransposeBinaryMultiSinkingBinaryMultiConsumersFixture : public ::testing::WithParamInterface<TestBinaryParams>,
+                                           public TransformationTestsF {
+public:
+    static std::string get_test_name(const testing::TestParamInfo<TestBinaryParams>& obj) {
+        BinaryFactoryPtr binary_factory;
+        PassFactoryPtr pass_factory;
+        CreateGraphFunctionDesc function_desc;
+        element::Type input_type;
+        size_t binary_transpose_input_idx;
+
+        std::tie(binary_factory, pass_factory, function_desc, input_type, binary_transpose_input_idx) = obj.param;
+
+        std::ostringstream test_name;
+        test_name << "binaryFactory=" << binary_factory->getTypeName() << "/";
+        test_name << "passFactory=" << pass_factory->getTypeName() << "/";
+        test_name << function_desc.subtest_name << "/";
+        test_name << "inputType=" << input_type << "/";
+        test_name << "binaryTransposeInputIdx=" << binary_transpose_input_idx;
+
+        return test_name.str();
+    }
+};
+
+TEST_P(TransposeBinaryMultiSinkingBinaryMultiConsumersFixture, CompareFunctions) {
+    BinaryFactoryPtr binary_factory;
+    PassFactoryPtr pass_factory;
+    CreateGraphFunctionDesc function_desc;
+    element::Type input_type;
+    size_t binary_transpose_input_idx;
+
+    std::tie(binary_factory, pass_factory, function_desc, input_type, binary_transpose_input_idx) = this->GetParam();
+
+    model = function_desc.model_factory(binary_factory, input_type, binary_transpose_input_idx);
+    model_ref = model->clone();
+    //model_ref = function_desc.model_factory(binary_factory, input_type, binary_transpose_input_idx);
+    pass_factory->registerPass(manager);
+}
+
+#define SUBTEST(nmspace, subtest_name) \
+    CreateGraphFunctionDesc(nmspace::CreateFunction, subtest_name)
+
+std::vector<CreateGraphFunctionDesc> backward_subtests_binary_consumers = {
+    SUBTEST(backward::output_consumers::one_binary, "backwardOutputConsumersOneBinary"),
+    SUBTEST(backward::output_consumers::multiple_binaries, "backwardOutputConsumersMultipleBinaries"),
+};
+#undef SUBTEST
+
+
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingBinaryBackwardBinaryMultiConsumersTestSuite,
+                         TransposeBinaryMultiSinkingBinaryMultiConsumersFixture,
+                         ::testing::Combine(::testing::ValuesIn(binary_factories),
+                                            ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingBinaryBackward)),
+                                            ::testing::ValuesIn(backward_subtests_binary_consumers),
+                                            ::testing::Values(element::f32),
+                                            ::testing::ValuesIn(binary_transpose_input_indexes)),
+                         TransposeBinaryMultiSinkingBinaryMultiConsumersFixture::get_test_name);
+
+} // namespace no_sinking
+
 }  // namespace mult_consumers
 
 }  // namespace transpose_sinking_binary_eltwise

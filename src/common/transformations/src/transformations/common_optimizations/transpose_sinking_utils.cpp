@@ -294,4 +294,81 @@ void UpdateForwardSinkingAbility(NodePtr node) {
         mark_as_no_sinking_node(node);
 }
 
+namespace {
+
+std::shared_ptr<Constant> GetTransposeConstant(Input<Node> input) {
+    auto transpose_node = dynamic_cast<Transpose*>(input.get_node());
+    if (!transpose_node)
+        return {};
+
+    auto constant_node = as_type_ptr<Constant>(transpose_node->input_value(1).get_node_shared_ptr());
+    if (!constant_node)
+        return {};
+
+    return constant_node;
+}
+
+std::shared_ptr<Constant> GetTransposeConstant(Node* node) {
+    auto transpose_node = dynamic_cast<Transpose*>(node);
+    if (!transpose_node)
+        return {};
+
+    auto constant_node = as_type_ptr<Constant>(transpose_node->input_value(1).get_node_shared_ptr());
+    if (!constant_node)
+        return {};
+
+    return constant_node;
+}
+
+Node* FindFirstConsumer(NodePtr node) {
+    for (size_t output_idx = 0; output_idx < node->get_output_size(); ++output_idx) {
+        auto inputs = node->get_output_target_inputs(output_idx);
+        if (inputs.empty())
+            continue;
+        return inputs.begin()->get_node();
+    }
+    return nullptr;
+}
+
+}  // namespace
+
+bool HasSameOutputTransposeNodes(NodePtr main_node) {
+    AxisVector first_transpose_axis_order;
+    {
+        Node* first_consumer = FindFirstConsumer(main_node);
+        if (!first_consumer)
+            return false;
+        auto constant_node = GetTransposeConstant(first_consumer);
+        if (!constant_node)
+            return false;
+        first_transpose_axis_order = constant_node->get_axis_vector_val();
+    }
+
+    for (size_t output_idx = 0; output_idx < main_node->get_output_size(); ++output_idx) {
+        for (auto& input : main_node->get_output_target_inputs(output_idx)) {
+            auto constant_node = GetTransposeConstant(input);
+            if (!constant_node)
+                return false;
+
+            AxisVector transpose_axis_order = constant_node->get_axis_vector_val();
+            if (transpose_axis_order.size() != first_transpose_axis_order.size())
+                return false;
+            if (!std::equal(transpose_axis_order.begin(),
+                            transpose_axis_order.end(),
+                            first_transpose_axis_order.begin()))
+                return false;
+        }
+    }
+
+    return true;
+}
+
+void RemoveConsumers(NodePtr node) {
+    for (size_t output_idx = 0; output_idx < node->get_output_size(); ++output_idx) {
+        for (auto& input : node->get_output_target_inputs(output_idx)) {
+            input.get_node()->output(0).replace(node->output(output_idx));
+        }
+    }
+}
+
 }  // namespace transpose_sinking

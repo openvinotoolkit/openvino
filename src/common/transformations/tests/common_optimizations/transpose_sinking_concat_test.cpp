@@ -329,11 +329,11 @@ public:
                  num_concat_inputs) = obj.param;
 
         std::ostringstream test_name;
-        test_name << "pass_factory=" << pass_factory->getTypeName() << "_";
-        test_name << "num_concat_ops=" << num_concat_ops << "_";
-        test_name << "concat_transpose_input_idx=" << concat_transpose_input_idx << "_";
-        test_name << "num_concat_inputs=" << num_concat_inputs << "_";
-        test_name << "input_type=" << input_type;
+        test_name << "passFactory=" << pass_factory->getTypeName() << "/";
+        test_name << "numConcatOps=" << num_concat_ops << "/";
+        test_name << "concatTransposeInputIdx=" << concat_transpose_input_idx << "/";
+        test_name << "numConcatInputs=" << num_concat_inputs << "/";
+        test_name << "inputType=" << input_type;
 
         return test_name.str();
     }
@@ -412,10 +412,10 @@ public:
             obj.param;
 
         std::ostringstream test_name;
-        test_name << "pass_factory=" << pass_factory->getTypeName() << "_";
-        test_name << "num_concat_ops=" << num_concat_ops << "_";
-        test_name << "num_concat_inputs=" << num_concat_inputs << "_";
-        test_name << "input_type=" << input_type;
+        test_name << "passFactory=" << pass_factory->getTypeName() << "/";
+        test_name << "numConcatOps=" << num_concat_ops << "/";
+        test_name << "numConcatInputs=" << num_concat_inputs << "/";
+        test_name << "inputType=" << input_type;
 
         return test_name.str();
     }
@@ -672,7 +672,7 @@ std::shared_ptr<Model> CreateFunction(size_t num_concat_ops,
 
     return std::make_shared<Model>(ov::OutputVector{transpose0, tanh}, ov::ParameterVector{X});
 }
-
+#if 0
 std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
                                                element::Type input_type,
                                                size_t concat_transpose_input_idx,
@@ -707,7 +707,7 @@ std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
 
     return std::make_shared<Model>(ov::OutputVector{concat1, tanh1}, ov::ParameterVector{X});
 }
-
+#endif
 }  // namespace one_binary
 
 namespace multiple_binaries {
@@ -737,7 +737,7 @@ std::shared_ptr<Model> CreateFunction(size_t num_concat_ops,
 
     return std::make_shared<Model>(ov::OutputVector{transpose0, tanh}, ov::ParameterVector{X});
 }
-
+#if 0
 std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
                                                element::Type input_type,
                                                size_t concat_transpose_input_idx,
@@ -773,7 +773,7 @@ std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
 
     return std::make_shared<Model>(ov::OutputVector{concat, tanh1}, ov::ParameterVector{X});
 }
-
+#endif
 }  // namespace multiple_binaries
 
 }  // namespace output_consumers
@@ -900,10 +900,10 @@ using CreateGraphF = std::function<std::shared_ptr<Model>(size_t num_concat_ops,
 struct CreateGraphFunctionDesc {
     CreateGraphFunctionDesc() = default;
     CreateGraphFunctionDesc(CreateGraphF a_model_factory,
-                            CreateGraphF a_reference_model_factory,
+                            CreateGraphF a_ref_model_factory,
                             std::string a_subtest_name)
         : model_factory(a_model_factory),
-          reference_model_factory(a_reference_model_factory),
+          reference_model_factory(a_ref_model_factory),
           subtest_name(a_subtest_name) {}
     CreateGraphF model_factory;
     CreateGraphF reference_model_factory;
@@ -936,12 +936,12 @@ public:
                  num_concat_inputs) = obj.param;
 
         std::ostringstream test_name;
-        test_name << "pass_factory=" << pass_factory->getTypeName() << "_";
-        test_name << "function_desc=" << function_desc.subtest_name << "_";
-        test_name << "num_concat_ops=" << num_concat_ops << "_";
-        test_name << "concat_transpose_input_idx=" << concat_transpose_input_idx << "_";
-        test_name << "num_concat_inputs=" << num_concat_inputs << "_";
-        test_name << "input_type=" << input_type;
+        test_name << "passFactory=" << pass_factory->getTypeName() << "/";
+        test_name << "functionDesc=" << function_desc.subtest_name << "/";
+        test_name << "numConcatOps=" << num_concat_ops << "/";
+        test_name << "concatTransposeInputIdx=" << concat_transpose_input_idx << "/";
+        test_name << "numConcatInputs=" << num_concat_inputs << "/";
+        test_name << "inputType=" << input_type;
 
         return test_name.str();
     }
@@ -970,15 +970,13 @@ TEST_P(TransposeConcatMultiSinkingFixture, CompareFunctions) {
     CreateGraphFunctionDesc(nmspace::CreateFunction, nmspace::CreateReferenceFunction, subtest_name)
 
 std::vector<CreateGraphFunctionDesc> forward_subtests = {
-    SUBTEST(forward::input_transpose_consumers, "forward_input_transpose_consumers"),
-    SUBTEST(forward::output_consumers, "forward_output_consumers"),
-    SUBTEST(forward::input_node_consumers, "forward_input_node_consumers")};
+    SUBTEST(forward::input_transpose_consumers, "forwardInputTransposeConsumers"),
+    SUBTEST(forward::output_consumers, "forwardOutputConsumers"),
+    SUBTEST(forward::input_node_consumers, "forwardInputNodeConsumers")};
 
 std::vector<CreateGraphFunctionDesc> backward_subtests = {
-    SUBTEST(backward::output_consumers::one_binary, "backward_output_consumers_one_binary"),
-    SUBTEST(backward::output_consumers::multiple_binaries, "backward_output_consumers_multiple_binaries"),
-    SUBTEST(backward::input_node_consumers, "backward_input_node_consumers"),
-    SUBTEST(backward::output_transpose_mult_consumers, "backward_output_transpose_mult_consumers")};
+    SUBTEST(backward::input_node_consumers, "backwardInputNodeConsumers"),
+    SUBTEST(backward::output_transpose_mult_consumers, "backwardOutputTransposeMultConsumers")};
 
 #undef SUBTEST
 
@@ -1001,5 +999,91 @@ INSTANTIATE_TEST_SUITE_P(TransposeSinkingConcatBackwardMultiConsumersTestSuite,
                                             ::testing::ValuesIn(concat_transpose_input_indexes),
                                             ::testing::Values(5)),
                          TransposeConcatMultiSinkingFixture::get_test_name);
+
+namespace no_sinking {
+
+struct CreateGraphFunctionNoSinkingDesc {
+    CreateGraphFunctionNoSinkingDesc() = default;
+    CreateGraphFunctionNoSinkingDesc(CreateGraphF a_model_factory,
+                            std::string a_subtest_name)
+        : model_factory(a_model_factory),
+          subtest_name(a_subtest_name) {}
+    CreateGraphF model_factory;
+    std::string subtest_name;
+};
+
+using TestConcatParams = std::tuple<PassFactoryPtr,
+                                    size_t, /* num_concat_ops */
+                                    CreateGraphFunctionNoSinkingDesc,
+                                    element::Type, /* input type */
+                                    size_t,        /* concat_transpose_input_idx */
+                                    size_t>;       /* num_concat_inputs */
+
+class TransposeConcatMultiSinkingConcatConsumersFixture : public ::testing::WithParamInterface<TestConcatParams>,
+                                           public TransformationTestsF {
+public:
+    static std::string get_test_name(const testing::TestParamInfo<TestConcatParams>& obj) {
+        PassFactoryPtr pass_factory;
+        size_t num_concat_ops;
+        CreateGraphFunctionNoSinkingDesc function_desc;
+        element::Type input_type;
+        size_t concat_transpose_input_idx;
+        size_t num_concat_inputs;
+
+        std::tie(pass_factory,
+                 num_concat_ops,
+                 function_desc,
+                 input_type,
+                 concat_transpose_input_idx,
+                 num_concat_inputs) = obj.param;
+
+        std::ostringstream test_name;
+        test_name << "passFactory=" << pass_factory->getTypeName() << "/";
+        test_name << "functionDesc=" << function_desc.subtest_name << "/";
+        test_name << "numConcatOps=" << num_concat_ops << "/";
+        test_name << "concatTransposeInputIdx=" << concat_transpose_input_idx << "/";
+        test_name << "numConcatInputs=" << num_concat_inputs << "/";
+        test_name << "inputType=" << input_type;
+
+        return test_name.str();
+    }
+};
+
+TEST_P(TransposeConcatMultiSinkingConcatConsumersFixture, CompareFunctions) {
+    PassFactoryPtr pass_factory;
+    size_t num_concat_ops;
+    CreateGraphFunctionNoSinkingDesc function_desc;
+    element::Type input_type;
+    size_t concat_transpose_input_idx;
+    size_t num_concat_inputs;
+
+    std::tie(pass_factory, num_concat_ops, function_desc, input_type, concat_transpose_input_idx, num_concat_inputs) =
+        this->GetParam();
+
+    model = function_desc.model_factory(num_concat_ops, input_type, concat_transpose_input_idx, num_concat_inputs);
+    model_ref = model->clone();
+    pass_factory->registerPass(manager);
+}
+
+#define SUBTEST(nmspace, subtest_name) \
+    CreateGraphFunctionNoSinkingDesc(nmspace::CreateFunction, subtest_name)
+
+std::vector<CreateGraphFunctionNoSinkingDesc> backward_subtests_no_sinking = {
+    SUBTEST(backward::output_consumers::one_binary, "backwardOutputConsumersOneBinary"),
+    SUBTEST(backward::output_consumers::multiple_binaries, "backwardOutputConsumersMultipleBinaries")};
+
+#undef SUBTEST
+
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingConcatBackwardMultiConsumersTestSuite,
+                         TransposeConcatMultiSinkingConcatConsumersFixture,
+                         ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingConcatBackward)),
+                                            ::testing::ValuesIn(concat_operations_numbers),
+                                            ::testing::ValuesIn(backward_subtests_no_sinking),
+                                            ::testing::Values(element::f32),
+                                            ::testing::ValuesIn(concat_transpose_input_indexes),
+                                            ::testing::Values(5)),
+                         TransposeConcatMultiSinkingConcatConsumersFixture::get_test_name);
+
+} // no_sinking
 
 }  // namespace mult_consumers
