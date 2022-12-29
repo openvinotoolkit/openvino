@@ -330,8 +330,6 @@ Node* FindFirstConsumer(NodePtr node) {
     return nullptr;
 }
 
-}  // namespace
-
 bool HasSameOutputTransposeNodes(NodePtr main_node) {
     AxisVector first_transpose_axis_order;
     {
@@ -361,6 +359,12 @@ bool HasSameOutputTransposeNodes(NodePtr main_node) {
     }
 
     return true;
+}
+
+}  // namespace
+
+bool HasSameOutputTransposeNodes(const Output<Node>& output) {
+    return HasSameOutputTransposeNodes(output.get_node_shared_ptr());
 }
 
 void RemoveSingleOutputConsumers(NodePtr node) {

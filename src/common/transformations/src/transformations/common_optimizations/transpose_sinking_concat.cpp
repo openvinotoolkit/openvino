@@ -55,7 +55,7 @@ ov::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
     MATCHER_SCOPE(TransposeSinkingConcatBackward);
 
     auto main_node_label = wrap_type<Concat>([](const Output<Node>& output) -> bool {
-            return has_static_rank()(output) && HasSameOutputTransposeNodes(output.get_node_shared_ptr());
+            return has_static_rank()(output) && HasSameOutputTransposeNodes(output);
         });
 
     auto transpose_const_label = wrap_type<Constant>();

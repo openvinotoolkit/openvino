@@ -50,7 +50,7 @@ ov::pass::TransposeSinkingBinaryBackward::TransposeSinkingBinaryBackward() {
     MATCHER_SCOPE(TransposeSinkingBinaryBackward);
 
     auto main_node_label = wrap_type<op::util::BinaryElementwiseArithmetic, PRelu>([](const Output<Node>& output) -> bool {
-            return has_static_rank()(output) && HasSameOutputTransposeNodes(output.get_node_shared_ptr());
+            return has_static_rank()(output) && HasSameOutputTransposeNodes(output);
         });
 
     auto transpose_const_label = wrap_type<Constant>();

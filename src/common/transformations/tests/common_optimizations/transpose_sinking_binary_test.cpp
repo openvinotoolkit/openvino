@@ -906,43 +906,6 @@ std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
     return std::make_shared<Model>(ov::OutputVector{transpose0, tanh}, ov::ParameterVector{X});
 }
 
-#if 0
-std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
-                                               element::Type input_type,
-                                               size_t binary_transpose_input_idx) {
-    const Shape input_shape{1, 96, 55, 55};
-
-    auto X = std::make_shared<Parameter>(input_type, input_shape);
-
-    auto tanh0 = std::make_shared<Tanh>(X);
-
-    NodePtr binary0;
-    auto in_constant0 = std::make_shared<Constant>(input_type, input_shape, Shape{1});
-    if (!binary_transpose_input_idx)
-        binary0 = binary_factory->create(tanh0, in_constant0);
-    else
-        binary0 = binary_factory->create(in_constant0, tanh0);
-
-    auto tanh1 = std::make_shared<Tanh>(binary0);
-
-    auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
-    auto transpose0 = std::make_shared<Transpose>(tanh0, ng_order0);
-
-    auto in_constant = std::make_shared<Constant>(input_type, input_shape, Shape{1});
-
-    auto ng_order = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
-    auto transpose = std::make_shared<Transpose>(in_constant, ng_order);
-
-    NodePtr binary1;
-    if (!binary_transpose_input_idx)
-        binary1 = binary_factory->create(transpose0, transpose);
-    else
-        binary1 = binary_factory->create(transpose, transpose0);
-
-    return std::make_shared<Model>(ov::OutputVector{binary1, tanh1}, ov::ParameterVector{X});
-}
-#endif
-
 }  // namespace one_binary
 
 namespace multiple_binaries {
@@ -973,48 +936,6 @@ std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
 
     return std::make_shared<Model>(ov::OutputVector{transpose0, tanh}, ov::ParameterVector{X});
 }
-
-#if 0
-std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
-                                               element::Type input_type,
-                                               size_t binary_transpose_input_idx) {
-    const Shape input_shape{1, 96, 55, 55};
-    const size_t n_binaries = 10;
-
-    auto X = std::make_shared<Parameter>(input_type, input_shape);
-
-    auto tanh0 = std::make_shared<Tanh>(X);
-
-    // left branch
-    NodePtr in_op = tanh0;
-    for (size_t i = 0; i < n_binaries; ++i) {
-        auto in_constant = std::make_shared<Constant>(input_type, input_shape, Shape{1});
-        if (!binary_transpose_input_idx)
-            in_op = binary_factory->create(in_op, in_constant);
-        else
-            in_op = binary_factory->create(in_constant, in_op);
-    }
-
-    auto tanh1 = std::make_shared<Tanh>(in_op);
-
-    // right branch
-    auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
-    auto transpose0 = std::make_shared<Transpose>(tanh0, ng_order0);
-
-    in_op = transpose0;
-    for (size_t i = 0; i < n_binaries; ++i) {
-        auto in_constant = std::make_shared<Constant>(input_type, input_shape, Shape{1});
-        auto ng_order = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
-        auto transpose = std::make_shared<Transpose>(in_constant, ng_order);
-        if (!binary_transpose_input_idx)
-            in_op = binary_factory->create(in_op, transpose);
-        else
-            in_op = binary_factory->create(transpose, in_op);
-    }
-
-    return std::make_shared<Model>(ov::OutputVector{in_op, tanh1}, ov::ParameterVector{X});
-}
-#endif
 
 }  // namespace multiple_binaries
 

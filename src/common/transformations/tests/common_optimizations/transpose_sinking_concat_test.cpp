@@ -672,42 +672,7 @@ std::shared_ptr<Model> CreateFunction(size_t num_concat_ops,
 
     return std::make_shared<Model>(ov::OutputVector{transpose0, tanh}, ov::ParameterVector{X});
 }
-#if 0
-std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
-                                               element::Type input_type,
-                                               size_t concat_transpose_input_idx,
-                                               size_t num_concat_inputs) {
-    const Shape input_shape{1, 96, 55, 55};
 
-    auto X = std::make_shared<Parameter>(input_type, input_shape);
-
-    auto tanh0 = std::make_shared<Tanh>(X);
-
-    auto concat0 = CreateConcatChain(tanh0,
-                                     num_concat_ops,
-                                     input_type,
-                                     concat_transpose_input_idx,
-                                     num_concat_inputs,
-                                     input_shape,
-                                     /* axis */ 1);
-
-    auto tanh1 = std::make_shared<Tanh>(concat0);
-
-    auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
-    auto transpose0 = std::make_shared<Transpose>(tanh0, ng_order0);
-
-    auto concat1 = CreateConcatTransposedChain(transpose0,
-                                               num_concat_ops,
-                                               input_type,
-                                               concat_transpose_input_idx,
-                                               num_concat_inputs,
-                                               input_shape,
-                                               /* axis */ 3,
-                                               /* transpose order */ Shape{0, 2, 3, 1});
-
-    return std::make_shared<Model>(ov::OutputVector{concat1, tanh1}, ov::ParameterVector{X});
-}
-#endif
 }  // namespace one_binary
 
 namespace multiple_binaries {
@@ -737,43 +702,7 @@ std::shared_ptr<Model> CreateFunction(size_t num_concat_ops,
 
     return std::make_shared<Model>(ov::OutputVector{transpose0, tanh}, ov::ParameterVector{X});
 }
-#if 0
-std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
-                                               element::Type input_type,
-                                               size_t concat_transpose_input_idx,
-                                               size_t num_concat_inputs) {
-    const Shape input_shape{1, 96, 55, 55};
-    auto X = std::make_shared<Parameter>(input_type, input_shape);
 
-    auto tanh0 = std::make_shared<Tanh>(X);
-
-    // left branch
-    auto concat = CreateConcatChain(tanh0,
-                                    num_concat_ops,
-                                    input_type,
-                                    concat_transpose_input_idx,
-                                    num_concat_inputs,
-                                    input_shape,
-                                    /* axis */ 1);
-
-    auto tanh1 = std::make_shared<Tanh>(concat);
-
-    // right branch
-    auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
-    auto transpose0 = std::make_shared<Transpose>(tanh0, ng_order0);
-
-    concat = CreateConcatTransposedChain(transpose0,
-                                         num_concat_ops,
-                                         input_type,
-                                         concat_transpose_input_idx,
-                                         num_concat_inputs,
-                                         input_shape,
-                                         /* axis */ 3,
-                                         /* transpose order */ Shape{0, 2, 3, 1});
-
-    return std::make_shared<Model>(ov::OutputVector{concat, tanh1}, ov::ParameterVector{X});
-}
-#endif
 }  // namespace multiple_binaries
 
 }  // namespace output_consumers
