@@ -8,6 +8,8 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/graph/program.hpp"
 
+#include <ie_system_conf.h>
+
 #include "kernel_selector_helper.h"
 #include "device_cache_reader.h"
 #include "auto_tuner.h"
@@ -112,12 +114,13 @@ program::program(engine& engine_ref,
     init_primitives();
     set_options();
     query_local_block_io_supported();
+    _task_executor = make_task_executor(_config);
 
     GPU_DEBUG_INFO << "Internal " << config.to_string();
 
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(topology);
-    _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id,
+    _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id, _task_executor,
                                                                       kernel_selector::KernelBase::get_db().get_batch_header_str()));
     program_node::reset_unique_id();
 
@@ -142,7 +145,9 @@ program::program(engine& engine_ref,
     set_options();
     query_local_block_io_supported();
 
-    _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id,
+    _task_executor = make_task_executor(_config);
+
+    _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id, _task_executor,
                                                                       kernel_selector::KernelBase::get_db().get_batch_header_str()));
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(nodes);
@@ -171,6 +176,42 @@ void program::init_primitives() {
 #endif
         is_initialized = true;
     }
+}
+
+static void adjust_num_cores(InferenceEngine::CPUStreamsExecutor::Config& config) {
+    if (InferenceEngine::getAvailableCoresTypes().size() == 1) {
+        return;
+    }
+
+    const auto total_num_cores = InferenceEngine::getNumberOfLogicalCPUCores();
+    const auto total_num_big_cores = InferenceEngine::getNumberOfLogicalCPUCores(true);
+    const auto total_num_little_cores = total_num_cores - total_num_big_cores;
+    auto core_type = config._threadPreferredCoreType;
+
+    int num_cores = total_num_cores;
+    if (core_type == InferenceEngine::IStreamsExecutor::Config::BIG) {
+        num_cores = total_num_big_cores;
+    } else if (core_type == InferenceEngine::IStreamsExecutor::Config::LITTLE) {
+        num_cores = total_num_little_cores;
+    }
+
+    config._streams = std::min(config._streams, num_cores);
+}
+
+std::shared_ptr<InferenceEngine::CPUStreamsExecutor> program::make_task_executor(const ExecutionConfig& config) const {
+    InferenceEngine::CPUStreamsExecutor::Config task_executor_config("CPU Tasks executor for GPU plugin", 1);
+    task_executor_config._streams = config.get_property(ov::compilation_num_threads);
+    auto priority = config.get_property(ov::intel_gpu::hint::host_task_priority);
+    switch (priority) {
+        case ov::hint::Priority::LOW: task_executor_config._threadPreferredCoreType = InferenceEngine::IStreamsExecutor::Config::LITTLE; break;
+        case ov::hint::Priority::MEDIUM: task_executor_config._threadPreferredCoreType = InferenceEngine::IStreamsExecutor::Config::ANY; break;
+        case ov::hint::Priority::HIGH: task_executor_config._threadPreferredCoreType = InferenceEngine::IStreamsExecutor::Config::BIG; break;
+        default: OPENVINO_ASSERT(false, "[GPU] Can't create task executor: invalid host task priority value: ", priority);
+    }
+
+    adjust_num_cores(task_executor_config);
+
+    return std::make_shared<InferenceEngine::CPUStreamsExecutor>(task_executor_config);
 }
 
 void program::compile() {
@@ -492,8 +533,8 @@ void program::query_local_block_io_supported() {
     kernel_string->batch_compilation = true;
 
     try {
-        auto _kernels_cache_device_query = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id,
-                                                                    kernel_selector::KernelBase::get_db().get_batch_header_str()));
+        auto _kernels_cache_device_query = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id, nullptr,
+                                                                                            kernel_selector::KernelBase::get_db().get_batch_header_str()));
         auto id = _kernels_cache_device_query->set_kernel_source(kernel_string, false);
         _kernels_cache_device_query->build_all();
 

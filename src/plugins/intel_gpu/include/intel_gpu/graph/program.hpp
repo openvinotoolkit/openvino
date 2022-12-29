@@ -140,6 +140,7 @@ public:
     ~program();
     engine& get_engine() const { return _engine; }
     const ExecutionConfig& get_config() const { return _config; }
+    InferenceEngine::CPUStreamsExecutor::Ptr get_task_executor() const { return _task_executor; }
     std::list<program_node*>& get_inputs() {
         return inputs;
     }  // ToDo: redesign trim to ouptut pass to make it const as_well as get_engine and get options
@@ -254,6 +255,7 @@ public:
     void remove_kernel(kernel_id id);
     bool is_local_block_io_supported() const;
     void query_local_block_io_supported();
+    std::shared_ptr<InferenceEngine::CPUStreamsExecutor> make_task_executor(const ExecutionConfig& config) const;
 
 private:
     uint32_t prog_id = 0;
@@ -262,6 +264,7 @@ private:
     // TODO: Consider moving it to engine
     std::unique_ptr<kernels_cache> _kernels_cache;
     ExecutionConfig _config;
+    std::shared_ptr<InferenceEngine::CPUStreamsExecutor> _task_executor = nullptr;
     std::list<program_node*> inputs;
     std::vector<program_node*> outputs;
     nodes_ordering processing_order;

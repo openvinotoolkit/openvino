@@ -41,9 +41,8 @@ namespace ocl {
 ocl_error::ocl_error(cl::Error const& err)
     : ov::Exception("[GPU] " + std::string(err.what()) + std::string(", error code: ") + std::to_string(err.err())) {}
 
-ocl_engine::ocl_engine(const device::ptr dev, runtime_types runtime_type,
-                       const InferenceEngine::ITaskExecutor::Ptr task_executor)
-    : engine(dev, task_executor) {
+ocl_engine::ocl_engine(const device::ptr dev, runtime_types runtime_type)
+    : engine(dev) {
     OPENVINO_ASSERT(runtime_type == runtime_types::ocl, "[GPU] Invalid runtime type specified for OCL engine. Only OCL runtime is supported");
 
     auto casted = dynamic_cast<ocl_device*>(dev.get());
@@ -282,14 +281,12 @@ stream& ocl_engine::get_service_stream(ExecutionConfig cfg) {
     return *_service_stream;
 }
 
-std::shared_ptr<cldnn::engine> ocl_engine::create(const device::ptr device, runtime_types runtime_type,
-                                                  const InferenceEngine::ITaskExecutor::Ptr task_executor) {
-    return std::make_shared<ocl::ocl_engine>(device, runtime_type, task_executor);
+std::shared_ptr<cldnn::engine> ocl_engine::create(const device::ptr device, runtime_types runtime_type) {
+    return std::make_shared<ocl::ocl_engine>(device, runtime_type);
 }
 
-std::shared_ptr<cldnn::engine> create_ocl_engine(const device::ptr device, runtime_types runtime_type,
-                                                 const InferenceEngine::ITaskExecutor::Ptr task_executor) {
-    return ocl_engine::create(device, runtime_type, task_executor);
+std::shared_ptr<cldnn::engine> create_ocl_engine(const device::ptr device, runtime_types runtime_type) {
+    return ocl_engine::create(device, runtime_type);
 }
 
 }  // namespace ocl

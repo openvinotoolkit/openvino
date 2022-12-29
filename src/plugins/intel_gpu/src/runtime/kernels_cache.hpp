@@ -77,6 +77,7 @@ public:
 private:
     static std::mutex _mutex;
     engine& _engine;
+    InferenceEngine::CPUStreamsExecutor::Ptr _task_executor;
     ExecutionConfig _config;
     uint32_t _prog_id = 0;
     kernels_code _kernels_code;
@@ -93,7 +94,11 @@ private:
     size_t get_max_kernels_per_batch() const;
 
 public:
-    explicit kernels_cache(engine& engine, const ExecutionConfig& config, uint32_t prog_id, const std::vector<std::string>& batch_header_str = {});
+    explicit kernels_cache(engine& engine,
+                           const ExecutionConfig& config,
+                           uint32_t prog_id,
+                           InferenceEngine::CPUStreamsExecutor::Ptr task_executor = nullptr,
+                           const std::vector<std::string>& batch_header_str = {});
     kernel_id set_kernel_source(const std::shared_ptr<kernel_string>& kernel_string,
                                 bool dump_custom_program);
     kernel::ptr get_kernel(kernel_id id) const;

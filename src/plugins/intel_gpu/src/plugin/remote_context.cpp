@@ -16,6 +16,23 @@ using namespace InferenceEngine::details;
 namespace ov {
 namespace intel_gpu {
 
+RemoteContextImpl::RemoteContextImpl(std::string device_name, std::vector<cldnn::device::ptr> devices)
+        : m_va_display(nullptr)
+        , m_external_queue(nullptr)
+        , m_type(ContextType::OCL)
+        , m_device_name(device_name)
+        , m_plugin_name("")
+        , m_memory_cache(cache_capacity) {
+    OPENVINO_ASSERT(devices.size() == 1, "[GPU] Currently context can be created for single device only");
+    // TODO: Parameterize this based on plugin config and compilation options
+    auto engine_type = cldnn::engine_types::ocl;
+    auto runtime_type = cldnn::runtime_types::ocl;
+
+    m_engine = cldnn::engine::create(engine_type, runtime_type, devices.front());
+
+    GPU_DEBUG_LOG << "Initialize RemoteContext for " << m_device_name << " (" << m_engine->get_device_info().dev_name << ")" << std::endl;
+}
+
 RemoteContextImpl::RemoteContextImpl(std::string plugin_name, const AnyMap& params, const ExecutionConfig& config)
         : m_va_display(nullptr)
         , m_external_queue(nullptr)
@@ -59,20 +76,9 @@ RemoteContextImpl::RemoteContextImpl(std::string plugin_name, const AnyMap& para
     cldnn::device_query device_query(engine_type, runtime_type, _context_id, _va_device, ctx_device_id, target_tile_id);
     auto device_map = device_query.get_available_devices();
 
-    auto iter = device_map.find(std::to_string(cldnn::device_query::device_id));
-    if (iter == device_map.end())
-        iter = device_map.find(m_device_id);
-    if (iter == device_map.end())
-        iter = device_map.begin();
-    auto& dev = iter->second;
+    OPENVINO_ASSERT(device_map.size() == 1, "[GPU] Only one device expected in case of context sharing");
 
-    InferenceEngine::CPUStreamsExecutor::Config executor_config("GPU task stream executor", 1);
-    executor_config._streams = config.get_property(ov::compilation_num_threads);
-
-    m_engine = cldnn::engine::create(engine_type,
-                                     runtime_type,
-                                     dev,
-                                     std::make_shared<InferenceEngine::CPUStreamsExecutor>(executor_config));
+    m_engine = cldnn::engine::create(engine_type, runtime_type, device_map.begin()->second);
 
     m_device_name = get_device_name(device_map, m_engine->get_device());
 

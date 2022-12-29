@@ -305,8 +305,11 @@ network::network(program::ptr program, const ExecutionConfig& config, stream::pt
 
     if (is_dynamic()) {
         GPU_DEBUG_DEFINE_MEM_LOGGER("dynamic_network_initialization");
-        _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(program->get_engine(), program->get_config(), program->get_id(),
-                                                                        kernel_selector::KernelBase::get_db().get_batch_header_str()));
+        _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(program->get_engine(),
+                                                                          program->get_config(),
+                                                                          program->get_id(),
+                                                                          program->get_task_executor(),
+                                                                          kernel_selector::KernelBase::get_db().get_batch_header_str()));
         _impls_cache = std::unique_ptr<ImplementationsCache>(new ImplementationsCache(_impls_cache_capacity));
         _in_mem_kernels_cache = std::unique_ptr<KernelsCache>(new KernelsCache(_in_mem_kernels_cache_capacity));
         _compilation_context = std::move(ICompilationContext::create(program->get_engine(), program->get_config(), program->get_id()));
@@ -345,7 +348,7 @@ network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, st
     , _reset_arguments(true) {
     net_id = get_unique_net_id();
 
-    kernels_cache kernels_cache(get_engine(), config, 0, {""});
+    kernels_cache kernels_cache(get_engine(), config, 0, nullptr, {""});
     ib >> kernels_cache;
 
     int num_data_nodes;
@@ -447,7 +450,7 @@ network::~network() {
 //     [ executable primitive_inst ]
 //     [ memory reuse information ]
 void network::save(cldnn::BinaryOutputBuffer& ob) {
-    kernels_cache kernels_cache(get_engine(), _config, 0, {""});
+    kernels_cache kernels_cache(get_engine(), _config, 0, nullptr, {""});
     for (const auto& p_inst : _exec_order) {
         if (p_inst->get_impl() != nullptr)
             kernels_cache.add_kernels(p_inst->get_impl()->get_kernel_ids(), p_inst->get_impl()->get_kernels());

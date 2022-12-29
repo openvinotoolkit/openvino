@@ -20,8 +20,7 @@ namespace ocl {
 
 class ocl_engine : public engine {
 public:
-    ocl_engine(const device::ptr dev, runtime_types runtime_type,
-               const InferenceEngine::ITaskExecutor::Ptr task_executor);
+    ocl_engine(const device::ptr dev, runtime_types runtime_type);
     engine_types type() const override { return engine_types::ocl; };
     runtime_types runtime_type() const override { return runtime_types::ocl; };
 
@@ -52,8 +51,7 @@ public:
     dnnl::engine& get_onednn_engine() const override;
 #endif
 
-    static std::shared_ptr<cldnn::engine> create(const device::ptr device, runtime_types runtime_type,
-                                                 const InferenceEngine::ITaskExecutor::Ptr task_executor);
+    static std::shared_ptr<cldnn::engine> create(const device::ptr device, runtime_types runtime_type);
 
 private:
     std::string _extensions;

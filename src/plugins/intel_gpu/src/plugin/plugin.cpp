@@ -131,7 +131,9 @@ Plugin::Plugin() : m_defaultContexts({}) {
         // Set default configs for each device
         for (auto& device : device_map) {
             m_configs_map.insert({device.first, ExecutionConfig()});
-            std::cerr << "Init config for: " << device.first << std::endl;
+            auto ctx = std::make_shared<RemoteCLContext>(device.first, std::vector<cldnn::device::ptr>{ device.second });
+            m_defaultContexts.insert({device.first, ctx});
+            std::cerr << "Init config and context for: " << device.first << std::endl;
         }
     }
     // locate global custom kernel config
@@ -239,12 +241,10 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
         IE_THROW() << "Invalid context";
     }
 
-    // TODO: find proper device id for given context and use default config for it
-    // if (m_configs_map.find(device_id) == m_configs_map.end())
-    //     IE_THROW() << "LoadNetwork not found device config\n";
-
-    // ExecutionConfig config = m_configs_map.at(device_id);
-    ExecutionConfig config;
+    InferenceEngine::DeviceIDParser parser(context->getDeviceName());
+    auto device_id = parser.getDeviceID();
+    bool known_device_id = m_configs_map.find(device_id) != m_configs_map.end();
+    ExecutionConfig config = known_device_id ? m_configs_map.at(device_id) : ExecutionConfig{};
     config.set_property(ov::AnyMap(orig_config.begin(), orig_config.end()));
     config.apply_user_properties();
 
@@ -253,6 +253,10 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
 }
 
 InferenceEngine::RemoteContext::Ptr Plugin::CreateContext(const AnyMap& params) {
+    if (params.empty()) {
+        return get_default_context(default_device_id);
+    }
+
     std::string context_type = extract_object<std::string>(params, GPU_PARAM_KEY(CONTEXT_TYPE));
 
     if (GPU_PARAM_VALUE(OCL) == context_type) {
@@ -269,9 +273,7 @@ InferenceEngine::RemoteContext::Ptr Plugin::CreateContext(const AnyMap& params) 
 }
 
 RemoteCLContext::Ptr Plugin::get_default_context(const std::string& device_id) const {
-    if (m_defaultContexts.find(device_id) == m_defaultContexts.end()) {
-        m_defaultContexts[device_id] = std::make_shared<RemoteCLContext>(GetName(), AnyMap(), m_configs_map.at(device_id));
-    }
+    OPENVINO_ASSERT(m_defaultContexts.find(device_id) != m_defaultContexts.end(), "[GPU] Context was not initialized for ", device_id, " device");
 
     return m_defaultContexts.at(device_id);;
 }

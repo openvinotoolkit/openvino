@@ -65,6 +65,7 @@ public:
     using Ptr = std::shared_ptr<RemoteContextImpl>;
     using CPtr = std::shared_ptr<const RemoteContextImpl>;
 
+    RemoteContextImpl(std::string device_name, std::vector<cldnn::device::ptr> devices);
     RemoteContextImpl(std::string plugin_name, const InferenceEngine::ParamMap& params, const ExecutionConfig& config);
 
     InferenceEngine::ParamMap get_params() const;
@@ -127,6 +128,8 @@ class TypedRemoteContext : public PublicContextType {
 public:
     using Ptr = std::shared_ptr<TypedRemoteContext>;
 
+    TypedRemoteContext(std::string device_name, std::vector<cldnn::device::ptr> devices)
+        : m_impl(std::make_shared<RemoteContextImpl>(device_name, devices)) {}
     TypedRemoteContext(std::string plugin_name, const InferenceEngine::ParamMap& params, const ExecutionConfig& config)
         : m_impl(std::make_shared<RemoteContextImpl>(plugin_name, params, config)) {}
 

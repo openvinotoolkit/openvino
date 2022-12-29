@@ -144,8 +144,6 @@ public:
     /// Returns onednn engine object which shares device and context with current engine
     virtual dnnl::engine& get_onednn_engine() const = 0;
 #endif
-    /// Return GPU plugin internal task executor
-    const InferenceEngine::ITaskExecutor::Ptr get_task_executor();
 
     /// Factory method which creates engine object with impl configured by @p engine_type
     /// @param engine_type requested engine type
@@ -153,12 +151,7 @@ public:
     /// @param runtime_type requested execution runtime for the engine. @note some runtime/engine types configurations might be unsupported
     /// @param device specifies the device which the engine is created for
     /// @param configuration options for the engine
-    static std::shared_ptr<cldnn::engine> create(engine_types engine_type,
-                                                 runtime_types runtime_type,
-                                                 const device::ptr device,
-                                                 const InferenceEngine::ITaskExecutor::Ptr task_executor =
-                                                        std::make_shared<InferenceEngine::CPUStreamsExecutor>(
-                                                                    InferenceEngine::CPUStreamsExecutor::Config()));
+    static std::shared_ptr<cldnn::engine> create(engine_types engine_type, runtime_types runtime_type, const device::ptr device);
 
     /// Factory method which creates engine object with impl configured by @p engine_type
     /// @param engine_type requested engine type
@@ -166,16 +159,11 @@ public:
     /// @param task_executor GPU plugin internal task executor
     /// @param configuration options for the engine
     /// @note engine is created for the first device returned by devices query
-    static std::shared_ptr<cldnn::engine> create(engine_types engine_type,
-                                                 runtime_types runtime_type,
-                                                 const InferenceEngine::ITaskExecutor::Ptr task_executor =
-                                                        std::make_shared<InferenceEngine::CPUStreamsExecutor>(
-                                                                    InferenceEngine::CPUStreamsExecutor::Config()));
+    static std::shared_ptr<cldnn::engine> create(engine_types engine_type, runtime_types runtime_type);
 
 protected:
     /// Create engine for given @p device and @p configuration
-    engine(const device::ptr device, const InferenceEngine::ITaskExecutor::Ptr task_executor);
-    const InferenceEngine::ITaskExecutor::Ptr _task_executor;
+    engine(const device::ptr device);
     const device::ptr _device;
     mutable std::mutex _mutex;
 
