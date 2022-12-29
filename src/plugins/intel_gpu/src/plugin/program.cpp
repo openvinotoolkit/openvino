@@ -340,7 +340,7 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
     }
     PrepareBuild(networkInputs, networkOutputs);
     {
-        GPU_DEBUG_MEM_LOGGER("CreateSingleLayerPrimitives");
+        GPU_DEBUG_DEFINE_MEM_LOGGER("CreateSingleLayerPrimitives");
         for (const auto& op : ops) {
             CreateSingleLayerPrimitive(*m_topology, op);
         }

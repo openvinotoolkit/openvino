@@ -46,8 +46,7 @@ void program::nodes_ordering::calc_processing_order(program& p) {
     output: BFS topological order.
     */
 void program::nodes_ordering::calculate_BFS_processing_order() {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_MEM_LOGGER("calculate_BFS_processing_order");
+    GPU_DEBUG_DEFINE_MEM_LOGGER("calculate_BFS_processing_order");
     std::map<program_node*, int> distances;
     for (auto itr : _processing_order) {
         distances[itr] = -1;
