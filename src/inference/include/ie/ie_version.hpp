@@ -20,8 +20,8 @@
  * @brief Defines Inference Engine patch version
  */
 
-#define IE_VERSION_MAJOR 2022
-#define IE_VERSION_MINOR 3
+#define IE_VERSION_MAJOR 2023
+#define IE_VERSION_MINOR 0
 #define IE_VERSION_PATCH 0
 
 #include "ie_api.h"

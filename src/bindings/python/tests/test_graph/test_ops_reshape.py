@@ -2,36 +2,36 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import openvino.runtime as ov_runtime
 import openvino.runtime.opset8 as ov
 import numpy as np
 import pytest
 
-from tests.runtime import get_runtime
-from tests.test_graph.util import run_op_node, run_op_numeric_data
+from openvino.runtime.utils.types import get_element_type
 
 
 def test_concat():
     input_a = np.array([[1, 2], [3, 4]]).astype(np.float32)
     input_b = np.array([[5, 6]]).astype(np.float32)
     axis = 0
-    expected = np.concatenate((input_a, input_b), axis=0)
 
-    runtime = get_runtime()
     parameter_a = ov.parameter(list(input_a.shape), name="A", dtype=np.float32)
     parameter_b = ov.parameter(list(input_b.shape), name="B", dtype=np.float32)
     node = ov.concat([parameter_a, parameter_b], axis)
-    computation = runtime.computation(node, parameter_a, parameter_b)
-    result = computation(input_a, input_b)
-    assert np.allclose(result, expected)
+    assert node.get_type_name() == "Concat"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [3, 2]
 
 
 @pytest.mark.parametrize(
-    ("val_type", "value"), [(bool, False), (bool, np.empty((2, 2), dtype=bool))],
+    ("val_type", "value", "output_shape"), [(bool, False, []), (bool, np.empty((2, 2), dtype=bool), [2, 2])],
 )
-def test_constant_from_bool(val_type, value):
-    expected = np.array(value, dtype=val_type)
-    result = run_op_numeric_data(value, ov.constant, val_type)
-    assert np.allclose(result, expected)
+def test_constant_from_bool(val_type, value, output_shape):
+    node = ov.constant(value, val_type)
+    assert node.get_type_name() == "Constant"
+    assert node.get_output_size() == 1
+    assert node.get_output_element_type(0) == ov_runtime.Type.boolean
+    assert list(node.get_output_shape(0)) == output_shape
 
 
 @pytest.mark.parametrize(
@@ -50,9 +50,11 @@ def test_constant_from_bool(val_type, value):
     ],
 )
 def test_constant_from_scalar(val_type, value):
-    expected = np.array(value, dtype=val_type)
-    result = run_op_numeric_data(value, ov.constant, val_type)
-    assert np.allclose(result, expected)
+    node = ov.constant(value, val_type)
+    assert node.get_type_name() == "Constant"
+    assert node.get_output_size() == 1
+    assert node.get_output_element_type(0) == get_element_type(val_type)
+    assert list(node.get_output_shape(0)) == []
 
 
 @pytest.mark.parametrize(
@@ -65,8 +67,11 @@ def test_constant_from_scalar(val_type, value):
 def test_constant_from_float_array(val_type):
     np.random.seed(133391)
     input_data = np.array(-1 + np.random.rand(2, 3, 4) * 2, dtype=val_type)
-    result = run_op_numeric_data(input_data, ov.constant, val_type)
-    assert np.allclose(result, input_data)
+    node = ov.constant(input_data, val_type)
+    assert node.get_type_name() == "Constant"
+    assert node.get_output_size() == 1
+    assert node.get_output_element_type(0) == get_element_type(val_type)
+    assert list(node.get_output_shape(0)) == [2, 3, 4]
 
 
 @pytest.mark.parametrize(
@@ -87,8 +92,11 @@ def test_constant_from_integer_array(val_type, range_start, range_end):
     input_data = np.array(
         np.random.randint(range_start, range_end, size=(2, 2)), dtype=val_type,
     )
-    result = run_op_numeric_data(input_data, ov.constant, val_type)
-    assert np.allclose(result, input_data)
+    node = ov.constant(input_data, val_type)
+    assert node.get_type_name() == "Constant"
+    assert node.get_output_size() == 1
+    assert node.get_output_element_type(0) == get_element_type(val_type)
+    assert list(node.get_output_shape(0)) == [2, 2]
 
 
 def test_broadcast_numpy():
@@ -127,27 +135,24 @@ def test_transpose():
     )
     input_order = np.array([0, 2, 3, 1], dtype=np.int32)
 
-    result = run_op_node([input_tensor], ov.transpose, input_order)
-
-    expected = np.transpose(input_tensor, input_order)
-
-    assert np.allclose(result, expected)
+    node = ov.transpose(input_tensor, input_order)
+    assert node.get_type_name() == "Transpose"
+    assert node.get_output_size() == 1
+    assert node.get_output_element_type(0) == ov_runtime.Type.i32
+    assert list(node.get_output_shape(0)) == [3, 224, 224, 3]
 
 
 def test_tile():
     input_tensor = np.arange(6, dtype=np.int32).reshape((2, 1, 3))
     repeats = np.array([2, 1], dtype=np.int32)
+    node = ov.tile(input_tensor, repeats)
 
-    result = run_op_node([input_tensor], ov.tile, repeats)
+    assert node.get_type_name() == "Tile"
+    assert node.get_output_size() == 1
+    assert node.get_output_element_type(0) == ov_runtime.Type.i32
+    assert list(node.get_output_shape(0)) == [2, 2, 3]
 
-    expected = np.array([0, 1, 2, 0, 1, 2, 3, 4, 5, 3, 4, 5]).reshape((2, 2, 3))
 
-    assert np.allclose(result, expected)
-
-
-@pytest.mark.xfail(
-    reason="RuntimeError: Check 'shape_size(get_input_shape(0)) == shape_size(output_shape)'",
-)
 def test_strided_slice():
     input_tensor = np.arange(2 * 3 * 4, dtype=np.float32).reshape((2, 3, 4))
     begin = np.array([1, 0], dtype=np.int32)
@@ -159,9 +164,8 @@ def test_strided_slice():
     shrink_axis_mask = np.array([1, 0, 0], dtype=np.int32)
     ellipsis_mask = np.array([0, 0, 0], dtype=np.int32)
 
-    result = run_op_node(
-        [input_tensor],
-        ov.strided_slice,
+    node = ov.strided_slice(
+        input_tensor,
         begin,
         end,
         strides,
@@ -171,12 +175,10 @@ def test_strided_slice():
         shrink_axis_mask,
         ellipsis_mask,
     )
-
-    expected = np.array(
-        [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23], dtype=np.float32,
-    ).reshape((1, 3, 4))
-
-    assert np.allclose(result, expected)
+    assert node.get_type_name() == "StridedSlice"
+    assert node.get_output_size() == 1
+    assert node.get_output_element_type(0) == ov_runtime.Type.f32
+    assert list(node.get_output_shape(0)) == [1, 3, 4]
 
 
 def test_reshape_v1():
@@ -184,16 +186,18 @@ def test_reshape_v1():
     shape = np.array([0, -1, 4], dtype=np.int32)
     special_zero = True
 
-    expected_shape = np.array([2, 150, 4])
-    expected = np.reshape(param_a, expected_shape)
-    result = run_op_node([param_a], ov.reshape, shape, special_zero)
-
-    assert np.allclose(result, expected)
+    node = ov.reshape(param_a, shape, special_zero)
+    assert node.get_type_name() == "Reshape"
+    assert node.get_output_size() == 1
+    assert node.get_output_element_type(0) == ov_runtime.Type.f32
+    assert list(node.get_output_shape(0)) == [2, 150, 4]
 
 
 def test_shape_of():
     input_tensor = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=np.float32)
 
-    result = run_op_node([input_tensor], ov.shape_of)
-
-    assert np.allclose(result, [3, 3])
+    node = ov.shape_of(input_tensor)
+    assert node.get_type_name() == "ShapeOf"
+    assert node.get_output_size() == 1
+    assert node.get_output_element_type(0) == ov_runtime.Type.i64
+    assert list(node.get_output_shape(0)) == [2]

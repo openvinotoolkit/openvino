@@ -2,8 +2,10 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from openvino.runtime import Type
 import openvino.runtime.opset8 as ov
 import numpy as np
+import pytest
 
 
 def get_data():
@@ -23,20 +25,26 @@ def test_idft_1d():
     assert dft_node.get_type_name() == "IDFT"
     assert dft_node.get_output_size() == 1
     assert list(dft_node.get_output_shape(0)) == list(expected_results.shape)
+    assert dft_node.get_output_element_type(0) == Type.f32
 
 
-def test_idft_2d():
+@pytest.mark.parametrize(("axes"), [
+    ([1, 2]),
+    ([0, 1, 2]),
+])
+def test_idft_2d_3d(axes):
     expected_results = get_data()
     complex_input_data = np.fft.fft2(np.squeeze(expected_results.view(dtype=np.complex64), axis=-1),
-                                     axes=[1, 2]).astype(np.complex64)
+                                     axes=axes).astype(np.complex64)
     input_data = np.stack((complex_input_data.real, complex_input_data.imag), axis=-1)
     input_tensor = ov.constant(input_data)
-    input_axes = ov.constant(np.array([1, 2], dtype=np.int64))
+    input_axes = ov.constant(np.array(axes, dtype=np.int64))
 
     dft_node = ov.idft(input_tensor, input_axes)
     assert dft_node.get_type_name() == "IDFT"
     assert dft_node.get_output_size() == 1
     assert list(dft_node.get_output_shape(0)) == list(expected_results.shape)
+    assert dft_node.get_output_element_type(0) == Type.f32
 
 
 def test_idft_3d():
@@ -51,6 +59,7 @@ def test_idft_3d():
     assert dft_node.get_type_name() == "IDFT"
     assert dft_node.get_output_size() == 1
     assert list(dft_node.get_output_shape(0)) == list(expected_results.shape)
+    assert dft_node.get_output_element_type(0) == Type.f32
 
 
 def test_idft_1d_signal_size():
@@ -66,6 +75,7 @@ def test_idft_1d_signal_size():
     assert dft_node.get_type_name() == "IDFT"
     assert dft_node.get_output_size() == 1
     assert list(dft_node.get_output_shape(0)) == list(expected_results.shape)
+    assert dft_node.get_output_element_type(0) == Type.f32
 
 
 def test_idft_2d_signal_size_1():
@@ -81,6 +91,7 @@ def test_idft_2d_signal_size_1():
     assert dft_node.get_type_name() == "IDFT"
     assert dft_node.get_output_size() == 1
     assert list(dft_node.get_output_shape(0)) == list(expected_results.shape)
+    assert dft_node.get_output_element_type(0) == Type.f32
 
 
 def test_idft_2d_signal_size_2():
@@ -96,6 +107,7 @@ def test_idft_2d_signal_size_2():
     assert dft_node.get_type_name() == "IDFT"
     assert dft_node.get_output_size() == 1
     assert list(dft_node.get_output_shape(0)) == list(expected_results.shape)
+    assert dft_node.get_output_element_type(0) == Type.f32
 
 
 def test_idft_3d_signal_size():
@@ -111,3 +123,4 @@ def test_idft_3d_signal_size():
     assert dft_node.get_type_name() == "IDFT"
     assert dft_node.get_output_size() == 1
     assert list(dft_node.get_output_shape(0)) == list(expected_results.shape)
+    assert dft_node.get_output_element_type(0) == Type.f32

@@ -32,7 +32,7 @@ TEST_F(TransformationTestsF, ConvertMVN1ToMVN6) {
         auto data = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 3, 4});
         auto axes_const = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {2, 3});
         auto mvn =
-            std::make_shared<ngraph::op::v6::MVN>(data, axes_const, true, 1e-5, ngraph::op::MVNEpsMode::INSIDE_SQRT);
+            std::make_shared<ngraph::op::v6::MVN>(data, axes_const, true, 1e-5f, ngraph::op::MVNEpsMode::INSIDE_SQRT);
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mvn}, ngraph::ParameterVector{data});
     }
@@ -52,7 +52,7 @@ TEST_F(TransformationTestsF, ConvertMVN1ToMVN6_across_channels) {
         auto data = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 3, 4});
         auto axes_const = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1, 2, 3});
         auto mvn =
-            std::make_shared<ngraph::op::v6::MVN>(data, axes_const, true, 1e-5, ngraph::op::MVNEpsMode::INSIDE_SQRT);
+            std::make_shared<ngraph::op::v6::MVN>(data, axes_const, true, 1e-5f, ngraph::op::MVNEpsMode::INSIDE_SQRT);
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mvn}, ngraph::ParameterVector{data});
     }
@@ -72,7 +72,7 @@ TEST_F(TransformationTestsF, ConvertMVN1ToMVN6_5D) {
         auto data = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 3, 4, 5});
         auto axes_const = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {2, 3, 4});
         auto mvn =
-            std::make_shared<ngraph::op::v6::MVN>(data, axes_const, true, 1e-5, ngraph::op::MVNEpsMode::INSIDE_SQRT);
+            std::make_shared<ngraph::op::v6::MVN>(data, axes_const, true, 1e-5f, ngraph::op::MVNEpsMode::INSIDE_SQRT);
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mvn}, ngraph::ParameterVector{data});
     }

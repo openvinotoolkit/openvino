@@ -77,11 +77,13 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
     uint feature_idx = (fm % (FEATURES_THREADS_PER_BATCH * FILTER_GROUPS_NUM) % FEATURES_THREADS_PER_BATCH);
     uint fmg = feature_idx / SUB_GROUP_SIZE;
     const uint g = (fm % (FEATURES_THREADS_PER_BATCH * FILTER_GROUPS_NUM)) / FEATURES_THREADS_PER_BATCH;
+    const uint feature_num = g * FILTER_OFM_NUM + feature_idx; // feature index for fused operations
 #else
     uint batch_idx = fm / FEATURES_THREADS_PER_BATCH;
     uint feature_idx = fm % FEATURES_THREADS_PER_BATCH;
     uint fmg = feature_idx / SUB_GROUP_SIZE;
     const uint g = split_idx;
+    const uint feature_num = feature_idx; // feature index for fused operations
 #endif
     UNIT_TYPE in[IN_BLOCK_ARRAY_SIZE];
     UNIT_TYPE out[OUTPUT_BLOCK_WIDTH * OUTPUT_BLOCK_HEIGHT];

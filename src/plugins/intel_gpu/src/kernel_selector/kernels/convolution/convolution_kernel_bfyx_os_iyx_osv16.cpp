@@ -107,7 +107,7 @@ ConvolutionKernel_bfyx_os_iyx_osv16::AutoTuneOption ConvolutionKernel_bfyx_os_iy
         return autoTuneOptions[autoTuneIndex];
     }
 
-    AutoTuneOption option = {0, 0, 0, DEFAULT};
+    AutoTuneOption option = {0, 0, 0, EXE_MODE_DEFAULT};
 
     const convolution_params& cp = static_cast<const convolution_params&>(p);
 
@@ -214,7 +214,7 @@ JitConstants ConvolutionKernel_bfyx_os_iyx_osv16::GetJitConstants(const convolut
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetUnitType(params);
-        FusedOpsConfiguration conf_scalar = {"", {"batch_idx", "feature_idx", "(or+r)", "(oc+c)"}, "dst", input_dt, 1 };
+        FusedOpsConfiguration conf_scalar = {"", {"batch_idx", "feature_num", "(or+r)", "(oc+c)"}, "dst", input_dt, 1 };
         jit.Merge(MakeFusedOpsJitConstants(params, {conf_scalar}));
     }
 
