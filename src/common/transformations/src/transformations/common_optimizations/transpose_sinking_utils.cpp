@@ -363,10 +363,13 @@ bool HasSameOutputTransposeNodes(NodePtr main_node) {
     return true;
 }
 
-void RemoveConsumers(NodePtr node) {
+void RemoveSingleOutputConsumers(NodePtr node) {
     for (size_t output_idx = 0; output_idx < node->get_output_size(); ++output_idx) {
         for (auto& input : node->get_output_target_inputs(output_idx)) {
-            input.get_node()->output(0).replace(node->output(output_idx));
+            Node* consumer = input.get_node();
+            if (consumer->get_output_size() != 1)
+                continue;
+            consumer->output(0).replace(node->output(output_idx));
         }
     }
 }

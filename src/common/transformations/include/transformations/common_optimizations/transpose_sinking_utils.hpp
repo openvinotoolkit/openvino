@@ -103,8 +103,8 @@ void UpdateForwardSinkingAbility(std::shared_ptr<ov::Node>);
 bool HasSameOutputTransposeNodes(std::shared_ptr<ov::Node>);
 
 /**
- * Removes all direct node consumers
+ * Removes all direct node consumers that have one output
  */
-void RemoveConsumers(std::shared_ptr<ov::Node>);
+void RemoveSingleOutputConsumers(std::shared_ptr<ov::Node>);
 
 }  // namespace transpose_sinking

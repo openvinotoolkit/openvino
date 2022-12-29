@@ -71,7 +71,7 @@ ov::pass::TransposeSinkingBinaryBackward::TransposeSinkingBinaryBackward() {
         }
 
         // remove output transposes
-        RemoveConsumers(main_node);
+        RemoveSingleOutputConsumers(main_node);
 
         SwapNames(transpose, main_node);
 

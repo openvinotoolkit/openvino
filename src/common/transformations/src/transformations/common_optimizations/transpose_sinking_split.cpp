@@ -153,7 +153,7 @@ ov::pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
                           new_split_axis_const);
 
         // remove split output transposes
-        RemoveConsumers(split);
+        RemoveSingleOutputConsumers(split);
 
         return true;
     };

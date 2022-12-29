@@ -76,7 +76,7 @@ ov::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
         }
 
         // remove output transposes
-        RemoveConsumers(main_node);
+        RemoveSingleOutputConsumers(main_node);
 
         SwapNames(transpose, main_node);
 
