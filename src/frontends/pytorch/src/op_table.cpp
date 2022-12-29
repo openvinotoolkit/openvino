@@ -187,6 +187,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::sub", op::translate_sub},
         {"aten::sum", op::translate_sum},
         {"aten::tanh", op::translate_1to1_match_1_inputs<opset8::Tanh>},
+        {"aten::tensor", op::translate_as_tensor},
         {"aten::type_as",
          op::translate_1to1_match_2_inputs<opset8::ConvertLike>},  // TODO: overflow semantics is different
         {"aten::to", op::translate_to},

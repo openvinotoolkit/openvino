@@ -17,14 +17,14 @@ OutputVector translate_full(NodeContext& context) {
     int num_inputs = context.get_input_size();
 
     auto filled_tensor = context.mark_node(std::make_shared<opset8::Broadcast>(value, sizes));
-    if (num_inputs < 5) {
+    if (num_inputs < 6) {
         size_t out_id = num_inputs == 3 ? 2: 3;
         if (!context.input_is_none(out_id)){
         auto out = context.get_input(out_id);
         return {context.mark_node(std::make_shared<opset8::ConvertLike>(filled_tensor, out))};
         }
     }
-    size_t dtype_id = num_inputs == 5 ? 2: 3;
+    size_t dtype_id = num_inputs == 6 ? 2: 3;
     if (!context.input_is_none(dtype_id)){
         auto pt_type = context.const_input<int64_t>(dtype_id);
         FRONT_END_OP_CONVERSION_CHECK(TORCH_TO_OV_TYPE.count(pt_type), "Unknown type in aten::full: ", pt_type);
@@ -45,7 +45,8 @@ OutputVector translate_full_like(NodeContext& context) {
         auto dtype = TORCH_TO_OV_TYPE.at(pt_type);
         filled_tensor = context.mark_node(std::make_shared<opset8::Convert>(filled_tensor, dtype));
     } else {
-        filled_tensor = context.mark_node(std::make_shared<opset8::ConvertLike>(filled_tensor, input));
+        auto out_dtype = context.input_is_none(3)? input : context.get_input(3);
+        filled_tensor = context.mark_node(std::make_shared<opset8::ConvertLike>(filled_tensor, out_dtype));
     }
     return {filled_tensor};
 };
@@ -56,7 +57,7 @@ OutputVector translate_new_full(NodeContext& context) {
     auto value = context.get_input(2);
     auto filled_tensor = context.mark_node(std::make_shared<opset8::Broadcast>(value, sizes));
     if (context.get_input_size() == 7 && !context.input_is_none(3)) {
-        auto pt_type = context.const_input<int64_t>(2);
+        auto pt_type = context.const_input<int64_t>(3);
         FRONT_END_OP_CONVERSION_CHECK(TORCH_TO_OV_TYPE.count(pt_type), "Unknown type in aten::new_full: ", pt_type);
         auto dtype = TORCH_TO_OV_TYPE.at(pt_type);
         return {context.mark_node(std::make_shared<opset8::Convert>(filled_tensor, dtype))};
@@ -101,7 +102,8 @@ OutputVector translate_zeros_like(NodeContext& context) {
         filled_tensor = context.mark_node(std::make_shared<opset8::Convert>(filled_tensor, dtype));
     }
     else {
-        filled_tensor = context.mark_node(std::make_shared<opset8::ConvertLike>(filled_tensor, input));
+        auto out_dtype = context.input_is_none(2)? input : context.get_input(2);
+        filled_tensor = context.mark_node(std::make_shared<opset8::ConvertLike>(filled_tensor, out_dtype));
     }
     return {filled_tensor};
 };
@@ -154,7 +156,8 @@ OutputVector translate_ones_like(NodeContext& context) {
         filled_tensor = context.mark_node(std::make_shared<opset8::Convert>(filled_tensor, dtype));
     }
     else {
-        filled_tensor = context.mark_node(std::make_shared<opset8::ConvertLike>(filled_tensor, input));
+        auto out_dtype = context.input_is_none(2)? input : context.get_input(2);
+        filled_tensor = context.mark_node(std::make_shared<opset8::ConvertLike>(filled_tensor, out_dtype));
     }
     return {filled_tensor};
 };
