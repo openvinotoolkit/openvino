@@ -2112,15 +2112,11 @@ void jit_is_nan_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const 
     auto vmm_src = Vmm(in_vec_idxs[0]);
     auto vmm_dst = Vmm(out_vec_idxs[0]);
 
-    h->uni_vpslld(vmm_src, vmm_src, 1);
-    h->uni_vpsrld(vmm_src, vmm_src, 1);
-
+    h->uni_vcmpps(vmm_src, vmm_src, vmm_src, 0B00000100);
     if (isa == x64::avx2) {
-        h->vpcmpgtd(vmm_src, vmm_src, table_val("inf"));
         h->uni_vandps(vmm_dst, vmm_src, table_val("one"));
     } else {
-        h->pcmpgtd(vmm_src, table_val("inf"));
-        if (vmm_src.getIdx() != vmm_dst.getIdx()) {
+        if (vmm_dst.getIdx() != vmm_src.getIdx()) {
             h->uni_vmovups(vmm_dst, vmm_src);
         }
         h->uni_vandps(vmm_dst, vmm_dst, table_val("one"));
@@ -2144,7 +2140,6 @@ void jit_is_nan_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const
 void jit_is_nan_emitter::register_table_entries() {
     if (host_isa_ != x64::avx512_core) {
         push_arg_entry_of("one", CONST_1_F, true);
-        push_arg_entry_of("inf", INF_MASK, true);
     }
 }
 

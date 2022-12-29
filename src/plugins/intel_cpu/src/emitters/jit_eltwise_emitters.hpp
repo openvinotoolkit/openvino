@@ -622,7 +622,6 @@ public:
     }
 
     size_t get_inputs_num() const override { return 1; };
-    size_t aux_vecs_count() const override { return host_isa_ == dnnl::impl::cpu::x64::avx512_core ? 0 : 2; }
 
 protected:
     size_t aux_gprs_count() const override { return (entry_map_.empty() ? 0 : 1) + 1; }
@@ -650,7 +649,6 @@ public:
     }
 
     size_t get_inputs_num() const override { return 1; };
-    size_t aux_vecs_count() const override { return host_isa_ == dnnl::impl::cpu::x64::avx512_core ? 0 : detect_positive ? 2 : 1; }
 
 protected:
     size_t aux_gprs_count() const override { return (entry_map_.empty() ? 0 : 1) + 1; }
@@ -680,7 +678,6 @@ public:
     }
 
     size_t get_inputs_num() const override { return 1; }
-    size_t aux_vecs_count() const override { return host_isa_ == dnnl::impl::cpu::x64::avx512_core ? 0 : 1; }
 
 protected:
     size_t aux_gprs_count() const override { return (entry_map_.empty() ? 0 : 1) + 1; }

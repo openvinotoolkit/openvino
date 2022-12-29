@@ -83,7 +83,8 @@ InferenceEngine::Blob::Ptr ComparisonLayerTest::GenerateInput(const InferenceEng
     if (comparisonOpType == ComparisonTypes::IS_FINITE || comparisonOpType == ComparisonTypes::IS_NAN) {
         blob = make_blob_with_precision(inputInfo.getTensorDesc());
         blob->allocate();
-        auto *dataPtr = blob->buffer().as<float*>();
+        auto dataPtr = blob->buffer().as<float*>();
+        auto dataPtrInt = blob->buffer().as<int*>();
         const auto range = blob->size();
         const float start = -static_cast<float>(range) / 2.f;
         testing::internal::Random random(1);
@@ -93,6 +94,8 @@ InferenceEngine::Blob::Ptr ComparisonLayerTest::GenerateInput(const InferenceEng
                 dataPtr[i] = std::numeric_limits<float>::infinity();
             } else if (i % 7 == 1) {
                 dataPtr[i] = -std::numeric_limits<float>::infinity();
+            } else if (i % 7 == 2) {
+                dataPtrInt[i] = 0x7F800000 + random.Generate(range);
             } else if (i % 7 == 3) {
                 dataPtr[i] = std::numeric_limits<double>::quiet_NaN();
             } else if (i % 7 == 5) {
