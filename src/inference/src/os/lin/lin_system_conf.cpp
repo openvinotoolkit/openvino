@@ -63,140 +63,132 @@ struct CPU {
             _cores = _processors;
         }
 
-        /****/
-        _n_processors = sysconf(_SC_NPROCESSORS_ONLN);
+        /**********************/
+        std::ifstream cache_1_file("/sys/devices/system/cpu/cpu0/cache/index0/shared_cpu_list");
+        std::ifstream cache_2_file("/sys/devices/system/cpu/cpu0/cache/index2/shared_cpu_list");
+        std::ifstream cache_3_file("/sys/devices/system/cpu/cpu0/cache/index3/shared_cpu_list");
 
-        _proc_type_table.resize(EFFICIENT_CORE_PROC + 1, 0);
-        _cpu_mapping_table.resize(_n_processors, std::vector<int>(CPU_MAP_USED_FLAG + 1, -1));
+        if (cache_1_file.is_open() && cache_2_file.is_open() && cache_3_file.is_open()) {
+            _n_processors = sysconf(_SC_NPROCESSORS_ONLN);
+            _proc_type_table.resize(EFFICIENT_CORE_PROC + 1, 0);
+            _cpu_mapping_table.resize(_n_processors, std::vector<int>(CPU_MAP_USED_FLAG + 1, -1));
+            int n_group = 0;
 
-        int n_group = 0;
+            auto updateProcMapping = [&](const int nproc) {
+                if (-1 == _cpu_mapping_table[nproc][CPU_MAP_CORE_ID]) {
+                    int core_1 = 0;
+                    int core_2 = 0;
+                    std::string::size_type pos = 0;
+                    std::string::size_type endpos = 0;
+                    std::string sub_str = "";
+                    std::ifstream cache_1_file("/sys/devices/system/cpu/cpu" + std::to_string(nproc) +
+                                               "/cache/index0/shared_cpu_list");
+                    std::ifstream cache_2_file("/sys/devices/system/cpu/cpu" + std::to_string(nproc) +
+                                               "/cache/index2/shared_cpu_list");
+                    std::string cache_1_info;
+                    std::getline(cache_1_file, cache_1_info);
+                    std::string cache_2_info;
+                    std::getline(cache_2_file, cache_2_info);
 
-        auto updateProcMapping = [&](const int nproc) {
-            if (-1 == _cpu_mapping_table[nproc][CPU_MAP_CORE_ID]) {
-                int core_1 = 0;
-                int core_2 = 0;
-                std::string::size_type pos = 0;
-                std::string::size_type endpos = 0;
-                std::string sub_str = "";
+                    if (((endpos = cache_1_info.find(',', pos)) != std::string::npos) ||
+                        ((endpos = cache_1_info.find('-', pos)) != std::string::npos)) {
+                        sub_str = cache_1_info.substr(pos, endpos);
+                        core_1 = std::stoi(sub_str);
+                        sub_str = cache_1_info.substr(endpos + 1);
+                        core_2 = std::stoi(sub_str);
 
-                std::ifstream cache_1_file("/sys/devices/system/cpu/cpu" + std::to_string(nproc) +
-                                           "/cache/index0/shared_cpu_list");
-                std::ifstream cache_2_file("/sys/devices/system/cpu/cpu" + std::to_string(nproc) +
-                                           "/cache/index2/shared_cpu_list");
-                std::string cache_1_info;
-                std::getline(cache_1_file, cache_1_info);
-                std::string cache_2_info;
-                std::getline(cache_2_file, cache_2_info);
-
-                if (((endpos = cache_1_info.find(',', pos)) != std::string::npos) ||
-                    ((endpos = cache_1_info.find('-', pos)) != std::string::npos)) {
-                    sub_str = cache_1_info.substr(pos, endpos);
-                    core_1 = std::stoi(sub_str);
-                    sub_str = cache_1_info.substr(endpos + 1);
-                    core_2 = std::stoi(sub_str);
-
-                    _cpu_mapping_table[core_1][CPU_MAP_PROCESSOR_ID] = core_1;
-                    _cpu_mapping_table[core_2][CPU_MAP_PROCESSOR_ID] = core_2;
-
-                    _cpu_mapping_table[core_1][CPU_MAP_CORE_ID] = _n_cores;
-                    _cpu_mapping_table[core_2][CPU_MAP_CORE_ID] = _n_cores;
-
-                    /**
-                     * Processor 0 need to handle system interception on Linux. So use second processor as physical core
-                     * and first processor as logic core
-                     */
-                    _cpu_mapping_table[core_1][CPU_MAP_CORE_TYPE] = HYPER_THREADING_PROC;
-                    _cpu_mapping_table[core_2][CPU_MAP_CORE_TYPE] = MAIN_CORE_PROC;
-
-                    _cpu_mapping_table[core_1][CPU_MAP_GROUP_ID] = n_group;
-                    _cpu_mapping_table[core_2][CPU_MAP_GROUP_ID] = n_group;
-
-                    _n_cores++;
-                    n_group++;
-
-                    _proc_type_table[ALL_PROC] += 2;
-                    _proc_type_table[MAIN_CORE_PROC]++;
-                    _proc_type_table[HYPER_THREADING_PROC]++;
-
-                } else if ((endpos = cache_2_info.find('-', pos)) != std::string::npos) {
-                    sub_str = cache_2_info.substr(pos, endpos);
-                    core_1 = std::stoi(sub_str);
-                    sub_str = cache_2_info.substr(endpos + 1);
-                    core_2 = std::stoi(sub_str);
-
-                    for (int m = core_1; m <= core_2; m++) {
-                        _cpu_mapping_table[m][CPU_MAP_PROCESSOR_ID] = m;
-                        _cpu_mapping_table[m][CPU_MAP_CORE_ID] = _n_cores;
-                        _cpu_mapping_table[m][CPU_MAP_CORE_TYPE] = EFFICIENT_CORE_PROC;
-                        _cpu_mapping_table[m][CPU_MAP_GROUP_ID] = n_group;
+                        _cpu_mapping_table[core_1][CPU_MAP_PROCESSOR_ID] = core_1;
+                        _cpu_mapping_table[core_2][CPU_MAP_PROCESSOR_ID] = core_2;
+                        _cpu_mapping_table[core_1][CPU_MAP_CORE_ID] = _n_cores;
+                        _cpu_mapping_table[core_2][CPU_MAP_CORE_ID] = _n_cores;
+                        /**
+                         * Processor 0 need to handle system interception on Linux. So use second processor as physical
+                         * core and first processor as logic core
+                         */
+                        _cpu_mapping_table[core_1][CPU_MAP_CORE_TYPE] = HYPER_THREADING_PROC;
+                        _cpu_mapping_table[core_2][CPU_MAP_CORE_TYPE] = MAIN_CORE_PROC;
+                        _cpu_mapping_table[core_1][CPU_MAP_GROUP_ID] = n_group;
+                        _cpu_mapping_table[core_2][CPU_MAP_GROUP_ID] = n_group;
 
                         _n_cores++;
+                        n_group++;
+                        _proc_type_table[ALL_PROC] += 2;
+                        _proc_type_table[MAIN_CORE_PROC]++;
+                        _proc_type_table[HYPER_THREADING_PROC]++;
 
-                        _proc_type_table[ALL_PROC]++;
-                        _proc_type_table[EFFICIENT_CORE_PROC]++;
-                    }
-
-                    n_group++;
-
-                } else {
-                    core_1 = std::stoi(cache_1_info);
-
-                    _cpu_mapping_table[core_1][CPU_MAP_CORE_ID] = _n_cores;
-                    _cpu_mapping_table[core_1][CPU_MAP_CORE_TYPE] = MAIN_CORE_PROC;
-                    _cpu_mapping_table[core_1][CPU_MAP_GROUP_ID] = n_group;
-
-                    _n_cores++;
-                    n_group++;
-
-                    _proc_type_table[ALL_PROC]++;
-                    _proc_type_table[MAIN_CORE_PROC]++;
-                }
-            }
-            return;
-        };
-
-        for (int n = 0; n < _n_processors; n++) {
-            if (-1 == _cpu_mapping_table[n][CPU_MAP_SOCKET_ID]) {
-                std::ifstream cache_3_file("/sys/devices/system/cpu/cpu" + std::to_string(n) +
-                                           "/cache/index3/shared_cpu_list");
-                std::string cache_3_info;
-                std::getline(cache_3_file, cache_3_info);
-
-                std::string::size_type pos = 0;
-                std::string::size_type endpos = 0;
-                std::string sub_str;
-
-                int core_1;
-                int core_2;
-
-                while (1) {
-                    if ((endpos = cache_3_info.find('-', pos)) != std::string::npos) {
-                        sub_str = cache_3_info.substr(pos, endpos);
+                    } else if ((endpos = cache_2_info.find('-', pos)) != std::string::npos) {
+                        sub_str = cache_2_info.substr(pos, endpos);
                         core_1 = std::stoi(sub_str);
-                        sub_str = cache_3_info.substr(endpos + 1);
+                        sub_str = cache_2_info.substr(endpos + 1);
                         core_2 = std::stoi(sub_str);
 
                         for (int m = core_1; m <= core_2; m++) {
-                            _cpu_mapping_table[m][CPU_MAP_SOCKET_ID] = _n_sockets;
-                            updateProcMapping(m);
+                            _cpu_mapping_table[m][CPU_MAP_PROCESSOR_ID] = m;
+                            _cpu_mapping_table[m][CPU_MAP_CORE_ID] = _n_cores;
+                            _cpu_mapping_table[m][CPU_MAP_CORE_TYPE] = EFFICIENT_CORE_PROC;
+                            _cpu_mapping_table[m][CPU_MAP_GROUP_ID] = n_group;
+
+                            _n_cores++;
+                            _proc_type_table[ALL_PROC]++;
+                            _proc_type_table[EFFICIENT_CORE_PROC]++;
                         }
+                        n_group++;
 
-                    } else if (pos != std::string::npos) {
-                        sub_str = cache_3_info.substr(pos);
-                        core_1 = std::stoi(sub_str);
-                        _cpu_mapping_table[core_1][CPU_MAP_SOCKET_ID] = _n_sockets;
-                        updateProcMapping(core_1);
-                        endpos = pos;
-                    }
-
-                    if ((pos = cache_3_info.find(',', endpos)) != std::string::npos) {
-                        pos++;
                     } else {
-                        break;
+                        core_1 = std::stoi(cache_1_info);
+
+                        _cpu_mapping_table[core_1][CPU_MAP_CORE_ID] = _n_cores;
+                        _cpu_mapping_table[core_1][CPU_MAP_CORE_TYPE] = MAIN_CORE_PROC;
+                        _cpu_mapping_table[core_1][CPU_MAP_GROUP_ID] = n_group;
+
+                        _n_cores++;
+                        n_group++;
+                        _proc_type_table[ALL_PROC]++;
+                        _proc_type_table[MAIN_CORE_PROC]++;
                     }
                 }
+                return;
+            };
 
-                _n_sockets++;
+            for (int n = 0; n < _n_processors; n++) {
+                if (-1 == _cpu_mapping_table[n][CPU_MAP_SOCKET_ID]) {
+                    std::ifstream cache_3_file("/sys/devices/system/cpu/cpu" + std::to_string(n) +
+                                               "/cache/index3/shared_cpu_list");
+                    std::string cache_3_info;
+                    std::getline(cache_3_file, cache_3_info);
+                    std::string::size_type pos = 0;
+                    std::string::size_type endpos = 0;
+                    std::string sub_str;
+                    int core_1;
+                    int core_2;
+
+                    while (1) {
+                        if ((endpos = cache_3_info.find('-', pos)) != std::string::npos) {
+                            sub_str = cache_3_info.substr(pos, endpos);
+                            core_1 = std::stoi(sub_str);
+                            sub_str = cache_3_info.substr(endpos + 1);
+                            core_2 = std::stoi(sub_str);
+
+                            for (int m = core_1; m <= core_2; m++) {
+                                _cpu_mapping_table[m][CPU_MAP_SOCKET_ID] = _n_sockets;
+                                updateProcMapping(m);
+                            }
+                        } else if (pos != std::string::npos) {
+                            sub_str = cache_3_info.substr(pos);
+                            core_1 = std::stoi(sub_str);
+                            _cpu_mapping_table[core_1][CPU_MAP_SOCKET_ID] = _n_sockets;
+                            updateProcMapping(core_1);
+                            endpos = pos;
+                        }
+
+                        if ((pos = cache_3_info.find(',', endpos)) != std::string::npos) {
+                            pos++;
+                        } else {
+                            break;
+                        }
+                    }
+                    _n_sockets++;
+                }
             }
         }
         /**********************/
