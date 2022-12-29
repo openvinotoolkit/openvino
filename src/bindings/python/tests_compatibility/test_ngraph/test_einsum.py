@@ -7,11 +7,10 @@ import pytest
 
 from ngraph.utils.types import get_element_type
 from tests_compatibility import xfail_issue_58033
-from tests_compatibility.runtime import get_runtime
 
 
 def einsum_op_exec(input_shapes: list, equation: str, data_type: np.dtype,
-                   with_value=False, seed=202104):
+                   seed=202104):
     """Test Einsum operation for given input shapes, equation, and data type.
 
     It generates input data of given shapes and type, receives reference results using numpy,
@@ -19,16 +18,10 @@ def einsum_op_exec(input_shapes: list, equation: str, data_type: np.dtype,
     :param input_shapes: a list of tuples with shapes
     :param equation: Einsum equation
     :param data_type: a type of input data
-    :param with_value: if True - tests output data shape and type along with its value,
-                       otherwise, tests only the output shape and type
     :param seed: a seed for random generation of input data
     """
     np.random.seed(seed)
     num_inputs = len(input_shapes)
-    runtime = get_runtime()
-
-    # set absolute tolerance based on the data type
-    atol = 0.0 if np.issubdtype(data_type, np.integer) else 1e-04
 
     # generate input tensors
     ng_inputs = []
@@ -46,12 +39,6 @@ def einsum_op_exec(input_shapes: list, equation: str, data_type: np.dtype,
     assert einsum_model.get_output_size() == 1
     assert list(einsum_model.get_output_shape(0)) == list(expected_result.shape)
     assert einsum_model.get_output_element_type(0) == get_element_type(data_type)
-
-    # check inference result
-    if with_value:
-        computation = runtime.computation(einsum_model, *ng_inputs)
-        actual_result = computation(*np_inputs)
-        np.allclose(actual_result, expected_result, atol=atol)
 
 
 @pytest.mark.parametrize("data_type", [np.float32, np.int32])

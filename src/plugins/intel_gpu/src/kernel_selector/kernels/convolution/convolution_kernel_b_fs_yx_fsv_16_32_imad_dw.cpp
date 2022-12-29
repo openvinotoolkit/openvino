@@ -68,6 +68,13 @@ ParamsKey kernel_selector::ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::GetSuppo
     return k;
 }
 
+DeviceFeaturesKey ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_blocked_read_write(); // for weights loading
+
+    return k;
+}
+
 bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::Validate(const Params& params, const optional_params& options) const {
     if (!Parent::Validate(params, options))
         return false;
@@ -131,11 +138,11 @@ ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::GetAutoTuneParams(const convolution
     bool stride_2x2 = params.stride.x == 2 && params.stride.y == 2;
     // Filter 3x3 with stride 1x1
     if (fsv == 16 && filter_3x3 && stride_1x1 && dilation_1x1 && output.X().v == 75 && output.Y().v == 75)
-        try_to_select(16, 15, 1, 4, true, DEFAULT);
+        try_to_select(16, 15, 1, 4, true, EXE_MODE_DEFAULT);
 
     // Filter 3x3 with stride 2x2
     if (fsv == 16 && filter_3x3 && stride_2x2 && dilation_1x1 && output.X().v == 75 && output.Y().v == 75)
-        try_to_select(16, 15, 1, 16, true, DEFAULT);
+        try_to_select(16, 15, 1, 16, true, EXE_MODE_DEFAULT);
 
     // Check if SLM can provide data reuse for current parameters
     bool use_slm_x = (params.filterSize.x - 1) * params.dilation.x + 1 >= params.stride.x;
@@ -182,7 +189,7 @@ ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::GetAutoTuneParams(const convolution
             lws0 = 2;
 
         if (tile_selected)
-            try_to_select(16, tile_x, lws0, lws1, true, DEFAULT);
+            try_to_select(16, tile_x, lws0, lws1, true, EXE_MODE_DEFAULT);
     }
 
     if (!selected) {
@@ -197,7 +204,7 @@ ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::GetAutoTuneParams(const convolution
         tune_params.lws0 = 1;
         tune_params.lws1 = 1;
         tune_params.preload_input_slm = false;
-        tune_params.exeMode = DEFAULT;
+        tune_params.exeMode = EXE_MODE_DEFAULT;
     }
 
     return tune_params;
@@ -224,7 +231,7 @@ bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::ValidateAutoTuneParams(const c
     valid_tune_params &= tparams.tile_x * tparams.lws0 <= Align(params.outputs[0].X().v, 2);
 
     // Filter out combinations that are known to be sub-optimal in order to reduce search space
-    valid_tune_params &= tparams.exeMode == DEFAULT;
+    valid_tune_params &= tparams.exeMode == EXE_MODE_DEFAULT;
     valid_tune_params &= tparams.preload_input_slm || tparams.lws0 * tparams.lws1 == 1;
     valid_tune_params &= !tparams.preload_input_slm || (tparams.lws0 * tparams.lws1) % 2 == 0;
 
