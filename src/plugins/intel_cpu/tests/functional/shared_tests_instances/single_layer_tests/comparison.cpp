@@ -55,14 +55,31 @@ const auto ComparisonTestParams = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs, ComparisonLayerTest, ComparisonTestParams, ComparisonLayerTest::getTestCaseName);
 
+
+std::vector<InputShapesTuple> inputShapesIsOps = {
+        {{1}, {1}},
+        {{1, 2}, {1}},
+        {{3, 1}, {1}},
+        {{2, 2}, {1}},
+        {{1, 5, 1}, {1}},
+        {{2, 1, 1, 3, 1}, {1}},
+        {{7, 1, 1, 1, 1}, {1}},
+        {{2, 2, 2}, {1}},
+        {{3, 1, 3, 3}, {1}},
+        {{17}, {1}},
+        {{2, 18}, {1}},
+        {{1, 3, 20}, {1}},
+        {{2, 200}, {1}},
+        {{2, 17, 3, 4}, {1}}
+};
+
 std::vector<ngraph::helpers::ComparisonTypes> comparisonOpTypesIs = {
         ngraph::helpers::ComparisonTypes::IS_FINITE,
-        ngraph::helpers::ComparisonTypes::IS_INF,
         ngraph::helpers::ComparisonTypes::IS_NAN
 };
 
 const auto ComparisonTestParamsIs = ::testing::Combine(
-        ::testing::ValuesIn(CommonTestUtils::combineParams(inputShapes)),
+        ::testing::ValuesIn(inputShapesIsOps),
         ::testing::Values(InferenceEngine::Precision::FP32),
         ::testing::ValuesIn(comparisonOpTypesIs),
         ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),

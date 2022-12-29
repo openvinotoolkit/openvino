@@ -76,15 +76,25 @@ void IsInfLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputSt
     const auto& funcInputs = function->inputs();
     const auto& input = funcInputs[0];
 
-    int32_t range = std::accumulate(targetInputStaticShapes[0].begin(), targetInputStaticShapes[0].end(), 1u, std::multiplies<uint32_t>());
-    auto tensor = utils::create_and_fill_tensor(
-           input.get_element_type(), targetInputStaticShapes[0], range, -range / 2, 1);
+    int32_t range = std::accumulate(targetInputStaticShapes[0].begin(), targetInputStaticShapes[0].end(), 1, std::multiplies<uint32_t>());
+    float startFrom = -static_cast<float>(range) / 2.f;
+    auto tensor = ov::Tensor{ input.get_element_type(), targetInputStaticShapes[0]};
 
     auto pointer = tensor.data<element_type_traits<ov::element::Type_t::f32>::value_type>();
     testing::internal::Random random(1);
 
-    for (size_t i = 0; i < range / 2; i++) {
-        pointer[random.Generate(range)] = i % 2 == 0 ? std::numeric_limits<float>::infinity() : -std::numeric_limits<float>::infinity();
+    for (size_t i = 0; i < range; i++) {
+        if (i % 7 == 0) {
+            pointer[i] = std::numeric_limits<float>::infinity();
+        } else if (i % 7 == 1) {
+           pointer[i] = std::numeric_limits<double>::quiet_NaN();
+        } else if (i % 7 == 3) {
+            pointer[i] = -std::numeric_limits<float>::infinity();
+        } else if (i % 7 == 5) {
+            pointer[i] = -std::numeric_limits<double>::quiet_NaN();
+        } else {
+            pointer[i] = startFrom + static_cast<float>(random.Generate(range));
+        }
     }
 
     inputs.insert({input.get_node_shared_ptr(), tensor});
