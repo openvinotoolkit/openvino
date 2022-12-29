@@ -1654,6 +1654,13 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
     return preferred_impl;
 }
 
+format layout_optimizer::get_forced_format(program_node& node) {
+    if (!_forcing_map.empty() && _forcing_map.count(node.id()) != 0) {
+        return _forcing_map.at(node.id()).first;
+    }
+    return format::any;
+}
+
 format layout_optimizer::get_preferred_format(program_node& node) {
     format expected = format::any;
     auto output_layout = node.get_output_layout();
