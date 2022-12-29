@@ -44,7 +44,7 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name, const st
         if (_autoSchedule->_loadContext[ACTUALDEVICE].isAlready) {
             try {
                 return _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetMetric(name);
-            } catch (...) {
+            } catch (const IE::Exception&) {
                 return _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetConfig(name);
             }
         }
@@ -52,7 +52,7 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name, const st
     if (target_device == "CPU" && _autoSchedule->_loadContext[CPU].isAlready) {
         try {
             return _autoSchedule->_loadContext[CPU].executableNetwork->GetMetric(name);
-        } catch (...) {
+        } catch (const IE::Exception&) {
             return _autoSchedule->_loadContext[CPU].executableNetwork->GetConfig(name);
         }
     }

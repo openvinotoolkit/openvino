@@ -143,7 +143,7 @@ IE::Parameter MultiExecutableNetwork::GetMetric(const std::string& name, const s
         IE_THROW() << "Not found ExecutableNetwork for : " << target_device;
     try {
         return item->second->GetMetric(name);
-    } catch (...) {
+    } catch (const IE::Exception&) {
         return item->second->GetConfig(name);
     }
 }
