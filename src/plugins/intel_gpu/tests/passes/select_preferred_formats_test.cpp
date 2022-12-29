@@ -41,6 +41,7 @@ TEST(test_select_preferred_formats, setting_target_conv_format) {
     layout_optimizer lo(true);
     auto prog = program::build_program(engine, topology, build, false, true);
 
+    prog->get_node("conv1").get_output_layouts(false);
     program_wrapper::apply_opt_pass<select_preferred_formats>(*prog, lo);
 
     ASSERT_NE(prog, nullptr);

@@ -37,11 +37,9 @@ void select_preferred_formats::run(program& p) {
         try {
             dnnl::primitive_desc prim_desc;
             if (n->is_type<convolution>()) {
-                n->get_output_layouts(true); // initialize output layouts
                 auto desc = onednn::get_convolution_descriptor(*n->get_kernel_impl_params(), dnnl::memory::format_tag::any);
                 prim_desc = dnnl::primitive_desc(&desc->data, nullptr, engine.get_onednn_engine(), nullptr);
             } else if (n->is_type<deconvolution>()) {
-                n->get_output_layouts(true); // initialize output layouts
                 auto desc = onednn::get_deconvolution_descriptor(*n->get_kernel_impl_params(), dnnl::memory::format_tag::any);
                 prim_desc = dnnl::primitive_desc(&desc->data, nullptr, engine.get_onednn_engine(), nullptr);
             }
