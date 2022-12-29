@@ -463,61 +463,9 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
     bool is_new_api = IsNewAPI();
 
     if (name == ov::supported_properties) {
-        return decltype(ov::supported_properties)::value_type {
-            // Metrics
-            ov::PropertyName{ov::supported_properties.name(), PropertyMutability::RO},
-            ov::PropertyName{ov::available_devices.name(), PropertyMutability::RO},
-            ov::PropertyName{ov::range_for_async_infer_requests.name(), PropertyMutability::RO},
-            ov::PropertyName{ov::range_for_streams.name(), PropertyMutability::RO},
-            ov::PropertyName{ov::optimal_batch_size.name(), PropertyMutability::RO},
-            ov::PropertyName{ov::max_batch_size.name(), PropertyMutability::RO},
-            ov::PropertyName{ov::caching_properties.name(), PropertyMutability::RO},
-            ov::PropertyName{ov::device::architecture.name(), PropertyMutability::RO},
-            ov::PropertyName{ov::device::full_name.name(), PropertyMutability::RO},
-            ov::PropertyName{ov::device::uuid.name(), PropertyMutability::RO},
-            ov::PropertyName{ov::device::type.name(), PropertyMutability::RO},
-            ov::PropertyName{ov::device::gops.name(), PropertyMutability::RO},
-            ov::PropertyName{ov::device::capabilities.name(), PropertyMutability::RO},
-            ov::PropertyName{ov::intel_gpu::device_total_mem_size.name(), PropertyMutability::RO},
-            ov::PropertyName{ov::intel_gpu::uarch_version.name(), PropertyMutability::RO},
-            ov::PropertyName{ov::intel_gpu::execution_units_count.name(), PropertyMutability::RO},
-            ov::PropertyName{ov::intel_gpu::memory_statistics.name(), PropertyMutability::RO},
-
-            // Configs
-            ov::PropertyName{ov::enable_profiling.name(), PropertyMutability::RW},
-            ov::PropertyName{ov::hint::model_priority.name(), PropertyMutability::RW},
-            ov::PropertyName{ov::intel_gpu::hint::host_task_priority.name(), PropertyMutability::RW},
-            ov::PropertyName{ov::intel_gpu::hint::queue_priority.name(), PropertyMutability::RW},
-            ov::PropertyName{ov::intel_gpu::hint::queue_throttle.name(), PropertyMutability::RW},
-            ov::PropertyName{ov::intel_gpu::enable_loop_unrolling.name(), PropertyMutability::RW},
-            ov::PropertyName{ov::cache_dir.name(), PropertyMutability::RW},
-            ov::PropertyName{ov::hint::performance_mode.name(), PropertyMutability::RW},
-            ov::PropertyName{ov::compilation_num_threads.name(), PropertyMutability::RW},
-            ov::PropertyName{ov::num_streams.name(), PropertyMutability::RW},
-            ov::PropertyName{ov::hint::num_requests.name(), PropertyMutability::RW},
-            ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RW},
-            ov::PropertyName{ov::device::id.name(), PropertyMutability::RW},
-        };
+        return decltype(ov::supported_properties)::value_type {get_supported_properties()};
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
-        std::vector<std::string> metrics;
-        metrics.push_back(METRIC_KEY(AVAILABLE_DEVICES));
-        metrics.push_back(METRIC_KEY(SUPPORTED_METRICS));
-        metrics.push_back(METRIC_KEY(FULL_DEVICE_NAME));
-        metrics.push_back(METRIC_KEY(OPTIMIZATION_CAPABILITIES));
-        metrics.push_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-        metrics.push_back(METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS));
-        metrics.push_back(METRIC_KEY(RANGE_FOR_STREAMS));
-        metrics.push_back(METRIC_KEY(DEVICE_TYPE));
-        metrics.push_back(METRIC_KEY(DEVICE_GOPS));
-        metrics.push_back(METRIC_KEY(OPTIMAL_BATCH_SIZE));
-        metrics.push_back(METRIC_KEY(MAX_BATCH_SIZE));
-        if (isModelCachingEnabled)
-            metrics.push_back(METRIC_KEY(IMPORT_EXPORT_SUPPORT));
-        metrics.push_back(GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
-        metrics.push_back(GPU_METRIC_KEY(UARCH_VERSION));
-        metrics.push_back(GPU_METRIC_KEY(EXECUTION_UNITS_COUNT));
-        metrics.push_back(GPU_METRIC_KEY(MEMORY_STATISTICS));
-        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
+        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, get_supported_legacy_metrics());
     } else if (name == METRIC_KEY(AVAILABLE_DEVICES)) {
         std::vector<std::string> availableDevices = { };
         for (auto const& dev : device_map)
@@ -633,30 +581,9 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         deviceName += std::string(" (") + (device_info.dev_type == cldnn::device_type::discrete_gpu ? "dGPU" : "iGPU") + ")";
         return decltype(ov::device::full_name)::value_type {deviceName};
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-        std::vector<std::string> configKeys;
-        LegacyPropertiesHelper helper;
-        for (auto opt : m_configs_map.at(device_id).get_properties()) {
-            // Exclude new API properties
-            if (!helper.is_new_api_property(opt))
-                configKeys.push_back(opt.first);
-        }
-        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
+        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, get_supported_legacy_configs());
     } else if (name == ov::device::capabilities) {
-        std::vector<std::string> capabilities;
-
-        capabilities.push_back(ov::device::capability::FP32);
-        capabilities.push_back(ov::device::capability::BIN);
-        if (!is_new_api)
-            capabilities.push_back(METRIC_VALUE(BATCHED_BLOB));
-        if (device_info.supports_fp16)
-            capabilities.push_back(ov::device::capability::FP16);
-        if (device_info.supports_imad || device_info.supports_immad)
-            capabilities.push_back(ov::device::capability::INT8);
-        if (device_info.supports_immad)
-            capabilities.push_back(ov::intel_gpu::capability::HW_MATMUL);
-        if (isModelCachingEnabled)
-            capabilities.push_back(ov::device::capability::EXPORT_IMPORT);
-        return decltype(ov::device::capabilities)::value_type {capabilities};
+        return decltype(ov::device::capabilities)::value_type {get_device_capabilities(device_info)};
     } else if (name == ov::range_for_async_infer_requests) {
         std::tuple<unsigned int, unsigned int, unsigned int> range = std::make_tuple(1, 2, 1);
         IE_SET_METRIC_RETURN(RANGE_FOR_ASYNC_INFER_REQUESTS, range);
@@ -854,6 +781,113 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         IE_THROW() << "Unsupported metric key " << name;
     }
 }
+
+std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
+    const static std::vector<ov::PropertyName> supported_properties = {
+        // Metrics
+        ov::PropertyName{ov::supported_properties.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::available_devices.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::range_for_async_infer_requests.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::range_for_streams.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::optimal_batch_size.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::max_batch_size.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::caching_properties.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::device::architecture.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::device::full_name.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::device::uuid.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::device::type.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::device::gops.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::device::capabilities.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::intel_gpu::device_total_mem_size.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::intel_gpu::uarch_version.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::intel_gpu::execution_units_count.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::intel_gpu::memory_statistics.name(), PropertyMutability::RO},
+
+        // Configs
+        ov::PropertyName{ov::enable_profiling.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::hint::model_priority.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::intel_gpu::hint::host_task_priority.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::intel_gpu::hint::queue_priority.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::intel_gpu::hint::queue_throttle.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::intel_gpu::enable_loop_unrolling.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::cache_dir.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::hint::performance_mode.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::compilation_num_threads.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::num_streams.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::hint::num_requests.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::device::id.name(), PropertyMutability::RW},
+    };
+
+    return supported_properties;
+}
+
+std::vector<std::string> Plugin::get_supported_legacy_configs() const {
+    const static std::vector<std::string> supported_config = {
+        CONFIG_KEY(MODEL_PRIORITY),
+        CONFIG_KEY(PERFORMANCE_HINT),
+        CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS),
+        CONFIG_KEY(PERF_COUNT),
+        CONFIG_KEY(DYN_BATCH_ENABLED),
+        CONFIG_KEY(CONFIG_FILE),
+        CONFIG_KEY(DEVICE_ID),
+        CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS),
+        CONFIG_KEY(CACHE_DIR),
+        CONFIG_KEY(GPU_THROUGHPUT_STREAMS),
+        GPU_CONFIG_KEY(PLUGIN_PRIORITY),
+        GPU_CONFIG_KEY(PLUGIN_THROTTLE),
+        GPU_CONFIG_KEY(HOST_TASK_PRIORITY),
+        GPU_CONFIG_KEY(NV12_TWO_INPUTS),
+        GPU_CONFIG_KEY(MAX_NUM_THREADS),
+        GPU_CONFIG_KEY(ENABLE_LOOP_UNROLLING),
+    };
+
+    return supported_config;
+}
+
+std::vector<std::string> Plugin::get_supported_legacy_metrics() const {
+    std::vector<std::string> supported_metrics = {
+        METRIC_KEY(AVAILABLE_DEVICES),
+        METRIC_KEY(SUPPORTED_METRICS),
+        METRIC_KEY(FULL_DEVICE_NAME),
+        METRIC_KEY(OPTIMIZATION_CAPABILITIES),
+        METRIC_KEY(SUPPORTED_CONFIG_KEYS),
+        METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS),
+        METRIC_KEY(RANGE_FOR_STREAMS),
+        METRIC_KEY(DEVICE_TYPE),
+        METRIC_KEY(DEVICE_GOPS),
+        METRIC_KEY(OPTIMAL_BATCH_SIZE),
+        METRIC_KEY(MAX_BATCH_SIZE),
+        GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE),
+        GPU_METRIC_KEY(UARCH_VERSION),
+        GPU_METRIC_KEY(EXECUTION_UNITS_COUNT),
+        GPU_METRIC_KEY(MEMORY_STATISTICS),
+    };
+    if (isModelCachingEnabled)
+        supported_metrics.push_back(METRIC_KEY(IMPORT_EXPORT_SUPPORT));
+
+    return supported_metrics;
+}
+
+std::vector<std::string> Plugin::get_device_capabilities(const cldnn::device_info& info) const {
+    std::vector<std::string> capabilities;
+
+    capabilities.push_back(ov::device::capability::FP32);
+    capabilities.push_back(ov::device::capability::BIN);
+    if (!IsNewAPI())
+        capabilities.push_back(METRIC_VALUE(BATCHED_BLOB));
+    if (info.supports_fp16)
+        capabilities.push_back(ov::device::capability::FP16);
+    if (info.supports_imad || info.supports_immad)
+        capabilities.push_back(ov::device::capability::INT8);
+    if (info.supports_immad)
+        capabilities.push_back(ov::intel_gpu::capability::HW_MATMUL);
+    if (isModelCachingEnabled)
+        capabilities.push_back(ov::device::capability::EXPORT_IMPORT);
+
+    return capabilities;
+}
+
 }  // namespace intel_gpu
 }  // namespace ov
 

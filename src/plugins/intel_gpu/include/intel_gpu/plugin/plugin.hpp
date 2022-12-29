@@ -40,6 +40,11 @@ class Plugin : public InferenceEngine::IInferencePlugin {
     std::string get_device_id_from_config(const std::map<std::string, std::string>& config) const;
     RemoteCLContext::Ptr get_default_context(const std::string& device_id) const;
 
+    std::vector<ov::PropertyName> get_supported_properties() const;
+    std::vector<std::string> get_supported_legacy_configs() const;
+    std::vector<std::string> get_supported_legacy_metrics() const;
+    std::vector<std::string> get_device_capabilities(const cldnn::device_info& info) const;
+
 public:
     Plugin();
 
