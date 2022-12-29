@@ -100,5 +100,6 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 95234
         R"(.*CachingSupportCase_GNA.*)",
         R"(.*IEClassLoadNetworkTest.*LoadNetwork(HETERO|MULTI|WithDeviceIDNoThrow|WithInvalidDeviceIDThrows).*)",
+        R"(.*smoke_Multi_BehaviorTests.*)",
     };
 }
