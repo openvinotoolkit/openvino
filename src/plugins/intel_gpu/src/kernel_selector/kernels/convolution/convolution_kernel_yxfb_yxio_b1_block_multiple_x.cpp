@@ -23,8 +23,12 @@ ParamsKey ConvolutionKernel_yxfb_yxio_b1_block_multiple_x::GetSupportedKey() con
     k.EnableBatching();
     k.EnableSplitSupport();
     k.EnableDilation();
-    k.EnableSubGroup();
     return k;
+}
+
+DeviceFeaturesKey ConvolutionKernel_yxfb_yxio_b1_block_multiple_x::get_required_device_features_key(const Params& params,
+                                                                                                    const optional_params& options) const {
+    return get_common_subgroups_device_features_key(params, options);
 }
 
 namespace {

@@ -4,9 +4,8 @@
 
 #include "include/batch_headers/common.cl"
 
-
 #if !IS_DYNAMIC
-__attribute__((intel_reqd_sub_group_size(16)))
+REQD_SUB_GROUP_SIZE(16)
 #endif
 KERNEL(softmax)(
     OPTIONAL_SHAPE_INFO_ARG

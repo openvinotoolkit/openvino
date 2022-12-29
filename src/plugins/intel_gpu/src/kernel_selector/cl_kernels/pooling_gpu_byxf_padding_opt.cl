@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
 
 #define INPUT0_VEC8 MAKE_VECTOR_TYPE(INPUT0_TYPE,8)
@@ -64,15 +63,13 @@ KERNEL(pooling_gpu_byxf_opt)(
 
     result = INIT_VAL;
 
-    __attribute__((opencl_unroll_hint))
-    for(uint j = 0; j < POOL_SIZE_Y; j++)
+    unroll_for(uint j = 0; j < POOL_SIZE_Y; j++)
     {
         int input_offset_y = offset_y + j;
         bool zero = input_offset_y < 0 || input_offset_y >= INPUT0_SIZE_Y;
         if(!zero)
         {
-            __attribute__((opencl_unroll_hint))
-            for(uint i = 0; i < POOL_SIZE_X; i++)
+            unroll_for(uint i = 0; i < POOL_SIZE_X; i++)
             {
                 int input_offset_x = offset_x + i;
                 zero = input_offset_x < 0 || input_offset_x >= INPUT0_SIZE_X;
@@ -89,8 +86,7 @@ KERNEL(pooling_gpu_byxf_opt)(
    OUTPUT_TYPE final_result;
 
     uint output_pos = GET_DATA_INDEX(OUTPUT, b, f, y, x);
-    __attribute__((opencl_unroll_hint))
-    for(uint i = 0; i < FEATURE_PER_ITEM; i++)
+    unroll_for(uint i = 0; i < FEATURE_PER_ITEM; i++)
     {
         if(f+i < INPUT0_FEATURE_NUM)
         {

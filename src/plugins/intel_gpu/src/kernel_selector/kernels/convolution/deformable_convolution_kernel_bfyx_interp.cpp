@@ -33,6 +33,13 @@ ParamsKey DeformableConvolutionKernel_bfyx_interp::GetSupportedKey() const {
     return k;
 }
 
+DeviceFeaturesKey DeformableConvolutionKernel_bfyx_interp::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    DeviceFeaturesKey k;
+    k.requires_reqd_subgroup_size();
+
+    return k;
+}
+
 CommonDispatchData DeformableConvolutionKernel_bfyx_interp::SetDefault(const convolution_params& params) const {
     CommonDispatchData dispatchData;
 

@@ -39,6 +39,15 @@ ParamsKey ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx::GetSupportedKey() const {
     return k;
 }
 
+DeviceFeaturesKey ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    DeviceFeaturesKey k;
+    k.requires_subgroups();
+    k.requires_blocked_read_write();
+    k.requires_reqd_subgroup_size();
+
+    return k;
+}
+
 static inline std::string GetTiledOutputOrder(size_t size) {
     std::string order_str = "";
     switch (size) {

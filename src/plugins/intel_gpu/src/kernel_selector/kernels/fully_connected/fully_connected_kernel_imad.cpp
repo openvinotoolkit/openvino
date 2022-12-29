@@ -45,6 +45,16 @@ ParamsKey FullyConnectedKernelIMAD::GetSupportedKey() const {
     return k;
 }
 
+DeviceFeaturesKey FullyConnectedKernelIMAD::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    DeviceFeaturesKey k;
+    k.requires_subgroups();
+    k.requires_reqd_subgroup_size();
+    k.requires_subgroup_shuffle();
+    k.requires_blocked_read_write();
+
+    return k;
+}
+
 FullyConnectedKernelIMAD::Parent::DispatchData FullyConnectedKernelIMAD::SetDefault(const fully_connected_params& params, int) const {
     auto dispatchData = Parent::SetDefault(params);
     auto tuning_data = GetTuningParams(params);

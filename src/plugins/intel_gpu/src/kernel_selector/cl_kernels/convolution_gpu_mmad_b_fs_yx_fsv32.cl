@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
 #include "include/batch_headers/fetch_data.cl"
 #include "include/mmad.cl"
 
@@ -26,7 +27,7 @@
     #define ACTIVATION_TYPE_VEC float8
     #define TO_ACTIVATION_TYPE_VEC(x) convert_float8(x)
     #define MMAD MMAD_8x8
-    #define BLOCK_WRITE(ptr, val) intel_sub_group_block_write8((__global uint*)(ptr), as_uint8(val));
+    #define BLOCK_WRITE(ptr, val) _sub_group_block_write8((__global uint*)(ptr), as_uint8(val));
 #elif OUTPUT_X_BLOCK_SIZE == 4
     #define PACKED_TYPE_VEC MAKE_VECTOR_TYPE(PACKED_IN_TYPE, 4)
     #define ACCUMULATOR_TYPE_VEC int4
@@ -34,13 +35,13 @@
     #define ACTIVATION_TYPE_VEC float4
     #define TO_ACTIVATION_TYPE_VEC(x) convert_float4(x)
     #define MMAD MMAD_4x8
-    #define BLOCK_WRITE(ptr, val) intel_sub_group_block_write4((__global uint*)(ptr), as_uint4(val));
+    #define BLOCK_WRITE(ptr, val) _sub_group_block_write4((__global uint*)(ptr), as_uint4(val));
 #else
 #error "convolution_gpu_mmad_b_fs_yx_fsv32: Unsupported block size"
 #endif
 
 __attribute__((reqd_work_group_size(8, OW_GROUP, 1)))
-__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
+REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 KERNEL(convolution_mmad_b_fs_yx_fsv32)(
     __global INPUT0_TYPE* input,
     __global PACKED_OUT_TYPE* output,
@@ -145,7 +146,7 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
                         }
                         else
                         {
-                            line_cache[xb] = AS_TYPE(PACKED_IN_TYPE, intel_sub_group_block_read((const __global uint*)(input + in_addr +
+                            line_cache[xb] = AS_TYPE(PACKED_IN_TYPE, _sub_group_block_read((const __global uint*)(input + in_addr +
                                                                           icb * input_fs_pitch +
                                                                           kd * DILATION_SIZE_Z * input_z_pitch +
                                                                           kh * DILATION_SIZE_Y * input_y_pitch +
@@ -166,10 +167,10 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
                                      + kh * ISV_SIZE * OSV_SIZE * FILTER_SIZE_X
                                      + kw * ISV_SIZE * OSV_SIZE;
 
-                    int8 weights_data0 = as_int8(intel_sub_group_block_read8((const __global uint*)(weights + f_off + 0*8*ISV_SIZE)));
-                    int8 weights_data1 = as_int8(intel_sub_group_block_read8((const __global uint*)(weights + f_off + 1*8*ISV_SIZE)));
-                    int8 weights_data2 = as_int8(intel_sub_group_block_read8((const __global uint*)(weights + f_off + 2*8*ISV_SIZE)));
-                    int8 weights_data3 = as_int8(intel_sub_group_block_read8((const __global uint*)(weights + f_off + 3*8*ISV_SIZE)));
+                    int8 weights_data0 = as_int8(_sub_group_block_read8((const __global uint*)(weights + f_off + 0*8*ISV_SIZE)));
+                    int8 weights_data1 = as_int8(_sub_group_block_read8((const __global uint*)(weights + f_off + 1*8*ISV_SIZE)));
+                    int8 weights_data2 = as_int8(_sub_group_block_read8((const __global uint*)(weights + f_off + 2*8*ISV_SIZE)));
+                    int8 weights_data3 = as_int8(_sub_group_block_read8((const __global uint*)(weights + f_off + 3*8*ISV_SIZE)));
 
                     acc[0] = MMAD(src, weights_data0, acc[0]); // 8 elements in 4*lid+0 out channel
                     acc[1] = MMAD(src, weights_data1, acc[1]); // 8 elements in 4*lid+1 out channel

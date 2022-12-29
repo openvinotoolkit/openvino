@@ -3,7 +3,6 @@
 //
 
 #include "include/batch_headers/common.cl"
-#include "include/batch_headers/data_types.cl"
 
 #define NUM_BATCHES INPUT0_BATCH_NUM
 #define NUM_BOXES   INPUT0_FEATURE_NUM
@@ -17,8 +16,6 @@ typedef struct {
 } FUNC(BoxInfo);
 
 #define BOX_INFO FUNC(BoxInfo)
-
-#define unroll_for __attribute__((opencl_unroll_hint)) for
 
 inline INPUT1_TYPE FUNC(decay_gaussian)(INPUT1_TYPE iou, INPUT1_TYPE max_iou) {
     return exp((max_iou * max_iou - iou * iou) * GAUSSIAN_SIGMA);

@@ -3,7 +3,6 @@
 //
 
 #include "include/batch_headers/common.cl"
-#include "include/batch_headers/data_types.cl"
 
 inline int FUNC(get_pyramid_level_index)(uint level, uint c, uint y, uint x) {
     uint idx = 0;
@@ -64,9 +63,10 @@ KERNEL(experimental_detectron_roi_feature_extractor_ref)(const __global INPUT0_T
     const uint roi_bin_grid_w = (SAMPLING_RATIO > 0) ? SAMPLING_RATIO : (uint)ceil(roi_width / POOLED_WIDTH);
     const uint roi_bin_grid_h = (SAMPLING_RATIO > 0) ? SAMPLING_RATIO : (uint)ceil(roi_height / POOLED_HEIGHT);
 
-    const uint level_h = LEVEL_SIZES[3 * level];
-    const uint level_w = LEVEL_SIZES[3 * level + 1];
-    const uint level_offset = LEVEL_SIZES[3 * level + 2];
+    size_t level_sizes_arr[3*NUM_PYRAMID_LEVELS] = LEVEL_SIZES;
+    const uint level_h = level_sizes_arr[3 * level];
+    const uint level_w = level_sizes_arr[3 * level + 1];
+    const uint level_offset = level_sizes_arr[3 * level + 2];
 
     INPUT0_TYPE output_val = 0.0;
     INPUT0_TYPE current_bin_start_h = roi_start_h + y * bin_height;

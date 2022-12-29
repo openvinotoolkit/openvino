@@ -44,6 +44,14 @@ ParamsKey MVNKernel_bs_fs_yx_bsv32::GetSupportedKey() const {
     return k;
 }
 
+DeviceFeaturesKey MVNKernel_bs_fs_yx_bsv32::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_shuffle();
+    k.requires_subgroup_reduce();
+
+    return k;
+}
+
 bool MVNKernel_bs_fs_yx_bsv32::Validate(const Params& p, const optional_params& options) const {
     if (!Parent::Validate(p, options))
         return false;

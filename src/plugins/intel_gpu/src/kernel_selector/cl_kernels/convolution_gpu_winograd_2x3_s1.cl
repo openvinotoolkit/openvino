@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "include/batch_headers/sub_group_shuffle.cl"
+
 // --------------------------------------------------------------------------------------------------------------------------------
 // L3_SIMD_4x8
 // Input matrices dimensions: M x K x N
@@ -35,7 +37,7 @@ KERNEL(convolution_gpu_winograd_2x3_s1)
     const int INPUT0_SIZE_Y_PITCH_UNIT_4 = INPUT0_PITCH_SIZE_Y / VEC_SIZE; //for bxyf -> INPUT0_PITCH_SIZE_Y is equal to input features count, since ifm % 32 == 0, division by VEC_SIZE is ok
     const int OUTPUT_SIZE_Y_PITCH_UNIT_4 = OUTPUT_Y_PITCH / VEC_SIZE; //for bxyf -> OUTPUT_Y_PITCH is equal to output features count, since ofm % 32 == 0, division by VEC_SIZE is ok
 	  const int WEIGHTS_FEATURE_PITCH_UNIT_4 = WEIGHTS_PITCH_FEATURE / VEC_SIZE; //for xyio -> WEIGHTS_PITCH_FEATURE is equal to the output features count
-	
+
     const int group_x = get_group_id(0);
     const int group_y = get_group_id(1);
     const int group_z = get_group_id(2);
@@ -59,10 +61,10 @@ KERNEL(convolution_gpu_winograd_2x3_s1)
     const int y_idx = tile_idx_y; //winograd tile height == 1
     const int f_idx = group_x * TILE_N + local_x * VEC_SIZE;
     const int b_idx = batch_idx;
-	
+
 	  const int in_tile_idx = (x_idx % WINOGRAD_TILE_WIDTH);
 	  const int tile_idx_x = (x_idx / WINOGRAD_TILE_WIDTH);
-	
+
     // Result ctile is M rows x N columns
     // M = 8, we have 1 rows of work-items, so we need 8/1 = 8 results down
     // N = 32, we have 8 columns of work-items, so we need 32/8 = 4 results across = 1 float4s across
@@ -124,11 +126,11 @@ KERNEL(convolution_gpu_winograd_2x3_s1)
         const UNIT_TYPE_4 a6 = src0[6 * INPUT0_SIZE_Y_PITCH_UNIT_4];
         const UNIT_TYPE_4 a7 = src0[7 * INPUT0_SIZE_Y_PITCH_UNIT_4];
 
-#define DOT_PRODUCT( _i, _j ) { a = intel_sub_group_shuffle(a ## _i, _j); c ## _i = mad(a.x, b0, mad(a.y, b1, mad(a.z, b2, mad(a.w, b3, c ## _i)))); }
+#define DOT_PRODUCT( _i, _j ) { a = _sub_group_shuffle(a ## _i, _j); c ## _i = mad(a.x, b0, mad(a.y, b1, mad(a.z, b2, mad(a.w, b3, c ## _i)))); }
 
 		//in one iteration load weights tile 1-width, 1-height, 4-depth from 4 different filters (ofms)
 		//SIMD reads are chained along b-axis (different ofms), resulting in 1-width, 1-height, 4-depth blocks from 4*8=32 different filters
-		//consecutive reads are chained along f-dim and overflows to y-dim, reading in total 
+		//consecutive reads are chained along f-dim and overflows to y-dim, reading in total
 #define ITERATION( _j ) \
         {   \
             const UNIT_TYPE_4 b0 = src1[0]; src1 += WEIGHTS_FEATURE_PITCH_UNIT_4; \
@@ -165,7 +167,7 @@ KERNEL(convolution_gpu_winograd_2x3_s1)
 
         src0 += TILE_K / VEC_SIZE;
     }
-    
+
     dst[0] = c0; dst += OUTPUT_SIZE_Y_PITCH_UNIT_4;
     dst[0] = c1; dst += OUTPUT_SIZE_Y_PITCH_UNIT_4;
     dst[0] = c2; dst += OUTPUT_SIZE_Y_PITCH_UNIT_4;

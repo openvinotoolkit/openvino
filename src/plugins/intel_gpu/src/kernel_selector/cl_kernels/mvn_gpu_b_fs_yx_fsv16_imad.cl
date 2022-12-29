@@ -3,8 +3,10 @@
 //
 
 #include "include/batch_headers/fetch_data.cl"
-#include "include/imad.cl"
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/imad.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 
 #include "mvn_gpu_b_fs_yx_fsv16_imad_accumulate.cl"
 #include "mvn_gpu_b_fs_yx_fsv16_imad_reduce.cl"
@@ -80,8 +82,6 @@
 
 #define ITEMS_NUM             (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z)
 
-#define CEIL_DIV(a, b)        (((a) + (b) - 1) / (b))
-
 // ================================================================================================
 #if MVN_KERNEL_MEAN_1
 
@@ -93,7 +93,7 @@ DECLARE_WG_PACKED_REDUCE_ADD(reduce_sum_across_sg, ACCUMULATOR_TYPE, FSV, SG_NUM
 DECLARE_SG_PACKED_REDUCE_ADD(reduce_sum_inside_sg, ACCUMULATOR_TYPE, FSV, REDUCE_NO_POST_OP)
 #endif
 
-__attribute__((intel_reqd_sub_group_size(SIMD)))
+REQD_SUB_GROUP_SIZE(SIMD)
 __attribute__((reqd_work_group_size(LWS, 1, 1)))
 KERNEL(mvn_mean_1)(const __global INPUT0_TYPE* input,
                    __global ACCUMULATOR_TYPE* intermidiate_sum) {
@@ -136,7 +136,7 @@ DECLARE_WG_PACKED_REDUCE_ADD(reduce_mean_across_sg, MEAN_TYPE, FSV, SG_NUM, CALC
 DECLARE_SG_PACKED_REDUCE_ADD(reduce_mean_inside_sg, MEAN_TYPE, FSV, CALC_MEAN)
 #endif
 
-__attribute__((intel_reqd_sub_group_size(SIMD)))
+REQD_SUB_GROUP_SIZE(SIMD)
 __attribute__((reqd_work_group_size(LWS, 1, 1)))
 KERNEL(mvn_mean_2)(const __global ACCUMULATOR_TYPE* intermidiate_sum,
                    __global MEAN_TYPE* intermidiate_mean) {
@@ -169,7 +169,7 @@ KERNEL(mvn_mean_2)(const __global ACCUMULATOR_TYPE* intermidiate_sum,
 #define EXTRA_ARGS_IMPL         , mean
 #define EXTRA_ARGS_DECL         EXTRA_ARGS_DECL_IMPL
 #define EXTRA_ARGS              EXTRA_ARGS_IMPL
-#define ACCUMULATE_SUM_SQ_DEV(curr, next, idx, mean)   ACCUMULATE_SUM_SQ(curr, TO_MEAN_TYPE(next) - intel_sub_group_shuffle(mean, idx), idx)
+#define ACCUMULATE_SUM_SQ_DEV(curr, next, idx, mean)   ACCUMULATE_SUM_SQ(curr, TO_MEAN_TYPE(next) - _sub_group_shuffle(mean, idx), idx)
 DECLARE_PACKED_ACCUMULATE_EARGS(accumulate_sum_sq_dev, MEAN_TYPE, INPUT0_TYPE, FSV, INPUT_SLICE_PITCH, ITEMS_NUM, GWS, ACCUMULATE_SUM_SQ_DEV, EXTRA_ARGS_DECL, EXTRA_ARGS)
 
 #if SG_NUM != 1
@@ -178,7 +178,7 @@ DECLARE_WG_PACKED_REDUCE_ADD(reduce_sum_across_sg, MEAN_TYPE, FSV, SG_NUM, REDUC
 DECLARE_SG_PACKED_REDUCE_ADD(reduce_sum_inside_sg, MEAN_TYPE, FSV, REDUCE_NO_POST_OP)
 #endif
 
-__attribute__((intel_reqd_sub_group_size(SIMD)))
+REQD_SUB_GROUP_SIZE(SIMD)
 __attribute__((reqd_work_group_size(LWS, 1, 1)))
 KERNEL(mvn_var_1)(const __global INPUT0_TYPE* input,
                   const __global MEAN_TYPE* means,
@@ -226,7 +226,7 @@ DECLARE_WG_PACKED_REDUCE_ADD(reduce_var_across_sg, MEAN_TYPE, FSV, SG_NUM, CALC_
 DECLARE_SG_PACKED_REDUCE_ADD(reduce_var_inside_sg, MEAN_TYPE, FSV, CALC_INVERSE_VARIANCE)
 #endif
 
-__attribute__((intel_reqd_sub_group_size(SIMD)))
+REQD_SUB_GROUP_SIZE(SIMD)
 __attribute__((reqd_work_group_size(LWS, 1, 1)))
 KERNEL(mvn_var_2)(const __global MEAN_TYPE* intermidiate_sum,
                    __global MEAN_TYPE* intermidiate_ivar) {
@@ -257,7 +257,7 @@ KERNEL(mvn_var_2)(const __global MEAN_TYPE* intermidiate_sum,
 // ================================================================================================
 #elif MVN_KERNEL_MAIN_BSV32
 
-__attribute__((intel_reqd_sub_group_size(SIMD)))
+REQD_SUB_GROUP_SIZE(SIMD)
 KERNEL(mvn_final_bsv32)(
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* restrict output
@@ -295,8 +295,7 @@ KERNEL(mvn_final_bsv32)(
                                             TO_ACT_PACKED_TYPE(inv_variance), (ACT_PACKED_TYPE)0);
     OUTPUT_PACKED_TYPE result_vec = OUTPUT_VAL_ZERO;
 
-    __attribute__((opencl_unroll_hint))
-    for (uint fi = 0; fi < FSV; fi++) {
+    unroll_for (uint fi = 0; fi < FSV; fi++) {
         ACTIVATION_TYPE normalized = normalized_vec[fi];
 #   if HAS_FUSED_OPS
         FUSED_OPS;
@@ -326,7 +325,7 @@ DECLARE_SG_PACKED_REDUCE_ADD(reduce_mean, MEAN_TYPE, FSV, CALC_MEAN)
 #define EXTRA_ARGS_IMPL         , mean
 #define EXTRA_ARGS_DECL         EXTRA_ARGS_DECL_IMPL
 #define EXTRA_ARGS              EXTRA_ARGS_IMPL
-#define ACCUMULATE_SUM_SQ_DEV(curr, next, idx, mean)   ACCUMULATE_SUM_SQ(curr, TO_MEAN_TYPE(next) - intel_sub_group_shuffle(mean, idx), idx)
+#define ACCUMULATE_SUM_SQ_DEV(curr, next, idx, mean)   ACCUMULATE_SUM_SQ(curr, TO_MEAN_TYPE(next) - _sub_group_shuffle(mean, idx), idx)
 DECLARE_PACKED_ACCUMULATE_EARGS(accumulate_sum_sq_dev, MEAN_TYPE, INPUT0_TYPE, FSV, INPUT_SLICE_PITCH, ITEMS_NUM, LWS, ACCUMULATE_SUM_SQ_DEV, EXTRA_ARGS_DECL, EXTRA_ARGS)
 
 #if defined EPS_OUTSIDE_SQRT
@@ -340,7 +339,7 @@ DECLARE_WG_PACKED_REDUCE_ADD(reduce_inverse_variance, MEAN_TYPE, FSV, SG_NUM, CA
 DECLARE_SG_PACKED_REDUCE_ADD(reduce_inverse_variance, MEAN_TYPE, FSV, CALC_INVERSE_VARIANCE)
 #endif
 
-__attribute__((intel_reqd_sub_group_size(SIMD)))
+REQD_SUB_GROUP_SIZE(SIMD)
 __attribute__((reqd_work_group_size(LWS, 1, 1)))
 KERNEL(mvn_mean_var_bsv32)(
     const __global INPUT0_TYPE* input,
@@ -403,7 +402,7 @@ DECLARE_SG_PACKED_REDUCE_ADD(reduce_mean, MEAN_TYPE, FSV, CALC_MEAN)
 #define EXTRA_ARGS_IMPL         , mean
 #define EXTRA_ARGS_DECL         EXTRA_ARGS_DECL_IMPL
 #define EXTRA_ARGS              EXTRA_ARGS_IMPL
-#define ACCUMULATE_SUM_SQ_DEV(curr, next, idx, mean)   ACCUMULATE_SUM_SQ(curr, next - intel_sub_group_shuffle(mean, idx), idx)
+#define ACCUMULATE_SUM_SQ_DEV(curr, next, idx, mean)   ACCUMULATE_SUM_SQ(curr, next - _sub_group_shuffle(mean, idx), idx)
 DECLARE_PACKED_ACCUMULATE_EARGS(accumulate_sum_sq_dev, MEAN_TYPE, INPUT0_TYPE, FSV, INPUT_SLICE_PITCH, ITEMS_NUM, LWS, ACCUMULATE_SUM_SQ_DEV, EXTRA_ARGS_DECL, EXTRA_ARGS)
 
 #if defined EPS_OUTSIDE_SQRT
@@ -417,11 +416,11 @@ DECLARE_WG_PACKED_REDUCE_ADD(reduce_inverse_variance, MEAN_TYPE, FSV, SG_NUM, CA
 DECLARE_SG_PACKED_REDUCE_ADD(reduce_inverse_variance, MEAN_TYPE, FSV, CALC_INVERSE_VARIANCE)
 #endif
 
-#define INPUT_PACKED_BLOCK_READ(ptr)   CAT(as_, INPUT_PACKED_TYPE)(CAT(BLOCK_READ_UC_, FSV)((const __global uchar*)ptr))
+#define INPUT_PACKED_BLOCK_READ(ptr)   BLOCK_READN(INPUT0_TYPE, FSV, ptr, 0)
 
 #define OUTPUT_PAD_IN_ITEMS (OUTPUT_PAD_BEFORE_SIZE_X != 0 || OUTPUT_PAD_AFTER_SIZE_X != 0 || OUTPUT_PAD_BEFORE_SIZE_Y != 0)
 
-__attribute__((intel_reqd_sub_group_size(SIMD)))
+REQD_SUB_GROUP_SIZE(SIMD)
 __attribute__((reqd_work_group_size(LWS, 1, 1)))
 KERNEL(mvn_final)(
     const __global INPUT0_TYPE* input,
@@ -498,8 +497,7 @@ KERNEL(mvn_final)(
     for (uint spatial_idx = 0; spatial_idx < ITEMS_NUM / GWS; ++spatial_idx) {
         INPUT_PACKED_TYPE in_pack = INPUT_PACKED_BLOCK_READ(input + input_offset);
 
-        __attribute__((opencl_unroll_hint))
-        for (uint si = 0; si < SIMD; ++si) {
+        unroll_for(uint si = 0; si < SIMD; ++si) {
             uint output_spatial = output_spatial_base + si;
             MEAN_TYPE normalized = (TO_MEAN_TYPE(in_pack[si]) - mean) * inv_variance;
             OUTPUT_TYPE result;
@@ -541,8 +539,7 @@ KERNEL(mvn_final)(
         // Process leftovers that can use full sub-group.
         INPUT_PACKED_TYPE in_pack = INPUT_PACKED_BLOCK_READ(input + input_offset);
 
-        __attribute__((opencl_unroll_hint))
-        for (uint si = 0; si < SIMD; ++si) {
+        unroll_for(uint si = 0; si < SIMD; ++si) {
             uint output_spatial = output_spatial_base + si;
             MEAN_TYPE normalized = (TO_MEAN_TYPE(in_pack[si]) - mean) * inv_variance;
             OUTPUT_TYPE result;
@@ -604,8 +601,7 @@ KERNEL(mvn_final)(
         }
 
         OUTPUT_PACKED_TYPE result;
-        __attribute__((opencl_unroll_hint))
-        for (uint si = 0; si < sg_uniform_leftovers; ++si) {
+        unroll_for(uint si = 0; si < sg_uniform_leftovers; ++si) {
             uint output_spatial = output_spatial_base + si;
             MEAN_TYPE normalized = (TO_MEAN_TYPE(in_pack[si]) - mean) * inv_variance;
             OUTPUT_TYPE result;
@@ -645,9 +641,8 @@ KERNEL(mvn_final)(
         INPUT_PACKED_TYPE in_pack = ((const __global INPUT_PACKED_TYPE*)(input + input_offset))[sglid];
 
         OUTPUT_PACKED_TYPE result;
-        __attribute__((opencl_unroll_hint))
-        for (uint set_idx = 0; set_idx < FSV; ++set_idx) {
-            MEAN_TYPE normalized = (TO_MEAN_TYPE(in_pack[set_idx]) - intel_sub_group_shuffle(mean, set_idx)) * intel_sub_group_shuffle(inv_variance, set_idx);
+        unroll_for(uint set_idx = 0; set_idx < FSV; ++set_idx) {
+            MEAN_TYPE normalized = (TO_MEAN_TYPE(in_pack[set_idx]) - _sub_group_shuffle(mean, set_idx)) * _sub_group_shuffle(inv_variance, set_idx);
 #           if HAS_FUSED_OPS
                 FUSED_OPS;
                 result[set_idx] = FUSED_OPS_RESULT;
@@ -688,9 +683,8 @@ KERNEL(mvn_final)(
         INPUT_PACKED_TYPE in_pack = ((const __global INPUT_PACKED_TYPE*)(input + input_offset))[sglid];
 
         OUTPUT_PACKED_TYPE result;
-        __attribute__((opencl_unroll_hint))
-        for (uint set_idx = 0; set_idx < FSV; ++set_idx) {
-            MEAN_TYPE normalized = (TO_MEAN_TYPE(in_pack[set_idx]) - intel_sub_group_shuffle(mean, set_idx)) * intel_sub_group_shuffle(inv_variance, set_idx);
+        unroll_for(uint set_idx = 0; set_idx < FSV; ++set_idx) {
+            MEAN_TYPE normalized = (TO_MEAN_TYPE(in_pack[set_idx]) - _sub_group_shuffle(mean, set_idx)) * _sub_group_shuffle(inv_variance, set_idx);
 #           if HAS_FUSED_OPS
                 FUSED_OPS;
                 result[set_idx] = FUSED_OPS_RESULT;
@@ -719,9 +713,8 @@ KERNEL(mvn_final)(
         INPUT_PACKED_TYPE in_pack = ((const __global INPUT_PACKED_TYPE*)(input + input_offset))[sglid % sg_uniform_leftovers];
 
         OUTPUT_PACKED_TYPE result;
-        __attribute__((opencl_unroll_hint))
-        for (uint set_idx = 0; set_idx < FSV; ++set_idx) {
-            MEAN_TYPE normalized = (TO_MEAN_TYPE(in_pack[set_idx]) - intel_sub_group_shuffle(mean, set_idx)) * intel_sub_group_shuffle(inv_variance, set_idx);
+        unroll_for(uint set_idx = 0; set_idx < FSV; ++set_idx) {
+            MEAN_TYPE normalized = (TO_MEAN_TYPE(in_pack[set_idx]) - _sub_group_shuffle(mean, set_idx)) * _sub_group_shuffle(inv_variance, set_idx);
 #           if HAS_FUSED_OPS
                 FUSED_OPS;
                 result[set_idx] = FUSED_OPS_RESULT;
@@ -769,5 +762,4 @@ KERNEL(mvn_final)(
 #undef INPUT_PACKED_BLOCK_READ
 #undef OUTPUT_PAD_IN_ITEMS
 
-#undef CEIL_DIV
 #undef USE_IMAD

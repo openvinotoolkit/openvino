@@ -5,17 +5,7 @@
 #include "include/reshape_dims.cl"
 #include "include/batch_headers/fetch_data.cl"
 
-#include "include/batch_headers/data_types.cl"
 
-///////////////////////// Input Index /////////////////////////
-inline uint FUNC(get_input_index)(uint b, uint f, uint y, uint x)
-{
-#if INPUT0_DIMS == 4
-    return INPUT0_GET_INDEX(b, f, y, x);
-#else
-#error reorder_data_to_yxfb_batched.cl: input format - not supported
-#endif
-}
 
 inline void FUNC(get_yxfb_coords_from_linear_idx_no_padding)(uint data_idx, uint* b, uint* f, uint* x, uint* y)
 {
@@ -35,7 +25,7 @@ inline void FUNC(get_yxfb_coords_from_linear_idx_no_padding)(uint data_idx, uint
     *y = data_idx - tmp_data_idx * INPUT0_SIZE_Y;
 }
 
-__attribute__((intel_reqd_sub_group_size(8)))
+REQD_SUB_GROUP_SIZE(8)
 KERNEL (reorder_data_to_yxfb_batched)(
     const __global INPUT_REORDER_TYPE* input,
     __global OUTPUT_REORDER_TYPE* output
@@ -56,7 +46,7 @@ KERNEL (reorder_data_to_yxfb_batched)(
 
         uint x,y,f,b;
         FUNC_CALL(get_yxfb_coords_from_linear_idx_no_padding)(output_idx, &b,&f,&x,&y);
-        const uint input_idx  = FUNC_CALL(get_input_index)(b, f, y, x);
+        const uint input_idx = INPUT0_GET_INDEX(b, f, y, x);
 
     #if defined MEAN_SUBTRACT_INSIDE_PARAMS
         float res = TO_MEAN_TYPE(input[input_idx]);

@@ -32,6 +32,13 @@ ParamsKey LRNKernelAcrossChannelMultipleFeaturesFSV16::GetSupportedKey() const {
     return k;
 }
 
+DeviceFeaturesKey LRNKernelAcrossChannelMultipleFeaturesFSV16::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    DeviceFeaturesKey k;
+    k.requires_reqd_subgroup_size();
+
+    return k;
+}
+
 CommonDispatchData LRNKernelAcrossChannelMultipleFeaturesFSV16::SetDefault(const lrn_params& params) const {
     CommonDispatchData dispatchData = LRNKernelBase::SetDefault(params);
     auto in_layout = params.inputs[0].GetLayout();

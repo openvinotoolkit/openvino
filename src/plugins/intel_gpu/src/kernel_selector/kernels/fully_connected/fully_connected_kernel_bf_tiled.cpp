@@ -54,6 +54,13 @@ ParamsKey FullyConnected_bf_tiled::GetSupportedKey() const {
     return k;
 }
 
+DeviceFeaturesKey FullyConnected_bf_tiled::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_shuffle();
+
+    return k;
+}
+
 bool FullyConnected_bf_tiled::Validate(const Params& params, const optional_params& options) const {
     if (!Parent::Validate(params, options))
         return false;

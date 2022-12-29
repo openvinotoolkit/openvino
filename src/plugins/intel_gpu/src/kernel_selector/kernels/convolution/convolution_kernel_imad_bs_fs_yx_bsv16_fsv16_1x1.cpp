@@ -42,6 +42,14 @@ ParamsKey Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_1x1::GetSupportedKey() co
     return k;
 }
 
+DeviceFeaturesKey Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_1x1::get_required_device_features_key(const Params&, const optional_params&) const {
+    DeviceFeaturesKey k;
+    k.requires_subgroups();
+    k.requires_subgroup_shuffle();
+
+    return k;
+}
+
 KernelsData Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_1x1::GetKernelsData(const Params& params, const optional_params& options) const {
     return GetCommonKernelsData(params, options);
 }

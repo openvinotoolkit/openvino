@@ -18,7 +18,14 @@ ParamsKey FullyConnected_bs_f_bsv16_b1::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::bf);
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
-    k.EnableSubGroup();
+    return k;
+}
+
+DeviceFeaturesKey FullyConnected_bs_f_bsv16_b1::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_shuffle();
+    k.requires_subgroup_shuffle_relative();
+
     return k;
 }
 

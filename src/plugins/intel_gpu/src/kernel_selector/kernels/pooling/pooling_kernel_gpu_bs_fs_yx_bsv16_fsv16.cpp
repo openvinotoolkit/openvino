@@ -39,6 +39,14 @@ ParamsKey Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::GetSupportedKey() const {
     return k;
 }
 
+DeviceFeaturesKey Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    DeviceFeaturesKey k;
+    k.requires_subgroups();
+    k.requires_reqd_subgroup_size();
+
+    return k;
+}
+
 PoolingKernelBase::DispatchData Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::SetDefault(const pooling_params& params) const {
     DispatchData dispatchData = PoolingKernelBase::SetDefault(params);
 

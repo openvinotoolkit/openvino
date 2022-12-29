@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 #include "include/batch_headers/fetch_data.cl"
-#include "include/imad.cl"
+#include "include/batch_headers/imad.cl"
 
 #define BYTES_PER_READ          (PACK_SIZE * SIMD_SIZE)
 #define BYTES_PER_READ8         (8 * BYTES_PER_READ)
@@ -13,7 +15,7 @@
 #define AS_TYPE_N(type, n, x)   AS_TYPE_N_(type, n, x)
 #define AS_INPUT0_TYPE_4(x)     AS_TYPE_N(INPUT0_TYPE, 4, x)
 
-__attribute__((intel_reqd_sub_group_size(SIMD_SIZE)))
+REQD_SUB_GROUP_SIZE(SIMD_SIZE)
 KERNEL(fully_connected_gpu_imad)(
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,
@@ -46,10 +48,8 @@ KERNEL(fully_connected_gpu_imad)(
     // Accumulators initialization
     MAKE_VECTOR_TYPE(int, TILE_OFM) dotProd[TILE_BATCH];
     MAKE_VECTOR_TYPE(uint, TILE_OFM) idx_w;
-    __attribute__((opencl_unroll_hint))
-    for (uint ob_idx = 0; ob_idx < TILE_BATCH; ob_idx++) {
-        __attribute__((opencl_unroll_hint))
-        for (uint of_idx = 0; of_idx < TILE_OFM; of_idx++) {
+    unroll_for (uint ob_idx = 0; ob_idx < TILE_BATCH; ob_idx++) {
+        unroll_for(uint of_idx = 0; of_idx < TILE_OFM; of_idx++) {
             dotProd[ob_idx][of_idx] = 0;
         #if !HAS_IFM_LEFTOVERS
             idx_w[of_idx] = (((feature + of_idx * SIMD_SIZE) / SIMD_SIZE) * SIMD_SIZE) * IF_NUMBER;
@@ -68,33 +68,31 @@ KERNEL(fully_connected_gpu_imad)(
 #endif
         // Loading weights
         MAKE_VECTOR_TYPE(int, SIMD_SIZE) weights_data[TILE_OFM];
-        __attribute__((opencl_unroll_hint))
-        for (uint of_idx = 0; of_idx < TILE_OFM; of_idx++) {
+        unroll_for(uint of_idx = 0; of_idx < TILE_OFM; of_idx++) {
     #if !HAS_OFM_LEFTOVERS
         #if SIMD_SIZE > 8
-            weights_data[of_idx].lo = as_int8(intel_sub_group_block_read8((const __global uint*)(weights + idx_w[of_idx])));
+            weights_data[of_idx].lo = as_int8(_sub_group_block_read8((const __global uint*)(weights + idx_w[of_idx])));
             idx_w[of_idx] += BYTES_PER_READ8;
-            weights_data[of_idx].hi = as_int8(intel_sub_group_block_read8((const __global uint*)(weights + idx_w[of_idx])));
+            weights_data[of_idx].hi = as_int8(_sub_group_block_read8((const __global uint*)(weights + idx_w[of_idx])));
             idx_w[of_idx] += BYTES_PER_READ8;
         #else
-            weights_data[of_idx] = as_int8(intel_sub_group_block_read8((const __global uint*)(weights + idx_w[of_idx])));
+            weights_data[of_idx] = as_int8(_sub_group_block_read8((const __global uint*)(weights + idx_w[of_idx])));
             idx_w[of_idx] += BYTES_PER_READ8;
         #endif
     #else // !HAS_OFM_LEFTOVERS
             if (!last_feature_block) {
             #if SIMD_SIZE > 8
-                weights_data[of_idx].lo = as_int8(intel_sub_group_block_read8((const __global uint*)(weights + idx_w[of_idx])));
+                weights_data[of_idx].lo = as_int8(_sub_group_block_read8((const __global uint*)(weights + idx_w[of_idx])));
                 idx_w[of_idx] += BYTES_PER_READ8;
-                weights_data[of_idx].hi = as_int8(intel_sub_group_block_read8((const __global uint*)(weights + idx_w[of_idx])));
+                weights_data[of_idx].hi = as_int8(_sub_group_block_read8((const __global uint*)(weights + idx_w[of_idx])));
                 idx_w[of_idx] += BYTES_PER_READ8;
             #else
-                weights_data[of_idx] = as_int8(intel_sub_group_block_read8((const __global uint*)(weights + idx_w[of_idx])));
+                weights_data[of_idx] = as_int8(_sub_group_block_read8((const __global uint*)(weights + idx_w[of_idx])));
                 idx_w[of_idx] += BYTES_PER_READ8;
             #endif
             } else {
                 weights_data[of_idx] = 0;
-                __attribute__((opencl_unroll_hint))
-                for (uint if_idx = 0; if_idx < SIMD_SIZE; if_idx++) {
+                unroll_for (uint if_idx = 0; if_idx < SIMD_SIZE; if_idx++) {
                     if (feature + of_idx * SIMD_SIZE < OF_NUMBER) {
                         __global int* wei_ptr = (__global int*)weights;
                         weights_data[of_idx][if_idx] = wei_ptr[idx_w[of_idx] / PACK_SIZE + if_idx * BYTES_PER_READ / PACK_SIZE + sglid];
@@ -105,8 +103,7 @@ KERNEL(fully_connected_gpu_imad)(
     #endif // HAS_OFM_LEFTOVERS
         }
 
-        __attribute__((opencl_unroll_hint))
-        for (uint ob_idx = 0; ob_idx < TILE_BATCH; ob_idx++) {
+        unroll_for(uint ob_idx = 0; ob_idx < TILE_BATCH; ob_idx++) {
             // Loading inputs
         #if OUTPUT_3D
             __global INPUT0_TYPE* current_input = &input[INPUT0_GET_INDEX(batch, skip_f + ob_idx, 0, 0)];
@@ -115,7 +112,7 @@ KERNEL(fully_connected_gpu_imad)(
         #endif
 
         #if !HAS_IFM_LEFTOVERS
-            int input_data = as_int(intel_sub_group_block_read((const __global uint*)(current_input + idx_i)));
+            int input_data = as_int(_sub_group_block_read((const __global uint*)(current_input + idx_i)));
         #else
             MAKE_VECTOR_TYPE(INPUT0_TYPE, PACK_SIZE) temp_input = { current_input[idx_i + sglid * PACK_SIZE],
                                                                     current_input[idx_i + sglid * PACK_SIZE + 1],
@@ -124,14 +121,12 @@ KERNEL(fully_connected_gpu_imad)(
             int input_data = as_int(temp_input);
         #endif
 
-            __attribute__((opencl_unroll_hint))
-            for (uint of_idx = 0; of_idx < TILE_OFM; of_idx++) {
+            unroll_for (uint of_idx = 0; of_idx < TILE_OFM; of_idx++) {
                 // Mad calculation
-                __attribute__((opencl_unroll_hint))
-                for (uint if_idx = 0; if_idx < SIMD_SIZE; if_idx++) {
+                unroll_for (uint if_idx = 0; if_idx < SIMD_SIZE; if_idx++) {
                     // One IMAD macro produces upto 16 * 4 dot products (8 / 16 is SIMD and 4 is dp4a instruction)
                     dotProd[ob_idx][of_idx] = IMAD(dotProd[ob_idx][of_idx],
-                                                   AS_INPUT0_TYPE_4(intel_sub_group_shuffle(input_data, if_idx)),
+                                                   AS_INPUT0_TYPE_4(_sub_group_shuffle(input_data, if_idx)),
                                                    as_char4(weights_data[of_idx][if_idx]));
                 }
             }
@@ -143,11 +138,9 @@ KERNEL(fully_connected_gpu_imad)(
 #if HAS_IFM_LEFTOVERS
     // Loading weights
     MAKE_VECTOR_TYPE(int, SIMD_SIZE) weights_data[TILE_OFM];
-    __attribute__((opencl_unroll_hint))
-    for (uint of_idx = 0; of_idx < TILE_OFM; of_idx++) {
+    unroll_for (uint of_idx = 0; of_idx < TILE_OFM; of_idx++) {
         weights_data[of_idx] = (MAKE_VECTOR_TYPE(int, SIMD_SIZE))0;
-        __attribute__((opencl_unroll_hint))
-        for (uint if_idx = 0; if_idx < SIMD_SIZE; if_idx++) {
+        unroll_for(uint if_idx = 0; if_idx < SIMD_SIZE; if_idx++) {
             char4 temp_weights = (char4)0;
         #if !HAS_OFM_LEFTOVERS
             if (if_idx * PACK_SIZE < IF_NUMBER % BYTES_PER_READ) {
@@ -179,8 +172,7 @@ KERNEL(fully_connected_gpu_imad)(
         }
     }
 
-    __attribute__((opencl_unroll_hint))
-    for (uint ob_idx = 0; ob_idx < TILE_BATCH; ob_idx++) {
+    unroll_for (uint ob_idx = 0; ob_idx < TILE_BATCH; ob_idx++) {
         // Loading inputs
     #if OUTPUT_3D
         __global INPUT0_TYPE* current_input = &input[INPUT0_GET_INDEX(batch, skip_f + ob_idx, 0, 0)];
@@ -214,14 +206,12 @@ KERNEL(fully_connected_gpu_imad)(
             input_data = as_int(temp_input);
         }
 
-        __attribute__((opencl_unroll_hint))
-        for (uint of_idx = 0; of_idx < TILE_OFM; of_idx++) {
+        unroll_for(uint of_idx = 0; of_idx < TILE_OFM; of_idx++) {
             // Mad calculation
-            __attribute__((opencl_unroll_hint))
-            for (uint if_idx = 0; if_idx < SIMD_SIZE; if_idx++) {
+            unroll_for (uint if_idx = 0; if_idx < SIMD_SIZE; if_idx++) {
                 // One IMAD macro produces upto 16 * 4 dot products (8 / 16 is SIMD and 4 is dp4a instruction)
                 dotProd[ob_idx][of_idx] = IMAD(dotProd[ob_idx][of_idx],
-                                               AS_INPUT0_TYPE_4(intel_sub_group_shuffle(input_data, if_idx)),
+                                               AS_INPUT0_TYPE_4(_sub_group_shuffle(input_data, if_idx)),
                                                as_char4(weights_data[of_idx][if_idx]));
             }
         }
@@ -231,10 +221,8 @@ KERNEL(fully_connected_gpu_imad)(
 #if BIAS_TERM
     #if BIAS_PER_OUTPUT
         MAKE_VECTOR_TYPE(uint, TILE_OFM) bias_index[TILE_BATCH];
-        __attribute__((opencl_unroll_hint))
-        for (uint ob_idx = 0; ob_idx < TILE_BATCH; ob_idx++) {
-            __attribute__((opencl_unroll_hint))
-            for (uint of_idx = 0; of_idx < TILE_OFM; of_idx++) {
+        unroll_for(uint ob_idx = 0; ob_idx < TILE_BATCH; ob_idx++) {
+            unroll_for (uint of_idx = 0; of_idx < TILE_OFM; of_idx++) {
             #if OUTPUT_3D
                 bias_index[ob_idx][of_idx] = GET_DATA_INDEX(BIAS, batch, skip_f + ob_idx, feature + of_idx * SIMD_SIZE, 0);
             #else
@@ -244,17 +232,14 @@ KERNEL(fully_connected_gpu_imad)(
         }
     #elif BIAS_PER_OFM
         MAKE_VECTOR_TYPE(uint, TILE_OFM) bias_index;
-        __attribute__((opencl_unroll_hint))
-        for (uint of_idx = 0; of_idx < TILE_OFM; of_idx++) {
+        unroll_for(uint of_idx = 0; of_idx < TILE_OFM; of_idx++) {
             bias_index[of_idx] = feature + of_idx * SIMD_SIZE;
         }
     #endif
 
     MAKE_VECTOR_TYPE(float, TILE_OFM) dequantized[TILE_BATCH];
-    __attribute__((opencl_unroll_hint))
-    for (uint ob_idx = 0; ob_idx < TILE_BATCH; ob_idx++) {
-        __attribute__((opencl_unroll_hint))
-        for (uint of_idx = 0; of_idx < TILE_OFM; of_idx++) {
+    unroll_for (uint ob_idx = 0; ob_idx < TILE_BATCH; ob_idx++) {
+        unroll_for(uint of_idx = 0; of_idx < TILE_OFM; of_idx++) {
         #if HAS_OFM_LEFTOVERS
             if (feature + of_idx * SIMD_SIZE < OF_NUMBER)
         #endif // HAS_OFM_LEFTOVERS
@@ -267,10 +252,8 @@ KERNEL(fully_connected_gpu_imad)(
     }
 #else
     MAKE_VECTOR_TYPE(float, TILE_OFM) dequantized[TILE_BATCH];
-    __attribute__((opencl_unroll_hint))
-    for (uint ob_idx = 0; ob_idx < TILE_BATCH; ob_idx++) {
-        __attribute__((opencl_unroll_hint))
-        for (uint of_idx = 0; of_idx < TILE_OFM; of_idx++) {
+    unroll_for (uint ob_idx = 0; ob_idx < TILE_BATCH; ob_idx++) {
+        unroll_for(uint of_idx = 0; of_idx < TILE_OFM; of_idx++) {
         #if HAS_OFM_LEFTOVERS
             if (feature + of_idx * SIMD_SIZE < OF_NUMBER)
         #endif
@@ -280,10 +263,8 @@ KERNEL(fully_connected_gpu_imad)(
 #endif
 
 #if HAS_FUSED_OPS
-    __attribute__((opencl_unroll_hint))
-    for (uint ob_idx = 0; ob_idx < TILE_BATCH; ob_idx++) {
-        __attribute__((opencl_unroll_hint))
-        for (uint of_idx = 0; of_idx < TILE_OFM; of_idx++) {
+    unroll_for (uint ob_idx = 0; ob_idx < TILE_BATCH; ob_idx++) {
+        unroll_for(uint of_idx = 0; of_idx < TILE_OFM; of_idx++) {
         #if HAS_OFM_LEFTOVERS
             if (feature + of_idx * SIMD_SIZE < OF_NUMBER) {
         #endif
@@ -301,10 +282,8 @@ KERNEL(fully_connected_gpu_imad)(
         }
     }
 #else
-    __attribute__((opencl_unroll_hint))
-    for (uint ob_idx = 0; ob_idx < TILE_BATCH; ob_idx++) {
-        __attribute__((opencl_unroll_hint))
-        for (uint of_idx = 0; of_idx < TILE_OFM; of_idx++) {
+    unroll_for (uint ob_idx = 0; ob_idx < TILE_BATCH; ob_idx++) {
+        unroll_for(uint of_idx = 0; of_idx < TILE_OFM; of_idx++) {
         #if HAS_OFM_LEFTOVERS
             if (feature + of_idx * SIMD_SIZE < OF_NUMBER) {
         #endif

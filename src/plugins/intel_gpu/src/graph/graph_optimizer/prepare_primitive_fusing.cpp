@@ -591,6 +591,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 return true;
             }
 
+            if (node.get_primitive()->deformable_mode)
+                return false;
+
             // Since reorder inputs is called after this pass
             // we have to check that blocked formats can be used in the network and layer is optimized for it.
             if ((node.get_output_layout().format == format::b_fs_yx_fsv16 ||

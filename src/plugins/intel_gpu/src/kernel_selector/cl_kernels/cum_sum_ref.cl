@@ -2,36 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
-#include "include/batch_headers/fetch_data.cl"
-
-///////////////////////// Input Index /////////////////////////
-inline uint FUNC(get_input_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x)
-{
-#if INPUT0_DIMS < 5
-    return INPUT0_GET_INDEX(b, f, y, x);
-#elif INPUT0_DIMS == 5
-    return INPUT0_GET_INDEX(b, f, z, y, x);
-#elif INPUT0_DIMS == 6
-    return INPUT0_GET_INDEX(b, f, w, z, y, x);
-#else
-#error cum_sum_ref.cl: input format - not supported
-#endif
-}
-
-///////////////////////// Output Index /////////////////////////
-inline uint FUNC(get_output_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x)
-{
-#if OUTPUT_DIMS < 5
-    return OUTPUT_GET_INDEX(b, f, y, x);
-#elif OUTPUT_DIMS == 5
-    return OUTPUT_GET_INDEX(b, f, z, y, x);
-#elif OUTPUT_DIMS == 6
-    return OUTPUT_GET_INDEX(b, f, w, z, y, x);
-#else
-#error cum_sum_ref.cl: output format - not supported
-#endif
-}
+#include "include/fetch_utils.cl"
 
 KERNEL(cum_sum_ref)(
     OPTIONAL_SHAPE_INFO_ARG

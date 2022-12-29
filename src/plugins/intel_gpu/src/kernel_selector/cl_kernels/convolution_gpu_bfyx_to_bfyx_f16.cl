@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 #include "include/batch_headers/fetch_data.cl"
 
 #define FEATURE_SLICE_SIZE 16
@@ -17,9 +19,9 @@
 #error "convolution_gpu_bfyx_to_bfyx_f16: Filter and bias has different data type."
 #endif
 
-__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
+REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 __attribute__((reqd_work_group_size(1, SUB_GROUP_SIZE, 1)))
-KERNEL(convolution_bfyx_to_bfyx_f16)(
+KERNEL(convolution_gpu_bfyx_to_bfyx_f16)(
     __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,
     __global FILTER_TYPE* weights,
@@ -134,7 +136,7 @@ KERNEL(convolution_bfyx_to_bfyx_f16)(
                 INPUT0_TYPE src[INPUT0_FEATURE_NUM];
                 __attribute__((opencl_unroll_hint(INPUT0_FEATURE_NUM)))
                 for (int ic = 0; ic < INPUT0_FEATURE_NUM; ic++) {
-                    src[ic] = intel_sub_group_shuffle(line_cache[ic * INPUT_BLOCK_SIZE + buf_offset], buf_group);
+                    src[ic] = _sub_group_shuffle(line_cache[ic * INPUT_BLOCK_SIZE + buf_offset], buf_group);
                     dst[i] = mad(wei[ic], src[ic], dst[i]);
                 }
             }

@@ -34,6 +34,13 @@ ParamsKey PoolingKernelGPU_b_fs_zyx_fsv16_imad::GetSupportedKey() const {
     return k;
 }
 
+DeviceFeaturesKey PoolingKernelGPU_b_fs_zyx_fsv16_imad::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    DeviceFeaturesKey k;
+    k.requires_reqd_subgroup_size();
+
+    return k;
+}
+
 PoolingKernelBase::DispatchData PoolingKernelGPU_b_fs_zyx_fsv16_imad::SetDefault(const pooling_params& params) const {
     DispatchData dispatchData = PoolingKernelBase::SetDefault(params);
     auto in_layout = params.inputs[0].GetLayout();

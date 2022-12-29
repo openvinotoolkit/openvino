@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
 
-__attribute__((intel_reqd_sub_group_size(16)))
+REQD_SUB_GROUP_SIZE(16)
 KERNEL(deformable_convolution_gpu_bfyx_interp)(
     const __global INPUT0_TYPE* data,
     const __global INPUT1_TYPE* trans,
@@ -29,7 +28,7 @@ KERNEL(deformable_convolution_gpu_bfyx_interp)(
 
     const int input_offset_x = input_x + kw * DILATION_SIZE_X;
     const int input_offset_y = input_y + kh * DILATION_SIZE_Y;
-    
+
 #if DEFORMABLE_MASK_ENABLED
     const int dg_size = dg * FILTER_SIZE_Y * FILTER_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_X;
     const int trans_offset = b * INPUT1_BATCH_PITCH + 2 * dg_size;

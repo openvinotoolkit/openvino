@@ -3,7 +3,6 @@
 //
 
 #include "include/batch_headers/common.cl"
-#include "include/batch_headers/data_types.cl"
 
 INIT_INPUT0_INDEX_FUNC_HERE
 INIT_OUTPUT_INDEX_FUNC_HERE
@@ -42,9 +41,9 @@ INIT_OUTPUT_INDEX_FUNC_HERE
 #define OUTPUT_VEC_TYPE MAKE_VECTOR_TYPE(OUTPUT_TYPE, SECOND_BLOCK_SIZE)
 #define OUTPUT_BLOCK_WRITE(ptr, offset, val) BLOCK_WRITEN(OUTPUT_TYPE, SECOND_BLOCK_SIZE, ptr, offset, val)
 
-__attribute__((intel_reqd_sub_group_size(FIRST_BLOCK_SIZE)))
+REQD_SUB_GROUP_SIZE(FIRST_BLOCK_SIZE)
 __attribute__((reqd_work_group_size(1, 1, FIRST_BLOCK_SIZE)))
-KERNEL(reorder_weights_blocked_opt)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE* output)
+KERNEL(reorder_weights_opt)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE* output)
 {
     const int lid = get_sub_group_local_id();
     const int g_io = get_global_id(0);
@@ -86,8 +85,7 @@ KERNEL(reorder_weights_blocked_opt)(const __global INPUT0_TYPE* input, __global 
     const OUTPUT_TYPE val = TO_OUTPUT_TYPE(input[input_idx]);
 #else
     OUTPUT_VEC_TYPE val = 0;
-    __attribute__((opencl_unroll_hint))
-    for (int b = 0; b < SECOND_BLOCK_SIZE; b++) {
+    unroll_for (int b = 0; b < SECOND_BLOCK_SIZE; b++) {
         val[b] = TO_OUTPUT_TYPE(input[input_idx]);
         input_idx += PITCH;
     }
@@ -101,8 +99,7 @@ KERNEL(reorder_weights_blocked_opt)(const __global INPUT0_TYPE* input, __global 
     if (i_blocked >= OUTPUT_IFM_NUM - FIRST_BLOCK_SIZE) {
 #endif  // OSV_FIRST
 #if SECOND_BLOCK_SIZE > 1
-        __attribute__((opencl_unroll_hint))
-        for (int b = 0; b < SECOND_BLOCK_SIZE; b++)
+        unroll_for(int b = 0; b < SECOND_BLOCK_SIZE; b++)
             if (doWrite)
                 output[output_idx + b * SECOND_SIZE + lid] = val[b];
 #else
@@ -123,11 +120,6 @@ KERNEL(reorder_weights_blocked_opt)(const __global INPUT0_TYPE* input, __global 
 #undef SECOND_BLOCK_SIZE
 #undef PITCH
 #undef SECOND_SIZE
-#undef OUTPUT_BLOCK_WRITE8
-#undef OUTPUT_BLOCK_WRITE4
-#undef OUTPUT_BLOCK_WRITE2
-#undef OUTPUT_BLOCK_WRITE1
-#undef OUTPUT_BLOCK_WRITE
 #undef GET_INDEX
 #undef BLOCK_IDX_ORDER
 #undef IDX_ORDER

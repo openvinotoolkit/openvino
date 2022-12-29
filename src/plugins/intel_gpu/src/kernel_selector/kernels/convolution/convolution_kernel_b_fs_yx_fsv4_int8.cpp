@@ -26,12 +26,18 @@ ParamsKey ConvolutionKernel_b_fs_yx_fsv4_int8::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
-    k.EnableSubGroup();
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
     k.EnableQuantization(QuantizationType::SYMMETRIC);
     k.EnableDifferentTypes();
     k.EnableDifferentInputWeightsTypes();
+    return k;
+}
+
+DeviceFeaturesKey ConvolutionKernel_b_fs_yx_fsv4_int8::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    DeviceFeaturesKey k;
+    k.requires_reqd_subgroup_size();
+
     return k;
 }
 

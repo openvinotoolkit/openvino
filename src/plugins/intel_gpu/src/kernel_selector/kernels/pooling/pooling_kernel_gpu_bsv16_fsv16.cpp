@@ -38,6 +38,10 @@ ParamsKey PoolingKernel_bsv16_fsv16::GetSupportedKey() const {
     return k;
 }
 
+DeviceFeaturesKey PoolingKernel_bsv16_fsv16::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    return get_common_subgroups_device_features_key(params, options);
+}
+
 PoolingKernelBase::DispatchData PoolingKernel_bsv16_fsv16::SetDefault(const pooling_params& params) const {
     DispatchData dispatchData = PoolingKernelBase::SetDefault(params);
 

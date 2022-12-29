@@ -4,7 +4,8 @@
 
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/fetch_weights.cl"
-#include "include/imad.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
+#include "include/batch_headers/imad.cl"
 #if QUANTIZATION_TERM
 #define ACCUMULATOR_TYPE int
 #define TO_ACCUMULATOR_TYPE(x) convert_int(x)
@@ -24,7 +25,7 @@
 #define BATCH_SLICE_SIZE 16
 #define FEATURE_SLICE_SIZE 16
 
-__attribute__((intel_reqd_sub_group_size(16)))
+REQD_SUB_GROUP_SIZE(16)
 KERNEL(convolution_gpu_imad_bs_fs_yx_bsv16_fsv16_1x1)(
     const __global INPUT0_TYPE *conv_input,
     __global OUTPUT_TYPE *output,
@@ -63,15 +64,15 @@ KERNEL(convolution_gpu_imad_bs_fs_yx_bsv16_fsv16_1x1)(
 
         __attribute__((opencl_unroll_hint(16)))
         for (uint j = 0; j < 16; j++) {
-            dotProd[j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[j], AS_INPUT0_TYPE_4(input_val0.s0), as_char4(intel_sub_group_shuffle(weights_val.s0, j))));
-            dotProd[j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[j], AS_INPUT0_TYPE_4(input_val0.s1), as_char4(intel_sub_group_shuffle(weights_val.s1, j))));
-            dotProd[j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[j], AS_INPUT0_TYPE_4(input_val0.s2), as_char4(intel_sub_group_shuffle(weights_val.s2, j))));
-            dotProd[j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[j], AS_INPUT0_TYPE_4(input_val0.s3), as_char4(intel_sub_group_shuffle(weights_val.s3, j))));
+            dotProd[j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[j], AS_INPUT0_TYPE_4(input_val0.s0), as_char4(_sub_group_shuffle(weights_val.s0, j))));
+            dotProd[j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[j], AS_INPUT0_TYPE_4(input_val0.s1), as_char4(_sub_group_shuffle(weights_val.s1, j))));
+            dotProd[j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[j], AS_INPUT0_TYPE_4(input_val0.s2), as_char4(_sub_group_shuffle(weights_val.s2, j))));
+            dotProd[j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[j], AS_INPUT0_TYPE_4(input_val0.s3), as_char4(_sub_group_shuffle(weights_val.s3, j))));
 
-            dotProd[16 + j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[16 + j], AS_INPUT0_TYPE_4(input_val0.s0), as_char4(intel_sub_group_shuffle(weights_val2.s0, j))));
-            dotProd[16 + j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[16 + j], AS_INPUT0_TYPE_4(input_val0.s1), as_char4(intel_sub_group_shuffle(weights_val2.s1, j))));
-            dotProd[16 + j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[16 + j], AS_INPUT0_TYPE_4(input_val0.s2), as_char4(intel_sub_group_shuffle(weights_val2.s2, j))));
-            dotProd[16 + j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[16 + j], AS_INPUT0_TYPE_4(input_val0.s3), as_char4(intel_sub_group_shuffle(weights_val2.s3, j))));
+            dotProd[16 + j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[16 + j], AS_INPUT0_TYPE_4(input_val0.s0), as_char4(_sub_group_shuffle(weights_val2.s0, j))));
+            dotProd[16 + j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[16 + j], AS_INPUT0_TYPE_4(input_val0.s1), as_char4(_sub_group_shuffle(weights_val2.s1, j))));
+            dotProd[16 + j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[16 + j], AS_INPUT0_TYPE_4(input_val0.s2), as_char4(_sub_group_shuffle(weights_val2.s2, j))));
+            dotProd[16 + j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[16 + j], AS_INPUT0_TYPE_4(input_val0.s3), as_char4(_sub_group_shuffle(weights_val2.s3, j))));
         }
         filter_idx += weights_x_pitch;
         filter_idx2 += weights_x_pitch;
@@ -94,7 +95,7 @@ KERNEL(convolution_gpu_imad_bs_fs_yx_bsv16_fsv16_1x1)(
 
             ACTIVATION_TYPE dequantized = (ACTIVATION_TYPE)0;
 #if BIAS_TERM
-            dequantized = (ACTIVATION_TYPE)dotProd[16 * j + i] + intel_sub_group_shuffle(bias, i);
+            dequantized = (ACTIVATION_TYPE)dotProd[16 * j + i] + _sub_group_shuffle(bias, i);
 #else
             dequantized = (ACTIVATION_TYPE)dotProd[16 * j + i];
 #endif

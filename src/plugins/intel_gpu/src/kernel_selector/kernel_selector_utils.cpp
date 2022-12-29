@@ -80,7 +80,7 @@ std::vector<size_t> GetImageSizes(const kernel_selector::WeightsTensor& dimensio
 }
 
 bool CheckImageSize(const weight_bias_params& newParams, const WeightsLayout layout) {
-    if (!newParams.engineInfo.bImageSupport)
+    if (!newParams.engineInfo.supports_image)
         return false;
 
     auto image_sizes = GetImageSizes(newParams.weights, layout);

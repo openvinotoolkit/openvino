@@ -36,9 +36,11 @@ ParamsKey EltwiseKernel_b_fs_yx_fsv16::GetSupportedKey() const {
     k.EnableTensorPitches();
     k.EnableTensorOffset();
     k.EnableEltwiseBroadcast();
-    k.EnableSubGroup();
-    k.EnableSubGroupShort();
     return k;
+}
+
+DeviceFeaturesKey EltwiseKernel_b_fs_yx_fsv16::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    return get_common_subgroups_device_features_key(params, options);
 }
 
 static inline size_t GetBlockSize(const eltwise_params& params) {

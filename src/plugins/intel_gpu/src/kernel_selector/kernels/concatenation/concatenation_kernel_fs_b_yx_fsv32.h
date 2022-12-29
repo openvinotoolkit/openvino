@@ -14,6 +14,7 @@ public:
     virtual ~ConcatenationKernel_fs_b_yx_fsv32() {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    DeviceFeaturesKey get_required_device_features_key(const Params& params, const optional_params& /*options*/) const override;
     KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
     DispatchData SetDefault(const concatenation_params& params) const override;

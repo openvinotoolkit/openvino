@@ -3,7 +3,6 @@
 //
 
 #include "include/batch_headers/common.cl"
-#include "include/batch_headers/data_types.cl"
 
 KERNEL(shape_of_ref)(
     OPTIONAL_SHAPE_INFO_ARG
@@ -15,6 +14,7 @@ KERNEL(shape_of_ref)(
 #if IS_DYNAMIC
     output[i] = TO_OUTPUT_TYPE(shape_info[i]);
 #else
-    output[i] = TO_OUTPUT_TYPE(INPUT_DIMS[i]);
+    size_t shapes[] = INPUT_DIMS_INIT;
+    output[i] = TO_OUTPUT_TYPE(shapes[i]);
 #endif
 }

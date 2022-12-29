@@ -20,10 +20,16 @@ ParamsKey ConvolutionKernel_bfyx_iyxo::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
-    k.EnableSubGroup();
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
     k.EnableBatching();
+    return k;
+}
+
+DeviceFeaturesKey ConvolutionKernel_bfyx_iyxo::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    DeviceFeaturesKey k;
+    k.requires_reqd_subgroup_size();
+
     return k;
 }
 

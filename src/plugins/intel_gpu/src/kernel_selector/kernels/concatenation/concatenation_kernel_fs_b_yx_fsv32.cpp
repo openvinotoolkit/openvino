@@ -24,9 +24,11 @@ ParamsKey ConcatenationKernel_fs_b_yx_fsv32::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableConcatAxis(ConcatAxis::FEATURE);
     k.EnableConcatKernelPerInput();
-    k.EnableSubGroup();
-    k.EnableSubGroupShort();
     return k;
+}
+
+DeviceFeaturesKey ConcatenationKernel_fs_b_yx_fsv32::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    return get_common_subgroups_device_features_key(params, options);
 }
 
 bool ConcatenationKernel_fs_b_yx_fsv32::Validate(const Params& p, const optional_params& o) const {

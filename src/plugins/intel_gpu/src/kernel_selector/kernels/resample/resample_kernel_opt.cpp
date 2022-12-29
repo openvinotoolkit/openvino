@@ -75,9 +75,11 @@ ParamsKey ResampleKernelOpt::GetSupportedKey() const {
     k.EnableReampleType(ResampleType::NEAREST_NEIGHBOR);
     k.EnableReampleType(ResampleType::LINEAR_ONNX);
     k.EnableReampleType(ResampleType::CAFFE_BILINEAR_INTERP);
-    k.EnableSubGroup();
-    k.EnableSubGroupShort();
     return k;
+}
+
+DeviceFeaturesKey ResampleKernelOpt::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    return get_common_subgroups_device_features_key(params, options);
 }
 
 ResampleKernelBase::DispatchData ResampleKernelOpt::SetDefault(const kernel_selector::resample_params &arg) const {

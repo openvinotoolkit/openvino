@@ -3,7 +3,6 @@
 //
 
 #include "include/batch_headers/common.cl"
-#include "include/batch_headers/data_types.cl"
 
 KERNEL(activation)(
     __global INPUT0_TYPE* input,

@@ -254,7 +254,9 @@ static void DeformableConvolutionImpl(Program& p,
     std::vector<cldnn::primitive_id> weights = {inputs[2].pid};
     // Remove weights from inputs
     inputs.erase(inputs.begin() + 2);
-    if (groups == 1) {
+    auto device_info = p.GetEngine().get_device_info();
+    bool supports_subgroups = device_info.supports_khr_subgroups || device_info.supports_intel_subgroups;
+    if (groups == 1 && supports_subgroups) {
         std::string defConvLayerNameInterp = layerName + "_interp";
         std::string defConvLayerNameConv = layerName;
         cldnn::tensor kernel;

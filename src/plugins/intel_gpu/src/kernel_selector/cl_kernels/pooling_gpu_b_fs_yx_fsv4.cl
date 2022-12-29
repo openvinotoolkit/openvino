@@ -2,10 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
-
-#define ALIGN_TO(val, multiple) (((val) + (multiple) - 1) / (multiple) * (multiple))
 
 #define INPUT_VEC4 MAKE_VECTOR_TYPE(INPUT0_TYPE, 4)
 
@@ -43,8 +40,8 @@ KERNEL(pooling_gpu_b_fs_yx_fsv4)(
     const uint x    = (uint)get_global_id(0);
     const uint y    = (uint)get_global_id(1);
     const uint bf   = (uint)get_global_id(2);
-    const uint f    = (bf * 4) % ALIGN_TO(INPUT0_FEATURE_NUM, 4);
-    const uint b    = (bf * 4) / ALIGN_TO(INPUT0_FEATURE_NUM, 4);
+    const uint f    = (bf * 4) % ALIGN(INPUT0_FEATURE_NUM, 4);
+    const uint b    = (bf * 4) / ALIGN(INPUT0_FEATURE_NUM, 4);
 
     const int offset_x = (int)x*STRIDE_SIZE_X - PADDING_SIZE_X;
     const int offset_y = (int)y*STRIDE_SIZE_Y - PADDING_SIZE_Y;
@@ -179,8 +176,6 @@ KERNEL(pooling_gpu_b_fs_yx_fsv4)(
     }
 #endif
 }
-
-#undef ALIGN_TO
 
 #undef INIT_VAL
 #undef INPUT_VEC4

@@ -4,8 +4,7 @@
 
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/fetch_weights.cl"
-#include "include/imad.cl"
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/imad.cl"
 
 #include "deconvolution_gpu_imad_common.cl"
 

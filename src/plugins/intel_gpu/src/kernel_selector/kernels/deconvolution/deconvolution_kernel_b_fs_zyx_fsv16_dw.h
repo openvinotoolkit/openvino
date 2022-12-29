@@ -16,6 +16,7 @@ public:
     DeconvolutionKernel_b_fs_zyx_fsv16_dw() : DeconvolutionKernelBase("deconvolution_gpu_b_fs_zyx_fsv16_dw") {}
     virtual ~DeconvolutionKernel_b_fs_zyx_fsv16_dw() {}
     ParamsKey GetSupportedKey() const override;
+    DeviceFeaturesKey get_required_device_features_key(const Params& params, const optional_params& /*options*/) const override;
 
 protected:
     WeightsLayout GetPreferredWeightsLayout(const deconvolution_params& p) const override {
