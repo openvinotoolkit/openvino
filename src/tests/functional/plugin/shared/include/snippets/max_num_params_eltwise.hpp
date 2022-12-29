@@ -17,8 +17,8 @@ typedef std::tuple<
         std::string                  // Target Device
 > MaxNumParamsEltwiseParams;
 
-class MaxNumParamsEltwiseSinh : public testing::WithParamInterface<ov::test::snippets::MaxNumParamsEltwiseParams>,
-                   virtual public ov::test::SnippetsTestsCommon {
+class MaxNumParamsEltwise : public testing::WithParamInterface<ov::test::snippets::MaxNumParamsEltwiseParams>,
+                            virtual public ov::test::SnippetsTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::MaxNumParamsEltwiseParams> obj);
 
