@@ -25,6 +25,7 @@
 #include "transformations/common_optimizations/concat_reduce_fusion.hpp"
 #include "transformations/common_optimizations/conv_mul_fusion.hpp"
 #include "transformations/common_optimizations/conv_to_binary_conv.hpp"
+#include "transformations/common_optimizations/convert_compressed_to_mixed_precision.hpp"
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
 #include "transformations/common_optimizations/convert_nms_gather_path_to_unsigned.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
@@ -124,6 +125,9 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     // Enabling conversion of FP16 IR to legacy representation, each plugin have to disable it
     // after support for FP16 IR is implemented
     REGISTER_PASS(manager, ConvertCompressedOnlyToLegacy)
+    // should be enabled manually only on plugins supporting mixed precision inference
+    manager.register_pass<ConvertCompressedToMixedPrecision, false>();
+
     REGISTER_PASS(manager, MarkDividesInShapeSubgraphs)
     REGISTER_PASS(manager, WeightsDequantizeToFakeQuantize)
 
