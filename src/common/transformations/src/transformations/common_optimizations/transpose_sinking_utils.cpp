@@ -111,33 +111,7 @@ ov::Output<ov::Node> FixInputNodeRank(ov::Output<ov::Node> input_node, ov::Rank:
     return InsertUnsqueeze(input_node, required_rank - output_rank)->output(0);
 }
 
-std::set<size_t> GetNodeIds(const NodeVector& nodes) {
-    std::set<size_t> node_ids;
-
-    std::transform(nodes.begin(), nodes.end(), std::inserter(node_ids, node_ids.begin()), [](NodePtr node) -> size_t {
-        return node->get_instance_id();
-    });
-
-    return node_ids;
-}
-
 }  // namespace
-
-NodePtr CloneNodeWithoutConsumers(NodePtr node, const NodeVector& consumers) {
-    const auto consumer_ids = GetNodeIds(consumers);
-
-    auto new_node = node->clone_with_new_inputs(node->input_values());
-    for (size_t i = 0; i < node->get_output_size(); ++i) {
-        for (auto& orig_node_consumer : node->output(i).get_target_inputs()) {
-            if (consumer_ids.find(orig_node_consumer.get_node()->get_instance_id()) != consumer_ids.end())
-                continue;
-            orig_node_consumer.replace_source_output(new_node->output(i));
-        }
-    }
-    copy_runtime_info(node, new_node);
-
-    return new_node;
-}
 
 namespace sink_forward {
 
