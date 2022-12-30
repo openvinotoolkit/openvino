@@ -828,9 +828,7 @@ using CreateGraphF = std::function<std::shared_ptr<Model>(size_t num_concat_ops,
 
 struct CreateGraphFunctionDesc {
     CreateGraphFunctionDesc() = default;
-    CreateGraphFunctionDesc(CreateGraphF a_model_factory,
-                            CreateGraphF a_ref_model_factory,
-                            std::string a_subtest_name)
+    CreateGraphFunctionDesc(CreateGraphF a_model_factory, CreateGraphF a_ref_model_factory, std::string a_subtest_name)
         : model_factory(a_model_factory),
           reference_model_factory(a_ref_model_factory),
           subtest_name(a_subtest_name) {}
@@ -933,8 +931,7 @@ namespace no_sinking {
 
 struct CreateGraphFunctionNoSinkingDesc {
     CreateGraphFunctionNoSinkingDesc() = default;
-    CreateGraphFunctionNoSinkingDesc(CreateGraphF a_model_factory,
-                            std::string a_subtest_name)
+    CreateGraphFunctionNoSinkingDesc(CreateGraphF a_model_factory, std::string a_subtest_name)
         : model_factory(a_model_factory),
           subtest_name(a_subtest_name) {}
     CreateGraphF model_factory;
@@ -949,7 +946,7 @@ using TestConcatParams = std::tuple<PassFactoryPtr,
                                     size_t>;       /* num_concat_inputs */
 
 class TransposeConcatMultiSinkingConcatConsumersFixture : public ::testing::WithParamInterface<TestConcatParams>,
-                                           public TransformationTestsF {
+                                                          public TransformationTestsF {
 public:
     static std::string get_test_name(const testing::TestParamInfo<TestConcatParams>& obj) {
         PassFactoryPtr pass_factory;
@@ -994,8 +991,7 @@ TEST_P(TransposeConcatMultiSinkingConcatConsumersFixture, CompareFunctions) {
     pass_factory->registerPass(manager);
 }
 
-#define SUBTEST(nmspace, subtest_name) \
-    CreateGraphFunctionNoSinkingDesc(nmspace::CreateFunction, subtest_name)
+#define SUBTEST(nmspace, subtest_name) CreateGraphFunctionNoSinkingDesc(nmspace::CreateFunction, subtest_name)
 
 std::vector<CreateGraphFunctionNoSinkingDesc> backward_subtests_no_sinking = {
     SUBTEST(backward::output_consumers::one_binary, "backwardOutputConsumersOneBinary"),
@@ -1013,6 +1009,6 @@ INSTANTIATE_TEST_SUITE_P(TransposeSinkingConcatBackwardMultiConsumersTestSuite,
                                             ::testing::Values(5)),
                          TransposeConcatMultiSinkingConcatConsumersFixture::get_test_name);
 
-} // no_sinking
+}  // namespace no_sinking
 
 }  // namespace mult_consumers

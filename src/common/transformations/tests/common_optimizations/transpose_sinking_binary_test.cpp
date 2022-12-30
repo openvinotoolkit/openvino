@@ -1127,7 +1127,6 @@ std::vector<CreateGraphFunctionDesc> backward_subtests = {
 
 #undef SUBTEST
 
-
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingBinaryForwardMultiConsumersTestSuite,
                          TransposeBinaryMultiSinkingFixture,
                          ::testing::Combine(::testing::ValuesIn(binary_factories),
@@ -1150,8 +1149,7 @@ namespace no_sinking {
 
 struct CreateGraphFunctionDesc {
     CreateGraphFunctionDesc() = default;
-    CreateGraphFunctionDesc(CreateGraphF a_model_factory,
-                            std::string a_subtest_name)
+    CreateGraphFunctionDesc(CreateGraphF a_model_factory, std::string a_subtest_name)
         : model_factory(a_model_factory),
           subtest_name(a_subtest_name) {}
     CreateGraphF model_factory;
@@ -1165,7 +1163,7 @@ using TestBinaryParams = std::tuple<BinaryFactoryPtr,
                                     size_t>;       /*binary_transpose_input_idx*/
 
 class TransposeBinaryMultiSinkingBinaryMultiConsumersFixture : public ::testing::WithParamInterface<TestBinaryParams>,
-                                           public TransformationTestsF {
+                                                               public TransformationTestsF {
 public:
     static std::string get_test_name(const testing::TestParamInfo<TestBinaryParams>& obj) {
         BinaryFactoryPtr binary_factory;
@@ -1198,19 +1196,17 @@ TEST_P(TransposeBinaryMultiSinkingBinaryMultiConsumersFixture, CompareFunctions)
 
     model = function_desc.model_factory(binary_factory, input_type, binary_transpose_input_idx);
     model_ref = model->clone();
-    //model_ref = function_desc.model_factory(binary_factory, input_type, binary_transpose_input_idx);
+    // model_ref = function_desc.model_factory(binary_factory, input_type, binary_transpose_input_idx);
     pass_factory->registerPass(manager);
 }
 
-#define SUBTEST(nmspace, subtest_name) \
-    CreateGraphFunctionDesc(nmspace::CreateFunction, subtest_name)
+#define SUBTEST(nmspace, subtest_name) CreateGraphFunctionDesc(nmspace::CreateFunction, subtest_name)
 
 std::vector<CreateGraphFunctionDesc> backward_subtests_binary_consumers = {
     SUBTEST(backward::output_consumers::one_binary, "backwardOutputConsumersOneBinary"),
     SUBTEST(backward::output_consumers::multiple_binaries, "backwardOutputConsumersMultipleBinaries"),
 };
 #undef SUBTEST
-
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingBinaryBackwardBinaryMultiConsumersTestSuite,
                          TransposeBinaryMultiSinkingBinaryMultiConsumersFixture,
@@ -1221,7 +1217,7 @@ INSTANTIATE_TEST_SUITE_P(TransposeSinkingBinaryBackwardBinaryMultiConsumersTestS
                                             ::testing::ValuesIn(binary_transpose_input_indexes)),
                          TransposeBinaryMultiSinkingBinaryMultiConsumersFixture::get_test_name);
 
-} // namespace no_sinking
+}  // namespace no_sinking
 
 }  // namespace mult_consumers
 

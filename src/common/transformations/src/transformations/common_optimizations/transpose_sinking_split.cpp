@@ -90,13 +90,13 @@ bool IsSplitSinked(const Output<Node>& output) {
  * Consider case Split (1) -> Split (2) -> Transpose
  * If specify Split as main searched node after first transformation work we will have
  * Split (1) -> Transpose -> Split(2)
- * Matcher pass will not call TransposeSinkingSplitBackward since 
+ * Matcher pass will not call TransposeSinkingSplitBackward since
  * - matcher pattern has no Transpose label
  * - Split (1) has already been proceeded
  * Adding Split(2) into the working queue as register_new_node(split)
  * cannot help us. We just can try to find all input Split operations and add them with
  * register_new_node(). Implemented way is simpler.
- * 
+ *
  * We sink Transpose through Split operation in a backward way only if all the output
  * nodes are the same Transpose. We can:
  * - clone Split with all outputs except Transpose
@@ -108,8 +108,7 @@ ov::pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
     MATCHER_SCOPE(TransposeSinkingSplitBackward);
 
     auto transpose_const_label = wrap_type<Constant>();
-    auto transpose_label =
-        wrap_type<Transpose>({any_input(), transpose_const_label}, IsSplitSinked);
+    auto transpose_label = wrap_type<Transpose>({any_input(), transpose_const_label}, IsSplitSinked);
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
