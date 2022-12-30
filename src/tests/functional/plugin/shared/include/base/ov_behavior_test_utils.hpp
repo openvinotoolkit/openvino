@@ -259,6 +259,7 @@ public:
 };
 using OVClassExecutableNetworkGetMetricTest_DEVICE_PRIORITY = OVClassExecutableNetworkGetMetricTest_Priority;
 using OVClassExecutableNetworkGetMetricTest_MODEL_PRIORITY = OVClassExecutableNetworkGetMetricTest_Priority;
+using OVClassExecutableNetworkGetMetricTest_PERFORMANCE_HINT = OVClassExecutableNetworkGetMetricTest_Priority;
 
 #define SKIP_IF_NOT_IMPLEMENTED(...)                   \
 {                                                      \

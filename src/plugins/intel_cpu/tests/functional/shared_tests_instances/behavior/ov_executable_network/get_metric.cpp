@@ -132,4 +132,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassExecutableNetworkGetMetricTest,
                          ::testing::Combine(::testing::Values("AUTO:CPU"),
                                             ::testing::ValuesIn(multiModelPriorityConfigs)));
 
+const std::vector<ov::AnyMap> multiPerformanceHintConfigs = {
+    {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
+    {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
+    {ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassExecutableNetworkGetMetricTest,
+                         OVClassExecutableNetworkGetMetricTest_PERFORMANCE_HINT,
+                         ::testing::Combine(::testing::Values("AUTO:CPU"),
+                                            ::testing::ValuesIn(multiPerformanceHintConfigs)));
 } // namespace
