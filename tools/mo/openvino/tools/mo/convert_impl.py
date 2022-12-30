@@ -753,35 +753,10 @@ def args_dict_to_list(cli_parser, **kwargs):
     return result
 
 
-def pack_params_to_args_namespace(**kwargs):
-    # This method converts dictionary of params from convert_model() to argparse.Namespace object,
-    # checks that parameters are known and creates list of non-default params for serialization in IR
-
-    # create MO cli parser
-    fe_manager = FrontEndManager()
-    cli_parser = get_all_cli_parser(fe_manager)
-
-    # parse params from convert_model(), the result is argparse.Namespace object
-    argv = cli_parser.parse_args(args_dict_to_list(cli_parser, **kwargs))
-
-    # get list of all available params for convert_model()
-    all_params = {}
-    for key, value in mo_convert_params.items():
-        all_params.update(value)
-
-    # check that there are no unknown params provided
-    for key, value in kwargs.items():
-        if key not in argv and key not in all_params.keys():
-            raise Error("Unrecognized argument: {}".format(key))
-        if value is not None:
-            setattr(argv, key, value)
-
-    # send telemetry with params info
-    send_params_info(argv, cli_parser)
-
+def get_non_default_params(argv, cli_parser):
     # make dictionary with parameters which have non-default values to be serialized in IR in rt_info
     non_default_params = {}
-    for arg in vars(argv):
+    for arg in vars(argv).keys():
         arg_value = getattr(argv, arg)
         if arg_value != cli_parser.get_default(arg):
             value = depersonalize(arg_value, arg)
@@ -789,7 +764,7 @@ def pack_params_to_args_namespace(**kwargs):
             # serializing it to rt_info
             if isinstance(value, (str, bool)):
                 non_default_params[arg] = value
-    return argv, non_default_params
+    return non_default_params
 
 
 def params_to_string(**kwargs):
@@ -847,6 +822,8 @@ def show_mo_convert_help():
 
 
 def input_model_is_object(argv):
+    if 'input_model' not in argv:
+        return False
     if isinstance(argv['input_model'], (str, Path)):
         return False
     if argv['input_model'] is None:
@@ -862,7 +839,7 @@ def remove_tmp_onnx_model(out_dir):
             os.remove(tmp_onnx_model)
 
 
-def _convert(**args):
+def _convert(cli_parser, framework, args):
     if 'help' in args and args['help']:
         show_mo_convert_help()
         return None
@@ -893,7 +870,6 @@ def _convert(**args):
                                                      example_inputs,
                                                      out_dir)
 
-
                 args['input_model'] = model_onnx
                 if os.environ.get('SAVE_TO_BYTES_IO_ONNX_MODEL'):
                     args['use_legacy_frontend'] = True
@@ -908,12 +884,39 @@ def _convert(**args):
 
                 remove_tmp_onnx_model(out_dir)
                 return ov_model
-        args = params_to_string(**args)
-        argv, non_default_params = pack_params_to_args_namespace(**args)
+
+        if len(args) > 0:
+            args_string = params_to_string(**args)
+            argv = cli_parser.parse_args(args_dict_to_list(cli_parser, **args_string))
+
+            # get list of all available params for convert_model()
+            all_params = {}
+            for key, value in mo_convert_params.items():
+                all_params.update(value)
+
+            # check that there are no unknown params provided
+            for key, value in args.items():
+                if key not in argv and key not in all_params.keys():
+                    raise Error("Unrecognized argument: {}".format(key))
+
+                # Non string params like input_model or extensions are ignored by parse_args()
+                # so we need to set them in argv separately
+                if value is not None and getattr(argv, key) is None:
+                    setattr(argv, key, value)
+        else:
+            argv = cli_parser.parse_args()
+
+        if framework is not None:
+            setattr(argv, 'framework', framework)
+
+        # send telemetry with params info
+        send_params_info(argv, cli_parser)
+
+        non_default_params = get_non_default_params(argv, cli_parser)
 
         if inp_model_is_object:
             argv.model_name = "model"
-        if argv.model_name is None:
+        if not hasattr(argv, "model_name") or argv.model_name is None:
             argv.model_name = get_model_name_from_args(argv)
 
         if model_framework is not None:
@@ -944,7 +947,7 @@ def _convert(**args):
         telemetry.send_event('mo', 'conversion_result', 'success')
         telemetry.end_session('mo')
         telemetry.force_shutdown(1.0)
-        return ov_model
+        return ov_model, argv
     except Exception as e:
         telemetry.send_event('mo', 'conversion_result', 'fail')
         telemetry.end_session('mo')
