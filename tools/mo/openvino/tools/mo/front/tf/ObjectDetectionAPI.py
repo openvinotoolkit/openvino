@@ -1525,7 +1525,7 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
         crop_and_resize_nodes_ids = []
         start_node = match.single_input_node(0)[0]
         passed_start_node = False
-        for node in graph.topological_sort():
+        for node in graph.pseudo_topological_sort():
             if node == start_node:
                 passed_start_node = True
                 continue
