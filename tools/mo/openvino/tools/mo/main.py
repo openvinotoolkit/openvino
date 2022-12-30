@@ -57,7 +57,7 @@ def main(cli_parser: argparse.ArgumentParser, framework=None):
             for el in analysis_results.get_messages():
                 log.error(el, extra={'analysis_info': True})
         log.error(err)
-        if not argv.use_new_frontend and is_tf:
+        if hasattr(argv, 'use_new_frontend') and not argv.use_new_frontend and is_tf:
             print(get_tf_fe_legacy_message())
         log.debug(traceback.format_exc())
     except FrameworkError as err:
