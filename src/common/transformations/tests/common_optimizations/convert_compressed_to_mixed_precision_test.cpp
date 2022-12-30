@@ -104,7 +104,6 @@ TEST_F(TransformationTestsF, ConvertCompressedToMixedPrecissionNoConvertion) {
 }
 
 TEST_F(TransformationTestsF, ConvertCompressedToMixedPrecission_keep_sensitive_nodes_in_fp32) {
-//    std::shared_ptr<Model> model(nullptr), model_ref(nullptr);
     {
         auto input_1 = std::make_shared<opset10::Parameter>(element::f32, Shape{360, 640});
         auto input_2 = std::make_shared<opset10::Parameter>(element::f32, Shape{720, 1280});
