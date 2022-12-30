@@ -78,6 +78,9 @@ public:
     cldnn::engine& get_engine() { return *m_engine; }
     InferenceEngine::gpu_handle_param get_external_queue() const { return m_external_queue; }
 
+    cldnn::memory::ptr try_get_cached_memory(size_t hash);
+    void add_to_cache(size_t hash, cldnn::memory::ptr memory);
+
 private:
     std::string get_device_name(const std::map<std::string, cldnn::device::ptr>& all_devices, const cldnn::device::ptr current_device);
     InferenceEngine::RemoteBlob::Ptr reuse_surface(InferenceEngine::gpu::ClContext::Ptr public_context,
@@ -102,7 +105,8 @@ private:
     std::string m_device_name = "";
     std::string m_device_id = "";
     const std::string m_plugin_name;
-    cldnn::ThreadSafeLruCache<size_t, cldnn::memory::ptr> m_memory_cache;
+    cldnn::LruCache<size_t, cldnn::memory::ptr> m_memory_cache;
+    std::mutex m_cache_mutex;
 };
 
 // Template class below is needed to allow proper cast of user contexts

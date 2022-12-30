@@ -23,8 +23,7 @@ RemoteBlobImpl::RemoteBlobImpl(InferenceEngine::gpu::ClContext::Ptr context,
                                cldnn::shared_handle mem,
                                cldnn::shared_surface surf,
                                uint32_t plane,
-                               BlobType mem_type,
-                               cldnn::memory::ptr mem_handle)
+                               BlobType mem_type)
     : m_allocator(std::make_shared<RemoteAllocator>())
     , m_context(context)
     , m_stream(stream)
@@ -33,13 +32,22 @@ RemoteBlobImpl::RemoteBlobImpl(InferenceEngine::gpu::ClContext::Ptr context,
     , m_plane(plane)
     , m_layout(layout)
     , m_mem_type(mem_type)
-    , m_memory_object(mem_handle)
+    , m_memory_object(nullptr)
     , lockedCounter(0)
     , lockedHolder(nullptr)
-    , _handle(nullptr) { }
+    , _handle(nullptr) {
+    m_hash = cldnn::hash_combine(0, m_mem);
+    m_hash = cldnn::hash_combine(m_hash, m_surf);
+    m_hash = cldnn::hash_combine(m_hash, plane);
+    m_hash = cldnn::hash_combine(m_hash, static_cast<std::underlying_type<cldnn::format::type>::type>(layout.format));
+    m_hash = cldnn::hash_combine(m_hash, static_cast<std::underlying_type<cldnn::data_types>::type>(layout.data_type));
+    for (auto& d : layout.get_shape()) {
+        m_hash = cldnn::hash_combine(m_hash, d);
+    }
+}
 
 AnyMap RemoteBlobImpl::getParams() const {
-    assert(m_memory_object != nullptr);
+    OPENVINO_ASSERT(is_allocated(), "[GPU] Can't get RemoteBlob params as blob wasn't allocated properly");
     auto params = m_memory_object->get_internal_params();
 
     switch (m_mem_type) {
@@ -114,11 +122,21 @@ bool RemoteBlobImpl::is_locked() const noexcept {
 void RemoteBlobImpl::allocate() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "RemoteBlobImpl::Allocate");
 
-    // If mem object was allocated earlier
-    if (m_memory_object != nullptr)
-        return;
+    auto context = get_context_impl(m_context);
+    bool enable_caching = m_mem_type == BlobType::BT_BUF_SHARED ||
+                          m_mem_type == BlobType::BT_USM_SHARED ||
+                          m_mem_type == BlobType::BT_IMG_SHARED ||
+                          m_mem_type == BlobType::BT_SURF_SHARED ||
+                          m_mem_type == BlobType::BT_DX_BUF_SHARED;
 
-    auto& engine = get_context_impl(m_context)->get_engine();
+    if (enable_caching) {
+        m_memory_object = context->try_get_cached_memory(m_hash);
+        if (m_memory_object)
+            return;
+    }
+
+
+    auto& engine = context->get_engine();
 
     switch (m_mem_type) {
     case BlobType::BT_BUF_INTERNAL: {
@@ -163,6 +181,9 @@ void RemoteBlobImpl::allocate() {
     default:
         m_memory_object.reset();
     }
+
+    if (enable_caching)
+        context->add_to_cache(m_hash, m_memory_object);
 }
 
 const std::shared_ptr<IAllocator>& RemoteBlobImpl::getAllocator() const noexcept {

@@ -21,7 +21,7 @@ public:
     void apply(std::shared_ptr<ov::Model> func);
 
 private:
-    ExecutionConfig config;
+    const ExecutionConfig& config;
     cldnn::device_info device_info;
 };
 

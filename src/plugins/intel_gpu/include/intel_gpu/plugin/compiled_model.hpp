@@ -22,6 +22,7 @@ namespace intel_gpu {
 
 class LegacyPropertiesHelper {
 public:
+    ov::AnyMap convert_legacy_properties(const std::map<std::string, std::string>& properties) const;
     ov::AnyMap convert_legacy_properties(const ov::AnyMap& properties) const;
     std::pair<std::string, ov::Any> convert_legacy_property(const std::pair<std::string, ov::Any>& legacy_property) const;
     std::pair<std::string, ov::Any> convert_to_legacy_property(const std::pair<std::string, ov::Any>& property) const;

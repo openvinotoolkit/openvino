@@ -44,6 +44,10 @@ class Plugin : public InferenceEngine::IInferencePlugin {
     std::vector<std::string> get_supported_legacy_configs() const;
     std::vector<std::string> get_supported_legacy_metrics() const;
     std::vector<std::string> get_device_capabilities(const cldnn::device_info& info) const;
+    uint32_t get_optimal_batch_size(const std::map<std::string, InferenceEngine::Parameter>& options) const;
+    uint32_t get_max_batch_size(const std::map<std::string, InferenceEngine::Parameter>& options) const;
+
+    ov::AnyMap preprocess_config(const std::map<std::string, std::string>& orig_config) const;
 
 public:
     Plugin();

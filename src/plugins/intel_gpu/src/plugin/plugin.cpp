@@ -12,7 +12,6 @@
 #include <cctype>
 #include <memory>
 #include "ie_metric_helpers.hpp"
-#include "ie_plugin_config.hpp"
 #include <ie_ngraph_utils.hpp>
 #include <ie_algorithm.hpp>
 
@@ -20,9 +19,12 @@
 #include "intel_gpu/plugin/plugin.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
-#include "intel_gpu/plugin/custom_layer.hpp"
-#include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/runtime/itt.hpp"
+#include "intel_gpu/runtime/execution_config.hpp"
+#include "intel_gpu/runtime/device_query.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
+
+#include "ie_plugin_config.hpp"
 #include "gpu/gpu_config.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "ie_icore.hpp"
@@ -31,19 +33,12 @@
 #include "transformations/init_node_info.hpp"
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 #include <transformations/rt_info/fused_names_attribute.hpp>
-
 #include <transformations/utils/utils.hpp>
-#include "openvino/pass/serialize.hpp"
-#include "openvino/pass/manager.hpp"
-#include <ngraph/pass/manager.hpp>
+
+#include <openvino/pass/manager.hpp>
 #include <openvino/util/common_util.hpp>
 
-#include "intel_gpu/runtime/device_query.hpp"
-#include "intel_gpu/runtime/debug_configuration.hpp"
 #include <performance_heuristics.hpp>
-#ifdef __linux__
-# include <dlfcn.h>
-#endif
 
 // Undef DEVICE_TYPE macro which can be defined somewhere in windows headers as DWORD and conflict with our metric
 #ifdef DEVICE_TYPE
@@ -73,8 +68,17 @@ void Plugin::RegisterPrimitives() {
     #undef REGISTER_FACTORY
 }
 
+ov::AnyMap Plugin::preprocess_config(const std::map<std::string, std::string>& orig_config) const {
+    if (!IsNewAPI()) {
+        LegacyPropertiesHelper helper;
+        return helper.convert_legacy_properties(orig_config);
+    } else {
+        return ov::AnyMap(orig_config.begin(), orig_config.end());
+    }
+}
+
 std::string Plugin::get_device_id_from_config(const std::map<std::string, std::string>& config) const {
-    std::string device_id = default_device_id;
+    std::string device_id;
     if (config.find(PluginConfigParams::KEY_DEVICE_ID) != config.end()) {
         device_id = config.at(PluginConfigParams::KEY_DEVICE_ID);
     }
@@ -130,37 +134,12 @@ Plugin::Plugin() : m_defaultContexts({}) {
 
         // Set default configs for each device
         for (auto& device : device_map) {
-            m_configs_map.insert({device.first, ExecutionConfig()});
-            auto ctx = std::make_shared<RemoteCLContext>(device.first, std::vector<cldnn::device::ptr>{ device.second });
+            m_configs_map.insert({device.first, ExecutionConfig(ov::device::id(device.first))});
+            auto ctx = std::make_shared<RemoteCLContext>(GetName() + "." + device.first, std::vector<cldnn::device::ptr>{ device.second });
             m_defaultContexts.insert({device.first, ctx});
-            std::cerr << "Init config and context for: " << device.first << std::endl;
+            // std::cerr << "Init config and context for: " << device.first << std::endl;
         }
     }
-    // locate global custom kernel config
-    // and auto-load kernels from it
-#ifdef _WIN32
-    CHAR mpath[MAX_PATH + 1];
-    HMODULE nModule;
-    GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-        (LPCSTR)CustomLayer::LoadFromFile,
-        &nModule);
-    GetModuleFileName(nModule, mpath, sizeof(mpath));
-#elif __linux__
-    Dl_info dl_info;
-    dladdr(reinterpret_cast<void *>(CustomLayer::LoadFromFile), &dl_info);
-    const char* mpath = dl_info.dli_fname;
-#endif
-    std::string configFile(mpath);
-    std::size_t dir_split_pos = configFile.find_last_of("/\\");
-    std::string config_path;
-
-    if (dir_split_pos != std::string::npos) {
-        // path contains directory
-        config_path = configFile.substr(0, dir_split_pos);
-    }
-    config_path += "/cldnn_global_custom_kernels/cldnn_global_custom_kernels.xml";
-    CustomLayerMap customLayers;
-    CustomLayer::LoadFromFile(config_path, customLayers, true);
 
     if (const char* env_p = std::getenv("OV_GPU_CACHE_MODEL")) {
         if (env_p[0] == '1') {
@@ -210,16 +189,18 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
     check_inputs(_networkInputs);
 
     std::string device_id = get_device_id_from_config(orig_config);
+    if (device_id.empty())
+        device_id = default_device_id;
+
     auto context = get_default_context(device_id);
 
     if (m_configs_map.find(device_id) == m_configs_map.end())
         IE_THROW() << "LoadNetwork not found device config\n";
 
     ExecutionConfig config = m_configs_map.at(device_id);
-    std::cerr << "Base config: " << config.to_string();
-    config.set_property(ov::AnyMap(orig_config.begin(), orig_config.end()));
-    config.apply_user_properties();
-    std::cerr << "\n\n\nProcessed config: " << config.to_string();
+    config.set_property(preprocess_config(orig_config));
+    config.apply_user_properties(context->get_impl()->get_engine().get_device_info());
+    // std::cerr << "\n\n\nProcessed config: " << config.to_string();
 
     auto transformedNetwork = CloneAndTransformNetwork(network, config);
     {
@@ -241,12 +222,9 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
         IE_THROW() << "Invalid context";
     }
 
-    InferenceEngine::DeviceIDParser parser(context->getDeviceName());
-    auto device_id = parser.getDeviceID();
-    bool known_device_id = m_configs_map.find(device_id) != m_configs_map.end();
-    ExecutionConfig config = known_device_id ? m_configs_map.at(device_id) : ExecutionConfig{};
-    config.set_property(ov::AnyMap(orig_config.begin(), orig_config.end()));
-    config.apply_user_properties();
+    ExecutionConfig config{};
+    config.set_property(preprocess_config(orig_config));
+    config.apply_user_properties(get_context_impl(casted)->get_engine().get_device_info());
 
     auto transformedNetwork = CloneAndTransformNetwork(network, config);
     return std::make_shared<CompiledModel>(transformedNetwork, casted, config);
@@ -288,14 +266,13 @@ InferenceEngine::RemoteContext::Ptr Plugin::GetDefaultContext(const AnyMap& para
 }
 
 void Plugin::SetConfig(const std::map<std::string, std::string> &config) {
-    const bool is_new_api = IsNewAPI();
-    auto update_config = [is_new_api](ExecutionConfig& execution_config, const std::map<std::string, std::string>& user_config) {
-        auto config_to_set = ov::AnyMap(user_config.begin(), user_config.end());
-        if (!is_new_api) {
-            LegacyPropertiesHelper helper;
-            config_to_set = helper.convert_legacy_properties(config_to_set);
+    auto update_config = [this](ExecutionConfig& execution_config, const std::map<std::string, std::string>& user_config) {
+        execution_config.set_user_property(preprocess_config(user_config));
+        // Check that custom layers config can be loaded
+        if (user_config.find(PluginConfigParams::KEY_CONFIG_FILE) != user_config.end()) {
+            CustomLayerMap custom_layers;
+            CustomLayer::LoadFromFile(user_config.at(PluginConfigParams::KEY_CONFIG_FILE), custom_layers);
         }
-        execution_config.set_user_property(config_to_set);
     };
 
     if (config.find(PluginConfigInternalParams::KEY_CONFIG_DEVICE_ID) != config.end()) {
@@ -319,12 +296,14 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::QueryNetwork");
     QueryNetworkResult res;
     std::string device_id = get_device_id_from_config(orig_config);
+    if (device_id.empty())
+        device_id = default_device_id;
 
     auto ctx = get_default_context(device_id)->get_impl();
 
     ExecutionConfig config = m_configs_map.at(device_id);
-    config.set_property(ov::AnyMap(orig_config.begin(), orig_config.end()));
-    config.apply_user_properties();
+    config.set_property(preprocess_config(orig_config));
+    config.apply_user_properties(ctx->get_engine().get_device_info());
 
     Program prog(ctx->get_engine(), config);
     bool dyn_shape_batch_found = false;
@@ -384,11 +363,13 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(std::istr
                                                                        const std::map<std::string, std::string>& orig_config) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork");
     std::string device_id = get_device_id_from_config(orig_config);
+    if (device_id.empty())
+        device_id = default_device_id;
     auto context = get_default_context(device_id);
 
     ExecutionConfig config = m_configs_map.at(device_id);
-    config.set_property(ov::AnyMap(orig_config.begin(), orig_config.end()));
-    config.apply_user_properties();
+    config.set_property(preprocess_config(orig_config));
+    config.apply_user_properties(context->get_impl()->get_engine().get_device_info());
 
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork::CreateExeNetwork");
@@ -511,67 +492,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         return decltype(ov::intel_gpu::uarch_version)::value_type {s.str()};
     } else if (name == METRIC_KEY(OPTIMAL_BATCH_SIZE) ||
                name == ov::optimal_batch_size) {
-        auto next_pow_of_2 = [] (float x) {
-            return pow(2, ceil(std::log(x)/std::log(2)));
-        };
-        auto closest_pow_of_2 = [] (float x) {
-            return pow(2, floor(std::log(x)/std::log(2)));
-        };
-        auto model_param = options.find(ov::hint::model.name());
-        if (model_param == options.end()) {
-            GPU_DEBUG_INFO << "[OPTIMAL_BATCH_SIZE] ov::hint::model is not set: return 1" << std::endl;
-            return decltype(ov::optimal_batch_size)::value_type {static_cast<unsigned int>(1)};
-        }
-        std::shared_ptr<ngraph::Function> model;
-        try {
-            model = model_param->second.as<std::shared_ptr<ngraph::Function>>();
-        } catch (...) {
-            IE_THROW() << "[OPTIMAL_BATCH_SIZE] ov::hint::model should be std::shared_ptr<ov::Model> type";
-        }
-        GPU_DEBUG_INFO << "DEVICE_INFO:"
-                       << "gfx_version.major, " << device_info.gfx_ver.major
-                       << "gfx_version.minor " << std::to_string(device_info.gfx_ver.minor) << std::endl;
-        static std::map<cldnn::gfx_version, size_t> gen_kbytes_per_bank = {
-                {{12, 0, 0}, 480},  // TGL
-                {{12, 1, 0}, 2048}, // DG1
-                {{12, 5, 0}, 320},
-                {{12, 7, 0}, 512},
-        };
-        size_t L3_cache_size = device_info.gfx_ver.major && (device_info.gfx_ver.major <= 9)
-                ? 768 * 1024 // Gen9
-                : 2 * 768 * 1024;  //reasonable default when no arch has been detected (e.g. due to old driver ver)
-        cldnn::gfx_version gen = {device_info.gfx_ver.major, device_info.gfx_ver.minor, 0 /*ignore the revision*/};
-        auto val = gen_kbytes_per_bank.find(gen);
-        if (gen_kbytes_per_bank.end() != val) {
-            auto kbytes_per_bank = val->second;
-            auto num_banks_per_slice = device_info.num_sub_slices_per_slice > 4
-                                       ? next_pow_of_2(device_info.num_sub_slices_per_slice)
-                                       : 2 * device_info.num_sub_slices_per_slice;
-            L3_cache_size = kbytes_per_bank * 1024 * num_banks_per_slice * device_info.num_slices;
-            GPU_DEBUG_INFO << "DEVICE_INFO:"
-                           << "num_slices " << device_info.num_slices
-                           << ", num_sub_slices_per_slice " << device_info.num_sub_slices_per_slice
-                           << ", num_banks_per_slice " << num_banks_per_slice
-                           << ", gen_kbytes_per_bank : " << kbytes_per_bank
-                           << ", L3_cache_size is (MB): " << float(L3_cache_size) / 1024 / 1024 << std::endl;
-        }
-        auto config = m_configs_map.at(device_id);
-        auto networkCloned = CloneAndTransformNetwork(CNNNetwork(model), config);
-        ov::MemBandwidthPressure memPressure = ov::MemBandwidthPressureTolerance(networkCloned.getFunction(), L3_cache_size);
-        unsigned int batch = 1;
-        if (memPressure.max_mem_tolerance != ov::MemBandwidthPressure::UNKNOWN)
-            batch = std::max(1.0, 16 * closest_pow_of_2(memPressure.max_mem_tolerance));
-        std::map<std::string, InferenceEngine::Parameter> options_for_max_batch;
-        options_for_max_batch[ov::hint::model.name()] = model;
-        options_for_max_batch["GPU_THROUGHPUT_STREAMS"] = CONFIG_VALUE(GPU_THROUGHPUT_AUTO);
-        auto max_batch_size = GetMetric(ov::max_batch_size.name(), options_for_max_batch).as<unsigned int>();
-        unsigned int closest = closest_pow_of_2(max_batch_size);
-        batch = std::min(closest, batch);
-        batch = std::min(256u, batch); //batch 256 is a max
-        GPU_DEBUG_INFO << memPressure.max_mem_tolerance << std::endl;
-        GPU_DEBUG_INFO << "MAX_BATCH: " << max_batch_size << std::endl;
-        GPU_DEBUG_INFO << "ACTUAL OPTIMAL BATCH: " << batch << std::endl;
-        return decltype(ov::optimal_batch_size)::value_type {batch};
+        return decltype(ov::optimal_batch_size)::value_type {get_optimal_batch_size(options)};
     } else if (name == ov::device::uuid) {
         ov::device::UUID uuid = {};
         std::copy_n(std::begin(device_info.uuid.val), cldnn::device_uuid::max_uuid_size, std::begin(uuid.uuid));
@@ -607,150 +528,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         return decltype(ov::intel_gpu::memory_statistics)::value_type {statistics};
     } else if (name == METRIC_KEY(MAX_BATCH_SIZE) ||
                name == ov::max_batch_size) {
-        const auto& config = m_configs_map.at(device_id);
-        uint32_t n_streams = static_cast<uint32_t>(config.get_property(ov::num_streams));
-        uint64_t occupied_device_mem = 0;
-        auto statistic_result = GetMetric(ov::intel_gpu::memory_statistics.name(), options).as<std::map<std::string, uint64_t>>();
-        auto occupied_usm_dev = statistic_result.find("usm_device_current");
-        if (occupied_usm_dev != statistic_result.end()) {
-            occupied_device_mem = occupied_usm_dev->second;
-        }
-
-        int64_t available_device_mem = device_info.max_global_mem_size - occupied_device_mem;
-        GPU_DEBUG_LOG << "[GPU_MAX_BATCH_SIZE] available memory is " << available_device_mem
-                      << " (occupied: " << occupied_device_mem << ")" << std::endl;
-
-        int64_t max_batch_size = 1;
-
-        if (options.find(ov::hint::model.name()) == options.end()) {
-            GPU_DEBUG_INFO << "[GPU_MAX_BATCH_SIZE] MODELS_PTR is not set: return 1" << std::endl;
-            return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(max_batch_size)};
-        }
-
-        auto it_streams = options.find("GPU_THROUGHPUT_STREAMS") != options.end() ? options.find("GPU_THROUGHPUT_STREAMS") :
-                          options.find(ov::num_streams.name()) != options.end() ? options.find(ov::num_streams.name()) :
-                          options.end();
-        if (it_streams != options.end()) {
-            if (it_streams->second.is<int32_t>()) {
-                n_streams = it_streams->second.as<int32_t>();
-            } else if (it_streams->second.is<uint32_t>()) {
-                n_streams = it_streams->second.as<uint32_t>();
-            } else if (it_streams->second.is<std::string>()) {
-                std::string n_streams_str = it_streams->second.as<std::string>();
-                if (n_streams_str != CONFIG_VALUE(GPU_THROUGHPUT_AUTO) &&
-                    n_streams_str != util::to_string(ov::streams::AUTO)) {
-                    IE_THROW() << "[GPU_MAX_BATCH_SIZE] bad casting: GPU_THROUGHPUT_STREAMS should be either of uint32_t type or \"GPU_THROUGHPUT_AUTO\"";
-                }
-                n_streams = std::max(/* config.GetDefaultNStreamsForThroughputMode() */2u, device_info.num_ccs);
-            } else {
-                IE_THROW() << "[GPU_MAX_BATCH_SIZE] bad casting: GPU_THROUGHPUT_STREAMS should be either of uint32_t type or \"GPU_THROUGHPUT_AUTO\"";
-            }
-        }
-
-        GPU_DEBUG_INFO << "[GPU_MAX_BATCH_SIZE] n_streams : " << n_streams << std::endl;
-
-        auto available_device_mem_it = options.find(ov::intel_gpu::hint::available_device_mem.name());
-        if (available_device_mem_it != options.end()) {
-            if (available_device_mem_it->second.is<int64_t>()) {
-                available_device_mem = std::min(static_cast<int64_t>(available_device_mem), available_device_mem_it->second.as<int64_t>());
-                GPU_DEBUG_LOG << "[GPU_MAX_BATCH_SIZE] available memory is reset by user " << available_device_mem << std::endl;
-            } else {
-                IE_THROW() << "[GPU_MAX_BATCH_SIZE] bad casting: ov::intel_gpu::hint::available_device_mem should be int64_t type";
-            }
-            if (available_device_mem < 0) {
-                IE_THROW() << "[GPU_MAX_BATCH_SIZE] ov::intel_gpu::hint::available_device_mem value should be greater than 0 for max batch size calculation";
-            }
-        }
-
-        std::shared_ptr<ngraph::Function> model;
-        auto model_param = options.find(ov::hint::model.name())->second;
-        if (model_param.is<std::shared_ptr<ngraph::Function>>()) {
-            model = model_param.as<std::shared_ptr<ngraph::Function>>();
-        } else {
-            IE_THROW() << "[GPU_MAX_BATCH_SIZE] ov::hint::model should be std::shared_ptr<ov::Model> type";
-        }
-
-        InferenceEngine::CNNNetwork network(model);
-        size_t base_batch_size = 16; // empirically decided for DG1
-
-        auto& engine = get_default_context(device_id)->get_impl()->get_engine();
-
-        std::shared_ptr<Program> program;
-
-        GPU_DEBUG_IF(debug_config->base_batch_for_memory_estimation > 0) {
-            size_t user_specified_base_batch_size = debug_config->base_batch_for_memory_estimation;
-            base_batch_size = (user_specified_base_batch_size != base_batch_size) ? user_specified_base_batch_size : base_batch_size;
-        }
-
-        auto cloned_network = InferenceEngine::details::cloneNetwork(network);
-        auto inputs_info = cloned_network.getInputsInfo();
-        ICNNNetwork::InputShapes new_shapes;
-
-        try {
-            std::set<std::pair<std::string, size_t>> batched_inputs;
-
-            auto function = InferenceEngine::details::cloneNetwork(cloned_network).getFunction();
-            ov::pass::Manager m;
-            m.register_pass<ngraph::pass::InitNodeInfo>();
-            m.register_pass<ov::pass::FindBatch>(true, false);
-            m.run_passes(function);
-            const auto& params = function->get_parameters();
-            for (size_t input_id = 0; input_id < params.size(); input_id++) {
-                const auto& input = params[input_id];
-                const auto& shape = input->get_partial_shape();
-                // currently no plugin support batched execution for dynamic networks
-                if (shape.is_dynamic()) {
-                    GPU_DEBUG_LOG << "[MAX_BATCH_SIZE] does not support dynamic networks" << std::endl;
-                    return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(max_batch_size)};
-                }
-
-                if (shape.size()) {
-                    for (size_t s = 0; s < shape.size(); s++) {
-                        if (ov::DimensionTracker::get_label(shape[s])) {
-                            // batched dim for the input
-                            auto batched_input_id = ngraph::op::util::get_ie_output_name(params[input_id]->output(0));
-                            GPU_DEBUG_LOG << "[MAX_BATCH_SIZE] detected batched input " << batched_input_id
-                                          << "[" << s << "]" << std::endl;
-                            batched_inputs.insert(std::make_pair(batched_input_id, s));
-                        }
-                    }
-                }
-            }
-
-            if (!batched_inputs.size()) {
-                GPU_DEBUG_LOG << "[MAX_BATCH_SIZE] MAX_BATCH_SIZE supports only networks with inputs/outputs featuring batched dim." << std::endl;
-                return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(max_batch_size)};
-            }
-
-            try {
-                ICNNNetwork::InputShapes shapes = cloned_network.getInputShapes();
-                for (const auto& input : batched_inputs)
-                    shapes[input.first][input.second] = base_batch_size;
-                cloned_network.reshape(shapes);
-            } catch (...) {
-                GPU_DEBUG_INFO << "[MAX_BATCH_SIZE] Error at reshape to " << base_batch_size << std::endl;
-                return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(max_batch_size)};
-            }
-
-            auto nGraphFunc = cloned_network.getFunction();
-            TransformationsPipeline transformations(config, device_info);
-            transformations.apply(nGraphFunc);
-            program = std::make_shared<Program>(cloned_network, engine, config, false, true);
-            std::pair<int64_t, int64_t> device_memory_usage = program->GetCompiledProgram(0)->get_estimated_device_mem_usage();
-            if (device_memory_usage.first == static_cast<int64_t>(-1L) && device_memory_usage.second == static_cast<int64_t>(-1L)) {
-                return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(max_batch_size)};
-            }
-            int64_t mem_for_general = std::max(static_cast<int64_t>(1L),
-                    static_cast<int64_t>(static_cast<int64_t>(available_device_mem) - device_memory_usage.first));
-            int64_t mem_per_batch = std::max(static_cast<int64_t>(1L), (device_memory_usage.second / static_cast<int64_t>(base_batch_size)));
-            max_batch_size = mem_for_general / (mem_per_batch * static_cast<int64_t>(n_streams));
-            GPU_DEBUG_INFO << "[GPU_MAX_BATCH_SIZE] Base batch size: " << base_batch_size  << std::endl;
-            GPU_DEBUG_INFO << "[GPU_MAX_BATCH_SIZE] Const mem usage: " << device_memory_usage.first  << std::endl;
-            GPU_DEBUG_INFO << "[GPU_MAX_BATCH_SIZE] General mem usage: " << device_memory_usage.second  << std::endl;
-        } catch (std::exception& e) {
-            GPU_DEBUG_INFO << "[GPU_MAX_BATCH_SIZE] Failed in reshape or build program " << e.what() << std::endl;
-        }
-        return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(max_batch_size)};
+        return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(get_max_batch_size(options))};
     } else if (isModelCachingEnabled && name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
         IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
     } else if (name == ov::caching_properties) {
@@ -886,6 +664,225 @@ std::vector<std::string> Plugin::get_device_capabilities(const cldnn::device_inf
         capabilities.push_back(ov::device::capability::EXPORT_IMPORT);
 
     return capabilities;
+}
+
+uint32_t Plugin::get_max_batch_size(const std::map<std::string, Parameter>& options) const {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    std::string device_id = GetConfig(ov::device::id.name(), options);
+    auto context = m_defaultContexts.at(device_id)->get_impl();
+    const auto& device_info = context->get_engine().get_device_info();
+    const auto& config = m_configs_map.at(device_id);
+    uint32_t n_streams = static_cast<uint32_t>(config.get_property(ov::num_streams));
+    uint64_t occupied_device_mem = 0;
+    auto statistic_result = GetMetric(ov::intel_gpu::memory_statistics.name(), options).as<std::map<std::string, uint64_t>>();
+    auto occupied_usm_dev = statistic_result.find("usm_device_current");
+    if (occupied_usm_dev != statistic_result.end()) {
+        occupied_device_mem = occupied_usm_dev->second;
+    }
+
+    int64_t available_device_mem = device_info.max_global_mem_size - occupied_device_mem;
+    GPU_DEBUG_LOG << "[GPU_MAX_BATCH_SIZE] available memory is " << available_device_mem
+                  << " (occupied: " << occupied_device_mem << ")" << std::endl;
+
+    int64_t max_batch_size = 1;
+
+    if (options.find(ov::hint::model.name()) == options.end()) {
+        GPU_DEBUG_INFO << "[GPU_MAX_BATCH_SIZE] MODELS_PTR is not set: return 1" << std::endl;
+        return static_cast<uint32_t>(max_batch_size);
+    }
+
+    auto it_streams = options.find("GPU_THROUGHPUT_STREAMS") != options.end() ? options.find("GPU_THROUGHPUT_STREAMS") :
+                        options.find(ov::num_streams.name()) != options.end() ? options.find(ov::num_streams.name()) :
+                        options.end();
+    if (it_streams != options.end()) {
+        if (it_streams->second.is<int32_t>()) {
+            n_streams = it_streams->second.as<int32_t>();
+        } else if (it_streams->second.is<uint32_t>()) {
+            n_streams = it_streams->second.as<uint32_t>();
+        } else if (it_streams->second.is<std::string>()) {
+            std::string n_streams_str = it_streams->second.as<std::string>();
+            if (n_streams_str != CONFIG_VALUE(GPU_THROUGHPUT_AUTO) &&
+                n_streams_str != util::to_string(ov::streams::AUTO)) {
+                IE_THROW() << "[GPU_MAX_BATCH_SIZE] bad casting: GPU_THROUGHPUT_STREAMS should be either of uint32_t type or \"GPU_THROUGHPUT_AUTO\"";
+            }
+            n_streams = std::max(/* config.GetDefaultNStreamsForThroughputMode() */2u, device_info.num_ccs);
+        } else {
+            IE_THROW() << "[GPU_MAX_BATCH_SIZE] bad casting: GPU_THROUGHPUT_STREAMS should be either of uint32_t type or \"GPU_THROUGHPUT_AUTO\"";
+        }
+    }
+
+    GPU_DEBUG_INFO << "[GPU_MAX_BATCH_SIZE] n_streams : " << n_streams << std::endl;
+
+    auto available_device_mem_it = options.find(ov::intel_gpu::hint::available_device_mem.name());
+    if (available_device_mem_it != options.end()) {
+        if (available_device_mem_it->second.is<int64_t>()) {
+            available_device_mem = std::min(static_cast<int64_t>(available_device_mem), available_device_mem_it->second.as<int64_t>());
+            GPU_DEBUG_LOG << "[GPU_MAX_BATCH_SIZE] available memory is reset by user " << available_device_mem << std::endl;
+        } else {
+            IE_THROW() << "[GPU_MAX_BATCH_SIZE] bad casting: ov::intel_gpu::hint::available_device_mem should be int64_t type";
+        }
+        if (available_device_mem < 0) {
+            IE_THROW() << "[GPU_MAX_BATCH_SIZE] ov::intel_gpu::hint::available_device_mem value should be greater than 0 for max batch size calculation";
+        }
+    }
+
+    std::shared_ptr<ngraph::Function> model;
+    auto model_param = options.find(ov::hint::model.name())->second;
+    if (model_param.is<std::shared_ptr<ngraph::Function>>()) {
+        model = model_param.as<std::shared_ptr<ngraph::Function>>();
+    } else {
+        IE_THROW() << "[GPU_MAX_BATCH_SIZE] ov::hint::model should be std::shared_ptr<ov::Model> type";
+    }
+
+    InferenceEngine::CNNNetwork network(model);
+    size_t base_batch_size = 16; // empirically decided for DG1
+
+    auto& engine = get_default_context(device_id)->get_impl()->get_engine();
+
+    std::shared_ptr<Program> program;
+
+    GPU_DEBUG_IF(debug_config->base_batch_for_memory_estimation > 0) {
+        size_t user_specified_base_batch_size = debug_config->base_batch_for_memory_estimation;
+        base_batch_size = (user_specified_base_batch_size != base_batch_size) ? user_specified_base_batch_size : base_batch_size;
+    }
+
+    auto cloned_network = InferenceEngine::details::cloneNetwork(network);
+    auto inputs_info = cloned_network.getInputsInfo();
+    ICNNNetwork::InputShapes new_shapes;
+
+    try {
+        std::set<std::pair<std::string, size_t>> batched_inputs;
+
+        auto function = InferenceEngine::details::cloneNetwork(cloned_network).getFunction();
+        ov::pass::Manager m;
+        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::FindBatch>(true, false);
+        m.run_passes(function);
+        const auto& params = function->get_parameters();
+        for (size_t input_id = 0; input_id < params.size(); input_id++) {
+            const auto& input = params[input_id];
+            const auto& shape = input->get_partial_shape();
+            // currently no plugin support batched execution for dynamic networks
+            if (shape.is_dynamic()) {
+                GPU_DEBUG_LOG << "[MAX_BATCH_SIZE] does not support dynamic networks" << std::endl;
+                return static_cast<uint32_t>(max_batch_size);
+            }
+
+            if (shape.size()) {
+                for (size_t s = 0; s < shape.size(); s++) {
+                    if (ov::DimensionTracker::get_label(shape[s])) {
+                        // batched dim for the input
+                        auto batched_input_id = ngraph::op::util::get_ie_output_name(params[input_id]->output(0));
+                        GPU_DEBUG_LOG << "[MAX_BATCH_SIZE] detected batched input " << batched_input_id
+                                      << "[" << s << "]" << std::endl;
+                        batched_inputs.insert(std::make_pair(batched_input_id, s));
+                    }
+                }
+            }
+        }
+
+        if (!batched_inputs.size()) {
+            GPU_DEBUG_LOG << "[MAX_BATCH_SIZE] MAX_BATCH_SIZE supports only networks with inputs/outputs featuring batched dim." << std::endl;
+            return static_cast<uint32_t>(max_batch_size);
+        }
+
+        try {
+            ICNNNetwork::InputShapes shapes = cloned_network.getInputShapes();
+            for (const auto& input : batched_inputs)
+                shapes[input.first][input.second] = base_batch_size;
+            cloned_network.reshape(shapes);
+        } catch (...) {
+            GPU_DEBUG_INFO << "[MAX_BATCH_SIZE] Error at reshape to " << base_batch_size << std::endl;
+            return static_cast<uint32_t>(max_batch_size);
+        }
+
+        auto nGraphFunc = cloned_network.getFunction();
+        TransformationsPipeline transformations(config, device_info);
+        transformations.apply(nGraphFunc);
+        program = std::make_shared<Program>(cloned_network, engine, config, false, true);
+        std::pair<int64_t, int64_t> device_memory_usage = program->GetCompiledProgram(0)->get_estimated_device_mem_usage();
+        if (device_memory_usage.first == static_cast<int64_t>(-1L) && device_memory_usage.second == static_cast<int64_t>(-1L)) {
+            return static_cast<uint32_t>(max_batch_size);
+        }
+        int64_t mem_for_general = std::max<int64_t>(1, available_device_mem - device_memory_usage.first);
+        int64_t mem_per_batch = std::max<int64_t>(1, device_memory_usage.second / static_cast<int64_t>(base_batch_size));
+        max_batch_size = mem_for_general / (mem_per_batch * static_cast<int64_t>(n_streams));
+        GPU_DEBUG_INFO << "[GPU_MAX_BATCH_SIZE] Base batch size: " << base_batch_size  << std::endl;
+        GPU_DEBUG_INFO << "[GPU_MAX_BATCH_SIZE] Const mem usage: " << device_memory_usage.first  << std::endl;
+        GPU_DEBUG_INFO << "[GPU_MAX_BATCH_SIZE] General mem usage: " << device_memory_usage.second  << std::endl;
+    } catch (std::exception& e) {
+        GPU_DEBUG_INFO << "[GPU_MAX_BATCH_SIZE] Failed in reshape or build program " << e.what() << std::endl;
+    }
+
+    return static_cast<uint32_t>(max_batch_size);
+}
+
+uint32_t Plugin::get_optimal_batch_size(const std::map<std::string, Parameter>& options) const {
+    std::string device_id = GetConfig(ov::device::id.name(), options);
+    auto context = m_defaultContexts.at(device_id)->get_impl();
+    const auto& device_info = context->get_engine().get_device_info();
+    auto next_pow_of_2 = [] (float x) {
+        return pow(2, ceil(std::log(x)/std::log(2)));
+    };
+    auto closest_pow_of_2 = [] (float x) {
+        return pow(2, floor(std::log(x)/std::log(2)));
+    };
+    auto model_param = options.find(ov::hint::model.name());
+    if (model_param == options.end()) {
+        GPU_DEBUG_INFO << "[OPTIMAL_BATCH_SIZE] ov::hint::model is not set: return 1" << std::endl;
+        return static_cast<uint32_t>(1);
+    }
+    std::shared_ptr<ngraph::Function> model;
+    try {
+        model = model_param->second.as<std::shared_ptr<ngraph::Function>>();
+    } catch (...) {
+        IE_THROW() << "[OPTIMAL_BATCH_SIZE] ov::hint::model should be std::shared_ptr<ov::Model> type";
+    }
+    GPU_DEBUG_INFO << "DEVICE_INFO:"
+                   << "gfx_version.major, " << device_info.gfx_ver.major
+                   << "gfx_version.minor " << std::to_string(device_info.gfx_ver.minor) << std::endl;
+    static std::map<cldnn::gfx_version, size_t> gen_kbytes_per_bank = {
+            {{12, 0, 0}, 480},  // TGL
+            {{12, 1, 0}, 2048}, // DG1
+            {{12, 5, 0}, 320},
+            {{12, 7, 0}, 512},
+    };
+    size_t L3_cache_size = device_info.gfx_ver.major && (device_info.gfx_ver.major <= 9)
+            ? 768 * 1024 // Gen9
+            : 2 * 768 * 1024;  //reasonable default when no arch has been detected (e.g. due to old driver ver)
+    cldnn::gfx_version gen = {device_info.gfx_ver.major, device_info.gfx_ver.minor, 0 /*ignore the revision*/};
+    auto val = gen_kbytes_per_bank.find(gen);
+    if (gen_kbytes_per_bank.end() != val) {
+        auto kbytes_per_bank = val->second;
+        auto num_banks_per_slice = device_info.num_sub_slices_per_slice > 4
+                                    ? next_pow_of_2(device_info.num_sub_slices_per_slice)
+                                    : 2 * device_info.num_sub_slices_per_slice;
+        L3_cache_size = kbytes_per_bank * 1024 * num_banks_per_slice * device_info.num_slices;
+        GPU_DEBUG_INFO << "DEVICE_INFO:"
+                        << "num_slices " << device_info.num_slices
+                        << ", num_sub_slices_per_slice " << device_info.num_sub_slices_per_slice
+                        << ", num_banks_per_slice " << num_banks_per_slice
+                        << ", gen_kbytes_per_bank : " << kbytes_per_bank
+                        << ", L3_cache_size is (MB): " << float(L3_cache_size) / 1024 / 1024 << std::endl;
+    }
+    auto config = m_configs_map.at(device_id);
+    auto networkCloned = CloneAndTransformNetwork(CNNNetwork(model), config);
+    ov::MemBandwidthPressure memPressure = ov::MemBandwidthPressureTolerance(networkCloned.getFunction(), L3_cache_size);
+    uint32_t batch = 1;
+    if (memPressure.max_mem_tolerance != ov::MemBandwidthPressure::UNKNOWN)
+        batch = std::max(1.0, 16 * closest_pow_of_2(memPressure.max_mem_tolerance));
+    std::map<std::string, InferenceEngine::Parameter> options_for_max_batch;
+    options_for_max_batch[ov::hint::model.name()] = model;
+    options_for_max_batch["GPU_THROUGHPUT_STREAMS"] = CONFIG_VALUE(GPU_THROUGHPUT_AUTO);
+    auto max_batch_size = GetMetric(ov::max_batch_size.name(), options_for_max_batch).as<uint32_t>();
+    uint32_t closest = closest_pow_of_2(max_batch_size);
+    batch = std::min(closest, batch);
+    batch = std::min(256u, batch); //batch 256 is a max
+    GPU_DEBUG_INFO << memPressure.max_mem_tolerance << std::endl;
+    GPU_DEBUG_INFO << "MAX_BATCH: " << max_batch_size << std::endl;
+    GPU_DEBUG_INFO << "ACTUAL OPTIMAL BATCH: " << batch << std::endl;
+
+    return batch;
 }
 
 }  // namespace intel_gpu

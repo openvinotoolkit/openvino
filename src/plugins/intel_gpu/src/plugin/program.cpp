@@ -16,6 +16,10 @@
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/data.hpp"
 
+#ifdef __linux__
+# include <dlfcn.h>
+#endif
+
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
@@ -143,13 +147,14 @@ Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, co
     std::map<std::string, std::pair<int64_t, int64_t>> batch_dim;
     auto enable_dynamic_batch = m_config.get_property(ov::intel_gpu::enable_dynamic_batch);
     if (enable_dynamic_batch) {
+        m_config.set_property(ov::intel_gpu::max_dynamic_batch(network.getBatchSize()));
         // in case of legacy dynamic batch,
         // we assume 4D input with 0 batch dim
         auto param = func->get_parameters().front();
         auto pname = getParamName(param);
         shapes[pname] = param->get_output_partial_shape(0);
         batch_dim[pname].first = 0;
-        batch_dim[pname].second =  m_config.get_property(ov::intel_gpu::max_dynamic_batch);
+        batch_dim[pname].second = m_config.get_property(ov::intel_gpu::max_dynamic_batch);
     } else {
         dyn_shape_batch_found = IsDynBatchModel(func, shapes, batch_dim);
         if (dyn_shape_batch_found) {
@@ -305,6 +310,33 @@ void Program::PrepareBuild(InferenceEngine::InputsDataMap networkInputs, Inferen
     m_topology.reset(new cldnn::topology());
     m_networkInputs = networkInputs;
     m_networkOutputs = networkOutputs;
+
+    // locate global custom kernel config
+    // and auto-load kernels from it
+#ifdef _WIN32
+    CHAR mpath[MAX_PATH + 1];
+    HMODULE nModule;
+    GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+        (LPCSTR)CustomLayer::LoadFromFile,
+        &nModule);
+    GetModuleFileName(nModule, mpath, sizeof(mpath));
+#elif __linux__
+    Dl_info dl_info;
+    dladdr(reinterpret_cast<void *>(CustomLayer::LoadFromFile), &dl_info);
+    const char* mpath = dl_info.dli_fname;
+#endif
+    std::string configFile(mpath);
+    std::size_t dir_split_pos = configFile.find_last_of("/\\");
+    std::string config_path;
+
+    if (dir_split_pos != std::string::npos) {
+        // path contains directory
+        config_path = configFile.substr(0, dir_split_pos);
+    }
+    config_path += "/cldnn_global_custom_kernels/cldnn_global_custom_kernels.xml";
+
+    CustomLayer::LoadFromFile(config_path, custom_layers, true);
+    CustomLayer::LoadFromFile(m_config.get_property(ov::intel_gpu::config_file), custom_layers, true);
 }
 
 void Program::CleanupBuild() {

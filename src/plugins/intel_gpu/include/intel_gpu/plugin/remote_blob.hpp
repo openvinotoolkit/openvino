@@ -40,8 +40,7 @@ public:
                             cldnn::shared_handle mem = nullptr,
                             cldnn::shared_surface surf = 0,
                             uint32_t plane = 0,
-                            BlobType mem_type = BlobType::BT_BUF_INTERNAL,
-                            cldnn::memory::ptr mem_handle = nullptr);
+                            BlobType mem_type = BlobType::BT_BUF_INTERNAL);
 
     void allocate();
     bool deallocate() noexcept;
@@ -74,6 +73,7 @@ protected:
     uint32_t m_plane;
     cldnn::layout m_layout;
     BlobType m_mem_type;
+    size_t m_hash;
 
     cldnn::memory::ptr m_memory_object;
 
@@ -98,10 +98,9 @@ public:
                              cldnn::shared_handle mem = nullptr,
                              cldnn::shared_surface surf = 0,
                              uint32_t plane = 0,
-                             BlobType mem_type = BlobType::BT_BUF_INTERNAL,
-                             cldnn::memory::ptr mem_handle = nullptr)
+                             BlobType mem_type = BlobType::BT_BUF_INTERNAL)
         : TpublicAPI(desc)
-        , _impl(context, stream, layout, mem, surf, plane, mem_type, mem_handle) {}
+        , _impl(context, stream, layout, mem, surf, plane, mem_type) {}
 
     void allocate() noexcept override {
         try {

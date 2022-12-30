@@ -106,6 +106,7 @@ public:
     std::map<std::string, cldnn::layout> inputLayouts;
     using BlobCacheKey = std::pair<const char*, std::vector<size_t>>;
     std::map<BlobCacheKey, cldnn::primitive_id> blobMemCache;
+    CustomLayerMap custom_layers;
 
     int m_max_batch;
     int m_curBatch;

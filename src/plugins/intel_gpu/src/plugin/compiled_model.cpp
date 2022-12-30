@@ -35,8 +35,6 @@ using namespace InferenceEngine::details;
 namespace ov {
 namespace intel_gpu {
 
-
-
 bool LegacyPropertiesHelper::is_new_api_property(const std::pair<std::string, ov::Any>& property) const {
     static const std::vector<std::string> new_properties_list = {
         ov::intel_gpu::hint::queue_priority.name(),
@@ -62,6 +60,10 @@ bool LegacyPropertiesHelper::is_legacy_property(const std::pair<std::string, ov:
     return std::find(legacy_properties_list.begin(), legacy_properties_list.end(), property.first) != legacy_properties_list.end();
 }
 
+ov::AnyMap LegacyPropertiesHelper::convert_legacy_properties(const std::map<std::string, std::string>& properties) const {
+    return convert_legacy_properties(ov::AnyMap(properties.begin(), properties.end()));
+}
+
 ov::AnyMap LegacyPropertiesHelper::convert_legacy_properties(const ov::AnyMap& properties) const {
     ov::AnyMap converted_properties;
     for (auto& property : properties) {
@@ -79,7 +81,12 @@ ov::AnyMap LegacyPropertiesHelper::convert_legacy_properties(const ov::AnyMap& p
 std::pair<std::string, ov::Any> LegacyPropertiesHelper::convert_legacy_property(const std::pair<std::string, ov::Any>& legacy_property) const {
     auto legacy_name = legacy_property.first;
     if (legacy_name == InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS) {
-        return { ov::num_streams.name(), legacy_property.second };
+        ov::Any converted_val{legacy_property.second};
+        auto legacy_val = legacy_property.second.as<std::string>();
+        if (legacy_val == InferenceEngine::PluginConfigParams::GPU_THROUGHPUT_AUTO)
+            converted_val = ov::streams::AUTO;
+
+        return { ov::num_streams.name(), converted_val };
     } else if (legacy_name == InferenceEngine::PluginConfigParams::KEY_MODEL_PRIORITY) {
         ov::Any converted_val{nullptr};
         auto legacy_val = legacy_property.second.as<std::string>();
@@ -163,7 +170,14 @@ std::pair<std::string, ov::Any> LegacyPropertiesHelper::convert_legacy_property(
 std::pair<std::string, ov::Any> LegacyPropertiesHelper::convert_to_legacy_property(const std::pair<std::string, ov::Any>& property) const {
     auto name = property.first;
     if (name == ov::num_streams.name()) {
-        return { InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, property.second };
+        ov::Any legacy_val{property.second};
+        if (!property.second.empty()) {
+            if (property.second.as<ov::streams::Num>() == ov::streams::AUTO) {
+                legacy_val = InferenceEngine::PluginConfigParams::GPU_THROUGHPUT_AUTO;
+            }
+        }
+
+        return { InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, legacy_val };
     } else if (name == ov::hint::model_priority.name()) {
         ov::Any legacy_val{nullptr};
         if (!property.second.empty()) {
@@ -707,11 +721,24 @@ InferenceEngine::Parameter CompiledModel::GetMetric(const std::string &name) con
         metrics.push_back(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS));
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-        std::vector<std::string> configKeys;
-        LegacyPropertiesHelper helper;
-        for (auto && value : m_config.get_properties())
-            if (!helper.is_new_api_property(value))
-                configKeys.push_back(value.first);
+        std::vector<std::string> configKeys {
+            CONFIG_KEY(MODEL_PRIORITY),
+            CONFIG_KEY(PERFORMANCE_HINT),
+            CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS),
+            CONFIG_KEY(PERF_COUNT),
+            CONFIG_KEY(DYN_BATCH_ENABLED),
+            CONFIG_KEY(CONFIG_FILE),
+            CONFIG_KEY(DEVICE_ID),
+            CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS),
+            CONFIG_KEY(CACHE_DIR),
+            CONFIG_KEY(GPU_THROUGHPUT_STREAMS),
+            GPU_CONFIG_KEY(PLUGIN_PRIORITY),
+            GPU_CONFIG_KEY(PLUGIN_THROTTLE),
+            GPU_CONFIG_KEY(HOST_TASK_PRIORITY),
+            GPU_CONFIG_KEY(NV12_TWO_INPUTS),
+            GPU_CONFIG_KEY(MAX_NUM_THREADS),
+            GPU_CONFIG_KEY(ENABLE_LOOP_UNROLLING),
+        };
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else if (name == ov::optimal_number_of_infer_requests) {
         unsigned int nr = m_config.get_property(ov::num_streams);

@@ -51,6 +51,7 @@ ocl_engine::ocl_engine(const device::ptr dev, runtime_types runtime_type)
     casted->get_device().getInfo(CL_DEVICE_EXTENSIONS, &_extensions);
 
     _usm_helper.reset(new cl::UsmHelper(get_cl_context(), get_cl_device(), use_unified_shared_memory()));
+    _service_stream.reset(new ocl_stream(*this, ExecutionConfig()));
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -275,9 +276,6 @@ stream::ptr ocl_engine::create_stream(const ExecutionConfig& config, void* handl
 }
 
 stream& ocl_engine::get_service_stream(ExecutionConfig cfg) {
-    if (!_service_stream) {
-        _service_stream.reset(new ocl_stream(*this, cfg));
-    }
     return *_service_stream;
 }
 

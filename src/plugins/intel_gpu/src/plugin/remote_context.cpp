@@ -29,6 +29,7 @@ RemoteContextImpl::RemoteContextImpl(std::string device_name, std::vector<cldnn:
     auto runtime_type = cldnn::runtime_types::ocl;
 
     m_engine = cldnn::engine::create(engine_type, runtime_type, devices.front());
+    m_engine->get_service_stream();
 
     GPU_DEBUG_LOG << "Initialize RemoteContext for " << m_device_name << " (" << m_engine->get_device_info().dev_name << ")" << std::endl;
 }
@@ -122,6 +123,19 @@ std::string RemoteContextImpl::get_device_name() const noexcept {
     return m_device_name;
 }
 
+cldnn::memory::ptr RemoteContextImpl::try_get_cached_memory(size_t hash) {
+    std::lock_guard<std::mutex> lock(m_cache_mutex);
+    if (m_memory_cache.has(hash))
+        return m_memory_cache.get(hash);
+
+    return nullptr;
+}
+
+void RemoteContextImpl::add_to_cache(size_t hash, cldnn::memory::ptr memory) {
+    std::lock_guard<std::mutex> lock(m_cache_mutex);
+    m_memory_cache.add(hash, memory);
+}
+
 InferenceEngine::RemoteBlob::Ptr RemoteContextImpl::reuse_surface(InferenceEngine::gpu::ClContext::Ptr public_context,
                                                                   const InferenceEngine::TensorDesc& desc,
                                                                   const InferenceEngine::ParamMap& params) {
@@ -133,30 +147,20 @@ InferenceEngine::RemoteBlob::Ptr RemoteContextImpl::reuse_surface(InferenceEngin
 #else
     cldnn::shared_surface surf = extract_object<cldnn::shared_surface>(params, GPU_PARAM_KEY(DEV_OBJECT_HANDLE));
 #endif
-    auto key = cldnn::hash_combine(0, surf);
-    key = cldnn::hash_combine(key, plane);
 
     cldnn::layout layout(DataTypeFromPrecision(desc.getPrecision()),
                          ImageFormatFromLayout(desc.getLayout()),
                          tensor_from_dims(desc.getDims()));
 
-    cldnn::memory::ptr reused_mem = nullptr;
-    // try to locate previously shared surface
-    if (m_memory_cache.has(key)) {
-        reused_mem = m_memory_cache.get(key);
-    }
-
 #ifdef _WIN32
     auto blob = std::make_shared<RemoteD3DSurface>(public_context, stream,
-        desc, layout, surf, 0, plane,
-        BlobType::BT_SURF_SHARED, reused_mem);
+                                                   desc, layout, surf, 0, plane,
+                                                   BlobType::BT_SURF_SHARED);
 #else
     auto blob = std::make_shared<RemoteVASurface>(public_context, stream,
-        desc, layout, nullptr, surf, plane,
-        BlobType::BT_SURF_SHARED, reused_mem);
+                                                  desc, layout, nullptr, surf, plane,
+                                                  BlobType::BT_SURF_SHARED);
 #endif
-    blob->allocate();
-    m_memory_cache.add(key, blob->getImpl()->get_memory());
 
     return blob;
 }
@@ -171,39 +175,20 @@ InferenceEngine::RemoteBlob::Ptr RemoteContextImpl::reuse_memory(InferenceEngine
                          FormatFromLayout(desc.getLayout()),
                          tensor_from_dims(desc.getDims()));
 
-    auto key = cldnn::hash_combine(0, mem);
-
-    cldnn::memory::ptr reused_mem = nullptr;
-    if (m_memory_cache.has(key)) {
-        reused_mem = m_memory_cache.get(key);
-    }
-
     switch (blob_type) {
     case BlobType::BT_BUF_SHARED: {
-        auto blob = std::make_shared<RemoteCLbuffer>(public_context, stream, desc, layout, mem, 0, 0, blob_type, reused_mem);
-        blob->allocate();
-        m_memory_cache.add(key, blob->getImpl()->get_memory());
-        return blob;
+        return std::make_shared<RemoteCLbuffer>(public_context, stream, desc, layout, mem, 0, 0, blob_type);
     }
     case BlobType::BT_USM_SHARED: {
-        auto blob = std::make_shared<RemoteUSMbuffer>(public_context, stream, desc, layout, mem, 0, 0, blob_type, reused_mem);
-        blob->allocate();
-        m_memory_cache.add(key, blob->getImpl()->get_memory());
-        return blob;
+        return std::make_shared<RemoteUSMbuffer>(public_context, stream, desc, layout, mem, 0, 0, blob_type);
     }
     case BlobType::BT_IMG_SHARED: {
         layout.format = ImageFormatFromLayout(desc.getLayout());
-        auto blob = std::make_shared<RemoteCLImage2D>(public_context, stream, desc, layout, mem, 0, 0, blob_type, reused_mem);
-        blob->allocate();
-        m_memory_cache.add(key, blob->getImpl()->get_memory());
-        return blob;
+        return std::make_shared<RemoteCLImage2D>(public_context, stream, desc, layout, mem, 0, 0, blob_type);
     }
 #ifdef _WIN32
     case BlobType::BT_DX_BUF_SHARED: {
-        auto blob = std::make_shared<RemoteD3DBuffer>(public_context, stream, desc, layout, mem, 0, 0, blob_type, reused_mem);
-        blob->allocate();
-        m_memory_cache.add(key, blob->getImpl()->get_memory());
-        return blob;
+        return std::make_shared<RemoteD3DBuffer>(public_context, stream, desc, layout, mem, 0, 0, blob_type);
     }
 #endif
     default:
