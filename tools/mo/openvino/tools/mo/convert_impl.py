@@ -873,7 +873,7 @@ def _convert(cli_parser, framework, args):
                 args['onnx_opset_version'] = None
 
                 try:
-                    ov_model = _convert(**args)
+                    ov_model = _convert(cli_parser, framework, args)
                 except Exception as e:
                     remove_tmp_onnx_model(out_dir)
                     raise e
