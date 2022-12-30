@@ -132,7 +132,8 @@ ov::pass::TransposeSinkingUnaryBackward::TransposeSinkingUnaryBackward() {
                                                     ov::opset9::Elu,
                                                     ov::opset9::SoftPlus,
                                                     ov::opset9::LogicalNot,
-                                                    ov::opset9::Convert>({ov::pass::pattern::any_input()});
+                                                    ov::opset9::Convert>({ov::pass::pattern::any_input()},
+                                                    transpose_sinking::HasSameOutputTransposeNodes);
 
     auto transpose_label =
         ov::pass::pattern::wrap_type<ov::opset9::Transpose>({unary_label, ov::pass::pattern::any_input()},
