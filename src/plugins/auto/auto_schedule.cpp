@@ -119,43 +119,42 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
     if (_autoSContext->_modelPath.empty())
         _loadContext[ACTUALDEVICE].networkPrecision = GetNetworkPrecision(_autoSContext->_network);
     _loadContext[ACTUALDEVICE].metaDevices = _autoSContext->_devicePriorities;
-    std::list<DeviceInformation> validDevices;
-    bool isCumuSingleDevice = false;
-    if (_autoSContext->_performanceHint == IE::PluginConfigParams::CUMULATIVE_THROUGHPUT) {
-        validDevices = _autoSContext->_plugin->GetValidDevice(_autoSContext->_devicePriorities,
-                                                              _loadContext[ACTUALDEVICE].networkPrecision);
+    bool isCumulative =
+        (_autoSContext->_performanceHint == IE::PluginConfigParams::CUMULATIVE_THROUGHPUT) ? true : false;
+    if (isCumulative) {
+        std::list<DeviceInformation> validDevices =
+            _autoSContext->_plugin->GetValidDevice(_autoSContext->_devicePriorities,
+                                                   _loadContext[ACTUALDEVICE].networkPrecision);
         if (validDevices.size() == 1) {
             // When the hint is ctput and there is only one device, the single-device logic is used instead of
             // the MULTI logic
             _autoSContext->_performanceHint = IE::PluginConfigParams::THROUGHPUT;
-            isCumuSingleDevice = true;
-        }
-    }
-    bool isCumulative =
-        (_autoSContext->_performanceHint == IE::PluginConfigParams::CUMULATIVE_THROUGHPUT) ? true : false;
-    if (isCumulative) {
-        // When the hint is ctput and there are more than one device, the MULTI logic is used
-        std::string deviceName = "MULTI:";
-        for (auto& device : validDevices) {
-            deviceName += device.deviceName;
-            deviceName += ((device.deviceName == validDevices.back().deviceName) ? "" : ",");
-        }
-        _loadContext[ACTUALDEVICE].deviceInfo.deviceName = deviceName;
-        _loadContext[ACTUALDEVICE].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] =
-            InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT;
-        _loadContext[ACTUALDEVICE].deviceInfo.config[CONFIG_KEY(PERF_COUNT)] =
-            _autoSContext->_needPerfCounters ? InferenceEngine::PluginConfigParams::YES
-                                             : InferenceEngine::PluginConfigParams::NO;
-        if (_autoSContext->_bindBuffer)
-            _loadContext[ACTUALDEVICE].deviceInfo.config[ov::intel_auto::device_bind_buffer.name()] = InferenceEngine::PluginConfigParams::YES;
-    } else {
-        _loadContext[ACTUALDEVICE].deviceInfo = _autoSContext->_plugin->SelectDevice(_autoSContext->_devicePriorities,
-                                                                           _loadContext[ACTUALDEVICE].networkPrecision,
-                                                                           _autoSContext->_modelPriority);
-        if (isCumuSingleDevice) {
+            _loadContext[ACTUALDEVICE].deviceInfo = validDevices.front();
             _loadContext[ACTUALDEVICE].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] =
                 IE::PluginConfigParams::THROUGHPUT;
+            isCumulative = false;
+        } else {
+            // When the hint is ctput and there are more than one device, the MULTI logic is used
+            std::string deviceName = "MULTI:";
+            for (auto& device : validDevices) {
+                deviceName += device.deviceName;
+                deviceName += ((device.deviceName == validDevices.back().deviceName) ? "" : ",");
+            }
+            _loadContext[ACTUALDEVICE].deviceInfo.deviceName = deviceName;
+            _loadContext[ACTUALDEVICE].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] =
+                InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT;
+            _loadContext[ACTUALDEVICE].deviceInfo.config[CONFIG_KEY(PERF_COUNT)] =
+                _autoSContext->_needPerfCounters ? InferenceEngine::PluginConfigParams::YES
+                                                 : InferenceEngine::PluginConfigParams::NO;
+            if (_autoSContext->_bindBuffer)
+                _loadContext[ACTUALDEVICE].deviceInfo.config[ov::intel_auto::device_bind_buffer.name()] =
+                    InferenceEngine::PluginConfigParams::YES;
         }
+    } else {
+        _loadContext[ACTUALDEVICE].deviceInfo =
+            _autoSContext->_plugin->SelectDevice(_autoSContext->_devicePriorities,
+                                                 _loadContext[ACTUALDEVICE].networkPrecision,
+                                                 _autoSContext->_modelPriority);
     }
     LOG_INFO_TAG("select device:%s", _loadContext[ACTUALDEVICE].deviceInfo.deviceName.c_str());
     bool isActualDevCPU =
