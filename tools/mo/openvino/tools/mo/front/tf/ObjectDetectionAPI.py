@@ -1521,8 +1521,18 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
                                                                dict(name="reshape_swap_proposals_2d"), proposal)
         mark_input_as_in_correct_layout(proposal_reshape_2d, 0)
 
-        crop_and_resize_nodes_ids = [node_id for node_id in bfs_search(graph, [match.single_input_node(0)[0].id]) if
-                                     graph.nodes[node_id]['op'] == 'CropAndResize']
+        # Find closest CropAndResize node in topological order
+        crop_and_resize_nodes_ids = []
+        start_node = match.single_input_node(0)[0]
+        passed_start_node = False
+        for node in graph.topological_sort():
+            if node == start_node:
+                passed_start_node = True
+                continue
+            if passed_start_node and node.soft_get('op') == 'CropAndResize':
+                crop_and_resize_nodes_ids.append(node.id)
+                break
+
         if len(crop_and_resize_nodes_ids) != 0 and swap_proposals:
             # feed the CropAndResize node with a correct boxes information produced with the Proposal layer
             # find the first CropAndResize node in the BFS order. This is needed in the case when we already swapped
