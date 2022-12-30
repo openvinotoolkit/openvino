@@ -2,16 +2,75 @@
 
 version: 2
 updates:
-  # Enable version updates for Python API
+  # Python API requirements
   - package-ecosystem: pip
-    directory: "/src/bindings/python"
+    directory: "/src/bindings/python/"
     schedule:
-      interval: weekly
-      day: sunday
-      time: "13:00"
-    open-pull-requests-limit: 0
-    reviewers:
-      - jiwaszki
-      - akuporos
+      interval: "daily"
+      time: "09:00"
+      timezone: "Poland"
+    open-pull-requests-limit: 3
+    assignees:
+      - "jiwaszki"
+      - "p-wysocki"
     labels:
-      - "category: dependencies"
+      - "category: dependency_changes"
+    versioning-strategy: increase-if-necessary
+
+  # Model Optimizer requirements
+  - package-ecosystem: pip
+    directory: "/tools/mo"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Asia/Dubai"
+    open-pull-requests-limit: 3
+    assignees:
+      - "rkazants"
+      - "andrei-kochin"
+      - "jiwaszki"
+      - "p-wysocki"
+    allow:
+      - dependency-name: "*"
+        dependency-type: "production"
+    labels:
+      - "category: dependency_changes"
+    versioning-strategy: increase-if-necessary
+
+  # POT requirements
+  - package-ecosystem: pip
+    directory: "/tools/pot"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Asia/Dubai"
+    open-pull-requests-limit: 3
+    assignees:
+      - "AlexKoff88"
+      - "KodiaqQ"
+      - "jiwaszki"
+      - "p-wysocki"
+    labels:
+      - "category: dependency_changes"
+    versioning-strategy: increase-if-necessary
+
+  # PaddlePaddle tests requirements
+  - package-ecosystem: pip
+    directory: "/src/frontends/paddle/tests/"
+    schedule:
+      interval: "daily"
+      time: "17:40"
+      timezone: "Asia/Shanghai"
+    open-pull-requests-limit: 3
+    labels:
+      - "category: dependency_changes"
+    versioning-strategy: increase-if-necessary
+
+  # Github actions
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Asia/Dubai"
+    open-pull-requests-limit: 3

@@ -3,14 +3,14 @@ on:
   push:
     paths:
       - 'openvino/tools/mo/**'
-      - '.github/workflows/mo.py'
+      - '.github/workflows/mo.yml'
     branches:
       - 'master'
       - 'releases/**'
   pull_request:
     paths:
       - 'openvino/tools/mo/**'
-      - '.github/workflows/mo.py'
+      - '.github/workflows/mo.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
