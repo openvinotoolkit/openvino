@@ -536,7 +536,8 @@ InferenceEngine::Parameter CompiledModel::GetMetric(const std::string &name) con
             ov::PropertyName{ov::num_streams.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::num_requests.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RO},
-            ov::PropertyName{ov::device::id.name(), PropertyMutability::RO}
+            ov::PropertyName{ov::device::id.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::execution_devices.name(), PropertyMutability::RO}
         };
     } else if (name == ov::model_name) {
         IE_ASSERT(!m_graphs.empty());
@@ -559,6 +560,8 @@ InferenceEngine::Parameter CompiledModel::GetMetric(const std::string &name) con
         if (m_config.perfHintsConfig.ovPerfHint != CONFIG_VALUE(LATENCY))
             nr *= 2;
         return decltype(ov::optimal_number_of_infer_requests)::value_type {nr};
+    } else if (name == ov::execution_devices) {
+        return decltype(ov::execution_devices)::value_type{m_context->getDeviceName()};
     } else {
         IE_THROW() << "Unsupported ExecutableNetwork metric: " << name;
     }

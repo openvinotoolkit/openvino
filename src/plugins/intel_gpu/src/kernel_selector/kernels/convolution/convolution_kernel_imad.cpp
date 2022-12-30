@@ -91,6 +91,16 @@ ParamsKey ConvolutionKernel_imad::GetSupportedKey() const {
     return k;
 }
 
+DeviceFeaturesKey ConvolutionKernel_imad::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    DeviceFeaturesKey k;
+    k.requires_blocked_read_write();
+    k.requires_reqd_subgroup_size();
+    k.requires_subgroups();
+    k.requires_subgroup_broadcast();
+
+    return k;
+}
+
 KernelsData ConvolutionKernel_imad::GetKernelsData(const Params& params, const optional_params& options) const {
     return GetCommonKernelsData(params, options);
 }
