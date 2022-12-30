@@ -891,13 +891,13 @@ def _convert(cli_parser, framework, args):
                 all_params.update(value)
 
             # check that there are no unknown params provided
-            for key, value in args.items():
+            for key, value in args_string.items():
                 if key not in argv and key not in all_params.keys():
                     raise Error("Unrecognized argument: {}".format(key))
 
                 # Non string params like input_model or extensions are ignored by parse_args()
                 # so we need to set them in argv separately
-                if value is not None and getattr(argv, key) is None:
+                if value is not None and getattr(argv, key) != value:
                     setattr(argv, key, value)
         else:
             argv = cli_parser.parse_args()
