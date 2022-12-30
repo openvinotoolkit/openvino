@@ -16,7 +16,8 @@
 #include "backend/dnn_types.h"
 #include "gna_plugin_config.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 
 /*
  * This base structure accumulates all required information for network inputs and outputs
@@ -27,15 +28,15 @@ struct GnaDesc {
     std::unordered_set<std::string> tensor_names = {};
     InferenceEngine::Layout model_layout = InferenceEngine::Layout::ANY;
     InferenceEngine::SizeVector dims = {};
-    InferenceEngine::Precision model_precision  = InferenceEngine::Precision::UNSPECIFIED;
+    InferenceEngine::Precision model_precision = InferenceEngine::Precision::UNSPECIFIED;
     InferenceEngine::Precision tensor_precision = InferenceEngine::Precision::UNSPECIFIED;
 
     // gna specific properties
-    double scale_factor = GNAPluginNS::kScaleFactorDefault;
+    double scale_factor = kScaleFactorDefault;
     intel_dnn_orientation_t orientation = kDnnUnknownOrientation;
     uint32_t num_elements = 0;
     uint32_t allocated_size = 0;
-    std::vector<void *> ptrs = {};  // ptr per each infer request
+    std::vector<void*> ptrs = {};  // ptr per each infer request
 
     // help methods
     uint32_t get_required_size() const {
@@ -53,25 +54,27 @@ struct GnaDesc {
     // helps to get the precision for gna layers, because they use num_bytes instead of precision values
     void set_precision(uint32_t num_bytes) {
         switch (num_bytes) {
-            case sizeof(int8_t) : {
-                set_precision(InferenceEngine::Precision::I8);
-                break;
-            }
-            case sizeof(int16_t) : {
-                set_precision(InferenceEngine::Precision::I16);
-                break;
-            }
-            case sizeof(int32_t) : {
-                set_precision(InferenceEngine::Precision::I32);
-                break;
-            }
-            default :
-                set_precision(InferenceEngine::Precision::UNSPECIFIED);
+        case sizeof(int8_t): {
+            set_precision(InferenceEngine::Precision::I8);
+            break;
+        }
+        case sizeof(int16_t): {
+            set_precision(InferenceEngine::Precision::I16);
+            break;
+        }
+        case sizeof(int32_t): {
+            set_precision(InferenceEngine::Precision::I32);
+            break;
+        }
+        default:
+            set_precision(InferenceEngine::Precision::UNSPECIFIED);
         }
     }
 
     InferenceEngine::DataPtr to_ie_data() {
-        return std::make_shared<InferenceEngine::Data>(name, InferenceEngine::TensorDesc(model_precision, dims, model_layout));
+        return std::make_shared<InferenceEngine::Data>(
+            name,
+            InferenceEngine::TensorDesc(model_precision, dims, model_layout));
     }
 };
 
@@ -79,7 +82,9 @@ struct GnaDesc {
  * This structure accumulates all required information for one the network input
  */
 struct InputDesc : GnaDesc {
-    InputDesc(const std::string &name) { this->name = name; }
+    InputDesc(const std::string& name) {
+        this->name = name;
+    }
 
     void Update(const InferenceEngine::InputInfo::Ptr inputInfo) {
         this->model_precision = inputInfo->getPrecision();
@@ -101,7 +106,9 @@ struct InputDesc : GnaDesc {
  * This structure accumulates all required information for one network output
  */
 struct OutputDesc : GnaDesc {
-    OutputDesc(const std::string &name) { this->name = name; }
+    OutputDesc(const std::string& name) {
+        this->name = name;
+    }
 
     void Update(const InferenceEngine::DataPtr outputData) {
         this->model_precision = outputData->getPrecision();
@@ -123,9 +130,9 @@ private:
     std::vector<T> infos_;
 
 public:
-    GnaNetworkInfo(): infos_({}) { }
+    GnaNetworkInfo() : infos_({}) {}
 
-    const T& at(const std::string &key) const {
+    const T& at(const std::string& key) const {
         if (key.empty()) {
             throw std::invalid_argument("The key cannot be empty");
         }
@@ -136,8 +143,8 @@ public:
         return *desc_it;
     }
 
-    T& at(const std::string &key) {
-      return const_cast<T&>( static_cast<const GnaNetworkInfo&>(*this).at(key) );
+    T& at(const std::string& key) {
+        return const_cast<T&>(static_cast<const GnaNetworkInfo&>(*this).at(key));
     }
 
     typename std::vector<T>::iterator end() {
@@ -156,11 +163,13 @@ public:
         });
     }
 
-    T& operator[](const std::string &key) {
+    T& operator[](const std::string& key) {
         if (key.empty()) {
             throw std::invalid_argument("The key cannot be empty");
         }
-        auto desc_it = std::find_if(infos_.begin(), infos_.end(), [&key](const T& desc){return desc.name == key;});
+        auto desc_it = std::find_if(infos_.begin(), infos_.end(), [&key](const T& desc) {
+            return desc.name == key;
+        });
         if (desc_it == infos_.end()) {
             infos_.push_back(T(key));
             return infos_.back();
@@ -168,16 +177,25 @@ public:
         return *desc_it;
     }
 
-    size_t size() const { return infos_.size(); }
+    size_t size() const {
+        return infos_.size();
+    }
 
-    bool empty() const { return infos_.empty(); }
+    bool empty() const {
+        return infos_.empty();
+    }
 
-    const std::vector<T>& Get() const { return infos_; }
+    const std::vector<T>& Get() const {
+        return infos_;
+    }
 
-    std::vector<T>& Get() { return infos_; }
+    std::vector<T>& Get() {
+        return infos_;
+    }
 };
 
 typedef GnaNetworkInfo<InputDesc> GnaInputs;
 typedef GnaNetworkInfo<OutputDesc> GnaOutputs;
 
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

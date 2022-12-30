@@ -34,7 +34,6 @@
 
 using namespace std;
 using namespace InferenceEngine;
-using namespace GNAPluginNS;
 using namespace ::testing;
 
 #if USE_RANDOM_SEED
@@ -636,7 +635,7 @@ void GNADumpXNNMatcher::match() {
 
     try {
         // matching gna DumpXNN forward call.
-        auto plugin = std::make_shared<GNAPluginNS::GNAPlugin>();
+        auto plugin = std::make_shared<GNAPlugin>();
         load(plugin);
     }
     catch(std::exception &ex) {

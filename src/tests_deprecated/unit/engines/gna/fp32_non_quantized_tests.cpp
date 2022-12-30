@@ -9,7 +9,6 @@
 #include "gna_matcher.hpp"
 
 using namespace InferenceEngine;
-using namespace GNAPluginNS;
 using namespace GNATestIRs;
 
 class FP32NonQuantizedTest : public GNATest<>{

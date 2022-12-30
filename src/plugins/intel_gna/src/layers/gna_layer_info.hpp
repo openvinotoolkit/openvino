@@ -21,7 +21,8 @@
 #include "backend/gna_limitations.hpp"
 #include "transformations/rt_info/gna_transpose_fusable.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 
 /**
  * @brief detecting of const pointer for dynamic cast operations
@@ -321,7 +322,7 @@ class LayerInfo {
         auto inputs = layer->insData.begin()->lock();
         auto inputsOrder = inputs->getTensorDesc().getDims();
 
-        return GNAPluginNS::isTrivialPermute(std::vector<int64_t>{begin(layerOrder), end(layerOrder)},
+        return permute::isTrivialPermute(std::vector<int64_t>{begin(layerOrder), end(layerOrder)},
             inputsOrder);
     }
     bool isNonValuesChangable() const {
@@ -356,7 +357,7 @@ class LayerInfo {
         auto cropLayer = dynamic_cast<InferenceEngine::CropLayer *> (layer);
         if (cropLayer != nullptr && !cropLayer->offset.empty()) {
             const auto crop_params = GetCropParams(cropLayer);
-            return GNAPluginNS::GNALimitations::isCropAffinedOffset(crop_params.start_offset);
+            return limitations::isCropAffinedOffset(crop_params.start_offset);
         }
         return false;
     }
@@ -425,4 +426,5 @@ inline std::ostream & operator <<(std::ostream &os, const LayerInfo & info) {
     return os;
 }
 
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

@@ -17,9 +17,8 @@
 #include "memory/gna_memory.hpp"
 #include <gna2-model-api.h>
 
-using GNAPluginNS::memory::GNAMemoryInterface;
-
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 namespace backend {
 
 class AMIntelDNN {
@@ -36,7 +35,7 @@ public:
 
     ~AMIntelDNN();
 
-    void Init(GNAMemoryInterface * memoryInterface,
+    void Init(memory::GNAMemoryInterface * memoryInterface,
             intel_dnn_number_type_t compute_precision,
             float scale_factor);
 
@@ -343,7 +342,7 @@ public:
     void BeginNewWrite(uint32_t index);
 
 private:
-    GNAMemoryInterface* memory = nullptr;
+    memory::GNAMemoryInterface* memory = nullptr;
     uint32_t *ptr_active_outputs_;
     uint32_t num_active_outputs_;
     intel_dnn_number_type_t compute_precision_;
@@ -482,5 +481,7 @@ private:
     std::string getDumpFolderName();
     std::string getRefFolderName();
 };
+
 }  // namespace backend
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

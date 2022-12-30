@@ -471,7 +471,7 @@ class GNADumpXNNMatcher : public GNATestConfigurability<GNADumpXNNMatcher> {
  protected:
 
     bool match_in_dctor = true;
-    void load(std::shared_ptr<GNAPluginNS::GNAPlugin> & plugin);
+    void load(std::shared_ptr<ov::intel_gna::GNAPlugin> & plugin);
     void match();
 };
 

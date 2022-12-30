@@ -14,8 +14,10 @@
 #include "dnn_types.h"
 
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 namespace backend {
+
 struct DnnComponentExtra {
     std::string name;
     intel_dnn_component_t dnnComponent;
@@ -71,5 +73,7 @@ struct DnnComponents {
 private:
     uint32_t delayedOperations = 0;
 };
+
 }  // namespace backend
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

@@ -15,7 +15,7 @@
 #include "layers/gna_convolution_layer.hpp"
 #include "log/debug.hpp"
 
-using namespace GNAPluginNS::GNAConvolutionLayer;
+using namespace ov::intel_gna::gna_convolution_layer;
 
 void CNNFilter32(intel_dnn_component_t *component) {
     auto filters = reinterpret_cast<float *>(component->op.conv1D.ptr_filters);
@@ -268,7 +268,7 @@ void CNN2DFilter32(intel_dnn_component_t* component) {
             }
         }
         // kernel padded to 16B = 4 * sizeof(float)
-        kernelIndex += ALIGN(kh * kw * kc, GNAPluginNS::GNALimitations::convEachKernelByteAlignment / sizeof(float));
+        kernelIndex += ALIGN(kh * kw * kc, ov::intel_gna::limitations::convEachKernelByteAlignment / sizeof(float));
     }
 }
 

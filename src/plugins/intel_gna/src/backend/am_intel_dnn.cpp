@@ -45,20 +45,18 @@
   */
 #define LIGHT_DUMP
 
-using namespace GNAPluginNS::backend;
-using namespace ov::intel_gna;
+using gna_convolution_layer::outputFromConv;
+using gna_convolution_layer::outputFromPooling;
 
-using GNAPluginNS::GNAConvolutionLayer::outputFromConv;
-using GNAPluginNS::GNAConvolutionLayer::outputFromPooling;
-using GNAPluginNS::GNAConvolutionLayer::outputFromPoolingLegacy;
+namespace ov {
+namespace intel_gna {
+namespace backend {
 
-using GNAPluginNS::memory::GNAMemoryInterface;
-
-void GNAPluginNS::backend::AMIntelDNN::BeginNewWrite(uint32_t index) {
+void backend::AMIntelDNN::BeginNewWrite(uint32_t index) {
     dump_write_index = index;
 }
 
-void GNAPluginNS::backend::AMIntelDNN::Init(GNAMemoryInterface* memoryInterface,
+void backend::AMIntelDNN::Init(memory::GNAMemoryInterface* memoryInterface,
                       intel_dnn_number_type_t compute_precision,
                       float scale_factor) {
     memory = memoryInterface;
@@ -69,11 +67,11 @@ void GNAPluginNS::backend::AMIntelDNN::Init(GNAMemoryInterface* memoryInterface,
     num_active_outputs_ = 0;
 }
 
-GNAPluginNS::backend::AMIntelDNN::~AMIntelDNN() {
+backend::AMIntelDNN::~AMIntelDNN() {
     component.clear();
 }
 
-void GNAPluginNS::backend::AMIntelDNN::InitActiveList(uint32_t *ptr_active_list) {
+void backend::AMIntelDNN::InitActiveList(uint32_t *ptr_active_list) {
     ptr_active_outputs_ = ptr_active_list;
     if (ptr_active_list == nullptr) {
         if (component[component.size() - 1].orientation_out == kDnnInterleavedOrientation) {
@@ -87,7 +85,7 @@ void GNAPluginNS::backend::AMIntelDNN::InitActiveList(uint32_t *ptr_active_list)
 }
 
 
-void GNAPluginNS::backend::AMIntelDNN::InitAffineComponentPrivate(intel_dnn_component_t &comp,
+void backend::AMIntelDNN::InitAffineComponentPrivate(intel_dnn_component_t &comp,
                                             uint32_t num_rows_in,
                                             uint32_t num_columns,
                                             uint32_t num_rows_out,
@@ -131,7 +129,7 @@ void GNAPluginNS::backend::AMIntelDNN::InitAffineComponentPrivate(intel_dnn_comp
 }
 
 
-void GNAPluginNS::backend::AMIntelDNN::InitConvolutional1DComponentPrivate(intel_dnn_component_t &comp,
+void backend::AMIntelDNN::InitConvolutional1DComponentPrivate(intel_dnn_component_t &comp,
                                             uint32_t num_columns_in,
                                             uint32_t num_columns_out,
                                             uint32_t num_bytes_per_input,
@@ -184,9 +182,9 @@ void GNAPluginNS::backend::AMIntelDNN::InitConvolutional1DComponentPrivate(intel
         THROW_GNA_EXCEPTION << "Number of inputs to Convolutional1DComponent (" << num_columns_in <<
                                ") is not a multiply by 8";
     }
-    if (num_filters < GNALimitations::convMinFiltersNum ||
-        num_filters > GNALimitations::convMaxFiltersNum ||
-        num_filters % GNALimitations::convFiltersNumDivider != 0) {
+    if (num_filters < limitations::convMinFiltersNum ||
+        num_filters > limitations::convMaxFiltersNum ||
+        num_filters % limitations::convFiltersNumDivider != 0) {
         THROW_GNA_EXCEPTION << "Unsupported number of filters in Convolutional1DComponent: " << num_filters;
     }
     auto max_number_of_out_elements = outputFromConv(num_columns_in, num_filter_coefficients, convStride);
@@ -195,7 +193,7 @@ void GNAPluginNS::backend::AMIntelDNN::InitConvolutional1DComponentPrivate(intel
     }
 }
 
-void GNAPluginNS::backend::AMIntelDNN::InitConvolutional2DComponentPrivate(intel_dnn_component_t& comp,
+void backend::AMIntelDNN::InitConvolutional2DComponentPrivate(intel_dnn_component_t& comp,
                                             OvGnaTensor inputTensor,
                                             OvGnaTensor outputTensor,
                                             OvGnaTensor filterTensor,
@@ -230,7 +228,7 @@ void GNAPluginNS::backend::AMIntelDNN::InitConvolutional2DComponentPrivate(intel
     ptr_outputs = &comp.ptr_outputs;
 }
 
-bool GNAPluginNS::backend::AMIntelDNN::isOperationCnnLegacySpecific(const Gna2Operation& op) {
+bool backend::AMIntelDNN::isOperationCnnLegacySpecific(const Gna2Operation& op) {
     // GNA compile target GNA_TARGET_3_0 does not support pooling window < pooling stride
     return op.Type == Gna2OperationTypeConvolution &&
         op.NumberOfParameters > std::max(PoolStrideParamIdx, PoolWinParamIdx) &&
@@ -240,7 +238,7 @@ bool GNAPluginNS::backend::AMIntelDNN::isOperationCnnLegacySpecific(const Gna2Op
         static_cast<Gna2Shape*>(op.Parameters[PoolStrideParamIdx])->Dimensions[0] > static_cast<Gna2Shape*>(op.Parameters[PoolWinParamIdx])->Dimensions[0];
 }
 
-void GNAPluginNS::backend::AMIntelDNN::updateNumberOfOutputsIfPoolingEnabled(Gna2Model& gnaModel, bool useLegacyFormula) {
+void backend::AMIntelDNN::updateNumberOfOutputsIfPoolingEnabled(Gna2Model& gnaModel, bool useLegacyFormula) {
     IE_ASSERT(gnaModel.Operations != nullptr || gnaModel.NumberOfOperations == 0);
     for (uint32_t i = 0; i < gnaModel.NumberOfOperations; i++) {
         auto& gnaOp = gnaModel.Operations[i];
@@ -261,10 +259,10 @@ void GNAPluginNS::backend::AMIntelDNN::updateNumberOfOutputsIfPoolingEnabled(Gna
             const auto fltStride = fltStrideShape.Dimensions[0];
             const auto inVecCnt = inputShape.Dimensions[1];
             const auto nFltSize = gnaOp.Operands[FilterOpIdx]->Shape.Dimensions[1];
-            const auto outFromConv = GNAPluginNS::GNAConvolutionLayer::outputFromConv(inVecCnt, nFltSize, fltStride);
+            const auto outFromConv = gna_convolution_layer::outputFromConv(inVecCnt, nFltSize, fltStride);
             const auto& poolWindow = *static_cast<Gna2Shape*>(gnaOp.Parameters[PoolWinParamIdx]);
             const auto& poolStride = *static_cast<Gna2Shape*>(gnaOp.Parameters[PoolStrideParamIdx]);
-            const auto numberOfOutputs = GNAPluginNS::GNAConvolutionLayer::outputFromPooling(
+            const auto numberOfOutputs = gna_convolution_layer::outputFromPooling(
                 outFromConv, poolWindow.Dimensions[0], poolStride.Dimensions[0],
                 useLegacyFormula || isOperationCnnLegacySpecific(gnaOp));
             auto& outputTensor = *gnaOp.Operands[OutOpIdx];
@@ -273,7 +271,7 @@ void GNAPluginNS::backend::AMIntelDNN::updateNumberOfOutputsIfPoolingEnabled(Gna
     }
 }
 
-void GNAPluginNS::backend::AMIntelDNN::InitMaxpoolComponentPrivate(intel_dnn_component_t &comp,
+void backend::AMIntelDNN::InitMaxpoolComponentPrivate(intel_dnn_component_t &comp,
                                             std::array<uint32_t, 3> inCHW,
                                             std::array<uint32_t, 3> outCHW,
                                             uint32_t num_bytes_per_input,
@@ -304,7 +302,7 @@ void GNAPluginNS::backend::AMIntelDNN::InitMaxpoolComponentPrivate(intel_dnn_com
     }
 }
 
-void GNAPluginNS::backend::AMIntelDNN::InitCopyComponentPrivate(intel_dnn_component_t &comp,
+void backend::AMIntelDNN::InitCopyComponentPrivate(intel_dnn_component_t &comp,
                                             intel_dnn_orientation_t orientation,
                                             uint32_t num_rows_in,
                                             uint32_t num_columns_in,
@@ -343,7 +341,7 @@ void GNAPluginNS::backend::AMIntelDNN::InitCopyComponentPrivate(intel_dnn_compon
     }
 }
 
-void GNAPluginNS::backend::AMIntelDNN::InitPiecewiseLinearComponentPrivate(intel_dnn_component_t &comp,
+void backend::AMIntelDNN::InitPiecewiseLinearComponentPrivate(intel_dnn_component_t &comp,
                                             const DnnActivation& function_id,
                                             intel_dnn_orientation_t orientation,
                                             uint32_t num_rows,
@@ -385,7 +383,7 @@ void GNAPluginNS::backend::AMIntelDNN::InitPiecewiseLinearComponentPrivate(intel
     }
 }
 
-void GNAPluginNS::backend::AMIntelDNN::InitInterleaveComponentPrivate(intel_dnn_component_t &comp,
+void backend::AMIntelDNN::InitInterleaveComponentPrivate(intel_dnn_component_t &comp,
                                             uint32_t num_rows_in,
                                             uint32_t num_columns_in,
                                             uint32_t num_bytes_per_input,
@@ -414,7 +412,7 @@ void GNAPluginNS::backend::AMIntelDNN::InitInterleaveComponentPrivate(intel_dnn_
     }
 }
 
-void GNAPluginNS::backend::AMIntelDNN::InitDeinterleaveComponentPrivate(intel_dnn_component_t &comp,
+void backend::AMIntelDNN::InitDeinterleaveComponentPrivate(intel_dnn_component_t &comp,
                                             uint32_t num_rows_in,
                                             uint32_t num_columns_in,
                                             uint32_t num_bytes_per_input,
@@ -443,7 +441,7 @@ void GNAPluginNS::backend::AMIntelDNN::InitDeinterleaveComponentPrivate(intel_dn
     }
 }
 
-float GNAPluginNS::backend::AMIntelDNN::OutputScaleFactor(intel_dnn_component_t &comp) {
+float backend::AMIntelDNN::OutputScaleFactor(intel_dnn_component_t &comp) {
     return comp.output_scale_factor;
 }
 
@@ -455,7 +453,7 @@ struct InputEndPoint {
     InputEndPoint(int nidx, size_t sz, size_t esize) : idx(nidx), size(sz), num_bytes_per_output(esize) {}
 };
 
-void GNAPluginNS::backend::AMIntelDNN::WriteGraphWizModel(const char *filename) {
+void backend::AMIntelDNN::WriteGraphWizModel(const char *filename) {
     auto & components = component;
 
 #define IS_AFFINE(k)\
@@ -722,12 +720,12 @@ void PrintTensors(std::ofstream& out, T tensors) {
     }
 }
 
-void GNAPluginNS::backend::AMIntelDNN::PrintOffset(std::ofstream& out, const std::string& type, void* ptr) {
+void backend::AMIntelDNN::PrintOffset(std::ofstream& out, const std::string& type, void* ptr) {
     const auto queue = memory->getQueue(ptr);
     std::string typeOfRegion = "UNKNOWN_QUEUE";
     auto offset = std::numeric_limits<uint32_t>::max();
     if (queue != nullptr) {
-        typeOfRegion = GNAPluginNS::memory::rRegionToStr(queue->regionType());
+        typeOfRegion = memory::rRegionToStr(queue->regionType());
         offset = queue->getOffset(ptr).second;
     }
     out << "<memory_region_type> " << typeOfRegion << "\n";
@@ -735,9 +733,9 @@ void GNAPluginNS::backend::AMIntelDNN::PrintOffset(std::ofstream& out, const std
         << "0x" << std::setfill('0') << std::setw(8) << std::hex << offset << "\n";
 }
 
-void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_dnn_number_type_t logging_precision) {
+void backend::AMIntelDNN::WriteDnnText(const char *filename, intel_dnn_number_type_t logging_precision) {
     if ((compute_precision_ == kDnnFloat) && (logging_precision == kDnnInt)) {
-        fprintf(stderr, "Error trying to write floating point DNN as integer in GNAPluginNS::backend::AMIntelDNN::WriteDnnText().\n");
+        fprintf(stderr, "Error trying to write floating point DNN as integer in backend::AMIntelDNN::WriteDnnText().\n");
         fprintf(stderr, "  Please convert to integer first.\n");
         throw -1;
     }
@@ -756,7 +754,7 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
 
         out_file << "<intel_dnn_file>\n";
         out_file << "<number_type> " << intel_dnn_number_type_name[logging_precision] << "\n";
-        const auto& regionsMap = GNAPluginNS::memory::GetAllRegionsToStrMap();
+        const auto& regionsMap = memory::GetAllRegionsToStrMap();
         for (const auto& regionPair : regionsMap) {
             out_file << "<memory_region_type> " << std::dec << regionPair.second << "\n";
             out_file << "<num_memory_region_bytes> " << std::dec << memory->getRegionBytes(regionPair.first) << "\n";
@@ -1360,7 +1358,7 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
     }
 }
 
-uint32_t GNAPluginNS::backend::AMIntelDNN::CountLayers() {
+uint32_t backend::AMIntelDNN::CountLayers() {
     uint32_t n = 0;
     for (auto && c : component) {
         if (c.operation == kDnnAffineOp
@@ -1378,7 +1376,7 @@ uint32_t GNAPluginNS::backend::AMIntelDNN::CountLayers() {
     return n;
 }
 
-void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(Gna2Model *gnaModel, const std::string& gnaCompileTarget) {
+void backend::AMIntelDNN::InitGNAStruct(Gna2Model *gnaModel, const std::string& gnaCompileTarget) {
     Gna2Operation * gnaOperation;
     if (gnaModel == nullptr)
         THROW_GNA_EXCEPTION << "Invalid input parameter";
@@ -1386,12 +1384,12 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(Gna2Model *gnaModel, const 
         THROW_GNA_EXCEPTION << "InitGNAStruct can't work on preallocated layers array";
 
     if (component.empty())
-        THROW_GNA_EXCEPTION << "empty model in GNAPluginNS::backend::AMIntelDNN::InitGNAStruct()";
+        THROW_GNA_EXCEPTION << "empty model in backend::AMIntelDNN::InitGNAStruct()";
 
     gnaModel->NumberOfOperations = CountLayers();
     gnaModel->Operations = reinterpret_cast<Gna2Operation*>(gnaUserAllocator(gnaModel->NumberOfOperations * sizeof(Gna2Operation)));
     if (gnaModel->Operations == nullptr)
-        THROW_GNA_EXCEPTION << "out of memory in GNAPluginNS::backend::AMIntelDNN::InitGNAStruct()";
+        THROW_GNA_EXCEPTION << "out of memory in backend::AMIntelDNN::InitGNAStruct()";
     memset(gnaModel->Operations, 0, gnaModel->NumberOfOperations * sizeof(Gna2Operation));
     gnaOperation = gnaModel->Operations;
     for (int i = 0; i < component.size(); i++) {
@@ -1643,7 +1641,7 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(Gna2Model *gnaModel, const 
     gnaModel->NumberOfOperations = static_cast<uint32_t>(std::distance(gnaModel->Operations, gnaOperation));
 }
 
-void GNAPluginNS::backend::AMIntelDNN::DestroyGNAStruct(Gna2Model *gnaModel) {
+void backend::AMIntelDNN::DestroyGNAStruct(Gna2Model *gnaModel) {
     if (gnaModel->Operations != nullptr) {
         for (uint32_t i = 0; i < gnaModel->NumberOfOperations; i++) {
             switch (gnaModel->Operations[i].Type) {
@@ -1663,7 +1661,7 @@ void GNAPluginNS::backend::AMIntelDNN::DestroyGNAStruct(Gna2Model *gnaModel) {
     gnaModel->NumberOfOperations = 0;
 }
 
-void GNAPluginNS::backend::AMIntelDNN::WriteInputAndOutputTextGNA(const Gna2Model & model) {
+void backend::AMIntelDNN::WriteInputAndOutputTextGNA(const Gna2Model & model) {
 #ifdef LIGHT_DUMP
     dump::WriteInputAndOutputTextGNAImpl(
         model,
@@ -1672,7 +1670,7 @@ void GNAPluginNS::backend::AMIntelDNN::WriteInputAndOutputTextGNA(const Gna2Mode
 #endif
 }
 
-void GNAPluginNS::backend::AMIntelDNN::WriteInputAndOutputText() {
+void backend::AMIntelDNN::WriteInputAndOutputText() {
 #ifdef LIGHT_DUMP
     for (uint32_t i = 0; i < num_components(); i++) {
         std::stringstream out_file_name;
@@ -1768,11 +1766,11 @@ void GNAPluginNS::backend::AMIntelDNN::WriteInputAndOutputText() {
 #endif
 }
 
-uint32_t GNAPluginNS::backend::AMIntelDNN::num_components() {
+uint32_t backend::AMIntelDNN::num_components() {
     return static_cast<uint32_t>(component.size());
 }
 
-uint32_t GNAPluginNS::backend::AMIntelDNN::num_gna_layers() {
+uint32_t backend::AMIntelDNN::num_gna_layers() {
     uint32_t num_layers = 0;
     std::set<intel_dnn_operation_t> gna_layers({ kDnnAffineOp,
                                                 kDnnDiagonalOp,
@@ -1789,27 +1787,27 @@ uint32_t GNAPluginNS::backend::AMIntelDNN::num_gna_layers() {
     return num_layers;
 }
 
-uint32_t GNAPluginNS::backend::AMIntelDNN::num_group_in() {
+uint32_t backend::AMIntelDNN::num_group_in() {
     return ((!component.empty()) ? ((component[0].orientation_in == kDnnInterleavedOrientation)
                                     ? component[0].num_columns_in : component[0].num_rows_in) : 0);
 }
 
-uint32_t GNAPluginNS::backend::AMIntelDNN::num_group_out() {
+uint32_t backend::AMIntelDNN::num_group_out() {
     return ((!component.empty()) ? ((component[component.size() - 1].orientation_out == kDnnInterleavedOrientation)
                                     ? component[component.size() - 1].num_columns_out : component[component.size() -
                                                                                                   1].num_rows_out) : 0);
 }
 
-uint32_t GNAPluginNS::backend::AMIntelDNN::num_inputs() {
+uint32_t backend::AMIntelDNN::num_inputs() {
     return component.empty() ? 0 : component[0].num_rows_in;
 }
 
-uint32_t GNAPluginNS::backend::AMIntelDNN::num_outputs() {
+uint32_t backend::AMIntelDNN::num_outputs() {
     return (component[component.size() - 1].orientation_out == kDnnInterleavedOrientation) ? component[
             component.size() - 1].num_rows_out : component[component.size() - 1].num_columns_out;
 }
 
-std::string GNAPluginNS::backend::AMIntelDNN::getDumpFilePrefix(const std::string& folder) {
+std::string backend::AMIntelDNN::getDumpFilePrefix(const std::string& folder) {
     const char pathSeparator =
 #ifdef _WIN32
             '\\';
@@ -1819,14 +1817,18 @@ std::string GNAPluginNS::backend::AMIntelDNN::getDumpFilePrefix(const std::strin
     return std::string(".") + pathSeparator + folder + pathSeparator + std::to_string(dump_write_index) + pathSeparator;
 }
 
-std::string GNAPluginNS::backend::AMIntelDNN::getDumpFilePrefixGNA() {
+std::string backend::AMIntelDNN::getDumpFilePrefixGNA() {
     return getDumpFilePrefix("gna_layers");
 }
 
-std::string GNAPluginNS::backend::AMIntelDNN::getDumpFolderName() {
+std::string backend::AMIntelDNN::getDumpFolderName() {
     return getDumpFilePrefix("layers");
 }
 
-std::string GNAPluginNS::backend::AMIntelDNN::getRefFolderName() {
+std::string backend::AMIntelDNN::getRefFolderName() {
     return getDumpFilePrefix("ref_layers");
 }
+
+}  // namespace backend
+}  // namespace intel_gna
+}  // namespace ov

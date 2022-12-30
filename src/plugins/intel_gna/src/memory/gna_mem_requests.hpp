@@ -10,7 +10,8 @@
 
 #include "gna_mem_regions.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 namespace memory {
 
 enum rType : uint8_t {
@@ -126,5 +127,7 @@ struct MemRequest {
                                         _initializer(initializer) {
     }
 };
+
 }  // namespace memory
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov
