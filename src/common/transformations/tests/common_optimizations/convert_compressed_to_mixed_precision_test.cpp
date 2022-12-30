@@ -23,18 +23,17 @@ using namespace ov;
 TEST_F(TransformationTestsF, ConvertCompressedToMixedPrecision) {
     {
         auto input = std::make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 12, 12});
-        auto const_weights = opset10::Constant::create(
-            element::f16,
-            Shape{1, 3, 3, 3},
-            {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9});
+        auto const_weights =
+            opset10::Constant::create(element::f16, Shape{1, 3, 3, 3}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
+                                                                        6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9});
         auto convert_ins1 = std::make_shared<opset10::Convert>(const_weights, element::f32);
         mark_as_decompression(convert_ins1);
         auto conv = std::make_shared<opset10::Convolution>(input,
-                                                              convert_ins1,
-                                                              Strides{1, 1},
-                                                              CoordinateDiff{0, 0},
-                                                              CoordinateDiff{0, 0},
-                                                              Strides{1, 1});
+                                                           convert_ins1,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
 
         model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
 
@@ -47,16 +46,15 @@ TEST_F(TransformationTestsF, ConvertCompressedToMixedPrecision) {
 
     {
         auto input = std::make_shared<opset10::Parameter>(element::f16, Shape{1, 3, 12, 12});
-        auto const_weights = opset10::Constant::create(
-            element::f16,
-            Shape{1, 3, 3, 3},
-            {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9});
+        auto const_weights =
+            opset10::Constant::create(element::f16, Shape{1, 3, 3, 3}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
+                                                                        6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9});
         auto conv = std::make_shared<opset10::Convolution>(input,
-                                                              const_weights,
-                                                              Strides{1, 1},
-                                                              CoordinateDiff{0, 0},
-                                                              CoordinateDiff{0, 0},
-                                                              Strides{1, 1});
+                                                           const_weights,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
 
         model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
     }
@@ -66,16 +64,15 @@ TEST_F(TransformationTestsF, ConvertCompressedToMixedPrecissionNoConvertion) {
     // test that pass is not triggered when there are no decompression Converts
     {
         auto input = std::make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 12, 12});
-        auto const_weights = opset10::Constant::create(
-            element::f32,
-            Shape{1, 3, 3, 3},
-            {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9});
+        auto const_weights =
+            opset10::Constant::create(element::f32, Shape{1, 3, 3, 3}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
+                                                                        6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9});
         auto conv = std::make_shared<opset10::Convolution>(input,
-                                                              const_weights,
-                                                              Strides{1, 1},
-                                                              CoordinateDiff{0, 0},
-                                                              CoordinateDiff{0, 0},
-                                                              Strides{1, 1});
+                                                           const_weights,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
 
         model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
 
@@ -88,16 +85,15 @@ TEST_F(TransformationTestsF, ConvertCompressedToMixedPrecissionNoConvertion) {
 
     {
         auto input = std::make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 12, 12});
-        auto const_weights = opset10::Constant::create(
-            element::f32,
-            Shape{1, 3, 3, 3},
-            {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9});
+        auto const_weights =
+            opset10::Constant::create(element::f32, Shape{1, 3, 3, 3}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
+                                                                        6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9});
         auto conv = std::make_shared<opset10::Convolution>(input,
-                                                              const_weights,
-                                                              Strides{1, 1},
-                                                              CoordinateDiff{0, 0},
-                                                              CoordinateDiff{0, 0},
-                                                              Strides{1, 1});
+                                                           const_weights,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
 
         model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
     }

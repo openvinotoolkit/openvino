@@ -13,6 +13,7 @@
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 #include <vector>
+
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 
