@@ -187,6 +187,11 @@ void CompileModelCacheTestBase::TearDown() {
     CommonTestUtils::removeFilesWithExt(m_cacheFolderName, "blob");
     std::remove(m_cacheFolderName.c_str());
     core->set_property(ov::cache_dir());
+    try {
+        core->set_property(targetDevice, ov::cache_dir());
+    } catch (...) {
+       // do nothing
+    }
     APIBaseTest::TearDown();
 }
 
