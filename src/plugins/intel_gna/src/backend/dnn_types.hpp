@@ -10,7 +10,7 @@
 #include <string>
 #include <type_traits>
 
-#include "gna_types.h"
+#include "gna_types.hpp"
 #include "log/debug.hpp"
 
 enum DnnActivationType : uint8_t {

@@ -39,6 +39,6 @@ uint32_t outputFromPooling(const uint32_t in, const uint32_t window, const uint3
 
 uint32_t outputFromPoolingLegacy(const uint32_t in, const uint32_t stride);
 
-}  // namespace gna_convolution
+}  // namespace gna_convolution_layer
 }  // namespace intel_gna
 }  // namespace ov

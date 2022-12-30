@@ -4,7 +4,7 @@
 
 #include "gna_matcher.hpp"
 #include <gna/gna_config.hpp>
-#include "backend/gna_types.h"
+#include "backend/gna_types.hpp"
 #include <gna_executable_network.hpp>
 #include "gna_plugin.hpp"
 #include "gna_mock_api.hpp"

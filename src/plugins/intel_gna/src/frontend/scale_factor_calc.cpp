@@ -3,7 +3,7 @@
 //
 
 #include "scale_factor_calc.hpp"
-#include "gna_slope_scale.h"
+#include "gna_slope_scale.hpp"
 #include "common/numerical_utils.hpp"
 #include "layer_quantizer.hpp"
 #include "gna_upstream_iterator.hpp"

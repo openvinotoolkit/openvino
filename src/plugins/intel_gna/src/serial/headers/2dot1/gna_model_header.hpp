@@ -5,7 +5,7 @@
 #pragma once
 
 #include <cstdint>
-#include "backend/dnn_types.h"
+#include "backend/dnn_types.hpp"
 
 #pragma pack(push, 1)
 

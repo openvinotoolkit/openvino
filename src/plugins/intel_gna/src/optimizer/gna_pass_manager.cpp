@@ -24,7 +24,7 @@
 #include <legacy/net_pass.h>
 #include <layers/gna_copy_layer.hpp>
 
-#include "backend/dnn_types.h"
+#include "backend/dnn_types.hpp"
 #include "log/debug.hpp"
 #include "log/log.hpp"
 #include "frontend/quantization.hpp"

@@ -3,7 +3,7 @@
 //
 #include <cstdint>
 
-#include "backend/dnn_types.h"
+#include "backend/dnn_types.hpp"
 #include "gna_float_runtime.hpp"
 #include "log/debug.hpp"
 

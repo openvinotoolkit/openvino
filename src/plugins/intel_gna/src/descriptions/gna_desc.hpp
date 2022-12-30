@@ -13,7 +13,7 @@
 #include "ie_input_info.hpp"
 #include "ie_algorithm.hpp"
 
-#include "backend/dnn_types.h"
+#include "backend/dnn_types.hpp"
 #include "gna_plugin_config.hpp"
 
 namespace ov {

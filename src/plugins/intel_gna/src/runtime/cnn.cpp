@@ -8,7 +8,7 @@
 #include <cstdio>
 
 #include "cnn.h"
-#include "backend/dnn_types.h"
+#include "backend/dnn_types.hpp"
 #include "backend/gna_limitations.hpp"
 #include "frontend/quantization.hpp"
 #include "gna_lib_ver_selector.hpp"

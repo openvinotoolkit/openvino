@@ -8,8 +8,8 @@
 #include <string>
 #include <vector>
 
-#include "dnn_types.h"
-#include "gna_types.h"
+#include "dnn_types.hpp"
+#include "gna_types.hpp"
 #include "gna/gna_config.hpp"
 
 #include "log/debug.hpp"

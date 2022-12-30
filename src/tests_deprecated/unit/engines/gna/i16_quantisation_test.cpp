@@ -5,7 +5,7 @@
 #include <vector>
 #include <gtest/gtest.h>
 #include <legacy/layer_transform.hpp>
-#include "backend/gna_types.h"
+#include "backend/gna_types.hpp"
 #include "frontend/model_quantizer.hpp"
 #include "frontend/layer_quantizer.hpp"
 #include "gna_matcher.hpp"

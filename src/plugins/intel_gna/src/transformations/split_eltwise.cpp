@@ -29,7 +29,7 @@ inline bool is_eltwise_has_to_be_splitted(const ngraph::Output<ngraph::Node>& no
     return (total_elem_size > limitations::bufferMaxSize);
 }
 
-std::shared_ptr<ngraph::opset9::VariadicSplit> split_input(
+static std::shared_ptr<ngraph::opset9::VariadicSplit> split_input(
     const std::shared_ptr<ov::Node>& node,
     const std::pair<int64_t, std::vector<uint32_t>>& split_sizes_per_axis) {
     auto split = std::make_shared<ngraph::opset9::VariadicSplit>(
@@ -45,7 +45,7 @@ std::shared_ptr<ngraph::opset9::VariadicSplit> split_input(
     return split;
 }
 
-std::shared_ptr<ngraph::op::Eltwise> create_eltwise(const std::shared_ptr<ov::Node>& node,
+static std::shared_ptr<ngraph::op::Eltwise> create_eltwise(const std::shared_ptr<ov::Node>& node,
                                                     const std::shared_ptr<ov::Node>& split0,
                                                     const std::shared_ptr<ov::Node>& split1,
                                                     size_t index) {

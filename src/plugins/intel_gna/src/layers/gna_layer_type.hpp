@@ -9,7 +9,7 @@
 
 #include <caseless.hpp>
 
-#include "backend/dnn_types.h"
+#include "backend/dnn_types.hpp"
 
 namespace ov {
 namespace intel_gna {

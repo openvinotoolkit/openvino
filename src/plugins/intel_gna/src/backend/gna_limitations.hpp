@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "dnn_types.h"
+#include "dnn_types.hpp"
 #include <cstdint>
 #include <cpp/ie_cnn_network.h>
 #include <ie_algorithm.hpp>

@@ -4,7 +4,7 @@
 
 #include "layer_quantizer.hpp"
 #include "weights_converter.hpp"
-#include "backend/gna_types.h"
+#include "backend/gna_types.hpp"
 #include "common/gna_target.hpp"
 #include "gna_graph_tools.hpp"
 

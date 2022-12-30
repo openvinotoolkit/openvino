@@ -11,7 +11,7 @@
 
 #include <ie_common.h>
 #include <legacy/ie_layers.h>
-#include "dnn_types.h"
+#include "dnn_types.hpp"
 
 
 namespace ov {

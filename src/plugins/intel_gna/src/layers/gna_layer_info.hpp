@@ -10,7 +10,7 @@
 #include <legacy/ie_layers.h>
 #include "caseless.hpp"
 #include "ie_algorithm.hpp"
-#include "backend/gna_types.h"
+#include "backend/gna_types.hpp"
 #include "gna_permute.hpp"
 #include "gna_lib_ver_selector.hpp"
 #include "gna_copy_layer.hpp"

@@ -22,8 +22,8 @@
 #include <ie_plugin_config.hpp>
 #include <cpp/ie_cnn_network.h>
 
-#include <backend/dnn_types.h>
-#include <backend/gna_types.h>
+#include <backend/dnn_types.hpp>
+#include <backend/gna_types.hpp>
 #include <gna/gna_config.hpp>
 #include <gna_plugin.hpp>
 #include <gna_lib_ver_selector.hpp>

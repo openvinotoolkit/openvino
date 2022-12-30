@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "dnn_types.h"
+#include "dnn_types.hpp"
 
 const char *intel_dnn_activation_name[kActNumType] = {
         "kActNone",
