@@ -25,7 +25,7 @@ class TestNorm(PytorchLayerTest):
                 self.keepdim = keepdim
 
             def forward(self, input_data):
-                return torch.norm(input_data, self.p, self.dim, self.keepdim)
+                return torch._VF.norm(input_data, self.p, self.dim, self.keepdim)
 
         ref_net = None
 
