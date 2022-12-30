@@ -6,7 +6,10 @@
     },
     "traversalMap" : {
         "firstFailedVersion" : "FirstFailedVersion",
-        "firstFixedVersion" : "FirstFixedVersion"
+        "firstFixedVersion" : "FirstFixedVersion",
+        "allBreaks" : "AllBreakVersions",
+        "checkCommitSet" : "IterateOverSuspiciousCommits",
+        "bruteForce" : "BruteForce"
     },
     "commandList" : [
         {"cmd" : "git checkout -- .", "path" : "{gitPath}"},
@@ -28,6 +31,9 @@
     "workPath" : "/tmp/commit_slider_tool",
     "clearCache" : false,
     "noCleanInterval" : 10,
+    "checkBorders" : false,
+    "printCSV" : false,
+    "usePrevRunCache" : false,
     "serviceConfig" : {
         "comment" : "For inner purpose. Data will be overwritten during script running."
     }

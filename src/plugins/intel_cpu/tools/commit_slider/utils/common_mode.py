@@ -2,6 +2,7 @@ from abc import ABC
 import utils.helpers as util
 import json
 import os
+from enum import Enum
 
 
 class Mode(ABC):
@@ -15,6 +16,7 @@ class Mode(ABC):
 
     def __init__(self, cfg) -> None:
         self.checkCfg(cfg)
+        self.commitPath = self.CommitPath()
         traversalClassName = util.checkAndGetClassnameByConfig(
             cfg, "traversalMap", "traversal"
         )
@@ -88,18 +90,57 @@ class Mode(ABC):
     def run(self, i1, i2, list, cfg) -> int:
         self.prepareRun(i1, i2, list, cfg)
         self.commitList = list
-        self.endCommit = self.traversal.bypass(
-            i1, i2, list, cfg, self.isBadVersion
+        self.traversal.bypass(
+            i1, i2, list, cfg, self.isBadVersion, self.commitPath
         )
         util.returnToActualVersion(self.cfg)
 
+    def setOutputInfo(self, pathCommit):
+        # override if you need more details in output representation
+        pass
+
     def getResult(self):
-        # override if you need more than one-found-commit representation
-        print("Commit found: {c}".format(c=self.commitList[self.endCommit]))
+        # override if you need more details in output representation
+        for pathcommit in self.commitPath.getList():
+            print("Break commit: {c}".format(
+                c=self.commitList[pathcommit.id])
+            )
+
+    def checkBorders(self):
+        raise NotImplementedError("checkBorders() is not implemented")
+
+    class CommitPath:
+
+        def __init__(self):
+            self.commitList = []
+
+        def accept(self, traversal, commitToReport) -> None:
+            traversal.visit(self, commitToReport)
+
+        class CommitState(Enum):
+            BREAK = 1
+            SKIPPED = 2
+
+        class PathCommit:
+            def __init__(self, id, state):
+                self.id = id
+                self.state = state
+
+        def append(self, commit):
+            self.commitList.append(commit)
+
+        def pop(self):
+            return self.commitList.pop(0)
+
+        def getList(self):
+            return self.commitList
 
     class Traversal(ABC):
-        def bypass(self, i1, i2, list, cfg, isBadVersion) -> int:
+        def bypass(self, i1, i2, list, cfg, isBadVersion, commitPath) -> int:
             raise NotImplementedError()
+
+        def visit(self, cPath, commitToReport):
+            cPath.append(commitToReport)
 
         def prepBypass(self, i1, i2, list, cfg):
             skipInterval = cfg["noCleanInterval"]
@@ -118,15 +159,29 @@ class Mode(ABC):
         def __init__(self, mode) -> None:
             super().__init__(mode)
 
-        def bypass(self, i1, i2, list, cfg, isBadVersion) -> int:
+        def bypass(self, i1, i2, list, cfg, isBadVersion, commitPath) -> int:
+            # todo: isBadVersion from self
             self.prepBypass(i1, i2, list, cfg)
             if i1 + 1 >= i2:
-                return i1 if isBadVersion(list[i1], cfg) else i2
+                isBad = isBadVersion(list[i1], cfg)
+                # todo - isBadVersion must return pathCommit
+                breakCommit = i1 if isBad else i2
+                pc = Mode.CommitPath.PathCommit(
+                    breakCommit,
+                    Mode.CommitPath.CommitState.BREAK
+                )
+                self.mode.setOutputInfo(pc)
+                commitPath.accept(self, pc)
+                return
             mid = (int)((i1 + i2) / 2)
             if isBadVersion(list[mid], cfg):
-                return self.bypass(i1, mid, list, cfg, isBadVersion)
+                self.bypass(
+                    i1, mid, list, cfg, isBadVersion, commitPath
+                )
             else:
-                return self.bypass(mid, i2, list, cfg, isBadVersion)
+                self.bypass(
+                    mid, i2, list, cfg, isBadVersion, commitPath
+                )
 
     class FirstFixedVersion(Traversal):
         def __init__(self, mode) -> None:
@@ -141,3 +196,30 @@ class Mode(ABC):
                 return self.bypass(mid, i2, list, cfg, isBadVersion)
             else:
                 return self.bypass(i1, mid, list, cfg, isBadVersion)
+
+    class AllFailedVersions(Traversal):
+        def __init__(self, mode) -> None:
+            super().__init__(mode)
+
+        def bypass(self, i1, i2, list, cfg, isBadVersion, commitPath) -> int:
+            self.prepBypass(i1, i2, list, cfg)
+            if i1 + 1 >= i2:
+                # stop criterion
+                isBad = isBadVersion(list[i1], cfg)
+                breakCommit = i1 if isBad else i2
+                pc = Mode.CommitPath.PathCommit(
+                    breakCommit,
+                    Mode.CommitPath.CommitState.BREAK
+                )
+                pc.absDiff = 42
+                commitPath.accept(self, pc)
+                return
+            mid = (int)((i1 + i2) / 2)
+            if isBadVersion(list[mid], cfg):
+                self.bypass(
+                    i1, mid, list, cfg, isBadVersion, commitPath
+                )
+            else:
+                self.bypass(
+                    mid, i2, list, cfg, isBadVersion, commitPath
+                )

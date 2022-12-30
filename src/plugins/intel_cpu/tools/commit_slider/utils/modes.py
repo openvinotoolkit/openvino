@@ -119,6 +119,7 @@ class CompareBlobsMode(Mode):
         super().__init__(cfg)
         self.sampleFileName = "undefined"
         self.createCash()
+        self.maxDiff = 0
 
     def prepareRun(self, i1, i2, list, cfg):
         super().prepareRun(i1, i2, list, cfg)
@@ -140,6 +141,28 @@ class CompareBlobsMode(Mode):
             output = fetchAppOutput(cfg)
             commitLogger.info(output)
             self.sampleFileName = self.setCommitCash(sampleCommit, None)
+
+    # def checkBorders(self, i1, i2, list, cfg):
+    #     if not cfg['checkBorders']:
+    #         return
+    #     sampleCommit = list[i1]
+    #     sampleCommit = sampleCommit.replace('"', "")
+    #     self.commonLogger.info(
+    #         "Prepare sample commit - {commit}".format(commit=sampleCommit)
+    #     )
+    #     commitLogger = getCommitLogger(cfg, sampleCommit)
+    #     cfg["trySkipClean"] = False
+    #     isCommitCashed, cachedfileName = self.getCommitIfCashed(sampleCommit)
+    #     if isCommitCashed:
+    #         logMsg = "Cashed commit - {commit}".format(commit=sampleCommit)
+    #         self.commonLogger.info(logMsg)
+    #         commitLogger.info(logMsg)
+    #         self.sampleFileName = cachedfileName
+    #     else:
+    #         runCommandList(sampleCommit, cfg)
+    #         output = fetchAppOutput(cfg)
+    #         commitLogger.info(output)
+    #         self.sampleFileName = self.setCommitCash(sampleCommit, None)
 
     def checkCfg(self, cfg):
         super().checkCfg(cfg)
@@ -180,7 +203,7 @@ class CompareBlobsMode(Mode):
             content = file.readlines()
         # ignore first line with memory address
         i = -1
-        maxDiff = 0
+        curMaxDiff = 0
         for sampleLine in sampleContent:
             i = i + 1
             if i >= len(sampleContent):
@@ -194,12 +217,13 @@ class CompareBlobsMode(Mode):
             except ValueError:
                 continue
             if val != sampleVal:
-                maxDiff = max(maxDiff, abs(val - sampleVal))
-        isBad = maxDiff > self.limit
+                curMaxDiff = max(curMaxDiff, abs(val - sampleVal))
+        isBad = curMaxDiff > self.limit
         commitLogger.info(
             "Commit is {status}".format(status=("bad" if isBad else "good"))
         )
-        commitLogger.info("Absolute difference is {diff}".format(diff=maxDiff))
+        self.maxDiff = max(curMaxDiff, self.maxDiff)
+        commitLogger.info("Absolute difference is {d}".format(d=curMaxDiff))
         return isBad
 
     def setCommitCash(self, commit, valueToCache):
@@ -240,3 +264,14 @@ class CompareBlobsMode(Mode):
             if isDump:
                 return True, filename
         return False, None
+
+    def setOutputInfo(self, pathCommit):
+        pathCommit.diff = self.maxDiff
+
+    def getResult(self):
+        for pathcommit in self.commitPath.getList():
+            print("Break commit: {c}, diff = {d}".format(
+                # todo: info to pathCommit
+                c=self.commitList[pathcommit.id],
+                d=pathcommit.diff)
+            )
