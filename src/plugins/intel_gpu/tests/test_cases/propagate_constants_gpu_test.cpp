@@ -45,6 +45,6 @@ TEST(propagate_constants, copy_dependecies_from_nodes) {
     float epsilon = 1e-2f;
     for (auto& it : outputs) {
         cldnn::mem_lock<float> output(it.second.get_memory(), get_test_stream());
-        EXPECT_NEAR(7.8f, output[0], epsilon);
+        ASSERT_NEAR(7.8f, output[0], epsilon);
     }
 }

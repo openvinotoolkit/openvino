@@ -20,20 +20,20 @@ template<typename T>
 void start_broadcast_test(format cldnn_format, data_types cldnn_data_type, std::vector<size_t> output_shape,
                           std::vector<size_t> input_shape, std::vector<size_t> broadcast_axes) {
     size_t input_data_size = accumulate(input_shape.rbegin(), input_shape.rend(), (size_t)1, std::multiplies<size_t>());
-    EXPECT_GE(input_data_size, (size_t)1);
+    ASSERT_GE(input_data_size, (size_t)1);
     std::vector<T> input_data = {};
     for (size_t i = 1; i <= input_data_size; ++i) {
         input_data.push_back((T)i);
     }
 
     size_t output_data_size = accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>());
-    EXPECT_GE(output_data_size, (size_t)1);
+    ASSERT_GE(output_data_size, (size_t)1);
     std::vector<T> output_data(output_data_size);
     ngraph::runtime::reference::broadcast(reinterpret_cast<const char*>(input_data.data()), reinterpret_cast<char*>(output_data.data()),
                                           ov::Shape(input_shape.begin(), input_shape.end()), ov::Shape(output_shape.begin(), output_shape.end()),
                                           ov::AxisSet(broadcast_axes), sizeof(T));
 
-    EXPECT_EQ(output_data.size(), accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>()));
+    ASSERT_EQ(output_data.size(), accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>()));
 
     std::vector<tensor::value_type> output_4d(4, 1);
     for (size_t i = 0; i < output_shape.size(); ++i) {
@@ -76,7 +76,7 @@ void start_broadcast_test(format cldnn_format, data_types cldnn_data_type, std::
             for (tensor::value_type y = 0; y < output_4d.at(2); ++y) {
                 for (tensor::value_type x = 0; x < output_4d.at(3); ++x) {
                     auto output_off = ((b * output_4d.at(1) + f) * output_4d.at(2) + y) * output_4d.at(3) + x;
-                    EXPECT_EQ(output_ptr[output_off], output_data[output_off]);
+                    ASSERT_EQ(output_ptr[output_off], output_data[output_off]);
                 }
             }
         }
@@ -90,20 +90,20 @@ void start_broadcast_test_dynamic(format input_format,
                                   ov::AxisSet broadcast_axes,
                                   bool is_output_static = false) {
     size_t input_data_size = accumulate(input_data_shape.rbegin(), input_data_shape.rend(), (size_t)1, std::multiplies<size_t>());
-    EXPECT_GE(input_data_size, (size_t)1);
+    ASSERT_GE(input_data_size, (size_t)1);
     std::vector<T> input_data = {};
     for (size_t i = 1; i <= input_data_size; ++i) {
         input_data.push_back((T)i);
     }
 
     size_t output_data_size = accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>());
-    EXPECT_GE(output_data_size, (size_t)1);
+    ASSERT_GE(output_data_size, (size_t)1);
     std::vector<T> output_data(output_data_size);
     ngraph::runtime::reference::broadcast(reinterpret_cast<const char*>(input_data.data()), reinterpret_cast<char*>(output_data.data()),
                                           ov::Shape(input_data_shape.begin(), input_data_shape.end()), ov::Shape(output_shape.begin(), output_shape.end()),
                                           ov::AxisSet(broadcast_axes), sizeof(T));
 
-    EXPECT_EQ(output_data.size(), accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>()));
+    ASSERT_EQ(output_data.size(), accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>()));
 
     int64_t input_rank = input_data_shape.size();
     ASSERT_EQ(input_rank, broadcast_axes.size());
@@ -111,7 +111,7 @@ void start_broadcast_test_dynamic(format input_format,
 
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({ov::PartialShape(input_data_shape), input_data_type, fmt});
- 
+
     topology topology;
     memory::ptr target_shape_mem = nullptr;
     if (is_output_static) {
@@ -159,7 +159,7 @@ void start_broadcast_test_dynamic(format input_format,
     cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < output_data_size; ++i) {
-        EXPECT_EQ(output_ptr[i], output_data[i]);
+        ASSERT_EQ(output_ptr[i], output_data[i]);
     }
 }
 
@@ -168,20 +168,20 @@ void start_broadcast_test_5d(format cldnn_format, data_types cldnn_data_type, st
                              std::vector<size_t> input_shape, std::vector<size_t> broadcast_axes, bool is_caching_test=false)
 {
     size_t input_data_size = accumulate(input_shape.rbegin(), input_shape.rend(), (size_t)1, std::multiplies<size_t>());
-    EXPECT_GE(input_data_size, (size_t)1);
+    ASSERT_GE(input_data_size, (size_t)1);
     std::vector<T> input_data = {};
     for (size_t i = 1; i <= input_data_size; ++i) {
         input_data.push_back((T)i);
     }
 
     size_t output_data_size = accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>());
-    EXPECT_GE(output_data_size, (size_t)1);
+    ASSERT_GE(output_data_size, (size_t)1);
     std::vector<T> output_data(output_data_size);
     ngraph::runtime::reference::broadcast(reinterpret_cast<const char*>(input_data.data()), reinterpret_cast<char*>(output_data.data()),
                                           ov::Shape(input_shape.begin(), input_shape.end()), ov::Shape(output_shape.begin(), output_shape.end()),
                                           ov::AxisSet(broadcast_axes), sizeof(T));
 
-    EXPECT_EQ(output_data.size(), accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>()));
+    ASSERT_EQ(output_data.size(), accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>()));
 
     std::vector<tensor::value_type> output_5d(5, 1);
     for (size_t i = 0; i < output_shape.size(); ++i) {
@@ -243,7 +243,7 @@ void start_broadcast_test_5d(format cldnn_format, data_types cldnn_data_type, st
                 for (tensor::value_type y = 0; y < output_5d.at(3); ++y) {
                     for (tensor::value_type x = 0; x < output_5d.at(4); ++x) {
                         auto output_off = (((b * output_5d.at(1) + f) * output_5d.at(2) + z) * output_5d.at(3) + y) * output_5d.at(4) + x;
-                        EXPECT_EQ(output_ptr[output_off], output_data[output_off]);
+                        ASSERT_EQ(output_ptr[output_off], output_data[output_off]);
                     }
                 }
             }

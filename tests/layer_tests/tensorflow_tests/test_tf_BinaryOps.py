@@ -23,7 +23,7 @@ def generate_input(op_type, size):
         upper = 16
 
     if op_type in logical_type:
-        return np.random.randint(0, 1, size).astype(np.bool)
+        return np.random.randint(0, 1, size).astype(bool)
     elif op_type in narrow_borders:
         return np.random.uniform(lower, upper, size).astype(np.float32)
     else:

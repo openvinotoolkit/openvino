@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
 #include "include/unit_type.cl"
 
@@ -31,7 +30,7 @@
 
 __attribute__((reqd_work_group_size(LWS_0, LWS_1, LWS_2))) // attr:no-format
 #if SUB_GROUP_SIZE != 1
-__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE))) // attr:no-format
+REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE) // attr:no-format
 #endif
 KERNEL(gen9_common_conv_fwd_f16_kernel)(
         const __global half *src,
@@ -178,7 +177,7 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
                 const __global half *wei1 = wei + kd * KH * KW * OC_BLOCK * IC
                         + kh * KW * OC_BLOCK * IC + kw * OC_BLOCK * IC;
 
-#define TRANSPOSE_1(_block, _col) (half)(intel_sub_group_shuffle(_block, _col))
+#define TRANSPOSE_1(_block, _col) (half)(_sub_group_shuffle(_block, _col))
 
 #define FMA8(a, b, c) fma((half)(a), (half)b, (half)c)
 
@@ -189,11 +188,11 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
         _result = FMA8(_blockB2, TRANSPOSE_1(_blockA, 2), _result); \
     }
 
-                half blockB00 = as_half(intel_sub_group_block_read_us(
+                half blockB00 = as_half(_sub_group_block_read_us(
                         (const __global ushort *)wei1));
-                half blockB01 = as_half(intel_sub_group_block_read_us(
+                half blockB01 = as_half(_sub_group_block_read_us(
                         (const __global ushort *)(wei1 + OC_BLOCK)));
-                half blockB02 = as_half(intel_sub_group_block_read_us(
+                half blockB02 = as_half(_sub_group_block_read_us(
                         (const __global ushort *)(wei1 + 2 * OC_BLOCK)));
 
                 half blockA1[OW_BLOCK] = {0.0f};
@@ -211,12 +210,12 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
                             C01[i], blockA2[i], blockB00, blockB01, blockB02);
                 }
 
-                blockB00 = as_half(intel_sub_group_block_read_us((const __global
+                blockB00 = as_half(_sub_group_block_read_us((const __global
                                 ushort *)&wei1[IC * KDHW_SIZE * OC_BLOCK]));
-                blockB01 = as_half(intel_sub_group_block_read_us(
+                blockB01 = as_half(_sub_group_block_read_us(
                         (const __global ushort *)(wei1
                                 + IC * KDHW_SIZE * OC_BLOCK + OC_BLOCK)));
-                blockB02 = as_half(intel_sub_group_block_read_us(
+                blockB02 = as_half(_sub_group_block_read_us(
                         (const __global ushort *)(wei1
                                 + IC * KDHW_SIZE * OC_BLOCK + 2 * OC_BLOCK)));
 
@@ -247,27 +246,27 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
     half8 blockS00, blockS01, blockS10, blockS11;
     if (ow == OW_LAST) {
         for (int i = 0; i < OW - OW_LAST; i++) {
-            blockS00[i] = as_half(intel_sub_group_block_read_us((const __global
+            blockS00[i] = as_half(_sub_group_block_read_us((const __global
                             ushort *)&dst_write0[i * OC_BLOCK * MB_BLOCK]));
-            blockS10[i] = as_half(intel_sub_group_block_read_us((const __global
+            blockS10[i] = as_half(_sub_group_block_read_us((const __global
                             ushort *)&dst_write0[OC_BLOCK * MB_BLOCK * ODHW_SIZE
                     + i * OC_BLOCK * MB_BLOCK]));
-            blockS01[i] = as_half(intel_sub_group_block_read_us((const __global
+            blockS01[i] = as_half(_sub_group_block_read_us((const __global
                             ushort *)&dst_write1[i * OC_BLOCK * MB_BLOCK]));
-            blockS11[i] = as_half(intel_sub_group_block_read_us((const __global
+            blockS11[i] = as_half(_sub_group_block_read_us((const __global
                             ushort *)&dst_write1[OC_BLOCK * MB_BLOCK * ODHW_SIZE
                     + i * OC_BLOCK * MB_BLOCK]));
         }
     } else {
         for (int i = 0; i < OW_BLOCK; i++) {
-            blockS00[i] = as_half(intel_sub_group_block_read_us((const __global
+            blockS00[i] = as_half(_sub_group_block_read_us((const __global
                             ushort *)&dst_write0[i * OC_BLOCK * MB_BLOCK]));
-            blockS10[i] = as_half(intel_sub_group_block_read_us((const __global
+            blockS10[i] = as_half(_sub_group_block_read_us((const __global
                             ushort *)&dst_write0[OC_BLOCK * MB_BLOCK * ODHW_SIZE
                     + i * OC_BLOCK * MB_BLOCK]));
-            blockS01[i] = as_half(intel_sub_group_block_read_us((const __global
+            blockS01[i] = as_half(_sub_group_block_read_us((const __global
                             ushort *)&dst_write1[i * OC_BLOCK * MB_BLOCK]));
-            blockS11[i] = as_half(intel_sub_group_block_read_us((const __global
+            blockS11[i] = as_half(_sub_group_block_read_us((const __global
                             ushort *)&dst_write1[OC_BLOCK * MB_BLOCK * ODHW_SIZE
                     + i * OC_BLOCK * MB_BLOCK]));
         }
@@ -296,19 +295,19 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
 
     if (ow == OW_LAST) {
         for (int i = 0; i < OW - OW_LAST; i++) {
-            intel_sub_group_block_write_us(
+            _sub_group_block_write_us(
                     (__global ushort *)(&dst_write0[i * OC_BLOCK * MB_BLOCK]),
                     as_ushort(C00[i]));
-            intel_sub_group_block_write_us(
+            _sub_group_block_write_us(
                     (__global ushort *)(&dst_write0[OC_BLOCK * MB_BLOCK
                                     * ODHW_SIZE
                             + i * OC_BLOCK * MB_BLOCK]),
                     as_ushort(C10[i]));
 
-            intel_sub_group_block_write_us(
+            _sub_group_block_write_us(
                     (__global ushort *)(&dst_write1[i * OC_BLOCK * MB_BLOCK]),
                     as_ushort(C01[i]));
-            intel_sub_group_block_write_us(
+            _sub_group_block_write_us(
                     (__global ushort *)(&dst_write1[OC_BLOCK * MB_BLOCK
                                     * ODHW_SIZE
                             + i * OC_BLOCK * MB_BLOCK]),
@@ -316,18 +315,18 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
         }
     } else {
         for (int i = 0; i < OW_BLOCK; i++) {
-            intel_sub_group_block_write_us(
+            _sub_group_block_write_us(
                     (__global ushort *)(&dst_write0[i * OC_BLOCK * MB_BLOCK]),
                     as_ushort(C00[i]));
-            intel_sub_group_block_write_us(
+            _sub_group_block_write_us(
                     (__global ushort *)(&dst_write0[OC_BLOCK * MB_BLOCK
                                     * ODHW_SIZE
                             + i * OC_BLOCK * MB_BLOCK]),
                     as_ushort(C10[i]));
-            intel_sub_group_block_write_us(
+            _sub_group_block_write_us(
                     (__global ushort *)(&dst_write1[i * OC_BLOCK * MB_BLOCK]),
                     as_ushort(C01[i]));
-            intel_sub_group_block_write_us(
+            _sub_group_block_write_us(
                     (__global ushort *)(&dst_write1[OC_BLOCK * MB_BLOCK
                                     * ODHW_SIZE
                             + i * OC_BLOCK * MB_BLOCK]),
@@ -431,7 +430,7 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
                 const __global half *wei1 = wei + kd * KH * KW * IC * OC_BLOCK
                         + kh * KW * OC_BLOCK * IC + kw * OC_BLOCK * IC;
 
-#define TRANSPOSE_1(_block, _col) (half)(intel_sub_group_shuffle(_block, _col))
+#define TRANSPOSE_1(_block, _col) (half)(_sub_group_shuffle(_block, _col))
 
 #define FMA8(a, b, c) fma((half)(a), (half)b, (half)c)
 
@@ -442,11 +441,11 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
         _result = FMA8(_blockB2, TRANSPOSE_1(_blockA, 2), _result); \
     }
 
-                half blockB00 = as_half(intel_sub_group_block_read_us(
+                half blockB00 = as_half(_sub_group_block_read_us(
                         (const __global ushort *)wei1));
-                half blockB01 = as_half(intel_sub_group_block_read_us(
+                half blockB01 = as_half(_sub_group_block_read_us(
                         (const __global ushort *)(wei1 + OC_BLOCK)));
-                half blockB02 = as_half(intel_sub_group_block_read_us(
+                half blockB02 = as_half(_sub_group_block_read_us(
                         (const __global ushort *)(wei1 + 2 * OC_BLOCK)));
 
                 half8 blockA1 = 0.0f;
@@ -460,13 +459,13 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
                             C00[i], blockA1[i], blockB00, blockB01, blockB02);
                 }
 
-                blockB00 = as_half(intel_sub_group_block_read_us(
+                blockB00 = as_half(_sub_group_block_read_us(
                         (const __global ushort *)(wei1
                                 + KDHW_SIZE * IC * OC_BLOCK)));
-                blockB01 = as_half(intel_sub_group_block_read_us(
+                blockB01 = as_half(_sub_group_block_read_us(
                         (const __global ushort *)(wei1
                                 + KDHW_SIZE * IC * OC_BLOCK + OC_BLOCK)));
-                blockB02 = as_half(intel_sub_group_block_read_us(
+                blockB02 = as_half(_sub_group_block_read_us(
                         (const __global ushort *)(wei1
                                 + KDHW_SIZE * IC * OC_BLOCK + 2 * OC_BLOCK)));
                 __attribute__((opencl_unroll_hint(OW_BLOCK))) // attr:no-format
@@ -487,17 +486,17 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
     half8 blockS00, blockS10;
     if (ow == OW_LAST) {
         for (int i = 0; i < OW - OW_LAST; i++) {
-            blockS00[i] = as_half(intel_sub_group_block_read_us(
+            blockS00[i] = as_half(_sub_group_block_read_us(
                     (const __global ushort *)&dst_write0[i * OC_BLOCK]));
-            blockS10[i] = as_half(intel_sub_group_block_read_us(
+            blockS10[i] = as_half(_sub_group_block_read_us(
                     (const __global ushort *)&dst_write0[ODHW_SIZE * OC_BLOCK
                             + i * OC_BLOCK]));
         }
     } else {
         for (int i = 0; i < OW_BLOCK; i++) {
-            blockS00[i] = as_half(intel_sub_group_block_read_us(
+            blockS00[i] = as_half(_sub_group_block_read_us(
                     (const __global ushort *)&dst_write0[i * OC_BLOCK]));
-            blockS10[i] = as_half(intel_sub_group_block_read_us(
+            blockS10[i] = as_half(_sub_group_block_read_us(
                     (const __global ushort *)&dst_write0[ODHW_SIZE * OC_BLOCK
                             + i * OC_BLOCK]));
         }
@@ -519,20 +518,20 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
 
     if (ow == OW_LAST) {
         for (int i = 0; i < OW - OW_LAST; i++) {
-            intel_sub_group_block_write_us(
+            _sub_group_block_write_us(
                     (__global ushort *)(&dst_write0[i * OC_BLOCK]),
                     as_ushort(C00[i]));
-            intel_sub_group_block_write_us(
+            _sub_group_block_write_us(
                     (__global ushort *)(&dst_write0[ODHW_SIZE * OC_BLOCK
                             + i * OC_BLOCK]),
                     as_ushort(C10[i]));
         }
     } else {
         for (int i = 0; i < OW_BLOCK; i++) {
-            intel_sub_group_block_write_us(
+            _sub_group_block_write_us(
                     (__global ushort *)(&dst_write0[i * OC_BLOCK]),
                     as_ushort(C00[i]));
-            intel_sub_group_block_write_us(
+            _sub_group_block_write_us(
                     (__global ushort *)(&dst_write0[ODHW_SIZE * OC_BLOCK
                             + i * OC_BLOCK]),
                     as_ushort(C10[i]));
@@ -641,7 +640,7 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
                     for (int icb = 0; icb < IC / IC_BLOCK; icb++) {
 
 #define TRANSPOSE_8(_block, _col) \
-    as_half8(intel_sub_group_shuffle(as_ushort8(_block), _col))
+    as_half8(_sub_group_shuffle(as_ushort8(_block), _col))
 
 #define FMA8(a, b, c) fma((half8)(a), (half8)b, (half8)c)
 
@@ -664,29 +663,29 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
         _result = FMA8(_blockB[14], TRANSPOSE_8(_blockA, 14), _result); \
         _result = FMA8(_blockB[15], TRANSPOSE_8(_blockA, 15), _result); \
     }
-                        half16 W0 = as_half16(intel_sub_group_block_read8(
+                        half16 W0 = as_half16(_sub_group_block_read8(
                                 (const __global uint *)wei1));
 #if USE_32OC_UNROLL
-                        half16 W1 = as_half16(intel_sub_group_block_read8(
+                        half16 W1 = as_half16(_sub_group_block_read8(
                                 (const __global uint *)&wei1[IC * KDHW_SIZE
                                         * OC_BLOCK]));
 #endif
 
-                        half8 A0 = as_half8(intel_sub_group_block_read_us8(
+                        half8 A0 = as_half8(_sub_group_block_read_us8(
                                 (const __global ushort *)src1));
                         MULTIPLY_BLOCKS_8x16(C00, A0, W0);
 #if USE_32OC_UNROLL
                         MULTIPLY_BLOCKS_8x16(C10, A0, W1);
 #endif
 
-                        A0 = as_half8(intel_sub_group_block_read_us8(
+                        A0 = as_half8(_sub_group_block_read_us8(
                                 (const __global ushort *)&src1[8 * IC_BLOCK]));
                         MULTIPLY_BLOCKS_8x16(C01, A0, W0);
 #if USE_32OC_UNROLL
                         MULTIPLY_BLOCKS_8x16(C11, A0, W1);
 #endif
 
-                        A0 = as_half8(intel_sub_group_block_read_us8(
+                        A0 = as_half8(_sub_group_block_read_us8(
                                 (const __global ushort *)&src1[MB_BLOCK * IC_FULL
                                         * IDHW_SIZE]));
                         MULTIPLY_BLOCKS_8x16(C02, A0, W0);
@@ -694,7 +693,7 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
                         MULTIPLY_BLOCKS_8x16(C12, A0, W1);
 #endif
 
-                        A0 = as_half8(intel_sub_group_block_read_us8(
+                        A0 = as_half8(_sub_group_block_read_us8(
                                 (const __global ushort *)&src1[MB_BLOCK * IC_FULL
                                                 * IDHW_SIZE
                                         + 8 * IC_BLOCK]));
@@ -720,14 +719,14 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
 #endif
 
 #if WITH_SUM == 1
-    half8 blockS00 = as_half8(intel_sub_group_block_read_us8(
+    half8 blockS00 = as_half8(_sub_group_block_read_us8(
             (const __global ushort *)dst_write0));
-    half8 blockS01 = as_half8(intel_sub_group_block_read_us8(
+    half8 blockS01 = as_half8(_sub_group_block_read_us8(
             (const __global ushort *)(dst_write0 + 8 * OC_BLOCK)));
 #if USE_32OC_UNROLL
-    half8 blockS10 = as_half8(intel_sub_group_block_read_us8(
+    half8 blockS10 = as_half8(_sub_group_block_read_us8(
             (const __global ushort *)dst_write1));
-    half8 blockS11 = as_half8(intel_sub_group_block_read_us8(
+    half8 blockS11 = as_half8(_sub_group_block_read_us8(
             (const __global ushort *)(dst_write1 + 8 * OC_BLOCK)));
 #endif
 #if SUM_SCALE == 1
@@ -776,31 +775,31 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
         { FUSED_OPS_VEC0; C00 = FUSED_OPS_RESULT_VEC0; }
         { FUSED_OPS_VEC1; C01 = FUSED_OPS_RESULT_VEC1; }
 #endif
-        intel_sub_group_block_write_us8(
+        _sub_group_block_write_us8(
             (__global ushort *)dst_write0, as_ushort8(C00));
-        intel_sub_group_block_write_us8(
+        _sub_group_block_write_us8(
             (__global ushort *)&dst_write0[8 * OC_BLOCK], as_ushort8(C01));
 #if USE_32OC_UNROLL
-        intel_sub_group_block_write_us8(
+        _sub_group_block_write_us8(
             (__global ushort *)&dst_write1[0], as_ushort8(C10));
-        intel_sub_group_block_write_us8(
+        _sub_group_block_write_us8(
             (__global ushort *)&dst_write1[8 * OC_BLOCK], as_ushort8(C11));
 #endif
     }
 
 #if WITH_SUM == 1
     half8 blockS02 = as_half8(
-            intel_sub_group_block_read_us8((const __global ushort *)(dst_write0
+            _sub_group_block_read_us8((const __global ushort *)(dst_write0
                     + MB_BLOCK * OC_FULL * G * ODHW_SIZE)));
     half8 blockS03 = as_half8(
-            intel_sub_group_block_read_us8((const __global ushort *)(dst_write0
+            _sub_group_block_read_us8((const __global ushort *)(dst_write0
                     + MB_BLOCK * OC_FULL * G * ODHW_SIZE + 8 * OC_BLOCK)));
 #if USE_32OC_UNROLL
     half8 blockS12 = as_half8(
-            intel_sub_group_block_read_us8((const __global ushort *)(dst_write1
+            _sub_group_block_read_us8((const __global ushort *)(dst_write1
                     + MB_BLOCK * OC_FULL * G * ODHW_SIZE)));
     half8 blockS13 = as_half8(
-            intel_sub_group_block_read_us8((const __global ushort *)(dst_write1
+            _sub_group_block_read_us8((const __global ushort *)(dst_write1
                     + MB_BLOCK * OC_FULL * G * ODHW_SIZE + 8 * OC_BLOCK)));
 #endif
 #if SUM_SCALE == 1
@@ -850,18 +849,18 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
         { FUSED_OPS_VEC2; C02 = FUSED_OPS_RESULT_VEC2; }
         { FUSED_OPS_VEC3; C03 = FUSED_OPS_RESULT_VEC3; }
 #endif
-        intel_sub_group_block_write_us8(
+        _sub_group_block_write_us8(
                 (__global ushort *)&dst_write0[MB_BLOCK * OC_FULL * ODHW_SIZE],
                 as_ushort8(C02));
-        intel_sub_group_block_write_us8(
+        _sub_group_block_write_us8(
                 (__global ushort *)&dst_write0[MB_BLOCK * OC_FULL * ODHW_SIZE
                         + 8 * OC_BLOCK],
                 as_ushort8(C03));
 #if USE_32OC_UNROLL
-        intel_sub_group_block_write_us8(
+        _sub_group_block_write_us8(
                 (__global ushort *)&dst_write1[MB_BLOCK * OC_FULL * ODHW_SIZE],
                 as_ushort8(C12));
-        intel_sub_group_block_write_us8(
+        _sub_group_block_write_us8(
                 (__global ushort *)&dst_write1[MB_BLOCK * OC_FULL * ODHW_SIZE
                         + 8 * OC_BLOCK],
                 as_ushort8(C13));
@@ -968,7 +967,7 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
                                 i++) {
                             if (k >= 0 && k < IW)
                                 tempA[i] = as_half(
-                                        intel_sub_group_block_read_us((
+                                        _sub_group_block_read_us((
                                                 const __global ushort *)(&src1[i
                                                 * IC_BLOCK])));
                             else
@@ -981,7 +980,7 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
                                 + KW * (1 + DW)))) // attr:no-format
                         for (int i = 0; i < SW * OW_BLOCK + KW * (1 + DW);
                                 i++) {
-                            tempA[i] = as_half(intel_sub_group_block_read_us(
+                            tempA[i] = as_half(_sub_group_block_read_us(
                                     (const __global ushort
                                                     *)(&src1[i * IC_BLOCK])));
                         }
@@ -1001,7 +1000,7 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
         const __global half *src1 = src;
         const __global half *wei1 = wei;
 #endif
-#define TRANSPOSE_1(_block, _col) (half)intel_sub_group_shuffle(_block, _col)
+#define TRANSPOSE_1(_block, _col) (half)_sub_group_shuffle(_block, _col)
 
 #define FMA8(a, b, c) fma((half)(a), (half)b, (half)c)
 
@@ -1051,14 +1050,14 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
 
 #if IC == 8 && G != 1
                         half8 blockB00
-                                = as_half8(intel_sub_group_block_read_us8(
+                                = as_half8(_sub_group_block_read_us8(
                                         (const __global ushort *)wei1));
 #else
                         half8 blockB00
-                                = as_half8(intel_sub_group_block_read_us8(
+                                = as_half8(_sub_group_block_read_us8(
                                         (const __global ushort *)wei1));
                         half8 blockB01
-                                = as_half8(intel_sub_group_block_read_us8(
+                                = as_half8(_sub_group_block_read_us8(
                                         (const __global ushort *)(wei1
                                                 + 8 * OC_BLOCK)));
 #endif
@@ -1085,7 +1084,7 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
                 } else {
 #endif
                     blockA[i] = as_half(
-                            intel_sub_group_block_read_us((const __global ushort
+                            _sub_group_block_read_us((const __global ushort
                                             *)(&src1[i * IC_BLOCK * SW])));
 #if HAS_PAD_W
                 }
@@ -1104,14 +1103,14 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
                 } else {
 #endif
                     blockA[i] = as_half(
-                            intel_sub_group_block_read_us((const __global ushort
+                            _sub_group_block_read_us((const __global ushort
                                             *)(&src1[i * IC_BLOCK * SW])));
 #if HAS_PAD_W
                 }
 #endif
             }
 #else
-        blockA = as_half8(intel_sub_group_block_read_us8(
+        blockA = as_half8(_sub_group_block_read_us8(
                 (const __global ushort *)(&src1[0])));
 #endif
 #if OW % OW_BLOCK != 0 || HAS_PAD_W
@@ -1190,21 +1189,21 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
 #if OW % OW_BLOCK != 0
     if (ow == OW_LAST) {
         for (int i = 0; i < OW - OW_LAST; i++) {
-            blockS00[i] = as_half(intel_sub_group_block_read_us(
+            blockS00[i] = as_half(_sub_group_block_read_us(
                     (const __global ushort *)&dst_write0[i * OC_BLOCK]));
         }
     } else {
 #endif
 #if OW_BLOCK != 8 && OW_BLOCK != 16
         for (int i = 0; i < OW_BLOCK; i++) {
-            blockS00[i] = as_half(intel_sub_group_block_read_us(
+            blockS00[i] = as_half(_sub_group_block_read_us(
                     (const __global ushort *)&dst_write0[i * OC_BLOCK]));
         }
 #else
-    blockS00 = as_half8(intel_sub_group_block_read_us8(
+    blockS00 = as_half8(_sub_group_block_read_us8(
             (const __global ushort *)dst_write0));
 #if OW_BLOCK == 16
-    blockS01 = as_half8(intel_sub_group_block_read_us8(
+    blockS01 = as_half8(_sub_group_block_read_us8(
             (const __global ushort *)&dst_write0[8 * OC_BLOCK]));
 #endif
 #endif
@@ -1260,7 +1259,7 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
             } else
 #endif
             {
-                intel_sub_group_block_write_us(
+                _sub_group_block_write_us(
                         (__global ushort *)(&dst_write0[i * OC_BLOCK]),
                         as_ushort(blockC00[i]));
             }
@@ -1289,7 +1288,7 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
             } else
 #endif
             {
-                intel_sub_group_block_write_us(
+                _sub_group_block_write_us(
                         (__global ushort *)(&dst_write0[i * OC_BLOCK]),
                         as_ushort(blockC00[i]));
             }
@@ -1324,7 +1323,7 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
     { FUSED_OPS_VEC0; blockC00 = FUSED_OPS_RESULT_VEC0; }
 #endif
 
-        intel_sub_group_block_write_us8(
+        _sub_group_block_write_us8(
                 (__global ushort *)(&dst_write0[0]), as_ushort8(blockC00));
     }
 #endif //  OC == 8 && G != 1
@@ -1358,7 +1357,7 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
     { FUSED_OPS_VEC1; blockC01 = FUSED_OPS_RESULT_VEC1; }
 #endif
 
-    intel_sub_group_block_write_us8(
+    _sub_group_block_write_us8(
             (__global ushort *)(&dst_write0[8 * OC_BLOCK]),
             as_ushort8(blockC01));
     }

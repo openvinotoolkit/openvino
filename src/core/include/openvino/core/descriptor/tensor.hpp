@@ -27,6 +27,9 @@ using HostTensorPtr = std::shared_ptr<runtime::HostTensor>;
 namespace ov {
 class Node;
 using TensorLabel = std::vector<size_t>;
+namespace pass {
+class ReverseShapeAndTypeInfer;
+}
 namespace descriptor {
 
 class Tensor;
@@ -48,11 +51,6 @@ public:
     Tensor(const Tensor&) = delete;
     Tensor& operator=(const Tensor&) = delete;
 
-    OPENVINO_DEPRECATED("get_name() is deprecated! Please use get_names() instead.")
-    const std::string& get_name() const {
-        // TODO: remove after clean up of private plugins
-        return m_legacy_name;
-    }
     std::string get_any_name() const;
     const std::unordered_set<std::string>& get_names() const;
     void set_names(const std::unordered_set<std::string>& names);
@@ -137,6 +135,7 @@ protected:
 
     friend OPENVINO_API std::string get_ov_tensor_legacy_name(const Tensor& tensor);
     friend OPENVINO_API void set_ov_tensor_legacy_name(Tensor& tensor, const std::string& tensor_name);
+    friend class pass::ReverseShapeAndTypeInfer;
 };
 
 OPENVINO_API

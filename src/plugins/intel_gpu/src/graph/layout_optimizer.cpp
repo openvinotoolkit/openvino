@@ -12,6 +12,7 @@
 #include "resample_inst.h"
 #include "reshape_inst.h"
 #include "arg_max_min_inst.h"
+#include "shape_of_inst.h"
 #include "generic_layer.hpp"
 #include <sstream>
 
@@ -1065,6 +1066,11 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
     auto input_layout = node.get_dependency(0).get_output_layout();
     auto output_layout = node.calc_output_layout();
 
+    if (prim->deformable_mode) {
+        output_layout.format = format::adjust_to_rank(format::bfyx, output_layout.get_partial_shape().size());
+        return output_layout;
+    }
+
     if (input_layout.is_dynamic() || output_layout.is_dynamic()) {
         if (input_layout.get_partial_shape().size() <= 4)
             expected_format = format::b_fs_yx_fsv16;
@@ -1349,8 +1355,8 @@ impl_types layout_optimizer::get_forced_impl_type_by_config(program_node& node) 
                 preferred_type = impl_types::cpu;
 
             if (node.id() == forced_impl_type.substr(0, found_type)) {
-                GPU_DEBUG_COUT << " Forced implementation type : " << forced_impl_type.substr(0, found_type) << " : "
-                    << forced_impl_type.substr(found_type + 1) << std::endl;
+                GPU_DEBUG_LOG << " Forced implementation type : " << forced_impl_type.substr(0, found_type) << " : "
+                              << forced_impl_type.substr(found_type + 1) << std::endl;
                 return preferred_type;
             }
         }
@@ -1653,6 +1659,22 @@ format layout_optimizer::get_preferred_format(program_node& node) {
     auto output_layout = node.get_output_layout();
     bool use_onednn_impls = _optimization_attributes.use_onednn_impls;
 
+    bool allow_new_shape_infer = node.get_program().get_options().get<build_option_type::allow_new_shape_infer>()->enabled();
+
+    if (allow_new_shape_infer) {
+        if (node.is_type<shape_of>())
+            return format::get_default_format(node.get_dependency(0).get_output_layout(false).get_rank());
+        for (auto u : node.get_users()) {
+            for (auto dep_idx : u->get_shape_infer_dependencies()) {
+                if (u->get_dependencies().size() <= dep_idx)
+                    continue;
+                if (u->get_dependency(dep_idx).get_unique_id() == node.get_unique_id()) {
+                    expected = format::get_default_format(output_layout.get_rank(), false, false);
+                    return expected;
+                }
+            }
+        }
+    }
     if (!_forcing_map.empty() && _forcing_map.count(node.id()) != 0) {
         expected = _forcing_map.at(node.id()).first;
     } else if (node.is_type<convolution>()) {
@@ -1802,7 +1824,6 @@ format layout_optimizer::get_preferred_format(program_node& node) {
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, dnnl::primitive_desc prim_desc) {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     if (node.is_input() || !are_data_types_suitable_for_onednn(node)) {
         return;
     }
@@ -1851,10 +1872,8 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
                     node.set_preferred_output_fmt(usr, dst_fmt);
             }
 
-            GPU_DEBUG_IF(debug_config->verbose >= 2) {
-                std::cout << "select_preferred_formats:" << node.id() << ": " << fmt_to_str(src_fmt) << " --> " << fmt_to_str(dst_fmt)
-                 << " For index : " << idx << std::endl;
-            }
+            GPU_DEBUG_LOG << "select_preferred_formats:" << node.id() << ": " << fmt_to_str(src_fmt) << " --> " << fmt_to_str(dst_fmt)
+                          << " For index : " << idx << std::endl;
         }
     }
 

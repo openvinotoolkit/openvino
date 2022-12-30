@@ -5,6 +5,7 @@
 #include "transformations/common_optimizations/align_eltwise_input_ranks.hpp"
 
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
 #include <openvino/opsets/opset8.hpp>
 
 ov::pass::AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
@@ -50,6 +51,7 @@ ov::pass::AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
                 Shape new_shape = const_shape;
                 new_shape.insert(new_shape.begin(), diff, 1);
                 auto new_const = std::make_shared<opset8::Constant>(*const_node, new_shape);
+                copy_runtime_info(node->get_input_node_shared_ptr(i), new_const);
                 node->input(i).replace_source_output(new_const);
             }
         }

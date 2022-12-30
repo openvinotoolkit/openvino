@@ -55,7 +55,7 @@ public:
     /**
      * @see Worker::enqueueRequest()
      */
-    void enqueueRequest() override;
+    bool enqueueRequest() override;
 
     /**
      * @see Worker::wait()
@@ -93,7 +93,7 @@ public:
     void setResult(InferenceEngine::BlobMap&& result) override;
 
 private:
-    void check_if_free();
+    void cleanup_subrequests();
 
     uint32_t representingIndex_{0};
     std::shared_ptr<ModelWrapper> fullModel_;

@@ -2,14 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <queue>
+#include "transformations/common_optimizations/augru_cell_fusion.hpp"
+
 #include <gtest/gtest.h>
 
+#include <queue>
+
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "ov_ops/augru_cell.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/opsets/opset9.hpp"
-#include "transformations/common_optimizations/augru_cell_fusion.hpp"
+#include "ov_ops/augru_cell.hpp"
 
 using namespace std;
 using namespace testing;
@@ -32,7 +34,7 @@ shared_ptr<Model> gen_model(size_t batch, size_t hidden_size, size_t input_size,
     auto A = make_shared<Parameter>(f32, Shape{batch, 1});
     auto concat_1 = make_shared<Concat>(OutputVector{X, H}, 1);
     auto matmul_1 = make_shared<MatMul>(concat_1, WRzr, false, true);
-    auto in_to_activation_1 =  make_shared<Add>(matmul_1, Bzr);
+    auto in_to_activation_1 = make_shared<Add>(matmul_1, Bzr);
 
     auto sigmoid = make_shared<Sigmoid>(in_to_activation_1);
     auto axis_1 = make_shared<Constant>(i64, Shape{}, 1);
@@ -73,18 +75,18 @@ shared_ptr<Model> gen_reference(size_t batch, size_t hidden_size, size_t input_s
     auto split_R_r_z = make_shared<Split>(split_WRrz->output(1), axis_0, 2);
     auto split_WRh = make_shared<VariadicSplit>(WRh, axis_1, split_lenghts);
     auto Wzrh =
-            make_shared<Concat>(OutputVector{split_W_r_z->output(1), split_W_r_z->output(0), split_WRh->output(0)}, 0);
+        make_shared<Concat>(OutputVector{split_W_r_z->output(1), split_W_r_z->output(0), split_WRh->output(0)}, 0);
     auto Rzrh =
-            make_shared<Concat>(OutputVector{split_R_r_z->output(1), split_R_r_z->output(0), split_WRh->output(1)}, 0);
+        make_shared<Concat>(OutputVector{split_R_r_z->output(1), split_R_r_z->output(0), split_WRh->output(1)}, 0);
 
     auto split_bias_r_z = make_shared<Split>(Brz, axis_1, 2);
     auto B = make_shared<Concat>(OutputVector{split_bias_r_z->output(1), split_bias_r_z->output(0), Bh}, 1);
 
     auto squeeze_B = make_shared<Squeeze>(B, axis_0);
     auto cell = make_shared<op::internal::AUGRUCell>(X, H, Wzrh, Rzrh, squeeze_B, A, hidden_size);
-    return make_shared<Model>(OutputVector {cell}, params);
+    return make_shared<Model>(OutputVector{cell}, params);
 }
-} // namespace
+}  // namespace
 
 struct AUGRUFusionParams {
     size_t batch;
@@ -92,10 +94,7 @@ struct AUGRUFusionParams {
     size_t input_size;
 };
 
-class AUGRUFusionTest
-        : public WithParamInterface<AUGRUFusionParams>,
-          public TransformationTestsF {
-};
+class AUGRUFusionTest : public WithParamInterface<AUGRUFusionParams>, public TransformationTestsF {};
 
 TEST_P(AUGRUFusionTest, AUGRUCellPattern) {
     const auto& p = GetParam();
@@ -104,17 +103,13 @@ TEST_P(AUGRUFusionTest, AUGRUCellPattern) {
         manager.register_pass<pass::AUGRUCellFusion>();
     }
 
-    {
-        model_ref = gen_reference(p.batch, p.hidden_size, p.input_size);
-    }
+    { model_ref = gen_reference(p.batch, p.hidden_size, p.input_size); }
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
-class AUGRUFusionTestDyn
-        : public WithParamInterface<AUGRUFusionParams>, public TransformationTestsF {
-};
+class AUGRUFusionTestDyn : public WithParamInterface<AUGRUFusionParams>, public TransformationTestsF {};
 
 TEST_P(AUGRUFusionTestDyn, AUGRUCellPatternDynamicShapes) {
     const auto& p = GetParam();
@@ -127,8 +122,8 @@ TEST_P(AUGRUFusionTestDyn, AUGRUCellPatternDynamicShapes) {
 }
 
 static const std::vector<AUGRUFusionParams> params = {
-        AUGRUFusionParams{1, 1, 1},
-        AUGRUFusionParams{2, 128, 32},
+    AUGRUFusionParams{1, 1, 1},
+    AUGRUFusionParams{2, 128, 32},
 };
 
 INSTANTIATE_TEST_SUITE_P(AUGRUFusionTest, AUGRUFusionTest, ValuesIn(params));

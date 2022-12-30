@@ -8,7 +8,6 @@
 
    openvino_docs_security_guide_workbench
    openvino_docs_OV_UG_protecting_model_guide
-   ovsa_get_started
 
 @endsphinxdirective
 
@@ -18,3 +17,4 @@ Trained models are often valuable intellectual property and you may choose to pr
 
 Actual security and privacy requirements depend on your unique deployment scenario.
 This section provides general guidance on using OpenVINO tools and libraries securely.
+The main security measure for OpenVINO is its [Security Add-on](../ovsa/ovsa_get_started.md). You can find its description in the Ecosystem section.
