@@ -24,7 +24,7 @@ OutputVector translate_avg_poolnd(NodeContext& context) {
     // The corner case of Average Pooling with ceil_mode on
     // PyTorch allows sliding window go off bound, which leads to this accommodation.
     // More detail on https://github.com/pytorch/pytorch/issues/57178
-    if (count_include_pad){
+    if (count_include_pad) {
         auto zero = context.mark_node(opset8::Constant::create(element::f32, Shape{}, {0}));
         auto zero_i32 = context.mark_node(opset8::Constant::create(element::i32, Shape{}, {0}));
         auto shape = context.mark_node(std::make_shared<opset8::ShapeOf>(input, element::i32));
@@ -33,18 +33,15 @@ OutputVector translate_avg_poolnd(NodeContext& context) {
         auto pads_len = context.mark_node(opset8::Constant::create(element::i32, Shape{}, {pads.size()}));
         auto pads_diff = context.mark_node(std::make_shared<opset8::Subtract>(rank, pads_len));
         auto pads_remaining = context.mark_node(std::make_shared<opset8::Broadcast>(zero_i32, pads_diff));
-        auto padding = context.mark_node(std::make_shared<opset8::Concat>(NodeVector{pads_remaining, pad_values.get_node_shared_ptr()}, 0));
-        input = context.mark_node(std::make_shared<opset8::Pad>(input, padding, padding, zero, ov::op::PadMode::CONSTANT));
+        auto padding = context.mark_node(
+            std::make_shared<opset8::Concat>(NodeVector{pads_remaining, pad_values.get_node_shared_ptr()}, 0));
+        input =
+            context.mark_node(std::make_shared<opset8::Pad>(input, padding, padding, zero, ov::op::PadMode::CONSTANT));
         pads = Shape(pads.size(), 0);
     }
-    
-    return {context.mark_node(std::make_shared<opset8::AvgPool>(input,
-                                                                strides,
-                                                                pads,
-                                                                pads,
-                                                                kernel,
-                                                                !count_include_pad,
-                                                                rounding_type))};
+
+    return {context.mark_node(
+        std::make_shared<opset8::AvgPool>(input, strides, pads, pads, kernel, !count_include_pad, rounding_type))};
 };
 
 }  // namespace op

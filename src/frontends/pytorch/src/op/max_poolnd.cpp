@@ -14,7 +14,7 @@ namespace op {
 OutputVector translate_max_poolnd(NodeContext& context) {
     auto kernel = context.const_input<Shape>(1);
     auto strides = context.const_input<Strides>(2);
-    auto pads = context.const_input<Shape>(3); // pytorch supports only symmetric paddings
+    auto pads = context.const_input<Shape>(3);  // pytorch supports only symmetric paddings
     auto dilations = context.const_input<Strides>(4);
     auto rounding_type = context.const_input<bool>(5) ? ov::op::RoundingType::CEIL : ov::op::RoundingType::FLOOR;
 
