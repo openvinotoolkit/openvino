@@ -121,7 +121,7 @@ std::shared_ptr<Node> numel(NodeContext& context, size_t input_id) {
 std::shared_ptr<Node> concat_list_construct(std::shared_ptr<Node> input) {
     if (auto list_construct = cast_fw_node(input, "prim::ListConstruct")) {
         auto list_inputs = list_construct->input_values();
-        auto node_vector = NodeVector();
+        OutputVector node_vector;
         auto zero = opset8::Constant::create(element::i32, Shape{}, {0});
         for (size_t i = 0; i < list_inputs.size(); i++) {
             auto node = concat_list_construct(list_inputs[i].get_node_shared_ptr());
