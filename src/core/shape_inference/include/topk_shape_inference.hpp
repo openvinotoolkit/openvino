@@ -13,12 +13,11 @@ namespace ov {
 namespace op {
 namespace v1 {
 
-template <typename T>
-void shape_infer(const TopK* op,
-                 const std::vector<T>& input_shapes,
-                 std::vector<T>& output_shapes,
-                 const std::map<size_t, HostTensorPtr>& constant_data = {}) {
-    NODE_VALIDATION_CHECK(op, (input_shapes.size() == 2 && output_shapes.size() == 2));
+template <class TShape>
+std::vector<TShape> shape_infer(const TopK* op,
+                                const std::vector<TShape>& input_shapes,
+                                const std::map<size_t, HostTensorPtr>& constant_data = {}) {
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == 2);
     const auto& input_shape = input_shapes[0];
     const auto input_rank = input_shape.rank();
 
@@ -31,12 +30,11 @@ void shape_infer(const TopK* op,
 
     auto output_shape = input_shape;
     if (input_shape.rank().is_static()) {
-        T k_as_shape;
-        auto input_rank = static_cast<int64_t>(input_shape.size());
-        auto normalized_axis = ov::normalize_axis(op, op->get_provided_axis(), input_rank, -input_rank, input_rank - 1);
+        TShape k_as_shape;
+        auto normalized_axis = ov::normalize_axis(op, op->get_provided_axis(), input_shape.rank());
         auto& dim_axis = output_shape[normalized_axis];
 
-        if (get_data_as_shape<T>(1, op, k_as_shape, constant_data)) {
+        if (get_data_as_shape<TShape>(1, op, k_as_shape, constant_data)) {
             NODE_VALIDATION_CHECK(op,
                                   k_as_shape.size() == 1,
                                   "Only one value (scalar) should be provided as the 'K' input to TopK",
@@ -68,8 +66,17 @@ void shape_infer(const TopK* op,
             dim_axis = Dimension(0, dim_axis.get_max_length());
         }
     }
-    std::fill(output_shapes.begin(), output_shapes.end(), output_shape);
-}  // namespace
+
+    return std::vector<TShape>(2, output_shape);
+}
+
+template <typename T>
+void shape_infer(const TopK* op,
+                 const std::vector<T>& input_shapes,
+                 std::vector<T>& output_shapes,
+                 const std::map<size_t, HostTensorPtr>& constant_data = {}) {
+    output_shapes = shape_infer(op, input_shapes, constant_data);
+}
 }  // namespace v1
 }  // namespace op
 }  // namespace ov

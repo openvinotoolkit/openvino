@@ -30,7 +30,7 @@ protected:
 };
 
 const auto TopkTestValues = Values(make_tuple(ShapeVector{{0}, {}}, 0, 1, StaticShape{1}),
-                                   make_tuple(ShapeVector{{5, 2, 10, 0}, {}}, 3, 5, StaticShape{5, 2, 10, 5}),
+                                   make_tuple(ShapeVector{{5, 2, 10, 0}, {}}, -1, 5, StaticShape{5, 2, 10, 5}),
                                    make_tuple(ShapeVector{{3, 5, 6}, {}}, 1, 2, StaticShape{3, 2, 6}));
 
 namespace v1 {

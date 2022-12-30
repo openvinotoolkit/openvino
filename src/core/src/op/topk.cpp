@@ -199,9 +199,7 @@ void op::v1::TopK::validate_and_infer_types() {
 
     set_axis(get_input_partial_shape(0).rank(), get_provided_axis());
 
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    auto output_shapes = std::vector<PartialShape>(2);
-    shape_infer(this, input_shapes, output_shapes);
+    const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this));
 
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
     set_output_type(1, m_index_element_type, output_shapes[1]);

@@ -60,8 +60,7 @@ TYPED_TEST_P(topk_type_prop, default_ctor_no_arguments) {
     const auto constant_map =
         std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i64, Shape{}, &k)}};
 
-    auto outputs = PartialShapes(2);
-    op::v1::shape_infer(op.get(), PartialShapes{data_shape, {}}, outputs, constant_map);
+    const auto outputs = op::v1::shape_infer(op.get(), PartialShapes{data_shape, {}}, constant_map);
 
     EXPECT_EQ(op->get_provided_axis(), exp_axis);
     EXPECT_EQ(op->get_axis(), exp_axis);
