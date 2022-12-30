@@ -88,5 +88,5 @@ Pipeline and model configuration features in OpenVINO Runtime allow you to easil
    
 ### <a name="additional-resources"></a>Additional Resources
 * [OpenVINO Success Stories](https://www.intel.com/content/www/us/en/internet-of-things/ai-in-production/success-stories.html) - See how Intel partners have successfully used OpenVINO in production applications to solve real-world problems.
-* OpenVINO Supported Models (coming soon!) - Check which models OpenVINO supports on your hardware
-* [Performance Benchmarks](./benchmarks/performance_benchmarks.md) - View results from benchmarking models with OpenVINO on Intel hardware
+* [OpenVINO Supported Models](./resources/supported_models.md) - Check which models OpenVINO supports on your hardware.
+* [Performance Benchmarks](./benchmarks/performance_benchmarks.md) - View results from benchmarking models with OpenVINO on Intel hardware.

@@ -100,7 +100,7 @@ void NmsStaticShapeIE<BaseNmsOp>::validate_and_infer_types() {
 
     // 'selected_outputs' have the following format:
     //      [number of selected boxes, [class_id, box_score, xmin, ymin, xmax, ymax]]
-    this->set_output_type(0, element::f32, {first_dim_shape, 6});
+    this->set_output_type(0, this->get_input_element_type(0), {first_dim_shape, 6});
     // 'selected_indices' have the following format:
     //      [number of selected boxes, 1]
     this->set_output_type(1, this->m_attrs.output_type, {first_dim_shape, 1});
