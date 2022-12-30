@@ -17,7 +17,7 @@ template <typename T>
 void shape_infer(const TopK* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes,
-                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
+                 const std::map<size_t, HostTensorPtr>& constant_data = {}) {
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 2 && output_shapes.size() == 2));
     const auto& input_shape = input_shapes[0];
     const auto input_rank = input_shape.rank();
@@ -50,7 +50,7 @@ void shape_infer(const TopK* op,
                                       " (got ",
                                       k_as_shape[0].get_max_length(),
                                       ").");
-                dim_axis = k_as_shape[0].get_length();
+                dim_axis = k_as_shape[0];
             } else {
                 // in this dynamic branch we are sure of dim_axis's type
                 const auto in_min = dim_axis.get_min_length();
@@ -68,9 +68,7 @@ void shape_infer(const TopK* op,
             dim_axis = Dimension(0, dim_axis.get_max_length());
         }
     }
-
-    output_shapes[0] = output_shape;
-    output_shapes[1] = output_shape;
+    std::fill(output_shapes.begin(), output_shapes.end(), output_shape);
 }  // namespace
 }  // namespace v1
 }  // namespace op

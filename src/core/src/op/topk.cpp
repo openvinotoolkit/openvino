@@ -7,6 +7,7 @@
 #include <memory>
 #include <topk_shape_inference.hpp>
 
+#include "dimension_tracker.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/axis_vector.hpp"
@@ -198,11 +199,10 @@ void op::v1::TopK::validate_and_infer_types() {
 
     set_axis(get_input_partial_shape(0).rank(), get_provided_axis());
 
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}, ov::PartialShape{}};
-    std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0), get_input_partial_shape(1)};
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    auto output_shapes = std::vector<PartialShape>(2);
     shape_infer(this, input_shapes, output_shapes);
 
-    set_output_size(2);
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
     set_output_type(1, m_index_element_type, output_shapes[1]);
 }
@@ -211,33 +211,18 @@ ov::Shape op::v1::TopK::compute_output_shape(const std::string& node_description
                                              const ov::PartialShape input_partial_shape,
                                              const int64_t k) const {
     ov::PartialShape output_shape{input_partial_shape};
-
-    auto normalized_axis = ngraph::normalize_axis(node_description, m_axis, output_shape.rank());
-    if (k != 0) {
-        output_shape[normalized_axis] = k;
-    } else {
-        output_shape[normalized_axis] = input_partial_shape[normalized_axis];
-    }
-
+    const auto normalized_axis = ngraph::normalize_axis(node_description, m_axis, output_shape.rank());
+    output_shape[normalized_axis] = (k != 0) ? k : input_partial_shape[normalized_axis];
     return output_shape.get_shape();
 }
 
 void op::v1::TopK::set_axis(const int64_t axis) {
-    const auto input_rank = get_input_partial_shape(0).rank();
-    if (input_rank.is_static()) {
-        m_normalized_axis = ngraph::normalize_axis(this, axis, input_rank);
-    } else {
-        m_normalized_axis = UNKNOWN_NORMALIZED_AXIS;
-    }
-    m_axis = axis;
+    set_axis(get_input_partial_shape(0).rank(), axis);
 }
 
 void op::v1::TopK::set_axis(const Rank& input_rank, const int64_t axis) {
-    if (input_rank.is_static()) {
-        m_normalized_axis = ngraph::normalize_axis(this, axis, input_rank);
-    } else {
-        m_normalized_axis = UNKNOWN_NORMALIZED_AXIS;
-    }
+    m_normalized_axis =
+        input_rank.is_static() ? ngraph::normalize_axis(this, axis, input_rank) : UNKNOWN_NORMALIZED_AXIS;
     m_axis = axis;
 }
 
@@ -401,6 +386,76 @@ bool op::v1::TopK::has_evaluate() const {
     }
 
     return true;
+}
+
+bool op::v1::TopK::evaluate_lower(const HostTensorVector& output_values) const {
+    OV_OP_SCOPE(v1_TopK_evaluate_lower);
+    return get_input_tensor(1).has_and_set_bound() && default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::v1::TopK::evaluate_upper(const HostTensorVector& output_values) const {
+    OV_OP_SCOPE(v1_TopK_evaluate_upper);
+    return get_input_tensor(1).has_and_set_bound() && default_upper_bound_evaluator(this, output_values);
+}
+
+bool op::v1::TopK::evaluate_label(TensorLabelVector& output_labels) const {
+    OPENVINO_ASSERT(output_labels.size() == get_output_size());
+
+    const auto& input_labels = get_input_tensor(0).get_value_label();
+
+    if (!has_no_labels(input_labels) && get_input_tensor(1).has_and_set_bound()) {
+        auto get_labels_by_idx = [this, &input_labels](const ov::Tensor& indicies) {
+            auto idxs = std::vector<uint64_t>();
+
+            switch (m_index_element_type) {
+            case element::i32:
+                idxs.insert(idxs.end(), indicies.data<int32_t>(), indicies.data<int32_t>() + indicies.get_size());
+                break;
+            case element::i64:
+                idxs.insert(idxs.end(), indicies.data<int64_t>(), indicies.data<int64_t>() + indicies.get_size());
+                break;
+            default:
+                OPENVINO_ASSERT(false, "Index element type has not supported type: ", m_index_element_type);
+            };
+
+            auto out = TensorLabel();
+            out.reserve(idxs.size());
+            for (const auto& i : idxs) {
+                out.emplace_back(input_labels[i]);
+            }
+            return out;
+        };
+
+        // get labels by top k indexes for lower and upper bound
+        ov::TensorVector lowers(get_output_size()), uppers(get_output_size());
+        auto lb_labels = evaluate_lower(lowers) ? get_labels_by_idx(lowers.back()) : ov::TensorLabel();
+        auto ub_labels = evaluate_upper(uppers) ? get_labels_by_idx(uppers.back()) : ov::TensorLabel();
+        // align sizes of labels
+        const auto common_size = std::max(lb_labels.size(), ub_labels.size());
+        lb_labels.resize(common_size, ov::no_label);
+        ub_labels.resize(common_size, ov::no_label);
+        // set labels for values output favorite the upper bound label
+        output_labels.front().resize(0);
+        std::transform(lb_labels.begin(),
+                       lb_labels.end(),
+                       ub_labels.begin(),
+                       std::back_inserter(output_labels.front()),
+                       [](size_t lb_label, size_t ub_label) {
+                           return (ub_label != ov::no_label) ? ub_label : lb_label;
+                       });
+        // set labels for indicies output only when labels for bounds are same
+        output_labels.back().resize(0);
+        std::transform(lb_labels.begin(),
+                       lb_labels.end(),
+                       ub_labels.begin(),
+                       std::back_inserter(output_labels.back()),
+                       [](size_t lb_label, size_t ub_label) {
+                           return (ub_label == lb_label) ? ub_label : ov::no_label;
+                       });
+        return true;
+    } else {
+        return false;
+    }
 }
 
 // v3 version starts
