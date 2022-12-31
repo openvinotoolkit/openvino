@@ -73,14 +73,6 @@ jobs:
           level: style
           reporter: github-pr-review
           check_all_files_with_shebangs: true
-          path: |
-            ./
-            ./scripts
-            ./samples/cpp
-            ./scripts/setupvars
-            ./scripts/install_dependencies
-            ./src/bindings/python/tests/test_onnx
-            ./src/bindings/python/tests_compatibility/test_onnx
           fail_on_error: true
 
   NamingConventionCheck:
