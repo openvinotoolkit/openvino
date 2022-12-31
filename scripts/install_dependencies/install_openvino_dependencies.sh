@@ -55,7 +55,13 @@ fi
 #  Selftest
 
 if [ -n "$selftest" ] ; then
-    for image in ubuntu:18.04 ubuntu:20.04 ubuntu:22.04 almalinux:8.7 redhat/ubi8 ; do
+    for image in centos7 centos8 rhel8 rhel9.1 \
+                 almalinux8.7 amzn2 \
+                 fedora34 fedora35 fedora36 fedora37 fedora38 \
+                 raspbian9 debian9 ubuntu18.04 \
+                 raspbian10 debian10 ubuntu20.04 ubuntu20.10 ubuntu21.04 \
+                 raspbian11 debian11 ubuntu21.10 ubuntu22.04 \
+                 raspbian12 debian12 ubuntu22.10 ; do
         for opt in  "-h" "-p" "-e -p" "-n" "-n -e" "-y" "-y -e" ; do
             echo "||"
             echo "|| Test $image / '$opt'"
@@ -334,7 +340,7 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
     [ -z "$interactive" ] && iopt="--assumeyes"
     [ -n "$dry" ] && iopt="--downloadonly"
     [ -n "$keepcache" ] && iopt="$iopt --setopt=keepcache=1"
-    [ ${#extra_repos[@]} -ne 0 ] && yum localinstall "$iopt" --nogpgcheck "${extra_repos[@]}"
+    [ -n "$extra" ] && [ ${#extra_repos[@]} -ne 0 ] && yum localinstall "$iopt" --nogpgcheck "${extra_repos[@]}"
 
     yum install "$iopt" "${pkgs[@]}"
 
