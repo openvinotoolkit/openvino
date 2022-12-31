@@ -126,7 +126,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     // after support for FP16 IR is implemented
     REGISTER_PASS(manager, ConvertCompressedOnlyToLegacy)
     // should be enabled manually only on plugins supporting mixed precision inference
-    manager.register_pass<ConvertCompressedToMixedPrecision, false>();
+    REGISTER_DISABLED_PASS(manager, ConvertCompressedToMixedPrecision);
 
     REGISTER_PASS(manager, MarkDividesInShapeSubgraphs)
     REGISTER_PASS(manager, WeightsDequantizeToFakeQuantize)
