@@ -2,18 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
 #include "include/batch_headers/fetch_data.cl"
 #include "include/unit_type.cl"
 
 // Kernel works only for sub_group size of 16 with 32 features slice size and process 2 features per WI
-#define REQD_SUB_GROUP_SIZE 16
+#define SUB_GROUP_SIZE 16
 #define REQD_FEATURE_SLICE_SIZE 32
 #define REQD_FEATURES_PER_WORK_ITEM 2
 
 //inputs_decls -> __global unit_type * input0, __global unit_type * input1
 
-__attribute__((intel_reqd_sub_group_size(REQD_SUB_GROUP_SIZE)))
+REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 KERNEL(eltwise_mixed_byxf_and_fs_b_yx_fsv32)(
     INPUTS_DECLS
     __global UNIT_TYPE* output)
