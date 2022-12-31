@@ -27,8 +27,8 @@ bool CTCLoss::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-CTCLoss::CTCLoss(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-                                     WeightsSharing::Ptr &cache) : Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+CTCLoss::CTCLoss(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv)
+    : Node(op, rtEnv, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

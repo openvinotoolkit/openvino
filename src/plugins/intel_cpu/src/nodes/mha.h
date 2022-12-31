@@ -127,7 +127,7 @@ struct jit_uni_convert_transpose_kernel {
 
 class MHA : public Node {
 public:
-    MHA(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    MHA(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;

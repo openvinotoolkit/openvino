@@ -49,8 +49,8 @@ bool Broadcast::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
     return true;
 }
 
-Broadcast::Broadcast(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache, NgraphShapeInferFactory(op, PortMask(TARGET_SHAPE_IDX, AXES_MAPPING_IDX))) {
+Broadcast::Broadcast(const std::shared_ptr<ov::Node>& op, RuntimeEnv::Ptr rtEnv)
+    : Node(op, rtEnv, NgraphShapeInferFactory(op, PortMask(TARGET_SHAPE_IDX, AXES_MAPPING_IDX))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

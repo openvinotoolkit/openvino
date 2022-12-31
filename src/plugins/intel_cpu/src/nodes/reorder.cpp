@@ -55,13 +55,13 @@ bool Reorder::isExecutable() const {
     return Node::isExecutable() && !isOptimized;
 }
 
-Reorder::Reorder(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &w_cache) :
-        Node(op, eng, w_cache, PassThroughShapeInferFactory()) {
+Reorder::Reorder(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv) :
+        Node(op, rtEnv, PassThroughShapeInferFactory()) {
     IE_THROW() << "Can't create reorder node from ngraph node";
 }
 
-Reorder::Reorder(const std::string& name, const dnnl::engine& eng, WeightsSharing::Ptr &w_cache) :
-        Node("Reorder", name, eng, w_cache) {}
+Reorder::Reorder(const std::string& name, RuntimeEnv::Ptr rtEnv) :
+        Node("Reorder", name, rtEnv) {}
 
 void Reorder::getSupportedDescriptors() {
     if (getParentEdges().size() != 1)

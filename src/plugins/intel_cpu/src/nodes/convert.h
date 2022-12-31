@@ -15,9 +15,9 @@ namespace node {
 
 class Convert : public Node {
 public:
-    Convert(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    Convert(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
     Convert(const Shape &shape, const InferenceEngine::Precision &inPrc, const InferenceEngine::Precision &outPrc,
-                      const std::string &nodeName, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+                      const std::string &nodeName, RuntimeEnv::Ptr rtEnv);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;

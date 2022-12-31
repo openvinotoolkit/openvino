@@ -17,7 +17,7 @@ namespace node {
 
 class ShuffleChannels : public Node {
 public:
-    ShuffleChannels(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    ShuffleChannels(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
     ~ShuffleChannels() override = default;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;

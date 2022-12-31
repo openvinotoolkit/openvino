@@ -21,7 +21,7 @@ enum class MulticlassNmsSortResultType {
 
 class MultiClassNms : public Node {
 public:
-    MultiClassNms(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr& cache);
+    MultiClassNms(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;

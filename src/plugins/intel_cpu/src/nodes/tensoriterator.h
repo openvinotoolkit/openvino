@@ -96,7 +96,7 @@ private:
 
 class TensorIterator : public Node {
 public:
-    TensorIterator(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    TensorIterator(const std::shared_ptr<ov::Node>& op, RuntimeEnv::Ptr rtEnv);
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void initSupportedPrimitiveDescriptors() override;
@@ -105,12 +105,6 @@ public:
     bool created() const override;
     void execute(dnnl::stream strm) override;
     bool isExecutable() const override { return true; }
-
-    void setExtManager(const ExtensionManager::Ptr& extMgr) { ext_mng = extMgr; }
-
-    std::vector<Graph *> getSubGraphs() override {
-        return {&sub_graph};
-    }
 
 protected:
     //  needShapeInfer() should return false

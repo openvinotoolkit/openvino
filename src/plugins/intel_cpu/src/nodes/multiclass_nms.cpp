@@ -42,8 +42,8 @@ bool MultiClassNms::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
     return true;
 }
 
-MultiClassNms::MultiClassNms(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr& cache)
-    : Node(op, eng, cache, InternalDynShapeInferFactory()) {
+MultiClassNms::MultiClassNms(const std::shared_ptr<ov::Node>& op, RuntimeEnv::Ptr rtEnv)
+    : Node(op, rtEnv, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

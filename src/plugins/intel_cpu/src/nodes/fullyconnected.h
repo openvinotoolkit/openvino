@@ -17,7 +17,7 @@ namespace node {
 
 class FullyConnected : public Node {
 public:
-    FullyConnected(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    FullyConnected(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
 
     std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape &dims) const override;
     void getSupportedDescriptors() override;

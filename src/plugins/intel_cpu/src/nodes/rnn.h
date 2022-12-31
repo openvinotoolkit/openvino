@@ -17,7 +17,7 @@ namespace node {
 
 class RNN : public Node {
 public:
-    RNN(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    RNN(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     static bool isCell(const std::shared_ptr<const ngraph::Node>& op);

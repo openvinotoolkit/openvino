@@ -110,8 +110,8 @@ bool MatMul::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
     return true;
 }
 
-MatMul::MatMul(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-    Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)), withBiases(false) {
+MatMul::MatMul(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv) :
+    Node(op, rtEnv, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)), withBiases(false) {
     std::string errorMessage;
     errorPrefix = "MatMul node with name '" + getName() + "'";
 

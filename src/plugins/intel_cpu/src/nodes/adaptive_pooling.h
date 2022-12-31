@@ -16,7 +16,7 @@ namespace node {
 
 class AdaptivePooling : public Node {
 public:
-  AdaptivePooling(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    AdaptivePooling(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;

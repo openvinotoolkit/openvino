@@ -102,7 +102,7 @@ public:
     static constexpr int CUBIC_GRID_LEN = 4;
 
 public:
-    Interpolate(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    Interpolate(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;

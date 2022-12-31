@@ -118,7 +118,6 @@ ExecNetwork::ExecNetwork(const InferenceEngine::CNNNetwork &network,
     } else {
         _callbackExecutor = _taskExecutor;
     }
-
     int streams = std::max(1, _cfg.streamExecutorConfig._streams);
     std::vector<Task> tasks; tasks.resize(streams);
     _graphs.resize(streams);
@@ -177,12 +176,18 @@ ExecNetwork::GraphGuard::Lock ExecNetwork::GetGraph() const {
         std::exception_ptr exception;
         auto makeGraph = [&] {
             try {
+                RuntimeEnv::Ptr rtenv;
                 {
                     std::lock_guard<std::mutex> lock{*_mutex.get()};
-                    graphLock._graph.setConfig(_cfg);
+                    rtenv = std::make_shared<RuntimeEnv>(_cfg,
+                                                         extensionManager,
+                                                         _numaNodesWeights[numaNodeId],
+                                                         _mutex,
+                                                         streamId,
+                                                         numaNodeId);
                 }
-                graphLock._graph.CreateGraph(_network, extensionManager, _numaNodesWeights[numaNodeId], _mutex);
-            } catch(...) {
+                graphLock._graph.CreateGraph(_network, rtenv);
+            } catch (...) {
                 exception = std::current_exception();
             }
         };

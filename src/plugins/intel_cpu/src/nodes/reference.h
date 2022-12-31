@@ -12,7 +12,7 @@ namespace node {
 
 class Reference : public Node {
 public:
-    Reference(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache, const std::string& errorMessage);
+    Reference(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv, const std::string& errorMessage);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;

@@ -37,6 +37,7 @@
 #include "utils/debug_capabilities.h"
 
 #include "dnnl_postops_composer.h"
+#include "runtime_env.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -575,22 +576,6 @@ public:
     virtual void appendPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::unordered_map<int, MemoryPtr>& postOpsMem, const int channelAxis = 1);
     virtual void appendPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis = 1);
 
-    void setRuntimeCache(MultiCachePtr cache) {
-        rtParamsCache = cache;
-    }
-
-    void setRuntimeScratchPad(DnnlScratchPadPtr scratchPad) {
-        rtScratchPad = scratchPad;
-    }
-
-    void setSharedMutex(const std::shared_ptr<std::mutex>& mutex) {
-        sharedMutex = mutex;
-    }
-
-    virtual std::vector<Graph *> getSubGraphs() {
-        return {};
-    }
-
 protected:
     bool canFuseSimpleOperation(const NodePtr& node) const;
 
@@ -624,8 +609,8 @@ protected:
 
     std::string originalLayers;  // contains names of the original layers separated by comma
 
-    Node(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &w_cache, const ShapeInferFactory& shapeInferFactory);
-    Node(const std::string& type, const std::string& name, const dnnl::engine& eng, WeightsSharing::Ptr &w_cache);
+    Node(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr runtime_env, const ShapeInferFactory& shapeInferFactory);
+    Node(const std::string& type, const std::string& name, RuntimeEnv::Ptr runtime_env);
 
     int selectedPrimitiveDescriptorIndex = -1;
     bool permanent = false;
@@ -651,6 +636,7 @@ protected:
     Primitive prim;
     std::vector<DnnlDesriptor> descs;
 
+    RuntimeEnv::Ptr rtEnv;
     WeightsSharing::Ptr weightCache;
 
     Algorithm algorithm = Algorithm::Default;
@@ -722,11 +708,11 @@ protected:
     }
 
     MultiCachePtr getRuntimeCache() const {
-        return rtParamsCache;
+        return rtEnv->rtParamsCache;
     }
 
     DnnlScratchPadPtr getRuntimeScratchPad() const {
-        return rtScratchPad;
+        return rtEnv->rtScratchPad;
     }
 
     MemoryPtr getScratchPadMem(const const_dnnl_primitive_desc_t& pd) {
@@ -739,8 +725,6 @@ protected:
 
     std::shared_ptr<IShapeInfer> shapeInference;
 
-    std::shared_ptr<std::mutex> sharedMutex = nullptr;
-
 private:
     std::vector<EdgeWeakPtr> parentEdges;
     std::vector<EdgeWeakPtr> childEdges;
@@ -750,7 +734,7 @@ private:
 
     int fusingPort;
 
-    dnnl::engine engine;
+    const dnnl::engine engine;
 
     std::string name;
     std::string typeStr;
@@ -762,8 +746,6 @@ private:
     PerfCount perfCounter;
     PerfCounters profiling;
 
-    MultiCachePtr rtParamsCache;
-    DnnlScratchPadPtr rtScratchPad;
     MemoryPtr scratchpadMem;
 
     bool isEdgesEmpty(const std::vector<EdgeWeakPtr>& edges) const;
@@ -802,19 +784,17 @@ constexpr uint64_t PortMask(int n, T... rest) {
 
 class Node::NodesFactory : public openvino::cc::Factory<Type,
                                             Node*(const std::shared_ptr<ngraph::Node>& op,
-                                                  const dnnl::engine &,
-                                                  WeightsSharing::Ptr &)> {
+                                                  RuntimeEnv::Ptr)> {
 public:
     NodesFactory();
 
-    Node* create(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-                 const ExtensionManager::Ptr& extMgr, WeightsSharing::Ptr &w_cache);
+    Node* create(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
 };
 
 template<typename NodeType>
 struct NodeImpl : public NodeType {
-    NodeImpl(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : NodeType(op, eng, cache) {
+    NodeImpl(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv)
+        : NodeType(op, rtEnv) {
         NodeType::perfCounters().template buildClassCounters<NodeType>(NameFromType(NodeType::getType()));
     }
 };

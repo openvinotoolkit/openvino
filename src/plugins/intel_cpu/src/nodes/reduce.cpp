@@ -1738,8 +1738,8 @@ bool Reduce::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
     return true;
 }
 
-Reduce::Reduce(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache, NgraphShapeInferFactory(op, PortMask(REDUCE_INDEXES))) {
+Reduce::Reduce(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv)
+        : Node(op, rtEnv, NgraphShapeInferFactory(op, PortMask(REDUCE_INDEXES))) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Reduce node with name '" + getName() + "'";

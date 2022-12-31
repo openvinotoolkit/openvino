@@ -75,7 +75,7 @@ struct RDFTExecutor {
 
 class RDFT : public Node {
 public:
-    RDFT(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    RDFT(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;

@@ -9,6 +9,7 @@
 
 #include "graph.h"
 #include "extension_mngr.h"
+#include "runtime_env.h"
 #include <threading/ie_thread_local.hpp>
 
 #include <vector>

@@ -17,7 +17,7 @@ namespace node {
 
 class GridSample : public Node {
 public:
-    GridSample(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    GridSample(const std::shared_ptr<ov::Node>& op, RuntimeEnv::Ptr rtEnv);
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
     void getSupportedDescriptors() override {};

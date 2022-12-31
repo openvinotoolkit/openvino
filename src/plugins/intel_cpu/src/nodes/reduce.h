@@ -85,7 +85,7 @@ struct jit_uni_reduce_post_kernel {
 
 class Reduce : public Node {
 public:
-    Reduce(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    Reduce(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;

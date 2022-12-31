@@ -67,7 +67,7 @@ struct jit_uni_roi_align_kernel {
 
 class ROIAlign : public Node {
 public:
-    ROIAlign(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    ROIAlign(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;

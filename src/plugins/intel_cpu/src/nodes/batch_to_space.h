@@ -16,7 +16,7 @@ namespace node {
 
 class BatchToSpace : public Node {
 public:
-    BatchToSpace(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    BatchToSpace(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;

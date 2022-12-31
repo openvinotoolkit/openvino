@@ -14,7 +14,7 @@ namespace node {
 
 class DetectionOutput : public Node {
 public:
-    DetectionOutput(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    DetectionOutput(const std::shared_ptr<ov::Node>& op, RuntimeEnv::Ptr rtEnv);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;

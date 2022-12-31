@@ -22,7 +22,7 @@ enum class ScatterUpdateMode {
 
 class ScatterUpdate : public Node {
 public:
-    ScatterUpdate(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    ScatterUpdate(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;

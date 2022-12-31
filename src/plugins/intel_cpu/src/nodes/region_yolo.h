@@ -41,7 +41,7 @@ struct jit_uni_logistic_kernel {
 
 class RegionYolo : public Node {
 public:
-    RegionYolo(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    RegionYolo(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;

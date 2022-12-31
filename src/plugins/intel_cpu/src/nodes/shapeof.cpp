@@ -55,8 +55,8 @@ bool ShapeOf::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-ShapeOf::ShapeOf(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-                                     WeightsSharing::Ptr &cache) : Node(op, eng, cache, ShapeOfShapeInferFactory()) {
+ShapeOf::ShapeOf(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv)
+    : Node(op, rtEnv, ShapeOfShapeInferFactory()) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "ShapeOf layer with name '" + getName() + "' ";

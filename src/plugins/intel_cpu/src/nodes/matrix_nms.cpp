@@ -48,8 +48,8 @@ bool MatrixNms::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& 
     return true;
 }
 
-MatrixNms::MatrixNms(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr& cache)
-    : Node(op, eng, cache, InternalDynShapeInferFactory()) {
+MatrixNms::MatrixNms(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv)
+    : Node(op, rtEnv, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

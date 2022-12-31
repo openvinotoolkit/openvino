@@ -16,7 +16,7 @@ namespace node {
 
 class Unique : public Node {
 public:
-    Unique(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    Unique(const std::shared_ptr<ov::Node>& op, RuntimeEnv::Ptr rtEnv);
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
     void getSupportedDescriptors() override {};

@@ -14,7 +14,7 @@ namespace node {
 
 class Tile : public Node, public TileBroadcastCommon {
 public:
-    Tile(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    Tile(const std::shared_ptr<ov::Node>& op, RuntimeEnv::Ptr rtEnv);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
