@@ -74,6 +74,9 @@ jobs:
           reporter: github-pr-review
           check_all_files_with_shebangs: true
           fail_on_error: true
+          exclude: |
+              "*/thirdparty/*"
+              "./temp/*"
 
   NamingConventionCheck:
     runs-on: ubuntu-22.04
