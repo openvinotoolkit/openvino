@@ -134,9 +134,8 @@ public:
     std::vector<T> get_output_values(const primitive_id& id, size_t max_cnt = std::numeric_limits<size_t>::max()) {
         std::vector<T> ret;
         auto ptr = get_output_memory(id);
-        if (ptr->get_layout().data_type != type_to_data_type<T>::value) {
-            std::cout << "WARNING: datatype mismatch with T" << std::endl;
-        }
+        if (ptr->get_layout().data_type != type_to_data_type<T>::value)
+            IE_THROW() << "WARNING: datatype mismatch with T";
         mem_lock<T, mem_lock_type::read> mem(ptr, get_stream());
         for (size_t i = 0; i < std::min(max_cnt, mem.size()); i++)
             ret.push_back(mem[i]);
