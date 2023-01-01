@@ -526,7 +526,7 @@ def parse_scale_or_mean(parameter_string, input_info):
         if matches:
             for match in matches:
                 input_name, value = match
-                f_value = np.array(value.split(",")).astype(np.float)
+                f_value = np.array(value.split(",")).astype(float)
                 if input_name != '':
                     return_value[input_name] = f_value
                 else:

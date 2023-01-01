@@ -3,13 +3,13 @@
 //
 
 #define GET_COL_8( _block, _col )                               \
-        (float8)( intel_sub_group_shuffle( _block, _col ));
+        (float8)( _sub_group_shuffle( _block, _col ));
 
 #define GET_COL_2( _block, _col )                               \
-        (float2)( intel_sub_group_shuffle( _block, _col ));
+        (float2)( _sub_group_shuffle( _block, _col ));
 
 #define GET_COL_4( _block, _col )                               \
-        (float4)( intel_sub_group_shuffle( _block, _col ));
+        (float4)( _sub_group_shuffle( _block, _col ));
 
 #define DOT4i( _result, _A, _B, i)					\
     {									\
@@ -172,7 +172,7 @@
     if (row_ < max_row) {                                               \
         const float2 vec = (float2)(block0_.s ## row_,                  \
                                     block1_.s ## row_);                 \
-        intel_sub_group_block_write2((__global uint*)&ptr_[N*row_], as_uint2(vec)); \
+        _sub_group_block_write2((__global uint*)&ptr_[N*row_], as_uint2(vec)); \
     }
 
 #define WRITE_BLOCK_4(ptr_, block0_, block1_, block2_, block3_, row_)   \
@@ -181,5 +181,5 @@
                                     block1_.s ## row_,                  \
                                     block2_.s ## row_,                  \
                                     block3_.s ## row_);                 \
-        intel_sub_group_block_write4((__global uint*)&ptr_[N*row_], as_uint4(vec)); \
+        _sub_group_block_write4((__global uint*)&ptr_[N*row_], as_uint4(vec)); \
     }

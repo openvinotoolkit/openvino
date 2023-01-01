@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
 #include "include/batch_headers/fetch_data.cl"
-#include "include/imad.cl"
-
-#define CEIL_DIV(x, y) (1 + ((x) - 1) / (y))
+#include "include/batch_headers/imad.cl"
 
 #ifdef ACCUMULATOR_TYPE
 #undef ACCUMULATOR_TYPE
@@ -27,14 +26,14 @@
     #define TO_ACCUMULATOR_TYPE_VEC(x) convert_int8(x)
     #define ACTIVATION_TYPE_VEC float8
     #define TO_ACTIVATION_TYPE_VEC(x) convert_float8(x)
-    #define BLOCK_WRITE(ptr, val) intel_sub_group_block_write_us8((__global ushort*)(ptr), as_ushort8(val));
+    #define BLOCK_WRITE(ptr, val) _sub_group_block_write_us8((__global ushort*)(ptr), as_ushort8(val));
 #elif OUTPUT_X_BLOCK_SIZE == 4
     #define PACKED_TYPE_VEC MAKE_VECTOR_TYPE(PACKED_IN_TYPE, 4)
     #define ACCUMULATOR_TYPE_VEC int4
     #define TO_ACCUMULATOR_TYPE_VEC(x) convert_int4(x)
     #define ACTIVATION_TYPE_VEC float4
     #define TO_ACTIVATION_TYPE_VEC(x) convert_float4(x)
-    #define BLOCK_WRITE(ptr, val) intel_sub_group_block_write_us4((__global ushort*)(ptr), as_ushort4(val));
+    #define BLOCK_WRITE(ptr, val) _sub_group_block_write_us4((__global ushort*)(ptr), as_ushort4(val));
 #else
 #error "convolution_gpu_mmad_bfyx_to_b_fs_yx_fsv4: Unsupported block size"
 #endif
@@ -43,7 +42,7 @@
 #define AS_TYPE_N(type, n, x) AS_TYPE_N_(type, n, x)
 #define AS_INPUT0_TYPE_4(x) AS_TYPE_N(INPUT0_TYPE, 4, x)
 
-__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
+REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 KERNEL(convolution_mmad_bfyx_b_fs_yx_fsv32)(
     __global INPUT0_TYPE* input,
     __global PACKED_OUT_TYPE* output,
@@ -129,8 +128,8 @@ KERNEL(convolution_mmad_bfyx_b_fs_yx_fsv32)(
                              + kh * OSV * 4 * FILTER_SIZE_X
                              + kw * OSV * 4;
 
-            int weights_data0 = as_int(intel_sub_group_block_read((const __global uint*)(weights + f_off)));
-            int weights_data1 = as_int(intel_sub_group_block_read((const __global uint*)(weights + f_off + 16*4)));
+            int weights_data0 = as_int(_sub_group_block_read((const __global uint*)(weights + f_off)));
+            int weights_data1 = as_int(_sub_group_block_read((const __global uint*)(weights + f_off + 16*4)));
 
             PACKED_TYPE_VEC src;
 
@@ -223,7 +222,6 @@ KERNEL(convolution_mmad_bfyx_b_fs_yx_fsv32)(
 #endif  // OUTPUT_IS_FP
 }
 
-#undef CEIL_DIV
 #undef PACKED_TYPE_VEC
 #undef ACCUMULATOR_TYPE_VEC
 #undef TO_ACCUMULATOR_TYPE_VEC

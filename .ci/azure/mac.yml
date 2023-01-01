@@ -124,7 +124,6 @@ jobs:
       export CXX=g++
       cmake -GNinja \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
-        -DENABLE_REQUIREMENTS_INSTALL=OFF \
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
         -DENABLE_PYTHON=ON \
