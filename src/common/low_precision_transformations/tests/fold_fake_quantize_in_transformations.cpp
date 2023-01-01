@@ -207,23 +207,31 @@ const std::vector<FoldFakeQuantizeInTransformationsTestValues> testValues = {
         LayerTransformation::createParamsU8I8(),
         true,
         false,
-        {
-            {
-                // use empty constValues for data independent const folding
-            },
-            ngraph::element::u8,
-            { 256ul, {}, { 0.f }, { 255.f }, { 127.f }, { 127.f } },
-            ngraph::element::i8
-        },
-        {
-            {
-                127, 127, 127, 127,
-                127, 127, 127, 127,
-                127, 127, 127, 127,
-                127, 127, 127, 127,
-            },
-            ngraph::element::i8
-        },
+        {{
+             // use empty constValues for data independent const folding
+         },
+         ngraph::element::u8,
+         {256ul, {}, {0.f}, {255.f}, {127.f}, {127.f}},
+         ngraph::element::i8},
+        {{
+             127,
+             127,
+             127,
+             127,
+             127,
+             127,
+             127,
+             127,
+             127,
+             127,
+             127,
+             127,
+             127,
+             127,
+             127,
+             127,
+         },
+         ngraph::element::i8},
     },
 };
 
