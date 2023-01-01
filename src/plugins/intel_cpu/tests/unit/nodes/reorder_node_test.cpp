@@ -108,11 +108,15 @@ class ReorderCPUTestGraph {
 public:
     void buildReorderGraph(const ov::intel_cpu::CpuBlockedMemoryDesc& inputDesc,
                     const ov::intel_cpu::CpuBlockedMemoryDesc& outputDesc) {
-        const dnnl::engine cpuEngine = {dnnl::engine::kind::cpu, 0};
-        ov::intel_cpu::WeightsSharing::Ptr weightsCache;
         Config conf;
         conf.rtCacheCapacity = 100;
-        auto rtEnv = std::make_shared<RuntimeEnv>(conf, nullptr, weightsCache, std::make_shared<std::mutex>(), 0, 0);
+        auto rtEnv = std::make_shared<RuntimeEnv>(conf,
+                                                  nullptr,
+                                                  std::make_shared<WeightsSharing>(),
+                                                  std::make_shared<std::mutex>(),
+                                                  0,
+                                                  0);
+        const dnnl::engine cpuEngine = rtEnv->eng;
 
         inputNode = std::make_shared<ov::intel_cpu::node::Input>(inputDesc.clone(),
                                                                       "Reorder_Input",
