@@ -22,8 +22,6 @@ class CsvDumper {
     std::string filename;
     bool canDump = true;
     char delimiter = ';';
-    std::ios::fmtflags fmt;
-    std::streamsize prec;
 
     std::string generateFilename() {
         std::stringstream filename;
@@ -40,7 +38,7 @@ public:
      * @param name - name of file to dump to. File won't be created if first parameter is false.
      * @param precision - floating point numbers' decimal places to print.
      */
-    explicit CsvDumper(bool enabled = true, const std::string& name = "", const int precision = 6) : canDump(enabled) {
+    explicit CsvDumper(bool enabled = true, const std::string& name = "", const int precision = 3) : canDump(enabled) {
         if (!canDump) {
             return;
         }
@@ -50,8 +48,6 @@ public:
             slog::warn << "Cannot create dump file! Disabling dump." << slog::endl;
             canDump = false;
         } else {
-            fmt = std::ios::fmtflags(std::cout.flags());
-            prec = file.precision();
             setPrecision(precision);
         }
     }
@@ -74,13 +70,6 @@ public:
         if (canDump) {
             file.precision(precision);
             file.setf(std::ios::fixed);
-        }
-    }
-
-    void resetPrecision() {
-        if (canDump) {
-            file.setf(fmt);
-            file.precision(prec);
         }
     }
 
