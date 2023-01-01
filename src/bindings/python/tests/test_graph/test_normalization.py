@@ -4,6 +4,7 @@
 
 import numpy as np
 
+from openvino.runtime import Type
 import openvino.runtime.opset8 as ov
 
 
@@ -15,12 +16,14 @@ def test_lrn():
     assert model.get_type_name() == "LRN"
     assert model.get_output_size() == 1
     assert list(model.get_output_shape(0)) == [2, 3, 2, 1]
+    assert model.get_output_element_type(0) == Type.f32
 
     # Test LRN default parameter values
     model = ov.lrn(ov.constant(input_image), ov.constant(axes))
     assert model.get_type_name() == "LRN"
     assert model.get_output_size() == 1
     assert list(model.get_output_shape(0)) == [2, 3, 2, 1]
+    assert model.get_output_element_type(0) == Type.f32
 
 
 def test_lrn_factory():
@@ -30,12 +33,12 @@ def test_lrn_factory():
     nsize = 3
     axis = np.array([1], dtype=np.int32)
     inputs = ov.parameter((1, 2, 3, 4), name="inputs", dtype=np.float32)
-    expected_shape = [1, 2, 3, 4]
 
     node = ov.lrn(inputs, axis, alpha, beta, bias, nsize)
     assert node.get_type_name() == "LRN"
     assert node.get_output_size() == 1
-    assert list(node.get_output_shape(0)) == expected_shape
+    assert list(node.get_output_shape(0)) == [1, 2, 3, 4]
+    assert node.get_output_element_type(0) == Type.f32
 
 
 def test_batch_norm():
@@ -45,12 +48,12 @@ def test_batch_norm():
     mean = ov.parameter((3,), name="mean", dtype=np.float32)
     variance = ov.parameter((3,), name="variance", dtype=np.float32)
     epsilon = 9.99e-06
-    expected_shape = [2, 3]
 
     node = ov.batch_norm_inference(data, gamma, beta, mean, variance, epsilon)
     assert node.get_type_name() == "BatchNormInference"
     assert node.get_output_size() == 1
-    assert list(node.get_output_shape(0)) == expected_shape
+    assert list(node.get_output_shape(0)) == [2, 3]
+    assert node.get_output_element_type(0) == Type.f32
 
 
 def test_mvn_no_variance():
@@ -59,13 +62,13 @@ def test_mvn_no_variance():
     epsilon = 1e-9
     normalize_variance = False
     eps_mode = "outside_sqrt"
-    expected_shape = [1, 3, 3, 3]
 
     node = ov.mvn(data, axes, normalize_variance, epsilon, eps_mode)
 
     assert node.get_type_name() == "MVN"
     assert node.get_output_size() == 1
-    assert list(node.get_output_shape(0)) == expected_shape
+    assert list(node.get_output_shape(0)) == [1, 3, 3, 3]
+    assert node.get_output_element_type(0) == Type.f32
 
 
 def test_mvn():
@@ -74,10 +77,10 @@ def test_mvn():
     epsilon = 1e-9
     normalize_variance = True
     eps_mode = "outside_sqrt"
-    expected_shape = [1, 3, 3, 3]
 
     node = ov.mvn(data, axes, normalize_variance, epsilon, eps_mode)
 
     assert node.get_type_name() == "MVN"
     assert node.get_output_size() == 1
-    assert list(node.get_output_shape(0)) == expected_shape
+    assert list(node.get_output_shape(0)) == [1, 3, 3, 3]
+    assert node.get_output_element_type(0) == Type.f32

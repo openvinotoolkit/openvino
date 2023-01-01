@@ -684,7 +684,7 @@ struct RDFTJitExecutor : public RDFTExecutor {
     std::vector<float> generateTwiddlesDFT(size_t inputSize, size_t outputSize, enum dft_type type) override {
         std::vector<float> twiddles(inputSize * outputSize * 2);
         int simdSize = vlen / sizeof(float);
-        if (type == real_to_complex || type == complex_to_complex) {
+        if (type == real_to_complex) {
             simdSize /= 2; // there are two floats per one complex element in the output
         }
 
@@ -702,7 +702,7 @@ struct RDFTJitExecutor : public RDFTExecutor {
                 }
                 for (size_t k = 0; k < simdSize; k++) {
                     double angle = 2 * PI * (K * simdSize + k) * n / inputSize;
-                    twiddles[((K * inputSize + n) * 2 + 1) * simdSize + k] = -std::sin(angle);
+                    twiddles[((K * inputSize + n) * 2 + 1) * simdSize + k] = isInverse ? std::sin(angle) : -std::sin(angle);
                 }
             }
         });
@@ -712,7 +712,7 @@ struct RDFTJitExecutor : public RDFTExecutor {
                 k += start;
                 double angle = 2 * PI * k * n / inputSize;
                 twiddles[2 * (k * inputSize + n)] = std::cos(angle);
-                twiddles[2 * (k * inputSize + n) + 1] = -std::sin(angle);
+                twiddles[2 * (k * inputSize + n) + 1] = isInverse ? std::sin(angle) : -std::sin(angle);
             });
         }
         return twiddles;

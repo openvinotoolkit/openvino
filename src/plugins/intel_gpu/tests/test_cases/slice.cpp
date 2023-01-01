@@ -51,8 +51,8 @@ public:
 
         auto outputs = network.execute();
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "slice");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "slice");
 
         auto output = outputs.at("slice").get_memory();
 
@@ -60,7 +60,7 @@ public:
 
         ASSERT_EQ(output_ptr.size(), expected_output_.size());
         for (size_t i = 0; i < output_ptr.size(); ++i)
-            EXPECT_TRUE(are_equal(expected_output_[i], output_ptr[i], 2e-3));
+            ASSERT_TRUE(are_equal(expected_output_[i], output_ptr[i], 2e-3));
     }
 
     data_types DataType() const;

@@ -418,7 +418,7 @@ public:
             }
         }
 
-        IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
+        IE_THROW() << "Primitive descriptor was not found for node " << getName() << " with type " << NameFromType(getType()) << ".";
     }
 
     int getExecIndex() const {

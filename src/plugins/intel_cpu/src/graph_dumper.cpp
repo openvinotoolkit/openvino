@@ -210,7 +210,7 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const Graph &graph
 
 #ifdef CPU_DEBUG_CAPS
 void serialize(const Graph &graph) {
-    const std::string& path = graph.getProperty().execGraphPath;
+    const std::string& path = graph.getProperty().debugCaps.execGraphPath;
 
     if (path.empty())
         return;
@@ -257,7 +257,7 @@ void serializeToCout(const Graph &graph) {
 }
 
 void summary_perf(const Graph &graph) {
-    const std::string& summaryPerf = graph.getProperty().summaryPerf;
+    const std::string& summaryPerf = graph.getProperty().debugCaps.summaryPerf;
 
     if (summaryPerf.empty())
         return;
