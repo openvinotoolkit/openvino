@@ -35,10 +35,10 @@ std::shared_ptr<Convolution> create_conv(Output<Node> input, Output<Node> weight
 
 std::shared_ptr<Constant> create_weights(const Shape& weigts_shape) {
     std::vector<float> values(ov::shape_size(weigts_shape));
-    float cur_value = 0.01;
+    float cur_value = 0.01f;
     for (auto& value : values) {
         value = cur_value;
-        cur_value += 0.01;
+        cur_value += 0.01f;
     }
     return Constant::create(element::f32, weigts_shape, values);
 }
@@ -751,7 +751,7 @@ TEST_F(TransformationTestsF, FuseScaleValue) {
         using namespace ov::preprocess;
         PrePostProcessor p(function);
         p.input(0).tensor().set_layout("NHWC");
-        p.input(0).preprocess().scale(1.3);
+        p.input(0).preprocess().scale(1.3f);
         p.build();
 
         manager.register_pass<pass::MOCTransformations>(false);
@@ -780,7 +780,7 @@ TEST_F(TransformationTestsF, FuseScaleValues) {
         using namespace ov::preprocess;
         PrePostProcessor p(function);
         p.input(0).tensor().set_layout("NHWC");
-        p.input(0).preprocess().scale({1.3, 0.2, 4.1});
+        p.input(0).preprocess().scale({1.3f, 0.2f, 4.1f});
         p.build();
 
         manager.register_pass<pass::MOCTransformations>(false);

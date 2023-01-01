@@ -91,3 +91,26 @@ TEST_F(TransformationTestsF, AssertAndStringTensors) {
         model_ref = make_shared<Model>(OutputVector{select}, ParameterVector{x, y});
     }
 }
+
+TEST_F(TransformationTestsF, UnsortedNodes) {
+    { model = convert_model("forward_edge_model_unsorted/forward_edge_model_unsorted.pb"); }
+    { model_ref = convert_model("forward_edge_model/forward_edge_model.pb"); }
+}
+
+TEST_F(TransformationTestsF, ModelWithSwishF32BodyGraph) {
+    {
+        model = convert_model("swish_f32/swish_f32.pb");
+        // need to call shape inference since body graphs can be injected with undefined shapes
+        model->validate_nodes_and_infer_types();
+    }
+    {
+        auto x = make_shared<Parameter>(f32, Shape{1, 112, 112, 32});
+        auto const_add = make_shared<Constant>(f32, Shape{}, std::vector<float>{2});
+        auto add = make_shared<Add>(x, const_add);
+        auto sigmoid = make_shared<Sigmoid>(add);
+        auto mul = make_shared<Multiply>(add, sigmoid);
+        auto sigmoid2 = make_shared<Sigmoid>(mul);
+
+        model_ref = make_shared<Model>(OutputVector{sigmoid2}, ParameterVector{x});
+    }
+}

@@ -314,9 +314,6 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Program::BuildProgram");
     cldnn::build_options options;
 
-    if (!m_config.graph_dumps_dir.empty()) {
-        options.set_option(cldnn::build_option::graph_dumps_dir(m_config.graph_dumps_dir));
-    }
     for (const auto& op : ops) {
         if (op->is_dynamic()) {
             allow_new_shape_infer = true;
@@ -326,7 +323,6 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
 
     options.set_option(cldnn::build_option::allow_new_shape_infer(allow_new_shape_infer));
     options.set_option(cldnn::build_option::optimize_data(true));
-    options.set_option(cldnn::build_option::tuning_config(m_config.tuningConfig));
     if (partialBuild) {
         options.set_option(cldnn::build_option::partial_build_program(true));
     }
@@ -379,11 +375,8 @@ bool Program::IsOpSupported(const InferenceEngine::CNNNetwork& network, const st
 
 void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, const std::shared_ptr<ngraph::Node>& op) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Program::CreateSingleLayerPrimitive");
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->verbose >= 2) {
-        GPU_DEBUG_COUT << "Process " << "op::v" << op->get_type_info().version << "::" << op->get_type_name() << " operation "
-                       << "(friendly_name=" << op->get_friendly_name() << ")" << std::endl;
-    }
+    GPU_DEBUG_LOG << "Process " << "op::v" << op->get_type_info().version << "::" << op->get_type_name() << " operation "
+                  << "(friendly_name=" << op->get_friendly_name() << ")" << std::endl;
 
     bool is_created = false;
     const ngraph::NodeTypeInfo* op_type_info = &op->get_type_info();

@@ -40,6 +40,7 @@
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
+#include "transformations/common_optimizations/convert_compressed_to_mixed_precision.hpp"
 #include <transformations/common_optimizations/wrap_interpolate_into_transposes.hpp>
 #include <transformations/common_optimizations/transpose_sinking.hpp>
 
@@ -235,7 +236,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         auto pass_config = manager.get_pass_config();
         pass_config->disable<ov::pass::EyeDecomposition>();
-        pass_config->enable<ov::pass::ConvertCompressedOnlyToLegacy>();
+
+        // disable conversion to legacy and use the new mixed precision
+        // in which precision sensitive nodes are kept in FP32
+        pass_config->disable<ov::pass::ConvertCompressedOnlyToLegacy>();
+        pass_config->enable<ov::pass::ConvertCompressedToMixedPrecision>();
 
         // SpaceToDepth/DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
         pass_config->set_callback<ngraph::pass::ConvertSpaceToDepth,
@@ -423,14 +428,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     if (enableInt8) {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply::lpt");
         using namespace ngraph::pass::low_precision;
-
-        // Conversion to FP32 might be needed for quantized models that face any fp16 related issues (e.g. overflow) for non-quantized layers
-        // With this key users can work-around such issues
-        if (!config.enable_fp16_for_quantized_models) {
-            ngraph::pass::Manager manager;
-            manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::f16, ngraph::element::f32 }});
-            manager.run_passes(func);
-        }
 
         auto supportedPrecisions = std::vector<PrecisionsRestriction>({
             PrecisionsRestriction::create<ngraph::opset1::Convolution>({
