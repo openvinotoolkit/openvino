@@ -43,11 +43,11 @@ const std::vector<FakeQuantizeTransformationParam> fakeQuantizeOnDataValues = {
         { 256ul, {}, { 0.f }, { 2.55f }, { -1.28f }, { 1.27f } },
         "Pooling", "I8"
     },
-    // nGraph: dot interval FQ node is being const-folded
-    //{
-    //    { 256ul, {}, { 0.f }, { 2.55f }, { 2.55f }, { 2.55f } },
-    //    "Pooling", "U8"
-    //},
+    // nGraph: dot interval FQ node is being const-folded, so does Pooling
+    {
+        { 256ul, {}, { 0.f }, { 2.55f }, { 2.55f }, { 2.55f } },
+        "Pooling", ""
+    },
     {
         { 256ul, {}, { -127.5f }, { 0.f }, { -127.5f }, { 0.f } },
         "Pooling", "U8"

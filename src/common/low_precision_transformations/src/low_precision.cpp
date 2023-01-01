@@ -77,6 +77,7 @@
 #include "itt.hpp"
 #include "low_precision/convert.hpp"
 #include "low_precision/fold_fake_quantize.hpp"
+#include "low_precision/fold_zero_multiply.hpp"
 #include "low_precision/fuse_convert.hpp"
 #include "low_precision/fuse_multiply_to_fake_quantize.hpp"
 #include "low_precision/fuse_subtract_to_fake_quantize.hpp"
@@ -262,6 +263,7 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_model(const std::shared_p
                 PrecisionsRestriction::getPrecisionsByOperationType<opset1::GroupConvolution>(precisionRestrictions))
 
     REGISTER_PASS(manager, FoldFakeQuantizeTransformation, params)
+    REGISTER_PASS(manager, FoldZeroMultiplyTransformation, params)
     REGISTER_PASS(manager, ConstantFolding)
 
     manager.run_passes(f);
