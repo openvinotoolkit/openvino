@@ -111,16 +111,12 @@ public:
             E_X /= val_ref.size();
             E_SQX /= val_ref.size();
             float SD = std::sqrt((E_SQX - E_X * E_X));
-
-            GPU_DEBUG_IF(SD < tolerance * val_ref.size()) {
+            if (SD < tolerance * val_ref.size())
                 GPU_DEBUG_INFO << "WARNING: output variance is too low" << std::endl;
-            }
-            GPU_DEBUG_IF(abs_diff_sum / val_ref.size() > tolerance * val_ref.size()) {
+            if (abs_diff_sum / val_ref.size() > tolerance * val_ref.size())
                 GPU_DEBUG_INFO << "WARNING: output average difference is too high" << std::endl;
-            }
-            GPU_DEBUG_IF(max_abs_X >= 1e6) {
+            if (max_abs_X >= 1e6)
                 GPU_DEBUG_INFO << "WARNING: output absolute value is too high" << std::endl;
-            }
         }
     }
 
