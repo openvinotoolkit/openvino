@@ -667,7 +667,6 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
     for (auto n : p.get_processing_order()) {
         auto forced_format = lo.get_forced_format(*n);
         if (forced_format != format::any) {
-            n->set_preferred_input_fmt(0, forced_format);
             n->set_preferred_output_fmt(0, forced_format);
         }
     }
