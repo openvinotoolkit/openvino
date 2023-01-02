@@ -68,6 +68,13 @@ ParamsKey kernel_selector::ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::GetSuppo
     return k;
 }
 
+DeviceFeaturesKey ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_blocked_read_write(); // for weights loading
+
+    return k;
+}
+
 bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::Validate(const Params& params, const optional_params& options) const {
     if (!Parent::Validate(params, options))
         return false;
