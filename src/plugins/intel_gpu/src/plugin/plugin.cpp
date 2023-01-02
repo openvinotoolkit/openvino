@@ -254,7 +254,8 @@ void Plugin::SetConfig(const std::map<std::string, std::string> &config) {
         // Check that custom layers config can be loaded
         if (user_config.find(ov::intel_gpu::config_file.name()) != user_config.end()) {
             CustomLayerMap custom_layers;
-            CustomLayer::LoadFromFile(user_config.at(ov::intel_gpu::config_file.name()), custom_layers);
+            auto custom_layers_config = user_config.at(ov::intel_gpu::config_file.name());
+            CustomLayer::LoadFromFile(custom_layers_config, custom_layers, custom_layers_config.empty());
         }
     };
 

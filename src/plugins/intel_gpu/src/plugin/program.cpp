@@ -140,6 +140,34 @@ Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, co
         IE_THROW() << "Function pointer inside CNNNetwork is nullptr";
     }
 
+    // locate global custom kernel config
+    // and auto-load kernels from it
+#ifdef _WIN32
+    CHAR mpath[MAX_PATH + 1];
+    HMODULE nModule;
+    GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+        (LPCSTR)CustomLayer::LoadFromFile,
+        &nModule);
+    GetModuleFileName(nModule, mpath, sizeof(mpath));
+#elif __linux__
+    Dl_info dl_info;
+    dladdr(reinterpret_cast<void *>(CustomLayer::LoadFromFile), &dl_info);
+    const char* mpath = dl_info.dli_fname;
+#endif
+    std::string configFile(mpath);
+    std::size_t dir_split_pos = configFile.find_last_of("/\\");
+    std::string config_path;
+
+    if (dir_split_pos != std::string::npos) {
+        // path contains directory
+        config_path = configFile.substr(0, dir_split_pos);
+    }
+    config_path += "/cldnn_global_custom_kernels/cldnn_global_custom_kernels.xml";
+
+    CustomLayer::LoadFromFile(config_path, m_custom_layers, true);
+    auto custom_layers_config = m_config.get_property(ov::intel_gpu::config_file);
+    CustomLayer::LoadFromFile(custom_layers_config, m_custom_layers, custom_layers_config.empty());
+
     auto ops = func->get_ordered_ops();
 
     bool dyn_shape_batch_found = false;
@@ -310,33 +338,6 @@ void Program::PrepareBuild(InferenceEngine::InputsDataMap networkInputs, Inferen
     m_topology.reset(new cldnn::topology());
     m_networkInputs = networkInputs;
     m_networkOutputs = networkOutputs;
-
-    // locate global custom kernel config
-    // and auto-load kernels from it
-#ifdef _WIN32
-    CHAR mpath[MAX_PATH + 1];
-    HMODULE nModule;
-    GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-        (LPCSTR)CustomLayer::LoadFromFile,
-        &nModule);
-    GetModuleFileName(nModule, mpath, sizeof(mpath));
-#elif __linux__
-    Dl_info dl_info;
-    dladdr(reinterpret_cast<void *>(CustomLayer::LoadFromFile), &dl_info);
-    const char* mpath = dl_info.dli_fname;
-#endif
-    std::string configFile(mpath);
-    std::size_t dir_split_pos = configFile.find_last_of("/\\");
-    std::string config_path;
-
-    if (dir_split_pos != std::string::npos) {
-        // path contains directory
-        config_path = configFile.substr(0, dir_split_pos);
-    }
-    config_path += "/cldnn_global_custom_kernels/cldnn_global_custom_kernels.xml";
-
-    CustomLayer::LoadFromFile(config_path, m_custom_layers, true);
-    CustomLayer::LoadFromFile(m_config.get_property(ov::intel_gpu::config_file), m_custom_layers, true);
 }
 
 void Program::CleanupBuild() {
