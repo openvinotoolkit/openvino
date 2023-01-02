@@ -3,7 +3,6 @@
 //
 
 #include "include/reshape_dims.cl"
-#include "include/batch_headers/data_types.cl"
 
 #define OFM_BLOCK_SIZE 32
 #define IFM_PACK_SIZE 32

@@ -8087,12 +8087,12 @@ protected:
         if (_padded_input) {
             if (_bigger_pad) {
                 return padding{
-                        tensor(0, 0, TensorValue(filter_x() / 2 + 1), TensorValue(filter_y() / 2 + 1)).sizes(),
-                        tensor(0, 0, TensorValue(filter_x() / 2 + 1), TensorValue(filter_y() / 2 + 1)).sizes()};
+                        tensor(0, 0, TensorValue(filter_x() / 2 + 1), TensorValue(filter_y() / 2 + 1), 0, 0).sizes(),
+                        tensor(0, 0, TensorValue(filter_x() / 2 + 1), TensorValue(filter_y() / 2 + 1), 0, 0).sizes()};
             } else {
                 return padding{
-                        tensor(0, 0, TensorValue(filter_x() / 2), TensorValue(filter_y() / 2)).sizes(),
-                        tensor(0, 0, TensorValue(filter_x() / 2), TensorValue(filter_y() / 2)).sizes()};
+                        tensor(0, 0, TensorValue(filter_x() / 2), TensorValue(filter_y() / 2), 0, 0).sizes(),
+                        tensor(0, 0, TensorValue(filter_x() / 2), TensorValue(filter_y() / 2), 0, 0).sizes()};
             }
         } else {
             return padding{};

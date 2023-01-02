@@ -84,6 +84,14 @@ ParamsKey ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::GetSupportedKey() const {
     return k;
 }
 
+DeviceFeaturesKey ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    DeviceFeaturesKey k;
+    k.requires_subgroups();
+    k.requires_subgroup_shuffle();
+
+    return k;
+}
+
 bool ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::Validate(const Params& params, const optional_params& options) const {
     if (!Parent::Validate(params, options)) {
         return false;
@@ -124,7 +132,7 @@ ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::AutoTuneParams ConvolutionKernel_imad_b
     // Set default ones
     if (!selected) {
         auto lwg_depth = get_preferred_lwg_depth(params.outputs[0], params.weights, params.engineInfo);
-        tune_params = AutoTuneParams{ pref_simd, pref_features_per_wi, lwg_depth, false, DEFAULT };
+        tune_params = AutoTuneParams{ pref_simd, pref_features_per_wi, lwg_depth, false, EXE_MODE_DEFAULT };
     }
 
     return tune_params;
