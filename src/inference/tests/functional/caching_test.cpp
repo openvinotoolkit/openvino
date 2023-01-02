@@ -20,6 +20,7 @@
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/test_model/test_model.hpp"
 #include "ie_core.hpp"
 #include "ie_metric_helpers.hpp"
@@ -1572,6 +1573,7 @@ TEST_P(CachingTest, TestThrowOnImport) {
 }
 
 TEST_P(CachingTest, TestNetworkModified) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(ov::supported_properties.name(), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
@@ -1872,6 +1874,7 @@ TEST_P(CachingTest, LoadHetero_TargetFallbackFromCore) {
 }
 
 TEST_P(CachingTest, LoadHetero_MultiArchs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
 
     EXPECT_CALL(*mockPlugin, QueryNetwork(_, _))
