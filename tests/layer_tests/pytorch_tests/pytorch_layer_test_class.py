@@ -100,6 +100,9 @@ class PytorchLayerTest:
                 if np.isscalar(fw_tensor):
                     assert fw_tensor == np.array(ov_tensor).item()
                 else:
+                    if isinstance(fw_tensor, list):
+                        ov_tensor = ov_tensor.tolist()
+                        assert ov_tensor == fw_tensor
                     assert type(fw_tensor) == type(ov_tensor)
                 continue
             assert torch.tensor(np.array(ov_tensor)).dtype == fw_tensor.dtype
