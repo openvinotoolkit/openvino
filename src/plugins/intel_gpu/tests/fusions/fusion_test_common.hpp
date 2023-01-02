@@ -37,10 +37,8 @@ public:
     }
 
     void compare(network& not_fused, network& fused, T& p, bool count_reorder = false) {
-        auto outnodes_ref = not_fused.execute();
-        auto outnodes_fused = fused.execute();
-        auto out_id_not_fused = outnodes_ref.begin()->first;
-        auto out_id_fused = outnodes_fused.begin()->first;
+        auto outputs_ref = not_fused.execute();
+        auto outputs_fused = fused.execute();
         auto get_reorders_count = [](network& net) -> size_t {
             size_t count = 0;
             for (auto& pi : net.get_primitives_info()) {
