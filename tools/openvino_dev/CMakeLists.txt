@@ -35,7 +35,7 @@ set(WHEEL_BUILD "${OpenVINO_VERSION_BUILD}" CACHE STRING "Build number of this r
 
 ie_cpack_add_component(${OV_CPACK_COMP_DEV_REQ_FILES} HIDDEN)
 
-set(REQUIREMENTS_IN "${CMAKE_CURRENT_SOURCE_DIR}/requirements_dev.in")
+set(REQUIREMENTS_IN "${CMAKE_CURRENT_SOURCE_DIR}/requirements_dev.txt.in")
 set(EXTRAS_LIST _ caffe kaldi mxnet onnx pytorch tensorflow tensorflow2)
 
 foreach(EXTRAS IN LISTS EXTRAS_LIST)

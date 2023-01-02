@@ -21,6 +21,14 @@ ParamsKey ReorderKernel_to_yxfb_batched::GetSupportedKey() const {
     return k;
 }
 
+DeviceFeaturesKey ReorderKernel_to_yxfb_batched::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    DeviceFeaturesKey k;
+    k.requires_subgroups();
+    k.requires_reqd_subgroup_size();
+
+    return k;
+}
+
 bool ReorderKernel_to_yxfb_batched::Validate(const Params& params, const optional_params& o) const {
     if (!ReorderKernelBase::Validate(params, o)) {
         return false;
