@@ -124,6 +124,15 @@ TYPED_TEST_P(topk_type_prop, default_index_element_type) {
     }
 }
 
+TYPED_TEST_P(topk_type_prop, k_is_negative) {
+    const auto data = std::make_shared<Parameter>(element::f32, PartialShape{-1, {-1, 2}});
+    const auto k = Constant::create(element::i64, Shape{}, {-1});
+
+    OV_EXPECT_THROW(const auto op = this->make_op(data, k, 0, "max", "value"),
+                    NodeValidationFailure,
+                    HasSubstr("The value of 'K' must be more or equal zero."));
+}
+
 TYPED_TEST_P(topk_type_prop, k_for_dynamic_dimension) {
     const auto data = std::make_shared<Parameter>(element::f32, PartialShape{-1, {-1, 2}});
     const auto k = Constant::create(element::i64, Shape{}, {5});
@@ -352,6 +361,7 @@ REGISTER_TYPED_TEST_SUITE_P(topk_type_prop,
                             default_ctor_no_arguments,
                             negative_axis_support,
                             default_index_element_type,
+                            k_is_negative,
                             k_for_dynamic_dimension,
                             k_for_interval_dimension,
                             k_is_unknown_for_static_dimension,

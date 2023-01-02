@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <type_traits>
+
 namespace ov {
 namespace cmp {
 /** \brief Enumerate bounds to compare */
@@ -73,5 +75,75 @@ public:
         return _exp_value == value;
     }
 };
+
+/**
+ * \brief Compare two integers (a < b) in safe way against lossy integer conversion.
+ *
+ * \tparam T Type of a value.
+ * \tparam U Type of b value.
+ *
+ * \param a  Integer value.
+ * \param b  Integer value.
+ *
+ * \return true if a less b otherwise false.
+ */
+template <class T, class U>
+bool lt(T a, U b) noexcept {
+    if (std::is_signed<T>::value && std::is_signed<U>::value) {
+        return a < b;
+    } else if (std::is_signed<T>::value) {
+        return a < 0 ? true : static_cast<typename std::make_unsigned<T>::type>(a) < b;
+    } else {
+        return b < 0 ? false : a < static_cast<typename std::make_unsigned<U>::type>(b);
+    }
+}
+
+/**
+ * \brief Compare two integers (a > b) in safe way against lossy integer conversion.
+ *
+ * \tparam T Type of a value.
+ * \tparam U Type of b value.
+ *
+ * \param a  Integer value.
+ * \param b  Integer value.
+ *
+ * \return true if a > b otherwise false.
+ */
+template <class T, class U>
+bool gt(T a, U b) noexcept {
+    return lt(b, a);
+}
+
+/**
+ * \brief Compare two integers (a <= b) in safe way against lossy integer conversion.
+ *
+ * \tparam T Type of a value.
+ * \tparam U Type of b value.
+ *
+ * \param a  Integer value.
+ * \param b  Integer value.
+ *
+ * \return true if a <= b otherwise false.
+ */
+template <class T, class U>
+bool le(T a, U b) noexcept {
+    return !gt(a, b);
+}
+
+/**
+ * \brief Compare two integers (a >= b) in safe way against lossy integer conversion.
+ *
+ * \tparam T Type of a value.
+ * \tparam U Type of b value.
+ *
+ * \param a  Integer value.
+ * \param b  Integer value.
+ *
+ * \return true if a >= b otherwise false.
+ */
+template <class T, class U>
+bool ge(T a, U b) noexcept {
+    return !lt(a, b);
+}
 }  // namespace cmp
 }  // namespace ov
