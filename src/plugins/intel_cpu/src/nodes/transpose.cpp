@@ -123,24 +123,12 @@ bool Transpose::needPrepareParams() const {
 
 void Transpose::prepareParams() {
     if (performAsReorder) {
-        dnnl::primitive_attr attr;
-        const auto engine = getEngine();
-        auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+        //  Transpose(order={0,3,1,2}) can be performed as Reorder(acdb=>abcd)
         auto& srcMemPtr = getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr();
-        MemoryPtr src_blocked = std::make_shared<Memory>(engine);
-        MemoryPtr dst_blocked = std::make_shared<Memory>(engine);
-
-        dst_blocked->Create(
-            DnnlExtensionUtils::makeDescriptor(dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc()),
-            dstMemPtr->GetData(), false);
-
-        const auto newDims = dst_blocked->getStaticDims();
-        auto newDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(newDims),
-                                            dst_blocked->GetDataType(),
-                                            memory::format_tag::acdb);
-        src_blocked->Create(DnnlExtensionUtils::makeDescriptor(newDesc), srcMemPtr->GetData(), false);
-
-        auto result = getReorderPrim(getRuntimeCache(), getEngine(), src_blocked->GetPrimitive().get_desc(), dst_blocked->GetPrimitive().get_desc());
+        auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+        auto dstDesc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
+        auto srcDesc = dnnl::memory::desc(dstDesc.dims(), dstDesc.data_type(), memory::format_tag::acdb);
+        auto result = getReorderPrim(getRuntimeCache(), getEngine(), srcDesc, dstDesc);
         if (!result) {
             IE_THROW() << "Reorder primitive descriptor was not found for Transpose node " << getName() << ".";
         }
@@ -149,8 +137,7 @@ void Transpose::prepareParams() {
         getSelectedPrimitiveDescriptor()->setImplementationType(
             parse_impl_name(DnnlExtensionUtils::query_impl_info_str(prim.get_primitive_desc())));
 
-        primArgs = {{DNNL_ARG_SRC, getParentEdgesAtPort(INPUT_DATA_IDX)[0]->getMemoryPtr()->GetPrimitive()},
-                    {DNNL_ARG_DST, getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive()}};
+        primArgs = {{DNNL_ARG_SRC, srcMemPtr->GetPrimitive()}, {DNNL_ARG_DST, dstMemPtr->GetPrimitive()}};
         return;
     }
 
