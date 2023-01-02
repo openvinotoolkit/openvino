@@ -127,20 +127,20 @@ inline bool get_data_as(const ov::Node* op,
     }
 }
 
-template <class T>
+template <class TShape>
 inline bool get_data_as_int64(size_t idx,
                               const ov::Node* op,
                               std::vector<int64_t>& axes_value,
                               const std::map<size_t, ov::HostTensorPtr>& constant_data = {}) {
-    return get_data_as<T>(op, idx, axes_value, constant_data);
+    return get_data_as<TShape>(op, idx, axes_value, constant_data);
 }
 
-template <class T>
+template <class TShape>
 inline bool get_data_as_float(size_t idx,
                               const ov::Node* op,
                               std::vector<float>& axes_value,
                               const std::map<size_t, ov::HostTensorPtr>& constant_data = {}) {
-    return get_data_as<T>(op, idx, axes_value, constant_data);
+    return get_data_as<TShape>(op, idx, axes_value, constant_data);
 }
 
 /**
@@ -149,23 +149,22 @@ inline bool get_data_as_float(size_t idx,
  *  \note The constant data are get as size_t (Dimension value type for static shape). If pointed input is signed the
  *  output shape dimension can be wrongly interpreted.
  *
- * \tparam T             Shape type.
+ * \tparam TShape        Shape type.
  *
  * \param idx            Operator's input index.
  * \param op             Pointer to operator.
- * \param shape          output shape made from constant data.
- * \param constant_data  Mpa with constant tensors. Optional default empty.
+ * \param shape          Output shape made from constant data.
+ * \param constant_data  Map with constant tensors. Optional default empty.
  *
  * \return true If constant data acquired as shape otherwise throws NodeValidation exception.
  */
-template <class T>
+template <class TShape>
 inline bool get_data_as_shape(size_t idx,
                               const ov::Node* op,
-                              T& shape,
+                              TShape& shape,
                               const std::map<size_t, ov::HostTensorPtr>& constant_data = {}) {
-    // Note, assumes that get_input_const_data_as throws exception for shape of type different than ov::PartialShape
-    // instead of return nullptr.
-    shape = *ov::op::get_input_const_data_as<T, size_t, T>(op, idx, constant_data);
+    // Note, assumes that get_input_const_data_as throws exception for TShape different then ov::PartialShape.
+    shape = *ov::op::get_input_const_data_as<TShape, size_t, TShape>(op, idx, constant_data);
     return true;
 }
 
@@ -177,12 +176,10 @@ inline bool get_data_as_shape(size_t idx,
  *  \note The constant data are get as int64_t. If pointed input is unsigned then output shape
  *  dimension can be wrongly interpreted.
  *
- * \tparam T             Shape type.
- *
  * \param idx            Operator's input index.
  * \param op             Pointer to operator.
- * \param shape          output shape made from constant data.
- * \param constant_data  Mpa with constant tensors. Optional default empty.
+ * \param shape          Output shape made from constant data.
+ * \param constant_data  Map with constant tensors. Optional default empty.
  *
  * \return true If constant data acquired as shape otherwise throws NodeValidation exception.
  */
