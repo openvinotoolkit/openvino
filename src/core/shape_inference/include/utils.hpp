@@ -68,30 +68,46 @@ TResult get_raw_data_as(const element::Type_t et, const void* const ptr, const s
     auto out_it = std::inserter(out, out.end());
 
     switch (et) {
-    case element::Type_t::i8:
-        std::transform(static_cast<const int8_t*>(ptr), static_cast<const int8_t*>(ptr) + size, out_it, func);
-        break;
-    case element::Type_t::i16:
-        std::transform(static_cast<const int16_t*>(ptr), static_cast<const int16_t*>(ptr) + size, out_it, func);
-        break;
-    case element::Type_t::i32:
-        std::transform(static_cast<const int32_t*>(ptr), static_cast<const int32_t*>(ptr) + size, out_it, func);
-        break;
-    case element::Type_t::i64:
-        std::transform(static_cast<const int64_t*>(ptr), static_cast<const int64_t*>(ptr) + size, out_it, func);
-        break;
-    case element::Type_t::u8:
-        std::transform(static_cast<const uint8_t*>(ptr), static_cast<const uint8_t*>(ptr) + size, out_it, func);
-        break;
-    case element::Type_t::u16:
-        std::transform(static_cast<const uint16_t*>(ptr), static_cast<const uint16_t*>(ptr) + size, out_it, func);
-        break;
-    case element::Type_t::u32:
-        std::transform(static_cast<const uint32_t*>(ptr), static_cast<const uint32_t*>(ptr) + size, out_it, func);
-        break;
-    case element::Type_t::u64:
-        std::transform(static_cast<const uint64_t*>(ptr), static_cast<const uint64_t*>(ptr) + size, out_it, func);
-        break;
+    case element::Type_t::i4: {
+        using dtype = fundamental_type_for<element::Type_t::i4>;
+        std::transform(static_cast<const dtype*>(ptr), static_cast<const dtype*>(ptr) + size, out_it, func);
+    } break;
+    case element::Type_t::i8: {
+        using dtype = fundamental_type_for<element::Type_t::i8>;
+        std::transform(static_cast<const dtype*>(ptr), static_cast<const dtype*>(ptr) + size, out_it, func);
+    } break;
+    case element::Type_t::i16: {
+        using dtype = fundamental_type_for<element::Type_t::i16>;
+        std::transform(static_cast<const dtype*>(ptr), static_cast<const dtype*>(ptr) + size, out_it, func);
+    } break;
+    case element::Type_t::i32: {
+        using dtype = fundamental_type_for<element::Type_t::i32>;
+        std::transform(static_cast<const dtype*>(ptr), static_cast<const dtype*>(ptr) + size, out_it, func);
+    } break;
+    case element::Type_t::i64: {
+        using dtype = fundamental_type_for<element::Type_t::i64>;
+        std::transform(static_cast<const dtype*>(ptr), static_cast<const dtype*>(ptr) + size, out_it, func);
+    } break;
+    case element::Type_t::u4: {
+        using dtype = fundamental_type_for<element::Type_t::u4>;
+        std::transform(static_cast<const dtype*>(ptr), static_cast<const dtype*>(ptr) + size, out_it, func);
+    } break;
+    case element::Type_t::u8: {
+        using dtype = fundamental_type_for<element::Type_t::u8>;
+        std::transform(static_cast<const dtype*>(ptr), static_cast<const dtype*>(ptr) + size, out_it, func);
+    } break;
+    case element::Type_t::u16: {
+        using dtype = fundamental_type_for<element::Type_t::u16>;
+        std::transform(static_cast<const dtype*>(ptr), static_cast<const dtype*>(ptr) + size, out_it, func);
+    } break;
+    case element::Type_t::u32: {
+        using dtype = fundamental_type_for<element::Type_t::u32>;
+        std::transform(static_cast<const dtype*>(ptr), static_cast<const dtype*>(ptr) + size, out_it, func);
+    } break;
+    case element::Type_t::u64: {
+        using dtype = fundamental_type_for<element::Type_t::u64>;
+        std::transform(static_cast<const dtype*>(ptr), static_cast<const dtype*>(ptr) + size, out_it, func);
+    } break;
     default:
         OPENVINO_ASSERT(false, "Not supported element type ", et);
     };
