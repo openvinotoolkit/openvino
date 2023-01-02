@@ -89,12 +89,15 @@ public:
  */
 template <class T, class U>
 bool lt(T a, U b) noexcept {
+    using UT = typename std::make_signed<T>::type;
+    using UU = typename std::make_signed<U>::type;
+
     if (std::is_signed<T>::value && std::is_signed<U>::value) {
-        return a < b;
+        return static_cast<typename std::make_signed<T>::type>(a) < static_cast<typename std::make_signed<U>::type>(b);
     } else if (std::is_signed<T>::value) {
-        return a < 0 ? true : static_cast<typename std::make_unsigned<T>::type>(a) < b;
+        return a < 0 ? true : static_cast<UT>(a) < static_cast<UU>(b);
     } else {
-        return b < 0 ? false : a < static_cast<typename std::make_unsigned<U>::type>(b);
+        return b < 0 ? false : static_cast<UT>(a) < static_cast<UU>(b);
     }
 }
 
