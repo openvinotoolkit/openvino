@@ -16,8 +16,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(ov::op::v8::Slice);
-
 op::v8::Slice::Slice(const Output<Node>& data,
                      const Output<Node>& start,
                      const Output<Node>& stop,

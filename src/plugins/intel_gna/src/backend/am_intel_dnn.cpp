@@ -707,7 +707,7 @@ void GNAPluginNS::backend::AMIntelDNN::WriteGraphWizModel(const char *filename) 
         std::string l = generate_layer_name(k);
 
         int tidx = 0;
-        for (auto tmpOutPtrs : outputs) {
+        for (const auto& tmpOutPtrs : outputs) {
             if (components[k].ptr_outputs == tmpOutPtrs.first) {
                 graph << l << " -> " << tidx << " [label=\"TO_TMP\", fontcolor=darkgreen,color=orange, style=dashed];";
             }

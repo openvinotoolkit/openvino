@@ -194,9 +194,7 @@ public:
 
     virtual ~Node();
 
-    virtual bool visit_attributes(AttributeVisitor&) {
-        return false;
-    }
+    virtual bool visit_attributes(AttributeVisitor&);
     /// \returns the autobroadcasr spec
     virtual const ov::op::AutoBroadcastSpec& get_autob() const;
 
@@ -375,10 +373,6 @@ public:
     descriptor::Tensor& get_output_tensor(size_t i) const;
     descriptor::Tensor& get_input_tensor(size_t i) const;
 
-    /// Returns the tensor name for output i
-    OPENVINO_DEPRECATED("The tensor name was deprecated. Use get_output_tensor(i).get_names() instead.")
-    const std::string& get_output_tensor_name(size_t i) const;
-
     std::set<Input<Node>> get_output_target_inputs(size_t i) const;
 
     /// Returns the number of inputs for the op
@@ -395,10 +389,6 @@ public:
     /// Returns the partial shape of input i
     // TODO: deprecate in favor of node->get_input_partial_shape(i)
     const PartialShape& get_input_partial_shape(size_t i) const;
-
-    /// Returns the tensor name for input i
-    OPENVINO_DEPRECATED("The tensor name was deprecated. Use get_input_tensor(i).get_names() instead.")
-    const std::string& get_input_tensor_name(size_t i) const;
 
     Node* get_input_node_ptr(size_t index) const;
     std::shared_ptr<Node> get_input_node_shared_ptr(size_t index) const;
@@ -603,7 +593,6 @@ public:
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<Node>>");
-    BWDCMP_RTTI_DECLARATION;
 
 protected:
     std::shared_ptr<ov::Node>& m_ref;
@@ -617,7 +606,6 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     OPENVINO_RTTI("AttributeAdapter<NodeVector>");
-    BWDCMP_RTTI_DECLARATION;
 
 protected:
     ov::NodeVector& m_ref;

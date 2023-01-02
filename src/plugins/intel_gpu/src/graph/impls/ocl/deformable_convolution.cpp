@@ -192,5 +192,5 @@ attach_deformable_interp_impl::attach_deformable_interp_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::deformable_conv_impl, cldnn::object_type::DEFORMABLE_CONV_IMPL)
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::deformable_interp_impl, cldnn::object_type::DEFORMABLE_INTERP_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::deformable_conv_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::deformable_interp_impl)

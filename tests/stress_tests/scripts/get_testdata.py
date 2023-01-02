@@ -18,7 +18,7 @@ import sys
 from distutils.dir_util import copy_tree
 from inspect import getsourcefile
 from pathlib import Path
-from xml.etree import ElementTree as ET
+import defusedxml.ElementTree as ET
 
 log.basicConfig(format="{file}: [ %(levelname)s ] %(message)s".format(file=os.path.basename(__file__)),
                 level=log.INFO, stream=sys.stdout)

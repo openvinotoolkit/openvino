@@ -8,7 +8,7 @@
    :maxdepth: 1
    :hidden:
    
-   Basic OpenVINO Workflow <openvino_docs_get_started_get_started_demos>
+   Get Started with C++ Samples <openvino_docs_get_started_get_started_demos>
    openvino_inference_engine_samples_classification_sample_async_README
    openvino_inference_engine_ie_bridges_python_sample_classification_sample_async_README
    openvino_inference_engine_samples_hello_classification_README
@@ -24,6 +24,11 @@
    openvino_inference_engine_ie_bridges_python_sample_model_creation_sample_README
    openvino_inference_engine_samples_speech_sample_README
    openvino_inference_engine_ie_bridges_python_sample_speech_sample_README
+   openvino_inference_engine_samples_sync_benchmark_README
+   openvino_inference_engine_ie_bridges_python_sample_sync_benchmark_README
+   openvino_inference_engine_samples_throughput_benchmark_README
+   openvino_inference_engine_ie_bridges_python_sample_throughput_benchmark_README
+   openvino_inference_engine_ie_bridges_python_sample_bert_benchmark_README
    openvino_inference_engine_samples_benchmark_app_README
    openvino_inference_engine_tools_benchmark_tool_README
 
@@ -60,6 +65,12 @@ The applications include:
 - **OpenVINO Model Creation Sample** – Construction of the LeNet model using the OpenVINO model creation sample.
    - [OpenVINO Model Creation C++ Sample](../../samples/cpp/model_creation_sample/README.md)
    - [OpenVINO Model Creation Python Sample](../../samples/python/model_creation_sample/README.md)
+- **Benchmark Samples** - Simple estimation of a model inference performance
+   - [Sync Benchmark C++ Sample](../../samples/cpp/benchmark/sync_benchmark/README.md)
+   - [Sync Benchmark Python* Sample](../../samples/python/benchmark/sync_benchmark/README.md)
+   - [Throughput Benchmark C++ Sample](../../samples/cpp/benchmark/throughput_benchmark/README.md)
+   - [Throughput Benchmark Python* Sample](../../samples/python/benchmark/throughput_benchmark/README.md)
+   - [Bert Benchmark Python* Sample](../../samples/python/benchmark/bert_benchmark/README.md)
 
 
 - **Benchmark Application** – Estimates deep learning inference performance on supported devices for synchronous and asynchronous modes.
@@ -130,7 +141,7 @@ make
 ```
 
 For the release configuration, the sample application binaries are in `<path_to_build_directory>/intel64/Release/`;
-for the debug configuration — in `<path_to_build_directory>/intel64/Debug/`.
+for the debug configuration — in `<path_to_build_directory>/intel64/Debug/`.
 
 ### <a name="build-samples-windows"></a>Build the Sample Applications on Microsoft Windows
 
@@ -139,7 +150,7 @@ The recommended Windows build environment is the following:
 * Microsoft Visual Studio 2019
 * CMake version 3.10 or higher
 
-> **NOTE**: If you want to use Microsoft Visual Studio 2019, you are required to install CMake 3.14 or higher.
+> **NOTE**: If you want to use Microsoft Visual Studio 2019, you are required to install CMake 3.14 or higher.
 
 To build the C or C++ sample applications on Windows, go to the `<INSTALL_DIR>\samples\c` or `<INSTALL_DIR>\samples\cpp` directory, respectively, and run the `build_samples_msvc.bat` batch file:
 ```sh
@@ -211,7 +222,7 @@ make
 ```
 
 For the release configuration, the sample application binaries are in `<path_to_build_directory>/intel64/Release/`;
-for the debug configuration — in `<path_to_build_directory>/intel64/Debug/`.
+for the debug configuration — in `<path_to_build_directory>/intel64/Debug/`.
 
 ## Get Ready for Running the Sample Applications
 

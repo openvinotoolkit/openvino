@@ -42,6 +42,7 @@ public:
 
     void initSupportedPrimitiveDescriptors() override;
     void initOptimalPrimitiveDescriptor() override;
+    // void createPrimitive() override;
     std::shared_ptr<MemoryDesc> getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
     std::shared_ptr<MemoryDesc> getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
 
@@ -57,6 +58,8 @@ public:
     void executeDynamicImpl(dnnl::stream strm) override;
 
     void setDynamicBatchLim(int lim) override;
+
+    void setMinSparseRate(float sparseRate) { minSparseRate = sparseRate; }
 
 private:
     void createDescriptorInternal(const dnnl::memory::desc &inputDesc,
@@ -106,6 +109,13 @@ private:
 
     bool canBeExecutedInConv1x1() const;
     MemoryPtr prepareWeightMemory(const DnnlMemoryDescPtr weightDesc);
+
+    // sparse weights
+    bool useSparseWeights = false;
+    int nnzCount = -1;
+    float minSparseRate = 1.f;
+    float weiSparseRate = 0.f;
+    bool useSparseWeightsDecompression();
 };
 
 }   // namespace node

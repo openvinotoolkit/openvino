@@ -108,4 +108,4 @@ attach_roi_pooling_impl::attach_roi_pooling_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::roi_pooling_impl, cldnn::object_type::ROI_POOLING_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::roi_pooling_impl)

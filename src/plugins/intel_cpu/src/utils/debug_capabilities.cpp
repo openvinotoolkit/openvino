@@ -508,7 +508,7 @@ std::ostream & operator<<(std::ostream & os, const PrintableModel& model) {
         // recursively output subgraphs
         if (auto subgraph = std::dynamic_pointer_cast<ngraph::snippets::op::Subgraph>(op)) {
             os << "\t\t snippets Subgraph: " << subgraph->get_friendly_name() << " is_quantized:" << subgraph->is_quantized() << std::endl;
-            os << PrintableModel(*subgraph->get_body().get(), tag, prefix + "\t\t");
+            os << PrintableModel(subgraph->body(), tag, prefix + "\t\t");
         }
 
         if (auto msubgraph = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(op)) {

@@ -87,4 +87,4 @@ attach_grid_sample_impl::attach_grid_sample_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::grid_sample_impl, cldnn::object_type::GRID_SAMPLE_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::grid_sample_impl)

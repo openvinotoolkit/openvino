@@ -7,8 +7,6 @@
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
 
-BWDCMP_RTTI_DEFINITION(ov::op::util::FrameworkNode);
-
 ov::op::util::FrameworkNode::FrameworkNode(const OutputVector& inputs, size_t output_size, size_t num_subgraphs)
     : MultiSubGraphOp(inputs, num_subgraphs) {
     set_output_size(output_size);

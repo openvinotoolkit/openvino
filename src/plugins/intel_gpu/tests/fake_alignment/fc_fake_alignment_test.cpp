@@ -37,7 +37,7 @@ TEST_P(fully_connected_fake_align_test, fake_alignment) {
 
     auto input_layout_prim = std::make_shared<input_layout>("input", p.input_layout);
     auto weight_layout_prim = std::make_shared<input_layout>("weight", p.weight_layout);
-    auto fully_connected_prim = std::make_shared<fully_connected>("output", "input", "weight", "", p.data_type);
+    auto fully_connected_prim = std::make_shared<fully_connected>("output", input_info("input"), "weight", "", p.data_type);
 
     cldnn::program prog(engine);
 

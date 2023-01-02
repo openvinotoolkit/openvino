@@ -140,8 +140,6 @@ size_t read_k_from_host_tensor(const HostTensorPtr& arg_k) {
 }  // namespace topk
 
 // v1 version starts
-BWDCMP_RTTI_DEFINITION(op::v1::TopK);
-
 static const std::uint64_t UNKNOWN_NORMALIZED_AXIS = std::numeric_limits<uint64_t>::max();
 
 op::v1::TopK::TopK(const Output<Node>& data,
@@ -406,8 +404,6 @@ bool op::v1::TopK::has_evaluate() const {
 }
 
 // v3 version starts
-BWDCMP_RTTI_DEFINITION(op::v3::TopK);
-
 op::v3::TopK::TopK(const Output<Node>& data,
                    const Output<Node>& k,
                    const int64_t axis,

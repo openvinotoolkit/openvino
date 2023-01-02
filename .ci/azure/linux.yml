@@ -62,7 +62,7 @@ jobs:
         CMAKE_CPACK_GENERATOR:
         SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/samples
         PYTHON_SAMPLES_INSTALL_DIR: $(SAMPLES_INSTALL_DIR)/python
-        RUN_PREFIX: . $(SETUPVARS) -pyver 3.10 &&
+        RUN_PREFIX: . $(SETUPVARS) &&
     maxParallel: 2
 
   # About 150% of total time
@@ -94,8 +94,6 @@ jobs:
     CMAKE_VERSION: 3.24.0
     BUILD_PYTHON: $(WORK_DIR)/build_python
     INSTALL_PYTHON: $(INSTALL_OPENVINO)/extras/python
-    PY_VENV: $(WORK_DIR)/.venv
-    PYTHON_VERSION: 3.10.7
 
   steps:
   - script: |
@@ -144,34 +142,13 @@ jobs:
     path: openvino_contrib
 
   - script: |
-      wget "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-x86_64.sh"
-      chmod +x ./cmake-${CMAKE_VERSION}-linux-x86_64.sh
-      sudo ./cmake-${CMAKE_VERSION}-linux-x86_64.sh --prefix=/usr/local/ --skip-license
-      rm -rf ./cmake-${CMAKE_VERSION}-linux-x86_64.sh
-    displayName: 'Install cmake'
-
-  - script: |
       set -e
-      $(REPO_DIR)/install_build_dependencies.sh
+      sudo -E $(REPO_DIR)/install_build_dependencies.sh
       # Move jdk into contrib
       # 'clang' compiler is to check that samples can be built using it
       sudo apt --assume-yes install openjdk-11-jdk libbz2-dev clang
-      # For opencv-python: python3-setuptools and pip upgrade
-      wget https://www.python.org/ftp/python/"$PYTHON_VERSION"/Python-"$PYTHON_VERSION".tgz
-      tar -xzf Python-"$PYTHON_VERSION".tgz
-      cd Python-"$PYTHON_VERSION" || exit
-      ./configure --enable-optimizations --prefix=/usr/local --enable-shared LDFLAGS="-Wl,-rpath /usr/local/lib"
-      make python
-      sudo make install
-      export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
-      /usr/local/bin/python3.10 -m venv $(PY_VENV)
-      . $(PY_VENV)/bin/activate
-      echo Python3 info ; which python3 ; python3 --version
-      python3 --version
-      python3.10 --version
-      curl https://bootstrap.pypa.io/get-pip.py | python3
+      # For Python API
       python3 -m pip install --upgrade pip
-      python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements.txt
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/requirements.txt
       # For running Python API tests
@@ -180,6 +157,8 @@ jobs:
       python3 -m pip install -r $(REPO_DIR)/src/frontends/paddle/tests/requirements.txt
       # For running ONNX frontend unit tests
       python3 -m pip install -r $(REPO_DIR)/src/frontends/onnx/tests/requirements.txt
+      # For running TensorFlow frontend unit tests
+      python3 -m pip install -r $(REPO_DIR)/src/frontends/tensorflow/tests/requirements.txt
       # For MO unit tests
       python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements.txt
       python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements_dev.txt
@@ -232,12 +211,10 @@ jobs:
         -DENABLE_PYTHON=ON
         -DBUILD_SHARED_LIBS=$(CMAKE_BUILD_SHARED_LIBS)
         -DENABLE_ONEDNN_FOR_GPU=$(CMAKE_BUILD_SHARED_LIBS)
-        -DPYTHON_EXECUTABLE=$(PY_VENV)/bin/python3.10
         -DENABLE_TESTS=ON
         -DENABLE_OV_ONNX_FRONTEND=ON
         -DENABLE_FASTER_BUILD=ON
         -DENABLE_STRICT_DEPENDENCIES=OFF
-        -DENABLE_REQUIREMENTS_INSTALL=OFF
         -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
@@ -286,9 +263,7 @@ jobs:
     displayName: 'Install wheel packages'
   - script: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_LAYER_TESTS_DIR)/cmake_install.cmake
     displayName: 'Install Layer Tests'
-  - script: |
-      . $(PY_VENV)/bin/activate
-      python3 -m pip install openvino-dev --find-links=$(INSTALL_DIR)/tools
+  - script: python3 -m pip install openvino-dev --find-links=$(INSTALL_DIR)/tools
     displayName: 'Install python wheels'
   - script: |
       set -e
@@ -299,11 +274,8 @@ jobs:
 
     # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
   - script: |
-      . $(PY_VENV)/bin/activate
-      export DATA_PATH=$(MODELS_PATH)
-      export MODELS_PATH=$(MODELS_PATH)
       # because of static build libgna is needed for python binary
-      export LD_LIBRARY_PATH=$(REPO_DIR)/temp/gna_03.00.00.1815.1/linux/x64:$LD_LIBRARY_PATH
+      export LD_LIBRARY_PATH=$(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64:$LD_LIBRARY_PATH
       python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph $(PYTHON_STATIC_ARGS) \
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
         --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py \
@@ -313,11 +285,8 @@ jobs:
 
     # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
   - script: |
-      . $(PY_VENV)/bin/activate
-      export DATA_PATH=$(MODELS_PATH)
-      export MODELS_PATH=$(MODELS_PATH)
       # because of static build libgna is needed for python binary and mock_py frontend library
-      export LD_LIBRARY_PATH=$(REPO_DIR)/temp/gna_03.00.00.1815.1/linux/x64:$(INSTALL_TEST_DIR):$LD_LIBRARY_PATH
+      export LD_LIBRARY_PATH=$(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64:$(INSTALL_TEST_DIR):$LD_LIBRARY_PATH
       # For python imports to import pybind_mock_frontend
       export PYTHONPATH=$(INSTALL_TEST_DIR):$(INSTALL_DIR)/python/python3.8:$PYTHONPATH
       # For frontend manager to load mock_py library
@@ -331,9 +300,8 @@ jobs:
     continueOnError: false
 
   - script: |
-      . $(PY_VENV)/bin/activate
       # because of static build libgna is needed for python binary
-      export LD_LIBRARY_PATH=$(REPO_DIR)/temp/gna_03.00.00.1815.1/linux/x64:$LD_LIBRARY_PATH
+      export LD_LIBRARY_PATH=$(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64:$LD_LIBRARY_PATH
       python3 -m pytest -s $(INSTALL_TEST_DIR)/mo/unit_tests --junitxml=$(INSTALL_TEST_DIR)/TEST-ModelOptimizer.xml
     displayName: 'Model Optimizer UT'
     continueOnError: false
@@ -399,8 +367,20 @@ jobs:
     displayName: 'OV Core UT'
     continueOnError: false
 
-  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_conditional_complilation_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ConditionalCompilation.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_inference_functional_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceFunc.xml
+    displayName: 'Inference Func Tests'
+    continueOnError: false
+
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_inference_unit_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceUnit.xml
+    displayName: 'Inference Unit Tests'
+    continueOnError: false
+
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_conditional_compilation_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ConditionalCompilation.xml
     displayName: 'Conditional Compilation Tests'
+    continueOnError: false
+
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-PaddleTests.xml
+    displayName: 'Paddle Tests'
     continueOnError: false
 
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_ir_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-IRFrontend.xml
@@ -417,6 +397,14 @@ jobs:
 
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Tensorflow.xml
     displayName: 'TensorFlow Frontend Unit Tests'
+    continueOnError: false
+
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_lp_transformations_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-LpTransformations.xml
+    displayName: 'Low Precision Transformations Tests'
+    continueOnError: false
+
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_transformations_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Transformations.xml
+    displayName: 'Transformations Tests'
     continueOnError: false
 
     # python3 $(WORK_DIR)/gtest-parallel/gtest_parallel.py $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --workers=16 --dump_json_test_results=InferenceEngineUnitTests.json --gtest_filter=*smoke* -- --gtest_print_time=1
@@ -489,16 +477,13 @@ jobs:
     workingDirectory: $(BUILD_SAMPLES_TESTS_DIR)
     displayName: 'Install Samples Tests'
 
-  - script: |
-      . $(PY_VENV)/bin/activate
-      python3 -m pip install -r $(INSTALL_TEST_DIR)/smoke_tests/requirements.txt
+  - script: python3 -m pip install -r $(INSTALL_TEST_DIR)/smoke_tests/requirements.txt
     workingDirectory: $(INSTALL_TEST_DIR)
 
     displayName: 'Install dependencies for samples smoke tests'
     continueOnError: false
 
   - script: |
-      . $(PY_VENV)/bin/activate
       export PATH=$HOME/.local/bin:$PATH
       export IE_APP_PATH=$(INSTALL_DIR)/samples_bin
       export LD_LIBRARY_PATH=$IE_APP_PATH:$LD_LIBRARY_PATH
@@ -510,7 +495,6 @@ jobs:
     continueOnError: false
 
   - script: |
-      . $(PY_VENV)/bin/activate
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       export PYTHONPATH=$(REPO_DIR)/tools/mo/:$(LAYER_TESTS_DIR):$PYTHONPATH
       export TEST_DEVICE=CPU
@@ -519,7 +503,6 @@ jobs:
     continueOnError: false
 
   - script: |
-      . $(PY_VENV)/bin/activate
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       export PYTHONPATH=$(REPO_DIR)/tools/mo/:$(LAYER_TESTS_DIR):$PYTHONPATH
       export TEST_DEVICE=CPU
@@ -528,7 +511,6 @@ jobs:
     continueOnError: false
 
   - script: |
-      . $(PY_VENV)/bin/activate
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
       $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=$(INSTALL_TEST_DIR)/TEST-tf_Roll.xmlTEST
@@ -536,7 +518,6 @@ jobs:
     continueOnError: false
 
   - script: |
-      . $(PY_VENV)/bin/activate
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
       export TEST_DEVICE=CPU
@@ -545,7 +526,6 @@ jobs:
     continueOnError: false
 
   - script: |
-      . $(PY_VENV)/bin/activate
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
       export TEST_DEVICE=CPU
@@ -554,7 +534,6 @@ jobs:
     continueOnError: false
 
   - script: |
-      . $(PY_VENV)/bin/activate
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
       export TEST_DEVICE=CPU
@@ -563,7 +542,6 @@ jobs:
     continueOnError: false
 
   - script: |
-      . $(PY_VENV)/bin/activate
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
       export TEST_DEVICE=CPU

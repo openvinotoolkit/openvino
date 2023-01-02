@@ -4,7 +4,8 @@
 
 #pragma once
 
-#include <legacy/ie_layers.h>
+#include "legacy/ie_layers.h"
+#include "debug.h"
 
 namespace GNAPluginNS {
 /**
@@ -24,6 +25,12 @@ public:
     InferenceEngine::CNNLayerPtr getOutput() const { return outputLayer; }
     InferenceEngine::SizeVector getDims() const {
         return inputLayer->outData.front()->getDims();
+    }
+    /**
+     * @brief Get size requred for the gna memory buffer
+     */
+    size_t getByteSize() const {
+        return InferenceEngine::details::product(getDims()) * elementSizeBytes();
     }
     /**
      * @brief Reset the gna memory

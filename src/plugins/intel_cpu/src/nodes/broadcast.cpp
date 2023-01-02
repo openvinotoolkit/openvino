@@ -50,7 +50,7 @@ bool Broadcast::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
 }
 
 Broadcast::Broadcast(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache, NgraphShapeInferFactory(op, PortMask(TARGET_SHAPE_IDX, AXES_MAPPING_IDX))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -182,10 +182,6 @@ bool Broadcast::needShapeInfer() const {
     }
     needPrepareParamsVar = false;
     return false;
-}
-
-std::vector<VectorDims> Broadcast::shapeInfer() const {
-    return Node::shapeInferGeneric(PortMask(TARGET_SHAPE_IDX, AXES_MAPPING_IDX));
 }
 
 bool Broadcast::isExecutable() const {

@@ -1739,7 +1739,7 @@ bool Reduce::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
 }
 
 Reduce::Reduce(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache) {
+        : Node(op, eng, cache, NgraphShapeInferFactory(op, PortMask(REDUCE_INDEXES))) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Reduce node with name '" + getName() + "'";
@@ -1879,10 +1879,6 @@ void Reduce::initSupportedPrimitiveDescriptors() {
 
 bool Reduce::isExecutable() const {
     return !isInputTensorAtPortEmpty(REDUCE_DATA);
-}
-
-std::vector<VectorDims> Reduce::shapeInfer() const {
-    return Node::shapeInferGeneric(PortMask(REDUCE_INDEXES));
 }
 
 void Reduce::prepareParams() {

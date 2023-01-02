@@ -16,13 +16,22 @@
 
 namespace GNAPluginNS {
 namespace GNAConvolutionLayer {
+bool should_transpose_h_w(const uint32_t in_height,
+                          const uint32_t kernel_height,
+                          const uint32_t in_channels,
+                          const uint32_t stride_height) {
+    return in_height == kernel_height && in_channels == 1 && stride_height == 1;
+}
 
 bool isMappableFrom2DTo1D(const uint32_t inHeight, const uint32_t inWidth, const uint32_t in_channels,
                           const uint32_t kernelHeight, const uint32_t kernelWidth,
                           const uint32_t strideHeight, const uint32_t strideWidth) {
-    return ((inHeight > 1 && inWidth > 1) &&
-            ((inWidth == kernelWidth && strideWidth == 1) ||
-             (inHeight == kernelHeight && strideHeight == 1 && in_channels == 1)));
+    if (inHeight <= 1 || inWidth <= 1) {
+        // Mapping not needed since input is already 1D
+        return false;
+    }
+    return (inWidth == kernelWidth && strideWidth == 1) ||
+           should_transpose_h_w(inHeight, kernelHeight, in_channels, strideHeight);
 }
 
 bool is3DInputOr2DKernel(const uint32_t inHeight, const uint32_t inWidth, const uint32_t inDepth,

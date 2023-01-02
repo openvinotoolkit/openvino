@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "input_model.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
+#include "openvino/frontend/input_model.hpp"
 #include "openvino/frontend/tensorflow/graph_iterator.hpp"
 #include "place.hpp"
 
@@ -24,6 +24,7 @@ class InputModel : public ov::frontend::InputModel {
     std::vector<std::shared_ptr<OpPlace>> get_op_places() const;
     std::map<std::string, std::shared_ptr<TensorPlace>> get_tensor_places() const;
     std::map<std::string, Output<Node>> get_tensor_values() const;
+    std::shared_ptr<InputModel> get_body_input_model(const std::string& body_input_model_name) const;
 
 public:
     explicit InputModel(const GraphIterator::Ptr& graph_iterator,
@@ -39,6 +40,7 @@ public:
     void set_partial_shape(const ov::frontend::Place::Ptr& place, const ov::PartialShape&) override;
     ov::PartialShape get_partial_shape(const ov::frontend::Place::Ptr& place) const override;
     void set_element_type(const ov::frontend::Place::Ptr& place, const ov::element::Type&) override;
+    ov::element::Type get_element_type(const ov::frontend::Place::Ptr& place) const override;
     void set_tensor_value(const ov::frontend::Place::Ptr& place, const void* value) override;
 };
 

@@ -77,4 +77,4 @@ attach_normalize_impl::attach_normalize_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::normalize_impl, cldnn::object_type::NORMALIZE_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::normalize_impl)

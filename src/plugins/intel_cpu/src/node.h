@@ -33,8 +33,7 @@
 #include "nodes/node_config.h"
 #include "cache/multi_cache.h"
 
-#include <utils/shape_inference/static_shape.hpp>
-#include <utils/shape_inference/shape_inference.hpp>
+#include <utils/shape_inference/shape_inference_cpu.hpp>
 #include "utils/debug_capabilities.h"
 
 #include "dnnl_postops_composer.h"
@@ -336,8 +335,11 @@ public:
     void resolveInPlaceEdges();
 
     virtual void execute(dnnl::stream strm);
+    void updateShapes();
+    void updateDynamicParams();
     void executeDynamic(dnnl::stream strm);
     virtual void redefineOutputMemory(const std::vector<VectorDims> &newShapes);
+    bool outputShapeDataDependency() const;
 
     virtual void initSupportedPrimitiveDescriptors();
 
@@ -413,7 +415,7 @@ public:
             }
         }
 
-        IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
+        IE_THROW() << "Primitive descriptor was not found for node " << getName() << " with type " << NameFromType(getType()) << ".";
     }
 
     int getExecIndex() const {
@@ -616,7 +618,7 @@ protected:
 
     std::string originalLayers;  // contains names of the original layers separated by comma
 
-    Node(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &w_cache);
+    Node(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &w_cache, const ShapeInferFactory& shapeInferFactory);
     Node(const std::string& type, const std::string& name, const dnnl::engine& eng, WeightsSharing::Ptr &w_cache);
 
     int selectedPrimitiveDescriptorIndex = -1;
@@ -699,8 +701,7 @@ protected:
 
     bool inputShapesModified() const;
     virtual bool needShapeInfer() const;
-    std::vector<VectorDims> shapeInferGeneric(const std::vector<Shape>& inputDims, uint32_t value_port_mask = 0) const;
-    std::vector<VectorDims> shapeInferGeneric(uint32_t value_port_mask = 0) const;
+    std::vector<VectorDims> shapeInferGeneric(const std::vector<Shape>& inputDims) const;
     virtual std::vector<VectorDims> shapeInfer() const;
     // TODO [DS] : make pure after all nodes will be support dynamic shapes
     virtual void executeDynamicImpl(dnnl::stream strm) {
@@ -778,9 +779,6 @@ private:
 
     enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2 };
     ConstantType checkConstant(LOOK look, std::vector<NodePtr>& checkNodes);
-
-    std::vector<VectorDims> shapeInferGeneric(const std::vector<StaticShape>& input_shapes,
-                                              uint32_t input_value_port_mask) const;
 
 #ifdef CPU_DEBUG_CAPS
     friend class Verbose;

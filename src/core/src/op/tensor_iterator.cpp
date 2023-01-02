@@ -12,8 +12,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::TensorIterator);
-
 op::v0::TensorIterator::TensorIterator(const OutputVector& values) : op::util::SubGraphOp(values) {}
 
 bool op::v0::TensorIterator::visit_attributes(AttributeVisitor& visitor) {

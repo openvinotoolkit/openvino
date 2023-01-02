@@ -294,6 +294,18 @@ void regclass_frontend_InputModel(py::module m) {
                 :type type: openvino.runtime.Type
             )");
 
+    im.def("get_element_type",
+           &ov::frontend::InputModel::get_element_type,
+           py::arg("place"),
+           R"(
+                Returns current element type used for this place.
+
+                :param place: Model place.
+                :type place: openvino.frontend.Place
+                :return: Element type for this place.
+                :rtype: openvino.runtime.Type
+            )");
+
     im.def(
         "set_tensor_value",
         [](ov::frontend::InputModel& self, const ov::frontend::Place::Ptr& place, py::array& value) {

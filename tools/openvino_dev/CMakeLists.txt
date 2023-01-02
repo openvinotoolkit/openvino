@@ -31,7 +31,34 @@ else()
 endif()
 set(WHEEL_BUILD "${OpenVINO_VERSION_BUILD}" CACHE STRING "Build number of this release" FORCE)
 
+# outbound requirements.txt files for openvino-dev package
+
+ie_cpack_add_component(${OV_CPACK_COMP_DEV_REQ_FILES} HIDDEN)
+
+set(REQUIREMENTS_IN "${CMAKE_CURRENT_SOURCE_DIR}/requirements_dev.txt.in")
+set(EXTRAS_LIST _ caffe kaldi mxnet onnx pytorch tensorflow tensorflow2)
+
+foreach(EXTRAS IN LISTS EXTRAS_LIST)
+    if(EXTRAS STREQUAL "_")
+        set(REQUIREMENTS_OUT "requirements.txt")
+        set(EXTRAS "")
+    else()
+        set(REQUIREMENTS_OUT "requirements_${EXTRAS}.txt")
+        set(EXTRAS "[${EXTRAS}]")
+    endif()
+    configure_file(${REQUIREMENTS_IN} ${REQUIREMENTS_OUT})
+
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${REQUIREMENTS_OUT}
+            DESTINATION ${OV_CPACK_DEVREQDIR}
+            COMPONENT ${OV_CPACK_COMP_DEV_REQ_FILES}
+            EXCLUDE_FROM_ALL)
+endforeach()
+
 # openvino_dev build
+
+if(NOT ENABLE_WHEEL)
+    return()
+endif()
 
 set(SETUP_PY "${CMAKE_CURRENT_SOURCE_DIR}/setup.py")
 

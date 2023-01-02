@@ -83,5 +83,4 @@ attach_experimental_detectron_generate_proposals_single_image_impl::attach_exper
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::experimental_detectron_generate_proposals_single_image_impl,
-                             cldnn::object_type::EXPERIMENTAL_DETECTRON_GENERATE_PROPOSALS_SINGLE_IMAGE_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::experimental_detectron_generate_proposals_single_image_impl)

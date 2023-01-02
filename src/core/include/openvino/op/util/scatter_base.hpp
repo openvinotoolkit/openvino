@@ -15,7 +15,6 @@ namespace util {
 class OPENVINO_API ScatterBase : public Op {
 public:
     OPENVINO_OP("ScatterBase", "util");
-    BWDCMP_RTTI_DECLARATION;
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
 

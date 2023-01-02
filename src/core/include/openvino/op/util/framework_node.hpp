@@ -77,7 +77,6 @@ private:
 class OPENVINO_API FrameworkNode : public MultiSubGraphOp {
 public:
     OPENVINO_OP("FrameworkNode", "util");
-    BWDCMP_RTTI_DECLARATION;
 
     FrameworkNode() = default;
 

@@ -16,15 +16,15 @@
 
 ov::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
     MATCHER_SCOPE(MulFakeQuantizeFusion);
-    auto input_pattern = ngraph::pattern::any_input();
+    auto input_pattern = pass::pattern::any_input();
     auto const_pattern = ngraph::pattern::wrap_type<opset5::Constant>();
     auto mul_pattern =
         ngraph::pattern::wrap_type<opset5::Multiply>({input_pattern, const_pattern}, pattern::consumers_count(1));
     auto fq_pattern = ngraph::pattern::wrap_type<opset5::FakeQuantize>({mul_pattern,
-                                                                        ngraph::pattern::any_input(),
-                                                                        ngraph::pattern::any_input(),
-                                                                        ngraph::pattern::any_input(),
-                                                                        ngraph::pattern::any_input()});
+                                                                        pass::pattern::any_input(),
+                                                                        pass::pattern::any_input(),
+                                                                        pass::pattern::any_input(),
+                                                                        pass::pattern::any_input()});
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_value_map = m.get_pattern_value_map();
         const auto& input = pattern_value_map.at(input_pattern);

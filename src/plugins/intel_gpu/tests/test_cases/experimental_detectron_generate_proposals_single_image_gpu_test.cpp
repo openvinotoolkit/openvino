@@ -24,7 +24,7 @@ struct ExperimentalDetectronGenerateProposalsSingleImageParams {
 
 template <typename T>
 using ExperimentalDetectronGenerateProposalsSingleImageParamsWithLayout =
-        std::tuple<ExperimentalDetectronGenerateProposalsSingleImageParams<T>, format::type>;
+        std::tuple<ExperimentalDetectronGenerateProposalsSingleImageParams<T>, format::type, bool>;
 
 constexpr size_t image_height = 150;
 constexpr size_t image_width = 150;
@@ -156,13 +156,15 @@ struct PrintToStringParamName {
         std::stringstream buf;
         ExperimentalDetectronGenerateProposalsSingleImageParams<T> p;
         format::type layout;
-        std::tie(p, layout) = param.param;
+        bool is_caching_test;
+        std::tie(p, layout, is_caching_test) = param.param;
 
         buf << "min_size=" << p.min_size << "_";
         buf << "nms_threshold=" << p.nms_threshold << "_";
         buf << "pre_nms_count=" << p.pre_nms_count << "_";
         buf << "post_nms_count=" << p.post_nms_count << "_";
         buf << "layout=" << fmt_to_str(layout);
+        buf << "is_caching_test=" << is_caching_test;
         return buf.str();
     }
 };
@@ -175,7 +177,8 @@ public:
     void test() {
         ExperimentalDetectronGenerateProposalsSingleImageParams<T> param;
         format::type data_layout;
-        std::tie(param, data_layout) = this->GetParam();
+        bool is_caching_test;
+        std::tie(param, data_layout, is_caching_test) = this->GetParam();
         const auto data_type = type_to_data_type<T>::value;
 
         auto &engine = get_test_engine();
@@ -217,18 +220,18 @@ public:
         topology.add(input_layout(input_scores_id, input_scores->get_layout()));
         topology.add(mutable_data(output_roi_scores_id, output_roi_scores));
 
-        topology.add(reorder(reorder_im_info_id, input_im_info_id, data_layout, data_type));
-        topology.add(reorder(reorder_anchors_id, input_anchors_id, data_layout, data_type));
-        topology.add(reorder(reorder_deltas_id, input_deltas_id, data_layout, data_type));
-        topology.add(reorder(reorder_scores_id, input_scores_id, data_layout, data_type));
+        topology.add(reorder(reorder_im_info_id, input_info(input_im_info_id), data_layout, data_type));
+        topology.add(reorder(reorder_anchors_id, input_info(input_anchors_id), data_layout, data_type));
+        topology.add(reorder(reorder_deltas_id, input_info(input_deltas_id), data_layout, data_type));
+        topology.add(reorder(reorder_scores_id, input_info(input_scores_id), data_layout, data_type));
 
         const primitive_id edgpsi_id = "experimental_detectron_generate_proposals_single_image";
         const auto edgpsi_primitive = experimental_detectron_generate_proposals_single_image{edgpsi_id,
-                                                                                             reorder_im_info_id,
-                                                                                             reorder_anchors_id,
-                                                                                             reorder_deltas_id,
-                                                                                             reorder_scores_id,
-                                                                                             output_roi_scores_id,
+                                                                                             input_info(reorder_im_info_id),
+                                                                                             input_info(reorder_anchors_id),
+                                                                                             input_info(reorder_deltas_id),
+                                                                                             input_info(reorder_scores_id),
+                                                                                             input_info(output_roi_scores_id),
                                                                                              param.min_size,
                                                                                              param.nms_threshold,
                                                                                              param.pre_nms_count,
@@ -236,16 +239,33 @@ public:
         topology.add(edgpsi_primitive);
 
         const primitive_id reorder_result_id = edgpsi_id + "Reordered";
-        topology.add(reorder(reorder_result_id, edgpsi_primitive, format::bfyx, data_type));
+        topology.add(reorder(reorder_result_id, input_info(edgpsi_primitive), format::bfyx, data_type));
 
-        network network(engine, topology);
+        cldnn::network::ptr network;
 
-        network.set_input_data(input_im_info_id, input_im_info);
-        network.set_input_data(input_anchors_id, input_anchors);
-        network.set_input_data(input_deltas_id, input_deltas);
-        network.set_input_data(input_scores_id, input_scores);
+        if (is_caching_test) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, topology);
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+            }
+        } else {
+            network = std::make_shared<cldnn::network>(engine, topology);
+        }
 
-        const auto outputs = network.execute();
+        network->set_input_data(input_im_info_id, input_im_info);
+        network->set_input_data(input_anchors_id, input_anchors);
+        network->set_input_data(input_deltas_id, input_deltas);
+        network->set_input_data(input_scores_id, input_scores);
+
+        const auto outputs = network->execute();
 
         const auto rois = outputs.at(reorder_result_id).get_memory();
 
@@ -254,7 +274,7 @@ public:
 
         cldnn::topology reorder_topology;
         reorder_topology.add(input_layout("scores", rois_scores_layout));
-        reorder_topology.add(reorder("plane_scores", "scores", format::bfyx, data_type));
+        reorder_topology.add(reorder("plane_scores", input_info("scores"), format::bfyx, data_type));
         cldnn::network reorder_net{engine, reorder_topology};
         reorder_net.set_input_data("scores", output_roi_scores);
         const auto second_output_result = reorder_net.execute();
@@ -266,14 +286,16 @@ public:
         const auto &expected_roi_scores = param.expected_roi_scores;
         const auto &expected_rois = param.expected_rois;
         for (int64_t i = 0; i < param.post_nms_count; ++i) {
-            EXPECT_NEAR(expected_roi_scores[i], roi_scores_ptr[i], 0.001) << "i=" << i;
+            if (!is_caching_test) {
+                ASSERT_NEAR(expected_roi_scores[i], roi_scores_ptr[i], 0.001) << "i=" << i;
+            }
 
             // order of proposals with zero scores is not guaranteed (to be precise,
             // it is not guaranteed for any equal score values)
             if (static_cast<float>(expected_roi_scores[i]) != 0.0f) {
                 for (size_t coord = 0; coord < 4; ++coord) {
                     const auto roi_idx = i * 4 + coord;
-                    EXPECT_NEAR(expected_rois[roi_idx], rois_ptr[roi_idx], getError<T>()) << "i=" << i << ", coord=" << coord;
+                    ASSERT_NEAR(expected_rois[roi_idx], rois_ptr[roi_idx], getError<T>()) << "i=" << i << ", coord=" << coord;
                 }
             }
         }
@@ -294,7 +316,8 @@ INSTANTIATE_TEST_SUITE_P(
         experimental_detectron_generate_proposals_single_image_test_f32,
         ::testing::Combine(
                 ::testing::ValuesIn(getExperimentalDetectronGenerateProposalsSingleImageParams<float>()),
-                ::testing::Values(format::bfyx)
+                ::testing::Values(format::bfyx),
+                ::testing::Values(false)
         ),
         PrintToStringParamName()
 );
@@ -304,7 +327,19 @@ INSTANTIATE_TEST_SUITE_P(
         experimental_detectron_generate_proposals_single_image_test_f16,
         ::testing::Combine(
                 ::testing::ValuesIn(getExperimentalDetectronGenerateProposalsSingleImageParams<half_t>()),
-                ::testing::Values(format::bfyx)
+                ::testing::Values(format::bfyx),
+                ::testing::Values(false)
+        ),
+        PrintToStringParamName()
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        export_import,
+        experimental_detectron_generate_proposals_single_image_test_f16,
+        ::testing::Combine(
+                ::testing::Values(getExperimentalDetectronGenerateProposalsSingleImageParams<half_t>()[0]),
+                ::testing::Values(format::bfyx),
+                ::testing::Values(true)
         ),
         PrintToStringParamName()
 );
@@ -334,7 +369,8 @@ INSTANTIATE_TEST_SUITE_P(
                         {0.695249, 0.411288, 0.0941284, 0.0, 0.0, 0.0,
                          0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0}}
                     ),
-                ::testing::ValuesIn(layouts)
+                ::testing::ValuesIn(layouts),
+                ::testing::Values(false)
         ),
         PrintToStringParamName()
 );

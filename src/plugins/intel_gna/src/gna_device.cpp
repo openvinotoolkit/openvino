@@ -45,6 +45,8 @@ GNADeviceHelper::GNADeviceHelper(std::string executionTargetIn,
       isPerformanceMeasuring(isPerformanceMeasuring),
       nGnaDeviceIndex{selectGnaDevice()},
       useDeviceEmbeddedExport(deviceEmbedded) {
+    per_request_diagnostics = log::get_log_level() >= ov::log::Level::TRACE;
+    per_model_diagnostics = log::get_log_level() >= ov::log::Level::DEBUG;
     open();
     initGnaPerfCounters();
 
@@ -134,10 +136,6 @@ std::string GNADeviceHelper::GetGnaLibraryVersion() {
     return gnaLibraryVersion;
 }
 
-void GNADeviceHelper::enableDiagnostics() {
-    debugLogEnabled = true;
-}
-
 void GNADeviceHelper::dumpAllAllocations(const uint64_t idx, const std::string& infix) const {
     for (auto&& a : allAllocations.GetAllocationsInExportOrder()) {
         const auto& name = a.GetTagName();
@@ -163,7 +161,7 @@ uint32_t GNADeviceHelper::enqueueRequest(const uint32_t requestConfigID, Gna2Acc
     const auto status1 = Gna2RequestConfigSetAccelerationMode(requestConfigID, gna2AccelerationMode);
     checkGna2Status(status1, "Gna2RequestConfigSetAccelerationMode");
 
-    if (debugLogEnabled) {
+    if (per_request_diagnostics) {
         dumpAllAllocations(debugLogIndexRequestEnqueue, "BeforeGna2RequestEnqueue");
         debugLogIndexRequestEnqueue++;
     }
@@ -211,7 +209,7 @@ uint32_t GNADeviceHelper::createModel(Gna2Model& gnaModel) const {
 
     GNAPluginNS::backend::AMIntelDNN::updateNumberOfOutputsIfPoolingEnabled(gnaModel, legacyExecTarget);
 
-    if (debugLogEnabled) {
+    if (per_model_diagnostics) {
         std::string path =
 #ifdef _WIN32
             ".\\";
@@ -256,7 +254,7 @@ Gna2DeviceVersion GNADeviceHelper::parseTarget(const std::string& target) {
 
 Gna2DeviceVersion GNADeviceHelper::getDefaultTarget() const {
     if (detectedGnaDevVersion == Gna2DeviceVersionSoftwareEmulation)
-        return Gna2DeviceVersion3_0;
+        return parseTarget(GNAPluginNS::common::kGnaDefaultTarget);
     return detectedGnaDevVersion;
 }
 
@@ -477,13 +475,16 @@ GNAPluginNS::RequestStatus GNADeviceHelper::waitForRequest(uint32_t requestID, i
     if (status == Gna2StatusDriverQoSTimeoutExceeded) {
         return GNAPluginNS::RequestStatus::kAborted;
     }
-    checkGna2Status(status, "Gna2RequestWait");
 
-    if (debugLogEnabled) {
+    if (per_request_diagnostics) {
         dumpAllAllocations(debugLogIndexRequestWait, "AfterGna2RequestWait");
         debugLogIndexRequestWait++;
     }
     updateGnaPerfCounters();
+
+    // handle error case after updating statistics data.
+    checkGna2Status(status, "Gna2RequestWait");
+
     return GNAPluginNS::RequestStatus::kCompleted;
 }
 

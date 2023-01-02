@@ -15,6 +15,7 @@
 #include "nodes/common/cpu_convert.h"
 #include "convert.h"
 #include <common/primitive_hashing_utils.hpp>
+#include <utils/shape_inference/shape_inference_pass_through.hpp>
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -55,7 +56,7 @@ bool Reorder::isExecutable() const {
 }
 
 Reorder::Reorder(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &w_cache) :
-        Node(op, eng, w_cache) {
+        Node(op, eng, w_cache, PassThroughShapeInferFactory()) {
     IE_THROW() << "Can't create reorder node from ngraph node";
 }
 
@@ -103,6 +104,9 @@ void Reorder::initSupportedPrimitiveDescriptors() {
 
     // must be to initialize here since shapes are unknown at the time of Reorder node creation
     isDynamic = !(config.inConfs[0].getMemDesc()->isDefined() && config.outConfs[0].getMemDesc()->isDefined());
+    if (isDynamicNode() && !shapeInference) {
+        shapeInference = std::make_shared<ShapeInferPassThrough>();
+    }
 
     if (isDynamic && (config.inConfs[0].getMemDesc()->getShape().getRank() != config.outConfs[0].getMemDesc()->getShape().getRank()))
         IE_THROW() << "Reorder node with name: " << getName() << " doesn't support case when input and output shapes have different rank and dynamic";
@@ -493,10 +497,6 @@ void Reorder::reorderData(const Memory &input, const Memory &output, MultiCacheP
             IE_THROW() << "Could not make onednn reorder.";
         }
     }
-}
-
-std::vector<VectorDims> Reorder::shapeInfer() const {
-    return {getParentEdgesAtPort(0)[0]->getMemory().getStaticDims()};
 }
 
 }   // namespace node

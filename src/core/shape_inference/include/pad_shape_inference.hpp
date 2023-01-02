@@ -110,7 +110,7 @@ void shape_infer(const Pad* op,
                     const auto& dim = arg_shape[i].get_length();
                     output_shape[i] = static_cast<size_t>(begin + dim + end);
 
-                    if (i > 1) {
+                    if (begin > 0 || end > 0) {
                         NODE_VALIDATION_CHECK(op,
                                               pad_mode != op::PadMode::EDGE || arg_shape[i].get_length() >= 1,
                                               "EDGE padding mode requires an input of dimension of "

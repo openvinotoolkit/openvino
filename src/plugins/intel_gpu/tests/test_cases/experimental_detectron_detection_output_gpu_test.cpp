@@ -59,7 +59,7 @@ struct ExperimentalDetectronDetectionOutputParams {
 
 template <typename T>
 using ExperimentalDetectronDetectionOutputParamsWithLayout =
-        std::tuple<ExperimentalDetectronDetectionOutputParams<T>, format::type>;
+        std::tuple<ExperimentalDetectronDetectionOutputParams<T>, format::type, bool>;
 
 template <typename T>
 struct experimental_detectron_detection_output_test
@@ -68,7 +68,8 @@ public:
     void test() {
         ExperimentalDetectronDetectionOutputParams<T> param;
         format::type fmt;
-        std::tie(param, fmt) = this->GetParam();
+        bool is_caching_test;
+        std::tie(param, fmt, is_caching_test) = this->GetParam();
         auto data_type = type_to_data_type<T>::value;
 
         auto& engine = get_test_engine();
@@ -98,16 +99,16 @@ public:
         topology.add(input_layout(input_deltas_id, input_deltas->get_layout()));
         topology.add(input_layout(input_scores_id, input_scores->get_layout()));
         topology.add(input_layout(input_im_info_id, input_im_info->get_layout()));
-        
+
         const primitive_id b_input_boxes_id = "BlockedInputBoxes";
         const primitive_id b_input_deltas_id = "BlockedInputDeltas";
         const primitive_id b_input_scores_id = "BlockedInputScores";
         const primitive_id b_input_im_info_id = "BlockedInputImInfo";
 
-        topology.add(reorder(b_input_boxes_id, input_boxes_id, fmt, data_type));
-        topology.add(reorder(b_input_deltas_id, input_deltas_id, fmt, data_type));
-        topology.add(reorder(b_input_scores_id, input_scores_id, fmt, data_type));
-        topology.add(reorder(b_input_im_info_id, input_im_info_id, fmt, data_type));
+        topology.add(reorder(b_input_boxes_id, input_info(input_boxes_id), fmt, data_type));
+        topology.add(reorder(b_input_deltas_id, input_info(input_deltas_id), fmt, data_type));
+        topology.add(reorder(b_input_scores_id, input_info(input_scores_id), fmt, data_type));
+        topology.add(reorder(b_input_im_info_id, input_info(input_im_info_id), fmt, data_type));
 
         const primitive_id b_output_scores_id = "BlockedOutputScores";
         const primitive_id b_output_classes_id = "BlockedOutputClasses";
@@ -122,12 +123,12 @@ public:
         const primitive_id b_eddo_id = "blocked_experimental_detectron_detection_output";
         const auto b_eddo_primitive = experimental_detectron_detection_output{
             b_eddo_id,
-            b_input_boxes_id,
-            b_input_deltas_id,
-            b_input_scores_id,
-            b_input_im_info_id,
-            b_output_classes_id,
-            b_output_scores_id,
+            input_info(b_input_boxes_id),
+            input_info(b_input_deltas_id),
+            input_info(b_input_scores_id),
+            input_info(b_input_im_info_id),
+            input_info(b_output_classes_id),
+            input_info(b_output_scores_id),
             param.score_threshold,
             param.nms_threshold,
             param.num_classes,
@@ -140,15 +141,32 @@ public:
 
         topology.add(b_eddo_primitive);
         const primitive_id eddo_id = "experimental_detectron_detection_output";
-        topology.add(reorder(eddo_id, b_eddo_primitive /*b_eddo_id*/, format::bfyx, data_type));
+        topology.add(reorder(eddo_id, input_info(b_eddo_primitive) /*b_eddo_id*/, format::bfyx, data_type));
 
-        network network(engine, topology);
+        cldnn::network::ptr network;
 
-        network.set_input_data(input_boxes_id, input_boxes);
-        network.set_input_data(input_deltas_id, input_deltas);
-        network.set_input_data(input_scores_id, input_scores);
-        network.set_input_data(input_im_info_id, input_im_info);
-        const auto outputs = network.execute();
+        if (is_caching_test) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, topology);
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+            }
+        } else {
+            network = std::make_shared<cldnn::network>(engine, topology);
+        }
+
+        network->set_input_data(input_boxes_id, input_boxes);
+        network->set_input_data(input_deltas_id, input_deltas);
+        network->set_input_data(input_scores_id, input_scores);
+        network->set_input_data(input_im_info_id, input_im_info);
+        const auto outputs = network->execute();
 
         const auto output_boxes = outputs.at(eddo_id).get_memory();
         const cldnn::mem_lock<T> output_boxes_ptr(output_boxes, get_test_stream());
@@ -157,7 +175,7 @@ public:
         const primitive_id output_scores_id = "OutputScores";
         cldnn::topology reorder_score_topology;
         reorder_score_topology.add(input_layout(b_output_scores_id, output_scores_layout));
-        reorder_score_topology.add(reorder(output_scores_id, b_output_scores_id, format::bfyx, data_type));
+        reorder_score_topology.add(reorder(output_scores_id, input_info(b_output_scores_id), format::bfyx, data_type));
         cldnn::network reorder_score_net{engine, reorder_score_topology};
         reorder_score_net.set_input_data(b_output_scores_id, b_output_scores);
         const auto score_result = reorder_score_net.execute();
@@ -168,7 +186,7 @@ public:
         const primitive_id output_classes_id = "OutputClasses";
         cldnn::topology reorder_classes_topology;
         reorder_classes_topology.add(input_layout(b_output_classes_id, output_classes_layout));
-        reorder_classes_topology.add(reorder(output_classes_id, b_output_classes_id, format::bfyx, data_types::i32));
+        reorder_classes_topology.add(reorder(output_classes_id, input_info(b_output_classes_id), format::bfyx, data_types::i32));
         cldnn::network reorder_classes_net{engine, reorder_classes_topology};
         reorder_classes_net.set_input_data(b_output_classes_id, b_output_classes);
         const auto classes_result = reorder_classes_net.execute();
@@ -180,14 +198,17 @@ public:
         const auto& expected_classes = param.expected_classes;
         const auto& expected_scores = param.expected_scores;
         for (int i = 0; i < param.max_detections_per_image; ++i) {
-            EXPECT_NEAR(expected_scores[i], output_scores_ptr[i], 0.001) << "i=" << i;
+            if (!is_caching_test) {
+                ASSERT_NEAR(expected_scores[i], output_scores_ptr[i], 0.001) << "i=" << i;
+            }
             for (size_t coord = 0; coord < 4; ++coord) {
                 const auto roi_idx = i * 4 + coord;
-                EXPECT_NEAR(expected_boxes[roi_idx], output_boxes_ptr[roi_idx], getError<T>())
+                ASSERT_NEAR(expected_boxes[roi_idx], output_boxes_ptr[roi_idx], getError<T>())
                     << "i=" << i << ", coord=" << coord;
             }
-
-            EXPECT_EQ(expected_classes[i], output_classes_ptr[i]) << "i=" << i;
+            if (!is_caching_test) {
+                ASSERT_EQ(expected_classes[i], output_classes_ptr[i]) << "i=" << i;
+            }
         }
     }
 };
@@ -431,12 +452,22 @@ INSTANTIATE_TEST_SUITE_P(experimental_detectron_detection_output_gpu_test,
                          experimental_detectron_detection_output_test_f32,
                          testing::Combine(
                              ::testing::ValuesIn(getExperimentalDetectronDetectionOutputParams<float>()),
-                             ::testing::ValuesIn(layouts)
+                             ::testing::ValuesIn(layouts),
+                             ::testing::Values(false)
                          ));
 
 INSTANTIATE_TEST_SUITE_P(experimental_detectron_detection_output_gpu_test,
                          experimental_detectron_detection_output_test_f16,
                          testing::Combine(
                              ::testing::ValuesIn(getExperimentalDetectronDetectionOutputParams<half_t>()),
-                             ::testing::ValuesIn(layouts)
+                             ::testing::ValuesIn(layouts),
+                             ::testing::Values(false)
+                         ));
+
+INSTANTIATE_TEST_SUITE_P(export_import,
+                         experimental_detectron_detection_output_test_f16,
+                         testing::Combine(
+                             ::testing::Values(getExperimentalDetectronDetectionOutputParams<half_t>()[0]),
+                             ::testing::Values(layouts[0]),
+                             ::testing::Values(true)
                          ));
