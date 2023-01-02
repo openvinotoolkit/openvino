@@ -15,9 +15,8 @@ from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Model
 from openvino.runtime import Type, PartialShape, Shape, Layout
 from openvino.preprocess import PrePostProcessor
 
-# TODO: reformat into absolute paths
-from ..conftest import model_path
-from ..test_utils.test_utils import generate_image
+from tests.conftest import model_path
+from tests.test_utils.test_utils import generate_image
 
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
 test_net_xml, test_net_bin = model_path(is_myriad)
@@ -276,6 +275,7 @@ def test_inputs_outputs_property(device):
         assert np.array_equal(input_data, input_tensor.data)
 
 
+@pytest.mark.skip(reason="Sporadically failed. Need further investigation. Ticket - 95967")
 def test_cancel(device):
     core = Core()
     model = core.read_model(test_net_xml, test_net_bin)

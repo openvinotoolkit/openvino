@@ -119,7 +119,7 @@ void StatisticsReport::dump_sort_performance_counters_request(CsvDumper& dumper,
     dumper.endLine();
 
     for (const auto& layer : perfCounts) {
-        if (status_names[(int)layer.status] == "EXECUTED") {
+        if (std::string(status_names[(int)layer.status]).compare("EXECUTED") == 0) {
             total += layer.real_time;
             total_cpu += layer.cpu_time;
         }
@@ -129,7 +129,7 @@ void StatisticsReport::dump_sort_performance_counters_request(CsvDumper& dumper,
     std::vector<ov::ProfilingInfo> profiling{std::begin(perfCounts), std::end(perfCounts)};
     std::sort(profiling.begin(), profiling.end(), sort_profiling_descend);
     for (const auto& layer : profiling) {
-        if (status_names[(int)layer.status] == "EXECUTED") {
+        if (std::string(status_names[(int)layer.status]).compare("EXECUTED") == 0) {
             dumper << layer.node_name;  // layer name
             dumper << ((int)layer.status < (sizeof(status_names) / sizeof(status_names[0]))
                            ? status_names[(int)layer.status]
@@ -336,46 +336,15 @@ const nlohmann::json StatisticsReportJSON::sort_perf_counters_to_json(
     return js;
 }
 
-void LatencyMetrics::write_to_stream(std::ostream& stream) const {
-    std::ios::fmtflags fmt(std::cout.flags());
-    stream << data_shape << ";" << std::fixed << std::setprecision(2) << median_or_percentile << ";" << avg << ";"
-           << min << ";" << max;
-    std::cout.flags(fmt);
-}
-
-void LatencyMetrics::write_to_slog() const {
-    std::string percentileStr = (percentile_boundary == 50)
-                                    ? "\tMedian:     "
-                                    : "\t" + std::to_string(percentile_boundary) + " percentile:    ";
-    if (!data_shape.empty()) {
-        slog::info << "\tData shape: " << data_shape << slog::endl;
-    }
-    slog::info << percentileStr << double_to_string(median_or_percentile) << " ms" << slog::endl;
-    slog::info << "\tAverage:    " << double_to_string(avg) << " ms" << slog::endl;
-    slog::info << "\tMin:        " << double_to_string(min) << " ms" << slog::endl;
-    slog::info << "\tMax:        " << double_to_string(max) << " ms" << slog::endl;
-}
-
-const nlohmann::json LatencyMetrics::to_json() const {
+static nlohmann::json to_json(const LatencyMetrics& latenct_metrics) {
     nlohmann::json stat;
-    stat["data_shape"] = data_shape;
-    stat["latency_median"] = median_or_percentile;
-    stat["latency_average"] = avg;
-    stat["latency_min"] = min;
-    stat["latency_max"] = max;
+    stat["data_shape"] = latenct_metrics.data_shape;
+    stat["latency_median"] = latenct_metrics.median_or_percentile;
+    stat["latency_average"] = latenct_metrics.avg;
+    stat["latency_min"] = latenct_metrics.min;
+    stat["latency_max"] = latenct_metrics.max;
     return stat;
 }
-
-void LatencyMetrics::fill_data(std::vector<double> latencies, size_t percentile_boundary) {
-    if (latencies.empty()) {
-        throw std::logic_error("Latency metrics class expects non-empty vector of latencies at consturction.");
-    }
-    std::sort(latencies.begin(), latencies.end());
-    min = latencies[0];
-    avg = std::accumulate(latencies.begin(), latencies.end(), 0.0) / latencies.size();
-    median_or_percentile = latencies[size_t(latencies.size() / 100.0 * percentile_boundary)];
-    max = latencies.back();
-};
 
 std::string StatisticsVariant::to_string() const {
     switch (type) {
@@ -414,7 +383,7 @@ void StatisticsVariant::write_to_json(nlohmann::json& js) const {
         if (arr.empty()) {
             arr = nlohmann::json::array();
         }
-        arr.push_back(metrics_val.to_json());
+        arr.push_back(to_json(metrics_val));
     } break;
     default:
         throw std::invalid_argument("StatisticsVariant:: json conversion : invalid type is provided");

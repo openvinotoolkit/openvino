@@ -12,7 +12,7 @@
 #include "gna_types.h"
 #include "gna/gna_config.hpp"
 
-#include "gna_plugin_log.hpp"
+#include "log/debug.hpp"
 #include "common/gna_target.hpp"
 #include "memory/gna_memory.hpp"
 #include <gna2-model-api.h>

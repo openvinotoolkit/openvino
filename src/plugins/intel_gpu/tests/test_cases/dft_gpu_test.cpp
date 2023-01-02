@@ -90,7 +90,8 @@ struct dft_params {
 using dft_test_params = std::tuple<format,  // plain format
                                    format,  // blocked format
                                    dft_type,
-                                   dft_params>;
+                                   dft_params,
+                                   bool>;
 
 template <class T>
 struct dft_gpu_test : public testing::TestWithParam<dft_test_params> {
@@ -100,7 +101,8 @@ public:
         format::type blocked_format;
         dft_type type;
         dft_params p;
-        std::tie(plain_format, blocked_format, type, p) = testing::TestWithParam<dft_test_params>::GetParam();
+        bool is_caching_test;
+        std::tie(plain_format, blocked_format, type, p, is_caching_test) = testing::TestWithParam<dft_test_params>::GetParam();
 
         auto& engine = get_test_engine();
 
@@ -111,17 +113,35 @@ public:
 
         topology topology;
         topology.add(input_layout("input", input->get_layout()));
-        topology.add(reorder("reorder_input", "input", blocked_format, data_type));
-        topology.add(dft("dft", "reorder_input", p.axes, p.signal_size, p.output_shape, type.direction, type.mode));
+        topology.add(reorder("reorder_input", input_info("input"), blocked_format, data_type));
+        topology.add(dft("dft", input_info("reorder_input"), p.axes, p.signal_size, p.output_shape, type.direction, type.mode));
         // It's simpler to use "bfwzyx" format for all cases, as input and output can have different ranks
-        topology.add(reorder("out", "dft", format::bfwzyx, data_type));
+        topology.add(reorder("out", input_info("dft"), format::bfwzyx, data_type));
 
-        network network(engine, topology);
-        network.set_input_data("input", input);
-        const auto outputs = network.execute();
+        cldnn::network::ptr network;
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "out");
+        if (is_caching_test) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, topology);
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+            }
+        } else {
+            network = std::make_shared<cldnn::network>(engine, topology);
+        }
+
+        network->set_input_data("input", input);
+        const auto outputs = network->execute();
+
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "out");
 
         auto output = outputs.at("out").get_memory();
         cldnn::mem_lock<T> output_ptr(output, get_test_stream());
@@ -129,7 +149,7 @@ public:
         const auto expected_values = convert<T>(p.expected_values);
         ASSERT_EQ(output_ptr.size(), expected_values.size());
         for (size_t i = 0; i < output_ptr.size(); ++i) {
-            EXPECT_NEAR(expected_values[i], output_ptr[i], getThreshold<T>(type));
+            ASSERT_NEAR(expected_values[i], output_ptr[i], getThreshold<T>(type));
         }
     }
 
@@ -138,7 +158,8 @@ public:
         format::type blocked_format;
         dft_type type;
         dft_params p;
-        std::tie(plain_format, blocked_format, type, p) = info.param;
+        bool is_caching_test;
+        std::tie(plain_format, blocked_format, type, p, is_caching_test) = info.param;
 
         std::ostringstream result;
         result << "InputShape=" << vec2str(p.input_shape) << "_";
@@ -151,6 +172,7 @@ public:
         if (!p.test_name.empty()) {
             result << "_TestName=" << p.test_name;
         }
+        result << "is_caching_test=" << is_caching_test;
         return result.str();
     }
 };
@@ -2001,7 +2023,8 @@ TEST_P(dft_gpu_test_half_t, test) {
                              testing::Combine(testing::Values(plain_format_##dimension),        \
                                               testing::ValuesIn(blocked_format_##dimension),    \
                                               testing::Values(dftType),                         \
-                                              testing::ValuesIn(dftType##_params_##dimension)), \
+                                              testing::ValuesIn(dftType##_params_##dimension),  \
+                                              testing::Values(false)),                          \
                              dft_gpu_test_##inputType::PrintToStringParamName);
 
 #define INSTANTIATE_DFT_TEST_SUITE_WITH_TYPES(dftType, dimension) \
@@ -2011,6 +2034,15 @@ TEST_P(dft_gpu_test_half_t, test) {
 INSTANTIATE_DFT_TEST_SUITE_WITH_TYPES(DFT, 4d)
 INSTANTIATE_DFT_TEST_SUITE_WITH_TYPES(DFT, 5d)
 
+INSTANTIATE_TEST_SUITE_P(export_import,
+                         dft_gpu_test_float,
+                         testing::Combine(testing::Values(plain_format_5d),
+                                          testing::Values(blocked_format_5d[0]),
+                                          testing::Values(DFT),
+                                          testing::Values(DFT_params_5d[0]),
+                                          testing::Values(true)),
+                         dft_gpu_test_float::PrintToStringParamName);
+
 INSTANTIATE_DFT_TEST_SUITE_WITH_TYPES(IDFT, 4d)
 INSTANTIATE_DFT_TEST_SUITE_WITH_TYPES(IDFT, 5d)
 
@@ -2019,5 +2051,57 @@ INSTANTIATE_DFT_TEST_SUITE_WITH_TYPES(RDFT, 4d)
 
 INSTANTIATE_DFT_TEST_SUITE_WITH_TYPES(IRDFT, 4d)
 INSTANTIATE_DFT_TEST_SUITE_WITH_TYPES(IRDFT, 5d)
+
+// Check that output format is correctly calculated for IRDFT case
+TEST(dft_gpu_test, irdft_output_shape) {
+    dft_type type = IRDFT;
+    using T = float;
+    dft_params p = IRDFT_params_5d.front();
+    auto& engine = get_test_engine();
+
+    auto data_type = type_to_data_type<T>::value;
+    const layout data_layout(data_type, plain_format_5d, tensor(plain_format_5d, p.input_shape));
+    auto input = engine.allocate_memory(data_layout);
+    set_values(input, convert<T>(p.input_values));
+
+    for (auto& blocked_format : blocked_format_5d) {
+        topology topology;
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(reorder("reorder_input", input_info("input"), blocked_format, data_type));
+        topology.add(dft("dft", input_info("reorder_input"), p.axes, p.signal_size, p.output_shape, type.direction, type.mode));
+
+        {
+            network network(engine, topology);
+            network.set_input_data("input", input);
+            const auto outputs = network.execute();
+
+            ASSERT_EQ(outputs.size(), size_t(1));
+            ASSERT_EQ(outputs.begin()->first, "dft");
+
+            auto output = outputs.at("dft").get_memory();
+            auto output_format = output->get_layout().format;
+
+            ASSERT_EQ(output_format, format::adjust_to_rank(blocked_format, p.output_shape.size()));
+        }
+
+        topology.add(reorder("out", input_info("dft"), format::bfwzyx, data_type));
+
+        network network(engine, topology);
+        network.set_input_data("input", input);
+        const auto outputs = network.execute();
+
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "out");
+
+        auto output = outputs.at("out").get_memory();
+        cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+
+        const auto expected_values = convert<T>(p.expected_values);
+        ASSERT_EQ(output_ptr.size(), expected_values.size());
+        for (size_t i = 0; i < output_ptr.size(); ++i) {
+            ASSERT_NEAR(expected_values[i], output_ptr[i], getThreshold<T>(type));
+        }
+    }
+}
 
 }  // namespace

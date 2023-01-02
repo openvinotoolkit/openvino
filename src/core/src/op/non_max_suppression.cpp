@@ -21,8 +21,6 @@ using namespace ngraph;
 
 // ------------------------------ V1 ------------------------------
 
-BWDCMP_RTTI_DEFINITION(op::v1::NonMaxSuppression);
-
 op::v1::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const Output<Node>& scores,
                                              const Output<Node>& max_output_boxes_per_class,
@@ -186,9 +184,6 @@ EnumNames<ngraph::op::v1::NonMaxSuppression::BoxEncodingType>::get() {
          {"center", ngraph::op::v1::NonMaxSuppression::BoxEncodingType::CENTER}});
     return enum_names;
 }
-
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v1::NonMaxSuppression::BoxEncodingType>);
-
 }  // namespace ov
 
 std::ostream& ov::operator<<(std::ostream& s, const op::v1::NonMaxSuppression::BoxEncodingType& type) {
@@ -196,8 +191,6 @@ std::ostream& ov::operator<<(std::ostream& s, const op::v1::NonMaxSuppression::B
 }
 
 // ------------------------------ V3 ------------------------------
-BWDCMP_RTTI_DEFINITION(op::v3::NonMaxSuppression);
-
 op::v3::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const Output<Node>& scores,
                                              const Output<Node>& max_output_boxes_per_class,
@@ -374,9 +367,6 @@ EnumNames<ngraph::op::v3::NonMaxSuppression::BoxEncodingType>::get() {
          {"center", ngraph::op::v3::NonMaxSuppression::BoxEncodingType::CENTER}});
     return enum_names;
 }
-
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v3::NonMaxSuppression::BoxEncodingType>);
-
 }  // namespace ov
 
 std::ostream& ov::operator<<(std::ostream& s, const op::v3::NonMaxSuppression::BoxEncodingType& type) {
@@ -384,9 +374,6 @@ std::ostream& ov::operator<<(std::ostream& s, const op::v3::NonMaxSuppression::B
 }
 
 // ------------------------------ V4 ------------------------------
-
-BWDCMP_RTTI_DEFINITION(op::v4::NonMaxSuppression);
-
 op::v4::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const Output<Node>& scores,
                                              const Output<Node>& max_output_boxes_per_class,
@@ -471,9 +458,6 @@ void op::v4::NonMaxSuppression::validate_and_infer_types() {
 }
 
 // ------------------------------ V5 ------------------------------
-
-BWDCMP_RTTI_DEFINITION(op::v5::NonMaxSuppression);
-
 op::v5::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const Output<Node>& scores,
                                              const op::v5::NonMaxSuppression::BoxEncodingType box_encoding,
@@ -834,14 +818,9 @@ EnumNames<ngraph::op::v5::NonMaxSuppression::BoxEncodingType>::get() {
          {"center", ngraph::op::v5::NonMaxSuppression::BoxEncodingType::CENTER}});
     return enum_names;
 }
-
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v5::NonMaxSuppression::BoxEncodingType>);
 }  // namespace ov
 
 // ------------------------------ V9 ------------------------------
-
-BWDCMP_RTTI_DEFINITION(op::v9::NonMaxSuppression);
-
 op::v9::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const Output<Node>& scores,
                                              const op::v9::NonMaxSuppression::BoxEncodingType box_encoding,
@@ -1137,6 +1116,4 @@ EnumNames<ngraph::op::v9::NonMaxSuppression::BoxEncodingType>::get() {
          {"center", ngraph::op::v9::NonMaxSuppression::BoxEncodingType::CENTER}});
     return enum_names;
 }
-
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v9::NonMaxSuppression::BoxEncodingType>);
 }  // namespace ov

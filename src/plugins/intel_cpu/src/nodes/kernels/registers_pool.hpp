@@ -328,6 +328,7 @@ RegistersPool::Ptr RegistersPool::create(x64::cpu_isa_t isa, std::initializer_li
         ISA_SWITCH_CASE(x64::avx512_core)
         ISA_SWITCH_CASE(x64::avx512_core_vnni)
         ISA_SWITCH_CASE(x64::avx512_core_bf16)
+        ISA_SWITCH_CASE(x64::avx512_core_fp16)
         case x64::avx_vnni: return std::make_shared<IsaRegistersPool<x64::avx>>(regsToExclude);
         case x64::avx512_core_bf16_ymm: return std::make_shared<IsaRegistersPool<x64::avx512_core>>(regsToExclude);
         case x64::avx512_core_bf16_amx_int8: return std::make_shared<IsaRegistersPool<x64::avx512_core>>(regsToExclude);

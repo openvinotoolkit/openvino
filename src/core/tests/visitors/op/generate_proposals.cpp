@@ -36,7 +36,7 @@ TEST(attributes, generate_proposals) {
 
     auto proposals = std::make_shared<GenerateProposals>(im_info, anchors, deltas, scores, attrs);
 
-    NodeBuilder builder(proposals);
+    NodeBuilder builder(proposals, {im_info, anchors, deltas, scores});
 
     auto g_proposals = ov::as_type_ptr<GenerateProposals>(builder.create());
 

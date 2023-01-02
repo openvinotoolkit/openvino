@@ -25,7 +25,8 @@ struct non_max_suppression_params : public base_params {
     iou_threshold_type(NmsArgType::None), iou_threshold(0.0f),
     score_threshold_type(NmsArgType::None), score_threshold(0.0f),
     soft_nms_sigma_type(NmsArgType::None), soft_nms_sigma(0.0f),
-    has_second_output(false), has_third_output(false) {}
+    has_second_output(false), has_third_output(false),
+    use_multiple_outputs(false) {}
 
     BoxEncodingType box_encoding;
     bool sort_result_descending;
@@ -39,6 +40,7 @@ struct non_max_suppression_params : public base_params {
     float soft_nms_sigma;
     bool has_second_output;
     bool has_third_output;
+    bool use_multiple_outputs;
 
     uint32_t GetIndexNumSelectPerClass() const {
         uint32_t input_idx = 2;

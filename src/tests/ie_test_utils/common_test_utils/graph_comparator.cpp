@@ -68,7 +68,7 @@ bool compare_rt_keys(const T& node1, const T& node2, std::ostream& err_log) {
                 err_log << "Values for " << key << " key are not equal.\n";
                 return false;
             }
-        } catch (ov::Exception& e) {
+        } catch (const ov::Exception&) {
             // Handle cases wen equality operator is not defined for some rt attribute
         }
     }
@@ -116,6 +116,11 @@ Ptr not_null(Ptr&& p) {
 template <typename InOut1, typename InOut2>
 bool equal_type_and_partial_shape(const InOut1& lhs, const InOut2& rhs) {
     return lhs.get_element_type() == rhs.get_element_type() && lhs.get_partial_shape() == rhs.get_partial_shape();
+}
+
+template <typename InOut1, typename InOut2>
+bool equal_type_and_partial_shape_compatible(const InOut1& lhs, const InOut2& rhs) {
+    return lhs.get_element_type() == rhs.get_element_type() && lhs.get_partial_shape().compatible(rhs.get_partial_shape());
 }
 
 class NodeAndInputDescription {
@@ -187,7 +192,8 @@ public:
             return true;
         } else if (m_description->get_type_info() == SubGraphOp::MergedInputDescription::get_type_info_static() ||
                    m_description->get_type_info() == SubGraphOp::InvariantInputDescription::get_type_info_static()) {
-            return equal_type_and_partial_shape(*m_parameter, m_input);
+            // If loop op has back edge it may change the parameter to dynamic. The shape will be different with the initial op
+            return equal_type_and_partial_shape_compatible(*m_parameter, m_input);
         }
 
         std::stringstream ss;
@@ -445,7 +451,7 @@ public:
     using Result = Comparator::Result;
     using SubGraphOp = ov::op::util::SubGraphOp;
 
-    Result compare(SubGraphOp* sub_lhs, SubGraphOp* sub_rhs) {
+    Result compare(SubGraphOp* sub_lhs, SubGraphOp* sub_rhs, bool compare_in_outs) {
         const auto lhs_it_no = get_num_iterations(sub_lhs);
         const auto rhs_it_no = get_num_iterations(sub_rhs);
         if (lhs_it_no != rhs_it_no) {
@@ -454,14 +460,16 @@ public:
 
         not_valid_input_output = lhs_it_no;
 
-        const auto result_for_inputs = compare_inputs(sub_lhs, sub_rhs);
-        if (!result_for_inputs.valid) {
-            return result_for_inputs;
-        }
+        if (compare_in_outs) {
+            const auto& result_for_inputs = compare_inputs(sub_lhs, sub_rhs);
+            if (!result_for_inputs.valid) {
+                return result_for_inputs;
+            }
 
-        const auto result_for_outputs = compare_outputs(sub_lhs, sub_rhs);
-        if (!result_for_outputs.valid) {
-            return result_for_outputs;
+            const auto& result_for_outputs = compare_outputs(sub_lhs, sub_rhs);
+            if (!result_for_outputs.valid) {
+                return result_for_outputs;
+            }
         }
 
         return compare_backedges(sub_lhs, sub_rhs);
@@ -553,8 +561,10 @@ private:
 
 }  // namespace detail
 
-Comparator::Result compare_io(ov::op::util::SubGraphOp* sub_lhs, ov::op::util::SubGraphOp* sub_rhs) {
-    return detail::CompareSubGraphs{}.compare(sub_lhs, sub_rhs);
+Comparator::Result compare_io(ov::op::util::SubGraphOp* sub_lhs,
+                              ov::op::util::SubGraphOp* sub_rhs,
+                              bool compare_in_outs) {
+    return detail::CompareSubGraphs{}.compare(sub_lhs, sub_rhs, compare_in_outs);
 }
 }  // namespace subgraph
 }  // namespace
@@ -692,7 +702,7 @@ Comparator::Result Comparator::compare(ngraph::Node* node1, ngraph::Node* node2,
     const bool subgraph_nodes = subgraph1 && subgraph2;
 
     if (subgraph_nodes) {
-        const auto result = subgraph::compare_io(subgraph1, subgraph2);
+        const auto result = subgraph::compare_io(subgraph1, subgraph2, should_compare(CmpValues::SUBGRAPH_DESCRIPTORS));
         if (!result.valid) {
             return result;
         }
@@ -827,10 +837,8 @@ void check_rt_info(const std::shared_ptr<ngraph::Function>& f) {
     static const std::vector<std::string> attrs_to_check{"fused_names_0"};
 
     std::ostringstream err_log;
-    for (auto& op : f->get_ops()) {
-        if (ov::op::util::is_constant(op))
-            continue;
 
+    for (auto& op : f->get_ops()) {
         const auto& rt_info = op->get_rt_info();
         for (const auto& attr_name : attrs_to_check) {
             if (!rt_info.count(attr_name)) {

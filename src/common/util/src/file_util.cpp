@@ -52,7 +52,14 @@
 
 std::string ov::util::get_file_name(const std::string& s) {
     std::string rc = s;
+    // Linux-style separator
     auto pos = s.find_last_of('/');
+    if (pos != std::string::npos) {
+        rc = s.substr(pos + 1);
+        return rc;
+    }
+    // Windows-style separator
+    pos = s.find_last_of('\\');
     if (pos != std::string::npos) {
         rc = s.substr(pos + 1);
     }
@@ -109,7 +116,11 @@ std::string join_paths(const std::string& s1, const std::string& s2) {
         } else if (s1.size() > 0) {
             rc = s1;
             if (rc[rc.size() - 1] != '/') {
+#ifndef _WIN32
                 rc += '/';
+#else
+                rc += '\\';
+#endif
             }
             rc += s2;
         } else {
@@ -197,6 +208,10 @@ static void iterate_files_worker(const std::string& path,
                     }
                     break;
                 case DT_REG:
+                case DT_UNKNOWN:
+                    // Comment from READDIR(3):
+                    //     only some filesystems have full support for returning the file type in d_type.
+                    //     All applications must properly handle a return of DT_UNKNOWN.
                     func(path_name, false);
                     break;
                 default:

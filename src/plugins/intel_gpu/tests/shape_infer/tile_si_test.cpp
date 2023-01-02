@@ -36,7 +36,7 @@ TEST_P(tile_test_two_inputs, shape_infer) {
 
     auto data_layout_prim = std::make_shared<input_layout>("data", p.data_layout);
     auto repeats_layout_prim = std::make_shared<input_layout>("repeats", p.repeats_layout);
-    auto tile_prim = std::make_shared<tile>("output", "data", "repeats");
+    auto tile_prim = std::make_shared<tile>("output", input_info("data"), input_info("repeats"));
 
     cldnn::program prog(engine);
 
@@ -79,7 +79,7 @@ TEST_P(tile_test_single_input, shape_infer) {
     auto& engine = get_test_engine();
 
     auto data_layout_prim = std::make_shared<input_layout>("data", p.data_layout);
-    auto tile_prim = std::make_shared<tile>("output", "data", p.repeats_data);
+    auto tile_prim = std::make_shared<tile>("output", input_info("data"), p.repeats_data);
 
     cldnn::program prog(engine);
 

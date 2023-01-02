@@ -53,6 +53,9 @@ void SnippetsTestsCommon::validateOriginalLayersNamesByType(const std::string& l
 
     ASSERT_TRUE(false) << "Layer type '" << layerType << "' was not found in compiled model";
 }
+void SnippetsTestsCommon::setInferenceType(ov::element::Type type) {
+    configuration.emplace(ov::hint::inference_precision(type));
+}
 
 }  // namespace test
 }  // namespace ov

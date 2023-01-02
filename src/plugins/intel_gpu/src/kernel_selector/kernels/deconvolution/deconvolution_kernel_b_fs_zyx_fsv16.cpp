@@ -32,9 +32,14 @@ ParamsKey DeconvolutionKernel_b_fs_zyx_fsv16::GetSupportedKey() const {
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
     k.EnableBatching();
-    k.EnableSubGroup();
-    k.EnableSubGroupShort();
     k.EnableDifferentTypes();
+    return k;
+}
+
+DeviceFeaturesKey DeconvolutionKernel_b_fs_zyx_fsv16::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_shuffle();
+
     return k;
 }
 
@@ -267,7 +272,16 @@ JitConstants DeconvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const deconvolu
             BoundaryCheck::ENABLED,
             IndexType::TENSOR_COORD,
             Tensor::DataChannelName::BATCH };
-        FusedOpsConfiguration conf_ci = { "_BLOCK_CI", idx_order_block_ci, "blockC00[i]", fused_dt, 1, LoadType::LT_ALIGNED_READ };
+
+        auto load_type = LoadType::LT_ALIGNED_READ;
+        for (auto& fused_op : params.fused_ops) {
+            if (!fused_op.output_tensor.SameDims(params.outputs[0]) &&
+                (fused_op.output_tensor.X().v > 1 || fused_op.output_tensor.Y().v > 1 || fused_op.output_tensor.Z().v > 1)) {
+                load_type = LoadType::LT_UNALIGNED;
+                idx_order_block_ci[1] = "(g * IC + gic * IC_BLOCK + local_id)";
+            }
+        }
+        FusedOpsConfiguration conf_ci = { "_BLOCK_CI", idx_order_block_ci, "blockC00[i]", fused_dt, 1, load_type };
 
         jit.Merge(MakeFusedOpsJitConstants(params, { conf_c00, conf_c01, conf_ci }));
     }
@@ -279,7 +293,7 @@ KernelsData DeconvolutionKernel_b_fs_zyx_fsv16::GetKernelsData(const Params& par
     KernelsData kds = Parent::GetKernelsData(params, options);
 
     const deconvolution_params& orgParams = static_cast<const deconvolution_params&>(params);
-    if (orgParams.inputs[0].Feature().v % 16 != 0) {
+    if (!kds.empty() && orgParams.inputs[0].Feature().v % 16 != 0) {
         kds[0].can_reuse_memory = false; // Set memory_reuse = false when input feature size is not 16 aligned.
     }
 

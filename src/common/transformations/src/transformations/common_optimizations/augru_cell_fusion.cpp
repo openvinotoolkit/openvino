@@ -7,10 +7,10 @@
 #include <memory>
 
 #include "itt.hpp"
-#include "ngraph_ops/augru_cell.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset9.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "ov_ops/augru_cell.hpp"
 
 using namespace std;
 using namespace ov::opset9;

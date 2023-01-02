@@ -7,6 +7,7 @@
 #include <memory>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/constant_folding.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 
 #include "transformations/utils/utils.hpp"
 #include "snippets/pass/fq_decomposition.hpp"
@@ -23,7 +24,7 @@ namespace pass {
 // Move up Constants which aren't scalars from body to Subgraph and replace them with Parameters inside body
 void ConvertConstantsToParameters(const std::shared_ptr<ngraph::snippets::op::Subgraph>& subgraph) {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::ConvertConstantsToParameters");
-    auto body = subgraph->get_body();
+    auto body = subgraph->body_ptr();
 
     ParameterVector new_parameters;
     OutputVector new_external_inputs = subgraph->input_values();
@@ -50,6 +51,7 @@ void ConvertConstantsToParameters(const std::shared_ptr<ngraph::snippets::op::Su
 }
 
 CommonOptimizations::CommonOptimizations() {
+    MATCHER_SCOPE(CommonOptimizations);
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::CommonOptimizations");
 
@@ -58,7 +60,7 @@ CommonOptimizations::CommonOptimizations() {
             return false;
         }
 
-        auto body = subgraph->get_body();
+        auto body = subgraph->body_ptr();
         const auto is_quantized = subgraph->is_quantized();
 
         // Firsly we should transform all original Converts inside body to ConvertTruncation to save original behavior.
@@ -78,7 +80,8 @@ CommonOptimizations::CommonOptimizations() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(ngraph::pattern::wrap_type<ngraph::snippets::op::Subgraph>(), "snippets::pass::CommonOptimizations");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(ngraph::pattern::wrap_type<ngraph::snippets::op::Subgraph>(),
+                                                        matcher_name);
     this->register_matcher(m, callback);
 }
 

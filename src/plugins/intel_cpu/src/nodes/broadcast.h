@@ -31,7 +31,6 @@ protected:
     bool needPrepareParams() const override;
     void prepareParams() override;
     bool needShapeInfer() const override;
-    std::vector<VectorDims> shapeInfer() const override;
 
 private:
     void plainExecute(dnnl::stream strm);

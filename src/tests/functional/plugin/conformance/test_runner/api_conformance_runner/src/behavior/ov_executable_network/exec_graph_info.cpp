@@ -23,6 +23,9 @@ const std::vector<ov::element::Type_t> ovExecGraphInfoElemTypes = {
         ov::element::u64,
         ov::element::f16,
         ov::element::f32,
+        ov::element::f64,
+        ov::element::bf16,
+        ov::element::boolean,
 };
 
 INSTANTIATE_TEST_SUITE_P(ov_compiled_model,
@@ -30,6 +33,6 @@ INSTANTIATE_TEST_SUITE_P(ov_compiled_model,
                          ::testing::Combine(
                                  ::testing::ValuesIn(ovExecGraphInfoElemTypes),
                                  ::testing::ValuesIn(return_all_possible_device_combination()),
-                                 ::testing::Values(ov_config)),
+                                 ::testing::Values(pluginConfig)),
                          OVExecGraphImportExportTest::getTestCaseName);
 }  // namespace

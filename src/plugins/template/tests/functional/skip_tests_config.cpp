@@ -109,6 +109,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ReferenceTileTest.*rType=i4.*)",
         R"(.*ReferenceTileTest.*rType=u4.*)",
         R"(.*DeviceID.*)",
+        // CVS-95608
+        R"(.*CachingSupportCase.*CompileModelCacheTestBase.*)",
+        R"(.*OVClassLoadNetworkTest.*QueryNetworkMULTIWithHETERONoThrow_V10.*)",
     };
 
 #ifdef _WIN32

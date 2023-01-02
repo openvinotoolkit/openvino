@@ -12,6 +12,36 @@
 
 namespace kernel_selector {
 
+DeviceFeaturesKey EngineInfo::get_supported_device_features_key() const {
+    DeviceFeaturesKey k;
+
+    if (supports_intel_subgroups) {
+        k.enable_subgroup_shuffle_relative();
+    }
+
+    // Note: sub-group extension emulation is an experimental thing and may produce incorrect results in some cases.
+    // Several known issues are listed below:
+    // 1. Kernels with subgroups may be implemented for specific sub-group size which is controlled by cl_intel_required_subgroup_size extension.
+    //    If that extension is unsupported then such kernels may produce wrong result.
+    // 2. Offset for sub-group block read/write functions in some cases includes get_sub_group_local_id() value which seems to be processed correctly
+    //    by intel extension, but may produce wrong result for emulation path.
+    // If you face such kind of issue, you may want to disable emulation by setting enable_sub_groups_emulation = false in set_params() method
+    bool can_emulate_intel_subgroups = enable_sub_groups_emulation && supports_khr_subgroups && (CL_TARGET_OPENCL_VERSION >= 200);
+
+    if (can_emulate_intel_subgroups || supports_intel_subgroups) {
+        k.enable_subgroups();
+        k.enable_subgroup_reduce();
+        k.enable_subgroup_broadcast();
+        k.enable_reqd_subgroup_size();
+        k.enable_blocked_read_write();
+        k.enable_subgroup_shuffle();
+        k.enable_blocked_read_write_short();
+        k.enable_blocked_read_write_char();
+    }
+
+    return k;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ParamsKey
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -213,9 +243,6 @@ void ParamsKey::EnablePoolType(PoolType t) {
         case PoolType::AVG:
             key.restrict.val.dedicated.pooling.avg = 1;
             break;
-        case PoolType::MAX_WITH_ARGMAX:
-            key.restrict.val.dedicated.pooling.max_with_argmax = 1;
-            break;
         case PoolType::BILINEAR:
             key.restrict.val.dedicated.pooling.bilinear = 1;
             break;
@@ -377,9 +404,6 @@ void ParamsKey::EnableQuantization(QuantizationType q) {
 bool ParamsKey::Support(const ParamsKey& k) const {
     if (!((key.restrict.raw & k.key.restrict.raw) == k.key.restrict.raw))  // check if this kernel supports this params
         return false;
-    if (!((key.machineInfo.raw & k.key.machineInfo.raw) ==
-          key.machineInfo.raw))  // check if machine supports this kernel
-        return false;
     if (!((key.inputType.raw & k.key.inputType.raw) == k.key.inputType.raw))
         return false;
     if (!((key.outputType.raw & k.key.outputType.raw) == k.key.outputType.raw))
@@ -405,7 +429,6 @@ bool ParamsKey::Support(const ParamsKey& k) const {
 ParamsKey ParamsKey::Merge(const ParamsKey& k) const {
     ParamsKey ret;
     ret.key.restrict.raw = key.restrict.raw | k.key.restrict.raw;
-    ret.key.machineInfo.raw = key.machineInfo.raw | k.key.machineInfo.raw;
     ret.key.inputType.raw = key.inputType.raw | k.key.inputType.raw;
     ret.key.outputType.raw = key.outputType.raw | k.key.outputType.raw;
     ret.key.inputWeightsType.raw = key.inputWeightsType.raw | k.key.inputWeightsType.raw;
@@ -420,21 +443,7 @@ ParamsKey ParamsKey::Merge(const ParamsKey& k) const {
 // Params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ParamsKey Params::GetParamsKey() const {
-    ParamsKey k;
-
-    if (engineInfo.bSubGroupSupport) {
-        k.EnableSubGroup();
-    }
-
-    if (engineInfo.bSubGroupShortSupport) {
-        k.EnableSubGroupShort();
-    }
-
-    if (engineInfo.bSubGroupCharSupport) {
-        k.EnableSubGroupChar();
-    }
-
-    return k;
+    return ParamsKey();
 }
 
 std::string Params::to_string() const {
@@ -477,6 +486,8 @@ ParamsKey base_params::GetParamsKey() const {
     // TODO : multiple output support
     bool bFP16Used = (outputs[0].GetDType() == Datatype::F16);
 
+    bool dynamic_shapes = false;
+
     for (const auto& i : inputs) {
         k.EnableInputDataType(i.GetDType());
         k.EnableInputLayout(i.GetLayout());
@@ -486,10 +497,13 @@ ParamsKey base_params::GetParamsKey() const {
         bOffests |= (i.GetFirstElementOffset() != 0);
         bDifferentTypes |= (i.GetDType() != outputs[0].GetDType());
         bFP16Used |= (i.GetDType() == Datatype::F16);
+        dynamic_shapes |= i.is_dynamic();
     }
 
     k.EnableOutputDataType(outputs[0].GetDType());
     k.EnableOutputLayout(outputs[0].GetLayout());
+
+    dynamic_shapes |= outputs[0].is_dynamic();
 
     if (bBatching) {
         k.EnableBatching();
@@ -507,7 +521,11 @@ ParamsKey base_params::GetParamsKey() const {
         k.EnableTensorOffset();
     }
 
-    if (!engineInfo.bFP16Support && bFP16Used) {
+    if (dynamic_shapes) {
+        k.EnableDynamicShapesSupport();
+    }
+
+    if (!engineInfo.supports_fp16 && bFP16Used) {
         // I'm not sure it's the best idea, but we can live with it right now
         k.EnableFP16Emulation();
     }

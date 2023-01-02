@@ -33,7 +33,7 @@ public:
     InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::CNNNetwork&        network,
                                                                        const std::map<std::string, std::string>& config) override;
 
-    InferenceEngine::IExecutableNetworkInternal::Ptr LoadNetwork(const std::string& modelPath,
+    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> LoadNetwork(const std::string& modelPath,
                                                                  const std::map<std::string, std::string>& config) override;
 
     void SetConfig(const std::map<std::string, std::string>& config) override;
@@ -48,7 +48,7 @@ public:
 
     MOCKTESTMACRO std::string GetDeviceList(const std::map<std::string, std::string>& config) const;
 
-    std::list<DeviceInformation> GetValidDevice(const std::vector<DeviceInformation>& metaDevices,
+    MOCKTESTMACRO std::list<DeviceInformation> GetValidDevice(const std::vector<DeviceInformation>& metaDevices,
                                                    const std::string& networkPrecision = METRIC_VALUE(FP32));
 
     MOCKTESTMACRO DeviceInformation SelectDevice(const std::vector<DeviceInformation>& metaDevices,

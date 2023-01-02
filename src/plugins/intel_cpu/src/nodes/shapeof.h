@@ -24,9 +24,6 @@ public:
     bool created() const override;
     bool needPrepareParams() const override {return false;};
     void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
-    std::vector<VectorDims> shapeInfer() const override {
-        return {VectorDims{getParentEdgesAtPort(0)[0]->getMemory().getStaticDims().size()}};
-    }
 
     bool isExecutable() const override;
 

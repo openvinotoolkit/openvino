@@ -16,6 +16,7 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/core_config.hpp"
+#include "ie_icore.hpp"
 
 namespace LayerTestsUtils {
 
@@ -115,6 +116,15 @@ void LayerTestsCommon::QueryNetwork() {
 
     std::set<std::string> actual;
     for (auto&& res : queryNetworkResult.supportedLayersMap) {
+        std::shared_ptr<InferenceEngine::RemoteContext> ctx = nullptr;
+        try {
+            // Try to take fully specified name from the context to match it with query network result for devices that support remote contexts
+            ctx = core->GetDefaultContext(targetDevice);
+            ASSERT_EQ(res.second, ctx->getDeviceName());
+        } catch (...) {
+            // otherwise, compare with originally used device name
+            ASSERT_EQ(InferenceEngine::DeviceIDParser(res.second).getDeviceName(), targetDevice);
+        }
         actual.insert(res.first);
     }
     ASSERT_EQ(expected, actual);

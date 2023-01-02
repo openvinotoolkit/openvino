@@ -20,19 +20,19 @@
 
 #include <ie_memcpy.h>
 #include "memory/gna_memory_util.hpp"
-#include "gna_plugin_log.hpp"
-#include "dnn.hpp"
-#include "am_intel_dnn.hpp"
-#include "dnn_types.h"
+#include "log/log.hpp"
+#include "log/dump.hpp"
+#include "backend/dnn.hpp"
+#include "backend/am_intel_dnn.hpp"
+#include "backend/dnn_types.h"
 #include "gna/gna_config.hpp"
-#include "gna_types.h"
-#include "gna_limitations.hpp"
+#include "backend/gna_types.h"
+#include "backend/gna_limitations.hpp"
 #include "layers/gna_convolution_layer.hpp"
 #include "memory/gna_memory.hpp"
 
 #include <gna2-model-api.h>
 #include "gna2_model_helper.hpp"
-#include "gna2_model_debug_log.hpp"
 
 /**
  * whether to dump weights and biases
@@ -47,6 +47,7 @@
 #define LIGHT_DUMP
 
 using namespace GNAPluginNS::backend;
+using namespace ov::intel_gna;
 
 using GNAPluginNS::GNAConvolutionLayer::outputFromConv;
 using GNAPluginNS::GNAConvolutionLayer::outputFromPooling;
@@ -706,7 +707,7 @@ void GNAPluginNS::backend::AMIntelDNN::WriteGraphWizModel(const char *filename) 
         std::string l = generate_layer_name(k);
 
         int tidx = 0;
-        for (auto tmpOutPtrs : outputs) {
+        for (const auto& tmpOutPtrs : outputs) {
             if (components[k].ptr_outputs == tmpOutPtrs.first) {
                 graph << l << " -> " << tidx << " [label=\"TO_TMP\", fontcolor=darkgreen,color=orange, style=dashed];";
             }
@@ -1417,7 +1418,7 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(Gna2Model *gnaModel, const 
     memset(gnaModel->Operations, 0, gnaModel->NumberOfOperations * sizeof(Gna2Operation));
     gnaOperation = gnaModel->Operations;
     for (int i = 0; i < component.size(); i++) {
-        gnalog() << "Component + " << i << "=GNA_" << std::distance(gnaModel->Operations, gnaOperation) << "\n";
+        log::debug() << "Component + " << i << "=GNA_" << std::distance(gnaModel->Operations, gnaOperation) << "\n";
 
         auto& comp = component[i];
         switch (comp.operation) {
@@ -1687,7 +1688,7 @@ void GNAPluginNS::backend::AMIntelDNN::DestroyGNAStruct(Gna2Model *gnaModel) {
 
 void GNAPluginNS::backend::AMIntelDNN::WriteInputAndOutputTextGNA(const Gna2Model & model) {
 #ifdef LIGHT_DUMP
-    WriteInputAndOutputTextGNAImpl(
+    dump::WriteInputAndOutputTextGNAImpl(
         model,
         getDumpFilePrefixGNA(),
         getRefFolderName());
@@ -1757,7 +1758,7 @@ void GNAPluginNS::backend::AMIntelDNN::WriteInputAndOutputText() {
         if (numItems) {
             auto rmse = sqrt(summOfSqDiff / numItems);
             auto avg = summOfDiff / numItems;
-            std :: cout << std::left << std::setw(55) << out_file_name.str()
+            log::trace() << std::left << std::setw(55) << out_file_name.str()
                         << " RMSE="<< std::fixed << std::setprecision(5) << std::right << std::setw(8) << rmse
                         << " avg=" << std::fixed << std::setprecision(5) << std::right << std::setw(8) << avg
                         << " maxD="<< std::fixed << std::setprecision(5) << std::right << std::setw(8) << maxD << std::endl;

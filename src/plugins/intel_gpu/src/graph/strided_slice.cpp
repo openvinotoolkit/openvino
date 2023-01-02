@@ -13,10 +13,7 @@
 #include "strided_slice_shape_inference.hpp"
 
 namespace cldnn {
-primitive_type_id strided_slice::type_id() {
-    static primitive_type_base<strided_slice> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(strided_slice)
 
 layout strided_slice_inst::calc_output_layout(strided_slice_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<strided_slice>();
@@ -63,9 +60,9 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
     auto mem2 = constant_mem.at(2);
     auto mem3 = constant_mem.at(3);
 
-    cldnn::mem_lock<uint8_t, mem_lock_type::read> lock1(mem1, impl_param.prog.get_stream());
-    cldnn::mem_lock<uint8_t, mem_lock_type::read> lock2(mem2, impl_param.prog.get_stream());
-    cldnn::mem_lock<uint8_t, mem_lock_type::read> lock3(mem3, impl_param.prog.get_stream());
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> lock1(mem1, impl_param.prog->get_stream());
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> lock2(mem2, impl_param.prog->get_stream());
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> lock3(mem3, impl_param.prog->get_stream());
 
     auto tensor1 = make_host_tensor(mem1->get_layout(), lock1.data());
     auto tensor2 = make_host_tensor(mem2->get_layout(), lock2.data());

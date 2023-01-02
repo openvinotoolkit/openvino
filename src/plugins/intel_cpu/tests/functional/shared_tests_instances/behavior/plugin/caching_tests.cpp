@@ -3,9 +3,9 @@
 //
 
 #include "behavior/plugin/caching_tests.hpp"
-#include <ngraph_ops/nms_ie_internal.hpp>
-#include <ngraph_ops/nms_static_shape_ie.hpp>
-#include <ngraph_ops/multiclass_nms_ie_internal.hpp>
+#include <ov_ops/nms_ie_internal.hpp>
+#include <ov_ops/nms_static_shape_ie.hpp>
+#include <ov_ops/multiclass_nms_ie_internal.hpp>
 
 using namespace LayerTestsDefinitions;
 using namespace ngraph;
@@ -20,6 +20,11 @@ namespace {
             ngraph::element::u8,
             ngraph::element::i16,
             ngraph::element::u16,
+    };
+
+   static const std::vector<ngraph::element::Type> floatPrecisionsCPU = {
+            ngraph::element::f32,
+            ngraph::element::f16
     };
 
     static const std::vector<std::size_t> batchSizesCPU = {
@@ -81,8 +86,16 @@ namespace {
 
     INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_CPU, LoadNetworkCacheTestBase,
                             ::testing::Combine(
-                                    ::testing::ValuesIn(LoadNetworkCacheTestBase::getStandardFunctions()),
+                                    ::testing::ValuesIn(LoadNetworkCacheTestBase::getNumericAnyTypeFunctions()),
                                     ::testing::ValuesIn(precisionsCPU),
+                                    ::testing::ValuesIn(batchSizesCPU),
+                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            LoadNetworkCacheTestBase::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_CPU_Float, LoadNetworkCacheTestBase,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(LoadNetworkCacheTestBase::getFloatingPointOnlyFunctions()),
+                                    ::testing::ValuesIn(floatPrecisionsCPU),
                                     ::testing::ValuesIn(batchSizesCPU),
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                             LoadNetworkCacheTestBase::getTestCaseName);

@@ -47,8 +47,10 @@ ov::util::LogHelper::LogHelper(LOG_TYPE type,
 }
 
 ov::util::LogHelper::~LogHelper() {
+#ifdef ENABLE_OPENVINO_DEBUG
     if (m_handler_func) {
         m_handler_func(m_stream.str());
     }
     // Logger::log_item(m_stream.str());
+#endif
 }

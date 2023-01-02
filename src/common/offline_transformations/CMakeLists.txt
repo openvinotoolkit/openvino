@@ -20,10 +20,8 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime::dev openvino::itt openvino::pugixml ngraph::reference
-                                             openvino::runtime nlohmann_json_schema_validator)
+                                             openvino::runtime)
 
-set_source_files_properties(src/json_extension/json_config.cpp INCLUDE_DIRECTORIES
-    $<TARGET_PROPERTY:nlohmann_json_schema_validator,INTERFACE_INCLUDE_DIRECTORIES>)
 set_source_files_properties(src/generate_mapping_file.cpp INCLUDE_DIRECTORIES
     $<TARGET_PROPERTY:openvino::pugixml,INTERFACE_INCLUDE_DIRECTORIES>)
 

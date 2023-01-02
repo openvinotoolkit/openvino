@@ -140,8 +140,6 @@ size_t read_k_from_host_tensor(const HostTensorPtr& arg_k) {
 }  // namespace topk
 
 // v1 version starts
-BWDCMP_RTTI_DEFINITION(op::v1::TopK);
-
 static const std::uint64_t UNKNOWN_NORMALIZED_AXIS = std::numeric_limits<uint64_t>::max();
 
 op::v1::TopK::TopK(const Output<Node>& data,
@@ -234,7 +232,7 @@ void op::v1::TopK::set_axis(const int64_t axis) {
     m_axis = axis;
 }
 
-void op::v1::TopK::set_axis(const Rank input_rank, const int64_t axis) {
+void op::v1::TopK::set_axis(const Rank& input_rank, const int64_t axis) {
     if (input_rank.is_static()) {
         m_normalized_axis = ngraph::normalize_axis(this, axis, input_rank);
     } else {
@@ -406,8 +404,6 @@ bool op::v1::TopK::has_evaluate() const {
 }
 
 // v3 version starts
-BWDCMP_RTTI_DEFINITION(op::v3::TopK);
-
 op::v3::TopK::TopK(const Output<Node>& data,
                    const Output<Node>& k,
                    const int64_t axis,

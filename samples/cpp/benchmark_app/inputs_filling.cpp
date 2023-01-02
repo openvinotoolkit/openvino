@@ -43,7 +43,7 @@ ov::Tensor create_tensor_from_image(const std::vector<std::string>& files,
     if (!inputInfo.layout.empty() && ov::layout::has_batch(inputInfo.layout)) {
         imgBatchSize = batchSize;
     } else {
-        slog::warn << inputName << ": layout does not contain batch dimension. Assuming bath 1 for this input"
+        slog::warn << inputName << ": layout does not contain batch dimension. Assuming batch 1 for this input"
                    << slog::endl;
     }
 
@@ -83,10 +83,7 @@ ov::Tensor create_tensor_from_image(const std::vector<std::string>& files,
                                     (((inputInfo.layout == "NCHW") || (inputInfo.layout == "CHW"))
                                          ? (ch * width * height + h * width + w)
                                          : (h * width * numChannels + w * numChannels + ch));
-                    data[offset] =
-                        (static_cast<T>(vreader.at(b).get()[h * width * numChannels + w * numChannels + ch]) -
-                         static_cast<T>(inputInfo.mean[ch])) /
-                        static_cast<T>(inputInfo.scale[ch]);
+                    data[offset] = static_cast<T>(vreader.at(b).get()[h * width * numChannels + w * numChannels + ch]);
                 }
             }
         }
@@ -166,7 +163,7 @@ ov::Tensor create_tensor_from_binary(const std::vector<std::string>& files,
                         files[inputIndex],
                         " contains ",
                         fileSize,
-                        " bytes, but the network expects ",
+                        " bytes, but the model expects ",
                         inputSize);
 
         if (inputInfo.layout != "CN") {
@@ -366,7 +363,7 @@ ov::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputIn
 std::string get_test_info_stream_header(benchmark_app::InputInfo& inputInfo) {
     std::stringstream strOut;
     strOut << "(" << inputInfo.layout.to_string() << ", " << inputInfo.type.get_type_name() << ", "
-           << get_shape_string(inputInfo.dataShape) << ", ";
+           << inputInfo.dataShape << ", ";
     if (inputInfo.partialShape.is_dynamic()) {
         strOut << std::string("dyn:") << inputInfo.partialShape << "):\t";
     } else {
@@ -380,11 +377,11 @@ std::map<std::string, ov::TensorVector> get_tensors(std::map<std::string, std::v
     std::ios::fmtflags fmt(std::cout.flags());
     std::map<std::string, ov::TensorVector> tensors;
     if (app_inputs_info.empty()) {
-        throw std::logic_error("Inputs Info for network is empty!");
+        throw std::logic_error("Inputs Info for model is empty!");
     }
 
     if (!inputFiles.empty() && inputFiles.size() != app_inputs_info[0].size()) {
-        throw std::logic_error("Number of inputs specified in -i must be equal to number of network inputs!");
+        throw std::logic_error("Number of inputs specified in -i must be equal to number of model inputs!");
     }
 
     // count image type inputs of network
@@ -400,7 +397,7 @@ std::map<std::string, ov::TensorVector> get_tensors(std::map<std::string, std::v
     for (auto& files : inputFiles) {
         if (!files.first.empty() && app_inputs_info[0].find(files.first) == app_inputs_info[0].end()) {
             throw std::logic_error("Input name \"" + files.first +
-                                   "\" used in -i parameter doesn't match any network's input");
+                                   "\" used in -i parameter doesn't match any model's input");
         }
 
         std::string input_name = files.first.empty() ? app_inputs_info[0].begin()->first : files.first;

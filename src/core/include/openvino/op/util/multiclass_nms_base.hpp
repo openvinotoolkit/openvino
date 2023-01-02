@@ -14,7 +14,6 @@ namespace util {
 class OPENVINO_API MulticlassNmsBase : public Op {
 public:
     OPENVINO_OP("MulticlassNmsBase", "util");
-    BWDCMP_RTTI_DECLARATION;
 
     enum class SortResultType {
         CLASSID,  // sort selected boxes by class id (ascending) in each batch element
@@ -88,6 +87,5 @@ public:
         : EnumAttributeAdapterBase<op::util::MulticlassNmsBase::SortResultType>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::util::MulticlassNmsBase::SortResultType>");
-    BWDCMP_RTTI_DECLARATION;
 };
 }  // namespace ov

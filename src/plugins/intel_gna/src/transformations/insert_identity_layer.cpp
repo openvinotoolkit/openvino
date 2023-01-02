@@ -7,13 +7,16 @@
 #include "transformations/rt_info/gna_precision_change_flag.hpp"
 
 #include <ngraph/opsets/opset9.hpp>
+#include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ops/identity.hpp>
 #include <legacy/ngraph_ops/eltwise.hpp>
+#include "log/log.hpp"
 #include "ops/util/util.hpp"
 
+using namespace ov::intel_gna;
 using namespace ov::intel_gna::pass;
 using namespace ov::intel_gna::rt_info;
 using namespace ov::intel_gna::ngraph_util;
@@ -21,7 +24,7 @@ using namespace ov::intel_gna::ngraph_util;
 namespace {
 void mark_for_identity_insertion(std::shared_ptr<ngraph::Node> node,
                                  size_t input_index) {
-    gnalog() << "Mark input as candidate for identity insertion " << input_index << ":" << node->get_friendly_name() << std::endl;
+    log::debug() << "Mark input as candidate for identity insertion " << input_index << ":" << node->get_friendly_name() << std::endl;
     auto input = node->input(input_index);
     add_precision_change_flag(input, ov::element::i32, ov::element::i16);
 }
@@ -39,7 +42,7 @@ void insert_identity_layer_after(std::shared_ptr<ngraph::Node>& input_op,
                                  size_t index) {
     NGRAPH_CHECK(input_op);
 
-    gnalog() << "Insert identity layer after " << input_op->get_friendly_name() <<
+    log::debug() << "Insert identity layer after " << input_op->get_friendly_name() <<
         " (" << input_op->get_type_name() << "):"<< index << std::endl;
 
     auto consumers = input_op->output(index).get_target_inputs();
@@ -55,7 +58,7 @@ void insert_identity_layer_between(std::shared_ptr<ngraph::Node>& input_op,
     NGRAPH_CHECK(input_op);
     NGRAPH_CHECK(output_op);
 
-    gnalog() << "Insert identity layer after " << input_op->get_friendly_name() <<
+    log::debug() << "Insert identity layer after " << input_op->get_friendly_name() <<
         " (" << input_op->get_type_name() << ") and before " << index << ":" <<
          output_op->get_friendly_name() << " (" << output_op->get_type_name() << ")" << std::endl;
 

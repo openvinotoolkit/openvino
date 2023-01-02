@@ -17,10 +17,16 @@
 #include "openvino/c/ov_property.h"
 #include "openvino/c/ov_tensor.h"
 
+/**
+ * @struct ov_core_t
+ * @ingroup ov_core_c_api
+ * @brief type define ov_core_t from ov_core
+ */
 typedef struct ov_core ov_core_t;
 
 /**
  * @struct ov_version
+ * @ingroup ov_core_c_api
  * @brief Represents OpenVINO version information
  */
 typedef struct ov_version {
@@ -30,6 +36,7 @@ typedef struct ov_version {
 
 /**
  * @struct ov_core_version
+ * @ingroup ov_core_c_api
  * @brief  Represents version information that describes device and ov runtime library
  */
 typedef struct {
@@ -39,6 +46,7 @@ typedef struct {
 
 /**
  * @struct ov_core_version_list
+ * @ingroup ov_core_c_api
  * @brief  Represents version information that describes all devices and ov runtime library
  */
 typedef struct {
@@ -48,79 +56,77 @@ typedef struct {
 
 /**
  * @struct ov_available_devices_t
+ * @ingroup ov_core_c_api
  * @brief Represent all available devices.
  */
 typedef struct {
-    char** devices;
-    size_t size;
+    char** devices;             //!< devices' name
+    size_t size;                //!< devices' number
 } ov_available_devices_t;
 
 /**
  * @brief Get version of OpenVINO.
+ * @ingroup ov_core_c_api
  * @param ov_version_t a pointer to the version
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_get_openvino_version(ov_version_t* version);
+OPENVINO_C_API(ov_status_e)
+ov_get_openvino_version(ov_version_t* version);
 
 /**
  * @brief Release the memory allocated by ov_version_t.
+ * @ingroup ov_core_c_api
  * @param version A pointer to the ov_version_t to free memory.
  */
-OPENVINO_C_API(void) ov_version_free(ov_version_t* version);
-
-// OV Core
-
-/**
- * @defgroup Core Core
- * @ingroup openvino_c
- * Set of functions dedicated to working with registered plugins and loading
- * model to the registered devices.
- * @{
- */
+OPENVINO_C_API(void)
+ov_version_free(ov_version_t* version);
 
 /**
  * @brief Constructs OpenVINO Core instance by default.
  * See RegisterPlugins for more details.
- * @ingroup Core
+ * @ingroup ov_core_c_api
  * @param core A pointer to the newly created ov_core_t.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_core_create(ov_core_t** core);
+OPENVINO_C_API(ov_status_e)
+ov_core_create(ov_core_t** core);
 
 /**
  * @brief Constructs OpenVINO Core instance using XML configuration file with devices description.
  * See RegisterPlugins for more details.
- * @ingroup Core
+ * @ingroup ov_core_c_api
  * @param xml_config_file A path to .xml file with devices to load from. If XML configuration file is not specified,
  * then default plugin.xml file will be used.
  * @param core A pointer to the newly created ov_core_t.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_core_create_with_config(const char* xml_config_file, ov_core_t** core);
+OPENVINO_C_API(ov_status_e)
+ov_core_create_with_config(const char* xml_config_file, ov_core_t** core);
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 /**
- * @brief Constructs OpenVINO Core instance using XML configuration file with devices description.
+ * @brief Constructs OpenVINO Core instance.
  * See RegisterPlugins for more details.
- * @ingroup Core
- * @param xml_config_file A path to .xml file with devices to load from. If XML configuration file is not specified,
- * then default plugin.xml file will be used.
+ * @ingroup ov_core_c_api
+ * @param xml_config_file_ws A path to model file with unicode.
  * @param core A pointer to the newly created ov_core_t.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_core_create_with_config_unicode(const wchar_t* xml_config_file_ws, ov_core_t** core);
+OPENVINO_C_API(ov_status_e)
+ov_core_create_with_config_unicode(const wchar_t* xml_config_file_ws, ov_core_t** core);
 #endif
 
 /**
  * @brief Release the memory allocated by ov_core_t.
- * @ingroup Core
+ * @ingroup ov_core_c_api
  * @param core A pointer to the ov_core_t to free memory.
  */
-OPENVINO_C_API(void) ov_core_free(ov_core_t* core);
+OPENVINO_C_API(void)
+ov_core_free(ov_core_t* core);
 
 /**
  * @brief Reads models from IR/ONNX/PDPD formats.
- * @ingroup Core
+ * @ingroup ov_core_c_api
  * @param core A pointer to the ie_core_t instance.
  * @param model_path Path to a model.
  * @param bin_path Path to a data file.
@@ -135,12 +141,15 @@ OPENVINO_C_API(void) ov_core_free(ov_core_t* core);
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_core_read_model(const ov_core_t* core, const char* model_path, const char* bin_path, ov_model_t** model);
+ov_core_read_model(const ov_core_t* core,
+                   const char* model_path,
+                   const char* bin_path,
+                   ov_model_t** model);
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 /**
  * @brief Reads models from IR/ONNX/PDPD formats, path is unicode.
- * @ingroup Core
+ * @ingroup ov_core_c_api
  * @param core A pointer to the ie_core_t instance.
  * @param model_path Path to a model.
  * @param bin_path Path to a data file.
@@ -163,7 +172,7 @@ ov_core_read_model_unicode(const ov_core_t* core,
 
 /**
  * @brief Reads models from IR/ONNX/PDPD formats.
- * @ingroup Core
+ * @ingroup ov_core_c_api
  * @param core A pointer to the ie_core_t instance.
  * @param model_str String with a model in IR/ONNX/PDPD format.
  * @param weights Shared pointer to a constant tensor with weights.
@@ -184,7 +193,7 @@ ov_core_read_model_from_memory(const ov_core_t* core,
  * @brief Creates a compiled model from a source model object.
  * Users can create as many compiled models as they need and use
  * them simultaneously (up to the limitation of the hardware resources).
- * @ingroup Core
+ * @ingroup ov_core_c_api
  * @param core A pointer to the ie_core_t instance.
  * @param model Model object acquired from Core::read_model.
  * @param device_name Name of a device to load a model to.
@@ -206,13 +215,13 @@ ov_core_compile_model(const ov_core_t* core,
  * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD file.
  * This can be more efficient than using the ov_core_read_model_from_XXX + ov_core_compile_model flow,
  * especially for cases when caching is enabled and a cached model is available.
- * @ingroup Core
+ * @ingroup ov_core_c_api
  * @param core A pointer to the ie_core_t instance.
  * @param model_path Path to a model.
  * @param device_name Name of a device to load a model to.
  * @param property_args_size How many properties args will be passed, each property contains 2 args: key and value.
  * @param compiled_model A pointer to the newly created compiled_model.
- * @param property paramater: Optional pack of pairs: <char* property_key, char* property_value> relevant only
+ * @param ... Optional pack of pairs: <char* property_key, char* property_value> relevant only
  * for this load operation operation. Supported property key please see ov_property.h.
  * @return Status code of the operation: OK(0) for success.
  */
@@ -229,13 +238,13 @@ ov_core_compile_model_from_file(const ov_core_t* core,
  * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD file.
  * This can be more efficient than using the ov_core_read_model_from_XXX + ov_core_compile_model flow,
  * especially for cases when caching is enabled and a cached model is available.
- * @ingroup Core
+ * @ingroup ov_core_c_api
  * @param core A pointer to the ie_core_t instance.
  * @param model_path Path to a model.
  * @param device_name Name of a device to load a model to.
  * @param property_args_size How many properties args will be passed, each property contains 2 args: key and value.
  * @param compiled_model A pointer to the newly created compiled_model.
- * @param property paramater: Optional pack of pairs: <char* property_key, char* property_value> relevant only
+ * @param ... Optional pack of pairs: <char* property_key, char* property_value> relevant only
  * for this load operation operation. Supported property key please see ov_property.h.
  * @return Status code of the operation: OK(0) for success.
  */
@@ -251,10 +260,9 @@ ov_core_compile_model_from_file_unicode(const ov_core_t* core,
 
 /**
  * @brief Sets properties for a device, acceptable keys can be found in ov_property_key_xxx.
- * @ingroup Core
+ * @ingroup ov_core_c_api
  * @param core A pointer to the ie_core_t instance.
  * @param device_name Name of a device.
- * @param property_key The property key.
  * @param ... variadic paramaters The format is <char* property_key, char* property_value>.
  * Supported property key please see ov_property.h.
  * @return Status code of the operation: OK(0) for success.
@@ -265,7 +273,7 @@ ov_core_set_property(const ov_core_t* core, const char* device_name, ...);
 /**
  * @brief Gets properties related to device behaviour.
  * The method extracts information that can be set via the set_property method.
- * @ingroup Core
+ * @ingroup ov_core_c_api
  * @param core A pointer to the ie_core_t instance.
  * @param device_name  Name of a device to get a property value.
  * @param property_key  Property key.
@@ -273,29 +281,34 @@ ov_core_set_property(const ov_core_t* core, const char* device_name, ...);
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_core_get_property(const ov_core_t* core, const char* device_name, const char* property_key, char** property_value);
+ov_core_get_property(const ov_core_t* core,
+                     const char* device_name,
+                     const char* property_key,
+                     char** property_value);
 
 /**
  * @brief Returns devices available for inference.
- * @ingroup Core
+ * @ingroup ov_core_c_api
  * @param core A pointer to the ie_core_t instance.
  * @param devices A pointer to the ov_available_devices_t instance.
  * Core objects go over all registered plugins and ask about available devices.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_core_get_available_devices(const ov_core_t* core, ov_available_devices_t* devices);
+OPENVINO_C_API(ov_status_e)
+ov_core_get_available_devices(const ov_core_t* core, ov_available_devices_t* devices);
 
 /**
  * @brief Releases memory occpuied by ov_available_devices_t
- * @ingroup Core
+ * @ingroup ov_core_c_api
  * @param devices A pointer to the ov_available_devices_t instance.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(void) ov_available_devices_free(ov_available_devices_t* devices);
+OPENVINO_C_API(void)
+ov_available_devices_free(ov_available_devices_t* devices);
 
 /**
  * @brief Imports a compiled model from the previously exported one.
- * @ingroup Core
+ * @ingroup ov_core_c_api
  * @param core A pointer to the ov_core_t instance.
  * @param content A pointer to content of the exported model.
  * @param content_size Number of bytes in the exported network.
@@ -314,20 +327,21 @@ ov_core_import_model(const ov_core_t* core,
  * @brief Returns device plugins version information.
  * Device name can be complex and identify multiple devices at once like `HETERO:CPU,GPU`;
  * in this case, std::map contains multiple entries, each per device.
- * @ingroup Core
+ * @ingroup ov_core_c_api
  * @param core A pointer to the ov_core_t instance.
  * @param device_name Device name to identify a plugin.
  * @param versions A pointer to versions corresponding to device_name.
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_core_get_versions_by_device_name(const ov_core_t* core, const char* device_name, ov_core_version_list_t* versions);
+ov_core_get_versions_by_device_name(const ov_core_t* core,
+                                    const char* device_name,
+                                    ov_core_version_list_t* versions);
 
 /**
  * @brief Releases memory occupied by ov_core_version_list_t.
- * @ingroup Core
+ * @ingroup ov_core_c_api
  * @param vers A pointer to the ie_core_versions to free memory.
  */
-OPENVINO_C_API(void) ov_core_versions_free(ov_core_version_list_t* versions);
-
-/** @} */  // end of Core
+OPENVINO_C_API(void)
+ov_core_versions_free(ov_core_version_list_t* versions);

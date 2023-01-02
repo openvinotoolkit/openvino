@@ -20,14 +20,14 @@ from openvino.runtime import (
     compile_model,
 )
 
-from ..conftest import (
+from tests.conftest import (
     model_path,
     model_onnx_path,
     plugins_path,
     get_model_with_template_extension,
 )
 
-from ..test_utils.test_utils import (
+from tests.test_utils.test_utils import (
     generate_image,
     generate_relu_model,
 )
@@ -66,7 +66,7 @@ def test_compact_api_wrong_path():
             return "test class"
     with pytest.raises(RuntimeError) as e:
         compile_model(TestClass())
-    assert "Path: 'test class' does not exist. Please provide valid model's path either as a string or pathlib.Path" in str(e.value)
+    assert "Path: 'test class' does not exist. Please provide valid model's path either as a string, bytes or pathlib.Path" in str(e.value)
 
 
 def test_compact_api_onnx():
@@ -199,10 +199,10 @@ def test_available_devices(device):
     )
 
 
-def test_get_property():
+def test_get_property(device):
     core = Core()
-    conf = core.get_property("CPU", "CPU_BIND_THREAD")
-    assert conf == "YES"
+    conf = core.get_property(device, "SUPPORTED_CONFIG_KEYS")
+    assert "PERF_COUNT" in conf
 
 
 @pytest.mark.skipif(
@@ -323,6 +323,8 @@ def test_unregister_plugin(device):
 
 
 @pytest.mark.template_plugin()
+@pytest.mark.skip(reason="Sporadically failed on mac with error:  Cannot add extension."
+                         "Cannot find entry point to the extension library")
 def test_add_extension_template_extension(device):
     core, model = get_model_with_template_extension()
     assert isinstance(model, Model)

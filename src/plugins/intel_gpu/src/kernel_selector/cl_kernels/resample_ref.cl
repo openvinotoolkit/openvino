@@ -2,30 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/fetch_data.cl"
-#include "include/batch_headers/data_types.cl"
-
-inline uint FUNC(get_input_index)(uint b, uint f, uint z, uint y, uint x)
-{
-#if INPUT0_DIMS < 5
-    return INPUT0_GET_INDEX(b, f, y, x);
-#elif INPUT0_DIMS == 5
-    return INPUT0_GET_INDEX(b, f, z, y, x);
-#else
-#error [clDNN resample_ref.cl]: input format - not supported
-#endif
-}
-
-inline uint FUNC(get_output_index)(uint b, uint f, uint z, uint y, uint x)
-{
-#if OUTPUT_DIMS < 5
-    return OUTPUT_GET_INDEX(b, f, y, x);
-#elif OUTPUT_DIMS == 5
-    return OUTPUT_GET_INDEX(b, f, z, y, x);
-#else
-#error [clDNN resample_ref.cl]: output format - not supported
-#endif
-}
+#include "include/fetch_utils.cl"
 
 inline int FUNC(get_nearest_val)(float num, bool is_downsample)
 {
@@ -73,7 +50,6 @@ inline void FUNC(get_cubic_coeff)(float* cubic_coef, float coord, float coef)
 }
 
 #define TRIANGLE_COEFF(x) (ACCUMULATOR_MAX_FUNC(ACCUMULATOR_VAL_ZERO, ACCUMULATOR_VAL_ONE - ACCUMULATOR_ABS_FUNC(x)))
-#define unroll_for __attribute__((opencl_unroll_hint)) for
 
 KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
                           __global OUTPUT_TYPE* output
@@ -111,8 +87,8 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
 #endif
     }
 
-    uint input_idx = FUNC_CALL(get_input_index)(in_coords[0], in_coords[1], in_coords[2], in_coords[3], in_coords[4]);
-    uint output_idx = FUNC_CALL(get_output_index)(out_coords[0], out_coords[1], out_coords[2], out_coords[3], out_coords[4]);
+    uint input_idx = FUNC_CALL(get_input_index)(in_coords[0], in_coords[1], 0, in_coords[2], in_coords[3], in_coords[4]);
+    uint output_idx = FUNC_CALL(get_output_index)(out_coords[0], out_coords[1], 0, out_coords[2], out_coords[3], out_coords[4]);
 
     in_pack_t interp_val_pack = ((const __global in_pack_t*)(input + input_idx))[0];
     out_pack_t res;
@@ -164,7 +140,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
             isOutOfBounds = true;
 #endif
     }
-    INPUT0_TYPE interp_val = input[FUNC_CALL(get_input_index)(in_coords[0], in_coords[1], in_coords[2], in_coords[3], in_coords[4])];
+    INPUT0_TYPE interp_val = input[FUNC_CALL(get_input_index)(in_coords[0], in_coords[1], 0, in_coords[2], in_coords[3], in_coords[4])];
 #if PADDING_USED == 1
     if (isOutOfBounds)
         interp_val = INPUT0_VAL_ZERO;
@@ -185,7 +161,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
 #else // HAS_FUSED_OPS
     OUTPUT_TYPE res = TO_OUTPUT_TYPE(ACTIVATION(interp_val, ACTIVATION_PARAMS));
 #endif // HAS_FUSED_OPS
-    output[FUNC_CALL(get_output_index)(out_coords[0], out_coords[1], out_coords[2], out_coords[3], out_coords[4])] = res;
+    output[FUNC_CALL(get_output_index)(out_coords[0], out_coords[1], 0, out_coords[2], out_coords[3], out_coords[4])] = res;
 #elif defined(SAMPLE_TYPE_CUBIC) // defined(SAMPLE_TYPE_NEAREST) && FEATURE_PACKED_MODE
     int out_coords[5];
     out_coords[4] = get_global_id(0);
@@ -228,7 +204,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
 #if PADDING_USED == 1
                         if (!isOutOfBounds)
 #endif
-                            interp_val += coeff_prod * input[FUNC_CALL(get_input_index)(coords_sum[0], coords_sum[1], coords_sum[2], coords_sum[3], coords_sum[4])];
+                            interp_val += coeff_prod * input[FUNC_CALL(get_input_index)(coords_sum[0], coords_sum[1], 0, coords_sum[2], coords_sum[3], coords_sum[4])];
                     }
                 }
             }
@@ -251,7 +227,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
 #else // HAS_FUSED_OPS
     OUTPUT_TYPE res = ACTIVATION(TO_OUTPUT_TYPE(interp_val), ACTIVATION_PARAMS);
 #endif // HAS_FUSED_OPS
-    output[FUNC_CALL(get_output_index)(out_coords[0], out_coords[1], out_coords[2], out_coords[3], out_coords[4])] = res;
+    output[FUNC_CALL(get_output_index)(out_coords[0], out_coords[1], 0, out_coords[2], out_coords[3], out_coords[4])] = res;
 #elif defined(SAMPLE_TYPE_LINEAR_ONNX) // defined(SAMPLE_TYPE_NEAREST) && FEATURE_PACKED_MODE
 
 #if OUTPUT_DIMS <= 4
@@ -405,9 +381,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
 #else
         OUTPUT_TYPE res = ACTIVATION(TO_OUTPUT_TYPE(interp_val), ACTIVATION_PARAMS);
 #endif
-
     output[OUTPUT_GET_INDEX(batch, feature, oz, oy, ox)] = res;
-
 #endif // #if OUTPUT_DIMS == 5
 
 #elif defined(SAMPLE_TYPE_INTERP) // defined(SAMPLE_TYPE_NEAREST) && FEATURE_PACKED_MODE
@@ -556,7 +530,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
 #if PADDING_USED == 1
                                 if (!isOutOfBounds)
 #endif
-                                    sum[fp] += w * TO_ACCUMULATOR_TYPE(input[FUNC_CALL(get_input_index)(b, f + fp, z, y, x)]);
+                                    sum[fp] += w * TO_ACCUMULATOR_TYPE(input[FUNC_CALL(get_input_index)(b, f + fp, 0, z, y, x)]);
                             }
                         }
                     }
@@ -574,10 +548,9 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
 #else
         OUTPUT_TYPE res = ACTIVATION(TO_OUTPUT_TYPE(interp_val), ACTIVATION_PARAMS);
 #endif
-        output[FUNC_CALL(get_output_index)(batch, feature + f, oz, oy, ox)] = res;
+        output[FUNC_CALL(get_output_index)(batch, feature + f, 0, oz, oy, ox)] = res;
     }
 #endif // defined(SAMPLE_TYPE_NEAREST) && FEATURE_PACKED_MODE
 }
 
-#undef unroll_for
 #undef TRIANGLE_COEFF

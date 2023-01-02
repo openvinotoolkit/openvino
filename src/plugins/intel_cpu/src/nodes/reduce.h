@@ -93,7 +93,6 @@ public:
     void createPrimitive() override;
     bool created() const override;
     void execute(dnnl::stream strm) override;
-    std::vector<VectorDims> shapeInfer() const override;
     void executeDynamicImpl(dnnl::stream strm) override;
     int getFusingAxis() const override;
     bool canFuse(const NodePtr& node) const override;

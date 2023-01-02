@@ -12,6 +12,12 @@ static constexpr size_t fsv = 32;
 static constexpr size_t fsvPerThread = fsv / subGroupSize;
 static constexpr size_t maxBlockSize = 48;
 
+namespace {
+size_t getInputSize(size_t stride, size_t filterSize, size_t dilation, size_t blockWidth) {
+    return (blockWidth - 1) * stride + (filterSize - 1) * dilation + 1;
+}
+}  // namespace
+
 ConvolutionKernel_bfyx_to_fs_byx_fsv32::ConvolutionKernel_bfyx_to_fs_byx_fsv32()
     : ConvolutionKernelBase("convolution_gpu_bfyx_to_fs_byx_fsv32") {
     std::vector<size_t> blockWidths = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
@@ -43,13 +49,14 @@ ParamsKey ConvolutionKernel_bfyx_to_fs_byx_fsv32::GetSupportedKey() const {
     k.EnableDilation();
     k.EnableTensorOffset();
     k.EnableTensorPitches();
-    k.EnableSubGroup();
-    k.EnableSubGroupShort();
     return k;
 }
 
-size_t getInputSize(size_t stride, size_t filterSize, size_t dilation, size_t blockWidth) {
-    return (blockWidth - 1) * stride + (filterSize - 1) * dilation + 1;
+DeviceFeaturesKey ConvolutionKernel_bfyx_to_fs_byx_fsv32::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_shuffle();
+
+    return k;
 }
 
 ConvolutionKernel_bfyx_to_fs_byx_fsv32::AutoTuneOption ConvolutionKernel_bfyx_to_fs_byx_fsv32::GetAutoTuneOptions(
@@ -58,7 +65,7 @@ ConvolutionKernel_bfyx_to_fs_byx_fsv32::AutoTuneOption ConvolutionKernel_bfyx_to
     if (autoTuneIndex >= 0 && autoTuneIndex < static_cast<int>(autoTuneOptions.size()))
         return autoTuneOptions[autoTuneIndex];
 
-    return {8, 2, AGE_BASED};
+    return {8, 2, EXE_MODE_AGE_BASED};
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_to_fs_byx_fsv32::SetDefault(const convolution_params& arg,

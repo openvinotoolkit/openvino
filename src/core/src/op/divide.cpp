@@ -90,17 +90,17 @@ bool evaluate_bound(const Node* node, const HostTensorVector& output_values, boo
     NGRAPH_CHECK(PartialShape::broadcast_merge_into(input_shape, input2.get_partial_shape(), node->get_autob()),
                  "Argument shapes in divide operation are inconsistent.");
 
-    const auto& input2_low = input2.get_tensor().get_lower_value();
-    if (input2_low == nullptr)
+    std::shared_ptr<HostTensor> input1_low = evaluate_lower_bound(input1);
+    if (!input1_low)
         return false;
-    const auto& input2_up = input2.get_tensor().get_upper_value();
-    if (input2_up == nullptr)
+    std::shared_ptr<HostTensor> input1_up = evaluate_upper_bound(input1);
+    if (!input1_up)
         return false;
-    const auto& input1_low = input1.get_tensor().get_lower_value();
-    if (input1_low == nullptr)
+    std::shared_ptr<HostTensor> input2_low = evaluate_lower_bound(input2);
+    if (!input2_low)
         return false;
-    const auto& input1_up = input1.get_tensor().get_upper_value();
-    if (input1_up == nullptr)
+    std::shared_ptr<HostTensor> input2_up = evaluate_upper_bound(input2);
+    if (!input2_up)
         return false;
 
     auto zeros_const = op::Constant::create(input2.get_element_type(), {}, {0});
@@ -221,8 +221,6 @@ bool evaluate_bound(const Node* node, const HostTensorVector& output_values, boo
 }  // namespace divide
 
 // ------------------------------ v1 -------------------------------------------
-
-BWDCMP_RTTI_DEFINITION(op::v1::Divide);
 
 op::v1::Divide::Divide(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast) {

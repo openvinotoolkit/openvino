@@ -17,6 +17,8 @@ const char *debug_configuration::prefix = "GPU_Debug: ";
 
 #ifdef GPU_DEBUG_CONFIG
 
+#define GPU_DEBUG_COUT std::cout << cldnn::debug_configuration::prefix
+
 template<typename T>
 void print_option(std::string option_name, T option_value) {
     GPU_DEBUG_COUT << "Config " << option_name << " = " << option_value << std::endl;
@@ -121,7 +123,8 @@ static void print_help_messages() {
                               " Supported on only on linux.");
     message_list.emplace_back("OV_GPU_SerialCompile", "Serialize creating primitives and compiling kernels");
     message_list.emplace_back("OV_GPU_ForceImplType", "Force implementation type of a target primitive or layer. [primitive or layout_name]:[impl_type]"
-                              "For primitives, fc:onednn, fc:ocl, do:cpu, do:ocl, reduce:ocl and reduce:onednn are supported");
+                              " For primitives, fc:onednn, fc:ocl, do:cpu, do:ocl, reduce:onednn, reduce:ocl, concat:onednn,"
+                              " and concat:ocl are supported");
     message_list.emplace_back("OV_GPU_MaxKernelsPerBatch", "Maximum number of kernels in a batch during compiling kernels");
 
     auto max_name_length_item = std::max_element(message_list.begin(), message_list.end(),

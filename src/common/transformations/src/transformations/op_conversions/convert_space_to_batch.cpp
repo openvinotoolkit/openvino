@@ -5,18 +5,18 @@
 #include "transformations/op_conversions/convert_space_to_batch.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset3.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset3.hpp>
 #include <vector>
 
 #include "itt.hpp"
 
-void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch() {
+void ov::pass::ConvertSpaceToBatch::convert_space_to_batch() {
     MATCHER_SCOPE(ConvertSpaceToBatch_convert_space_to_batch);
-    auto space_to_batch = ngraph::pattern::wrap_type<ngraph::opset3::SpaceToBatch>();
-    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto space_to_batch = std::dynamic_pointer_cast<ngraph::opset3::SpaceToBatch>(m.get_match_root());
+    auto space_to_batch = ngraph::pattern::wrap_type<ov::opset3::SpaceToBatch>();
+    matcher_pass_callback callback = [](pattern::Matcher& m) {
+        auto space_to_batch = std::dynamic_pointer_cast<ov::opset3::SpaceToBatch>(m.get_match_root());
         if (!space_to_batch) {
             return false;
         }
@@ -66,7 +66,7 @@ void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch() {
         }
 
         const auto out_pattern = opset3::Constant::create(element::i64, Shape{dispersed_shape.size()}, dispersed_shape);
-        flat_node = std::make_shared<ngraph::opset3::Reshape>(flat_node, out_pattern, false);
+        flat_node = std::make_shared<ov::opset3::Reshape>(flat_node, out_pattern, false);
         new_ops.push_back(flat_node);
 
         //    x'' = transpose(x',  [2, 4, ..., (N - 1) + (N - 1), 0, 1, 3, ..., N + (N - 1)])
@@ -83,7 +83,7 @@ void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch() {
             opset3::Constant::create(element::i64,
                                      Shape{axes_order.size()},
                                      std::vector<int64_t>(axes_order.begin(), axes_order.end()));
-        flat_node = std::make_shared<ngraph::opset3::Transpose>(flat_node, axes_order_const);
+        flat_node = std::make_shared<ov::opset3::Transpose>(flat_node, axes_order_const);
         new_ops.push_back(flat_node);
 
         Shape squeezed_shape;
@@ -101,7 +101,7 @@ void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch() {
         }
 
         const auto out_pattern_2 = opset3::Constant::create(element::i64, Shape{squeezed_shape.size()}, squeezed_shape);
-        flat_node = std::make_shared<ngraph::opset3::Reshape>(flat_node, out_pattern_2, false);
+        flat_node = std::make_shared<ov::opset3::Reshape>(flat_node, out_pattern_2, false);
         new_ops.push_back(flat_node);
 
         flat_node->set_friendly_name(space_to_batch->get_friendly_name());
@@ -114,11 +114,11 @@ void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch() {
     this->register_matcher(m, callback);
 }
 
-void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
+void ov::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
     MATCHER_SCOPE(ConvertSpaceToBatch_convert_space_to_batch_by_elements);
-    auto space_to_batch = ngraph::pattern::wrap_type<ngraph::opset3::SpaceToBatch>();
-    ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        auto space_to_batch = std::dynamic_pointer_cast<ngraph::opset3::SpaceToBatch>(m.get_match_root());
+    auto space_to_batch = ngraph::pattern::wrap_type<ov::opset3::SpaceToBatch>();
+    matcher_pass_callback callback = [this](pattern::Matcher& m) {
+        auto space_to_batch = std::dynamic_pointer_cast<ov::opset3::SpaceToBatch>(m.get_match_root());
         if (!space_to_batch) {
             return false;
         }
@@ -180,20 +180,20 @@ void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
             const auto out_pattern_1 =
                 opset3::Constant::create(element::i64, Shape{dispersed_shape.size()}, dispersed_shape);
             const bool special_zero = false;
-            flat_node = std::make_shared<ngraph::opset3::Reshape>(flat_node, out_pattern_1, special_zero);
+            flat_node = std::make_shared<ov::opset3::Reshape>(flat_node, out_pattern_1, special_zero);
             new_ops.push_back(flat_node);
 
             const auto axes_order_const =
                 opset3::Constant::create(element::i64,
                                          Shape{axes_order.size()},
                                          std::vector<int64_t>(axes_order.begin(), axes_order.end()));
-            flat_node = std::make_shared<ngraph::opset3::Transpose>(flat_node, axes_order_const);
+            flat_node = std::make_shared<ov::opset3::Transpose>(flat_node, axes_order_const);
             new_ops.push_back(flat_node);
             squeezed_shape[0] *= block_values[block_idx];
             squeezed_shape[block_idx] /= block_values[block_idx];
             const auto out_pattern_2 =
                 opset3::Constant::create(element::i64, Shape{squeezed_shape.size()}, squeezed_shape);
-            flat_node = std::make_shared<ngraph::opset3::Reshape>(flat_node, out_pattern_2, special_zero);
+            flat_node = std::make_shared<ov::opset3::Reshape>(flat_node, out_pattern_2, special_zero);
             new_ops.push_back(flat_node);
         }
 

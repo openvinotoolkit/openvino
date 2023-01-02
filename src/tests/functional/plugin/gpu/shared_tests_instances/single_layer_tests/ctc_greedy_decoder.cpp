@@ -17,24 +17,22 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 std::vector<bool> mergeRepeated{true, false};
 
-const auto basicCases = ::testing::Combine(
-    ::testing::ValuesIn(netPrecisions),
-    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-    ::testing::Values(InferenceEngine::Layout::ANY),
-    ::testing::Values(InferenceEngine::Layout::ANY),
-    ::testing::Values(std::vector<size_t>({ 50, 3, 3 }),
-                      std::vector<size_t>({ 50, 3, 7 }),
-                      std::vector<size_t>({ 50, 3, 8 }),
-                      std::vector<size_t>({ 50, 3, 16 }),
-                      std::vector<size_t>({ 50, 3, 128 }),
-                      std::vector<size_t>({ 50, 3, 49 }),
-                      std::vector<size_t>({ 50, 3, 55 }),
-                      std::vector<size_t>({ 1, 1, 16 })),
-    ::testing::ValuesIn(mergeRepeated),
-    ::testing::Values(CommonTestUtils::DEVICE_GPU));
-
-INSTANTIATE_TEST_SUITE_P(smoke_CtcGreedyDecoderBasic, CTCGreedyDecoderLayerTest,
-                        basicCases,
-                        CTCGreedyDecoderLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CtcGreedyDecoderBasic,
+                         CTCGreedyDecoderLayerTest,
+                         ::testing::Combine(::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                            ::testing::Values(InferenceEngine::Layout::ANY),
+                                            ::testing::Values(InferenceEngine::Layout::ANY),
+                                            ::testing::Values(std::vector<size_t>({50, 3, 3}),
+                                                              std::vector<size_t>({50, 3, 7}),
+                                                              std::vector<size_t>({50, 3, 8}),
+                                                              std::vector<size_t>({50, 3, 16}),
+                                                              std::vector<size_t>({50, 3, 128}),
+                                                              std::vector<size_t>({50, 3, 49}),
+                                                              std::vector<size_t>({50, 3, 55}),
+                                                              std::vector<size_t>({1, 1, 16})),
+                                            ::testing::ValuesIn(mergeRepeated),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                         CTCGreedyDecoderLayerTest::getTestCaseName);
 }  // namespace

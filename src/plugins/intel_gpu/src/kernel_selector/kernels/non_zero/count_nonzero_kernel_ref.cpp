@@ -32,6 +32,14 @@ ParamsKey CountNonzeroKernelRef::GetSupportedKey() const {
     return k;
 }
 
+DeviceFeaturesKey CountNonzeroKernelRef::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    DeviceFeaturesKey k;
+    k.requires_subgroups();
+    k.requires_subgroup_reduce();
+
+    return k;
+}
+
 KernelsData CountNonzeroKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
     assert(params.GetType() == KernelType::COUNT_NONZERO);
 
@@ -41,7 +49,6 @@ KernelsData CountNonzeroKernelRef::GetKernelsData(const Params& params, const op
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto cldnn_jit = MakeBaseParamsJitConstants(newParams);
 
-    cldnn_jit.AddConstant(MakeJitConstant("OV_INPUT_RANK", newParams.ov_input_rank));
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     const auto& in = newParams.inputs[0];
@@ -73,7 +80,7 @@ KernelsData CountNonzeroKernelRef::GetKernelsData(const Params& params, const op
                                                                    newParams.outputs[0].GetLayout(),
                                                                    dims_by_gws);
 
-    kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
+    kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, EXE_MODE_DEFAULT);
     kernel.params.arguments = GetArgsDesc(1, false, false);
 
     return {kd};

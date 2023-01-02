@@ -173,20 +173,20 @@ static bool is_power_activation(const std::shared_ptr<ngraph::Node>& node) noexc
     return is_power_activation(node.get());
 }
 
-static bool is_eltwise_mul(const ngraph::Output<ngraph::Node>& node) {
-    auto eltwise = std::dynamic_pointer_cast<ngraph::op::Eltwise>(node.get_node_shared_ptr());
+static bool is_eltwise_mul(const std::shared_ptr<ngraph::Node>& node) {
+    auto eltwise = std::dynamic_pointer_cast<ngraph::op::Eltwise>(node);
     if (!eltwise) return false;
     return eltwise->eltwise_type == ELTWISE_TYPE::Prod;
 }
 
-static bool is_eltwise_add(const ngraph::Output<ngraph::Node>& node) {
-    auto eltwise = std::dynamic_pointer_cast<ngraph::op::Eltwise>(node.get_node_shared_ptr());
+static bool is_eltwise_add(const std::shared_ptr<ngraph::Node>& node) {
+    auto eltwise = std::dynamic_pointer_cast<ngraph::op::Eltwise>(node);
     if (!eltwise) return false;
     return eltwise->eltwise_type == ELTWISE_TYPE::Sum;
 }
 
-static bool is_pooling(const ngraph::Output<ngraph::Node>& node) {
-    return (std::dynamic_pointer_cast<ngraph::opset7::MaxPool>(node.get_node_shared_ptr()) != nullptr);
+static bool is_pooling(const std::shared_ptr<ngraph::Node>& node) {
+    return (std::dynamic_pointer_cast<ngraph::opset7::MaxPool>(node) != nullptr);
 }
 
 template <typename T>

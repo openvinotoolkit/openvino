@@ -3,13 +3,18 @@
 //
 
 #include "include/batch_headers/common.cl"
-#include "include/batch_headers/data_types.cl"
 
 KERNEL(shape_of_ref)(
+    OPTIONAL_SHAPE_INFO_ARG
     __global OUTPUT_TYPE* output
     )
 {
     const unsigned int i = (uint)get_global_id(2);
 
-    output[i] = TO_OUTPUT_TYPE(INPUT_DIMS[i]);
+#if IS_DYNAMIC
+    output[i] = TO_OUTPUT_TYPE(shape_info[i]);
+#else
+    size_t shapes[] = INPUT_DIMS_INIT;
+    output[i] = TO_OUTPUT_TYPE(shapes[i]);
+#endif
 }

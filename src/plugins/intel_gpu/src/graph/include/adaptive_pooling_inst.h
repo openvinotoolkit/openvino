@@ -33,6 +33,7 @@ using adaptive_pooling_node = typed_program_node<adaptive_pooling>;
 template <>
 class typed_primitive_inst<adaptive_pooling> : public typed_primitive_inst_base<adaptive_pooling> {
     using parent = typed_primitive_inst_base<adaptive_pooling>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(const adaptive_pooling_node& node, kernel_impl_params const& impl_param);

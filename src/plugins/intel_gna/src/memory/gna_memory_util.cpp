@@ -5,7 +5,7 @@
 #include "gna_memory_util.hpp"
 
 #include <cstdint>
-#include "gna_plugin_log.hpp"
+#include "log/debug.hpp"
 
 int32_t GNAPluginNS::memory::MemoryOffset(void *ptr_target, void *ptr_base) {
     auto target = reinterpret_cast<uintptr_t>(ptr_target);

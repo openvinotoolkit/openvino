@@ -7,6 +7,33 @@
 #include <vector>
 
 namespace kernel_selector {
+namespace {
+RegionYoloKernelRef::DispatchData SetDefault(const region_yolo_params& params) {
+    RegionYoloKernelRef::DispatchData dispatchData;
+
+    const auto& input = params.inputs[0];
+    auto in_layout = params.inputs[0].GetLayout();
+    auto out_layout = params.outputs[0].GetLayout();
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X, Tensor::DataChannelName::Y },
+                                                                     { Tensor::DataChannelName::FEATURE },
+                                                                     { Tensor::DataChannelName::BATCH }};
+
+    switch (input.GetLayout()) {
+    case DataLayout::b_fs_yx_fsv16:
+    case DataLayout::b_fs_yx_fsv32:
+    case DataLayout::bfyx:
+    case DataLayout::byxf: {
+        uint32_t region_num = params.do_softmax ? params.num : params.mask_size;
+        dispatchData.gws = {input.X().v * input.Y().v, region_num, input.Batch().v};
+    } break;
+    default:
+        throw std::invalid_argument("Unsupported DataLayout");
+    }
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
+
+    return dispatchData;
+}
+}  // namespace
 
 ParamsKey RegionYoloKernelRef::GetSupportedKey() const {
     ParamsKey k;
@@ -49,32 +76,6 @@ bool RegionYoloKernelRef::Validate(const Params& p, const optional_params& o) co
     }
 
     return true;
-}
-
-RegionYoloKernelRef::DispatchData SetDefault(const region_yolo_params& params) {
-    RegionYoloKernelRef::DispatchData dispatchData;
-
-    const auto& input = params.inputs[0];
-    auto in_layout = params.inputs[0].GetLayout();
-    auto out_layout = params.outputs[0].GetLayout();
-    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X, Tensor::DataChannelName::Y },
-                                                                     { Tensor::DataChannelName::FEATURE },
-                                                                     { Tensor::DataChannelName::BATCH }};
-
-    switch (input.GetLayout()) {
-    case DataLayout::b_fs_yx_fsv16:
-    case DataLayout::b_fs_yx_fsv32:
-    case DataLayout::bfyx:
-    case DataLayout::byxf: {
-        uint32_t region_num = params.do_softmax ? params.num : params.mask_size;
-        dispatchData.gws = {input.X().v * input.Y().v, region_num, input.Batch().v};
-    } break;
-    default:
-        throw std::invalid_argument("Unsupported DataLayout");
-    }
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
-
-    return dispatchData;
 }
 
 KernelsData RegionYoloKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {

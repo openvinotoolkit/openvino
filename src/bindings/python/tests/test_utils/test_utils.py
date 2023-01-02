@@ -4,6 +4,8 @@
 
 from typing import Tuple, Union, List
 
+import sys
+from pathlib import Path
 import numpy as np
 import openvino
 import openvino.runtime.opset8 as ops
@@ -47,7 +49,7 @@ def generate_relu_model(input_shape: List[int]) -> openvino.runtime.ie_api.Compi
     return core.compile_model(model, "CPU", {})
 
 
-def generate_add_model() -> openvino.pyopenvino.Model:
+def generate_add_model() -> openvino._pyopenvino.Model:
     param1 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data1")
     param2 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data2")
     add = ops.add(param1, param2)
@@ -79,3 +81,19 @@ def test_deprecation_decorator():
         deprecated_function3()
     with pytest.warns(DeprecationWarning, match="deprecated_function4 is deprecated and will be removed in version 2025.4. Use another function instead"):
         deprecated_function4()
+
+
+def create_filename_for_test(test_name, is_xml_path=False, is_bin_path=False):
+    """Return a tuple with automatically generated paths for xml and bin files.
+
+    :param test_name: Name used in generating.
+    :param is_xml_path: True if xml file should be pathlib.Path object, otherwise return string.
+    :param is_bin_path: True if bin file should be pathlib.Path object, otherwise return string.
+    :return: Tuple with two objects representing xml and bin files.
+    """
+    python_version = str(sys.version_info.major) + "_" + str(sys.version_info.minor)
+    filename = "./" + test_name.replace("test_", "").replace("[", "_").replace("]", "_")
+    filename = filename + "_" + python_version
+    _xml = Path(filename + ".xml") if is_xml_path else filename + ".xml"
+    _bin = Path(filename + ".bin") if is_bin_path else filename + ".bin"
+    return (_xml, _bin)

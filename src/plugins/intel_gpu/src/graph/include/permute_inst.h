@@ -44,6 +44,7 @@ using permute_node = typed_program_node<permute>;
 template <>
 class typed_primitive_inst<permute> : public typed_primitive_inst_base<permute> {
     using parent = typed_primitive_inst_base<permute>;
+    using parent::parent;
 
 public:
     template <typename ShapeType>

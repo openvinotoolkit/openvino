@@ -10,7 +10,6 @@
 #include <set>
 #include <utility>
 
-#include "ngraph/compatibility.hpp"
 #include "ngraph/factory.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/node.hpp"
@@ -33,27 +32,15 @@ public:
     }
 
     /// \brief Insert OP_TYPE into the opset with a special name and the default factory
-    template <typename OP_TYPE, typename std::enable_if<!ngraph::HasTypeInfoMember<OP_TYPE>::value, bool>::type = true>
+    template <typename OP_TYPE>
     void insert(const std::string& name) {
         insert(name, OP_TYPE::get_type_info_static(), ngraph::FactoryRegistry<Node>::get_default_factory<OP_TYPE>());
     }
-    template <typename OP_TYPE, typename std::enable_if<ngraph::HasTypeInfoMember<OP_TYPE>::value, bool>::type = true>
-    void insert(const std::string& name) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        insert(name, OP_TYPE::type_info, ngraph::FactoryRegistry<Node>::get_default_factory<OP_TYPE>());
-        OPENVINO_SUPPRESS_DEPRECATED_END
-    }
 
     /// \brief Insert OP_TYPE into the opset with the default name and factory
-    template <typename OP_TYPE, typename std::enable_if<!ngraph::HasTypeInfoMember<OP_TYPE>::value, bool>::type = true>
+    template <typename OP_TYPE>
     void insert() {
         insert<OP_TYPE>(OP_TYPE::get_type_info_static().name);
-    }
-    template <typename OP_TYPE, typename std::enable_if<ngraph::HasTypeInfoMember<OP_TYPE>::value, bool>::type = true>
-    void insert() {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        insert<OP_TYPE>(OP_TYPE::type_info.name);
-        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     const std::set<NodeTypeInfo>& get_types_info() const {
@@ -72,15 +59,9 @@ public:
     }
 
     /// \brief Return true if OP_TYPE is in the opset
-    template <typename OP_TYPE, typename std::enable_if<!ngraph::HasTypeInfoMember<OP_TYPE>::value, bool>::type = true>
+    template <typename OP_TYPE>
     bool contains_type() const {
         return contains_type(OP_TYPE::get_type_info_static());
-    }
-    template <typename OP_TYPE, typename std::enable_if<ngraph::HasTypeInfoMember<OP_TYPE>::value, bool>::type = true>
-    bool contains_type() const {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        return contains_type(OP_TYPE::type_info);
-        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     /// \brief Return true if name is in the opset
@@ -180,5 +161,15 @@ const OPENVINO_API OpSet& get_opset8();
  * @ingroup ov_opset_cpp_api
  */
 const OPENVINO_API OpSet& get_opset9();
+/**
+ * @brief Returns opset10
+ * @ingroup ov_opset_cpp_api
+ */
 const OPENVINO_API OpSet& get_opset10();
+
+/**
+ * @brief Returns map of available opsets
+ * @ingroup ov_opset_cpp_api
+ */
+const OPENVINO_API std::map<std::string, std::function<const ov::OpSet&()>>& get_available_opsets();
 }  // namespace ov

@@ -11,6 +11,20 @@ static constexpr size_t subGroupSize = 16;
 static constexpr size_t fsv = 32;
 static constexpr size_t fsvPerThread = fsv / subGroupSize;
 
+namespace {
+size_t getInputWidth(const convolution_params& arg, size_t blockWidth) {
+    return (blockWidth - 1) * arg.stride.x + (arg.filterSize.x - 1) * arg.dilation.x + 1;
+}
+
+size_t getMinRegisterUsage(const convolution_params& arg, size_t blockWidth) {
+    size_t weightsRegisters = 2;
+    size_t outputRegisters = blockWidth * 2;
+    size_t inputRegisters = getInputWidth(arg, blockWidth) * 2;
+
+    return weightsRegisters + outputRegisters + inputRegisters;
+}
+}  // namespace
+
 ConvolutionKernel_fs_byx_fsv32::ConvolutionKernel_fs_byx_fsv32()
     : ConvolutionKernelBase("convolution_gpu_fs_byx_fsv32") {
     std::vector<size_t> blockWidths = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
@@ -40,21 +54,14 @@ ParamsKey ConvolutionKernel_fs_byx_fsv32::GetSupportedKey() const {
     k.EnableDilation();
     k.EnableTensorOffset();
     k.EnableTensorPitches();
-    k.EnableSubGroup();
-    k.EnableSubGroupShort();
     return k;
 }
 
-size_t getInputWidth(const convolution_params& arg, size_t blockWidth) {
-    return (blockWidth - 1) * arg.stride.x + (arg.filterSize.x - 1) * arg.dilation.x + 1;
-}
+DeviceFeaturesKey ConvolutionKernel_fs_byx_fsv32::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_shuffle();
 
-size_t getMinRegisterUsage(const convolution_params& arg, size_t blockWidth) {
-    size_t weightsRegisters = 2;
-    size_t outputRegisters = blockWidth * 2;
-    size_t inputRegisters = getInputWidth(arg, blockWidth) * 2;
-
-    return weightsRegisters + outputRegisters + inputRegisters;
+    return k;
 }
 
 ConvolutionKernel_fs_byx_fsv32::AutoTuneOption ConvolutionKernel_fs_byx_fsv32::GetAutoTuneOptions(
@@ -73,7 +80,7 @@ ConvolutionKernel_fs_byx_fsv32::AutoTuneOption ConvolutionKernel_fs_byx_fsv32::G
     // Check if output can be evenly divided into large blocks
     for (auto w : optBlockWidths) {
         if (cp.outputs[0].X().v % w == 0 && getMinRegisterUsage(cp, w) < regThreshold)
-            return {w, AGE_BASED};
+            return {w, EXE_MODE_AGE_BASED};
     }
 
     // Try to find large blocks with smallest offset
@@ -87,16 +94,16 @@ ConvolutionKernel_fs_byx_fsv32::AutoTuneOption ConvolutionKernel_fs_byx_fsv32::G
     }
 
     if (foundWidth != 0)
-        return {foundWidth, AGE_BASED};
+        return {foundWidth, EXE_MODE_AGE_BASED};
 
     // Check small and memory bound block sizes
     for (auto w : nonOptBlockWidths) {
         if (cp.outputs[0].X().v % w == 0 && getMinRegisterUsage(cp, w) < regThreshold)
-            return {w, AGE_BASED};
+            return {w, EXE_MODE_AGE_BASED};
     }
 
     // This means all previous block sizes consumed too much registers, fallback to block width = 1
-    return {1, AGE_BASED};
+    return {1, EXE_MODE_AGE_BASED};
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_fs_byx_fsv32::SetDefault(const convolution_params& arg,

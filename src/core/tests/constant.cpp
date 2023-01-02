@@ -1783,7 +1783,7 @@ TEST(constant, DISABLED_nightly_huge_size_4GB) {
     size_t s = start + 5;
     std::vector<uint8_t> data(s);
     for (size_t i = start; i < s; i++) {
-        data[i] = i - start + 42;
+        data[i] = static_cast<uint8_t>(i - start + 42);
     }
     Shape shape{s};
     op::Constant c(element::u8, shape, data.data());

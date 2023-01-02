@@ -4,12 +4,18 @@
 import os
 import re
 
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
 
 from openvino.tools.mo.ops.op import PermuteAttrs
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
+
+def mix_array_with_value(input_array, value):
+    input_shape = input_array.shape
+    mask = np.random.randint(0, 2, input_shape).astype(bool)
+    return np.where(mask, input_array, value)
 
 
 def load_graph(model_file, output_nodes_for_freeze=None):
@@ -30,7 +36,8 @@ def load_graph(model_file, output_nodes_for_freeze=None):
         with tf.compat.v1.Session() as sess:
             restorer = tf.compat.v1.train.import_meta_graph(graph_def)
             restorer.restore(sess, re.sub('\.meta$', '', model_file))
-            graph_def = tf.compat.v1.graph_util.convert_variables_to_constants(sess, graph_def.graph_def, output_nodes_for_freeze)
+            graph_def = tf.compat.v1.graph_util.convert_variables_to_constants(sess, graph_def.graph_def,
+                                                                               output_nodes_for_freeze)
 
     with graph.as_default():
         tf.import_graph_def(graph_def, name='')

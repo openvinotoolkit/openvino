@@ -263,7 +263,7 @@ TEST_F(OVTensorTest, readRangeRoiBlob) {
         const auto origPtr = t.data<int32_t>();
         ASSERT_NE(nullptr, origPtr);
         for (size_t i = 0; i < t.get_size(); ++i) {
-            origPtr[i] = i;
+            origPtr[i] = static_cast<int32_t>(i);
         }
     }
     ov::Tensor roi_tensor{t, {0, 0, 2, 4}, {1, 3, 4, 8}};

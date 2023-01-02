@@ -6,8 +6,6 @@
 
 #include "itt.hpp"
 
-BWDCMP_RTTI_DEFINITION(ov::op::v8::NV12toRGB);
-
 ov::op::v8::NV12toRGB::NV12toRGB(const Output<Node>& arg)
     : util::ConvertColorNV12Base(arg, util::ConvertColorNV12Base::ColorConversion::NV12_TO_RGB) {
     constructor_validate_and_infer_types();

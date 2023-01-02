@@ -47,5 +47,7 @@ namespace intel_cpu {
  */
 static constexpr Property<bool> denormals_optimization{"CPU_DENORMALS_OPTIMIZATION"};
 
+static constexpr Property<float> sparse_weights_decompression_rate{"SPARSE_WEIGHTS_DECOMPRESSION_RATE"};
+
 }  // namespace intel_cpu
 }  // namespace ov

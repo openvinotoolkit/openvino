@@ -53,7 +53,7 @@ TEST(attributes, gru_sequence_op) {
                                                                activations_alpha,
                                                                activations_beta,
                                                                clip_threshold);
-    NodeBuilder builder(gru_sequence);
+    NodeBuilder builder(gru_sequence, {X, initial_hidden_state, sequence_lengths, W, R, B});
     auto g_gru_sequence = ov::as_type_ptr<opset5::GRUSequence>(builder.create());
 
     EXPECT_EQ(g_gru_sequence->get_hidden_size(), gru_sequence->get_hidden_size());

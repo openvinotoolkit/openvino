@@ -5,18 +5,17 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/ops.hpp>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 #include <vector>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertBatchToSpace;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -31,7 +30,7 @@ class TRANSFORMATIONS_API ConvertBatchToSpace;
  *
  */
 
-class ngraph::pass::ConvertBatchToSpace : public ngraph::pass::MatcherPass {
+class ov::pass::ConvertBatchToSpace : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertBatchToSpace", "0");
     explicit ConvertBatchToSpace(bool convert_by_elements = true) : MatcherPass() {
@@ -45,3 +44,9 @@ private:
     void convert_batch_to_space();
     void convert_batch_to_space_by_elements();
 };
+
+namespace ngraph {
+namespace pass {
+using ov::pass::ConvertBatchToSpace;
+}  // namespace pass
+}  // namespace ngraph

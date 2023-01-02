@@ -27,20 +27,29 @@ using HostTensorPtr = std::shared_ptr<runtime::HostTensor>;
 namespace ov {
 class Node;
 using TensorLabel = std::vector<size_t>;
+namespace pass {
+class ReverseShapeAndTypeInfer;
+}
 namespace descriptor {
+
+class Tensor;
+
+OPENVINO_DEPRECATED("get_ov_tensor_legacy_name() is deprecated. Please don't use this function.")
+OPENVINO_API
+std::string get_ov_tensor_legacy_name(const Tensor& tensor);
+
+OPENVINO_DEPRECATED("set_ov_tensor_legacy_name() is deprecated. Please don't use this function.")
+OPENVINO_API
+void set_ov_tensor_legacy_name(Tensor& tensor, const std::string& tensor_name);
+
 /// \brief Compile-time descriptor of a first-class value that is a tensor.
 class OPENVINO_API Tensor {
 public:
-    Tensor(const element::Type& element_type, const PartialShape& pshape, const std::string& name);
+    Tensor(const element::Type& element_type, const PartialShape& pshape, const std::string& name = "");
     Tensor(const element::Type& element_type, const PartialShape& pshape, Node* node, size_t node_output_number);
 
     Tensor(const Tensor&) = delete;
     Tensor& operator=(const Tensor&) = delete;
-
-    OPENVINO_DEPRECATED("get_name() is deprecated! Please use get_names() instead.")
-    const std::string& get_name() const;
-    OPENVINO_DEPRECATED("set_name() is deprecated! Please use set_names() instead.")
-    void set_name(const std::string& name);
 
     std::string get_any_name() const;
     const std::unordered_set<std::string>& get_names() const;
@@ -118,11 +127,15 @@ protected:
     PartialShape m_partial_shape;
     ngraph::HostTensorPtr m_lower_value, m_upper_value;
     TensorLabel m_value_label;
-    std::string m_name;
+    std::string m_legacy_name;
 
     std::unordered_set<std::string> m_names;
     RTMap m_rt_info;
     mutable std::atomic_bool m_shape_changed;
+
+    friend OPENVINO_API std::string get_ov_tensor_legacy_name(const Tensor& tensor);
+    friend OPENVINO_API void set_ov_tensor_legacy_name(Tensor& tensor, const std::string& tensor_name);
+    friend class pass::ReverseShapeAndTypeInfer;
 };
 
 OPENVINO_API

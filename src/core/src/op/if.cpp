@@ -17,7 +17,6 @@
 
 using namespace std;
 
-BWDCMP_RTTI_DEFINITION(ov::op::v8::If);
 ov::op::v8::If::If() : MultiSubGraphOp(2) {}
 
 ov::op::v8::If::If(const Output<Node>& execution_condition) : If() {

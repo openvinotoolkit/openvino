@@ -16,13 +16,25 @@ using namespace ov::test::subgraph;
 
 namespace {
 
-INSTANTIATE_TEST_SUITE_P(conformance,
-                         ReadIRTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(getModelPaths(IRFolderPaths)),
-                                 ::testing::Values(targetDevice),
-                                 ::testing::Values(pluginConfig)),
-                         ReadIRTest::getTestCaseName);
+#define _OPENVINO_OP_REG(NAME, NAMESPACE)                                                                         \
+    INSTANTIATE_TEST_SUITE_P(conformance_##NAME,                                                            \
+                             ReadIRTest,                                                                   \
+                             ::testing::Combine(::testing::ValuesIn(getModelPaths(IRFolderPaths, #NAME)),  \
+                                                ::testing::Values(targetDevice),                           \
+                                                ::testing::Values(pluginConfig)),                          \
+                             ReadIRTest::getTestCaseName); \
+
+// It should point on latest opset which contains biggest list of operations
+#include "openvino/opsets/opset10_tbl.hpp"
+#undef _OPENVINO_OP_REG
+
+INSTANTIATE_TEST_SUITE_P(conformance_other,
+                        ReadIRTest,
+                        ::testing::Combine(::testing::ValuesIn(getModelPaths(IRFolderPaths)),
+                                        ::testing::Values(targetDevice),
+                                        ::testing::Values(pluginConfig)),
+                        ReadIRTest::getTestCaseName);
+
 }  // namespace
 
 }  // namespace op

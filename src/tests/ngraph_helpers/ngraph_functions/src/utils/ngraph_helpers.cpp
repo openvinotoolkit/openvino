@@ -722,6 +722,15 @@ std::ostream& operator<<(std::ostream & os, ngraph::helpers::ComparisonTypes typ
         case ngraph::helpers::ComparisonTypes::GREATER_EQUAL:
             os << "GreaterEqual";
             break;
+        case ngraph::helpers::ComparisonTypes::IS_FINITE:
+            os << "IsFinite";
+            break;
+        case ngraph::helpers::ComparisonTypes::IS_INF:
+            os << "IsInf";
+            break;
+        case ngraph::helpers::ComparisonTypes::IS_NAN:
+            os << "IsNaN";
+            break;
         case ngraph::helpers::ComparisonTypes::LESS:
             os << "Less";
             break;

@@ -3,10 +3,10 @@
 
 import pytest
 
-from common.onnx_layer_test_class import Caffe2OnnxLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest
 
 
-class TestUnsqueeze(Caffe2OnnxLayerTest):
+class TestUnsqueeze(OnnxRuntimeLayerTest):
     def create_unsqueeze_net(self, axes, input_shape, output_shape, ir_version):
         """
             ONNX net                                  IR net
@@ -79,7 +79,7 @@ class TestUnsqueeze(Caffe2OnnxLayerTest):
         output = helper.make_tensor_value_info('output', TensorProto.FLOAT, concat_output_shape)
 
         const_number = np.prod(input_shape)
-        constant = np.random.randint(-127, 127, const_number).astype(np.float)
+        constant = np.random.randint(-127, 127, const_number).astype(float)
         constant = np.reshape(constant, input_shape)
 
         node_const_def = onnx.helper.make_node(

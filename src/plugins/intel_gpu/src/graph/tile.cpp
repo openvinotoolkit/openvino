@@ -13,13 +13,10 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id tile::type_id() {
-    static primitive_type_base<tile> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(tile)
 
 layout tile_inst::calc_output_layout(tile_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for tile_node!");
     auto desc = impl_param.typed_desc<tile>();
 
@@ -57,7 +54,7 @@ std::vector<layout> tile_inst::calc_output_layouts(tile_node const& /*node*/, co
     auto& constant_mem = impl_param.memory_deps;
     if (constant_mem.count(1)) {
         auto repeats_mem = constant_mem.at(1);
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> repeats_lock(repeats_mem, impl_param.prog.get_stream());
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> repeats_lock(repeats_mem, impl_param.prog->get_stream());
         std::map<size_t, ngraph::HostTensorPtr> const_data = {
             {1, make_host_tensor(repeats_mem->get_layout(), repeats_lock.data())}
         };

@@ -29,32 +29,31 @@ protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;
 };
-/// Add separated from inputs by Sinh to WA CPU-specific disabling after inputs.
-/// Works because Sinh is not supported by tokenization yet.
-/// Tokenized simply by starting subgraph.
+/// Like AddSinh but with a constant second input (and no sinh on in)
 //   in1       in2
-//   Sinh       Sinh
 //        Add
 //      Result
 // todo: remove Sinh once "no subgraph after input" limitation is relaxed
-class AddSinhFunction : public SnippetsFunctionBase {
+class AddConstFunction : public SnippetsFunctionBase {
 public:
-    explicit AddSinhFunction(const std::vector<Shape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
-        NGRAPH_CHECK(input_shapes.size() == 2, "Got invalid number of input shapes");
+    explicit AddConstFunction(const std::vector<Shape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+        NGRAPH_CHECK(input_shapes.size() == 1, "Got invalid number of input shapes");
     }
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
-    std::shared_ptr<ov::Model> initReference() const override;
+//    std::shared_ptr<ov::Model> initReference() const override;
 };
-/// Like AddSinh but with a constant second input (and no sinh on in)
-//   in1       in2
-//   Sin       Sinh
+// Function is to check for different model precision
+/// Like AddSinhConst but with a Roll instead of Sinh because Roll is movement operation which
+//  supports different precisions but Sinh supports only FP32 in CPU Plugin
+//   in1
+//   Roll     Const
 //        Add
 //      Result
-// todo: remove Sinh once "no subgraph after input" limitation is relaxed
-class AddSinhConstFunction : public SnippetsFunctionBase {
+// The function is needed to check different input element types (model precision change)
+class AddRollConstFunction : public SnippetsFunctionBase {
 public:
-    explicit AddSinhConstFunction(const std::vector<Shape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+    explicit AddRollConstFunction(const std::vector<Shape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
         NGRAPH_CHECK(input_shapes.size() == 1, "Got invalid number of input shapes");
     }
 protected:
@@ -91,30 +90,16 @@ public:
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 };
-/// EltwiseFunctionThreeInputs with Sinh after inputs to to WA CPU-specific disabling after inputs
-/// See AddSinh for details.
-// todo: remove Sinh once "no subgraph after input" limitation is relaxed
-class EltwiseThreeInputsSinhFunction : public SnippetsFunctionBase {
-public:
-    explicit EltwiseThreeInputsSinhFunction(const std::vector<Shape>& inputShapes) :
-        SnippetsFunctionBase(inputShapes) {
-        NGRAPH_CHECK(input_shapes.size() == 3, "Got invalid number of input shapes");
-    }
-protected:
-    std::shared_ptr<ov::Model> initOriginal() const override;
-};
 /// Eltwise graph with 10 inputs and 2 outputs.
 /// Needed to test for a max number of inputs+outputs allowed.
 // in1   in2   in3 ... in10
-// Sinh  Sinh  Sinh ...Sinh
 // ........................
 //    Subtract    Power
 //          \   Sinh
 //          Result
-// todo: remove Sinh once "no subgraph after input" limitation is relaxed
-class EltwiseMaxNumParamsSinhFunction : public SnippetsFunctionBase {
+class EltwiseMaxNumParamsFunction : public SnippetsFunctionBase {
 public:
-    explicit EltwiseMaxNumParamsSinhFunction(const std::vector<Shape>& inputShapes) :
+    explicit EltwiseMaxNumParamsFunction(const std::vector<Shape>& inputShapes) :
             SnippetsFunctionBase(inputShapes) {
         NGRAPH_CHECK(input_shapes.size() == 10, "Got invalid number of input shapes");
     }
@@ -164,7 +149,6 @@ protected:
 /// So we have 2 subgraphs - Snippets don't support subgraphs with many results
 /// Also Output tensors have names to check correct copying output names
 //    in1    in2
-//    Sinh   Sinh
 //        Add
 //  HSwish   Result
 //  Relu
@@ -181,7 +165,6 @@ protected:
 /// Two different Input and Outputs.
 /// This function is to check correct Broadcasting
 //        in1       in2
-//        Sin       Sin
 //       HSwish      /
 //  Result      Add
 //              Relu

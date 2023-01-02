@@ -19,7 +19,7 @@ TEST(attributes, grn_op) {
     float bias = 1.25f;
 
     auto grn = make_shared<opset1::GRN>(data, bias);
-    NodeBuilder builder(grn);
+    NodeBuilder builder(grn, {data});
     auto g_grn = ov::as_type_ptr<opset1::GRN>(builder.create());
 
     const auto expected_attr_count = 1;

@@ -56,8 +56,8 @@ public:
 
     bool bias_term() const { return get_primitive()->bias.size() > 0; }
 
-    std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const layout& out_layout) const override {
-        auto params = parent::get_kernel_impl_params(in_layouts, out_layout);
+    std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const override {
+        auto params = parent::get_kernel_impl_params(in_layouts, out_layouts);
         params->weights_layout = optional_layout(weights().get_output_layout());
         if (bias_term())
             params->bias_layout = optional_layout(bias().get_output_layout());
@@ -76,6 +76,7 @@ using deformable_conv_node = typed_program_node<deformable_conv>;
 template <>
 class typed_primitive_inst<deformable_conv> : public typed_primitive_inst_base<deformable_conv> {
     using parent = typed_primitive_inst_base<deformable_conv>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(deformable_conv_node const& node, kernel_impl_params const& impl_param);
@@ -85,8 +86,8 @@ public:
     typed_primitive_inst(network& network, deformable_conv_node const& node);
 
     memory::ptr weights_memory(size_t index) const {
-        if (node.get_groups() == 1) {
-            if (static_cast<int32_t>(index) >= node.get_split())
+        if (node->get_groups() == 1) {
+            if (static_cast<int32_t>(index) >= node->get_split())
                 throw std::range_error("weights offset too big");
             return dep_memory_ptr(1 + index);
         } else {  // all weights are in one buffer
@@ -95,16 +96,16 @@ public:
     }
 
     memory::ptr bias_memory(size_t index) const {
-        if (node.get_groups() == 1) {
-            if (static_cast<int32_t>(index) >= node.get_split())
+        if (node->get_groups() == 1) {
+            if (static_cast<int32_t>(index) >= node->get_split())
                 throw std::range_error("bias offset too big");
-            return dep_memory_ptr(1 + node.get_split());
+            return dep_memory_ptr(1 + node->get_split());
         } else {  // all bias are in one buffer
             return dep_memory_ptr(2);
         }
     }
 
-    bool bias_term() const { return node.bias_term(); }
+    bool bias_term() const { return node->bias_term(); }
 };
 
 using deformable_conv_inst = typed_primitive_inst<deformable_conv>;
@@ -112,6 +113,7 @@ using deformable_conv_inst = typed_primitive_inst<deformable_conv>;
 template <>
 struct typed_program_node<deformable_interp> : public typed_program_node_base<deformable_interp> {
     using parent = typed_program_node_base<deformable_interp>;
+    using parent::parent;
 
 public:
     typed_program_node(std::shared_ptr<primitive> prim, program& prog)
@@ -156,6 +158,7 @@ using deformable_interp_node = typed_program_node<deformable_interp>;
 template <>
 class typed_primitive_inst<deformable_interp> : public typed_primitive_inst_base<deformable_interp> {
     using parent = typed_primitive_inst_base<deformable_interp>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(deformable_interp_node const& node, kernel_impl_params const& impl_param);

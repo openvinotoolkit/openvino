@@ -3,9 +3,9 @@
 //
 
 #include "include/batch_headers/fetch_data.cl"
-#include "include/batch_headers/data_types.cl"
-
-#define unroll_for __attribute__((opencl_unroll_hint)) for
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 
 #define FEATURE_SLICE_SIZE 16
 
@@ -22,42 +22,9 @@
 #define AS_FILTER_TYPE2   CAT(as_, FILTER_TYPE2)
 #define TO_OUTPUT_TYPE8   CAT(convert_, OUTPUT_TYPE8)
 
-#if INPUT0_TYPE_SIZE == 2
-#   define INPUT_BLOCK_READ(ptr, offset)    AS_INPUT_TYPE(intel_sub_group_block_read_us((__global ushort*)(ptr) + (offset)))
-#   define INPUT_BLOCK_READ8(ptr, offset)   AS_INPUT_TYPE8(intel_sub_group_block_read_us8((__global ushort*)(ptr) + (offset)))
-#elif INPUT0_TYPE_SIZE == 4
-#   define INPUT_BLOCK_READ(ptr, offset)    AS_INPUT_TYPE(intel_sub_group_block_read((__global uint*)(ptr) + (offset)))
-#   define INPUT_BLOCK_READ8(ptr, offset)   AS_INPUT_TYPE8(intel_sub_group_block_read8((__global uint*)(ptr) + (offset)))
-#else
-#   error convolution_gpu_bfyx_f16_depthwise.cl - unsupported input type.
-#endif
-
-#if FILTER_TYPE_SIZE == 2
-#   define FILTER_BLOCK_READ(ptr, offset) AS_FILTER_TYPE(intel_sub_group_block_read_us((__global ushort*)(ptr) + (offset)))
-#   define FILTER_BLOCK_READ2(ptr, offset) AS_FILTER_TYPE2(intel_sub_group_block_read_us2((__global ushort*)(ptr) + (offset)))
-#elif FILTER_TYPE_SIZE == 4
-#   define FILTER_BLOCK_READ(ptr, offset) AS_FILTER_TYPE(intel_sub_group_block_read((__global uint*)(ptr) + (offset)))
-#   define FILTER_BLOCK_READ2(ptr, offset) AS_FILTER_TYPE2(intel_sub_group_block_read2((__global uint*)(ptr) + (offset)))
-#else
-#   error convolution_gpu_bfyx_f16_depthwise.cl - unsupported filter type.
-#endif
-
-#if OUTPUT_TYPE_SIZE == 1
-#   define OUTPUT_BLOCK_WRITE(ptr, offset, val)    BLOCK_WRITE_UC_1((__global uchar*)(ptr) + (offset), as_uchar(val))
-#   define OUTPUT_BLOCK_WRITE8(ptr, offset, val)   BLOCK_WRITE_UC_8((__global uchar*)(ptr) + (offset), as_uchar8(val))
-#elif OUTPUT_TYPE_SIZE == 2
-#   define OUTPUT_BLOCK_WRITE(ptr, offset, val)    intel_sub_group_block_write_us((__global ushort*)(ptr) + (offset), as_ushort(val))
-#   define OUTPUT_BLOCK_WRITE8(ptr, offset, val)   intel_sub_group_block_write_us8((__global ushort*)(ptr) + (offset), as_ushort8(val))
-#elif OUTPUT_TYPE_SIZE == 4
-#   define OUTPUT_BLOCK_WRITE(ptr, offset, val)    intel_sub_group_block_write((__global uint*)(ptr) + (offset), as_uint(val))
-#   define OUTPUT_BLOCK_WRITE8(ptr, offset, val)   intel_sub_group_block_write8((__global uint*)(ptr) + (offset), as_uint8(val))
-#else
-#   error convolution_gpu_bfyx_f16_depthwise.cl - unsupported output type.
-#endif
-
-__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
+REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 __attribute__((reqd_work_group_size(1, SUB_GROUP_SIZE, 1)))
-KERNEL(convolution_depthwise)(
+KERNEL(convolution_gpu_bfyx_f16_depthwise)(
     __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,
     __global FILTER_TYPE* weights,
@@ -96,33 +63,34 @@ KERNEL(convolution_depthwise)(
                               (f_block + input_fs_pad_before) * input_fs_pitch;
 
 #if BIAS_TERM
-    INPUT_TYPE8 dst = (INPUT_TYPE8)(INPUT_BLOCK_READ(biases, f_block * FEATURE_SLICE_SIZE));
+    INPUT_TYPE8 dst = (INPUT_TYPE8)(DT_INPUT_BLOCK_READ(biases, f_block * FEATURE_SLICE_SIZE));
 #else
     INPUT_TYPE8 dst = (INPUT_TYPE8)(INPUT0_VAL_ZERO);
 #endif
 
 #if ((FILTER_SIZE_X == 3) && (FILTER_SIZE_Y == 3) && (STRIDE_SIZE_X == 1) && (DILATION_SIZE_X == 1) && (DILATION_SIZE_Y == 1))
 
-    FILTER_TYPE wei_00 = FILTER_BLOCK_READ(weights, filter_offset + 0 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 0 * FEATURE_SLICE_SIZE);
-    FILTER_TYPE wei_01 = FILTER_BLOCK_READ(weights, filter_offset + 0 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 1 * FEATURE_SLICE_SIZE);
-    FILTER_TYPE wei_02 = FILTER_BLOCK_READ(weights, filter_offset + 0 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 2 * FEATURE_SLICE_SIZE);
-    FILTER_TYPE wei_10 = FILTER_BLOCK_READ(weights, filter_offset + 1 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 0 * FEATURE_SLICE_SIZE);
-    FILTER_TYPE wei_11 = FILTER_BLOCK_READ(weights, filter_offset + 1 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 1 * FEATURE_SLICE_SIZE);
-    FILTER_TYPE wei_12 = FILTER_BLOCK_READ(weights, filter_offset + 1 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 2 * FEATURE_SLICE_SIZE);
-    FILTER_TYPE wei_20 = FILTER_BLOCK_READ(weights, filter_offset + 2 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 0 * FEATURE_SLICE_SIZE);
-    FILTER_TYPE wei_21 = FILTER_BLOCK_READ(weights, filter_offset + 2 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 1 * FEATURE_SLICE_SIZE);
-    FILTER_TYPE wei_22 = FILTER_BLOCK_READ(weights, filter_offset + 2 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 2 * FEATURE_SLICE_SIZE);
+    FILTER_TYPE wei_00 = DT_FILTER_BLOCK_READ(weights, filter_offset + 0 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 0 * FEATURE_SLICE_SIZE);
+    FILTER_TYPE wei_01 = DT_FILTER_BLOCK_READ(weights, filter_offset + 0 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 1 * FEATURE_SLICE_SIZE);
+    FILTER_TYPE wei_02 = DT_FILTER_BLOCK_READ(weights, filter_offset + 0 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 2 * FEATURE_SLICE_SIZE);
+    FILTER_TYPE wei_10 = DT_FILTER_BLOCK_READ(weights, filter_offset + 1 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 0 * FEATURE_SLICE_SIZE);
+    FILTER_TYPE wei_11 = DT_FILTER_BLOCK_READ(weights, filter_offset + 1 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 1 * FEATURE_SLICE_SIZE);
+    FILTER_TYPE wei_12 = DT_FILTER_BLOCK_READ(weights, filter_offset + 1 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 2 * FEATURE_SLICE_SIZE);
+    FILTER_TYPE wei_20 = DT_FILTER_BLOCK_READ(weights, filter_offset + 2 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 0 * FEATURE_SLICE_SIZE);
+    FILTER_TYPE wei_21 = DT_FILTER_BLOCK_READ(weights, filter_offset + 2 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 1 * FEATURE_SLICE_SIZE);
+    FILTER_TYPE wei_22 = DT_FILTER_BLOCK_READ(weights, filter_offset + 2 * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + 2 * FEATURE_SLICE_SIZE);
 
-    INPUT_TYPE8 src_block_0 = INPUT_BLOCK_READ8(input, input_offset + (input_y + 0) * input_y_pitch + (input_x) * input_x_pitch);
-    INPUT_TYPE8 src_block_1 = INPUT_BLOCK_READ8(input, input_offset + (input_y + 1) * input_y_pitch + (input_x) * input_x_pitch);
-    INPUT_TYPE8 src_block_2 = INPUT_BLOCK_READ8(input, input_offset + (input_y + 2) * input_y_pitch + (input_x) * input_x_pitch);
-    INPUT_TYPE src_tail_00 = INPUT_BLOCK_READ(input, input_offset + (input_y + 0) * input_y_pitch + (input_x + 8) * input_x_pitch);
-    INPUT_TYPE src_tail_01 = INPUT_BLOCK_READ(input, input_offset + (input_y + 0) * input_y_pitch + (input_x + 9) * input_x_pitch);
-    INPUT_TYPE src_tail_10 = INPUT_BLOCK_READ(input, input_offset + (input_y + 1) * input_y_pitch + (input_x + 8) * input_x_pitch);
-    INPUT_TYPE src_tail_11 = INPUT_BLOCK_READ(input, input_offset + (input_y + 1) * input_y_pitch + (input_x + 9) * input_x_pitch);
-    INPUT_TYPE src_tail_20 = INPUT_BLOCK_READ(input, input_offset + (input_y + 2) * input_y_pitch + (input_x + 8) * input_x_pitch);
-    INPUT_TYPE src_tail_21 = INPUT_BLOCK_READ(input, input_offset + (input_y + 2) * input_y_pitch + (input_x + 9) * input_x_pitch);
+    INPUT_TYPE8 src_block_0 = DT_INPUT_BLOCK_READ8(input, input_offset + (input_y + 0) * input_y_pitch + (input_x) * input_x_pitch);
+    INPUT_TYPE8 src_block_1 = DT_INPUT_BLOCK_READ8(input, input_offset + (input_y + 1) * input_y_pitch + (input_x) * input_x_pitch);
+    INPUT_TYPE8 src_block_2 = DT_INPUT_BLOCK_READ8(input, input_offset + (input_y + 2) * input_y_pitch + (input_x) * input_x_pitch);
+    INPUT_TYPE src_tail_00 = DT_INPUT_BLOCK_READ(input, input_offset + (input_y + 0) * input_y_pitch + (input_x + 8) * input_x_pitch);
+    INPUT_TYPE src_tail_01 = DT_INPUT_BLOCK_READ(input, input_offset + (input_y + 0) * input_y_pitch + (input_x + 9) * input_x_pitch);
+    INPUT_TYPE src_tail_10 = DT_INPUT_BLOCK_READ(input, input_offset + (input_y + 1) * input_y_pitch + (input_x + 8) * input_x_pitch);
+    INPUT_TYPE src_tail_11 = DT_INPUT_BLOCK_READ(input, input_offset + (input_y + 1) * input_y_pitch + (input_x + 9) * input_x_pitch);
+    INPUT_TYPE src_tail_20 = DT_INPUT_BLOCK_READ(input, input_offset + (input_y + 2) * input_y_pitch + (input_x + 8) * input_x_pitch);
+    INPUT_TYPE src_tail_21 = DT_INPUT_BLOCK_READ(input, input_offset + (input_y + 2) * input_y_pitch + (input_x + 9) * input_x_pitch);
 
+#if X_BLOCK_SIZE == 8
     for (uint i = 0; i < X_BLOCK_SIZE - 2; i++)
     {
         dst[i] = mad(src_block_0[i + 0], wei_00, dst[i]);
@@ -163,6 +131,19 @@ KERNEL(convolution_depthwise)(
         dst[7] = mad(src_tail_20,    wei_21, dst[7]);
         dst[7] = mad(src_tail_21,    wei_22, dst[7]);
     }
+#else // X_BLOCK_SIZE == 1
+        dst[0] = mad(src_block_0[0], wei_00, dst[0]);
+        dst[0] = mad(src_block_0[1], wei_01, dst[0]);
+        dst[0] = mad(src_block_0[2], wei_02, dst[0]);
+
+        dst[0] = mad(src_block_1[0], wei_10, dst[0]);
+        dst[0] = mad(src_block_1[1], wei_11, dst[0]);
+        dst[0] = mad(src_block_1[2], wei_12, dst[0]);
+
+        dst[0] = mad(src_block_2[0], wei_20, dst[0]);
+        dst[0] = mad(src_block_2[1], wei_21, dst[0]);
+        dst[0] = mad(src_block_2[2], wei_22, dst[0]);
+#endif
 
 #else // ((FILTER_SIZE_X == 3) && (FILTER_SIZE_Y == 3) && (STRIDE_SIZE_X == 1))
 
@@ -171,12 +152,12 @@ KERNEL(convolution_depthwise)(
 
     unroll_for (uint i = 0; i < FILTER_SIZE_Y; i++) {
         unroll_for (uint j = 0; j < FILTER_SIZE_X_DIV_2; j++) {
-            wei_temp = FILTER_BLOCK_READ2(weights, filter_offset + i * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + j * 2 * FEATURE_SLICE_SIZE);
+            wei_temp = DT_FILTER_BLOCK_READ2(weights, filter_offset + i * FILTER_Y_PITCH * FEATURE_SLICE_SIZE + j * 2 * FEATURE_SLICE_SIZE);
             wei[i * FILTER_SIZE_X + j * 2] = wei_temp.s0;
             wei[i * FILTER_SIZE_X + j * 2 + 1] = wei_temp.s1;
         }
 #if (FILTER_SIZE_X % 2)
-        wei[i * FILTER_SIZE_X + FILTER_SIZE_X - 1] = FILTER_BLOCK_READ(weights, filter_offset +
+        wei[i * FILTER_SIZE_X + FILTER_SIZE_X - 1] = DT_FILTER_BLOCK_READ(weights, filter_offset +
                                                                                 i * FILTER_Y_PITCH * FEATURE_SLICE_SIZE +
                                                                                 (FILTER_SIZE_X - 1) * FEATURE_SLICE_SIZE);
 #endif // (FILTER_SIZE_X % 2)
@@ -187,7 +168,7 @@ KERNEL(convolution_depthwise)(
     unroll_for (uint k = 0; k < X_BLOCK_SIZE; k++) {
         unroll_for (uint i = 0; i < FILTER_SIZE_Y; i++) {
             unroll_for (uint j = 0; j < FILTER_SIZE_X; j++) {
-                src[k * FILTER_SIZE_Y * FILTER_SIZE_X + i * FILTER_SIZE_X + j] = INPUT_BLOCK_READ(input, input_offset +
+                src[k * FILTER_SIZE_Y * FILTER_SIZE_X + i * FILTER_SIZE_X + j] = DT_INPUT_BLOCK_READ(input, input_offset +
                                                                                                          (input_y + (i * DILATION_SIZE_Y)) * input_y_pitch +
                                                                                                          (input_x + (j * DILATION_SIZE_X) + k * STRIDE_SIZE_X) * input_x_pitch);
             }
@@ -246,7 +227,7 @@ KERNEL(convolution_depthwise)(
 #else
             res = TO_OUTPUT_TYPE8(dst);
 #endif // HAS_FUSED_OPS
-            OUTPUT_BLOCK_WRITE8(output, output_offset + x * output_x_pitch, res);
+            DT_OUTPUT_BLOCK_WRITE8(output, output_offset + x * output_x_pitch, res);
         }
         else
         {
@@ -257,7 +238,7 @@ KERNEL(convolution_depthwise)(
 #else
                 res[i] = TO_OUTPUT_TYPE(dst[i]);
 #endif // HAS_FUSED_OPS
-                OUTPUT_BLOCK_WRITE(output, output_offset + (x + i) * output_x_pitch, res[i]);
+                DT_OUTPUT_BLOCK_WRITE(output, output_offset + (x + i) * output_x_pitch, res[i]);
             }
         }
     }
@@ -286,12 +267,10 @@ KERNEL(convolution_depthwise)(
 #else
         res = TO_OUTPUT_TYPE(dst[0]);
 #endif // HAS_FUSED_OPS
-        OUTPUT_BLOCK_WRITE(output, output_offset + x * output_x_pitch, res);
+        DT_OUTPUT_BLOCK_WRITE(output, output_offset + x * output_x_pitch, res);
     }
 #endif
 }
-
-#undef unroll_for
 
 #undef FEATURE_SLICE_SIZE
 #undef X_BLOCK_SIZE
@@ -308,12 +287,3 @@ KERNEL(convolution_depthwise)(
 
 #undef AS_FILTER_TYPE2
 #undef TO_OUTPUT_TYPE8
-
-#undef INPUT_BLOCK_READ
-#undef INPUT_BLOCK_READ8
-
-#undef FILTER_BLOCK_READ
-#undef FILTER_BLOCK_READ2
-
-#undef OUTPUT_BLOCK_WRITE
-#undef OUTPUT_BLOCK_WRITE8

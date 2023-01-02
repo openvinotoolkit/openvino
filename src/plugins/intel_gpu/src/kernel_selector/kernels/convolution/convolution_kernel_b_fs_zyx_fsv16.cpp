@@ -12,6 +12,7 @@ namespace kernel_selector {
 static const size_t sub_group_size = 16;
 static const size_t feature_block_size = 16;
 
+namespace {
 FusedOpsConfiguration GenerateFusedOpsConfiguration_f16(size_t conf_id, std::string input_name, Datatype dt,
                                                         bool is_vector) {
     std::vector<std::string> idx_order;
@@ -62,6 +63,7 @@ FusedOpsConfiguration GenerateFusedOpsConfiguration_bsv16_fsv16(size_t conf_id, 
              FusedOpsConfiguration::IndexType::TENSOR_COORD,
              Tensor::DataChannelName::BATCH };
 }
+}  // namespace
 
 ParamsKey ConvolutionKernel_b_fs_zyx_fsv16::GetSupportedKey() const {
     ParamsKey k;
@@ -84,9 +86,14 @@ ParamsKey ConvolutionKernel_b_fs_zyx_fsv16::GetSupportedKey() const {
     k.EnableNonBiasTerm();
     k.EnableSplitSupport();
     k.EnableBatching();
-    k.EnableSubGroup();
-    k.EnableSubGroupShort();
     k.EnableGroupedConvolution();
+    return k;
+}
+
+DeviceFeaturesKey ConvolutionKernel_b_fs_zyx_fsv16::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_shuffle();
+
     return k;
 }
 

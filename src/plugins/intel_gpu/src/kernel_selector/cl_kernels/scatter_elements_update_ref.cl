@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
 
-#define GET_UPDATES_INDEX(prefix, idx_order) CAT(prefix, _GET_INDEX)(idx_order)
+#define GET_INDICES_INDEX(idx_order) INPUT1_GET_INDEX(idx_order)
+#define GET_UPDATES_INDEX(idx_order) INPUT2_GET_INDEX(idx_order)
 #define GET_OUTPUT_INDEX(idx_order) OUTPUT_GET_INDEX(idx_order)
 #if OUTPUT_DIMS == 4
     #define ORDER b,f,y,x
@@ -87,8 +87,8 @@ KERNEL(scatter_elements_update_ref)(const __global INPUT0_TYPE* data,
         const uint idx_b = dim2 / INPUT2_FEATURE_NUM;
     #endif
 
-    const uint updates_idx = GET_UPDATES_INDEX(INPUT2, IDX_ORDER);
-    INPUT1_TYPE index = indices[(int)updates_idx];
+    const uint indices_idx = GET_INDICES_INDEX(IDX_ORDER);
+    INPUT1_TYPE index = indices[(int)indices_idx];
 
     #if OUTPUT_DIMS == 4
     #if     AXIS_VALUE == 0
@@ -129,6 +129,7 @@ KERNEL(scatter_elements_update_ref)(const __global INPUT0_TYPE* data,
     #endif
     const uint output_idx = GET_OUTPUT_INDEX(ORDER);
 
+    const uint updates_idx = GET_UPDATES_INDEX(IDX_ORDER);
     INPUT2_TYPE val = updates[(int)updates_idx];
     #if HAS_FUSED_OPS
         FUSED_OPS_SECOND_KERNEL;
@@ -139,6 +140,7 @@ KERNEL(scatter_elements_update_ref)(const __global INPUT0_TYPE* data,
 #endif
 }
 
+#undef GET_INDICES_INDEX
 #undef GET_UPDATES_INDEX
 #undef GET_OUTPUT_INDEX
 #undef IDX_ORDER

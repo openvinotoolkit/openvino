@@ -32,14 +32,14 @@ class GNAGraphCompiler {
 private:
     std::shared_ptr<GNAPluginNS::backend::AMIntelDNN> dnn;
     std::shared_ptr<GNAPluginNS::gna_memory_type> gnamem;
-    std::shared_ptr<GNAPluginNS::GNAFlags> gnaFlags;
     std::shared_ptr<GNAPluginNS::GnaInputs> inputs_ptr_;
 
     // layers with extra storage for connections and additional
     // non trivial processing
 
-    SplitConnection  split_connection;
-    CropConnection   crop_connection;
+    SplitConnection split_connection;
+    CropConnection crop_connection;
+    const Config& gna_config;
 
     intel_dnn_component_t * find_first_unused_input(InferenceEngine::CNNLayerPtr current);
 
@@ -51,15 +51,17 @@ private:
 
     std::unique_ptr<const GNALimitations::Cnn2D::AbstractValidator> cnn2dValidator;
 
+    bool ShouldUseOnlyConv2DGnaIface() const;
+
 public:
     GNAPluginNS::backend::DnnComponents dnnComponents;
     MemoryConnection memory_connection;
     ConcatConnection concat_connection;
     ConstConnections const_connections;
 
+    GNAGraphCompiler(const Config& gna_config);
     void setGNAMemoryPtr(std::shared_ptr<GNAPluginNS::gna_memory_type> gnaMemPtr);
     void setDNNPtr(std::shared_ptr<GNAPluginNS::backend::AMIntelDNN> dnnPtr);
-    void setGNAFlagsPtr(std::shared_ptr<GNAPluginNS::GNAFlags> gnaFlagsPtr);
     void setInputsPtr(std::shared_ptr<GNAPluginNS::GnaInputs> inputsPtr);
 
     void fillMemoryConnections(std::unordered_map<std::string,
@@ -77,8 +79,6 @@ public:
     void ValidatePooling2D(const std::string& name,
         const uint32_t windowH, const uint32_t windowW,
         const uint32_t strideH, const uint32_t strideW) const;
-
-    bool IsCnn2DInputPaddingSupported(const std::string& name) const;
 
     void SetValidatorTarget(const std::string& target);
 

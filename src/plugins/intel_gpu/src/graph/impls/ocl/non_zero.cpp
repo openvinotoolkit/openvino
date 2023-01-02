@@ -20,61 +20,48 @@ namespace ocl {
 struct count_nonzero_impl : typed_primitive_impl_ocl<count_nonzero> {
     using parent = typed_primitive_impl_ocl<count_nonzero>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::count_nonzero_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::count_nonzero_params, kernel_selector::count_nonzero_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<count_nonzero_impl>(*this);
     }
 
-    static primitive_impl* create(const count_nonzero_node& arg, const kernel_impl_params& impl_param) {
-        auto nonzero_params = get_default_params<kernel_selector::count_nonzero_params>(impl_param);
-        auto nonzero_optional_params =
-            get_default_optional_params<kernel_selector::count_nonzero_optional_params>(arg.get_program());
-
-        nonzero_params.ov_input_rank = impl_param.get_input_layout().get_shape().size();
-
-        auto& kernel_selector = kernel_selector::count_nonzero_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(nonzero_params, nonzero_optional_params);
-
-        OPENVINO_ASSERT(!best_kernels.empty(), "Cannot find a proper kernel for ", arg.id());
-
-        auto count_nonzero = new count_nonzero_impl(arg, best_kernels[0]);
-
-        return count_nonzero;
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        auto params = get_default_params<kernel_selector::count_nonzero_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::count_nonzero_optional_params>(impl_param.get_program());
+        return {params, optional_params};
     }
 };
 
 struct gather_nonzero_impl : typed_primitive_impl_ocl<gather_nonzero> {
     using parent = typed_primitive_impl_ocl<gather_nonzero>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::gather_nonzero_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::gather_nonzero_params, kernel_selector::gather_nonzero_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<gather_nonzero_impl>(*this);
     }
 
-public:
-    static primitive_impl* create(const gather_nonzero_node& arg, const kernel_impl_params& impl_param) {
-        auto nonzero_params = get_default_params<kernel_selector::gather_nonzero_params>(impl_param);
-        auto nonzero_optional_params =
-            get_default_optional_params<kernel_selector::gather_nonzero_optional_params>(arg.get_program());
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        auto params = get_default_params<kernel_selector::gather_nonzero_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::gather_nonzero_optional_params>(impl_param.get_program());
 
-        nonzero_params.inputs.push_back(convert_data_tensor(arg.input(1).get_output_layout()));
-        nonzero_params.ov_input_rank = impl_param.get_input_layout().get_shape().size();
-
-        auto& kernel_selector = kernel_selector::gather_nonzero_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(nonzero_params, nonzero_optional_params);
-
-        OPENVINO_ASSERT(!best_kernels.empty(), "Cannot find a proper kernel for ", arg.id());
-
-        auto gather_nonzero = new gather_nonzero_impl(arg, best_kernels[0]);
-
-        return gather_nonzero;
+        params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
+        params.ov_input_rank = impl_param.get_input_layout().get_shape().size();
+        return {params, optional_params};
     }
 };
 
 namespace detail {
 
 attach_count_nonzero_impl::attach_count_nonzero_impl() {
-    implementation_map<count_nonzero>::add(impl_types::ocl, count_nonzero_impl::create, {
+    implementation_map<count_nonzero>::add(impl_types::ocl, typed_primitive_impl_ocl<count_nonzero>::create<count_nonzero_impl>, {
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::i32, format::bfyx),
@@ -96,7 +83,7 @@ attach_count_nonzero_impl::attach_count_nonzero_impl() {
 }
 
 attach_gather_nonzero_impl::attach_gather_nonzero_impl() {
-    implementation_map<gather_nonzero>::add(impl_types::ocl, gather_nonzero_impl::create, {
+    implementation_map<gather_nonzero>::add(impl_types::ocl, typed_primitive_impl_ocl<gather_nonzero>::create<gather_nonzero_impl>, {
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::i32, format::bfyx),
@@ -120,3 +107,6 @@ attach_gather_nonzero_impl::attach_gather_nonzero_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::count_nonzero_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::gather_nonzero_impl)

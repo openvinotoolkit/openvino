@@ -9,6 +9,7 @@
    openvino_docs_OV_UG_Model_Representation
    openvino_docs_OV_UG_Infer_request
    openvino_docs_OV_UG_Python_API_exclusives
+   openvino_docs_MO_DG_TensorFlow_Frontend
 
 @endsphinxdirective
 
@@ -359,8 +360,8 @@ cmake --build .
  - See the [OpenVINO Samples](Samples_Overview.md) page or the [Open Model Zoo Demos](https://docs.openvino.ai/nightly/omz_demos.html) page for specific examples of how OpenVINO pipelines are implemented for applications like image classification, text prediction, and many others.
  - [OpenVINO™ Runtime Preprocessing](./preprocessing_overview.md)
  - [Using Encrypted Models with OpenVINO&trade;](./protecting_model_guide.md)
- - [OpenVINO Samples](Samples_Overview.md)
  - [Open Model Zoo Demos](https://docs.openvino.ai/nightly/omz_demos.html)
+
 
 [ie_api_flow_cpp]: img/BASIC_IE_API_workflow_Cpp.svg
 [ie_api_use_cpp]: img/IMPLEMENT_PIPELINE_with_API_C.svg

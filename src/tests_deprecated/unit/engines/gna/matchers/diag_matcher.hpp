@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "backend/gna_types.h"
 #include "nnet_base_matcher.hpp"
 #include "frontend/quantization.hpp"
 

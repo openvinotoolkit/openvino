@@ -36,58 +36,6 @@ struct typed_program_node;
 class json_composite;
 class xml_composite;
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
-enum class onednn_post_op_type : uint32_t {
-    eltwise_act,
-    eltwise_clip,
-    eltwise_linear,
-    eltwise_round,
-    binary_mul,
-    binary_add,
-    binary_max,
-    binary_min,
-    binary_relu,
-    scale,
-    sum,
-    optimized,
-    optimized_eltwise_act,
-    optimized_eltwise_clip,
-    optimized_eltwise_linear,
-    optimized_eltwise_round,
-    optimized_sum
-};
-
-static inline std::ostream& operator<< (std::ostream& os, onednn_post_op_type& t) {
-    switch (t) {
-        case onednn_post_op_type::eltwise_act: os << "eltwise_act"; break;
-        case onednn_post_op_type::eltwise_clip: os << "eltwise_clip"; break;
-        case onednn_post_op_type::eltwise_linear: os << "eltwise_linear"; break;
-        case onednn_post_op_type::eltwise_round: os << "eltwise_round"; break;
-        case onednn_post_op_type::binary_mul: os << "binary_mul"; break;
-        case onednn_post_op_type::binary_add: os << "binary_add"; break;
-        case onednn_post_op_type::binary_max: os << "binary_max"; break;
-        case onednn_post_op_type::binary_min: os << "binary_min"; break;
-        case onednn_post_op_type::binary_relu: os << "binary_relu"; break;
-        case onednn_post_op_type::scale: os << "scale"; break;
-        case onednn_post_op_type::sum: os << "sum"; break;
-        case onednn_post_op_type::optimized: os << "optimized"; break;
-        case onednn_post_op_type::optimized_eltwise_act: os << "optimized_eltwise_act"; break;
-        case onednn_post_op_type::optimized_eltwise_clip: os << "optimized_eltwise_clip"; break;
-        case onednn_post_op_type::optimized_eltwise_linear: os << "optimized_eltwise_linear"; break;
-        case onednn_post_op_type::optimized_eltwise_round: os << "optimized_eltwise_round"; break;
-        case onednn_post_op_type::optimized_sum: os << "optimized_sum"; break;
-        default: os << "invalid";
-    }
-    return os;
-}
-
-struct fused_primitive_desc_onednn {
-    onednn_post_op_type op_type; // onednn post-operation type
-    size_t mem_offset;           // index of a memory buffer for current post-operation
-    size_t mem_dep;              // memory dependency for working with fused node
-};
-#endif // ENABLE_ONEDNN_FOR_GPU
-
 /*
     Base class for all primitives which wraps API class and extends it to be used
     in graph context.
@@ -138,22 +86,25 @@ public:
     std::map<size_t, memory::ptr> get_const_memory_deps() const;
 
     virtual std::unique_ptr<kernel_impl_params> get_kernel_impl_params() const {
-        return get_kernel_impl_params(get_input_layouts(), output_layout);
+        return get_kernel_impl_params(get_input_layouts(), output_layouts);
     }
 
-    virtual std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const layout& out_layout) const {
-        auto params = std::unique_ptr<kernel_impl_params>(new kernel_impl_params(get_program(), get_primitive(), get_unique_id(), in_layouts, out_layout,
+    virtual std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const {
+        auto params = std::unique_ptr<kernel_impl_params>(new kernel_impl_params(get_program(), get_primitive(), get_unique_id(), in_layouts, out_layouts,
                                                                                  get_fused_primitives(),
                                                                                  get_fused_activations_funcs(), get_fused_activations_params()));
         params->memory_deps = get_const_memory_deps();
 
         auto deps = get_dependencies();
         for (size_t i = 0; i < deps.size(); i++) {
-            if (!deps[i]->is_constant()) {
+            if (!deps[i].first->is_constant()) {
                 params->primary_input_idx = i;
                 break;
             }
         }
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        params->fused_desc_onednn = get_fused_primitives_onednn();
+#endif // ENABLE_ONEDNN_FOR_GPU
         return params;
     }
 
@@ -174,15 +125,14 @@ public:
     void set_preferred_impl_type(impl_types impl) { impl_type = impl; }
     impl_types get_preferred_impl_type() const { return impl_type; }
 
-    std::vector<program_node*> const& get_dependencies() const { return dependencies; }
-    std::vector<std::pair<program_node*, int>> const& get_dependencies_new() const { return dependencies_new; }
-    program_node& get_dependency(size_t idx) const { return *dependencies.at(idx); }
-    std::pair<program_node*, int32_t> get_dependency_new(size_t idx) const { return dependencies_new.at(idx); }
+    std::vector<std::pair<program_node*, int32_t>> const& get_dependencies() const { return dependencies; }
+    program_node& get_dependency(size_t idx) const { return *dependencies.at(idx).first; }
+    std::pair<program_node*, int32_t> get_dependency_with_port(size_t idx) const { return dependencies.at(idx); }
 
     std::vector<layout> const get_input_layouts() const {
         std::vector<layout> layouts;
         for (const auto& i : dependencies) {
-            layouts.push_back(i->get_output_layout());
+            layouts.push_back(i.first->get_output_layout(true, i.second));
         }
         return layouts;
     }
@@ -197,6 +147,9 @@ public:
 
     void remove_dependency(size_t idx);
     void remove_dependency(program_node& node);
+
+    size_t get_dependency_index(program_node& node) const;
+    size_t get_user_index(program_node& node) const;
 
     std::set<primitive_id> get_memory_dependencies() const;
     void add_memory_dependency(primitive_id);
@@ -223,14 +176,14 @@ public:
     // do not modify primitive directly to keep synchronisation with graph
     std::shared_ptr<const primitive> get_primitive() const { return desc; }
     // primitive modification functions
-    void set_output_padding(padding const& padd) {
+    void set_output_padding(padding const& padd, size_t idx = 0) {
         // changing output padding shouldn't cause any changes to other primitives
         // so just change it
-        output_layout.data_padding = padd;
+        output_layouts[idx].data_padding = padd;
     }
 
-    void merge_output_padding(padding const& padd) {
-        set_output_padding(padding::max(padd, output_layout.data_padding));
+    void merge_output_padding(padding const& padd, size_t idx = 0) {
+        set_output_padding(padding::max(padd, output_layouts[idx].data_padding));
     }
 
     // only calculated output layout (for external usage), does not modify/use cached output layout nor invalidate users
@@ -239,24 +192,31 @@ public:
 
     // uses cached output layout if valid, if not calls 'calc_output_layout' and stores its result + invalidate all
     // users if layout has changed and @p invalidate_users_if_changed is set to true
-    layout get_output_layout(bool invalidate_users_if_changed = true);
+    layout get_output_layout(bool invalidate_users_if_changed = true, size_t idx = 0);
     // returns cached output layout if valid, otherwise throws an exception
-    layout get_output_layout() const;
+    layout get_output_layout(size_t idx = 0) const;
+    std::vector<layout> get_output_layouts(bool invalidate_users_if_changed = true);
+    std::vector<layout> get_output_layouts() const;
     // returns result of get_output_layout without padding
-    layout get_non_padded_output_layout(bool invalidate_users_if_changed = true);
+    layout get_non_padded_output_layout(bool invalidate_users_if_changed = true, size_t idx = 0);
 
     // sets cached output layout to an arbitrary value, invalidates users if new layout differs from previous one and @p
     // invalidate_users_if_changed is set to true returns whether output layout has changed
-    bool set_output_layout(layout& new_layout, bool invalidate_users_if_changed = true);
+    bool set_output_layout(layout& new_layout, bool invalidate_users_if_changed = true, size_t idx = 0);
+    bool set_output_layouts(std::vector<layout>& new_layout, bool invalidate_users_if_changed = true);
 
     size_t get_outputs_count() const { return num_outputs; }
 
     // forces recalculation of cached output layout, invalidates users if new layout is different than previous one and
     // @p invalidate_users_if_changed is set to true returns whether output layout has changed
     bool recalc_output_layout(bool invalidate_users_if_changed = true);
+    bool recalc_output_layouts(bool invalidate_users_if_changed = true);
 
     bool is_dynamic() const;
     bool is_dynamic();
+
+    bool is_dynamic_output_layout(size_t idx = 0) const;
+    bool is_dynamic_output_layout(size_t idx = 0);
 
     bool is_padded() { return static_cast<bool>(get_output_layout().data_padding); }
     bool is_padded() const { return static_cast<bool>(get_output_layout().data_padding); }
@@ -269,7 +229,13 @@ public:
     void set_output(bool out) { output = out; }
     bool is_output() const { return output; }
 
-    bool is_valid_output_layout() const { return valid_output_layout; }
+    bool is_valid_output_layout(size_t idx = 0) const { return valid_output_layouts[idx]; }
+    bool is_all_valid_output_layouts() const {
+        for (auto l : valid_output_layouts) {
+            if (l == false) return false;
+        }
+        return true;
+    }
 
     uint8_t mark(uint8_t val = 1) {
         uint8_t ret = user_mark;
@@ -419,10 +385,18 @@ public:
         cur_id = 0;
     }
 
-    format::type get_required_input0() const { return required_input0; }
-    format::type get_required_output() const { return required_output; }
-    void set_required_input0(format::type type) { required_input0 = type; }
-    void set_required_output(format::type type) { required_output = type; }
+    std::vector<format::type> get_preferred_input_fmts() const { return preferred_input_fmts; }
+    std::vector<format::type> get_preferred_output_fmts() const { return preferred_output_fmts; }
+    format::type get_preferred_input_fmt(size_t idx = 0) const {
+        return (idx < preferred_input_fmts.size()) ? preferred_input_fmts.at(idx) : format::any;
+    }
+    format::type get_preferred_output_fmt(size_t idx = 0) const {
+        return (idx < preferred_output_fmts.size()) ? preferred_output_fmts.at(idx) : format::any;
+    }
+
+    void init_preferred_fmt(size_t dep_size, size_t user_size);
+    void set_preferred_input_fmt(size_t idx, format::type type);
+    void set_preferred_output_fmt(size_t idx, format::type type);
 
 
 protected:
@@ -434,14 +408,13 @@ protected:
 
     std::unique_ptr<primitive_impl> selected_impl;
 
-    bool valid_output_layout = false;
-    layout output_layout = layout(data_types::f32, format::bfyx, tensor());
+    std::vector<bool> valid_output_layouts;
+    std::vector<layout> output_layouts;
 
-    format::type required_input0;
-    format::type required_output;
+    std::vector<format::type> preferred_input_fmts;
+    std::vector<format::type> preferred_output_fmts;
 
-    std::vector<program_node*> dependencies;
-    std::vector<std::pair<program_node*, int>> dependencies_new;
+    std::vector<std::pair<program_node*, int32_t>> dependencies;
     std::list<program_node*> users;
 
     // list of primitives that can reuse same memory buffers due to execution order conflicts
@@ -536,7 +509,7 @@ template <class PType>
 struct typed_program_node : public typed_program_node_base<PType> {
     using typed_program_node_base<PType>::typed_program_node_base;
 
-    program_node& input() const { return program_node::get_dependency(0); }
+    program_node& input(size_t index = 0) const { return program_node::get_dependency(index); }
 };
 
 }  // namespace cldnn

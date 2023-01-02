@@ -47,7 +47,7 @@ TEST(average_unpooling_gpu, basic_in2x2x2x1) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(average_unpooling("average_unpooling", "input", { 2, 2, 3, 2 }, { 1, 1, 2, 2 }, { 1, 1, 1, 1 }));
+    topology.add(average_unpooling("average_unpooling", input_info("input"), { 2, 2, 3, 2 }, { 1, 1, 2, 2 }, { 1, 1, 1, 1 }));
 
     network network(engine, topology);
 
@@ -59,11 +59,11 @@ TEST(average_unpooling_gpu, basic_in2x2x2x1) {
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     auto output_layout = output->get_layout();
 
-    EXPECT_EQ(output_layout.format, format::bfyx);
-    EXPECT_EQ(output_layout.spatial(1), 2);
-    EXPECT_EQ(output_layout.spatial(0), 3);
-    EXPECT_EQ(output_layout.feature(), 2);
-    EXPECT_EQ(output_layout.batch(), 2);
+    ASSERT_EQ(output_layout.format, format::bfyx);
+    ASSERT_EQ(output_layout.spatial(1), 2);
+    ASSERT_EQ(output_layout.spatial(0), 3);
+    ASSERT_EQ(output_layout.feature(), 2);
+    ASSERT_EQ(output_layout.batch(), 2);
 
     std::vector<float> expected_output_vec = {
         0.625f, -0.5f, -1.125,
@@ -77,7 +77,7 @@ TEST(average_unpooling_gpu, basic_in2x2x2x1) {
     };
 
     for (size_t i = 0; i < expected_output_vec.size(); ++i) {
-        EXPECT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -118,8 +118,8 @@ TEST(average_unpooling_gpu, basic_in2x2x3x2_with_average_pooling_unpooling) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(pooling("pooling", "input", pooling_mode::average_no_padding, { 2, 2 }, { 2, 2 }));
-    topology.add(average_unpooling("average_unpooling", "pooling", input->get_layout().get_tensor(), { 1, 1, 2, 2 }, { 1, 1, 2, 2 }));
+    topology.add(pooling("pooling", input_info("input"), pooling_mode::average_no_padding, { 2, 2 }, { 2, 2 }));
+    topology.add(average_unpooling("average_unpooling", input_info("pooling"), input->get_layout().get_tensor(), { 1, 1, 2, 2 }, { 1, 1, 2, 2 }));
 
     network network(engine, topology);
 
@@ -131,11 +131,11 @@ TEST(average_unpooling_gpu, basic_in2x2x3x2_with_average_pooling_unpooling) {
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     auto output_layout = output->get_layout();
 
-    EXPECT_EQ(output_layout.format, format::bfyx);
-    EXPECT_EQ(output_layout.spatial(1), 2);
-    EXPECT_EQ(output_layout.spatial(0), 3);
-    EXPECT_EQ(output_layout.feature(), 2);
-    EXPECT_EQ(output_layout.batch(), 2);
+    ASSERT_EQ(output_layout.format, format::bfyx);
+    ASSERT_EQ(output_layout.spatial(1), 2);
+    ASSERT_EQ(output_layout.spatial(0), 3);
+    ASSERT_EQ(output_layout.feature(), 2);
+    ASSERT_EQ(output_layout.batch(), 2);
 
     std::vector<float> expected_output_vec = {
         0.625f, 0.625f, -6,
@@ -149,7 +149,7 @@ TEST(average_unpooling_gpu, basic_in2x2x3x2_with_average_pooling_unpooling) {
     };
 
     for (size_t i = 0; i < expected_output_vec.size(); ++i) {
-        EXPECT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -186,7 +186,7 @@ TEST(average_unpooling_gpu, basic_in2x2x2x1_output_padding) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(average_unpooling("average_unpooling", "input", { 2, 2, 3, 2 }, { 1, 1, 2, 2 }, { 1, 1, 1, 1 }, padding({ 0, 0, 1, 1 }, 0)));
+    topology.add(average_unpooling("average_unpooling", input_info("input"), { 2, 2, 3, 2 }, { 1, 1, 2, 2 }, { 1, 1, 1, 1 }, padding({ 0, 0, 1, 1 }, 0)));
 
     network network(engine, topology);
 
@@ -198,11 +198,11 @@ TEST(average_unpooling_gpu, basic_in2x2x2x1_output_padding) {
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     auto output_layout = output->get_layout();
 
-    EXPECT_EQ(output_layout.format, format::bfyx);
-    EXPECT_EQ(output_layout.spatial(1), 2);
-    EXPECT_EQ(output_layout.spatial(0), 3);
-    EXPECT_EQ(output_layout.feature(), 2);
-    EXPECT_EQ(output_layout.batch(), 2);
+    ASSERT_EQ(output_layout.format, format::bfyx);
+    ASSERT_EQ(output_layout.spatial(1), 2);
+    ASSERT_EQ(output_layout.spatial(0), 3);
+    ASSERT_EQ(output_layout.feature(), 2);
+    ASSERT_EQ(output_layout.batch(), 2);
 
     std::vector<float> expected_output_vec = {
         0.f, 0.f, 0.f, 0.f, 0.f,
@@ -228,11 +228,12 @@ TEST(average_unpooling_gpu, basic_in2x2x2x1_output_padding) {
     std::vector<float> out;
     for (size_t i = 0; i < expected_output_vec.size(); ++i) {
         out.push_back(output_ptr[i]);
-        EXPECT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
-TEST(average_unpooling_gpu, basic_in2x2x2x1_fp16) {
+template <typename T>
+void test_average_unpooling_gpu_basic_in2x2x2x1_fp16(bool is_caching_test) {
     //  Input  : 2x2x2x1
     //  Output Padding : 0x0x1x1
     //  Output : 2x2x3x2
@@ -267,25 +268,42 @@ TEST(average_unpooling_gpu, basic_in2x2x2x1_fp16) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(average_unpooling("average_unpooling", "input", { 2, 2, 3, 2 }, { 1, 1, 2, 2 }, { 1, 1, 1, 1 }));
+    topology.add(average_unpooling("average_unpooling", input_info("input"), { 2, 2, 3, 2 }, { 1, 1, 2, 2 }, { 1, 1, 1, 1 }));
 
-    network network(engine, topology);
+    cldnn::network::ptr network;
 
-    network.set_input_data("input", input);
+    if (is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topology);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+        }
+    } else {
+        network = std::make_shared<cldnn::network>(engine, topology);
+    }
 
-    auto outputs = network.execute();
+    network->set_input_data("input", input);
+
+    auto outputs = network->execute();
 
     auto output = outputs.at("average_unpooling").get_memory();
     cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
     auto output_layout = output->get_layout();
 
-    EXPECT_EQ(output_layout.format, format::bfyx);
-    EXPECT_EQ(output_layout.spatial(1), 2);
-    EXPECT_EQ(output_layout.spatial(0), 3);
-    EXPECT_EQ(output_layout.feature(), 2);
-    EXPECT_EQ(output_layout.batch(), 2);
+    ASSERT_EQ(output_layout.format, format::bfyx);
+    ASSERT_EQ(output_layout.spatial(1), 2);
+    ASSERT_EQ(output_layout.spatial(0), 3);
+    ASSERT_EQ(output_layout.feature(), 2);
+    ASSERT_EQ(output_layout.batch(), 2);
 
-    std::vector<float> expected_output_vec = {
+    std::vector<T> expected_output_vec = {
         0.625f, -0.5f, -1.125,
         0.625f, -0.5f, -1.125,
         1.5f, 2.5f, 1.f,
@@ -296,6 +314,14 @@ TEST(average_unpooling_gpu, basic_in2x2x2x1_fp16) {
         1.75f, 2.9375f, 1.1875f
     };
     for (size_t i = 0; i < expected_output_vec.size(); ++i) {
-        EXPECT_EQ(expected_output_vec[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_output_vec[i], half_to_float(output_ptr[i]));
     }
+}
+
+TEST(average_unpooling_gpu, basic_in2x2x2x1_fp16) {
+    test_average_unpooling_gpu_basic_in2x2x2x1_fp16<float>(false);
+}
+
+TEST(export_import_average_unpooling_gpu, basic_in2x2x2x1_fp16) {
+    test_average_unpooling_gpu_basic_in2x2x2x1_fp16<float>(true);
 }

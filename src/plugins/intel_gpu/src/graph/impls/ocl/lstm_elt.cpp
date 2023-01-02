@@ -18,13 +18,17 @@ namespace ocl {
 struct lstm_elt_impl : typed_primitive_impl_ocl<lstm_elt> {
     using parent = typed_primitive_impl_ocl<lstm_elt>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::lstm_elt_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::lstm_elt_params, kernel_selector::lstm_elt_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<lstm_elt_impl>(*this);
     }
 
 protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<lstm_elt>& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<lstm_elt>& instance, int32_t) const override {
         kernel_arguments_data args = parent::get_arguments(instance, 0);
 
         args.cell = instance.cell_term() ? instance.cell_memory() : nullptr;
@@ -34,7 +38,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const lstm_elt_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const lstm_elt_node& arg, const kernel_impl_params& impl_param) {
         const auto& prim = arg.get_primitive();
         auto lstm_elt_params = get_default_params<kernel_selector::lstm_elt_params>(impl_param);
         auto lstm_elt_optional_params =
@@ -78,16 +82,9 @@ public:
         lstm_elt_params.direction = arg.direction();
 
         auto& kernel_selector = kernel_selector::lstm_elt_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(lstm_elt_params, lstm_elt_optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(lstm_elt_params, lstm_elt_optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        auto lstm_elt = new lstm_elt_impl(arg, best_kernels[0]);
-
-        return lstm_elt;
+        return make_unique<lstm_elt_impl>(arg, best_kernel);
     }
 };
 
@@ -105,3 +102,5 @@ attach_lstm_elt_impl::attach_lstm_elt_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::lstm_elt_impl)

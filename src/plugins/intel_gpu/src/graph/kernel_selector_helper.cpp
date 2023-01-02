@@ -8,9 +8,25 @@
 #include "kernel_selector_params.h"
 #include "to_string_utils.h"
 #include "program_node.h"
+#include "intel_gpu/graph/serialization/layout_serializer.hpp"
+#include "intel_gpu/graph/serialization/string_serializer.hpp"
+#include "intel_gpu/graph/serialization/vector_serializer.hpp"
 
 #include <string>
 #include <vector>
+
+namespace {
+kernel_selector::dev_type get_device_type(cldnn::device_type type) {
+    switch (type) {
+        case cldnn::device_type::integrated_gpu:
+            return kernel_selector::dev_type::integrated_gpu;
+        case cldnn::device_type::discrete_gpu:
+            return kernel_selector::dev_type::discrete_gpu;
+        default:
+            return kernel_selector::dev_type::integrated_gpu;
+    }
+}
+}  // namespace
 
 kernel_selector::data_type to_data_type(data_types dt) {
     switch (dt) {
@@ -405,6 +421,8 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::goizyx;
         case format::giozyx:
             return kernel_selector::weights_layout::giozyx;
+        case format::g_os_iyx_osv8:
+            return kernel_selector::weights_layout::g_os_iyx_osv8;
         case format::g_os_iyx_osv16:
             return kernel_selector::weights_layout::g_os_iyx_osv16;
         case format::g_os_iyx_osv32:
@@ -423,6 +441,10 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::g_is_os_zyx_isv16_osv16;
         case format::g_is_os_yx_isv16_osv16:
             return kernel_selector::weights_layout::g_is_os_yx_isv16_osv16;
+        case cldnn::format::g_os_is_zyx_isa8_osv8_isv2:
+            return kernel_selector::weights_layout::g_os_is_zyx_isa8_osv8_isv2;
+        case cldnn::format::g_os_is_zyx_isa8_osv8_isv4:
+            return kernel_selector::weights_layout::g_os_is_zyx_isa8_osv8_isv4;
         case format::g_os_is_zyx_isv8_osv16_isv2:
             return kernel_selector::weights_layout::g_os_is_zyx_isv8_osv16_isv2;
         case format::g_os_is_yx_isv8_osv16_isv2:
@@ -449,6 +471,14 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::g_os_is_yx_osa2_isa8_osv16_isv2;
         case format::g_os_zyx_is_osv16_isv4:
             return kernel_selector::weights_layout::g_os_zyx_is_osv16_isv4;
+        case format::g_os_zy_is_x_osv8_isv2:
+            return kernel_selector::weights_layout::g_os_zy_is_x_osv8_isv2;
+        case format::g_os_zy_is_x_osv8_isv4:
+            return kernel_selector::weights_layout::g_os_zy_is_x_osv8_isv4;
+        case format::g_os_zyx_is_osv8_isv2:
+            return kernel_selector::weights_layout::g_os_zyx_is_osv8_isv2;
+        case format::g_os_zyx_is_osv8_isv4:
+            return kernel_selector::weights_layout::g_os_zyx_is_osv8_isv4;
         case format::g_os_zyx_is_osv16_isv16:
             return kernel_selector::weights_layout::g_os_zyx_is_osv16_isv16;
         case format::g_os_zyx_is_osv16_isv32:
@@ -565,6 +595,10 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::g_os_is_yx_osa4_isa8_osv8_isv4;
         case kernel_selector::weights_layout::g_os_is_zyx_osa4_isa8_osv8_isv4:
             return cldnn::format::g_os_is_zyx_osa4_isa8_osv8_isv4;
+        case kernel_selector::weights_layout::g_os_is_zyx_isa8_osv8_isv2:
+            return cldnn::format::g_os_is_zyx_isa8_osv8_isv2;
+        case kernel_selector::weights_layout::g_os_is_zyx_isa8_osv8_isv4:
+            return cldnn::format::g_os_is_zyx_isa8_osv8_isv4;
         case kernel_selector::weights_layout::g_os_is_zyx_osa4_isa8_osv8_isv2:
             return cldnn::format::g_os_is_zyx_osa4_isa8_osv8_isv2;
         case kernel_selector::weights_layout::g_os_is_yx_osv8_isv2:
@@ -659,6 +693,8 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::goiyx;
         case kernel_selector::weights_layout::goizyx:
             return cldnn::format::goizyx;
+        case kernel_selector::weights_layout::g_os_iyx_osv8:
+            return cldnn::format::g_os_iyx_osv8;
         case kernel_selector::weights_layout::g_os_iyx_osv16:
             return cldnn::format::g_os_iyx_osv16;
         case kernel_selector::weights_layout::g_os_iyx_osv32:
@@ -695,6 +731,14 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::g_os_is_zyx_osv16_isv16;
         case kernel_selector::weights_layout::g_os_zyx_is_osv16_isv4:
             return cldnn::format::g_os_zyx_is_osv16_isv4;
+        case kernel_selector::weights_layout::g_os_zy_is_x_osv8_isv2:
+            return cldnn::format::g_os_zy_is_x_osv8_isv2;
+        case kernel_selector::weights_layout::g_os_zy_is_x_osv8_isv4:
+            return cldnn::format::g_os_zy_is_x_osv8_isv4;
+        case kernel_selector::weights_layout::g_os_zyx_is_osv8_isv2:
+            return cldnn::format::g_os_zyx_is_osv8_isv2;
+        case kernel_selector::weights_layout::g_os_zyx_is_osv8_isv4:
+            return cldnn::format::g_os_zyx_is_osv8_isv4;
         case kernel_selector::weights_layout::g_os_zyx_is_osv16_isv16:
             return cldnn::format::g_os_zyx_is_osv16_isv16;
         case kernel_selector::weights_layout::g_os_zyx_is_osv16_isv32:
@@ -792,20 +836,19 @@ kernel_selector::tuning_mode to_tuning_mode(cldnn::tuning_mode mode) {
     }
 }
 
-kernel_selector::dev_type get_device_type(cldnn::device_type type) {
-    switch (type) {
-        case cldnn::device_type::integrated_gpu:
-            return kernel_selector::dev_type::integrated_gpu;
-        case cldnn::device_type::discrete_gpu:
-            return kernel_selector::dev_type::discrete_gpu;
-        default:
-            return kernel_selector::dev_type::integrated_gpu;
-    }
-}
-
 kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split, const tensor view_offset) {
     const auto& pad = l.data_padding;
-    const auto& vals = l.get_tensor().sizes(l.format);
+    const auto& vals_original = l.get_partial_shape();
+
+    // legacy get_tensor().sizes() impl return dims in external order, so we need to transpose dims
+    ov::PartialShape vals_ordered;
+    auto axis_order = format::traits(l.format)._order;
+    for (size_t i = 0; i < axis_order.size(); i++) {
+        if (axis_order[i] >= vals_original.size())
+            vals_ordered.push_back(ov::Dimension(1));
+        else
+            vals_ordered.push_back(vals_original[axis_order[i]]);
+    }
     const auto& add_offsets = view_offset.sizes(l.format);
     const auto& lower_pad = pad.lower_size().sizes(l.format);
     const auto& upper_pad = pad.upper_size().sizes(l.format);
@@ -813,44 +856,22 @@ kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split
     kernel_selector::n_dims vec(kernel_selector::DataTensor::ChannelsCount(ks_layout));
 
     size_t pitch = 1;
-    auto new_vals = vals;
-
-    if (ks_layout == kernel_selector::Tensor::b_fs_yx_fsv32) {
-        new_vals[1] = align_to(vals[1], 32);
-    }
-    if (ks_layout == kernel_selector::Tensor::bs_fs_yx_bsv16_fsv16) {
-        new_vals[0] = align_to(vals[0], 16);
-        new_vals[1] = align_to(vals[1], 16);
-    }
-    if (ks_layout == kernel_selector::Tensor::bs_fs_zyx_bsv16_fsv16) {
-        new_vals[0] = align_to(vals[0], 16);
-        new_vals[1] = align_to(vals[1], 16);
-    }
-
     for (size_t i = 0; i < vec.size(); i++) {
         const size_t tensor_index = vec.size() - 1 - i;
-        const auto d = vals[tensor_index];
+        const auto d = tensor_index < vals_ordered.size() ? vals_ordered[tensor_index] : ov::Dimension(1);
         const auto lp = lower_pad[tensor_index] + add_offsets[tensor_index];
         const auto up = upper_pad[tensor_index];
         // tells us how many elements are reserved in memory for this tensor index
-        const auto reserved_in_mem_count = new_vals[tensor_index] - add_offsets[tensor_index];
+        const auto reserved_in_mem_count = d.is_dynamic() ? 0 : d.get_length() - add_offsets[tensor_index];
 
         auto& elm = vec[i];
-        elm.v = static_cast<size_t>(d - add_offsets[tensor_index]);
+        elm.v = d.is_dynamic() ? 0 : static_cast<size_t>(d.get_length() - add_offsets[tensor_index]);
         elm.pitch = pitch;
         elm.pad.before = lp;
         elm.pad.after = up;
+        elm.is_dynamic = d.is_dynamic();
 
         pitch *= (reserved_in_mem_count + lp + up);
-    }
-
-    if (ks_layout == kernel_selector::Tensor::bs_fs_yx_bsv16_fsv16) {
-        vec[2].pitch = (vec[0].v * vec[1].v) * 16;
-        vec[3].pitch = vec[2].pitch * vec[2].LogicalDimPadded();
-    }
-    if (ks_layout == kernel_selector::Tensor::bs_fs_zyx_bsv16_fsv16) {
-        vec[3].pitch = (vec[0].v * vec[1].v * vec[2].v) * 16;
-        vec[4].pitch = vec[3].pitch * vec[3].LogicalDimPadded();
     }
 
     const int feature_index =
@@ -992,19 +1013,24 @@ kernel_selector::activation_function get_kernel_selector_activation_param(activa
 
 void set_params(const kernel_impl_params& param_info, kernel_selector::params& params) {
     const auto& program = param_info.prog;
-    const auto& device_info = program.get_engine().get_device_info();
+    const auto& device_info = program->get_engine().get_device_info();
 
     params.uniqueID = std::to_string(param_info.unique_id);
-    params.engineInfo.bSubGroupSupport = device_info.supports_subgroups;
-    params.engineInfo.bSubGroupShortSupport = device_info.supports_subgroups_short;
-    params.engineInfo.bSubGroupCharSupport = device_info.supports_subgroups_char;
-    params.engineInfo.bFP16Support = device_info.supports_fp16;
-    params.engineInfo.bFP64Support = device_info.supports_fp64;
-    params.engineInfo.bIMADSupport = device_info.supports_imad != 0;
-    params.engineInfo.bIMMADSupport = device_info.supports_immad != 0;
-    params.engineInfo.bImageSupport = device_info.supports_image != 0;
+    params.engineInfo.supports_fp16 = device_info.supports_fp16;
+    params.engineInfo.supports_fp64 = device_info.supports_fp64;
+    params.engineInfo.supports_fp16_denorms = device_info.supports_fp16_denorms;
+    params.engineInfo.supports_khr_subgroups = device_info.supports_khr_subgroups;
+    params.engineInfo.supports_intel_subgroups = device_info.supports_intel_subgroups;
+    params.engineInfo.supports_intel_subgroups_short = device_info.supports_intel_subgroups_short;
+    params.engineInfo.supports_intel_subgroups_char = device_info.supports_intel_subgroups_char;
+    params.engineInfo.supports_intel_required_subgroup_size = device_info.supports_intel_required_subgroup_size;
+
+    params.engineInfo.supports_imad = device_info.supports_imad;
+    params.engineInfo.supports_immad = device_info.supports_immad;
+    params.engineInfo.enable_sub_groups_emulation = true;
     params.engineInfo.bOptHintsSupport = false;
-    params.engineInfo.bLocalBlockIOSupport = device_info.supports_local_block_io;
+
+    params.engineInfo.bLocalBlockIOSupport = device_info.supports_local_block_io && program->is_local_block_io_supported();
     params.engineInfo.deviceType = get_device_type(device_info.dev_type);
     params.engineInfo.maxWorkGroupSize = device_info.max_work_group_size;
     params.engineInfo.maxLocalMemSize = device_info.max_local_mem_size;
@@ -1013,11 +1039,12 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
     params.engineInfo.computeUnitsCount = device_info.execution_units_count;
     params.engineInfo.maxThreadsPerExecutionUnit = device_info.num_threads_per_eu > 0 ? device_info.num_threads_per_eu : 7;
     params.engineInfo.maxThreadsPerDevice = params.engineInfo.maxThreadsPerExecutionUnit * device_info.execution_units_count;
-    params.engineInfo.deviceCache = program.get_tuning_cache();
+    params.engineInfo.deviceCache = program->get_tuning_cache();
     params.engineInfo.driverVersion = device_info.driver_version;
     params.engineInfo.supportedSimdSizes = device_info.supported_simd_sizes;
+    params.engineInfo.vendor_id = device_info.vendor_id;
 
-    auto impl_forcing_bo = program.get_options().get<build_option_type::force_implementations>();
+    auto impl_forcing_bo = program->get_options().get<build_option_type::force_implementations>();
     const auto& impl_forcing = impl_forcing_bo->forcing;
 
     if (impl_forcing.count(param_info.desc->id) != 0) {
@@ -1035,4 +1062,127 @@ void set_optional_params(const program& program, kernel_selector::optional_param
     const auto& tuning_config = program.get_options().get<build_option_type::tuning_config>();
     params.tuningParams.mode = to_tuning_mode(tuning_config->config.mode);
     params.tuningParams.cacheFilePath = tuning_config->config.cache_file_path;
+}
+
+void kernel_impl_params::save(BinaryOutputBuffer& ob) const {
+    ob << has_runtime_layouts;
+    ob << unique_id;
+    ob << input_layouts;
+    ob << output_layouts;
+    ob << input_offsets.size();
+    for (size_t i = 0; i < input_offsets.size(); i++) {
+        ob << input_offsets[i].sizes();
+    }
+
+    if (weights_layout.has_value()) {
+        ob << true;
+        ob << weights_layout.value();
+    } else {
+        ob << false;
+    }
+
+    if (bias_layout.has_value()) {
+        ob << true;
+        ob << bias_layout.value();
+    } else {
+        ob << false;
+    }
+
+    if (weights_zero_points_layout.has_value()) {
+        ob << true;
+        ob << weights_zero_points_layout.value();
+    } else {
+        ob << false;
+    }
+
+    if (activations_zero_points_layout.has_value()) {
+        ob << true;
+        ob << activations_zero_points_layout.value();
+    } else {
+        ob << false;
+    }
+
+    if (compensation_layout.has_value()) {
+        ob << true;
+        ob << compensation_layout.value();
+    } else {
+        ob << false;
+    }
+
+    ob << fused_desc.size();
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    size_t num_fused_prims = fused_desc_onednn.size();
+    ob << num_fused_prims;
+    for (auto fused_prim : fused_desc_onednn) {
+        ob << make_data(&fused_prim, sizeof(fused_primitive_desc_onednn));
+    }
+#endif // ENABLE_ONEDNN_FOR_GPU
+    ob << primary_input_idx;
+}
+
+void kernel_impl_params::load(BinaryInputBuffer& ib) {
+    ib >> has_runtime_layouts;
+    ib >> unique_id;
+    ib >> input_layouts;
+    ib >> output_layouts;
+    {
+        size_t num_input_offsets;
+        ib >> num_input_offsets;
+        input_offsets.resize(num_input_offsets);
+        for (size_t i = 0; i < num_input_offsets; i++) {
+            std::vector<cldnn::tensor::value_type> sizes;
+            ib >> sizes;
+            input_offsets[i] = cldnn::tensor(sizes);
+        }
+    }
+    bool has_value = false;
+    layout layout_buf;
+
+    ib >> has_value;
+    if (has_value) {
+        ib >> layout_buf;
+        weights_layout = layout_buf;
+    }
+
+    ib >> has_value;
+    if (has_value) {
+        ib >> layout_buf;
+        bias_layout = layout_buf;
+    }
+
+    ib >> has_value;
+    if (has_value) {
+        ib >> layout_buf;
+        weights_zero_points_layout = layout_buf;
+    }
+
+    ib >> has_value;
+    if (has_value) {
+        ib >> layout_buf;
+        activations_zero_points_layout = layout_buf;
+    }
+
+    ib >> has_value;
+    if (has_value) {
+        ib >> layout_buf;
+        compensation_layout = layout_buf;
+    }
+
+    {
+        // Fake fused_desc just for has_fused_primitives()
+        size_t num_fused_desc;
+        ib >> num_fused_desc;
+        if (num_fused_desc > 0) {
+            fused_desc.emplace_back(cldnn::fused_primitive_desc(nullptr));
+        }
+    }
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    size_t num_fused_prims;
+    ib >> num_fused_prims;
+    fused_desc_onednn.resize(num_fused_prims);
+    for (size_t idx = 0; idx < num_fused_prims; ++idx) {
+        ib >> make_data(&fused_desc_onednn[idx], sizeof(fused_primitive_desc_onednn));
+    }
+#endif // ENABLE_ONEDNN_FOR_GPU
+    ib >> primary_input_idx;
 }

@@ -19,6 +19,8 @@ struct gemm_onednn : typed_primitive_onednn_impl<gemm, dnnl::matmul::desc> {
     using parent = typed_primitive_onednn_impl<gemm, dnnl::matmul::desc>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<gemm_onednn>(*this);
@@ -54,10 +56,18 @@ protected:
     static std::shared_ptr<dnnl::matmul::desc> get_gemm_descriptor(const kernel_impl_params& impl_params) {
         auto prim = impl_params.typed_desc<gemm>();
         auto gemm_with_bias = prim->dependencies().size() == 3;
+        auto out_l = impl_params.get_output_layout();
 
-        auto in0_l = impl_params.get_input_layout(0);
-        auto in1_l = impl_params.get_input_layout(1);
-        auto out_l = impl_params.output_layout;
+        std::vector<layout> in_layouts { impl_params.get_input_layout(0), impl_params.get_input_layout(1) };
+        if (gemm_with_bias) {
+            in_layouts.emplace_back(impl_params.get_input_layout(2));
+        }
+
+        in_layouts = gemm_inst::transform_input_layouts(prim, in_layouts, out_l);
+        out_l = gemm_inst::transform_output_layout(prim, in_layouts, out_l);
+
+        const auto& in0_l = in_layouts[0];
+        const auto& in1_l = in_layouts[1];
 
         size_t in0_batched_size = in0_l.count() / (in0_l.spatial(0) * in0_l.spatial(1));
         size_t in1_batched_size = in1_l.count() / (in1_l.spatial(0) * in1_l.spatial(1));
@@ -65,7 +75,7 @@ protected:
 
         auto batched_dims_can_be_removed = in0_batched_size == 1 && in1_batched_size == 1 && out_batched_size == 1;
         if (gemm_with_bias) {
-            auto bias_l = impl_params.get_input_layout(2);
+            const auto& bias_l = in_layouts[2];
             size_t bias_batched_size = bias_l.count() / (bias_l.spatial(0) * bias_l.spatial(1));
             batched_dims_can_be_removed &= bias_batched_size == 1;
         }
@@ -120,13 +130,39 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const gemm_node& arg, const kernel_impl_params& impl_params) {
-        auto& engine = impl_params.prog.get_engine();
+    void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
+
+        ob << make_data(&_desc->data, sizeof(dnnl_matmul_desc_t));
+
+        std::vector<uint8_t> prim_cache;
+        prim_cache = _prim.get_cache_blob();
+        ob << prim_cache;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+
+        const char dummy_mem[sizeof(dnnl::matmul::desc)] = {};
+        const dnnl::matmul::desc *dummy_opdesc
+            = reinterpret_cast<const dnnl::matmul::desc *>(&dummy_mem[0]);
+        _desc = std::make_shared<dnnl::matmul::desc>(std::move(*dummy_opdesc));
+        ib >> make_data(&_desc->data, sizeof(dnnl_matmul_desc_t));
+
+        std::vector<uint8_t> prim_cache;
+        ib >> prim_cache;
+
+        _pd = dnnl::primitive_desc(&_desc->data, _attrs.get(), ib.get_engine().get_onednn_engine(), nullptr);
+        _prim = dnnl::primitive(_pd, prim_cache);
+    }
+
+    static std::unique_ptr<primitive_impl> create(const gemm_node& arg, const kernel_impl_params& impl_params) {
+        auto& engine = impl_params.prog->get_engine();
         auto desc = get_gemm_descriptor(impl_params);
         auto attr = arg.get_onednn_primitive_attributes();
         dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
 
-        return new gemm_onednn(engine, desc, attr, prim_desc);
+        return cldnn::make_unique<gemm_onednn>(engine, desc, attr, prim_desc);
     }
 };
 
@@ -150,3 +186,5 @@ attach_gemm_onednn::attach_gemm_onednn() {
 }  // namespace detail
 }  // namespace onednn
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::gemm_onednn)

@@ -17,8 +17,6 @@
 
 using namespace std;
 
-BWDCMP_RTTI_DEFINITION(ov::op::util::GatherBase);
-
 ov::op::util::GatherBase::GatherBase(const Output<Node>& data,
                                      const Output<Node>& indices,
                                      const Output<Node>& axis,
@@ -108,7 +106,8 @@ bool evaluate(const ngraph::HostTensorPtr& arg0,
                                                        axis,
                                                        batch_dims);
     } else {
-        throw ov::Exception("Unexpected type");
+        throw ov::Exception(std::string("Unexpected type ") + arg1->get_element_type().c_type_string() +
+                            " for Gather evaluate method.");
     }
 
     return true;

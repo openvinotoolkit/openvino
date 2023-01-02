@@ -34,8 +34,8 @@ public:
     }
 
     using parent::get_kernel_impl_params;
-    std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const layout& out_layout) const override {
-        auto params = parent::get_kernel_impl_params(in_layouts, out_layout);
+    std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const override {
+        auto params = parent::get_kernel_impl_params(in_layouts, out_layouts);
         params->input_offsets.reserve(1);
         params->input_offsets.push_back(get_primitive()->offsets);
         return params;
@@ -47,6 +47,7 @@ using crop_node = typed_program_node<crop>;
 template <>
 class typed_primitive_inst<crop> : public typed_primitive_inst_base<crop> {
     using parent = typed_primitive_inst_base<crop>;
+    using parent::parent;
 
 public:
     template<typename ShapeType>
@@ -54,6 +55,7 @@ public:
     static layout calc_output_layout(crop_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(crop_node const& node);
     typed_primitive_inst(network& network, crop_node const& node);
+    void update_output_memory() override;
 
 private:
     void on_execute() override;

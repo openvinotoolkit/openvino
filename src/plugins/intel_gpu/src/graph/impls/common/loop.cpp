@@ -8,17 +8,25 @@
 #include "register.hpp"
 #include "mutable_data_inst.h"
 #include "input_layout_inst.h"
+#include "intel_gpu/graph/serialization/loop_serializer.hpp"
 #include <vector>
 #include <algorithm>
 
 namespace cldnn {
 namespace common {
 struct loop_impl : typed_primitive_impl<loop> {
+    using parent = typed_primitive_impl<loop>;
+    using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<loop_impl>(*this);
     }
 
     void init_kernels(const kernels_cache&) override {}
+
+    loop_impl() : parent() {}
 
     loop_impl(const loop_impl& other) : typed_primitive_impl<loop>(other),
         _node_id(other._node_id),
@@ -185,7 +193,37 @@ struct loop_impl : typed_primitive_impl<loop> {
         return ev;
     }
 
-    static primitive_impl* create(const loop_node& arg, const kernel_impl_params&) { return new loop_impl(arg); }
+    static std::unique_ptr<primitive_impl> create(const loop_node& arg, const kernel_impl_params&) {
+        return make_unique<loop_impl>(arg);
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
+        ob << _node_id;
+        ob << _current_iteration_id;
+        ob << _trip_count_id;
+        ob << _initial_execution_id;
+        ob << _condition_id;
+        ob << _num_iteration_id;
+        ob << _max_iteration;
+        ob << _is_current_iteration_used;
+        ob << _is_execution_condition_used;
+        ob << _back_edges;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        ib >> _node_id;
+        ib >> _current_iteration_id;
+        ib >> _trip_count_id;
+        ib >> _initial_execution_id;
+        ib >> _condition_id;
+        ib >> _num_iteration_id;
+        ib >> _max_iteration;
+        ib >> _is_current_iteration_used;
+        ib >> _is_execution_condition_used;
+        ib >> _back_edges;
+    }
 
 private:
     primitive_id _node_id;
@@ -197,7 +235,7 @@ private:
     int64_t _max_iteration;
     bool _is_current_iteration_used = false;
     bool _is_execution_condition_used = false;
-    std::vector<cldnn::loop::backedge_mapping> _back_edges{};
+    std::vector<cldnn::loop::backedge_mapping> _back_edges;
 };
 
 namespace detail {
@@ -208,3 +246,5 @@ attach_loop_common::attach_loop_common() {
 
 }  // namespace common
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::common::loop_impl)

@@ -20,6 +20,8 @@
 
 using ngraphFunctionGenerator = std::function<std::shared_ptr<ngraph::Function>(ngraph::element::Type, std::size_t)>;
 using nGraphFunctionWithName = std::tuple<ngraphFunctionGenerator, std::string>;
+using ngraphFunctionIS = std::function<std::shared_ptr<ngraph::Function>(std::vector<size_t> inputShape,
+                                                                         ngraph::element::Type_t type)>;
 
 using loadNetworkCacheParams = std::tuple<
         nGraphFunctionWithName, // ngraph function with friendly name
@@ -45,7 +47,13 @@ public:
 
     bool importExportSupported(InferenceEngine::Core& ie) const;
 
+    // Wrapper of most part of available builder functions
+    static ngraphFunctionGenerator inputShapeWrapper(ngraphFunctionIS fun, std::vector<size_t> inputShape);
     // Default functions and precisions that can be used as test parameters
+    static std::vector<nGraphFunctionWithName> getAnyTypeOnlyFunctions();
+    static std::vector<nGraphFunctionWithName> getNumericTypeOnlyFunctions();
+    static std::vector<nGraphFunctionWithName> getNumericAnyTypeFunctions();
+    static std::vector<nGraphFunctionWithName> getFloatingPointOnlyFunctions();
     static std::vector<nGraphFunctionWithName> getStandardFunctions();
 };
 
@@ -64,9 +72,10 @@ protected:
     std::vector<std::string> m_extList;
 
     void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         std::pair<std::map<std::string, std::string>, std::string> userConfig;
         std::tie(targetDevice, userConfig) = GetParam();
-        target_device  = targetDevice;
+        target_device = targetDevice;
         APIBaseTest::SetUp();
         function = ngraph::builder::subgraph::makeConvPoolRelu();
         configuration = userConfig.first;

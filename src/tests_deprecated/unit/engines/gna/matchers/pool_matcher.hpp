@@ -4,9 +4,7 @@
 
 #pragma once
 
-#include "backend/gna_types.h"
 #include "nnet_base_matcher.hpp"
-#include "frontend/quantization.hpp"
 
 class PoolingLayerMatcher : public ::testing::MatcherInterface<const gna_nnet_type_t*> {
     bool matchInserted;

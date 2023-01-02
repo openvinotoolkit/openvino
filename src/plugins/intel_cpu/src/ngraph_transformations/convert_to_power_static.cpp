@@ -52,6 +52,7 @@ bool isConvertableToPowerStatic(const std::shared_ptr<BaseOp> &node) {
                                  ngraph::opset1::GroupConvolution::get_type_info_static(),
                                  ngraph::opset1::ConvolutionBackpropData::get_type_info_static(),
                                  ngraph::opset1::GroupConvolutionBackpropData::get_type_info_static(),
+                                 ngraph::opset1::MatMul::get_type_info_static(),
                                  ov::intel_cpu::FullyConnectedNode::get_type_info_static(),
                                  ngraph::op::v0::MVN::get_type_info_static(),
                                  ngraph::opset6::MVN::get_type_info_static());

@@ -14,11 +14,11 @@
 #include <pruning.hpp>
 #include <transformations/common_optimizations/compress_float_constants.hpp>
 #include <transformations/common_optimizations/fused_names_cleanup.hpp>
-#include <transformations/common_optimizations/mark_precision_sensitive_subgraphs.hpp>
+#include <transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp>
 #include <transformations/common_optimizations/moc_legacy_transformations.hpp>
 #include <transformations/common_optimizations/moc_transformations.hpp>
 #include <transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp>
-#include <transformations/serialize.hpp>
+#include <transformations/smart_reshape/smart_reshape.hpp>
 
 #include "openvino/pass/low_latency.hpp"
 #include "openvino/pass/manager.hpp"
@@ -33,13 +33,16 @@ void regmodule_offline_transformations(py::module m) {
 
     m_offline_transformations.def(
         "apply_moc_transformations",
-        [](std::shared_ptr<ov::Model> model, bool cf) {
+        [](std::shared_ptr<ov::Model> model, bool cf, bool smart_reshape) {
             ov::pass::Manager manager;
+            if (smart_reshape)
+                manager.register_pass<ngraph::pass::SmartReshape>();
             manager.register_pass<ngraph::pass::MOCTransformations>(cf);
             manager.run_passes(model);
         },
         py::arg("model"),
-        py::arg("cf"));
+        py::arg("cf"),
+        py::arg("smart_reshape") = false);
 
     m_offline_transformations.def(
         "apply_moc_legacy_transformations",
@@ -105,7 +108,7 @@ void regmodule_offline_transformations(py::module m) {
         "compress_model_transformation",
         [](std::shared_ptr<ov::Model> model) {
             ov::pass::Manager manager;
-            manager.register_pass<ov::pass::MarkPrecisionSensitiveSubgraphs>();
+            manager.register_pass<ov::pass::MarkPrecisionSensitiveConstants>();
             manager.register_pass<ov::pass::CompressFloatConstants>();
             manager.run_passes(model);
         },

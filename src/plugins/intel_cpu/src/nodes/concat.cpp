@@ -22,7 +22,6 @@
 #include "common/cpu_memcpy.h"
 #include "common/blocked_desc_creator.h"
 #include <memory_desc/cpu_memory_desc_utils.h>
-
 using namespace dnnl;
 using namespace InferenceEngine;
 
@@ -51,7 +50,7 @@ bool Concat::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
 }
 
 Concat::Concat(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache) {
+        : Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -359,42 +358,76 @@ void Concat::prepareParams() {
         return;
 
     const auto& dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
+    auto dstMemDesc = dstMemPtr->GetDescWithType<BlockedMemoryDesc>();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << "Destination memory didn't allocate.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
 
+    const auto& outputStrides = dstMemDesc->getStrides();
+    size_t curConcatOffset = 0;
+    const size_t elemSize = DnnlExtensionUtils::sizeOfDataType(dstMemPtr->GetDataType());
+    const auto& src0BlkMemDesc = getParentEdgesAtPort(0)[0]->getMemoryPtr()->getDescPtr()->as<BlockedMemoryDesc>();
+    const auto& outputOrder = src0BlkMemDesc->getOrder();
+    for (size_t i = 0; i < outputOrder.size(); i++) {
+        if (outputOrder[i] == axis) {
+            reorderedAxis = i;
+            break;
+        }
+    }
+    const auto& outputShape = dstMemDesc->getBlockDims();
+    for (size_t i = 0; i < reorderedAxis; i++) {
+        if (outputShape[i] != 1) {
+            hasOuterLoop = true;
+        }
+    }
     std::vector<memory::desc> srcs_d;
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         const auto& srcMemPtr = getParentEdgesAtPort(i)[0]->getMemoryPtr();
         if (!srcMemPtr || !srcMemPtr->isAllocated()) {
             auto parent = getParentEdgeAt(i)->getParent();
             IE_THROW() << "Source memory from " << parent->getName() << " didn't allocate for node "
-                               << getName() << ".";
+                       << getName() << ".";
         }
 
-        if (srcMemPtr->GetShape().hasZeroDims()) {
-            continue;
+        if (canExecRef) {
+            const auto srcMemDesc = srcMemPtr->getDescPtr()->as<BlockedMemoryDesc>();
+            const auto& inputShape = srcMemDesc->getBlockDims();
+            const auto& strides = srcMemDesc->getStrides();
+            inputStrides[i].resize(MAX_RANK_REF, 0);
+            std::transform(strides.begin(), strides.end(), inputStrides[i].begin(), [&elemSize](const Dim& i) {
+                return i * elemSize;
+            });
+            size_t nElem = 1;
+            for (size_t j = reorderedAxis; j < inputShape.size(); j++) {
+                nElem *= inputShape[j];
+            }
+            nelemToCopy[i] = nElem * elemSize;
+            dstOffset[i] = outputStrides[reorderedAxis] * curConcatOffset * elemSize;
+            curConcatOffset += inputShape[reorderedAxis];
+        } else {
+            if (srcMemPtr->GetShape().hasZeroDims()) {
+                continue;
+            }
+            auto desc = srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
+            const auto& dims = srcMemPtr->getStaticDims();
+            for (size_t j = 0; j < dims.size(); j++) {
+                desc.data.dims[j] = dims[j];
+            }
+            srcs_d.emplace_back(desc);
         }
-
-        auto desc = srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
-        const auto& dims = srcMemPtr->getStaticDims();
-        for (size_t j = 0; j < dims.size(); j++) {
-            desc.data.dims[j] = dims[j];
-        }
-
-        srcs_d.emplace_back(desc);
     }
+    if (!canExecRef) {
+        auto desc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
+        const auto& dims = dstMemPtr->getStaticDims();
+        for (size_t i = 0; i < dims.size(); i++) {
+            desc.data.dims[i] = dims[i];
+            desc.data.padded_dims[i] = dims[i];
+        }
 
-    auto desc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
-    const auto& dims = dstMemPtr->getStaticDims();
-    for (size_t i = 0; i < dims.size(); i++) {
-        desc.data.dims[i] = dims[i];
-        desc.data.padded_dims[i] = dims[i];
+        auto primitive_desc = concat::primitive_desc(desc, static_cast<int>(axis), srcs_d, getEngine());
+        prim.reset(new concat(primitive_desc));
     }
-
-    auto primitive_desc = concat::primitive_desc(desc, static_cast<int>(axis), srcs_d, getEngine());
-    prim.reset(new concat(primitive_desc));
 }
 
 size_t Concat::inverseOrder(const SizeVector& order, size_t axis) {
@@ -483,7 +516,18 @@ void Concat::initOptimalPrimitiveDescriptor() {
         }
         initDescriptor(config);
     }
-
+    //block layout may have axis greater than rank, disable ref_concat
+    auto primDesc = getSelectedPrimitiveDescriptor();
+    auto memDesc = primDesc->getConfig().outConfs[0].getMemDesc()->as<BlockedMemoryDesc>();
+    auto rank = memDesc->getShape().getRank();
+    bool isBlocked = rank != memDesc->getBlockDims().size();
+    if (!isBlocked && rank <= MAX_RANK_REF) {
+        canExecRef = true;
+        nelemToCopy.resize(getParentEdges().size(), 0);
+        dstOffset.resize(getParentEdges().size());
+        inputStrides.resize(getParentEdges().size());
+        srcPtrs.resize(getParentEdges().size());
+    }
     // check if selected Tensor descriptor has nspc layout and concat axis is C
     canOptimizeNspc = axis == channelAxis && getSelectedPrimitiveDescriptor()->getConfig().outConfs.front().getMemDesc()->hasLayoutType(LayoutType::nspc);
 }
@@ -493,25 +537,28 @@ void Concat::execute(dnnl::stream strm) {
         return;
     }
 
-    const Memory& dst_memory = getChildEdgeAt(0)->getMemory();
     if (canOptimizeNspc) {
         execNspcSpecCase();
         return;
     }
 
-    const size_t num_src = getParentEdges().size();
-    std::unordered_map<int, memory> mem_ags {{DNNL_ARG_DST, dst_memory.GetPrimitive()}};
-    size_t nonZeroInShapes = 0;
-    for (int i = 0; i < num_src; i++) {
-        const auto& srcMem = getParentEdgesAtPort(i)[0]->getMemory();
-        if (srcMem.GetShape().hasZeroDims()) {
-            continue;
+    if (canExecRef) {
+        execRef();
+    } else {
+        const Memory& dst_memory = getChildEdgeAt(0)->getMemory();
+        const size_t num_src = getParentEdges().size();
+        std::unordered_map<int, memory> mem_ags {{DNNL_ARG_DST, dst_memory.GetPrimitive()}};
+        size_t nonZeroInShapes = 0;
+        for (int i = 0; i < num_src; i++) {
+            const auto& srcMem = getParentEdgesAtPort(i)[0]->getMemory();
+            if (srcMem.GetShape().hasZeroDims()) {
+                continue;
+            }
+            mem_ags[DNNL_ARG_MULTIPLE_SRC + nonZeroInShapes] = srcMem.GetPrimitive();
+            nonZeroInShapes++;
         }
-        mem_ags[DNNL_ARG_MULTIPLE_SRC + nonZeroInShapes] = srcMem.GetPrimitive();
-        nonZeroInShapes++;
+        (*prim).execute(strm, mem_ags);
     }
-
-    (*prim).execute(strm, mem_ags);
 }
 
 InferenceEngine::Precision Concat::getRuntimePrecision() const {
@@ -558,6 +605,107 @@ void Concat::execNspcSpecCase() {
             cpu_memcpy(dst_ptrs[j] + dst_off, src_ptrs[j] + i * channelsDataSize[j], channelsDataSize[j]);
         }
     });
+}
+
+void Concat::execRef() {
+    const size_t numSrc = getParentEdges().size();
+    const Memory& dstMemory = getChildEdgeAt(0)->getMemory();
+    const size_t elemSize = DnnlExtensionUtils::sizeOfDataType(dstMemory.GetDataType());
+    const auto dstMemBlkDesc = dstMemory.getDescPtr()->as<BlockedMemoryDesc>();
+    const auto& outputShape = dstMemBlkDesc->getBlockDims();
+    uint8_t* dstPtr = reinterpret_cast<uint8_t*>(dstMemory.GetData());
+    for (size_t i = 0; i < numSrc; i++) {
+        const Memory& srcMem = getParentEdgesAtPort(i)[0]->getMemory();
+        srcPtrs[i] = reinterpret_cast<const uint8_t*>(srcMem.GetPtr());
+    }
+    size_t outputStrides[MAX_RANK_REF] = {0};
+    const auto strides = dstMemBlkDesc->getStrides();
+    std::transform(strides.begin(), strides.end(), outputStrides, [&elemSize](const Dim& i) {
+        return i * elemSize;
+    });
+    if (!hasOuterLoop) {
+        int nthr = parallel_get_max_threads();
+        if (nthr == 1) {
+            for (size_t a = 0; a < srcPtrs.size(); ++a) {
+                const auto inData = srcPtrs[a];
+                auto outputData = &dstPtr[dstOffset[a]];
+                std::memcpy(outputData, inData, nelemToCopy[a]);
+            }
+        } else {
+            parallel_nt(nthr, [&](int ithr, int nthr) {
+                for (size_t a = 0; a < srcPtrs.size(); ++a) {
+                    size_t start = 0, end = 0;
+                    splitter(nelemToCopy[a], nthr, ithr, start, end);
+                    const uint8_t* i = srcPtrs[a] + start;
+                    uint8_t* o = dstPtr + dstOffset[a] + start;
+                    std::memcpy(o, i, end - start);
+                }
+            });
+        }
+    } else {
+        size_t physDims[5] = {1, 1, 1, 1, 1};
+        for (size_t i = 0; i < reorderedAxis; i++) {
+            physDims[i] = outputShape[i];
+        }
+        const auto L1Size = dnnl::utils::get_cache_size(1, true);
+        UNUSED(L1Size); // for Windows
+        parallel_for6d(physDims[0], physDims[1], physDims[2], physDims[3], physDims[4], numSrc,
+                                [&](size_t n0, size_t n1, size_t n2, size_t n3, size_t n4, size_t a) {
+            // check if zero memory
+            if (srcPtrs[a] == nullptr) return;
+
+            size_t inOff = inputStrides[a][0] * n0 + inputStrides[a][1] * n1 + inputStrides[a][2] * n2
+                            + inputStrides[a][3] * n3 + inputStrides[a][4] * n4;
+            size_t outOff = outputStrides[0] * n0 + outputStrides[1] * n1 + outputStrides[2] * n2
+                             + outputStrides[3] * n3 + outputStrides[4] * n4;
+            const uint8_t *i = &srcPtrs[a][inOff];
+            uint8_t *o = &dstPtr[dstOffset[a] + outOff];
+
+#if defined(__GNUC__)
+            // Heuristic:
+            // memcpy works generally faster for data sizes not
+            // exceeding L1 cache.
+            if (nelemToCopy[a] > L1Size) {
+                // The code below performs data copying: o[e] = i[e]
+                // and uses a workaround to make GNU compilers optimize it
+                uint8_t *ptro = o;
+                const uint8_t *ptri = i;
+                // head part: bytes before 4 byte-align's address
+                const size_t headPart = sizeof(uint32_t)
+                                         - reinterpret_cast<uint64_t>(ptro)
+                                           % sizeof(uint32_t);
+
+                // main part: bytes in 4 byte-align
+                const size_t mainPart
+                        = (nelemToCopy[a] - headPart) / sizeof(uint32_t);
+                // tail part: bytes after 4 byte-align
+                const size_t tailPart
+                        = (nelemToCopy[a]) - headPart
+                          - (mainPart * sizeof(uint32_t));
+                // copy head part
+                for (size_t e = 0; e < headPart; ++e) {
+                    *ptro = *ptri;
+                    ++ptro;
+                    ++ptri;
+                }
+                // copy main part
+                std::memcpy(ptro, ptri, mainPart * sizeof(uint32_t));
+                ptro += mainPart * sizeof(uint32_t);
+                ptri += mainPart * sizeof(uint32_t);
+                // copy tail part
+                for (size_t e = 0; e < tailPart; ++e) {
+                    *ptro = *ptri;
+                    ++ptro;
+                    ++ptri;
+                }
+            } else {
+                std::memcpy(o, i, nelemToCopy[a]);
+            }
+#else
+            std::memcpy(o, i, nelemToCopy[a]);
+#endif
+        });
+    }
 }
 
 }   // namespace node

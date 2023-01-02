@@ -7,8 +7,6 @@
 #include <locale>
 #include <map>
 #include <mutex>
-#include <ngraph/factory.hpp>
-#include <ngraph/node.hpp>
 #include <openvino/core/any.hpp>
 #include <openvino/core/preprocess/input_tensor_info.hpp>
 #include <set>

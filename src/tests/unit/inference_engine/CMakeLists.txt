@@ -24,6 +24,7 @@ addIeTargetTest(
             mock_engine
         LABELS
             IE
+            OV
 )
 
 if(SUGGEST_OVERRIDE_SUPPORTED)

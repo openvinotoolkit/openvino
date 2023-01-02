@@ -24,8 +24,8 @@ memory_record::memory_record(memory_set users,
                              allocation_type type)
     : _users(users), _memory(memory), _network_id(net_id), _type(type) {}
 
-memory::ptr memory_pool::alloc_memory(const layout& layout, allocation_type type) {
-    return _engine->allocate_memory(layout, type);
+memory::ptr memory_pool::alloc_memory(const layout& layout, allocation_type type, bool reset) {
+    return _engine->allocate_memory(layout, type, reset);
 }
 
 memory_pool::~memory_pool() {}
@@ -137,10 +137,7 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
             ++it;
         }
     }
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->verbose >= 2) {
-        GPU_DEBUG_COUT << "[" << id << ": output]" << std::endl;
-    }
+    GPU_DEBUG_LOG << "[" << id << ": output]" << std::endl;
     // didn't find anything for you? create new resource
     auto mem = alloc_memory(layout, type);
     {
@@ -179,10 +176,7 @@ memory::ptr memory_pool::get_from_padded_pool(const layout& layout,
             memory_record({{id, network_id}}, mem, network_id, type));
         return mem;
     }
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->verbose >= 2) {
-        GPU_DEBUG_COUT << "[" << id << ": output]" << std::endl;
-    }
+    GPU_DEBUG_LOG << "[" << id << ": output]" << std::endl;
     auto mem = alloc_memory(layout, type);
     std::list<memory_record> list = {memory_record({{id, network_id}}, mem, network_id, type)};
     _padded_pool.emplace(layout, std::move(list));
@@ -218,8 +212,8 @@ memory::ptr memory_pool::get_from_across_networks_pool(const layout& layout,
     return mem;
 }
 
-memory::ptr memory_pool::get_memory(const layout& layout, allocation_type type) {
-    return alloc_memory(layout, type);
+memory::ptr memory_pool::get_memory(const layout& layout, allocation_type type, bool reset) {
+    return alloc_memory(layout, type, reset);
 }
 
 memory::ptr memory_pool::get_memory(const layout& layout,

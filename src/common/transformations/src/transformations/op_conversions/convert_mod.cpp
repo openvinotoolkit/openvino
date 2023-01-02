@@ -5,19 +5,19 @@
 #include "transformations/op_conversions/convert_mod.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include <vector>
 
 #include "itt.hpp"
 
-ngraph::pass::ConvertMod::ConvertMod() {
+ov::pass::ConvertMod::ConvertMod() {
     MATCHER_SCOPE(ConvertMod);
     auto mod = ngraph::pattern::wrap_type<opset1::Mod>();
 
-    ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        auto mod = std::dynamic_pointer_cast<ngraph::opset1::Mod>(m.get_match_root());
+    matcher_pass_callback callback = [this](pattern::Matcher& m) {
+        auto mod = std::dynamic_pointer_cast<ov::opset1::Mod>(m.get_match_root());
         if (!mod) {
             return false;
         }

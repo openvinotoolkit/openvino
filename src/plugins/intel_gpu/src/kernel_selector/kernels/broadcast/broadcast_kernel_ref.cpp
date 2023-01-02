@@ -29,6 +29,8 @@ ParamsKey BroadcastKernelRef::GetSupportedKey() const {
     k.EnableTensorPitches();
     k.EnableBatching();
 
+    k.EnableDynamicShapesSupport();
+
     return k;
 }
 

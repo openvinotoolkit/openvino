@@ -371,6 +371,12 @@ struct layout {
 
     layout(const layout& other) = default;
 
+    layout()
+        : data_type(cldnn::data_types::bin)
+        , format(cldnn::format::any)
+        , data_padding(padding())
+        , size(ov::PartialShape()) { }
+
     layout& operator=(const layout& other) {
         if (this == &other)
             return *this;
@@ -494,6 +500,8 @@ struct layout {
     // smaller buffer can be considered to hold subsequence of larger buffer,  this behavior is required to force buffer allocation
     // for smaller buffer which, currently, should always be performed
     bool identical(const layout& other) const;
+
+    ov::PartialShape transform(cldnn::format new_fmt) const;
 
 private:
     /// The size of the @ref memory (excluding padding)

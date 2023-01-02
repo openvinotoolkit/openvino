@@ -16,8 +16,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v5::GRUSequence);
-
 op::v5::GRUSequence::GRUSequence()
     : m_direction(op::RecurrentSequenceDirection::FORWARD),
       m_linear_before_reset(false) {}
@@ -60,15 +58,8 @@ void op::v5::GRUSequence::validate_and_infer_types() {
                           "Element types for X, initial_hidden_state, W, R and B inputs do not "
                           "match.");
 
-    const auto& x_pshape = get_input_partial_shape(0);
-    const auto& ht_pshape = get_input_partial_shape(1);
-    const auto& sl_pshape = get_input_partial_shape(2);
-    const auto& w_pshape = get_input_partial_shape(3);
-    const auto& r_pshape = get_input_partial_shape(4);
-    const auto& b_pshape = get_input_partial_shape(5);
-
-    std::vector<ov::PartialShape> input_shapes = {x_pshape, ht_pshape, sl_pshape, w_pshape, r_pshape, b_pshape};
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{4}, ov::PartialShape{3}};
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic(4), ov::PartialShape::dynamic(3)};
     shape_infer(this, input_shapes, output_shapes);
 
     // Set output size, type and shape

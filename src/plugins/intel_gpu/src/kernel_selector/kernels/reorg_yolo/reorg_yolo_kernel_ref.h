@@ -41,6 +41,7 @@ public:
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
+    bool Validate(const Params& params, const optional_params& options) const override;
 
 protected:
     virtual JitConstants GetJitConstants(const reorg_yolo_params& params) const;

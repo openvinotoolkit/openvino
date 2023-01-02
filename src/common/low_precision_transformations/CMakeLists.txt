@@ -4,6 +4,10 @@
 
 set (TARGET_NAME "inference_engine_lp_transformations")
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    ie_add_compiler_flags(/wd4267)
+endif()
+
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
@@ -56,3 +60,7 @@ set_target_properties(${TARGET_NAME}_obj PROPERTIES INTERPROCEDURAL_OPTIMIZATION
 # developer package
 
 openvino_developer_export_targets(COMPONENT core_legacy TARGETS ${TARGET_NAME})
+
+if(ENABLE_TESTS)
+    add_subdirectory(tests)
+endif()

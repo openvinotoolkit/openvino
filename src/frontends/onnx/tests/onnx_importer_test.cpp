@@ -10,6 +10,7 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "onnx_import/onnx.hpp"
+#include "openvino/openvino.hpp"
 #include "openvino/util/file_util.hpp"
 
 TEST(ONNX_Importer_Tests, ImportBasicModel) {
@@ -158,4 +159,25 @@ TEST(ONNX_Importer_Tests, IsOperatorSupported) {
     const bool is_abs_op_supported = ngraph::onnx_import::is_operator_supported(op_name, version, domain);
 
     ASSERT_TRUE(is_abs_op_supported);
+}
+
+TEST(ONNX_Importer_Tests, ImportModelWithoutMetadata) {
+    ov::Core core;
+    auto model = core.read_model(
+        CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({ONNX_MODELS_DIR, "priorbox_clustered.onnx"})));
+    ASSERT_FALSE(model->has_rt_info("framework"));
+}
+
+TEST(ONNX_Importer_Tests, ImportModelWithMetadata) {
+    ov::Core core;
+    auto model = core.read_model(
+        CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({ONNX_MODELS_DIR, "model_with_metadata.onnx"})));
+    ASSERT_TRUE(model->has_rt_info("framework"));
+
+    const auto rtinfo = model->get_rt_info();
+    auto metadata = rtinfo.at("framework").as<ov::AnyMap>();
+
+    ASSERT_EQ(metadata.size(), 2);
+    ASSERT_EQ(metadata["meta_key1"].as<std::string>(), "meta_value1");
+    ASSERT_EQ(metadata["meta_key2"].as<std::string>(), "meta_value2");
 }

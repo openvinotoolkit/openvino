@@ -235,8 +235,8 @@ TEST(type_prop, lstm_sequence_bidirectional) {
     const auto B = make_shared<opset5::Parameter>(element::f32, Shape{num_directions, 4 * hidden_size});
 
     const auto lstm_direction = opset5::LSTMSequence::direction::BIDIRECTIONAL;
-    const std::vector<float> activations_alpha = {2.7, 7.0, 32.367};
-    const std::vector<float> activations_beta = {0.0, 5.49, 6.0};
+    const std::vector<float> activations_alpha = {2.7f, 7.0f, 32.367f};
+    const std::vector<float> activations_beta = {0.0f, 5.49f, 6.0f};
     const std::vector<std::string> activations = {"tanh", "sigmoid", "sigmoid"};
 
     const auto lstm_sequence = make_shared<opset5::LSTMSequence>(X,
@@ -289,8 +289,8 @@ TEST(type_prop, lstm_sequence_v1_bidirectional) {
     const auto P = make_shared<opset5::Parameter>(element::f32, Shape{num_directions, 3 * hidden_size});
 
     const auto lstm_direction = opset5::LSTMSequence::direction::BIDIRECTIONAL;
-    const std::vector<float> activations_alpha = {2.7, 7.0, 32.367};
-    const std::vector<float> activations_beta = {0.0, 5.49, 6.0};
+    const std::vector<float> activations_alpha = {2.7f, 7.0f, 32.367f};
+    const std::vector<float> activations_beta = {0.0f, 5.49f, 6.0f};
     const std::vector<std::string> activations = {"tanh", "sigmoid", "sigmoid"};
 
     const auto lstm_sequence = make_shared<opset1::LSTMSequence>(X,

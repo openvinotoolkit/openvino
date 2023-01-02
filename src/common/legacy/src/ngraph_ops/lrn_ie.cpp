@@ -14,8 +14,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::LRN_IE);
-
 op::LRN_IE::LRN_IE(const ngraph::Output<ngraph::Node>& arg, double alpha, double beta, double bias, size_t size,
                    std::string region)
     : Op({arg}), m_alpha(alpha), m_beta(beta), m_bias(bias), m_size(size), m_region(region) {

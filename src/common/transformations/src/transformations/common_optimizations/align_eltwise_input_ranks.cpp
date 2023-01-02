@@ -4,10 +4,11 @@
 
 #include "transformations/common_optimizations/align_eltwise_input_ranks.hpp"
 
-#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset8.hpp>
 
-ngraph::pass::AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
+ov::pass::AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
     auto eltwise_pattern = pattern::wrap_type<opset8::SquaredDifference,
                                               op::util::BinaryElementwiseComparison,
                                               op::util::BinaryElementwiseLogical,
@@ -41,7 +42,7 @@ ngraph::pass::AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
         const auto rank = node->get_output_partial_shape(0).size();
 
         for (size_t i = 0; i < node->get_input_size(); i++) {
-            auto const_node = as_type<op::Constant>(node->get_input_node_ptr(i));
+            auto const_node = as_type<opset8::Constant>(node->get_input_node_ptr(i));
             if (const_node == nullptr)
                 continue;
             const auto& const_shape = const_node->get_shape();
@@ -49,7 +50,8 @@ ngraph::pass::AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
             if (diff > 0) {
                 Shape new_shape = const_shape;
                 new_shape.insert(new_shape.begin(), diff, 1);
-                auto new_const = std::make_shared<op::Constant>(*const_node, new_shape);
+                auto new_const = std::make_shared<opset8::Constant>(*const_node, new_shape);
+                copy_runtime_info(node->get_input_node_shared_ptr(i), new_const);
                 node->input(i).replace_source_output(new_const);
             }
         }

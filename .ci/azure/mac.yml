@@ -9,6 +9,7 @@ trigger:
     - /**/docs/*
     - /**/*.md
     - README.md
+    - /**/layer_tests_summary/**
 
 pr:
   branches:
@@ -21,6 +22,7 @@ pr:
     - /**/docs/*
     - /**/*.md
     - README.md
+    - /**/layer_tests_summary/**
 
 resources:
   repositories:
@@ -64,6 +66,10 @@ jobs:
   - script: |
       whoami
       uname -a
+      echo test_debug ; which python3
+      echo ls /usr/bin/python3.10
+      sudo rm -rf /usr/bin/python3
+      sudo ln -s /usr/bin/python3.10 /usr/bin/python3
       echo Python3 info ; which python3 ; python3 --version
       echo Python info ; which python ; python --version
       echo Java info ; which java ; java -version
@@ -98,7 +104,7 @@ jobs:
 
   - task: UsePythonVersion@0
     inputs:
-      versionSpec: '3.7'
+      versionSpec: '3.10'
 
   - script: |
       brew install cython
@@ -118,11 +124,9 @@ jobs:
       export CXX=g++
       cmake -GNinja \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
-        -DENABLE_REQUIREMENTS_INSTALL=OFF \
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
         -DENABLE_PYTHON=ON \
-        -DENABLE_TESTS=OFF \
         -DENABLE_STRICT_DEPENDENCIES=OFF \
         -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules \
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \

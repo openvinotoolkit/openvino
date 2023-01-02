@@ -31,6 +31,7 @@ using border_node = typed_program_node<border>;
 template <>
 class typed_primitive_inst<border> : public typed_primitive_inst_base<border> {
     using parent = typed_primitive_inst_base<border>;
+    using parent::parent;
 
 public:
     template<typename ShapeType>

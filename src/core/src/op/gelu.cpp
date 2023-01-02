@@ -14,11 +14,9 @@ using namespace std;
 using namespace ngraph;
 
 // ------------------------------ V0 ------------------------------
-BWDCMP_RTTI_DEFINITION(op::v0::Gelu);
-
 op::v0::Gelu::Gelu() : UnaryElementwiseArithmetic() {}
 
-op::v0::Gelu::Gelu(const Output<Node>& data) : UnaryElementwiseArithmetic({data}) {
+op::v0::Gelu::Gelu(const Output<Node>& data) : UnaryElementwiseArithmetic(data) {
     constructor_validate_and_infer_types();
 }
 
@@ -63,11 +61,7 @@ NGRAPH_API EnumNames<ngraph::op::GeluApproximationMode>& EnumNames<ngraph::op::G
 std::ostream& op::operator<<(std::ostream& s, const op::GeluApproximationMode& type) {
     return s << as_string(type);
 }
-
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::GeluApproximationMode>);
 }  // namespace ov
-
-BWDCMP_RTTI_DEFINITION(op::v7::Gelu);
 
 op::v7::Gelu::Gelu(const Output<Node>& data, GeluApproximationMode mode)
     : UnaryElementwiseArithmetic(data),

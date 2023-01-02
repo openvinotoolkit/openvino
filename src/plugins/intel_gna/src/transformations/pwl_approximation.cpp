@@ -7,6 +7,7 @@
 #include "transformations/utils/utils.hpp"
 #include "ops/pwl.hpp"
 #include "ops/reference/pwl.hpp"
+#include "common/numerical_utils.hpp"
 
 #include <memory>
 #include <vector>
@@ -18,12 +19,11 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
 
-#include "gna_plugin_log.hpp"
-
 static constexpr double EXP_BREAK = 0.045;
 
 using namespace ov::intel_gna;
 using namespace ov::intel_gna::pass;
+using namespace ov::intel_gna::common;
 
 NGRAPH_RTTI_DEFINITION(PWLApproximation, "PWLApproximation", 0);
 NGRAPH_RTTI_DEFINITION(PWLApproximationWithFq, "PWLApproximationWithFq", 0);
@@ -150,7 +150,8 @@ double pivot_search(const details::Function<T>& activation_function,
             if (max_epsilon > max_epsilon_prev) {
                 j = j - 1;
                 Delta = Delta / 2;
-            } else if (max_epsilon == max_epsilon_prev) {
+                same_epsilon = false;
+            } else if (AreFpEq(max_epsilon, max_epsilon_prev)) {
                 if (!same_epsilon) {
                     same_epsilon = true;
                 } else {
@@ -363,10 +364,10 @@ static bool pwl_search_power(const std::shared_ptr<ngraph::Node>& node,
         }
     }
 
-    if (details::are_floats_equal(exponent, 1.0)) {
+    if (AreFpEq(exponent, 1.0)) {
         // An affine primitive will be used in this case.
         return false;
-    } else if (details::are_floats_equal(exponent, 0.0)) {
+    } else if (AreFpEq(exponent, 0.0)) {
         segments.emplace_back(0, 1, -std::numeric_limits<double>::infinity());
         segments.emplace_back(0, 1, std::numeric_limits<double>::infinity());
         segments.emplace_back(0, 0, std::numeric_limits<double>::infinity());
@@ -385,7 +386,7 @@ static bool pwl_search_power(const std::shared_ptr<ngraph::Node>& node,
     segments.insert(segments.begin(), {
         0,
         segments.front().beta,
-        details::are_floats_equal(fmod(exponent, 1.0), 0.0f) ? -std::numeric_limits<double>::infinity() : 0});
+        AreFpEq(fmod(exponent, 1.0), 0.0) ? -std::numeric_limits<double>::infinity() : 0});
     segments.back().b = segments.back().beta;
     segments.push_back({0, 0, std::numeric_limits<double>::infinity()});
     return true;
@@ -451,7 +452,7 @@ bool transform_to_pwl(
         m_constant, b_constant, alpha_constant);
     pwl->set_base_node(node);
     pwl->set_friendly_name(node->get_friendly_name());
-    ngraph::copy_runtime_info(node, pwl);
+    ngraph::copy_runtime_info(node, {pwl, m_constant, b_constant, alpha_constant});
     replace_node(node, pwl);
     return true;
 }

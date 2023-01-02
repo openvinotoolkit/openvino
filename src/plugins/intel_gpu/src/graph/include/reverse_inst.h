@@ -10,29 +10,22 @@
 #include "primitive_inst.h"
 
 namespace cldnn {
-template <>
-struct typed_program_node<reverse> : public typed_program_node_base<reverse> {
-    using parent = typed_program_node_base<reverse>;
-
-public:
-    using parent::parent;
-
-    program_node& input(size_t index = 0) const {
-        return get_dependency(index);
-    }
-};
 
 using reverse_node = typed_program_node<reverse>;
 
 template <>
 class typed_primitive_inst<reverse> : public typed_primitive_inst_base<reverse> {
     using parent = typed_primitive_inst_base<reverse>;
+    using parent::parent;
 
 public:
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(reverse_node const& /*node*/, const kernel_impl_params& impl_param) {
+        return forward_input0_shape<ShapeType>(impl_param);
+    }
     static layout calc_output_layout(reverse_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(reverse_node const& node);
 
-public:
     typed_primitive_inst(network& network, reverse_node const& desc);
 };
 

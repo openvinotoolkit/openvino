@@ -12,9 +12,9 @@ Before you start the installation, check the supported operating systems and req
 
 | Supported Operating System                                   | [Python* Version (64-bit)](https://www.python.org/) |
 | :------------------------------------------------------------| :---------------------------------------------------|
-|   Ubuntu* 18.04 long-term support (LTS), 64-bit              | 3.7, 3.8                                            |
+|   Ubuntu* 18.04 long-term support (LTS), 64-bit              | 3.7, 3.8, 3.9, 3.10                                 |
 |   Ubuntu* 20.04 long-term support (LTS), 64-bit              | 3.7, 3.8, 3.9, 3.10                                 |
-|   Red Hat* Enterprise Linux* 8, 64-bit                       | 3.8                                                 |
+|   Red Hat* Enterprise Linux* 8, 64-bit                       | 3.7, 3.8, 3.9, 3.10                                 |
 |   macOS* 10.15.x versions                                    | 3.7, 3.8, 3.9, 3.10                                 |
 |   Windows 10*, 64-bit                                        | 3.7, 3.8, 3.9, 3.10                                 |
 

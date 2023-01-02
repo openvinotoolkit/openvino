@@ -37,38 +37,47 @@ public:
     }
 
 protected:
+    ov::Tensor generate_eltwise_input(const ov::element::Type& type, const ngraph::Shape& shape) {
+        struct gen_params {
+            uint32_t range;
+            int32_t start_from;
+            int32_t resolution;
+
+            gen_params(uint32_t range = 10, int32_t start_from = 0, int32_t resolution = 1)
+                : range(range), start_from(start_from), resolution(resolution) {}
+        };
+
+        gen_params params = gen_params();
+        if (type.is_real()) {
+            switch (eltwiseType) {
+                case ngraph::helpers::EltwiseTypes::POWER:
+                case ngraph::helpers::EltwiseTypes::MOD:
+                case ngraph::helpers::EltwiseTypes::FLOOR_MOD:
+                    params = gen_params(2, 2, 8);
+                    break;
+                case ngraph::helpers::EltwiseTypes::DIVIDE:
+                    params = gen_params(2, 2, 8);
+                    break;
+                case ngraph::helpers::EltwiseTypes::ERF:
+                    params = gen_params(6, -3);
+                    break;
+                default:
+                    params = gen_params(80, 0, 8);
+                    break;
+            }
+        } else {
+            params = gen_params(INT32_MAX, INT32_MIN);
+        }
+
+        return ov::test::utils::create_and_fill_tensor(type, shape, params.range, params.start_from, params.resolution);
+    }
+
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
         for (int i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
-            ov::Tensor tensor;
-            bool isReal = funcInput.get_element_type().is_real();
-            switch (eltwiseType) {
-                case ngraph::helpers::EltwiseTypes::POWER:
-                case ngraph::helpers::EltwiseTypes::MOD:
-                case ngraph::helpers::EltwiseTypes::FLOOR_MOD:
-                    tensor = isReal ?
-                             ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 2, 2, 8) :
-                             ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 4, 2);
-                    break;
-                case ngraph::helpers::EltwiseTypes::DIVIDE:
-                    tensor = isReal ?
-                             ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 2, 2, 8) :
-                             ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 100, 101);
-                    break;
-                case ngraph::helpers::EltwiseTypes::ERF:
-                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 6, -3);
-                    break;
-                default:
-                    if (funcInput.get_element_type().is_real()) {
-                        tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 80, 0, 8);
-                    } else {
-                        tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
-                    }
-                    break;
-            }
-            inputs.insert({funcInput.get_node_shared_ptr(), tensor});
+            inputs.insert({funcInput.get_node_shared_ptr(), generate_eltwise_input(funcInput.get_element_type(), targetInputStaticShapes[i])});
         }
     }
 
@@ -88,6 +97,8 @@ protected:
 
         if (ElementType::bf16 == netType) {
             rel_threshold = 2e-2f;
+        } else if (ElementType::i32 == netType) {
+            abs_threshold = 0;
         }
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
@@ -134,29 +145,21 @@ protected:
                     }
                 }
             }
-            if (eltwiseType == ngraph::helpers::EltwiseTypes::DIVIDE ||
-                eltwiseType == ngraph::helpers::EltwiseTypes::MOD) {
-                std::vector<float> data(ngraph::shape_size(shape));
-                data = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(ngraph::shape_size(shape), 10, 2);
+
+            if (netType == ElementType::i32) {
+                auto data_tensor = generate_eltwise_input(ElementType::i32, shape);
+                auto data_ptr = reinterpret_cast<int32_t*>(data_tensor.data());
+                std::vector<int32_t> data(data_ptr, data_ptr + ngraph::shape_size(shape));
                 secondaryInput = ngraph::builder::makeConstant(netType, shape, data);
-            } else if (eltwiseType == ngraph::helpers::EltwiseTypes::FLOOR_MOD) {
-                auto negative_data_size = ngraph::shape_size(shape) / 2;
-                auto positive_data_size = ngraph::shape_size(shape) - negative_data_size;
-                std::vector<float> negative_data(negative_data_size);
-                std::vector<float> data(positive_data_size);
-                negative_data = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(negative_data_size, -10, -2);
-                data = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(positive_data_size, 10, 2);
-                data.insert(data.end(), negative_data.begin(), negative_data.end());
-                secondaryInput = ngraph::builder::makeConstant(netType, shape, data);
-            } else if (eltwiseType == ngraph::helpers::EltwiseTypes::POWER) {
-                secondaryInput = ngraph::builder::makeConstant<float>(netType, shape, {}, true, 3);
             } else {
-                secondaryInput = ngraph::builder::makeConstant<float>(netType, shape, {}, true);
+                auto data_tensor = generate_eltwise_input(ElementType::f32, shape);
+                auto data_ptr = reinterpret_cast<float*>(data_tensor.data());
+                std::vector<float> data(data_ptr, data_ptr + ngraph::shape_size(shape));
+                secondaryInput = ngraph::builder::makeConstant(netType, shape, data);
             }
         }
 
         auto eltwise = ngraph::builder::makeEltwise(parameters[0], secondaryInput, eltwiseType);
-
         function = makeNgraphFunction(netType, parameters, eltwise, "Eltwise");
     }
 
@@ -165,10 +168,8 @@ private:
 };
 
 TEST_P(EltwiseLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
-    CheckPluginRelatedResults(compiledModel, "Eltwise");
+    CheckPluginRelatedResults(compiledModel, std::set<std::string>{"Eltwise", "Subgraph"});
 }
 
 namespace {
@@ -222,7 +223,7 @@ const std::vector<fusingSpecificParams> fusingParamsSet{
     // fake quantize
     fusingFakeQuantizePerTensorRelu,
     fusingFakeQuantizePerChannelRelu,
-    fusingFQPerChannelSigmoidFQPerChannel
+    fusingFQPerChannelSigmoidFQPerTensor
 };
 
 std::vector<std::vector<ov::Shape>> inShapes_4D = {
@@ -239,8 +240,8 @@ const auto params_4D = ::testing::Combine(
                 ::testing::ValuesIn(secondaryInputTypes),
                 ::testing::ValuesIn(opTypes),
                 ::testing::ValuesIn(netType),
-                ::testing::Values(ElementType::f32),
-                ::testing::Values(ElementType::f32),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)),
@@ -261,8 +262,8 @@ const auto params_4D_fusing = ::testing::Combine(
                 ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
                 ::testing::ValuesIn(opTypes),
                 ::testing::Values(ElementType::f32),
-                ::testing::Values(ElementType::f32),
-                ::testing::Values(ElementType::f32),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
         ::testing::ValuesIn(cpuParams_4D),
@@ -277,8 +278,8 @@ const auto params_4D_emptyCPUSpec = ::testing::Combine(
                 ::testing::ValuesIn(secondaryInputTypes),
                 ::testing::ValuesIn(opTypes),
                 ::testing::ValuesIn(netType),
-                ::testing::Values(ElementType::f32),
-                ::testing::Values(ElementType::f32),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
         ::testing::Values(emptyCPUSpec),
@@ -300,8 +301,8 @@ const auto params_5D = ::testing::Combine(
                 ::testing::ValuesIn(secondaryInputTypes),
                 ::testing::ValuesIn(opTypes),
                 ::testing::ValuesIn(netType),
-                ::testing::Values(ElementType::f32),
-                ::testing::Values(ElementType::f32),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)),
@@ -316,14 +317,44 @@ const auto params_5D_emptyCPUSpec = ::testing::Combine(
                 ::testing::ValuesIn(secondaryInputTypes),
                 ::testing::ValuesIn(opTypes),
                 ::testing::ValuesIn(netType),
-                ::testing::Values(ElementType::f32),
-                ::testing::Values(ElementType::f32),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
         ::testing::Values(emptyCPUSpec),
         ::testing::Values(emptyFusingSpec));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D, EltwiseLayerCPUTest, params_5D_emptyCPUSpec, EltwiseLayerCPUTest::getTestCaseName);
+
+std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesI32 = {
+        ngraph::helpers::EltwiseTypes::ADD,
+        ngraph::helpers::EltwiseTypes::MULTIPLY,
+        ngraph::helpers::EltwiseTypes::SUBTRACT,
+        ngraph::helpers::EltwiseTypes::DIVIDE,
+        ngraph::helpers::EltwiseTypes::SQUARED_DIFF,
+};
+
+const std::vector<fusingSpecificParams> fusingParamsSetI32{
+    emptyFusingSpec,
+    fusingMultiplyAddPerChannel,
+};
+
+const auto params_5D_emptyCPUSpec_I32 = ::testing::Combine(
+        ::testing::Combine(
+                ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_5D)),
+                ::testing::ValuesIn(eltwiseOpTypesI32),
+                ::testing::ValuesIn(secondaryInputTypes),
+                ::testing::ValuesIn(opTypes),
+                ::testing::Values(ElementType::i32),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                ::testing::Values(additional_config)),
+        ::testing::Values(emptyCPUSpec),
+        ::testing::ValuesIn(fusingParamsSetI32));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_I32, EltwiseLayerCPUTest, params_5D_emptyCPUSpec_I32, EltwiseLayerCPUTest::getTestCaseName);
+
 
 std::vector<std::vector<ov::Shape>> inShapes_4D_Blocked_Planar = {
         {{2, 17, 31, 3}, {2, 1, 31, 3}},
@@ -341,8 +372,8 @@ const auto params_4D_Blocked_Planar = ::testing::Combine(
                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                 ::testing::ValuesIn(opTypes),
                 ::testing::ValuesIn(netType),
-                ::testing::Values(ElementType::f32),
-                ::testing::Values(ElementType::f32),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_Blocked_Planar)),
@@ -367,8 +398,8 @@ const auto params_4D_Planar_Blocked = ::testing::Combine(
                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                 ::testing::ValuesIn(opTypes),
                 ::testing::ValuesIn(netType),
-                ::testing::Values(ElementType::f32),
-                ::testing::Values(ElementType::f32),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_Planar_Blocked)),
@@ -393,8 +424,8 @@ const auto params_5D_Blocked_Planar = ::testing::Combine(
                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                 ::testing::ValuesIn(opTypes),
                 ::testing::ValuesIn(netType),
-                ::testing::Values(ElementType::f32),
-                ::testing::Values(ElementType::f32),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_Blocked_Planar)),
@@ -419,8 +450,8 @@ const auto params_5D_Planar_Blocked = ::testing::Combine(
                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                 ::testing::ValuesIn(opTypes),
                 ::testing::ValuesIn(netType),
-                ::testing::Values(ElementType::f32),
-                ::testing::Values(ElementType::f32),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_Planar_Blocked)),
@@ -447,8 +478,8 @@ const auto params_4D_1D_constant_mode = ::testing::Combine(
                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                 ::testing::ValuesIn(opTypes),
                 ::testing::ValuesIn(netType),
-                ::testing::Values(ElementType::f32),
-                ::testing::Values(ElementType::f32),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_1D_Constant_mode)),
@@ -457,8 +488,6 @@ const auto params_4D_1D_constant_mode = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_1D_Constant, EltwiseLayerCPUTest, params_4D_1D_constant_mode, EltwiseLayerCPUTest::getTestCaseName);
 
 std::vector<CPUSpecificParams> cpuParams_4D_1D_Parameter_mode = {
-        CPUSpecificParams({nChw16c, x}, {nChw16c}, {}, {}),
-        CPUSpecificParams({nhwc, x}, {nhwc}, {}, {}),
         CPUSpecificParams({nchw, x}, {nchw}, {}, {})
 };
 
@@ -469,8 +498,8 @@ const auto params_4D_1D_parameter_mode = ::testing::Combine(
                 ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
                 ::testing::ValuesIn(opTypes),
                 ::testing::ValuesIn(netType),
-                ::testing::Values(ElementType::f32),
-                ::testing::Values(ElementType::f32),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_1D_Parameter_mode)),
@@ -496,8 +525,8 @@ const auto params_5D_1D_constant = ::testing::Combine(
                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                 ::testing::ValuesIn(opTypes),
                 ::testing::ValuesIn(netType),
-                ::testing::Values(ElementType::f32),
-                ::testing::Values(ElementType::f32),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_1D_constant)),
@@ -506,8 +535,6 @@ const auto params_5D_1D_constant = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_1D_Constant, EltwiseLayerCPUTest, params_5D_1D_constant, EltwiseLayerCPUTest::getTestCaseName);
 
 std::vector<CPUSpecificParams> cpuParams_5D_1D_parameter = {
-        CPUSpecificParams({nCdhw16c, x}, {nCdhw16c}, {}, {}),
-        CPUSpecificParams({ndhwc, x}, {ndhwc}, {}, {}),
         CPUSpecificParams({ncdhw, x}, {ncdhw}, {}, {})
 };
 
@@ -518,8 +545,8 @@ const auto params_5D_1D_parameter = ::testing::Combine(
                 ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
                 ::testing::ValuesIn(opTypes),
                 ::testing::ValuesIn(netType),
-                ::testing::Values(ElementType::f32),
-                ::testing::Values(ElementType::f32),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_1D_parameter)),
@@ -571,8 +598,8 @@ const auto params_4D_dyn_const = ::testing::Combine(
                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                 ::testing::ValuesIn(opTypes),
                 ::testing::ValuesIn(netType),
-                ::testing::Values(ElementType::f32),
-                ::testing::Values(ElementType::f32),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)),
@@ -610,8 +637,8 @@ const auto params_4D_dyn_param = ::testing::Combine(
                 ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
                 ::testing::ValuesIn(opTypes),
                 ::testing::ValuesIn(netType),
-                ::testing::Values(ElementType::f32),
-                ::testing::Values(ElementType::f32),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)),
@@ -651,8 +678,8 @@ const auto params_4D_dyn_param_fusing = ::testing::Combine(
                 ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
                 ::testing::ValuesIn(opTypes),
                 ::testing::Values(ElementType::f32),
-                ::testing::Values(ElementType::f32),
-                ::testing::Values(ElementType::f32),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
         ::testing::ValuesIn(cpuParams_4D),
@@ -682,8 +709,8 @@ const auto params_5D_dyn_const = ::testing::Combine(
                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                 ::testing::ValuesIn(opTypes),
                 ::testing::ValuesIn(netType),
-                ::testing::Values(ElementType::f32),
-                ::testing::Values(ElementType::f32),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)),
@@ -721,8 +748,8 @@ const auto params_5D_dyn_param = ::testing::Combine(
                 ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
                 ::testing::ValuesIn(opTypes),
                 ::testing::ValuesIn(netType),
-                ::testing::Values(ElementType::f32),
-                ::testing::Values(ElementType::f32),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)),

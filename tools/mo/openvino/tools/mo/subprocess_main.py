@@ -20,8 +20,7 @@ def check_python_version():
 def log_ie_not_found():
     log.error("Could not find the Inference Engine or nGraph Python API.\n"
               "Consider building the Inference Engine and nGraph Python APIs"
-              " from sources or try to install OpenVINO (TM) Toolkit using \"install_prerequisites.{}\""
-              .format("bat" if sys.platform == "windows" else "sh"))
+              " from sources or try to install OpenVINO (TM) Toolkit using pip \npip install openvino")
 
 
 def log_mo_root_dir_not_found():

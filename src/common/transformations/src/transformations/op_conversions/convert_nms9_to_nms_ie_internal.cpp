@@ -5,22 +5,22 @@
 #include "transformations/op_conversions/convert_nms9_to_nms_ie_internal.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset9.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset9.hpp>
 #include <vector>
 
 #include "itt.hpp"
-#include "ngraph_ops/nms_ie_internal.hpp"
+#include "ov_ops/nms_ie_internal.hpp"
 #include "transformations/utils/utils.hpp"
 
-ngraph::pass::ConvertNMS9ToNMSIEInternal::ConvertNMS9ToNMSIEInternal() {
+ov::pass::ConvertNMS9ToNMSIEInternal::ConvertNMS9ToNMSIEInternal() {
     MATCHER_SCOPE(ConvertNMS9ToNMSIEInternal);
-    auto nms = ngraph::pattern::wrap_type<ngraph::opset9::NonMaxSuppression>();
+    auto nms = ngraph::pattern::wrap_type<ov::opset9::NonMaxSuppression>();
 
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto nms_9 = std::dynamic_pointer_cast<ngraph::opset9::NonMaxSuppression>(m.get_match_root());
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        auto nms_9 = std::dynamic_pointer_cast<ov::opset9::NonMaxSuppression>(m.get_match_root());
         if (!nms_9 || transformation_callback(nms_9)) {
             return false;
         }
@@ -29,11 +29,11 @@ ngraph::pass::ConvertNMS9ToNMSIEInternal::ConvertNMS9ToNMSIEInternal() {
         const std::size_t num_of_inputs = new_args.size();
 
         const auto& max_per_class =
-            num_of_inputs > 2 ? new_args.at(2) : ngraph::opset9::Constant::create(element::i32, Shape{}, {0});
+            num_of_inputs > 2 ? new_args.at(2) : ov::opset9::Constant::create(element::i32, Shape{}, {0});
         const auto& iou_threshold =
-            num_of_inputs > 3 ? new_args.at(3) : ngraph::opset9::Constant::create(element::f32, Shape{}, {.0f});
+            num_of_inputs > 3 ? new_args.at(3) : ov::opset9::Constant::create(element::f32, Shape{}, {.0f});
         const auto& score_threshold =
-            num_of_inputs > 4 ? new_args.at(4) : ngraph::opset9::Constant::create(element::f32, Shape{}, {.0f});
+            num_of_inputs > 4 ? new_args.at(4) : ov::opset9::Constant::create(element::f32, Shape{}, {.0f});
 
         // vector of new nGraph operations
         NodeVector new_ops;
@@ -61,15 +61,14 @@ ngraph::pass::ConvertNMS9ToNMSIEInternal::ConvertNMS9ToNMSIEInternal() {
 
         int center_point_box = 0;
         switch (nms_9->get_box_encoding()) {
-        case ::ngraph::opset9::NonMaxSuppression::BoxEncodingType::CENTER:
+        case ::ov::opset9::NonMaxSuppression::BoxEncodingType::CENTER:
             center_point_box = 1;
             break;
-        case ::ngraph::opset9::NonMaxSuppression::BoxEncodingType::CORNER:
+        case ::ov::opset9::NonMaxSuppression::BoxEncodingType::CORNER:
             center_point_box = 0;
             break;
         default:
-            throw ngraph_error("NonMaxSuppression layer " + nms_9->get_friendly_name() +
-                               " has unsupported box encoding");
+            throw Exception("NonMaxSuppression layer " + nms_9->get_friendly_name() + " has unsupported box encoding");
         }
 
         std::shared_ptr<op::internal::NonMaxSuppressionIEInternal> nms_legacy{nullptr};

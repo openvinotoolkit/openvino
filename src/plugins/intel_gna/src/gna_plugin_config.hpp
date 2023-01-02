@@ -53,7 +53,7 @@ struct Config {
 
     ov::hint::PerformanceMode performance_mode = ov::hint::PerformanceMode::UNDEFINED;
 
-    // default precision of GNA hardware model (see QuantI16 quantizer struct)
+    // default precision of GNA hardware model
     ov::element::Type inference_precision = ov::element::undefined;
     InferenceEngine::Precision gnaPrecision = InferenceEngine::Precision::I16;
 

@@ -4,23 +4,47 @@
 
 #include <gna/gna_config.hpp>
 
-class GnaLayerTestCheck : virtual public LayerTestsUtils::LayerTestsCommon {
-protected:
-    bool skipTest = true;
 
-    void SkipTestCheck() {
-        InferenceEngine::Core ie_core;
-        std::vector<std::string> metrics = ie_core.GetMetric(targetDevice, METRIC_KEY(SUPPORTED_METRICS));
+class GnaLayerTestCheck {
+    bool verRead = false;
+    int verMajor;
+    int verMinor;
+    std::string lastMsg;
 
-        if (targetDevice == "GNA") {
+public:
+    void SetUp(const std::string deviceName) {
+        InferenceEngine::Core ieCore;
+        std::vector<std::string> metrics = ieCore.GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS));
+
+        if (deviceName == CommonTestUtils::DEVICE_GNA) {
             if (std::find(metrics.begin(), metrics.end(), METRIC_KEY(GNA_LIBRARY_FULL_VERSION)) != metrics.end()) {
-                std::string gnaLibVer = ie_core.GetMetric(targetDevice, METRIC_KEY(GNA_LIBRARY_FULL_VERSION));
-
-                if (gnaLibVer.rfind("2.1", 0) != 0 && gnaLibVer.rfind("3.", 0) != 0) {
-                    GTEST_SKIP() << "Disabled test due to GNA library version being not 2.1 or 3.X" << std::endl;
-                }
-                skipTest = false;
+                auto gnaLibVerStr =
+                    ieCore.GetMetric(deviceName, METRIC_KEY(GNA_LIBRARY_FULL_VERSION)).as<std::string>();
+                verRead = sscanf(gnaLibVerStr.c_str(), "%d.%d", &verMajor, &verMinor) == 2;
             }
         }
+    }
+
+    std::string& getLastCmpResultMsg() {
+        return lastMsg;
+    }
+
+    bool gnaLibVersionLessThan(std::string verToCmp) {
+        int verToCmpMajor;
+        int verToCmpMinor;
+
+        if (!verRead) {
+            IE_THROW() << "GnaLayerTestCheck requires initialization with SetUp()";
+        }
+
+        if (sscanf(verToCmp.c_str(), "%d.%d", &verToCmpMajor, &verToCmpMinor) != 2) {
+            return false;
+        }
+
+        if (verMajor < verToCmpMajor || (verMajor == verToCmpMajor && verMinor < verToCmpMinor)) {
+            lastMsg = "GNA library version is less than " + verToCmp;
+            return true;
+        }
+        return false;
     }
 };

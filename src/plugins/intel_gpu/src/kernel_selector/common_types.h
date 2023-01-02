@@ -38,7 +38,6 @@ enum class KernelType {
     RESAMPLE,
     REGION_YOLO,
     REORG_YOLO,
-    MAX_UNPOOLING,
     MVN,
     LSTM_GEMM,
     LSTM_ELT,
@@ -48,6 +47,7 @@ enum class KernelType {
     BROADCAST,
     BUCKETIZE,
     GEMM,
+    GRID_SAMPLE,
     PYRAMID_ROI_ALIGN,
     CONTRACT,
     ONE_HOT,
@@ -89,10 +89,12 @@ enum class KernelType {
     CONVERT_COLOR,
     RANDOM_UNIFORM,
     ADAPTIVE_POOLING,
+    MATRIX_NMS,
     REVERSE,
     PRIOR_BOX,
     EYE,
-    GENERATE_PROPOSALS
+    GENERATE_PROPOSALS,
+    MULTICLASS_NMS
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -182,7 +184,6 @@ enum class ActivationFunction {
 enum class PoolType {
     MAX,
     AVG,
-    MAX_WITH_ARGMAX,
     BILINEAR,
     DEFORMABLE_BILINEAR
 };
@@ -312,19 +313,6 @@ enum class SoftmaxDim {
     Z,
     FEATURE,
     BATCH,
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// ReorderMode
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-enum class ReorderMode {
-    xyzw,  // Do nothing
-    xywz,
-    xwyz,
-    wxyz,
-    xzyw,
-    zyxw,
-    yxzw,
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -607,6 +595,15 @@ enum class color_format : uint32_t {
 enum class memory_type : uint32_t {
     buffer,
     image
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// MultiClassNms SortResultType
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+enum class SortResultType {
+    CLASSID,  // sort selected boxes by class id (ascending) in each batch element
+    SCORE,    // sort selected boxes by score (descending) in each batch element
+    NONE      // do not guarantee the order in each batch element
 };
 
 }  // namespace kernel_selector

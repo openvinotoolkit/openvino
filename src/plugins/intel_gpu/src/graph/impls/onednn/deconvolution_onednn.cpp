@@ -22,6 +22,8 @@ struct deconvolution_onednn : typed_primitive_onednn_impl<deconvolution, dnnl::d
     using parent = typed_primitive_onednn_impl<deconvolution, dnnl::deconvolution_forward::desc>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<deconvolution_onednn>(*this);
@@ -31,7 +33,7 @@ protected:
         bool res = true;
 
         auto outer_id = instance.id();
-        auto data_type = instance.node.input().get_output_layout().data_type;
+        auto data_type = instance.node->input().get_output_layout().data_type;
 
         // Integer signed/unsigned is ok for convoluiton
         CLDNN_ERROR_DATA_TYPES_MISMATCH_IGNORE_SIGN(outer_id,
@@ -102,13 +104,39 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const deconvolution_node& arg, const kernel_impl_params& impl_params) {
-        auto& engine = impl_params.prog.get_engine();
+    void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
+
+        ob << make_data(&_desc->data, sizeof(dnnl_deconvolution_desc_t));
+
+        std::vector<uint8_t> prim_cache;
+        prim_cache = _prim.get_cache_blob();
+        ob << prim_cache;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+
+        const char dummy_mem[sizeof(dnnl::deconvolution_forward::desc)] = {};
+        const dnnl::deconvolution_forward::desc *dummy_opdesc
+            = reinterpret_cast<const dnnl::deconvolution_forward::desc *>(&dummy_mem[0]);
+        _desc = std::make_shared<dnnl::deconvolution_forward::desc>(std::move(*dummy_opdesc));
+        ib >> make_data(&_desc->data, sizeof(dnnl_deconvolution_desc_t));
+
+        std::vector<uint8_t> prim_cache;
+        ib >> prim_cache;
+
+        _pd = dnnl::primitive_desc(&_desc->data, _attrs.get(), ib.get_engine().get_onednn_engine(), nullptr);
+        _prim = dnnl::primitive(_pd, prim_cache);
+    }
+
+    static std::unique_ptr<primitive_impl> create(const deconvolution_node& arg, const kernel_impl_params& impl_params) {
+        auto& engine = impl_params.prog->get_engine();
         auto desc = get_deconvolution_descriptor(impl_params);
         auto attr = get_primitive_attributes(arg);
         dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
 
-        return new deconvolution_onednn(engine, desc, attr, prim_desc, get_weights_reorder(impl_params, prim_desc));
+        return cldnn::make_unique<deconvolution_onednn>(engine, desc, attr, prim_desc, get_weights_reorder(impl_params, prim_desc));
     }
 };
 
@@ -142,3 +170,5 @@ attach_deconvolution_onednn::attach_deconvolution_onednn() {
 }  // namespace detail
 }  // namespace onednn
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::deconvolution_onednn)

@@ -21,43 +21,53 @@ namespace py = pybind11;
 
 class AsyncInferQueue {
 public:
-    AsyncInferQueue(std::vector<InferRequestWrapper> requests,
-                    std::queue<size_t> idle_handles,
-                    std::vector<py::object> user_ids)
-        : _requests(requests),
-          _idle_handles(idle_handles),
-          _user_ids(user_ids) {
+    AsyncInferQueue(ov::CompiledModel& model, size_t jobs) {
+        if (jobs == 0) {
+            jobs = static_cast<size_t>(Common::get_optimal_number_of_requests(model));
+        }
+
+        m_requests.reserve(jobs);
+        m_user_ids.reserve(jobs);
+
+        for (size_t handle = 0; handle < jobs; handle++) {
+            // Create new "empty" InferRequestWrapper without pre-defined callback and
+            // copy Inputs and Outputs from ov::CompiledModel
+            m_requests.emplace_back(model.create_infer_request(), model.inputs(), model.outputs(), false);
+            m_user_ids.push_back(py::none());
+            m_idle_handles.push(handle);
+        }
+
         this->set_default_callbacks();
     }
 
     ~AsyncInferQueue() {
-        _requests.clear();
+        m_requests.clear();
     }
 
     bool _is_ready() {
         // Check if any request has finished already
         py::gil_scoped_release release;
-        // acquire the mutex to access _errors and _idle_handles
-        std::lock_guard<std::mutex> lock(_mutex);
-        if (_errors.size() > 0)
-            throw _errors.front();
-        return !(_idle_handles.empty());
+        // acquire the mutex to access m_errors and m_idle_handles
+        std::lock_guard<std::mutex> lock(m_mutex);
+        if (m_errors.size() > 0)
+            throw m_errors.front();
+        return !(m_idle_handles.empty());
     }
 
     size_t get_idle_request_id() {
         // Wait for any request to complete and return its id
         // release GIL to avoid deadlock on python callback
         py::gil_scoped_release release;
-        // acquire the mutex to access _errors and _idle_handles
-        std::unique_lock<std::mutex> lock(_mutex);
-        _cv.wait(lock, [this] {
-            return !(_idle_handles.empty());
+        // acquire the mutex to access m_errors and m_idle_handles
+        std::unique_lock<std::mutex> lock(m_mutex);
+        m_cv.wait(lock, [this] {
+            return !(m_idle_handles.empty());
         });
-        size_t idle_handle = _idle_handles.front();
+        size_t idle_handle = m_idle_handles.front();
         // wait for request to make sure it returned from callback
-        _requests[idle_handle]._request.wait();
-        if (_errors.size() > 0)
-            throw _errors.front();
+        m_requests[idle_handle].m_request.wait();
+        if (m_errors.size() > 0)
+            throw m_errors.front();
         return idle_handle;
     }
 
@@ -65,27 +75,29 @@ public:
         // Wait for all request to complete
         // release GIL to avoid deadlock on python callback
         py::gil_scoped_release release;
-        for (auto&& request : _requests) {
-            request._request.wait();
+        for (auto&& request : m_requests) {
+            request.m_request.wait();
         }
-        // acquire the mutex to access _errors
-        std::lock_guard<std::mutex> lock(_mutex);
-        if (_errors.size() > 0)
-            throw _errors.front();
+        // acquire the mutex to access m_errors
+        std::lock_guard<std::mutex> lock(m_mutex);
+        if (m_errors.size() > 0)
+            throw m_errors.front();
     }
 
     void set_default_callbacks() {
-        for (size_t handle = 0; handle < _requests.size(); handle++) {
-            _requests[handle]._request.set_callback([this, handle /* ... */](std::exception_ptr exception_ptr) {
-                _requests[handle]._end_time = Time::now();
+        for (size_t handle = 0; handle < m_requests.size(); handle++) {
+            // auto end_time = m_requests[handle].m_end_time; // TODO: pass it bellow? like in InferRequestWrapper
+
+            m_requests[handle].m_request.set_callback([this, handle /* ... */](std::exception_ptr exception_ptr) {
+                *m_requests[handle].m_end_time = Time::now();
                 {
-                    // acquire the mutex to access _idle_handles
-                    std::lock_guard<std::mutex> lock(_mutex);
+                    // acquire the mutex to access m_idle_handles
+                    std::lock_guard<std::mutex> lock(m_mutex);
                     // Add idle handle to queue
-                    _idle_handles.push(handle);
+                    m_idle_handles.push(handle);
                 }
                 // Notify locks in getIdleRequestId()
-                _cv.notify_one();
+                m_cv.notify_one();
 
                 try {
                     if (exception_ptr) {
@@ -99,79 +111,62 @@ public:
     }
 
     void set_custom_callbacks(py::function f_callback) {
-        for (size_t handle = 0; handle < _requests.size(); handle++) {
-            _requests[handle]._request.set_callback([this, f_callback, handle](std::exception_ptr exception_ptr) {
-                _requests[handle]._end_time = Time::now();
+        for (size_t handle = 0; handle < m_requests.size(); handle++) {
+            m_requests[handle].m_request.set_callback([this, f_callback, handle](std::exception_ptr exception_ptr) {
+                *m_requests[handle].m_end_time = Time::now();
                 if (exception_ptr == nullptr) {
                     // Acquire GIL, execute Python function
                     py::gil_scoped_acquire acquire;
                     try {
-                        f_callback(_requests[handle], _user_ids[handle]);
+                        f_callback(m_requests[handle], m_user_ids[handle]);
                     } catch (const py::error_already_set& py_error) {
                         // This should behave the same as assert(!PyErr_Occurred())
                         // since constructor for pybind11's error_already_set is
                         // performing PyErr_Fetch which clears error indicator and
                         // saves it inside itself.
                         assert(py_error.type());
-                        // acquire the mutex to access _errors
-                        std::lock_guard<std::mutex> lock(_mutex);
-                        _errors.push(py_error);
+                        // acquire the mutex to access m_errors
+                        std::lock_guard<std::mutex> lock(m_mutex);
+                        m_errors.push(py_error);
                     }
                 }
 
                 {
-                    // acquire the mutex to access _idle_handles
-                    std::lock_guard<std::mutex> lock(_mutex);
+                    // acquire the mutex to access m_idle_handles
+                    std::lock_guard<std::mutex> lock(m_mutex);
                     // Add idle handle to queue
-                    _idle_handles.push(handle);
+                    m_idle_handles.push(handle);
                 }
                 // Notify locks in getIdleRequestId()
-                _cv.notify_one();
+                m_cv.notify_one();
 
                 try {
                     if (exception_ptr) {
                         std::rethrow_exception(exception_ptr);
                     }
                 } catch (const std::exception& e) {
-                    // Notify locks in getIdleRequestId()
                     throw ov::Exception(e.what());
                 }
             });
         }
     }
 
-    std::vector<InferRequestWrapper> _requests;
-    std::queue<size_t> _idle_handles;
-    std::vector<py::object> _user_ids;  // user ID can be any Python object
-    std::mutex _mutex;
-    std::condition_variable _cv;
-    std::queue<py::error_already_set> _errors;
+    // AsyncInferQueue is the owner of all requests. When AsyncInferQueue is destroyed,
+    // all of requests are destroyed as well.
+    std::vector<InferRequestWrapper> m_requests;
+    std::queue<size_t> m_idle_handles;
+    std::vector<py::object> m_user_ids;  // user ID can be any Python object
+    std::mutex m_mutex;
+    std::condition_variable m_cv;
+    std::queue<py::error_already_set> m_errors;
 };
 
 void regclass_AsyncInferQueue(py::module m) {
     py::class_<AsyncInferQueue, std::shared_ptr<AsyncInferQueue>> cls(m, "AsyncInferQueue");
-    cls.doc() = "openvino.runtime.AsyncInferQueue represents helper that creates a pool of asynchronous"
+    cls.doc() = "openvino.runtime.AsyncInferQueue represents a helper that creates a pool of asynchronous"
                 "InferRequests and provides synchronization functions to control flow of a simple pipeline.";
 
-    cls.def(py::init([](ov::CompiledModel& model, size_t jobs) {
-                if (jobs == 0) {
-                    jobs = (size_t)Common::get_optimal_number_of_requests(model);
-                }
-                std::vector<InferRequestWrapper> requests;
-                std::queue<size_t> idle_handles;
-                std::vector<py::object> user_ids(jobs, py::none());
-
-                for (size_t handle = 0; handle < jobs; handle++) {
-                    auto request = InferRequestWrapper(model.create_infer_request());
-                    // Get Inputs and Outputs info from compiled model
-                    request._inputs = model.inputs();
-                    request._outputs = model.outputs();
-
-                    requests.push_back(request);
-                    idle_handles.push(handle);
-                }
-                return new AsyncInferQueue(requests, idle_handles, user_ids);
-            }),
+    cls.def(py::init<ov::CompiledModel&, size_t>(),
             py::arg("model"),
             py::arg("jobs") = 0,
             R"(
@@ -193,19 +188,19 @@ void regclass_AsyncInferQueue(py::module m) {
             // until there is at least one idle (free to use) InferRequest
             auto handle = self.get_idle_request_id();
             {
-                std::lock_guard<std::mutex> lock(self._mutex);
-                self._idle_handles.pop();
+                std::lock_guard<std::mutex> lock(self.m_mutex);
+                self.m_idle_handles.pop();
             }
             // Set new inputs label/id from user
-            self._user_ids[handle] = userdata;
+            self.m_user_ids[handle] = userdata;
             // Update inputs if there are any
-            self._requests[handle]._request.set_input_tensor(inputs);
+            self.m_requests[handle].m_request.set_input_tensor(inputs);
             // Now GIL can be released - we are NOT working with Python objects in this block
             {
                 py::gil_scoped_release release;
-                self._requests[handle]._start_time = Time::now();
+                *self.m_requests[handle].m_start_time = Time::now();
                 // Start InferRequest in asynchronus mode
-                self._requests[handle]._request.start_async();
+                self.m_requests[handle].m_request.start_async();
             }
         },
         py::arg("inputs"),
@@ -239,19 +234,19 @@ void regclass_AsyncInferQueue(py::module m) {
             // until there is at least one idle (free to use) InferRequest
             auto handle = self.get_idle_request_id();
             {
-                std::lock_guard<std::mutex> lock(self._mutex);
-                self._idle_handles.pop();
+                std::lock_guard<std::mutex> lock(self.m_mutex);
+                self.m_idle_handles.pop();
             }
             // Set new inputs label/id from user
-            self._user_ids[handle] = userdata;
+            self.m_user_ids[handle] = userdata;
             // Update inputs if there are any
-            Common::set_request_tensors(self._requests[handle]._request, inputs);
+            Common::set_request_tensors(self.m_requests[handle].m_request, inputs);
             // Now GIL can be released - we are NOT working with Python objects in this block
             {
                 py::gil_scoped_release release;
-                self._requests[handle]._start_time = Time::now();
+                *self.m_requests[handle].m_start_time = Time::now();
                 // Start InferRequest in asynchronus mode
-                self._requests[handle]._request.start_async();
+                self.m_requests[handle].m_request.start_async();
             }
         },
         py::arg("inputs"),
@@ -326,7 +321,7 @@ void regclass_AsyncInferQueue(py::module m) {
     cls.def(
         "__len__",
         [](AsyncInferQueue& self) {
-            return self._requests.size();
+            return self.m_requests.size();
         },
         R"(
         Number of InferRequests in the pool.
@@ -337,14 +332,14 @@ void regclass_AsyncInferQueue(py::module m) {
     cls.def(
         "__iter__",
         [](AsyncInferQueue& self) {
-            return py::make_iterator(self._requests.begin(), self._requests.end());
+            return py::make_iterator(self.m_requests.begin(), self.m_requests.end());
         },
         py::keep_alive<0, 1>()); /* Keep set alive while iterator is used */
 
     cls.def(
         "__getitem__",
         [](AsyncInferQueue& self, size_t i) {
-            return self._requests[i];
+            return self.m_requests[i];
         },
         R"(
         :param i: InferRequest id
@@ -356,7 +351,7 @@ void regclass_AsyncInferQueue(py::module m) {
     cls.def_property_readonly(
         "userdata",
         [](AsyncInferQueue& self) {
-            return self._user_ids;
+            return self.m_user_ids;
         },
         R"(
         :return: List of all passed userdata. List is filled with `None` if the data wasn't passed yet.
@@ -364,6 +359,6 @@ void regclass_AsyncInferQueue(py::module m) {
     )");
 
     cls.def("__repr__", [](const AsyncInferQueue& self) {
-        return "<AsyncInferQueue: " + std::to_string(self._requests.size()) + " jobs>";
+        return "<AsyncInferQueue: " + std::to_string(self.m_requests.size()) + " jobs>";
     });
 }

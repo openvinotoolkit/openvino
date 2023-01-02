@@ -30,8 +30,6 @@ public:
 
     void createPrimitive() override;
 
-    std::vector<VectorDims> shapeInfer() const override;
-
     void prepareParams() override;
 
     void executeDynamicImpl(dnnl::stream strm) override;
@@ -65,7 +63,7 @@ public:
 
     static std::string getReorderArgs(const MemoryDesc &parentDesc, const MemoryDesc &childDesc);
 
-    static void reorderData(const Memory &input, const Memory &output);
+    static void reorderData(const Memory &input, const Memory &output, MultiCachePtr cache = nullptr);
 
 private:
     std::shared_ptr<MemoryDesc> input;

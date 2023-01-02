@@ -3,6 +3,8 @@
 //
 
 #include "ie_metric_helpers.hpp"
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
+#include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/plugin/graph.hpp"
 #include "intel_gpu/plugin/itt.hpp"
 #include "intel_gpu/plugin/infer_request.hpp"
@@ -51,13 +53,209 @@ CompiledModel::CompiledModel(InferenceEngine::CNNNetwork &network, std::shared_p
     m_waitExecutor(executorManager()->getIdleCPUStreamsExecutor({ "GPUWaitExecutor" })) {
     auto casted_context = std::dynamic_pointer_cast<gpu::ClContext>(context);
 
-    if (nullptr == casted_context) {
-        IE_THROW() << "Invalid remote context";
-    }
+    OPENVINO_ASSERT((casted_context != nullptr), "Invalid remote context");
 
     m_context = casted_context;
 
     auto graph_base = std::make_shared<Graph>(network, m_context, m_config, 0);
+    for (uint16_t n = 0; n < m_config.throughput_streams; n++) {
+        auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
+        m_graphs.push_back(graph);
+    }
+}
+
+static InferenceEngine::Layout layout_from_string(const std::string & name) {
+    static const std::unordered_map<std::string, InferenceEngine::Layout> layouts = {
+        { "ANY", InferenceEngine::Layout::ANY },
+        { "NCHW", InferenceEngine::Layout::NCHW },
+        { "NHWC", InferenceEngine::Layout::NHWC },
+        { "NCDHW", InferenceEngine::Layout::NCDHW },
+        { "NDHWC", InferenceEngine::Layout::NDHWC },
+        { "OIHW", InferenceEngine::Layout::OIHW },
+        { "C", InferenceEngine::Layout::C },
+        { "CHW", InferenceEngine::Layout::CHW },
+        { "HWC", InferenceEngine::Layout::HWC },
+        { "HW", InferenceEngine::Layout::HW },
+        { "NC", InferenceEngine::Layout::NC },
+        { "CN", InferenceEngine::Layout::CN },
+        { "BLOCKED", InferenceEngine::Layout::BLOCKED }
+    };
+    auto it = layouts.find(name);
+    if (it != layouts.end()) {
+        return it->second;
+    }
+    IE_THROW(NetworkNotRead) << "Unknown layout with name '" << name << "'";
+}
+
+CompiledModel::CompiledModel(std::istream& networkModel, std::shared_ptr<InferenceEngine::RemoteContext> context, Config config) :
+    InferenceEngine::ExecutableNetworkThreadSafeDefault{[&]() -> InferenceEngine::ITaskExecutor::Ptr {
+        if (config.exclusiveAsyncRequests) {
+            //exclusiveAsyncRequests essentially disables the streams (and hence should be checked first) => aligned with the CPU behavior
+            return executorManager()->getExecutor("GPU");
+        }  else if (config.throughput_streams > 1) {
+            return std::make_shared<InferenceEngine::CPUStreamsExecutor>(
+                IStreamsExecutor::Config{"Intel GPU plugin executor", config.throughput_streams});
+        } else {
+            return std::make_shared<InferenceEngine::CPUStreamsExecutor>(
+                IStreamsExecutor::Config{"Intel GPU plugin executor", 1});
+        }
+    }()},
+    m_config(config),
+    m_taskExecutor{ _taskExecutor },
+    m_waitExecutor(executorManager()->getIdleCPUStreamsExecutor({ "GPUWaitExecutor" })) {
+    auto casted_context = std::dynamic_pointer_cast<gpu::ClContext>(context);
+
+    OPENVINO_ASSERT((casted_context != nullptr), "Invalid remote context");
+
+    m_context = casted_context;
+
+    cldnn::BinaryInputBuffer ib(networkModel, *getContextImpl(m_context)->GetEngine());
+
+    // InputsInfo and OutputsInfor for CNNNetwork
+    {
+        size_t inputSize;
+        ib >> inputSize;
+
+        InputsDataMap inputs;
+
+        for (size_t idx = 0; idx < inputSize; ++idx) {
+            std::string name;
+            std::string precision;
+            std::string layout;
+            ib >> name;
+            ib >> precision;
+            ib >> layout;
+
+            DataPtr input = std::make_shared<Data>(name, Precision::FromStr(precision), layout_from_string(layout));
+            InputInfo::Ptr infoNew = std::make_shared<InputInfo>();
+            infoNew->setInputData(input);
+            inputs.emplace(std::make_pair(name, infoNew));
+        }
+
+        size_t outputSize;
+        ib >> outputSize;
+
+        OutputsDataMap outputs;
+
+        for (size_t idx = 0; idx < outputSize; ++idx) {
+            std::string name;
+            std::string precision;
+            std::string layout;
+            ib >> name;
+            ib >> precision;
+            ib >> layout;
+
+            DataPtr output = std::make_shared<Data>(name, Precision::FromStr(precision), layout_from_string(layout));
+            outputs.emplace(std::make_pair(name, output));
+        }
+
+        setNetworkInputs(inputs);
+        setNetworkOutputs(outputs);
+    }
+
+    {
+        std::vector<std::shared_ptr<const ov::Node>> new_params;
+        size_t num_params;
+        ib >> num_params;
+
+        for (size_t idx = 0; idx < num_params; ++idx) {
+            std::string param_name;
+            ib >> param_name;
+            ov::element::Type param_element_type;
+            std::string str_element_type;
+            ib >> str_element_type;
+            std::stringstream oss(str_element_type);
+            oss >> param_element_type;
+            ov::Shape param_shape;
+            size_t shape_size;
+            ib >> shape_size;
+            param_shape.resize(shape_size);
+            for (size_t i = 0; i < shape_size; ++i) {
+                size_t dim;
+                ib >> dim;
+                param_shape[i] = dim;
+            }
+            std::string str_layout;
+            ib >> str_layout;
+            ov::Layout param_layout(str_layout);
+            std::unordered_set<std::string> param_names;
+            size_t num_names;
+            ib >> num_names;
+            for (size_t i = 0; i < num_names; ++i) {
+                std::string name;
+                ib >> name;
+                param_names.emplace(name);
+            }
+
+            auto new_param = std::make_shared<ov::op::v0::Parameter>(param_element_type, param_shape);
+            new_param->set_friendly_name(param_name);
+            new_param->set_element_type(param_element_type);
+            new_param->set_layout(param_layout);
+            new_param->output(0).get_tensor().set_names(param_names);
+            new_param->validate_and_infer_types();
+            new_params.emplace_back(new_param);
+        }
+
+        setInputs(new_params);
+    }
+
+    {
+        std::vector<std::shared_ptr<const ov::Node>> new_results;
+        size_t num_results;
+        ib >> num_results;
+
+        for (size_t idx = 0; idx < num_results; ++idx) {
+            ov::element::Type fake_element_type;
+            std::string str_element_type;
+            ib >> str_element_type;
+            std::stringstream oss(str_element_type);
+            oss >> fake_element_type;
+
+            ov::Shape fake_shape;
+            size_t shape_size;
+            ib >> shape_size;
+            fake_shape.resize(shape_size);
+            for (size_t i = 0; i < shape_size; ++i) {
+                size_t dim;
+                ib >> dim;
+                fake_shape[i] = dim;
+            }
+
+            std::string fake_name;
+            ib >> fake_name;
+
+            std::string param_name;
+            ib >> param_name;
+
+            std::string str_layout;
+            ib >> str_layout;
+            ov::Layout param_layout(str_layout);
+
+            std::unordered_set<std::string> param_names;
+            size_t num_names;
+            ib >> num_names;
+            for (size_t i = 0; i < num_names; ++i) {
+                std::string name;
+                ib >> name;
+                param_names.emplace(name);
+            }
+
+            auto fake_param = std::make_shared<ov::op::v0::Parameter>(fake_element_type, fake_shape);
+            fake_param->set_friendly_name(fake_name);
+            fake_param->validate_and_infer_types();
+
+            auto new_result = std::make_shared<ov::op::v0::Result>(fake_param);
+            new_result->set_friendly_name(param_name);
+            new_result->set_layout(param_layout);
+            new_result->output(0).get_tensor().set_names(param_names);
+            new_result->validate_and_infer_types();
+            new_results.emplace_back(new_result);
+        }
+
+        setOutputs(new_results);
+    }
+
+    auto graph_base = std::make_shared<Graph>(ib, m_context, m_config, 0);
     for (uint16_t n = 0; n < m_config.throughput_streams; n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
         m_graphs.push_back(graph);
@@ -144,6 +342,125 @@ IInferRequestInternal::Ptr CompiledModel::CreateInferRequest() {
                                                _callbackExecutor);
 }
 
+bool CompiledModel::is_serializable() {
+    // Model with multiple graphs is not yet supported.
+    if (m_graphs.size() != 1)
+        return false;
+
+    // Dynamic model serialization is not yet supported.
+    if (m_graphs[0]->GetNetwork()->is_dynamic())
+        return false;
+
+    return true;
+}
+
+// Cache blob format:
+//     [ ConstInputsDataMap / ConstOutputsDataMap ]
+//     [ ov::Node::Input/ ov::Node::Output ]
+//     [ ov::intel_gpu::Graph ]
+void CompiledModel::Export(std::ostream& networkModel) {
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CompiledModel::Export");
+    if (m_graphs.empty())
+        IE_THROW(NetworkNotLoaded);
+
+    if (!is_serializable())
+        return;
+
+    cldnn::BinaryOutputBuffer ob(networkModel);
+
+    // InputsInfo and OutputsInfo for CNNNetwork
+    {
+        ob << GetInputsInfo().size();
+
+        for (const auto & in : GetInputsInfo()) {
+            ob << in.first;
+            std::string precision(in.second->getPrecision().name());
+            ob << precision;
+            std::stringstream ss;
+            ss << in.second->getInputData()->getLayout();
+            ob << ss.str();
+        }
+
+        ob << GetOutputsInfo().size();
+
+        for (const auto & out : GetOutputsInfo()) {
+            ob << out.first;
+            std::string precision(out.second->getPrecision().name());
+            ob << precision;
+            std::stringstream ss;
+            ss << out.second->getLayout();
+            ob << ss.str();
+        }
+    }
+
+    // Inputs
+    {
+        std::vector<std::shared_ptr<const ov::Node>> const_params = getInputs();
+        ob << const_params.size();
+
+        for (const auto& param : const_params) {
+            auto new_param = ov::as_type_ptr<const ov::op::v0::Parameter>(param);
+            std::string param_name = new_param->get_friendly_name();
+            ov::element::Type param_element_type = new_param->get_element_type();
+            ov::PartialShape param_shape = new_param->get_partial_shape();
+            ov::Layout param_layout = new_param->get_layout();
+            // ov::RTMap param_rt_info = new_param->output(0).get_rt_info();
+            auto param_names = new_param->output(0).get_tensor().get_names();
+
+            ob << param_name;
+            std::stringstream ss;
+            ss << param_element_type;
+            ob << ss.str();
+            ov::Shape static_shape = param_shape.get_shape();
+            ob << static_shape.size();
+            for (size_t dim : static_shape) {
+                ob << dim;
+            }
+            ob << param_layout.to_string();
+            ob << param_names.size();
+            for (auto name : param_names) {
+                ob << name;
+            }
+        }
+    }
+
+    // Outputs
+    {
+        std::vector<std::shared_ptr<const ov::Node>> const_results = getOutputs();
+        ob << const_results.size();
+
+        for (const auto& param : const_results) {
+            auto new_param = ov::as_type_ptr<const ov::op::v0::Result>(param);
+
+            ov::element::Type fake_element_type = new_param->get_input_element_type(0);
+            ov::PartialShape fake_shape = new_param->get_input_partial_shape(0);
+            std::string fake_name = new_param->get_input_node_ptr(0)->get_friendly_name();
+
+            std::string param_name = new_param->get_friendly_name();
+            ov::Layout param_layout = new_param->get_layout();
+            auto param_names = new_param->output(0).get_tensor().get_names();
+
+            std::stringstream ss;
+            ss << fake_element_type;
+            ob << ss.str();
+            ov::Shape static_shape = fake_shape.get_shape();
+            ob << static_shape.size();
+            for (size_t dim : static_shape) {
+                ob << dim;
+            }
+            ob << fake_name;
+            ob << param_name;
+            ob << param_layout.to_string();
+            ob << param_names.size();
+            for (auto name : param_names) {
+                ob << name;
+            }
+        }
+    }
+
+    return m_graphs.front()->Export(ob);
+}
+
 std::shared_ptr<ngraph::Function> CompiledModel::GetExecGraphInfo() {
     if (m_graphs.empty())
         IE_THROW(NetworkNotLoaded);
@@ -219,7 +536,8 @@ InferenceEngine::Parameter CompiledModel::GetMetric(const std::string &name) con
             ov::PropertyName{ov::num_streams.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::num_requests.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RO},
-            ov::PropertyName{ov::device::id.name(), PropertyMutability::RO}
+            ov::PropertyName{ov::device::id.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::execution_devices.name(), PropertyMutability::RO}
         };
     } else if (name == ov::model_name) {
         IE_ASSERT(!m_graphs.empty());
@@ -242,6 +560,8 @@ InferenceEngine::Parameter CompiledModel::GetMetric(const std::string &name) con
         if (m_config.perfHintsConfig.ovPerfHint != CONFIG_VALUE(LATENCY))
             nr *= 2;
         return decltype(ov::optimal_number_of_infer_requests)::value_type {nr};
+    } else if (name == ov::execution_devices) {
+        return decltype(ov::execution_devices)::value_type{m_context->getDeviceName()};
     } else {
         IE_THROW() << "Unsupported ExecutableNetwork metric: " << name;
     }

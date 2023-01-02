@@ -28,7 +28,7 @@ void strided_slice_optimize::run(program& p) {
 
             auto& deps = node->get_dependencies();
             for (size_t i = deps.size(); i--;)
-                if (deps[i]->is_type<data>())
+                if (deps[i].first->is_type<data>())
                     node->remove_dependency(i);
 
             auto node_layout = strided_slice_node.get_output_layout();

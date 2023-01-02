@@ -27,6 +27,7 @@ using proposal_node = typed_program_node<proposal>;
 template <>
 class typed_primitive_inst<proposal> : public typed_primitive_inst_base<proposal> {
     using parent = typed_primitive_inst_base<proposal>;
+    using parent::parent;
 
 public:
     struct anchor {

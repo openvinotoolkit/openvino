@@ -19,7 +19,7 @@ TEST(attributes, batch_to_space_op) {
     auto crops_end = make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{0, 0});
     auto batch2space = make_shared<op::v1::BatchToSpace>(data, block_shape, crops_begin, crops_end);
 
-    NodeBuilder builder(batch2space);
+    NodeBuilder builder(batch2space, {data});
     const auto expected_attr_count = 0;
 
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);

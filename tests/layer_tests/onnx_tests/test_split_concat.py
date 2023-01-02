@@ -3,7 +3,7 @@
 
 import pytest
 
-from common.onnx_layer_test_class import Caffe2OnnxLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest
 
 test_data_3D = [
     dict(input_shape=[1, 50, 50], output_shapes=[[1, 50, 25], [1, 50, 25]], axis=2),
@@ -102,7 +102,7 @@ test_multiple_out_with_identity = [
 ]
 
 
-class TestSplitConcat(Caffe2OnnxLayerTest):
+class TestSplitConcat(OnnxRuntimeLayerTest):
     # TODO Add test with default values (axis=0)
     def create_split_concat_net(self, input_shape, output_shapes, axis, ir_version):
         """
@@ -191,7 +191,7 @@ class TestSplitConcat(Caffe2OnnxLayerTest):
         concat_output_shape[concat_axis] *= 2
 
         const_number = np.prod(input_shape)
-        constant = np.random.randint(-127, 127, const_number).astype(np.float)
+        constant = np.random.randint(-127, 127, const_number).astype(float)
 
         input = helper.make_tensor_value_info('input', TensorProto.FLOAT, input_shape)
         outputs, split = [], []
@@ -299,7 +299,7 @@ class TestSplitConcat(Caffe2OnnxLayerTest):
             precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
 
-class TestSplit(Caffe2OnnxLayerTest):
+class TestSplit(OnnxRuntimeLayerTest):
     # TODO Add test with default values (axis=0)
     def create_split_net(self, input_shape, output_shapes, axis, ir_version):
         """

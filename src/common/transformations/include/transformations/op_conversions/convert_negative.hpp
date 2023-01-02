@@ -5,20 +5,26 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 #include <vector>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertNegative;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::ConvertNegative : public ngraph::pass::MatcherPass {
+class ov::pass::ConvertNegative : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertNegative", "0");
     ConvertNegative();
 };
+
+namespace ngraph {
+namespace pass {
+using ov::pass::ConvertNegative;
+}  // namespace pass
+}  // namespace ngraph

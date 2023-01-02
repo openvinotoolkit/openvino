@@ -20,6 +20,7 @@ ParamsKey FullyConnected_bfyx_Ref::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableInputWeightsType(WeightsType::F16);
     k.EnableInputWeightsType(WeightsType::F32);
+    k.EnableInputWeightsType(WeightsType::UINT8);
     k.EnableInputWeightsType(WeightsType::INT8);
     k.EnableAllInputLayout();
     k.EnableDifferentInputWeightsTypes();
@@ -34,6 +35,7 @@ ParamsKey FullyConnected_bfyx_Ref::GetSupportedKey() const {
     k.EnableTensorPitches();
     k.EnableBatching();
     k.EnableQuantization(QuantizationType::SYMMETRIC);
+    k.EnableDynamicShapesSupport();
     return k;
 }
 
@@ -103,6 +105,7 @@ bool FullyConnected_bfyx_Ref::Validate(const Params& params, const optional_para
     const auto& fc_params = static_cast<const fully_connected_params&>(params);
     auto input_type = fc_params.inputs[0].GetDType();
     auto output_type = fc_params.outputs[0].GetDType();
+    auto filter_type = fc_params.weights.GetDType();
 
     // int8/uint8 inputs (quantization case) require additional checks
     // require some additional checks.
@@ -111,15 +114,9 @@ bool FullyConnected_bfyx_Ref::Validate(const Params& params, const optional_para
         return true;
 
     bool is_quantization = (input_type == Datatype::INT8 || input_type == Datatype::UINT8) &&
-                           (output_type == Datatype::INT8 || output_type == Datatype::UINT8 ||
-                            output_type == Datatype::F32 || output_type == Datatype::F16) &&
-                           (fc_params.weights.GetDType() == WeightsType::INT8);
+                           (filter_type == WeightsType::INT8 || filter_type == WeightsType::UINT8);
 
-    bool has_fused_op = (input_type == Datatype::F32 || input_type == Datatype::F16) &&
-                        !fc_params.fused_ops.empty() &&
-                        (output_type == Datatype::INT8 || output_type == Datatype::UINT8);
-
-    if (!is_quantization && !has_fused_op)
+    if (!is_quantization)
         return false;
 
     // We don't support 4d output

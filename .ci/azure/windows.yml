@@ -4,11 +4,12 @@ trigger:
     - master
     - releases/*
   paths:
-    exclude: 
+    exclude:
     - docs/
     - /**/docs/*
     - /**/*.md
     - README.md
+    - /**/layer_tests_summary/**
 
 pr:
   branches:
@@ -16,11 +17,12 @@ pr:
     - master
     - releases/*
   paths:
-    exclude: 
+    exclude:
     - docs/
     - /**/docs/*
     - /**/*.md
     - README.md
+    - /**/layer_tests_summary/**
 
 resources:
   repositories:
@@ -71,16 +73,44 @@ jobs:
     SETUPVARS: $(INSTALL_DIR)\setupvars.bat
     IB_DIR: C:\Program Files (x86)\IncrediBuild
     IB_TESTCONSOLE: $(IB_DIR)\IBTestConsole.exe
-    PYTHON_DIR: C:\hostedtoolcache\windows\Python\3.7.6\x64
-    CMAKE_VERSION: 3.21.0
+    PYTHON_DIR: C:\hostedtoolcache\windows\Python\3.10.7\x64
+    CMAKE_VERSION: 3.24.0
     CMAKE_CMD: $(WORK_DIR)\cmake-$(CMAKE_VERSION)-windows-x86_64\cmake-$(CMAKE_VERSION)-windows-x86_64\bin\cmake.exe
     OV_CMAKE_TOOLCHAIN_FILE: $(REPO_DIR)\cmake\toolchains\mt.runtime.win32.toolchain.cmake
+    PYTHON_VENV_DIR: $(WORK_DIR)\.venv
+
 
   steps:
   - script: |
+      rd /Q /S $(WORK_DIR) & mkdir $(WORK_DIR)
+      rd /Q /S $(BUILD_DIR) & mkdir $(BUILD_DIR)
+      rd /Q /S $(WORK_DIR) & mkdir C:\hostedtoolcache\windows\Python\3.10.7
+      rd /Q /S $(BUILD_DIR) & mkdir C:\hostedtoolcache\windows\Python\3.10.7\x64
+      rd /Q /S $(BUILD_SAMPLES_DIR) & mkdir $(BUILD_SAMPLES_DIR)
+      rd /Q /S $(BUILD_SAMPLES_TESTS_DIR) & mkdir $(BUILD_SAMPLES_TESTS_DIR)
+    displayName: 'Make dir'
+
+  - script: curl -O https://www.python.org/ftp/python/3.10.7/python-3.10.7-amd64.exe
+    displayName: 'Download Python'
+    workingDirectory: $(WORK_DIR)
+    continueOnError: false
+
+  - script: |
+      python-3.10.7-amd64.exe /passive InstallAllUsers=0 Include_launcher=0 TargetDir=C:\hostedtoolcache\windows\Python\3.10.7\x64
+      cp C:\hostedtoolcache\windows\Python\3.8.2\x64.complete C:\hostedtoolcache\windows\Python\3.10.7\x64.complete
+    displayName: 'Install Python'
+    workingDirectory: $(WORK_DIR)
+    continueOnError: false
+
+  - task: UsePythonVersion@0
+    displayName: 'Use Python'
+    inputs:
+      versionSpec: '3.10'
+      disableDownloadFromRegistry: true
+
+  - script: |
       powershell -command "Invoke-RestMethod -Headers @{\"Metadata\"=\"true\"} -Method GET -Uri http://169.254.169.254/metadata/instance/compute?api-version=2019-06-01 | format-custom"
-      where python3
-      python3 --version
+      tree C:\hostedtoolcache\windows\Python
       where python
       python --version
       where java
@@ -91,13 +121,6 @@ jobs:
       wmic VOLUME list
       set
     displayName: 'System info'
-
-  - script: |
-      rd /Q /S $(WORK_DIR) & mkdir $(WORK_DIR)
-      rd /Q /S $(BUILD_DIR) & mkdir $(BUILD_DIR)
-      rd /Q /S $(BUILD_SAMPLES_DIR) & mkdir $(BUILD_SAMPLES_DIR)
-      rd /Q /S $(BUILD_SAMPLES_TESTS_DIR) & mkdir $(BUILD_SAMPLES_TESTS_DIR)
-    displayName: 'Make dir'
 
   - script: |
       curl -O https://openvinoweb.z5.web.core.windows.net/incredibuild/install_ib_console.bat
@@ -129,9 +152,11 @@ jobs:
       python -m pip install -r $(REPO_DIR)\src\bindings\python\wheel\requirements-dev.txt
       python -m pip install -r $(REPO_DIR)\src\bindings\python\requirements.txt
       rem For running Paddle frontend unit tests
-      python -m pip install -r $(REPO_DIR)\src\core\tests\frontend\paddle\requirements_dev.txt
+      python -m pip install -r $(REPO_DIR)\src\frontends\paddle\tests\requirements.txt
       rem For running ONNX frontend unit tests
-      python -m pip install -r $(REPO_DIR)\src\frontends/onnx\tests\requirements.txt
+      python -m pip install -r $(REPO_DIR)\src\frontends\onnx\tests\requirements.txt
+      rem For running TensorFlow frontend unit tests
+      python -m pip install -r $(REPO_DIR)\src\frontends\tensorflow\tests\requirements.txt
       rem For MO unit tests
       python -m pip install -r $(REPO_DIR)\tools\mo\requirements.txt
       python -m pip install -r $(REPO_DIR)\tools\mo\requirements_dev.txt
@@ -154,7 +179,6 @@ jobs:
       call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) -G "Ninja Multi-Config" ^
         -DENABLE_ONEDNN_FOR_GPU=$(CMAKE_BUILD_SHARED_LIBS) ^
         -DBUILD_SHARED_LIBS=$(CMAKE_BUILD_SHARED_LIBS) ^
-        -DENABLE_REQUIREMENTS_INSTALL=OFF ^
         -DENABLE_FASTER_BUILD=ON ^
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) ^
         -DENABLE_TESTS=ON ^
@@ -162,14 +186,14 @@ jobs:
         -DENABLE_STRICT_DEPENDENCIES=OFF ^
         -DENABLE_PYTHON=ON ^
         -DBUILD_nvidia_plugin=OFF ^
-        -DPYTHON_EXECUTABLE="C:\hostedtoolcache\windows\Python\3.7.6\x64\python.exe" ^
-        -DPYTHON_INCLUDE_DIR="C:\hostedtoolcache\windows\Python\3.7.6\x64\include" ^
-        -DPYTHON_LIBRARY="C:\hostedtoolcache\windows\Python\3.7.6\x64\libs\python37.lib" ^
+        -DPYTHON_EXECUTABLE="C:\hostedtoolcache\windows\Python\3.10.7\x64\python.exe" ^
+        -DPYTHON_INCLUDE_DIR="C:\hostedtoolcache\windows\Python\3.10.7\x64\include" ^
+        -DPYTHON_LIBRARY="C:\hostedtoolcache\windows\Python\3.10.7\x64\libs\python310.lib" ^
         -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)\modules ^
         -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
         -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
         -S $(REPO_DIR) -B $(BUILD_DIR)
-    displayName: 'CMake'
+    displayName: 'CMake OpenVINO'
 
   - script: dir $(REPO_DIR)\temp\ /s
     displayName: 'List temp SDKs'
@@ -182,13 +206,15 @@ jobs:
   - script: dir $(REPO_DIR)\bin\ /s
     displayName: 'List bin files'
 
-  - script: $(CMAKE_CMD) -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_DIR)/cmake_install.cmake
+  - script: |
+      $(CMAKE_CMD) -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_DIR)/cmake_install.cmake
     displayName: 'Install'
 
   - script: dir $(INSTALL_DIR) /s
     displayName: 'List install files'
 
-  - script: python -m pip install openvino-dev --find-links=$(INSTALL_DIR)\tools
+  - script: |
+      python -m pip install openvino-dev --find-links=$(INSTALL_DIR)\tools
     displayName: 'Install Wheels'
 
   - script: |
@@ -199,7 +225,8 @@ jobs:
         -B $(BUILD_SAMPLES_TESTS_DIR)
     displayName: 'CMake Samples Tests'
 
-  - script: $(CMAKE_CMD) -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_SAMPLES_TESTS_DIR)\cmake_install.cmake
+  - script: |
+      $(CMAKE_CMD) -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_SAMPLES_TESTS_DIR)\cmake_install.cmake
     displayName: 'Install Samples Tests'
 
   - script: $(INSTALL_DIR)\samples\cpp\build_samples_msvc.bat -i $(INSTALL_DIR)
@@ -210,7 +237,8 @@ jobs:
     displayName: 'Build c samples'
     continueOnError: false
 
-  - script: python -m pip install -r $(INSTALL_TEST_DIR)\smoke_tests\requirements.txt
+  - script: |
+      python -m pip install -r $(INSTALL_TEST_DIR)\smoke_tests\requirements.txt
     displayName: 'Install dependencies for samples smoke tests'
     continueOnError: false
 
@@ -237,6 +265,22 @@ jobs:
     displayName: 'OV Core UT'
     continueOnError: false
 
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_inference_functional_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-InferenceFunc.xml
+    displayName: 'Inference Func Tests'
+    continueOnError: false
+
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_inference_unit_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-InferenceUnit.xml
+    displayName: 'Inference Unit Tests'
+    continueOnError: false
+
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_conditional_compilation_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ConditionalCompilation.xml
+    displayName: 'Conditional Compilation Tests'
+    continueOnError: false
+
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-PaddleTests.xml
+    displayName: 'Paddle Tests'
+    continueOnError: false
+
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_ir_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-IRFrontend.xml
     displayName: 'IR Frontend Tests'
     continueOnError: false
@@ -251,6 +295,14 @@ jobs:
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-Tensorflow.xml
     displayName: 'TensorFlow Frontend Unit Tests'
+    continueOnError: false
+
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_lp_transformations_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\LpTransformations.xml
+    displayName: 'Low Precision Transformations Tests'
+    continueOnError: false
+
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_transformations_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\Transformations.xml
+    displayName: 'Transformations Tests'
     continueOnError: false
 
     # set PATH=$(IB_DIR);%PATH%

@@ -28,6 +28,7 @@ using tile_node = typed_program_node<tile>;
 template <>
 class typed_primitive_inst<tile> : public typed_primitive_inst_base<tile> {
     using parent = typed_primitive_inst_base<tile>;
+    using parent::parent;
 
 public:
     template<typename ShapeType>

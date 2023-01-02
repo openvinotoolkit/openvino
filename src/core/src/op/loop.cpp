@@ -4,6 +4,7 @@
 
 #include "ngraph/op/loop.hpp"
 
+#include <climits>
 #include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
@@ -14,8 +15,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v5::Loop);
 
 op::v5::Loop::Loop(const Output<Node>& trip_count, const Output<Node>& execution_condition) : SubGraphOp() {
     set_argument(0, trip_count);
@@ -152,6 +151,10 @@ void op::v5::Loop::validate_and_infer_types() {
                           get_input_size() == m_input_descriptions[0].size() + input_offset,
                           "Number of inputs must be the same as number of input descriptions");
 
+    // if output shape is not same with input in a back-edge, here will update the input shape
+    // Port map processing: output -> input
+    std::map<uint64_t, uint64_t> back_edges;
+
     // Input
     for (const auto& input_description : m_input_descriptions[0]) {
         auto index = input_description->m_input_index;
@@ -177,6 +180,7 @@ void op::v5::Loop::validate_and_infer_types() {
             auto input_partial_shape = input(index).get_partial_shape();
 
             body_parameter->set_partial_shape(input_partial_shape);
+            back_edges[merged_input_description->m_body_value_index] = merged_input_description->m_body_parameter_index;
         } else if (auto invariant_input_description =
                        ov::as_type_ptr<v0::TensorIterator::InvariantInputDescription>(input_description)) {
             auto body_parameter = m_bodies[0]->get_parameters().at(invariant_input_description->m_body_parameter_index);
@@ -190,6 +194,72 @@ void op::v5::Loop::validate_and_infer_types() {
 
     // Body
     m_bodies[0]->validate_nodes_and_infer_types();
+
+    if (!back_edges.empty()) {
+        // if an exact value is available, limit the number of iterations.
+        size_t i, max_num_of_iterations = m_num_iterations == -1 ? INT_MAX : m_num_iterations;
+        bool need_reinvalidate = false;
+        for (i = 0; i < max_num_of_iterations; i++) {
+            need_reinvalidate = false;
+            for (const auto& output_description : m_output_descriptions[0]) {
+                auto body_value = m_bodies[0]->get_results().at(output_description->m_body_value_index)->input_value(0);
+
+                if (auto body_output_description =
+                        ov::as_type_ptr<v0::TensorIterator::BodyOutputDescription>(output_description)) {
+                    if (!back_edges.count(output_description->m_body_value_index))
+                        continue;
+                    const ov::PartialShape& body_value_shape = body_value.get_partial_shape();
+                    auto input_param =
+                        m_bodies[0]->get_parameters().at(back_edges[output_description->m_body_value_index]);
+                    const auto& input_param_ps = input_param->get_partial_shape();
+                    if (body_value_shape.rank().is_static()) {
+                        // handle the case: when sub-model's output shape does not compatible input shape in a
+                        // back-edge, such as
+                        //          Parameter(out:-1, 1)->|
+                        //                                |->Concat(out:-1, 2)->Result(out:-1, 2)
+                        //          Parameter(out:-1, 1)->|   (axis==1)
+                        // when iteration number is unknown or sub-model output shape may be vary, the Result shape
+                        // should infer as (-1, -1), then set changed one to input and propagate to others.
+                        if (input_param_ps.rank().is_static()) {
+                            const auto body_rank_len = body_value_shape.rank().get_length();
+                            const auto input_rank_len = input_param_ps.rank().get_length();
+                            ov::PartialShape new_ps;
+                            bool shape_changed = false;
+                            if (body_rank_len == input_rank_len) {
+                                new_ps = body_value_shape;
+                                for (auto j = 0; j < body_rank_len; j++) {
+                                    if (!body_value_shape[j].compatible(input_param_ps[j])) {
+                                        new_ps[j] = Dimension::dynamic();
+                                        shape_changed = true;
+                                    }
+                                }
+                            } else {
+                                new_ps = ov::PartialShape::dynamic();
+                                shape_changed = true;
+                            }
+                            // reset sub model input shape
+                            if (shape_changed) {
+                                need_reinvalidate = true;
+                                input_param->set_partial_shape(new_ps);
+                            }
+                        }
+                    } else {
+                        if (input_param_ps.rank().is_static()) {
+                            // output shape is dynamic, let the input known now we are dynamic shape
+                            input_param->set_partial_shape(body_value_shape);
+                            need_reinvalidate = true;
+                        }
+                    }
+                }
+            }
+            // only input shape changed we will re-compute output shape
+            if (need_reinvalidate) {
+                m_bodies[0]->validate_nodes_and_infer_types();
+            } else {
+                break;
+            }
+        }
+    }
 
     // Output
     for (const auto& output_description : m_output_descriptions[0]) {
@@ -221,11 +291,11 @@ void op::v5::Loop::validate_and_infer_types() {
 
         else if (auto body_output_description =
                      ov::as_type_ptr<v0::TensorIterator::BodyOutputDescription>(output_description)) {
-            const ov::PartialShape& ps = body_value.get_partial_shape();
-            if (ps.is_dynamic()) {
-                set_output_type(index, body_value.get_element_type(), ps);
+            const ov::PartialShape& body_value_shape = body_value.get_partial_shape();
+            if (body_value_shape.is_dynamic()) {
+                set_output_type(index, body_value.get_element_type(), body_value_shape);
             } else {
-                auto shape = ps.get_shape();
+                auto shape = body_value_shape.get_shape();
                 if (zero_number_of_iter) {
                     shape.at(0) = 0;
                 }
@@ -305,5 +375,3 @@ void op::v5::Loop::clone_to(op::v5::Loop& dst, const OutputVector& new_args) con
 op::v5::Loop::Loop(const op::v5::Loop& other) : SubGraphOp() {
     other.clone_to(*this, other.input_values());
 }
-
-BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::op::v5::Loop::SpecialBodyPorts>);

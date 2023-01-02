@@ -15,6 +15,7 @@
 #include "op/abs.hpp"
 #include "op/acos.hpp"
 #include "op/acosh.hpp"
+#include "op/adaptive_avg_pooling2d.hpp"
 #include "op/add.hpp"
 #include "op/affine.hpp"
 #include "op/and.hpp"
@@ -80,6 +81,8 @@
 #include "op/if.hpp"
 #include "op/image_scaler.hpp"
 #include "op/instance_norm.hpp"
+#include "op/is_finite.hpp"
+#include "op/is_inf.hpp"
 #include "op/is_nan.hpp"
 #include "op/leaky_relu.hpp"
 #include "op/less.hpp"
@@ -279,6 +282,7 @@ void OperatorsBridge::overwrite_operator(const std::string& name, const std::str
 }
 
 static const char* const MICROSOFT_DOMAIN = "com.microsoft";
+static const char* const PYTORCH_ATEN_DOMAIN = "org.pytorch.aten";
 
 #define REGISTER_OPERATOR(name_, ver_, fn_) \
     m_map[""][name_].emplace(ver_, std::bind(op::set_##ver_::fn_, std::placeholders::_1));
@@ -360,6 +364,8 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("If", 1, if_op);
     REGISTER_OPERATOR("ImageScaler", 1, image_scaler);
     REGISTER_OPERATOR("InstanceNormalization", 1, instance_norm);
+    REGISTER_OPERATOR("IsFinite", 1, is_finite);
+    REGISTER_OPERATOR("IsInf", 1, is_inf);
     REGISTER_OPERATOR("IsNaN", 1, is_nan)
     REGISTER_OPERATOR("LeakyRelu", 1, leaky_relu);
     REGISTER_OPERATOR("Less", 1, less);
@@ -514,6 +520,8 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "EmbedLayerNormalization", 1, embed_layer_normalization);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "SkipLayerNormalization", 1, skip_layer_normalization);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "Trilu", 1, trilu);
+
+    REGISTER_OPERATOR_WITH_DOMAIN(PYTORCH_ATEN_DOMAIN, "adaptive_avg_pool2d", 1, adaptive_avg_pooling2d);
 }
 
 #undef REGISTER_OPERATOR

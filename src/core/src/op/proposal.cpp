@@ -12,8 +12,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::Proposal);
-
 op::v0::Proposal::Proposal(const Output<Node>& class_probs,
                            const Output<Node>& bbox_deltas,
                            const Output<Node>& image_shape,
@@ -78,8 +76,6 @@ bool op::v0::Proposal::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("framework", m_attrs.framework);
     return true;
 }
-
-BWDCMP_RTTI_DEFINITION(op::v4::Proposal);
 
 op::v4::Proposal::Proposal(const Output<Node>& class_probs,
                            const Output<Node>& class_bbox_deltas,
