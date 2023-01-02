@@ -194,6 +194,10 @@ ov::Any py_object_to_any(const py::object& py_obj) {
             }
         }
 
+        // In case of empty vector works like with vector of strings
+        if (_list.empty())
+            return _list.cast<std::vector<std::string>>();
+
         switch (detected_type) {
         case PY_TYPE::STR:
             return _list.cast<std::vector<std::string>>();
