@@ -56,14 +56,12 @@ jobs:
     BUILD_ONETBB: $(WORK_DIR)/build_onetbb
     BUILD_OPENVINO: $(WORK_DIR)/build
     BUILD_OPENVINO_PYTHON: $(WORK_DIR)/build_python
-    BUILD_OPEN_MODEL_ZOO: $(WORK_DIR)/build_open_model_zoo
     CROSSENV_DIR: $(WORK_DIR)/cross_env
     INSTALL_OPENVINO: $(WORK_DIR)/install_openvino
     INSTALL_PYTHON: $(INSTALL_OPENVINO)/extras/python
     INSTALL_ONETBB: $(WORK_DIR)/build/extras/oneTBB
     INSTALL_ONETBB_PACKAGE: $(INSTALL_OPENVINO)/extras/oneTBB
     INSTALL_OPENCV: $(INSTALL_OPENVINO)/extras/opencv
-    INSTALL_OPEN_MODEL_ZOO: $(INSTALL_OPENVINO)/extras/open_model_zoo
     WORK_DIR: $(Pipeline.Workspace)/_w
     SHARE_DIR: /mount/cinfsshare/onnxtestdata
     TMP_DIR: /mnt/tmp
@@ -98,8 +96,8 @@ jobs:
 
   - script: |
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
-      mkdir -p $(BUILD_ONETBB) $(BUILD_OPENCV) $(BUILD_OPENVINO) $(BUILD_OPENVINO_PYTHON) $(BUILD_PYTHON) $(BUILD_OPEN_MODEL_ZOO)
-      mkdir -p $(INSTALL_ONETBB) $(INSTALL_ONETBB_PACKAGE) $(INSTALL_OPENVINO) $(INSTALL_PYTHON) $(INSTALL_OPENCV) $(INSTALL_OPEN_MODEL_ZOO)
+      mkdir -p $(BUILD_ONETBB) $(BUILD_OPENCV) $(BUILD_OPENVINO) $(BUILD_OPENVINO_PYTHON) $(BUILD_PYTHON)
+      mkdir -p $(INSTALL_ONETBB) $(INSTALL_ONETBB_PACKAGE) $(INSTALL_OPENVINO) $(INSTALL_PYTHON) $(INSTALL_OPENCV)
       sudo rm -rf $(TMP_DIR) ; sudo mkdir $(TMP_DIR) ; sudo chmod 777 -R $(TMP_DIR)
       sudo mkdir -p $(SHARE_DIR)
       sudo apt --assume-yes update && sudo apt --assume-yes install nfs-common
@@ -231,38 +229,6 @@ jobs:
   - script: ninja install
     workingDirectory: $(BUILD_OPENVINO_PYTHON)
     displayName: 'Install OpenVINO python binding'
-
-  - task: CMake@1
-    inputs:
-      cmakeArgs: >
-        -GNinja
-        -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
-        -DENABLE_PYTHON=ON
-        -DPYTHON_EXECUTABLE=/usr/local/bin/$(PYTHON_EXEC)
-        -DPYTHON_INCLUDE_DIR=$(INSTALL_PYTHON)/include/$(PYTHON_EXEC)
-        -DPYTHON_LIBRARY=$(INSTALL_PYTHON)/lib
-        -DCMAKE_TOOLCHAIN_FILE=$(OPENVINO_REPO_DIR)/cmake/arm64.toolchain.cmake
-        -DOpenVINO_DIR=$(BUILD_OPENVINO)
-        -DOpenCV_DIR=$(INSTALL_OPENCV)/cmake
-        -DCMAKE_INSTALL_PREFIX=$(INSTALL_OPEN_MODEL_ZOO)
-        -S $(OPENVINO_REPO_DIR)/thirdparty/open_model_zoo/demos
-        -B $(BUILD_OPEN_MODEL_ZOO)
-    displayName: 'CMake Open Model Zoo demos'
-
-  - script: ninja
-    workingDirectory: $(BUILD_OPEN_MODEL_ZOO)
-    displayName: 'Build Open Model Zoo demos'
-
-  - script: ninja install
-    workingDirectory: $(BUILD_OPEN_MODEL_ZOO)
-    displayName: 'Install Open Model Zoo demos'
-
-  - script: |
-      cp -r $(BUILD_OPEN_MODEL_ZOO)/$(OPENVINO_ARCH)/$(BUILD_TYPE)/* $(INSTALL_OPEN_MODEL_ZOO)/
-      cp -r $(INSTALL_ONETBB)/* $(INSTALL_ONETBB_PACKAGE)/
-      zip -9 -r $(Build.ArtifactStagingDirectory)/openvino_$(OPENVINO_ARCH)_linux.zip ./*
-    workingDirectory: $(INSTALL_OPENVINO)
-    displayName: 'Create OpenVINO ARM64 linux package'
 
   - task: PublishBuildArtifacts@1
     inputs:
