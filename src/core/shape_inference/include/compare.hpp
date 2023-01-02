@@ -87,18 +87,26 @@ public:
  *
  * \return true if a less b otherwise false.
  */
-template <class T, class U>
-bool lt(T a, U b) noexcept {
-    using UT = typename std::make_signed<T>::type;
-    using UU = typename std::make_signed<U>::type;
+template <class T,
+          class U,
+          typename std::enable_if<(std::is_signed<T>::value && std::is_signed<U>::value) ||
+                                  (std::is_unsigned<T>::value && std::is_unsigned<U>::value)>::type* = nullptr>
+constexpr bool lt(T a, U b) noexcept {
+    return a < b;
+}
 
-    if (std::is_signed<T>::value && std::is_signed<U>::value) {
-        return static_cast<typename std::make_signed<T>::type>(a) < static_cast<typename std::make_signed<U>::type>(b);
-    } else if (std::is_signed<T>::value) {
-        return a < 0 ? true : static_cast<UT>(a) < static_cast<UU>(b);
-    } else {
-        return b < 0 ? false : static_cast<UT>(a) < static_cast<UU>(b);
-    }
+template <class T,
+          class U,
+          typename std::enable_if<std::is_signed<T>::value && std::is_unsigned<U>::value>::type* = nullptr>
+constexpr bool lt(T a, U b) noexcept {
+    return a < 0 ? true : static_cast<typename std::make_unsigned<T>::type>(a) < b;
+}
+
+template <class T,
+          class U,
+          typename std::enable_if<std::is_unsigned<T>::value && std::is_signed<U>::value>::type* = nullptr>
+constexpr bool lt(T a, U b) noexcept {
+    return b < 0 ? false : a < static_cast<typename std::make_unsigned<U>::type>(b);
 }
 
 /**
