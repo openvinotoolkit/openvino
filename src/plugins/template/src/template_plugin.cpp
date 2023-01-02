@@ -109,9 +109,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::shared
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::compile_model_impl");
 
     auto fullConfig = Configuration{properties, _cfg};
-    OPENVINO_ASSERT(false);
-    // return std::make_shared<ExecutableNetwork>(model, fullConfig,
-    // std::static_pointer_cast<Plugin>(shared_from_this()));
+    return std::make_shared<ExecutableNetwork>(model, fullConfig, std::static_pointer_cast<Plugin>(shared_from_this()));
 }
 // ! [plugin:load_exe_network_impl]
 
@@ -123,9 +121,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& modelStre
     auto exec = std::make_shared<ExecutableNetwork>(modelStream,
                                                     fullConfig,
                                                     std::static_pointer_cast<Plugin>(shared_from_this()));
-    SetExeNetworkInfo(exec, exec->m_model);
-    OPENVINO_ASSERT(false);
-    // return exec;
+    // SetExeNetworkInfo(exec, exec->m_model);
+    return exec;
 }
 // ! [plugin:import_network]
 

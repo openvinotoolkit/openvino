@@ -14,6 +14,7 @@
 #include "ie_icore.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/icompiled_model.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "template/template_config.hpp"
 #include "template_itt.hpp"
@@ -23,10 +24,10 @@
 using namespace TemplatePlugin;
 
 // ! [executable_network:ctor_cnnnetwork]
-TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<const ov::Model>& model,
+TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<ov::Model>& model,
                                                      const Configuration& cfg,
                                                      const std::shared_ptr<Plugin>& plugin)
-    : InferenceEngine::ExecutableNetworkThreadSafeDefault(nullptr, nullptr),  // Disable default threads creation
+    : ov::ICompiledModel(model, plugin),  // Disable default threads creation
       _cfg(cfg),
       _plugin(plugin) {
     // TODO: if your plugin supports device ID (more that single instance of device can be on host machine)
@@ -49,7 +50,8 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<const
 TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream& model,
                                                      const Configuration& cfg,
                                                      const std::shared_ptr<Plugin>& plugin)
-    : _cfg(cfg),
+    : ov::ICompiledModel(nullptr, plugin),
+      _cfg(cfg),
       _plugin(plugin) {
     // read XML content
     std::string xmlString;
@@ -134,7 +136,8 @@ void TemplatePlugin::ExecutableNetwork::InitExecutor() {
     // it is better to avoid threads recreateion as some OSs memory allocator can not manage such usage cases
     // and memory consumption can be larger than it is expected.
     // So Inference Engone provides executors cache.
-    _taskExecutor = _plugin->get_executor_manager()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
+    // TODO: FIXME
+    // _taskExecutor = _plugin->get_executor_manager()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
     // NOTE: callback Executor is not configured. So callback will be called in the thread of the last stage of
     // inference request pipeline _callbackExecutor =
     // _plugin->executorManager()->getIdleCPUStreamsExecutor({"TemplateCallbackExecutor"});
@@ -142,46 +145,32 @@ void TemplatePlugin::ExecutableNetwork::InitExecutor() {
 // ! [executable_network:init_executor]
 
 // ! [executable_network:create_infer_request_impl]
-InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::CreateInferRequestImpl(
-    InferenceEngine::InputsDataMap networkInputs,
-    InferenceEngine::OutputsDataMap networkOutputs) {
-    return std::make_shared<TemplateInferRequest>(networkInputs,
-                                                  networkOutputs,
-                                                  std::static_pointer_cast<ExecutableNetwork>(shared_from_this()));
-}
-
-InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::CreateInferRequestImpl(
-    const std::vector<std::shared_ptr<const ov::Node>>& inputs,
-    const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
-    return std::make_shared<TemplateInferRequest>(inputs,
-                                                  outputs,
-                                                  std::static_pointer_cast<ExecutableNetwork>(shared_from_this()));
+InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::create_infer_request_impl(
+    const std::vector<ov::Output<const ov::Node>>& inputs,
+    const std::vector<ov::Output<const ov::Node>>& outputs) const {
+    return nullptr;
+    // return std::make_shared<TemplateInferRequest>(inputs,
+    //                                               outputs,
+    //                                               std::static_pointer_cast<ExecutableNetwork>(shared_from_this()));
 }
 // ! [executable_network:create_infer_request_impl]
 
 // ! [executable_network:create_infer_request]
-InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::CreateInferRequest() {
+InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::create_infer_request() const {
     InferenceEngine::IInferRequestInternal::Ptr internalRequest;
-    if (this->_plugin && _plugin->is_new_api()) {
-        internalRequest = CreateInferRequestImpl(_parameters, _results);
-    }
-    if (!internalRequest)
-        internalRequest = CreateInferRequestImpl(_networkInputs, _networkOutputs);
-    return std::make_shared<TemplateAsyncInferRequest>(std::static_pointer_cast<TemplateInferRequest>(internalRequest),
-                                                       _taskExecutor,
-                                                       _plugin->_waitExecutor,
-                                                       _callbackExecutor);
+    const std::shared_ptr<const ov::Model>& const_model = m_model;
+    internalRequest = create_infer_request_impl(const_model->inputs(), const_model->outputs());
+    OPENVINO_ASSERT(false);
+    // return
+    // std::make_shared<TemplateAsyncInferRequest>(std::static_pointer_cast<TemplateInferRequest>(internalRequest),
+    //                                                    _taskExecutor,
+    //                                                    _plugin->_waitExecutor,
+    //                                                    _callbackExecutor);
 }
 // ! [executable_network:create_infer_request]
 
 // ! [executable_network:get_config]
-InferenceEngine::Parameter TemplatePlugin::ExecutableNetwork::GetConfig(const std::string& name) const {
-    return _cfg.Get(name);
-}
-// ! [executable_network:get_config]
-
-// ! [executable_network:get_metric]
-InferenceEngine::Parameter TemplatePlugin::ExecutableNetwork::GetMetric(const std::string& name) const {
+InferenceEngine::Parameter TemplatePlugin::ExecutableNetwork::get_property(const std::string& name) const {
     // TODO: return more supported values for metrics
     if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_METRICS) == name) {
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS,
@@ -204,14 +193,13 @@ InferenceEngine::Parameter TemplatePlugin::ExecutableNetwork::GetMetric(const st
     } else if (EXEC_NETWORK_METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS) == name) {
         unsigned int value = _cfg._streamsExecutorConfig._streams;
         IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, value);
-    } else {
-        IE_THROW() << "Unsupported ExecutableNetwork metric: " << name;
     }
+    return _cfg.Get(name);
 }
-// ! [executable_network:get_metric]
+// ! [executable_network:get_config]
 
 // ! [executable_network:export]
-void TemplatePlugin::ExecutableNetwork::Export(std::ostream& modelStream) {
+void TemplatePlugin::ExecutableNetwork::export_model(std::ostream& modelStream) const {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "ExecutableNetwork::Export");
 
     // Note: custom ngraph extensions are not supported

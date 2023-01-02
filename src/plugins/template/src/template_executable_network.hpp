@@ -7,6 +7,7 @@
 #include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
 #include <ngraph/function.hpp>
 
+#include "openvino/icompiled_model.hpp"
 #include "template_async_infer_request.hpp"
 #include "template_config.hpp"
 #include "template_infer_request.hpp"
@@ -21,9 +22,9 @@ class Plugin;
  * @brief Interface of executable network
  */
 // ! [executable_network:header]
-class ExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDefault {
+class ExecutableNetwork : public ov::ICompiledModel {
 public:
-    ExecutableNetwork(const std::shared_ptr<const ov::Model>& model,
+    ExecutableNetwork(const std::shared_ptr<ov::Model>& model,
                       const Configuration& cfg,
                       const std::shared_ptr<Plugin>& plugin);
 
@@ -31,16 +32,13 @@ public:
 
     // Methods from a base class ExecutableNetworkThreadSafeDefault
 
-    void Export(std::ostream& model) override;
-    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(
-        InferenceEngine::InputsDataMap networkInputs,
-        InferenceEngine::OutputsDataMap networkOutputs) override;
-    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(
-        const std::vector<std::shared_ptr<const ov::Node>>& inputs,
-        const std::vector<std::shared_ptr<const ov::Node>>& outputs) override;
-    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
-    InferenceEngine::Parameter GetMetric(const std::string& name) const override;
-    InferenceEngine::Parameter GetConfig(const std::string& name) const override;
+    void export_model(std::ostream& model) const override;
+    InferenceEngine::IInferRequestInternal::Ptr create_infer_request_impl(
+        const std::vector<ov::Output<const ov::Node>>& inputs,
+        const std::vector<ov::Output<const ov::Node>>& outputs) const override;
+    InferenceEngine::IInferRequestInternal::Ptr create_infer_request() const override;
+
+    ov::Any get_property(const std::string& name) const override;
 
 private:
     friend class TemplateInferRequest;
