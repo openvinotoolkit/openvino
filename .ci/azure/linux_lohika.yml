@@ -9,7 +9,7 @@
 jobs:
 - job: Lin_lohika
   # About 150% of total time
-  timeoutInMinutes: 90
+  timeoutInMinutes: '90'
 
   pool:
     name: LIN_LOHIKA

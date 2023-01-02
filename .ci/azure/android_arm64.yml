@@ -19,10 +19,8 @@ pr:
     - releases/*
   paths:
     exclude: 
-    - docs/
     - /**/docs/*
     - /**/*.md
-    - README.md
     - /**/layer_tests_summary/**
     - src/tests/functional/plugin/conformance/**
 
@@ -37,7 +35,7 @@ resources:
 jobs:
 - job: android_arm64
   # About 150% of total time
-  timeoutInMinutes: 120
+  timeoutInMinutes: '120'
 
   pool:
     name: LIN_VMSS_VENV_F16S_U20_WU2
@@ -94,14 +92,14 @@ jobs:
     displayName: 'Make dir'
 
   - checkout: self
-    clean: true
-    lfs: false
+    clean: 'true'
+    lfs: 'false'
     submodules: recursive
     path: openvino
 
   - checkout: openvino_contrib
-    clean: true
-    lfs: false
+    clean: 'true'
+    lfs: 'false'
     submodules: recursive
     path: openvino_contrib
 

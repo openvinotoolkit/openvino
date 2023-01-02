@@ -5,10 +5,8 @@ trigger:
     - releases/*
   paths:
     exclude: 
-    - docs/
     - /**/docs/*
     - /**/*.md
-    - README.md
     - /**/layer_tests_summary/**
     - src/tests/functional/plugin/conformance/**
 
@@ -19,10 +17,8 @@ pr:
     - releases/*
   paths:
     exclude: 
-    - docs/
     - /**/docs/*
     - /**/*.md
-    - README.md
     - /**/layer_tests_summary/**
     - src/tests/functional/plugin/conformance/**
 
@@ -37,7 +33,7 @@ resources:
 jobs:
 - job: linux_arm64
   # About 150% of total time
-  timeoutInMinutes: 120
+  timeoutInMinutes: '120'
 
   pool:
     name: LIN_VMSS_VENV_F16S_U20_WU2
@@ -114,14 +110,14 @@ jobs:
     displayName: 'Make directories'
 
   - checkout: self
-    clean: true
-    lfs: false
+    clean: 'true'
+    lfs: 'false'
     submodules: recursive
     path: openvino
 
   - checkout: openvino_contrib
-    clean: true
-    lfs: false
+    clean: 'true'
+    lfs: 'false'
     submodules: recursive
     path: openvino_contrib
 
@@ -270,6 +266,6 @@ jobs:
 
   - task: PublishBuildArtifacts@1
     inputs:
-      pathToPublish: $(Build.ArtifactStagingDirectory)
-      artifactName: 'openvino_aarch64_linux'
+      PathtoPublish: $(Build.ArtifactStagingDirectory)
+      ArtifactName: 'openvino_aarch64_linux'
     displayName: 'Publish OpenVINO AArch64 linux package'

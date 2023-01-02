@@ -5,10 +5,8 @@ trigger:
     - releases/*
   paths:
     exclude:
-    - docs/
     - /**/docs/*
     - /**/*.md
-    - README.md
     - /**/layer_tests_summary/**
 
 pr:
@@ -18,10 +16,8 @@ pr:
     - releases/*
   paths:
     exclude:
-    - docs/
     - /**/docs/*
     - /**/*.md
-    - README.md
     - /**/layer_tests_summary/**
 
 resources:
@@ -41,7 +37,7 @@ resources:
 jobs:
 - job: Lin_Debian
   # About 150% of total time
-  timeoutInMinutes: 120
+  timeoutInMinutes: '120'
 
   pool:
     name: LIN_VMSS_VENV_F16S_U20_WU2
@@ -105,14 +101,14 @@ jobs:
     displayName: 'Make dir'
 
   - checkout: self
-    clean: true
-    lfs: false
+    clean: 'true'
+    lfs: 'false'
     submodules: recursive
     path: openvino
 
   - checkout: openvino_contrib
-    clean: true
-    lfs: false
+    clean: 'true'
+    lfs: 'false'
     submodules: recursive
     path: openvino_contrib
 
@@ -149,8 +145,8 @@ jobs:
 
     # Should be after 'Install dependencies' because Git lfs is not installed
   - checkout: testdata
-    clean: true
-    lfs: true
+    clean: 'true'
+    lfs: 'true'
     path: testdata
 
   - task: CMake@1
@@ -209,7 +205,7 @@ jobs:
 
   - script: sudo apt-get remove libtbb2 libpugixml1v5 -y
     displayName: 'Remove debian dependencies'
-    continueOnError: false
+    continueOnError: 'false'
 
   - script: cmake -DCOMPONENT=python_wheels -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_DIR)/cmake_install.cmake
     displayName: 'Install wheel packages'
@@ -239,7 +235,7 @@ jobs:
         --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py \
         --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_backend.py
     displayName: 'nGraph and IE Python Bindings Tests'
-    continueOnError: false
+    continueOnError: 'false'
 
     # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
   - script: |
@@ -259,17 +255,17 @@ jobs:
         --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_zoo_models.py \
         --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_backend.py -v
     displayName: 'Python API 2.0 Tests'
-    continueOnError: false
+    continueOnError: 'false'
 
   - script: python3 -m pytest -s $(INSTALL_TEST_DIR)/mo/unit_tests --junitxml=$(INSTALL_TEST_DIR)/TEST-ModelOptimizer.xml
     displayName: 'Model Optimizer UT'
-    continueOnError: false
+    continueOnError: 'false'
 
   - script: |
       sudo apt-get install libtbb-dev libpugixml-dev -y
       cmake --build $(BUILD_DIR) --target package -j8
     displayName: 'Build Debian packages'
-    continueOnError: false
+    continueOnError: 'false'
 
   - script: |
       # install debian packages from previous release
@@ -288,114 +284,114 @@ jobs:
       sudo apt-get install openvino -y
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install Debian packages'
-    continueOnError: false
+    continueOnError: 'false'
 
   - script: ls -alR $(INSTALL_DIR)
     displayName: 'List install files'
 
   - script: rm -fr $(BUILD_DIR)
     displayName: 'Clean build dir'
-    continueOnError: false
+    continueOnError: 'false'
 
   - script: $(SAMPLES_INSTALL_DIR)/cpp/build_samples.sh -i $(INSTALL_DIR)
     displayName: 'Build cpp samples'
-    continueOnError: false
+    continueOnError: 'false'
 
   - script: |
       export CC=clang
       export CXX=clang++
       $(SAMPLES_INSTALL_DIR)/cpp/build_samples.sh -i $(INSTALL_DIR)
     displayName: 'Build cpp samples - clang'
-    continueOnError: false
+    continueOnError: 'false'
 
   - script: $(SAMPLES_INSTALL_DIR)/c/build_samples.sh -i $(INSTALL_DIR)
     displayName: 'Build c samples'
-    continueOnError: false
+    continueOnError: 'false'
 
   - script: |
       export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR):$LD_LIBRARY_PATH
       $(INSTALL_TEST_DIR)/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-NGraphUT.xml
     displayName: 'OV Core UT'
-    continueOnError: false
+    continueOnError: 'false'
 
   - script: |
       export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR)
       $(INSTALL_TEST_DIR)/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ONNXFrontend.xml
     displayName: 'ONNX Frontend Tests'
-    continueOnError: false
+    continueOnError: 'false'
 
   - script: |
       export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR)
       $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Paddle.xml
     displayName: 'Paddle Frontend UT'
-    continueOnError: false
+    continueOnError: 'false'
 
   - script: |
       export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR)
       $(INSTALL_TEST_DIR)/ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Tensorflow.xml
     displayName: 'TensorFlow Frontend Unit Tests'
-    continueOnError: false
+    continueOnError: 'false'
 
     # python3 $(WORK_DIR)/gtest-parallel/gtest_parallel.py $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --workers=16 --dump_json_test_results=InferenceEngineUnitTests.json --gtest_filter=*smoke* -- --gtest_print_time=1
   - script: $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceEngineUnitTests.xml
     displayName: 'IE UT old'
-    continueOnError: false
+    continueOnError: 'false'
 
   - script: $(INSTALL_TEST_DIR)/ieUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieUnitTests.xml
     displayName: 'IE UT'
-    continueOnError: false
+    continueOnError: 'false'
 
   - script: $(INSTALL_TEST_DIR)/ov_cpu_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_cpu_unit_tests.xml
     displayName: 'Intel CPU Unit Tests'
-    continueOnError: false
+    continueOnError: 'false'
 
   - script: $(INSTALL_TEST_DIR)/ov_gna_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_gna_unit_tests.xml
     displayName: 'GNA UT'
-    continueOnError: false
+    continueOnError: 'false'
 
   - script: $(INSTALL_TEST_DIR)/vpuUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-vpuUnitTests.xml
     displayName: 'VPU UT'
-    continueOnError: false
+    continueOnError: 'false'
 
   - script: $(INSTALL_TEST_DIR)/XLinkTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-XLinkTests.xml
     displayName: 'XLink Tests'
-    continueOnError: false
+    continueOnError: 'false'
 
   - script: $(INSTALL_TEST_DIR)/ieMultiPluginUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieMultiPluginUnitTests.xml
     displayName: 'MULTI UT'
-    continueOnError: false
+    continueOnError: 'false'
 
   - script: |
       # because of IR reader v7
       export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR)
       $(INSTALL_TEST_DIR)/ieFuncTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieFuncTests.xml
     displayName: 'IE FuncTests'
-    continueOnError: false
+    continueOnError: 'false'
 
   - script:  |
       export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR):$LD_LIBRARY_PATH
       $(INSTALL_TEST_DIR)/ov_template_func_tests --gtest_filter=*smoke* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-templateFuncTests.xml
     displayName: 'TEMPLATE FuncTests'
-    continueOnError: false
+    continueOnError: 'false'
 
   # run not all smoke filter to save time in post-commit
   - script: $(INSTALL_TEST_DIR)/ov_cpu_func_tests --gtest_filter=*OVCLass*:*CoreThreadingTests* --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_cpu_func_tests.xml
     displayName: 'CPU FuncTests'
-    continueOnError: false
+    continueOnError: 'false'
 
   - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
       $(INSTALL_TEST_DIR)/InferenceEngineCAPITests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceEngineCAPITests.xml
     displayName: 'IE CAPITests'
-    continueOnError: false
+    continueOnError: 'false'
 
   - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
       $(INSTALL_TEST_DIR)/ov_capi_test --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_capi_test.xml
     displayName: 'OV CAPITests'
-    continueOnError: false
+    continueOnError: 'false'
 
   - task: CMake@1
     inputs:
@@ -409,7 +405,7 @@ jobs:
 
   - script: python3 -m pip install -r $(INSTALL_TEST_DIR)/smoke_tests/requirements.txt
     displayName: 'Install dependencies for samples smoke tests'
-    continueOnError: false
+    continueOnError: 'false'
 
   - script: |
       export PATH=$HOME/.local/bin:$PATH
@@ -422,14 +418,14 @@ jobs:
       export WORKSPACE=$(INSTALL_DIR)
       python3 -m pytest $(INSTALL_TEST_DIR)/smoke_tests/  --env_conf $(INSTALL_TEST_DIR)/smoke_tests/env_config.yml -s --junitxml=$(INSTALL_TEST_DIR)/TEST-SamplesSmokeTests.xml
     displayName: 'Samples Smoke Tests'
-    continueOnError: false
+    continueOnError: 'false'
 
   - script: |
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
       python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=$(INSTALL_TEST_DIR)/TEST-tf_Roll.xmlTEST
     displayName: 'TensorFlow 1 Layer Tests - Legacy FE'
-    continueOnError: false
+    continueOnError: 'false'
 
   - task: PublishTestResults@2
     condition: always()

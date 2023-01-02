@@ -9,7 +9,7 @@ resources:
 jobs:
 - job: Lin
   # About 150% of total time
-  timeoutInMinutes: 90
+  timeoutInMinutes: '90'
 
   pool:
     name: LIN_VMSS_VENV_F16S_U20_WU2
@@ -66,14 +66,14 @@ jobs:
     displayName: 'Make dir'
 
   - checkout: self
-    clean: true
-    lfs: false
+    clean: 'true'
+    lfs: 'false'
     submodules: recursive
     path: openvino
 
   - checkout: openvino_contrib
-    clean: true
-    lfs: false
+    clean: 'true'
+    lfs: 'false'
     submodules: recursive
     path: openvino_contrib
 

@@ -5,10 +5,8 @@ trigger:
     - releases/*
   paths:
     exclude: 
-    - docs/
     - /**/docs/*
     - /**/*.md
-    - README.md
     - /**/layer_tests_summary/**
     - src/tests/functional/plugin/conformance/**
 
@@ -19,16 +17,14 @@ pr:
     - releases/*
   paths:
     exclude: 
-    - docs/
     - /**/docs/*
     - /**/*.md
-    - README.md
     - /**/layer_tests_summary/**
     - src/tests/functional/plugin/conformance/**
 
 jobs:
 - job: onnxruntime
-  timeoutInMinutes: 90
+  timeoutInMinutes: '90'
 
   pool:
     name: LIN_VMSS_VENV_ONNX_U20_WU2
@@ -78,8 +74,8 @@ jobs:
     displayName: 'Make dirs'
 
   - checkout: self
-    clean: true
-    lfs: false
+    clean: 'true'
+    lfs: 'false'
     submodules: recursive
     path: openvino
 
