@@ -134,10 +134,12 @@ program::program(engine& engine_ref,
 program::program(engine& engine_ref,
                  std::set<std::shared_ptr<program_node>> const& nodes,
                  const ExecutionConfig& config,
+                 std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
                  bool is_internal)
     : _engine(engine_ref),
       _stream(_engine.create_stream(config)),
       _config(config),
+      _task_executor(task_executor),
       processing_order(),
       tuning_cache(nullptr),
       is_subgroup_local_block_io_supported(-1) {
@@ -263,8 +265,9 @@ program::ptr program::build_program(engine& engine,
 program::ptr program::build_program(engine& engine,
                                     const std::set<std::shared_ptr<program_node>>& nodes,
                                     const ExecutionConfig& config,
+                                    std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
                                     bool is_internal) {
-    return std::make_shared<program>(engine, nodes, config, is_internal);
+    return std::make_shared<program>(engine, nodes, config, task_executor, is_internal);
 }
 
 program_node& program::get_node(primitive_id const& id) {

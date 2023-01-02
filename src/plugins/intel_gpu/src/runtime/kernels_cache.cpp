@@ -379,10 +379,7 @@ void kernels_cache::build_all() {
     if (!_pending_compilation)
         return;
 
-    std::unique_ptr<ocl::ocl_engine> _build_engine = nullptr;
-    if (_engine.type() == engine_types::ocl) {
-        _build_engine = std::unique_ptr<ocl::ocl_engine>(new ocl::ocl_engine(_engine.get_device(), runtime_types::ocl));
-    }
+    ocl::ocl_engine& _build_engine = downcast<ocl::ocl_engine>(_engine);
     std::vector<batch_program> batches;
     {
         std::lock_guard<std::mutex> lock(_mutex);
@@ -396,7 +393,7 @@ void kernels_cache::build_all() {
             auto& batch = batches[idx];
             tasks.push_back([this, &_build_engine, &batch, &exception] {
                 try {
-                    build_batch(*_build_engine, batch);
+                    build_batch(_build_engine, batch);
                 } catch(...) {
                     exception = std::current_exception();
                 }
@@ -410,7 +407,7 @@ void kernels_cache::build_all() {
         }
     } else {
         for (size_t idx = 0; idx < batches.size(); idx++) {
-            build_batch(*_build_engine, batches[idx]);
+            build_batch(_build_engine, batches[idx]);
         }
     }
 

@@ -366,10 +366,9 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
         }
     }
 
-    ExecutionConfig conf = m_config;
-    conf.set_property(ov::intel_gpu::partial_build_program(partialBuild));
-    conf.set_property(ov::intel_gpu::optimize_data(true));
-    conf.set_property(ov::intel_gpu::allow_new_shape_infer(allow_new_shape_infer));
+    m_config.set_property(ov::intel_gpu::partial_build_program(partialBuild));
+    m_config.set_property(ov::intel_gpu::optimize_data(true));
+    m_config.set_property(ov::intel_gpu::allow_new_shape_infer(allow_new_shape_infer));
 
     PrepareBuild(networkInputs, networkOutputs);
     {
@@ -384,7 +383,7 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Program::CreateProgram");
         cldnn::program::ptr program;
         try {
-            program = cldnn::program::build_program(m_engine, *m_topology, conf);
+            program = cldnn::program::build_program(m_engine, *m_topology, m_config);
         } catch (std::exception& e) {
             IE_THROW() << "cldnn program build failed! " << e.what();
         }

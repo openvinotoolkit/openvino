@@ -20,23 +20,12 @@
 namespace ov {
 namespace intel_gpu {
 
-class LegacyPropertiesHelper {
-public:
-    ov::AnyMap convert_legacy_properties(const std::map<std::string, std::string>& properties) const;
-    ov::AnyMap convert_legacy_properties(const ov::AnyMap& properties) const;
-    std::pair<std::string, ov::Any> convert_legacy_property(const std::pair<std::string, ov::Any>& legacy_property) const;
-    std::pair<std::string, ov::Any> convert_to_legacy_property(const std::pair<std::string, ov::Any>& property) const;
-    bool is_legacy_property(const std::pair<std::string, ov::Any>& property) const;
-    bool is_new_api_property(const std::pair<std::string, ov::Any>& property) const;
-};
-
-
 class CompiledModel : public InferenceEngine::ExecutableNetworkThreadSafeDefault {
 public:
     typedef std::shared_ptr<CompiledModel> Ptr;
 
-    CompiledModel(InferenceEngine::CNNNetwork &network, InferenceEngine::gpu::ClContext::Ptr context, ExecutionConfig config);
-    CompiledModel(std::istream& networkModel, InferenceEngine::gpu::ClContext::Ptr context, ExecutionConfig config);
+    CompiledModel(InferenceEngine::CNNNetwork &network, InferenceEngine::RemoteContext::Ptr context,const ExecutionConfig& config);
+    CompiledModel(std::istream& networkModel, InferenceEngine::RemoteContext::Ptr context, const ExecutionConfig& config);
 
     void Export(std::ostream& networkModel) override;
     std::shared_ptr<ngraph::Function> GetExecGraphInfo() override;
@@ -53,7 +42,7 @@ public:
     std::shared_ptr<InferenceEngine::RemoteContext> GetContext() const override;
 
     std::vector<std::shared_ptr<Graph>> m_graphs;
-    InferenceEngine::gpu::ClContext::Ptr m_context;
+    InferenceEngine::RemoteContext::Ptr m_context;
     ExecutionConfig m_config;
     InferenceEngine::ITaskExecutor::Ptr m_taskExecutor;
     InferenceEngine::ITaskExecutor::Ptr m_waitExecutor;

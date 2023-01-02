@@ -21,7 +21,7 @@ RemoteContextImpl::RemoteContextImpl(std::string device_name, std::vector<cldnn:
         , m_external_queue(nullptr)
         , m_type(ContextType::OCL)
         , m_device_name(device_name)
-        , m_plugin_name("")
+        , m_device_id("")
         , m_memory_cache(cache_capacity) {
     OPENVINO_ASSERT(devices.size() == 1, "[GPU] Currently context can be created for single device only");
     // TODO: Parameterize this based on plugin config and compilation options
@@ -29,17 +29,15 @@ RemoteContextImpl::RemoteContextImpl(std::string device_name, std::vector<cldnn:
     auto runtime_type = cldnn::runtime_types::ocl;
 
     m_engine = cldnn::engine::create(engine_type, runtime_type, devices.front());
-    m_engine->get_service_stream();
 
     GPU_DEBUG_LOG << "Initialize RemoteContext for " << m_device_name << " (" << m_engine->get_device_info().dev_name << ")" << std::endl;
 }
 
-RemoteContextImpl::RemoteContextImpl(std::string plugin_name, const AnyMap& params, const ExecutionConfig& config)
+RemoteContextImpl::RemoteContextImpl(std::string plugin_name, std::string default_device_id, const AnyMap& params)
         : m_va_display(nullptr)
         , m_external_queue(nullptr)
         , m_type(ContextType::OCL)
-        , m_device_id(config.get_property(ov::device::id))
-        , m_plugin_name(plugin_name)
+        , m_device_id(default_device_id)
         , m_memory_cache(cache_capacity) {
     gpu_handle_param _context_id = nullptr;
     gpu_handle_param _va_device = nullptr;
@@ -81,7 +79,7 @@ RemoteContextImpl::RemoteContextImpl(std::string plugin_name, const AnyMap& para
 
     m_engine = cldnn::engine::create(engine_type, runtime_type, device_map.begin()->second);
 
-    m_device_name = get_device_name(device_map, m_engine->get_device());
+    m_device_name = get_device_name(plugin_name, device_map, m_engine->get_device());
 
     GPU_DEBUG_LOG << "Initialize RemoteContext for " << m_device_name << " (" << m_engine->get_device_info().dev_name << ")" << std::endl;
 }
@@ -105,8 +103,10 @@ AnyMap RemoteContextImpl::get_params() const {
     return ret;
 }
 
-std::string RemoteContextImpl::get_device_name(const std::map<std::string, cldnn::device::ptr>& all_devices, const cldnn::device::ptr current_device) {
-    auto device_name = m_plugin_name;
+std::string RemoteContextImpl::get_device_name(const std::string& plugin_name,
+                                               const std::map<std::string, cldnn::device::ptr>& all_devices,
+                                               const cldnn::device::ptr current_device) {
+    auto device_name = plugin_name;
     try {
         for (auto& kv : all_devices) {
             if (current_device->is_same(kv.second))

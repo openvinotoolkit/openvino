@@ -66,7 +66,7 @@ public:
     using CPtr = std::shared_ptr<const RemoteContextImpl>;
 
     RemoteContextImpl(std::string device_name, std::vector<cldnn::device::ptr> devices);
-    RemoteContextImpl(std::string plugin_name, const InferenceEngine::ParamMap& params, const ExecutionConfig& config);
+    RemoteContextImpl(std::string plugin_name, std::string default_device_id, const InferenceEngine::ParamMap& params);
 
     InferenceEngine::ParamMap get_params() const;
     std::string get_device_name() const noexcept;
@@ -82,7 +82,9 @@ public:
     void add_to_cache(size_t hash, cldnn::memory::ptr memory);
 
 private:
-    std::string get_device_name(const std::map<std::string, cldnn::device::ptr>& all_devices, const cldnn::device::ptr current_device);
+    std::string get_device_name(const std::string& plugin_name,
+                                const std::map<std::string, cldnn::device::ptr>& all_devices,
+                                const cldnn::device::ptr current_device);
     InferenceEngine::RemoteBlob::Ptr reuse_surface(InferenceEngine::gpu::ClContext::Ptr public_context,
                                                    const InferenceEngine::TensorDesc& desc,
                                                    const InferenceEngine::ParamMap& params);
@@ -134,8 +136,8 @@ public:
 
     TypedRemoteContext(std::string device_name, std::vector<cldnn::device::ptr> devices)
         : m_impl(std::make_shared<RemoteContextImpl>(device_name, devices)) {}
-    TypedRemoteContext(std::string plugin_name, const InferenceEngine::ParamMap& params, const ExecutionConfig& config)
-        : m_impl(std::make_shared<RemoteContextImpl>(plugin_name, params, config)) {}
+    TypedRemoteContext(std::string plugin_name, std::string default_device_id, const InferenceEngine::ParamMap& params)
+        : m_impl(std::make_shared<RemoteContextImpl>(plugin_name, default_device_id, params)) {}
 
     InferenceEngine::ParamMap getParams() const override { return m_impl->get_params(); }
     std::string getDeviceName() const noexcept override { return m_impl->get_device_name(); }

@@ -275,7 +275,7 @@ stream::ptr ocl_engine::create_stream(const ExecutionConfig& config, void* handl
     return std::make_shared<ocl_stream>(*this, config, handle);
 }
 
-stream& ocl_engine::get_service_stream(ExecutionConfig cfg) {
+stream& ocl_engine::get_service_stream() const {
     return *_service_stream;
 }
 

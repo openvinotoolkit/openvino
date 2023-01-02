@@ -131,7 +131,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         ngraph::pass::Manager manager;
         manager.set_per_pass_validation(false);
 
-        enableInt8 = ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(func);
+        enableInt8 = config.get_property(ov::intel_gpu::enable_lp_transformations) && ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(func);
         if (enableInt8) {
             manager.register_pass<ov::pass::MarkDequantizationSubgraph>(
                 std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });

@@ -75,6 +75,7 @@ public:
     network(engine& engine,
             const std::set<std::shared_ptr<program_node>>& nodes,
             const ExecutionConfig& config,
+            std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
             bool is_internal);
 
     network(program::ptr program, uint16_t stream_id = 0);
@@ -95,6 +96,7 @@ public:
     static ptr build_network(engine& engine,
                              const std::set<std::shared_ptr<program_node>>& nodes,
                              const ExecutionConfig& config,
+                             std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
                              bool is_internal);
 
     static ptr allocate_network(stream::ptr stream,

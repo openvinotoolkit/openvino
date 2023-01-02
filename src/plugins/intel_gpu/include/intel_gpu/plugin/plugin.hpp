@@ -29,20 +29,18 @@ class Plugin : public InferenceEngine::IInferencePlugin {
     mutable std::map<RemoteContextImpl::Ptr, std::map<std::string, uint64_t>> statistics_map;
     mutable std::mutex engine_mutex;
 
-    mutable std::map<std::string, RemoteCLContext::Ptr> m_defaultContexts;
+    mutable std::map<std::string, RemoteCLContext::Ptr> m_default_contexts;
 
-    cldnn::device_info GetDeviceInfo(const std::map<std::string, std::string> &config) const;
     InferenceEngine::CNNNetwork CloneAndTransformNetwork(const InferenceEngine::CNNNetwork& network,
                                                          const ExecutionConfig& config) const;
     void TransformNetwork(std::shared_ptr<ov::Model>& model, const ExecutionConfig& config) const;
     void RegisterPrimitives();
     void UpdateStatistics(const RemoteContextImpl::Ptr& context) const;
     std::string get_device_id_from_config(const std::map<std::string, std::string>& config) const;
+    std::string get_device_id(const std::map<std::string, std::string>& config) const;
     RemoteCLContext::Ptr get_default_context(const std::string& device_id) const;
 
     std::vector<ov::PropertyName> get_supported_properties() const;
-    std::vector<std::string> get_supported_legacy_configs() const;
-    std::vector<std::string> get_supported_legacy_metrics() const;
     std::vector<std::string> get_device_capabilities(const cldnn::device_info& info) const;
     uint32_t get_optimal_batch_size(const std::map<std::string, InferenceEngine::Parameter>& options) const;
     uint32_t get_max_batch_size(const std::map<std::string, InferenceEngine::Parameter>& options) const;

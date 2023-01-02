@@ -42,7 +42,7 @@ public:
 
     stream_ptr create_stream(const ExecutionConfig& config) const override;
     stream_ptr create_stream(const ExecutionConfig& config, void *handle) const override;
-    stream& get_service_stream(ExecutionConfig cfg = ExecutionConfig()) override;
+    stream& get_service_stream() const override;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     void create_onednn_engine(const ExecutionConfig& config) override;

@@ -20,6 +20,7 @@
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
 #include "intel_gpu/runtime/itt.hpp"
+#include "intel_gpu/plugin/legacy_api_helper.hpp"
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/runtime/device_query.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
@@ -69,12 +70,8 @@ void Plugin::RegisterPrimitives() {
 }
 
 ov::AnyMap Plugin::preprocess_config(const std::map<std::string, std::string>& orig_config) const {
-    if (!IsNewAPI()) {
-        LegacyPropertiesHelper helper;
-        return helper.convert_legacy_properties(orig_config);
-    } else {
-        return ov::AnyMap(orig_config.begin(), orig_config.end());
-    }
+    // We can skip this conversion for new API once all meta plugins don't try to use legacy configs/metrics for new API internally
+    return LegacyAPIHelper::convert_legacy_properties(orig_config);
 }
 
 std::string Plugin::get_device_id_from_config(const std::map<std::string, std::string>& config) const {
@@ -85,17 +82,12 @@ std::string Plugin::get_device_id_from_config(const std::map<std::string, std::s
     return device_id;
 }
 
-cldnn::device_info Plugin::GetDeviceInfo(const std::map<std::string, std::string> &config) const {
-    auto device_info = device_map.begin()->second->get_info();
-    std::string device_id = get_device_id_from_config(config);
-    if (!device_id.empty()) {
-        if (device_map.find(device_id) == device_map.end()) {
-            IE_THROW() << "Invalid device ID: " << device_id;
-        }
-        device_info = device_map.at(device_id)->get_info();
+std::string Plugin::get_device_id(const std::map<std::string, std::string>& config) const {
+    std::string device_id = default_device_id;
+    if (config.find(PluginConfigParams::KEY_DEVICE_ID) != config.end()) {
+        device_id = config.at(PluginConfigParams::KEY_DEVICE_ID);
     }
-
-    return device_info;
+    return device_id;
 }
 
 void Plugin::TransformNetwork(std::shared_ptr<ov::Model>& model, const ExecutionConfig& config) const {
@@ -123,7 +115,7 @@ InferenceEngine::CNNNetwork Plugin::CloneAndTransformNetwork(const InferenceEngi
     return clonedNetwork;
 }
 
-Plugin::Plugin() : m_defaultContexts({}) {
+Plugin::Plugin() : m_default_contexts({}) {
     _pluginName = "GPU";
     RegisterPrimitives();
     // try loading gpu engine and get info from it
@@ -136,7 +128,7 @@ Plugin::Plugin() : m_defaultContexts({}) {
         for (auto& device : device_map) {
             m_configs_map.insert({device.first, ExecutionConfig(ov::device::id(device.first))});
             auto ctx = std::make_shared<RemoteCLContext>(GetName() + "." + device.first, std::vector<cldnn::device::ptr>{ device.second });
-            m_defaultContexts.insert({device.first, ctx});
+            m_default_contexts.insert({device.first, ctx});
             // std::cerr << "Init config and context for: " << device.first << std::endl;
         }
     }
@@ -188,9 +180,7 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     check_inputs(_networkInputs);
 
-    std::string device_id = get_device_id_from_config(orig_config);
-    if (device_id.empty())
-        device_id = default_device_id;
+    std::string device_id = get_device_id(orig_config);
 
     auto context = get_default_context(device_id);
 
@@ -198,9 +188,8 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
         IE_THROW() << "LoadNetwork not found device config\n";
 
     ExecutionConfig config = m_configs_map.at(device_id);
-    config.set_property(preprocess_config(orig_config));
+    config.set_user_property(preprocess_config(orig_config));
     config.apply_user_properties(context->get_impl()->get_engine().get_device_info());
-    // std::cerr << "\n\n\nProcessed config: " << config.to_string();
 
     auto transformedNetwork = CloneAndTransformNetwork(network, config);
     {
@@ -217,17 +206,12 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     check_inputs(_networkInputs);
 
-    auto casted = std::dynamic_pointer_cast<ClContext>(context);
-    if (nullptr == casted) {
-        IE_THROW() << "Invalid context";
-    }
-
-    ExecutionConfig config{};
-    config.set_property(preprocess_config(orig_config));
-    config.apply_user_properties(get_context_impl(casted)->get_engine().get_device_info());
+    ExecutionConfig config{}; // Use default settings
+    config.set_user_property(preprocess_config(orig_config));
+    config.apply_user_properties(get_context_impl(context)->get_engine().get_device_info());
 
     auto transformedNetwork = CloneAndTransformNetwork(network, config);
-    return std::make_shared<CompiledModel>(transformedNetwork, casted, config);
+    return std::make_shared<CompiledModel>(transformedNetwork, context, config);
 }
 
 InferenceEngine::RemoteContext::Ptr Plugin::CreateContext(const AnyMap& params) {
@@ -238,12 +222,12 @@ InferenceEngine::RemoteContext::Ptr Plugin::CreateContext(const AnyMap& params) 
     std::string context_type = extract_object<std::string>(params, GPU_PARAM_KEY(CONTEXT_TYPE));
 
     if (GPU_PARAM_VALUE(OCL) == context_type) {
-        return std::make_shared<RemoteCLContext>(GetName(), params, m_configs_map.at(default_device_id));
+        return std::make_shared<RemoteCLContext>(GetName(), default_device_id, params);
     } else if (GPU_PARAM_VALUE(VA_SHARED) == context_type) {
 #ifdef _WIN32
-        return std::make_shared<RemoteD3DContext>(GetName(), params, m_configs_map.at(default_device_id));
+        return std::make_shared<RemoteD3DContext>(GetName(), default_device_id, params);
 #else
-        return std::make_shared<RemoteVAContext>(GetName(), params, m_configs_map.at(default_device_id));
+        return std::make_shared<RemoteVAContext>(GetName(), default_device_id, params);
 #endif
     }
 
@@ -251,9 +235,9 @@ InferenceEngine::RemoteContext::Ptr Plugin::CreateContext(const AnyMap& params) 
 }
 
 RemoteCLContext::Ptr Plugin::get_default_context(const std::string& device_id) const {
-    OPENVINO_ASSERT(m_defaultContexts.find(device_id) != m_defaultContexts.end(), "[GPU] Context was not initialized for ", device_id, " device");
+    OPENVINO_ASSERT(m_default_contexts.find(device_id) != m_default_contexts.end(), "[GPU] Context was not initialized for ", device_id, " device");
 
-    return m_defaultContexts.at(device_id);;
+    return m_default_contexts.at(device_id);;
 }
 
 InferenceEngine::RemoteContext::Ptr Plugin::GetDefaultContext(const AnyMap& params) {
@@ -266,12 +250,12 @@ InferenceEngine::RemoteContext::Ptr Plugin::GetDefaultContext(const AnyMap& para
 }
 
 void Plugin::SetConfig(const std::map<std::string, std::string> &config) {
-    auto update_config = [this](ExecutionConfig& execution_config, const std::map<std::string, std::string>& user_config) {
-        execution_config.set_user_property(preprocess_config(user_config));
+    auto update_config = [this](ExecutionConfig& config, const std::map<std::string, std::string>& user_config) {
+        config.set_user_property(preprocess_config(user_config));
         // Check that custom layers config can be loaded
-        if (user_config.find(PluginConfigParams::KEY_CONFIG_FILE) != user_config.end()) {
+        if (user_config.find(ov::intel_gpu::config_file.name()) != user_config.end()) {
             CustomLayerMap custom_layers;
-            CustomLayer::LoadFromFile(user_config.at(PluginConfigParams::KEY_CONFIG_FILE), custom_layers);
+            CustomLayer::LoadFromFile(user_config.at(ov::intel_gpu::config_file.name()), custom_layers);
         }
     };
 
@@ -295,14 +279,12 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
                                         const std::map<std::string, std::string>& orig_config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::QueryNetwork");
     QueryNetworkResult res;
-    std::string device_id = get_device_id_from_config(orig_config);
-    if (device_id.empty())
-        device_id = default_device_id;
+    std::string device_id = get_device_id(orig_config);
 
     auto ctx = get_default_context(device_id)->get_impl();
 
     ExecutionConfig config = m_configs_map.at(device_id);
-    config.set_property(preprocess_config(orig_config));
+    config.set_user_property(preprocess_config(orig_config));
     config.apply_user_properties(ctx->get_engine().get_device_info());
 
     Program prog(ctx->get_engine(), config);
@@ -362,13 +344,11 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
 InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(std::istream& networkModel,
                                                                        const std::map<std::string, std::string>& orig_config) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork");
-    std::string device_id = get_device_id_from_config(orig_config);
-    if (device_id.empty())
-        device_id = default_device_id;
+    std::string device_id = get_device_id(orig_config);
     auto context = get_default_context(device_id);
 
     ExecutionConfig config = m_configs_map.at(device_id);
-    config.set_property(preprocess_config(orig_config));
+    config.set_user_property(preprocess_config(orig_config));
     config.apply_user_properties(context->get_impl()->get_engine().get_device_info());
 
     {
@@ -387,26 +367,19 @@ Parameter Plugin::GetConfig(const std::string& name, const std::map<std::string,
     if (options.find(ov::device::id.name()) != options.end()) {
         device_id = options.find(ov::device::id.name())->second.as<std::string>();
     }
-    const bool is_old_api = !IsNewAPI();
 
     if (m_configs_map.find(device_id) == m_configs_map.end())
         IE_THROW() << "GetConfig not found device config\n";
 
     const auto& c = m_configs_map.at(device_id);
     auto actual_name = name;
-    if (is_old_api) {
-        LegacyPropertiesHelper helper;
-        if (helper.is_legacy_property({name, nullptr})) {
-            actual_name = helper.convert_legacy_property({name, nullptr}).first;
-        }
+    if (LegacyAPIHelper::is_legacy_property({name, nullptr})) {
+        actual_name = LegacyAPIHelper::convert_legacy_property({name, nullptr}).first;
     }
 
     auto val = c.get_property(actual_name);
-    if (is_old_api) {
-        LegacyPropertiesHelper helper;
-        if (helper.is_legacy_property({name, nullptr})) {
-            val = helper.convert_to_legacy_property({actual_name, val}).second;
-        }
+    if (LegacyAPIHelper::is_legacy_property({name, nullptr})) {
+        val = LegacyAPIHelper::convert_to_legacy_property({actual_name, val}).second;
     }
 
     return val;
@@ -446,7 +419,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
     if (name == ov::supported_properties) {
         return decltype(ov::supported_properties)::value_type {get_supported_properties()};
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
-        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, get_supported_legacy_metrics());
+        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, LegacyAPIHelper::get_supported_metrics(isModelCachingEnabled));
     } else if (name == METRIC_KEY(AVAILABLE_DEVICES)) {
         std::vector<std::string> availableDevices = { };
         for (auto const& dev : device_map)
@@ -502,7 +475,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         deviceName += std::string(" (") + (device_info.dev_type == cldnn::device_type::discrete_gpu ? "dGPU" : "iGPU") + ")";
         return decltype(ov::device::full_name)::value_type {deviceName};
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, get_supported_legacy_configs());
+        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, LegacyAPIHelper::get_supported_configs());
     } else if (name == ov::device::capabilities) {
         return decltype(ov::device::capabilities)::value_type {get_device_capabilities(device_info)};
     } else if (name == ov::range_for_async_infer_requests) {
@@ -600,53 +573,6 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
     return supported_properties;
 }
 
-std::vector<std::string> Plugin::get_supported_legacy_configs() const {
-    const static std::vector<std::string> supported_config = {
-        CONFIG_KEY(MODEL_PRIORITY),
-        CONFIG_KEY(PERFORMANCE_HINT),
-        CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS),
-        CONFIG_KEY(PERF_COUNT),
-        CONFIG_KEY(DYN_BATCH_ENABLED),
-        CONFIG_KEY(CONFIG_FILE),
-        CONFIG_KEY(DEVICE_ID),
-        CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS),
-        CONFIG_KEY(CACHE_DIR),
-        CONFIG_KEY(GPU_THROUGHPUT_STREAMS),
-        GPU_CONFIG_KEY(PLUGIN_PRIORITY),
-        GPU_CONFIG_KEY(PLUGIN_THROTTLE),
-        GPU_CONFIG_KEY(HOST_TASK_PRIORITY),
-        GPU_CONFIG_KEY(NV12_TWO_INPUTS),
-        GPU_CONFIG_KEY(MAX_NUM_THREADS),
-        GPU_CONFIG_KEY(ENABLE_LOOP_UNROLLING),
-    };
-
-    return supported_config;
-}
-
-std::vector<std::string> Plugin::get_supported_legacy_metrics() const {
-    std::vector<std::string> supported_metrics = {
-        METRIC_KEY(AVAILABLE_DEVICES),
-        METRIC_KEY(SUPPORTED_METRICS),
-        METRIC_KEY(FULL_DEVICE_NAME),
-        METRIC_KEY(OPTIMIZATION_CAPABILITIES),
-        METRIC_KEY(SUPPORTED_CONFIG_KEYS),
-        METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS),
-        METRIC_KEY(RANGE_FOR_STREAMS),
-        METRIC_KEY(DEVICE_TYPE),
-        METRIC_KEY(DEVICE_GOPS),
-        METRIC_KEY(OPTIMAL_BATCH_SIZE),
-        METRIC_KEY(MAX_BATCH_SIZE),
-        GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE),
-        GPU_METRIC_KEY(UARCH_VERSION),
-        GPU_METRIC_KEY(EXECUTION_UNITS_COUNT),
-        GPU_METRIC_KEY(MEMORY_STATISTICS),
-    };
-    if (isModelCachingEnabled)
-        supported_metrics.push_back(METRIC_KEY(IMPORT_EXPORT_SUPPORT));
-
-    return supported_metrics;
-}
-
 std::vector<std::string> Plugin::get_device_capabilities(const cldnn::device_info& info) const {
     std::vector<std::string> capabilities;
 
@@ -669,7 +595,7 @@ std::vector<std::string> Plugin::get_device_capabilities(const cldnn::device_inf
 uint32_t Plugin::get_max_batch_size(const std::map<std::string, Parameter>& options) const {
     GPU_DEBUG_GET_INSTANCE(debug_config);
     std::string device_id = GetConfig(ov::device::id.name(), options);
-    auto context = m_defaultContexts.at(device_id)->get_impl();
+    auto context = m_default_contexts.at(device_id)->get_impl();
     const auto& device_info = context->get_engine().get_device_info();
     const auto& config = m_configs_map.at(device_id);
     uint32_t n_streams = static_cast<uint32_t>(config.get_property(ov::num_streams));
@@ -819,7 +745,7 @@ uint32_t Plugin::get_max_batch_size(const std::map<std::string, Parameter>& opti
 
 uint32_t Plugin::get_optimal_batch_size(const std::map<std::string, Parameter>& options) const {
     std::string device_id = GetConfig(ov::device::id.name(), options);
-    auto context = m_defaultContexts.at(device_id)->get_impl();
+    auto context = m_default_contexts.at(device_id)->get_impl();
     const auto& device_info = context->get_engine().get_device_info();
     auto next_pow_of_2 = [] (float x) {
         return pow(2, ceil(std::log(x)/std::log(2)));

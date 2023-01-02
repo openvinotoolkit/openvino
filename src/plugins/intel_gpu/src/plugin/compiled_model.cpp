@@ -11,6 +11,7 @@
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/async_infer_request.hpp"
 #include "intel_gpu/plugin/async_infer_request_legacy.hpp"
+#include "intel_gpu/plugin/legacy_api_helper.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 
 #include <description_buffer.hpp>
@@ -35,210 +36,9 @@ using namespace InferenceEngine::details;
 namespace ov {
 namespace intel_gpu {
 
-bool LegacyPropertiesHelper::is_new_api_property(const std::pair<std::string, ov::Any>& property) const {
-    static const std::vector<std::string> new_properties_list = {
-        ov::intel_gpu::hint::queue_priority.name(),
-        ov::intel_gpu::hint::queue_throttle.name(),
-        ov::hint::inference_precision.name(),
-        ov::compilation_num_threads.name(),
-        ov::num_streams.name(),
-    };
-
-    return std::find(new_properties_list.begin(), new_properties_list.end(), property.first) != new_properties_list.end();
-}
-
-bool LegacyPropertiesHelper::is_legacy_property(const std::pair<std::string, ov::Any>& property) const {
-    static const std::vector<std::string> legacy_properties_list = {
-        InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS,
-        InferenceEngine::PluginConfigParams::KEY_MODEL_PRIORITY,
-        InferenceEngine::GPUConfigParams::KEY_GPU_HOST_TASK_PRIORITY,
-        InferenceEngine::GPUConfigParams::KEY_GPU_MAX_NUM_THREADS,
-        InferenceEngine::GPUConfigParams::KEY_GPU_PLUGIN_PRIORITY,
-        InferenceEngine::GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE,
-    };
-
-    return std::find(legacy_properties_list.begin(), legacy_properties_list.end(), property.first) != legacy_properties_list.end();
-}
-
-ov::AnyMap LegacyPropertiesHelper::convert_legacy_properties(const std::map<std::string, std::string>& properties) const {
-    return convert_legacy_properties(ov::AnyMap(properties.begin(), properties.end()));
-}
-
-ov::AnyMap LegacyPropertiesHelper::convert_legacy_properties(const ov::AnyMap& properties) const {
-    ov::AnyMap converted_properties;
-    for (auto& property : properties) {
-        if (is_legacy_property(property)) {
-            auto new_property = convert_legacy_property(property);
-            converted_properties[new_property.first] = new_property.second;
-        } else {
-            converted_properties[property.first] = property.second;
-        }
-    }
-
-    return converted_properties;
-}
-
-std::pair<std::string, ov::Any> LegacyPropertiesHelper::convert_legacy_property(const std::pair<std::string, ov::Any>& legacy_property) const {
-    auto legacy_name = legacy_property.first;
-    if (legacy_name == InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS) {
-        ov::Any converted_val{legacy_property.second};
-        auto legacy_val = legacy_property.second.as<std::string>();
-        if (legacy_val == InferenceEngine::PluginConfigParams::GPU_THROUGHPUT_AUTO)
-            converted_val = ov::streams::AUTO;
-
-        return { ov::num_streams.name(), converted_val };
-    } else if (legacy_name == InferenceEngine::PluginConfigParams::KEY_MODEL_PRIORITY) {
-        ov::Any converted_val{nullptr};
-        auto legacy_val = legacy_property.second.as<std::string>();
-        if (legacy_val == InferenceEngine::PluginConfigParams::MODEL_PRIORITY_HIGH) {
-            converted_val = ov::hint::Priority::HIGH;
-        } else if (legacy_val == InferenceEngine::PluginConfigParams::MODEL_PRIORITY_MED) {
-            converted_val = ov::hint::Priority::MEDIUM;
-        } else if (legacy_val == InferenceEngine::PluginConfigParams::MODEL_PRIORITY_LOW) {
-            converted_val = ov::hint::Priority::LOW;
-        }
-
-        return { ov::hint::model_priority.name(), converted_val };
-    } else if (legacy_name == InferenceEngine::GPUConfigParams::KEY_GPU_MAX_NUM_THREADS) {
-        return { ov::compilation_num_threads.name(), legacy_property.second };
-    } else if (legacy_name == InferenceEngine::GPUConfigParams::KEY_GPU_HOST_TASK_PRIORITY) {
-        ov::Any converted_val{nullptr};
-        auto legacy_val = legacy_property.second.as<std::string>();
-        if (legacy_val == InferenceEngine::GPUConfigParams::GPU_HOST_TASK_PRIORITY_HIGH) {
-            converted_val = ov::hint::Priority::HIGH;
-        } else if (legacy_val == InferenceEngine::GPUConfigParams::GPU_HOST_TASK_PRIORITY_MEDIUM) {
-            converted_val = ov::hint::Priority::MEDIUM;
-        } else if (legacy_val == InferenceEngine::GPUConfigParams::GPU_HOST_TASK_PRIORITY_LOW) {
-            converted_val = ov::hint::Priority::LOW;
-        }
-        return { ov::intel_gpu::hint::host_task_priority.name(), converted_val };
-    } else if (legacy_name == InferenceEngine::GPUConfigParams::KEY_GPU_PLUGIN_PRIORITY) {
-        ov::Any converted_val{nullptr};
-        auto legacy_val = legacy_property.second.as<std::string>();
-        if (!legacy_val.empty()) {
-            std::stringstream ss(legacy_val);
-            uint32_t uVal(0);
-            ss >> uVal;
-            OPENVINO_ASSERT(!ss.fail(), "[GPU] Unsupported property value by plugin: ", legacy_val);
-            switch (uVal) {
-            case 0:
-            case 2:
-                converted_val = ov::hint::Priority::MEDIUM;
-                break;
-            case 1:
-                converted_val = ov::hint::Priority::LOW;
-                break;
-            case 3:
-                converted_val = ov::hint::Priority::HIGH;
-                break;
-            default:
-                OPENVINO_ASSERT(false, "[GPU] Unsupported queue priority value ", uVal);
-            }
-        }
-
-        return { ov::intel_gpu::hint::queue_priority.name(), converted_val };
-    } else if (legacy_name == InferenceEngine::GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE) {
-        ov::Any converted_val{nullptr};
-        auto legacy_val = legacy_property.second.as<std::string>();
-        if (!legacy_val.empty()) {
-            std::stringstream ss(legacy_val);
-            uint32_t uVal(0);
-            ss >> uVal;
-            OPENVINO_ASSERT(!ss.fail(), "[GPU] Unsupported property value by plugin: ", legacy_val);
-            switch (uVal) {
-            case 0:
-            case 2:
-                converted_val = ov::intel_gpu::hint::ThrottleLevel::MEDIUM;
-                break;
-            case 1:
-                converted_val = ov::intel_gpu::hint::ThrottleLevel::LOW;
-                break;
-            case 3:
-                converted_val = ov::intel_gpu::hint::ThrottleLevel::HIGH;
-                break;
-            default:
-                OPENVINO_ASSERT(false, "[GPU] Unsupported queue throttle value ", uVal);
-            }
-        }
-
-        return { ov::intel_gpu::hint::queue_throttle.name(), converted_val };
-    }
-
-    OPENVINO_ASSERT(false, "[GPU] Unhandled legacy property in convert_legacy_property method: ", legacy_property.first);
-}
-
-std::pair<std::string, ov::Any> LegacyPropertiesHelper::convert_to_legacy_property(const std::pair<std::string, ov::Any>& property) const {
-    auto name = property.first;
-    if (name == ov::num_streams.name()) {
-        ov::Any legacy_val{property.second};
-        if (!property.second.empty()) {
-            if (property.second.as<ov::streams::Num>() == ov::streams::AUTO) {
-                legacy_val = InferenceEngine::PluginConfigParams::GPU_THROUGHPUT_AUTO;
-            }
-        }
-
-        return { InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, legacy_val };
-    } else if (name == ov::hint::model_priority.name()) {
-        ov::Any legacy_val{nullptr};
-        if (!property.second.empty()) {
-            ov::hint::Priority val = property.second.as<ov::hint::Priority>();
-            switch (val) {
-            case ov::hint::Priority::LOW: legacy_val = InferenceEngine::PluginConfigParams::MODEL_PRIORITY_LOW; break;
-            case ov::hint::Priority::MEDIUM: legacy_val = InferenceEngine::PluginConfigParams::MODEL_PRIORITY_MED; break;
-            case ov::hint::Priority::HIGH: legacy_val = InferenceEngine::PluginConfigParams::MODEL_PRIORITY_HIGH; break;
-            default: OPENVINO_ASSERT(false, "[GPU] Unsupported model priority value ", val);
-            }
-        }
-
-        return { InferenceEngine::PluginConfigParams::KEY_MODEL_PRIORITY, legacy_val };
-    } else if (name == ov::compilation_num_threads.name()) {
-        return { InferenceEngine::GPUConfigParams::KEY_GPU_MAX_NUM_THREADS, property.second };
-    } else if (name == ov::intel_gpu::hint::host_task_priority.name()) {
-        ov::Any legacy_val{nullptr};
-        if (!property.second.empty()) {
-            ov::hint::Priority val = property.second.as<ov::hint::Priority>();
-            switch (val) {
-            case ov::hint::Priority::LOW: legacy_val = InferenceEngine::GPUConfigParams::GPU_HOST_TASK_PRIORITY_LOW; break;
-            case ov::hint::Priority::MEDIUM: legacy_val = InferenceEngine::GPUConfigParams::GPU_HOST_TASK_PRIORITY_MEDIUM; break;
-            case ov::hint::Priority::HIGH: legacy_val = InferenceEngine::GPUConfigParams::GPU_HOST_TASK_PRIORITY_HIGH; break;
-            default: OPENVINO_ASSERT(false, "[GPU] Unsupported host task priority value ", val);
-            }
-        }
-
-        return { InferenceEngine::PluginConfigParams::KEY_MODEL_PRIORITY, legacy_val };
-    } else if (name == ov::intel_gpu::hint::queue_priority.name()) {
-        ov::Any legacy_val{nullptr};
-        if (!property.second.empty()) {
-            ov::hint::Priority val = property.second.as<ov::hint::Priority>();
-            switch (val) {
-            case ov::hint::Priority::LOW: legacy_val = "1"; break;
-            case ov::hint::Priority::MEDIUM: legacy_val = "2"; break;
-            case ov::hint::Priority::HIGH: legacy_val = "3"; break;
-            default: OPENVINO_ASSERT(false, "[GPU] Unsupported queue throttle value ", val);
-            }
-        }
-
-        return { InferenceEngine::GPUConfigParams::KEY_GPU_PLUGIN_PRIORITY, legacy_val };
-    } else if (name == ov::intel_gpu::hint::queue_throttle.name()) {
-        ov::Any legacy_val{nullptr};
-        if (!property.second.empty()) {
-            ov::intel_gpu::hint::ThrottleLevel val = property.second.as<ov::intel_gpu::hint::ThrottleLevel>();
-            switch (val) {
-            case ov::intel_gpu::hint::ThrottleLevel::LOW: legacy_val = "1"; break;
-            case ov::intel_gpu::hint::ThrottleLevel::MEDIUM: legacy_val = "2"; break;
-            case ov::intel_gpu::hint::ThrottleLevel::HIGH: legacy_val = "3"; break;
-            default: OPENVINO_ASSERT(false, "[GPU] Unsupported queue throttle value ", val);
-            }
-        }
-        return { InferenceEngine::GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE, legacy_val };
-    }
-
-    OPENVINO_ASSERT(false, "[GPU] Unhandled legacy property in convert_to_legacy_property method: ", property.first);
-}
-
 CompiledModel::CompiledModel(InferenceEngine::CNNNetwork &network,
-                             InferenceEngine::gpu::ClContext::Ptr context,
-                             ExecutionConfig config) :
+                             InferenceEngine::RemoteContext::Ptr context,
+                             const ExecutionConfig& config) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault{[&]() -> InferenceEngine::ITaskExecutor::Ptr {
         if (config.get_property(ov::intel_gpu::exclusive_async_requests)) {
             //exclusiveAsyncRequests essentially disables the streams (and hence should be checked first) => aligned with the CPU behavior
@@ -285,7 +85,7 @@ static InferenceEngine::Layout layout_from_string(const std::string & name) {
     IE_THROW(NetworkNotRead) << "Unknown layout with name '" << name << "'";
 }
 
-CompiledModel::CompiledModel(std::istream& networkModel, InferenceEngine::gpu::ClContext::Ptr context, ExecutionConfig config) :
+CompiledModel::CompiledModel(std::istream& networkModel, InferenceEngine::RemoteContext::Ptr context, const ExecutionConfig& config) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault{[&]() -> InferenceEngine::ITaskExecutor::Ptr {
         if (config.get_property(ov::intel_gpu::exclusive_async_requests)) {
             //exclusiveAsyncRequests essentially disables the streams (and hence should be checked first) => aligned with the CPU behavior
@@ -665,22 +465,14 @@ std::shared_ptr<ngraph::Function> CompiledModel::GetExecGraphInfo() {
 }
 
 InferenceEngine::Parameter CompiledModel::GetConfig(const std::string &name) const {
-    const bool is_old_api = !_plugin->IsNewAPI();
-
     auto actual_name = name;
-    if (is_old_api) {
-        LegacyPropertiesHelper helper;
-        if (helper.is_legacy_property({name, nullptr})) {
-            actual_name = helper.convert_legacy_property({name, nullptr}).first;
-        }
+    if (LegacyAPIHelper::is_legacy_property({name, nullptr})) {
+        actual_name = LegacyAPIHelper::convert_legacy_property({name, nullptr}).first;
     }
 
     auto val = m_config.get_property(actual_name);
-    if (is_old_api) {
-        LegacyPropertiesHelper helper;
-        if (helper.is_legacy_property({name, nullptr})) {
-            val = helper.convert_to_legacy_property({actual_name, val}).second;
-        }
+    if (LegacyAPIHelper::is_legacy_property({name, nullptr})) {
+        val = LegacyAPIHelper::convert_to_legacy_property({actual_name, val}).second;
     }
 
     return val;

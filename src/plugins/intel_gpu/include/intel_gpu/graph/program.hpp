@@ -134,6 +134,7 @@ public:
     program(engine& engine_ref,
             std::set<std::shared_ptr<program_node>> const& nodes,
             const ExecutionConfig& config,
+            std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
             bool is_internal);
 
     explicit program(engine& engine);
@@ -238,6 +239,7 @@ public:
     static ptr build_program(engine& engine,
                              const std::set<std::shared_ptr<program_node>>& nodes,
                              const ExecutionConfig& config,
+                             std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
                              bool is_internal);
     static void init_primitives();
     void compile();
@@ -255,7 +257,6 @@ public:
     void remove_kernel(kernel_id id);
     bool is_local_block_io_supported() const;
     void query_local_block_io_supported();
-    std::shared_ptr<InferenceEngine::CPUStreamsExecutor> make_task_executor(const ExecutionConfig& config) const;
 
 private:
     uint32_t prog_id = 0;
@@ -311,6 +312,7 @@ private:
     void cleanup();
     void transfer_memory_to_device();
 
+    std::shared_ptr<InferenceEngine::CPUStreamsExecutor> make_task_executor(const ExecutionConfig& config) const;
     /*
     ** Analysis functions
     */

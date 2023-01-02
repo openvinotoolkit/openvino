@@ -39,14 +39,16 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::intel_gpu::hint::queue_priority, ov::hint::Priority::MEDIUM),
         std::make_tuple(ov::intel_gpu::enable_loop_unrolling, true),
 
+        // Legacy API properties
         std::make_tuple(ov::intel_gpu::enable_dynamic_batch, false),
-        std::make_tuple(ov::intel_gpu::max_dynamic_batch, 1),
         std::make_tuple(ov::intel_gpu::exclusive_async_requests, false),
         std::make_tuple(ov::intel_gpu::nv12_two_inputs, false),
-        std::make_tuple(ov::intel_gpu::config_file, "")
+        std::make_tuple(ov::intel_gpu::config_file, ""),
+        std::make_tuple(ov::intel_gpu::enable_lp_transformations, false)
     );
 
     register_property<PropertyVisibility::INTERNAL>(
+        std::make_tuple(ov::intel_gpu::max_dynamic_batch, 1),
         std::make_tuple(ov::intel_gpu::queue_type, QueueTypes::out_of_order),
         std::make_tuple(ov::intel_gpu::optimize_data, false),
         std::make_tuple(ov::intel_gpu::enable_memory_pool, true),
@@ -146,9 +148,17 @@ void ExecutionConfig::apply_hints(const cldnn::device_info& info) {
 }
 
 void ExecutionConfig::apply_user_properties(const cldnn::device_info& info) {
-    apply_hints(info);
+    // Copy internal properties before applying hints to ensure that
+    // a property set by hint won't be overriden by a value in user config.
+    // E.g num_streams=AUTO && hint=THROUGHPUT
+    // If we apply hints first and then copy all values from user config to internal one,
+    // then we'll get num_streams=AUTO in final config while some integer number is expected.
     for (auto& kv : user_properties) {
         internal_properties[kv.first] = kv.second;
+    }
+    apply_hints(info);
+    if (!is_set_by_user(ov::intel_gpu::enable_lp_transformations)) {
+        set_property(ov::intel_gpu::enable_lp_transformations(info.supports_imad || info.supports_immad));
     }
     user_properties.clear();
 }

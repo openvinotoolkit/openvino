@@ -133,7 +133,7 @@ public:
     virtual stream_ptr create_stream(const ExecutionConfig& config, void *handle) const = 0;
 
     /// Returns service stream which can be used during program build and optimizations
-    virtual stream& get_service_stream(ExecutionConfig cfg = ExecutionConfig()) = 0;
+    virtual stream& get_service_stream() const = 0;
 
     virtual allocation_type detect_usm_allocation_type(const void* memory) const = 0;
 

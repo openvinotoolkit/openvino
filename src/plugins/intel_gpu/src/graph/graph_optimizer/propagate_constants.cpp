@@ -24,7 +24,7 @@ void propagate_constants::run(program& p) {
             handle_constant(p, *node);
     }
 
-    auto&& to_replace = calculate(p.get_engine(), p.get_config());
+    auto&& to_replace = calculate(p.get_engine(), p.get_config(), p.get_task_executor());
 
     // remove all nodes which are no longer relevant, i.e. nodes which:
     // 1. are constants, and
@@ -108,14 +108,16 @@ bool propagate_constants::has_non_const_user(program_node& node) const {
     return false;
 }
 
-std::list<std::pair<primitive_id, memory::ptr>> propagate_constants::calculate(engine& engine, const ExecutionConfig& config) {
+std::list<std::pair<primitive_id, memory::ptr>> propagate_constants::calculate(engine& engine,
+                                                                               const ExecutionConfig& config,
+                                                                               std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor) {
     if (!has_non_trivial_constants)
         return {};
 
     ExecutionConfig cf_config = config;
     cf_config.set_property(ov::intel_gpu::optimize_data(false));
     cf_config.set_property(ov::intel_gpu::custom_outputs(const_outputs));
-    network::ptr net = network::build_network(engine, nodes, cf_config, true);
+    network::ptr net = network::build_network(engine, nodes, cf_config, task_executor, true);
     for (auto& cin : const_inputs)
         net->set_input_data(cin->id(), cin->get_attached_memory_ptr());
 
