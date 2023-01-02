@@ -81,14 +81,12 @@ public:
         if (not_fused.get_output_layout(out_id_not_fused).data_type == data_types::f32) {
             val_ref = not_fused.get_output_values<float>(out_id_not_fused);
         } else {
-            for (auto i : not_fused.get_output_values<FLOAT16>(out_id_not_fused))
-                val_ref.push_back(i);
+            val_ref = not_fused.get_output_values<FLOAT16, float>(out_id_not_fused);
         }
         if (fused.get_output_layout(out_id_fused).data_type == data_types::f32) {
             val_opt = fused.get_output_values<float>(out_id_fused);
         } else {
-            for (auto i : fused.get_output_values<FLOAT16>(out_id_fused))
-                val_opt.push_back(i);
+            val_opt = fused.get_output_values<FLOAT16, float>(out_id_fused);
         }
 
         ASSERT_EQ(val_ref.size(), val_opt.size());
