@@ -3,6 +3,7 @@
 //
 #pragma once
 
+#include <iterator>
 #include <ngraph/validation_util.hpp>
 #include <openvino/opsets/opset1.hpp>
 
