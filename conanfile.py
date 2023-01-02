@@ -25,12 +25,22 @@ class OpenvinoConan(ConanFile):
         "ngraph/*",
         "scripts/*",
         "src/*",
-        "thirdparty/*",
+        "thirdparty/CMakeLists.txt",
+        "thirdparty/ade/*",
+        "thirdparty/cnpy/*",
+        "thirdparty/fluid/*",
+        "thirdparty/gflags/*",
+        "thirdparty/itt_collector/*",
+        "thirdparty/ittapi/*",
+        "thirdparty/ocl/*",
+        "thirdparty/ocv/*",
+        "thirdparty/open_model_zoo/*",
+        "thirdparty/protobuf/*",
+        "thirdparty/xbyak/*",
         "tools/*",
-        "samples/*",
+        "samples/CMakeLists.txt",
         "docs/*",
         "licensing/*",
-        "tests/*",
         "CMakeLists.txt",
         "LICENSE",
     )
@@ -62,10 +72,11 @@ class OpenvinoConan(ConanFile):
         cmake.definitions["ENABLE_NCC_STYLE"] = "OFF"
         cmake.definitions["ENABLE_OV_PADDLE_FRONTEND"] = "OFF"
         cmake.definitions["ENABLE_OV_TF_FRONTEND"] = "OFF"
-        cmake.definitions["ENABLE_OV_ONNX_FRONTEND"] = "ON"
+        cmake.definitions["ENABLE_OV_ONNX_FRONTEND"] = "OFF"
         cmake.definitions["CMAKE_EXPORT_NO_PACKAGE_REGISTRY"] = "OFF"
         cmake.definitions["ENABLE_TEMPLATE"] = "OFF"
         cmake.definitions["ENABLE_INTEL_MYRIAD_COMMON"] = "OFF"
+        cmake.definitions["ENABLE_COMPILE_TOOL"] = "OFF"
         cmake.configure()
         cmake.build()
         cmake.install()

@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if (NOT ENABLE_SAMPLES AND CONAN_EXPORTED)
+    return()
+endif()
+
 add_subdirectory(cpp)
 add_subdirectory(c)
 
