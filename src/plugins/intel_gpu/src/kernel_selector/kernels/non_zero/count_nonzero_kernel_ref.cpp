@@ -32,6 +32,14 @@ ParamsKey CountNonzeroKernelRef::GetSupportedKey() const {
     return k;
 }
 
+DeviceFeaturesKey CountNonzeroKernelRef::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    DeviceFeaturesKey k;
+    k.requires_subgroups();
+    k.requires_subgroup_reduce();
+
+    return k;
+}
+
 KernelsData CountNonzeroKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
     assert(params.GetType() == KernelType::COUNT_NONZERO);
 
