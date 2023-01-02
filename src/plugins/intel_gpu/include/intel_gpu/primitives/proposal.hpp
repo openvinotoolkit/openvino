@@ -165,6 +165,32 @@ struct proposal : public primitive_base<proposal> {
     bool round_ratios;
     bool shift_anchors;
     bool normalize;
+
+    size_t hash() const override {
+        if (!seed) {
+            seed = hash_combine(seed, max_proposals);
+            seed = hash_combine(seed, iou_threshold);
+            seed = hash_combine(seed, base_bbox_size);
+            seed = hash_combine(seed, min_bbox_size);
+            seed = hash_combine(seed, feature_stride);
+            seed = hash_combine(seed, pre_nms_topn);
+            seed = hash_combine(seed, post_nms_topn);
+            seed = hash_range(seed, ratios.begin(), ratios.end());
+            seed = hash_range(seed, scales.begin(), scales.end());
+            seed = hash_combine(seed, coordinates_offset);
+            seed = hash_combine(seed, box_coordinate_scale);
+            seed = hash_combine(seed, box_size_scale);
+            seed = hash_combine(seed, for_deformable);
+            seed = hash_combine(seed, swap_xy);
+            seed = hash_combine(seed, initial_clip);
+            seed = hash_combine(seed, clip_before_nms);
+            seed = hash_combine(seed, clip_after_nms);
+            seed = hash_combine(seed, round_ratios);
+            seed = hash_combine(seed, shift_anchors);
+            seed = hash_combine(seed, normalize);
+        }
+        return seed;
+    }
 };
 
 }  // namespace cldnn

@@ -49,6 +49,15 @@ struct split : public primitive_base<split> {
     /// @brief List of output_ids.
     const primitive_id_arr output_ids;
 
+    size_t hash() const override {
+        if (!seed) {
+            for (auto& offset : output_offsets) {
+                seed = hash_combine(seed, offset.hash());
+            }
+        }
+        return seed;
+    }
+
 protected:
     static std::vector<primitive_id> extract_primitive_vector(
         const std::vector<std::pair<primitive_id, tensor> >& stor) {

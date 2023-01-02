@@ -375,6 +375,15 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @brief List of primitive ids containing bias data.
     const primitive_id_arr bias;
 
+    size_t hash() const override {
+        if (!seed) {
+            seed = hash_range(seed, pad.begin(), pad.end());
+            seed = hash_range(seed, stride.begin(), stride.end());
+            seed = hash_combine(seed, groups);
+            seed = hash_combine(seed, grouped_weights_shape);
+        }
+        return seed;
+    }
 
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {

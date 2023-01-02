@@ -68,6 +68,14 @@ struct lstm_dynamic_timeloop
     /// @brief Couple the input and forget gates if input_forget is 1. Default is 0.
     bool input_forget;
 
+    size_t hash() const override {
+        if (!seed) {
+            seed = hash_combine(seed, clip);
+            seed = hash_combine(seed, input_forget);
+        }
+        return seed;
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;

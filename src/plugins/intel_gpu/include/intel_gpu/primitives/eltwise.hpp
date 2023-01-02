@@ -167,5 +167,16 @@ struct eltwise : public primitive_base<eltwise> {
     std::vector<tensor> stride;
     /// @brief Define auto broadcast rule specification.
     ov::op::AutoBroadcastSpec broadcast_spec;
+
+    size_t hash() const override {
+        if (!seed) {
+            seed = cldnn::hash_combine(seed, mode);
+            seed = cldnn::hash_range(seed, coefficients.begin(), coefficients.end());
+            for (auto& s : stride) {
+                seed = cldnn::hash_combine(seed, s.hash());
+            }
+        }
+        return seed;
+    }
 };
 }  // namespace cldnn

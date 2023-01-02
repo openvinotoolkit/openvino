@@ -30,5 +30,12 @@ struct eye : public primitive_base<eye> {
 
     tensor output_shape;
     int32_t shift;
+
+    size_t hash() const override {
+        if (!seed) {
+            seed = hash_combine(seed, shift);
+        }
+        return seed;
+    }
 };
 }  // namespace cldnn

@@ -25,5 +25,14 @@ struct data : public primitive_base<data> {
     /// @brief @ref memory object which contains data.
     /// @note If memory is attached by memory::attach(), the attached buffer should be valid till network build.
     memory::ptr mem;
+
+    size_t hash() const override {
+        if (!seed) {
+            for (size_t i = 0; i < id.size(); i++) {
+                seed = hash_combine(seed, id[i]);
+            }
+        }
+        return seed;
+    }
 };
 }  // namespace cldnn

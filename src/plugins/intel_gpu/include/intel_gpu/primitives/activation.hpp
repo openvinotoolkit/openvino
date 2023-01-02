@@ -116,6 +116,15 @@ struct activation : public primitive_base<activation> {
     /// All other dimensions should be 1.
     primitive_id additional_params_input;
 
+    size_t hash() const override {
+        if (!seed) {
+            seed = hash_combine(seed, activation_function);
+            seed = hash_combine(seed, additional_params.a);
+            seed = hash_combine(seed, additional_params.b);
+        }
+        return seed;
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         if (additional_params_input.empty())

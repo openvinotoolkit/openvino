@@ -75,6 +75,13 @@ struct fully_connected : public primitive_base<fully_connected> {
     /// @brief Primitive dimension size.
     size_t input_size;
 
+    size_t hash() const override {
+        if (!seed) {
+            seed = hash_combine(seed, input_size);
+        }
+        return seed;
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;

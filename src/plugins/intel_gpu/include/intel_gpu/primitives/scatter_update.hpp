@@ -37,5 +37,12 @@ struct scatter_update : public primitive_base<scatter_update> {
 
     /// @brief ScatterUpdate axis
     int64_t axis;
+
+    size_t hash() const override {
+        if (!seed) {
+            seed = hash_combine(seed, axis);
+        }
+        return seed;
+    }
 };
 }  // namespace cldnn

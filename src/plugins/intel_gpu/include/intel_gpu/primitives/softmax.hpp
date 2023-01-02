@@ -38,5 +38,12 @@ struct softmax : public primitive_base<softmax> {
     /// - when softmax dimension is set to 3 (x dim) each input row is normalized independently.
 
     int64_t dimension;
+
+    size_t hash() const override {
+        if (!seed) {
+            seed = hash_combine(seed, dimension);
+        }
+        return seed;
+    }
 };
 }  // namespace cldnn

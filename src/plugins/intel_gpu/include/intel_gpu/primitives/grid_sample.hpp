@@ -30,6 +30,15 @@ struct grid_sample : primitive_base<grid_sample> {
           attributes(attributes) {}
 
     GridSampleOp::Attributes attributes;
+
+    size_t hash() const override {
+        if (!seed) {
+            seed = hash_combine(seed, attributes.align_corners);
+            seed = hash_combine(seed, attributes.mode);
+            seed = hash_combine(seed, attributes.padding_mode);
+        }
+        return seed;
+    }
 };
 
 }  // namespace cldnn

@@ -268,24 +268,6 @@ void primitive_inst::update_impl() {
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::update_implementation);
     auto prev_impl_str =  _impl != nullptr ? _impl->get_kernel_name() : "nullptr";
 
-    auto get_layout_key = [&](const kernel_impl_params& params) -> size_t {
-        size_t seed = 0;
-        auto& id = params.desc->id;
-        for (size_t i = 0; i < id.size(); i++) {
-            seed = hash_combine(seed, id[i]);
-        }
-        seed = hash_combine(seed, _node->get_unique_id());
-        for (auto& layout : params.input_layouts) {
-            for (auto& d : layout.get_shape()) {
-                seed = hash_combine(seed, d);
-            }
-        }
-        for (auto& d : params.get_output_layout().get_shape()) {
-            seed = hash_combine(seed, d);
-        }
-        return seed;
-    };
-
     auto update_shape_info = [this, prev_impl_str](const kernel_impl_params& params) {
         mem_lock<int32_t> lock(_shape_info_memory, _network.get_stream());
         size_t offset = 0;
@@ -329,7 +311,7 @@ void primitive_inst::update_impl() {
         if (!has_cached_impl) {
             if (_dynamic_impl) {
                 auto& compilation_context = get_network().get_compilation_context();
-                compilation_context.push_task([this, updated_params, layout_key](kernels_cache& kc) {
+                compilation_context.push_task(layout_key, [this, updated_params, layout_key](kernels_cache& kc) {
                     auto& cache = get_network().get_implementations_cache();
                     {
                         std::lock_guard<std::mutex> lock(get_network().get_impl_cache_mutex());
@@ -1233,5 +1215,16 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
 
         _intermediates_memory[i] = get_network().get_engine().allocate_memory(ibuf_layout, _allocation_type);
     }
+}
+
+size_t primitive_inst::get_layout_key(const kernel_impl_params& params) const {
+    size_t seed = _node->hash();
+    for (auto& in : params.input_layouts) {
+        seed = hash_combine(seed, in.hash());
+    }
+    for (auto& out : params.output_layouts) {
+        seed = hash_combine(seed, out.hash());
+    }
+    return seed;
 }
 }  // namespace cldnn

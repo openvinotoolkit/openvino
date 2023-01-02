@@ -41,6 +41,17 @@ struct region_yolo : public primitive_base<region_yolo> {
     uint32_t num;
     uint32_t mask_size;
     bool do_softmax;
+
+    size_t hash() const override {
+        if (!seed) {
+            seed = hash_combine(seed, coords);
+            seed = hash_combine(seed, classes);
+            seed = hash_combine(seed, num);
+            seed = hash_combine(seed, mask_size);
+            seed = hash_combine(seed, do_softmax);
+        }
+        return seed;
+    }
 };
 }  // namespace cldnn
 #pragma once

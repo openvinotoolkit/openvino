@@ -49,5 +49,14 @@ struct gather_nd : public primitive_base<gather_nd> {
 
     /// @brief GatherND batch_merged_output
     bool batch_merged_output;
+
+    size_t hash() const override {
+        if (!seed) {
+            seed = hash_combine(seed, indices_rank);
+            seed = hash_combine(seed, batch_dims);
+            seed = hash_combine(seed, batch_merged_output);
+        }
+        return seed;
+    }
 };
 }  // namespace cldnn

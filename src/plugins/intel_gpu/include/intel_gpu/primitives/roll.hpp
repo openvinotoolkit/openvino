@@ -26,6 +26,13 @@ struct roll : primitive_base<roll> {
 
     /// @brief Tensor which specifies the number of places by which the elements are shifted.
     tensor shift;
+
+    size_t hash() const override {
+        if (!seed) {
+            seed = hash_combine(seed, shift.hash());
+        }
+        return seed;
+    }
 };
 
 }  // namespace cldnn

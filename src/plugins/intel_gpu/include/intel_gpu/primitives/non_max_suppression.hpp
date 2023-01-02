@@ -63,6 +63,14 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
     primitive_id second_output;
     primitive_id third_output;
 
+    size_t hash() const override {
+        if (!seed) {
+            seed = hash_combine(seed, center_point_box);
+            seed = hash_combine(seed, sort_result_descending);
+        }
+        return seed;
+    }
+
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
         if (!num_select_per_class.empty())

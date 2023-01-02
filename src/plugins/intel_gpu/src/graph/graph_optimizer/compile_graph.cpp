@@ -21,6 +21,7 @@ void compile_graph::run(program& p) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "pass::CompileGraph");
     for (auto& node : p.get_processing_order()) {
         node->set_unique_id();
+        node->hash();
         if (!node->is_type<data>()) {
             node->get_output_layout();
         }

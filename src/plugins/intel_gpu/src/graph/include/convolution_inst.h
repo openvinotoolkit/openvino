@@ -107,6 +107,18 @@ public:
         return params;
     }
 
+    size_t hash() const override {
+        if (!seed) {
+            seed = parent::hash();
+
+            seed = hash_combine(seed, transposed);
+            seed = hash_combine(seed, groups);
+            seed = hash_combine(seed, deformable_groups);
+            seed = hash_combine(seed, deformable_mode);
+        }
+        return seed;
+    }
+
 private:
     bool transposed;
     uint32_t groups;

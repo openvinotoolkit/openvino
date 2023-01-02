@@ -71,7 +71,8 @@ public:
           output_paddings(output_paddings),
           output_data_types(output_data_types),
           input(input),
-          num_outputs(num_outputs) {}
+          num_outputs(num_outputs),
+          seed(0) {}
 
     virtual ~primitive() = default;
 
@@ -84,6 +85,8 @@ public:
     }
 
     virtual primitive_id type_string() const = 0;
+
+    virtual size_t hash() const { return seed; }
 
     /// @brief Implicit conversion to primiitive id.
     operator primitive_id() const { return id; }
@@ -120,6 +123,7 @@ public:
     size_t num_outputs;
 
 protected:
+    mutable size_t seed = 0;
     virtual std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const { return {}; }
     class condition;
     friend struct primitive_info;

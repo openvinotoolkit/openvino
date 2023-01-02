@@ -48,6 +48,16 @@ struct experimental_detectron_generate_proposals_single_image
     int64_t pre_nms_count;
     int64_t post_nms_count;
 
+    size_t hash() const override {
+        if (!seed) {
+            seed = cldnn::hash_combine(seed, min_size);
+            seed = cldnn::hash_combine(seed, nms_threshold);
+            seed = cldnn::hash_combine(seed, pre_nms_count);
+            seed = cldnn::hash_combine(seed, post_nms_count);
+        }
+        return seed;
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;

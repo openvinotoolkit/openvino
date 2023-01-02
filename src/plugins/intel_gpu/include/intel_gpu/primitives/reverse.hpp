@@ -27,5 +27,12 @@ struct reverse : public primitive_base<reverse> {
           mode{mode} {}
 
     reverse_mode mode{reverse_mode::index};
+
+    size_t hash() const override {
+        if (!seed) {
+            seed = hash_combine(seed, mode);
+        }
+        return seed;
+    }
 };
 }  // namespace cldnn

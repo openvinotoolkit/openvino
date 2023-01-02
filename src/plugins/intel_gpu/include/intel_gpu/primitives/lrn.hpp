@@ -60,5 +60,16 @@ struct lrn : public primitive_base<lrn> {
     float beta;
     /// @brief Normalize across or within channel
     lrn_norm_region norm_region;
+
+    size_t hash() const override {
+        if (!seed) {
+            seed = hash_combine(seed, size);
+            seed = hash_combine(seed, k);
+            seed = hash_combine(seed, alpha);
+            seed = hash_combine(seed, beta);
+            seed = hash_combine(seed, norm_region);
+        }
+        return seed;
+    }
 };
 }  // namespace cldnn

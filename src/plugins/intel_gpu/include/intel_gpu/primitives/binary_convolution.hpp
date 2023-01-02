@@ -65,6 +65,17 @@ struct binary_convolution : public primitive_base<binary_convolution> {
     /// @brief List of primitive ids containing weights data.
     const primitive_id_arr weights;
 
+    size_t hash() const override {
+        if (!seed) {
+            seed = hash_range(seed, pad.begin(), pad.end());
+            seed = hash_range(seed, stride.begin(), stride.end());
+            seed = hash_range(seed, dilation.begin(), dilation.end());
+            seed = hash_combine(seed, groups);
+            seed = hash_combine(seed, pad_value);
+        }
+        return seed;
+    }
+
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
         ret.reserve(weights.size());

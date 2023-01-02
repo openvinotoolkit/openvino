@@ -214,6 +214,8 @@ public:
 
     virtual void update_output_memory() {}
 
+    virtual size_t get_layout_key(const kernel_impl_params& params) const;
+
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);
 

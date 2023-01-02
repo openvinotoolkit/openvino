@@ -31,5 +31,12 @@ struct permute : public primitive_base<permute> {
 
     /// @brief Array of permuted output order in bfyx format.
     std::vector<uint16_t> permute_order;
+
+    size_t hash() const override {
+        if (!seed) {
+            seed = hash_range(seed, permute_order.begin(), permute_order.end());
+        }
+        return seed;
+    }
 };
 }  // namespace cldnn

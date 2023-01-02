@@ -28,5 +28,12 @@ struct scatter_elements_update : public primitive_base<scatter_elements_update> 
 
     /// @brief ScatterElementsUpdate axis
     int64_t axis;
+
+    size_t hash() const override {
+        if (!seed) {
+            seed = hash_combine(seed, axis);
+        }
+        return seed;
+    }
 };
 }  // namespace cldnn

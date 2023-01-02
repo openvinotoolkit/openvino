@@ -44,5 +44,14 @@ struct gather : public primitive_base<gather> {
     int64_t batch_dim;
     /// @brief Support negative indexes
     bool support_neg_ind;
+
+    size_t hash() const override {
+        if (!seed) {
+            seed = hash_combine(seed, axis);
+            seed = hash_combine(seed, batch_dim);
+            seed = hash_combine(seed, support_neg_ind);
+        }
+        return seed;
+    }
 };
 }  // namespace cldnn

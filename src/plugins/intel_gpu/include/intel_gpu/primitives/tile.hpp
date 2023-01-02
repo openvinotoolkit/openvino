@@ -32,5 +32,12 @@ struct tile : public primitive_base<tile> {
 
     /// @brief A per-dimension replication factor
     std::vector<int64_t> repeats;
+
+    size_t hash() const override {
+        if (!seed) {
+            seed = hash_range(seed, repeats.begin(), repeats.end());
+        }
+        return seed;
+    }
 };
 }  // namespace cldnn

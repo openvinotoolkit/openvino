@@ -332,6 +332,14 @@ struct padding {
         return padding{lower.sizes(), upper.sizes(), filling_value};
     }
 
+    size_t hash() const {
+        size_t seed = 0;
+        seed = cldnn::hash_combine(seed, _filling_value);
+        seed = cldnn::hash_combine(seed, _lower_size.hash());
+        seed = cldnn::hash_combine(seed, _upper_size.hash());
+        return seed;
+    }
+
 private:
     tensor _lower_size;  ///< Lower padding sizes. For spatials, it means size of left (X) and top (Y) padding.
     tensor _upper_size;  ///< Upper padding sizes. For spatials, it means size of right (X) and bottom (Y) padding.
@@ -502,6 +510,19 @@ struct layout {
     bool identical(const layout& other) const;
 
     ov::PartialShape transform(cldnn::format new_fmt) const;
+
+    size_t hash() const {
+        size_t seed = 0;
+        seed = hash_combine(seed, data_padding.hash());
+        seed = hash_combine(seed, format.value);
+        seed = hash_combine(seed, data_type);
+        if (!is_dynamic()) {
+            for (auto& d : get_shape()) {
+                seed = hash_combine(seed, d);
+            }
+        }
+        return seed;
+    }
 
 private:
     /// The size of the @ref memory (excluding padding)

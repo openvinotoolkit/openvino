@@ -318,6 +318,26 @@ public:
         return os;
     }
 
+    size_t hash() const {
+        size_t seed = 0;
+        for (size_t i = 0; i < batch.size(); ++i) {
+            seed = hash_combine(seed, batch[i]);
+        }
+
+        for (size_t i = 0; i < feature.size(); ++i) {
+            seed = hash_combine(seed, feature[i]);
+        }
+
+        for (size_t i = 0; i < spatial.size(); ++i) {
+            seed = hash_combine(seed, spatial[i]);
+        }
+
+        for (size_t i = 0; i < group.size(); ++i) {
+            seed = hash_combine(seed, group[i]);
+        }
+        return seed;
+    }
+
     std::string to_string() const {
         std::stringstream out;
         const char* delim = "";

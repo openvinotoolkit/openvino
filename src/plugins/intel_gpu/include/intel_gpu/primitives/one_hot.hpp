@@ -87,5 +87,14 @@ struct one_hot : public primitive_base<one_hot> {
     float on_value;
     /// @brief all other locations take value this value.
     float off_value;
+
+    size_t hash() const override {
+        if (!seed) {
+            seed = hash_combine(seed, one_hot_axis);
+            seed = hash_combine(seed, on_value);
+            seed = hash_combine(seed, off_value);
+        }
+        return seed;
+    }
 };
 }  // namespace cldnn

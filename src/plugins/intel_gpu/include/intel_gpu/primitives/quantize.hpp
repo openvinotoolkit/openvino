@@ -30,5 +30,12 @@ struct quantize : public primitive_base<quantize> {
 
     /// @brief levels The number of quantization levels.
     int levels;
+
+    size_t hash() const override {
+        if (seed == 0) {
+            seed = cldnn::hash_combine(seed, levels);
+        }
+        return seed;
+    }
 };
 }  // namespace cldnn
