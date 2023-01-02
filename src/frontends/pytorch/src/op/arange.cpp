@@ -10,92 +10,74 @@ namespace ov {
 namespace frontend {
 namespace pytorch {
 namespace op {
-
+namespace {
+ov::element::Type get_output_dtype(NodeContext& context, size_t input_id) {
+    auto pt_type = context.const_input<int64_t>(input_id);
+    FRONT_END_OP_CONVERSION_CHECK(TORCH_TO_OV_TYPE.count(pt_type), "Unknown type in aten::arange: ", pt_type);
+    return TORCH_TO_OV_TYPE.at(pt_type);
+}
+}  // namespace
 OutputVector translate_arange(NodeContext& context) {
     auto zero = context.mark_node(opset8::Constant::create(element::i32, Shape{}, {0}));
     auto one = context.mark_node(opset8::Constant::create(element::i32, Shape{}, {1}));
     auto dtype = element::f32;
     bool dtype_applied = false;
     int num_inputs = context.get_input_size();
+    ov::Output<Node> end;
+    ov::Output<Node> out_tensor;
+    ov::Output<Node> start = zero;
+    ov::Output<Node> step = one;
+
     // aten::arange(Scalar end, tensor out)
     if (num_inputs == 2) {
-        auto end = context.get_input(0);
-        auto range = context.mark_node(std::make_shared<opset8::Range>(zero, end, one, dtype));
-        if (!context.input_is_none(1)) {
-            auto out_tensor = context.get_input(1);
-            return {context.mark_node(std::make_shared<opset8::ConvertLike>(range, out_tensor))};
-        }
-        return {context.mark_node(std::make_shared<opset8::ConvertLike>(range, end))};
+        end = context.get_input(0);
+        out_tensor = context.input_is_none(1) ? end : context.get_input(1);
     }
     // # aten::arange(Scalar start, Scalar end, Scalar step, Tensor out)
     if (num_inputs == 4) {
-        auto start = context.get_input(0);
-        auto end = context.get_input(1);
-        auto step = context.get_input(2);
-        auto range = context.mark_node(std::make_shared<opset8::Range>(start, end, step, dtype));
-        if (!context.input_is_none(3)) {
-            auto out_tensor = context.get_input(3);
-            return {context.mark_node(std::make_shared<opset8::ConvertLike>(range, out_tensor))};
-        }
-        return {context.mark_node(std::make_shared<opset8::ConvertLike>(range, end))};
+        start = context.get_input(0);
+        end = context.get_input(1);
+        step = context.get_input(2);
+        out_tensor = context.input_is_none(3) ? end : context.get_input(3);
     }
     // aten::arange(Scalar end, ScalarType dtype, Layout, Device, bool pin_memory)
     if (num_inputs == 5) {
-        auto end = context.get_input(0);
+        end = context.get_input(0);
+        out_tensor = end;
         if (!context.input_is_none(1)) {
-            auto pt_type = context.const_input<int64_t>(1);
-            FRONT_END_OP_CONVERSION_CHECK(TORCH_TO_OV_TYPE.count(pt_type), "Unknown type in aten::arange: ", pt_type);
-            dtype = TORCH_TO_OV_TYPE.at(pt_type);
-            end = context.mark_node(std::make_shared<opset8::Convert>(end, dtype));
-            zero = context.mark_node(std::make_shared<opset8::Convert>(zero, dtype));
-            one = context.mark_node(std::make_shared<opset8::Convert>(one, dtype));
+            dtype = get_output_dtype(context, 1);
             dtype_applied = true;
         }
-        auto range = context.mark_node(std::make_shared<opset8::Range>(zero, end, one, dtype));
-        if (!dtype_applied) {
-            return {context.mark_node(std::make_shared<opset8::ConvertLike>(range, end))};
-        }
-        return {range};
     }
     // aten::arange(Scalar start, Scalar end, ScalarType dtype, Layout, Device, bool pin_memory)
     if (num_inputs == 6) {
-        auto start = context.get_input(0);
-        auto end = context.get_input(1);
+        start = context.get_input(0);
+        end = context.get_input(1);
+        out_tensor = end;
         if (!context.input_is_none(2)) {
-            auto pt_type = context.const_input<int64_t>(2);
-            FRONT_END_OP_CONVERSION_CHECK(TORCH_TO_OV_TYPE.count(pt_type), "Unknown type in aten::arange: ", pt_type);
-            dtype = TORCH_TO_OV_TYPE.at(pt_type);
+            dtype = get_output_dtype(context, 2);
             dtype_applied = true;
-            end = context.mark_node(std::make_shared<opset8::Convert>(end, dtype));
-            start = context.mark_node(std::make_shared<opset8::Convert>(start, dtype));
-            one = context.mark_node(std::make_shared<opset8::Convert>(one, dtype));
         }
-        auto range = context.mark_node(std::make_shared<opset8::Range>(start, end, one, dtype));
-        if (!dtype_applied) {
-            return {context.mark_node(std::make_shared<opset8::ConvertLike>(range, end))};
-        }
-        return {range};
     }
     // aten::arange(Scalar start, Scalar end, Scalar step, ScalarType dtype, Layout, Device, bool pin_memory)
     if (num_inputs == 7) {
-        auto start = context.get_input(0);
-        auto end = context.get_input(1);
-        auto step = context.get_input(2);
+        start = context.get_input(0);
+        end = context.get_input(1);
+        step = context.get_input(2);
+        out_tensor = end;
         if (!context.input_is_none(3)) {
-            auto pt_type = context.const_input<int64_t>(3);
-            FRONT_END_OP_CONVERSION_CHECK(TORCH_TO_OV_TYPE.count(pt_type), "Unknown type in aten::arange: ", pt_type);
-            dtype = TORCH_TO_OV_TYPE.at(pt_type);
-            end = context.mark_node(std::make_shared<opset8::Convert>(end, dtype));
-            start = context.mark_node(std::make_shared<opset8::Convert>(start, dtype));
-            step = context.mark_node(std::make_shared<opset8::Convert>(step, dtype));
+            dtype = get_output_dtype(context, 2);
             dtype_applied = true;
         }
-        auto range = context.mark_node(std::make_shared<opset8::Range>(start, end, step, dtype));
-        if (!dtype_applied) {
-            return {context.mark_node(std::make_shared<opset8::ConvertLike>(range, end))};
-        }
-        return {range};
     }
+    auto r_end = context.mark_node(std::make_shared<opset8::Convert>(end, dtype));
+    auto r_start = context.mark_node(std::make_shared<opset8::Convert>(start, dtype));
+    auto r_step = context.mark_node(std::make_shared<opset8::Convert>(step, dtype));
+    auto range = context.mark_node(std::make_shared<opset8::Range>(r_start, r_end, r_step, dtype));
+    if (!dtype_applied) {
+        range = context.mark_node(std::make_shared<opset8::ConvertLike>(range, out_tensor));
+    }
+    return {range};
 };
 
 }  // namespace op
