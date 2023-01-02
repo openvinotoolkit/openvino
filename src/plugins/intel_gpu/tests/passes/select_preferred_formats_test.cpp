@@ -25,12 +25,12 @@ using namespace testing;
 TEST(test_select_preferred_formats, setting_target_conv_format) {
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 32, 64, 64 } });
-    auto weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 32, 64, 64 } });
+    auto weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 32, 32, 3, 3 } });
 
     topology topology;
     topology.add(data("weights", weights));
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(reorder("reorder", input_info("input"), format::b_fs_yx_fsv16, data_types::f16)),
+    topology.add(reorder("reorder", input_info("input"), format::b_fs_yx_fsv16, data_types::f16));
     topology.add(convolution("conv1", input_info("reorder"), { "weights" }));
 
     build_options build;
@@ -41,6 +41,9 @@ TEST(test_select_preferred_formats, setting_target_conv_format) {
     layout_optimizer lo(true);
     auto prog = program::build_program(engine, topology, build, false, true);
 
+    // It initializes output_layout.
+    // It's necessary because this test runs select_preferred_formats pass alone.
+    prog->get_node("conv1").get_output_layouts(false);
     program_wrapper::apply_opt_pass<select_preferred_formats>(*prog, lo);
 
     ASSERT_NE(prog, nullptr);
