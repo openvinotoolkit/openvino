@@ -24,7 +24,7 @@ class CompiledModel : public InferenceEngine::ExecutableNetworkThreadSafeDefault
 public:
     typedef std::shared_ptr<CompiledModel> Ptr;
 
-    CompiledModel(InferenceEngine::CNNNetwork &network, InferenceEngine::RemoteContext::Ptr context,const ExecutionConfig& config);
+    CompiledModel(InferenceEngine::CNNNetwork &network, InferenceEngine::RemoteContext::Ptr context, const ExecutionConfig& config);
     CompiledModel(std::istream& networkModel, InferenceEngine::RemoteContext::Ptr context, const ExecutionConfig& config);
 
     void Export(std::ostream& networkModel) override;

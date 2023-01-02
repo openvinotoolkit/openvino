@@ -213,7 +213,7 @@ std::pair<std::string, ov::Any> LegacyAPIHelper::convert_to_legacy_property(cons
 }
 
 std::vector<std::string> LegacyAPIHelper::get_supported_configs() {
-    const static std::vector<std::string> supported_config = {
+    static const std::vector<std::string> supported_config = {
         CONFIG_KEY(MODEL_PRIORITY),
         CONFIG_KEY(PERFORMANCE_HINT),
         CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS),

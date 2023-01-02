@@ -33,7 +33,6 @@ class RemoteContextImpl;
 class RemoteBlobImpl : public InferenceEngine::gpu::details::param_map_obj_getter {
     friend class RemoteAllocator;
 public:
-
     explicit RemoteBlobImpl(InferenceEngine::gpu::ClContext::Ptr context,
                             cldnn::stream& stream,
                             const cldnn::layout& layout,

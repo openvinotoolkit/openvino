@@ -534,7 +534,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
 }
 
 std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
-    const static std::vector<ov::PropertyName> supported_properties = {
+    static const std::vector<ov::PropertyName> supported_properties = {
         // Metrics
         ov::PropertyName{ov::supported_properties.name(), PropertyMutability::RO},
         ov::PropertyName{ov::available_devices.name(), PropertyMutability::RO},

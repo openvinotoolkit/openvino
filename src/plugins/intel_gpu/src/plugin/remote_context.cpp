@@ -117,8 +117,8 @@ std::string RemoteContextImpl::get_device_name(const std::string& plugin_name,
     if (!m_device_id.empty())
         device_name += "." + m_device_id;
     return device_name;
-
 }
+
 std::string RemoteContextImpl::get_device_name() const noexcept {
     return m_device_name;
 }

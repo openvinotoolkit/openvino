@@ -44,8 +44,7 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::intel_gpu::exclusive_async_requests, false),
         std::make_tuple(ov::intel_gpu::nv12_two_inputs, false),
         std::make_tuple(ov::intel_gpu::config_file, ""),
-        std::make_tuple(ov::intel_gpu::enable_lp_transformations, false)
-    );
+        std::make_tuple(ov::intel_gpu::enable_lp_transformations, false));
 
     register_property<PropertyVisibility::INTERNAL>(
         std::make_tuple(ov::intel_gpu::max_dynamic_batch, 1),
@@ -58,8 +57,7 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::intel_gpu::dump_graphs, ""),
         std::make_tuple(ov::intel_gpu::force_implementations, ImplForcingMap{}),
         std::make_tuple(ov::intel_gpu::partial_build_program, false),
-        std::make_tuple(ov::intel_gpu::allow_new_shape_infer, false)
-    );
+        std::make_tuple(ov::intel_gpu::allow_new_shape_infer, false));
 
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
