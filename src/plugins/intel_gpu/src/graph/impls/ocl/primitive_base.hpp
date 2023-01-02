@@ -329,6 +329,12 @@ protected:
         }
         return kernel_strings;
     }
+
+    void reset_kernels_source() override {
+        for (size_t i = 0; i < _kernel_data.kernels.size(); ++i) {
+            _kernel_data.kernels[i].code.kernelString.reset();
+        }
+    }
 };
 
 }  // namespace ocl
