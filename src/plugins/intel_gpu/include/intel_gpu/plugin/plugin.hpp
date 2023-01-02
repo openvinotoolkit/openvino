@@ -15,27 +15,26 @@
 namespace ov {
 namespace intel_gpu {
 
-using CustomLayerPtr = std::shared_ptr<class CustomLayer>;
 class Plugin : public InferenceEngine::IInferencePlugin {
     struct impl;
     std::shared_ptr<impl> _impl;
     bool isModelCachingEnabled = false;
 
+    std::string default_device_id = "0";
     // key: device_id, value: cldnn device
     std::map<std::string, cldnn::device::ptr> device_map;
     std::map<std::string, ExecutionConfig> m_configs_map;
-    std::string default_device_id = "0";
     // key: cldnn context, value: memory statistics
     mutable std::map<RemoteContextImpl::Ptr, std::map<std::string, uint64_t>> statistics_map;
     mutable std::mutex engine_mutex;
 
     mutable std::map<std::string, RemoteCLContext::Ptr> m_default_contexts;
 
-    InferenceEngine::CNNNetwork CloneAndTransformNetwork(const InferenceEngine::CNNNetwork& network,
-                                                         const ExecutionConfig& config) const;
-    void TransformNetwork(std::shared_ptr<ov::Model>& model, const ExecutionConfig& config) const;
-    void RegisterPrimitives();
-    void UpdateStatistics(const RemoteContextImpl::Ptr& context) const;
+    InferenceEngine::CNNNetwork clone_and_transform_model(const InferenceEngine::CNNNetwork& network,
+                                                          const ExecutionConfig& config) const;
+    void transform_model(std::shared_ptr<ov::Model>& model, const ExecutionConfig& config) const;
+    void register_primitives();
+    void update_memory_statistics(const RemoteContextImpl::Ptr& context) const;
     std::string get_device_id_from_config(const std::map<std::string, std::string>& config) const;
     std::string get_device_id(const std::map<std::string, std::string>& config) const;
     RemoteCLContext::Ptr get_default_context(const std::string& device_id) const;

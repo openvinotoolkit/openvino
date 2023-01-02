@@ -63,7 +63,7 @@ namespace intel_gpu {
 #include "intel_gpu/plugin/primitives_list.hpp"
 #undef REGISTER_FACTORY
 
-void Plugin::RegisterPrimitives() {
+void Plugin::register_primitives() {
     #define REGISTER_FACTORY(op_version, op_name) FACTORY_CALL(op_version, op_name)
     #include "intel_gpu/plugin/primitives_list.hpp"
     #undef REGISTER_FACTORY
@@ -90,22 +90,22 @@ std::string Plugin::get_device_id(const std::map<std::string, std::string>& conf
     return device_id;
 }
 
-void Plugin::TransformNetwork(std::shared_ptr<ov::Model>& model, const ExecutionConfig& config) const {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::TransformNetwork");
+void Plugin::transform_model(std::shared_ptr<ov::Model>& model, const ExecutionConfig& config) const {
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::transform_model");
     auto deviceInfo = device_map.at(config.get_property(ov::device::id))->get_info();
     TransformationsPipeline transformations(config, deviceInfo);
     transformations.apply(model);
 }
 
-InferenceEngine::CNNNetwork Plugin::CloneAndTransformNetwork(const InferenceEngine::CNNNetwork& network,
+InferenceEngine::CNNNetwork Plugin::clone_and_transform_model(const InferenceEngine::CNNNetwork& network,
                                                              const ExecutionConfig& config) const {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::CloneAndTransformNetwork");
-    GPU_DEBUG_DEFINE_MEM_LOGGER("Plugin::CloneAndTransformNetwork");
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::clone_and_transform_model");
+    GPU_DEBUG_DEFINE_MEM_LOGGER("Plugin::clone_and_transform_model");
     CNNNetwork clonedNetwork = InferenceEngine::details::cloneNetwork(network);
 
     auto nGraphFunc = clonedNetwork.getFunction();
     if (nGraphFunc) {
-        TransformNetwork(nGraphFunc, config);
+        transform_model(nGraphFunc, config);
         GPU_DEBUG_GET_INSTANCE(debug_config);
         GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
             auto path_base = debug_config->dump_graphs + "/" + network.getName() + "_" +  "transformed_func";
@@ -117,7 +117,7 @@ InferenceEngine::CNNNetwork Plugin::CloneAndTransformNetwork(const InferenceEngi
 
 Plugin::Plugin() : m_default_contexts({}) {
     _pluginName = "GPU";
-    RegisterPrimitives();
+    register_primitives();
     // try loading gpu engine and get info from it
     {
         // Set OCL runtime which should be always available
@@ -129,7 +129,6 @@ Plugin::Plugin() : m_default_contexts({}) {
             m_configs_map.insert({device.first, ExecutionConfig(ov::device::id(device.first))});
             auto ctx = std::make_shared<RemoteCLContext>(GetName() + "." + device.first, std::vector<cldnn::device::ptr>{ device.second });
             m_default_contexts.insert({device.first, ctx});
-            // std::cerr << "Init config and context for: " << device.first << std::endl;
         }
     }
 
@@ -161,8 +160,8 @@ auto check_inputs = [](InferenceEngine::InputsDataMap _networkInputs) {
     }
 };
 
-void Plugin::UpdateStatistics(const RemoteContextImpl::Ptr& context) const {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::UpdateStatistics");
+void Plugin::update_memory_statistics(const RemoteContextImpl::Ptr& context) const {
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::update_memory_statistics");
     {
         std::lock_guard<std::mutex> lock(engine_mutex);
 
@@ -191,11 +190,11 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
     config.set_user_property(preprocess_config(orig_config));
     config.apply_user_properties(context->get_impl()->get_engine().get_device_info());
 
-    auto transformedNetwork = CloneAndTransformNetwork(network, config);
+    auto transformedNetwork = clone_and_transform_model(network, config);
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::LoadExeNetworkImpl::CreateExeNetwork");
         CompiledModel::Ptr exeNetwork = std::make_shared<CompiledModel>(transformedNetwork, context, config);
-        UpdateStatistics(context->get_impl());
+        update_memory_statistics(context->get_impl());
         return exeNetwork;
     }
 }
@@ -210,7 +209,7 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
     config.set_user_property(preprocess_config(orig_config));
     config.apply_user_properties(get_context_impl(context)->get_engine().get_device_info());
 
-    auto transformedNetwork = CloneAndTransformNetwork(network, config);
+    auto transformedNetwork = clone_and_transform_model(network, config);
     return std::make_shared<CompiledModel>(transformedNetwork, context, config);
 }
 
@@ -300,7 +299,7 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
         std::map<std::string, ngraph::PartialShape> shapes;
         std::map<std::string, std::pair<int64_t, int64_t>> batch_dim;
         dyn_shape_batch_found = prog.IsDynBatchModel(model, shapes, batch_dim);
-        TransformNetwork(model, config);
+        transform_model(model, config);
     },
     [&](std::shared_ptr<ngraph::Node> node) {
             if (node->is_dynamic()) {
@@ -355,7 +354,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(std::istr
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork::CreateExeNetwork");
         CompiledModel::Ptr exeNetwork = std::make_shared<CompiledModel>(networkModel, context, config);
         exeNetwork->SetPointerToPlugin(shared_from_this());
-        UpdateStatistics(context->get_impl());
+        update_memory_statistics(context->get_impl());
         return exeNetwork;
     }
 }
@@ -489,7 +488,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         std::map<std::string, uint64_t> statistics;
         for (auto const &item : statistics_map) {
             // Before collecting memory statistics of each context, it's updated with the latest memory statistics from engine.
-            UpdateStatistics(item.first);
+            update_memory_statistics(item.first);
             for (auto const &kv : item.second) {
                 if (!statistics.count(kv.first)) {
                     statistics[kv.first] = kv.second;
@@ -792,7 +791,7 @@ uint32_t Plugin::get_optimal_batch_size(const std::map<std::string, Parameter>& 
                         << ", L3_cache_size is (MB): " << float(L3_cache_size) / 1024 / 1024 << std::endl;
     }
     auto config = m_configs_map.at(device_id);
-    auto networkCloned = CloneAndTransformNetwork(CNNNetwork(model), config);
+    auto networkCloned = clone_and_transform_model(CNNNetwork(model), config);
     ov::MemBandwidthPressure memPressure = ov::MemBandwidthPressureTolerance(networkCloned.getFunction(), L3_cache_size);
     uint32_t batch = 1;
     if (memPressure.max_mem_tolerance != ov::MemBandwidthPressure::UNKNOWN)

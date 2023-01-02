@@ -34,7 +34,7 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::hint::performance_mode, ov::hint::PerformanceMode::LATENCY),
         std::make_tuple(ov::hint::num_requests, 0),
 
-        std::make_tuple(ov::intel_gpu::hint::host_task_priority, ov::intel_gpu::hint::ThrottleLevel::MEDIUM),
+        std::make_tuple(ov::intel_gpu::hint::host_task_priority, ov::hint::Priority::MEDIUM),
         std::make_tuple(ov::intel_gpu::hint::queue_throttle, ov::intel_gpu::hint::ThrottleLevel::MEDIUM),
         std::make_tuple(ov::intel_gpu::hint::queue_priority, ov::hint::Priority::MEDIUM),
         std::make_tuple(ov::intel_gpu::enable_loop_unrolling, true),
@@ -163,7 +163,6 @@ void ExecutionConfig::apply_user_properties(const cldnn::device_info& info) {
 
 std::string ExecutionConfig::to_string() const {
     std::stringstream s;
-    s << "Config\n";
     s << "internal properties:\n";
     for (auto& kv : internal_properties) {
         s << "\t" << kv.first << ": " << kv.second.as<std::string>() << std::endl;

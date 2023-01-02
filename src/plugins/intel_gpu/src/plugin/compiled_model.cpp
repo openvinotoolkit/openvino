@@ -513,7 +513,7 @@ InferenceEngine::Parameter CompiledModel::GetMetric(const std::string &name) con
         metrics.push_back(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS));
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-        std::vector<std::string> configKeys {
+        static const std::vector<std::string> configKeys {
             CONFIG_KEY(MODEL_PRIORITY),
             CONFIG_KEY(PERFORMANCE_HINT),
             CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS),

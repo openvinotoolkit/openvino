@@ -335,8 +335,8 @@ void Program::PrepareBuild(InferenceEngine::InputsDataMap networkInputs, Inferen
     }
     config_path += "/cldnn_global_custom_kernels/cldnn_global_custom_kernels.xml";
 
-    CustomLayer::LoadFromFile(config_path, custom_layers, true);
-    CustomLayer::LoadFromFile(m_config.get_property(ov::intel_gpu::config_file), custom_layers, true);
+    CustomLayer::LoadFromFile(config_path, m_custom_layers, true);
+    CustomLayer::LoadFromFile(m_config.get_property(ov::intel_gpu::config_file), m_custom_layers, true);
 }
 
 void Program::CleanupBuild() {
@@ -428,11 +428,11 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, const std::s
     bool is_created = false;
     const ngraph::NodeTypeInfo* op_type_info = &op->get_type_info();
     while (op_type_info != nullptr) {
-        // auto customLayer = m_config.customLayers.find(op->get_type_name());
-        // if (customLayer != m_config.customLayers.end()) {
-            // CreateCustomOp(*this, op, customLayer->second);
-            // return;
-        // }
+        auto customLayer = m_custom_layers.find(op->get_type_name());
+        if (customLayer != m_custom_layers.end()) {
+            CreateCustomOp(*this, op, customLayer->second);
+            return;
+        }
 
         auto factory_it = factories_map.find(*op_type_info);
         if (factory_it != factories_map.end()) {

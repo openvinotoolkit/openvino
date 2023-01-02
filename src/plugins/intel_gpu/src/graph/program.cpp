@@ -116,7 +116,7 @@ program::program(engine& engine_ref,
     query_local_block_io_supported();
     _task_executor = make_task_executor(_config);
 
-    GPU_DEBUG_INFO << "Internal " << config.to_string();
+    GPU_DEBUG_INFO << "Program config\n" << config.to_string();
 
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(topology);
