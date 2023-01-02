@@ -39,11 +39,12 @@ TemplateInferRequest::TemplateInferRequest(const InferenceEngine::InputsDataMap&
     createInferRequest();
 }
 
-TemplateInferRequest::TemplateInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
-                                           const std::vector<std::shared_ptr<const ov::Node>>& outputs,
-                                           const std::shared_ptr<TemplatePlugin::ExecutableNetwork>& executableNetwork)
+TemplateInferRequest::TemplateInferRequest(
+    const std::vector<ov::Output<const ov::Node>>& inputs,
+    const std::vector<ov::Output<const ov::Node>>& outputs,
+    const std::shared_ptr<const TemplatePlugin::ExecutableNetwork>& executableNetwork)
     : IInferRequestInternal(inputs, outputs),
-      _executableNetwork(executableNetwork) {
+      _executableNetwork(std::const_pointer_cast<ExecutableNetwork>(executableNetwork)) {
     createInferRequest();
 }
 

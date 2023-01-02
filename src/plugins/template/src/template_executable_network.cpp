@@ -148,10 +148,10 @@ void TemplatePlugin::ExecutableNetwork::InitExecutor() {
 InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::create_infer_request_impl(
     const std::vector<ov::Output<const ov::Node>>& inputs,
     const std::vector<ov::Output<const ov::Node>>& outputs) const {
-    return nullptr;
-    // return std::make_shared<TemplateInferRequest>(inputs,
-    //                                               outputs,
-    //                                               std::static_pointer_cast<ExecutableNetwork>(shared_from_this()));
+    return std::make_shared<TemplateInferRequest>(
+        inputs,
+        outputs,
+        std::static_pointer_cast<const ExecutableNetwork>(shared_from_this()));
 }
 // ! [executable_network:create_infer_request_impl]
 
@@ -160,7 +160,7 @@ InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::c
     InferenceEngine::IInferRequestInternal::Ptr internalRequest;
     const std::shared_ptr<const ov::Model>& const_model = m_model;
     internalRequest = create_infer_request_impl(const_model->inputs(), const_model->outputs());
-    OPENVINO_ASSERT(false);
+    return internalRequest;
     // return
     // std::make_shared<TemplateAsyncInferRequest>(std::static_pointer_cast<TemplateInferRequest>(internalRequest),
     //                                                    _taskExecutor,

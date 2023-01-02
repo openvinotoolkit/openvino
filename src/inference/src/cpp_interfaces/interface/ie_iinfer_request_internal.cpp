@@ -75,6 +75,51 @@ IInferRequestInternal::IInferRequestInternal(const std::vector<std::shared_ptr<c
     }
 }
 
+IInferRequestInternal::IInferRequestInternal(const std::vector<ov::Output<const ov::Node>>& networkInputs,
+                                             const std::vector<ov::Output<const ov::Node>>& networkOutputs) {
+    for (const auto& input : networkInputs) {
+        _parameters.emplace_back(input.get_node_shared_ptr());
+    }
+    for (const auto& output : networkOutputs) {
+        _results.emplace_back(output.get_node_shared_ptr());
+    }
+    const auto& create_old_data = [](const ov::Output<const ov::Node>& output) -> InferenceEngine::DataPtr {
+        auto name = ngraph::op::util::get_ie_output_name(output);
+        auto shape = output.get_partial_shape();
+        auto rank = shape.rank().is_static() ? shape.rank().get_length() : -1;
+        SizeVector dims(1, 0);
+        if (shape.is_static()) {
+            dims = output.get_shape();
+        } else if (rank >= 0) {
+            dims = SizeVector(rank, 0);
+        }
+        for (const auto& dim : shape) {
+            if (dim.is_static() && dim.get_length() == 0)
+                IE_THROW() << name << " has zero dimension which is not allowed";
+        }
+        const Layout rankLayout = rank < 0 ? Layout::BLOCKED : TensorDesc::getLayoutByRank(rank);
+        const auto precision = InferenceEngine::details::convertPrecision(output.get_element_type());
+        return std::make_shared<Data>(name, TensorDesc{precision, dims, rankLayout});
+    };
+    const auto& create_old_input_data =
+        [create_old_data](const ov::Output<const ov::Node>& output) -> InferenceEngine::InputInfo::Ptr {
+        auto info = std::make_shared<InferenceEngine::InputInfo>();
+        info->setInputData(create_old_data(output));
+        return info;
+    };
+
+    for (const auto& param : _parameters) {
+        const auto& input = create_old_input_data(param->output(0));
+        _networkInputs[input->name()] = input;
+    }
+
+    for (const auto& result : _results) {
+        auto input = result->input_value(0);
+        const auto& output = create_old_data(ov::Output<const ov::Node>(input.get_node(), input.get_index()));
+        _networkOutputs[output->getName()] = output;
+    }
+}
+
 void IInferRequestInternal::Infer() {
     checkBlobs();
     InferImpl();

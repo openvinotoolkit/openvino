@@ -51,6 +51,9 @@ public:
     IInferRequestInternal(const std::vector<std::shared_ptr<const ov::Node>>& networkInputs,
                           const std::vector<std::shared_ptr<const ov::Node>>& networkOutputs);
 
+    IInferRequestInternal(const std::vector<ov::Output<const ov::Node>>& networkInputs,
+                          const std::vector<ov::Output<const ov::Node>>& networkOutputs);
+
     /**
      * @brief Infers specified input(s) in synchronous mode
      * @note blocks all method of InferRequest while request is ongoing (running or waiting in queue)
