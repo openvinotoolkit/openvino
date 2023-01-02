@@ -73,48 +73,23 @@ public:
         // Subtract reorders count to handle execution in different layouts when input/output reorders can be added in the graph
         ASSERT_EQ(fused.get_executed_primitives().size() - (count_reorder ? 0 : reorders_count_fused), p.expected_fused_primitives);
         ASSERT_EQ(not_fused.get_executed_primitives().size() - (count_reorder ? 0 : reorders_count_not_fused), p.expected_not_fused_primitives);
-        ASSERT_EQ(outnodes_ref.size(), outnodes_fused.size());
-        ASSERT_EQ(outnodes_ref.size(), size_t(1));
+        ASSERT_EQ(outputs_ref.size(), outputs_fused.size());
+        ASSERT_EQ(outputs_ref.size(), size_t(1));
 
-        std::vector<float> val_ref;
-        std::vector<float> val_opt;
-        if (not_fused.get_output_layout(out_id_not_fused).data_type == data_types::f32) {
-            val_ref = not_fused.get_output_values<float>(out_id_not_fused);
-        } else {
-            val_ref = not_fused.get_output_values<FLOAT16, float>(out_id_not_fused);
-        }
-        if (fused.get_output_layout(out_id_fused).data_type == data_types::f32) {
-            val_opt = fused.get_output_values<float>(out_id_fused);
-        } else {
-            val_opt = fused.get_output_values<FLOAT16, float>(out_id_fused);
-        }
-
-        ASSERT_EQ(val_ref.size(), val_opt.size());
-        for (size_t i = 0; i < val_ref.size(); i++) {
-            ASSERT_NEAR(val_ref[i], val_opt[i], tolerance) << "i = " << i;
-        }
-
-        GPU_DEBUG_GET_INSTANCE(debug_config);
-        GPU_DEBUG_IF(debug_config->verbose >= 2) {
-            float E_X = 0;
-            float E_SQX = 0;
-            float abs_diff_sum = 0;
-            float max_abs_X = 0;
-            for (size_t i = 0; i < val_ref.size(); i++) {
-                E_X += val_ref[i];
-                E_SQX += val_ref[i] * val_ref[i];
-                abs_diff_sum += std::abs(val_ref[i] - val_opt[i]);
-                max_abs_X = std::max(max_abs_X, val_ref[i]);
+        auto output_not_fused_prim = outputs_ref.begin()->second.get_memory();
+        auto output_fused_prim = outputs_fused.begin()->second.get_memory();
+        if (output_not_fused_prim->get_layout().data_type == data_types::f32) {
+            cldnn::mem_lock<float> ref(output_not_fused_prim, get_test_stream());
+            cldnn::mem_lock<float> output_ptr(output_fused_prim, get_test_stream());
+            for (size_t i = 0; i < output_fused_prim->get_layout().count(); i++) {
+                ASSERT_NEAR(ref[i], output_ptr[i], tolerance) << "i = " << i;
             }
-            E_X /= val_ref.size();
-            E_SQX /= val_ref.size();
-            float SD = std::sqrt((E_SQX - E_X * E_X));
-            if (SD < tolerance * val_ref.size())
-                GPU_DEBUG_INFO << "WARNING: output variance is too low" << std::endl;
-            if (abs_diff_sum / val_ref.size() > tolerance * val_ref.size())
-                GPU_DEBUG_INFO << "WARNING: output average difference is too high" << std::endl;
-            if (max_abs_X >= 1e6)
-                GPU_DEBUG_INFO << "WARNING: output absolute value is too high" << std::endl;
+        } else {
+            cldnn::mem_lock<int16_t> ref(output_not_fused_prim, get_test_stream());
+            cldnn::mem_lock<int16_t> output_ptr(output_fused_prim, get_test_stream());
+            for (size_t i = 0; i < output_fused_prim->get_layout().count(); i++) {
+                ASSERT_NEAR(half_to_float(ref[i]), half_to_float(output_ptr[i]), tolerance) << "i = " << i;
+            }
         }
     }
 
