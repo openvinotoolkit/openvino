@@ -118,6 +118,12 @@ std::shared_ptr<Node> numel(NodeContext& context, size_t input_id) {
     return context.mark_node(std::make_shared<opset8::ReduceProd>(input_shape, axes, false));
 };
 
+ov::element::Type convert_dtype(NodeContext& context, size_t input_id) {
+    auto pt_type = context.const_input<int64_t>(input_id);
+    FRONT_END_OP_CONVERSION_CHECK(TORCH_TO_OV_TYPE.count(pt_type), "Unknown type: ", pt_type);
+    return TORCH_TO_OV_TYPE.at(pt_type);
+};
+
 OutputVector make_framework_node(NodeContext* context) {
     auto schema = context->get_schema();
     // TODO: properly process schema to get the actual position of mutable input

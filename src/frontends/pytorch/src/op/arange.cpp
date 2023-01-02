@@ -10,13 +10,6 @@ namespace ov {
 namespace frontend {
 namespace pytorch {
 namespace op {
-namespace {
-ov::element::Type get_output_dtype(NodeContext& context, size_t input_id) {
-    auto pt_type = context.const_input<int64_t>(input_id);
-    FRONT_END_OP_CONVERSION_CHECK(TORCH_TO_OV_TYPE.count(pt_type), "Unknown type in aten::arange: ", pt_type);
-    return TORCH_TO_OV_TYPE.at(pt_type);
-}
-}  // namespace
 OutputVector translate_arange(NodeContext& context) {
     auto zero = context.mark_node(opset8::Constant::create(element::i32, Shape{}, {0}));
     auto one = context.mark_node(opset8::Constant::create(element::i32, Shape{}, {1}));
@@ -45,7 +38,7 @@ OutputVector translate_arange(NodeContext& context) {
         end = context.get_input(0);
         out_tensor = end;
         if (!context.input_is_none(1)) {
-            dtype = get_output_dtype(context, 1);
+            dtype = convert_dtype(context, 1);
             dtype_applied = true;
         }
     }
@@ -55,7 +48,7 @@ OutputVector translate_arange(NodeContext& context) {
         end = context.get_input(1);
         out_tensor = end;
         if (!context.input_is_none(2)) {
-            dtype = get_output_dtype(context, 2);
+            dtype = convert_dtype(context, 2);
             dtype_applied = true;
         }
     }
@@ -66,7 +59,7 @@ OutputVector translate_arange(NodeContext& context) {
         step = context.get_input(2);
         out_tensor = end;
         if (!context.input_is_none(3)) {
-            dtype = get_output_dtype(context, 2);
+            dtype = convert_dtype(context, 2);
             dtype_applied = true;
         }
     }
