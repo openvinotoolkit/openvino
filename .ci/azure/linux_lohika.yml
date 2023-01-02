@@ -29,9 +29,9 @@ jobs:
     displayName: fetch
 
 #  - checkout: self
-#    clean: true
-#    lfs: false
-#    submodules: recursive
+#    clean: 'true'
+#    fetchDepth: '1'
+#    submodules: 'true'
 #    path: openvino
 
   - checkout: none
@@ -41,8 +41,10 @@ jobs:
 
     # Should be after 'Install dependencies' because Git lfs is not installed
 #  - checkout: testdata
-#    clean: true
-#    lfs: true
+#    clean: 'true'
+#    fetchDepth: '1'
+#    submodules: 'true'
+#    lfs: 'true'
 #    path: testdata
 
   - script: env -C ~/work ./configreleasenolto.sh

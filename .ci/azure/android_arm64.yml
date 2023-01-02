@@ -4,7 +4,7 @@ trigger:
     - master
     - releases/*
   paths:
-    exclude: 
+    exclude:
     - docs/
     - /**/docs/*
     - /**/*.md
@@ -18,7 +18,7 @@ pr:
     - master
     - releases/*
   paths:
-    exclude: 
+    exclude:
     - /**/docs/*
     - /**/*.md
     - /**/layer_tests_summary/**
@@ -93,14 +93,14 @@ jobs:
 
   - checkout: self
     clean: 'true'
-    lfs: 'false'
-    submodules: recursive
+    fetchDepth: '1'
+    submodules: 'true'
     path: openvino
 
   - checkout: openvino_contrib
     clean: 'true'
-    lfs: 'false'
-    submodules: recursive
+    fetchDepth: '1'
+    submodules: 'true'
     path: openvino_contrib
 
   - script: |

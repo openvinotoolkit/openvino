@@ -1,10 +1,10 @@
 trigger:
   branches:
     include:
-    - master 
+    - master
     - releases/*
   paths:
-    exclude: 
+    exclude:
     - /**/docs/*
     - /**/*.md
     - /**/layer_tests_summary/**
@@ -15,7 +15,7 @@ pr:
     - master
     - releases/*
   paths:
-    exclude: 
+    exclude:
     - /**/docs/*
     - /**/*.md
     - /**/layer_tests_summary/**
@@ -72,8 +72,8 @@ jobs:
 
   - checkout: self
     clean: 'true'
-    lfs: 'false'
-    submodules: recursive
+    fetchDepth: '1'
+    submodules: 'true'
     path: openvino
 
   - script: |
@@ -86,6 +86,7 @@ jobs:
   - checkout: testdata
     clean: 'true'
     lfs: 'true'
+    fetchDepth: '1'
     path: testdata
 
   - script: |

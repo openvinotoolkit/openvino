@@ -127,14 +127,14 @@ jobs:
 
   - checkout: self
     clean: 'true'
-    lfs: 'false'
-    submodules: recursive
+    fetchDepth: '1'
+    submodules: 'true'
     path: openvino
 
   - checkout: openvino_contrib
     clean: 'true'
-    lfs: 'false'
-    submodules: recursive
+    fetchDepth: '1'
+    submodules: 'true'
     path: openvino_contrib
 
   - script: |
@@ -193,6 +193,7 @@ jobs:
     # Should be after 'Install dependencies' because Git lfs is not installed
   - checkout: testdata
     clean: 'true'
+    fetchDepth: '1'
     lfs: 'true'
     path: testdata
 
@@ -254,7 +255,6 @@ jobs:
   - script: sudo apt-get remove libtbb2 -y
     displayName: 'Remove debian dependencies'
     condition: eq(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
-    continueOnError: 'false'
 
   - script: cmake -DCOMPONENT=python_wheels -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_DIR)/cmake_install.cmake
     displayName: 'Install wheel packages'

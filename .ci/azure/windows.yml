@@ -124,18 +124,19 @@ jobs:
 
   - checkout: self
     clean: 'true'
-    lfs: 'false'
-    submodules: recursive
+    fetchDepth: '1'
+    submodules: 'true'
     path: openvino
 
   - checkout: openvino_contrib
     clean: 'true'
-    lfs: 'false'
-    submodules: recursive
+    fetchDepth: '1'
+    submodules: 'true'
     path: openvino_contrib
 
   - checkout: testdata
     clean: 'true'
+    fetchDepth: '1'
     lfs: 'true'
     path: testdata
 
