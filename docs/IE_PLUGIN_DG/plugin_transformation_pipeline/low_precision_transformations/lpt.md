@@ -195,6 +195,7 @@ Original `Convolution` operation in FP32 with dequantization operations before:
 LPT cleanup transformations is final stage in LPT pipeline. In this step LPT transformations clean up the result model to avoid not handled dequantization operations: fuse dequantization operations if possible (fuse at least `Convert` operations if not) to other model operations to cleanup result model. Transformations:
 * [FoldConvertTransformation](@ref openvino_docs_OV_UG_lpt_FoldConvertTransformation)
 * [FoldFakeQuantizeTransformation](@ref openvino_docs_OV_UG_lpt_FoldFakeQuantizeTransformation)
+* [FoldZeroMultiplyTransformation](@ref openvino_docs_OV_UG_lpt_FoldZeroMultiplyTransformation)
 * [FuseConvertTransformation](@ref openvino_docs_OV_UG_lpt_FuseConvertTransformation)
 * [FuseMultiplyToFakeQuantizeTransformation](@ref openvino_docs_OV_UG_lpt_FuseMultiplyToFakeQuantizeTransformation)
 * [FuseSubtractToFakeQuantizeTransformation](@ref openvino_docs_OV_UG_lpt_FuseSubtractToFakeQuantizeTransformation)

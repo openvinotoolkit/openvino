@@ -2,6 +2,7 @@
 
 * [FoldConvertTransformation](@ref openvino_docs_OV_UG_lpt_FoldConvertTransformation)
 * [FoldFakeQuantizeTransformation](@ref openvino_docs_OV_UG_lpt_FoldFakeQuantizeTransformation)
+* [FoldZeroMultiplyTransformation](@ref openvino_docs_OV_UG_lpt_FoldZeroMultiplyTransformation)
 * [FuseConvertTransformation](@ref openvino_docs_OV_UG_lpt_FuseConvertTransformation)
 * [FuseMultiplyToFakeQuantizeTransformation](@ref openvino_docs_OV_UG_lpt_FuseMultiplyToFakeQuantizeTransformation)
 * [FuseSubtractToFakeQuantizeTransformation](@ref openvino_docs_OV_UG_lpt_FuseSubtractToFakeQuantizeTransformation)
