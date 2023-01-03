@@ -88,9 +88,6 @@ class OpenvinoConan(ConanFile):
             "runtime/lib/intel64",
         ]
         self.cpp_info.libs = ["openvino"]
-        self.cpp_info.build_modules["cmake_find_package"].append(
-            "cmake/Findopenvino.cmake"
-        )
         self.cpp_info.includedirs = [
             "runtime/include",
             "runtime/include/ie",
