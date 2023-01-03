@@ -17,7 +17,7 @@
 
 ov::pass::PReluFusionNegativeAdd::PReluFusionNegativeAdd() {
     MATCHER_SCOPE(PReluFusionNegativeAdd);
-    auto input = ngraph::pattern::any_input();
+    auto input = pass::pattern::any_input();
     auto relu_pos = ngraph::pattern::wrap_type<opset8::Relu>({input});
     auto neg1 = ngraph::pattern::wrap_type<opset8::Negative>({input});
     auto relu_neg = ngraph::pattern::wrap_type<opset8::Relu>({neg1});
@@ -49,7 +49,7 @@ ov::pass::PReluFusionNegativeAdd::PReluFusionNegativeAdd() {
 
 ov::pass::PReluFusionNegativeSub::PReluFusionNegativeSub() {
     MATCHER_SCOPE(PReluFusionNegativeSub);
-    auto input = ngraph::pattern::any_input();
+    auto input = pass::pattern::any_input();
     auto relu_pos = ngraph::pattern::wrap_type<opset8::Relu>({input});
     auto neg1 = ngraph::pattern::wrap_type<opset8::Negative>({input});
     auto relu_neg = ngraph::pattern::wrap_type<opset8::Relu>({neg1});
@@ -93,7 +93,7 @@ static std::function<bool(ngraph::Output<ngraph::Node>)> constant_value(const fl
 
 ov::pass::PReluFusionMultiplyAdd::PReluFusionMultiplyAdd() {
     MATCHER_SCOPE(PReluFusionMultiplyAdd);
-    auto input = ngraph::pattern::any_input();
+    auto input = pass::pattern::any_input();
     auto relu_pos = ngraph::pattern::wrap_type<opset8::Relu>({input});
     auto mul_neg_constant = ngraph::pattern::wrap_type<opset8::Constant>(constant_value(-1.0));
     auto mul_neg = ngraph::pattern::wrap_type<opset8::Multiply>({input, mul_neg_constant});
@@ -126,7 +126,7 @@ ov::pass::PReluFusionMultiplyAdd::PReluFusionMultiplyAdd() {
 
 ov::pass::PReluFusionMultiplySub::PReluFusionMultiplySub() {
     MATCHER_SCOPE(PReluFusionMultiplySub);
-    auto input = ngraph::pattern::any_input();
+    auto input = pass::pattern::any_input();
     auto relu_pos = ngraph::pattern::wrap_type<opset8::Relu>({input});
     auto mul_neg_constant = ngraph::pattern::wrap_type<opset8::Constant>(constant_value(-1.0));
     auto mul_neg = ngraph::pattern::wrap_type<opset8::Multiply>({input, mul_neg_constant});

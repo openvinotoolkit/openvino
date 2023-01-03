@@ -15,9 +15,9 @@
 #include <string>
 #include <vector>
 
-#define AGE_BASED "-cl-no-subgroup-ifp"
-#define DEFAULT ""
-#define NO_PRERA_SCH "-cl-intel-no-prera-scheduling"
+#define EXE_MODE_DEFAULT ""
+#define EXE_MODE_AGE_BASED "-cl-no-subgroup-ifp"
+#define EXE_MODE_NO_PRERA_SCH "-cl-intel-no-prera-scheduling"
 
 namespace kernel_selector {
 
@@ -138,7 +138,6 @@ std::string toString(Datatype dType);
 std::string toString(WeightsType wType);
 std::string toString(KernelType kt);
 std::string toString(EltwiseMode b_mode);
-std::string toString(ReorderMode mode);
 std::string toString(MeanSubtractMode mode);
 std::string toString(ArgMaxMinOut mode);
 std::string toString(ArgMaxMinAxis mode);

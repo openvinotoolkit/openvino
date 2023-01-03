@@ -33,7 +33,7 @@ void InsertMoveBroadcastTests::SetUp() {
 
 TEST_P(InsertMoveBroadcastTests, AddBroadcast) {
     auto subgraph = getLoweredSubgraph(snippets_function->getOriginal());
-    function = subgraph->get_body();
+    function = subgraph->body_ptr();
     function_ref = snippets_function->getLowered();
 }
 

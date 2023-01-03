@@ -12,7 +12,7 @@
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
-#include "ngraph_ops/type_relaxed.hpp"
+#include "ov_ops/type_relaxed.hpp"
 #include "op/interaction.hpp"
 #include "simplify_fakequantize.hpp"
 

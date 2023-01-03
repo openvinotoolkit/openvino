@@ -28,7 +28,6 @@ public:
     bool isExecutable() const override;
 
 protected:
-    std::vector<VectorDims> shapeInfer() const override;
     void executeDynamicImpl(dnnl::stream strm) override;
 
 private:

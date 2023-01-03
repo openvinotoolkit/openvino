@@ -102,7 +102,7 @@ public:
         auto optional_params = get_default_weights_bias_optional_params<kernel_selector::binary_convolution_optional_params>(impl_param.get_program());
 
         params.pad_value = primitive->pad_value;
-        params.out_dt = to_data_type(*primitive->output_data_type);
+        params.out_dt = to_data_type(*primitive->output_data_types[0]);
         params.depthwise_separable_opt = false;
         params.split = static_cast<uint32_t>(split);
         params.groups = static_cast<uint32_t>(groups);
@@ -154,4 +154,4 @@ attach_binary_convolution_impl::attach_binary_convolution_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::binary_convolution_impl, cldnn::object_type::BINARY_CONVOLUTION_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::binary_convolution_impl)

@@ -133,6 +133,7 @@ protected:
     }
 
     void validate() override {
+        auto actualOutputs = get_plugin_outputs();
         if (function->get_parameters().size() == 2) {
             auto pos = std::find_if(inputs.begin(), inputs.end(),
                                     [](const std::pair<std::shared_ptr<ov::Node>, ov::Tensor> &params) {
@@ -141,7 +142,14 @@ protected:
             IE_ASSERT(pos != inputs.end());
             inputs.erase(pos);
         }
-        SubgraphBaseTest::validate();
+        auto expectedOutputs = calculate_refs();
+        if (expectedOutputs.empty()) {
+                return;
+        }
+        ASSERT_EQ(actualOutputs.size(), expectedOutputs.size())
+                << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
+
+        compare(expectedOutputs, actualOutputs);
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
@@ -169,7 +177,6 @@ private:
 };
 
 TEST_P(AdaPoolLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     CheckPluginRelatedResults(compiledModel, "AdaptivePooling");
 }

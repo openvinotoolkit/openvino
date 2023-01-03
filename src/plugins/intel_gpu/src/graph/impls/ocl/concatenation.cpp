@@ -201,4 +201,4 @@ attach_concatenation_impl::attach_concatenation_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::concatenation_impl, cldnn::object_type::CONCATENATION_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::concatenation_impl)

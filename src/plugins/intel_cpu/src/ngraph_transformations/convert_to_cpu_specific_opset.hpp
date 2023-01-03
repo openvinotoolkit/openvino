@@ -8,7 +8,7 @@
 #include "ngraph/pass/manager.hpp"
 #include "reshape_fc_fusion.hpp"
 #include "align_matmul_input_ranks.hpp"
-#include "reshape_prelu.hpp"
+#include "transformations/common_optimizations/reshape_prelu.hpp"
 #include "convert_broadcast_to_tiles.hpp"
 #include "convert_tile_to_seq_tiles.hpp"
 #include "convert_matmul_to_fc.hpp"
@@ -19,7 +19,6 @@
 #include "transformations/utils/utils.hpp"
 #include "rnn_sequences_optimization.hpp"
 #include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
-#include "convert_logsoftmax.hpp"
 
 #include "itt.hpp"
 
@@ -28,9 +27,9 @@ namespace intel_cpu {
 
 inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphFunc) {
     RUN_ON_FUNCTION_SCOPE(ConvertToCPUSpecificOpset);
+
     ngraph::pass::Manager manager;
     manager.register_pass<ConvertMatMulToFC>();
-    manager.register_pass<ConvertLogSoftmax>();
     manager.register_pass<AlignMatMulInputRanks>();
     manager.register_pass<ConvertTileToSeqTiles>();
     manager.register_pass<FullyConnectedBiasFusion>();

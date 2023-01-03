@@ -27,7 +27,23 @@ Before you start the installation, check the supported operating systems and req
 
 ## Install the OpenVINO™ Development Tools Package
 
-### Step 1. Set Up Python Virtual Environment
+There are two options to install OpenVINO Development Tools: installation into an existing environment with a deep learning framework used for model training or creation;
+or installation in a new environment.
+
+### Installation into an Existing Environment with the Source Deep Learning Framework
+
+To install OpenVINO Development Tools (see the [What's in the Package](#whats-in-the-package) section of this article) into an existing environment
+with the source deep learning framework used for model training or creation, run the following command:
+```
+pip install openvino-dev
+```
+
+### Installation in a New Environment
+
+If you do not have an environment with the source deep learning framework for the input model or you encounter any compatibility issues between OpenVINO and your version of deep learning framework,
+you may install OpenVINO Development Tools with validated versions of frameworks into a new environment. 
+
+#### Step 1. Set Up Python Virtual Environment
 
 Use a virtual environment to avoid dependency conflicts. 
 
@@ -45,7 +61,7 @@ python3 -m venv openvino_env
 
 > **NOTE**: On Linux and macOS, you may need to [install pip](https://pip.pypa.io/en/stable/installation/). For example, on Ubuntu execute the following command to get pip installed: `sudo apt install python3-venv python3-pip`.
 
-### Step 2. Activate Virtual Environment
+#### Step 2. Activate Virtual Environment
 
 On Linux and macOS:
 ```sh
@@ -56,49 +72,38 @@ On Windows:
 openvino_env\Scripts\activate
 ```
 
-### Step 3. Set Up and Update PIP to the Highest Version
+#### Step 3. Set Up and Update PIP to the Highest Version
 
 Run the command below:
 ```sh
 python -m pip install --upgrade pip
 ```
 
-### Step 4. Install the Package
+#### Step 4. Install the Package
 
-There are two options to install OpenVINO Development Tools:
-
-#### Installing Default Components
-
-To install the default components in the package (see the [What's in the Package](#whats-in-the-package) section of this article), use the following command:
-```
-pip install openvino-dev
-```
-
-#### Installing Components for Specific Frameworks
-
-To install and configure the components of the package for working with specific frameworks, use the following command:
+Use the following command:
 ```sh
 pip install openvino-dev[extras]
 ```
- where `extras` has the following values: 
+ where `extras` is the source deep learning framework for the input model and has the following values: 
 
 | Extras Value                    | DL Framework                                                                     |
 | :-------------------------------| :------------------------------------------------------------------------------- |
 | caffe                           |   [Caffe*](https://caffe.berkeleyvision.org/)                                    |
 | kaldi                           |   [Kaldi*](https://github.com/kaldi-asr/kaldi)                                   |
-| mxnet                           |   [Apache MXNet*](https://mxnet.apache.org/)                                            |
+| mxnet                           |   [Apache MXNet*](https://mxnet.apache.org/)                                     |
 | onnx                            |   [ONNX*](https://github.com/microsoft/onnxruntime/)                             |
 | pytorch                         |   [PyTorch*](https://pytorch.org/)                                               |
 | tensorflow                      |   [TensorFlow* 1.x](https://www.tensorflow.org/versions#tensorflow_1)            |
 | tensorflow2                     |   [TensorFlow* 2.x](https://www.tensorflow.org/versions#tensorflow_2)            |
 
-For example, to install and configure the components for working with TensorFlow 2.x, Apache MXNet and Caffe, use the following command:  
+For example, to install and configure the components for working with TensorFlow 2.x and ONNX models, use the following command:
    ```sh
-   pip install openvino-dev[tensorflow2,mxnet,caffe]
+   pip install openvino-dev[tensorflow2,onnx]
    ```
 > **NOTE**: Model Optimizer support for TensorFlow 1.x environment has been deprecated. Use TensorFlow 2.x environment to convert both TensorFlow 1.x and 2.x models.
 
-### Step 5. Verify that the Package Is Installed
+## How to Verify that the Package Is Installed
 
 - To verify that the **developer package** is properly installed, run the command below (this may take a few seconds):
    ```sh
@@ -122,7 +127,7 @@ For example, to install and configure the components for working with TensorFlow
 
 | Component        | Console Script                                                                   | Description                                                                                                                                                                                                                                                                                                   |  
 |------------------|---------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [Model Optimizer](https://docs.openvino.ai/nightly/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html) | `mo` |**Model Optimizer** imports, converts, and optimizes models that were trained in popular frameworks to a format usable by OpenVINO components. <br>Supported frameworks include Caffe\*, TensorFlow\*, MXNet\*, PaddlePaddle\*, and ONNX\*.                                               |
+| [Model Optimizer](https://docs.openvino.ai/nightly/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html) | `mo` |**Model Optimizer** imports, converts, and optimizes models that were trained in popular frameworks to a format usable by OpenVINO components. <br>Supported frameworks include Caffe\*, TensorFlow\*, MXNet\*, PaddlePaddle\*, and ONNX\*.                                               |
 | [Benchmark Tool](https://docs.openvino.ai/nightly/openvino_inference_engine_tools_benchmark_tool_README.html)| `benchmark_app` | **Benchmark Application** allows you to estimate deep learning inference performance on supported devices for synchronous and asynchronous modes.                                              |
 | [Accuracy Checker](https://docs.openvino.ai/nightly/omz_tools_accuracy_checker.html) and <br> [Annotation Converter](https://docs.openvino.ai/nightly/omz_tools_accuracy_checker_annotation_converters.html) | `accuracy_check` <br> `convert_annotation` |**Accuracy Checker**  is a deep learning accuracy validation tool that allows you to collect accuracy metrics against popular datasets. The main advantages of the tool are the flexibility of configuration and a set of supported datasets, preprocessing, postprocessing, and metrics. <br> **Annotation Converter** is a utility that prepares datasets for evaluation with Accuracy Checker.                                             |
 | [Post-Training Optimization Tool](https://docs.openvino.ai/nightly/pot_introduction.html)| `pot` |**Post-Training Optimization Tool** allows you to optimize trained models with advanced capabilities, such as quantization and low-precision optimizations, without the need to retrain or fine-tune models.                                            |

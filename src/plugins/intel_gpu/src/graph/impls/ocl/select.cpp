@@ -87,4 +87,4 @@ attach_select_impl::attach_select_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::select_impl, cldnn::object_type::SELECT_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::select_impl)

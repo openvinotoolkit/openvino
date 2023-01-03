@@ -8,6 +8,7 @@ from collections import defaultdict
 from copy import copy
 
 import numpy as np
+from openvino.runtime import PartialShape, Dimension
 
 from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension_value, shape_array
 from openvino.tools.mo.front.onnx.extractors.utils import get_backend_pad
@@ -17,8 +18,6 @@ from openvino.tools.mo.utils import class_registration
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.unsupported_ops import UnsupportedOps
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
-
-from openvino.runtime import PartialShape, Dimension
 
 
 def restore_edges(graph: Graph, get_edges: callable):
@@ -1024,15 +1023,15 @@ def add_input_ops(graph: Graph, user_defined_inputs: dict, before_infer: bool):
     """
     This function add user defined input operations.
     For cutting without port:
-    Op_1 -> Op_2 -> output, user_defined_inputs = {'Op_2': {'shape':[1, 2]}} =>
+    Op_1 -> Op_2 -> output, user_defined_inputs = {'Op_2': {'shape': PartialShape([1, 2])}} =>
     Op_1,  New_input (op=Parameter, shape=[1, 2]) -> Op_2 -> output
 
     For cutting with input port:
-    Op_1 -> Op_2 -> output, user_defined_inputs = {'Op_2': {'shape':[1, 2], 'in': 0}} =>
+    Op_1 -> Op_2 -> output, user_defined_inputs = {'Op_2': {'shape':PartialShape([1, 2]), 'in': 0}} =>
     Op_1,  New_input (op=Parameter, shape=[1, 2]) -> Op_2 -> output
 
     For cutting with output port:
-    Op_1 -> Op_2 -> output, user_defined_inputs = {'Op_2': {'shape':[1, 2], 'out': 0}} =>
+    Op_1 -> Op_2 -> output, user_defined_inputs = {'Op_2': {'shape':PartialShape([1, 2]), 'out': 0}} =>
     Op_1 -> Op_2, New_input (op=Parameter, shape=[1, 2]) -> output
 
     For case with before_infer=False data nodes are added to this schemes.

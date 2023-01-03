@@ -7,8 +7,6 @@
 #include "ngraph/graph_util.hpp"
 #include "ngraph/opsets/opset5.hpp"
 
-BWDCMP_RTTI_DEFINITION(ov::op::util::SubGraphOp);
-
 ov::op::util::SubGraphOp::SubGraphOp() : MultiSubGraphOp(1) {}
 
 ov::op::util::SubGraphOp::SubGraphOp(const OutputVector& args) : MultiSubGraphOp(args, 1) {}

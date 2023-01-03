@@ -15,8 +15,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v5::RNNSequence);
-
 op::v5::RNNSequence::RNNSequence() : m_direction(op::RecurrentSequenceDirection::FORWARD) {}
 
 op::v5::RNNSequence::RNNSequence(const Output<Node>& X,

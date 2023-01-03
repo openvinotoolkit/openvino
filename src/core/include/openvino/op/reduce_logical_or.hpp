@@ -17,7 +17,6 @@ namespace v1 {
 class OPENVINO_API ReduceLogicalOr : public util::LogicalReductionKeepDims {
 public:
     OPENVINO_OP("ReduceLogicalOr", "opset1", util::LogicalReductionKeepDims, 1);
-    BWDCMP_RTTI_DECLARATION;
     ReduceLogicalOr() = default;
     /// \brief Constructs a ReduceLogicalOr node.
     ///

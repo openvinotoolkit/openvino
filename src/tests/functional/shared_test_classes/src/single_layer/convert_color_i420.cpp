@@ -35,9 +35,9 @@ void ConvertColorI420LayerTest::SetUp() {
         auto param = std::make_shared<ov::op::v0::Parameter>(ngPrc, inputShape);
         std::shared_ptr<ov::Node> convert_color;
         if (conversionToRGB) {
-            convert_color = std::make_shared<ov::op::v8::NV12toRGB>(param);
+            convert_color = std::make_shared<ov::op::v8::I420toRGB>(param);
         } else {
-            convert_color = std::make_shared<ov::op::v8::NV12toBGR>(param);
+            convert_color = std::make_shared<ov::op::v8::I420toBGR>(param);
         }
         function = std::make_shared<ov::Model>(std::make_shared<ov::op::v0::Result>(convert_color),
                                                       ov::ParameterVector{param}, "ConvertColorI420");

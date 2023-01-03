@@ -77,7 +77,7 @@ Node::NodesFactory & Node::factory() {
     return factoryInstance;
 }
 
-Node::Node(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &w_cache)
+Node::Node(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &w_cache, const ShapeInferFactory& shapeInferFactory)
         : selectedPrimitiveDescriptorIndex(-1), permanent(false), temporary(false), constant(ConstantType::Unknown),
           weightCache(w_cache), engine(eng), name(op->get_friendly_name()), typeStr(op->get_type_name()),
           type(TypeFromName(op->get_type_name())), profiling(op->get_friendly_name()) {
@@ -116,7 +116,7 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, Wei
                 std::any_of(outputShapes.begin(), outputShapes.end(), [](const Shape& shape){ return shape.isDynamic(); });
 
     if (isDynamic) {
-        shapeInference = make_shape_inference(op);
+        shapeInference = shapeInferFactory.makeShapeInfer();
     }
 
     const auto& rtInfo = op->get_rt_info();
@@ -418,6 +418,7 @@ std::string Node::getPrimitiveDescriptorType() {
     SEARCH_TYPE(uni);
 
     SEARCH_TYPE(winograd);
+    SEARCH_TYPE(sparse);
     SEARCH_TYPE(_dw);
     SEARCH_TYPE(_1x1);
 
@@ -519,10 +520,15 @@ void Node::execute(dnnl::stream strm) {
     }
 }
 
-void Node::executeDynamic(dnnl::stream strm) {
+void Node::updateShapes() {
+    IE_ASSERT(isDynamicNode()) << "Node::updateShapes() is called to a static shape node of type: " << getTypeStr() << " with name: " << getName();
     if (needShapeInfer()) {
         redefineOutputMemory(shapeInfer());
     }
+}
+
+void Node::updateDynamicParams() {
+    IE_ASSERT(isDynamicNode()) << "Node::updateDynamicParams() is called to a static shape node of type: " << getTypeStr() << " with name: " << getName();
     if (isExecutable()) {
         if (needPrepareParams()) {
             IE_ASSERT(inputShapesDefined()) << "Can't prepare params for " << getTypeStr() << " node with name: " << getName() <<
@@ -538,9 +544,25 @@ void Node::executeDynamic(dnnl::stream strm) {
             }
 #endif
         }
+    }
+}
+void Node::executeDynamic(dnnl::stream strm) {
+    if (isExecutable()) {
         executeDynamicImpl(strm);
     }
     updateLastInputDims();
+}
+
+bool Node::outputShapeDataDependency() const {
+    auto port_mask = shapeInference->get_port_mask();
+    if (EMPTY_PORT_MASK != port_mask) {
+        for (size_t i = 0; i < getParentEdges().size(); ++i) {
+            if ((port_mask & (1 << i)) && !getParentEdgeAt(i)->getParent()->isConstant()) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 void Node::redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) {
@@ -1459,72 +1481,54 @@ bool Node::needShapeInfer() const {
     return inputShapesModified();
 }
 
-std::vector<VectorDims> Node::shapeInfer() const {
-    return shapeInferGeneric();
-}
+std::vector<VectorDims> Node::shapeInferGeneric(const std::vector<Shape>& shapes) const {
+    try {
+        std::vector<std::reference_wrapper<const VectorDims>> input_shapes;
+        auto input_value_port_mask = shapeInference->get_port_mask();
 
-std::vector<VectorDims> Node::shapeInferGeneric(const std::vector<StaticShape>& input_shapes,
-                                                uint32_t input_value_port_mask) const {
-    // collect input values
-    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> input_values;
-    if (input_value_port_mask) {
-        const auto & iranks = shapeInference->get_input_ranks();
-        for (size_t port = 0; port < iranks.size(); port++) {
-            if (input_value_port_mask & (1 << port)) {
-                const auto& memPtr = getParentEdgesAtPort(port)[0]->getMemory();
+        input_shapes.reserve(shapes.size());
+        for (size_t i = 0; i < shapes.size(); i++)
+            input_shapes.emplace_back(std::ref(shapes[i].getStaticDims()));
 
-                ov::Shape shape(memPtr.getStaticDims());
-
-                // use scalar shape {} instead of {1} if required by shapeInference
-                if (iranks[port] == 0) {
-                    shape = ov::Shape();
+        std::unordered_map<size_t, MemoryPtr> input_values;
+        if (input_value_port_mask) {
+            for (size_t port = 0; port < inputShapes.size(); ++port) {
+                if (input_value_port_mask & (1 << port)) {
+                    input_values[port] = getParentEdgesAtPort(port)[0]->getMemoryPtr();
                 }
-
-                input_values[port] = std::make_shared<ngraph::runtime::HostTensor>(
-                    InferenceEngine::details::convertPrecision(memPtr.getDesc().getPrecision()),
-                    shape,
-                    memPtr.GetPtr());
             }
         }
+
+        return shapeInference->infer(input_shapes, input_values);
     }
-
-    // call shape inference API
-    std::vector<StaticShape> output_shapes = shapeInference->infer(input_shapes, input_values);
-
-    std::vector<VectorDims> result(output_shapes.size());
-    std::transform(output_shapes.begin(), output_shapes.end(), result.begin(), [](const StaticShape& s) {
-        return s.to_shape();
-    });
-
-    return result;
+    catch (const std::runtime_error& exp) {
+        IE_THROW() << "Shape inference of " << getTypeStr()  << " node with name " << getName() << " failed: " << exp.what();
+    }
 }
 
-std::vector<VectorDims> Node::shapeInferGeneric(const std::vector<Shape>& shapes,
-                                                      uint32_t input_value_port_mask) const {
-    std::vector<StaticShape> input_shapes;
+std::vector<VectorDims> Node::shapeInfer() const {
+    try {
+        std::vector<std::reference_wrapper<const VectorDims>> input_shapes;
+        auto input_value_port_mask = shapeInference->get_port_mask();
 
-    input_shapes.reserve(shapes.size());
-    for (size_t i = 0; i < shapes.size(); i++)
-        input_shapes.emplace_back(shapes[i].getStaticDims());
+        input_shapes.reserve(inputShapes.size());
+        for (size_t port = 0; port < inputShapes.size(); ++port)
+            input_shapes.emplace_back(std::ref(getParentEdgesAtPort(port)[0]->getMemory().getStaticDims()));
 
-    return shapeInferGeneric(input_shapes, input_value_port_mask);
-}
-
-std::vector<VectorDims> Node::shapeInferGeneric(uint32_t input_value_port_mask) const {
-    std::vector<StaticShape> input_shapes;
-    const auto & iranks = shapeInference->get_input_ranks();
-
-    input_shapes.reserve(iranks.size());
-
-    for (size_t port = 0; port < iranks.size(); port++) {
-        if (iranks[port] == 0) {
-            input_shapes.emplace_back();
-        } else {
-            input_shapes.emplace_back(getParentEdgesAtPort(port)[0]->getMemory().getStaticDims());
+        std::unordered_map<size_t, MemoryPtr> input_values;
+        if (input_value_port_mask) {
+            for (size_t port = 0; port < inputShapes.size(); ++port) {
+                if (input_value_port_mask & (1 << port)) {
+                    input_values[port] = getParentEdgesAtPort(port)[0]->getMemoryPtr();
+                }
+            }
         }
-    }
 
-    return shapeInferGeneric(input_shapes, input_value_port_mask);
+        return shapeInference->infer(input_shapes, input_values);
+    }
+    catch (const std::runtime_error& exp) {
+        IE_THROW() << "Shape inference of " << getTypeStr()  << " node with name " << getName() << " failed: " << exp.what();
+    }
 }
 
 void Node::updateLastInputDims() {

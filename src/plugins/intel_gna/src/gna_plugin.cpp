@@ -43,6 +43,7 @@
 #include "gna2_model_export_helper.hpp"
 #include "gna2_model_helper.hpp"
 #include "orientation_helper.hpp"
+#include "scale_factor_helper.hpp"
 #include "request/model_wrapper_factory.hpp"
 #include "request/worker_pool_impl.hpp"
 #include "request/worker_factory.hpp"
@@ -126,6 +127,7 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 using namespace GNAPluginNS;
 using namespace GNAPluginNS::memory;
+using namespace ov::intel_gna::frontend;
 
 namespace InferenceEngine {
     template<>
@@ -342,21 +344,12 @@ GNAPlugin::GNAPlugin() :
     InitGNADevice();
 }
 
-std::string GNAPluginNS::GNAPlugin::GetCompileTarget() const {
-    if (gnadevice) {
-        return gnadevice->GetCompileTarget();
-    } else if (!config.gnaCompileTarget.empty()) {
-        return config.gnaCompileTarget;
-    }
-    return common::kGnaTarget3_0;
-}
-
 GNAPlugin::GNAPlugin(const std::map<std::string, std::string>& configMap) :
     graphCompiler(config) {
     Init();
     SetConfig(configMap);
+    log::set_log_level(gnaFlags->log_level);
     InitGNADevice();
-    GnaLog(gnaFlags->log_level);
 }
 
 void GNAPlugin::Init() {
@@ -384,9 +377,6 @@ void GNAPlugin::InitGNADevice() {
                     !config.dumpXNNPath.empty());
         size_t page_size_bytes = 4096;
         gnamem = std::make_shared<gna_memory_device>(memory::GNAAllocator(gnadevice), page_size_bytes);
-        if (gnaFlags->log_level == ov::log::Level::DEBUG) {
-            gnadevice->enableDiagnostics();
-        }
     }
     graphCompiler.setGNAMemoryPtr(gnamem);
 }
@@ -447,7 +437,7 @@ void GNAPlugin::UpdateInputsAndOutputsInfoFromNetwork(InferenceEngine::CNNNetwor
         InputsDataMap network_inputs = network.getInputsInfo();
 
         size_t id = 0;
-        for (const auto input : network_inputs) {
+        for (const auto& input : network_inputs) {
             (*inputs_ptr_)[input.first].Update(input.second);
 
             // update scale factor from config
@@ -464,7 +454,7 @@ void GNAPlugin::UpdateInputsAndOutputsInfoFromNetwork(InferenceEngine::CNNNetwor
     // update outputs
     {
         OutputsDataMap outputs = network.getOutputsInfo();
-        for (const auto output : outputs) {
+        for (const auto& output : outputs) {
             outputs_[output.first].Update(output.second);
         }
     }
@@ -670,7 +660,8 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     OV_ITT_SCOPED_TASK(itt::domains::GNAPlugin, "LoadNetwork");
     std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
 
-    std::string effectiveGnaCompileTargetValue = effectiveGnaCompileTarget();
+    const auto effectiveGnaCompileTargetValue = effectiveGnaCompileTarget();
+    graphCompiler.SetValidatorTarget(effectiveGnaCompileTargetValue);
 
     bool isNgraphPassesUsed = false;
     bool fake_quantized = false;
@@ -899,6 +890,9 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     if (sortedNet.empty()) {
         THROW_GNA_EXCEPTION << "Sorted network is empty";
     }
+    // Copy operations connected to memory layer (Assign to state variable) should be executed when all functional layers are calculated.
+    // To simplify, just moving these Copy operations at the end of the execution list
+    std::stable_partition(sortedNet.begin(), sortedNet.end(), [&](CNNLayerPtr layer){return !LayerInfo(layer).isCopyToMemory();});
 
     std::vector<CNNLayerPtr> sortedNoMem;
     std::unordered_map<std::string, std::vector<InferenceEngine::CNNLayerPtr>> memoryPairs;
@@ -938,8 +932,6 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     if (!graphCompiler.memory_connection.empty() && gnaFlags->num_requests != 1) {
         gnaFlags->num_requests = 1;
     }
-
-    graphCompiler.SetValidatorTarget(GetCompileTarget());
 
     // keep inputs information and create input primitives
     inputs_data_map_ = newNet.getInputsInfo();
@@ -1128,9 +1120,12 @@ bool GNAPluginNS::GNAPlugin::isFP32ModeActive() const {
 std::string GNAPluginNS::GNAPlugin::effectiveGnaCompileTarget() const {
     if (gnadevice) {
         return gnadevice->GetCompileTarget();
+    } else if (!config.gnaCompileTarget.empty()) {
+        return config.gnaCompileTarget;
     }
-    return config.gnaCompileTarget;
+    return common::kGnaDefaultTarget;
 }
+
 std::shared_ptr<request::Worker> GNAPlugin::createWorkerForLoadNetwork(bool trivial, bool fp32Mode) {
     return createWorker(createModelWrapperForLoadNetwork(trivial), trivial, fp32Mode);
 }
@@ -1333,7 +1328,9 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap& inputs, Infer
         ++inputNum;
     }
 
-    freeWorker->enqueueRequest();
+    if (!freeWorker->enqueueRequest()) {
+        THROW_GNA_EXCEPTION << "Error with enqueueing inference request";
+    }
 
     freeWorker->setResult(result);
 
@@ -1349,7 +1346,13 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap& inputs, Infer
 }
 
 bool GNAPlugin::Wait(uint32_t request_idx) {
-    return RequestStatus::kCompleted == WaitFor(request_idx, MAX_TIMEOUT);
+    auto result = WaitFor(request_idx, MAX_TIMEOUT);
+
+    if (result == RequestStatus::kCompletedWithError) {
+        THROW_GNA_EXCEPTION << "Error when waiting for inference results!";
+    }
+
+    return result == RequestStatus::kCompleted;
 }
 
 RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
@@ -1365,6 +1368,10 @@ RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
     }
 
     const auto waitStatus = worker.wait(millisTimeout);
+
+    if (waitStatus == RequestStatus::kCompletedWithError) {
+        return waitStatus;
+    }
 
     if (waitStatus == RequestStatus::kAborted) {
         return waitStatus;
@@ -1526,7 +1533,7 @@ bool GNAPlugin::Infer(const InferenceEngine::Blob &input, InferenceEngine::Blob 
 }
 
 bool GNAPlugin::Infer(const InferenceEngine::BlobMap &input, InferenceEngine::BlobMap &result) {
-    return  Wait(QueueInference(input, result));
+    return Wait(QueueInference(input, result));
 }
 
 static InferenceEngine::Layout GetLayoutForDims(const InferenceEngine::SizeVector &dims) {
@@ -1628,27 +1635,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
     SetNetworkInputs();
     SetNetworkOutputs();
 
-    // If scale factors are defined in configuration we still need to use them instead of imported values,
-    // for example to change the scale factors for the old models.
-    if (!config.inputScaleFactorsPerInput.empty()) {
-        IE_ASSERT(config.inputScaleFactorsPerInput.size() <= inputs_ptr_->size());
-        for (auto&& sf : config.inputScaleFactorsPerInput) {
-            if (sf.second != GNAPluginNS::kScaleFactorDefault) {
-                log::debug() << "[Import Network] Using input scale factor defined in configuration for input " << sf.first
-                         << std::endl;
-                (*inputs_ptr_)[sf.first].scale_factor = sf.second;
-            }
-        }
-    } else if (!config.inputScaleFactors.empty()) {
-        IE_ASSERT(config.inputScaleFactors.size() <= inputs_ptr_->size());
-        for (size_t id = 0; id < config.inputScaleFactors.size(); ++id) {
-            if (id < inputs_ptr_->size() && config.inputScaleFactors[id] != GNAPluginNS::kScaleFactorDefault) {
-                log::debug() << "[Import Network] Using input scale factor defined in configuration for input " << id
-                         << std::endl;
-                inputs_ptr_->Get().at(id).scale_factor = config.inputScaleFactors[id];
-            }
-        }
-    }
+    ov::intela_gna::helpers::ApplyInputScaleFactors(config, header, *inputs_ptr_);
 
     auto getOrientation = [](Gna2Operation& gnaOperation) {
         return gnaOperation.Type == Gna2OperationTypeConvolution ? kDnnNonInterleavedOrientation

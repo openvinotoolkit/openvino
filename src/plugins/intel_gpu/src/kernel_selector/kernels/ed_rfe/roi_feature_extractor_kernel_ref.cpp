@@ -56,13 +56,23 @@ namespace {
     }
 
     std::string GetDefinedLevelSizes(size_t levels_num) {
-        std::string result = "(size_t[]){INPUT1_SIZE_Y, INPUT1_SIZE_X, INPUT1_OFFSET";
+        std::string result = "(__private size_t[]){INPUT1_SIZE_Y, INPUT1_SIZE_X, INPUT1_OFFSET";
         std::string idx = "";
         for (size_t i = 1; i < levels_num; i++) {
             idx = std::to_string(i + 1);
             result += " ,INPUT" + idx + "_SIZE_Y, INPUT" + idx + "_SIZE_X, INPUT" + idx + "_OFFSET";
         }
         result += "}";
+        return result;
+    }
+
+    std::string GetIndexCalculationFuncs(size_t levels_num) {
+        std::string result = "if (level == 0) { idx = INPUT1_GET_INDEX(0, c, y, x); }";
+        std::string idx = "";
+        for (size_t i = 1; i < levels_num; i++) {
+            idx = std::to_string(i + 1);
+            result += " else if (level == " + std::to_string(i) + ") { idx = INPUT" + idx + "_GET_INDEX(0, c, y, x); }";
+        }
         return result;
     }
 }  // namespace
@@ -79,7 +89,8 @@ JitConstants ExperimentalDetectronROIFeatureExtractorRef::GetJitConstants(const 
                       MakeJitConstant("INPUT_LEVEL_PARAMS", GetInputLevelParams(levels_num)),
                       MakeJitConstant("LEVEL_PTRS", GetDefinedLevelPtrs(levels_num)),
                       MakeJitConstant("SPATIAL_SCALES", GetDefinedSpatialScales(params.pyramid_scales, levels_num)),
-                      MakeJitConstant("LEVEL_SIZES", GetDefinedLevelSizes(levels_num))});
+                      MakeJitConstant("LEVEL_SIZES", GetDefinedLevelSizes(levels_num)),
+                      MakeJitConstant("LEVELS_IDX_CALC_FUNCS", GetIndexCalculationFuncs(levels_num))});
 
     return jit;
 }

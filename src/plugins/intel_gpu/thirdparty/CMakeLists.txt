@@ -20,8 +20,8 @@ if(ENABLE_ONEDNN_FOR_GPU)
         set(ONEDNN_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_build/")
         set(ONEDNN_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_install/")
         set(ONEDNN_PREFIX_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_root")
-        execute_process(COMMAND git apply --verbose ../onednn_gpu.patch
-            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu")
+        set(ONEDNN_ENABLED_PRIMITIVES "CONCAT;CONVOLUTION;DECONVOLUTION;INNER_PRODUCT;MATMUL;REORDER;POOLING;REDUCTION")
+        set(ONEDNN_ENABLED_ISA "XEHP;XEHPG;XEHPC")
         if(CMAKE_COMPILER_IS_GNUCXX)
             ie_add_compiler_flags(-Wno-undef -Wno-missing-declarations)
             if(SUGGEST_OVERRIDE_SUPPORTED)
@@ -37,6 +37,12 @@ if(ENABLE_ONEDNN_FOR_GPU)
             INSTALL_DIR "${ONEDNN_INSTALL_DIR}"
             PREFIX "${ONEDNN_PREFIX_DIR}"
             EXCLUDE_FROM_ALL ON
+            CMAKE_CACHE_ARGS
+                # The arguments below requires list to be passed as argument
+                # which doesn't work properly when passed to CMAKE_ARGS.
+                # Thus we pass it via CMAKE_CACHE_ARGS
+                "-DDNNL_ENABLE_PRIMITIVE:STRING=${ONEDNN_ENABLED_PRIMITIVES}"
+                "-DDNNL_ENABLE_PRIMITIVE_GPU_ISA:STRING=${ONEDNN_ENABLED_ISA}"
             CMAKE_ARGS
                 "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
                 "-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}"
@@ -56,7 +62,8 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 "-DCMAKE_INSTALL_LIBDIR=lib/$<CONFIG>"
                 "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
                 "-DDNNL_ENABLE_CONCURRENT_EXEC=ON"
-                "-DDNNL_ENABLE_PRIMITIVE_CACHE=OFF"
+                "-DDNNL_ENABLE_PRIMITIVE_CACHE=ON"
+                "-DDNNL_ENABLE_WORKLOAD=INFERENCE"
                 "-DDNNL_ENABLE_JIT_PROFILING=${BUILD_SHARED_LIBS}"
                 "-DDNNL_ENABLE_ITT_TASKS=${BUILD_SHARED_LIBS}"
                 "-DDNNL_BUILD_TESTS=OFF"

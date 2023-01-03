@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "intel_gpu/runtime/tensor.hpp"
@@ -17,7 +18,6 @@
 #include "kernel_selector_common.h"
 #include "tensor_type.h"
 #include "fused_primitive_desc.h"
-#include "serialization/binary_buffer.hpp"
 
 #include <cstdint>
 #include <string>

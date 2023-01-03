@@ -11,12 +11,12 @@
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
 #include "intel_gpu/graph/network.hpp"
-#include "serialization/binary_buffer.hpp"
-#include "serialization/cl_kernel_data_serializer.hpp"
-#include "serialization/helpers.hpp"
-#include "serialization/set_serializer.hpp"
-#include "serialization/string_serializer.hpp"
-#include "serialization/vector_serializer.hpp"
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
+#include "intel_gpu/graph/serialization/cl_kernel_data_serializer.hpp"
+#include "intel_gpu/graph/serialization/helpers.hpp"
+#include "intel_gpu/graph/serialization/set_serializer.hpp"
+#include "intel_gpu/graph/serialization/string_serializer.hpp"
+#include "intel_gpu/graph/serialization/vector_serializer.hpp"
 #include "register.hpp"
 #include <vector>
 #include <list>
@@ -67,6 +67,10 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
 
     bool is_cpu() const override { return false; }
 
+    // Cache blob format:
+    //     [ kernel_selector::kernel_data ]
+    //     [ kernel_id ]
+    //     [ kernel_arguments ]
     void save(BinaryOutputBuffer& ob) const override {
         ob << make_data(&_kernel_data.internalBufferDataType, sizeof(kernel_selector::Datatype));
         ob << _kernel_data.internalBufferSizes;
@@ -177,8 +181,12 @@ protected:
         }
     }
 
-    std::vector<std::string> get_kernel_ids() override {
+    std::vector<std::string> get_kernel_ids() const override {
         return _kernel_ids;
+    }
+
+    std::vector<kernel::ptr> get_kernels() const override {
+        return _kernels;
     }
 
     std::vector<layout> get_internal_buffer_layouts_impl() const override {
@@ -320,6 +328,12 @@ protected:
             kernel_strings.push_back(_kernel_data.kernels[i].code.kernelString);
         }
         return kernel_strings;
+    }
+
+    void reset_kernels_source() override {
+        for (size_t i = 0; i < _kernel_data.kernels.size(); ++i) {
+            _kernel_data.kernels[i].code.kernelString.reset();
+        }
     }
 };
 

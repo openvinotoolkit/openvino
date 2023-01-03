@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
 
 #if ELTWISE_LAYOUT_BASED || QUANTIZATION_TERM || ELTWISE_BROADCAST
@@ -14,6 +13,7 @@
 #endif
 
 KERNEL(eltwise)(
+    OPTIONAL_SHAPE_INFO_ARG
     INPUTS_DECLS
     __global OUTPUT_TYPE* output
 #if HAS_FUSED_OPS_DECLS

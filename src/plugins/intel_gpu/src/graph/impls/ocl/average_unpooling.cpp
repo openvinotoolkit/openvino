@@ -69,4 +69,4 @@ attach_average_unpooling_impl::attach_average_unpooling_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::average_unpooling_impl, cldnn::object_type::AVERAGE_UNPOOLING_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::average_unpooling_impl)

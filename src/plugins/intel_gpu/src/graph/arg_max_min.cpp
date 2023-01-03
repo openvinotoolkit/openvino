@@ -13,10 +13,7 @@
 #include "topk_shape_inference.hpp"
 
 namespace cldnn {
-primitive_type_id arg_max_min::type_id() {
-    static primitive_type_base<arg_max_min> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(arg_max_min)
 
 layout arg_max_min_inst::calc_output_layout(arg_max_min_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<arg_max_min>();
@@ -24,11 +21,11 @@ layout arg_max_min_inst::calc_output_layout(arg_max_min_node const& node, kernel
     bool values_first = desc->values_first;
     data_types output_data_type;
     data_types output_idx_type;
-    output_data_type = desc->output_data_type ? *desc->output_data_type : input_layout.data_type;
+    output_data_type = desc->output_data_types[0].value_or(input_layout.data_type);
     if (impl_param.input_layouts.size() == 3) {
         output_idx_type = impl_param.get_input_layout(2).data_type;
     } else {
-        output_idx_type = *(desc->output_data_type);
+        output_idx_type = *(desc->output_data_types[0]);
     }
     auto size_check = [&](size_t tensor_size) {
         if (desc->input.size() == 1 && values_first)
@@ -76,7 +73,6 @@ std::vector<layout> arg_max_min_inst::calc_output_layouts(arg_max_min_node const
 
     auto desc = impl_param.typed_desc<arg_max_min>();
     auto input_layout = impl_param.get_input_layout();
-    auto dt = desc->output_data_type.value_or(input_layout.data_type);
 
     ov::op::v1::TopK op;
     op.set_axis(input_layout.get<ShapeType>().rank(), desc->axis);
@@ -98,6 +94,7 @@ std::vector<layout> arg_max_min_inst::calc_output_layouts(arg_max_min_node const
     ov::op::v1::shape_infer(&op, input_shapes, output_shapes, const_data);
 
     for (size_t i = 0; i < desc->num_outputs; ++i) {
+        auto dt = desc->output_data_types[i].value_or(input_layout.data_type);
         layouts.push_back({output_shapes[i], dt, format::get_default_format(output_shapes[i].size())});
     }
     return layouts;

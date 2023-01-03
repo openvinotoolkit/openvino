@@ -44,6 +44,8 @@ if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb (
 
    if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\redist (
       set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\redist\intel64\vc14;%OPENVINO_LIB_PATHS%"
+   ) else if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\bin\intel64\vc14 (
+      set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\bin\intel64\vc14;%OPENVINO_LIB_PATHS%"
    ) else if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\bin (
       set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\bin;%OPENVINO_LIB_PATHS%"
    )

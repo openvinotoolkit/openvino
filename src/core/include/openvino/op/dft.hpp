@@ -30,7 +30,6 @@ namespace v7 {
 class OPENVINO_API DFT : public util::FFTBase {
 public:
     OPENVINO_OP("DFT", "opset7", util::FFTBase, 7);
-    BWDCMP_RTTI_DECLARATION;
     DFT() = default;
 
     /// \brief Constructs a DFT operation. DFT is performed for full size axes.

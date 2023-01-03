@@ -213,4 +213,4 @@ attach_non_max_suppression_impl::attach_non_max_suppression_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::non_max_suppression_impl, cldnn::object_type::NON_MAX_SUPPRESSION_IMPL_OCL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::non_max_suppression_impl)

@@ -10,8 +10,6 @@
 
 using namespace std;
 
-BWDCMP_RTTI_DEFINITION(ov::op::util::EmbeddingBagOffsetsBase);
-
 ov::op::util::EmbeddingBagOffsetsBase::EmbeddingBagOffsetsBase(const Output<Node>& emb_table,
                                                                const Output<Node>& indices,
                                                                const Output<Node>& offsets,

@@ -21,6 +21,7 @@ HARDWARE_AWARE_IGNORED_PATTERNS = {
     'VPU': get_vpu_ignored_patterns(),
     'GNA': get_gna_ignored_patterns(),
     'GNA3': get_gna3_ignored_patterns(),
+    'GNA3.5': get_gna3_ignored_patterns(),
     'CPU_SPR': get_cpu_ignored_patterns()
 }
 

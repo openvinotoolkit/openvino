@@ -17,7 +17,6 @@ namespace v0 {
 class OPENVINO_API Elu : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Elu", "opset1", util::UnaryElementwiseArithmetic);
-    BWDCMP_RTTI_DECLARATION;
 
     Elu() = default;
     /// \brief Constructs an Elu operation.

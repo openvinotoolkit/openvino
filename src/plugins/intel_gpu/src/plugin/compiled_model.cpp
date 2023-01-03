@@ -3,6 +3,8 @@
 //
 
 #include "ie_metric_helpers.hpp"
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
+#include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/plugin/graph.hpp"
 #include "intel_gpu/plugin/itt.hpp"
 #include "intel_gpu/plugin/infer_request.hpp"
@@ -10,8 +12,6 @@
 #include "intel_gpu/plugin/async_infer_request.hpp"
 #include "intel_gpu/plugin/async_infer_request_legacy.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
-#include "serialization/binary_buffer.hpp"
-#include "serialization/string_serializer.hpp"
 
 #include <description_buffer.hpp>
 #include <threading/ie_executor_manager.hpp>
@@ -342,7 +342,7 @@ IInferRequestInternal::Ptr CompiledModel::CreateInferRequest() {
                                                _callbackExecutor);
 }
 
-bool CompiledModel::isSerializable() {
+bool CompiledModel::is_serializable() {
     // Model with multiple graphs is not yet supported.
     if (m_graphs.size() != 1)
         return false;
@@ -354,12 +354,16 @@ bool CompiledModel::isSerializable() {
     return true;
 }
 
+// Cache blob format:
+//     [ ConstInputsDataMap / ConstOutputsDataMap ]
+//     [ ov::Node::Input/ ov::Node::Output ]
+//     [ ov::intel_gpu::Graph ]
 void CompiledModel::Export(std::ostream& networkModel) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CompiledModel::Export");
     if (m_graphs.empty())
         IE_THROW(NetworkNotLoaded);
 
-    if (!isSerializable())
+    if (!is_serializable())
         return;
 
     cldnn::BinaryOutputBuffer ob(networkModel);
@@ -532,7 +536,8 @@ InferenceEngine::Parameter CompiledModel::GetMetric(const std::string &name) con
             ov::PropertyName{ov::num_streams.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::num_requests.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RO},
-            ov::PropertyName{ov::device::id.name(), PropertyMutability::RO}
+            ov::PropertyName{ov::device::id.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::execution_devices.name(), PropertyMutability::RO}
         };
     } else if (name == ov::model_name) {
         IE_ASSERT(!m_graphs.empty());
@@ -555,6 +560,8 @@ InferenceEngine::Parameter CompiledModel::GetMetric(const std::string &name) con
         if (m_config.perfHintsConfig.ovPerfHint != CONFIG_VALUE(LATENCY))
             nr *= 2;
         return decltype(ov::optimal_number_of_infer_requests)::value_type {nr};
+    } else if (name == ov::execution_devices) {
+        return decltype(ov::execution_devices)::value_type{m_context->getDeviceName()};
     } else {
         IE_THROW() << "Unsupported ExecutableNetwork metric: " << name;
     }

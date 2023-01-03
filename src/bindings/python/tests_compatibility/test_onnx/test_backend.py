@@ -10,7 +10,6 @@ from tests_compatibility import (
     xfail_unsupported_by_legacy_api,
     xfail_issue_33488,
     xfail_issue_33581,
-    xfail_issue_33589,
     xfail_issue_33595,
     xfail_issue_33596,
     xfail_issue_33606,
@@ -50,7 +49,6 @@ from tests_compatibility import (
     xfail_issue_82039,
     xfail_issue_90649,
     xfail_issue_91151,
-    xfail_issue_91152,
     xfail_issue_91490,
     skip_dynamic_model,
 )
@@ -224,13 +222,6 @@ tests_expected_to_fail = [
         xfail_issue_33488,
         "OnnxBackendNodeModelTest.test_maxunpool_export_with_output_shape_cpu",
         "OnnxBackendNodeModelTest.test_maxunpool_export_without_output_shape_cpu",
-    ),
-    (
-        xfail_issue_33589,
-        "OnnxBackendNodeModelTest.test_isnan_cpu",
-        "OnnxBackendNodeModelTest.test_isinf_positive_cpu",
-        "OnnxBackendNodeModelTest.test_isinf_negative_cpu",
-        "OnnxBackendNodeModelTest.test_isinf_cpu",
     ),
     (xfail_issue_38724, "OnnxBackendNodeModelTest.test_resize_tf_crop_and_resize_cpu"),
     (
@@ -495,11 +486,6 @@ tests_expected_to_fail = [
         xfail_issue_91151,
         "OnnxBackendNodeModelTest.test_castlike_BFLOAT16_to_FLOAT_cpu",
         "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_BFLOAT16_cpu",
-    ),
-    (
-        xfail_issue_91152,
-        "OnnxBackendNodeModelTest.test_quantizelinear_cpu",
-        "OnnxBackendNodeModelTest.test_dequantizelinear_cpu",
     ),
     (
         xfail_unsupported_by_legacy_api,

@@ -26,6 +26,7 @@
 #include <nodes/reorder.h>
 #include "nodes/convert.h"
 #include "nodes/subgraph.h"
+#include "nodes/fullyconnected.h"
 
 #include <ie_algorithm.hpp>
 #include <blob_factory.hpp>
@@ -52,6 +53,9 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include <common/primitive_desc.hpp>
 #include <common/primitive_desc_iface.hpp>
+#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+#   include <tbb/task_group.h>
+#endif
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -87,8 +91,6 @@ void Graph::CreateGraph(NET &net, const ExtensionManager::Ptr& extMgr,
 
     InitGraph();
 
-    status = Ready;
-
     CPU_DEBUG_CAP_ENABLE(serialize(*this));
 }
 
@@ -119,8 +121,6 @@ void Graph::CreateGraph(const std::vector<NodePtr> &graphNodes,
     }
 
     InitGraph();
-
-    status = Ready;
 
     CPU_DEBUG_CAP_ENABLE(serialize(*this));
 }
@@ -341,6 +341,9 @@ void Graph::Replicate(const CNNNetwork &network, const ExtensionManager::Ptr& ex
     if (config.enforceBF16)
         EnforceBF16();
 
+    if (config.fcSparseWeiDecompressionRate < 1.0f)
+        setMinSparseRate(config.fcSparseWeiDecompressionRate);
+
     auto hasSubgraphConsumers = [] (const NodePtr& node) -> bool {
         const auto & childEdges = node->getChildEdges();
         return std::any_of(childEdges.begin(), childEdges.end(),
@@ -410,6 +413,31 @@ void Graph::InitGraph() {
     optimizer.ApplyImplSpecificGraphOptimizations(*this);
     SortTopologically();
 
+    bool haveDynNodes = false;
+    for (size_t i = 0; i < graphNodes.size(); ++i) {
+        const auto& node = graphNodes[i];
+        if (node->isDynamicNode()) {
+            haveDynNodes = true;
+            if (node->outputShapeDataDependency() ||
+                // WA: for convolution plus summ(broadcast). Due to the fact that a convolution with sum use the same memory for second sum term and the output
+                // tensors (inPlace) resizing the output tensor, may lead to reallocation of this second term memory and possible data lost. The reallocation
+                // may happen when the second term shape is broadcasted to the output tensor shape. To avoid the data loss, we have a special processing for
+                // such cases inside the convolution node, but it works properly only when dynamic shapes inference, preparation and execution a called
+                // for this node sequentially.
+                (node->getType() == Type::Convolution && node->isInPlace())) {
+                syncNodesInds.insert({node.get(), i});
+            }
+        }
+    }
+
+    // In case of dynamic shapes, tensors may be resized due to the shapes variations.
+    // If the input tensor is included to memory reuse, that means its memory manager is shared with other tensors in the graph, which in turn may cause data
+    // loss when one of the tensor dow the graph requested mem resize, while the input data have not been yet read by the consumers. To avoid such situations
+    // we disalbe io mem reuse for the case of dynamic shapes.
+    if (haveDynNodes) {
+        this->reuse_io_tensors = false;
+    }
+
     Allocate();
 
     CreatePrimitives();
@@ -422,6 +450,7 @@ void Graph::InitGraph() {
     ExtractConstantAndExecutableNodes();
 
     ExecuteConstantNodesOnly();
+    status = haveDynNodes ? Status::ReadyDynamic : Status::ReadyStatic;
 }
 
 void Graph::InitNodes() {
@@ -484,6 +513,10 @@ void Graph::ExtractConstantAndExecutableNodes() {
              * With current way it is possible that with debug_caps enabled
              * we execute a node, which is not ready to be executed
              */
+            auto itr = syncNodesInds.find(graphNode.get());
+            if (itr != syncNodesInds.end()) {
+                itr->second = executableGraphNodes.size();
+            }
             executableGraphNodes.emplace_back(graphNode);
         }
     }
@@ -787,23 +820,54 @@ void Graph::AllocateWithReuse() {
     }
 
     if (!undefinedBoxes.empty()) {
+        if (!syncNodesInds.empty()) {
+            //We have to extend the lifespan of thensors that are crossing a sync point border in order to save
+            //the intermediate computation results from possible loss due to the tensor resize
+            std::vector<int> vecIntervals = {0};
+            for (const auto& item : syncNodesInds) {
+                vecIntervals.push_back(item.first->execIndex);
+            }
+            std::sort(vecIntervals.begin(), vecIntervals.end());
+            for (auto& box : undefinedBoxes) {
+                if (-1 == box.finish) {
+                    continue;
+                }
+                auto itr_upper = std::upper_bound(vecIntervals.begin(), vecIntervals.end(), box.finish, [](int y, int x) { return y <= x;});
+                auto itr_lower = std::lower_bound(vecIntervals.begin(), vecIntervals.end(), box.start);
+                if (itr_lower != itr_upper) { // across sections
+                    if (itr_upper == vecIntervals.end()) {
+                        box.finish = -1;
+                    } else {
+                        box.finish = *itr_upper;
+                    }
+                }
+            }
+        }
+
         MemorySolver::normalizeBoxes(undefinedBoxes);
 
         std::vector<std::vector<MemorySolver::Box>> groups; //groups of nonoverlapping boxes
-        groups.push_back({undefinedBoxes.front()});
-        for (size_t i = 1; i < undefinedBoxes.size(); ++i) {
-            const auto& box = undefinedBoxes[i];
-            bool groupFound = false;
-            for (auto& group : groups) {
-                const auto& lastBox = group.back();
-                if (lastBox.start > box.finish || lastBox.finish < box.start) {
-                    group.push_back(box);
-                    groupFound = true;
-                    break;
+        constexpr bool enableMemReuse = true; // set false to disable mem reuse for debug purposes
+        if (enableMemReuse) {
+            groups.push_back({undefinedBoxes.front()});
+            for (size_t i = 1; i < undefinedBoxes.size(); ++i) {
+                const auto& box = undefinedBoxes[i];
+                bool groupFound = false;
+                for (auto& group : groups) {
+                    const auto& lastBox = group.back();
+                    if (lastBox.start > box.finish || lastBox.finish < box.start) {
+                        group.push_back(box);
+                        groupFound = true;
+                        break;
+                    }
+                }
+
+                if (!groupFound) {
+                    groups.push_back({box});
                 }
             }
-
-            if (!groupFound) {
+        } else {
+            for (auto& box : undefinedBoxes) {
                 groups.push_back({box});
             }
         }
@@ -1005,8 +1069,109 @@ void Graph::PullOutputData(BlobMap &out) {
     }
 }
 
+void Graph::InferStatic(InferRequestBase* request) {
+    dnnl::stream stream(eng);
+
+    for (const auto& node : executableGraphNodes) {
+        VERBOSE(node, config.debugCaps.verbose);
+        PERF(node, config.collectPerfCounters);
+
+        if (request)
+            request->ThrowIfCanceled();
+        ExecuteNode(node, stream);
+    }
+}
+
+void Graph::InferDynamic(InferRequestBase* request) {
+    dnnl::stream stream(eng);
+
+    std::set<size_t> syncIndsWorkSet;
+    for (const auto& nodeIndx : syncNodesInds) {
+        syncIndsWorkSet.insert(nodeIndx.second);
+        //since sometimes we need to run the synchronization node  alone (for example in the case of internal dynamism)
+        //let's add another sync index after the sync point node
+        syncIndsWorkSet.insert(nodeIndx.second + 1);
+    }
+    syncIndsWorkSet.insert(executableGraphNodes.size());
+
+    std::function<void(size_t)> updateNodes;
+
+#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+    std::atomic<size_t> prepareCounter(0);
+    std::vector<std::atomic<uint8_t>> waveFrontCount(executableGraphNodes.size());
+    waveFrontCount.front().store(1);
+    for (size_t i = 1; i < waveFrontCount.size(); ++i) {
+        waveFrontCount[i].store(2);
+    }
+
+    tbb::task_group tg;
+    std::function<void(size_t, size_t)> updateShapes;
+    std::function<void(size_t, size_t)> updateDynParams;
+
+    updateShapes = [&](size_t node_indx, size_t stop_indx) {
+        const auto& node = executableGraphNodes[node_indx];
+        prepareCounter.store(node_indx);
+        if (node_indx >= stop_indx) {
+            return;
+        }
+        if (node->isDynamicNode()) {
+            node->updateShapes();
+        }
+        if (--waveFrontCount[node_indx] == 0) {
+            tg.run([=, &updateDynParams](){ updateDynParams(node_indx, stop_indx); });
+        }
+        updateShapes(node_indx + 1, stop_indx);
+    };
+
+    updateDynParams = [&](size_t node_indx, size_t stop_indx) {
+        const auto& node = executableGraphNodes[node_indx];
+        if (node_indx >= stop_indx) {
+            prepareCounter.store(node_indx);
+            return;
+        }
+        if (node->isDynamicNode()) {
+            node->updateDynamicParams();
+        }
+        if (node_indx + 1 < waveFrontCount.size() && --waveFrontCount[node_indx + 1] == 0) {
+            tg.run([=, &updateDynParams](){ updateDynParams(node_indx + 1, stop_indx); });
+        }
+    };
+
+    updateNodes = [&](size_t stopIndx) {
+        auto startCounter = prepareCounter.load();
+        tg.run([=, &updateShapes](){ updateShapes(startCounter, stopIndx); });
+        tg.wait();
+    };
+#else
+    size_t prepareCounter = 0;
+    updateNodes = [&](size_t stopIndx) {
+        for (; prepareCounter < stopIndx; ++prepareCounter) {
+            const auto& node = executableGraphNodes[prepareCounter];
+            if (node->isDynamicNode()) {
+                node->updateShapes();
+                node->updateDynamicParams();
+            }
+        }
+    };
+#endif
+    size_t inferCounter = 0;
+
+    for (auto stopIndx : syncIndsWorkSet) {
+        updateNodes(stopIndx);
+        for (; inferCounter < stopIndx; ++inferCounter) {
+            auto& node = executableGraphNodes[inferCounter];
+            VERBOSE(node, config.debugCaps.verbose);
+            PERF(node, config.collectPerfCounters);
+
+            if (request)
+                request->ThrowIfCanceled();
+            ExecuteNode(node, stream);
+        }
+    }
+}
+
 inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) const {
-    DUMP(node, config, infer_count);
+    DUMP(node, config.debugCaps, infer_count);
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, node->profiling.execute);
 
     if (node->isDynamicNode()) {
@@ -1019,18 +1184,15 @@ inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) 
 
 void Graph::Infer(InferRequestBase* request) {
     if (!IsReady()) {
-        IE_THROW() << "Wrong state. Topology is not ready.";
+        IE_THROW() << "Wrong state of the ov::intel_cpu::Graph. Topology is not ready.";
     }
 
-    dnnl::stream stream(eng);
-
-    for (const auto& node : executableGraphNodes) {
-        VERBOSE(node, config.verbose);
-        PERF(node, config.collectPerfCounters);
-
-        if (request)
-            request->ThrowIfCanceled();
-        ExecuteNode(node, stream);
+    if (Status::ReadyDynamic == status) {
+        InferDynamic(request);
+    } else if (Status::ReadyStatic == status) {
+        InferStatic(request);
+    } else {
+        IE_THROW() << "Unknown ov::intel_cpu::Graph state: " << static_cast<size_t>(status);
     }
 
     if (infer_count != -1) infer_count++;
@@ -1441,7 +1603,7 @@ void Graph::EnforceBF16() {
                     // Concatenation node is exception because it doesn't change an accuracy for BF16 activation
                       node->getType() != Type::Concatenation) &&
                     // exclude Eltwise after Input since it supports conversion to BF16
-                    !(parent->getType() == Type::Input && node->getType() == Type::Eltwise) &&
+                    !(parent->getType() == Type::Input && (node->getType() == Type::Eltwise || node->getType() == Type::Subgraph)) &&
                     node->getOriginalInputPrecisionAtPort(i) == Precision::FP32)
                     node->setOriginalInputPrecisionAtPort(i, Precision::BF16);
             }
@@ -1450,6 +1612,14 @@ void Graph::EnforceBF16() {
                 if (node->getOriginalOutputPrecisionAtPort(i) == Precision::FP32)
                     node->setOriginalOutputPrecisionAtPort(i, Precision::BF16);
             }
+        }
+    }
+}
+
+void Graph::setMinSparseRate(float minSparseRate) {
+    for (const auto &node : graphNodes) {
+        if (auto fcNodePtr = std::dynamic_pointer_cast<node::FullyConnected>(node)) {
+            fcNodePtr->setMinSparseRate(minSparseRate);
         }
     }
 }

@@ -117,7 +117,10 @@ public:
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
 
-        _desc = std::make_shared<dnnl::deconvolution_forward::desc>();
+        const char dummy_mem[sizeof(dnnl::deconvolution_forward::desc)] = {};
+        const dnnl::deconvolution_forward::desc *dummy_opdesc
+            = reinterpret_cast<const dnnl::deconvolution_forward::desc *>(&dummy_mem[0]);
+        _desc = std::make_shared<dnnl::deconvolution_forward::desc>(std::move(*dummy_opdesc));
         ib >> make_data(&_desc->data, sizeof(dnnl_deconvolution_desc_t));
 
         std::vector<uint8_t> prim_cache;
@@ -168,4 +171,4 @@ attach_deconvolution_onednn::attach_deconvolution_onednn() {
 }  // namespace onednn
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::deconvolution_onednn, cldnn::object_type::DECONVOLUTION_ONEDNN)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::deconvolution_onednn)

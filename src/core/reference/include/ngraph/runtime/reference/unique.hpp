@@ -108,27 +108,48 @@ UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
 
     const auto data_shape_strides = ngraph::row_major_strides(data_shape);
 
+    if (axis && *axis < 0) {
+        const auto normalized_axis = *axis + data_shape.size();
+        *axis = normalized_axis;
+    }
+
     const auto ascending_order = [&data](const TensorSlice<Index_t, Count_t>& lhs,
                                          const TensorSlice<Index_t, Count_t>& rhs) {
         return *(data + lhs.idx) < *(data + rhs.idx);
     };
 
+    int64_t axisVal = 0;
+    if (axis) {
+        axisVal = *axis;
+        if (axisVal < 0) {
+            axisVal += data_shape.size();
+        }
+    }
+
     const auto slices_ascending_order = [&](const TensorSlice<Index_t, Count_t>& lhs,
                                             const TensorSlice<Index_t, Count_t>& rhs) {
-        const auto slices_offset = calc_slices_offset(lhs, rhs, data_shape_strides, *axis);
-        const auto shape_to_iterate = slice_shape_to_iterate(data_shape, *axis);
+        const auto shape_to_iterate = slice_shape_to_iterate(data_shape, axisVal);
 
         for (auto it = CoordinateIterator(shape_to_iterate); it != CoordinateIterator::end(); ++it) {
-            auto elem_coord = *it;
-            elem_coord.insert(elem_coord.cbegin() + *axis, lhs.idx);
-            const auto lhs_elem_idx = ngraph::coordinate_index(elem_coord, data_shape);
-            const auto rhs_elem_idx = lhs_elem_idx + slices_offset;
-            if (*(data + rhs_elem_idx) > *(data + lhs_elem_idx)) {
+            auto elem_coord_lhs = *it;
+            elem_coord_lhs.insert(elem_coord_lhs.cbegin() + axisVal, lhs.idx);
+
+            auto elem_coord_rhs = *it;
+            elem_coord_rhs.insert(elem_coord_rhs.cbegin() + axisVal, rhs.idx);
+
+            const auto lhs_elem_idx = ngraph::coordinate_index(elem_coord_lhs, data_shape);
+            const auto rhs_elem_idx = ngraph::coordinate_index(elem_coord_rhs, data_shape);
+
+            if (*(data + lhs_elem_idx) < *(data + rhs_elem_idx)) {
+                return true;
+            } else if (*(data + lhs_elem_idx) > *(data + rhs_elem_idx)) {
                 return false;
+            } else {
+                continue;
             }
         }
 
-        return true;
+        return false;
     };
 
     const auto elements_are_equal = [&data](const TensorSlice<Index_t, Count_t>& lhs,
@@ -145,15 +166,15 @@ UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
 
         // the individual elements in the two compared slices are always separated by the same offset
         // and this can be used to compare them elementwise
-        const auto slices_offset = calc_slices_offset(lhs, rhs, data_shape_strides, *axis);
-        const auto shape_to_iterate = slice_shape_to_iterate(data_shape, *axis);
+        const auto slices_offset = calc_slices_offset(lhs, rhs, data_shape_strides, axisVal);
+        const auto shape_to_iterate = slice_shape_to_iterate(data_shape, axisVal);
 
         for (auto it = CoordinateIterator(shape_to_iterate); it != CoordinateIterator::end(); ++it) {
             // All slice elements have a "slice index" constant value at the axis position, only the other dimensions
             // vary for each slice element. Those dimensions are provided by CoordinateIterator, the value at axis
             // needs to be injected manually.
             auto elem_coord = *it;
-            elem_coord.insert(elem_coord.cbegin() + *axis, slice_with_lower_idx.idx);
+            elem_coord.insert(elem_coord.cbegin() + axisVal, slice_with_lower_idx.idx);
             const auto lhs_elem_idx = ngraph::coordinate_index(elem_coord, data_shape);
             const auto rhs_elem_idx = lhs_elem_idx + slices_offset;
             if (*(data + lhs_elem_idx) != *(data + rhs_elem_idx)) {
@@ -187,7 +208,7 @@ UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
             generate_descriptors<Index_t, Count_t>(data_elems_count, DescriptorType::SINGLE_VALUE);
 
         if (sorted) {
-            std::sort(begin(ret.all_tensor_elements), end(ret.all_tensor_elements), ascending_order);
+            std::stable_sort(begin(ret.all_tensor_elements), end(ret.all_tensor_elements), ascending_order);
         }
 
         ret.all_tensor_elements[0].rev_idx = 0;
@@ -215,19 +236,19 @@ UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
             }
         }
     } else {
-        ret.axis = *axis;
-        ret.all_tensor_elements = generate_descriptors<Index_t, Count_t>(data_shape[*axis], DescriptorType::SLICE);
+        ret.axis = axisVal;
+        ret.all_tensor_elements = generate_descriptors<Index_t, Count_t>(data_shape[axisVal], DescriptorType::SLICE);
 
         if (sorted) {
-            std::sort(begin(ret.all_tensor_elements), end(ret.all_tensor_elements), slices_ascending_order);
+            std::stable_sort(begin(ret.all_tensor_elements), end(ret.all_tensor_elements), slices_ascending_order);
         }
-
         ret.all_tensor_elements[0].rev_idx = 0;
         ret.unique_tensor_elements.push_back(ret.all_tensor_elements[0]);
 
-        for (size_t i = 1; i < data_shape[*axis]; ++i) {
+        for (size_t i = 1; i < data_shape[axisVal]; ++i) {
             auto& tensor_element = ret.all_tensor_elements[i];
             auto existing_unique = end(ret.unique_tensor_elements);
+
             if (sorted) {
                 existing_unique = std::lower_bound(begin(ret.unique_tensor_elements),
                                                    end(ret.unique_tensor_elements),
@@ -257,13 +278,24 @@ std::tuple<Shape, Shape, Shape> make_tensor_shapes(const UniqueElements<Index_t,
                                                    const Shape& data_shape,
                                                    std::unique_ptr<int64_t> axis) {
     if (axis) {
+        if (*axis < 0) {
+            const auto normalized_axis = *axis + data_shape.size();
+            *axis = normalized_axis;
+        }
         // if the axis was specified we need to return a data shape with a modified dimension-at-axis
         // this is where we need to insert the number of detected unique elements
         // all other dimensions stay the same as in the original data_shape
+        int64_t axisVal = 0;
+        if (axis) {
+            axisVal = *axis;
+            if (axisVal < 0) {
+                axisVal += data_shape.size();
+            }
+        }
         auto output0 = data_shape;
-        output0[*axis] = unique_elements.unique_tensor_elements.size();
+        output0[axisVal] = unique_elements.unique_tensor_elements.size();
         const auto output1_3 = Shape{unique_elements.unique_tensor_elements.size()};
-        const auto output2 = Shape{data_shape[*axis]};
+        const auto output2 = Shape{data_shape[axisVal]};
         return std::make_tuple(output0, output1_3, output2);
     } else {
         const auto output0 = Shape{unique_elements.unique_tensor_elements.size()};

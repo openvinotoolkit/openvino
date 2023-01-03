@@ -21,7 +21,7 @@ ov::pass::GeluFusionWithErfOne::GeluFusionWithErfOne() {
     MATCHER_SCOPE(GeluFusionWithErfOne);
     // Replaces a sub-graph with a Gelu op
     // Shared by every pattern: (1 + erf(x / sqrt(2)))
-    auto input = ngraph::pattern::any_input();
+    auto input = pass::pattern::any_input();
     auto div_constant = ngraph::pattern::wrap_type<opset7::Constant>();
     auto div = ngraph::pattern::wrap_type<opset7::Divide>({input, div_constant});
     auto erf = ngraph::pattern::wrap_type<opset7::Erf>({div});
@@ -81,7 +81,7 @@ ov::pass::GeluFusionWithErfTwo::GeluFusionWithErfTwo() {
     MATCHER_SCOPE(GeluFusionWithErfTwo);
     // Replaces a sub-graph with a Gelu op
     // Shared by every pattern: (1 + erf(x / sqrt(2)))
-    auto input = ngraph::pattern::any_input();
+    auto input = pass::pattern::any_input();
     auto div_constant = ngraph::pattern::wrap_type<opset7::Constant>();
     auto div = ngraph::pattern::wrap_type<opset7::Divide>({input, div_constant});
     auto erf = ngraph::pattern::wrap_type<opset7::Erf>({div});
@@ -141,7 +141,7 @@ ov::pass::GeluFusionWithErfThree::GeluFusionWithErfThree() {
     MATCHER_SCOPE(GeluFusionWithErfThree);
     // Replaces a sub-graph with a Gelu op
     // Shared by every pattern: (1 + erf(x / sqrt(2)))
-    auto input = ngraph::pattern::any_input();
+    auto input = pass::pattern::any_input();
     auto div_constant = ngraph::pattern::wrap_type<opset7::Constant>();
     auto div = ngraph::pattern::wrap_type<opset7::Divide>({input, div_constant});
     auto erf = ngraph::pattern::wrap_type<opset7::Erf>({div});
@@ -228,8 +228,9 @@ ov::pass::GeluFusionWithErfFour::GeluFusionWithErfFour() {
             return false;
         }
 
+        constexpr auto sqrt2 = static_cast<float>(M_SQRT2);
         bool valid_constant_values =
-            ngraph::op::util::has_constant_value<float>(mul1_const_value, 1.0f / M_SQRT2, 0.001f) &&
+            ngraph::op::util::has_constant_value<float>(mul1_const_value, 1.0f / sqrt2, 0.001f) &&
             ngraph::op::util::has_constant_value<float>(add_const_value, 0.5f) &&
             ngraph::op::util::has_constant_value<float>(mul2_const_value, 0.5f);
 
@@ -255,7 +256,7 @@ ov::pass::GeluFusionWithTanh::GeluFusionWithTanh() {
     // Gaussian Error Linear Unit, TanH based approximation:
     // x * (0.5 * (1 + tanh([sqrt(2 / pi)] * [x + 0.044715^3]))
 
-    auto input = ngraph::pattern::any_input();
+    auto input = pass::pattern::any_input();
     auto pow_constant = ngraph::pattern::wrap_type<opset9::Constant>();
     auto pow = ngraph::pattern::wrap_type<opset9::Power>({input, pow_constant});
 

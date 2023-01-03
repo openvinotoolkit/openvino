@@ -24,7 +24,6 @@ public:
     }
 
     void prepareParams() override;
-    std::vector<VectorDims> shapeInfer() const override;
 
     bool isExecutable() const override;
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;

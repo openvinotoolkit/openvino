@@ -116,4 +116,4 @@ attach_multiclass_nms_impl::attach_multiclass_nms_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::multiclass_nms_impl, cldnn::object_type::MULTICLASS_NMS_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::multiclass_nms_impl)

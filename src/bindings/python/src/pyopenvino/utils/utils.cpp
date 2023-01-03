@@ -131,9 +131,13 @@ std::string convert_path_to_string(const py::object& path) {
     if (py::isinstance(path, Path) || py::isinstance<py::str>(path)) {
         return path.str();
     }
+    // Convert bytes to string
+    if (py::isinstance<py::bytes>(path)) {
+        return path.cast<std::string>();
+    }
     std::stringstream str;
     str << "Path: '" << path << "'"
-        << " does not exist. Please provide valid model's path either as a string or pathlib.Path. "
+        << " does not exist. Please provide valid model's path either as a string, bytes or pathlib.Path. "
            "Examples:\n(1) '/home/user/models/model.onnx'\n(2) Path('/home/user/models/model/model.onnx')";
     throw ov::Exception(str.str());
 }
@@ -189,6 +193,10 @@ ov::Any py_object_to_any(const py::object& py_obj) {
                 check_type(PY_TYPE::BOOL);
             }
         }
+
+        // In case of empty vector works like with vector of strings
+        if (_list.empty())
+            return _list.cast<std::vector<std::string>>();
 
         switch (detected_type) {
         case PY_TYPE::STR:

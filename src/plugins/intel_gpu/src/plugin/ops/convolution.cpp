@@ -24,14 +24,14 @@ namespace intel_gpu {
 
 static void CreateGroupConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::GroupConvolution>& op) {
     validate_inputs_count(op, {2});
-    auto inputs = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     uint32_t groups = op->get_input_partial_shape(1)[0].get_length();
     auto outDims = op->get_output_partial_shape(0);
     auto outPrecision = op->get_output_element_type(0);
 
-    std::vector<cldnn::primitive_id> weights = {inputs[1]};
+    std::vector<cldnn::primitive_id> weights = {inputs[1].pid};
     const bool weights_have_group_dim = true;
 
     auto strides = op->get_strides();
@@ -74,13 +74,13 @@ static void CreateGroupConvolutionOp(Program& p, const std::shared_ptr<ngraph::o
 
 static void CreateConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::Convolution>& op) {
     validate_inputs_count(op, {2});
-    auto inputs = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     auto outDims = op->get_output_partial_shape(0);
     auto outPrecision = op->get_output_element_type(0);
 
-    std::vector<cldnn::primitive_id> weights = {inputs[1]};
+    std::vector<cldnn::primitive_id> weights = {inputs[1].pid};
     const bool weights_have_group_dim = false;
 
     auto strides = op->get_strides();
@@ -123,7 +123,7 @@ static void CreateConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1
 static void CreateConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ngraph::op::v1::ConvolutionBackpropData>& op) {
     // 3rd input is an optional output shape
     validate_inputs_count(op, {2, 3});
-    auto inputs = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     auto dilations = op->get_dilations();
@@ -153,10 +153,10 @@ static void CreateConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ng
 
         p.add_primitive(*op, permutePrim);
 
-        weightsName = permuteName;
+        weightsName.pid = permuteName;
     }
 
-    std::vector<cldnn::primitive_id> weights = {weightsName};
+    std::vector<cldnn::primitive_id> weights = {weightsName.pid};
     const bool weights_have_group_dim = false;
 
     auto strides = op->get_strides();
@@ -181,7 +181,7 @@ static void CreateConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ng
 
 static void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ngraph::op::v1::GroupConvolutionBackpropData>& op) {
     validate_inputs_count(op, {2});
-    auto inputs = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     auto dilations = op->get_dilations();
@@ -213,10 +213,10 @@ static void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_p
 
         p.add_primitive(*op, permutePrim);
 
-        weightsName = permuteName;
+        weightsName.pid = permuteName;
     }
 
-    std::vector<cldnn::primitive_id> weights = {weightsName};
+    std::vector<cldnn::primitive_id> weights = {weightsName.pid};
     const bool weights_have_group_dim = true;
 
     auto strides = op->get_strides();
@@ -247,14 +247,16 @@ static void DeformableConvolutionImpl(Program& p,
                                       const ov::CoordinateDiff& padding,
                                       std::int64_t deformableGroupsNum,
                                       bool bilinearInterpolationPad = false) {
-    auto inputs = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
     auto outDims = op->get_output_shape(0);
 
-    std::vector<cldnn::primitive_id> weights = {inputs[2]};
+    std::vector<cldnn::primitive_id> weights = {inputs[2].pid};
     // Remove weights from inputs
     inputs.erase(inputs.begin() + 2);
-    if (groups == 1) {
+    auto device_info = p.GetEngine().get_device_info();
+    bool supports_subgroups = device_info.supports_khr_subgroups || device_info.supports_intel_subgroups;
+    if (groups == 1 && supports_subgroups) {
         std::string defConvLayerNameInterp = layerName + "_interp";
         std::string defConvLayerNameConv = layerName;
         cldnn::tensor kernel;
@@ -346,12 +348,12 @@ static void CreateDeformableConvolutionOp(Program& p, const std::shared_ptr<ngra
 
 static void CreateBinaryConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::BinaryConvolution>& op) {
     validate_inputs_count(op, {2});
-    auto inputs = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     auto outDims = op->get_output_shape(0);
 
-    std::vector<cldnn::primitive_id> weights = {inputs[1]};
+    std::vector<cldnn::primitive_id> weights = {inputs[1].pid};
     cldnn::data_types calc_precision = cldnn::element_type_to_data_type(op->get_output_element_type(0));
 
     auto strides = op->get_strides();
