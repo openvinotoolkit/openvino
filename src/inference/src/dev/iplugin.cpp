@@ -139,16 +139,24 @@ std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model(const std::shared
 
                 switch (preProc.getColorFormat()) {
                 case InferenceEngine::RGB:
-                    preproc.input(i).preprocess().convert_color(ov::preprocess::ColorFormat::RGB);
+                    preproc.input(i).tensor().set_color_format(ov::preprocess::ColorFormat::RGB);
+                    preproc.input(i).preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
+                    preproc.input(i).model().set_layout({"NCHW"});
                     break;
                 case InferenceEngine::RGBX:
-                    preproc.input(i).preprocess().convert_color(ov::preprocess::ColorFormat::RGBX);
+                    preproc.input(i).tensor().set_color_format(ov::preprocess::ColorFormat::RGBX);
+                    preproc.input(i).preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
+                    preproc.input(i).model().set_layout({"NCHW"});
                     break;
                 case InferenceEngine::BGR:
+                    preproc.input(i).tensor().set_color_format(ov::preprocess::ColorFormat::BGR);
                     preproc.input(i).preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
+                    preproc.input(i).model().set_layout({"NCHW"});
                     break;
                 case InferenceEngine::BGRX:
-                    preproc.input(i).preprocess().convert_color(ov::preprocess::ColorFormat::BGRX);
+                    preproc.input(i).tensor().set_color_format(ov::preprocess::ColorFormat::BGRX);
+                    preproc.input(i).preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
+                    preproc.input(i).model().set_layout({"NCHW"});
                     break;
                 default:
                     // nothing to do

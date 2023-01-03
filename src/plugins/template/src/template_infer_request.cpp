@@ -264,7 +264,7 @@ void TemplateInferRequest::inferPreprocess() {
     convertBatchedInputBlobs();
     // NOTE: After IInferRequestInternal::execDataPreprocessing call
     //       input can points to other memory region than it was allocated in constructor.
-    IInferRequestInternal::execDataPreprocessing(_deviceInputs);
+    // IInferRequestInternal::execDataPreprocessing(_deviceInputs);
     for (auto&& networkInput : _deviceInputs) {
         auto index = _executableNetwork->_inputIndex[networkInput.first];
         const auto& parameter = _executableNetwork->m_model->get_parameters()[index];
