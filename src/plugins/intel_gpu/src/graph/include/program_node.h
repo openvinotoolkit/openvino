@@ -466,8 +466,8 @@ private:
         onednn_attrs = attrs;
     }
 
-    // bool has_out_scales(const std::shared_ptr<dnnl::primitive_attr>& attr);
     dnnl::post_ops try_optimize_post_ops(dnnl::post_ops& p_ops, const std::shared_ptr<dnnl::primitive_attr>& attr, bool& optimization_is_completed);
+
     bool out_scales = false;
 #endif // ENABLE_ONEDNN_FOR_GPU
     size_t num_outputs = 1;

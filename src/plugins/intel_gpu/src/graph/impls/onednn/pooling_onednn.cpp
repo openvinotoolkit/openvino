@@ -62,7 +62,7 @@ protected:
 
         dnnl::algorithm alg;
         switch (prim->mode) {
-            case pooling_mode::average: alg = dnnl::algorithm::pooling_avg_include_padding; break;  // TODO: oneDNN3.0: pooling_avg->pooling_avg_include_padding
+            case pooling_mode::average: alg = dnnl::algorithm::pooling_avg_include_padding; break;
             case pooling_mode::max: alg = dnnl::algorithm::pooling_max; break;
             case pooling_mode::average_no_padding: alg = dnnl::algorithm::pooling_avg_exclude_padding; break;
             default: throw std::runtime_error("unsupported pool mode");

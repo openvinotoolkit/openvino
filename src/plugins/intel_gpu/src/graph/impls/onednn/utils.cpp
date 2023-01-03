@@ -217,7 +217,7 @@ dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_t
     dnnl::memory::format_tag fmt = target_fmt == dnnl::memory::format_tag::undef ? convert_data_format(l.format) : target_fmt;
 
     if (fmt == dnnl::memory::format_tag::undef) {
-        throw ov::Exception("[GPU] Fix me, Unexpected fmt: " + convert_data_format_string(l.format));
+        throw ov::Exception("[GPU] Unexpected fmt: " + convert_data_format_string(l.format));
     } else {
         dnnl::memory::desc res(dims, dt, fmt);
 
@@ -385,7 +385,7 @@ dnnl::algorithm convert_activation_func(cldnn::activation_func func) {
     switch (func) {
         case cldnn::activation_func::relu: return dnnl::algorithm::eltwise_relu;
         case cldnn::activation_func::relu_negative_slope: return dnnl::algorithm::eltwise_relu;
-        case cldnn::activation_func::gelu: return dnnl::algorithm::eltwise_gelu_tanh;   // TODO check is it correct? return dnnl::algorithm::eltwise_gelu;
+        case cldnn::activation_func::gelu: return dnnl::algorithm::eltwise_gelu_tanh;
         case cldnn::activation_func::elu: return dnnl::algorithm::eltwise_elu;
         case cldnn::activation_func::mish: return dnnl::algorithm::eltwise_mish;
         case cldnn::activation_func::swish: return dnnl::algorithm::eltwise_swish;

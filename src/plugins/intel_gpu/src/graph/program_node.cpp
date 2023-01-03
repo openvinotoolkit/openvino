@@ -504,10 +504,6 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
             case onednn_post_op_type::eltwise_round:
             {
                 dnnl::algorithm alg;
-                // float scale, alpha, beta;
-                // cur_p_ops.get_params_eltwise(idx, scale, alg, alpha, beta);
-                // new_p_ops.append_eltwise(scale, alg, alpha, beta);
-                // TODO: oneDNN3.0: No get/set eltwise scale -> always eltwise scale is 1
                 float alpha, beta;
                 cur_p_ops.get_params_eltwise(idx, alg, alpha, beta);
                 new_p_ops.append_eltwise(alg, alpha, beta);
@@ -600,7 +596,6 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
     };
     auto type_is_binary_add        = [](onednn_post_op_type type) -> bool { return type == onednn_post_op_type::binary_add; };
     auto type_is_binary_mul        = [](onednn_post_op_type type) -> bool { return type == onednn_post_op_type::binary_mul; };
-    // auto type_is_sum               = [](onednn_post_op_type type) -> bool { return type == onednn_post_op_type::sum; };
     auto type_is_optimized_sum     = [](onednn_post_op_type type) -> bool { return type == onednn_post_op_type::optimized_sum; };
     auto type_is_scale             = [](onednn_post_op_type type) -> bool { return type == onednn_post_op_type::scale; };
 
@@ -692,8 +687,6 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
 
         GPU_DEBUG_TRACE << "after prev_post_op_idx: " << prev_post_op_idx << ", cur_post_op_idx: " << cur_post_op_idx << std::endl;
 
-        // auto cur_idx = static_cast<int>(has_out_scales(attr) ? (cur_post_op_idx >= 1 ? cur_post_op_idx - 1 : 0) : cur_post_op_idx);
-        // auto prev_idx = static_cast<int>(has_out_scales(attr) ? (prev_post_op_idx >= 1 ? prev_post_op_idx - 1 : 0) : prev_post_op_idx);
         auto cur_idx = static_cast<int>(has_out_scales() ? (cur_post_op_idx >= 1 ? cur_post_op_idx - 1 : 0) : cur_post_op_idx);
         auto prev_idx = static_cast<int>(has_out_scales() ? (prev_post_op_idx >= 1 ? prev_post_op_idx - 1 : 0) : prev_post_op_idx);
 
@@ -718,14 +711,11 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
         auto eltw_and_eltw  = type_is_eltwise(cur_type) && type_is_eltwise(prev_type);
         auto bin_and_eltw   = type_is_binary_add_or_mul(cur_type) && type_is_eltwise_linear(prev_type);
         auto eltw_and_bin   = type_is_eltwise_linear(cur_type) && type_is_binary_add_or_mul(prev_type);
-        // auto sum_and_eltw   = type_is_sum(cur_type) && type_is_eltwise(prev_type);
-        auto sum_and_eltw   = false;    // TODO: oneDNN3.0 Need code clean
         auto eltw_and_scale = type_is_eltwise_linear(cur_type) && type_is_scale(prev_type);
 
         auto can_try_optimize = eltw_and_eltw ||
                                 bin_and_eltw ||
                                 eltw_and_bin ||
-                                sum_and_eltw ||
                                 eltw_and_scale;
 
         bool cur_ops_pair_is_optimized = false;
@@ -743,8 +733,6 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
                 p_ops.get_params_eltwise(cur_idx, cur_alg, cur_alpha, cur_beta);
 
                 auto eltw_linear_and_eltw_linear = type_is_eltwise_linear(cur_type) && type_is_eltwise_linear(prev_type);
-                // auto eltw_linear_and_eltw_non_linear = type_is_eltwise_linear(cur_type) && !type_is_eltwise_linear(prev_type) && cur_beta == 0;
-                auto eltw_linear_and_eltw_non_linear = false;   // TODO: oneDNN3.0 Need code clean
 
                 // eltwise_linear + eltwise_linear combination can be optimized always
                 if (eltw_linear_and_eltw_linear) {
@@ -755,16 +743,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
 
                     // Combine 2 eltwises into one
                     add_post_op(cur_type, eltw_p_op, optimized_p_ops, 0);
-                } else if (eltw_linear_and_eltw_non_linear) {
-                    dnnl::post_ops eltw_p_op;
-                    // eltw_p_op.append_eltwise(cur_scale * prev_scale * cur_alpha, prev_alg, prev_alpha, prev_beta);
-                    eltw_p_op.append_eltwise(prev_alg, prev_alpha, prev_beta);
 
-                    // Combine 2 eltwises into one
-                    add_post_op(prev_type, eltw_p_op, optimized_p_ops, 0);
-                }
-
-                if (eltw_linear_and_eltw_linear || eltw_linear_and_eltw_non_linear) {
                     // Marked current and previous eltwise operations as 'optimized' (they will be ignored on the next iteration of cycle)
                     cur_post_ops[cur_post_op_idx].op_type = onednn_post_op_type::optimized;
                     cur_post_ops[prev_post_op_idx].op_type = get_optimized_eltwise_type(prev_type);
@@ -789,8 +768,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
                 cldnn::program_node& cur_node = get_dependency(cur_post_ops[cur_post_op_idx].mem_dep);
 
                 p_ops.get_params_binary(cur_idx, alg, desc);
-                // p_ops.get_params_eltwise(prev_idx, scale, alg, alpha, beta);
-                p_ops.get_params_eltwise(prev_idx, alg, alpha, beta);   // TODO: oneDNN3.0: no get/set eltwise scale
+                p_ops.get_params_eltwise(prev_idx, alg, alpha, beta);
 
                 // Eltwise operations can use runtime non-constant data buffers, so check that memory buffers consist of constant data only
                 auto bin_ops_can_be_optimized = cur_node.is_type<data>() && cur_node.is_constant() &&
@@ -827,20 +805,18 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
             } else if (eltw_and_bin) {
                 dnnl::algorithm alg;
                 dnnl::memory::desc desc;
-                float scale = 1.f;
                 float alpha, beta;
 
                 cldnn::program_node& prev_node = get_dependency(cur_post_ops[prev_post_op_idx].mem_dep);
 
-                // p_ops.get_params_eltwise(cur_idx, scale, alg, alpha, beta);
-                p_ops.get_params_eltwise(cur_idx, alg, alpha, beta);     // TODO: oneDNN3.0: no get/set eltwise scale
+                p_ops.get_params_eltwise(cur_idx, alg, alpha, beta);
                 p_ops.get_params_binary(prev_idx, alg, desc);
 
                 // Eltwise operations can use runtime non-constant data buffers, so check that memory buffers consist of constant data only
                 auto bin_ops_can_be_optimized = prev_node.is_type<data>() && prev_node.is_constant() &&
                                                 prev_node.get_users().size() == 1 && desc.get_data_type() == dnnl_f32;
 
-                auto eltw_and_bin_add = alpha == 1.0f && scale == 1.0f && type_is_binary_add(prev_type) && bin_ops_can_be_optimized;
+                auto eltw_and_bin_add = alpha == 1.0f && type_is_binary_add(prev_type) && bin_ops_can_be_optimized;
                 auto eltw_and_bin_mul = beta == 0.f && type_is_binary_mul(prev_type) && bin_ops_can_be_optimized;
 
                 if (eltw_and_bin_add || eltw_and_bin_mul) {
@@ -859,7 +835,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
                         }
                     } else {
                         for (size_t data_idx = 0; data_idx < prev_bin_mem_size; data_idx++) {
-                            eltw_and_bin_lock[data_idx] *= alpha * scale;
+                            eltw_and_bin_lock[data_idx] *= alpha;
                         }
                     }
 
@@ -868,69 +844,8 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
 
                     cur_ops_pair_is_optimized = true;
                 }
-            } else if (sum_and_eltw) {
-                dnnl::algorithm alg;
-                // float eltw_scale = 1.f;
-                float sum_scale, alpha, beta;
-
-                dnnl::algorithm next_alg;
-                // float next_scale, next_alpha, next_beta;
-                // float next_scale = 1.f;
-                float next_alpha, next_beta;
-                int64_t next_idx = cur_idx + 1;
-                int64_t next_post_op_idx = cur_post_op_idx + 1;
-
-                bool can_optimize_eltw_and_sum = false;
-
-                if (cur_post_op_idx < post_ops_size - 1) {
-                    auto next_type = cur_post_ops[next_post_op_idx].op_type;
-                    if (type_is_eltwise_linear(next_type)) {
-                        // p_ops.get_params_eltwise(next_idx, next_scale, next_alg, next_alpha, next_beta);
-                        p_ops.get_params_eltwise(next_idx, next_alg, next_alpha, next_beta);
-
-                        if (next_beta == 0)
-                            can_optimize_eltw_and_sum = true;
-                    }
-                }
-
-                // Try to optimize eltwise (any) + sum + eltwise_linear (with beta = 0) chain of operations
-                if (can_optimize_eltw_and_sum) {
-                    dnnl::memory::data_type data_type;
-                    p_ops.get_params_sum(cur_idx, sum_scale, data_type);
-                    // p_ops.get_params_eltwise(prev_idx, eltw_scale, alg, alpha, beta);
-                    p_ops.get_params_eltwise(prev_idx, alg, alpha, beta);
-
-                    dnnl::post_ops eltw_p_op_prev, sum_p_op;
-
-                    // eltw_p_op_prev.append_eltwise(eltw_scale * next_alpha * next_scale, alg, alpha, beta);
-                    eltw_p_op_prev.append_eltwise(alg, alpha, beta);
-                    // Only conv supports data type specification in append_sum. Other primitives(deconv, fc) do not support it.
-                    if (is_type<convolution>()) {
-                        sum_p_op.append_sum(sum_scale * next_alpha, 0/*zero-point*/, data_type);
-                    } else {
-                        sum_p_op.append_sum(sum_scale * next_alpha);
-                    }
-                    add_post_op(prev_type, eltw_p_op_prev, optimized_p_ops, 0);
-                    add_post_op(cur_type, sum_p_op, optimized_p_ops, 0);
-
-                    // Marked current, previous and next operations as 'optimized' (they will be ignored on the next iteration of cycle)
-                    cur_post_ops[prev_post_op_idx].op_type = get_optimized_eltwise_type(prev_type);
-                    cur_post_ops[cur_post_op_idx].op_type = onednn_post_op_type::optimized_sum;
-                    cur_post_ops[next_post_op_idx].op_type = onednn_post_op_type::optimized;
-
-                    // Set the flag if extra optimizations checking is needed
-                    if (next_post_op_idx < post_ops_size - 1) {
-                        if (type_is_eltwise_linear(cur_post_ops[next_post_op_idx + 1].op_type) ||
-                            type_is_optimized_eltwise(cur_post_ops[next_post_op_idx + 1].op_type)) {
-                            optimization_is_completed = true;
-                        }
-                    }
-
-                    cur_ops_pair_is_optimized = true;
-                }
             } else if (eltw_and_scale) {
                 dnnl::algorithm alg;
-                float eltw_scale = 1.f;
                 float alpha, beta;
 
                 cldnn::program_node& prev_node = get_dependency(cur_post_ops[prev_post_op_idx].mem_dep);
@@ -949,7 +864,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
 
                     // Update all scale coefficients
                     for (size_t data_idx = 0; data_idx < prev_scale_mem_size; data_idx++) {
-                        eltw_and_scale_lock[data_idx] *= alpha * eltw_scale;
+                        eltw_and_scale_lock[data_idx] *= alpha;
                     }
 
                     // Marked current eltwise operation as 'optimized' (it will be ignored on the next iteration of cycle)
@@ -961,7 +876,6 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
         }
 
         // If no optimizations have been applied then copy post-op info into the new optimized_p_ops structure
-        // if (!(has_out_scales(attr) && prev_post_op_idx == 0) && !cur_ops_pair_is_optimized) {
         if (!(has_out_scales() && prev_post_op_idx == 0) && !cur_ops_pair_is_optimized) {
             add_post_op(prev_type, p_ops, optimized_p_ops, prev_idx);
         }
@@ -1022,10 +936,10 @@ void program_node::init_onednn_primitive_attributes() {
             memory_offset++;
     };
 
-    auto cant_use_output_scales = [&](size_t idx, data_types in_data_type) {
-        return true;    // TODO: oneDNN3.0: debugging code, scale with mask2 has issue?
+    auto cant_use_output_scales = [&](size_t idx, data_types in_data_type, layout in_layout) {
         return (idx != 0 ||
-                // has_out_scales(attrs) ||
+                out_scales ||
+                in_layout.count() > 1 ||
                 is_type<pooling>() ||
                 is_type<reduce>() ||
                 (is_type<convolution>() && data_type_traits::is_floating_point(in_data_type)) ||
@@ -1088,14 +1002,12 @@ void program_node::init_onednn_primitive_attributes() {
             } else if (desc.typed_desc<eltwise>()->mode == eltwise_mode::prod) {
                 auto in_data_type = get_dependency(0).get_output_layout().data_type;
                 // convolution using post-op output scales can only be used when i8/u8 input (which use integer accumulator)
-                if (cant_use_output_scales(idx, in_data_type)) {
+                if (cant_use_output_scales(idx, in_data_type, in)) {
                     dnnl::memory::desc in_desc = onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::ab, true);
                     post_ops.append_binary(dnnl::algorithm::binary_mul, in_desc);
                     update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx);
                 } else {
-                    // int mask = in.count() > 1 ? 2 : 0;   // TODO
-                    int mask = 0;
-                    attrs->set_scales_mask(DNNL_ARG_DST, mask);
+                    attrs->set_scales_mask(DNNL_ARG_DST, 0);
                     update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx);
                     out_scales = true;
                 }
@@ -1123,14 +1035,12 @@ void program_node::init_onednn_primitive_attributes() {
                         } else {
                             auto in_scale = get_dependency(dep_idx++).get_output_layout();
                             auto in_data_type = get_dependency(0).get_output_layout().data_type;
-                            if (cant_use_output_scales(idx, in_data_type) || in_scale.data_type != data_types::f32) {
+                            if (cant_use_output_scales(idx, in_data_type, in_scale) || in_scale.data_type != data_types::f32) {
                                 dnnl::memory::desc in_scale_desc = onednn::layout_to_memory_desc(in_scale, dnnl::memory::format_tag::ab, true);
                                 post_ops.append_binary(dnnl::algorithm::binary_mul, in_scale_desc);
                                 update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1);
                             } else {
-                                // int mask = in.count() > 1 ? 2 : 0;   // TODO
-                                int mask = 0;
-                                attrs->set_scales_mask(DNNL_ARG_DST, mask);
+                                attrs->set_scales_mask(DNNL_ARG_DST, 0);
                                 update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx - 1);
                                 out_scales = true;
                             }
@@ -1234,14 +1144,12 @@ void program_node::init_onednn_primitive_attributes() {
                             auto in_scale = get_dependency(dep_idx++).get_output_layout();
                             auto in_data_type = get_dependency(0).get_output_layout().data_type;
 
-                            if (cant_use_output_scales(idx, in_data_type) || in_scale.data_type != data_types::f32 || q_param->has_clamp) {
+                            if (cant_use_output_scales(idx, in_data_type, in_scale) || in_scale.data_type != data_types::f32 || q_param->has_clamp) {
                                 dnnl::memory::desc in_scale_desc = onednn::layout_to_memory_desc(in_scale, dnnl::memory::format_tag::ab, true);
                                 post_ops.append_binary(dnnl::algorithm::binary_mul, in_scale_desc);
                                 update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1);
                             } else {
-                                // int mask = in_scale.count() > 1 ? 2 : 0;
-                                int mask = 0;
-                                attrs->set_scales_mask(DNNL_ARG_DST, mask);
+                                attrs->set_scales_mask(DNNL_ARG_DST, 0);
                                 update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx - 1);
                                 out_scales = true;
                             }

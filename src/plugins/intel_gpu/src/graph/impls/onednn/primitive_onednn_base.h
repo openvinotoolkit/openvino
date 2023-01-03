@@ -438,7 +438,6 @@ protected:
         for (size_t post_op_idx = 0, num_of_optimized_post_ops = 0; post_op_idx < post_ops_size; post_op_idx++) {
             auto post_op_type = cur_post_ops[post_op_idx].op_type;
             auto memory_offset = cur_post_ops[post_op_idx].mem_offset;
-            // auto onednn_post_op_idx = has_output_scales(_attrs) && post_op_idx > 0 ? post_op_idx - 1 : post_op_idx;
             auto onednn_post_op_idx = instance.node->has_out_scales() && post_op_idx > 0 ? post_op_idx - 1 : post_op_idx;
             onednn_post_op_idx -= num_of_optimized_post_ops;
 
