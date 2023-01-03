@@ -18,6 +18,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
+          lfs: true
+          token: ${{ secrets.ACCESS_TOKEN }}
           submodules: recursive
 
       - name: Install clang-format-9
@@ -43,8 +45,6 @@ jobs:
 
       - uses: stefanzweifel/git-auto-commit-action@v4
         with:
-          lfs: true
-          token: ${{ secrets.ACCESS_TOKEN }}
           commit_message: "[github actions] Apply clang-format code style fixes"
 
   ShellCheck:
