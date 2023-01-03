@@ -18,9 +18,11 @@ pr:
   paths:
     exclude:
     - '*/docs/*'
+    - 'docs/*'
     - '*/*.md'
     - '*/layer_tests_summary/*'
     - '*/conformance/*'
+    - '.ci/*'
 
 resources:
   repositories:

@@ -21,6 +21,7 @@ pr:
     - '*/*.md'
     - '*/layer_tests_summary/*'
     - '*/conformance/*'
+    - '.ci/*'
 
 resources:
   repositories:
