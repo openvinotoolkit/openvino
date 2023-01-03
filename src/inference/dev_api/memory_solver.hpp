@@ -11,9 +11,9 @@
 #include <ie_common.h>
 #include <stdint.h>
 
+#include <algorithm>
 #include <fstream>
 #include <iomanip>
-#include <algorithm>
 #include <map>
 #include <vector>
 
@@ -230,37 +230,30 @@ private:
     void dumpOffsets() {
         std::ofstream dump_file("memory_boxes_offsets.txt", std::ios::out);
         uint8_t scale = 64;
-        std::sort(_boxes.begin(), _boxes.end(),
-            [](const Box& box_l, const Box& box_r){ return (box_l.id == box_r.id) ? box_l.start < box_r.start : box_l.id < box_r.id;});
+        std::sort(_boxes.begin(), _boxes.end(), [](const Box& box_l, const Box& box_r) {
+            return (box_l.id == box_r.id) ? box_l.start < box_r.start : box_l.id < box_r.id;
+        });
 
         for (const Box& box : _boxes) {
-            dump_file << std::left << std::setw(5) << box.id
-            << " "
-            << std::left << std::setw(10) << "{" + std::to_string(box.start) + "," + std::to_string(box.finish) + "}"
-            << " "
-            << std::left << std::setw(5) << box.size
-            << " "
-            << std::left << std::string(box.id / scale, ' ')
-            << std::left << std::string(box.size / scale, 'X')
-            << std::endl;
+            dump_file << std::left << std::setw(5) << box.id << " " << std::left << std::setw(10)
+                      << "{" + std::to_string(box.start) + "," + std::to_string(box.finish) + "}"
+                      << " " << std::left << std::setw(5) << box.size << " " << std::left
+                      << std::string(box.id / scale, ' ') << std::left << std::string(box.size / scale, 'X')
+                      << std::endl;
         }
     }
 
     void dumpTimeline() {
         std::ofstream dump_file("memory_boxes_timeline.txt", std::ios::out);
-        std::sort(_boxes.begin(), _boxes.end(),
-            [](const Box& box_l, const Box& box_r){ return (box_l.id == box_r.id) ? box_l.start < box_r.start : box_l.id < box_r.id;});
+        std::sort(_boxes.begin(), _boxes.end(), [](const Box& box_l, const Box& box_r) {
+            return (box_l.id == box_r.id) ? box_l.start < box_r.start : box_l.id < box_r.id;
+        });
 
         for (const Box& box : _boxes) {
-            dump_file << std::left << std::setw(5) << box.id
-            << " "
-            << std::left << std::setw(10) << "{" + std::to_string(box.start) + "," + std::to_string(box.finish) + "}"
-            << " "
-            << std::left << std::setw(5) << box.size
-            << " "
-            << std::left << std::string(box.start, ' ')
-            << std::left << std::string(box.finish - box.start + 1, 'X')
-            << std::endl;
+            dump_file << std::left << std::setw(5) << box.id << " " << std::left << std::setw(10)
+                      << "{" + std::to_string(box.start) + "," + std::to_string(box.finish) + "}"
+                      << " " << std::left << std::setw(5) << box.size << " " << std::left << std::string(box.start, ' ')
+                      << std::left << std::string(box.finish - box.start + 1, 'X') << std::endl;
         }
     }
 };
