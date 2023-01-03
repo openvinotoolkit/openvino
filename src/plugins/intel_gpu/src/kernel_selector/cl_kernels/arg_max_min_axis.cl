@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
-#include "include/batch_headers/fetch_data.cl"
+#include "include/fetch_utils.cl"
 
 #ifdef BATCH_AXIS
     #define VALUES_NUM INPUT0_BATCH_NUM
@@ -43,32 +42,6 @@
 #endif
 
 #define MINIMUM_NUMBER_FOR_PARTIAL_SORTING 100
-
-#define unroll_for __attribute__((opencl_unroll_hint)) for
-
-///////////////////////// Input offset /////////////////////////
-inline uint FUNC(get_input_offset)(uint b, uint f, uint z, uint y, uint x)
-{
-#if INPUT0_DIMS < 5
-    return INPUT0_GET_INDEX(b, f, y, x);
-#elif INPUT0_DIMS == 5
-    return INPUT0_GET_INDEX(b, f, z, y, x);
-#else
-#error arg_max_min_axis.cl: input format - not supported
-#endif
-}
-
-///////////////////////// Output offset ////////////////////////
-inline uint FUNC(get_output_offset)(uint b, uint f, uint z, uint y, uint x)
-{
-#if OUTPUT_DIMS < 5
-    return OUTPUT_GET_INDEX(b, f, y, x);
-#elif OUTPUT_DIMS == 5
-    return OUTPUT_GET_INDEX(b, f, z, y, x);
-#else
-#error arg_max_min_axis.cl: output format - not supported
-#endif
-}
 
 KERNEL(arg_max_min_modified)(const __global INPUT0_TYPE* input
                                   ,__global OUTPUT_TYPE* output
@@ -174,41 +147,41 @@ KERNEL(arg_max_min_modified)(const __global INPUT0_TYPE* input
     indices[AXIS] = sort_idx;
 
     iav_type result;
-    result.value = input[FUNC_CALL(get_input_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])];
+    result.value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
     result.index = sort_idx;
 
     for (uint i = 0; i < sort_idx / 8; i++) {
         uint index_offset = i * 8;
         indices[AXIS] = index_offset;
-        INPUT0_TYPE test_value = input[FUNC_CALL(get_input_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])];
+        INPUT0_TYPE test_value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (result.value COMPARE_PARALLEL_SIGN_1 test_value)
             sort_position++;
         indices[AXIS] = index_offset + 1;
-        test_value = input[FUNC_CALL(get_input_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])];
+        test_value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (result.value COMPARE_PARALLEL_SIGN_1 test_value)
             sort_position++;
         indices[AXIS] = index_offset + 2;
-        test_value = input[FUNC_CALL(get_input_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])];
+        test_value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (result.value COMPARE_PARALLEL_SIGN_1 test_value)
             sort_position++;
         indices[AXIS] = index_offset + 3;
-        test_value = input[FUNC_CALL(get_input_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])];
+        test_value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (result.value COMPARE_PARALLEL_SIGN_1 test_value)
             sort_position++;
         indices[AXIS] = index_offset + 4;
-        test_value = input[FUNC_CALL(get_input_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])];
+        test_value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (result.value COMPARE_PARALLEL_SIGN_1 test_value)
             sort_position++;
         indices[AXIS] = index_offset + 5;
-        test_value = input[FUNC_CALL(get_input_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])];
+        test_value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (result.value COMPARE_PARALLEL_SIGN_1 test_value)
             sort_position++;
         indices[AXIS] = index_offset + 6;
-        test_value = input[FUNC_CALL(get_input_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])];
+        test_value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (result.value COMPARE_PARALLEL_SIGN_1 test_value)
             sort_position++;
         indices[AXIS] = index_offset + 7;
-        test_value = input[FUNC_CALL(get_input_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])];
+        test_value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (result.value COMPARE_PARALLEL_SIGN_1 test_value)
             sort_position++;
         if (sort_position >= TOP_K)
@@ -217,7 +190,7 @@ KERNEL(arg_max_min_modified)(const __global INPUT0_TYPE* input
 
     for (uint i = (sort_idx / 8) * 8; i < sort_idx; i++) {
         indices[AXIS] = i;
-        INPUT0_TYPE test_value = input[FUNC_CALL(get_input_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])];
+        INPUT0_TYPE test_value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (result.value COMPARE_PARALLEL_SIGN_1 test_value)
             sort_position++;
     }
@@ -227,7 +200,7 @@ KERNEL(arg_max_min_modified)(const __global INPUT0_TYPE* input
 
     for (uint i = sort_idx + 1; i < VALUES_NUM; i++) {
         indices[AXIS] = i;
-        INPUT0_TYPE test_value = input[FUNC_CALL(get_input_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])];
+        INPUT0_TYPE test_value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (result.value COMPARE_PARALLEL_SIGN_2 test_value)
             sort_position++;
         if (sort_position >= TOP_K)
@@ -236,7 +209,7 @@ KERNEL(arg_max_min_modified)(const __global INPUT0_TYPE* input
 
 // Using simple sorting for sorting by indices and when TOP_K == 1
 #elif TOP_K == 1
-    INPUT0_TYPE val = input[FUNC_CALL(get_input_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])];
+    INPUT0_TYPE val = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
     result[0].index = 0;
     result[0].value = val;
     bool already_exist = false;
@@ -255,7 +228,7 @@ KERNEL(arg_max_min_modified)(const __global INPUT0_TYPE* input
             }
 
             indices[AXIS] = i;
-            INPUT0_TYPE in_data = input[FUNC_CALL(get_input_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])];
+            INPUT0_TYPE in_data = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
             if (val COMPARE_SIGN in_data) {
                 result[top_k].index = i;
                 result[top_k].value = in_data;
@@ -270,26 +243,26 @@ KERNEL(arg_max_min_modified)(const __global INPUT0_TYPE* input
     for (uint i = 0; i < VALUES_NUM / 8; i++) {
         uint index_offset = i * 8;
         indices[AXIS] = result[index_offset].index = index_offset;
-        result[index_offset].value = input[FUNC_CALL(get_input_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])];
+        result[index_offset].value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         indices[AXIS] = result[index_offset + 1].index = index_offset + 1;
-        result[index_offset + 1].value = input[FUNC_CALL(get_input_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])];
+        result[index_offset + 1].value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         indices[AXIS] = result[index_offset + 2].index = index_offset + 2;
-        result[index_offset + 2].value = input[FUNC_CALL(get_input_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])];
+        result[index_offset + 2].value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         indices[AXIS] = result[index_offset + 3].index = index_offset + 3;
-        result[index_offset + 3].value = input[FUNC_CALL(get_input_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])];
+        result[index_offset + 3].value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         indices[AXIS] = result[index_offset + 4].index = index_offset  + 4;
-        result[index_offset + 4].value = input[FUNC_CALL(get_input_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])];
+        result[index_offset + 4].value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         indices[AXIS] = result[index_offset + 5].index = index_offset + 5;
-        result[index_offset + 5].value = input[FUNC_CALL(get_input_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])];
+        result[index_offset + 5].value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         indices[AXIS] = result[index_offset + 6].index = index_offset + 6;
-        result[index_offset + 6].value = input[FUNC_CALL(get_input_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])];
+        result[index_offset + 6].value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         indices[AXIS] = result[index_offset + 7].index = index_offset + 7;
-        result[index_offset + 7].value = input[FUNC_CALL(get_input_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])];
+        result[index_offset + 7].value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
     }
 
     for (uint i = (VALUES_NUM / 8) * 8; i < VALUES_NUM; i++) {
         indices[AXIS] = result[i].index = i;
-        result[i].value = input[FUNC_CALL(get_input_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])];
+        result[i].value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
     }
 
     for (uint k = 1; k < VALUES_NUM; k *= 2) {
@@ -320,26 +293,26 @@ KERNEL(arg_max_min_modified)(const __global INPUT0_TYPE* input
     for (uint i = 0; i < VALUES_NUM / 8; i++) {
         uint index_offset = i * 8;
         indices[AXIS] = temp_buf[index_offset].index = index_offset;
-        temp_buf[index_offset].value = input[FUNC_CALL(get_input_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])];
+        temp_buf[index_offset].value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         indices[AXIS] = temp_buf[index_offset + 1].index = index_offset + 1;
-        temp_buf[index_offset + 1].value = input[FUNC_CALL(get_input_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])];
+        temp_buf[index_offset + 1].value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         indices[AXIS] = temp_buf[index_offset + 2].index = index_offset + 2;
-        temp_buf[index_offset + 2].value = input[FUNC_CALL(get_input_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])];
+        temp_buf[index_offset + 2].value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         indices[AXIS] = temp_buf[index_offset + 3].index = index_offset + 3;
-        temp_buf[index_offset + 3].value = input[FUNC_CALL(get_input_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])];
+        temp_buf[index_offset + 3].value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         indices[AXIS] = temp_buf[index_offset + 4].index = index_offset  + 4;
-        temp_buf[index_offset + 4].value = input[FUNC_CALL(get_input_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])];
+        temp_buf[index_offset + 4].value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         indices[AXIS] = temp_buf[index_offset + 5].index = index_offset + 5;
-        temp_buf[index_offset + 5].value = input[FUNC_CALL(get_input_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])];
+        temp_buf[index_offset + 5].value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         indices[AXIS] = temp_buf[index_offset + 6].index = index_offset + 6;
-        temp_buf[index_offset + 6].value = input[FUNC_CALL(get_input_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])];
+        temp_buf[index_offset + 6].value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         indices[AXIS] = temp_buf[index_offset + 7].index = index_offset + 7;
-        temp_buf[index_offset + 7].value = input[FUNC_CALL(get_input_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])];
+        temp_buf[index_offset + 7].value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
     }
 
     for (uint i = (VALUES_NUM / 8) * 8; i < VALUES_NUM; i++) {
         indices[AXIS] = temp_buf[i].index = i;
-        temp_buf[i].value = input[FUNC_CALL(get_input_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])];
+        temp_buf[i].value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
     }
 
     for (uint group = 0; group < group_num - 1; group++) {
@@ -439,22 +412,22 @@ KERNEL(arg_max_min_modified)(const __global INPUT0_TYPE* input
 #if SORT_BY_VALUE
     indices[AXIS] = sort_position;
 #ifdef TOP_K_ORDER
-    output[FUNC_CALL(get_output_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])] = TO_OUTPUT_TYPE(result.value);
+    output[FUNC_CALL(get_output_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_OUTPUT_TYPE(result.value);
 #else
-    output[FUNC_CALL(get_output_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])] = TO_OUTPUT_TYPE(result.index);
+    output[FUNC_CALL(get_output_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_OUTPUT_TYPE(result.index);
 #endif
 #ifdef SECOND_OUTPUT_EXIST
 #ifdef MULTIPLE_OUTPUTS
     #ifdef TOP_K_ORDER
-    second_output[FUNC_CALL(get_output_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])] = TO_OUTPUT1_TYPE(result.index);
+    second_output[FUNC_CALL(get_output_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_OUTPUT1_TYPE(result.index);
     #else
-    second_output[FUNC_CALL(get_output_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])] = TO_OUTPUT1_TYPE(result.value);
+    second_output[FUNC_CALL(get_output_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_OUTPUT1_TYPE(result.value);
     #endif
 #else
     #ifdef TOP_K_ORDER
-    second_output[FUNC_CALL(get_output_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])] = TO_INPUT1_TYPE(result.index);
+    second_output[FUNC_CALL(get_output_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_INPUT1_TYPE(result.index);
     #else
-    second_output[FUNC_CALL(get_output_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])] = TO_INPUT1_TYPE(result.value);
+    second_output[FUNC_CALL(get_output_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_INPUT1_TYPE(result.value);
     #endif
 #endif
 #endif
@@ -472,22 +445,22 @@ KERNEL(arg_max_min_modified)(const __global INPUT0_TYPE* input
 
         indices[AXIS] = out_position;
 #ifdef TOP_K_ORDER
-        output[FUNC_CALL(get_output_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])] = TO_OUTPUT_TYPE(result[top_k].value);
+        output[FUNC_CALL(get_output_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_OUTPUT_TYPE(result[top_k].value);
 #else
-        output[FUNC_CALL(get_output_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])] = TO_OUTPUT_TYPE(result[top_k].index);
+        output[FUNC_CALL(get_output_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_OUTPUT_TYPE(result[top_k].index);
 #endif
 #ifdef SECOND_OUTPUT_EXIST
 #ifdef MULTIPLE_OUTPUTS
     #ifdef TOP_K_ORDER
-        second_output[FUNC_CALL(get_output_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])] = TO_OUTPUT1_TYPE(result[top_k].index);
+        second_output[FUNC_CALL(get_output_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_OUTPUT1_TYPE(result[top_k].index);
     #else
-        second_output[FUNC_CALL(get_output_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])] = TO_OUTPUT1_TYPE(result[top_k].value);
+        second_output[FUNC_CALL(get_output_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_OUTPUT1_TYPE(result[top_k].value);
     #endif
 #else
     #ifdef TOP_K_ORDER
-        second_output[FUNC_CALL(get_output_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])] = TO_INPUT1_TYPE(result[top_k].index);
+        second_output[FUNC_CALL(get_output_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_INPUT1_TYPE(result[top_k].index);
     #else
-        second_output[FUNC_CALL(get_output_offset)(indices[0], indices[1], indices[2], indices[3], indices[4])] = TO_INPUT1_TYPE(result[top_k].value);
+        second_output[FUNC_CALL(get_output_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_INPUT1_TYPE(result[top_k].value);
     #endif
 #endif
 #endif
@@ -504,4 +477,3 @@ KERNEL(arg_max_min_modified)(const __global INPUT0_TYPE* input
 #undef AXIS
 #undef VALUES_NUM
 #undef MINIMUM_NUMBER_FOR_PARTIAL_SORTING
-#undef unroll_for

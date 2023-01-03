@@ -3,7 +3,6 @@
 //
 
 #include "include/batch_headers/common.cl"
-#include "include/batch_headers/data_types.cl"
 
 #ifndef SG_SIZE
     #define SG_SIZE   16
@@ -36,7 +35,7 @@
 #endif
 
 
-__attribute__((intel_reqd_sub_group_size(SG_SIZE)))
+REQD_SUB_GROUP_SIZE(SG_SIZE)
 __attribute__((reqd_work_group_size(SG_SIZE, 1, 1)))
 KERNEL(arg_max_min_opt)(const __global UNIT_TYPE* input, __global uint* output)
 {
@@ -56,8 +55,7 @@ KERNEL(arg_max_min_opt)(const __global UNIT_TYPE* input, __global uint* output)
     // (gid + 1) <= input_size / (INB_ARRAY_SIZE * SG_SIZE)   ->   as gid is integral, the floor is not an issue
     if (gid + 1 <= input_size / (INB_ARRAY_SIZE * SG_SIZE))
     {
-        __attribute__((opencl_unroll_hint))
-        for (uint ai = 0; ai < INB_ARRAY_SIZE; ++ai)
+        unroll_for(uint ai = 0; ai < INB_ARRAY_SIZE; ++ai)
         {
             // Can be exchanged with sub-group block read to INB_ARRAY_SIZE-component vector.
             input_blocks[ai] = input[gid * INB_ARRAY_SIZE * SG_SIZE + ai * SG_SIZE + lid];
@@ -69,8 +67,7 @@ KERNEL(arg_max_min_opt)(const __global UNIT_TYPE* input, __global uint* output)
         const uint last_gid = input_size / (INB_ARRAY_SIZE * SG_SIZE);
 
         uint ai = 0;
-        __attribute__((opencl_unroll_hint))
-        for (uint last_base_off = last_gid * INB_ARRAY_SIZE * SG_SIZE; last_base_off + SG_SIZE <= input_size; last_base_off += SG_SIZE)
+        unroll_for(uint last_base_off = last_gid * INB_ARRAY_SIZE * SG_SIZE; last_base_off + SG_SIZE <= input_size; last_base_off += SG_SIZE)
         {
             // Can be exchanged with sub-group block read to scalar.
             input_blocks[ai] = input[last_base_off + lid];
@@ -85,8 +82,7 @@ KERNEL(arg_max_min_opt)(const __global UNIT_TYPE* input, __global uint* output)
             indices[ai++] = lid < input_size - remainder_off ? remainder_off + lid : 0;
         }
 
-        __attribute__((opencl_unroll_hint))
-        for (; ai < INB_ARRAY_SIZE; ++ai)
+        unroll_for(; ai < INB_ARRAY_SIZE; ++ai)
         {
             input_blocks[ai] = UNIT_FILL_VAL;
         }
@@ -98,8 +94,7 @@ KERNEL(arg_max_min_opt)(const __global UNIT_TYPE* input, __global uint* output)
     UNIT_TYPE acc[minmax_acc_array_size];
     uint result[minmax_acc_array_size];
 
-    __attribute__((opencl_unroll_hint))
-    for (uint ai = 0; ai < minmax_acc_array_size; ++ai)
+    unroll_for (uint ai = 0; ai < minmax_acc_array_size; ++ai)
     {
         acc[ai] = UNIT_FILL_VAL;
         result[ai] = 0;
@@ -109,24 +104,22 @@ KERNEL(arg_max_min_opt)(const __global UNIT_TYPE* input, __global uint* output)
     __attribute__((opencl_unroll_hint(1)))
     for (uint ii = 0; ii < INB_ARRAY_SIZE * SG_SIZE; ++ii)
     {
-        UNIT_TYPE in_val = intel_sub_group_shuffle(input_blocks[ii / SG_SIZE], ii % SG_SIZE);
-        uint in_index = intel_sub_group_shuffle(input_blocks[ii / SG_SIZE], ii % SG_SIZE);
-        __attribute__((opencl_unroll_hint))
-        for (uint ai = 0; ai < minmax_acc_array_size; ++ai)
+        UNIT_TYPE in_val = _sub_group_shuffle(input_blocks[ii / SG_SIZE], ii % SG_SIZE);
+        uint in_index = _sub_group_shuffle(input_blocks[ii / SG_SIZE], ii % SG_SIZE);
+        unroll_for(uint ai = 0; ai < minmax_acc_array_size; ++ai)
         {
             bool insert_flag = (in_val OP_ARG_REL acc[ai]);
             if (sub_group_any(insert_flag))
             {
-                __attribute__((opencl_unroll_hint))
-                for (uint aj = minmax_acc_array_size; aj > ai + 1; --aj)
+                unroll_for(uint aj = minmax_acc_array_size; aj > ai + 1; --aj)
                 {
-                    acc[aj - 1] = intel_sub_group_shuffle_up(acc[aj - 2], acc[aj - 1], 1);
-                    result[aj - 1] = intel_sub_group_shuffle_up(result[aj - 2], acc[aj - 1], 1);
+                    acc[aj - 1] = _sub_group_shuffle_up(acc[aj - 2], acc[aj - 1], 1);
+                    result[aj - 1] = _sub_group_shuffle_up(result[aj - 2], acc[aj - 1], 1);
                 }
                 UNIT_TYPE in_val_acc_mask = select(in_val, acc[ai], insert_flag);
                 uint in_index_mask = select(in_index, result[ai], insert_flag);
-                acc[ai] = select(acc[ai], intel_sub_group_shuffle_up(in_val, in_val_acc_mask, 1), insert_flag);
-                result[ai] = select(result[ai], intel_sub_group_shuffle_up(in_index, in_index_mask, 1), insert_flag);
+                acc[ai] = select(acc[ai], _sub_group_shuffle_up(in_val, in_val_acc_mask, 1), insert_flag);
+                result[ai] = select(result[ai], _sub_group_shuffle_up(in_index, in_index_mask, 1), insert_flag);
                 break;
             }
         }
@@ -135,8 +128,7 @@ KERNEL(arg_max_min_opt)(const __global UNIT_TYPE* input, __global uint* output)
 
     // Write TOP_K sorted results.
     uint ai = 0;
-    __attribute__((opencl_unroll_hint))
-    for (uint k_base_off = 0; k_base_off + SG_SIZE <= TOP_K; k_base_off += SG_SIZE)
+    unroll_for (uint k_base_off = 0; k_base_off + SG_SIZE <= TOP_K; k_base_off += SG_SIZE)
     {
         output[k_base_off + lid] = result[ai++] % input_size;
     }
