@@ -24,54 +24,19 @@ struct CPU {
     int _sockets = 0;
     int _cores = 0;
 
-    int _n_processors = 0;
-    int _n_sockets = 0;
-    int _n_cores = 0;
-
     std::vector<int> _proc_type_table;
     std::vector<std::vector<int>> _cpu_mapping_table;
 
     CPU() {
-        std::ifstream cpuinfo("/proc/cpuinfo");
-        std::vector<int> processors;
-        std::map<int, int> sockets;
-        int socketId = 0;
-        while (!cpuinfo.eof()) {
-            std::string line;
-            std::getline(cpuinfo, line);
-            if (line.empty())
-                continue;
-            auto delimeter = line.find(':');
-            auto key = line.substr(0, delimeter);
-            auto value = line.substr(delimeter + 1);
-            if (0 == key.find("processor")) {
-                processors.emplace_back(std::stoi(value));
-            }
-            if (0 == key.find("physical id")) {
-                socketId = std::stoi(value);
-            }
-            if (0 == key.find("cpu cores")) {
-                sockets[socketId] = std::stoi(value);
-            }
-        }
-        _processors = processors.size();
-        _sockets = sockets.size();
-        for (auto&& socket : sockets) {
-            _cores += socket.second;
-        }
-        if (_cores == 0) {
-            _cores = _processors;
-        }
-
-        /**********************/
         std::ifstream cache_1_file("/sys/devices/system/cpu/cpu0/cache/index0/shared_cpu_list");
         std::ifstream cache_2_file("/sys/devices/system/cpu/cpu0/cache/index2/shared_cpu_list");
         std::ifstream cache_3_file("/sys/devices/system/cpu/cpu0/cache/index3/shared_cpu_list");
 
         if (cache_1_file.is_open() && cache_2_file.is_open() && cache_3_file.is_open()) {
-            _n_processors = sysconf(_SC_NPROCESSORS_ONLN);
+            /*New CPU resource based on CPU mapping table*/
+            _processors = sysconf(_SC_NPROCESSORS_ONLN);
             _proc_type_table.resize(EFFICIENT_CORE_PROC + 1, 0);
-            _cpu_mapping_table.resize(_n_processors, std::vector<int>(CPU_MAP_USED_FLAG + 1, -1));
+            _cpu_mapping_table.resize(_processors, std::vector<int>(CPU_MAP_USED_FLAG + 1, -1));
             int n_group = 0;
 
             auto updateProcMapping = [&](const int nproc) {
@@ -99,8 +64,8 @@ struct CPU {
 
                         _cpu_mapping_table[core_1][CPU_MAP_PROCESSOR_ID] = core_1;
                         _cpu_mapping_table[core_2][CPU_MAP_PROCESSOR_ID] = core_2;
-                        _cpu_mapping_table[core_1][CPU_MAP_CORE_ID] = _n_cores;
-                        _cpu_mapping_table[core_2][CPU_MAP_CORE_ID] = _n_cores;
+                        _cpu_mapping_table[core_1][CPU_MAP_CORE_ID] = _cores;
+                        _cpu_mapping_table[core_2][CPU_MAP_CORE_ID] = _cores;
                         /**
                          * Processor 0 need to handle system interception on Linux. So use second processor as physical
                          * core and first processor as logic core
@@ -110,7 +75,7 @@ struct CPU {
                         _cpu_mapping_table[core_1][CPU_MAP_GROUP_ID] = n_group;
                         _cpu_mapping_table[core_2][CPU_MAP_GROUP_ID] = n_group;
 
-                        _n_cores++;
+                        _cores++;
                         n_group++;
                         _proc_type_table[ALL_PROC] += 2;
                         _proc_type_table[MAIN_CORE_PROC]++;
@@ -124,11 +89,11 @@ struct CPU {
 
                         for (int m = core_1; m <= core_2; m++) {
                             _cpu_mapping_table[m][CPU_MAP_PROCESSOR_ID] = m;
-                            _cpu_mapping_table[m][CPU_MAP_CORE_ID] = _n_cores;
+                            _cpu_mapping_table[m][CPU_MAP_CORE_ID] = _cores;
                             _cpu_mapping_table[m][CPU_MAP_CORE_TYPE] = EFFICIENT_CORE_PROC;
                             _cpu_mapping_table[m][CPU_MAP_GROUP_ID] = n_group;
 
-                            _n_cores++;
+                            _cores++;
                             _proc_type_table[ALL_PROC]++;
                             _proc_type_table[EFFICIENT_CORE_PROC]++;
                         }
@@ -137,11 +102,11 @@ struct CPU {
                     } else {
                         core_1 = std::stoi(cache_1_info);
 
-                        _cpu_mapping_table[core_1][CPU_MAP_CORE_ID] = _n_cores;
+                        _cpu_mapping_table[core_1][CPU_MAP_CORE_ID] = _cores;
                         _cpu_mapping_table[core_1][CPU_MAP_CORE_TYPE] = MAIN_CORE_PROC;
                         _cpu_mapping_table[core_1][CPU_MAP_GROUP_ID] = n_group;
 
-                        _n_cores++;
+                        _cores++;
                         n_group++;
                         _proc_type_table[ALL_PROC]++;
                         _proc_type_table[MAIN_CORE_PROC]++;
@@ -150,7 +115,7 @@ struct CPU {
                 return;
             };
 
-            for (int n = 0; n < _n_processors; n++) {
+            for (int n = 0; n < _processors; n++) {
                 if (-1 == _cpu_mapping_table[n][CPU_MAP_SOCKET_ID]) {
                     std::ifstream cache_3_file("/sys/devices/system/cpu/cpu" + std::to_string(n) +
                                                "/cache/index3/shared_cpu_list");
@@ -170,13 +135,13 @@ struct CPU {
                             core_2 = std::stoi(sub_str);
 
                             for (int m = core_1; m <= core_2; m++) {
-                                _cpu_mapping_table[m][CPU_MAP_SOCKET_ID] = _n_sockets;
+                                _cpu_mapping_table[m][CPU_MAP_SOCKET_ID] = _sockets;
                                 updateProcMapping(m);
                             }
                         } else if (pos != std::string::npos) {
                             sub_str = cache_3_info.substr(pos);
                             core_1 = std::stoi(sub_str);
-                            _cpu_mapping_table[core_1][CPU_MAP_SOCKET_ID] = _n_sockets;
+                            _cpu_mapping_table[core_1][CPU_MAP_SOCKET_ID] = _sockets;
                             updateProcMapping(core_1);
                             endpos = pos;
                         }
@@ -187,11 +152,42 @@ struct CPU {
                             break;
                         }
                     }
-                    _n_sockets++;
+                    _sockets++;
                 }
             }
+        } else {
+            /*Previous CPU resource based on calculation*/
+            std::ifstream cpuinfo("/proc/cpuinfo");
+            std::vector<int> processors;
+            std::map<int, int> sockets;
+            int socketId = 0;
+            while (!cpuinfo.eof()) {
+                std::string line;
+                std::getline(cpuinfo, line);
+                if (line.empty())
+                    continue;
+                auto delimeter = line.find(':');
+                auto key = line.substr(0, delimeter);
+                auto value = line.substr(delimeter + 1);
+                if (0 == key.find("processor")) {
+                    processors.emplace_back(std::stoi(value));
+                }
+                if (0 == key.find("physical id")) {
+                    socketId = std::stoi(value);
+                }
+                if (0 == key.find("cpu cores")) {
+                    sockets[socketId] = std::stoi(value);
+                }
+            }
+            _processors = processors.size();
+            _sockets = sockets.size();
+            for (auto&& socket : sockets) {
+                _cores += socket.second;
+            }
+            if (_cores == 0) {
+                _cores = _processors;
+            }
         }
-        /**********************/
     }
 };
 static CPU cpu;
