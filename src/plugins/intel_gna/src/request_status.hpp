@@ -4,7 +4,8 @@
 
 #pragma once
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 
 /**
  * @brief Enum representing status of request
@@ -17,4 +18,5 @@ enum class RequestStatus {
     kCompletedWithError = 4  /// request was completed with error
 };
 
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

@@ -125,8 +125,8 @@ inline uint32_t ToByteSize(const Gna2DataType type) {
 using namespace std;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
-using namespace GNAPluginNS;
-using namespace GNAPluginNS::memory;
+
+using namespace ov::intel_gna::memory;
 using namespace ov::intel_gna::frontend;
 
 namespace InferenceEngine {
@@ -355,9 +355,9 @@ GNAPlugin::GNAPlugin(const std::map<std::string, std::string>& configMap) :
 void GNAPlugin::Init() {
     OV_ITT_SCOPED_TASK(itt::domains::GNAPlugin, "Init");
     dnn = std::make_shared<backend::AMIntelDNN>(backend::AMIntelDNN());
-    gnaFlags = std::make_shared<GNAPluginNS::GNAFlags>(GNAPluginNS::GNAFlags());
-    inputs_ptr_ = std::make_shared<GNAPluginNS::GnaInputs>(GNAPluginNS::GnaInputs());
-    outputs_ = GNAPluginNS::GnaOutputs();
+    gnaFlags = std::make_shared<GNAFlags>(GNAFlags());
+    inputs_ptr_ = std::make_shared<GnaInputs>(GnaInputs());
+    outputs_ = GnaOutputs();
 
     graphCompiler.setDNNPtr(dnn);
     graphCompiler.setInputsPtr(inputs_ptr_);
@@ -508,7 +508,7 @@ bool GNAPlugin::TryToInitOutput(const std::string &portName, InferenceEngine::CN
         outputs_.at(portName).ptrs.resize(gnaFlags->num_requests);
         outputs_.at(portName).orientation = orientation;
         outputs_.at(portName).set_precision(numBytesPerElem);
-        outputs_.at(portName).scale_factor = quantized != nullptr ? quantized->_dst_quant.GetScale() : GNAPluginNS::kScaleFactorDefault;
+        outputs_.at(portName).scale_factor = quantized != nullptr ? quantized->_dst_quant.GetScale() : kScaleFactorDefault;
         outputs_.at(portName).num_elements = numElem;
 
         // binding ptr for first infer request - then others will be setup during relocation
@@ -787,7 +787,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
 
     //  Check the network
     std::string error;
-    if (!GNAPluginNS::GNALimitations::AreLayersSupported(network, error)) {
+    if (!limitations::AreLayersSupported(network, error)) {
         THROW_GNA_EXCEPTION << error.c_str();
     }
 
@@ -1082,7 +1082,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     // update orientation of model intput layer
     for (auto& inputLayer : inputLayers) {
         if (LayerInfo(inputLayer).isInput()) {
-            ov::intela_gna::helpers::updateModelInputOrientationWithoutConvolution(*inputLayer,
+            ov::intel_gna::helpers::updateModelInputOrientationWithoutConvolution(*inputLayer,
                                                                                    graphCompiler.dnnComponents,
                                                                                    *inputs_ptr_);
         }
@@ -1092,7 +1092,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     for (auto&& outPort : outputs_data_map_) {
         auto outLayer = getCreatorLayer(outPort.second).lock();
         if (outLayer && LayerInfo(outLayer).isOutput()) {
-            ov::intela_gna::helpers::updateModelOutputOrientation(outPort.first,
+            ov::intel_gna::helpers::updateModelOutputOrientation(outPort.first,
                                                                   outLayer->name,
                                                                   graphCompiler.dnnComponents,
                                                                   outputs_);
@@ -1113,11 +1113,11 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
 #endif
 }
 
-bool GNAPluginNS::GNAPlugin::isFP32ModeActive() const {
+bool GNAPlugin::isFP32ModeActive() const {
     return gnaFlags->sw_fp32 || !gnadevice;
 }
 
-std::string GNAPluginNS::GNAPlugin::effectiveGnaCompileTarget() const {
+std::string GNAPlugin::effectiveGnaCompileTarget() const {
     if (gnadevice) {
         return gnadevice->GetCompileTarget();
     } else if (!config.gnaCompileTarget.empty()) {
@@ -1161,7 +1161,7 @@ std::shared_ptr<request::ModelWrapper> GNAPlugin::createModelWrapperForLoadNetwo
         THROW_GNA_EXCEPTION << "dnn is nullptr cannot load network";
     }
 
-    std::weak_ptr<GNAPluginNS::backend::AMIntelDNN> weakDnn = dnn;
+    std::weak_ptr<backend::AMIntelDNN> weakDnn = dnn;
     auto compileTarget = effectiveGnaCompileTarget();
     auto initializer = [weakDnn, compileTarget](Gna2Model* model) {
         if (auto dnn = weakDnn.lock()) {
@@ -1174,7 +1174,7 @@ std::shared_ptr<request::ModelWrapper> GNAPlugin::createModelWrapperForLoadNetwo
     return request::ModelWrapperFactory::createInitialized(std::move(initializer));
 }
 
-std::shared_ptr<request::ModelWrapper> GNAPluginNS::GNAPlugin::createModelWrapperForImportNetwork(
+std::shared_ptr<request::ModelWrapper> GNAPlugin::createModelWrapperForImportNetwork(
     uint32_t numberOfOperations) {
     return request::ModelWrapperFactory::createWithNumberOfEmptyOperations(numberOfOperations);
 }
@@ -1238,20 +1238,21 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap& inputs, Infer
     int inputNum = 0;
     for (auto& input : inputs) {
         auto inputLayout = input.second->getTensorDesc().getLayout();
-        if (inputLayout != Layout::C && inputLayout != Layout::NC && inputLayout != Layout::CN &&
-            inputLayout != Layout::CHW && inputLayout != Layout::NCHW) {
+        if (inputLayout != InferenceEngine::Layout::C && inputLayout != InferenceEngine::Layout::NC &&
+            inputLayout != InferenceEngine::Layout::CN && inputLayout != InferenceEngine::Layout::CHW &&
+            inputLayout != InferenceEngine::Layout::NCHW) {
             THROW_GNA_EXCEPTION << "Expected input blob to have Layout::C, Layout::NC, Layout::CN, Layout::NCHW or "
                                    "Layout::CHW. But was: "
                                 << input.second->getTensorDesc().getLayout();
         }
 
-        if (inputLayout == Layout::NCHW || inputLayout == Layout::CHW) {
+        if (inputLayout == InferenceEngine::Layout::NCHW || inputLayout == InferenceEngine::Layout::CHW) {
             // specific case that can be squeezed to 2d
-            inputLayout = Layout::NC;
+            inputLayout = InferenceEngine::Layout::NC;
         }
 
-        auto is1D = input.second->getTensorDesc().getLayout() == Layout::C;
-        auto is3D = input.second->getTensorDesc().getLayout() == Layout::CHW;
+        auto is1D = input.second->getTensorDesc().getLayout() == InferenceEngine::Layout::C;
+        auto is3D = input.second->getTensorDesc().getLayout() == InferenceEngine::Layout::CHW;
 
         if (inputs_ptr_->at(input.first).ptrs.empty()) {
             // should not happen in user code however might happen if there any non executable network based integration
@@ -1297,7 +1298,7 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap& inputs, Infer
         ImportFrames(inputs_ptr_->at(input.first).ptrs[index],
                      input.second->cbuffer().as<float*>(),
                      input.second->getTensorDesc().getPrecision(),
-                     gnaFlags->sw_fp32 ? GNAPluginNS::kScaleFactorDefault : inputs_ptr_->at(input.first).scale_factor,
+                     gnaFlags->sw_fp32 ? kScaleFactorDefault : inputs_ptr_->at(input.first).scale_factor,
                      inputOrientation,
                      importedFrames,
                      targetGroups,
@@ -1394,21 +1395,21 @@ RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
     for (auto&& outputBlobIt : requestResult) {
         auto& outputBlob = outputBlobIt.second;
         auto& outputDesc = outputs_.at(outputBlobIt.first);
-        if (outputBlob->getTensorDesc().getLayout() != Layout::C &&
-            outputBlob->getTensorDesc().getLayout() != Layout::NC &&
-            outputBlob->getTensorDesc().getLayout() != Layout::CN &&
-            outputBlob->getTensorDesc().getLayout() != Layout::NCHW &&
-            outputBlob->getTensorDesc().getLayout() != Layout::CHW &&
-            outputBlob->getTensorDesc().getLayout() != Layout::SCALAR) {
+        if (outputBlob->getTensorDesc().getLayout() != InferenceEngine::Layout::C &&
+            outputBlob->getTensorDesc().getLayout() != InferenceEngine::Layout::NC &&
+            outputBlob->getTensorDesc().getLayout() != InferenceEngine::Layout::CN &&
+            outputBlob->getTensorDesc().getLayout() != InferenceEngine::Layout::NCHW &&
+            outputBlob->getTensorDesc().getLayout() != InferenceEngine::Layout::CHW &&
+            outputBlob->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR) {
             THROW_GNA_EXCEPTION << "Expected output blob to have Layout::C, Layout::NC, Layout::CN, Layout::NCHW or "
                                    "Layout::CHW. But was "
                                 << outputBlob->getTensorDesc().getLayout();
         }
 
         auto dims = outputBlob->getTensorDesc().getDims();
-        auto is1D = outputBlob->getTensorDesc().getLayout() == Layout::C;
-        auto isScalar = outputBlob->getTensorDesc().getLayout() == Layout::SCALAR;
-        auto is3D = outputBlob->getTensorDesc().getLayout() == Layout::CHW;
+        auto is1D = outputBlob->getTensorDesc().getLayout() == InferenceEngine::Layout::C;
+        auto isScalar = outputBlob->getTensorDesc().getLayout() == InferenceEngine::Layout::SCALAR;
+        auto is3D = outputBlob->getTensorDesc().getLayout() == InferenceEngine::Layout::CHW;
         auto batchSize = (is1D || isScalar || is3D) ? 1 : dims[0];
         auto elementsPerBatch =
             isScalar ? 1
@@ -1635,7 +1636,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
     SetNetworkInputs();
     SetNetworkOutputs();
 
-    ov::intela_gna::helpers::ApplyInputScaleFactors(config, header, *inputs_ptr_);
+    ov::intel_gna::helpers::ApplyInputScaleFactors(config, header, *inputs_ptr_);
 
     auto getOrientation = [](Gna2Operation& gnaOperation) {
         return gnaOperation.Type == Gna2OperationTypeConvolution ? kDnnNonInterleavedOrientation

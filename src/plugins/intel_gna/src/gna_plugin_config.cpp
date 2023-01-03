@@ -19,10 +19,11 @@
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
-using namespace ov::intel_gna;
 using namespace ov::intel_gna::common;
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+
 const uint8_t Config::max_num_requests;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
@@ -127,7 +128,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
             check_scale_factor(scale_factor);
             // missing scale factors are set to be 1.0f
             if (inputScaleFactors.size() <= input_index) {
-                inputScaleFactors.resize(input_index + 1, GNAPluginNS::kScaleFactorDefault);
+                inputScaleFactors.resize(input_index + 1, kScaleFactorDefault);
             }
             inputScaleFactors[input_index] = InferenceEngine::CNNLayer::ie_parse_float(value);
         } else if (key == GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE) || key ==  ov::intel_gna::firmware_model_image_path) {
@@ -414,4 +415,6 @@ std::vector<std::string> Config::GetSupportedKeys() const {
     }
     return result;
 }
-}  // namespace GNAPluginNS
+
+}  // namespace intel_gna
+}  // namespace ov

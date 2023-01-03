@@ -18,7 +18,7 @@ class I8QuantisationTest : public GNATest<> {
  protected:
     InferenceEngine::CNNLayerPtr  quantize(InferenceEngine::CNNLayerPtr lp) {
         auto newLayer = InferenceEngine::injectData<QuantizedLayerParams>(lp);
-        GNAPluginNS::Config gna_config;
+        Config gna_config;
         gna_config.gnaPrecision = InferenceEngine::Precision::I16;
         gna_config.gnaFlags.input_low_precision = false;
         LayerQuantizer lq(gna_config);
@@ -29,13 +29,13 @@ class I8QuantisationTest : public GNATest<> {
     InferenceEngine::CNNNetwork quantize_single_input_model(const InferenceEngine::CNNNetwork& model, float scale_factor) const {
         auto scale_factors = std::vector<float>({scale_factor});
 
-        GNAPluginNS::GnaInputs inputs;
+        GnaInputs inputs;
         InferenceEngine::InputsDataMap inputs_map = model.getInputsInfo();
 
         auto input_layer = getCreatorLayer(inputs_map.begin()->second->getInputData()).lock();
         inputs[input_layer->name].scale_factor = scale_factor;
 
-        GNAPluginNS::Config gna_config;
+        Config gna_config;
         gna_config.gnaPrecision = InferenceEngine::Precision::I16;
         gna_config.gnaFlags.input_low_precision = false;
 

@@ -9,7 +9,8 @@
 #include "gna_plugin.hpp"
 #include "ngraph_functions/builders.hpp"
 
-using GNAPluginNS::GNAPlugin;
+using ov::intel_gna::GNAPlugin;
+
 namespace {
 
 struct ConvolutionParameters {
@@ -73,7 +74,7 @@ std::ostream& operator<<(std::ostream& os, const intel_dnn_operation_t& value) {
 class GNAPluginForPWLExtraSegmentsTest : public GNAPlugin {
 public:
     GNAPluginForPWLExtraSegmentsTest(const std::map<std::string, std::string>& config) : GNAPlugin(config) {
-        gnamem.reset(new GNAPluginNS::gna_memory_float(GNAPluginNS::memory::GNAFloatAllocator{}));
+        gnamem.reset(new gna_memory_float(memory::GNAFloatAllocator{}));
         graphCompiler.setGNAMemoryPtr(gnamem);
         gnadevice.reset();
     }

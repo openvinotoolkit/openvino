@@ -15,7 +15,6 @@
 
 using namespace std;
 using namespace InferenceEngine;
-using namespace GNAPluginNS;
 using namespace ::testing;
 
 class GNAProcTypeTest : public GNATest<> {

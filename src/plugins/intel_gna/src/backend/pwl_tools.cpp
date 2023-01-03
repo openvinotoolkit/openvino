@@ -4,7 +4,7 @@
 
 #include "pwl_tools.hpp"
 
-#include "gna_slope_scale.h"
+#include "gna_slope_scale.hpp"
 #include "common/numerical_utils.hpp"
 #include "runtime/pwl.h"
 

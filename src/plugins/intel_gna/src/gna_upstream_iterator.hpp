@@ -9,7 +9,9 @@
 #include <string>
 #include "gna_graph_tools.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+
 /**
  * @brief implements upstream search for BFS routine
  */
@@ -113,5 +115,5 @@ inline UpstreamLayersContainer make_upstream_order(InferenceEngine::CNNLayer* or
     return fusedCnt;
 }
 
-
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

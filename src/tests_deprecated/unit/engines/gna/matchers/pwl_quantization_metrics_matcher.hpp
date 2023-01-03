@@ -10,7 +10,7 @@
 #include <iostream>
 
 #include <runtime/pwl.h>
-#include <backend/gna_types.h>
+#include <backend/gna_types.hpp>
 
 #include "nnet_base_matcher.hpp"
 

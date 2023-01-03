@@ -9,7 +9,9 @@
 
 #include <legacy/ie_layers.h>
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+
 class GNAConcatLayer {
     InferenceEngine::CNNLayerPtr concatLayer;
 
@@ -46,4 +48,6 @@ public:
 
     std::vector<ConcatConnectedLayerInfo> concatInputLayers;
 };
-}  // namespace GNAPluginNS
+
+}  // namespace intel_gna
+}  // namespace ov

@@ -13,7 +13,8 @@
 
 #include "worker.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 namespace request {
 
 class ModelWrapper;
@@ -102,4 +103,5 @@ private:
 };
 
 }  // namespace request
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

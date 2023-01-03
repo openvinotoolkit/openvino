@@ -55,7 +55,7 @@ static std::shared_ptr<ngraph::Function> createFunction(const ngraph::Shape& inp
     }
 
     if (split) {
-        auto split_sizes_per_axis = GNAPluginNS::AlignedSplitSizesPerAxis(input_shape);
+        auto split_sizes_per_axis = ov::intel_gna::AlignedSplitSizesPerAxis(input_shape);
         auto split0 = std::make_shared<ngraph::opset9::VariadicSplit>(last_node0,
                 ngraph::opset9::Constant::create(ngraph::element::i64, ngraph::Shape({1}), std::vector<int64_t>{split_sizes_per_axis.first}),
                 ngraph::opset9::Constant::create(ngraph::element::i64, ngraph::Shape({split_sizes_per_axis.second.size()}), split_sizes_per_axis.second));

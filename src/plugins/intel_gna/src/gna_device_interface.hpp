@@ -13,10 +13,12 @@
 enum Gna2AccelerationMode;
 class Gna2Model;
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+
 // Interface name is different to the file naem due the lagacy reason.
 // 1. Implementation file names should be changed in next PR.
-// 2. Implementation of interface should be moved to GNAPluginNS namespace
+// 2. Implementation of interface should be moved to ov::intel_gna namespace
 
 /**
  * @interface Interface for invoking operation on GNA device.
@@ -57,10 +59,10 @@ public:
      * @brief Wait for request to be finished.
      * @param requestID id of request enqueued on device
      * @param timeoutMilliseconds maximum timeout to be used for waiting
-     * @return status of request given to the methoid. @see GNAPluginNS::RequestStatus.
+     * @return status of request given to the methoid. @see RequestStatus.
      * @throw Exception in case of error
      */
-    virtual GNAPluginNS::RequestStatus waitForRequest(uint32_t requestID, int64_t timeoutMilliseconds) = 0;
+    virtual RequestStatus waitForRequest(uint32_t requestID, int64_t timeoutMilliseconds) = 0;
 
     /**
      * @brief Return maximum number of layers supported by device.
@@ -74,4 +76,5 @@ public:
     virtual void close() {}
 };
 
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

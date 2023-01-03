@@ -6,7 +6,7 @@
 #include <gtest/gtest.h>
 #include <layers/gna_permute.hpp>
 
-using namespace GNAPluginNS;
+using namespace ov::intel_gna::permute;
 
 class PermuteSequenceTest : public ::testing::Test {
 };

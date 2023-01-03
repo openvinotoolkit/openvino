@@ -13,7 +13,6 @@
 #include <unordered_map>
 #include <memory>
 
-using namespace GNAPluginNS;
 using namespace InferenceEngine;
 using namespace InferenceEngine::PluginConfigParams;
 

@@ -11,6 +11,8 @@
 
 namespace {
 
+using namespace ov::intel_gna;
+
 using GetAlignedSplitSizesData = std::tuple<
     uint32_t,               // total size
     uint32_t,               // maximum split size
@@ -27,7 +29,7 @@ const std::vector<GetAlignedSplitSizesData> data = {
 
 TEST(GetAlignedSplitSizesTest, testAlignedSplitSizes) {
     for (const auto &dataItem : data) {
-        auto sizes = GNAPluginNS::GetAlignedSplitSizes(std::get<0>(dataItem), std::get<1>(dataItem),
+        auto sizes = GetAlignedSplitSizes(std::get<0>(dataItem), std::get<1>(dataItem),
                                                        std::get<2>(dataItem));
         ASSERT_EQ(sizes, std::get<3>(dataItem));
     }

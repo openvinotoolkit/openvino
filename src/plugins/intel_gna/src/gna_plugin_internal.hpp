@@ -13,7 +13,8 @@
 #include "gna_plugin_config.hpp"
 #include <legacy/ie_util_internal.hpp>
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 
 class GNAPluginInternal  : public InferenceEngine::IInferencePlugin {
 private:
@@ -104,4 +105,5 @@ public:
     }
 };
 
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

@@ -9,6 +9,7 @@
 namespace ov {
 namespace intel_gna {
 namespace pass {
+
 // @brief Splits convolution with large input buffer
 class SplitConvolution : public ngraph::pass::MatcherPass {
 public:

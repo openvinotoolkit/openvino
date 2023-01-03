@@ -17,11 +17,11 @@
 
 
 using namespace InferenceEngine;
-using namespace GNAPluginNS::memory;
+using namespace memory;
 
 class GNAMemoryCompactTest : public ::testing::Test {
  protected:
-    GNAMemory<GNAPluginNS::memory::GNAFloatAllocator> mem;
+    GNAMemory<memory::GNAFloatAllocator> mem;
     bool isCompact = true;
 
     void SetUp() override  {
@@ -258,7 +258,7 @@ TEST_F(GNAMemoryCompactTest, canOptimizeReservePtrWithOffset) {
     ASSERT_EQ(mem.getRegionBytes(rRegion::REGION_SCRATCH), 4 * sizeof(float));
 }
 
-class GNAMemoryTested : public GNAPluginNS::memory::GNAMemory<GNAPluginNS::memory::GNAFloatAllocator> {
+class GNAMemoryTested : public memory::GNAMemory<memory::GNAFloatAllocator> {
     using GNAMemory::GNAMemory;
 
 public:
@@ -289,10 +289,10 @@ public:
     }
 };
 
-class GNAPluginTested : public GNAPluginNS::GNAPlugin {
+class GNAPluginTested : public GNAPlugin {
 public:
     std::shared_ptr<GNAMemoryTested> gnamem_t;
-    GNAPluginTested() : GNAPluginNS::GNAPlugin() {
+    GNAPluginTested() : GNAPlugin() {
         gnamem_t = std::make_shared<GNAMemoryTested>();
         gnamem = gnamem_t;
         graphCompiler.setGNAMemoryPtr(gnamem);

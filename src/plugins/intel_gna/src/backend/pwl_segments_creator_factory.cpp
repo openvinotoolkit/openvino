@@ -7,7 +7,7 @@
 #include <functional>
 #include <unordered_map>
 
-#include "backend/dnn_types.h"
+#include "backend/dnn_types.hpp"
 #include "pwl_border_values_counter_identity.hpp"
 #include "pwl_segments_creator_identity.hpp"
 

@@ -84,7 +84,7 @@ static bool is_aligned_split(const std::shared_ptr<ngraph::Node> input_op, size_
     if (std::dynamic_pointer_cast<ngraph::opset8::Split>(input_op) || std::dynamic_pointer_cast<ngraph::opset8::VariadicSplit>(input_op)) {
         for (size_t index = 0; index < input_op_out_index; index++) {
             size_t outputSize = ngraph::shape_size(input_op->get_output_shape(index));
-            offset += outputSize * GNAPluginNS::GNALimitations::bytesPerSplitElement;
+            offset += outputSize * limitations::bytesPerSplitElement;
         }
     }
     return (offset == ALIGN64(offset));
@@ -93,7 +93,7 @@ static bool is_aligned_split(const std::shared_ptr<ngraph::Node> input_op, size_
 static bool is_crop_affined(std::shared_ptr<ngraph::Node> node) {
     auto crop = std::dynamic_pointer_cast<ngraph::op::CropIE>(node);
     if (crop != nullptr && !crop->offset.empty()) {
-        return GNAPluginNS::GNALimitations::isCropAffinedOffset(crop->offset.back());
+        return limitations::isCropAffinedOffset(crop->offset.back());
     }
     return false;
 }
@@ -117,7 +117,7 @@ static bool is_trivial_transpose(std::shared_ptr<ngraph::Node> node) {
     auto input = transpose->input(0).get_source_output().get_node_shared_ptr();
     auto input_order = transpose->get_input_shape(0);
 
-    return GNAPluginNS::isTrivialPermute(node_order, input_order);
+    return permute::isTrivialPermute(node_order, input_order);
 }
 
 inline std::shared_ptr<ov::Node> get_prev_node_skipping_certain(const std::shared_ptr<ngraph::Node>& node,

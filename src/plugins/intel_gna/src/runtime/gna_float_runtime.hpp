@@ -5,8 +5,10 @@
 #pragma once
 #include <backend/am_intel_dnn.hpp>
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 namespace runtime {
+
 /**
  * @brief floating runtime for gna-plugin, in most case it uses same gna-primitives description as integer runtime, but execute them on CPU
  */
@@ -39,5 +41,5 @@ class FP {
 };
 
 }  // namespace runtime
-
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

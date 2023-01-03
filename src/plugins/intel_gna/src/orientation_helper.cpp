@@ -9,12 +9,12 @@
 #include <gna_graph_tools.hpp>
 
 namespace ov {
-namespace intela_gna {
+namespace intel_gna {
 namespace helpers {
 
 void updateModelInputOrientationWithoutConvolution(const InferenceEngine::CNNLayer& inputLayer,
-                                                   const GNAPluginNS::backend::DnnComponents& components,
-                                                   GNAPluginNS::GnaInputs& inputs) {
+                                                   const backend::DnnComponents& components,
+                                                   GnaInputs& inputs) {
     // does not make sense to go further is there is no input to set
     auto input = inputs.find(inputLayer.name);
 
@@ -84,8 +84,8 @@ void updateModelInputOrientationWithoutConvolution(const InferenceEngine::CNNLay
 
 void updateModelOutputOrientation(const std::string& outputName,
                                   const std::string& cnnlayerName,
-                                  const GNAPluginNS::backend::DnnComponents& components,
-                                  GNAPluginNS::GnaOutputs& outputs) {
+                                  const backend::DnnComponents& components,
+                                  GnaOutputs& outputs) {
     // if there is no output to set does not make sense to go further
     auto output = outputs.find(outputName);
     if (output == outputs.end()) {
@@ -99,5 +99,5 @@ void updateModelOutputOrientation(const std::string& outputName,
     }
 }
 }  // namespace helpers
-}  // namespace intela_gna
+}  // namespace intel_gna
 }  // namespace ov

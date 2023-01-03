@@ -6,7 +6,8 @@
 
 #include "subrequest.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 namespace request {
 
 /**
@@ -34,7 +35,7 @@ public:
     /**
      * @brief Wait until subrequest will be finished for given timeout.
      * @param timeoutMilliseconds timeout in milliseconds
-     * @return status of execution of subrequest @see GNAPluginNS::RequestStatus
+     * @return status of execution of subrequest @see RequestStatus
      */
     RequestStatus wait(int64_t timeoutMilliseconds) override;
 
@@ -72,4 +73,5 @@ private:
 };
 
 }  // namespace request
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

@@ -9,7 +9,7 @@
 
 #include <cstdint>
 
-#include "backend/dnn_types.h"
+#include "backend/dnn_types.hpp"
 #include "backend/make_pwl.hpp"
 #include "backend/pwl_input_params.hpp"
 #include "backend/pwl_segments_creator_factory.hpp"

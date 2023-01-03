@@ -7,7 +7,7 @@
 #include <cstdlib>
 #include <cstdio>
 
-#include "backend/dnn_types.h"
+#include "backend/dnn_types.hpp"
 
 #define CNN_MAX_POOL_SIZE 6
 

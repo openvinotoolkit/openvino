@@ -34,7 +34,7 @@
 /**
  * holds gna - style handle in RAII way
  */
-class GNADeviceHelper : public GNAPluginNS::GNADevice {
+class GNADeviceHelper : public ov::intel_gna::GNADevice {
     using UnwaitedRequestIds = std::set<uint32_t>;
     static std::mutex acrossPluginsSync;
     static std::string decoratedGnaLibVersion() {
@@ -92,7 +92,7 @@ public:
     void dumpAllAllocations(uint64_t idx, const std::string& infix) const;
 
     uint8_t *alloc(uint32_t size_requested, uint32_t *size_granted);
-    void tagMemoryRegion(void* memPtr, const GNAPluginNS::memory::rRegion memoryTag);
+    void tagMemoryRegion(void* memPtr, const ov::intel_gna::memory::rRegion memoryTag);
 
     void releaseModel(const uint32_t model_id);
     static uint32_t getNumberOfGnaDevices();
@@ -155,7 +155,7 @@ public:
     /**
      * @see GNADevice::waitForRequest()
      */
-    GNAPluginNS::RequestStatus waitForRequest(uint32_t requestID, int64_t timeoutMilliseconds = MAX_TIMEOUT) override;
+    ov::intel_gna::RequestStatus waitForRequest(uint32_t requestID, int64_t timeoutMilliseconds = MAX_TIMEOUT) override;
 
     /**
      * @see GNADevice::maxLayersCount()

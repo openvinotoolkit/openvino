@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "backend/gna_types.h"
+#include "backend/gna_types.hpp"
 
 class OutputFiller : public ::testing::MatcherInterface<const gna_nnet_type_t*> {
     mutable std::stringstream reason;

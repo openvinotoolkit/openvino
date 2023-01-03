@@ -15,7 +15,7 @@ using namespace InferenceEngine;
 
 namespace testing {
 
-class GNAPluginForInPrecisionTest : public GNAPluginNS::GNAPlugin {
+class GNAPluginForInPrecisionTest : public GNAPlugin {
 public:
 using GNAPlugin::GNAPlugin;
 using GNAPlugin::ImportFrames;

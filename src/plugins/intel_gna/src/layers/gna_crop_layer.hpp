@@ -8,7 +8,9 @@
 #include <cstdint>
 #include <vector>
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+
 class GNACropLayer {
     InferenceEngine::CNNLayerPtr cropLayer;
 
@@ -41,4 +43,5 @@ SimpleCrop get_crop_params(const std::vector<int32_t>& axis_in,
 
 SimpleCrop GetCropParams(InferenceEngine::CropLayer* cropLayer);
 
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

@@ -9,7 +9,9 @@
 #include <map>
 #include <ie_common.h>
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+
 /**
  * @brief interface for gna-pass, special transformer that will be run on input network in order to generate GNABlob
  */
@@ -244,4 +246,5 @@ public:
     int run(int index = 0);
 };
 
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

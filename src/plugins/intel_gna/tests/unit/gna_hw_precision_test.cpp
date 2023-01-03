@@ -13,11 +13,11 @@
 using namespace InferenceEngine;
 namespace testing {
 
-class GNAPluginForPrecisionTest : public GNAPluginNS::GNAPlugin {
+class GNAPluginForPrecisionTest : public GNAPlugin {
 public:
     GNAPluginForPrecisionTest(const std::map<std::string, std::string>& configMap) :
-                              GNAPluginNS::GNAPlugin(configMap) {
-        gnamem.reset(new GNAPluginNS::gna_memory_float(GNAPluginNS::memory::GNAFloatAllocator{}));
+                              GNAPlugin(configMap) {
+        gnamem.reset(new gna_memory_float(memory::GNAFloatAllocator{}));
         graphCompiler.setGNAMemoryPtr(gnamem);
         gnadevice.reset();
     }

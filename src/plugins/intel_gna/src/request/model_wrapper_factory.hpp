@@ -9,7 +9,8 @@
 
 #include "model_wrapper.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 namespace request {
 
 class ModelWrapperFactory {
@@ -22,4 +23,5 @@ public:
 };
 
 }  // namespace request
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

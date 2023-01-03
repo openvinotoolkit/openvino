@@ -4,7 +4,10 @@
 
 #include "preprocessing.hpp"
 
-int16_t GNAPluginNS::ConvertFloatToInt16(float src) {
+namespace ov {
+namespace intel_gna {
+
+int16_t ConvertFloatToInt16(float src) {
     float rounding_value = (src > 0) ? 0.5f : -0.5f;
     float value = src + rounding_value;
     if (value > 32767.0) {
@@ -15,7 +18,7 @@ int16_t GNAPluginNS::ConvertFloatToInt16(float src) {
     return (int16_t)value;
 }
 
-int8_t GNAPluginNS::ConvertFloatToInt8(float src) {
+int8_t ConvertFloatToInt8(float src) {
     float rounding_value = (src > 0) ? 0.5f : -0.5f;
     float value = src + rounding_value;
     if (value > 127.0) {
@@ -26,15 +29,18 @@ int8_t GNAPluginNS::ConvertFloatToInt8(float src) {
     return (int8_t)value;
 }
 
-void GNAPluginNS::ConvertToInt16(int16_t *ptr_dst,
-                                 const float *ptr_src,
-                                 const uint32_t num_rows,
-                                 const uint32_t num_columns,
-                                 const float scale_factor) {
+void ConvertToInt16(int16_t* ptr_dst,
+                    const float* ptr_src,
+                    const uint32_t num_rows,
+                    const uint32_t num_columns,
+                    const float scale_factor) {
     if (!ptr_dst || !ptr_src) {
         return;
     }
-    for (uint32_t i = 0; i < num_rows*num_columns; i++) {
-        ptr_dst[i] = ConvertFloatToInt16(ptr_src[i]*scale_factor);
+    for (uint32_t i = 0; i < num_rows * num_columns; i++) {
+        ptr_dst[i] = ConvertFloatToInt16(ptr_src[i] * scale_factor);
     }
 }
+
+}  // namespace intel_gna
+}  // namespace ov

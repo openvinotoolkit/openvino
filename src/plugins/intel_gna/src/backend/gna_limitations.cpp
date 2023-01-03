@@ -15,11 +15,10 @@
 #include "gna_limitations.hpp"
 #include "gna/gna_config.hpp"
 
-using namespace ov::intel_gna;
-
-namespace GNAPluginNS {
-namespace GNALimitations {
-namespace Cnn2D {
+namespace ov {
+namespace intel_gna {
+namespace limitations {
+namespace cnn2d {
 
 bool IsEqualToLimit::isValid(const uint32_t val) const {
     return val == compared_value;
@@ -353,7 +352,7 @@ bool AbstractValidator::ValidationSuccesful(const bool throwOnError,
     return error.empty();
 }
 
-} // namespace Cnn2D
+}  // namespace cnn2d
 
 IE_SUPPRESS_DEPRECATED_START
 static bool ValidateConcatAxis(const InferenceEngine::CNNLayerPtr layer, std::string& errMessage) {
@@ -370,7 +369,7 @@ static bool ValidateConcatAxis(const InferenceEngine::CNNLayerPtr layer, std::st
         auto isFusableWithConv = [](InferenceEngine::CNNLayerPtr ptr) {
             return (LayerInfo(ptr).isFusableWithConv() || LayerInfo(ptr).isNonFunctional() ||
                 (LayerInfo(ptr).isPermute() && ((ptr->input()->getLayout() == InferenceEngine::Layout::NCHW &&
-                    ptr->GetParamAsInts("order") == GetPermuteOrder(InferenceEngine::Layout::NCHW, InferenceEngine::Layout::NHWC)) ||
+                    ptr->GetParamAsInts("order") == permute::GetPermuteOrder(InferenceEngine::Layout::NCHW, InferenceEngine::Layout::NHWC)) ||
                     (ptr->input()->getLayout() == InferenceEngine::Layout::CHW &&
                         ptr->GetParamAsInts("order") == std::vector<int32_t>{0, 2, 1} /* NCW to NWC */))));
         };
@@ -505,12 +504,12 @@ bool ValidateConvConcatAxis(const InferenceEngine::ConcatLayer* concat_layer) {
                     break;
 
                 // Convert dims to NHWC layout to allow later verification
-                auto new_order = GetPermuteOrder(concat_layout, InferenceEngine::Layout::NHWC);
+                auto new_order = permute::GetPermuteOrder(concat_layout, InferenceEngine::Layout::NHWC);
                 InferenceEngine::SizeVector new_dims;
                 for (size_t i = 0; i < dims_size; ++i) {
                     new_dims.push_back(in_dims[new_order[i]]);
                 }
-                concat_axis = GetPermuteOrder(InferenceEngine::Layout::NHWC, concat_layout)[concat_axis];
+                concat_axis = permute::GetPermuteOrder(InferenceEngine::Layout::NHWC, concat_layout)[concat_axis];
 
                 // Looking for any axis with dimension > 1 before concatentaion axis;
                 // in general such concatenation is unsupported
@@ -565,7 +564,7 @@ bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMe
                                            startLayer,
                                            [&](const InferenceEngine::CNNLayerPtr layer) {
                                                LayerInfo info(layer);
-                                               if (GNAPluginNS::LayerTypeFromStr(layer->type) == GNAPluginNS::LayerType::NO_TYPE) {
+                                               if (LayerTypeFromStr(layer->type) == LayerType::NO_TYPE) {
                                                    errMessage = "The plugin does not support layer: " + layer->name + ":" + layer->type + "\n";
                                                    check_result =  false;
                                                }
@@ -591,5 +590,6 @@ bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMe
 }
 IE_SUPPRESS_DEPRECATED_END
 
-} // namespace GNALimitations
-} // namespace GNAPluginNS
+}  // namespace limitations
+}  // namespace intel_gna
+}  // namespace ov

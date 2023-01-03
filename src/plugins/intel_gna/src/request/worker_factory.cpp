@@ -12,7 +12,8 @@
 #include "subrequest_impl.hpp"
 #include "worker_impl.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 namespace request {
 
 constexpr const uint32_t WorkerFactory::kFakeRequestID;
@@ -24,7 +25,7 @@ std::shared_ptr<Worker> WorkerFactory::createWorker(std::shared_ptr<ModelWrapper
 }
 
 std::shared_ptr<Worker> WorkerFactory::createWorkerFP32(std::shared_ptr<ModelWrapper> model,
-                                                        std::shared_ptr<GNAPluginNS::backend::AMIntelDNN> dnn) {
+                                                        std::shared_ptr<backend::AMIntelDNN> dnn) {
     return std::make_shared<WorkerImpl>(model, createModelSubrequestsFP32(std::move(dnn)));
 }
 
@@ -88,14 +89,14 @@ std::vector<std::shared_ptr<Subrequest>> WorkerFactory::createModelSubrequests(
 }
 
 std::vector<std::shared_ptr<Subrequest>> WorkerFactory::createModelSubrequestsFP32(
-    std::shared_ptr<GNAPluginNS::backend::AMIntelDNN> dnn) {
+    std::shared_ptr<backend::AMIntelDNN> dnn) {
     if (!dnn) {
         THROW_GNA_EXCEPTION << "dnn is nullptr";
     }
 
     std::vector<std::shared_ptr<Subrequest>> subrequests;
 
-    std::weak_ptr<GNAPluginNS::backend::AMIntelDNN> weak_dnn = dnn;
+    std::weak_ptr<backend::AMIntelDNN> weak_dnn = dnn;
 
     auto enqueFP32 = [weak_dnn]() -> uint32_t {
         if (auto dnn = weak_dnn.lock()) {
@@ -132,4 +133,5 @@ std::vector<std::shared_ptr<Subrequest>> WorkerFactory::createModelSubrequestsTr
 }
 
 }  // namespace request
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

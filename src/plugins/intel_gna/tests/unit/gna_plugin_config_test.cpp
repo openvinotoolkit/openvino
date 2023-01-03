@@ -9,7 +9,7 @@
 #include <map>
 
 using namespace InferenceEngine;
-using namespace GNAPluginNS;
+using namespace ov::intel_gna;
 
 IE_SUPPRESS_DEPRECATED_START
 const std::map<std::string, std::string>  supportedConfigKeysWithDefaults = {
