@@ -1,4 +1,4 @@
-# OpenVINO™ Deployment {#openvino_docs_deployment_guide_introduction}
+# Running and Deploying Inference {#openvino_docs_deployment_guide_introduction}
 
 @sphinxdirective
 
@@ -6,7 +6,7 @@
    :maxdepth: 1
    :hidden:
 
-   Deploy via OpenVINO Runtime <openvino_deployment_guide>
+   Run and Deploy Locally <openvino_deployment_guide>
    Deploy via Model Serving <ovms_what_is_openvino_model_server>
 
 @endsphinxdirective
