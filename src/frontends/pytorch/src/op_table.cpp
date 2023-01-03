@@ -42,6 +42,7 @@ OP_CONVERTER(translate_gelu);
 OP_CONVERTER(translate_group_norm);
 OP_CONVERTER(translate_hardtanh);
 OP_CONVERTER(translate_if);
+OP_CONVERTER(translate_im2col);
 OP_CONVERTER(translate_int);
 OP_CONVERTER(translate_layer_norm);
 OP_CONVERTER(translate_linear);
@@ -157,6 +158,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::hardtanh", op::translate_hardtanh},
         {"aten::hardtanh_", op::inplace_op<op::translate_hardtanh>},
         {"aten::Int", op::translate_int},
+        {"aten::im2col", op::translate_im2col},
         {"aten::is_grad_enabled", op::return_false_scalar},
         {"aten::layer_norm", op::translate_layer_norm},
         {"aten::leaky_relu", op::translate_1to1_match_2_inputs<opset8::PRelu>},

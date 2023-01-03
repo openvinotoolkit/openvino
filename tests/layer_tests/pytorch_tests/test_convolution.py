@@ -93,11 +93,11 @@ d1_params = [{'weights_shape': [3, 3, 2], 'strides': [1], 'pads': [0], 'dilation
 
 d3_params = [{'weights_shape': [3, 3, 2, 2, 1], 'strides': [1, 1, 1], 'pads': [0, 0, 0], 'dilations': [1, 1, 1], 'groups': 1, 'output_padding': [0, 0, 0], 'transposed': True},
              {'weights_shape': [3, 3, 2, 2, 1], 'strides': [1, 1, 1], 'pads': [0, 0, 0], 'dilations': [
-                 1, 1, 1], 'groups': 1, 'output_padding': [0, 0], 'transposed': False},
+                 1, 1, 1], 'groups': 1, 'output_padding': [0, 0, 0], 'transposed': False},
              {'weights_shape': [3, 1, 1, 1, 1], 'strides': [1, 1, 1], 'pads': [0, 0, 0], 'dilations': [
                  1, 1, 1], 'groups': 3, 'output_padding': [0, 0, 0], 'transposed': True},
              {'weights_shape': [3, 1, 1, 1, 1], 'strides': [1, 1, 1], 'pads': [0, 0, 0], 'dilations': [
-                 1, 1, 1], 'groups': 3, 'output_padding': [0, 0], 'transposed': False},
+                 1, 1, 1], 'groups': 3, 'output_padding': [0, 0, 0], 'transposed': False},
              {'weights_shape': [3, 1, 1, 1, 1], 'strides': [1, 1, 1], 'bias_shape': [1], 'pads': [
                  1, 1, 1], 'dilations': [1, 1, 1], 'groups': 1, 'output_padding': [0, 0, 0], 'transposed': True},
              {'weights_shape': [3, 3, 1, 1, 1], 'strides': [1, 1, 1], 'pads': [
