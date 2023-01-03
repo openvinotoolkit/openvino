@@ -69,6 +69,8 @@ protected:
     TelemetryExtension::Ptr m_telemetry;
     std::vector<DecoderTransformationExtension::Ptr> m_transformation_extensions;
     std::vector<ConversionExtensionBase::Ptr> m_conversion_extensions;
+
+    TranslatorDictionaryType m_op_translators;
 };
 
 }  // namespace tensorflow

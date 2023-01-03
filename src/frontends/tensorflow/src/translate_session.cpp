@@ -14,9 +14,9 @@ using namespace ov::frontend::tensorflow;
 TranslateSession::TranslateSession(const ov::frontend::InputModel::Ptr& input_model,
                                    const std::shared_ptr<TranslatorDictionaryType>& translator_map,
                                    const std::string& model_name,
-                                   bool failed_fast,
+                                   bool fail_fast,
                                    bool telemetry)
-    : m_failed_fast(failed_fast),
+    : m_fail_fast(fail_fast),
       m_telemetry(telemetry),
       m_input_model(input_model),
       m_translator_map(translator_map),
@@ -175,7 +175,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         try {
             if (m_translator_map->count(operation_type)) {
                 auto translator = m_translator_map->at(operation_decoder->get_op_type());
-                NodeContext node_context(this, operation_decoder, ov_inputs);
+                NodeContext node_context(operation_decoder, ov_inputs, this);
                 ov_outputs = translator(node_context);
                 is_converted = true;
             } else if (auto body_ov_model = get_body_ov_model(operation_type)) {
@@ -189,7 +189,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             }
             FRONT_END_OP_CONVERSION_CHECK(is_converted, "No translator found for " + operation_type + " node.");
         } catch (...) {
-            if (m_failed_fast) {
+            if (m_fail_fast) {
                 // in case of decode, unsupported operation will be converted to FrameworkNode
                 if (m_telemetry && !is_converted) {
                     // send event about which operation is not supported for conversion

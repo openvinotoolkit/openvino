@@ -48,7 +48,7 @@ void translate_framework_node(const std::shared_ptr<FrameworkNode>& node,
 }
 }  // namespace
 
-FrontEnd::FrontEnd() {}
+FrontEnd::FrontEnd() : m_op_translators(tensorflow::op::get_supported_ops()) {}
 
 /// \brief Check if FrontEndTensorflow can recognize model from given parts
 bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
@@ -127,25 +127,8 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
         return function;
     }
 
-    auto translator_map = std::make_shared<TranslatorDictionaryType>();
-    auto default_translator_map = tensorflow::op::get_supported_ops();
-    translator_map->insert(default_translator_map.begin(), default_translator_map.end());
-
-    // register custom conversion extensions
-    if (!m_conversion_extensions.empty()) {
-        auto& translator_map_ref = *translator_map;
-        for (const auto& conversion : m_conversion_extensions) {
-            if (auto common_conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(conversion)) {
-                translator_map_ref[common_conv_ext->get_op_type()] = [=](const NodeContext& context) {
-                    return common_conv_ext->get_converter()(context);
-                };
-            } else if (const auto& tensorflow_conv_ext = std::dynamic_pointer_cast<ConversionExtension>(conversion)) {
-                translator_map_ref[tensorflow_conv_ext->get_op_type()] = [=](const NodeContext& context) {
-                    return tensorflow_conv_ext->get_converter()(context);
-                };
-            }
-        }
-    }
+    // create a shared pointer to the cloned dictionary of translators
+    auto translator_map = std::make_shared<TranslatorDictionaryType>(m_op_translators);
 
     std::shared_ptr<ov::Model> f;
     TranslateSession translate_session(model, translator_map, "TensorFlow_Frontend_IR", true, m_telemetry != nullptr);
@@ -194,25 +177,8 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const ov::frontend::Input
         return function;
     }
 
-    auto translator_map = std::make_shared<TranslatorDictionaryType>();
-    auto default_translator_map = tensorflow::op::get_supported_ops();
-    translator_map->insert(default_translator_map.begin(), default_translator_map.end());
-
-    // register custom conversion extensions
-    if (!m_conversion_extensions.empty()) {
-        auto& translator_map_ref = *translator_map;
-        for (const auto& conversion : m_conversion_extensions) {
-            if (auto common_conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(conversion)) {
-                translator_map_ref[common_conv_ext->get_op_type()] = [=](const NodeContext& context) {
-                    return common_conv_ext->get_converter()(context);
-                };
-            } else if (const auto& tensorflow_conv_ext = std::dynamic_pointer_cast<ConversionExtension>(conversion)) {
-                translator_map_ref[tensorflow_conv_ext->get_op_type()] = [=](const NodeContext& context) {
-                    return tensorflow_conv_ext->get_converter()(context);
-                };
-            }
-        }
-    }
+    // create a shared pointer to the cloned dictionary of translators
+    auto translator_map = std::make_shared<TranslatorDictionaryType>(m_op_translators);
 
     std::shared_ptr<ov::Model> f;
     TranslateSession translate_session(model, translator_map, "TensorFlow_Frontend_IR", false, m_telemetry != nullptr);
@@ -237,11 +203,10 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const ov::frontend::Input
 
 std::shared_ptr<ov::Model> FrontEnd::decode(const ov::frontend::InputModel::Ptr& model) const {
     auto translator_map = std::make_shared<TranslatorDictionaryType>();
-    auto default_translator_map = tensorflow::op::get_supported_ops();
 
     const std::set<std::string> required_types{"Placeholder", "NoOp"};
     for (const auto& name : required_types) {
-        translator_map->emplace(name, default_translator_map.at(name));
+        translator_map->emplace(name, m_op_translators.at(name));
     }
 
     std::shared_ptr<ov::Model> f;
@@ -265,11 +230,9 @@ std::shared_ptr<ov::Model> FrontEnd::decode(const ov::frontend::InputModel::Ptr&
 }
 
 void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) const {
-    auto default_translator_map = tensorflow::op::get_supported_ops();
-
     for (const auto& node : partiallyConverted->get_ordered_ops()) {
         if (ov::is_type<FrameworkNode>(node)) {
-            translate_framework_node(std::dynamic_pointer_cast<FrameworkNode>(node), default_translator_map);
+            translate_framework_node(std::dynamic_pointer_cast<FrameworkNode>(node), m_op_translators);
         }
     }
     for (const auto& result : partiallyConverted->get_results()) {
@@ -304,7 +267,13 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
         m_extensions.push_back(so_ext);
     } else if (auto common_conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(common_conv_ext);
+        m_op_translators[common_conv_ext->get_op_type()] = [=](const NodeContext& context) {
+            return common_conv_ext->get_converter()(context);
+        };
     } else if (const auto& tensorflow_conv_ext = std::dynamic_pointer_cast<ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(tensorflow_conv_ext);
+        m_op_translators[tensorflow_conv_ext->get_op_type()] = [=](const NodeContext& context) {
+            return tensorflow_conv_ext->get_converter()(context);
+        };
     }
 }

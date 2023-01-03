@@ -22,6 +22,8 @@ class TensorflowFrontendWrapper : public ov::frontend::tensorflow::FrontEnd {
             EXPECT_NE(std::find(m_conversion_extensions.begin(), m_conversion_extensions.end(), conv_ext),
                       m_conversion_extensions.end())
                 << "ConversionExtension is not registered.";
+            EXPECT_NE(m_op_translators.find(conv_ext->get_op_type()), m_op_translators.end())
+                << conv_ext->get_op_type() << " translator is not registered.";
         } else if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
             EXPECT_EQ(m_telemetry, telemetry) << "TelemetryExtension is not registered.";
         } else if (auto transformation = std::dynamic_pointer_cast<DecoderTransformationExtension>(extension)) {

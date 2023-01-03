@@ -19,15 +19,9 @@ class TranslateSession;
 class NodeContext : public ov::frontend::NodeContext {
 public:
     using Ptr = std::shared_ptr<NodeContext>;
-    NodeContext(const std::shared_ptr<DecoderBase>& decoder, const OutputVector& inputs)
-        : ov::frontend::NodeContext(decoder->get_op_type()),
-          m_decoder(decoder),
-          m_translate_session(nullptr),
-          m_inputs(inputs) {}
-
-    NodeContext(TranslateSession* translate_session,
-                const std::shared_ptr<DecoderBase>& decoder,
-                const OutputVector& inputs)
+    NodeContext(const std::shared_ptr<DecoderBase>& decoder,
+                const OutputVector& inputs,
+                TranslateSession* translate_session = nullptr)
         : ov::frontend::NodeContext(decoder->get_op_type()),
           m_decoder(decoder),
           m_translate_session(translate_session),

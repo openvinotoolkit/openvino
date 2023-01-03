@@ -21,7 +21,7 @@ public:
     TranslateSession(const ov::frontend::InputModel::Ptr& input_model,
                      const std::shared_ptr<TranslatorDictionaryType>& translator_map,
                      const std::string& model_name,
-                     bool failed_fast,
+                     bool fail_fast,
                      bool telemetry);
     std::shared_ptr<ov::Model> get_converted_model();
     std::shared_ptr<TelemetryDataType> get_telemetry_data() const;
@@ -37,7 +37,7 @@ public:
 
 private:
     const ov::frontend::InputModel::Ptr m_input_model;
-    const bool m_failed_fast;
+    const bool m_fail_fast;
     const bool m_telemetry;
     const std::shared_ptr<TranslatorDictionaryType> m_translator_map;
     const std::string m_model_name;
