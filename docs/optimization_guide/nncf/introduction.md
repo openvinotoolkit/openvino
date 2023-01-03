@@ -46,7 +46,7 @@ To install the latest NNCF version from source follow the instruction on [GitHub
 ## Working with NNCF
 The figure below shows a common workflow of applying training-time compressions with NNCF. The NNCF optimizations are added to the TensorFlow or PyTorch training script, and then the model undergoes fine-tuning. The optimized model can then be exported to OpenVINO IR format for accelerated performance with OpenVINO Runtime.
 
-![](../../img/nncf_workflow.png)
+![](../../img/nncf_workflow.svg)
 
 
 ### Training-Time Compression Methods
