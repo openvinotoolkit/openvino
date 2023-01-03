@@ -21,8 +21,6 @@
 namespace ov {
 namespace frontend {
 namespace tensorflow {
-using CachedBodyModelsType = std::unordered_map<std::string, std::shared_ptr<const ov::Model>>;
-
 class TENSORFLOW_API FrontEnd : public ov::frontend::FrontEnd {
 public:
     using Ptr = std::shared_ptr<FrontEnd>;
@@ -68,18 +66,9 @@ protected:
 
     ov::frontend::InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const override;
 
-    void translate_graph(const ov::frontend::InputModel::Ptr& model,
-                         const std::string& model_name,
-                         bool fail_fast,
-                         bool no_conversion,
-                         std::shared_ptr<ov::Model>& ov_model,
-                         const std::shared_ptr<CachedBodyModelsType>& cached_body_models) const;
-
     TelemetryExtension::Ptr m_telemetry;
     std::vector<DecoderTransformationExtension::Ptr> m_transformation_extensions;
     std::vector<ConversionExtensionBase::Ptr> m_conversion_extensions;
-
-    TranslatorDictionaryType m_op_translators;
 };
 
 }  // namespace tensorflow

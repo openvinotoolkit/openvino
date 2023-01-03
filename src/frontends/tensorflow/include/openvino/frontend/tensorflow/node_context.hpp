@@ -12,6 +12,7 @@
 namespace ov {
 namespace frontend {
 namespace tensorflow {
+class TranslateSession;
 
 /// Keep necessary data for a single node in the original FW graph to facilitate
 /// conversion process in the rules code.
@@ -20,6 +21,15 @@ public:
     using Ptr = std::shared_ptr<NodeContext>;
     NodeContext(const std::shared_ptr<DecoderBase>& decoder, const OutputVector& inputs)
         : ov::frontend::NodeContext(decoder->get_op_type()),
+          m_translate_session(nullptr),
+          m_decoder(decoder),
+          m_inputs(inputs) {}
+
+    NodeContext(TranslateSession* translate_session,
+                const std::shared_ptr<DecoderBase>& decoder,
+                const OutputVector& inputs)
+        : ov::frontend::NodeContext(decoder->get_op_type()),
+          m_translate_session(translate_session),
           m_decoder(decoder),
           m_inputs(inputs) {}
 
@@ -51,10 +61,16 @@ public:
         return res;
     }
 
+    /// \brief Get a pointer to TranslateSession object
+    TranslateSession* get_translate_session() const {
+        return m_translate_session;
+    }
+
 private:
     ov::Any apply_additional_conversion_rules(const ov::Any& data, const std::type_info& type_info) const override;
 
     std::shared_ptr<DecoderBase> m_decoder;
+    TranslateSession* m_translate_session;
     const OutputVector& m_inputs;
 };
 

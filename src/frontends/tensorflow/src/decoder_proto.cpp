@@ -263,10 +263,7 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
                                 name,
                                 "' attribute is not supported.");
     case ::tensorflow::AttrValue::ValueCase::kFunc:
-        FRONT_END_GENERAL_CHECK(false,
-                                "Conversion from Tensorflow to OpenVINO data type failed: Function type for '",
-                                name,
-                                "' attribute is not supported.");
+        return attrs[0].func().name();
     default:
         FRONT_END_GENERAL_CHECK(false, "Conversion from Tensorflow to OpenVINO data type failed.");
     }
