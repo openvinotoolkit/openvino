@@ -444,30 +444,11 @@ void GNAPlugin::UpdateInputsAndOutputsInfoFromNetwork(InferenceEngine::CNNNetwor
     // update inputs
     {
         InputsDataMap network_inputs = network.getInputsInfo();
-
-        size_t id = 0;
         for (const auto& input : network_inputs) {
             (*inputs_ptr_)[input.first].Update(input.second);
-
-            // update scale factor from config
-            std::unordered_set<std::string> names((*inputs_ptr_)[input.first].tensor_names);
-            names.insert(input.first);
-            // to support the both legacy and 2.0 API we need to check all possible names in the configuration
-            auto sf_it = std::find_if(config.inputScaleFactorsPerInput.begin(), config.inputScaleFactorsPerInput.end(),
-                [&names](const std::pair<std::string, float> &sf_item) {
-                    return (std::count(names.begin(), names.end(), sf_item.first) == 1);
-            });
-
-            if (sf_it != config.inputScaleFactorsPerInput.end()) {
-                (*inputs_ptr_)[input.first].scale_factor = sf_it->second;
-            } else if (id < config.inputScaleFactors.size()) {
-                config.inputScaleFactorsPerInput[input.first] = config.inputScaleFactors[id];
-                (*inputs_ptr_)[input.first].scale_factor = config.inputScaleFactorsPerInput[input.first];
-            }
-
-            id++;
         }
     }
+
     // update outputs
     {
         OutputsDataMap outputs = network.getOutputsInfo();
@@ -814,6 +795,10 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
 
     // Set input and output information from orginal network
     UpdateInputsAndOutputsInfoFromNetwork(network);
+
+    // DEPRECATED: To be removed after fully switching to POT optimized models.
+    // Set Scale Factors for inputs according to configuration.
+    ov::intela_gna::helpers::ApplyInputScaleFactors(*inputs_ptr_, config);
 
     if (fake_quantized) {
         UpdateInputScaleFromNetwork(network);
@@ -1638,7 +1623,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
     SetNetworkInputs();
     SetNetworkOutputs();
 
-    ov::intela_gna::helpers::ApplyInputScaleFactors(config, header, *inputs_ptr_);
+    ov::intela_gna::helpers::ApplyInputScaleFactors(*inputs_ptr_, config, header);
 
     auto getOrientation = [](Gna2Operation& gnaOperation) {
         return gnaOperation.Type == Gna2OperationTypeConvolution ? kDnnNonInterleavedOrientation

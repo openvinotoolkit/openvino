@@ -20,9 +20,11 @@ namespace intela_gna {
  */
 namespace helpers {
 
-void ApplyInputScaleFactors(const GNAPluginNS::Config& config,
-                            const GNAPluginNS::HeaderLatest::ModelHeader& header,
-                            GNAPluginNS::GnaInputs& inputs);
+void ApplyInputScaleFactors(GNAPluginNS::GnaInputs& inputs,
+                            const GNAPluginNS::Config& config,
+                            const GNAPluginNS::HeaderLatest::ModelHeader& header);
+void ApplyInputScaleFactors(GNAPluginNS::GnaInputs& inputs,
+                            const GNAPluginNS::Config& config);
 
 }  // namespace helpers
 }  // namespace intela_gna
