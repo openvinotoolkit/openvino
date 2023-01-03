@@ -5,7 +5,7 @@ enable_testing()
 
 if(NOT MSVC)
     ie_add_compiler_flags(-Wno-missing-declarations)
-    ie_add_compiler_flags(-Wsign-compare)
+    ie_add_compiler_flags(-Wno-sign-compare)
     ie_add_compiler_flags(-Wno-odr)
     ie_add_compiler_flags(-Wno-all)
 endif()
