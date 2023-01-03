@@ -161,22 +161,40 @@ static void CreateConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ng
 
     auto strides = op->get_strides();
     auto pads_begin = op->get_pads_begin();
+    auto pads_end = op->get_pads_end();
+    auto output_padding = op->get_output_padding();
 
-    // Extend 1d vectors to 2d as 1d can't be handled properly by the graph optimizer for now
-    strides.resize(std::max<size_t>(2, strides.size()), 1);
-    pads_begin.resize(std::max<size_t>(2, pads_begin.size()), 0);
-
-    auto deconvPrim = cldnn::deconvolution(layerName,
-                                           inputs[0],
-                                           weights,
-                                           {},
-                                           1,
-                                           strides,
-                                           pads_begin,
-                                           tensor_from_dims(op->get_output_tensor(0).get_shape()),
-                                           weights_have_group_dim);
-
-    p.add_primitive(*op, deconvPrim);
+    if (!op->is_dynamic()) {
+        // Extend 1d vectors to 2d as 1d can't be handled properly by the graph optimizer for now
+        strides.resize(std::max<size_t>(2, strides.size()), 1);
+        dilations.resize(std::max<size_t>(2, strides.size()), 1);
+        pads_begin.resize(std::max<size_t>(2, pads_begin.size()), 0);
+        auto deconvPrim = cldnn::deconvolution(layerName,
+                                               inputs[0],
+                                               weights,
+                                               {},
+                                               1,
+                                               strides,
+                                               pads_begin,
+                                               dilations,
+                                               tensor_from_dims(op->get_output_tensor(0).get_shape()),
+                                               weights_have_group_dim);
+        p.add_primitive(*op, deconvPrim);
+    } else {
+        auto deconvPrim = cldnn::deconvolution(layerName,
+                                               inputs[0],
+                                               weights,
+                                               {},
+                                               1,
+                                               strides,
+                                               pads_begin,
+                                               dilations,
+                                               pads_begin,
+                                               pads_end,
+                                               output_padding,
+                                               weights_have_group_dim);
+        p.add_primitive(*op, deconvPrim);
+    }
 }
 
 static void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ngraph::op::v1::GroupConvolutionBackpropData>& op) {
@@ -233,6 +251,7 @@ static void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_p
                                            groups,
                                            strides,
                                            pads_begin,
+                                           dilations,
                                            tensor_from_dims(op->get_output_tensor(0).get_shape()),
                                            weights_have_group_dim);
 
