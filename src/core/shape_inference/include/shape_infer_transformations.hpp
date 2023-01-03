@@ -41,7 +41,7 @@ struct InTypeRange {
     constexpr InTypeRange() : m_range{std::numeric_limits<T>::min(), std::numeric_limits<T>::max()} {};
 
     template <class U>
-    constexpr T operator()(const U u) const {
+    T operator()(const U u) const {
         OPENVINO_ASSERT(cmp::le(m_range.first, u) && cmp::le(u, m_range.second),
                         "Value ",
                         u,
