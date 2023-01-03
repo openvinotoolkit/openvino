@@ -49,17 +49,11 @@ def parse_stats(stats: list, res: dict):
                     parse_stats(v, res)
 
 
-def aggregate_stats(stats: dict, args:dict):
+def aggregate_stats(stats: dict):
     """Aggregate provided statistics"""
-    agg_stats = {step_name: {"avg": statistics.mean(duration_list),
+    return {step_name: {"avg": statistics.mean(duration_list),
                         "stdev": statistics.stdev(duration_list) if len(duration_list) > 1 else 0}
             for step_name, duration_list in stats.items()}
-    if args["model_cache"]: # FIL-First Inference Latency
-        agg_stats['time_to_first_inference_result']={'avg': (agg_stats['time_to_inference']['avg']+agg_stats['first_inference']['avg']) / 10 **3}
-    else: #FEIL-First Ever Inference Latency
-        agg_stats['time_to_first_inference_result']={'avg': (agg_stats['time_to_inference']['avg']+agg_stats['first_inference']['avg']) / 10 **6}
-
-    return agg_stats
 
 
 def prepare_executable_cmd(args: dict):
@@ -115,7 +109,7 @@ def run_timetest(args: dict, log=None):
     filtered_stats = filter_timetest_result(stats)
 
     # Aggregate results
-    aggregated_stats = aggregate_stats(filtered_stats, args)
+    aggregated_stats = aggregate_stats(filtered_stats)
     log.debug(f"Aggregated statistics after full run: {aggregated_stats}")
 
     return 0, "", aggregated_stats, stats, logs
