@@ -9,6 +9,12 @@ main img {
 .doxyrest-title-code-block {
     margin-bottom: 0;
 }
+
+pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
 /* doc version dropdown formatting override*/
 
 [aria-labelledby="version-selector"]  {
