@@ -2,6 +2,10 @@
 
 version: 2
 updates:
+  #
+  # Python product dependencies
+  #
+
   # Python API requirements
   - package-ecosystem: pip
     directory: "/src/bindings/python/"
@@ -13,8 +17,7 @@ updates:
     assignees:
       - "jiwaszki"
       - "p-wysocki"
-    labels:
-      - "category: dependency_changes"
+      - "rkazants"
     versioning-strategy: increase-if-necessary
 
   # Model Optimizer requirements
@@ -33,8 +36,6 @@ updates:
     allow:
       - dependency-name: "*"
         dependency-type: "production"
-    labels:
-      - "category: dependency_changes"
     versioning-strategy: increase-if-necessary
 
   # POT requirements
@@ -50,21 +51,137 @@ updates:
       - "KodiaqQ"
       - "jiwaszki"
       - "p-wysocki"
-    labels:
-      - "category: dependency_changes"
+      - "rkazants"
     versioning-strategy: increase-if-necessary
 
-  # PaddlePaddle tests requirements
+  # benchmark_tool requirements
+  - package-ecosystem: pip
+    directory: "/tools/benchmark_tool"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Asia/Dubai"
+    open-pull-requests-limit: 3
+    assignees:
+      - "Wovchena"
+      - "jiwaszki"
+      - "p-wysocki"
+      - "rkazants"
+    versioning-strategy: increase-if-necessary
+
+  #
+  # Tests requirements for frontends
+  #
+
+  # PaddlePaddle FE tests requirements
   - package-ecosystem: pip
     directory: "/src/frontends/paddle/tests/"
     schedule:
       interval: "daily"
-      time: "17:40"
+      time: "09:00"
       timezone: "Asia/Shanghai"
     open-pull-requests-limit: 3
-    labels:
-      - "category: dependency_changes"
+    assignees:
+      - "ceciliapeng2011"
+      - "meiyang-intel"
+      - "jiwaszki"
+      - "p-wysocki"
+      - "rkazants"
     versioning-strategy: increase-if-necessary
+
+  # ONNX FE tests requirements
+  - package-ecosystem: pip
+    directory: "/src/frontends/onnx/tests/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Poland"
+    open-pull-requests-limit: 3
+    assignees:
+      - "mbencer"
+      - "tomdol"
+      - "jiwaszki"
+      - "p-wysocki"
+      - "rkazants"
+    versioning-strategy: increase-if-necessary
+
+  # TensorFlow FE tests requirements
+  - package-ecosystem: pip
+    directory: "/src/frontends/tensorflow/tests/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Asia/Dubai"
+    open-pull-requests-limit: 3
+    assignees:
+      - "rkazants"
+      - "jiwaszki"
+      - "p-wysocki"
+    versioning-strategy: increase-if-necessary
+
+  #
+  # Python Samples
+  #
+
+  - package-ecosystem: pip
+    directory: "/samples/python/hello_reshape_ssd/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Asia/Dubai"
+    open-pull-requests-limit: 3
+    assignees:
+      - "Wovchena"
+      - "jiwaszki"
+      - "p-wysocki"
+      - "rkazants"
+    versioning-strategy: increase-if-necessary
+
+  - package-ecosystem: pip
+    directory: "/samples/python/classification_sample_async/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Asia/Dubai"
+    open-pull-requests-limit: 3
+    assignees:
+      - "Wovchena"
+      - "jiwaszki"
+      - "p-wysocki"
+      - "rkazants"
+    versioning-strategy: increase-if-necessary
+
+  - package-ecosystem: pip
+    directory: "/samples/python/benchmark/bert_benchmark/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Asia/Dubai"
+    open-pull-requests-limit: 3
+    assignees:
+      - "Wovchena"
+      - "jiwaszki"
+      - "p-wysocki"
+      - "rkazants"
+    versioning-strategy: increase-if-necessary
+
+  - package-ecosystem: pip
+    directory: "/samples/python/hello_classification/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Asia/Dubai"
+    open-pull-requests-limit: 3
+    assignees:
+      - "Wovchena"
+      - "jiwaszki"
+      - "p-wysocki"
+      - "rkazants"
+    versioning-strategy: increase-if-necessary
+
+  #
+  # Github actions - CI
+  #
 
   # Github actions
   - package-ecosystem: github-actions
@@ -73,4 +190,7 @@ updates:
       interval: "daily"
       time: "09:00"
       timezone: "Asia/Dubai"
+    assignees:
+      - "ilyachur"
+      - "ilya-lavrenov"
     open-pull-requests-limit: 3
