@@ -69,7 +69,7 @@ TEST_F(BF16ShapeOfPath, smoke) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    CheckNodeRuntimePrecision(compiledModel, "Eltwise", InferenceEngine::Precision::FP32);
+    CheckNodeRuntimePrecision(compiledModel, "Subgraph", InferenceEngine::Precision::FP32);
 }
 
 } // namespace SubgraphTestsDefinitions
