@@ -2,7 +2,7 @@
 
 @sphinxdirective
 .. note::
-  * These steps apply to 32-bit Raspbian OS, which is an official OS for Raspberry Pi boards.
+  * These steps apply to Raspbian OS (the official OS for Raspberry Pi boards).
   * These steps have been validated with Raspberry Pi 3.
   * There is also an open-source version of OpenVINO™ that can be compiled for arch64 (see `build instructions <https://github.com/openvinotoolkit/openvino/wiki/BuildingForRaspbianStretchOS>`_).
 @endsphinxdirective
@@ -25,8 +25,8 @@
 
 .. tab:: Software Requirements
 
-  * CMake 3.7.2 or higher
-  * Python 3.7 - 3.10, 32-bit
+  * CMake 3.10 or higher
+  * Python 3.7 - 3.10
 
 @endsphinxdirective
 
@@ -99,7 +99,7 @@ Congratulations, you finished the installation! The `/opt/intel/openvino_2022` f
 
 ## <a name="install-external-dependencies"></a>Step 2: Install External Software Dependencies
 
-CMake version 3.7.2 or higher is required for building the OpenVINO™ toolkit sample application. To install, open a Terminal window and run the following command:
+CMake version 3.10 or higher is required for building the OpenVINO™ toolkit sample application. To install, open a Terminal window and run the following command:
 ```sh
 sudo apt install cmake
 ```
