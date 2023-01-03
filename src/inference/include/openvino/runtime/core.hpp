@@ -676,15 +676,6 @@ public:
     }
 
     /**
-     * @brief Creates a new remote shared context object on the specified meta device
-     * using user created context list
-     * @param device_name Name of a device to create a new shared context on.
-     * @param contexts Vector of user feeded context lists.
-     * @return Reference to a created remote context.
-     */
-    RemoteContext create_context(const std::string& device_name, const std::vector<RemoteContext>& contexts);
-
-    /**
      * @brief Gets a pointer to default (plugin-supplied) shared context object for the specified accelerator device.
      * @param device_name Name of a device to get a default shared context from.
      * @return Reference to a default remote context.

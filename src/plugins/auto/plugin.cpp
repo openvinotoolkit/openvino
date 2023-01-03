@@ -509,11 +509,11 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         SoExecutableNetworkInternal exec_net;
         LOG_DEBUG_TAG("load network to device:%s", deviceName.c_str());
         if (modelPath.empty()) {
-            std::pair<std::shared_ptr<RemoteContext>, std::shared_ptr<void>> tempCtx;
+            std::shared_ptr<RemoteContext> tempCtx;
             // check if device Config is needed, like the device ID information needed for multiple same type devices
             if (ctx && ctx->is<MultiRemoteContext>())
                 tempCtx = ctx->as<MultiRemoteContext>()->GetTargetContext(deviceName);
-            exec_net = tempCtx.first ? GetCore()->LoadNetwork(network, tempCtx.first, deviceConfig)
+            exec_net = tempCtx ? GetCore()->LoadNetwork(network, tempCtx, deviceConfig)
                                : GetCore()->LoadNetwork(network, deviceName, deviceConfig);
         } else if (GetCore()->DeviceSupportsImportExport(deviceName)) {
             exec_net = GetCore()->LoadNetwork(modelPath, deviceName, deviceConfig);
@@ -521,10 +521,10 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
             std::call_once(readNetworkFlag, [&]() {
                 network = GetCore()->ReadNetwork(modelPath, std::string());
             });
-            std::pair<std::shared_ptr<RemoteContext>, std::shared_ptr<void>> tempCtx;
+            std::shared_ptr<RemoteContext> tempCtx;
             if (ctx && ctx->is<MultiRemoteContext>())
                 tempCtx = ctx->as<MultiRemoteContext>()->GetTargetContext(deviceName);
-            exec_net = tempCtx.first ? GetCore()->LoadNetwork(network, tempCtx.first, deviceConfig)
+            exec_net = tempCtx ? GetCore()->LoadNetwork(network, tempCtx, deviceConfig)
                                : GetCore()->LoadNetwork(network, deviceName, deviceConfig);
         }
 
@@ -979,8 +979,13 @@ std::string MultiDeviceInferencePlugin::GetLogTag() const noexcept {
     return _LogTag;
 }
 
-RemoteContext::Ptr MultiDeviceInferencePlugin::CreateContext(const std::vector<RemoteContext::Ptr> contexts) {
-    MultiRemoteContext::Ptr multiRemoteContext = std::make_shared<MultiRemoteContext>(contexts);
+RemoteContext::Ptr MultiDeviceInferencePlugin::CreateContext(const InferenceEngine::ParamMap& config) {
+    MultiRemoteContext::Ptr multiRemoteContext = std::make_shared<MultiRemoteContext>();
+    auto cfg = config;
+    for (auto& it : config) {
+        auto val = it.second.as<RemoteContext::Ptr>();
+        multiRemoteContext->AddContext(val);
+    }
     return multiRemoteContext;
 }
 }  // namespace MultiDevicePlugin

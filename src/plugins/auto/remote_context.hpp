@@ -38,19 +38,21 @@ public:
         m_contexts = contexts;
     }
 
-    RemoteBlob::Ptr CreateBlob(const TensorDesc& tensorDesc, const ParamMap& params = {}, int index = 0) {
-        return m_contexts[index]->CreateBlob(tensorDesc, params);
-    }
-
     RemoteBlob::Ptr CreateBlob(const TensorDesc& tensorDesc, const ParamMap& params = {}) override {
+        if (isEmpty()) {
+            IE_THROW() << "no valid context available";
+        }
         return m_contexts[0]->CreateBlob(tensorDesc, params);
     }
 
     ParamMap getParams() const override {
+        if (isEmpty()) {
+            IE_THROW() << "no valid context available";
+        }
         return m_contexts[0]->getParams();
     }
 
-    std::pair<std::shared_ptr<RemoteContext>, std::shared_ptr<void>> GetTargetContext(const std::string deviceName) {
+    std::shared_ptr<RemoteContext> GetTargetContext(const std::string deviceName) {
         RemoteContext::Ptr res;
         DeviceIDParser parser(deviceName);
         std::string deviceIDLocal = parser.getDeviceID();
@@ -62,7 +64,7 @@ public:
                 break;
             }
         }
-        return {res, m_libs[res->getDeviceName()]};
+        return res;
     }
 
     bool isEmpty() const {
@@ -74,10 +76,9 @@ public:
         return deviceName;
     };
 
-    void AddContext(RemoteContext::Ptr hwcontext, std::shared_ptr<void> deplib) {
+    void AddContext(RemoteContext::Ptr hwcontext) {
         if (hwcontext) {
             m_contexts.push_back(hwcontext);
-            m_libs[hwcontext->getDeviceName()] = deplib;
         }
     }
 
@@ -86,8 +87,7 @@ public:
     }
 
 private:
-    std::vector<RemoteContext::Ptr> m_contexts {nullptr};
-    std::map<std::string, std::shared_ptr<void>> m_libs;
+    std::vector<RemoteContext::Ptr> m_contexts;
     std::string m_default_device_id = "0";
 };
 }  // namespace MultiDevicePlugin

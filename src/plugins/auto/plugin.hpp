@@ -61,7 +61,7 @@ public:
                                                  unsigned int priority = 0);
     void UnregisterPriority(const unsigned int& priority, const std::string& deviceName);
     void RegisterPriority(const unsigned int& priority, const std::string& deviceName);
-    InferenceEngine::RemoteContext::Ptr CreateContext(const std::vector<InferenceEngine::RemoteContext::Ptr>) override;
+    InferenceEngine::RemoteContext::Ptr CreateContext(const ParamMap& params) override;
 
 protected:
     std::map<std::string, std::string> GetSupportedConfig(const std::map<std::string, std::string>& config,

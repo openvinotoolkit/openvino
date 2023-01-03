@@ -56,11 +56,11 @@ int main(int argc, char* argv[]) {
         }
         // parse the devices
         std::string device = argv[2];
-        if (device.find("CPU") != std::string::npos) {
-            slog::info << "for remote tensor usage, does not support CPU in device list";
+        std::vector<std::string> hwtargets = parseDevices(device);
+        if (hwtargets.size() == 1 && hwtargets.back().find("CPU") != std::string::npos) {
+            slog::info << "for remote tensor usage, does not support CPU only" << slog::endl;
             return EXIT_FAILURE;
         }
-        std::vector<std::string> hwtargets = parseDevices(device);
         bool isMulti = device.find("MULTI") != std::string::npos;
         // Create ov::Core and use it to compile a model.
         // Pick a device by replacing CPU, for example MULTI:CPU(4),GPU(8).
@@ -73,6 +73,10 @@ int main(int argc, char* argv[]) {
         cl_int err;
         std::vector<ov::RemoteContext> remote_contexts;
         for (auto iter = hwtargets.begin(); iter != hwtargets.end();) {
+            if ((*iter).find("CPU") != std::string::npos) {
+                iter++;
+                continue;
+            }
             std::string deviceid = "0";
             auto pos = (*iter).find('.');
             if (pos != std::string::npos) {
@@ -91,9 +95,14 @@ int main(int argc, char* argv[]) {
         auto model = core.read_model(argv[1]);
 
         ov::RemoteContext multi_context;
-        if (isMulti)
-            multi_context = core.create_context("MULTI", remote_contexts);
-        ov::AnyMap loadConfig = {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)};
+        if (isMulti) {
+            ov::AnyMap context_list;
+            for (auto& iter : remote_contexts) {
+                context_list.insert({iter.get_device_name(), iter});
+            }
+            multi_context = core.create_context("MULTI", context_list);
+        }
+        ov::AnyMap loadConfig = {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)};
         if (isMulti) {
             std::string devicepriority;
             for (auto iter = hwtargets.begin(); iter != hwtargets.end(); iter++) {
