@@ -14,6 +14,10 @@ footer div.container div.footer-item p:nth-child(2) {
 .switcher-set {
     margin-bottom:1rem;
 }
+pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
 
 main img {
     cursor: pointer;
