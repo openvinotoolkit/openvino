@@ -1,24 +1,26 @@
 trigger:
   branches:
     include:
-    - master
-    - releases/*
+    - 'master'
+    - 'releases/*'
   paths:
     exclude:
-    - /**/docs/*
-    - /**/*.md
-    - /**/layer_tests_summary/**
+    - '*/docs/*'
+    - '*/*.md'
+    - '*/layer_tests_summary/*'
+    - '*/conformance/*'
 
 pr:
   branches:
     include:
-    - master
-    - releases/*
+    - 'master'
+    - 'releases/*'
   paths:
     exclude:
-    - /**/docs/*
-    - /**/*.md
-    - /**/layer_tests_summary/**
+    - '*/docs/*'
+    - '*/*.md'
+    - '*/layer_tests_summary/*'
+    - '*/conformance/*'
 
 resources:
   repositories:
