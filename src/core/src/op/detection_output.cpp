@@ -37,7 +37,7 @@ void ov::op::v0::DetectionOutput::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this, m_attrs.num_classes > 0, "Number of classes must be greater than zero");
     validate_base(m_attrs);
     std::vector<ov::PartialShape> input_shapes;
-    for (auto input_idx = 0; input_idx < get_input_size(); input_idx++)
+    for (size_t input_idx = 0; input_idx < get_input_size(); input_idx++)
         input_shapes.push_back(get_input_partial_shape(input_idx));
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
 
@@ -100,7 +100,7 @@ void ov::op::v8::DetectionOutput::validate_and_infer_types() {
     OV_OP_SCOPE(v8_DetectionOutput_validate_and_infer_types);
     validate_base(m_attrs);
     std::vector<ov::PartialShape> input_shapes;
-    for (auto input_idx = 0; input_idx < get_input_size(); input_idx++)
+    for (size_t input_idx = 0; input_idx < get_input_size(); input_idx++)
         input_shapes.push_back(get_input_partial_shape(input_idx));
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
 
