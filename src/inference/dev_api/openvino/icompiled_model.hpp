@@ -27,6 +27,8 @@ class Core;
 namespace ov {
 
 class IPlugin;
+class ICompiledModel;
+class ExecNetworkWrapper;
 
 OPENVINO_RUNTIME_API std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> convert_compiled_model_to_legacy(
     const std::shared_ptr<ov::ICompiledModel>& model);
@@ -67,6 +69,7 @@ private:
     std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> m_exec_network;
 
     friend IPlugin;
+    friend ExecNetworkWrapper;
     friend InferenceEngine::Core;
     friend OPENVINO_RUNTIME_API std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
     convert_compiled_model_to_legacy(const std::shared_ptr<ov::ICompiledModel>& model);

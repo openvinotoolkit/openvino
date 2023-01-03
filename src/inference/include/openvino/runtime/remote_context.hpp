@@ -30,6 +30,7 @@ class CoreImpl;
 class ICompiledModel;
 class CompiledModel;
 class IPlugin;
+class ExecNetworkWrapper;
 
 /**
  * @brief This class represents an abstraction
@@ -57,6 +58,7 @@ protected:
     friend class ov::ICompiledModel;
     friend class ov::CompiledModel;
     friend class ov::IPlugin;
+    friend class ov::ExecNetworkWrapper;
 
 public:
     /**

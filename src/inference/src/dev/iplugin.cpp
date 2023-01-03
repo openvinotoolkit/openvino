@@ -10,66 +10,28 @@
 
 #include <ie_icnn_network.hpp>
 #include <ie_precision.hpp>
+#include <ie_preprocess.hpp>
 #include <memory>
+#include <openvino/core/layout.hpp>
+#include <openvino/core/preprocess/color_format.hpp>
+#include <openvino/core/preprocess/pre_post_process.hpp>
+#include <openvino/core/preprocess/resize_algorithm.hpp>
+#include <sstream>
+#include <vector>
 
 #include "any_copy.hpp"
 #include "cnn_network_ngraph_impl.hpp"
+#include "converter_utils.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "ie_icore.hpp"
+#include "ie_ngraph_utils.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/icompiled_model.hpp"
 #include "threading/ie_executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
-
-namespace {
-
-InferenceEngine::CNNNetwork create_cnnnetwork(const std::shared_ptr<const ov::Model>& model, bool is_new_api) {
-    auto network = InferenceEngine::CNNNetwork(std::shared_ptr<InferenceEngine::ICNNNetwork>(
-        new InferenceEngine::details::CNNNetworkNGraphImpl(model->clone(), {}, is_new_api)));
-    std::shared_ptr<ov::Model> cloned_model = network.getFunction();
-    for (auto&& input : cloned_model->inputs()) {
-        auto param_name = input.get_node()->get_friendly_name();
-
-        OPENVINO_ASSERT(network.getInputsInfo().find(param_name) != network.getInputsInfo().end());
-
-        auto input_info = network.getInputsInfo()[param_name];
-        auto& rt_info = input.get_rt_info();
-        auto it = rt_info.find("ie_legacy_preproc");
-        if (it != rt_info.end()) {
-            input_info->getPreProcess() = it->second.as<InferenceEngine::PreProcessInfo>();
-            rt_info.erase(it);
-        }
-        it = rt_info.find("ie_legacy_td");
-        if (it != rt_info.end()) {
-            auto td = it->second.as<InferenceEngine::TensorDesc>();
-            input_info->getInputData()->reshape(td.getDims(), td.getLayout());
-            input_info->setPrecision(td.getPrecision());
-            rt_info.erase(it);
-        }
-    }
-    for (auto&& result : cloned_model->get_results()) {
-        auto output = result->input_value(0);
-        const auto& res_name = ov::op::util::create_ie_output_name(output);
-
-        OPENVINO_ASSERT(network.getOutputsInfo().find(res_name) != network.getOutputsInfo().end());
-        auto output_info = network.getOutputsInfo()[res_name];
-
-        auto& rt_info = output.get_rt_info();
-        auto it = rt_info.find("ie_legacy_td");
-        if (it != rt_info.end()) {
-            auto td = it->second.as<InferenceEngine::TensorDesc>();
-            output_info->reshape(td.getDims(), td.getLayout());
-            output_info->setPrecision(td.getPrecision());
-            rt_info.erase(it);
-        }
-    }
-    return network;
-}
-
-}  // namespace
 
 ov::IPlugin::IPlugin() : m_executor_manager(InferenceEngine::executorManager()), m_is_new_api(true) {}
 
@@ -107,7 +69,8 @@ const std::string& ov::IPlugin::get_name() const {
 std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                                const ov::AnyMap& properties) {
     if (old_plugin) {
-        auto exec_network = old_plugin->LoadNetwork(create_cnnnetwork(model, is_new_api()), any_copy(properties));
+        auto exec_network =
+            old_plugin->LoadNetwork(ov::legacy_convert::create_cnnnetwork(model, is_new_api()), any_copy(properties));
         auto compiled_model = std::make_shared<ov::ICompiledModel>(exec_network);
         return compiled_model;
     }
@@ -120,49 +83,109 @@ std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model(const std::shared
     std::shared_ptr<ICompiledModel> compiled_model;
     if (old_plugin) {
         auto compiled_model = std::make_shared<ov::ICompiledModel>(
-            old_plugin->LoadNetwork(create_cnnnetwork(model, is_new_api()), any_copy(properties), context._impl));
+            old_plugin->LoadNetwork(ov::legacy_convert::create_cnnnetwork(model, is_new_api()),
+                                    any_copy(properties),
+                                    context._impl));
         return compiled_model;
     }
     std::shared_ptr<ov::Model> cloned_model = model->clone();
-    // Instead of:
-    // function = std::make_shared<ov::Model>(orig_function->get_results(),
-    //                                        orig_function->get_sinks(),
-    //                                        orig_function->get_parameters(),
-    //                                        orig_function->get_variables(),
-    //                                        orig_function->get_friendly_name());
-    // function->get_rt_info() = orig_function->get_rt_info();
 
     if (!is_new_api()) {
         // if IR `version` is not set, suppose it's IR v10 for old API
         // it allows to use operation names in set_ / get_tensor instead of tensor_names
         if (!cloned_model->has_rt_info("version")) {
             cloned_model->set_rt_info(int64_t(10), "version");
-
-            // re-create `network` with new patched `function`
-            // TODO: Implement this logic
-            // using namespace InferenceEngine;
+            // // re-create `network` with new patched `function`
             // OPENVINO_SUPPRESS_DEPRECATED_START
-            // const auto& orig_icnn = static_cast<const ICNNNetwork&>(orig_network);
-            // auto orig_impl =
-            //     std::dynamic_pointer_cast<const details::CNNNetworkNGraphImpl>(orig_icnn.shared_from_this());
-            // OPENVINO_ASSERT(orig_impl != nullptr,
-            //                 "Internal: orig_impl must be castable to details::CNNNetworkNGraphImpl");
-            // auto new_impl =
-            //     std::make_shared<details::CNNNetworkNGraphImpl>(function, orig_impl->getExtensions(), IsNewAPI());
-            // network = CNNNetwork(new_impl);
-            // for (const auto& inputInfo : orig_network.getInputsInfo()) {
-            //     auto toInfo = network.getInputsInfo().at(inputInfo.first);
-            //     toInfo->setPrecision(inputInfo.second->getPrecision());
-            //     toInfo->setLayout(inputInfo.second->getLayout());
-            //     toInfo->getPreProcess() = inputInfo.second->getPreProcess();
-            // }
-            // for (const auto& outputInfo : orig_network.getOutputsInfo()) {
-            //     auto toInfo = network.getOutputsInfo().at(outputInfo.first);
-            //     toInfo->setPrecision(outputInfo.second->getPrecision());
-            //     toInfo->setLayout(outputInfo.second->getLayout());
-            // }
+            // auto new_impl = std::make_shared<InferenceEngine::details::CNNNetworkNGraphImpl>(
+            //     cloned_model,
+            //     std::vector<InferenceEngine::IExtensionPtr>{},
+            //     IsNewAPI());
+            // auto network = InferenceEngine::CNNNetwork(new_impl);
+            // cloned_model = network.getFunction();
             // OPENVINO_SUPPRESS_DEPRECATED_END
         }
+
+        // Add pre-processing
+        ov::preprocess::PrePostProcessor preproc(cloned_model);
+
+        for (size_t i = 0; i < cloned_model->inputs().size(); i++) {
+            ov::Output<const ov::Node> input{cloned_model->input(i).get_node(), cloned_model->input(i).get_index()};
+            InferenceEngine::InputInfo::Ptr input_info;
+            // I don't remove rt info to have information in InputsInfo about pre-processing in legacy
+            // ExecutableNetwork
+            ov::legacy_convert::fill_input_info(input, input_info);
+            if (input_info) {
+                preproc.input(i).tensor().set_element_type(
+                    InferenceEngine::details::convertPrecision(input_info->getPrecision()));
+                std::stringstream stream;
+                stream << input_info->getLayout();
+                preproc.input(i).tensor().set_layout(ov::Layout{stream.str()});
+
+                auto& preProc = input_info->getPreProcess();
+
+                // Resize
+                switch (preProc.getResizeAlgorithm()) {
+                case InferenceEngine::ResizeAlgorithm::RESIZE_AREA:
+                    preproc.input(i).preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_NEAREST);
+                    break;
+                case InferenceEngine::ResizeAlgorithm::RESIZE_BILINEAR:
+                    preproc.input(i).preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
+                    break;
+                default:
+                    // nothing to do
+                    break;
+                }
+
+                switch (preProc.getColorFormat()) {
+                case InferenceEngine::RGB:
+                    preproc.input(i).preprocess().convert_color(ov::preprocess::ColorFormat::RGB);
+                    break;
+                case InferenceEngine::RGBX:
+                    preproc.input(i).preprocess().convert_color(ov::preprocess::ColorFormat::RGBX);
+                    break;
+                case InferenceEngine::BGR:
+                    preproc.input(i).preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
+                    break;
+                case InferenceEngine::BGRX:
+                    preproc.input(i).preprocess().convert_color(ov::preprocess::ColorFormat::BGRX);
+                    break;
+                default:
+                    // nothing to do
+                    break;
+                }
+
+                switch (preProc.getMeanVariant()) {
+                case InferenceEngine::MEAN_IMAGE: {
+                    std::vector<float> scale;
+                    std::vector<InferenceEngine::Blob::Ptr> data;
+                    for (size_t i = 0; i < preProc.getNumberOfChannels(); i++) {
+                        data.emplace_back(preProc[i]->meanData);
+                        scale.emplace_back(preProc[i]->stdScale);
+                    }
+                    OPENVINO_NOT_IMPLEMENTED;
+                    preproc.input(i).preprocess().scale(scale).custom([](const ov::Output<ov::Node>& node) {
+                        // Custom nodes can be inserted as Pre-processing steps
+                        return std::make_shared<ov::opset8::Abs>(node);
+                    });
+                    break;
+                }
+                case InferenceEngine::MEAN_VALUE: {
+                    std::vector<float> mean, scale;
+                    for (size_t i = 0; i < preProc.getNumberOfChannels(); i++) {
+                        mean.emplace_back(preProc[i]->meanValue);
+                        scale.emplace_back(preProc[i]->stdScale);
+                    }
+                    preproc.input(i).preprocess().mean(mean).scale(scale);
+                    break;
+                }
+                default:
+                    // nothing to do
+                    break;
+                }
+            }
+        }
+        cloned_model = preproc.build();
     }
 
     if (!context._impl) {
@@ -276,7 +299,8 @@ const std::shared_ptr<InferenceEngine::ExecutorManager>& ov::IPlugin::get_execut
 ov::SupportedOpsMap ov::IPlugin::query_model(const std::shared_ptr<const ov::Model>& model,
                                              const ov::AnyMap& properties) const {
     if (old_plugin) {
-        auto res = old_plugin->QueryNetwork(create_cnnnetwork(model, is_new_api()), any_copy(properties));
+        auto res =
+            old_plugin->QueryNetwork(ov::legacy_convert::create_cnnnetwork(model, is_new_api()), any_copy(properties));
         if (res.rc != InferenceEngine::OK) {
             throw ov::Exception(res.resp.msg);
         }
