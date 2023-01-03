@@ -6,7 +6,9 @@ trigger:
   paths:
     exclude:
     - '*/docs/*'
+    - 'docs/*'
     - '*/*.md'
+    - '*.md'
     - '*/layer_tests_summary/*'
     - '*/conformance/*'
 
@@ -15,11 +17,12 @@ pr:
     include:
     - 'master'
     - 'releases/*'
-    - 'update-azure-ci'
   paths:
     exclude:
     - '*/docs/*'
+    - 'docs/*'
     - '*/*.md'
+    - '*.md'
     - '*/layer_tests_summary/*'
     - '*/conformance/*'
 

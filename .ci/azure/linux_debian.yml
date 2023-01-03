@@ -6,7 +6,9 @@ trigger:
   paths:
     exclude:
     - '*/docs/*'
+    - 'docs/*'
     - '*/*.md'
+    - '*.md'
     - '*/layer_tests_summary/*'
     - '*/conformance/*'
 
@@ -18,7 +20,9 @@ pr:
   paths:
     exclude:
     - '*/docs/*'
+    - 'docs/*'
     - '*/*.md'
+    - '*.md'
     - '*/layer_tests_summary/*'
     - '*/conformance/*'
 
