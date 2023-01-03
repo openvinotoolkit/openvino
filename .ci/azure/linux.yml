@@ -15,6 +15,7 @@ pr:
     include:
     - 'master'
     - 'releases/*'
+    - 'update-azure-ci'
   paths:
     exclude:
     - '*/docs/*'
