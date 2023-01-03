@@ -19,6 +19,7 @@ OP_CONVERTER(translate_adaptive_max_pool2d);
 OP_CONVERTER(translate_add);
 OP_CONVERTER(translate_addcmul);
 OP_CONVERTER(translate_addmm);
+OP_CONVERTER(translate_arange);
 OP_CONVERTER(translate_as_tensor);
 OP_CONVERTER(translate_avg_pool2d);
 OP_CONVERTER(translate_batch_norm);
@@ -106,6 +107,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::add_", op::inplace_op<op::translate_add>},
         {"aten::addcmul", op::translate_addcmul},
         {"aten::addmm", op::translate_addmm},
+        {"aten::arange", op::translate_arange},
         {"aten::asin", op::translate_1to1_match_1_inputs<opset8::Asin>},
         {"aten::asin_", op::inplace_op<op::translate_1to1_match_1_inputs<opset8::Asin>>},
         {"aten::asinh", op::translate_1to1_match_1_inputs<opset8::Asinh>},
@@ -220,6 +222,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::tan_", op::inplace_op<op::translate_1to1_match_1_inputs<opset8::Tan>>},
         {"aten::tanh", op::translate_1to1_match_1_inputs<opset8::Tanh>},
         {"aten::tanh_", op::inplace_op<op::translate_1to1_match_1_inputs<opset8::Tanh>>},
+        {"aten::tensor", op::translate_as_tensor},
         {"aten::type_as",
          op::translate_1to1_match_2_inputs<opset8::ConvertLike>},  // TODO: overflow semantics is different
         {"aten::to", op::translate_to},

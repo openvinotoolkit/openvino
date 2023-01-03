@@ -105,7 +105,7 @@ class PytorchLayerTest:
                         assert ov_tensor == fw_tensor
                     assert type(fw_tensor) == type(ov_tensor)
                 continue
-            assert torch.tensor(np.array(ov_tensor)).dtype == fw_tensor.dtype
+            assert torch.tensor(np.array(ov_tensor)).dtype == fw_tensor.dtype, f"dtype validation failed: {torch.tensor(np.array(ov_tensor)).dtype} != {fw_tensor.dtype}"
 
         if 'custom_eps' in kwargs and kwargs['custom_eps'] is not None:
             custom_eps = kwargs['custom_eps']
